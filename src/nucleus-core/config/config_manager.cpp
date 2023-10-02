@@ -1,5 +1,6 @@
 #include "config_manager.h"
-
+#include "config_reader.h"
+#include "transaction_log.h"
 #include "data/environment.h"
 #include "util.h"
 #include <utility>
@@ -60,20 +61,18 @@ namespace config {
                 }
             }
         }
-        guard.release();
-        for(const auto &i : structs) {
+        guard.unlock();
+        for (auto const &i: structs) {
             i->rootsCheck(target);
         }
     }
 
-    void Topics::addWatcher(const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
+    void Topics::addWatcher(const std::shared_ptr<Watcher> &watcher, WhatHappened reasons) {
         addWatcher({}, watcher, reasons);
     }
 
-    void Topics::addWatcher(
-        data::StringOrd key, const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons
-    ) {
-        data::StringOrd normKey = Element::getKey(_environment, key);
+    void Topics::addWatcher(data::StringOrd subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons) {
+        data::StringOrd normKey = Element::getKey(_environment, subKey);
         std::unique_lock guard{_mutex};
         // opportunistic check if any watches need deleting - number of watches
         // expected to be small, number of expired watches rare, algorithm for
@@ -86,7 +85,15 @@ namespace config {
             }
         }
         // add new watcher
-        _watching.emplace_back(normKey, watcher, reasons);
+         _watching.emplace_back(normKey, watcher,reasons);
+        // first call
+        guard.unlock();
+        watcher->initialized(ref<Topics>(), subKey, reasons);
+    }
+
+    Topic& Topic::addWatcher(const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
+        _parent->addWatcher(_value.getNameOrd(), watcher, reasons);
+        return *this;
     }
 
     bool Topics::hasWatchers() const {
@@ -291,12 +298,24 @@ namespace config {
         }
     }
 
+<<<<<<< HEAD
     Topic &Topic::withNewerValue(
         const config::Timestamp &proposedModTime,
         data::ValueType proposed,
         bool allowTimestampToDecrease,
         bool allowTimestampToIncreaseWhenValueHasntChanged
     ) {
+=======
+    Topic & Topic::dflt(data::ValueType defVal) {
+        if (!_value) {
+            withNewerValue(Timestamp::never(), std::move(defVal), true);
+        }
+        return *this;
+    }
+
+    Topic & Topic::withNewerValue(const config::Timestamp &proposedModTime, data::ValueType proposed,
+                                  bool allowTimestampToDecrease, bool allowTimestampToIncreaseWhenValueHasntChanged) {
+>>>>>>> 3fc2320 (Nucleus bootup-and-read-config procedure ported from GG-Java)
         // Logic tracks that in GG-Java
         data::ValueType currentValue = _value.get();
         data::ValueType newValue = std::move(proposed);
@@ -337,4 +356,26 @@ namespace config {
         return *this;
     }
 
+<<<<<<< HEAD
 } // namespace config
+=======
+    Manager & Manager::read(const std::filesystem::path &path) {
+        std::string ext = util::lower(path.extension().generic_string());
+        Timestamp timestamp {std::filesystem::last_write_time(path)};
+
+        if (ext == ".yaml" || ext == ".yml") {
+            YamlReader reader {_environment, _root, timestamp};
+            reader.read(path);
+        } else if (ext == ".tlog" || ext == ".tlog~") {
+            //config::TlogReader::mergeTLogInto()
+            throw std::runtime_error("Tlog config type not yet implemented");
+        } else if (ext == ".json") {
+            throw std::runtime_error("Json config type not yet implemented");
+        } else {
+            throw std::runtime_error(std::string("Unsupported extension type: ") + ext);
+        }
+        return *this;
+    }
+
+}
+>>>>>>> 3fc2320 (Nucleus bootup-and-read-config procedure ported from GG-Java)

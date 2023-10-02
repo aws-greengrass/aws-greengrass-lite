@@ -1,6 +1,10 @@
 #include "config_reader.h"
 #include "data/environment.h"
+<<<<<<< HEAD
 #include <filesystem>
+=======
+#include "data/shared_list.h"
+>>>>>>> 3fc2320 (Nucleus bootup-and-read-config procedure ported from GG-Java)
 #include <fstream>
 #include <memory>
 
@@ -30,6 +34,7 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
+<<<<<<< HEAD
     void YamlReader::inplaceValue(
         const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
     ) {
@@ -61,8 +66,42 @@ namespace config {
     void YamlReader::inplaceScalarValue(
         const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
     ) {
+=======
+    void YamlReader::inplaceValue(const std::shared_ptr<Topics> & topics, const std::string & key, YAML::Node & node) {
+        switch (node.Type()) {
+            case YAML::NodeType::Map:
+                nestedMapValue(topics, key, node);
+                break;
+            case YAML::NodeType::Sequence:
+            case YAML::NodeType::Scalar:
+            case YAML::NodeType::Null:
+                inplaceTopicValue(topics, key, rawValue(node));
+                break;
+            default:
+                // ignore anything else
+                break;
+        }
+    }
+
+    // NOLINTNEXTLINE(*-no-recursion)
+    data::ValueType YamlReader::rawValue(YAML::Node & node) {
+        switch (node.Type()) {
+            case YAML::NodeType::Map:
+                return rawMapValue(node);
+            case YAML::NodeType::Sequence:
+                return rawSequenceValue(node);
+            case YAML::NodeType::Scalar:
+                return node.as<std::string>();
+            default:
+                break;
+        }
+        return {};
+    }
+
+    void YamlReader::inplaceTopicValue(const std::shared_ptr<Topics> & topics, const std::string & key, const data::ValueType & vt) {
+>>>>>>> 3fc2320 (Nucleus bootup-and-read-config procedure ported from GG-Java)
         Topic topic = topics->createChild(key, _timestamp);
-        topic.withNewerValue(_timestamp, node.as<std::string>());
+        topic.withNewerValue(_timestamp, vt);
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
@@ -74,9 +113,29 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
+<<<<<<< HEAD
     void YamlReader::inplaceSequenceValue(
         const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
     ) {
         throw std::runtime_error("Cannot handle sequences yet");
+=======
+    data::ValueType YamlReader::rawSequenceValue(YAML::Node &node) {
+        std::shared_ptr<data::SharedList> newList { std::make_shared<data::SharedList>(_environment) };
+        int idx = 0;
+        for (auto i : node) {
+            newList->put(idx++, data::StructElement(rawValue(i)));
+        }
+        return newList;
+    }
+
+    // NOLINTNEXTLINE(*-no-recursion)
+    data::ValueType YamlReader::rawMapValue(YAML::Node &node) {
+        std::shared_ptr<data::SharedStruct> newMap { std::make_shared<data::SharedStruct>(_environment) };
+        for (auto i : node) {
+            auto key = i.first.as<std::string>();
+            newMap->put(key, data::StructElement(rawValue(node)));
+        }
+        return newMap;
+>>>>>>> 3fc2320 (Nucleus bootup-and-read-config procedure ported from GG-Java)
     }
 } // namespace config

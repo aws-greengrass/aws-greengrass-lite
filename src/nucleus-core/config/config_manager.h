@@ -5,6 +5,8 @@
 #include "data/shared_struct.h"
 #include "data/string_table.h"
 #include "tasks/expire_time.h"
+#include "data/safe_handle.h"
+#include "watcher.h"
 #include <filesystem>
 #include <optional>
 #include <utility>
@@ -35,12 +37,9 @@ namespace config {
 
         explicit constexpr Timestamp(int64_t timeMillis) : _time{timeMillis} {
         }
-
-        explicit constexpr Timestamp(const std::chrono::time_point<std::chrono::system_clock> time)
-            : _time(static_cast<int64_t>(
-                std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch())
-                    .count()
-            )) {
+        template<typename T>
+        explicit constexpr Timestamp(const std::chrono::time_point<T> time) :
+                _time(static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch()).count())) {
         }
 
         ~Timestamp() = default;
@@ -96,66 +95,6 @@ namespace config {
     constexpr Timestamp Timestamp::infinite() {
         return Timestamp{-1};
     }
-
-    //
-    // Inside the Nucleus, there are some keys that have side effects, handled
-    // through watchers Assume these are internal to Nucleus, but can be extended by
-    // creating a special watcher container to map to pub-sub
-    //
-    enum class WhatHappened : uint32_t {
-        never = 0,
-        changed = 1 << 0,
-        initialized = 1 << 1,
-        childChanged = 1 << 2,
-        removed = 1 << 3,
-        childRemoved = 1 << 4,
-        timestampUpdated = 1 << 5,
-        interiorAdded = 1 << 6,
-        validation = 1 << 7
-    };
-
-    // allow combining of bit-flags
-    inline WhatHappened operator|(WhatHappened left, WhatHappened right) {
-        return static_cast<WhatHappened>(
-            static_cast<uint32_t>(left) | static_cast<uint32_t>(right)
-        );
-    }
-
-    // allow masking of bit-flags
-    inline WhatHappened operator&(WhatHappened left, WhatHappened right) {
-        return static_cast<WhatHappened>(
-            static_cast<uint32_t>(left) & static_cast<uint32_t>(right)
-        );
-    }
-
-    class Watcher {
-    public:
-        Watcher() = delete;
-        Watcher(const Watcher &) = delete;
-        Watcher(Watcher &&) = delete;
-        Watcher &operator=(const Watcher &) = delete;
-        Watcher &operator=(Watcher &&) = delete;
-        virtual ~Watcher() = default;
-
-        [[nodiscard]] virtual std::optional<data::ValueType> validate(
-            const std::shared_ptr<Topics> &topics,
-            data::StringOrd key,
-            const data::ValueType &proposed,
-            const data::ValueType &currentValue
-        ) const {
-            return {};
-        }
-
-        virtual void changed(
-            const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-        ) const {
-        }
-
-        virtual void childChanged(
-            const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-        ) const {
-        }
-    };
 
     class Watching {
         data::StringOrd _subKey{}; // if specified, indicates value that is being
@@ -372,6 +311,8 @@ namespace config {
             return withNewerValue(_value.getModTime(), std::move(nv));
         }
 
+        Topic & addWatcher(const std::shared_ptr<Watcher> & watcher, WhatHappened reasons);
+        Topic & dflt(data::ValueType defVal);
         Element get() {
             return _value;
         }
@@ -448,7 +389,12 @@ namespace config {
         std::shared_ptr<Topics> root() {
             return _root;
         }
-
-        void read(std::filesystem::path path);
+        Manager & read(const std::filesystem::path & path);
+        Lookup lookup() {
+            return _root->lookup();
+        }
+        Lookup lookup(Timestamp timestamp) {
+            return _root->lookup(timestamp);
+        }
     };
 } // namespace config
