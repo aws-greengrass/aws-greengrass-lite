@@ -51,6 +51,7 @@ namespace util {
 
     inline std::string lower(std::string_view source) {
         std::string target;
+        target.resize(source.size());
         std::transform(source.begin(), source.end(), target.begin(), lowerChar);
         return target;
     }

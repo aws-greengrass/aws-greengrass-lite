@@ -1,8 +1,9 @@
 #include "config_manager.h"
-
-#include <utility>
+#include "config_reader.h"
+#include "transaction_log.h"
 #include "data/environment.h"
 #include "util.h"
+#include <utility>
 
 //
 // Note that config intake is case insensitive - config comes from
@@ -57,18 +58,18 @@ namespace config {
                 }
             }
         }
-        guard.release();
+        guard.unlock();
         for (auto const &i: structs) {
             i->rootsCheck(target);
         }
     }
 
-    void Topics::addWatcher(const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
+    void Topics::addWatcher(const std::shared_ptr<Watcher> &watcher, WhatHappened reasons) {
         addWatcher({}, watcher, reasons);
     }
 
-    void Topics::addWatcher(data::StringOrd key, const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
-        data::StringOrd normKey = Element::getKey(_environment, key);
+    void Topics::addWatcher(data::StringOrd subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons) {
+        data::StringOrd normKey = Element::getKey(_environment, subKey);
         std::unique_lock guard{_mutex};
         // opportunistic check if any watches need deleting - number of watches expected to be small,
         // number of expired watches rare, algorithm for simplicity
@@ -81,6 +82,14 @@ namespace config {
         }
         // add new watcher
          _watching.emplace_back(normKey, watcher,reasons);
+        // first call
+        guard.unlock();
+        watcher->initialized(ref<Topics>(), subKey, reasons);
+    }
+
+    Topic& Topic::addWatcher(const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
+        _parent->addWatcher(_value.getNameOrd(), watcher, reasons);
+        return *this;
     }
 
     bool Topics::hasWatchers() const {
@@ -278,6 +287,13 @@ namespace config {
         }
     }
 
+    Topic & Topic::dflt(data::ValueType defVal) {
+        if (!_value) {
+            withNewerValue(Timestamp::never(), std::move(defVal), true);
+        }
+        return *this;
+    }
+
     Topic & Topic::withNewerValue(const config::Timestamp &proposedModTime, data::ValueType proposed,
                                   bool allowTimestampToDecrease, bool allowTimestampToIncreaseWhenValueHasntChanged) {
         // Logic tracks that in GG-Java
@@ -317,6 +333,24 @@ namespace config {
             _parent->notifyChange(_value.getNameOrd(), WhatHappened::changed);
         } else {
             _parent->notifyChange(_value.getNameOrd(), WhatHappened::timestampUpdated);
+        }
+        return *this;
+    }
+
+    Manager & Manager::read(const std::filesystem::path &path) {
+        std::string ext = util::lower(path.extension().generic_string());
+        Timestamp timestamp {std::filesystem::last_write_time(path)};
+
+        if (ext == ".yaml" || ext == ".yml") {
+            YamlReader reader {_environment, _root, timestamp};
+            reader.read(path);
+        } else if (ext == ".tlog" || ext == ".tlog~") {
+            //config::TlogReader::mergeTLogInto()
+            throw std::runtime_error("Tlog config type not yet implemented");
+        } else if (ext == ".json") {
+            throw std::runtime_error("Json config type not yet implemented");
+        } else {
+            throw std::runtime_error(std::string("Unsupported extension type: ") + ext);
         }
         return *this;
     }

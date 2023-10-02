@@ -17,7 +17,7 @@ namespace data {
                 }
             }
         }
-        guard.release();
+        guard.unlock();
         for (auto const & i : containers) {
             i->rootsCheck(target);
         }

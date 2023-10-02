@@ -1,5 +1,5 @@
 // Main blocking thread, called by containing process
-#include "lifecycle/kernel_command_line.h"
+#include "lifecycle/command_line.h"
 #include <c_api.h>
 
 int ggapiMainThread(int argc, char* argv[], char* envp[]) noexcept {
@@ -8,12 +8,19 @@ int ggapiMainThread(int argc, char* argv[], char* envp[]) noexcept {
         if (envp != nullptr) {
             global.environment.sysProperties.parseEnv(envp);
         }
-        lifecycle::KernelCommandLine kernel{global};
-        kernel.parseEnv(global.environment.sysProperties);
-        if (argc > 0 && argv != nullptr) {
-            kernel.parseArgs(argc, argv);
+        lifecycle::Kernel kernel{global};
+        // limited scope
+        {
+            lifecycle::CommandLine commandLine{global, kernel};
+            commandLine.parseEnv(global.environment.sysProperties);
+            if (argc > 0 && argv != nullptr) {
+                commandLine.parseArgs(argc, argv);
+            }
+            kernel.preLaunch(commandLine);
         }
-        return kernel.main();
+        // Never returns unless signalled
+        kernel.launch();
+        return 0; // never reached
     } catch(...) {
         // TODO: log errors
         std::terminate(); // terminate on exception
