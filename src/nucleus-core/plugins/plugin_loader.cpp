@@ -3,6 +3,10 @@
 
 namespace fs = std::filesystem;
 
+#define STRINGIFY(x) #x
+#define STRINGIFY2(x) STRINGIFY(x)
+#define NATIVE_SUFFIX STRINGIFY2(PLATFORM_SHLIB_SUFFIX)
+
 plugins::NativePlugin::~NativePlugin() {
     nativeHandle_t h = _handle.load();
     _handle.store(nullptr);
@@ -118,12 +122,10 @@ void plugins::PluginLoader::discoverPlugins() {
 
 void plugins::PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
     std::string name {entry.path().generic_string()};
-#if defined(NATIVE_SUFFIX)
     if (entry.path().extension().compare(NATIVE_SUFFIX) == 0) {
         loadNativePlugin(name);
         return;
     }
-#endif
 }
 
 void plugins::PluginLoader::loadNativePlugin(const std::string &name) {
