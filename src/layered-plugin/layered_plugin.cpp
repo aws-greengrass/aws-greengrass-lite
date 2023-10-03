@@ -1,7 +1,7 @@
 #include <cpp_api.h>
 #include <iostream>
 
-// A lay[ered plugins is permitted to add additional abstract plugins
+// A layered plugins is permitted to add additional abstract plugins
 
 const ggapi::StringOrd DISCOVER_PHASE {"discover"};
 
