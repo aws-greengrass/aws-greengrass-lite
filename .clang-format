@@ -1,0 +1,31 @@
+---
+Language: Cpp
+AccessModifierOffset: -4
+AlignAfterOpenBracket: BlockIndent
+AlignArrayOfStructures: Left
+AlignTrailingComments: false
+AllowShortFunctionsOnASingleLine: None
+AlwaysBreakTemplateDeclarations: Yes
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeBinaryOperators: NonAssignment
+ColumnLimit: 100
+IncludeCategories:
+  - Regex:           '<.*'
+    Priority:        2
+IndentWidth: 4
+IndentWrappedFunctionNames: true
+InsertBraces: true
+InsertNewlineAtEOF: true
+LineEnding: LF
+NamespaceIndentation: All
+QualifierAlignment: Left
+SeparateDefinitionBlocks: Always
+SortIncludes: CaseSensitive
+SpaceAfterCStyleCast: true
+SpaceAfterTemplateKeyword: false
+SpaceBeforeParens: Never
+TabWidth: 4
+UseTab: Never
+...
+

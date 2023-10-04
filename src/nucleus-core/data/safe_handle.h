@@ -11,17 +11,20 @@ namespace data {
     class Handle {
     private:
         uint32_t _asInt;
+
     public:
         struct CompEq {
             [[nodiscard]] bool operator()(const Handle a, const Handle b) const noexcept {
                 return a._asInt == b._asInt;
             }
         };
+
         struct CompLess {
             [[nodiscard]] bool operator()(const Handle a, const Handle b) const noexcept {
                 return a._asInt < b._asInt;
             }
         };
+
         struct Hash {
             [[nodiscard]] std::size_t operator()(const Handle k) const noexcept {
                 return k._asInt;
@@ -30,14 +33,16 @@ namespace data {
 
         constexpr Handle() noexcept : _asInt{0} {
         }
+
         explicit constexpr Handle(const uint32_t i) noexcept : _asInt{i} {
         }
+
         constexpr Handle(const Handle &) noexcept = default;
         constexpr Handle(Handle &&) noexcept = default;
         ~Handle() noexcept = default;
 
-        constexpr Handle & operator=(const Handle &) noexcept = default;
-        constexpr Handle & operator=(Handle &&) noexcept = default;
+        constexpr Handle &operator=(const Handle &) noexcept = default;
+        constexpr Handle &operator=(Handle &&) noexcept = default;
 
         [[nodiscard]] uint32_t asInt() const noexcept {
             return _asInt;
@@ -51,7 +56,7 @@ namespace data {
             return _asInt != 0;
         }
 
-        bool operator !() const noexcept {
+        bool operator!() const noexcept {
             return _asInt == 0;
         }
 
@@ -70,4 +75,4 @@ namespace data {
     inline constexpr Handle<T> Handle<T>::nullHandle() noexcept {
         return {};
     }
-}
+} // namespace data

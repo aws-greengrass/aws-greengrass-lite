@@ -2,8 +2,8 @@
 #include "environment.h"
 
 namespace data {
-    ObjectAnchor TrackingScope::anchor(const std::shared_ptr<TrackedObject> & obj) {
-        if (!obj) {
+    ObjectAnchor TrackingScope::anchor(const std::shared_ptr<TrackedObject> &obj) {
+        if(!obj) {
             return {};
         }
         return _environment.handleTable.create(ObjectAnchor{obj, scopeRef()});
@@ -25,8 +25,8 @@ namespace data {
     }
 
     void ObjectAnchor::release() {
-        std::shared_ptr<TrackingScope> owner {_owner.lock()};
-        if (owner) {
+        std::shared_ptr<TrackingScope> owner{_owner.lock()};
+        if(owner) {
             // go via owner - owner has access to _environment
             owner->remove(*this);
         } else {
@@ -42,19 +42,20 @@ namespace data {
         _roots.erase(anchor.getHandle());
     }
 
-    std::vector<ObjectAnchor> TrackingScope::getRootsHelper(const std::weak_ptr<TrackingScope>& assumedOwner) {
+    std::vector<ObjectAnchor>
+        TrackingScope::getRootsHelper(const std::weak_ptr<TrackingScope> &assumedOwner) {
         std::shared_lock guard{_mutex};
         std::vector<ObjectAnchor> copy;
-        for (const auto &i : _roots) {
-            ObjectAnchor anc {i.second, assumedOwner};
+        for(const auto &i : _roots) {
+            ObjectAnchor anc{i.second, assumedOwner};
             copy.push_back(anc.withHandle(i.first));
         }
         return copy;
     }
 
     TrackingScope::~TrackingScope() {
-        for (const auto &i : getRootsHelper({})) {
+        for(const auto &i : getRootsHelper({})) {
             remove(i);
         }
     }
-}
+} // namespace data

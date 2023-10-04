@@ -1,19 +1,19 @@
 #pragma once
-#include "data/safe_handle.h"
-#include "data/string_table.h"
-#include "data/handle_table.h"
 #include "data/environment.h"
+#include "data/handle_table.h"
+#include "data/safe_handle.h"
 #include "data/shared_struct.h"
+#include "data/string_table.h"
 #include "tasks/sub_task.h"
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
-#include <functional>
 
 namespace tasks {
     class Task;
     class SubTask;
-}
+} // namespace tasks
 
 namespace data {
     class StructModelBase;
@@ -28,13 +28,18 @@ namespace pubsub {
     //
     class CallbackError : public std::exception {
         data::StringOrd _ord;
+
     public:
-        constexpr CallbackError(const CallbackError&) noexcept = default;
-        constexpr CallbackError(CallbackError&&) noexcept = default;
-        CallbackError& operator=(const CallbackError&) noexcept = default;
-        CallbackError& operator=(CallbackError&&) noexcept = default;
-        explicit CallbackError(const data::StringOrd & ord) noexcept : _ord{ord} {}
+        constexpr CallbackError(const CallbackError &) noexcept = default;
+        constexpr CallbackError(CallbackError &&) noexcept = default;
+        CallbackError &operator=(const CallbackError &) noexcept = default;
+        CallbackError &operator=(CallbackError &&) noexcept = default;
+
+        explicit CallbackError(const data::StringOrd &ord) noexcept : _ord{ord} {
+        }
+
         ~CallbackError() override = default;
+
         [[nodiscard]] constexpr data::StringOrd get() const {
             return _ord;
         }
@@ -48,25 +53,33 @@ namespace pubsub {
         AbstractCallback() = default;
         AbstractCallback(const AbstractCallback &) = default;
         AbstractCallback(AbstractCallback &&) noexcept = default;
-        AbstractCallback & operator=(const AbstractCallback &) = default;
-        AbstractCallback & operator=(AbstractCallback &&) noexcept = default;
+        AbstractCallback &operator=(const AbstractCallback &) = default;
+        AbstractCallback &operator=(AbstractCallback &&) noexcept = default;
         virtual ~AbstractCallback() = default;
-        virtual data::ObjHandle operator()(data::ObjHandle taskHandle, data::StringOrd topicOrd, data::ObjHandle dataStruct) = 0;
+        virtual data::ObjHandle operator()(
+            data::ObjHandle taskHandle, data::StringOrd topicOrd, data::ObjHandle dataStruct
+        ) = 0;
     };
 
-    class CompletionSubTask : public tasks::SubTask
-    {
+    class CompletionSubTask : public tasks::SubTask {
     private:
         data::StringOrd _topicOrd;
         std::unique_ptr<pubsub::AbstractCallback> _callback;
-    public:
-        explicit CompletionSubTask(data::StringOrd topicOrd, std::unique_ptr<pubsub::AbstractCallback> callback) :
-                _topicOrd{topicOrd},
-                _callback{std::move(callback)} {
-        }
-        std::shared_ptr<data::StructModelBase> runInThread(const std::shared_ptr<tasks::Task> &task, const std::shared_ptr<data::StructModelBase> &result) override;
 
-        static std::unique_ptr<tasks::SubTask> of(data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> callback);
+    public:
+        explicit CompletionSubTask(
+            data::StringOrd topicOrd, std::unique_ptr<pubsub::AbstractCallback> callback
+        )
+            : _topicOrd{topicOrd}, _callback{std::move(callback)} {
+        }
+
+        std::shared_ptr<data::StructModelBase> runInThread(
+            const std::shared_ptr<tasks::Task> &task,
+            const std::shared_ptr<data::StructModelBase> &result
+        ) override;
+
+        static std::unique_ptr<tasks::SubTask>
+            of(data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> callback);
     };
 
     //
@@ -81,12 +94,20 @@ namespace pubsub {
     public:
         Listener(const Listener &) = delete;
         Listener(Listener &&) noexcept = delete;
-        Listener & operator=(const Listener &) = delete;
-        Listener & operator=(Listener &&) noexcept = delete;
+        Listener &operator=(const Listener &) = delete;
+        Listener &operator=(Listener &&) noexcept = delete;
         ~Listener() override;
-        explicit Listener(data::Environment & environment, data::StringOrd topicOrd, Listeners * receivers, std::unique_ptr<AbstractCallback> & callback);
-        std::unique_ptr<tasks::SubTask> toSubTask(std::shared_ptr<tasks::Task> & task);
-        std::shared_ptr<data::StructModelBase> runInTaskThread(const std::shared_ptr<tasks::Task> &task, const std::shared_ptr<data::StructModelBase> &dataIn);
+        explicit Listener(
+            data::Environment &environment,
+            data::StringOrd topicOrd,
+            Listeners *receivers,
+            std::unique_ptr<AbstractCallback> &callback
+        );
+        std::unique_ptr<tasks::SubTask> toSubTask(std::shared_ptr<tasks::Task> &task);
+        std::shared_ptr<data::StructModelBase> runInTaskThread(
+            const std::shared_ptr<tasks::Task> &task,
+            const std::shared_ptr<data::StructModelBase> &dataIn
+        );
     };
 
     //
@@ -95,18 +116,21 @@ namespace pubsub {
     //
     class Listeners : public util::RefObject<Listeners> {
     private:
-        data::Environment & _environment;
+        data::Environment &_environment;
         data::StringOrd _topicOrd;
         std::weak_ptr<PubSubManager> _parent;
         std::vector<std::weak_ptr<Listener>> _listeners;
+
     public:
         Listeners(data::Environment &environment, data::StringOrd topicOrd, PubSubManager *topics);
         void cleanup();
+
         bool isEmpty() {
             return _listeners.empty();
         }
-        std::shared_ptr<Listener> newReceiver(std::unique_ptr<AbstractCallback> & callback);
-        void getCallOrder(std::vector<std::shared_ptr<Listener>> & callOrder);
+
+        std::shared_ptr<Listener> newReceiver(std::unique_ptr<AbstractCallback> &callback);
+        void getCallOrder(std::vector<std::shared_ptr<Listener>> &callOrder);
     };
 
     //
@@ -114,21 +138,28 @@ namespace pubsub {
     //
     class PubSubManager : public util::RefObject<PubSubManager> {
     private:
-        data::Environment & _environment;
+        data::Environment &_environment;
         std::map<data::StringOrd, std::shared_ptr<Listeners>, data::StringOrd::CompLess> _topics;
+
     public:
-        explicit PubSubManager(data::Environment & environment) : _environment{environment} {
+        explicit PubSubManager(data::Environment &environment) : _environment{environment} {
         }
+
         void cleanup();
         // if listeners exist for a given topic, return those listeners
         std::shared_ptr<Listeners> tryGetListeners(data::StringOrd topicOrd);
         // get listeners, create if there is none for given topic
         std::shared_ptr<Listeners> getListeners(data::StringOrd topicOrd);
         // subscribe a new listener to a callback
-        data::ObjectAnchor subscribe(data::ObjHandle anchor, data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> & callback);
-//        static void applyCompletion(std::shared_ptr<tasks::Task> & task, data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> & callback);
-        void insertCallQueue(std::shared_ptr<tasks::Task> & task, data::StringOrd topicOrd);
+        data::ObjectAnchor subscribe(
+            data::ObjHandle anchor,
+            data::StringOrd topicOrd,
+            std::unique_ptr<AbstractCallback> &callback
+        );
+        //        static void applyCompletion(std::shared_ptr<tasks::Task> & task,
+        //        data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> &
+        //        callback);
+        void insertCallQueue(std::shared_ptr<tasks::Task> &task, data::StringOrd topicOrd);
     };
 
-}
-
+} // namespace pubsub

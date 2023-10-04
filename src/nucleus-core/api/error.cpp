@@ -6,7 +6,7 @@ namespace error {
     // it's simple a thread local integer
     //
     static thread_local uint32_t lastError = 0;
-}
+} // namespace error
 
 uint32_t ggapiGetError() noexcept {
     return error::lastError;

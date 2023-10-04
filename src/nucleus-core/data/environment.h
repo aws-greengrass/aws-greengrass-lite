@@ -1,19 +1,19 @@
 #pragma once
+#include "config/config_manager.h"
 #include "handle_table.h"
 #include "string_table.h"
-#include "config/config_manager.h"
 #include "tasks/expire_time.h"
-#include <shared_mutex>
 #include <optional>
+#include <shared_mutex>
 
 namespace data {
     class SysProperties {
     private:
         mutable std::shared_mutex _mutex;
         std::map<std::string, std::string> _cache;
-    public:
 
-        static constexpr auto HOME = { "HOME" };
+    public:
+        static constexpr auto HOME = {"HOME"};
 
         SysProperties() = default;
 
@@ -31,7 +31,7 @@ namespace data {
     struct Environment { // NOLINT(*-special-member-functions)
         HandleTable handleTable;
         StringTable stringTable;
-        config::Manager configManager {*this};
+        config::Manager configManager{*this};
         SysProperties sysProperties;
         std::shared_mutex sharedLocalTopicsMutex;
         std::mutex cycleCheckMutex;
@@ -39,5 +39,4 @@ namespace data {
 
         virtual ExpireTime translateExpires(int32_t delta);
     };
-}
-
+} // namespace data

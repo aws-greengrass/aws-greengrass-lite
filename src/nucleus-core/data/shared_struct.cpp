@@ -4,23 +4,24 @@
 
 namespace data {
 
-    void SharedStruct::rootsCheck(const ContainerModelBase *target) const { // NOLINT(*-no-recursion)
-        if (this == target) {
+    void SharedStruct::rootsCheck(const ContainerModelBase *target
+    ) const { // NOLINT(*-no-recursion)
+        if(this == target) {
             throw std::runtime_error("Recursive reference of container");
         }
         // we don't want to keep nesting locks else we will deadlock
         std::shared_lock guard{_mutex};
         std::vector<std::shared_ptr<ContainerModelBase>> containers;
-        for (auto const &i: _elements) {
-            if (i.second.isContainer()) {
+        for(const auto &i : _elements) {
+            if(i.second.isContainer()) {
                 std::shared_ptr<ContainerModelBase> otherContainer = i.second.getContainer();
-                if (otherContainer) {
+                if(otherContainer) {
                     containers.emplace_back(otherContainer);
                 }
             }
         }
         guard.release();
-        for (auto const &i: containers) {
+        for(const auto &i : containers) {
             i->rootsCheck(target);
         }
     }
@@ -66,10 +67,10 @@ namespace data {
         //_environment.stringTable.assertStringHandle(handle);
         std::shared_lock guard{_mutex};
         auto i = _elements.find(handle);
-        if (i == _elements.end()) {
+        if(i == _elements.end()) {
             return {};
         } else {
             return i->second;
         }
     }
-}
+} // namespace data

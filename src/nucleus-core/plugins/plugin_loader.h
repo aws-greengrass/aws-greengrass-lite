@@ -3,14 +3,14 @@
 #include "data/handle_table.h"
 #include "data/safe_handle.h"
 #include "data/shared_struct.h"
-#include <c_api.h>
-#include <memory>
-#include <string>
-#include <list>
-#include <shared_mutex>
-#include <mutex>
 #include <atomic>
+#include <c_api.h>
 #include <filesystem>
+#include <list>
+#include <memory>
+#include <mutex>
+#include <shared_mutex>
+#include <string>
 
 #if defined(USE_DLFCN)
 #include <dlfcn.h>
@@ -25,11 +25,18 @@ namespace plugins {
     class AbstractPlugin : public data::TrackingScope {
     protected:
         std::string _moduleName;
+
     public:
-        explicit AbstractPlugin(data::Environment & environment, const std::string_view & name) :
-                TrackingScope(environment), _moduleName{name} {
+        explicit AbstractPlugin(data::Environment &environment, const std::string_view &name)
+            : TrackingScope(environment), _moduleName{name} {
         }
-        virtual bool lifecycle(data::ObjHandle pluginRoot, data::StringOrd phase, const std::shared_ptr<data::StructModelBase> & data) = 0;
+
+        virtual bool lifecycle(
+            data::ObjHandle pluginRoot,
+            data::StringOrd phase,
+            const std::shared_ptr<data::StructModelBase> &data
+        ) = 0;
+
         virtual bool isActive() noexcept {
             return true;
         }
@@ -41,19 +48,27 @@ namespace plugins {
     class DelegatePlugin : public AbstractPlugin {
     private:
         std::shared_ptr<AbstractPlugin> _parent; // delegate keeps parent in memory
-        ggapiLifecycleCallback _delegateLifecycle { nullptr }; // called to handle this delegate
-        uintptr_t _delegateContext {0}; // use of this defined by delegate
+        ggapiLifecycleCallback _delegateLifecycle{nullptr}; // called to handle
+                                                            // this delegate
+        uintptr_t _delegateContext{0}; // use of this defined by delegate
+
     public:
-        explicit DelegatePlugin(data::Environment & environment, std::string_view name,
-                                const std::shared_ptr<AbstractPlugin> & parent,
-                                ggapiLifecycleCallback delegateLifecycle,
-                                uintptr_t delegateContext) :
-            AbstractPlugin(environment, name),
-            _parent{parent},
-            _delegateLifecycle{delegateLifecycle},
-            _delegateContext{delegateContext} {
+        explicit DelegatePlugin(
+            data::Environment &environment,
+            std::string_view name,
+            const std::shared_ptr<AbstractPlugin> &parent,
+            ggapiLifecycleCallback delegateLifecycle,
+            uintptr_t delegateContext
+        )
+            : AbstractPlugin(environment, name), _parent{parent},
+              _delegateLifecycle{delegateLifecycle}, _delegateContext{delegateContext} {
         }
-        bool lifecycle(data::ObjHandle pluginRoot, data::StringOrd phase, const std::shared_ptr<data::StructModelBase> & data) override;
+
+        bool lifecycle(
+            data::ObjHandle pluginRoot,
+            data::StringOrd phase,
+            const std::shared_ptr<data::StructModelBase> &data
+        ) override;
     };
 
     //
@@ -61,27 +76,32 @@ namespace plugins {
     //
     class NativePlugin : public AbstractPlugin {
     private:
-    #if defined(USE_DLFCN)
-        typedef void * nativeHandle_t;
+#if defined(USE_DLFCN)
+        typedef void *nativeHandle_t;
         typedef bool (*lifecycleFn_t)(uint32_t moduleHandle, uint32_t phase, uint32_t data);
-    #elif defined(USE_WINDLL)
+#elif defined(USE_WINDLL)
         typedef HINSTANCE nativeHandle_t;
-        typedef bool (WINAPI *lifecycleFn_t)(uint32_t globalHandle, uint32_t phase, uint32_t data);
-    #endif
-        std::atomic<nativeHandle_t> _handle { nullptr };
-        std::atomic<lifecycleFn_t> _lifecycleFn { nullptr };
+        typedef bool(WINAPI *lifecycleFn_t)(uint32_t globalHandle, uint32_t phase, uint32_t data);
+#endif
+        std::atomic<nativeHandle_t> _handle{nullptr};
+        std::atomic<lifecycleFn_t> _lifecycleFn{nullptr};
 
     public:
-        explicit NativePlugin(data::Environment & environment, std::string_view name) :
-            AbstractPlugin(environment, name) {
+        explicit NativePlugin(data::Environment &environment, std::string_view name)
+            : AbstractPlugin(environment, name) {
         }
-        NativePlugin(const NativePlugin&) = delete;
-        NativePlugin(NativePlugin&&) noexcept = delete;
-        NativePlugin & operator=(const NativePlugin&) = delete;
-        NativePlugin & operator=(NativePlugin&&) noexcept = delete;
+
+        NativePlugin(const NativePlugin &) = delete;
+        NativePlugin(NativePlugin &&) noexcept = delete;
+        NativePlugin &operator=(const NativePlugin &) = delete;
+        NativePlugin &operator=(NativePlugin &&) noexcept = delete;
         ~NativePlugin() override;
-        void load(const std::string & filePath);
-        bool lifecycle(data::ObjHandle pluginRoot, data::StringOrd phase, const std::shared_ptr<data::StructModelBase> & data) override;
+        void load(const std::string &filePath);
+        bool lifecycle(
+            data::ObjHandle pluginRoot,
+            data::StringOrd phase,
+            const std::shared_ptr<data::StructModelBase> &data
+        ) override;
         bool isActive() noexcept override;
     };
 
@@ -90,7 +110,7 @@ namespace plugins {
     //
     class PluginLoader : public data::TrackingScope {
     public:
-        explicit PluginLoader(data::Environment & environment) : TrackingScope(environment) {
+        explicit PluginLoader(data::Environment &environment) : TrackingScope(environment) {
         }
 
         void discoverPlugins();
@@ -98,12 +118,11 @@ namespace plugins {
 
         void loadNativePlugin(const std::string &name);
 
-        void lifecycleBootstrap(const std::shared_ptr<data::StructModelBase> & data);
-        void lifecycleDiscover(const std::shared_ptr<data::StructModelBase> & data);
-        void lifecycleStart(const std::shared_ptr<data::StructModelBase> & data);
-        void lifecycleRun(const std::shared_ptr<data::StructModelBase> & data);
-        void lifecycleTerminate(const std::shared_ptr<data::StructModelBase> & data);
-        void lifecycle(data::StringOrd phase, const std::shared_ptr<data::StructModelBase> & data);
+        void lifecycleBootstrap(const std::shared_ptr<data::StructModelBase> &data);
+        void lifecycleDiscover(const std::shared_ptr<data::StructModelBase> &data);
+        void lifecycleStart(const std::shared_ptr<data::StructModelBase> &data);
+        void lifecycleRun(const std::shared_ptr<data::StructModelBase> &data);
+        void lifecycleTerminate(const std::shared_ptr<data::StructModelBase> &data);
+        void lifecycle(data::StringOrd phase, const std::shared_ptr<data::StructModelBase> &data);
     };
-}
-
+} // namespace plugins

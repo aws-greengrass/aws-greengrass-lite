@@ -1,17 +1,16 @@
 #pragma once
 #include "data/environment.h"
 #include "data/handle_table.h"
-#include "pubsub/local_topics.h"
 #include "data/safe_handle.h"
 #include "data/shared_struct.h"
-#include "pubsub/local_topics.h"
 #include "expire_time.h"
-#include <vector>
-#include <mutex>
+#include "pubsub/local_topics.h"
+#include <condition_variable>
 #include <list>
+#include <mutex>
 #include <set>
 #include <thread>
-#include <condition_variable>
+#include <vector>
 
 namespace tasks {
     class TaskManager;
@@ -22,14 +21,9 @@ namespace tasks {
 
     class Task : public data::TrackingScope {
     public:
-        enum Status {
-            Running,
-            NoSubTasks,
-            Finalizing,
-            SwitchThread,
-            Completed
-        };
+        enum Status { Running, NoSubTasks, Finalizing, SwitchThread, Completed };
         friend class TaskManager;
+
     private:
         std::shared_ptr<data::StructModelBase> _data;
         std::unique_ptr<SubTask> _finalize;
@@ -37,59 +31,72 @@ namespace tasks {
         std::list<std::shared_ptr<TaskThread>> _blockedThreads;
         data::ObjHandle _self;
         ExpireTime _timeout;
-        Status _lastStatus {Running};
+        Status _lastStatus{Running};
         static thread_local data::ObjHandle _threadTask; // NOLINT(*-non-const-global-variables)
 
     public:
-
-        explicit Task(data::Environment & environment) :
-                TrackingScope {environment},
-                _timeout{ ExpireTime::fromNow(-1)} {
+        explicit Task(data::Environment &environment)
+            : TrackingScope{environment}, _timeout{ExpireTime::fromNow(-1)} {
         }
+
         void setSelf(data::ObjHandle self) {
             std::unique_lock guard{_mutex};
             _self = self;
         }
+
         data::ObjHandle getSelf() {
             std::unique_lock guard{_mutex};
             return _self;
         }
+
         std::shared_ptr<data::StructModelBase> getData() {
             std::unique_lock guard{_mutex};
             return _data;
         }
+
         void setData(const std::shared_ptr<data::StructModelBase> &newData) {
             std::unique_lock guard{_mutex};
             _data = newData;
         }
+
         std::shared_ptr<TaskThread> getThreadAffinity();
         void markTaskComplete();
+
         static data::ObjHandle getThreadSelf() {
             return _threadTask;
         }
+
         static data::ObjHandle getSetThreadSelf(data::ObjHandle h) {
             data::Handle old = _threadTask;
             _threadTask = h;
             return old;
         }
 
-        Status removeSubtask(std::unique_ptr<SubTask> & subTask);
+        Status removeSubtask(std::unique_ptr<SubTask> &subTask);
         void addSubtask(std::unique_ptr<SubTask> subTask);
+
         void setCompletion(std::unique_ptr<SubTask> finalize) {
             std::unique_lock guard{_mutex};
             _finalize = std::move(finalize);
         }
-        void setTimeout(const ExpireTime & terminateTime) {
+
+        void setTimeout(const ExpireTime &terminateTime) {
             std::unique_lock guard{_mutex};
             _timeout = terminateTime;
         }
+
         ExpireTime getTimeout() const {
             std::unique_lock guard{_mutex};
             return _timeout;
         }
+
         Status runInThread();
-        bool waitForCompletion(const ExpireTime & terminateTime);
-        Status runInThreadCallNext(const std::shared_ptr<Task> & task, const std::shared_ptr<data::StructModelBase> & dataIn, std::shared_ptr<data::StructModelBase> & dataOut);
+        bool waitForCompletion(const ExpireTime &terminateTime);
+        Status runInThreadCallNext(
+            const std::shared_ptr<Task> &task,
+            const std::shared_ptr<data::StructModelBase> &dataIn,
+            std::shared_ptr<data::StructModelBase> &dataOut
+        );
 
         void addBlockedThread(const std::shared_ptr<TaskThread> &blockedThread);
         void removeBlockedThread(const std::shared_ptr<TaskThread> &blockedThread);
@@ -102,24 +109,28 @@ namespace tasks {
 
     class TaskThread : public util::RefObject<TaskThread> {
         // mix-in representing either a worker thread or fixed thread
+
     protected:
-        data::Environment & _environment;
+        data::Environment &_environment;
         std::weak_ptr<TaskManager> _pool;
         std::list<std::shared_ptr<Task>> _tasks;
         std::mutex _mutex;
         std::condition_variable _wake;
-        bool _shutdown {false};
-    //    static thread_local std::weak_ptr<TaskThread> _threadContext;
-        static thread_local TaskThread * _threadContext; // NOLINT(*-non-const-global-variables)
+        bool _shutdown{false};
+        //    static thread_local std::weak_ptr<TaskThread> _threadContext;
+        static thread_local TaskThread *_threadContext; // NOLINT(*-non-const-global-variables)
         void bindThreadContext();
+
     public:
-        explicit TaskThread(data::Environment & environment, const std::shared_ptr<TaskManager> &pool);
+        explicit TaskThread(
+            data::Environment &environment, const std::shared_ptr<TaskManager> &pool
+        );
         TaskThread(const TaskThread &) = delete;
         TaskThread(TaskThread &&) = delete;
-        TaskThread & operator=(const TaskThread &) = delete;
-        TaskThread & operator=(TaskThread &&) = delete;
+        TaskThread &operator=(const TaskThread &) = delete;
+        TaskThread &operator=(TaskThread &&) = delete;
         virtual ~TaskThread() = default;
-        void queueTask(const std::shared_ptr<Task> & task);
+        void queueTask(const std::shared_ptr<Task> &task);
         std::shared_ptr<Task> pickupAffinitizedTask();
         std::shared_ptr<Task> pickupPoolTask();
         std::shared_ptr<Task> pickupTask();
@@ -133,9 +144,9 @@ namespace tasks {
             _wake.notify_one();
         }
 
-        void stall(const ExpireTime & end) {
+        void stall(const ExpireTime &end) {
             std::unique_lock guard(_mutex);
-            if (_shutdown) {
+            if(_shutdown) {
                 return;
             }
             _wake.wait_for(guard, end.remaining());
@@ -151,7 +162,7 @@ namespace tasks {
             return _shutdown;
         }
 
-        void taskStealing(const std::shared_ptr<Task> & blockingTask, const ExpireTime & end);
+        void taskStealing(const std::shared_ptr<Task> &blockingTask, const ExpireTime &end);
 
         std::shared_ptr<Task> pickupTask(const std::shared_ptr<Task> &blockingTask);
 
@@ -161,8 +172,11 @@ namespace tasks {
     class TaskPoolWorker : public TaskThread {
     private:
         std::thread _thread;
+
     public:
-        explicit TaskPoolWorker(data::Environment & environment, const std::shared_ptr<TaskManager> &pool);
+        explicit TaskPoolWorker(
+            data::Environment &environment, const std::shared_ptr<TaskManager> &pool
+        );
         void runner();
     };
 
@@ -170,13 +184,17 @@ namespace tasks {
     protected:
         data::ObjectAnchor _defaultTask;
         std::shared_ptr<FixedTaskThread> _protectThread;
+
     public:
-        explicit FixedTaskThread(data::Environment & environment, const std::shared_ptr<TaskManager> &pool) :
-            TaskThread(environment, pool) {
+        explicit FixedTaskThread(
+            data::Environment &environment, const std::shared_ptr<TaskManager> &pool
+        )
+            : TaskThread(environment, pool) {
         }
+
         // Call this on the native thread
-        void bindThreadContext(const data::ObjectAnchor & task);
-        void setDefaultTask(const data::ObjectAnchor & task);
+        void bindThreadContext(const data::ObjectAnchor &task);
+        void setDefaultTask(const data::ObjectAnchor &task);
         data::ObjectAnchor getDefaultTask();
         void protect();
         void unprotect();
@@ -184,7 +202,7 @@ namespace tasks {
         void releaseFixedThread() override;
     };
 
-    inline void SubTask::setAffinity(const std::shared_ptr<TaskThread> & affinity) {
+    inline void SubTask::setAffinity(const std::shared_ptr<TaskThread> &affinity) {
         _threadAffinity = affinity;
     }
 
@@ -194,21 +212,23 @@ namespace tasks {
 
     class TaskManager : public data::TrackingScope {
     private:
-        std::list<std::shared_ptr<TaskPoolWorker>> _busyWorkers; // assumes small pool, else std::set
+        std::list<std::shared_ptr<TaskPoolWorker>> _busyWorkers; // assumes small
+                                                                 // pool, else
+                                                                 // std::set
         std::list<std::shared_ptr<TaskPoolWorker>> _idleWorkers; // LIFO
-        std::list<std::shared_ptr<Task>> _backlog; // tasks with no thread affinity (assumed async)
-        int _maxWorkers {5}; // TODO, from configuration
+        std::list<std::shared_ptr<Task>> _backlog; // tasks with no thread affinity
+                                                   // (assumed async)
+        int _maxWorkers{5}; // TODO, from configuration
 
     public:
-        explicit TaskManager(data::Environment & environment) : data::TrackingScope{environment} {
+        explicit TaskManager(data::Environment &environment) : data::TrackingScope{environment} {
         }
 
         data::ObjectAnchor createTask();
         std::shared_ptr<Task> acquireTaskForWorker(TaskThread *worker);
-        std::shared_ptr<Task> acquireTaskWhenStealing(TaskThread *worker, const std::shared_ptr<Task> & priorityTask);
+        std::shared_ptr<Task>
+            acquireTaskWhenStealing(TaskThread *worker, const std::shared_ptr<Task> &priorityTask);
         bool allocateNextWorker();
         void queueTask(const std::shared_ptr<Task> &task);
     };
-}
-
-
+} // namespace tasks

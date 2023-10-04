@@ -1,36 +1,38 @@
 #include "config_manager.h"
 
-#include <utility>
 #include "data/environment.h"
 #include "util.h"
+#include <utility>
 
 //
 // Note that config intake is case insensitive - config comes from
 // a settings file (YAML), transaction log (YAML), or cloud (JSON or YAML)
-// For optimization, this implementation assumes all config keys are stored lower-case
-// which means translation on intake is important
+// For optimization, this implementation assumes all config keys are stored
+// lower-case which means translation on intake is important
 //
 namespace config {
 
-    data::StringOrd Element::getKey(data::Environment & env) const {
+    data::StringOrd Element::getKey(data::Environment &env) const {
         return getKey(env, _nameOrd);
     }
-    data::StringOrd Element::getKey(data::Environment & env, data::StringOrd nameOrd) {
-        if (!nameOrd) {
+
+    data::StringOrd Element::getKey(data::Environment &env, data::StringOrd nameOrd) {
+        if(!nameOrd) {
             return nameOrd;
         }
         std::string str = env.stringTable.getString(nameOrd);
-        // a folded string strictly acts on the ascii range and not on international characters
-        // this keeps it predictable and handles the problems with GG configs
+        // a folded string strictly acts on the ascii range and not on international
+        // characters this keeps it predictable and handles the problems with GG
+        // configs
         std::string lowered = util::lower(str);
-        if (str == lowered) {
+        if(str == lowered) {
             return nameOrd;
         } else {
             return env.stringTable.getOrCreateOrd(lowered);
         }
     }
 
-    Element & Element::setName(data::Environment &env, const std::string & str) {
+    Element &Element::setName(data::Environment &env, const std::string &str) {
         return setOrd(env.stringTable.getOrCreateOrd(str));
     }
 
@@ -42,23 +44,24 @@ namespace config {
         });
     }
 
-    void Topics::rootsCheck(const data::ContainerModelBase *target) const { // NOLINT(*-no-recursion)
-        if (this == target) {
+    void Topics::rootsCheck(const data::ContainerModelBase *target
+    ) const { // NOLINT(*-no-recursion)
+        if(this == target) {
             throw std::runtime_error("Recursive reference of structure");
         }
         // we don't want to keep nesting locks else we will deadlock
         std::shared_lock guard{_mutex};
         std::vector<std::shared_ptr<data::ContainerModelBase>> structs;
-        for (auto const &i: _children) {
-            if (i.second.isContainer()) {
+        for(const auto &i : _children) {
+            if(i.second.isContainer()) {
                 std::shared_ptr<data::ContainerModelBase> otherContainer = i.second.getContainer();
-                if (otherContainer) {
+                if(otherContainer) {
                     structs.emplace_back(otherContainer);
                 }
             }
         }
         guard.release();
-        for (auto const &i: structs) {
+        for(const auto &i : structs) {
             i->rootsCheck(target);
         }
     }
@@ -67,20 +70,23 @@ namespace config {
         addWatcher({}, watcher, reasons);
     }
 
-    void Topics::addWatcher(data::StringOrd key, const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
+    void Topics::addWatcher(
+        data::StringOrd key, const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons
+    ) {
         data::StringOrd normKey = Element::getKey(_environment, key);
         std::unique_lock guard{_mutex};
-        // opportunistic check if any watches need deleting - number of watches expected to be small,
-        // number of expired watches rare, algorithm for simplicity
-        for (auto i = _watching.begin(); i != _watching.end();) {
-            if (i->expired()) {
+        // opportunistic check if any watches need deleting - number of watches
+        // expected to be small, number of expired watches rare, algorithm for
+        // simplicity
+        for(auto i = _watching.begin(); i != _watching.end();) {
+            if(i->expired()) {
                 i = _watching.erase(i);
             } else {
                 ++i;
             }
         }
         // add new watcher
-         _watching.emplace_back(normKey, watcher,reasons);
+        _watching.emplace_back(normKey, watcher, reasons);
     }
 
     bool Topics::hasWatchers() const {
@@ -88,26 +94,28 @@ namespace config {
         return !_watching.empty();
     }
 
-    std::optional<std::vector<std::shared_ptr<Watcher>>> Topics::filterWatchers(config::WhatHappened reasons) const {
+    std::optional<std::vector<std::shared_ptr<Watcher>>>
+        Topics::filterWatchers(config::WhatHappened reasons) const {
         return filterWatchers({}, reasons);
     }
 
-    std::optional<std::vector<std::shared_ptr<Watcher>>> Topics::filterWatchers(data::StringOrd key, config::WhatHappened reasons) const {
-        if (!hasWatchers()) {
+    std::optional<std::vector<std::shared_ptr<Watcher>>>
+        Topics::filterWatchers(data::StringOrd key, config::WhatHappened reasons) const {
+        if(!hasWatchers()) {
             return {};
         }
         data::StringOrd normKey = Element::getKey(_environment, key);
         std::shared_lock guard{_mutex};
         std::vector<std::shared_ptr<Watcher>> filtered;
-        for (auto i: _watching) {
-            if (i.shouldFire(normKey, reasons)) {
+        for(auto i : _watching) {
+            if(i.shouldFire(normKey, reasons)) {
                 std::shared_ptr<Watcher> w = i.watcher();
-                if (w) {
+                if(w) {
                     filtered.push_back(w);
                 }
             }
         }
-        if (filtered.empty()) {
+        if(filtered.empty()) {
             return {};
         } else {
             return filtered;
@@ -115,10 +123,10 @@ namespace config {
     }
 
     std::shared_ptr<data::StructModelBase> Topics::copy() const {
-        const std::shared_ptr<Topics> parent {_parent};
+        const std::shared_ptr<Topics> parent{_parent};
         std::shared_ptr<Topics> newCopy{std::make_shared<Topics>(_environment, parent)};
         std::shared_lock guard{_mutex}; // for source
-        for (auto const &i: _children) {
+        for(const auto &i : _children) {
             newCopy->put(i.first, i.second);
         }
         return newCopy;
@@ -147,39 +155,41 @@ namespace config {
         return _children.size();
     }
 
-    Element Topics::createChild(data::StringOrd nameOrd, const std::function<Element(data::StringOrd)> & creator) {
+    Element Topics::createChild(
+        data::StringOrd nameOrd, const std::function<Element(data::StringOrd)> &creator
+    ) {
         data::StringOrd key = Element::getKey(_environment, nameOrd);
         std::unique_lock guard{_mutex};
         auto i = _children.find(key);
-        if (i != _children.end()) {
+        if(i != _children.end()) {
             return i->second;
         } else {
             return _children[key] = creator(nameOrd);
         }
     }
 
-    std::shared_ptr<Topics> Topics::createInteriorChild(data::StringOrd nameOrd, const Timestamp & timestamp) {
-        Element leaf = createChild(nameOrd, [this,&timestamp](auto ord) {
-            std::shared_ptr<Topics> parent {ref<Topics>()};
-            std::shared_ptr<Topics> nested {std::make_shared<Topics>(_environment, parent)};
+    std::shared_ptr<Topics>
+        Topics::createInteriorChild(data::StringOrd nameOrd, const Timestamp &timestamp) {
+        Element leaf = createChild(nameOrd, [this, &timestamp](auto ord) {
+            std::shared_ptr<Topics> parent{ref<Topics>()};
+            std::shared_ptr<Topics> nested{std::make_shared<Topics>(_environment, parent)};
             return Element(ord, timestamp, nested);
         });
         return leaf.getTopicsRef();
     }
 
-    std::shared_ptr<Topics> Topics::createInteriorChild(std::string_view sv, const Timestamp & timestamp) {
+    std::shared_ptr<Topics>
+        Topics::createInteriorChild(std::string_view sv, const Timestamp &timestamp) {
         data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
         return createInteriorChild(handle, timestamp);
     }
 
-    Topic Topics::createChild(data::StringOrd nameOrd, const Timestamp & timestamp) {
-        Element el = createChild(nameOrd, [&](auto ord) {
-            return Element(ord, timestamp);
-        });
+    Topic Topics::createChild(data::StringOrd nameOrd, const Timestamp &timestamp) {
+        Element el = createChild(nameOrd, [&](auto ord) { return Element(ord, timestamp); });
         return Topic(_environment, ref<Topics>(), std::move(el));
     }
 
-    Topic Topics::createChild(std::string_view sv, const Timestamp & timestamp) {
+    Topic Topics::createChild(std::string_view sv, const Timestamp &timestamp) {
         data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
         return createChild(handle, timestamp);
     }
@@ -188,7 +198,7 @@ namespace config {
         data::StringOrd key = Element::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
-        if (i != _children.end()) {
+        if(i != _children.end()) {
             return i->second;
         } else {
             return {};
@@ -232,20 +242,23 @@ namespace config {
         return Lookup(_environment, ref<Topics>(), timestamp, timestamp);
     }
 
-    std::optional<data::ValueType> Topics::validate(data::StringOrd subKey, const data::ValueType & proposed, const data::ValueType & currentValue) {
+    std::optional<data::ValueType> Topics::validate(
+        data::StringOrd subKey, const data::ValueType &proposed, const data::ValueType &currentValue
+    ) {
         auto watchers = filterWatchers(subKey, WhatHappened::validation);
-        if (!watchers.has_value()) {
+        if(!watchers.has_value()) {
             return {};
         }
         // Logic follows GG-Java
         bool rewrite = true;
         data::ValueType newValue = proposed;
         // Try to make all the validators happy, but not infinitely
-        for (int laps = 3; laps > 0 && rewrite; --laps) {
+        for(int laps = 3; laps > 0 && rewrite; --laps) {
             rewrite = false;
-            for (const auto & i : watchers.value()) {
-                std::optional<data::ValueType> nv = i->validate(ref<Topics>(), subKey, newValue, currentValue);
-                if (nv.has_value() && nv.value() != newValue) {
+            for(const auto &i : watchers.value()) {
+                std::optional<data::ValueType> nv =
+                    i->validate(ref<Topics>(), subKey, newValue, currentValue);
+                if(nv.has_value() && nv.value() != newValue) {
                     rewrite = true;
                     newValue = nv.value();
                 }
@@ -256,14 +269,14 @@ namespace config {
 
     void Topics::notifyChange(data::StringOrd subKey, WhatHappened changeType) {
         auto watchers = filterWatchers(subKey, changeType);
-        if (watchers.has_value()) {
-            for (const auto & i : watchers.value()) {
+        if(watchers.has_value()) {
+            for(const auto &i : watchers.value()) {
                 i->changed(ref<Topics>(), subKey, changeType);
             }
         }
         watchers = filterWatchers(WhatHappened::childChanged);
-        if (watchers.has_value()) {
-            for (const auto & i : watchers.value()) {
+        if(watchers.has_value()) {
+            for(const auto &i : watchers.value()) {
                 i->childChanged(ref<Topics>(), subKey, changeType);
             }
         }
@@ -271,41 +284,44 @@ namespace config {
 
     void Topics::notifyChange(WhatHappened changeType) {
         auto watchers = filterWatchers(changeType);
-        if (watchers.has_value()) {
-            for (const auto & i : watchers.value()) {
+        if(watchers.has_value()) {
+            for(const auto &i : watchers.value()) {
                 i->changed(ref<Topics>(), {}, changeType);
             }
         }
     }
 
-    Topic & Topic::withNewerValue(const config::Timestamp &proposedModTime, data::ValueType proposed,
-                                  bool allowTimestampToDecrease, bool allowTimestampToIncreaseWhenValueHasntChanged) {
+    Topic &Topic::withNewerValue(
+        const config::Timestamp &proposedModTime,
+        data::ValueType proposed,
+        bool allowTimestampToDecrease,
+        bool allowTimestampToIncreaseWhenValueHasntChanged
+    ) {
         // Logic tracks that in GG-Java
         data::ValueType currentValue = _value.get();
         data::ValueType newValue = std::move(proposed);
         Timestamp currentModTime = _value.getModTime();
         bool timestampWouldIncrease =
-                allowTimestampToIncreaseWhenValueHasntChanged && proposedModTime > currentModTime;
+            allowTimestampToIncreaseWhenValueHasntChanged && proposedModTime > currentModTime;
 
         // Per GG-Java...
-        // If the value hasn't changed, or if the proposed timestamp is in the past AND we don't want to
-        // decrease the timestamp
-        // AND the timestamp would not increase
-        // THEN, return immediately and do nothing.
-        if ((currentValue == newValue
-                || !allowTimestampToDecrease && (proposedModTime < currentModTime))
-                && !timestampWouldIncrease) {
+        // If the value hasn't changed, or if the proposed timestamp is in the past
+        // AND we don't want to decrease the timestamp AND the timestamp would not
+        // increase THEN, return immediately and do nothing.
+        if((currentValue == newValue
+            || !allowTimestampToDecrease && (proposedModTime < currentModTime))
+           && !timestampWouldIncrease) {
             return *this;
         }
         std::optional<data::ValueType> validated =
-                _parent->validate(_value.getNameOrd(), newValue, currentValue);
-        if (validated.has_value()) {
+            _parent->validate(_value.getNameOrd(), newValue, currentValue);
+        if(validated.has_value()) {
             newValue = validated.value();
         }
         bool changed = true;
-        if (newValue == currentValue) {
+        if(newValue == currentValue) {
             changed = false;
-            if (!timestampWouldIncrease) {
+            if(!timestampWouldIncrease) {
                 return *this;
             }
         }
@@ -313,7 +329,7 @@ namespace config {
         _value.set(newValue);
         _value.setModTime(proposedModTime);
         _parent->updateChild(_value);
-        if (changed) {
+        if(changed) {
             _parent->notifyChange(_value.getNameOrd(), WhatHappened::changed);
         } else {
             _parent->notifyChange(_value.getNameOrd(), WhatHappened::timestampUpdated);
@@ -321,4 +337,4 @@ namespace config {
         return *this;
     }
 
-}
+} // namespace config
