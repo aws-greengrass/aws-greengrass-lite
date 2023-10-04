@@ -174,6 +174,9 @@ namespace data {
         template<typename T>
         [[nodiscard]] bool isType() const {
             static_assert(std::is_base_of_v<ContainerModelBase, T>);
+            if(!isContainer()) {
+                return false;
+            }
             std::shared_ptr<T> p = std::dynamic_pointer_cast<T>(getContainer());
             return static_cast<bool>(p);
         }

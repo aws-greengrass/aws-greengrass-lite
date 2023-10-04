@@ -11,13 +11,13 @@ namespace config {
     //
     struct TlogLine {
         static constexpr const char *TS = {"TS"};
-        Timestamp timestamp;
+        Timestamp timestamp{};
         static constexpr const char *TP = {"TP"};
-        std::vector<std::string> topicPath;
+        std::vector<std::string> topicPath{};
         static constexpr const char *W = {"W"};
-        WhatHappened action;
+        WhatHappened action{WhatHappened::never};
         static constexpr const char *V = {"V"};
-        data::StructElement value;
+        data::StructElement value{};
 
         void serialize(
             data::Environment &environment, rapidjson::Writer<rapidjson::StringBuffer> &writer

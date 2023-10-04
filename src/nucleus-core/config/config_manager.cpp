@@ -42,13 +42,16 @@ namespace config {
         const data::StringOrd &key
     )
         : data::StructModelBase{environment}, _parent{parent}, _key{key} {
-        if(parent && parent->excludeTlog() || util::startsWith(getKey(), "_")) {
+        if((parent && parent->excludeTlog()) || (_key && util::startsWith(getKey(), "_"))) {
             _excludeTlog = true;
         }
     }
 
     std::string Topics::getKey() const {
         std::shared_lock guard{_mutex};
+        if(!_key) {
+            return {}; // root
+        }
         return _environment.stringTable.getString(_key);
     }
 
@@ -89,6 +92,9 @@ namespace config {
     void Topics::addWatcher(
         data::StringOrd subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons
     ) {
+        if(!watcher) {
+            return; // null watcher is a no-op
+        }
         data::StringOrd normKey = Element::getKey(_environment, subKey);
         std::unique_lock guard{_mutex};
         // opportunistic check if any watches need deleting - number of watches
@@ -177,13 +183,14 @@ namespace config {
     std::vector<std::string> Topics::getKeyPath() const { // NOLINT(*-no-recursion)
         std::shared_lock guard{_mutex};
         std::shared_ptr<Topics> parent{_parent.lock()};
+        std::vector<std::string> path;
         if(parent) {
-            std::vector<std::string> path = parent->getKeyPath();
-            path.push_back(getKey());
-            return path;
-        } else {
-            return {getKey()};
+            path = parent->getKeyPath();
         }
+        if(_key) {
+            path.push_back(getKey());
+        }
+        return path;
     }
 
     std::vector<data::StringOrd> Topics::getKeys() const {

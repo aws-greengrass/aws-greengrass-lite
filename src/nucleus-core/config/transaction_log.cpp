@@ -9,7 +9,7 @@ namespace config {
         const std::filesystem::path &outputPath
     )
         : _environment(environment), _root(root), _tlogOutputPath(outputPath) {
-        _root->addWatcher(_watcher, WhatHappened::all);
+        //_root->addWatcher(_watcher, WhatHappened::all);
     }
 
     TlogWriter::~TlogWriter() {
@@ -90,16 +90,17 @@ namespace config {
     }
 
     void TlogWriter::writeAll(const std::shared_ptr<Topics> &node) { // NOLINT(*-no-recursion)
+        std::vector<Topic> leafs = node->getLeafs();
+        for(auto i : leafs) {
+            childChanged(i.getTopics(), i.getKeyOrd(), WhatHappened::childChanged);
+        }
+        leafs.clear();
         std::vector<std::shared_ptr<Topics>> subTopics = node->getInteriors();
         for(const auto &i : subTopics) {
-            childChanged(i, data::StringOrd::nullHandle(), WhatHappened::childChanged);
+            childChanged(i, data::StringOrd::nullHandle(), WhatHappened::interiorAdded);
             writeAll(i);
         }
         subTopics.clear();
-        std::vector<Topic> leafs = node->getLeafs();
-        for(auto i : leafs) {
-            childChanged(i.getTopics(), i.getKeyOrd(), WhatHappened::interiorAdded);
-        }
     }
 
     void TlogWriter::childChanged(
@@ -119,18 +120,30 @@ namespace config {
         std::string keyString;
 
         TlogLine entry;
-        entry.action = changeType;
         if(key) {
             keyString = _environment.stringTable.getString(key);
             if(util::startsWith(keyString, "_")) {
                 return;
             }
             entry.topicPath = topics->getKeyPath();
-            entry.topicPath.push_back(keyString);
             Topic topic = topics->getChild(key);
+            data::StringOrd nameOrd = topic.get().getNameOrd(); // retain case
+            std::string nameString = _environment.stringTable.getString(nameOrd);
+            entry.topicPath.push_back(nameString);
             entry.timestamp = topic.get().getModTime();
             entry.value = topic.get().slice();
+            entry.action = changeType;
         } else {
+            if((changeType & WhatHappened::childRemoved) != WhatHappened::never) {
+                changeType = WhatHappened::removed;
+            } else if((changeType & WhatHappened::interiorAdded) != WhatHappened::never) {
+                changeType = WhatHappened::interiorAdded;
+            } else if((changeType & WhatHappened::timestampUpdated) != WhatHappened::never) {
+                changeType = WhatHappened::timestampUpdated;
+            } else {
+                return; // Other change types ignored
+            }
+            entry.action = changeType;
             entry.topicPath = topics->getKeyPath();
             entry.timestamp = topics->getModTime();
         }

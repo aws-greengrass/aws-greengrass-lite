@@ -18,7 +18,7 @@ namespace config {
         }
         writer.EndArray();
 
-        const char *actionText = "";
+        const char *actionText;
         if((action & WhatHappened::interiorAdded) != WhatHappened::never) {
             actionText = "interiorAdded";
         } else if((action & WhatHappened::childChanged) != WhatHappened::never) {
@@ -33,6 +33,8 @@ namespace config {
             actionText = "timestampUpdated";
         } else if((action & WhatHappened::initialized) != WhatHappened::never) {
             actionText = "initialized";
+        } else {
+            actionText = "";
         }
         writer.Key("W");
         writer.String(actionText);
