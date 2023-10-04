@@ -62,7 +62,7 @@ namespace config {
 
     void Topics::rootsCheck(const data::ContainerModelBase *target
     ) const { // NOLINT(*-no-recursion)
-        if (this == target) {
+        if(this == target) {
             throw std::runtime_error("Recursive reference of structure");
         }
         // we don't want to keep nesting locks else we will deadlock
@@ -77,7 +77,7 @@ namespace config {
             }
         }
         guard.unlock();
-        for (auto const &i: structs) {
+        for(const auto &i : structs) {
             i->rootsCheck(target);
         }
     }
@@ -86,7 +86,9 @@ namespace config {
         addWatcher({}, watcher, reasons);
     }
 
-    void Topics::addWatcher(data::StringOrd subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons) {
+    void Topics::addWatcher(
+        data::StringOrd subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons
+    ) {
         data::StringOrd normKey = Element::getKey(_environment, subKey);
         std::unique_lock guard{_mutex};
         // opportunistic check if any watches need deleting - number of watches
@@ -100,13 +102,14 @@ namespace config {
             }
         }
         // add new watcher
-         _watching.emplace_back(normKey, watcher,reasons);
+        _watching.emplace_back(normKey, watcher, reasons);
         // first call
         guard.unlock();
         watcher->initialized(ref<Topics>(), subKey, reasons);
     }
 
-    Topic& Topic::addWatcher(const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
+    Topic &
+        Topic::addWatcher(const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
         _parent->addWatcher(_value.getNameOrd(), watcher, reasons);
         return *this;
     }
@@ -145,10 +148,10 @@ namespace config {
     }
 
     std::shared_ptr<data::StructModelBase> Topics::copy() const {
-        const std::shared_ptr<Topics> parent {_parent};
+        const std::shared_ptr<Topics> parent{_parent};
         std::shared_lock guard{_mutex}; // for source
         std::shared_ptr<Topics> newCopy{std::make_shared<Topics>(_environment, parent, _key)};
-        for (auto const &i: _children) {
+        for(const auto &i : _children) {
             newCopy->put(i.first, i.second);
         }
         return newCopy;
@@ -212,7 +215,8 @@ namespace config {
         }
     }
 
-    std::shared_ptr<Topics> Topics::createInteriorChild(data::StringOrd nameOrd, const Timestamp & timestamp) {
+    std::shared_ptr<Topics>
+        Topics::createInteriorChild(data::StringOrd nameOrd, const Timestamp &timestamp) {
         Element leaf = createChild(nameOrd, [this, &timestamp, nameOrd](auto ord) {
             std::shared_ptr<Topics> parent{ref<Topics>()};
             std::shared_ptr<Topics> nested{std::make_shared<Topics>(_environment, parent, nameOrd)};
@@ -357,15 +361,19 @@ namespace config {
         }
     }
 
-    Topic & Topic::dflt(data::ValueType defVal) {
-        if (!_value) {
+    Topic &Topic::dflt(data::ValueType defVal) {
+        if(!_value) {
             withNewerValue(Timestamp::never(), std::move(defVal), true);
         }
         return *this;
     }
 
-    Topic & Topic::withNewerValue(const config::Timestamp &proposedModTime, data::ValueType proposed,
-                                  bool allowTimestampToDecrease, bool allowTimestampToIncreaseWhenValueHasntChanged) {
+    Topic &Topic::withNewerValue(
+        const config::Timestamp &proposedModTime,
+        data::ValueType proposed,
+        bool allowTimestampToDecrease,
+        bool allowTimestampToIncreaseWhenValueHasntChanged
+    ) {
         // Logic tracks that in GG-Java
         data::ValueType currentValue = _value.get();
         data::ValueType newValue = std::move(proposed);
@@ -406,17 +414,17 @@ namespace config {
         return *this;
     }
 
-    Manager & Manager::read(const std::filesystem::path &path) {
+    Manager &Manager::read(const std::filesystem::path &path) {
         std::string ext = util::lower(path.extension().generic_string());
-        Timestamp timestamp {std::filesystem::last_write_time(path)};
+        Timestamp timestamp{std::filesystem::last_write_time(path)};
 
-        if (ext == ".yaml" || ext == ".yml") {
-            YamlReader reader {_environment, _root, timestamp};
+        if(ext == ".yaml" || ext == ".yml") {
+            YamlReader reader{_environment, _root, timestamp};
             reader.read(path);
-        } else if (ext == ".tlog" || ext == ".tlog~") {
-            //config::TlogReader::mergeTLogInto()
+        } else if(ext == ".tlog" || ext == ".tlog~") {
+            // config::TlogReader::mergeTLogInto()
             throw std::runtime_error("Tlog config type not yet implemented");
-        } else if (ext == ".json") {
+        } else if(ext == ".json") {
             throw std::runtime_error("Json config type not yet implemented");
         } else {
             throw std::runtime_error(std::string("Unsupported extension type: ") + ext);
@@ -424,4 +432,4 @@ namespace config {
         return *this;
     }
 
-}
+} // namespace config

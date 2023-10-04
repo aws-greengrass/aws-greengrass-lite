@@ -5,7 +5,6 @@
 #include "data/shared_struct.h"
 #include "data/string_table.h"
 #include "tasks/expire_time.h"
-#include "data/safe_handle.h"
 #include "watcher.h"
 #include <filesystem>
 #include <optional>
@@ -37,9 +36,13 @@ namespace config {
 
         explicit constexpr Timestamp(int64_t timeMillis) : _time{timeMillis} {
         }
+
         template<typename T>
-        explicit constexpr Timestamp(const std::chrono::time_point<T> time) :
-                _time(static_cast<int64_t>(std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch()).count())) {
+        explicit constexpr Timestamp(const std::chrono::time_point<T> time)
+            : _time(static_cast<int64_t>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch())
+                    .count()
+            )) {
         }
 
         ~Timestamp() = default;
@@ -374,8 +377,9 @@ namespace config {
             return withNewerValue(_value.getModTime(), std::move(nv));
         }
 
-        Topic & addWatcher(const std::shared_ptr<Watcher> & watcher, WhatHappened reasons);
-        Topic & dflt(data::ValueType defVal);
+        Topic &addWatcher(const std::shared_ptr<Watcher> &watcher, WhatHappened reasons);
+        Topic &dflt(data::ValueType defVal);
+
         Element get() {
             return _value;
         }

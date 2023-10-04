@@ -3,11 +3,12 @@
 
 uint32_t ggapiClaimThread() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() {
-        data::Global & global = data::Global::self();
-        if (ggapiGetCurrentTask() != 0) {
+        data::Global &global = data::Global::self();
+        if(ggapiGetCurrentTask() != 0) {
             throw std::runtime_error("Thread already claimed");
         }
-        std::shared_ptr<tasks::FixedTaskThread> thread {std::make_shared<tasks::FixedTaskThread>(global.environment, global.taskManager)};
+        std::shared_ptr<tasks::FixedTaskThread> thread{
+            std::make_shared<tasks::FixedTaskThread>(global.environment, global.taskManager)};
         return thread->claimFixedThread().getHandle().asInt();
     });
 }

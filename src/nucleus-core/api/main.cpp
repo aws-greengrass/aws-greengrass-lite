@@ -13,7 +13,7 @@ int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
         {
             lifecycle::CommandLine commandLine{global, kernel};
             commandLine.parseEnv(global.environment.sysProperties);
-            if (argc > 0 && argv != nullptr) {
+            if(argc > 0 && argv != nullptr) {
                 commandLine.parseArgs(argc, argv);
             }
             kernel.preLaunch(commandLine);

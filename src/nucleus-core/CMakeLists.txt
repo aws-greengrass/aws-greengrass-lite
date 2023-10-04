@@ -8,26 +8,26 @@ add_compile_definitions(EXPORT_API)
 include(FetchContent)
 
 FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG f7320141120f720aecc4c32be25586e7da9eb978)
+        yaml-cpp
+        GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+        GIT_TAG f7320141120f720aecc4c32be25586e7da9eb978)
 
 FetchContent_Declare(
-  rapidjson
-  GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-  GIT_TAG f54b0e47a08782a6131cc3d60f94d038fa6e0a51
-  GIT_SHALLOW TRUE)
+        rapidjson
+        GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
+        GIT_TAG f54b0e47a08782a6131cc3d60f94d038fa6e0a51
+        GIT_SHALLOW TRUE)
 
 FetchContent_GetProperties(yaml-cpp)
-if(NOT yaml-cpp_POPULATED)
-  FetchContent_Populate(yaml-cpp)
-  add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR} EXCLUDE_FROM_ALL)
-endif()
+if (NOT yaml-cpp_POPULATED)
+    FetchContent_Populate(yaml-cpp)
+    add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif ()
 
 FetchContent_GetProperties(rapidjson)
-if(NOT rapidjson_POPULATED)
-  FetchContent_Populate(rapidjson)
-endif()
+if (NOT rapidjson_POPULATED)
+    FetchContent_Populate(rapidjson)
+endif ()
 
 add_library(nucleus-core SHARED
         api/data.cpp

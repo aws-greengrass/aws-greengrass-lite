@@ -106,4 +106,4 @@ namespace config {
 
         static std::string stringifyWhatHappened(WhatHappened changeType);
     };
-}
+} // namespace config

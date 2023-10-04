@@ -2,8 +2,8 @@
 
 #include "config_manager.h"
 #include "data/struct_model.h"
-#include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 namespace config {
     //
@@ -19,13 +19,18 @@ namespace config {
         static constexpr const char *V = {"V"};
         data::StructElement value;
 
-        void serialize(data::Environment &environment, rapidjson::Writer<rapidjson::StringBuffer> &writer);
+        void serialize(
+            data::Environment &environment, rapidjson::Writer<rapidjson::StringBuffer> &writer
+        );
 
         void deSerialize();
     };
 
     struct JsonHelper {
-        static void serialize(data::Environment &environment, rapidjson::Writer<rapidjson::StringBuffer> &writer,
-                              const data::StructElement &value);
+        static void serialize(
+            data::Environment &environment,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            const data::StructElement &value
+        );
     };
-}
+} // namespace config

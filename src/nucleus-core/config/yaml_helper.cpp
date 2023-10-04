@@ -30,38 +30,42 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    void YamlReader::inplaceValue(const std::shared_ptr<Topics> & topics, const std::string & key, YAML::Node & node) {
-        switch (node.Type()) {
-            case YAML::NodeType::Map:
-                nestedMapValue(topics, key, node);
-                break;
-            case YAML::NodeType::Sequence:
-            case YAML::NodeType::Scalar:
-            case YAML::NodeType::Null:
-                inplaceTopicValue(topics, key, rawValue(node));
-                break;
-            default:
-                // ignore anything else
-                break;
+    void YamlReader::inplaceValue(
+        const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
+    ) {
+        switch(node.Type()) {
+        case YAML::NodeType::Map:
+            nestedMapValue(topics, key, node);
+            break;
+        case YAML::NodeType::Sequence:
+        case YAML::NodeType::Scalar:
+        case YAML::NodeType::Null:
+            inplaceTopicValue(topics, key, rawValue(node));
+            break;
+        default:
+            // ignore anything else
+            break;
         }
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    data::ValueType YamlReader::rawValue(YAML::Node & node) {
-        switch (node.Type()) {
-            case YAML::NodeType::Map:
-                return rawMapValue(node);
-            case YAML::NodeType::Sequence:
-                return rawSequenceValue(node);
-            case YAML::NodeType::Scalar:
-                return node.as<std::string>();
-            default:
-                break;
+    data::ValueType YamlReader::rawValue(YAML::Node &node) {
+        switch(node.Type()) {
+        case YAML::NodeType::Map:
+            return rawMapValue(node);
+        case YAML::NodeType::Sequence:
+            return rawSequenceValue(node);
+        case YAML::NodeType::Scalar:
+            return node.as<std::string>();
+        default:
+            break;
         }
         return {};
     }
 
-    void YamlReader::inplaceTopicValue(const std::shared_ptr<Topics> & topics, const std::string & key, const data::ValueType & vt) {
+    void YamlReader::inplaceTopicValue(
+        const std::shared_ptr<Topics> &topics, const std::string &key, const data::ValueType &vt
+    ) {
         Topic topic = topics->createChild(key, _timestamp);
         topic.withNewerValue(_timestamp, vt);
     }
@@ -76,9 +80,9 @@ namespace config {
 
     // NOLINTNEXTLINE(*-no-recursion)
     data::ValueType YamlReader::rawSequenceValue(YAML::Node &node) {
-        std::shared_ptr<data::SharedList> newList { std::make_shared<data::SharedList>(_environment) };
+        std::shared_ptr<data::SharedList> newList{std::make_shared<data::SharedList>(_environment)};
         int idx = 0;
-        for (auto i : node) {
+        for(auto i : node) {
             newList->put(idx++, data::StructElement(rawValue(i)));
         }
         return newList;
@@ -86,8 +90,9 @@ namespace config {
 
     // NOLINTNEXTLINE(*-no-recursion)
     data::ValueType YamlReader::rawMapValue(YAML::Node &node) {
-        std::shared_ptr<data::SharedStruct> newMap { std::make_shared<data::SharedStruct>(_environment) };
-        for (auto i : node) {
+        std::shared_ptr<data::SharedStruct> newMap{
+            std::make_shared<data::SharedStruct>(_environment)};
+        for(auto i : node) {
             auto key = i.first.as<std::string>();
             newMap->put(key, data::StructElement(rawValue(node)));
         }
