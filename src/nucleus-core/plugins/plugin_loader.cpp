@@ -171,6 +171,6 @@ void plugins::PluginLoader::lifecycleRun(const std::shared_ptr<data::StructModel
 }
 
 void plugins::PluginLoader::lifecycleTerminate(const std::shared_ptr<data::StructModelBase> &data) {
-    data::Handle key = _environment.stringTable.getOrCreateOrd("run");
+    data::Handle key = _environment.stringTable.getOrCreateOrd("terminate");
     lifecycle(key, data);
 }
