@@ -4,6 +4,8 @@ project(greengrass-lite-all)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+# set(CMAKE_CXX_FLAGS_RELEASE "-Os") #-- for size
+# set(CMAKE_CXX_FLAGS_RELEASE "-O3") #-- for speed
 
 # Uncomment to enable santizers - thread & address cannot be combined
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")

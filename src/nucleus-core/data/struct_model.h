@@ -13,9 +13,9 @@ namespace data {
     class ListModelBase;
 
     typedef std::variant<
-        std::monostate, // Always first (NONE)
-
         // types in same order as type consts in ValueTypes below
+        std::monostate, // Always first (NONE)
+        bool, // BOOL
         uint64_t, // INT
         double, // DOUBLE
         std::string, // STRING
@@ -27,10 +27,11 @@ namespace data {
     // int, so this is easier
     struct ValueTypes {
         static constexpr auto NONE{0};
-        static constexpr auto INT{1};
-        static constexpr auto DOUBLE{2};
-        static constexpr auto STRING{3};
-        static constexpr auto CONTAINER{4};
+        static constexpr auto BOOL{1};
+        static constexpr auto INT{2};
+        static constexpr auto DOUBLE{3};
+        static constexpr auto STRING{4};
+        static constexpr auto CONTAINER{5};
     };
 
     //
@@ -80,9 +81,13 @@ namespace data {
             return _value;
         }
 
+        [[nodiscard]] int getType() const {
+            return static_cast<int>(_value.index());
+        }
+
         StructElement &set(ValueType value) {
-            // assumes detached element and not worried about cycles until this is
-            // inserted into a list or struct
+            // assumes detached element and not worried about cycles until this is inserted into a
+            // list or struct
             _value = std::move(value);
             return *this;
         }
@@ -95,8 +100,27 @@ namespace data {
             return !isContainer();
         }
 
+        [[nodiscard]] bool getBool() const {
+            switch(_value.index()) {
+            case BOOL:
+                return std::get<bool>(_value);
+            case INT:
+                return std::get<uint64_t>(_value) != 0;
+            case DOUBLE:
+                return std::get<double>(_value) != 0.0;
+            case STRING: {
+                std::string s = util::lower(std::get<std::string>(_value));
+                return !s.empty() && s != "false" && s != "no" && s != "0" && s != "0.0";
+            }
+            default:
+                throw std::runtime_error("Unsupported type conversion to integer");
+            }
+        }
+
         [[nodiscard]] uint64_t getInt() const {
             switch(_value.index()) {
+            case BOOL:
+                return std::get<bool>(_value) ? 1 : 0;
             case INT:
                 return std::get<uint64_t>(_value);
             case DOUBLE:
@@ -109,7 +133,9 @@ namespace data {
         }
 
         [[nodiscard]] double getDouble() const {
-            switch(_value.index()) {
+            switch (_value.index()) {
+            case BOOL:
+                return std::get<bool>(_value) ? 1.0 : 0.0;
             case INT:
                 return static_cast<double>(std::get<uint64_t>(_value));
             case DOUBLE:
@@ -122,7 +148,9 @@ namespace data {
         }
 
         [[nodiscard]] std::string getString() const {
-            switch(_value.index()) {
+            switch (_value.index()) {
+            case BOOL:
+                return std::get<bool>(_value) ? "true" : "false";
             case INT:
                 return std::to_string(std::get<uint64_t>(_value));
             case DOUBLE:
@@ -211,7 +239,11 @@ namespace data {
         }
 
         virtual void put(StringOrd handle, const StructElement &element) = 0;
+
         virtual void put(std::string_view sv, const StructElement &element) = 0;
+
+        virtual std::vector<data::StringOrd> getKeys() const = 0;
+
         virtual bool hasKey(StringOrd handle) const = 0;
         virtual StructElement get(StringOrd handle) const = 0;
         virtual StructElement get(std::string_view sv) const = 0;
@@ -227,9 +259,8 @@ namespace data {
         explicit ListModelBase(Environment &environment) : ContainerModelBase{environment} {
         }
 
-        virtual void put(int32_t idx, const StructElement &element) = 0;
-        virtual void insert(int32_t idx, const StructElement &element) = 0;
-        virtual uint32_t size() const = 0;
+        virtual void put(int32_t idx, const StructElement & element) = 0;
+        virtual void insert(int32_t idx, const StructElement & element) = 0;
         virtual StructElement get(int idx) const = 0;
         virtual std::shared_ptr<ListModelBase> copy() const = 0;
     };

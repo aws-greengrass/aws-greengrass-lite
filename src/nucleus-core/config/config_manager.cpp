@@ -1,8 +1,7 @@
 #include "config_manager.h"
-#include "config_reader.h"
-#include "transaction_log.h"
 #include "data/environment.h"
 #include "util.h"
+#include "yaml_helper.h"
 #include <utility>
 
 //
@@ -37,6 +36,22 @@ namespace config {
         return setOrd(env.stringTable.getOrCreateOrd(str));
     }
 
+    Topics::Topics(
+        data::Environment &environment,
+        const std::shared_ptr<Topics> &parent,
+        const data::StringOrd &key
+    )
+        : data::StructModelBase{environment}, _parent{parent}, _key{key} {
+        if(parent && parent->excludeTlog() || util::startsWith(getKey(), "_")) {
+            _excludeTlog = true;
+        }
+    }
+
+    std::string Topics::getKey() const {
+        std::shared_lock guard{_mutex};
+        return _environment.stringTable.getString(_key);
+    }
+
     void Topics::updateChild(const Element &element) {
         data::StringOrd key = element.getKey(_environment);
         checkedPut(element, [this, key, &element](auto &el) {
@@ -47,7 +62,7 @@ namespace config {
 
     void Topics::rootsCheck(const data::ContainerModelBase *target
     ) const { // NOLINT(*-no-recursion)
-        if(this == target) {
+        if (this == target) {
             throw std::runtime_error("Recursive reference of structure");
         }
         // we don't want to keep nesting locks else we will deadlock
@@ -130,10 +145,10 @@ namespace config {
     }
 
     std::shared_ptr<data::StructModelBase> Topics::copy() const {
-        const std::shared_ptr<Topics> parent{_parent};
-        std::shared_ptr<Topics> newCopy{std::make_shared<Topics>(_environment, parent)};
+        const std::shared_ptr<Topics> parent {_parent};
         std::shared_lock guard{_mutex}; // for source
-        for(const auto &i : _children) {
+        std::shared_ptr<Topics> newCopy{std::make_shared<Topics>(_environment, parent, _key)};
+        for (auto const &i: _children) {
             newCopy->put(i.first, i.second);
         }
         return newCopy;
@@ -156,6 +171,28 @@ namespace config {
         return i != _children.end();
     }
 
+    std::vector<std::string> Topics::getKeyPath() const { // NOLINT(*-no-recursion)
+        std::shared_lock guard{_mutex};
+        std::shared_ptr<Topics> parent{_parent.lock()};
+        if(parent) {
+            std::vector<std::string> path = parent->getKeyPath();
+            path.push_back(getKey());
+            return path;
+        } else {
+            return {getKey()};
+        }
+    }
+
+    std::vector<data::StringOrd> Topics::getKeys() const {
+        std::vector<data::StringOrd> keys;
+        std::shared_lock guard{_mutex};
+        keys.reserve(_children.size());
+        for(const auto &_element : _children) {
+            keys.emplace_back(_element.first);
+        }
+        return keys;
+    }
+
     uint32_t Topics::size() const {
         //_environment.stringTable.assertStringHandle(handle);
         std::shared_lock guard{_mutex};
@@ -175,11 +212,10 @@ namespace config {
         }
     }
 
-    std::shared_ptr<Topics>
-        Topics::createInteriorChild(data::StringOrd nameOrd, const Timestamp &timestamp) {
-        Element leaf = createChild(nameOrd, [this, &timestamp](auto ord) {
+    std::shared_ptr<Topics> Topics::createInteriorChild(data::StringOrd nameOrd, const Timestamp & timestamp) {
+        Element leaf = createChild(nameOrd, [this, &timestamp, nameOrd](auto ord) {
             std::shared_ptr<Topics> parent{ref<Topics>()};
-            std::shared_ptr<Topics> nested{std::make_shared<Topics>(_environment, parent)};
+            std::shared_ptr<Topics> nested{std::make_shared<Topics>(_environment, parent, nameOrd)};
             return Element(ord, timestamp, nested);
         });
         return leaf.getTopicsRef();
@@ -189,6 +225,29 @@ namespace config {
         Topics::createInteriorChild(std::string_view sv, const Timestamp &timestamp) {
         data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
         return createInteriorChild(handle, timestamp);
+    }
+
+    std::vector<std::shared_ptr<Topics>> Topics::getInteriors() {
+        std::vector<std::shared_ptr<Topics>> interiors;
+        std::shared_lock guard{_mutex};
+        for(const auto &i : _children) {
+            if(i.second.isTopics()) {
+                interiors.push_back(i.second.getTopicsRef());
+            }
+        }
+        return interiors;
+    }
+
+    std::vector<Topic> Topics::getLeafs() {
+        std::shared_ptr<Topics> self = ref<Topics>();
+        std::vector<Topic> leafs;
+        std::shared_lock guard{_mutex};
+        for(const auto &i : _children) {
+            if(!i.second.isTopics()) {
+                leafs.emplace_back(_environment, self, i.second);
+            }
+        }
+        return leafs;
     }
 
     Topic Topics::createChild(data::StringOrd nameOrd, const Timestamp &timestamp) {
@@ -298,14 +357,6 @@ namespace config {
         }
     }
 
-<<<<<<< HEAD
-    Topic &Topic::withNewerValue(
-        const config::Timestamp &proposedModTime,
-        data::ValueType proposed,
-        bool allowTimestampToDecrease,
-        bool allowTimestampToIncreaseWhenValueHasntChanged
-    ) {
-=======
     Topic & Topic::dflt(data::ValueType defVal) {
         if (!_value) {
             withNewerValue(Timestamp::never(), std::move(defVal), true);
@@ -315,7 +366,6 @@ namespace config {
 
     Topic & Topic::withNewerValue(const config::Timestamp &proposedModTime, data::ValueType proposed,
                                   bool allowTimestampToDecrease, bool allowTimestampToIncreaseWhenValueHasntChanged) {
->>>>>>> 3fc2320 (Nucleus bootup-and-read-config procedure ported from GG-Java)
         // Logic tracks that in GG-Java
         data::ValueType currentValue = _value.get();
         data::ValueType newValue = std::move(proposed);
@@ -356,9 +406,6 @@ namespace config {
         return *this;
     }
 
-<<<<<<< HEAD
-} // namespace config
-=======
     Manager & Manager::read(const std::filesystem::path &path) {
         std::string ext = util::lower(path.extension().generic_string());
         Timestamp timestamp {std::filesystem::last_write_time(path)};
@@ -378,4 +425,3 @@ namespace config {
     }
 
 }
->>>>>>> 3fc2320 (Nucleus bootup-and-read-config procedure ported from GG-Java)

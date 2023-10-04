@@ -8,12 +8,6 @@ int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
         if(envp != nullptr) {
             global.environment.sysProperties.parseEnv(envp);
         }
-<<<<<<< HEAD
-        lifecycle::KernelCommandLine kernel{global};
-        kernel.parseEnv(global.environment.sysProperties);
-        if(argc > 0 && argv != nullptr) {
-            kernel.parseArgs(argc, argv);
-=======
         lifecycle::Kernel kernel{global};
         // limited scope
         {
@@ -23,7 +17,6 @@ int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
                 commandLine.parseArgs(argc, argv);
             }
             kernel.preLaunch(commandLine);
->>>>>>> 3fc2320 (Nucleus bootup-and-read-config procedure ported from GG-Java)
         }
         // Never returns unless signalled
         kernel.launch();

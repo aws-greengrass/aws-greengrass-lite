@@ -28,4 +28,7 @@ SpaceBeforeParens: Never
 TabWidth: 4
 UseTab: Never
 ...
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5cf9b92 (TLOG writer)

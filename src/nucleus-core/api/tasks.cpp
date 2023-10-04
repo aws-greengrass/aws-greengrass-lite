@@ -3,17 +3,11 @@
 
 uint32_t ggapiClaimThread() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() {
-<<<<<<< HEAD
-        data::Global &global = data::Global::self();
-        std::shared_ptr<tasks::FixedTaskThread> thread{
-            std::make_shared<tasks::FixedTaskThread>(global.environment, global.taskManager)};
-=======
         data::Global & global = data::Global::self();
         if (ggapiGetCurrentTask() != 0) {
             throw std::runtime_error("Thread already claimed");
         }
         std::shared_ptr<tasks::FixedTaskThread> thread {std::make_shared<tasks::FixedTaskThread>(global.environment, global.taskManager)};
->>>>>>> 3fc2320 (Nucleus bootup-and-read-config procedure ported from GG-Java)
         return thread->claimFixedThread().getHandle().asInt();
     });
 }

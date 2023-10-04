@@ -21,6 +21,9 @@ namespace data {
         void put(StringOrd handle, const StructElement &element) override;
         void put(std::string_view sv, const StructElement &element) override;
         bool hasKey(StringOrd handle) const override;
+
+        std::vector<data::StringOrd> getKeys() const override;
+
         StructElement get(StringOrd handle) const override;
         StructElement get(std::string_view sv) const override;
         std::shared_ptr<StructModelBase> copy() const override;

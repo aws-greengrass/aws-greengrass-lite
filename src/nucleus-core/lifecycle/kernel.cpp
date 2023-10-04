@@ -148,8 +148,7 @@ namespace lifecycle {
     }
 
     void Kernel::writeEffectiveConfigAsTransactionLog(const std::filesystem::path & tlogFile) {
-        // TODO: missing code
-
+        config::TlogWriter::dump(_global.environment, getConfig().root(), tlogFile);
     }
 
     void Kernel::writeEffectiveConfig() {

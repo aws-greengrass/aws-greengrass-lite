@@ -9,16 +9,17 @@ namespace config {
     // Assume these are internal to Nucleus, but can be extended by creating a special watcher container to
     // map to pub-sub
     //
-    enum class WhatHappened : uint32_t {
+    enum class WhatHappened : int32_t {
         never = 0,
-        changed = 1<<0,
-        initialized = 1<<1,
-        childChanged = 1<<2,
-        removed = 1<<3,
-        childRemoved = 1<<4,
-        timestampUpdated = 1<<5,
-        interiorAdded = 1<<6,
-        validation = 1<<7
+        changed = 1 << 0,
+        initialized = 1 << 1,
+        childChanged = 1 << 2,
+        removed = 1 << 3,
+        childRemoved = 1 << 4,
+        timestampUpdated = 1 << 5,
+        interiorAdded = 1 << 6,
+        validation = 1 << 7,
+        all = -1
     };
 
     // allow combining of bit-flags
