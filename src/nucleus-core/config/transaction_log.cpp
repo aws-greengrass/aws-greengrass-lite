@@ -1,6 +1,8 @@
 #include "transaction_log.h"
 #include "data/environment.h"
 #include "json_helper.h"
+#include <iostream>
+#include <iterator>
 
 namespace config {
     TlogWriter::TlogWriter(
@@ -9,6 +11,7 @@ namespace config {
         const std::filesystem::path &outputPath
     )
         : _environment(environment), _root(root), _tlogOutputPath(outputPath) {
+        _writer.exceptions(std::ios::failbit | std::ios::badbit);
         //_root->addWatcher(_watcher, WhatHappened::all);
     }
 
@@ -30,7 +33,7 @@ namespace config {
     void TlogWriter::close() {
         std::unique_lock guard{_mutex};
         _watcher.reset();
-        if(_writer) {
+        if(_writer.is_open()) {
             _writer.flush();
             _writer.close();
         }
@@ -83,6 +86,7 @@ namespace config {
     TlogWriter &TlogWriter::open(const std::filesystem::path &path, std::ios_base::openmode mode) {
         close();
         std::ofstream stream;
+        stream.exceptions(std::ios::failbit | std::ios::badbit);
         stream.open(path, mode);
         std::unique_lock guard{_mutex};
         _writer = std::move(stream);
@@ -92,71 +96,60 @@ namespace config {
     void TlogWriter::writeAll(const std::shared_ptr<Topics> &node) { // NOLINT(*-no-recursion)
         std::vector<Topic> leafs = node->getLeafs();
         for(auto i : leafs) {
-            childChanged(i.getTopics(), i.getKeyOrd(), WhatHappened::childChanged);
+            childChanged(i, WhatHappened::childChanged);
         }
         leafs.clear();
         std::vector<std::shared_ptr<Topics>> subTopics = node->getInteriors();
         for(const auto &i : subTopics) {
-            childChanged(i, data::StringOrd::nullHandle(), WhatHappened::interiorAdded);
+            childChanged(*i, WhatHappened::interiorAdded);
             writeAll(i);
         }
         subTopics.clear();
     }
 
-    void TlogWriter::childChanged(
-        const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-    ) {
-        std::unique_lock guard{_mutex};
-        if(!_writer) {
-            return; // closed
-        }
-        guard.unlock();
-        if(!topics) {
+    void TlogWriter::childChanged(ConfigNode &node, WhatHappened changeType) {
+        if(node.excludeTlog()) {
             return;
         }
-        if(topics->excludeTlog()) {
-            return;
-        }
-        std::string keyString;
-
-        TlogLine entry;
-        if(key) {
-            keyString = _environment.stringTable.getString(key);
-            if(util::startsWith(keyString, "_")) {
-                return;
-            }
-            entry.topicPath = topics->getKeyPath();
-            Topic topic = topics->getChild(key);
-            data::StringOrd nameOrd = topic.get().getNameOrd(); // retain case
-            std::string nameString = _environment.stringTable.getString(nameOrd);
-            entry.topicPath.push_back(nameString);
-            entry.timestamp = topic.get().getModTime();
-            entry.value = topic.get().slice();
-            entry.action = changeType;
+        Topic *nodeAsTopic = dynamic_cast<Topic *>(&node);
+        TlogLine tlogline;
+        tlogline.topicPath = node.getKeyPath();
+        tlogline.timestamp = node.getModTime();
+        if((changeType & WhatHappened::childChanged) != WhatHappened::never
+           && nodeAsTopic != nullptr) {
+            tlogline.value = nodeAsTopic->slice();
+            tlogline.action = WhatHappened::changed;
         } else {
             if((changeType & WhatHappened::childRemoved) != WhatHappened::never) {
-                changeType = WhatHappened::removed;
+                tlogline.action = WhatHappened::removed;
             } else if((changeType & WhatHappened::interiorAdded) != WhatHappened::never) {
-                changeType = WhatHappened::interiorAdded;
+                tlogline.action = WhatHappened::interiorAdded;
             } else if((changeType & WhatHappened::timestampUpdated) != WhatHappened::never) {
-                changeType = WhatHappened::timestampUpdated;
+                tlogline.action = WhatHappened::timestampUpdated;
             } else {
                 return; // Other change types ignored
             }
-            entry.action = changeType;
-            entry.topicPath = topics->getKeyPath();
-            entry.timestamp = topics->getModTime();
         }
 
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        entry.serialize(_environment, writer);
+        tlogline.serialize(_environment, writer);
 
-        guard.lock();
-        if(!_writer) {
-            return; // closed during above steps
+        std::unique_lock guard{_mutex};
+        if(!_writer.is_open()) {
+            return;
         }
         _writer << buffer.GetString() << std::endl;
+        if(_flushImmediately) {
+            _writer.flush();
+        }
+        uint32_t currentCount = ++_count;
+        // TODO: insert auto-truncate logic from ConfigurationWriter::childChanged
+    }
+
+    std::filesystem::path TlogWriter::getOldTlogPath(const std::filesystem::path &path) {
+        std::filesystem::path copy{path};
+        return copy.replace_extension(".old");
     }
 
     void TlogWatcher::changed(
@@ -167,11 +160,167 @@ namespace config {
     void TlogWatcher::childChanged(
         const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
     ) {
-        _writer.childChanged(topics, key, changeType);
+        if(key) {
+            _writer.childChanged(*topics->getNode(key), changeType);
+        } else {
+            _writer.childChanged(*topics, changeType);
+        }
     }
 
     void TlogWatcher::initialized(
         const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
     ) {
+    }
+
+    bool TlogReader::handleTlogTornWrite(
+        data::Environment &environment, const std::filesystem::path &tlogFile
+    ) {
+        uintmax_t fileSize = 0;
+        uintmax_t lastValid = 0;
+        try {
+            if(!std::filesystem::exists(tlogFile)) {
+                // TODO: Log
+                std::cerr << "Transaction log file does not exist at given path: " << tlogFile
+                          << std::endl;
+                return false;
+            }
+            fileSize = std::filesystem::file_size(tlogFile);
+            if(fileSize == 0) {
+                // TODO: Log
+                std::cerr << "Transaction log is zero-length at given path: " << tlogFile
+                          << std::endl;
+                return false;
+            }
+            // GG-Interop:
+            // The GG-Java validation takes a hammer approach to validation by parsing the
+            // entire file to handle torn-write scenarios (where the last write did not
+            // complete). The pattern here follows a self-repair approach, per also used in
+            // StreamManager
+            //
+            // If the host crashes while writing to Tlog (which is an append-log), then
+            // the last record may not be entirely written. In theory, we can look for
+            // "}<whitespace>" as heuristic, but safer approach is to pre-scan to find first
+            // invalid JSON structure. To be better repairing, if the majority of the file
+            // is valid, then the file is truncated and accepted.
+            //
+            std::ifstream stream;
+            stream.open(tlogFile, std::ios_base::in);
+            if(!stream) {
+                // TODO: Log
+                std::cerr << "Failed to open Transaction log: " << tlogFile << std::endl;
+                return false;
+            }
+            while(!stream.eof()) {
+                JsonReader reader(environment);
+                reader.push(std::make_unique<JsonStructValidator>(reader, false));
+                rapidjson::ParseResult result = reader.read(stream);
+                if(result) {
+                    lastValid = stream.tellg(); // update watermark
+                } else {
+                    break;
+                }
+            }
+            stream.clear();
+            // whitespace is permitted after last valid position
+            stream.seekg(
+                lastValid, // NOLINT(*-narrowing-conversions)
+                std::ifstream::beg
+            );
+            std::string_view whitespace{" \t\n\v\f\r"};
+            while(!stream.eof()) {
+                char c;
+                if(!stream.get(c)) {
+                    break;
+                }
+                if(whitespace.find(c) == std::string_view::npos) {
+                    break;
+                }
+                ++lastValid;
+            }
+            if(lastValid == fileSize) {
+                return true; // typical case where entire file is valid
+            }
+            if(lastValid == 0) {
+                // TODO: Log
+                std::cerr << "Entire Transaction log is invalid: " << tlogFile << std::endl;
+                return false;
+            }
+            if((fileSize - lastValid) > (fileSize / 4)) {
+                // TODO: Log
+                std::cerr << "Transaction log corrupted / torn-write - would truncate too small: "
+                          << tlogFile << std::endl;
+                return false;
+            } else {
+                // TODO: make a fresh copy of TLOG and keep the apparently corrupt TLOG
+                std::filesystem::resize_file(tlogFile, lastValid);
+                // TODO: Log
+                std::cerr << "Transaction log truncated to last valid entry: " << tlogFile
+                          << std::endl;
+                return true;
+            }
+        } catch(std::ofstream::failure &e) {
+            // TODO: Log
+            std::cerr << "Unable to read Tlog\n";
+            return false;
+        }
+    }
+
+    void TlogReader::mergeTlogInto(
+        data::Environment &environment,
+        const std::shared_ptr<Topics> &root,
+        std::ifstream &stream,
+        bool forceTimestamp,
+        const std::function<bool(ConfigNode &)> &mergeCondition,
+        ConfigurationMode configurationMode
+    ) {
+        while(!stream.eof()) {
+            TlogLine tlogLine = TlogLine::readRecord(environment, stream);
+            if(tlogLine.action == WhatHappened::never) {
+                continue;
+            }
+            if(tlogLine.action == WhatHappened::changed) {
+                Topic targetTopic{root->lookup()(tlogLine.topicPath)};
+                if(!mergeCondition(targetTopic)) {
+                    continue;
+                }
+                if(configurationMode == ConfigurationMode::WITH_VALUES) {
+                    targetTopic.withNewerValue(
+                        tlogLine.timestamp, tlogLine.value.get(), forceTimestamp
+                    );
+                }
+            } else if(tlogLine.action == WhatHappened::removed) {
+                std::shared_ptr<ConfigNode> node{root->lookup().getNode(tlogLine.topicPath)};
+                if(!node) {
+                    continue;
+                }
+                if(forceTimestamp) {
+                    // always remove
+                    node->remove();
+                } else {
+                    // conditional remove
+                    node->remove(tlogLine.timestamp);
+                }
+            } else if(tlogLine.action == WhatHappened::timestampUpdated) {
+                Topic targetTopic{root->lookup()(tlogLine.topicPath)};
+                targetTopic.withNewerModTime(tlogLine.timestamp);
+            } else if(tlogLine.action == WhatHappened::interiorAdded) {
+                (void) root->lookup()[tlogLine.topicPath];
+            }
+        }
+    }
+
+    void TlogReader::mergeTlogInto(
+        data::Environment &environment,
+        const std::shared_ptr<Topics> &root,
+        const std::filesystem::path &path,
+        bool forceTimestamp,
+        const std::function<bool(ConfigNode &)> &mergeCondition,
+        ConfigurationMode configurationMode
+    ) {
+        std::ifstream stream;
+        stream.exceptions(std::ios_base::failbit | std::ios_base::badbit);
+        stream.open(path);
+        stream.exceptions(std::ios_base::badbit);
+        mergeTlogInto(environment, root, stream, forceTimestamp, mergeCondition, configurationMode);
     }
 } // namespace config

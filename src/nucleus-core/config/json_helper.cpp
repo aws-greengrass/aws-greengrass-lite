@@ -1,5 +1,7 @@
 #include "json_helper.h"
 #include "data/environment.h"
+#include <fstream>
+#include <rapidjson/istreamwrapper.h>
 
 namespace config {
 
@@ -43,6 +45,31 @@ namespace config {
         JsonHelper::serialize(environment, writer, value);
 
         writer.EndObject();
+    }
+
+    WhatHappened TlogLine::decodeWhatHappened(std::string_view whatHappenedString) {
+        if(whatHappenedString == "changed") {
+            return WhatHappened::changed;
+        }
+        if(whatHappenedString == "initialized") {
+            return WhatHappened::initialized;
+        }
+        if(whatHappenedString == "childChanged") {
+            return WhatHappened::childChanged;
+        }
+        if(whatHappenedString == "removed") {
+            return WhatHappened::removed;
+        }
+        if(whatHappenedString == "childRemoved") {
+            return WhatHappened::childRemoved;
+        }
+        if(whatHappenedString == "timestampUpdated") {
+            return WhatHappened::timestampUpdated;
+        }
+        if(whatHappenedString == "interiorAdded") {
+            return WhatHappened::interiorAdded;
+        }
+        return WhatHappened::never;
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
@@ -91,6 +118,237 @@ namespace config {
             writer.String(value.getString().c_str());
             break;
         }
+    }
+
+    TlogLine TlogLine::readRecord(data::Environment &environment, std::ifstream &stream) {
+        TlogLine tlogLine;
+        tlogLine.deserialize(environment, stream);
+        return tlogLine;
+    }
+
+    bool TlogLine::deserialize(data::Environment &environment, std::ifstream &stream) {
+        JsonReader reader(environment);
+        reader.push(std::make_unique<TlogLineResponder>(reader, *this, false));
+        rapidjson::ParseResult result = reader.read(stream);
+        if(result) {
+            return true;
+        }
+        if(result.Code() == rapidjson::ParseErrorCode::kParseErrorDocumentEmpty) {
+            return false; // failure occured prior to parsing
+        }
+        throw std::runtime_error("JSON structure invalid");
+    }
+
+    rapidjson::ParseResult JsonReader::read(std::ifstream &stream) {
+        if(!stream.is_open()) {
+            throw std::invalid_argument("JSON stream is not open");
+        }
+        rapidjson::IStreamWrapper wrapper{stream};
+        rapidjson::Reader reader;
+        return reader.Parse<
+            rapidjson::kParseStopWhenDoneFlag | rapidjson::kParseCommentsFlag
+            | rapidjson::kParseFullPrecisionFlag | rapidjson::kParseNanAndInfFlag>(wrapper, *this);
+    }
+
+    bool JsonStructResponder::parseValue(data::StructElement value) {
+        if(_state == JsonState::ExpectValue) {
+            _state = JsonState::ExpectKey;
+            return parseKeyValue(_key, std::move(value));
+        } else {
+            return false;
+        }
+    }
+
+    bool JsonStructResponder::parseKey(const std::string_view &key) {
+        if(_state == JsonState::ExpectKey) {
+            _state = JsonState::ExpectValue;
+            _key = key;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool JsonStructResponder::parseStartObject() {
+        if(_state == JsonState::ExpectStartObject) {
+            _state = JsonState::ExpectKey;
+            return true;
+        } else if(_state == JsonState::ExpectValue) {
+            _state = JsonState::ExpectKey;
+            std::shared_ptr<data::SharedStruct> target(
+                std::make_shared<data::SharedStruct>(_reader.environment())
+            );
+            _reader.push(std::make_unique<JsonSharedStructResponder>(_reader, target, true));
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool JsonStructResponder::parseEndObject() {
+        if(_state == JsonState::ExpectKey) {
+            // 'pop' will delete this structure
+            return _reader.pop(buildValue());
+        } else {
+            return false;
+        }
+    }
+
+    bool JsonStructResponder::parseStartArray() {
+        if(_state == JsonState::ExpectValue) {
+            _state = JsonState::ExpectKey;
+            std::shared_ptr<data::SharedList> target(
+                std::make_shared<data::SharedList>(_reader.environment())
+            );
+            _reader.push(std::make_unique<JsonSharedListResponder>(_reader, target, true));
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool JsonStructResponder::parseEndArray() {
+        return false;
+    }
+
+    bool JsonArrayResponder::parseKey(const std::string_view &key) {
+        return false;
+    }
+
+    bool JsonArrayResponder::parseStartObject() {
+        if(_state == JsonState::ExpectValue) {
+            std::shared_ptr<data::SharedStruct> target(
+                std::make_shared<data::SharedStruct>(_reader.environment())
+            );
+            _reader.push(std::make_unique<JsonSharedStructResponder>(_reader, target, true));
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool JsonArrayResponder::parseEndObject() {
+        return false;
+    }
+
+    bool JsonArrayResponder::parseStartArray() {
+        if(_state == JsonState::ExpectStartArray) {
+            _state = JsonState::ExpectValue;
+            return true;
+        } else if(_state == JsonState::ExpectValue) {
+            std::shared_ptr<data::SharedList> target(
+                std::make_shared<data::SharedList>(_reader.environment())
+            );
+            _reader.push(std::make_unique<JsonSharedListResponder>(_reader, target, true));
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool JsonArrayResponder::parseEndArray() {
+        if(_state == JsonState::ExpectValue) {
+            // 'pop' will delete this object
+            return _reader.pop(buildValue());
+        } else {
+            return false;
+        }
+    }
+
+    bool JsonSharedStructResponder::parseKeyValue(
+        const std::string &key, data::StructElement value
+    ) {
+        _target->put(key, value);
+        return true;
+    }
+
+    data::StructElement JsonSharedStructResponder::buildValue() {
+        return data::StructElement(std::static_pointer_cast<data::ContainerModelBase>(_target));
+    }
+
+    bool JsonSharedListResponder::parseValue(data::StructElement value) {
+        if(_state == JsonState::ExpectValue) {
+            _target->put(_idx++, value);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    data::StructElement JsonSharedListResponder::buildValue() {
+        return data::StructElement(std::static_pointer_cast<data::ContainerModelBase>(_target));
+    }
+
+    bool TlogLineResponder::parseKeyValue(const std::string &key, data::StructElement value) {
+        if(key == TlogLine::TS) {
+            _tlogLine.timestamp = Timestamp(static_cast<int64_t>(value.getInt()));
+            return true;
+        } else if(key == TlogLine::W) {
+            _tlogLine.action = TlogLine::decodeWhatHappened(value.getString());
+            return true;
+        } else if(key == TlogLine::V) {
+            _tlogLine.value = value;
+            return true;
+        } else {
+            // Note, TlogLine::TP is handled in parseStartArray
+            // Ignore other values
+            return true;
+        }
+    }
+
+    bool TlogLineResponder::parseStartArray() {
+        if(_state != JsonState::ExpectValue) {
+            return JsonStructResponder::parseStartArray();
+        }
+        if(_key == TlogLine::TP) {
+            _reader.push(std::make_unique<TlogLinePathResponder>(_reader, _tlogLine, true));
+            _state = JsonState::ExpectKey; // once done
+            return true;
+        }
+        if(_key == TlogLine::V) {
+            return JsonStructResponder::parseStartArray();
+        }
+        return false;
+    }
+
+    bool TlogLineResponder::parseStartObject() {
+        if(_state == JsonState::ExpectStartObject
+           || _state == JsonState::ExpectValue && _key == TlogLine::V) {
+            return JsonStructResponder::parseStartObject();
+        } else {
+            return false;
+        }
+    }
+
+    bool TlogLinePathResponder::parseStartArray() {
+        if(_state == JsonState::ExpectStartArray) {
+            _state = JsonState::ExpectValue;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool TlogLinePathResponder::parseEndArray() {
+        if(_state == JsonState::ExpectValue) {
+            _tlogLine.topicPath = _path;
+            return _reader.pop({});
+        } else {
+            return false;
+        }
+    }
+
+    bool TlogLinePathResponder::parseValue(data::StructElement value) {
+        if(_state == JsonState::ExpectValue) {
+            _path.emplace_back(value.getString());
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    bool TlogLinePathResponder::parseStartObject() {
+        return false;
     }
 
 } // namespace config

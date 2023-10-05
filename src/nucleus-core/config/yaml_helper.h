@@ -1,11 +1,11 @@
 #pragma once
 #include "config_manager.h"
+#include <fstream>
 #include <yaml-cpp/yaml.h>
 
 namespace config {
 
     class YamlReader {
-        class Node;
 
     private:
         data::Environment &_environment;
@@ -22,6 +22,7 @@ namespace config {
         }
 
         void read(const std::filesystem::path &path);
+        void read(std::ifstream &stream);
 
         data::ValueType rawValue(YAML::Node &node);
         data::ValueType rawMapValue(YAML::Node &node);
@@ -39,6 +40,27 @@ namespace config {
 
         void nestedMapValue(
             const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
+        );
+    };
+
+    struct YamlHelper {
+        static void serialize(
+            data::Environment &environment, YAML::Emitter &emitter, const data::StructElement &value
+        );
+        static void serialize(
+            data::Environment &environment,
+            YAML::Emitter &emitter,
+            const std::shared_ptr<Topics> &value
+        );
+        static void write(
+            data::Environment &environment,
+            const std::filesystem::path &path,
+            const std::shared_ptr<Topics> &node
+        );
+        static void write(
+            data::Environment &environment,
+            std::ofstream &stream,
+            const std::shared_ptr<Topics> &node
         );
     };
 } // namespace config

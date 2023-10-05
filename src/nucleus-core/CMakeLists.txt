@@ -58,9 +58,10 @@ add_library(nucleus-core SHARED
         tasks/expire_time.h
         tasks/sub_task.h
         tasks/task.cpp tasks/task.h
+        util/commitable_file.cpp util/commitable_file.h
         util/nucleus_paths.cpp util/nucleus_paths.h
         util/permissions.cpp util/permissions.h
-        config/json_helper.cpp)
+        )
 target_link_libraries(nucleus-core Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
 target_include_directories(nucleus-core PRIVATE . ${rapidjson_SOURCE_DIR}/include)
 

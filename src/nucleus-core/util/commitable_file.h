@@ -1,0 +1,45 @@
+#pragma once
+#include <filesystem>
+#include <fstream>
+
+namespace util {
+    // GG-Interop: Partial implementation of GG-Java CommitableFile, focus on filename management.
+    // Note that there are some nuanced differences between the two implementations.
+    // In this implementation, begin() must be called, and commits do not happen unless commit()
+    // is called.
+    class CommitableFile {
+        std::filesystem::path _new;
+        std::filesystem::path _target;
+        std::filesystem::path _backup;
+        std::ofstream _stream;
+        bool _didBegin{false};
+
+    public:
+        CommitableFile(const CommitableFile &) = delete;
+        CommitableFile(CommitableFile &&) = default;
+        CommitableFile &operator=(const CommitableFile &) = delete;
+        CommitableFile &operator=(CommitableFile &&) = default;
+        explicit CommitableFile(
+            std::filesystem::path newPath,
+            std::filesystem::path backupPath,
+            std::filesystem::path targetPath
+        );
+        explicit CommitableFile(const std::filesystem::path &path);
+        virtual ~CommitableFile();
+
+        explicit operator std::ofstream &() {
+            return _stream;
+        }
+
+        CommitableFile &begin();
+        CommitableFile &commit();
+        CommitableFile &abandon();
+        CommitableFile &deleteNew();
+        CommitableFile &deleteBackup();
+        CommitableFile &restoreBackup();
+        CommitableFile &moveTargetToBackup();
+        CommitableFile &moveNewToTarget();
+        static std::filesystem::path getNewFile(const std::filesystem::path &path);
+        static std::filesystem::path getBackupFile(const std::filesystem::path &path);
+    };
+} // namespace util

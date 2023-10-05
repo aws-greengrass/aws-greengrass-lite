@@ -1,5 +1,6 @@
 #include "config_manager.h"
 #include "data/environment.h"
+#include "transaction_log.h"
 #include "util.h"
 #include "yaml_helper.h"
 #include <utility>
@@ -12,11 +13,11 @@
 //
 namespace config {
 
-    data::StringOrd Element::getKey(data::Environment &env) const {
+    data::StringOrd TopicElement::getKey(data::Environment &env) const {
         return getKey(env, _nameOrd);
     }
 
-    data::StringOrd Element::getKey(data::Environment &env, data::StringOrd nameOrd) {
+    data::StringOrd TopicElement::getKey(data::Environment &env, data::StringOrd nameOrd) {
         if(!nameOrd) {
             return nameOrd;
         }
@@ -32,31 +33,36 @@ namespace config {
         }
     }
 
-    Element &Element::setName(data::Environment &env, const std::string &str) {
-        return setOrd(env.stringTable.getOrCreateOrd(str));
-    }
-
     Topics::Topics(
         data::Environment &environment,
         const std::shared_ptr<Topics> &parent,
-        const data::StringOrd &key
+        const data::StringOrd &key,
+        const Timestamp &modtime
     )
-        : data::StructModelBase{environment}, _parent{parent}, _key{key} {
-        if((parent && parent->excludeTlog()) || (_key && util::startsWith(getKey(), "_"))) {
+        : data::StructModelBase{environment}, _parent{parent}, _nameOrd{key}, _modtime(modtime) {
+        // Note: don't lock parent, it's most likely already locked - atomic used instead
+        if((parent && parent->_excludeTlog) || (_nameOrd && util::startsWith(getName(), "_"))) {
             _excludeTlog = true;
         }
     }
 
-    std::string Topics::getKey() const {
+    std::string Topics::getName() const {
         std::shared_lock guard{_mutex};
-        if(!_key) {
+        if(!_nameOrd) {
             return {}; // root
         }
-        return _environment.stringTable.getString(_key);
+        return _environment.stringTable.getString(_nameOrd);
     }
 
-    void Topics::updateChild(const Element &element) {
+    void Topics::updateChild(const Topic &element) {
+        updateChild(TopicElement(element));
+    }
+
+    void Topics::updateChild(const TopicElement &element) {
         data::StringOrd key = element.getKey(_environment);
+        if(element.isType<data::StructModelBase>()) {
+            throw std::runtime_error("Not permitted to insert structures/maps");
+        }
         checkedPut(element, [this, key, &element](auto &el) {
             std::unique_lock guard{_mutex};
             _children[key] = element;
@@ -95,7 +101,7 @@ namespace config {
         if(!watcher) {
             return; // null watcher is a no-op
         }
-        data::StringOrd normKey = Element::getKey(_environment, subKey);
+        data::StringOrd normKey = TopicElement::getKey(_environment, subKey);
         std::unique_lock guard{_mutex};
         // opportunistic check if any watches need deleting - number of watches
         // expected to be small, number of expired watches rare, algorithm for
@@ -117,7 +123,7 @@ namespace config {
     Topic &Topic::addWatcher(
         const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons
     ) {
-        _parent->addWatcher(_value.getNameOrd(), watcher, reasons);
+        _parent->addWatcher(_nameOrd, watcher, reasons);
         return *this;
     }
 
@@ -138,7 +144,7 @@ namespace config {
         if(!hasWatchers()) {
             return {};
         }
-        data::StringOrd normKey = Element::getKey(_environment, key);
+        data::StringOrd normKey = TopicElement::getKey(_environment, key);
         std::shared_lock guard{_mutex};
         std::vector<std::shared_ptr<Watcher>> filtered;
         for(auto i : _watching) {
@@ -159,7 +165,8 @@ namespace config {
     std::shared_ptr<data::StructModelBase> Topics::copy() const {
         const std::shared_ptr<Topics> parent{_parent};
         std::shared_lock guard{_mutex}; // for source
-        std::shared_ptr<Topics> newCopy{std::make_shared<Topics>(_environment, parent, _key)};
+        std::shared_ptr<Topics> newCopy{
+            std::make_shared<Topics>(_environment, parent, _nameOrd, _modtime)};
         for(const auto &i : _children) {
             newCopy->put(i.first, i.second);
         }
@@ -167,7 +174,7 @@ namespace config {
     }
 
     void Topics::put(const data::StringOrd handle, const data::StructElement &element) {
-        updateChild(Element{handle, element});
+        updateChild(TopicElement{handle, Timestamp::never(), element});
     }
 
     void Topics::put(const std::string_view sv, const data::StructElement &element) {
@@ -177,7 +184,7 @@ namespace config {
 
     bool Topics::hasKey(const data::StringOrd handle) const {
         //_environment.stringTable.assertStringHandle(handle);
-        data::StringOrd key = Element::getKey(_environment, handle);
+        data::StringOrd key = TopicElement::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
         return i != _children.end();
@@ -190,8 +197,8 @@ namespace config {
         if(parent) {
             path = parent->getKeyPath();
         }
-        if(_key) {
-            path.push_back(getKey());
+        if(_nameOrd) {
+            path.push_back(getName());
         }
         return path;
     }
@@ -212,10 +219,10 @@ namespace config {
         return _children.size();
     }
 
-    Element Topics::createChild(
-        data::StringOrd nameOrd, const std::function<Element(data::StringOrd)> &creator
+    TopicElement Topics::createChild(
+        data::StringOrd nameOrd, const std::function<TopicElement(data::StringOrd)> &creator
     ) {
-        data::StringOrd key = Element::getKey(_environment, nameOrd);
+        data::StringOrd key = TopicElement::getKey(_environment, nameOrd);
         std::unique_lock guard{_mutex};
         auto i = _children.find(key);
         if(i != _children.end()) {
@@ -228,12 +235,14 @@ namespace config {
     std::shared_ptr<Topics> Topics::createInteriorChild(
         data::StringOrd nameOrd, const Timestamp &timestamp
     ) {
-        Element leaf = createChild(nameOrd, [this, &timestamp, nameOrd](auto ord) {
+        TopicElement leaf = createChild(nameOrd, [this, &timestamp, nameOrd](auto ord) {
             std::shared_ptr<Topics> parent{ref<Topics>()};
-            std::shared_ptr<Topics> nested{std::make_shared<Topics>(_environment, parent, nameOrd)};
-            return Element(ord, timestamp, nested);
+            std::shared_ptr<Topics> nested{
+                std::make_shared<Topics>(_environment, parent, nameOrd, timestamp)};
+            // Note: Time on TopicElement is ignored for interior children - this is intentional
+            return TopicElement(ord, Timestamp::never(), nested);
         });
-        return leaf.getTopicsRef();
+        return leaf.castContainer<Topics>();
     }
 
     std::shared_ptr<Topics> Topics::createInteriorChild(
@@ -247,8 +256,8 @@ namespace config {
         std::vector<std::shared_ptr<Topics>> interiors;
         std::shared_lock guard{_mutex};
         for(const auto &i : _children) {
-            if(i.second.isTopics()) {
-                interiors.push_back(i.second.getTopicsRef());
+            if(i.second.isType<Topics>()) {
+                interiors.push_back(i.second.castContainer<Topics>());
             }
         }
         return interiors;
@@ -259,51 +268,51 @@ namespace config {
         std::vector<Topic> leafs;
         std::shared_lock guard{_mutex};
         for(const auto &i : _children) {
-            if(!i.second.isTopics()) {
+            if(!i.second.isType<Topics>()) {
                 leafs.emplace_back(_environment, self, i.second);
             }
         }
         return leafs;
     }
 
-    Topic Topics::createChild(data::StringOrd nameOrd, const Timestamp &timestamp) {
-        Element el = createChild(nameOrd, [&](auto ord) { return Element(ord, timestamp); });
-        return Topic(_environment, ref<Topics>(), std::move(el));
-    }
-
-    Topic Topics::createChild(std::string_view sv, const Timestamp &timestamp) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
-        return createChild(handle, timestamp);
-    }
-
-    Element Topics::getChildElement(data::StringOrd handle) const {
-        data::StringOrd key = Element::getKey(_environment, handle);
-        std::shared_lock guard{_mutex};
-        auto i = _children.find(key);
-        if(i != _children.end()) {
-            return i->second;
-        } else {
-            return {};
-        }
-    }
-
-    Element Topics::getChildElement(std::string_view sv) const {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
-        return getChildElement(handle);
-    }
-
-    Topic Topics::getChild(data::StringOrd handle) {
-        Element el = getChildElement(handle);
+    Topic Topics::createTopic(data::StringOrd nameOrd, const Timestamp &timestamp) {
+        TopicElement el = createChild(nameOrd, [&](auto ord) {
+            return TopicElement(ord, timestamp, data::ValueType{});
+        });
         return Topic(_environment, ref<Topics>(), el);
     }
 
-    Topic Topics::getChild(std::string_view sv) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
-        return getChild(handle);
+    Topic Topics::createTopic(std::string_view name, const Timestamp &timestamp) {
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(name));
+        return createTopic(handle, timestamp);
+    }
+
+    Topic Topics::getTopic(data::StringOrd handle) {
+        data::StringOrd key = TopicElement::getKey(_environment, handle);
+        std::shared_lock guard{_mutex};
+        auto i = _children.find(key);
+        if(i != _children.end()) {
+            return Topic(_environment, ref<Topics>(), i->second);
+        } else {
+            return Topic(_environment, nullptr, {});
+        }
+    }
+
+    Topic Topics::getTopic(std::string_view name) {
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(name));
+        return getTopic(handle);
     }
 
     data::StructElement Topics::get(data::StringOrd handle) const {
-        return getChildElement(handle).slice();
+        // needed for base class
+        data::StringOrd key = TopicElement::getKey(_environment, handle);
+        std::shared_lock guard{_mutex};
+        auto i = _children.find(key);
+        if(i != _children.end()) {
+            return i->second.slice();
+        } else {
+            return {};
+        }
     }
 
     data::StructElement Topics::get(const std::string_view sv) const {
@@ -311,9 +320,24 @@ namespace config {
         return get(handle);
     }
 
-    size_t Topics::getSize() const {
+    std::shared_ptr<ConfigNode> Topics::getNode(data::StringOrd handle) {
+        data::StringOrd key = TopicElement::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
-        return _children.size();
+        auto i = _children.find(key);
+        if(i != _children.end()) {
+            if(i->second.isType<Topics>()) {
+                return i->second.castContainer<Topics>();
+            } else {
+                return std::make_shared<Topic>(_environment, ref<Topics>(), i->second);
+            }
+        } else {
+            return {};
+        }
+    }
+
+    std::shared_ptr<ConfigNode> Topics::getNode(std::string_view sv) {
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
+        return getNode(handle);
     }
 
     Lookup Topics::lookup() {
@@ -373,8 +397,54 @@ namespace config {
         }
     }
 
+    void Topics::remove(const Timestamp &timestamp) {
+        std::unique_lock guard{_mutex};
+        if(timestamp < _modtime) {
+            return;
+        }
+        _modtime = timestamp;
+        guard.unlock();
+        remove();
+    }
+
+    void Topics::remove() {
+        std::shared_ptr parent(_parent);
+        parent->removeChild(*this);
+    }
+
+    void Topics::removeChild(ConfigNode &node) {
+        // Note, it's important that this is entered via child remove()
+        data::StringOrd key = TopicElement::getKey(_environment, node.getNameOrd());
+        std::shared_lock guard{_mutex};
+        _children.erase(key);
+        notifyChange(node.getNameOrd(), WhatHappened::childRemoved);
+    }
+
+    data::StringOrd Topics::getNameOrd() const {
+        std::shared_lock guard{_mutex};
+        return _nameOrd;
+    }
+
+    Timestamp Topics::getModTime() const {
+        std::shared_lock guard{_mutex};
+        return _modtime;
+    }
+
+    std::shared_ptr<Topics> Topics::getParent() {
+        return _parent.lock();
+    }
+
+    bool Topics::excludeTlog() const {
+        // cannot use _mutex, uses atomic instead
+        return _excludeTlog;
+    }
+
+    TopicElement::TopicElement(const Topic &topic)
+        : TopicElement(topic.getNameOrd(), topic.getModTime(), topic._value) {
+    }
+
     Topic &Topic::dflt(data::ValueType defVal) {
-        if(!_value) {
+        if(isNull()) {
             withNewerValue(Timestamp::never(), std::move(defVal), true);
         }
         return *this;
@@ -387,9 +457,9 @@ namespace config {
         bool allowTimestampToIncreaseWhenValueHasntChanged
     ) {
         // Logic tracks that in GG-Java
-        data::ValueType currentValue = _value.get();
+        data::ValueType currentValue = _value;
         data::ValueType newValue = std::move(proposed);
-        Timestamp currentModTime = _value.getModTime();
+        Timestamp currentModTime = _modtime;
         bool timestampWouldIncrease =
             allowTimestampToIncreaseWhenValueHasntChanged && proposedModTime > currentModTime;
 
@@ -403,7 +473,7 @@ namespace config {
             return *this;
         }
         std::optional<data::ValueType> validated =
-            _parent->validate(_value.getNameOrd(), newValue, currentValue);
+            _parent->validate(_nameOrd, newValue, currentValue);
         if(validated.has_value()) {
             newValue = validated.value();
         }
@@ -415,27 +485,67 @@ namespace config {
             }
         }
 
-        _value.set(newValue);
-        _value.setModTime(proposedModTime);
-        _parent->updateChild(_value);
+        _value = newValue;
+        _modtime = proposedModTime;
+        _parent->updateChild(*this);
         if(changed) {
-            _parent->notifyChange(_value.getNameOrd(), WhatHappened::changed);
+            _parent->notifyChange(_nameOrd, WhatHappened::changed);
         } else {
-            _parent->notifyChange(_value.getNameOrd(), WhatHappened::timestampUpdated);
+            _parent->notifyChange(_nameOrd, WhatHappened::timestampUpdated);
         }
         return *this;
     }
 
+    Topic &Topic::withNewerModTime(const config::Timestamp &newModTime) {
+        Timestamp currentModTime = _modtime;
+        if(newModTime > currentModTime) {
+            _modtime = newModTime;
+            _parent->updateChild(*this);
+            // GG-Interop: This notification seems to be missed?
+            _parent->notifyChange(_nameOrd, WhatHappened::timestampUpdated);
+        }
+        return *this;
+    }
+
+    void Topic::remove(const Timestamp &timestamp) {
+        if(timestamp < _modtime) {
+            return;
+        }
+        _modtime = timestamp;
+        _parent->updateChild(*this);
+        remove();
+    }
+
+    void Topic::remove() {
+        _parent->removeChild(*this);
+    }
+
+    std::string Topic::getName() const {
+        return _environment->stringTable.getString(_nameOrd);
+    }
+
+    std::vector<std::string> Topic::getKeyPath() const {
+        std::vector<std::string> path = _parent->getKeyPath();
+        path.push_back(getName());
+        return path;
+    }
+
+    bool Topic::excludeTlog() const {
+        if(_parent->excludeTlog()) {
+            return true;
+        }
+        return util::startsWith(getName(), "_");
+    }
+
     Manager &Manager::read(const std::filesystem::path &path) {
         std::string ext = util::lower(path.extension().generic_string());
-        Timestamp timestamp{std::filesystem::last_write_time(path)};
+        auto timestamp = Timestamp::ofFile(std::filesystem::last_write_time(path));
 
         if(ext == ".yaml" || ext == ".yml") {
             YamlReader reader{_environment, _root, timestamp};
             reader.read(path);
         } else if(ext == ".tlog" || ext == ".tlog~") {
-            // config::TlogReader::mergeTLogInto()
-            throw std::runtime_error("Tlog config type not yet implemented");
+            TlogReader::mergeTlogInto(_environment, _root, path, false);
         } else if(ext == ".json") {
             throw std::runtime_error("Json config type not yet implemented");
         } else {

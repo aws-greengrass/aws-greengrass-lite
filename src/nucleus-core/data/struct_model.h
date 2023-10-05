@@ -52,6 +52,9 @@ namespace data {
         explicit StructElement(ValueType v) : _value(std::move(v)) {
         }
 
+        explicit StructElement(const bool v) : _value{v} {
+        }
+
         explicit StructElement(const uint64_t v) : _value{v} {
         }
 
@@ -67,13 +70,13 @@ namespace data {
         StructElement(StructElement &&) = default;
         StructElement &operator=(const StructElement &) = default;
         StructElement &operator=(StructElement &&) = default;
-        ~StructElement() = default;
+        virtual ~StructElement() = default;
 
-        explicit operator bool() const {
+        virtual explicit operator bool() const {
             return _value.index() != NONE;
         }
 
-        bool operator!() const {
+        virtual bool operator!() const {
             return _value.index() == NONE;
         }
 
@@ -98,6 +101,10 @@ namespace data {
 
         [[nodiscard]] bool isScalar() const {
             return !isContainer();
+        }
+
+        [[nodiscard]] bool isNull() const {
+            return _value.index() == NONE;
         }
 
         [[nodiscard]] bool getBool() const {

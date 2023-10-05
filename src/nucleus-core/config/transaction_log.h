@@ -1,25 +1,46 @@
 #pragma once
 
 #include "config_manager.h"
+#include "json_helper.h"
 #include <atomic>
 #include <filesystem>
 #include <fstream>
 
 namespace config {
     class TlogReader;
-
     class TlogWriter;
+
+    enum class ConfigurationMode : uint32_t { SKELETON_ONLY, WITH_VALUES };
 
     //
     // Parse transaction logs into configuration
     //
     class TlogReader {
 
+        static constexpr uint32_t VALIDATION_BUFFER_SIZE{256};
+
     public:
-        static bool validateTlog(const std::filesystem::path &tlogFile) {
-            // TODO: missing code
-            return false;
-        }
+        static bool handleTlogTornWrite(
+            data::Environment &environment, const std::filesystem::path &tlogFile
+        );
+
+        static void mergeTlogInto(
+            data::Environment &environment,
+            const std::shared_ptr<Topics> &root,
+            std::ifstream &stream,
+            bool forceTimestamp,
+            const std::function<bool(ConfigNode &)> &mergeCondition = [](auto &) { return true; },
+            ConfigurationMode configurationMode = ConfigurationMode::WITH_VALUES
+        );
+
+        static void mergeTlogInto(
+            data::Environment &environment,
+            const std::shared_ptr<Topics> &root,
+            const std::filesystem::path &path,
+            bool forceTimestamp,
+            const std::function<bool(ConfigNode &)> &mergeCondition = [](auto &) { return true; },
+            ConfigurationMode configurationMode = ConfigurationMode::WITH_VALUES
+        );
     };
 
     //
@@ -73,37 +94,23 @@ namespace config {
             const std::shared_ptr<Topics> &root,
             const std::filesystem::path &outputPath
         );
-
         ~TlogWriter();
 
         void close();
-
         TlogWriter &withAutoTruncate(bool f = true);
-
         TlogWriter &withWatcher(bool f = true);
-
         TlogWriter &withMaxEntries(uint32_t maxEntries = DEFAULT_MAX_TLOG_ENTRIES);
-
         TlogWriter &writeAll();
-
         TlogWriter &flushImmediately();
-
         TlogWriter &open(std::ios_base::openmode mode);
-
         TlogWriter &open(const std::filesystem::path &path, std::ios_base::openmode mode);
-
         std::filesystem::path getPath();
-
         static void dump(
             data::Environment &environment,
             const std::shared_ptr<Topics> &root,
             const std::filesystem::path &outputPath
         );
-
-        void childChanged(
-            const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-        );
-
-        static std::string stringifyWhatHappened(WhatHappened changeType);
+        void childChanged(ConfigNode &node, WhatHappened changeType);
+        static std::filesystem::path getOldTlogPath(const std::filesystem::path &path);
     };
 } // namespace config

@@ -6,13 +6,14 @@
 #include "data/string_table.h"
 #include "tasks/expire_time.h"
 #include "watcher.h"
+#include <atomic>
 #include <filesystem>
 #include <optional>
 #include <utility>
 
 namespace config {
     class Timestamp;
-    class Element;
+    class TopicElement;
     class Topic;
     class Topics;
     class Lookup;
@@ -25,7 +26,7 @@ namespace config {
     //
     class Timestamp {
     private:
-        int64_t _time; // since epoch
+        uint64_t _time; // since epoch
 
     public:
         constexpr Timestamp(const Timestamp &time) = default;
@@ -34,12 +35,12 @@ namespace config {
         constexpr Timestamp() : _time{0} {
         }
 
-        explicit constexpr Timestamp(int64_t timeMillis) : _time{timeMillis} {
+        explicit constexpr Timestamp(uint64_t timeMillis) : _time{timeMillis} {
         }
 
         template<typename T>
         explicit constexpr Timestamp(const std::chrono::time_point<T> time)
-            : _time(static_cast<int64_t>(
+            : _time(static_cast<uint64_t>(
                 std::chrono::duration_cast<std::chrono::milliseconds>(time.time_since_epoch())
                     .count()
             )) {
@@ -51,7 +52,7 @@ namespace config {
             return Timestamp{std::chrono::system_clock::now()};
         }
 
-        [[nodiscard]] constexpr int64_t asMilliseconds() const noexcept {
+        [[nodiscard]] constexpr uint64_t asMilliseconds() const noexcept {
             return _time;
         };
 
@@ -85,20 +86,36 @@ namespace config {
         static constexpr Timestamp never();
         static constexpr Timestamp dawn();
         static constexpr Timestamp infinite();
+        static Timestamp ofFile(std::filesystem::file_time_type fileTime);
     };
 
-    constexpr Timestamp Timestamp::never() {
+    inline constexpr Timestamp Timestamp::never() {
         return Timestamp{0};
     }
 
-    constexpr Timestamp Timestamp::dawn() {
+    inline constexpr Timestamp Timestamp::dawn() {
         return Timestamp{1};
     }
 
-    constexpr Timestamp Timestamp::infinite() {
-        return Timestamp{-1};
+    inline constexpr Timestamp Timestamp::infinite() {
+        return Timestamp{std::numeric_limits<uint64_t>::max()};
     }
 
+    inline Timestamp Timestamp::ofFile(std::filesystem::file_time_type fileTime) {
+        // C++17 hack, there is no universal way to convert from file-time to sys-time
+        // Because 'now' is obtained twice, time is subject to slight error
+        // C++20 fixes this with file_clock::to_sys
+        auto sysTimeNow = std::chrono::system_clock::now();
+        auto fileTimeNow = std::filesystem::file_time_type::clock::now();
+        return Timestamp(
+            sysTimeNow
+            + std::chrono::duration_cast<std::chrono::milliseconds>(fileTime - fileTimeNow)
+        );
+    }
+
+    //
+    // Container class for watches on a given topic
+    //
     class Watching {
         data::StringOrd _subKey{}; // if specified, indicates value that is being
                                    // watched
@@ -138,122 +155,120 @@ namespace config {
     };
 
     //
-    // Extend structure element to include name & time
-    // not entirely parallels GG-Java "Topic"
+    // GG-Interop: Subset of functionality of Node, provided as a mixin interface
     //
-    class Element : public data::StructElement {
+    class ConfigNode {
+    public:
+        ConfigNode() noexcept = default;
+        ConfigNode(const ConfigNode &) noexcept = default;
+        ConfigNode(ConfigNode &&) noexcept = default;
+        virtual ~ConfigNode() noexcept = default;
+        ConfigNode &operator=(const ConfigNode &) noexcept = default;
+        ConfigNode &operator=(ConfigNode &&) noexcept = default;
+        [[nodiscard]] virtual data::StringOrd getNameOrd() const = 0;
+        [[nodiscard]] virtual std::string getName() const = 0;
+        [[nodiscard]] virtual Timestamp getModTime() const = 0;
+        [[nodiscard]] virtual std::shared_ptr<Topics> getParent() = 0;
+        virtual void remove() = 0;
+        virtual void remove(const Timestamp &timestamp) = 0;
+        [[nodiscard]] virtual bool excludeTlog() const = 0;
+        [[nodiscard]] virtual std::vector<std::string> getKeyPath() const = 0;
+    };
+
+    //
+    // Element is typically used to store leaf nodes (see Topic as the main extension of this)
+    //
+    class TopicElement : public data::StructElement {
     protected:
         data::StringOrd _nameOrd;
         Timestamp _modtime;
 
     public:
-        Element() = default;
-        Element(const Element &el) = default;
-        Element(Element &&el) = default;
-        Element &operator=(const Element &other) = default;
-        Element &operator=(Element &&other) = default;
-        ~Element() = default;
+        TopicElement() = default;
+        TopicElement(const TopicElement &el) = default;
+        TopicElement(TopicElement &&el) = default;
+        explicit TopicElement(const Topic &topic);
+        TopicElement &operator=(const TopicElement &other) = default;
+        TopicElement &operator=(TopicElement &&other) = default;
+        ~TopicElement() override = default;
 
-        explicit Element(const StructElement &se) : data::StructElement(se) {
+        explicit TopicElement(
+            data::StringOrd ord, const Timestamp &timestamp, const data::StructElement &newVal
+        )
+            : StructElement(newVal), _nameOrd{ord}, _modtime{timestamp} {
         }
 
-        explicit Element(data::StringOrd ord, const StructElement &se)
-            : data::StructElement(se), _nameOrd{ord} {
-        }
-
-        explicit Element(data::StringOrd ord, const Timestamp &timestamp)
-            : _nameOrd{ord}, _modtime{timestamp} {
-        }
-
-        explicit Element(data::StringOrd ord, const Timestamp &timestamp, data::ValueType newVal)
-            : StructElement(std::move(newVal)), _nameOrd{ord}, _modtime{timestamp} {
-        }
-
-        explicit Element(
-            data::StringOrd ord, const Timestamp &timestamp, const std::shared_ptr<Topics> &topics
-        );
-
-        data::StringOrd getNameOrd() {
-            return _nameOrd;
-        }
-
-        Timestamp getModTime() {
-            return _modtime;
-        }
-
-        Element &setOrd(data::StringOrd ord) {
-            _nameOrd = ord;
-            return *this;
-        }
-
-        Element &setName(data::Environment &env, const std::string &str);
-
-        Element &setModTime(const Timestamp &modTime) {
-            _modtime = modTime;
-            return *this;
+        explicit TopicElement(
+            data::StringOrd ord, const Timestamp &timestamp, const data::ValueType &newVal
+        )
+            : StructElement(newVal), _nameOrd{ord}, _modtime{timestamp} {
         }
 
         [[nodiscard]] data::StringOrd getKey(data::Environment &env) const;
         static data::StringOrd getKey(data::Environment &env, data::StringOrd ord);
 
-        [[nodiscard]] StructElement slice() {
+        [[nodiscard]] StructElement slice() const {
             return StructElement(_value);
-        }
-
-        [[nodiscard]] bool isTopics() const {
-            return isType<Topics>();
-        }
-
-        [[nodiscard]] std::shared_ptr<Topics> getTopicsRef() const {
-            return castContainer<Topics>();
         }
     };
 
     //
     // Set of key/value pairs
-    // Somewhat parallels GG-Java "Topics"
+    // GG-Interop: Compare with Java Topics
     //
-    class Topics : public data::StructModelBase {
-    protected:
-        data::StringOrd _key;
-        bool _excludeTlog{false};
+    class Topics : public data::StructModelBase, public ConfigNode {
+    private:
+        data::StringOrd _nameOrd;
         Timestamp _modtime;
+        std::atomic_bool _excludeTlog{false};
         std::weak_ptr<Topics> _parent;
-        std::map<data::StringOrd, Element, data::StringOrd::CompLess> _children;
+        std::map<data::StringOrd, TopicElement, data::StringOrd::CompLess> _children;
         std::vector<Watching> _watching;
         mutable std::shared_mutex _mutex;
 
         void rootsCheck(const data::ContainerModelBase *target) const override;
+        void updateChild(const TopicElement &element);
+        TopicElement createChild(
+            data::StringOrd nameOrd, const std::function<TopicElement(data::StringOrd)> &creator
+        );
 
     public:
         explicit Topics(
             data::Environment &environment,
             const std::shared_ptr<Topics> &parent,
-            const data::StringOrd &key
+            const data::StringOrd &key,
+            const Timestamp &modtime
         );
 
-        [[nodiscard]] data::StringOrd getKeyOrd() const {
-            return _key;
-        }
+        // Overrides for ConfigNode
 
-        [[nodiscard]] std::string getKey() const;
+        [[nodiscard]] data::StringOrd getNameOrd() const override;
+        [[nodiscard]] Timestamp getModTime() const override;
+        [[nodiscard]] std::shared_ptr<Topics> getParent() override;
+        [[nodiscard]] std::string getName() const override;
+        [[nodiscard]] std::vector<std::string> getKeyPath() const override;
+        void remove() override;
+        void remove(const Timestamp &timestamp) override;
+        [[nodiscard]] bool excludeTlog() const override;
 
-        [[nodiscard]] std::vector<std::string> getKeyPath() const;
+        // Overrides for StructModelBase
+        // Don't use directly, but behave correctly when used via API
 
-        [[nodiscard]] bool excludeTlog() {
-            return _excludeTlog;
-        }
+        void put(data::StringOrd handle, const data::StructElement &element) override;
+        void put(std::string_view sv, const data::StructElement &element) override;
+        data::StructElement get(data::StringOrd handle) const override;
+        data::StructElement get(std::string_view name) const override;
+        bool hasKey(data::StringOrd handle) const override;
+        [[nodiscard]] std::vector<data::StringOrd> getKeys() const override;
+        uint32_t size() const override;
+        std::shared_ptr<data::StructModelBase> copy() const override;
 
-        [[nodiscard]] Timestamp getModTime() const {
-            return _modtime;
-        }
+        // Watchers/Publishing
 
         void addWatcher(
             data::StringOrd subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons
         );
-
         void addWatcher(const std::shared_ptr<Watcher> &watcher, WhatHappened reasons);
-
         bool hasWatchers() const;
 
         std::optional<std::vector<std::shared_ptr<Watcher>>> filterWatchers(
@@ -262,105 +277,86 @@ namespace config {
 
         std::optional<std::vector<std::shared_ptr<Watcher>>> filterWatchers(WhatHappened reasons
         ) const;
-
-        void put(data::StringOrd handle, const data::StructElement &element) override;
-
-        void put(std::string_view sv, const data::StructElement &element) override;
-
-        void updateChild(const Element &element);
-
-        bool hasKey(data::StringOrd handle) const override;
-
-        std::vector<data::StringOrd> getKeys() const;
-
-        uint32_t size() const override;
-
-        data::StructElement get(data::StringOrd handle) const override;
-
-        data::StructElement get(std::string_view name) const override;
-
-        std::shared_ptr<data::StructModelBase> copy() const override;
-
-        Element createChild(
-            data::StringOrd nameOrd, const std::function<Element(data::StringOrd)> &creator
-        );
-
-        Topic createChild(data::StringOrd nameOrd, const Timestamp &timestamp = Timestamp());
-
-        Topic createChild(std::string_view name, const Timestamp &timestamp = Timestamp());
-
-        std::shared_ptr<Topics> createInteriorChild(
-            data::StringOrd nameOrd, const Timestamp &timestamp = Timestamp::now()
-        );
-
-        std::shared_ptr<Topics> createInteriorChild(
-            std::string_view name, const Timestamp &timestamp = Timestamp::now()
-        );
-
-        std::vector<std::shared_ptr<Topics>> getInteriors();
-
-        std::vector<Topic> getLeafs();
-
-        Element getChildElement(data::StringOrd handle) const;
-
-        Element getChildElement(std::string_view sv) const;
-
-        Topic getChild(data::StringOrd handle);
-
-        Topic getChild(std::string_view name);
-
-        size_t getSize() const;
-
-        Lookup lookup();
-
-        Lookup lookup(Timestamp timestamp);
-
+        void notifyChange(data::StringOrd subKey, WhatHappened changeType);
+        void notifyChange(WhatHappened changeType);
         std::optional<data::ValueType> validate(
             data::StringOrd subKey,
             const data::ValueType &proposed,
             const data::ValueType &currentValue
         );
-        void notifyChange(data::StringOrd subKey, WhatHappened changeType);
-        void notifyChange(WhatHappened changeType);
+
+        // Child manipulation used in context of configuration
+
+        void updateChild(const Topic &element);
+        std::shared_ptr<ConfigNode> getNode(data::StringOrd handle);
+        std::shared_ptr<ConfigNode> getNode(std::string_view name);
+        Topic createTopic(data::StringOrd nameOrd, const Timestamp &timestamp = Timestamp());
+        Topic createTopic(std::string_view name, const Timestamp &timestamp = Timestamp());
+        std::shared_ptr<Topics> createInteriorChild(
+            data::StringOrd nameOrd, const Timestamp &timestamp = Timestamp::now()
+        );
+        std::shared_ptr<Topics> createInteriorChild(
+            std::string_view name, const Timestamp &timestamp = Timestamp::now()
+        );
+        std::vector<std::shared_ptr<Topics>> getInteriors();
+        std::vector<Topic> getLeafs();
+        Topic getTopic(data::StringOrd handle);
+        Topic getTopic(std::string_view name);
+        Lookup lookup();
+        Lookup lookup(Timestamp timestamp);
+        void removeChild(ConfigNode &node);
     };
 
-    inline Element::Element(
-        data::StringOrd ord,
-        const config::Timestamp &timestamp,
-        const std::shared_ptr<Topics> &topics
-    )
-        : data::StructElement(std::static_pointer_cast<data::ContainerModelBase>(topics)),
-          _nameOrd(ord), _modtime(timestamp) {
-    }
-
-    class Topic {
-        data::Environment *_environment;
+    //
+    // Topic essentially is the leaf equivalent of Topics, decorated with additional
+    // information needed for behavior as a ConfigNode
+    //
+    class Topic : public TopicElement, public ConfigNode {
+    protected:
+        data::Environment *_environment; // By-ref to allow copying
         std::shared_ptr<Topics> _parent;
-        Element _value;
 
     public:
         Topic(const Topic &el) = default;
         Topic(Topic &&el) = default;
-
         Topic &operator=(const Topic &other) = default;
-
         Topic &operator=(Topic &&other) = default;
+        ~Topic() override = default;
 
-        ~Topic() = default;
-
-        explicit Topic(data::Environment &env, const std::shared_ptr<Topics> &parent, Element value)
-            : _environment{&env}, _parent{parent}, _value{std::move(value)} {
+        explicit operator bool() const override {
+            return static_cast<bool>(_nameOrd);
         }
 
-        [[nodiscard]] data::StringOrd getKeyOrd() const {
-            return _value.getKey(*_environment);
+        bool operator!() const override {
+            return !_nameOrd;
         }
 
-        [[nodiscard]] std::shared_ptr<Topics> getTopics() {
+        explicit Topic(
+            data::Environment &env, const std::shared_ptr<Topics> &parent, const TopicElement &value
+        )
+            : _environment{&env}, _parent{parent}, TopicElement{value} {
+        }
+
+        [[nodiscard]] data::StringOrd getNameOrd() const override {
+            return _nameOrd;
+        }
+
+        [[nodiscard]] std::string getName() const override;
+        [[nodiscard]] std::vector<std::string> getKeyPath() const override;
+
+        [[nodiscard]] Timestamp getModTime() const override {
+            return _modtime;
+        }
+
+        [[nodiscard]] std::shared_ptr<Topics> getParent() override {
             return _parent;
         }
 
-        // signature follows that of GG-Java
+        void remove() override;
+        void remove(const Timestamp &timestamp) override;
+        [[nodiscard]] bool excludeTlog() const override;
+
+        // GG-Interop: Signature follows that of GG-Java
         Topic &withNewerValue(
             const Timestamp &proposedModTime,
             data::ValueType proposed,
@@ -368,30 +364,20 @@ namespace config {
             bool allowTimestampToIncreaseWhenValueHasntChanged = false
         );
 
-        // signature follows that of GG-Java
+        Topic &withNewerModTime(const Timestamp &newModTime);
+
+        // GG-Interop: Signature follows that of GG-Java
         Topic &withValue(data::ValueType nv) {
             return withNewerValue(Timestamp::now(), std::move(nv));
         }
 
-        // signature follows that of GG-Java
+        // GG-Interop: Signature follows that of GG-Java
         Topic &overrideValue(data::ValueType nv) {
-            return withNewerValue(_value.getModTime(), std::move(nv));
+            return withNewerValue(_modtime, std::move(nv));
         }
 
         Topic &addWatcher(const std::shared_ptr<Watcher> &watcher, WhatHappened reasons);
         Topic &dflt(data::ValueType defVal);
-
-        Element get() {
-            return _value;
-        }
-
-        uint64_t getInt() {
-            return get().getInt();
-        }
-
-        std::string getString() {
-            return get().getString();
-        }
     };
 
     class Lookup {
@@ -427,20 +413,56 @@ namespace config {
             return *this;
         }
 
-        [[nodiscard]] Topic get(data::StringOrd ord) {
-            return _root->getChild(ord);
+        [[nodiscard]] Lookup &operator[](const std::vector<std::string> &path) {
+            for(const auto &it : path) {
+                _root = _root->createInteriorChild(it, _interiorTimestamp);
+            }
+            return *this;
         }
 
-        [[nodiscard]] Topic get(std::string_view sv) {
-            return _root->getChild(sv);
+        [[nodiscard]] Topic operator()(data::StringOrd ord) {
+            return _root->createTopic(ord, _leafTimestamp);
         }
 
-        [[nodiscard]] Element element(data::StringOrd ord) const {
-            return _root->getChildElement(ord);
+        [[nodiscard]] Topic operator()(std::string_view sv) {
+            return _root->createTopic(sv, _leafTimestamp);
         }
 
-        [[nodiscard]] Element element(std::string_view sv) const {
-            return _root->getChildElement(sv);
+        [[nodiscard]] Topic operator()(const std::vector<std::string> &path) {
+            if(path.empty()) {
+                throw std::runtime_error("Empty path provided");
+            }
+            auto steps = path.size();
+            auto it = path.begin();
+            while(--steps > 0) {
+                _root = _root->createInteriorChild(*it, _interiorTimestamp);
+                ++it;
+            }
+            return _root->createTopic(*it, _leafTimestamp);
+        }
+
+        [[nodiscard]] Topic getTopic(data::StringOrd ord) {
+            return _root->getTopic(ord);
+        }
+
+        [[nodiscard]] Topic getTopic(std::string_view sv) {
+            return _root->getTopic(sv);
+        }
+
+        [[nodiscard]] std::shared_ptr<ConfigNode> getNode(const std::vector<std::string> &path) {
+            if(path.empty()) {
+                throw std::runtime_error("Empty path provided");
+            }
+            std::shared_ptr<ConfigNode> node{_root};
+            auto it = path.begin();
+            for(; it != path.end(); ++it) {
+                std::shared_ptr<Topics> t{std::dynamic_pointer_cast<Topics>(node)};
+                if(!t) {
+                    return {};
+                }
+                node = t->getNode(*it);
+            }
+            return node;
         }
     };
 
@@ -452,7 +474,9 @@ namespace config {
     public:
         explicit Manager(data::Environment &environment)
             : _environment{environment},
-              _root{std::make_shared<Topics>(environment, nullptr, data::StringOrd::nullHandle())} {
+              _root{std::make_shared<Topics>(
+                  environment, nullptr, data::StringOrd::nullHandle(), Timestamp::never()
+              )} {
         }
 
         std::shared_ptr<Topics> root() {
