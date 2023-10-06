@@ -47,7 +47,7 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
 
         auto puback = std::dynamic_pointer_cast<Aws::Crt::Mqtt5::PubAckPacket>(result->getAck());
 
-        if(puback != nullptr) {
+        if(puback) {
 
             if(puback->getReasonCode() == 0) {
                 std::cout << "[mqtt-plugin] Puback success." << std::endl;
@@ -105,7 +105,7 @@ static bool startPhase() {
                 "<insert-id>-ats.iot.us-west-2.amazonaws.com", "device.pem", "device.key"
             )};
 
-        if(builder == nullptr) {
+        if(!builder) {
             std::cout << "[mqtt-plugin] Failed to set up MQTT client builder." << std::endl;
             return false;
         }
@@ -132,7 +132,7 @@ static bool startPhase() {
 
         builder->WithPublishReceivedCallback(
             [](const Aws::Crt::Mqtt5::PublishReceivedEventData &eventData) {
-                if(eventData.publishPacket == nullptr) {
+                if(!eventData.publishPacket) {
                     return;
                 }
 
@@ -149,7 +149,7 @@ static bool startPhase() {
         client = builder->Build();
     }
 
-    if(client == nullptr) {
+    if(!client) {
         std::cout << "[mqtt-plugin] Failed to init MQTT client: "
                   << Aws::Crt::ErrorDebugString(Aws::Crt::LastError()) << "." << std::endl;
         return false;
