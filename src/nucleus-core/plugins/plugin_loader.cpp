@@ -1,5 +1,6 @@
 #include "plugin_loader.h"
 #include "tasks/task.h"
+#include <iostream>
 
 namespace fs = std::filesystem;
 
@@ -144,6 +145,7 @@ void plugins::PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
 
 void plugins::PluginLoader::loadNativePlugin(const std::string &name) {
     std::shared_ptr<NativePlugin> plugin{std::make_shared<NativePlugin>(_environment, name)};
+    std::cout << "Loading native plugin from " << name << std::endl;
     plugin->load(name);
     // add the plugins to collection by "anchoring"
     // which solves a number of interesting problems

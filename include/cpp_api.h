@@ -509,6 +509,10 @@ namespace ggapi {
                 getHandleId(),
                 topic.toOrd(),
                 topicCallbackProxy,
+                // TODO: This is undefined behavior; uintptr_t is size of data
+                // pointer, not function pointer. This should use static_cast to
+                // turn a data pointer to a void*. Will need to store the
+                // callback function pointer in some sort of struct
                 reinterpret_cast<uintptr_t>(callback) // NOLINT(*-reinterpret-cast)
             );
         });
