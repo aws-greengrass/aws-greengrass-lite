@@ -10,8 +10,6 @@
 #include <memory>
 #include <thread>
 
-using namespace Aws::Crt;
-
 struct Keys {
     ggapi::StringOrd start{"start"};
     ggapi::StringOrd run{"run"};
@@ -26,8 +24,11 @@ static const Keys keys;
 static int demo();
 static bool startPhase();
 
-static const ApiHandle apiHandle;
-std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> client;
+// Initializes global CRT API
+// TODO: What happens when multiple plugins use the CRT?
+static const Aws::Crt::Apihandle apiHandle;
+
+static std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> client;
 
 ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct args) {
     std::string topic{args.get<std::string>(keys.topicName)};
@@ -44,7 +45,7 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
             return;
         }
 
-        auto puback = std::dynamic_pointer_cast<Mqtt5::PubAckPacket>(result->getAck());
+        auto puback = std::dynamic_pointer_cast<Aws::Crt::Mqtt5::PubAckPacket>(result->getAck());
 
         if(puback != nullptr) {
 
@@ -57,8 +58,10 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
         }
     };
 
-    auto publish = std::make_shared<Mqtt5::PublishPacket>(
-        String(topic), ByteCursorFromString(String(payload)), static_cast<Mqtt5::QOS>(qos)
+    auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
+        Aws::Crt::String(topic),
+        ByteCursorFromString(Aws::Crt::String(payload)),
+        static_cast<Aws::Crt::Mqtt5::QOS>(qos)
     );
 
     if(!client->Publish(publish, onPublishComplete)) {
@@ -107,12 +110,12 @@ static bool startPhase() {
             return false;
         }
 
-        auto connectOptions = std::make_shared<Mqtt5::ConnectPacket>();
+        auto connectOptions = std::make_shared<Aws::Crt::Mqtt5::ConnectPacket>();
         connectOptions->WithClientId("gglite-test");
         builder->WithConnectOptions(connectOptions);
 
         builder->WithClientConnectionSuccessCallback(
-            [&connectionPromise](const Mqtt5::OnConnectionSuccessEventData &eventData) {
+            [&connectionPromise](const Aws::Crt::Mqtt5::OnConnectionSuccessEventData &eventData) {
                 std::cout << "[mqtt-plugin] Connection successful with clientid "
                           << eventData.negotiatedSettings->getClientId() << "." << std::endl;
                 connectionPromise.set_value(true);
@@ -120,33 +123,35 @@ static bool startPhase() {
         );
 
         builder->WithClientConnectionFailureCallback(
-            [&connectionPromise](const Mqtt5::OnConnectionFailureEventData &eventData) {
+            [&connectionPromise](const Aws::Crt::Mqtt5::OnConnectionFailureEventData &eventData) {
                 std::cout << "[mqtt-plugin] Connection failed: "
                           << aws_error_debug_str(eventData.errorCode) << "." << std::endl;
                 connectionPromise.set_value(false);
             }
         );
 
-        builder->WithPublishReceivedCallback([](const Mqtt5::PublishReceivedEventData &eventData) {
-            if(eventData.publishPacket == nullptr) {
-                return;
-            }
+        builder->WithPublishReceivedCallback(
+            [](const Aws::Crt::Mqtt5::PublishReceivedEventData &eventData) {
+                if(eventData.publishPacket == nullptr) {
+                    return;
+                }
 
-            std::cout << "[mqtt-plugin] Publish recieved on topic "
-                      << eventData.publishPacket->getTopic() << ": "
-                      << std::basic_string_view(
-                             eventData.publishPacket->getPayload().ptr,
-                             eventData.publishPacket->getPayload().len
-                         )
-                      << std::endl;
-        });
+                std::cout << "[mqtt-plugin] Publish recieved on topic "
+                          << eventData.publishPacket->getTopic() << ": "
+                          << std::basic_string_view(
+                                 eventData.publishPacket->getPayload().ptr,
+                                 eventData.publishPacket->getPayload().len
+                             )
+                          << std::endl;
+            }
+        );
 
         client = builder->Build();
     }
 
     if(client == nullptr) {
-        std::cout << "[mqtt-plugin] Failed to init MQTT client: " << ErrorDebugString(LastError())
-                  << "." << std::endl;
+        std::cout << "[mqtt-plugin] Failed to init MQTT client: "
+                  << Aws::Crt::ErrorDebugString(Aws::Crt::LastError()) << "." << std::endl;
         return false;
     }
 
