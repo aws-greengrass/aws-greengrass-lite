@@ -256,8 +256,9 @@ namespace config {
 
         bool hasWatchers() const;
 
-        std::optional<std::vector<std::shared_ptr<Watcher>>>
-            filterWatchers(data::StringOrd subKey, WhatHappened reasons) const;
+        std::optional<std::vector<std::shared_ptr<Watcher>>> filterWatchers(
+            data::StringOrd subKey, WhatHappened reasons
+        ) const;
 
         std::optional<std::vector<std::shared_ptr<Watcher>>> filterWatchers(WhatHappened reasons
         ) const;

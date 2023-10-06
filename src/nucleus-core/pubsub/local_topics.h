@@ -78,8 +78,9 @@ namespace pubsub {
             const std::shared_ptr<data::StructModelBase> &result
         ) override;
 
-        static std::unique_ptr<tasks::SubTask>
-            of(data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> callback);
+        static std::unique_ptr<tasks::SubTask> of(
+            data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> callback
+        );
     };
 
     //

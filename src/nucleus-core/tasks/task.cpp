@@ -167,8 +167,9 @@ namespace tasks {
         }
     }
 
-    void
-        TaskThread::taskStealing(const std::shared_ptr<Task> &blockingTask, const ExpireTime &end) {
+    void TaskThread::taskStealing(
+        const std::shared_ptr<Task> &blockingTask, const ExpireTime &end
+    ) {
         // this loop is entered when we have an associated task
         while(!blockingTask->isCompleted()) {
             std::shared_ptr<Task> task = pickupTask(blockingTask);

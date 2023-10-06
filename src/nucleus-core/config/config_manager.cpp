@@ -114,8 +114,9 @@ namespace config {
         watcher->initialized(ref<Topics>(), subKey, reasons);
     }
 
-    Topic &
-        Topic::addWatcher(const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
+    Topic &Topic::addWatcher(
+        const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons
+    ) {
         _parent->addWatcher(_value.getNameOrd(), watcher, reasons);
         return *this;
     }
@@ -125,13 +126,15 @@ namespace config {
         return !_watching.empty();
     }
 
-    std::optional<std::vector<std::shared_ptr<Watcher>>>
-        Topics::filterWatchers(config::WhatHappened reasons) const {
+    std::optional<std::vector<std::shared_ptr<Watcher>>> Topics::filterWatchers(
+        config::WhatHappened reasons
+    ) const {
         return filterWatchers({}, reasons);
     }
 
-    std::optional<std::vector<std::shared_ptr<Watcher>>>
-        Topics::filterWatchers(data::StringOrd key, config::WhatHappened reasons) const {
+    std::optional<std::vector<std::shared_ptr<Watcher>>> Topics::filterWatchers(
+        data::StringOrd key, config::WhatHappened reasons
+    ) const {
         if(!hasWatchers()) {
             return {};
         }
@@ -222,8 +225,9 @@ namespace config {
         }
     }
 
-    std::shared_ptr<Topics>
-        Topics::createInteriorChild(data::StringOrd nameOrd, const Timestamp &timestamp) {
+    std::shared_ptr<Topics> Topics::createInteriorChild(
+        data::StringOrd nameOrd, const Timestamp &timestamp
+    ) {
         Element leaf = createChild(nameOrd, [this, &timestamp, nameOrd](auto ord) {
             std::shared_ptr<Topics> parent{ref<Topics>()};
             std::shared_ptr<Topics> nested{std::make_shared<Topics>(_environment, parent, nameOrd)};
@@ -232,8 +236,9 @@ namespace config {
         return leaf.getTopicsRef();
     }
 
-    std::shared_ptr<Topics>
-        Topics::createInteriorChild(std::string_view sv, const Timestamp &timestamp) {
+    std::shared_ptr<Topics> Topics::createInteriorChild(
+        std::string_view sv, const Timestamp &timestamp
+    ) {
         data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
         return createInteriorChild(handle, timestamp);
     }

@@ -46,8 +46,9 @@ namespace ggapi {
     void callApi(const std::function<void()> &fn);
 
     // Helper functions for consistent string copy pattern
-    inline std::string
-        stringFillHelper(size_t strLen, const std::function<size_t(char *, size_t)> &stringFillFn) {
+    inline std::string stringFillHelper(
+        size_t strLen, const std::function<size_t(char *, size_t)> &stringFillFn
+    ) {
         if(strLen == 0) {
             return {};
         }
@@ -190,8 +191,9 @@ namespace ggapi {
         [[nodiscard]] Scope sendToTopicAsync(
             StringOrd topic, Struct message, topicCallback_t result, int32_t timeout = -1
         );
-        [[nodiscard]] static Struct
-            sendToTopic(StringOrd topic, Struct message, int32_t timeout = -1);
+        [[nodiscard]] static Struct sendToTopic(
+            StringOrd topic, Struct message, int32_t timeout = -1
+        );
         [[nodiscard]] Struct waitForTaskCompleted(int32_t timeout = -1);
         [[nodiscard]] Scope registerPlugin(StringOrd componentName, lifecycleCallback_t callback);
         [[nodiscard]] static Scope thisTask();

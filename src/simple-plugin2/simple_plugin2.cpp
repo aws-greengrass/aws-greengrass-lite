@@ -25,8 +25,9 @@ std::thread asyncThread;
 
 void asyncThreadFn();
 
-extern "C" [[maybe_unused]] EXPORT bool
-    greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
+extern "C" [[maybe_unused]] EXPORT bool greengrass_lifecycle(
+    uint32_t moduleHandle, uint32_t phase, uint32_t data
+) noexcept {
     std::cout << "Running lifecycle plugins 2... " << ggapi::StringOrd{phase}.toString()
               << std::endl;
     ggapi::StringOrd phaseOrd{phase};
@@ -37,8 +38,9 @@ extern "C" [[maybe_unused]] EXPORT bool
     return true;
 }
 
-ggapi::Struct
-    publishToIoTCoreListener(ggapi::Scope task, ggapi::StringOrd topic, ggapi::Struct callData) {
+ggapi::Struct publishToIoTCoreListener(
+    ggapi::Scope task, ggapi::StringOrd topic, ggapi::Struct callData
+) {
     // real work
     std::string destTopic{callData.get<std::string>(keys.topicName)};
     int qos{callData.get<int>(keys.qos)};
@@ -51,8 +53,9 @@ ggapi::Struct
     return response;
 }
 
-ggapi::Struct
-    publishToIoTCoreResponder(ggapi::Scope task, ggapi::StringOrd topic, ggapi::Struct respData) {
+ggapi::Struct publishToIoTCoreResponder(
+    ggapi::Scope task, ggapi::StringOrd topic, ggapi::Struct respData
+) {
     if(!respData) {
         // unhandled
         return respData;

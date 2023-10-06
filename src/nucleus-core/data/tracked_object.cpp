@@ -42,8 +42,9 @@ namespace data {
         _roots.erase(anchor.getHandle());
     }
 
-    std::vector<ObjectAnchor>
-        TrackingScope::getRootsHelper(const std::weak_ptr<TrackingScope> &assumedOwner) {
+    std::vector<ObjectAnchor> TrackingScope::getRootsHelper(
+        const std::weak_ptr<TrackingScope> &assumedOwner
+    ) {
         std::shared_lock guard{_mutex};
         std::vector<ObjectAnchor> copy;
         for(const auto &i : _roots) {

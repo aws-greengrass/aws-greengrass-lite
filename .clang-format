@@ -14,11 +14,11 @@ IncludeCategories:
   - Regex:           '<.*'
     Priority:        2
 IndentWidth: 4
-IndentWrappedFunctionNames: true
 InsertBraces: true
 InsertNewlineAtEOF: true
 LineEnding: LF
 NamespaceIndentation: All
+PenaltyReturnTypeOnItsOwnLine: 300
 QualifierAlignment: Left
 SeparateDefinitionBlocks: Always
 SortIncludes: CaseSensitive

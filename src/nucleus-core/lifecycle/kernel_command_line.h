@@ -34,10 +34,12 @@ namespace lifecycle {
         );
         std::filesystem::path deTilde(std::string_view s) const; // assumes lock
                                                                  // held
-        static std::filesystem::path
-            resolve(const std::filesystem::path &first, const std::filesystem::path &second);
-        static std::filesystem::path
-            resolve(const std::filesystem::path &first, std::string_view second);
+        static std::filesystem::path resolve(
+            const std::filesystem::path &first, const std::filesystem::path &second
+        );
+        static std::filesystem::path resolve(
+            const std::filesystem::path &first, std::string_view second
+        );
 
     public:
         explicit KernelCommandLine(data::Global &global) : _global{global} {

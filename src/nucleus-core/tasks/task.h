@@ -226,8 +226,9 @@ namespace tasks {
 
         data::ObjectAnchor createTask();
         std::shared_ptr<Task> acquireTaskForWorker(TaskThread *worker);
-        std::shared_ptr<Task>
-            acquireTaskWhenStealing(TaskThread *worker, const std::shared_ptr<Task> &priorityTask);
+        std::shared_ptr<Task> acquireTaskWhenStealing(
+            TaskThread *worker, const std::shared_ptr<Task> &priorityTask
+        );
         bool allocateNextWorker();
         void queueTask(const std::shared_ptr<Task> &task);
     };

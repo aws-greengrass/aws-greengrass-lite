@@ -7,8 +7,9 @@ const ggapi::StringOrd DISCOVER_PHASE{"discover"};
 
 void doDiscoverPhase(ggapi::Scope moduleHandle, ggapi::Struct phaseData);
 
-extern "C" [[maybe_unused]] EXPORT bool
-    greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
+extern "C" [[maybe_unused]] EXPORT bool greengrass_lifecycle(
+    uint32_t moduleHandle, uint32_t phase, uint32_t data
+) noexcept {
     std::cout << "Running layered lifecycle plugins... " << ggapi::StringOrd{phase}.toString()
               << std::endl;
     ggapi::StringOrd phaseOrd{phase};
