@@ -84,8 +84,8 @@ extern "C" bool greengrass_lifecycle(
     return true;
 }
 
-static std::ostream &operator<<(std::ostream &os, std::basic_string_view<uint8_t> sv) {
-    for(int byte : sv) {
+static std::ostream &operator<<(std::ostream &os, Aws::Crt::ByteCursor bc) {
+    for(int byte : std::basic_string_view<uint8_t>(bc.ptr, bc.len)) {
         if(isprint(byte)) {
             os << static_cast<char>(byte);
         } else {
@@ -138,11 +138,7 @@ static bool startPhase() {
 
                 std::cout << "[mqtt-plugin] Publish recieved on topic "
                           << eventData.publishPacket->getTopic() << ": "
-                          << std::basic_string_view(
-                                 eventData.publishPacket->getPayload().ptr,
-                                 eventData.publishPacket->getPayload().len
-                             )
-                          << std::endl;
+                          << eventData.publishPacket->getPayload() << std::endl;
             }
         );
 
