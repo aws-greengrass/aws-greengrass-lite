@@ -1,9 +1,6 @@
 #include "task.h"
 
 namespace tasks {
-    thread_local data::ObjHandle Task::_threadTask{}; // NOLINT(*-non-const-global-variables)
-    thread_local TaskThread *TaskThread::_threadContext{
-        nullptr}; // NOLINT(*-non-const-global-variables)
 
     data::ObjectAnchor TaskManager::createTask() {
         auto task{std::make_shared<Task>(_environment)};
@@ -103,12 +100,12 @@ namespace tasks {
     }
 
     void TaskThread::bindThreadContext() {
-        _threadContext = this;
+        getSetTaskThread(this, true);
     }
 
     std::shared_ptr<TaskThread> TaskThread::getThreadContext() {
         // TaskThread for current thread
-        TaskThread *thread = _threadContext; // Thread-local, so safe
+        TaskThread *thread = getSetTaskThread(nullptr, false);
         if(thread) {
             return thread->shared_from_this();
         } else {
@@ -417,6 +414,6 @@ namespace tasks {
         defaultTask.release();
         Task::getSetThreadSelf({});
         unprotect();
-        _threadContext = nullptr;
+        getSetTaskThread(nullptr, true);
     }
 } // namespace tasks

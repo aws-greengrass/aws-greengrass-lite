@@ -32,7 +32,16 @@ namespace tasks {
         data::ObjHandle _self;
         ExpireTime _timeout;
         Status _lastStatus{Running};
-        static thread_local data::ObjHandle _threadTask; // NOLINT(*-non-const-global-variables)
+
+        static data::ObjHandle getSetThreadSelf(data::ObjHandle h, bool set) {
+            // This addresses a problem on (at least) Windows machines
+            static thread_local uint32_t _threadTask{0};
+            data::ObjHandle current{_threadTask};
+            if(set) {
+                _threadTask = h.asInt();
+            }
+            return current;
+        }
 
     public:
         explicit Task(data::Environment &environment)
@@ -63,13 +72,11 @@ namespace tasks {
         void markTaskComplete();
 
         static data::ObjHandle getThreadSelf() {
-            return _threadTask;
+            return getSetThreadSelf({}, false);
         }
 
         static data::ObjHandle getSetThreadSelf(data::ObjHandle h) {
-            data::Handle old = _threadTask;
-            _threadTask = h;
-            return old;
+            return getSetThreadSelf(h, true);
         }
 
         Status removeSubtask(std::unique_ptr<SubTask> &subTask);
@@ -117,9 +124,17 @@ namespace tasks {
         std::mutex _mutex;
         std::condition_variable _wake;
         bool _shutdown{false};
-        //    static thread_local std::weak_ptr<TaskThread> _threadContext;
-        static thread_local TaskThread *_threadContext; // NOLINT(*-non-const-global-variables)
         void bindThreadContext();
+
+        static TaskThread *getSetTaskThread(TaskThread *setValue, bool set) {
+            // NOLINTNEXTLINE(*-avoid-non-const-global-variables)
+            static thread_local TaskThread *_threadContext{nullptr};
+            TaskThread *current = _threadContext;
+            if(set) {
+                _threadContext = setValue;
+            }
+            return current;
+        }
 
     public:
         explicit TaskThread(
