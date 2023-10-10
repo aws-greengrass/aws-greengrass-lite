@@ -66,7 +66,7 @@ namespace ggapi {
     //
     class StringOrd {
     private:
-        uint32_t _ord;
+        uint32_t _ord{0};
 
     public:
         static uint32_t intern(std::string_view sv) noexcept {
@@ -83,6 +83,7 @@ namespace ggapi {
         explicit constexpr StringOrd(uint32_t ord) noexcept : _ord{ord} {
         }
 
+        constexpr StringOrd() noexcept = default;
         constexpr StringOrd(const StringOrd &) noexcept = default;
         constexpr StringOrd(StringOrd &&) noexcept = default;
         constexpr StringOrd &operator=(const StringOrd &) noexcept = default;
@@ -117,17 +118,18 @@ namespace ggapi {
     //
     class ObjHandle {
     protected:
-        uint32_t _handle;
+        uint32_t _handle{0};
 
     public:
-        explicit constexpr ObjHandle(uint32_t handle) noexcept : _handle{handle} {
-        }
-
+        constexpr ObjHandle() noexcept = default;
         constexpr ObjHandle(const ObjHandle &) noexcept = default;
         constexpr ObjHandle(ObjHandle &&) noexcept = default;
         constexpr ObjHandle &operator=(const ObjHandle &) noexcept = default;
         constexpr ObjHandle &operator=(ObjHandle &&) noexcept = default;
         ~ObjHandle() noexcept = default;
+
+        explicit constexpr ObjHandle(uint32_t handle) noexcept : _handle{handle} {
+        }
 
         constexpr bool operator==(ObjHandle other) const {
             return _handle == other._handle;
@@ -163,11 +165,18 @@ namespace ggapi {
     template<typename T>
     class ObjectBase : public ObjHandle {
     public:
-        explicit ObjectBase(const ObjHandle &other) : ObjHandle{other} {
+        ObjectBase() noexcept = default;
+        ObjectBase(const ObjectBase &) noexcept = default;
+        ObjectBase(ObjectBase &&) noexcept = default;
+        ObjectBase &operator=(const ObjectBase &) noexcept = default;
+        ObjectBase &operator=(ObjectBase &&) noexcept = default;
+        ~ObjectBase() = default;
+
+        explicit ObjectBase(const ObjHandle &other) noexcept : ObjHandle{other} {
             static_assert(std::is_base_of_v<ObjHandle, T>);
         }
 
-        explicit ObjectBase(uint32_t handle) : ObjHandle{handle} {
+        explicit ObjectBase(uint32_t handle) noexcept : ObjHandle{handle} {
         }
 
         //
@@ -181,10 +190,17 @@ namespace ggapi {
     //
     class Scope : public ObjectBase<Scope> {
     public:
-        explicit Scope(const ObjHandle &other) : ObjectBase{other} {
+        Scope() noexcept = default;
+        Scope(const Scope &) noexcept = default;
+        Scope(Scope &&) noexcept = default;
+        Scope &operator=(const Scope &) noexcept = default;
+        Scope &operator=(Scope &&) noexcept = default;
+        ~Scope() = default;
+
+        explicit Scope(const ObjHandle &other) noexcept : ObjectBase{other} {
         }
 
-        explicit Scope(uint32_t handle) : ObjectBase{handle} {
+        explicit Scope(uint32_t handle) noexcept : ObjectBase{handle} {
         }
 
         [[nodiscard]] Subscription subscribeToTopic(StringOrd topic, topicCallback_t callback);
@@ -208,7 +224,13 @@ namespace ggapi {
     //
     class ThreadScope : public Scope {
     public:
-        explicit ThreadScope(uint32_t handle) : Scope{handle} {
+        ThreadScope() noexcept = default;
+        ThreadScope(const ThreadScope &) noexcept = default;
+        ThreadScope(ThreadScope &&) noexcept = default;
+        ThreadScope &operator=(const ThreadScope &) noexcept = default;
+        ThreadScope &operator=(ThreadScope &&) noexcept = default;
+
+        explicit ThreadScope(uint32_t handle) noexcept : Scope{handle} {
         }
 
         [[nodiscard]] static ThreadScope claimThread();
@@ -576,8 +598,8 @@ namespace ggapi {
         uintptr_t callbackContext, uint32_t moduleHandle, uint32_t phaseOrd, uint32_t dataStruct
     ) noexcept {
         return trapErrorReturn<bool>([callbackContext, moduleHandle, phaseOrd, dataStruct]() {
-            auto callback = reinterpret_cast<lifecycleCallback_t>(callbackContext
-            ); // NOLINT(*-reinterpret-cast)
+            // NOLINTNEXTLINE(*-reinterpret-cast)
+            auto callback = reinterpret_cast<lifecycleCallback_t>(callbackContext);
             callback(Scope{moduleHandle}, StringOrd{phaseOrd}, Struct{dataStruct});
             return true;
         });

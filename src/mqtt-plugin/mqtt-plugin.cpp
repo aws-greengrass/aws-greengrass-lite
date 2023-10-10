@@ -26,7 +26,7 @@ static bool startPhase();
 
 // Initializes global CRT API
 // TODO: What happens when multiple plugins use the CRT?
-static const Aws::Crt::Apihandle apiHandle;
+static const Aws::Crt::ApiHandle apiHandle;
 
 static std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> client;
 
