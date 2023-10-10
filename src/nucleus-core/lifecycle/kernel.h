@@ -34,6 +34,7 @@ namespace lifecycle {
         data::Global &_global;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
         std::shared_ptr<RootPathWatcher> _rootPathWatcher;
+        std::unique_ptr<config::TlogWriter> _tlog;
         deployment::DeploymentStage _deploymentStageAtLaunch{deployment::DeploymentStage::DEFAULT};
 
     public:

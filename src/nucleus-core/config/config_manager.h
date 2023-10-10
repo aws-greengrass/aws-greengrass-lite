@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/publish_queue.h"
 #include "data/handle_table.h"
 #include "data/safe_handle.h"
 #include "data/shared_struct.h"
@@ -221,6 +222,7 @@ namespace config {
         data::StringOrd _nameOrd;
         Timestamp _modtime;
         std::atomic_bool _excludeTlog{false};
+        bool _notifyParent{true};
         std::weak_ptr<Topics> _parent;
         std::map<data::StringOrd, TopicElement, data::StringOrd::CompLess> _children;
         std::vector<Watching> _watching;
@@ -231,6 +233,8 @@ namespace config {
         TopicElement createChild(
             data::StringOrd nameOrd, const std::function<TopicElement(data::StringOrd)> &creator
         );
+        void publish(PublishAction action);
+        [[nodiscard]] std::string getNameUnsafe() const;
 
     public:
         explicit Topics(
@@ -270,6 +274,8 @@ namespace config {
         );
         void addWatcher(const std::shared_ptr<Watcher> &watcher, WhatHappened reasons);
         bool hasWatchers() const;
+        bool parentNeedsToKnow() const;
+        void setParentNeedsToKnow(bool f);
 
         std::optional<std::vector<std::shared_ptr<Watcher>>> filterWatchers(
             data::StringOrd subKey, WhatHappened reasons
@@ -470,6 +476,7 @@ namespace config {
     private:
         data::Environment &_environment;
         std::shared_ptr<Topics> _root;
+        PublishQueue _publishQueue;
 
     public:
         explicit Manager(data::Environment &environment)
@@ -481,6 +488,10 @@ namespace config {
 
         std::shared_ptr<Topics> root() {
             return _root;
+        }
+
+        PublishQueue &publishQueue() {
+            return _publishQueue;
         }
 
         Manager &read(const std::filesystem::path &path);

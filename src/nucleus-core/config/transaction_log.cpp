@@ -11,22 +11,13 @@ namespace config {
         const std::filesystem::path &outputPath
     )
         : _environment(environment), _root(root), _tlogFile(outputPath) {
-        //_root->addWatcher(_watcher, WhatHappened::all);
     }
 
-    TlogWriter::~TlogWriter() {
-        abandon();
-    }
-
-    void TlogWriter::dump(
-        data::Environment &environment,
-        const std::shared_ptr<Topics> &root,
-        const std::filesystem::path &outputPath
-    ) {
-        TlogWriter writer{environment, root, outputPath};
-        writer.open(std::ios_base::out | std::ios_base::trunc);
-        writer.writeAll();
-        writer.commit();
+    TlogWriter &TlogWriter::dump() {
+        startNew();
+        writeAll();
+        commit();
+        return *this;
     }
 
     void TlogWriter::commit() {
@@ -47,6 +38,7 @@ namespace config {
             if(!_watcher) {
                 _watcher = std::make_shared<TlogWatcher>(*this);
             }
+            _root->addWatcher(_watcher, WhatHappened::all);
         } else {
             _watcher.reset();
         }
@@ -65,9 +57,12 @@ namespace config {
         return *this;
     }
 
-    TlogWriter &TlogWriter::flushImmediately() {
+    TlogWriter &TlogWriter::flushImmediately(bool f) {
         std::unique_lock guard{_mutex};
-        _tlogFile.flush();
+        _flushImmediately = f;
+        if(f) {
+            _tlogFile.flush();
+        }
         return *this;
     }
 
@@ -81,14 +76,15 @@ namespace config {
         return _tlogFile.getTargetFile();
     }
 
-    TlogWriter &TlogWriter::open(std::ios_base::openmode mode) {
-        return open(getPath(), mode);
+    TlogWriter &TlogWriter::startNew() {
+        std::unique_lock guard{_mutex};
+        _tlogFile.begin();
+        return *this;
     }
 
-    TlogWriter &TlogWriter::open(const std::filesystem::path &path, std::ios_base::openmode mode) {
-        abandon();
+    TlogWriter &TlogWriter::append() {
         std::unique_lock guard{_mutex};
-        _tlogFile.begin(mode);
+        _tlogFile.append();
         return *this;
     }
 
@@ -110,11 +106,12 @@ namespace config {
         if(node.excludeTlog()) {
             return;
         }
-        Topic *nodeAsTopic = dynamic_cast<Topic *>(&node);
+        auto *nodeAsTopic = dynamic_cast<Topic *>(&node);
         TlogLine tlogline;
         tlogline.topicPath = node.getKeyPath();
         tlogline.timestamp = node.getModTime();
-        if((changeType & WhatHappened::childChanged) != WhatHappened::never
+        if((changeType & (WhatHappened::changed | WhatHappened::childChanged))
+               != WhatHappened::never
            && nodeAsTopic != nullptr) {
             tlogline.value = nodeAsTopic->slice();
             tlogline.action = WhatHappened::changed;

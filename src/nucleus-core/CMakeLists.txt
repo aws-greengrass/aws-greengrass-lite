@@ -38,6 +38,7 @@ add_library(nucleus-core SHARED
         api/tasks.cpp
         config/config_manager.cpp config/config_manager.h
         config/json_helper.cpp config/json_helper.h
+        config/publish_queue.cpp config/publish_queue.h
         config/transaction_log.cpp config/transaction_log.h
         config/watcher.h
         config/yaml_helper.cpp config/yaml_helper.h

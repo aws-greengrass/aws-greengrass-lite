@@ -8,11 +8,13 @@ namespace util {
     // In this implementation, begin() must be called, and commits do not happen unless commit()
     // is called.
     class CommitableFile {
+        enum Mode { CLOSED, BEGIN_NEW, APPEND_EXISTING };
+
         std::filesystem::path _new;
         std::filesystem::path _target;
         std::filesystem::path _backup;
         std::ofstream _stream;
-        bool _didBegin{false};
+        Mode _mode{CLOSED};
 
     public:
         CommitableFile(const CommitableFile &) = delete;
@@ -37,6 +39,9 @@ namespace util {
 
         CommitableFile &begin(
             std::ios_base::openmode mode = std::ios_base::trunc | std::ios_base::out
+        );
+        CommitableFile &append(
+            std::ios_base::openmode mode = std::ios_base::app | std::ios_base::out
         );
         CommitableFile &commit();
         CommitableFile &abandon();

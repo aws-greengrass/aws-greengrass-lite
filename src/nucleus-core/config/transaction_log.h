@@ -94,7 +94,11 @@ namespace config {
             const std::shared_ptr<Topics> &root,
             const std::filesystem::path &outputPath
         );
-        ~TlogWriter();
+        TlogWriter(const TlogWriter &) = delete;
+        TlogWriter(TlogWriter &&) = delete;
+        TlogWriter &operator=(const TlogWriter &) = delete;
+        TlogWriter &operator=(TlogWriter &&other) = delete;
+        ~TlogWriter() = default;
 
         void abandon();
         void commit();
@@ -102,16 +106,13 @@ namespace config {
         TlogWriter &withWatcher(bool f = true);
         TlogWriter &withMaxEntries(uint32_t maxEntries = DEFAULT_MAX_TLOG_ENTRIES);
         TlogWriter &writeAll();
-        TlogWriter &flushImmediately();
-        TlogWriter &open(std::ios_base::openmode mode);
-        TlogWriter &open(const std::filesystem::path &path, std::ios_base::openmode mode);
+        TlogWriter &flushImmediately(bool f = true);
+        TlogWriter &startNew();
+        TlogWriter &append();
         std::filesystem::path getPath() const;
-        static void dump(
-            data::Environment &environment,
-            const std::shared_ptr<Topics> &root,
-            const std::filesystem::path &outputPath
-        );
         void childChanged(ConfigNode &node, WhatHappened changeType);
+        TlogWriter &dump();
+
         static std::filesystem::path getOldTlogPath(const std::filesystem::path &path);
     };
 } // namespace config

@@ -41,17 +41,22 @@ namespace config {
     )
         : data::StructModelBase{environment}, _parent{parent}, _nameOrd{key}, _modtime(modtime) {
         // Note: don't lock parent, it's most likely already locked - atomic used instead
-        if((parent && parent->_excludeTlog) || (_nameOrd && util::startsWith(getName(), "_"))) {
+        if((parent && parent->_excludeTlog)
+           || (_nameOrd && util::startsWith(getNameUnsafe(), "_"))) {
             _excludeTlog = true;
         }
     }
 
-    std::string Topics::getName() const {
-        std::shared_lock guard{_mutex};
+    std::string Topics::getNameUnsafe() const {
         if(!_nameOrd) {
             return {}; // root
         }
         return _environment.stringTable.getString(_nameOrd);
+    }
+
+    std::string Topics::getName() const {
+        std::shared_lock guard{_mutex};
+        return getNameUnsafe();
     }
 
     void Topics::updateChild(const Topic &element) {
@@ -130,6 +135,16 @@ namespace config {
     bool Topics::hasWatchers() const {
         std::shared_lock guard{_mutex};
         return !_watching.empty();
+    }
+
+    bool Topics::parentNeedsToKnow() const {
+        std::shared_lock guard{_mutex};
+        return _notifyParent && !_excludeTlog && !_parent.expired();
+    }
+
+    void Topics::setParentNeedsToKnow(bool f) {
+        std::unique_lock guard{_mutex};
+        _notifyParent = f;
     }
 
     std::optional<std::vector<std::shared_ptr<Watcher>>> Topics::filterWatchers(
@@ -375,26 +390,40 @@ namespace config {
 
     void Topics::notifyChange(data::StringOrd subKey, WhatHappened changeType) {
         auto watchers = filterWatchers(subKey, changeType);
+        auto self{ref<Topics>()};
         if(watchers.has_value()) {
             for(const auto &i : watchers.value()) {
-                i->changed(ref<Topics>(), subKey, changeType);
+                publish([i, self, subKey, changeType]() { i->changed(self, subKey, changeType); });
             }
         }
-        watchers = filterWatchers(WhatHappened::childChanged);
-        if(watchers.has_value()) {
-            for(const auto &i : watchers.value()) {
-                i->childChanged(ref<Topics>(), subKey, changeType);
+
+        if(subKey) {
+            watchers = filterWatchers(WhatHappened::childChanged);
+            if(watchers.has_value()) {
+                for(const auto &i : watchers.value()) {
+                    publish([i, self, subKey, changeType]() {
+                        i->childChanged(self, subKey, changeType);
+                    });
+                }
             }
+        }
+        std::shared_ptr<Topics> parent{_parent.lock()};
+        // Follow notification chain across all parents
+        while(parent && parentNeedsToKnow()) {
+            watchers = parent->filterWatchers(WhatHappened::childChanged);
+            if(watchers.has_value()) {
+                for(const auto &i : watchers.value()) {
+                    publish([i, self, subKey, changeType]() {
+                        i->childChanged(self, subKey, changeType);
+                    });
+                }
+            }
+            parent = parent->getParent();
         }
     }
 
     void Topics::notifyChange(WhatHappened changeType) {
-        auto watchers = filterWatchers(changeType);
-        if(watchers.has_value()) {
-            for(const auto &i : watchers.value()) {
-                i->changed(ref<Topics>(), {}, changeType);
-            }
-        }
+        notifyChange({}, changeType);
     }
 
     void Topics::remove(const Timestamp &timestamp) {
@@ -437,6 +466,10 @@ namespace config {
     bool Topics::excludeTlog() const {
         // cannot use _mutex, uses atomic instead
         return _excludeTlog;
+    }
+
+    void Topics::publish(PublishAction action) {
+        _environment.configManager.publishQueue().publish(std::move(action));
     }
 
     TopicElement::TopicElement(const Topic &topic)

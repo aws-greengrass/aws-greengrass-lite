@@ -18,9 +18,18 @@ namespace util {
     CommitableFile &CommitableFile::begin(std::ios_base::openmode mode) {
         if(!_stream.is_open()) {
             deleteNew();
-            _didBegin = true; // make sure abandon gets called on close
+            _mode = BEGIN_NEW;
             _stream.exceptions(std::ios::failbit | std::ios::badbit);
             _stream.open(_new, mode);
+        }
+        return *this;
+    }
+
+    CommitableFile &CommitableFile::append(std::ios_base::openmode mode) {
+        if(!_stream.is_open()) {
+            _mode = APPEND_EXISTING;
+            _stream.exceptions(std::ios::failbit | std::ios::badbit);
+            _stream.open(_target, mode);
         }
         return *this;
     }
@@ -39,10 +48,10 @@ namespace util {
         _stream.exceptions(std::ios::goodbit);
         if(_stream.is_open()) {
             _stream.close();
-            if(_didBegin) {
+            if(_mode == BEGIN_NEW) {
                 deleteNew();
-                _didBegin = false;
             }
+            _mode = CLOSED;
         }
         return *this;
     }
@@ -98,11 +107,11 @@ namespace util {
             _stream.flush();
             _stream.close();
         }
-        if(_didBegin) {
+        if(_mode == BEGIN_NEW) {
             moveTargetToBackup();
             moveNewToTarget();
-            _didBegin = false;
         }
+        _mode = CLOSED;
         return *this;
     }
 
@@ -113,7 +122,14 @@ namespace util {
     }
 
     CommitableFile::~CommitableFile() {
-        abandon();
+        switch(_mode) {
+        case APPEND_EXISTING:
+            commit();
+            break;
+        default:
+            abandon();
+            break;
+        }
     }
 
     std::filesystem::path CommitableFile::getTargetFile() const {
