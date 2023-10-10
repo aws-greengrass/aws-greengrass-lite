@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
 project(mqtt-plugin)
 
+set(FETCHCONTENT_QUIET FALSE)
+
 include(FetchContent)
 
 FetchContent_Declare(

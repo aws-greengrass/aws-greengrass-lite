@@ -5,6 +5,8 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_compile_definitions(EXPORT_API)
 
+set(FETCHCONTENT_QUIET FALSE)
+
 include(FetchContent)
 
 FetchContent_Declare(
