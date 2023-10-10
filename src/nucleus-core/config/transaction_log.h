@@ -2,6 +2,7 @@
 
 #include "config_manager.h"
 #include "json_helper.h"
+#include "util/commitable_file.h"
 #include <atomic>
 #include <filesystem>
 #include <fstream>
@@ -75,7 +76,7 @@ namespace config {
 
         data::Environment &_environment;
         mutable std::mutex _mutex;
-        std::filesystem::path _tlogOutputPath;
+        util::CommitableFile _tlogFile;
         std::shared_ptr<Topics> _root;
         std::shared_ptr<TlogWatcher> _watcher;
         bool _truncateQueue{false};
@@ -84,7 +85,6 @@ namespace config {
         bool _autoTruncate{false};
         uint32_t _maxEntries{DEFAULT_MAX_TLOG_ENTRIES};
         uint32_t _retryCount{0};
-        std::ofstream _writer;
 
         void writeAll(const std::shared_ptr<Topics> &node);
 
@@ -96,7 +96,8 @@ namespace config {
         );
         ~TlogWriter();
 
-        void close();
+        void abandon();
+        void commit();
         TlogWriter &withAutoTruncate(bool f = true);
         TlogWriter &withWatcher(bool f = true);
         TlogWriter &withMaxEntries(uint32_t maxEntries = DEFAULT_MAX_TLOG_ENTRIES);
@@ -104,7 +105,7 @@ namespace config {
         TlogWriter &flushImmediately();
         TlogWriter &open(std::ios_base::openmode mode);
         TlogWriter &open(const std::filesystem::path &path, std::ios_base::openmode mode);
-        std::filesystem::path getPath();
+        std::filesystem::path getPath() const;
         static void dump(
             data::Environment &environment,
             const std::shared_ptr<Topics> &root,

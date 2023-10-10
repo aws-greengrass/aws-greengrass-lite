@@ -15,12 +15,12 @@ namespace util {
         : CommitableFile(getNewFile(path), getBackupFile(path), path) {
     }
 
-    CommitableFile &CommitableFile::begin() {
+    CommitableFile &CommitableFile::begin(std::ios_base::openmode mode) {
         if(!_stream.is_open()) {
             deleteNew();
             _didBegin = true; // make sure abandon gets called on close
             _stream.exceptions(std::ios::failbit | std::ios::badbit);
-            _stream.open(_new, std::ios_base::trunc | std::ios_base::out);
+            _stream.open(_new, mode);
         }
         return *this;
     }
@@ -106,8 +106,30 @@ namespace util {
         return *this;
     }
 
+    void CommitableFile::flush() {
+        if(_stream.is_open()) {
+            _stream.flush();
+        }
+    }
+
     CommitableFile::~CommitableFile() {
         abandon();
+    }
+
+    std::filesystem::path CommitableFile::getTargetFile() const {
+        return _target;
+    }
+
+    std::filesystem::path CommitableFile::getNewFile() const {
+        return _new;
+    }
+
+    std::filesystem::path CommitableFile::getBackupFile() const {
+        return _backup;
+    }
+
+    bool CommitableFile::is_open() {
+        return _stream.is_open();
     }
 
 } // namespace util

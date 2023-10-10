@@ -10,13 +10,12 @@ namespace config {
         const std::shared_ptr<Topics> &root,
         const std::filesystem::path &outputPath
     )
-        : _environment(environment), _root(root), _tlogOutputPath(outputPath) {
-        _writer.exceptions(std::ios::failbit | std::ios::badbit);
+        : _environment(environment), _root(root), _tlogFile(outputPath) {
         //_root->addWatcher(_watcher, WhatHappened::all);
     }
 
     TlogWriter::~TlogWriter() {
-        close();
+        abandon();
     }
 
     void TlogWriter::dump(
@@ -27,16 +26,19 @@ namespace config {
         TlogWriter writer{environment, root, outputPath};
         writer.open(std::ios_base::out | std::ios_base::trunc);
         writer.writeAll();
-        writer.close();
+        writer.commit();
     }
 
-    void TlogWriter::close() {
+    void TlogWriter::commit() {
         std::unique_lock guard{_mutex};
         _watcher.reset();
-        if(_writer.is_open()) {
-            _writer.flush();
-            _writer.close();
-        }
+        _tlogFile.commit();
+    }
+
+    void TlogWriter::abandon() {
+        std::unique_lock guard{_mutex};
+        _watcher.reset();
+        _tlogFile.abandon();
     }
 
     TlogWriter &TlogWriter::withWatcher(bool f) {
@@ -65,7 +67,7 @@ namespace config {
 
     TlogWriter &TlogWriter::flushImmediately() {
         std::unique_lock guard{_mutex};
-        _writer.flush();
+        _tlogFile.flush();
         return *this;
     }
 
@@ -74,9 +76,9 @@ namespace config {
         return *this;
     }
 
-    std::filesystem::path TlogWriter::getPath() {
+    std::filesystem::path TlogWriter::getPath() const {
         std::unique_lock guard{_mutex};
-        return _tlogOutputPath;
+        return _tlogFile.getTargetFile();
     }
 
     TlogWriter &TlogWriter::open(std::ios_base::openmode mode) {
@@ -84,12 +86,9 @@ namespace config {
     }
 
     TlogWriter &TlogWriter::open(const std::filesystem::path &path, std::ios_base::openmode mode) {
-        close();
-        std::ofstream stream;
-        stream.exceptions(std::ios::failbit | std::ios::badbit);
-        stream.open(path, mode);
+        abandon();
         std::unique_lock guard{_mutex};
-        _writer = std::move(stream);
+        _tlogFile.begin(mode);
         return *this;
     }
 
@@ -136,12 +135,12 @@ namespace config {
         tlogline.serialize(_environment, writer);
 
         std::unique_lock guard{_mutex};
-        if(!_writer.is_open()) {
+        if(!_tlogFile.is_open()) {
             return;
         }
-        _writer << buffer.GetString() << std::endl;
+        _tlogFile << buffer.GetString() << "\n";
         if(_flushImmediately) {
-            _writer.flush();
+            _tlogFile.flush();
         }
         uint32_t currentCount = ++_count;
         // TODO: insert auto-truncate logic from ConfigurationWriter::childChanged

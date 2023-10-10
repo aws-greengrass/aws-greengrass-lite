@@ -31,7 +31,13 @@ namespace util {
             return _stream;
         }
 
-        CommitableFile &begin();
+        explicit operator std::filesystem::path() const {
+            return getTargetFile();
+        }
+
+        CommitableFile &begin(
+            std::ios_base::openmode mode = std::ios_base::trunc | std::ios_base::out
+        );
         CommitableFile &commit();
         CommitableFile &abandon();
         CommitableFile &deleteNew();
@@ -41,5 +47,16 @@ namespace util {
         CommitableFile &moveNewToTarget();
         static std::filesystem::path getNewFile(const std::filesystem::path &path);
         static std::filesystem::path getBackupFile(const std::filesystem::path &path);
+        std::filesystem::path getTargetFile() const;
+        std::filesystem::path getNewFile() const;
+        std::filesystem::path getBackupFile() const;
+        void flush();
+        bool is_open();
+
+        template<typename T>
+        CommitableFile &operator<<(T v) {
+            _stream << v;
+            return *this;
+        }
     };
 } // namespace util

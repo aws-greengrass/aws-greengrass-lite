@@ -83,6 +83,7 @@ namespace lifecycle {
             getConfig().read(commandLine.getProvidedConfigPath());
             readFromTlog = false;
         } else {
+            // Note: Bootstrap config is written only if override config not used
             std::filesystem::path bootstrapTlogPath =
                 _nucleusPaths->configPath() / DEFAULT_BOOTSTRAP_CONFIG_TLOG_FILE;
 
