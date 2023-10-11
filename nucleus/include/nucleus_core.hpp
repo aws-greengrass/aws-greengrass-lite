@@ -6,5 +6,4 @@
 #define EXPORT __attribute__((visibility("default")))
 #endif
 
-// Used only by top-level executable
 EXPORT int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept;
