@@ -1,8 +1,8 @@
 #pragma once
 
-#include "config_manager.h"
-#include "json_helper.h"
-#include "util/commitable_file.h"
+#include "config_manager.hpp"
+#include "json_helper.hpp"
+#include "util/commitable_file.hpp"
 #include <atomic>
 #include <filesystem>
 #include <fstream>

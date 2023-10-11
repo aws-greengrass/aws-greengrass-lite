@@ -1,10 +1,10 @@
 #pragma once
-#include "data/environment.h"
-#include "data/handle_table.h"
-#include "data/safe_handle.h"
-#include "data/shared_struct.h"
-#include "expire_time.h"
-#include "pubsub/local_topics.h"
+#include "data/environment.hpp"
+#include "data/handle_table.hpp"
+#include "data/safe_handle.hpp"
+#include "data/shared_struct.hpp"
+#include "expire_time.hpp"
+#include "pubsub/local_topics.hpp"
 #include <condition_variable>
 #include <list>
 #include <mutex>

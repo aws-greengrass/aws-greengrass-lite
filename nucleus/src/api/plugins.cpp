@@ -1,4 +1,4 @@
-#include "data/globals.h"
+#include "data/globals.hpp"
 #include <cpp_api.hpp>
 
 uint32_t ggapiRegisterPlugin(

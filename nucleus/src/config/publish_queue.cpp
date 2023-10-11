@@ -1,4 +1,4 @@
-#include "publish_queue.h"
+#include "publish_queue.hpp"
 
 namespace config {
 

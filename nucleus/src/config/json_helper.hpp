@@ -1,8 +1,8 @@
 #pragma once
 
-#include "config_manager.h"
-#include "data/shared_list.h"
-#include "data/struct_model.h"
+#include "config_manager.hpp"
+#include "data/shared_list.hpp"
+#include "data/struct_model.hpp"
 #include <rapidjson/reader.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>

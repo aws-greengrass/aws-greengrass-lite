@@ -1,5 +1,5 @@
-#include "tracked_object.h"
-#include "environment.h"
+#include "tracked_object.hpp"
+#include "environment.hpp"
 
 namespace data {
     ObjectAnchor TrackingScope::anchor(const std::shared_ptr<TrackedObject> &obj) {

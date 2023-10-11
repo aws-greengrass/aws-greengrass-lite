@@ -1,5 +1,5 @@
 // Main blocking thread, called by containing process
-#include "lifecycle/command_line.h"
+#include "lifecycle/command_line.hpp"
 #include "nucleus_core.hpp"
 
 int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {

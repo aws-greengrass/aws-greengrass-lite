@@ -1,5 +1,5 @@
-#include "handle_table.h"
-#include "environment.h"
+#include "handle_table.hpp"
+#include "environment.hpp"
 
 namespace data {
     ObjectAnchor HandleTable::tryGet(ObjHandle handle) const {

@@ -1,5 +1,5 @@
-#include "local_topics.h"
-#include "tasks/task.h"
+#include "local_topics.hpp"
+#include "tasks/task.hpp"
 #include <shared_mutex>
 
 namespace pubsub {

@@ -1,6 +1,6 @@
 #pragma once
-#include "data/globals.h"
-#include "kernel.h"
+#include "data/globals.hpp"
+#include "kernel.hpp"
 #include <optional>
 
 namespace lifecycle {

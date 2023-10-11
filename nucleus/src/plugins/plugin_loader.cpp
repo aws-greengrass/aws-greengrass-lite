@@ -1,5 +1,5 @@
-#include "plugin_loader.h"
-#include "tasks/task.h"
+#include "plugin_loader.hpp"
+#include "tasks/task.hpp"
 #include <iostream>
 
 namespace fs = std::filesystem;

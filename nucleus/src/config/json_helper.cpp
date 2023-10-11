@@ -1,5 +1,5 @@
-#include "json_helper.h"
-#include "data/environment.h"
+#include "json_helper.hpp"
+#include "data/environment.hpp"
 #include <fstream>
 #include <rapidjson/istreamwrapper.h>
 

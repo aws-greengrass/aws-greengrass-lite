@@ -1,5 +1,5 @@
-#include "command_line.h"
-#include "kernel.h"
+#include "command_line.hpp"
+#include "kernel.hpp"
 #include <optional>
 #include <util.hpp>
 namespace fs = std::filesystem;

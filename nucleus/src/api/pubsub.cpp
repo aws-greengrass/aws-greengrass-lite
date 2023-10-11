@@ -1,4 +1,4 @@
-#include "data/globals.h"
+#include "data/globals.hpp"
 #include <cpp_api.hpp>
 
 class NativeCallback : public pubsub::AbstractCallback {

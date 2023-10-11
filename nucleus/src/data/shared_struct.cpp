@@ -1,6 +1,6 @@
-#include "shared_struct.h"
-#include "environment.h"
-#include "safe_handle.h"
+#include "shared_struct.hpp"
+#include "environment.hpp"
+#include "safe_handle.hpp"
 
 namespace data {
 

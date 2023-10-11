@@ -1,4 +1,4 @@
-#include "nucleus_paths.h"
+#include "nucleus_paths.hpp"
 #include <util.hpp>
 
 namespace util {

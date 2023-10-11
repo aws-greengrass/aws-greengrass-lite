@@ -1,6 +1,6 @@
 #pragma once
 
-#include "util/permissions.h"
+#include "util/permissions.hpp"
 #include <filesystem>
 #include <mutex>
 #include <shared_mutex>

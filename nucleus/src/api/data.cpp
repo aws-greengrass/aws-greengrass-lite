@@ -1,7 +1,7 @@
-#include "data/globals.h"
-#include "data/shared_buffer.h"
-#include "data/shared_list.h"
-#include "data/shared_struct.h"
+#include "data/globals.hpp"
+#include "data/shared_buffer.hpp"
+#include "data/shared_list.hpp"
+#include "data/shared_struct.hpp"
 #include <cpp_api.hpp>
 #include <util.hpp>
 
