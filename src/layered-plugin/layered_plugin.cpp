@@ -29,4 +29,15 @@ void greengrass_delegate_lifecycle(
 void doDiscoverPhase(ggapi::Scope moduleHandle, ggapi::Struct phaseData) {
     ggapi::ObjHandle nestedPlugin =
         moduleHandle.registerPlugin(ggapi::StringOrd{"MyDelegate"}, greengrass_delegate_lifecycle);
+    // Examples
+    phaseData.set("a", 1);
+    phaseData.set({
+        {"a", 1},
+        {"b", 2}
+    });
+    ggapi::Struct s = ggapi::Scope::thisTask().createStruct().set({
+        {"a", 1},
+        {"b", 2}
+    });
+    ggapi::Struct s2 = ggapi::Scope::thisTask().createStruct().put("a", 1).put("b", 2).put("c", 3);
 }

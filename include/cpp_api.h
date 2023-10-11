@@ -240,6 +240,22 @@ namespace ggapi {
     class Container : public ObjHandle {
     private:
     public:
+        using Value = std::variant<
+            // types in same order as type consts in ValueTypes below
+            bool,
+            int32_t,
+            uint32_t,
+            int64_t,
+            uint64_t,
+            float,
+            double,
+            std::string_view,
+            std::string,
+            Container>;
+
+        void apply(std::function<void(Value)> fn, Value v) {
+        }
+
         explicit Container(const ObjHandle &other) : ObjHandle{other} {
         }
 
@@ -257,13 +273,16 @@ namespace ggapi {
     class Struct : public Container {
     private:
     public:
+        using Key = std::variant<StringOrd, std::string_view, std::string>;
+        using KeyValue = std::pair<Key, Value>;
+
         explicit Struct(const ObjHandle &other) : Container{other} {
         }
 
         explicit Struct(uint32_t handle) : Container{handle} {
         }
 
-        static Struct create(ObjHandle parent) {
+        static Struct create(Scope parent) {
             return Struct(::ggapiCreateStruct(parent.getHandleId()));
         }
 
@@ -341,6 +360,26 @@ namespace ggapi {
         template<typename T>
         T get(std::string_view sv) {
             return get<T>(StringOrd(sv));
+        }
+
+        static StringOrd getOrd(const Key &key) {
+            return std::visit([](auto &&arg) -> StringOrd { return StringOrd(arg); }, key);
+        }
+
+        Struct &set(StringOrd key, const Value &value) {
+            std::visit([this, key](auto &&value) { put(key, value); }, value);
+            return *this;
+        }
+
+        Struct &set(const KeyValue &kv) {
+            return set(getOrd(kv.first), kv.second);
+        }
+
+        Struct &set(std::initializer_list<KeyValue> list) {
+            for(const auto &i : list) {
+                set(i);
+            }
+            return *this;
         }
     };
 
@@ -433,6 +472,18 @@ namespace ggapi {
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
+        }
+
+        List &append(const Value &value) {
+            std::visit([this](auto &&value) { insert(-1, value); }, value);
+            return *this;
+        }
+
+        List &append(std::initializer_list<Value> list) {
+            for(const auto &i : list) {
+                append(i);
+            }
+            return *this;
         }
     };
 
