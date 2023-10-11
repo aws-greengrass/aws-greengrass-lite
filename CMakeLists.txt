@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(greengrass-lite-all)
+project(greengrass-lite)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
@@ -16,14 +16,9 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 if(UNIX)
-    add_compile_definitions(USE_DLFCN)
     add_compile_options(-fvisibility=hidden)
-elseif(WIN32)
-    add_compile_definitions(USE_WINDLL)
-  endif()
+endif()
 
-add_compile_definitions(PLATFORM_SHLIB_SUFFIX=${CMAKE_SHARED_LIBRARY_SUFFIX})
-
-include_directories(include)
-
-add_subdirectory(src)
+add_subdirectory(plugin_api)
+add_subdirectory(nucleus)
+add_subdirectory(plugins)

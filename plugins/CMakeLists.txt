@@ -1,0 +1,5 @@
+add_subdirectory(example_layered_plugin)
+add_subdirectory(example_mqtt_sender)
+add_subdirectory(example_plugin1)
+add_subdirectory(example_plugin2)
+add_subdirectory(iot_broker)
