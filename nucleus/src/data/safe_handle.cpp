@@ -1,2 +1,2 @@
-#include "safe_handle.h"
-#include "tracked_object.h"
+#include "safe_handle.hpp"
+#include "tracked_object.hpp"

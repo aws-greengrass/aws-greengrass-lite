@@ -12,4 +12,4 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(device-sdk-cpp)
 
 add_library(iot_broker MODULE main.cpp)
-target_link_libraries(iot_broker PRIVATE gg_plugin_api aws-crt-cpp)
+target_link_libraries(iot_broker PRIVATE nucleus-core aws-crt-cpp)

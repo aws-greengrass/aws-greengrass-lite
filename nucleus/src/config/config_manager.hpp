@@ -1,12 +1,12 @@
 #pragma once
 
-#include "config/publish_queue.h"
-#include "data/handle_table.h"
-#include "data/safe_handle.h"
-#include "data/shared_struct.h"
-#include "data/string_table.h"
-#include "tasks/expire_time.h"
-#include "watcher.h"
+#include "config/publish_queue.hpp"
+#include "data/handle_table.hpp"
+#include "data/safe_handle.hpp"
+#include "data/shared_struct.hpp"
+#include "data/string_table.hpp"
+#include "tasks/expire_time.hpp"
+#include "watcher.hpp"
 #include <atomic>
 #include <filesystem>
 #include <optional>

@@ -1,8 +1,8 @@
 #pragma once
-#include "environment.h"
-#include "plugins/plugin_loader.h"
-#include "pubsub/local_topics.h"
-#include "tasks/task.h"
+#include "environment.hpp"
+#include "plugins/plugin_loader.hpp"
+#include "pubsub/local_topics.hpp"
+#include "tasks/task.hpp"
 
 namespace data {
     struct Global {

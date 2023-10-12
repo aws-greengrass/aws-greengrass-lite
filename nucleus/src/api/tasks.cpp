@@ -1,7 +1,7 @@
-#include "data/globals.h"
+#include "data/globals.hpp"
 #include <cpp_api.hpp>
 
-uint32_t ggapiClaimThread() {
+uint32_t ggapiClaimThread() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() {
         data::Global &global = data::Global::self();
         if(ggapiGetCurrentTask() != 0) {
@@ -13,7 +13,7 @@ uint32_t ggapiClaimThread() {
     });
 }
 
-bool ggapiReleaseThread() {
+bool ggapiReleaseThread() noexcept {
     return ggapi::trapErrorReturn<bool>([]() {
         std::shared_ptr<tasks::TaskThread> thread = tasks::FixedTaskThread::getThreadContext();
         thread->releaseFixedThread();
@@ -21,11 +21,11 @@ bool ggapiReleaseThread() {
     });
 }
 
-uint32_t ggapiGetCurrentTask() {
+uint32_t ggapiGetCurrentTask() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() { return tasks::Task::getThreadSelf().asInt(); });
 }
 
-uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) {
+uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([asyncTask, timeout]() {
         data::Global &global = data::Global::self();
         data::Handle parentTask{tasks::Task::getThreadSelf()};

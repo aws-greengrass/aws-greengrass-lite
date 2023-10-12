@@ -71,7 +71,7 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
     return task.createStruct();
 }
 
-extern "C" bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) {
+extern "C" bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
     ggapi::StringOrd phaseOrd{phase};
 
     std::cout << "[mqtt-plugin] Running lifecycle phase " << phaseOrd.toString() << std::endl;

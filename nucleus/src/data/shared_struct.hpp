@@ -1,5 +1,5 @@
 #pragma once
-#include "struct_model.h"
+#include "struct_model.hpp"
 
 namespace data {
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "tracked_object.h"
+#include "tracked_object.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <functional>

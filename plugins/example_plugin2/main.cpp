@@ -27,7 +27,7 @@ void asyncThreadFn();
 
 extern "C" [[maybe_unused]] EXPORT bool greengrass_lifecycle(
     uint32_t moduleHandle, uint32_t phase, uint32_t data
-) {
+) noexcept {
     std::cout << "Running lifecycle plugins 2... " << ggapi::StringOrd{phase}.toString()
               << std::endl;
     ggapi::StringOrd phaseOrd{phase};

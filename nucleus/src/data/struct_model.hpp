@@ -1,6 +1,6 @@
 #pragma once
-#include "handle_table.h"
-#include "string_table.h"
+#include "handle_table.hpp"
+#include "string_table.hpp"
 #include <map>
 #include <mutex>
 #include <set>
