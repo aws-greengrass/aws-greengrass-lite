@@ -46,7 +46,7 @@ namespace data {
             } else if(realIdx == _elements.size()) {
                 _elements.push_back(el);
             } else {
-                _elements[idx] = el;
+                _elements.at(realIdx) = el;
             }
         });
     }
@@ -67,7 +67,9 @@ namespace data {
             } else if(realIdx == _elements.size()) {
                 _elements.push_back(el);
             } else {
-                _elements.insert(_elements.begin() + idx, el);
+                auto it = _elements.begin();
+                std::advance(it, realIdx);
+                _elements.insert(it, el);
             }
         });
     }
@@ -88,7 +90,7 @@ namespace data {
         if(realIdx >= _elements.size()) {
             return {};
         } else {
-            return _elements[idx];
+            return _elements.at(realIdx);
         }
     }
 

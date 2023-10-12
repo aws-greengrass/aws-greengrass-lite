@@ -68,15 +68,12 @@ namespace data {
 
         StructElement(const StructElement &) = default;
         StructElement(StructElement &&) = default;
-        StructElement &operator=(const StructElement &) = default;
-        StructElement &operator=(StructElement &&) = default;
+        StructElement &operator=(const StructElement &el) = default;
+        StructElement &operator=(StructElement &&el) noexcept = default;
         virtual ~StructElement() = default;
 
-        virtual explicit operator bool() const {
-            return _value.index() != NONE;
-        }
-
-        virtual bool operator!() const {
+        [[nodiscard]] virtual bool empty() const {
+            // Note, we don't do implicit operators for this to avoid confusion with bool
             return _value.index() == NONE;
         }
 

@@ -7,6 +7,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <variant>
 
 extern "C" {
 #include "c_api.h"
@@ -80,7 +81,16 @@ namespace ggapi {
             return r;
         }
 
-        explicit StringOrd(std::string_view sv) noexcept : _ord{intern(sv)} {
+        // NOLINTNEXTLINE(google-explicit-constructor)
+        StringOrd(const std::string &sv) noexcept : _ord{intern(sv)} {
+        }
+
+        // NOLINTNEXTLINE(google-explicit-constructor)
+        StringOrd(std::string_view sv) noexcept : _ord{intern(sv)} {
+        }
+
+        // NOLINTNEXTLINE(google-explicit-constructor)
+        StringOrd(const char *sv) noexcept : _ord{intern(sv)} {
         }
 
         explicit constexpr StringOrd(uint32_t ord) noexcept : _ord{ord} {
@@ -265,6 +275,9 @@ namespace ggapi {
     class Container : public ObjHandle {
     private:
     public:
+        using Value = std::variant<bool, int64_t, uint64_t, double, std::string, ObjHandle>;
+        using KeyValue = std::pair<StringOrd, Value>;
+
         explicit Container(const ObjHandle &other) : ObjHandle{other} {
         }
 
@@ -294,7 +307,9 @@ namespace ggapi {
 
         template<typename T>
         Struct &put(StringOrd ord, T v) {
-            if constexpr(std::is_integral_v<T>) {
+            if constexpr(std::is_same_v<bool, T>) {
+                callApi([*this, ord, v]() { ::ggapiStructPutBool(_handle, ord.toOrd(), v); });
+            } else if constexpr(std::is_integral_v<T>) {
                 auto intv = static_cast<uint64_t>(v);
                 callApi([*this, ord, intv]() { ::ggapiStructPutInt64(_handle, ord.toOrd(), intv); }
                 );
@@ -312,15 +327,23 @@ namespace ggapi {
                 callApi([*this, ord, &v]() {
                     ::ggapiStructPutHandle(_handle, ord.toOrd(), v.getHandleId());
                 });
+            } else if constexpr(std::is_same_v<Value, T>) {
+                std::visit([this, ord](auto &&value) { put(ord, value); }, v);
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
             return *this;
         }
 
-        template<typename T>
-        Struct &put(std::string_view sv, T v) {
-            return put<T>(StringOrd(sv), v);
+        Struct &put(const KeyValue &kv) {
+            return put(kv.first, kv.second);
+        }
+
+        Struct &put(std::initializer_list<KeyValue> list) {
+            for(const auto &i : list) {
+                put(i);
+            }
+            return *this;
         }
 
         [[nodiscard]] bool hasKey(StringOrd ord) const {
@@ -335,7 +358,11 @@ namespace ggapi {
 
         template<typename T>
         T get(StringOrd ord) {
-            if constexpr(std::is_integral_v<T>) {
+            if constexpr(std::is_same_v<bool, T>) {
+                return callApiReturn<bool>([*this, ord]() {
+                    return ::ggapiStructGetBool(_handle, ord.toOrd());
+                });
+            } else if constexpr(std::is_integral_v<T>) {
                 auto intv = callApiReturn<uint64_t>([*this, ord]() {
                     return ::ggapiStructGetInt64(_handle, ord.toOrd());
                 });
@@ -362,11 +389,6 @@ namespace ggapi {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
         }
-
-        template<typename T>
-        T get(std::string_view sv) {
-            return get<T>(StringOrd(sv));
-        }
     };
 
     //
@@ -382,12 +404,14 @@ namespace ggapi {
         }
 
         static List create(ObjHandle parent) {
-            return List(::ggapiCreateStruct(parent.getHandleId()));
+            return List(::ggapiCreateList(parent.getHandleId()));
         }
 
         template<typename T>
         List &put(int32_t idx, T v) {
-            if constexpr(std::is_integral_v<T>) {
+            if constexpr(std::is_same_v<bool, T>) {
+                callApi([*this, idx, v]() { ::ggapiListPutBool(_handle, idx, v); });
+            } else if constexpr(std::is_integral_v<T>) {
                 auto intv = static_cast<uint64_t>(v);
                 callApi([*this, idx, intv]() { ::ggapiListPutInt64(_handle, idx, intv); });
             } else if constexpr(std::is_floating_point_v<T>) {
@@ -401,6 +425,8 @@ namespace ggapi {
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                 callApi([*this, idx, &v]() { ::ggapiListPutHandle(_handle, idx, v.getHandleId()); }
                 );
+            } else if constexpr(std::is_same_v<Value, T>) {
+                std::visit([this, idx](auto &&value) { put(idx, value); }, v);
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
@@ -409,7 +435,9 @@ namespace ggapi {
 
         template<typename T>
         List &insert(int32_t idx, T v) {
-            if constexpr(std::is_integral_v<T>) {
+            if constexpr(std::is_same_v<bool, T>) {
+                callApi([*this, idx, v]() { ::ggapiListInsertBool(_handle, idx, v); });
+            } else if constexpr(std::is_integral_v<T>) {
                 auto intv = static_cast<uint64_t>(v);
                 callApi([*this, idx, intv]() { ::ggapiListInsertInt64(_handle, idx, intv); });
             } else if constexpr(std::is_floating_point_v<T>) {
@@ -424,15 +452,33 @@ namespace ggapi {
                 callApi([*this, idx, &v]() {
                     ::ggapiListInsertHandle(_handle, idx, v.getHandleId());
                 });
+            } else if constexpr(std::is_same_v<Value, T>) {
+                std::visit([this, idx](auto &&value) { insert(idx, value); }, v);
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
             return *this;
         }
 
+        List &append(const Value &value) {
+            std::visit([this](auto &&value) { insert(-1, value); }, value);
+            return *this;
+        }
+
+        List &append(std::initializer_list<Value> list) {
+            for(const auto &i : list) {
+                append(i);
+            }
+            return *this;
+        }
+
         template<typename T>
         T get(int32_t idx) {
-            if constexpr(std::is_integral_v<T>) {
+            if constexpr(std::is_same_v<bool, T>) {
+                return callApiReturn<bool>([*this, idx]() {
+                    return ::ggapiListGetBool(_handle, idx);
+                });
+            } else if constexpr(std::is_integral_v<T>) {
                 auto intv = callApiReturn<uint64_t>([*this, idx]() {
                     return ::ggapiListGetInt64(_handle, idx);
                 });

@@ -80,6 +80,37 @@ uint32_t ggapiCreateBuffer(uint32_t anchorHandle) noexcept {
     });
 }
 
+bool ggapiStructPutBool(uint32_t structHandle, uint32_t ord, bool value) noexcept {
+    return ggapi::trapErrorReturn<bool>([structHandle, ord, value]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
+        StringOrd ordH = StringOrd{ord};
+        StructElement newElement{value};
+        ss->put(ordH, newElement);
+        return true;
+    });
+}
+
+bool ggapiListPutBool(uint32_t listHandle, int32_t idx, bool value) noexcept {
+    return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
+        StructElement newElement{value};
+        ss->put(idx, newElement);
+        return true;
+    });
+}
+
+bool ggapiListInsertBool(uint32_t listHandle, int32_t idx, bool value) noexcept {
+    return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
+        StructElement newElement{value};
+        ss->insert(idx, newElement);
+        return true;
+    });
+}
+
 bool ggapiStructPutInt64(uint32_t structHandle, uint32_t ord, uint64_t value) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, ord, value]() {
         Global &global = Global::self();
@@ -249,6 +280,23 @@ uint32_t ggapiGetSize(uint32_t listHandle) noexcept {
         auto ss{
             global.environment.handleTable.getObject<ContainerModelBase>(ObjHandle{listHandle})};
         return ss->size();
+    });
+}
+
+bool ggapiStructGetBool(uint32_t structHandle, uint32_t ord) noexcept {
+    return ggapi::trapErrorReturn<bool>([structHandle, ord]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
+        StringOrd ordH = StringOrd{ord};
+        return ss->get(ordH).getBool();
+    });
+}
+
+bool ggapiListGetBool(uint32_t listHandle, int32_t idx) noexcept {
+    return ggapi::trapErrorReturn<bool>([listHandle, idx]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
+        return ss->get(idx).getBool();
     });
 }
 

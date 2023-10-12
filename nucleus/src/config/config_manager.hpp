@@ -329,11 +329,11 @@ namespace config {
         Topic &operator=(Topic &&other) = default;
         ~Topic() override = default;
 
-        explicit operator bool() const override {
+        explicit operator bool() const {
             return static_cast<bool>(_nameOrd);
         }
 
-        bool operator!() const override {
+        bool operator!() const {
             return !_nameOrd;
         }
 

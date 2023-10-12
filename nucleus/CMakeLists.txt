@@ -37,7 +37,7 @@ if (NOT rapidjson_POPULATED)
     FetchContent_Populate(rapidjson)
 endif ()
 
-add_library(nucleus-core SHARED
+add_library(nucleus-obj OBJECT
         src/api/data.cpp
         src/api/error.cpp
         src/api/main.cpp
@@ -70,13 +70,37 @@ add_library(nucleus-core SHARED
         src/util/commitable_file.cpp src/util/commitable_file.hpp
         src/util/nucleus_paths.cpp src/util/nucleus_paths.hpp
         src/util/permissions.cpp src/util/permissions.hpp)
+target_link_libraries(nucleus-obj
+        PUBLIC gg_plugin_api
+        PRIVATE Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
+target_include_directories(nucleus-obj
+        PUBLIC include
+        PRIVATE src ${rapidjson_SOURCE_DIR}/include)
+set_property(TARGET nucleus-obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
+add_library(nucleus-core SHARED $<TARGET_OBJECTS:nucleus-obj>)
 target_link_libraries(nucleus-core
         PUBLIC gg_plugin_api
         PRIVATE Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
 target_include_directories(nucleus-core
-  PUBLIC include
-  PRIVATE src ${rapidjson_SOURCE_DIR}/include)
+        PUBLIC include
+        PRIVATE src ${rapidjson_SOURCE_DIR}/include)
+
+add_library(nucleus-lib $<TARGET_OBJECTS:nucleus-obj>)
+target_link_libraries(nucleus-lib
+        PUBLIC gg_plugin_api Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
 
 add_executable(greengrass-lite stub/main.cpp)
 target_link_libraries(greengrass-lite nucleus-core)
+
+add_executable(nucleus-tests
+        tests/api/list_tests.cpp
+        tests/api/struct_tests.cpp
+        tests/data/string_ord_tests.cpp
+        )
+target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
+target_include_directories(nucleus-tests PRIVATE src)
+
+include(CTest)
+include(Catch)
+catch_discover_tests(nucleus-tests)
