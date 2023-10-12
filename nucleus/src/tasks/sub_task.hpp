@@ -1,6 +1,6 @@
 #pragma once
-#include "data/struct_model.h"
-#include "expire_time.h"
+#include "data/struct_model.hpp"
+#include "expire_time.hpp"
 
 namespace tasks {
     class TaskThread;

@@ -1,8 +1,8 @@
 #pragma once
-#include "config/config_manager.h"
-#include "handle_table.h"
-#include "string_table.h"
-#include "tasks/expire_time.h"
+#include "config/config_manager.hpp"
+#include "handle_table.hpp"
+#include "string_table.hpp"
+#include "tasks/expire_time.hpp"
 #include <optional>
 #include <shared_mutex>
 

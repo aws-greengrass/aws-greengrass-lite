@@ -1,8 +1,8 @@
-#include "config_manager.h"
-#include "data/environment.h"
-#include "transaction_log.h"
+#include "config_manager.hpp"
+#include "data/environment.hpp"
+#include "transaction_log.hpp"
+#include "yaml_helper.hpp"
 #include <util.hpp>
-#include "yaml_helper.h"
 #include <utility>
 
 //

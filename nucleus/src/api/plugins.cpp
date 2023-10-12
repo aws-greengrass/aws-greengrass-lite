@@ -1,4 +1,4 @@
-#include "data/globals.h"
+#include "data/globals.hpp"
 #include <cpp_api.hpp>
 
 uint32_t ggapiRegisterPlugin(
@@ -6,7 +6,7 @@ uint32_t ggapiRegisterPlugin(
     uint32_t componentName,
     ggapiLifecycleCallback lifecycleCallback,
     uintptr_t callbackContext
-) {
+) noexcept {
     return ggapi::trapErrorReturn<size_t>(
         [moduleHandle, componentName, lifecycleCallback, callbackContext]() {
             data::Global &global = data::Global::self();

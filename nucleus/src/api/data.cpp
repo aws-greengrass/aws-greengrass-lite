@@ -1,13 +1,13 @@
-#include "data/globals.h"
-#include "data/shared_buffer.h"
-#include "data/shared_list.h"
-#include "data/shared_struct.h"
+#include "data/globals.hpp"
+#include "data/shared_buffer.hpp"
+#include "data/shared_list.hpp"
+#include "data/shared_struct.hpp"
 #include <cpp_api.hpp>
 #include <util.hpp>
 
 using namespace data;
 
-uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) {
+uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) noexcept {
     try {
         Global &global = Global::self();
         return global.environment.stringTable.getOrCreateOrd(std::string{bytes, len}).asInt();
@@ -17,7 +17,7 @@ uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) {
     }
 }
 
-size_t ggapiGetOrdinalString(uint32_t ord, char *bytes, size_t len) {
+size_t ggapiGetOrdinalString(uint32_t ord, char *bytes, size_t len) noexcept {
     return ggapi::trapErrorReturn<size_t>([ord, bytes, len]() {
         Global &global = Global::self();
         StringOrd ordH = StringOrd{ord};
@@ -31,7 +31,7 @@ size_t ggapiGetOrdinalString(uint32_t ord, char *bytes, size_t len) {
     });
 }
 
-size_t ggapiGetOrdinalStringLen(uint32_t ord) {
+size_t ggapiGetOrdinalStringLen(uint32_t ord) noexcept {
     return ggapi::trapErrorReturn<size_t>([ord]() {
         Global &global = Global::self();
         StringOrd ordH = StringOrd{ord};
@@ -41,7 +41,7 @@ size_t ggapiGetOrdinalStringLen(uint32_t ord) {
     });
 }
 
-uint32_t ggapiCreateStruct(uint32_t anchorHandle) {
+uint32_t ggapiCreateStruct(uint32_t anchorHandle) noexcept {
     if(anchorHandle == 0) {
         anchorHandle = tasks::Task::getThreadSelf().asInt();
     }
@@ -54,7 +54,7 @@ uint32_t ggapiCreateStruct(uint32_t anchorHandle) {
     });
 }
 
-uint32_t ggapiCreateList(uint32_t anchorHandle) {
+uint32_t ggapiCreateList(uint32_t anchorHandle) noexcept {
     if(anchorHandle == 0) {
         anchorHandle = tasks::Task::getThreadSelf().asInt();
     }
@@ -67,7 +67,7 @@ uint32_t ggapiCreateList(uint32_t anchorHandle) {
     });
 }
 
-uint32_t ggapiCreateBuffer(uint32_t anchorHandle) {
+uint32_t ggapiCreateBuffer(uint32_t anchorHandle) noexcept {
     if(anchorHandle == 0) {
         anchorHandle = tasks::Task::getThreadSelf().asInt();
     }
@@ -80,7 +80,7 @@ uint32_t ggapiCreateBuffer(uint32_t anchorHandle) {
     });
 }
 
-bool ggapiStructPutInt64(uint32_t structHandle, uint32_t ord, uint64_t value) {
+bool ggapiStructPutInt64(uint32_t structHandle, uint32_t ord, uint64_t value) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, ord, value]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
@@ -91,7 +91,7 @@ bool ggapiStructPutInt64(uint32_t structHandle, uint32_t ord, uint64_t value) {
     });
 }
 
-bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) {
+bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -101,7 +101,7 @@ bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) {
     });
 }
 
-bool ggapiListInsertInt64(uint32_t listHandle, int32_t idx, uint64_t value) {
+bool ggapiListInsertInt64(uint32_t listHandle, int32_t idx, uint64_t value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -111,7 +111,7 @@ bool ggapiListInsertInt64(uint32_t listHandle, int32_t idx, uint64_t value) {
     });
 }
 
-bool ggapiStructPutFloat64(uint32_t structHandle, uint32_t ord, double value) {
+bool ggapiStructPutFloat64(uint32_t structHandle, uint32_t ord, double value) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, ord, value]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
@@ -122,7 +122,7 @@ bool ggapiStructPutFloat64(uint32_t structHandle, uint32_t ord, double value) {
     });
 }
 
-bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) {
+bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -132,7 +132,7 @@ bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) {
     });
 }
 
-bool ggapiListInsertFloat64(uint32_t listHandle, int32_t idx, double value) {
+bool ggapiListInsertFloat64(uint32_t listHandle, int32_t idx, double value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -142,7 +142,9 @@ bool ggapiListInsertFloat64(uint32_t listHandle, int32_t idx, double value) {
     });
 }
 
-bool ggapiStructPutString(uint32_t structHandle, uint32_t ord, const char *bytes, size_t len) {
+bool ggapiStructPutString(
+    uint32_t structHandle, uint32_t ord, const char *bytes, size_t len
+) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, ord, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
@@ -153,7 +155,7 @@ bool ggapiStructPutString(uint32_t structHandle, uint32_t ord, const char *bytes
     });
 }
 
-bool ggapiListPutString(uint32_t listHandle, int32_t idx, const char *bytes, size_t len) {
+bool ggapiListPutString(uint32_t listHandle, int32_t idx, const char *bytes, size_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -163,7 +165,9 @@ bool ggapiListPutString(uint32_t listHandle, int32_t idx, const char *bytes, siz
     });
 }
 
-bool ggapiListInsertString(uint32_t listHandle, int32_t idx, const char *bytes, size_t len) {
+bool ggapiListInsertString(
+    uint32_t listHandle, int32_t idx, const char *bytes, size_t len
+) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -173,7 +177,7 @@ bool ggapiListInsertString(uint32_t listHandle, int32_t idx, const char *bytes, 
     });
 }
 
-bool ggapiStructPutHandle(uint32_t structHandle, uint32_t ord, uint32_t nestedHandle) {
+bool ggapiStructPutHandle(uint32_t structHandle, uint32_t ord, uint32_t nestedHandle) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, ord, nestedHandle]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
@@ -186,7 +190,7 @@ bool ggapiStructPutHandle(uint32_t structHandle, uint32_t ord, uint32_t nestedHa
     });
 }
 
-bool ggapiListPutHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) {
+bool ggapiListPutHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, nestedHandle]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -198,7 +202,7 @@ bool ggapiListPutHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle)
     });
 }
 
-bool ggapiListInsertHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) {
+bool ggapiListInsertHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, nestedHandle]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -210,7 +214,7 @@ bool ggapiListInsertHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHand
     });
 }
 
-bool ggapiBufferPut(uint32_t listHandle, int32_t idx, const Byte *bytes, uint32_t len) {
+bool ggapiBufferPut(uint32_t listHandle, int32_t idx, const Byte *bytes, uint32_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<SharedBuffer>(ObjHandle{listHandle})};
@@ -220,7 +224,7 @@ bool ggapiBufferPut(uint32_t listHandle, int32_t idx, const Byte *bytes, uint32_
     });
 }
 
-bool ggapiBufferInsert(uint32_t listHandle, int32_t idx, const Byte *bytes, uint32_t len) {
+bool ggapiBufferInsert(uint32_t listHandle, int32_t idx, const Byte *bytes, uint32_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<SharedBuffer>(ObjHandle{listHandle})};
@@ -230,7 +234,7 @@ bool ggapiBufferInsert(uint32_t listHandle, int32_t idx, const Byte *bytes, uint
     });
 }
 
-bool ggapiStructHasKey(uint32_t structHandle, uint32_t ord) {
+bool ggapiStructHasKey(uint32_t structHandle, uint32_t ord) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, ord]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
@@ -239,7 +243,7 @@ bool ggapiStructHasKey(uint32_t structHandle, uint32_t ord) {
     });
 }
 
-uint32_t ggapiGetSize(uint32_t listHandle) {
+uint32_t ggapiGetSize(uint32_t listHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listHandle]() {
         Global &global = Global::self();
         auto ss{
@@ -248,7 +252,7 @@ uint32_t ggapiGetSize(uint32_t listHandle) {
     });
 }
 
-uint64_t ggapiStructGetInt64(uint32_t structHandle, uint32_t ord) {
+uint64_t ggapiStructGetInt64(uint32_t structHandle, uint32_t ord) noexcept {
     return ggapi::trapErrorReturn<uint64_t>([structHandle, ord]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
@@ -257,7 +261,7 @@ uint64_t ggapiStructGetInt64(uint32_t structHandle, uint32_t ord) {
     });
 }
 
-uint64_t ggapiListGetInt64(uint32_t listHandle, int32_t idx) {
+uint64_t ggapiListGetInt64(uint32_t listHandle, int32_t idx) noexcept {
     return ggapi::trapErrorReturn<uint64_t>([listHandle, idx]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -265,7 +269,7 @@ uint64_t ggapiListGetInt64(uint32_t listHandle, int32_t idx) {
     });
 }
 
-double ggapiStructGetFloat64(uint32_t structHandle, uint32_t ord) {
+double ggapiStructGetFloat64(uint32_t structHandle, uint32_t ord) noexcept {
     return ggapi::trapErrorReturn<double>([structHandle, ord]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
@@ -274,7 +278,7 @@ double ggapiStructGetFloat64(uint32_t structHandle, uint32_t ord) {
     });
 }
 
-double ggapiListGetFloat64(uint32_t listHandle, int32_t idx) {
+double ggapiListGetFloat64(uint32_t listHandle, int32_t idx) noexcept {
     return ggapi::trapErrorReturn<double>([listHandle, idx]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -282,7 +286,7 @@ double ggapiListGetFloat64(uint32_t listHandle, int32_t idx) {
     });
 }
 
-uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t ord) {
+uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t ord) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([structHandle, ord]() {
         Global &global = Global::self();
         ObjectAnchor ss_anchor{global.environment.handleTable.get(ObjHandle{structHandle})};
@@ -294,7 +298,7 @@ uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t ord) {
     });
 }
 
-uint32_t ggapiListGetHandle(uint32_t listHandle, int32_t idx) {
+uint32_t ggapiListGetHandle(uint32_t listHandle, int32_t idx) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listHandle, idx]() {
         Global &global = Global::self();
         ObjectAnchor ss_anchor{global.environment.handleTable.get(ObjHandle{listHandle})};
@@ -305,7 +309,7 @@ uint32_t ggapiListGetHandle(uint32_t listHandle, int32_t idx) {
     });
 }
 
-size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t ord) {
+size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t ord) noexcept {
     return ggapi::trapErrorReturn<size_t>([structHandle, ord]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
@@ -315,7 +319,9 @@ size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t ord) {
     });
 }
 
-size_t ggapiStructGetString(uint32_t structHandle, uint32_t ord, char *buffer, size_t buflen) {
+size_t ggapiStructGetString(
+    uint32_t structHandle, uint32_t ord, char *buffer, size_t buflen
+) noexcept {
     return ggapi::trapErrorReturn<size_t>([structHandle, ord, buffer, buflen]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
@@ -329,7 +335,7 @@ size_t ggapiStructGetString(uint32_t structHandle, uint32_t ord, char *buffer, s
     });
 }
 
-size_t ggapiListGetStringLen(uint32_t listHandle, int32_t idx) {
+size_t ggapiListGetStringLen(uint32_t listHandle, int32_t idx) noexcept {
     return ggapi::trapErrorReturn<size_t>([listHandle, idx]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -338,7 +344,7 @@ size_t ggapiListGetStringLen(uint32_t listHandle, int32_t idx) {
     });
 }
 
-size_t ggapiListGetString(uint32_t listHandle, int32_t idx, char *buffer, size_t buflen) {
+size_t ggapiListGetString(uint32_t listHandle, int32_t idx, char *buffer, size_t buflen) noexcept {
     return ggapi::trapErrorReturn<size_t>([listHandle, idx, buffer, buflen]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
@@ -351,7 +357,7 @@ size_t ggapiListGetString(uint32_t listHandle, int32_t idx, char *buffer, size_t
     });
 }
 
-uint32_t ggapiBufferGet(uint32_t listHandle, int32_t idx, Byte *bytes, uint32_t len) {
+uint32_t ggapiBufferGet(uint32_t listHandle, int32_t idx, Byte *bytes, uint32_t len) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<SharedBuffer>(ObjHandle{listHandle})};
@@ -360,7 +366,7 @@ uint32_t ggapiBufferGet(uint32_t listHandle, int32_t idx, Byte *bytes, uint32_t 
     });
 }
 
-uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) {
+uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) noexcept {
     if(anchorHandle == 0) {
         anchorHandle = tasks::Task::getThreadSelf().asInt();
     }
@@ -373,7 +379,7 @@ uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) {
     });
 }
 
-bool ggapiReleaseHandle(uint32_t objectHandle) {
+bool ggapiReleaseHandle(uint32_t objectHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([objectHandle]() {
         Global &global = Global::self();
         ObjectAnchor anchored{global.environment.handleTable.get(ObjHandle{objectHandle})};

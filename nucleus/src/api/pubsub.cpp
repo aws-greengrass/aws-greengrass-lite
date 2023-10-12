@@ -1,4 +1,4 @@
-#include "data/globals.h"
+#include "data/globals.hpp"
 #include <cpp_api.hpp>
 
 class NativeCallback : public pubsub::AbstractCallback {
@@ -30,7 +30,7 @@ public:
 
 uint32_t ggapiSubscribeToTopic(
     uint32_t anchorHandle, uint32_t topicOrd, ggapiTopicCallback rxCallback, uintptr_t context
-) {
+) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([anchorHandle, topicOrd, rxCallback, context]() {
         data::Global &global = data::Global::self();
         std::unique_ptr<pubsub::AbstractCallback> callback{new NativeCallback(rxCallback, context)};
@@ -41,7 +41,7 @@ uint32_t ggapiSubscribeToTopic(
     });
 }
 
-uint32_t ggapiSendToTopic(uint32_t topicOrd, uint32_t callStruct, int32_t timeout) {
+uint32_t ggapiSendToTopic(uint32_t topicOrd, uint32_t callStruct, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([topicOrd, callStruct, timeout]() {
         data::Global &global = data::Global::self();
         data::Handle parentTask{tasks::Task::getThreadSelf()};
@@ -76,7 +76,7 @@ uint32_t ggapiSendToTopicAsync(
     ggapiTopicCallback respCallback,
     uintptr_t context,
     int32_t timeout
-) {
+) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([topicOrd, callStruct, respCallback, context, timeout](
                                             ) {
         data::Global &global = data::Global::self();

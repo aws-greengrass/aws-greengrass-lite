@@ -1,7 +1,8 @@
 // Main blocking thread, called by containing process
-#include "lifecycle/command_line.h"
+#include "lifecycle/command_line.hpp"
 #include "nucleus_core.hpp"
 
+// NOLINTNEXTLINE(*-avoid-c-arrays)
 int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
     try {
         data::Global &global = data::Global::self();

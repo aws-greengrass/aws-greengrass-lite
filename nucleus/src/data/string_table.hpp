@@ -1,5 +1,5 @@
 #pragma once
-#include "safe_handle.h"
+#include "safe_handle.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <functional>

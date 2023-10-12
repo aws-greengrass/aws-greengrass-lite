@@ -1,10 +1,10 @@
 #pragma once
-#include "data/environment.h"
-#include "data/handle_table.h"
-#include "data/safe_handle.h"
-#include "data/shared_struct.h"
+#include "data/environment.hpp"
+#include "data/handle_table.hpp"
+#include "data/safe_handle.hpp"
+#include "data/shared_struct.hpp"
 #include <atomic>
-#include <c_api.h>
+#include <cpp_api.hpp>
 #include <filesystem>
 #include <list>
 #include <memory>
