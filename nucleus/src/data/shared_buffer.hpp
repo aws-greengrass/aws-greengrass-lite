@@ -3,9 +3,8 @@
 
 namespace data {
 
-    typedef uint8_t Byte;
-    typedef util::Span<Byte, uint32_t> MemoryView;
-    typedef util::Span<const Byte, uint32_t> ConstMemoryView;
+    typedef util::Span<char, uint32_t> MemoryView;
+    typedef util::Span<const char, uint32_t> ConstMemoryView;
 
     //
     // A byte-buffer that can be shared between multiple modules
@@ -14,7 +13,7 @@ namespace data {
     protected:
         static constexpr uint32_t MAX_BUFFER_SIZE{0x100000};
 
-        std::vector<uint8_t> _buffer;
+        std::vector<char> _buffer;
         mutable std::shared_mutex _mutex;
 
         void rootsCheck(const ContainerModelBase *target) const override {

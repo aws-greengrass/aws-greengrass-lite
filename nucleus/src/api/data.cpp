@@ -245,7 +245,7 @@ bool ggapiListInsertHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHand
     });
 }
 
-bool ggapiBufferPut(uint32_t listHandle, int32_t idx, const Byte *bytes, uint32_t len) noexcept {
+bool ggapiBufferPut(uint32_t listHandle, int32_t idx, const char *bytes, uint32_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<SharedBuffer>(ObjHandle{listHandle})};
@@ -255,7 +255,7 @@ bool ggapiBufferPut(uint32_t listHandle, int32_t idx, const Byte *bytes, uint32_
     });
 }
 
-bool ggapiBufferInsert(uint32_t listHandle, int32_t idx, const Byte *bytes, uint32_t len) noexcept {
+bool ggapiBufferInsert(uint32_t listHandle, int32_t idx, const char *bytes, uint32_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<SharedBuffer>(ObjHandle{listHandle})};
@@ -405,7 +405,7 @@ size_t ggapiListGetString(uint32_t listHandle, int32_t idx, char *buffer, size_t
     });
 }
 
-uint32_t ggapiBufferGet(uint32_t listHandle, int32_t idx, Byte *bytes, uint32_t len) noexcept {
+uint32_t ggapiBufferGet(uint32_t listHandle, int32_t idx, char *bytes, uint32_t len) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<SharedBuffer>(ObjHandle{listHandle})};

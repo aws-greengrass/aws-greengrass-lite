@@ -84,15 +84,14 @@ namespace data {
             throw std::out_of_range("Get index out of range");
         }
         size_t dataEndIdx = realIdx + bytes.size();
-        if(dataEndIdx > bytes.size()) {
-            dataEndIdx = bytes.size();
+        if(dataEndIdx > _buffer.size()) {
+            dataEndIdx = _buffer.size();
         }
         auto start = _buffer.begin();
         std::advance(start, realIdx);
         auto end = _buffer.begin();
         std::advance(end, dataEndIdx);
-        bytes.copyFrom(start, end);
-        return dataEndIdx - realIdx;
+        return bytes.copyFrom(start, end);
     }
 
 } // namespace data

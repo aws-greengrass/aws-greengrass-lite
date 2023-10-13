@@ -94,6 +94,7 @@ add_executable(greengrass-lite stub/main.cpp)
 target_link_libraries(greengrass-lite nucleus-core)
 
 add_executable(nucleus-tests
+        tests/api/buffer_tests.cpp
         tests/api/list_tests.cpp
         tests/api/struct_tests.cpp
         tests/data/string_ord_tests.cpp
