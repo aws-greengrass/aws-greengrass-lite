@@ -1,5 +1,6 @@
 #pragma once
 #include "config_manager.hpp"
+#include "util/commitable_file.hpp"
 #include <fstream>
 #include <yaml-cpp/yaml.h>
 
@@ -54,7 +55,7 @@ namespace config {
         );
         static void write(
             data::Environment &environment,
-            const std::filesystem::path &path,
+            util::CommitableFile &path,
             const std::shared_ptr<Topics> &node
         );
         static void write(

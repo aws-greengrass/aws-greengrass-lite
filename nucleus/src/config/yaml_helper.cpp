@@ -1,6 +1,7 @@
 #include "yaml_helper.hpp"
 #include "data/environment.hpp"
 #include "data/shared_list.hpp"
+#include "util/commitable_file.hpp"
 #include <memory>
 
 namespace config {
@@ -105,12 +106,14 @@ namespace config {
 
     void YamlHelper::write(
         data::Environment &environment,
-        const std::filesystem::path &path,
+        util::CommitableFile &path,
         const std::shared_ptr<Topics> &node
     ) {
-        std::ofstream stream{path, std::ios_base::out | std::ios_base::trunc};
+        path.begin(std::ios_base::out | std::ios_base::trunc);
+        std::ofstream &stream = path.getStream();
         stream.exceptions(std::ios::failbit | std::ios::badbit);
         write(environment, stream, node);
+        path.commit();
     }
 
     void YamlHelper::write(

@@ -218,7 +218,8 @@ namespace lifecycle {
     }
 
     void Kernel::writeEffectiveConfig(const std::filesystem::path &configFile) {
-        config::YamlHelper::write(_global.environment, configFile, getConfig().root());
+        util::CommitableFile commitable(configFile);
+        config::YamlHelper::write(_global.environment, commitable, getConfig().root());
     }
 
     void Kernel::launch() {

@@ -3,6 +3,7 @@
 #include "config/watcher.hpp"
 #include "data/globals.hpp"
 #include "deployment/deployment_model.hpp"
+#include "deployment/device_configuration.hpp"
 #include "util/nucleus_paths.hpp"
 #include <filesystem>
 #include <optional>
@@ -36,6 +37,7 @@ namespace lifecycle {
         std::shared_ptr<RootPathWatcher> _rootPathWatcher;
         std::unique_ptr<config::TlogWriter> _tlog;
         deployment::DeploymentStage _deploymentStageAtLaunch{deployment::DeploymentStage::DEFAULT};
+        deployment::DeviceConfiguration _deviceConfig;
 
     public:
         explicit Kernel(data::Global &global);

@@ -1,5 +1,6 @@
 #pragma once
 #include "safe_handle.hpp"
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -10,6 +11,8 @@
 #include <unordered_map>
 
 namespace data {
+
+    class Environment;
 
     //
     // Internalized string (right now simple a wrapper around string)
@@ -119,5 +122,27 @@ namespace data {
                 throw std::invalid_argument("String ordinal is not valid");
             }
         }
+    };
+
+    //
+    // Helper class for dealing with large numbers of constants
+    //
+    class StringOrdInit {
+        mutable StringOrd _ord{};
+        const char *_string;
+        void init(Environment &environment) const;
+
+    public:
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StringOrdInit(const char *_constString) : _string(_constString) {
+        }
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator StringOrd() {
+            assert(!_ord.isNull());
+            return _ord;
+        }
+
+        static void init(Environment &environment, std::initializer_list<StringOrdInit> list);
     };
 } // namespace data

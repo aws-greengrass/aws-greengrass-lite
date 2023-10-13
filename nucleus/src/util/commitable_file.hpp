@@ -29,8 +29,12 @@ namespace util {
         explicit CommitableFile(const std::filesystem::path &path);
         virtual ~CommitableFile();
 
-        explicit operator std::ofstream &() {
+        std::ofstream &getStream() {
             return _stream;
+        }
+
+        explicit operator std::ofstream &() {
+            return getStream();
         }
 
         explicit operator std::filesystem::path() const {

@@ -63,6 +63,7 @@ add_library(nucleus-obj OBJECT
         src/data/struct_model.cpp src/data/struct_model.hpp
         src/data/tracked_object.cpp src/data/tracked_object.hpp
         src/deployment/deployment_model.cpp src/deployment/deployment_model.hpp
+        src/deployment/device_configuration.cpp src/deployment/device_configuration.hpp
         src/lifecycle/command_line.cpp src/lifecycle/command_line.hpp
         src/lifecycle/kernel.cpp src/lifecycle/kernel.hpp
         src/plugins/plugin_loader.cpp src/plugins/plugin_loader.hpp
