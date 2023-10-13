@@ -388,7 +388,7 @@ namespace config {
 
     class Lookup {
         data::Environment *_environment;
-        std::shared_ptr<Topics> _root;
+        std::shared_ptr<Topics> _node;
         Timestamp _interiorTimestamp{};
         Timestamp _leafTimestamp{};
 
@@ -405,33 +405,33 @@ namespace config {
             const Timestamp &interiorTimestamp,
             const Timestamp &leafTimestamp
         )
-            : _environment{&env}, _root{root}, _interiorTimestamp{interiorTimestamp},
+            : _environment{&env}, _node{root}, _interiorTimestamp{interiorTimestamp},
               _leafTimestamp{leafTimestamp} {
         }
 
         [[nodiscard]] Lookup &operator[](data::StringOrd ord) {
-            _root = _root->createInteriorChild(ord, _interiorTimestamp);
+            _node = _node->createInteriorChild(ord, _interiorTimestamp);
             return *this;
         }
 
         [[nodiscard]] Lookup &operator[](std::string_view sv) {
-            _root = _root->createInteriorChild(sv, _interiorTimestamp);
+            _node = _node->createInteriorChild(sv, _interiorTimestamp);
             return *this;
         }
 
         [[nodiscard]] Lookup &operator[](const std::vector<std::string> &path) {
             for(const auto &it : path) {
-                _root = _root->createInteriorChild(it, _interiorTimestamp);
+                _node = _node->createInteriorChild(it, _interiorTimestamp);
             }
             return *this;
         }
 
         [[nodiscard]] Topic operator()(data::StringOrd ord) {
-            return _root->createTopic(ord, _leafTimestamp);
+            return _node->createTopic(ord, _leafTimestamp);
         }
 
         [[nodiscard]] Topic operator()(std::string_view sv) {
-            return _root->createTopic(sv, _leafTimestamp);
+            return _node->createTopic(sv, _leafTimestamp);
         }
 
         [[nodiscard]] Topic operator()(const std::vector<std::string> &path) {
@@ -441,25 +441,25 @@ namespace config {
             auto steps = path.size();
             auto it = path.begin();
             while(--steps > 0) {
-                _root = _root->createInteriorChild(*it, _interiorTimestamp);
+                _node = _node->createInteriorChild(*it, _interiorTimestamp);
                 ++it;
             }
-            return _root->createTopic(*it, _leafTimestamp);
+            return _node->createTopic(*it, _leafTimestamp);
         }
 
         [[nodiscard]] Topic getTopic(data::StringOrd ord) {
-            return _root->getTopic(ord);
+            return _node->getTopic(ord);
         }
 
         [[nodiscard]] Topic getTopic(std::string_view sv) {
-            return _root->getTopic(sv);
+            return _node->getTopic(sv);
         }
 
         [[nodiscard]] std::shared_ptr<ConfigNode> getNode(const std::vector<std::string> &path) {
             if(path.empty()) {
                 throw std::runtime_error("Empty path provided");
             }
-            std::shared_ptr<ConfigNode> node{_root};
+            std::shared_ptr<ConfigNode> node{_node};
             auto it = path.begin();
             for(; it != path.end(); ++it) {
                 std::shared_ptr<Topics> t{std::dynamic_pointer_cast<Topics>(node)};
@@ -469,6 +469,10 @@ namespace config {
                 node = t->getNode(*it);
             }
             return node;
+        }
+
+        std::shared_ptr<config::Topics> topics() {
+            return _node;
         }
     };
 

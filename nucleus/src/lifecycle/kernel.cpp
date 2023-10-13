@@ -1,6 +1,7 @@
 #include "kernel.hpp"
 #include "command_line.hpp"
 #include "config/yaml_helper.hpp"
+#include "deployment/device_configuration.hpp"
 #include "util/commitable_file.hpp"
 #include <filesystem>
 #include <iostream>
@@ -14,6 +15,7 @@ namespace lifecycle {
 
     Kernel::Kernel(data::Global &global) : _global{global} {
         _nucleusPaths = std::make_shared<util::NucleusPaths>();
+        data::StringOrdInit::init(global.environment, {SERVICES_TOPIC_KEY});
     }
 
     //
@@ -140,7 +142,8 @@ namespace lifecycle {
     }
 
     void Kernel::updateDeviceConfiguration() {
-        // TODO: missing code
+        _deviceConfiguration =
+            std::make_unique<deployment::DeviceConfiguration>(_global.environment, *this);
     }
 
     void Kernel::initializeNucleusFromRecipe() {
@@ -268,6 +271,12 @@ namespace lifecycle {
         ); // essentially blocks forever but allows main thread to do work
         _global.loader->lifecycleTerminate(emptyStruct);
         getConfig().publishQueue().stop();
+    }
+
+    std::shared_ptr<config::Topics> Kernel::findServiceTopic(const std::string_view &serviceName) {
+        std::shared_ptr<config::ConfigNode> node =
+            getConfig().root()->createInteriorChild(SERVICES_TOPIC_KEY)->getNode(serviceName);
+        return std::dynamic_pointer_cast<config::Topics>(node);
     }
 
     void RootPathWatcher::initialized(

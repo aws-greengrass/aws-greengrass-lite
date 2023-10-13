@@ -138,7 +138,7 @@ namespace data {
         }
 
         // NOLINTNEXTLINE(*-explicit-constructor)
-        operator StringOrd() {
+        operator StringOrd() const {
             assert(!_ord.isNull());
             return _ord;
         }

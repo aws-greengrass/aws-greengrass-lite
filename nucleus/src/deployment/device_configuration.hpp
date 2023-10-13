@@ -125,7 +125,7 @@ namespace deployment {
         data::Environment &_environment;
         lifecycle::Kernel &_kernel;
         std::string _nucleusComponentNameCache;
-        std::atomic_bool _deviceConfigValidationCachedResult;
+        std::atomic_bool _deviceConfigValidationCachedResult{false};
 
     public:
         const DeviceConfigConsts names;
@@ -133,29 +133,13 @@ namespace deployment {
         static constexpr long DEPLOYMENT_POLLING_FREQUENCY_DEFAULT_SECONDS = 15L;
         static constexpr int GG_DATA_PLANE_PORT_DEFAULT = 8443;
 
-        DeviceConfiguration(data::Environment &environment, lifecycle::Kernel &kernel)
-            : _environment(environment), _kernel(kernel), names(environment) {
-            // TODO: deTildeValidator
-            // TODO: regionValidator
-            // TODO: loggingConfig
-            // TODO: componentMaxSizeBytes
-            // TODO: pollingFreqSeconds
-            // TODO: S3-Endpoint-name
-            // TODO: OnAnyChange
-        }
+        DeviceConfiguration(data::Environment &environment, lifecycle::Kernel &kernel);
+        DeviceConfiguration(const DeviceConfiguration &) = delete;
+        DeviceConfiguration &operator=(const DeviceConfiguration &) = delete;
+        DeviceConfiguration(DeviceConfiguration &&) noexcept = delete;
+        DeviceConfiguration &operator=(DeviceConfiguration &&) noexcept = default;
+        ~DeviceConfiguration() = default;
 
-        std::string getNucleusComponentName() {
-            std::shared_lock shared_guard{_mutex};
-            if(!_nucleusComponentNameCache.empty()) {
-                if(_kernel.findServiceTopic(_nucleusComponentNameCache)) {
-                    return _nucleusComponentNameCache;
-                }
-            }
-            shared_guard.unlock();
-            std::unique_lock guard{_mutex};
-            if(!_nucleusComponentNameCache.empty()) {
-                return _nucleusComponentNameCache;
-            }
-        }
+        std::string getNucleusComponentName();
     };
 } // namespace deployment
