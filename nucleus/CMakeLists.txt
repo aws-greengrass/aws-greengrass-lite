@@ -37,6 +37,9 @@ if (NOT rapidjson_POPULATED)
     FetchContent_Populate(rapidjson)
 endif ()
 
+#
+# Build the set of objects used for both static library and shared object library
+#
 add_library(nucleus-obj OBJECT
         src/api/data.cpp
         src/api/error.cpp
@@ -78,6 +81,9 @@ target_include_directories(nucleus-obj
         PRIVATE src ${rapidjson_SOURCE_DIR}/include)
 set_property(TARGET nucleus-obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
+#
+# Builds the shared-object "nucleus-core"
+#
 add_library(nucleus-core SHARED $<TARGET_OBJECTS:nucleus-obj>)
 target_link_libraries(nucleus-core
         PUBLIC gg_plugin_api
@@ -86,13 +92,19 @@ target_include_directories(nucleus-core
         PUBLIC include
         PRIVATE src ${rapidjson_SOURCE_DIR}/include)
 
-add_library(nucleus-lib $<TARGET_OBJECTS:nucleus-obj>)
+#
+# Build a static library for use by tests and also for single-binary use-cases
+#
+add_library(nucleus-lib STATIC $<TARGET_OBJECTS:nucleus-obj>)
 target_link_libraries(nucleus-lib
         PUBLIC gg_plugin_api Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
 
 add_executable(greengrass-lite stub/main.cpp)
 target_link_libraries(greengrass-lite nucleus-core)
 
+#
+# Build unit tests
+#
 add_executable(nucleus-tests
         tests/api/buffer_tests.cpp
         tests/api/list_tests.cpp
@@ -101,7 +113,6 @@ add_executable(nucleus-tests
         )
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests PRIVATE src)
-
 include(CTest)
 include(Catch)
 catch_discover_tests(nucleus-tests)
