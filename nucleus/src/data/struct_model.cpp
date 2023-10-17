@@ -26,4 +26,32 @@ namespace data {
         // cycleGuard may still be locked - intentional
         putAction(element);
     }
+
+    void StructModelBase::put(std::string_view sv, const StructElement &element) {
+        Handle handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
+        putImpl(handle, element);
+    }
+
+    void StructModelBase::put(data::StringOrd handle, const data::StructElement &element) {
+        putImpl(handle, element);
+    }
+
+    bool StructModelBase::hasKey(const std::string_view sv) const {
+        Handle handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
+        return hasKeyImpl(handle);
+    }
+
+    bool StructModelBase::hasKey(data::StringOrd handle) const {
+        return hasKeyImpl(handle);
+    }
+
+    StructElement StructModelBase::get(const std::string_view sv) const {
+        Handle handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
+        return getImpl(handle);
+    }
+
+    StructElement StructModelBase::get(data::StringOrd handle) const {
+        return getImpl(handle);
+    }
+
 } // namespace data

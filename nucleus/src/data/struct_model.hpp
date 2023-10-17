@@ -177,6 +177,8 @@ namespace data {
 
         [[nodiscard]] std::shared_ptr<TrackedObject> getObject() const {
             switch(_value.index()) {
+            case NONE:
+                return {};
             case OBJECT:
                 return std::get<std::shared_ptr<TrackedObject>>(_value);
             default:
@@ -201,11 +203,16 @@ namespace data {
         template<typename T>
         [[nodiscard]] std::shared_ptr<T> castObject() const {
             static_assert(std::is_base_of_v<TrackedObject, T>);
-            std::shared_ptr<T> p = std::dynamic_pointer_cast<T>(getObject());
+            auto obj = getObject();
+            if(!obj) {
+                return {};
+            }
+            std::shared_ptr<T> p = std::dynamic_pointer_cast<T>(obj);
             if(p) {
                 return p;
+            } else {
+                throw std::bad_cast();
             }
-            throw std::bad_cast();
         }
 
         explicit operator uint64_t() const {
@@ -254,19 +261,22 @@ namespace data {
     // shared structures and config
     //
     class StructModelBase : public ContainerModelBase {
+    protected:
+        virtual void putImpl(StringOrd handle, const StructElement &element) = 0;
+        virtual bool hasKeyImpl(StringOrd handle) const = 0;
+        virtual StructElement getImpl(StringOrd handle) const = 0;
+
     public:
         explicit StructModelBase(Environment &environment) : ContainerModelBase{environment} {
         }
 
-        virtual void put(StringOrd handle, const StructElement &element) = 0;
-
-        virtual void put(std::string_view sv, const StructElement &element) = 0;
-
+        void put(StringOrd handle, const StructElement &element);
+        void put(std::string_view sv, const StructElement &element);
         virtual std::vector<data::StringOrd> getKeys() const = 0;
-
-        virtual bool hasKey(StringOrd handle) const = 0;
-        virtual StructElement get(StringOrd handle) const = 0;
-        virtual StructElement get(std::string_view sv) const = 0;
+        bool hasKey(StringOrd handle) const;
+        bool hasKey(std::string_view sv) const;
+        StructElement get(StringOrd handle) const;
+        StructElement get(std::string_view sv) const;
         virtual std::shared_ptr<StructModelBase> copy() const = 0;
     };
 

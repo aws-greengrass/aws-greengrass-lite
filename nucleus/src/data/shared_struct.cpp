@@ -33,19 +33,14 @@ namespace data {
         return newCopy;
     }
 
-    void SharedStruct::put(const StringOrd handle, const StructElement &element) {
+    void SharedStruct::putImpl(const StringOrd handle, const StructElement &element) {
         checkedPut(element, [this, handle](auto &el) {
             std::unique_lock guard{_mutex};
             _elements.emplace(handle, el);
         });
     }
 
-    void SharedStruct::put(const std::string_view sv, const StructElement &element) {
-        Handle handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
-        put(handle, element);
-    }
-
-    bool SharedStruct::hasKey(const StringOrd handle) const {
+    bool SharedStruct::hasKeyImpl(const StringOrd handle) const {
         //_environment.stringTable.assertStringHandle(handle);
         std::shared_lock guard{_mutex};
         auto i = _elements.find(handle);
@@ -68,12 +63,7 @@ namespace data {
         return _elements.size();
     }
 
-    StructElement SharedStruct::get(const std::string_view sv) const {
-        Handle handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
-        return get(handle);
-    }
-
-    StructElement SharedStruct::get(StringOrd handle) const {
+    StructElement SharedStruct::getImpl(StringOrd handle) const {
         //_environment.stringTable.assertStringHandle(handle);
         std::shared_lock guard{_mutex};
         auto i = _elements.find(handle);

@@ -1,4 +1,5 @@
 #include "data/globals.hpp"
+#include "tasks/expire_time.hpp"
 #include <cpp_api.hpp>
 
 class NativeCallback : public pubsub::AbstractCallback {
@@ -71,7 +72,7 @@ static inline data::ObjHandle pubSubTaskCommon(
     // Fill out task
     std::shared_ptr<data::StructModelBase> callDataStruct{
         global.environment.handleTable.getObject<data::StructModelBase>(callStructHandle)};
-    ExpireTime expireTime = global.environment.translateExpires(timeout);
+    tasks::ExpireTime expireTime = global.environment.translateExpires(timeout);
     newTaskObj->setTimeout(expireTime);
     if(listenerHandle) {
         std::shared_ptr<pubsub::Listener> explicitReceiver =

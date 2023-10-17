@@ -188,16 +188,11 @@ namespace config {
         return newCopy;
     }
 
-    void Topics::put(const data::StringOrd handle, const data::StructElement &element) {
+    void Topics::putImpl(const data::StringOrd handle, const data::StructElement &element) {
         updateChild(TopicElement{handle, Timestamp::never(), element});
     }
 
-    void Topics::put(const std::string_view sv, const data::StructElement &element) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
-        put(handle, element);
-    }
-
-    bool Topics::hasKey(const data::StringOrd handle) const {
+    bool Topics::hasKeyImpl(const data::StringOrd handle) const {
         //_environment.stringTable.assertStringHandle(handle);
         data::StringOrd key = TopicElement::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
@@ -318,7 +313,7 @@ namespace config {
         return getTopic(handle);
     }
 
-    data::StructElement Topics::get(data::StringOrd handle) const {
+    data::StructElement Topics::getImpl(data::StringOrd handle) const {
         // needed for base class
         data::StringOrd key = TopicElement::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
@@ -328,11 +323,6 @@ namespace config {
         } else {
             return {};
         }
-    }
-
-    data::StructElement Topics::get(const std::string_view sv) const {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
-        return get(handle);
     }
 
     std::shared_ptr<ConfigNode> Topics::getNode(data::StringOrd handle) {

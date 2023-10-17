@@ -1,8 +1,9 @@
 #include "environment.hpp"
+#include "tasks/expire_time.hpp"
 
-ExpireTime data::Environment::translateExpires(int32_t delta) {
+tasks::ExpireTime data::Environment::translateExpires(int32_t delta) {
     // override this to enable time-based testing
-    return ExpireTime::fromNow(delta);
+    return tasks::ExpireTime::fromNowMillis(delta);
 }
 
 namespace data {

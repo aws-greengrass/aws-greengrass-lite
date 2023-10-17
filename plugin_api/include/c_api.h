@@ -118,6 +118,7 @@ IMPEXP uint32_t ggapiSendToListenerAsync(
 ) NOEXCEPT;
 IMPEXP uint32_t ggapiCallNext(uint32_t dataStruct) NOEXCEPT;
 IMPEXP uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) NOEXCEPT;
+IMPEXP bool ggapiCancelTask(uint32_t asyncTask) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterPlugin(
     uint32_t moduleHandle,
     uint32_t componentName,

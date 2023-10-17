@@ -248,6 +248,7 @@ namespace ggapi {
             Subscription listener, Struct message, int32_t timeout = -1
         );
         [[nodiscard]] Struct waitForTaskCompleted(int32_t timeout = -1);
+        void cancelTask();
         [[nodiscard]] Scope registerPlugin(StringOrd componentName, lifecycleCallback_t callback);
         [[nodiscard]] static Scope thisTask();
 
@@ -1022,6 +1023,10 @@ namespace ggapi {
         return callApiReturnHandle<Struct>([*this, timeout]() {
             return ::ggapiWaitForTaskCompleted(getHandleId(), timeout);
         });
+    }
+
+    inline void Scope::cancelTask() {
+        callApi([*this]() { return ::ggapiCancelTask(getHandleId()); });
     }
 
     inline Scope Scope::thisTask() {
