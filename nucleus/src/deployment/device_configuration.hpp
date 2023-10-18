@@ -1,5 +1,8 @@
 #pragma once
+#include "config/config_manager.hpp"
+#include "config/validator.hpp"
 #include "data/string_table.hpp"
+#include "lifecycle/kernel.hpp"
 #include <atomic>
 
 namespace data {
@@ -8,7 +11,14 @@ namespace data {
 
 namespace lifecycle {
     class Kernel;
-}
+    class KernelAlternatives;
+    class CommandLine;
+} // namespace lifecycle
+
+namespace config {
+    class Topics;
+    class Validator;
+} // namespace config
 
 namespace deployment {
     struct DeviceConfigConsts {
@@ -58,7 +68,7 @@ namespace deployment {
 
         data::StringOrdInit DEVICE_PARAM_ENV_STAGE{"envStage"};
         data::StringOrdInit DEFAULT_ENV_STAGE{"prod"};
-        data::StringOrdInit CANNOT_BE_EMPTY{" cannot be empty"};
+        data::StringOrdInit CANNOT_BE_EMPTY{"cannot be empty"};
         data::StringOrdInit AWS_IOT_THING_NAME_ENV{"AWS_IOT_THING_NAME"};
         data::StringOrdInit GGC_VERSION_ENV{"GGC_VERSION"};
         data::StringOrdInit NUCLEUS_BUILD_METADATA_DIRECTORY{"conf"};
@@ -125,13 +135,16 @@ namespace deployment {
         data::Environment &_environment;
         lifecycle::Kernel &_kernel;
         std::string _nucleusComponentNameCache;
+        std::unique_ptr<config::Validator> _deTildeValidator;
+        std::unique_ptr<config::Validator> _regionValidator;
         std::atomic_bool _deviceConfigValidationCachedResult{false};
+        std::shared_ptr<config::Topics> _loggingTopics;
 
     public:
-        const DeviceConfigConsts names;
+        const DeviceConfigConsts configs;
         static constexpr uint64_t COMPONENT_STORE_MAX_SIZE_DEFAULT_BYTES = 10'000'000'000L;
         static constexpr long DEPLOYMENT_POLLING_FREQUENCY_DEFAULT_SECONDS = 15L;
-        static constexpr int GG_DATA_PLANE_PORT_DEFAULT = 8443;
+        static constexpr uint32_t GG_DATA_PLANE_PORT_DEFAULT = 8443;
 
         DeviceConfiguration(data::Environment &environment, lifecycle::Kernel &kernel);
         DeviceConfiguration(const DeviceConfiguration &) = delete;
@@ -141,5 +154,84 @@ namespace deployment {
         ~DeviceConfiguration() = default;
 
         std::string getNucleusComponentName();
+        std::shared_ptr<config::Topics> getLoggingConfigurationTopics();
+        std::shared_ptr<config::Topics> getTelemetryConfigurationTopics();
+        std::shared_ptr<config::Topics> getStatusConfigurationTopics();
+        std::string initNucleusComponentName();
+        void initializeNucleusComponentConfig(std::string);
+        void persistInitialLaunchParams(lifecycle::KernelAlternatives);
+        void initializeNucleusLifecycleConfig(std::string);
+        void initializeNucleusVersion(std::string, std::string);
+        void initializeComponentStore(
+            lifecycle::KernelAlternatives,
+            std::string,
+            std::string,
+            std::filesystem::path,
+            std::filesystem::path
+        );
+        void initializeNucleusFromRecipe(lifecycle::KernelAlternatives);
+        void
+        copyUnpackedNucleusArtifacts(const std::filesystem::path &, const std::filesystem::path &);
+        void handleLoggingConfig();
+        void handleLoggingConfigurationChanges(config::WhatHappened, config::ConfigNode);
+        //        void reconfigureLogging(LogConfigUpdate);
+        std::string getComponentType(std::string);
+        config::Validator &getDeTildeValidator(lifecycle::CommandLine &commandLine);
+        config::Validator &getRegionValidator(lifecycle::CommandLine &commandLine);
+        std::shared_ptr<config::Topics> getRunWithTopic();
+        config::Topic getRunWithDefaultPosixUser();
+        config::Topic getRunWithDefaultPosixShell();
+        config::Topic getRunWithDefaultWindowsUser();
+        std::shared_ptr<config::Topics> findRunWithDefaultSystemResourceLimits();
+        std::shared_ptr<config::Topics> getPlatformOverrideTopic();
+        config::Topic getThingName();
+        config::Topic getCertificateFilePath();
+        config::Topic getPrivateKeyFilePath();
+        config::Topic getRootCAFilePath();
+        config::Topic getIpcSocketPath();
+        config::Topic getInterpolateComponentConfiguration();
+        config::Topic getGGDataEndpoint();
+        config::Topic getIoTDataEndpoint();
+        config::Topic getIotCredentialEndpoint();
+        config::Topic getAWSRegion();
+        config::Topic getFipsMode();
+        config::Topic getGreengrassDataPlanePort();
+        void setAwsRegion(std::string);
+        config::Topic getEnvironmentStage();
+        std::shared_ptr<config::Topics> getMQTTNamespace();
+        std::shared_ptr<config::Topics> getSpoolerNamespace();
+        std::shared_ptr<config::Topics> getNetworkProxyNamespace();
+        std::shared_ptr<config::Topics> getProxyNamespace();
+        std::string getNoProxyAddresses();
+        std::string getProxyUrl();
+        std::string getProxyUsername();
+        std::string getProxyPassword();
+        config::Topic getIotRoleAlias();
+        config::Topic getComponentStoreMaxSizeBytes();
+        config::Topic getDeploymentPollingFrequencySeconds();
+        config::Topic gets3EndpointType();
+        // void onAnyChange(ChildChanged);
+        void validate();
+        void validate(bool);
+        bool isDeviceConfiguredToTalkToCloud();
+        bool provisionInfoNodeChanged(config::ConfigNode, bool);
+        config::Topic getTopic(data::StringOrdInit);
+        std::shared_ptr<config::Topics> getTopics(data::StringOrdInit);
+        std::string getNucleusVersion();
+        std::string getVersionFromBuildRecipeFile();
+        void validateDeviceConfiguration(
+            std::string_view,
+            std::string_view,
+            std::string_view,
+            std::string_view,
+            std::string_view,
+            std::string_view,
+            std::string_view,
+            bool
+        );
+        void validateEndpoints(std::string_view, std::string_view, std::string_view);
+        // LogConfigUpdate fromPojo(std::unordered_map<std::string, >);
+        // KeyManager[] getDeviceIdentityKeyManagers();
+        std::shared_ptr<config::Topics> getHttpClientOptions();
     };
 } // namespace deployment

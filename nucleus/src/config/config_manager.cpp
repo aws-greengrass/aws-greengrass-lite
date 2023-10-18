@@ -267,6 +267,24 @@ namespace config {
         return createInteriorChild(handle, timestamp);
     }
 
+    std::shared_ptr<Topics> Topics::findInteriorChild(std::string_view name) {
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(name));
+        TopicElement node = _children[handle];
+        data::StringOrd key = TopicElement::getKey(_environment, handle);
+        std::shared_lock guard{_mutex};
+        auto i = _children.find(key);
+        if(i != _children.end()) {
+            return node.castContainer<Topics>();
+        } else {
+            return nullptr;
+        }
+    }
+
+    config::Topic Topics::findLeafChild(std::string_view name) {
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(name));
+        return getTopic(handle);
+    }
+
     std::vector<std::shared_ptr<Topics>> Topics::getInteriors() {
         std::vector<std::shared_ptr<Topics>> interiors;
         std::shared_lock guard{_mutex};

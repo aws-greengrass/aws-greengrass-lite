@@ -304,6 +304,8 @@ namespace config {
         std::shared_ptr<Topics> createInteriorChild(
             std::string_view name, const Timestamp &timestamp = Timestamp::now()
         );
+        std::shared_ptr<Topics> findInteriorChild(std::string_view name);
+        Topic findLeafChild(std::string_view name);
         std::vector<std::shared_ptr<Topics>> getInteriors();
         std::vector<Topic> getLeafs();
         Topic getTopic(data::StringOrd handle);
@@ -435,7 +437,7 @@ namespace config {
         }
 
         [[nodiscard]] Topic operator()(const std::vector<std::string> &path) {
-            if(path.empty()) {
+            if(path.size() == 0) {
                 throw std::runtime_error("Empty path provided");
             }
             auto steps = path.size();
@@ -455,6 +457,36 @@ namespace config {
             return _node->getTopic(sv);
         }
 
+        [[nodiscard]] Topic findTopic(const std::initializer_list<std::string> &path) {
+            if(path.size() == 0) {
+                throw std::runtime_error("Empty path provided");
+            }
+            auto steps = path.size();
+            auto it = path.begin();
+            while(--steps > 0) {
+                _node = _node->findInteriorChild(*it);
+                ++it;
+            }
+            return _node->findLeafChild(*it);
+        }
+
+        std::shared_ptr<config::Topics> findTopics(const std::initializer_list<std::string> &path) {
+            for(const auto &it : path) {
+                _node = _node->findInteriorChild(it);
+            }
+            return _node;
+        }
+
+        data::ValueType findOrDefault(
+            data::ValueType defaultV, std::initializer_list<std::string> &path
+        ) {
+            config::Topic potentialTopic = findTopic(path);
+            if(potentialTopic.getParent() != nullptr) {
+                return potentialTopic.get();
+            }
+            return defaultV;
+        }
+
         [[nodiscard]] std::shared_ptr<ConfigNode> getNode(const std::vector<std::string> &path) {
             if(path.empty()) {
                 throw std::runtime_error("Empty path provided");
@@ -471,7 +503,7 @@ namespace config {
             return node;
         }
 
-        std::shared_ptr<config::Topics> topics() {
+        std::shared_ptr<config::Topics> getTopics() {
             return _node;
         }
     };

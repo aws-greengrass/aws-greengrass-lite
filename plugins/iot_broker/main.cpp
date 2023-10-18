@@ -22,7 +22,7 @@ struct Keys {
 static const Keys keys;
 
 static int demo();
-static bool startPhase();
+static bool startPhase(std::string, std::string, std::string);
 
 // Initializes global CRT API
 // TODO: What happens when multiple plugins use the CRT?
@@ -71,13 +71,23 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
     return task.createStruct();
 }
 
-extern "C" bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
+extern "C" bool greengrass_lifecycle(
+    uint32_t moduleHandle, uint32_t phase, uint32_t dataHandle
+) noexcept {
     ggapi::StringOrd phaseOrd{phase};
+    ggapi::Struct structData{dataHandle};
+
+    ggapi::Struct configStruct = structData.getValue<ggapi::Struct>("config");
+
+    std::string certPath = configStruct.getValue<std::string>("system/certificateFilePath");
+    std::string keyPath = configStruct.getValue<std::string>("system/privateKeyPath");
+    std::string credEndpoint =
+        configStruct.getValue<std::string>("services/aws.greengrass.Nucleus-Lite/iotCredEndpoint");
 
     std::cout << "[mqtt-plugin] Running lifecycle phase " << phaseOrd.toString() << std::endl;
 
     if(phaseOrd == keys.start) {
-        return startPhase();
+        return startPhase(credEndpoint, certPath, keyPath);
     }
     return true;
 }
@@ -93,14 +103,16 @@ static std::ostream &operator<<(std::ostream &os, Aws::Crt::ByteCursor bc) {
     return os;
 }
 
-static bool startPhase() {
+static bool startPhase(
+    std::string credEndpoint, std::string certificateFilePath, std::string privateKeyPath
+) {
     std::promise<bool> connectionPromise;
 
     {
-        // TODO: Use config for address and cert
+        Aws::Crt::String crtEndpoint{credEndpoint};
         std::unique_ptr<Aws::Iot::Mqtt5ClientBuilder> builder{
             Aws::Iot::Mqtt5ClientBuilder::NewMqtt5ClientBuilderWithMtlsFromPath(
-                "<insert-id>-ats.iot.us-west-2.amazonaws.com", "device.pem", "device.key"
+                crtEndpoint, certificateFilePath.c_str(), privateKeyPath.c_str()
             )};
 
         if(!builder) {

@@ -16,7 +16,9 @@ static const Keys keys;
 
 void threadFn();
 
-extern "C" bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
+extern "C" bool greengrass_lifecycle(
+    uint32_t moduleHandle, uint32_t phase, uint32_t data
+) noexcept {
     ggapi::StringOrd phaseOrd{phase};
     std::cout << "[sample-mqtt-user] Running lifecycle phase " << phaseOrd.toString() << std::endl;
     if(phaseOrd == keys.run) {

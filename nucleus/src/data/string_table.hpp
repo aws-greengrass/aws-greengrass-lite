@@ -143,6 +143,18 @@ namespace data {
             return _ord;
         }
 
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator std::string() const {
+            return _string;
+        }
+
+        StringOrdInit operator+(const StringOrdInit &other) const {
+            char result[strlen(_string) + strlen(other._string)];
+            strcpy(result, _string);
+            strcat(result, other._string);
+            return result;
+        }
+
         static void init(Environment &environment, std::initializer_list<StringOrdInit> list);
     };
 } // namespace data

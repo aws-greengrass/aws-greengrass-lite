@@ -5,11 +5,11 @@ set(CMAKE_CXX_STANDARD 17)
 
 add_compile_definitions(EXPORT_API)
 
-if(UNIX)
+if (UNIX)
     add_compile_definitions(USE_DLFCN)
-elseif(WIN32)
+elseif (WIN32)
     add_compile_definitions(USE_WINDLL)
-endif()
+endif ()
 
 set(FETCHCONTENT_QUIET FALSE)
 
@@ -66,6 +66,7 @@ add_library(nucleus-obj OBJECT
         src/deployment/device_configuration.cpp src/deployment/device_configuration.hpp
         src/lifecycle/command_line.cpp src/lifecycle/command_line.hpp
         src/lifecycle/kernel.cpp src/lifecycle/kernel.hpp
+        src/lifecycle/kernel_alternatives.cpp src/lifecycle/kernel_alternatives.hpp
         src/plugins/plugin_loader.cpp src/plugins/plugin_loader.hpp
         src/pubsub/local_topics.cpp src/pubsub/local_topics.hpp
         src/tasks/expire_time.hpp
@@ -111,7 +112,7 @@ add_executable(nucleus-tests
         tests/api/list_tests.cpp
         tests/api/struct_tests.cpp
         tests/data/string_ord_tests.cpp
-        )
+)
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests PRIVATE src)
 include(CTest)

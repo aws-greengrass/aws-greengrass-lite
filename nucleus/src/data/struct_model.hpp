@@ -11,6 +11,7 @@ namespace data {
     class ContainerModelBase;
     class StructModelBase;
     class ListModelBase;
+    class StructModel;
 
     typedef std::variant<
         // types in same order as type consts in ValueTypes below
@@ -137,7 +138,7 @@ namespace data {
         }
 
         [[nodiscard]] double getDouble() const {
-            switch (_value.index()) {
+            switch(_value.index()) {
             case BOOL:
                 return std::get<bool>(_value) ? 1.0 : 0.0;
             case INT:
@@ -152,7 +153,7 @@ namespace data {
         }
 
         [[nodiscard]] std::string getString() const {
-            switch (_value.index()) {
+            switch(_value.index()) {
             case BOOL:
                 return std::get<bool>(_value) ? "true" : "false";
             case INT:
@@ -266,8 +267,8 @@ namespace data {
         explicit ListModelBase(Environment &environment) : ContainerModelBase{environment} {
         }
 
-        virtual void put(int32_t idx, const StructElement & element) = 0;
-        virtual void insert(int32_t idx, const StructElement & element) = 0;
+        virtual void put(int32_t idx, const StructElement &element) = 0;
+        virtual void insert(int32_t idx, const StructElement &element) = 0;
         virtual StructElement get(int idx) const = 0;
         virtual std::shared_ptr<ListModelBase> copy() const = 0;
     };
