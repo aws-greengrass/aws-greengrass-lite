@@ -109,8 +109,10 @@ target_link_libraries(greengrass-lite nucleus-core)
 add_executable(nucleus-tests
         tests/api/buffer_tests.cpp
         tests/api/list_tests.cpp
+        tests/api/pubsub_tests.cpp
         tests/api/struct_tests.cpp
         tests/data/string_ord_tests.cpp
+        tests/pubsub/pubsub_tests.cpp
         )
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests PRIVATE src)

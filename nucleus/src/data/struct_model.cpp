@@ -17,7 +17,12 @@ namespace data {
                 cycleGuard.lock();
                 otherContainer->rootsCheck(this);
             }
+        } else if(element.isType<TrackingScope>()) {
+            std::shared_ptr<data::TrackingScope> complexScope =
+                element.castObject<data::TrackingScope>();
+            // TODO: Need to catch cycles with TrackingScope objects
         }
+
         // cycleGuard may still be locked - intentional
         putAction(element);
     }

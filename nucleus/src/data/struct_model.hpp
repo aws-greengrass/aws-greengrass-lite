@@ -19,7 +19,7 @@ namespace data {
         uint64_t, // INT
         double, // DOUBLE
         std::string, // STRING
-        std::shared_ptr<ContainerModelBase> // CONTAINER
+        std::shared_ptr<TrackedObject> // OBJECT
         >
         ValueType;
 
@@ -31,7 +31,7 @@ namespace data {
         static constexpr auto INT{2};
         static constexpr auto DOUBLE{3};
         static constexpr auto STRING{4};
-        static constexpr auto CONTAINER{5};
+        static constexpr auto OBJECT{5};
     };
 
     //
@@ -49,21 +49,26 @@ namespace data {
         StructElement() : _value{} {
         }
 
-        explicit StructElement(ValueType v) : _value(std::move(v)) {
+        StructElement(ValueType v) : _value(std::move(v)) { // NOLINT(*-explicit-constructor)
         }
 
-        explicit StructElement(const bool v) : _value{v} {
+        StructElement(const bool v) : _value{v} { // NOLINT(*-explicit-constructor)
         }
 
-        explicit StructElement(const uint64_t v) : _value{v} {
+        StructElement(const uint64_t v) : _value{v} { // NOLINT(*-explicit-constructor)
         }
 
-        explicit StructElement(const double v) : _value{v} {
+        StructElement(const double v) : _value{v} { // NOLINT(*-explicit-constructor)
         }
 
-        explicit StructElement(std::shared_ptr<ContainerModelBase> p);
+        StructElement(const std::shared_ptr<TrackedObject> &p); // NOLINT(*-explicit-constructor)
 
-        explicit StructElement(const std::string &str) : _value{str} {
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(const std::shared_ptr<ContainerModelBase> &p)
+            : StructElement(std::static_pointer_cast<TrackedObject>(p)) {
+        }
+
+        StructElement(const std::string &str) : _value{str} { // NOLINT(*-explicit-constructor)
         }
 
         StructElement(const StructElement &) = default;
@@ -92,12 +97,16 @@ namespace data {
             return *this;
         }
 
+        [[nodiscard]] bool isObject() const {
+            return _value.index() == OBJECT;
+        }
+
         [[nodiscard]] bool isContainer() const {
-            return _value.index() == CONTAINER;
+            return isType<ContainerModelBase>();
         }
 
         [[nodiscard]] bool isScalar() const {
-            return !isContainer();
+            return !isObject();
         }
 
         [[nodiscard]] bool isNull() const {
@@ -166,29 +175,33 @@ namespace data {
             }
         }
 
-        [[nodiscard]] std::shared_ptr<ContainerModelBase> getContainer() const {
+        [[nodiscard]] std::shared_ptr<TrackedObject> getObject() const {
             switch(_value.index()) {
-            case CONTAINER:
-                return std::get<std::shared_ptr<ContainerModelBase>>(_value);
+            case OBJECT:
+                return std::get<std::shared_ptr<TrackedObject>>(_value);
             default:
                 throw std::runtime_error("Unsupported type conversion to object");
             }
         }
 
+        [[nodiscard]] std::shared_ptr<ContainerModelBase> getContainer() const {
+            return castObject<ContainerModelBase>();
+        }
+
         template<typename T>
         [[nodiscard]] bool isType() const {
-            static_assert(std::is_base_of_v<ContainerModelBase, T>);
-            if(!isContainer()) {
+            static_assert(std::is_base_of_v<TrackedObject, T>);
+            if(!isObject()) {
                 return false;
             }
-            std::shared_ptr<T> p = std::dynamic_pointer_cast<T>(getContainer());
+            std::shared_ptr<T> p = std::dynamic_pointer_cast<T>(getObject());
             return static_cast<bool>(p);
         }
 
         template<typename T>
-        [[nodiscard]] std::shared_ptr<T> castContainer() const {
-            static_assert(std::is_base_of_v<ContainerModelBase, T>);
-            std::shared_ptr<T> p = std::dynamic_pointer_cast<T>(getContainer());
+        [[nodiscard]] std::shared_ptr<T> castObject() const {
+            static_assert(std::is_base_of_v<TrackedObject, T>);
+            std::shared_ptr<T> p = std::dynamic_pointer_cast<T>(getObject());
             if(p) {
                 return p;
             }
@@ -266,13 +279,17 @@ namespace data {
         explicit ListModelBase(Environment &environment) : ContainerModelBase{environment} {
         }
 
-        virtual void put(int32_t idx, const StructElement & element) = 0;
-        virtual void insert(int32_t idx, const StructElement & element) = 0;
+        virtual void put(int32_t idx, const StructElement &element) = 0;
+        virtual void insert(int32_t idx, const StructElement &element) = 0;
         virtual StructElement get(int idx) const = 0;
         virtual std::shared_ptr<ListModelBase> copy() const = 0;
     };
 
-    inline StructElement::StructElement(std::shared_ptr<ContainerModelBase> p) : _value{p} {
+    inline StructElement::StructElement(const std::shared_ptr<TrackedObject> &p) {
+        if(p) {
+            _value = p;
+        }
+        // !p results in type NONE, force consistent treatment of null
     }
 
 } // namespace data

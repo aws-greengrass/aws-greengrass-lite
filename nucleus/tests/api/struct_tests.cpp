@@ -1,11 +1,16 @@
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
 
+
+static ggapi::Struct simpleListener(ggapi::Scope, ggapi::StringOrd, ggapi::Struct) {
+    return ggapi::Struct{0};
+}
+
 // NOLINTBEGIN
 SCENARIO("Shared structure API", "[struct]") {
+    auto scope = ggapi::ThreadScope::claimThread();
 
     GIVEN("A structure") {
-        auto scope = ggapi::ThreadScope::claimThread();
         auto s = scope.createStruct();
         ggapi::StringOrd ping{"ping"};
 
@@ -46,6 +51,16 @@ SCENARIO("Shared structure API", "[struct]") {
                     REQUIRE(s.get<int>("ping") == 3);
                     REQUIRE(s.get<int>("Ping") == 30);
                 }
+            }
+        }
+        WHEN("A listener is added to structure") {
+            ggapi::Subscription handle{scope.subscribeToTopic({}, simpleListener)};
+            s.put("Listener", handle);
+            THEN("Listener can be retrieved from structure") {
+                ggapi::Subscription other = s.get<ggapi::Subscription>("Listener");
+                REQUIRE(static_cast<bool>(other)); // a handle is given
+                REQUIRE(handle != other); // handles are independent
+                REQUIRE(handle.isSameObject(other)); // handles are for same object
             }
         }
     }

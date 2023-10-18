@@ -257,7 +257,7 @@ namespace config {
             // Note: Time on TopicElement is ignored for interior children - this is intentional
             return TopicElement(ord, Timestamp::never(), nested);
         });
-        return leaf.castContainer<Topics>();
+        return leaf.castObject<Topics>();
     }
 
     std::shared_ptr<Topics> Topics::createInteriorChild(
@@ -272,7 +272,7 @@ namespace config {
         std::shared_lock guard{_mutex};
         for(const auto &i : _children) {
             if(i.second.isType<Topics>()) {
-                interiors.push_back(i.second.castContainer<Topics>());
+                interiors.push_back(i.second.castObject<Topics>());
             }
         }
         return interiors;
@@ -341,7 +341,7 @@ namespace config {
         auto i = _children.find(key);
         if(i != _children.end()) {
             if(i->second.isType<Topics>()) {
-                return i->second.castContainer<Topics>();
+                return i->second.castObject<Topics>();
             } else {
                 return std::make_shared<Topic>(_environment, ref<Topics>(), i->second);
             }
