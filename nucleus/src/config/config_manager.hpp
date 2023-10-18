@@ -437,7 +437,7 @@ namespace config {
         }
 
         [[nodiscard]] Topic operator()(const std::vector<std::string> &path) {
-            if(path.size() == 0) {
+            if(path.empty()) {
                 throw std::runtime_error("Empty path provided");
             }
             auto steps = path.size();

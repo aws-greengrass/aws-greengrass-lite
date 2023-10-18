@@ -5,7 +5,6 @@
 #include "util/commitable_file.hpp"
 #include <filesystem>
 #include <iostream>
-#include <string>
 
 namespace lifecycle {
     //
@@ -88,7 +87,7 @@ namespace lifecycle {
 
         if(!commandLine.getProvidedConfigPath().empty()) {
             // Command-line override, use config instead of tlog
-            getConfig().read(commandLine.getProvidedConfigPath()); // FIXME:
+            getConfig().read(commandLine.getProvidedConfigPath());
             readFromTlog = false;
         } else {
             // Note: Bootstrap config is written only if override config not used
