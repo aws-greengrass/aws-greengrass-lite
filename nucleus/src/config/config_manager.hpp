@@ -470,14 +470,16 @@ namespace config {
             return _node->findLeafChild(*it);
         }
 
-        std::shared_ptr<config::Topics> findTopics(const std::initializer_list<std::string> &path) {
+        [[nodiscard]] std::shared_ptr<config::Topics> findTopics(
+            const std::initializer_list<std::string> &path
+        ) {
             for(const auto &it : path) {
                 _node = _node->findInteriorChild(it);
             }
             return _node;
         }
 
-        data::ValueType findOrDefault(
+        [[nodiscard]] data::ValueType findOrDefault(
             data::ValueType defaultV, std::initializer_list<std::string> &path
         ) {
             config::Topic potentialTopic = findTopic(path);
