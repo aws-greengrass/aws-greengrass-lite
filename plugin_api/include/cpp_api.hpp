@@ -922,7 +922,7 @@ namespace ggapi {
         BufferStream _stream;
 
     public:
-        explicit BufferInStream(const Buffer buffer) : _stream(buffer) {
+        explicit BufferInStream(const Buffer buffer) : _stream(buffer), std::istream(&_stream) {
             init(&_stream);
         }
     };
