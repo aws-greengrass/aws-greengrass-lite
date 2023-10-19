@@ -101,8 +101,8 @@ namespace pubsub {
         explicit Listener(
             data::Environment &environment,
             data::StringOrd topicOrd,
-            Listeners *receivers,
-            std::unique_ptr<AbstractCallback> &callback
+            Listeners *listeners,
+            std::unique_ptr<AbstractCallback> callback
         );
         std::unique_ptr<tasks::SubTask> toSubTask();
         std::shared_ptr<data::StructModelBase> runInTaskThread(
@@ -130,8 +130,8 @@ namespace pubsub {
             return _listeners.empty();
         }
 
-        std::shared_ptr<Listener> newReceiver(std::unique_ptr<AbstractCallback> &callback);
-        void getCallOrder(std::vector<std::shared_ptr<Listener>> &callOrder);
+        std::shared_ptr<Listener> addNewListener(std::unique_ptr<AbstractCallback> callback);
+        void fillTopicListeners(std::vector<std::shared_ptr<Listener>> &callOrder);
     };
 
     //
@@ -152,15 +152,26 @@ namespace pubsub {
         // get listeners, create if there is none for given topic
         std::shared_ptr<Listeners> getListeners(data::StringOrd topicOrd);
         // subscribe a new listener to a callback
+        std::shared_ptr<Listener> subscribe(
+            data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> callback
+        );
+        // subscribe a new listener to a callback with anchoring
         data::ObjectAnchor subscribe(
             data::ObjHandle anchor,
             data::StringOrd topicOrd,
-            std::unique_ptr<AbstractCallback> &callback
+            std::unique_ptr<AbstractCallback> callback
         );
-        //        static void applyCompletion(std::shared_ptr<tasks::Task> & task,
-        //        data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> &
-        //        callback);
-        void insertCallQueue(std::shared_ptr<tasks::Task> &task, data::StringOrd topicOrd);
+        void insertTopicListenerSubTasks(
+            std::shared_ptr<tasks::Task> &task, data::StringOrd topicOrd
+        );
+        void initializePubSubCall(
+            std::shared_ptr<tasks::Task> &task,
+            const std::shared_ptr<Listener> &explicitListener,
+            data::StringOrd topic,
+            const std::shared_ptr<data::StructModelBase> &dataIn,
+            std::unique_ptr<tasks::SubTask> completion,
+            tasks::ExpireTime expireTime
+        );
     };
 
 } // namespace pubsub

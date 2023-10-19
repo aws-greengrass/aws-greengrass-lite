@@ -5,19 +5,19 @@
 namespace pubsub {
     Listener::~Listener() {
         if(!_parent.expired()) {
-            std::shared_ptr<Listeners> receivers{_parent};
-            receivers->cleanup();
+            std::shared_ptr<Listeners> listeners{_parent};
+            listeners->cleanup();
         }
     }
 
     Listener::Listener(
         data::Environment &environment,
         data::StringOrd topicOrd,
-        Listeners *receivers,
-        std::unique_ptr<AbstractCallback> &callback
+        Listeners *listeners,
+        std::unique_ptr<AbstractCallback> callback
     )
         : data::TrackedObject{environment}, _topicOrd{topicOrd},
-          _parent{receivers->weak_from_this()}, _callback{std::move(callback)} {
+          _parent{listeners->weak_from_this()}, _callback{std::move(callback)} {
     }
 
     Listeners::Listeners(
@@ -50,12 +50,13 @@ namespace pubsub {
         }
     }
 
-    std::shared_ptr<Listener> Listeners::newReceiver(std::unique_ptr<AbstractCallback> &callback) {
-        std::shared_ptr<Listener> receiver{
-            std::make_shared<Listener>(_environment, _topicOrd, this, callback)};
+    std::shared_ptr<Listener> Listeners::addNewListener(std::unique_ptr<AbstractCallback> callback
+    ) {
+        std::shared_ptr<Listener> listener{
+            std::make_shared<Listener>(_environment, _topicOrd, this, std::move(callback))};
         std::unique_lock guard{_environment.sharedLocalTopicsMutex};
-        _listeners.push_back(receiver);
-        return receiver;
+        _listeners.push_back(listener);
+        return listener;
     }
 
     std::shared_ptr<Listeners> PubSubManager::tryGetListeners(data::StringOrd topicOrd) {
@@ -69,9 +70,9 @@ namespace pubsub {
     }
 
     std::shared_ptr<Listeners> PubSubManager::getListeners(data::StringOrd topicOrd) {
-        std::shared_ptr<Listeners> receivers = tryGetListeners(topicOrd);
-        if(receivers) {
-            return receivers;
+        std::shared_ptr<Listeners> listeners = tryGetListeners(topicOrd);
+        if(listeners) {
+            return listeners;
         }
         std::unique_lock guard{_environment.sharedLocalTopicsMutex};
         auto i = _topics.find(topicOrd);
@@ -79,42 +80,68 @@ namespace pubsub {
             // rare edge case
             return i->second;
         }
-        receivers = std::make_shared<Listeners>(_environment, topicOrd, this);
-        _topics[topicOrd] = receivers;
-        return receivers;
+        listeners = std::make_shared<Listeners>(_environment, topicOrd, this);
+        _topics.emplace(topicOrd, listeners);
+        return listeners;
+    }
+
+    std::shared_ptr<Listener> PubSubManager::subscribe(
+        data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> callback
+    ) {
+        std::shared_ptr<Listeners> listeners = getListeners(topicOrd);
+        std::shared_ptr<Listener> listener = listeners->addNewListener(std::move(callback));
+        return listener;
     }
 
     data::ObjectAnchor PubSubManager::subscribe(
-        data::ObjHandle anchor,
-        data::StringOrd topicOrd,
-        std::unique_ptr<AbstractCallback> &callback
+        data::ObjHandle anchor, data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> callback
     ) {
         auto root = _environment.handleTable.getObject<data::TrackingScope>(anchor);
-        // Note: anonymous receivers are added to StringOrd{}
-        std::shared_ptr<Listeners> receivers = getListeners(topicOrd);
-        std::shared_ptr<Listener> receiver = receivers->newReceiver(callback);
-        return root->anchor(receiver); // if handle or root goes away, unsubscribe
+        // if handle or root goes away, unsubscribe
+        return root->anchor(subscribe(topicOrd, std::move(callback)));
     }
 
-    void PubSubManager::insertCallQueue(
+    void PubSubManager::insertTopicListenerSubTasks(
         std::shared_ptr<tasks::Task> &task, data::StringOrd topicOrd
     ) {
         if(!topicOrd) {
             // reserved for anonymous listeners
             return;
         }
-        std::shared_ptr<Listeners> receivers = tryGetListeners(topicOrd);
-        if(receivers == nullptr || receivers->isEmpty()) {
+        std::shared_ptr<Listeners> listeners = tryGetListeners(topicOrd);
+        if(listeners == nullptr || listeners->isEmpty()) {
             return;
         }
         std::vector<std::shared_ptr<Listener>> callOrder;
-        receivers->getCallOrder(callOrder);
+        listeners->fillTopicListeners(callOrder);
         for(const auto &i : callOrder) {
             task->addSubtask(std::move(i->toSubTask()));
         }
     }
 
-    void Listeners::getCallOrder(std::vector<std::shared_ptr<Listener>> &callOrder) {
+    void PubSubManager::initializePubSubCall(
+        std::shared_ptr<tasks::Task> &task,
+        const std::shared_ptr<Listener> &explicitListener,
+        data::StringOrd topic,
+        const std::shared_ptr<data::StructModelBase> &dataIn,
+        std::unique_ptr<tasks::SubTask> completion,
+        tasks::ExpireTime expireTime
+    ) {
+        if(!dataIn) {
+            throw std::runtime_error("Data must be passed into an LPC call");
+        }
+        if(explicitListener) {
+            task->addSubtask(std::move(explicitListener->toSubTask()));
+        }
+        if(topic) {
+            insertTopicListenerSubTasks(task, topic);
+        }
+        task->setData(dataIn);
+        task->setCompletion(std::move(completion));
+        task->setTimeout(expireTime);
+    }
+
+    void Listeners::fillTopicListeners(std::vector<std::shared_ptr<Listener>> &callOrder) {
         if(isEmpty()) {
             return;
         }
@@ -126,12 +153,12 @@ namespace pubsub {
         }
     }
 
-    class ReceiverSubTask : public tasks::SubTask {
+    class ListenerSubTask : public tasks::SubTask {
     private:
-        std::shared_ptr<Listener> _receiver;
+        std::shared_ptr<Listener> _listener;
 
     public:
-        explicit ReceiverSubTask(std::shared_ptr<Listener> &receiver) : _receiver{receiver} {
+        explicit ListenerSubTask(std::shared_ptr<Listener> &listener) : _listener{listener} {
         }
 
         std::shared_ptr<data::StructModelBase> runInThread(
@@ -142,16 +169,16 @@ namespace pubsub {
 
     std::unique_ptr<tasks::SubTask> Listener::toSubTask() {
         std::shared_lock guard{_environment.sharedLocalTopicsMutex};
-        std::shared_ptr<Listener> receiver{std::static_pointer_cast<Listener>(shared_from_this())};
-        std::unique_ptr<tasks::SubTask> subTask{new ReceiverSubTask(receiver)};
+        std::shared_ptr<Listener> listener{std::static_pointer_cast<Listener>(shared_from_this())};
+        std::unique_ptr<tasks::SubTask> subTask{new ListenerSubTask(listener)};
         return subTask;
     }
 
-    std::shared_ptr<data::StructModelBase> ReceiverSubTask::runInThread(
+    std::shared_ptr<data::StructModelBase> ListenerSubTask::runInThread(
         const std::shared_ptr<tasks::Task> &task,
         const std::shared_ptr<data::StructModelBase> &dataIn
     ) {
-        return _receiver->runInTaskThread(task, dataIn);
+        return _listener->runInTaskThread(task, dataIn);
     }
 
     std::shared_ptr<data::StructModelBase> Listener::runInTaskThread(

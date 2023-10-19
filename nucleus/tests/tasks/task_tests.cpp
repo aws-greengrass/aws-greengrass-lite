@@ -1,4 +1,4 @@
-#include "catch2/catch_all.hpp"
+#include <catch2/catch_all.hpp>
 #include "data/shared_struct.hpp"
 #include "tasks/task.hpp"
 

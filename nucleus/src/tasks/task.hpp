@@ -108,7 +108,7 @@ namespace tasks {
 
         ExpireTime getTimeout(const ExpireTime &terminalTime) const {
             std::unique_lock guard{_mutex};
-            if(terminalTime < _timeout) {
+            if(_timeout == ExpireTime::infinite() || terminalTime < _timeout) {
                 return terminalTime;
             } else {
                 return _timeout;

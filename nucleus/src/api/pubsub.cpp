@@ -45,24 +45,23 @@ uint32_t ggapiSubscribeToTopic(
         data::Global &global = data::Global::self();
         std::unique_ptr<pubsub::AbstractCallback> callback{new NativeCallback(rxCallback, context)};
         return global.lpcTopics
-            ->subscribe(data::ObjHandle{anchorHandle}, data::StringOrd{topicOrd}, callback)
+            ->subscribe(
+                data::ObjHandle{anchorHandle}, data::StringOrd{topicOrd}, std::move(callback)
+            )
             .getHandle()
             .asInt();
     });
 }
 
-static inline data::ObjHandle pubSubTaskCommon(
+static inline data::ObjectAnchor pubSubCreateCommon(
     data::ObjHandle listenerHandle,
     data::StringOrd topicOrd,
     data::ObjHandle callStructHandle,
-    bool waitForCompletion,
     std::unique_ptr<tasks::SubTask> callback,
     int timeout
 ) {
     // Context
     data::Global &global = data::Global::self();
-    std::shared_ptr<tasks::Task> parentTaskObj{
-        global.environment.handleTable.getObject<tasks::Task>(tasks::Task::getThreadSelf())};
 
     // New Task
     auto newTaskAnchor{
@@ -70,46 +69,48 @@ static inline data::ObjHandle pubSubTaskCommon(
     auto newTaskObj{newTaskAnchor.getObject<tasks::Task>()};
 
     // Fill out task
+    std::shared_ptr<pubsub::Listener> explicitListener;
+    if(listenerHandle) {
+        explicitListener =
+            global.environment.handleTable.getObject<pubsub::Listener>(listenerHandle);
+    }
     std::shared_ptr<data::StructModelBase> callDataStruct{
         global.environment.handleTable.getObject<data::StructModelBase>(callStructHandle)};
     tasks::ExpireTime expireTime = global.environment.translateExpires(timeout);
-    newTaskObj->setTimeout(expireTime);
-    if(listenerHandle) {
-        std::shared_ptr<pubsub::Listener> explicitReceiver =
-            global.environment.handleTable.getObject<pubsub::Listener>(listenerHandle);
-        if(explicitReceiver) {
-            newTaskObj->addSubtask(std::move(explicitReceiver->toSubTask()));
-        }
-    }
-    if(topicOrd) {
-        global.lpcTopics->insertCallQueue(newTaskObj, topicOrd);
-    }
-    newTaskObj->setData(callDataStruct);
-    newTaskObj->setCompletion(std::move(callback));
 
-    // Schedule task
-    global.taskManager->queueTask(newTaskObj);
-    if(waitForCompletion) {
-        // Synchronous version returns handle of return structure
-        if(newTaskObj->waitForCompletion(expireTime)) {
-            return parentTaskObj->anchor(newTaskObj->getData()).getHandle();
-        } else {
-            return {};
-        }
+    global.lpcTopics->initializePubSubCall(
+        newTaskObj, explicitListener, topicOrd, callDataStruct, std::move(callback), expireTime
+    );
+    return newTaskAnchor;
+}
+
+static inline data::ObjHandle pubSubQueueAndWaitCommon(const data::ObjectAnchor &taskAnchor) {
+    data::Global &global = data::Global::self();
+    auto taskObj{taskAnchor.getObject<tasks::Task>()};
+    global.taskManager->queueTask(taskObj);
+    if(taskObj->waitForCompletion(tasks::ExpireTime::infinite())) {
+        std::shared_ptr<tasks::Task> anchorScope{
+            global.environment.handleTable.getObject<tasks::Task>(tasks::Task::getThreadSelf())};
+        return anchorScope->anchor(taskObj->getData()).getHandle();
     } else {
-        // Async version returns handle of task
-        global.taskManager->allocateNextWorker(); // this ensures a worker
-                                                  // picks it up
-        return newTaskAnchor.getHandle();
+        return {};
     }
+}
+
+static inline data::ObjHandle pubSubQueueAsyncCommon(const data::ObjectAnchor &taskAnchor) {
+    data::Global &global = data::Global::self();
+    auto taskObj{taskAnchor.getObject<tasks::Task>()};
+    global.taskManager->queueTask(taskObj);
+    global.taskManager->allocateNextWorker();
+    return taskAnchor.getHandle();
 }
 
 uint32_t ggapiSendToTopic(uint32_t topicOrd, uint32_t callStruct, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([topicOrd, callStruct, timeout]() {
-        return pubSubTaskCommon(
-                   {}, data::StringOrd{topicOrd}, data::ObjHandle{callStruct}, true, {}, timeout
-        )
-            .asInt();
+        data::ObjectAnchor anchor = pubSubCreateCommon(
+            {}, data::StringOrd{topicOrd}, data::ObjHandle{callStruct}, {}, timeout
+        );
+        return pubSubQueueAndWaitCommon(anchor).asInt();
     });
 }
 
@@ -117,15 +118,10 @@ uint32_t ggapiSendToListener(
     uint32_t listenerHandle, uint32_t callStruct, int32_t timeout
 ) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listenerHandle, callStruct, timeout]() {
-        return pubSubTaskCommon(
-                   data::ObjHandle{listenerHandle},
-                   {},
-                   data::ObjHandle{callStruct},
-                   true,
-                   {},
-                   timeout
-        )
-            .asInt();
+        data::ObjectAnchor anchor = pubSubCreateCommon(
+            data::ObjHandle{listenerHandle}, {}, data::ObjHandle{callStruct}, {}, timeout
+        );
+        return pubSubQueueAndWaitCommon(anchor).asInt();
     });
 }
 
@@ -144,15 +140,10 @@ uint32_t ggapiSendToTopicAsync(
                 data::StringOrd{topicOrd}, std::make_unique<NativeCallback>(respCallback, context)
             );
         }
-        return pubSubTaskCommon(
-                   {},
-                   data::StringOrd{topicOrd},
-                   data::ObjHandle{callStruct},
-                   false,
-                   std::move(callback),
-                   timeout
-        )
-            .asInt();
+        data::ObjectAnchor anchor = pubSubCreateCommon(
+            {}, data::StringOrd{topicOrd}, data::ObjHandle{callStruct}, std::move(callback), timeout
+        );
+        return pubSubQueueAsyncCommon(anchor).asInt();
     });
 }
 
@@ -171,15 +162,14 @@ uint32_t ggapiSendToListenerAsync(
                     {}, std::make_unique<NativeCallback>(respCallback, context)
                 );
             }
-            return pubSubTaskCommon(
-                       data::ObjHandle{listenerHandle},
-                       {},
-                       data::ObjHandle{callStruct},
-                       false,
-                       std::move(callback),
-                       timeout
-            )
-                .asInt();
+            data::ObjectAnchor anchor = pubSubCreateCommon(
+                data::ObjHandle{listenerHandle},
+                {},
+                data::ObjHandle{callStruct},
+                std::move(callback),
+                timeout
+            );
+            return pubSubQueueAsyncCommon(anchor).asInt();
         }
     );
 }
