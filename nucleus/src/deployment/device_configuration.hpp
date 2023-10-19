@@ -153,6 +153,7 @@ namespace deployment {
         DeviceConfiguration &operator=(DeviceConfiguration &&) noexcept = default;
         ~DeviceConfiguration() = default;
 
+        // TODO: Refactor into new classes
         std::string getNucleusComponentName();
         std::shared_ptr<config::Topics> getLoggingConfigurationTopics();
         std::shared_ptr<config::Topics> getTelemetryConfigurationTopics();
