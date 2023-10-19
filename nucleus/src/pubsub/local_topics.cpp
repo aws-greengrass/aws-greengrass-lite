@@ -90,6 +90,7 @@ namespace pubsub {
         std::unique_ptr<AbstractCallback> &callback
     ) {
         auto root = _environment.handleTable.getObject<data::TrackingScope>(anchor);
+        // Note: anonymous receivers are added to StringOrd{}
         std::shared_ptr<Listeners> receivers = getListeners(topicOrd);
         std::shared_ptr<Listener> receiver = receivers->newReceiver(callback);
         return root->anchor(receiver); // if handle or root goes away, unsubscribe
@@ -98,6 +99,10 @@ namespace pubsub {
     void PubSubManager::insertCallQueue(
         std::shared_ptr<tasks::Task> &task, data::StringOrd topicOrd
     ) {
+        if(!topicOrd) {
+            // reserved for anonymous listeners
+            return;
+        }
         std::shared_ptr<Listeners> receivers = tryGetListeners(topicOrd);
         if(receivers == nullptr || receivers->isEmpty()) {
             return;
@@ -105,7 +110,7 @@ namespace pubsub {
         std::vector<std::shared_ptr<Listener>> callOrder;
         receivers->getCallOrder(callOrder);
         for(const auto &i : callOrder) {
-            task->addSubtask(std::move(i->toSubTask(task)));
+            task->addSubtask(std::move(i->toSubTask()));
         }
     }
 
@@ -135,7 +140,7 @@ namespace pubsub {
         ) override;
     };
 
-    std::unique_ptr<tasks::SubTask> Listener::toSubTask(std::shared_ptr<tasks::Task> &task) {
+    std::unique_ptr<tasks::SubTask> Listener::toSubTask() {
         std::shared_lock guard{_environment.sharedLocalTopicsMutex};
         std::shared_ptr<Listener> receiver{std::static_pointer_cast<Listener>(shared_from_this())};
         std::unique_ptr<tasks::SubTask> subTask{new ReceiverSubTask(receiver)};

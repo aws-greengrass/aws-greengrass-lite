@@ -188,16 +188,11 @@ namespace config {
         return newCopy;
     }
 
-    void Topics::put(const data::StringOrd handle, const data::StructElement &element) {
+    void Topics::putImpl(const data::StringOrd handle, const data::StructElement &element) {
         updateChild(TopicElement{handle, Timestamp::never(), element});
     }
 
-    void Topics::put(const std::string_view sv, const data::StructElement &element) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
-        put(handle, element);
-    }
-
-    bool Topics::hasKey(const data::StringOrd handle) const {
+    bool Topics::hasKeyImpl(const data::StringOrd handle) const {
         //_environment.stringTable.assertStringHandle(handle);
         data::StringOrd key = TopicElement::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
@@ -257,7 +252,7 @@ namespace config {
             // Note: Time on TopicElement is ignored for interior children - this is intentional
             return TopicElement(ord, Timestamp::never(), nested);
         });
-        return leaf.castContainer<Topics>();
+        return leaf.castObject<Topics>();
     }
 
     std::shared_ptr<Topics> Topics::createInteriorChild(
@@ -359,7 +354,7 @@ namespace config {
         std::shared_lock guard{_mutex};
         for(const auto &i : _children) {
             if(i.second.isType<Topics>()) {
-                interiors.push_back(i.second.castContainer<Topics>());
+                interiors.push_back(i.second.castObject<Topics>());
             }
         }
         return interiors;
@@ -405,7 +400,7 @@ namespace config {
         return getTopic(handle);
     }
 
-    data::StructElement Topics::get(data::StringOrd handle) const {
+    data::StructElement Topics::getImpl(data::StringOrd handle) const {
         // needed for base class
         data::StringOrd key = TopicElement::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
@@ -417,18 +412,13 @@ namespace config {
         }
     }
 
-    data::StructElement Topics::get(const std::string_view sv) const {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
-        return get(handle);
-    }
-
     std::shared_ptr<ConfigNode> Topics::getNode(data::StringOrd handle) {
         data::StringOrd key = TopicElement::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
         if(i != _children.end()) {
             if(i->second.isType<Topics>()) {
-                return i->second.castContainer<Topics>();
+                return i->second.castObject<Topics>();
             } else {
                 return std::make_shared<Topic>(_environment, ref<Topics>(), i->second);
             }

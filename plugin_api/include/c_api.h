@@ -42,7 +42,12 @@ IMPEXP size_t ggapiGetOrdinalStringLen(uint32_t ord) NOEXCEPT;
 IMPEXP uint32_t ggapiCreateStruct(uint32_t anchorHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiCreateList(uint32_t anchorHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiCreateBuffer(uint32_t anchorHandle) NOEXCEPT;
-IMPEXP uint32_t ggapiCreateBlob(uint32_t anchorHandle, const char *bytes, size_t len) NOEXCEPT;
+IMPEXP bool ggapiIsStruct(uint32_t handle) NOEXCEPT;
+IMPEXP bool ggapiIsList(uint32_t handle) NOEXCEPT;
+IMPEXP bool ggapiIsBuffer(uint32_t handle) NOEXCEPT;
+IMPEXP bool ggapiIsSubscription(uint32_t handle) NOEXCEPT;
+IMPEXP bool ggapiIsScope(uint32_t handle) NOEXCEPT;
+IMPEXP bool ggapiIsSameObject(uint32_t handle1, uint32_t handle2) NOEXCEPT;
 IMPEXP bool ggapiStructPutBool(uint32_t structHandle, uint32_t ord, bool value) NOEXCEPT;
 IMPEXP bool ggapiStructPutInt64(uint32_t structHandle, uint32_t ord, uint64_t value) NOEXCEPT;
 IMPEXP bool ggapiStructPutFloat64(uint32_t structHandle, uint32_t ord, double value) NOEXCEPT;
@@ -95,6 +100,8 @@ IMPEXP uint32_t ggapiSubscribeToTopic(
     uintptr_t callbackContext
 ) NOEXCEPT;
 IMPEXP uint32_t ggapiSendToTopic(uint32_t topicOrd, uint32_t callStruct, int32_t timeout) NOEXCEPT;
+IMPEXP uint32_t
+ggapiSendToListener(uint32_t listenerHandle, uint32_t callStruct, int32_t timeout) NOEXCEPT;
 IMPEXP uint32_t ggapiSendToTopicAsync(
     uint32_t topicOrd,
     uint32_t callStruct,
@@ -102,8 +109,16 @@ IMPEXP uint32_t ggapiSendToTopicAsync(
     uintptr_t callbackContext,
     int32_t timeout
 ) NOEXCEPT;
+IMPEXP uint32_t ggapiSendToListenerAsync(
+    uint32_t listenerHandle,
+    uint32_t callStruct,
+    ggapiTopicCallback respCallback,
+    uintptr_t callbackContext,
+    int32_t timeout
+) NOEXCEPT;
 IMPEXP uint32_t ggapiCallNext(uint32_t dataStruct) NOEXCEPT;
 IMPEXP uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) NOEXCEPT;
+IMPEXP bool ggapiCancelTask(uint32_t asyncTask) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterPlugin(
     uint32_t moduleHandle,
     uint32_t componentName,

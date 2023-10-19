@@ -1,4 +1,5 @@
 #include "task.hpp"
+#include "expire_time.hpp"
 
 namespace tasks {
 
@@ -164,21 +165,17 @@ namespace tasks {
         }
     }
 
-    void TaskThread::taskStealing(
-        const std::shared_ptr<Task> &blockingTask, const ExpireTime &end
-    ) {
-        // this loop is entered when we have an associated task
-        while(!blockingTask->isCompleted()) {
-            std::shared_ptr<Task> task = pickupTask(blockingTask);
+    void TaskThread::taskStealing(const std::shared_ptr<Task> &blockedTask, const ExpireTime &end) {
+        while(!blockedTask->terminatesWait()) {
+            ExpireTime adjEnd = blockedTask->getTimeout(end); // Note: timeout may change
+            std::shared_ptr<Task> task = pickupTask(blockedTask);
             if(task) {
                 task->runInThread();
             } else {
-                // stall until task unblocked
-                // TODO: right now this will ignore all free-task workers
-                if(end <= ExpireTime::now()) {
+                if(adjEnd <= ExpireTime::now()) {
                     return;
                 }
-                stall(end);
+                stall(adjEnd);
             }
         }
     }
@@ -229,23 +226,48 @@ namespace tasks {
 
     void Task::markTaskComplete() {
         std::unique_lock guard{_mutex};
+        assert(_lastStatus != Cancelled);
         _lastStatus = Completed;
-        // all blocked threads are in process of task stealing, make sure they are
-        // not blocked idle
+        // Wake up all blocked threads so they can terminate
         for(const auto &i : _blockedThreads) {
             i->waken();
         }
         _blockedThreads.clear();
     }
 
+    void Task::cancelTask() {
+        std::unique_lock guard{_mutex};
+        if(_lastStatus != Completed && _lastStatus != Finalizing) {
+            _lastStatus = Cancelled;
+        }
+        // Wake up all blocked threads so they can terminate
+        for(const auto &i : _blockedThreads) {
+            i->waken();
+        }
+        _blockedThreads.clear();
+    }
+
+    bool Task::terminatesWait() {
+        std::shared_lock guard{_mutex};
+        if(_lastStatus == Completed || _lastStatus == Cancelled) {
+            // Previously completed or cancelled
+            return true;
+        }
+        if(_lastStatus == Finalizing) {
+            // protected from timeout
+            return false;
+        }
+        if(_timeout < ExpireTime::now()) {
+            // Auto-cancel on timeout
+            _lastStatus = Cancelled;
+            return true;
+        }
+        return false;
+    }
+
     bool Task::isCompleted() {
         std::shared_lock guard{_mutex};
         return _lastStatus == Completed;
-    }
-
-    bool Task::willNeverComplete() {
-        std::shared_lock guard{_mutex};
-        return _lastStatus == Running && _subtasks.empty();
     }
 
     Task::Status Task::removeSubtask(std::unique_ptr<SubTask> &subTask) {
@@ -296,7 +318,7 @@ namespace tasks {
         std::shared_ptr<data::StructModelBase> dataIn{getData()};
         std::shared_ptr<data::StructModelBase> dataOut;
         Status status = runInThreadCallNext(taskObj, dataIn, dataOut);
-        while(status == NoSubTasks) {
+        while(status == NoSubTasks || status == HasReturnValue) {
             status = finalizeTask(dataOut);
             if(status == Completed) {
                 markTaskComplete();
@@ -368,7 +390,6 @@ namespace tasks {
     };
 
     bool Task::waitForCompletion(const ExpireTime &expireTime) {
-        // TODO: Timeout
         BlockedThreadScope scope{ref<Task>(), TaskThread::getThreadContext()};
         scope.taskStealing(expireTime); // exception safe
         return isCompleted();
@@ -387,7 +408,7 @@ namespace tasks {
             }
             dataOut = subTask->runInThread(task, dataIn);
             if(dataOut != nullptr) {
-                return NoSubTasks;
+                return HasReturnValue;
             }
         }
     }

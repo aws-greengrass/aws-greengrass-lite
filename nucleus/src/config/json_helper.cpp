@@ -91,19 +91,19 @@ namespace config {
         case data::ValueTypes::DOUBLE:
             writer.Double(value.getDouble());
             break;
-        case data::ValueTypes::CONTAINER:
+        case data::ValueTypes::OBJECT:
             if(value.isType<data::ListModelBase>()) {
                 std::shared_ptr<data::ListModelBase> list =
-                    value.castContainer<data::ListModelBase>()->copy();
+                    value.castObject<data::ListModelBase>()->copy();
                 auto size = static_cast<int32_t>(list->size());
                 writer.StartArray();
                 for(int32_t idx = 0; idx < size; idx++) {
                     serialize(environment, writer, list->get(idx));
                 }
                 writer.EndArray();
-            } else {
+            } else if(value.isType<data::StructModelBase>()) {
                 std::shared_ptr<data::StructModelBase> s =
-                    value.castContainer<data::StructModelBase>()->copy();
+                    value.castObject<data::StructModelBase>()->copy();
                 std::vector<data::StringOrd> keys = s->getKeys();
                 writer.StartObject();
                 for(const auto &i : keys) {
@@ -112,6 +112,8 @@ namespace config {
                     serialize(environment, writer, s->get(i));
                 }
                 writer.EndObject();
+            } else {
+                // Ignore other objects, they cannot be serialized
             }
             break;
         default:
@@ -263,7 +265,7 @@ namespace config {
     }
 
     data::StructElement JsonSharedStructResponder::buildValue() {
-        return data::StructElement(std::static_pointer_cast<data::ContainerModelBase>(_target));
+        return {std::static_pointer_cast<data::ContainerModelBase>(_target)};
     }
 
     bool JsonSharedListResponder::parseValue(data::StructElement value) {

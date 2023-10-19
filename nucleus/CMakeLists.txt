@@ -74,7 +74,8 @@ add_library(nucleus-obj OBJECT
         src/tasks/task.cpp src/tasks/task.hpp
         src/util/commitable_file.cpp src/util/commitable_file.hpp
         src/util/nucleus_paths.cpp src/util/nucleus_paths.hpp
-        src/util/permissions.cpp src/util/permissions.hpp)
+        src/util/permissions.cpp src/util/permissions.hpp
+        )
 target_link_libraries(nucleus-obj
         PUBLIC gg_plugin_api
         PRIVATE Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
@@ -108,13 +109,21 @@ target_link_libraries(greengrass-lite nucleus-core)
 # Build unit tests
 #
 add_executable(nucleus-tests
+        tests/test_tools.hpp
+        tests/test_ggroot.hpp
+
         tests/api/buffer_tests.cpp
         tests/api/list_tests.cpp
+        tests/api/pubsub_tests.cpp
         tests/api/struct_tests.cpp
         tests/data/string_ord_tests.cpp
-)
+        tests/lifecycle/kernel_tests.cpp
+        tests/pubsub/pubsub_tests.cpp
+        tests/tasks/task_tests.cpp
+        )
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
-target_include_directories(nucleus-tests PRIVATE src)
+target_include_directories(nucleus-tests
+        PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
 include(CTest)
 include(Catch)
 catch_discover_tests(nucleus-tests)

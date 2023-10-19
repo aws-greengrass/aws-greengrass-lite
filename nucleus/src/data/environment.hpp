@@ -37,6 +37,6 @@ namespace data {
         std::mutex cycleCheckMutex;
         virtual ~Environment() = default;
 
-        virtual ExpireTime translateExpires(int32_t delta);
+        virtual tasks::ExpireTime translateExpires(int32_t delta);
     };
 } // namespace data

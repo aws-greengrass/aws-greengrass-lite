@@ -20,8 +20,7 @@ int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
             kernel.preLaunch(commandLine);
         }
         // Never returns unless signalled
-        kernel.launch();
-        return 0; // never reached
+        return kernel.launch();
     } catch(...) {
         // TODO: log errors
         std::terminate(); // terminate on exception

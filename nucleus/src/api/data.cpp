@@ -80,6 +80,48 @@ uint32_t ggapiCreateBuffer(uint32_t anchorHandle) noexcept {
     });
 }
 
+bool ggapiIsStruct(uint32_t handle) noexcept {
+    return ggapi::trapErrorReturn<bool>([handle]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<TrackedObject>(ObjHandle{handle})};
+        return std::dynamic_pointer_cast<StructModelBase>(ss) != nullptr;
+    });
+}
+
+bool ggapiIsList(uint32_t handle) noexcept {
+    return ggapi::trapErrorReturn<bool>([handle]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<TrackedObject>(ObjHandle{handle})};
+        return std::dynamic_pointer_cast<ListModelBase>(ss) != nullptr;
+    });
+}
+
+bool ggapiIsBuffer(uint32_t handle) noexcept {
+    return ggapi::trapErrorReturn<bool>([handle]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<TrackedObject>(ObjHandle{handle})};
+        return std::dynamic_pointer_cast<SharedBuffer>(ss) != nullptr;
+    });
+}
+
+bool ggapiIsScope(uint32_t handle) noexcept {
+    return ggapi::trapErrorReturn<bool>([handle]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<TrackedObject>(ObjHandle{handle})};
+        return std::dynamic_pointer_cast<TrackingScope>(ss) != nullptr;
+    });
+}
+
+bool ggapiIsSameObject(uint32_t handle1, uint32_t handle2) noexcept {
+    // Two different handles can refer to same object
+    return ggapi::trapErrorReturn<bool>([handle1, handle2]() {
+        Global &global = Global::self();
+        auto obj1{global.environment.handleTable.getObject<TrackedObject>(ObjHandle{handle1})};
+        auto obj2{global.environment.handleTable.getObject<TrackedObject>(ObjHandle{handle2})};
+        return obj1 == obj2;
+    });
+}
+
 bool ggapiStructPutBool(uint32_t structHandle, uint32_t ord, bool value) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, ord, value]() {
         Global &global = Global::self();
@@ -212,8 +254,7 @@ bool ggapiStructPutHandle(uint32_t structHandle, uint32_t ord, uint32_t nestedHa
     return ggapi::trapErrorReturn<bool>([structHandle, ord, nestedHandle]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
-        auto s2{
-            global.environment.handleTable.getObject<ContainerModelBase>(ObjHandle{nestedHandle})};
+        auto s2{global.environment.handleTable.getObject<TrackedObject>(ObjHandle{nestedHandle})};
         StringOrd ordH = StringOrd{ord};
         StructElement newElement{s2};
         ss->put(ordH, newElement);
@@ -225,8 +266,7 @@ bool ggapiListPutHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle)
     return ggapi::trapErrorReturn<bool>([listHandle, idx, nestedHandle]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
-        auto s2{
-            global.environment.handleTable.getObject<ContainerModelBase>(ObjHandle{nestedHandle})};
+        auto s2{global.environment.handleTable.getObject<TrackedObject>(ObjHandle{nestedHandle})};
         StructElement newElement{s2};
         ss->put(idx, newElement);
         return true;
@@ -237,8 +277,7 @@ bool ggapiListInsertHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHand
     return ggapi::trapErrorReturn<bool>([listHandle, idx, nestedHandle]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
-        auto s2{
-            global.environment.handleTable.getObject<ContainerModelBase>(ObjHandle{nestedHandle})};
+        auto s2{global.environment.handleTable.getObject<TrackedObject>(ObjHandle{nestedHandle})};
         StructElement newElement{s2};
         ss->insert(idx, newElement);
         return true;
@@ -341,7 +380,7 @@ uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t ord) noexcept {
         std::shared_ptr<TrackingScope> ss_root{ss_anchor.getOwner()};
         auto ss{ss_anchor.getObject<StructModelBase>()};
         StringOrd ordH = StringOrd{ord};
-        std::shared_ptr<ContainerModelBase> v = ss->get(ordH).getContainer();
+        std::shared_ptr<TrackedObject> v = ss->get(ordH).getObject();
         return ss_root->anchor(v).getHandle().asInt();
     });
 }
@@ -352,7 +391,7 @@ uint32_t ggapiListGetHandle(uint32_t listHandle, int32_t idx) noexcept {
         ObjectAnchor ss_anchor{global.environment.handleTable.get(ObjHandle{listHandle})};
         std::shared_ptr<TrackingScope> ss_root{ss_anchor.getOwner()};
         auto ss{ss_anchor.getObject<ListModelBase>()};
-        std::shared_ptr<ContainerModelBase> v = ss->get(idx).getContainer();
+        std::shared_ptr<TrackedObject> v = ss->get(idx).getObject();
         return ss_root->anchor(v).getHandle().asInt();
     });
 }

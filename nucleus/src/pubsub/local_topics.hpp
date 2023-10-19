@@ -104,7 +104,7 @@ namespace pubsub {
             Listeners *receivers,
             std::unique_ptr<AbstractCallback> &callback
         );
-        std::unique_ptr<tasks::SubTask> toSubTask(std::shared_ptr<tasks::Task> &task);
+        std::unique_ptr<tasks::SubTask> toSubTask();
         std::shared_ptr<data::StructModelBase> runInTaskThread(
             const std::shared_ptr<tasks::Task> &task,
             const std::shared_ptr<data::StructModelBase> &dataIn

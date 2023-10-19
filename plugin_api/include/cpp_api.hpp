@@ -174,6 +174,12 @@ namespace ggapi {
         void release() const {
             callApi([*this]() { ::ggapiReleaseHandle(_handle); });
         }
+
+        [[nodiscard]] bool isSameObject(ObjHandle other) const {
+            return *this == other || callApiReturn<bool>([*this, other]() {
+                return ::ggapiIsSameObject(_handle, other._handle);
+            });
+        }
     };
 
     //
@@ -206,6 +212,12 @@ namespace ggapi {
     // Scopes are a class of handles that are used as targets for anchors
     //
     class Scope : public ObjectBase<Scope> {
+        void check() {
+            if(getHandleId() != 0 && !ggapiIsScope(getHandleId())) {
+                throw std::runtime_error("Scope handle expected");
+            }
+        }
+
     public:
         Scope() noexcept = default;
         Scope(const Scope &) noexcept = default;
@@ -215,19 +227,28 @@ namespace ggapi {
         ~Scope() = default;
 
         explicit Scope(const ObjHandle &other) noexcept : ObjectBase{other} {
+            check();
         }
 
         explicit Scope(uint32_t handle) noexcept : ObjectBase{handle} {
+            check();
         }
 
         [[nodiscard]] Subscription subscribeToTopic(StringOrd topic, topicCallback_t callback);
         [[nodiscard]] Scope sendToTopicAsync(
             StringOrd topic, Struct message, topicCallback_t result, int32_t timeout = -1
         );
+        [[nodiscard]] Scope sendToListenerAsync(
+            Subscription listener, Struct message, topicCallback_t result, int32_t timeout = -1
+        );
         [[nodiscard]] static Struct sendToTopic(
             StringOrd topic, Struct message, int32_t timeout = -1
         );
+        [[nodiscard]] static Struct sendToListener(
+            Subscription listener, Struct message, int32_t timeout = -1
+        );
         [[nodiscard]] Struct waitForTaskCompleted(int32_t timeout = -1);
+        void cancelTask();
         [[nodiscard]] Scope registerPlugin(StringOrd componentName, lifecycleCallback_t callback);
         [[nodiscard]] static Scope thisTask();
 
@@ -265,11 +286,19 @@ namespace ggapi {
     // Scopes are a class of handles that are used as targets for anchors
     //
     class Subscription : public ObjectBase<Subscription> {
+        void check() {
+            if(getHandleId() != 0 && !ggapiIsSubscription(getHandleId())) {
+                throw std::runtime_error("Subscription handle expected");
+            }
+        }
+
     public:
         explicit Subscription(const ObjHandle &other) : ObjectBase{other} {
+            check();
         }
 
         explicit Subscription(uint32_t handle) : ObjectBase{handle} {
+            check();
         }
     };
 
@@ -297,12 +326,19 @@ namespace ggapi {
     // Structures are containers with associative keys
     //
     class Struct : public Container {
-    private:
+        void check() {
+            if(getHandleId() != 0 && !ggapiIsStruct(getHandleId())) {
+                throw std::runtime_error("Structure handle expected");
+            }
+        }
+
     public:
         explicit Struct(const ObjHandle &other) : Container{other} {
+            check();
         }
 
         explicit Struct(uint32_t handle) : Container{handle} {
+            check();
         }
 
         static Struct create(ObjHandle parent) {
@@ -356,10 +392,6 @@ namespace ggapi {
             });
         }
 
-        [[nodiscard]] bool hasKey(std::string_view sv) const {
-            return hasKey(StringOrd{sv});
-        }
-
         template<typename T>
         T get(StringOrd ord) {
             if constexpr(std::is_same_v<bool, T>) {
@@ -409,12 +441,19 @@ namespace ggapi {
     // Lists are containers with index-based keys
     //
     class List : public Container {
-    private:
+        void check() {
+            if(getHandleId() != 0 && !ggapiIsList(getHandleId())) {
+                throw std::runtime_error("List handle expected");
+            }
+        }
+
     public:
         explicit List(const ObjHandle &other) : Container{other} {
+            check();
         }
 
         explicit List(uint32_t handle) : Container{handle} {
+            check();
         }
 
         static List create(ObjHandle parent) {
@@ -529,12 +568,19 @@ namespace ggapi {
     // Buffers are shared containers of bytes
     //
     class Buffer : public Container {
-    private:
+        void check() {
+            if(getHandleId() != 0 && !ggapiIsBuffer(getHandleId())) {
+                throw std::runtime_error("Buffer handle expected");
+            }
+        }
+
     public:
         explicit Buffer(const ObjHandle &other) : Container{other} {
+            check();
         }
 
         explicit Buffer(uint32_t handle) : Container{handle} {
+            check();
         }
 
         static Buffer create(ObjHandle parent) {
@@ -955,9 +1001,31 @@ namespace ggapi {
         });
     }
 
+    inline Scope Scope::sendToListenerAsync(
+        Subscription listener, Struct message, topicCallback_t result, int32_t timeout
+    ) {
+        return callApiReturnHandle<Scope>([listener, message, result, timeout]() {
+            return ::ggapiSendToListenerAsync(
+                listener.getHandleId(),
+                message.getHandleId(),
+                topicCallbackProxy,
+                reinterpret_cast<uintptr_t>(result), // NOLINT(*-reinterpret-cast)
+                timeout
+            );
+        });
+    }
+
     inline Struct Scope::sendToTopic(ggapi::StringOrd topic, Struct message, int32_t timeout) {
         return callApiReturnHandle<Struct>([topic, message, timeout]() {
             return ::ggapiSendToTopic(topic.toOrd(), message.getHandleId(), timeout);
+        });
+    }
+
+    inline Struct Scope::sendToListener(
+        ggapi::Subscription listener, Struct message, int32_t timeout
+    ) {
+        return callApiReturnHandle<Struct>([listener, message, timeout]() {
+            return ::ggapiSendToListener(listener.getHandleId(), message.getHandleId(), timeout);
         });
     }
 
@@ -965,6 +1033,10 @@ namespace ggapi {
         return callApiReturnHandle<Struct>([*this, timeout]() {
             return ::ggapiWaitForTaskCompleted(getHandleId(), timeout);
         });
+    }
+
+    inline void Scope::cancelTask() {
+        callApi([*this]() { return ::ggapiCancelTask(getHandleId()); });
     }
 
     inline Scope Scope::thisTask() {

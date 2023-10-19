@@ -258,11 +258,9 @@ namespace config {
         // Overrides for StructModelBase
         // Don't use directly, but behave correctly when used via API
 
-        void put(data::StringOrd handle, const data::StructElement &element) override;
-        void put(std::string_view sv, const data::StructElement &element) override;
-        data::StructElement get(data::StringOrd handle) const override;
-        data::StructElement get(std::string_view name) const override;
-        bool hasKey(data::StringOrd handle) const override;
+        void putImpl(data::StringOrd handle, const data::StructElement &element) override;
+        data::StructElement getImpl(data::StringOrd handle) const override;
+        bool hasKeyImpl(data::StringOrd handle) const override;
         [[nodiscard]] std::vector<data::StringOrd> getKeys() const override;
         uint32_t size() const override;
         std::shared_ptr<data::StructModelBase> copy() const override;

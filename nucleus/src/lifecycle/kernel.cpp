@@ -240,9 +240,11 @@ namespace lifecycle {
         config::YamlHelper::write(_global.environment, commitable, getConfig().root());
     }
 
-    void Kernel::launch() {
-        if(ggapiGetCurrentTask() == 0) {
-            (void) ggapiClaimThread(); // ensure current thread is associated with a thread-task
+    int Kernel::launch() {
+        if(!_mainThread) {
+            _mainThread.claim(
+                std::make_shared<tasks::FixedTaskThread>(_global.environment, _global.taskManager)
+            );
         }
 
         switch(_deploymentStageAtLaunch) {
@@ -259,6 +261,8 @@ namespace lifecycle {
         default:
             throw std::runtime_error("Provided deployment stage at launch is not understood");
         }
+        _mainThread.release();
+        return _exitCode;
     }
 
     void Kernel::launchBootstrap() {
@@ -314,4 +318,30 @@ namespace lifecycle {
             _kernel.getPaths()->initPaths(topic.getString());
         }
     }
+
+    void Kernel::stopAllServices(std::chrono::seconds timeoutSeconds) {
+        // TODO: missing code
+    }
+
+    void Kernel::shutdown(std::chrono::seconds timeoutSeconds, int exitCode) {
+        setExitCode(exitCode);
+        shutdown(timeoutSeconds);
+    }
+
+    void Kernel::shutdown(std::chrono::seconds timeoutSeconds) {
+        // TODO: missing code
+        softShutdown(timeoutSeconds);
+        // Cancel main task causes main thread to terminate, causing clean shutdown
+        _mainThread.getTask()->cancelTask();
+    }
+
+    void Kernel::softShutdown(std::chrono::seconds timeoutSeconds) {
+        getConfig().publishQueue().drainQueue();
+        std::cerr << "Starting soft shutdown" << std::endl;
+        stopAllServices(timeoutSeconds);
+        std::cerr << "Closing transaction log" << std::endl;
+        _tlog->commit();
+        writeEffectiveConfig();
+    }
+
 } // namespace lifecycle

@@ -165,19 +165,19 @@ namespace config {
         case data::ValueTypes::DOUBLE:
             emitter << value.getDouble();
             break;
-        case data::ValueTypes::CONTAINER:
+        case data::ValueTypes::OBJECT:
             if(value.isType<data::ListModelBase>()) {
                 std::shared_ptr<data::ListModelBase> list =
-                    value.castContainer<data::ListModelBase>()->copy();
+                    value.castObject<data::ListModelBase>()->copy();
                 auto size = static_cast<int32_t>(list->size());
                 emitter << YAML::BeginSeq;
                 for(int32_t idx = 0; idx < size; idx++) {
                     serialize(environment, emitter, list->get(idx));
                 }
                 emitter << YAML::EndSeq;
-            } else {
+            } else if(value.isType<data::StructModelBase>()) {
                 std::shared_ptr<data::StructModelBase> s =
-                    value.castContainer<data::StructModelBase>()->copy();
+                    value.castObject<data::StructModelBase>()->copy();
                 std::vector<data::StringOrd> keys = s->getKeys();
                 emitter << YAML::BeginMap;
                 for(const auto &i : keys) {
@@ -186,6 +186,8 @@ namespace config {
                     serialize(environment, emitter, s->get(i));
                 }
                 emitter << YAML::EndMap;
+            } else {
+                // Ignore objects that cannot be serialized
             }
             break;
         default:
