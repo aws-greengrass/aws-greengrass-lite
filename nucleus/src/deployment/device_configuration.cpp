@@ -414,13 +414,13 @@ namespace deployment {
            && iotCredEndpoint.find(std::string{configs.AMAZON_DOMAIN_SEQUENCE})
                   != std::string_view::npos
            && iotCredEndpoint.find(awsRegion) == std::string::npos) {
-            std::cout << "IoT credential endpoint region does not match the AWS region of "
+            std::cerr << "IoT credential endpoint region does not match the AWS region of "
                          "the device";
         }
         if(!iotDataEndpoint.empty()
            && iotDataEndpoint.find(std::string{configs.AMAZON_DOMAIN_SEQUENCE})
                   != std::string_view::npos) {
-            std::cout << "IoT data endpoint region does not match the AWS region of the device";
+            std::cerr << "IoT data endpoint region does not match the AWS region of the device";
         }
     }
 
