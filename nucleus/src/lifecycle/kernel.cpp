@@ -48,10 +48,6 @@ namespace lifecycle {
             overrideConfigLocation(commandLine, overrideConfigFile);
         }
         initConfigAndTlog(commandLine);
-        data::StringOrd handle =
-            _global.environment.stringTable.getOrCreateOrd(std::string("certificateFilePath"));
-        std::string someString = std::to_string(handle.asInt());
-        std::string returnValue = _global.environment.stringTable.getString(handle);
         updateDeviceConfiguration(commandLine);
         initializeNucleusFromRecipe();
         setupProxy();
