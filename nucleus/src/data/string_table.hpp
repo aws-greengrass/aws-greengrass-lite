@@ -129,12 +129,16 @@ namespace data {
     //
     class StringOrdInit {
         mutable StringOrd _ord{};
-        const char *_string;
+        std::string _string;
         void init(Environment &environment) const;
 
     public:
         // NOLINTNEXTLINE(*-explicit-constructor)
         StringOrdInit(const char *_constString) : _string(_constString) {
+        }
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StringOrdInit(std::string _constString) : _string(_constString) {
         }
 
         // NOLINTNEXTLINE(*-explicit-constructor)
@@ -149,9 +153,8 @@ namespace data {
         }
 
         StringOrdInit operator+(const StringOrdInit &other) const {
-            char result[strlen(_string) + strlen(other._string)];
-            strcpy(result, _string);
-            strcat(result, other._string);
+            StringOrdInit result{_string};
+            result._string += other._string;
             return result;
         }
 

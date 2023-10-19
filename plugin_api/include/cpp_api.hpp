@@ -395,24 +395,13 @@ namespace ggapi {
         }
 
         template<typename T>
-        T getValue(std::string_view path) {
-            std::vector<std::string> keys;
-            char sep = '/';
-            keys.reserve(std::count(path.begin(), path.end(), sep) + 1);
-            for(auto p = path.begin();; ++p) {
-                auto q = p;
-                p = std::find(p, path.end(), sep);
-                keys.emplace_back(q, p);
-                if(p == path.end()) {
-                    break;
-                }
-            }
-            int idx = 0;
+        T getValue(const std::initializer_list<std::string_view> &keys) {
             ggapi::Struct childStruct = *this;
-            for(; idx < keys.size() - 1; idx++) {
-                childStruct = childStruct.get<ggapi::Struct>(keys[idx]);
+            auto it = keys.begin();
+            for(; it != std::prev(keys.end()); it++) {
+                childStruct = childStruct.get<ggapi::Struct>(*it);
             }
-            return childStruct.get<T>(keys[idx]);
+            return childStruct.get<T>(*it);
         }
     };
 

@@ -11,7 +11,6 @@ namespace data {
     class ContainerModelBase;
     class StructModelBase;
     class ListModelBase;
-    class StructModel;
 
     typedef std::variant<
         // types in same order as type consts in ValueTypes below

@@ -267,22 +267,91 @@ namespace config {
         return createInteriorChild(handle, timestamp);
     }
 
-    std::shared_ptr<Topics> Topics::findInteriorChild(std::string_view name) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(name));
+    Topic Topics::lookup(const std::vector<std::string> &path) {
+        std::shared_ptr<Topics> node{ref<Topics>()};
+        auto steps = path.size();
+        auto it = path.begin();
+        while(--steps > 0) {
+            node = node->createInteriorChild(*it);
+            ++it;
+        }
+        return node->createTopic(*it);
+    }
+
+    Topic Topics::lookup(Timestamp timestamp, const std::vector<std::string> &path) {
+        std::shared_ptr<Topics> node{ref<Topics>()};
+        auto steps = path.size();
+        auto it = path.begin();
+        while(--steps > 0) {
+            node = node->createInteriorChild(*it, timestamp);
+            ++it;
+        }
+        return node->createTopic(*it, timestamp);
+    }
+
+    std::shared_ptr<Topics> Topics::lookupTopics(const std::initializer_list<std::string> &path) {
+        return lookupTopics(Timestamp::now(), path);
+    }
+
+    std::shared_ptr<Topics> Topics::lookupTopics(
+        Timestamp timestamp, const std::initializer_list<std::string> &path
+    ) {
+        std::shared_ptr<Topics> node{ref<Topics>()};
+        for(auto p : path) {
+            node = node->createInteriorChild(p, timestamp);
+        }
+        return node;
+    }
+
+    Topic Topics::find(const std::initializer_list<std::string> &path) {
+        std::shared_ptr<Topics> _node = ref<Topics>();
+        if(path.size() == 0) {
+            throw std::runtime_error("Empty path provided");
+        }
+        auto steps = path.size();
+        auto it = path.begin();
+        while(--steps > 0) {
+            _node = _node->findInteriorChild(*it);
+            ++it;
+        }
+        return _node->getTopic(*it);
+    }
+
+    data::ValueType Topics::findOrDefault(
+        data::ValueType defaultV, std::initializer_list<std::string> &path
+    ) {
+        config::Topic potentialTopic = find(path);
+        if(potentialTopic.getParent() != nullptr) {
+            return potentialTopic.get();
+        }
+        return defaultV;
+    }
+
+    std::shared_ptr<config::Topics> Topics::findTopics(
+        const std::initializer_list<std::string> &path
+    ) {
+        std::shared_ptr<Topics> _node = ref<Topics>();
+        for(const auto &it : path) {
+            _node = _node->findInteriorChild(it);
+        }
+        return _node;
+    }
+
+    std::shared_ptr<Topics> Topics::findInteriorChild(data::StringOrd handle) {
         TopicElement node = _children[handle];
         data::StringOrd key = TopicElement::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
         if(i != _children.end()) {
-            return node.castContainer<Topics>();
+            return std::dynamic_pointer_cast<Topics>(getNode(handle));
         } else {
             return nullptr;
         }
     }
 
-    config::Topic Topics::findLeafChild(std::string_view name) {
+    std::shared_ptr<Topics> Topics::findInteriorChild(std::string_view name) {
         data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(name));
-        return getTopic(handle);
+        return findInteriorChild(handle);
     }
 
     std::vector<std::shared_ptr<Topics>> Topics::getInteriors() {
@@ -373,12 +442,20 @@ namespace config {
         return getNode(handle);
     }
 
-    Lookup Topics::lookup() {
-        return Lookup(_environment, ref<Topics>(), Timestamp::now(), Timestamp::never());
-    }
-
-    Lookup Topics::lookup(Timestamp timestamp) {
-        return Lookup(_environment, ref<Topics>(), timestamp, timestamp);
+    std::shared_ptr<ConfigNode> Topics::getNode(const std::vector<std::string> &path) {
+        if(path.empty()) {
+            throw std::runtime_error("Empty path provided");
+        }
+        std::shared_ptr<ConfigNode> node{ref<Topics>()};
+        auto it = path.begin();
+        for(; it != path.end(); ++it) {
+            std::shared_ptr<Topics> t{std::dynamic_pointer_cast<Topics>(node)};
+            if(!t) {
+                return {};
+            }
+            node = t->getNode(*it);
+        }
+        return node;
     }
 
     std::optional<data::ValueType> Topics::validate(

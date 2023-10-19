@@ -7,14 +7,6 @@ namespace deployment {}
 namespace lifecycle {
 
     class KernelAlternatives {
-        static constexpr auto CURRENT_DIR{"current"};
-        static constexpr auto OLD_DIR{"old"};
-        static constexpr auto NEW_DIR{"new"};
-        static constexpr auto BROKEN_DIR{"broken"};
-        static constexpr auto INITIAL_SETUP_DIR{"init"};
-        static constexpr auto KERNEL_LIB_DIR{"lib"};
-        static constexpr auto LOADER_PID_FILE{"loader.pid"};
-
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
 
         std::filesystem::path getAltsDir();
@@ -32,14 +24,6 @@ namespace lifecycle {
         static constexpr auto KERNEL_BIN_DIR{"bin"};
         static constexpr auto LAUNCH_PARAMS_FILE{"launch.params"};
 
-        std::filesystem::path getBrokenDir();
-        std::filesystem::path getOldDir();
-        std::filesystem::path getNewDir();
-        std::filesystem::path getCurrentDir();
-        std::filesystem::path getInitDir();
-        std::filesystem::path getLoaderPidPath();
-        std::filesystem::path getLoaderPath();
-        std::filesystem::path getBinDir();
         std::filesystem::path getLaunchParamsPath();
 
         void writeLaunchParamsToFile(const std::string content);

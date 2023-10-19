@@ -21,31 +21,43 @@ namespace util {
         std::filesystem::path _kernelAltsPath;
         std::filesystem::path _cliIpcInfoPath;
         std::filesystem::path _binPath;
-        static constexpr auto HOME_DIR_PREFIX { "~/" };
-        static constexpr auto ROOT_DIR_PREFIX { "~root/" };
-        static constexpr auto CONFIG_DIR_PREFIX { "~config/" };
-        static constexpr auto PACKAGE_DIR_PREFIX { "~packages/" };
-    public:
-        static constexpr auto PLUGINS_DIRECTORY {"plugins"};
-        static constexpr auto ARTIFACT_DIRECTORY {"artifacts"};
-        static constexpr auto RECIPE_DIRECTORY {"recipes"};
-        static constexpr auto ARTIFACTS_DECOMPRESSED_DIRECTORY {"artifacts-unarchived"};
-        static constexpr auto CONFIG_PATH_NAME { "config" };
-        static constexpr auto WORK_PATH_NAME { "work" };
-        static constexpr auto PACKAGES_PATH_NAME { "packages" };
-        static constexpr auto ALTS_PATH_NAME { "alts" };
-        static constexpr auto DEPLOYMENTS_PATH_NAME { "deployments" };
-        static constexpr auto CLI_IPC_INFO_PATH_NAME { "cli_ipc_info" };
-        static constexpr auto BIN_PATH_NAME { "bin" };
+        static constexpr auto HOME_DIR_PREFIX{"~/"};
+        static constexpr auto ROOT_DIR_PREFIX{"~root/"};
+        static constexpr auto CONFIG_DIR_PREFIX{"~config/"};
+        static constexpr auto PACKAGE_DIR_PREFIX{"~packages/"};
 
-        static void createPath(const std::filesystem::path & path);
+    public:
+        static constexpr auto PLUGINS_DIRECTORY{"plugins"};
+        static constexpr auto ARTIFACT_DIRECTORY{"artifacts"};
+        static constexpr auto RECIPE_DIRECTORY{"recipes"};
+        static constexpr auto ARTIFACTS_DECOMPRESSED_DIRECTORY{"artifacts-unarchived"};
+        static constexpr auto CONFIG_PATH_NAME{"config"};
+        static constexpr auto WORK_PATH_NAME{"work"};
+        static constexpr auto PACKAGES_PATH_NAME{"packages"};
+        static constexpr auto ALTS_PATH_NAME{"alts"};
+        static constexpr auto DEPLOYMENTS_PATH_NAME{"deployments"};
+        static constexpr auto CLI_IPC_INFO_PATH_NAME{"cli_ipc_info"};
+        static constexpr auto BIN_PATH_NAME{"bin"};
+        static constexpr auto CURRENT_DIR{"current"};
+        static constexpr auto OLD_DIR{"old"};
+        static constexpr auto NEW_DIR{"new"};
+        static constexpr auto BROKEN_DIR{"broken"};
+        static constexpr auto INITIAL_SETUP_DIR{"init"};
+        static constexpr auto KERNEL_LIB_DIR{"lib"};
+        static constexpr auto LOADER_PID_FILE{"loader.pid"};
+
+        static void createPath(const std::filesystem::path &path);
 
         std::filesystem::path deTilde(std::string_view s) const;
-        static std::filesystem::path resolve(const std::filesystem::path & first, const std::filesystem::path & second);
-        static std::filesystem::path resolve(const std::filesystem::path & first, std::string_view second);
+        static std::filesystem::path resolve(
+            const std::filesystem::path &first, const std::filesystem::path &second
+        );
+        static std::filesystem::path resolve(
+            const std::filesystem::path &first, std::string_view second
+        );
         void initPaths(std::string_view rootPathString);
 
-        NucleusPaths & setHomePath(const std::filesystem::path & newPath) {
+        NucleusPaths &setHomePath(const std::filesystem::path &newPath) {
             std::unique_lock guard{_mutex};
             _homePath = newPath;
             guard.unlock();
@@ -58,11 +70,11 @@ namespace util {
             return _homePath;
         }
 
-        NucleusPaths & setBinPath(const std::filesystem::path & newPath, bool passive = false) {
+        NucleusPaths &setBinPath(const std::filesystem::path &newPath, bool passive = false) {
             std::unique_lock guard{_mutex};
             _binPath = newPath;
             guard.unlock();
-            if (!passive) {
+            if(!passive) {
                 createPath(newPath); // should be a no-op on GG-lite
                 _permissions.setBinPermission(newPath);
             }
@@ -74,7 +86,7 @@ namespace util {
             return _binPath;
         }
 
-        NucleusPaths & setCliIpcInfoPath(const std::filesystem::path & newPath) {
+        NucleusPaths &setCliIpcInfoPath(const std::filesystem::path &newPath) {
             std::unique_lock guard{_mutex};
             _cliIpcInfoPath = newPath;
             guard.unlock();
@@ -88,7 +100,7 @@ namespace util {
             return _cliIpcInfoPath;
         }
 
-        NucleusPaths & setKernelAltsPath(const std::filesystem::path & newPath) {
+        NucleusPaths &setKernelAltsPath(const std::filesystem::path &newPath) {
             std::unique_lock guard{_mutex};
             _kernelAltsPath = newPath;
             guard.unlock();
@@ -102,7 +114,7 @@ namespace util {
             return _kernelAltsPath;
         }
 
-        NucleusPaths & setDeploymentPath(const std::filesystem::path & newPath) {
+        NucleusPaths &setDeploymentPath(const std::filesystem::path &newPath) {
             std::unique_lock guard{_mutex};
             _deploymentPath = newPath;
             guard.unlock();
@@ -116,7 +128,7 @@ namespace util {
             return _deploymentPath;
         }
 
-        NucleusPaths & setConfigPath(const std::filesystem::path & newPath) {
+        NucleusPaths &setConfigPath(const std::filesystem::path &newPath) {
             std::unique_lock guard{_mutex};
             _configPath = newPath;
             guard.unlock();
@@ -130,7 +142,7 @@ namespace util {
             return _configPath;
         }
 
-        NucleusPaths & setWorkPath(const std::filesystem::path & newPath) {
+        NucleusPaths &setWorkPath(const std::filesystem::path &newPath) {
             std::unique_lock guard{_mutex};
             _workPath = newPath;
             guard.unlock();
@@ -153,25 +165,25 @@ namespace util {
             return rootPath() / PLUGINS_DIRECTORY;
         }
 
-        NucleusPaths & setRootPath(const std::filesystem::path & newPath, bool passive = false) {
+        NucleusPaths &setRootPath(const std::filesystem::path &newPath, bool passive = false) {
             std::unique_lock guard{_mutex};
             _rootPath = newPath;
             guard.unlock();
 
-            if (!passive) {
+            if(!passive) {
                 createPath(newPath);
                 _permissions.setRootPermission(newPath);
             }
             return *this;
         }
 
-        NucleusPaths & createPluginPath() {
+        NucleusPaths &createPluginPath() {
             createPath(pluginPath());
             _permissions.setPluginPermission(pluginPath());
             return *this;
         }
 
-        NucleusPaths & setComponentStorePath(const std::filesystem::path & newPath) {
+        NucleusPaths &setComponentStorePath(const std::filesystem::path &newPath) {
             std::unique_lock guard{_mutex};
             _componentStorePath = newPath;
             guard.unlock();
@@ -196,9 +208,10 @@ namespace util {
             return componentStorePath() / ARTIFACT_DIRECTORY;
         }
 
-//        [[nodiscard]] std::filesystem::path artifactPath(ComponentIdentifier componentIdentifier) {
-//
-//        }
+        //        [[nodiscard]] std::filesystem::path artifactPath(ComponentIdentifier
+        //        componentIdentifier) {
+        //
+        //        }
 
         [[nodiscard]] std::filesystem::path recipePath() const {
             return componentStorePath() / RECIPE_DIRECTORY;
@@ -208,28 +221,37 @@ namespace util {
             return componentStorePath() / ARTIFACTS_DECOMPRESSED_DIRECTORY;
         }
 
-//        [[nodiscard]] std::filesystem::path unarchivePath(ComponentIdentifier componentIdentifier) {
-//
-//        }
+        //        [[nodiscard]] std::filesystem::path unarchivePath(ComponentIdentifier
+        //        componentIdentifier) {
+        //
+        //        }
+
+        [[nodiscard]] std::filesystem::path getBrokenDir();
+        [[nodiscard]] std::filesystem::path getOldDir();
+        [[nodiscard]] std::filesystem::path getNewDir();
+        [[nodiscard]] std::filesystem::path getCurrentDir();
+        [[nodiscard]] std::filesystem::path getInitDir();
+        [[nodiscard]] std::filesystem::path getLoaderPidPath();
+        [[nodiscard]] std::filesystem::path getLoaderPath();
+        [[nodiscard]] std::filesystem::path getBinDir();
 
         [[nodiscard]] std::filesystem::path workPath(const std::string_view serviceName) {
-            std::filesystem::path path { workPath() / serviceName };
+            std::filesystem::path path{workPath() / serviceName};
             createPath(path);
             _permissions.setServiceWorkPathPermission(path);
             return path;
         }
 
-        NucleusPaths & setTelemetryPath(const std::filesystem::path & newPath) {
+        NucleusPaths &setTelemetryPath(const std::filesystem::path &newPath) {
             createPath(newPath);
             _permissions.setTelemetryPermission(newPath);
             return *this;
         }
 
-        NucleusPaths & setLoggerPath(const std::filesystem::path & newPath) {
+        NucleusPaths &setLoggerPath(const std::filesystem::path &newPath) {
             createPath(newPath);
             _permissions.setLoggerPermission(newPath);
             return *this;
         }
-
     };
-}
+} // namespace util

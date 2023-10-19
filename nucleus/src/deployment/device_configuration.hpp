@@ -3,6 +3,7 @@
 #include "config/validator.hpp"
 #include "data/string_table.hpp"
 #include "lifecycle/kernel.hpp"
+#include "util/nucleus_paths.hpp"
 #include <atomic>
 
 namespace data {
@@ -49,8 +50,8 @@ namespace deployment {
 
         data::StringOrdInit IOT_ROLE_ALIAS_TOPIC{"iotRoleAlias"};
         data::StringOrdInit COMPONENT_STORE_MAX_SIZE_BYTES{"componentStoreMaxSizeBytes"};
-        data::StringOrdInit DEPLOYMENT_POLLING_FREQUENCY_SECONDS =
-            "deploymentPollingFrequencySeconds";
+        data::StringOrdInit DEPLOYMENT_POLLING_FREQUENCY_SECONDS = {
+            "deploymentPollingFrequencySeconds"};
         data::StringOrdInit NUCLEUS_CONFIG_LOGGING_TOPICS{"logging"};
         data::StringOrdInit TELEMETRY_CONFIG_LOGGING_TOPICS{"telemetry"};
 
@@ -135,8 +136,7 @@ namespace deployment {
         data::Environment &_environment;
         lifecycle::Kernel &_kernel;
         std::string _nucleusComponentNameCache;
-        std::unique_ptr<config::Validator> _deTildeValidator;
-        std::unique_ptr<config::Validator> _regionValidator;
+        std::shared_ptr<util::NucleusPaths> _nucleusPaths;
         std::atomic_bool _deviceConfigValidationCachedResult{false};
         std::shared_ptr<config::Topics> _loggingTopics;
 

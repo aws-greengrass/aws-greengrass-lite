@@ -45,13 +45,13 @@ namespace deployment {
 
     void DeviceConfiguration::initializeNucleusComponentConfig(std::string nucleusComponentName) {
         _kernel.getConfig()
-            .lookup()[{"services", nucleusComponentName}](_kernel.SERVICES_TOPIC_KEY)
+            .lookup({"services", nucleusComponentName, _kernel.SERVICES_TOPIC_KEY})
             .dflt("nucleus");
         config::Topic potentialTopic =
-            _kernel.getConfig().root()->lookup().findTopic({"services", "main", "dependencies"});
+            _kernel.getConfig().lookup({"services", "main", "dependencies"});
         if(potentialTopic.getParent() != nullptr) {
             _kernel.getConfig()
-                .lookup()[{"services", "main"}]("dependencies")
+                .lookup({"services", "main", "dependencies"})
                 .dflt(potentialTopic.get()); // TODO: add nucleusComponentName
         }
     }
@@ -68,11 +68,11 @@ namespace deployment {
     void DeviceConfiguration::initializeNucleusVersion(
         std::string nucleusComponentName, std::string nucleusComponentVersion
     ) {
-        _kernel.getConfig().lookup()[{"services", nucleusComponentName}]("version").dflt(
-            nucleusComponentVersion
-        );
         _kernel.getConfig()
-            .lookup()["setenv"](configs.GGC_VERSION_ENV)
+            .lookup({"services", nucleusComponentName, "version"})
+            .dflt(nucleusComponentVersion);
+        _kernel.getConfig()
+            .lookup({"setenv", configs.GGC_VERSION_ENV})
             .overrideValue(nucleusComponentVersion);
     }
 
@@ -109,10 +109,7 @@ namespace deployment {
     //    }
 
     std::string DeviceConfiguration::getComponentType(std::string serviceName) {
-        return _kernel.getConfig()
-            .lookup()
-            .findTopic({"services", serviceName, "componentType"})
-            .getName();
+        return _kernel.getConfig().find({"services", serviceName, "componentType"}).getName();
     }
 
     std::shared_ptr<config::Topics> DeviceConfiguration::getRunWithTopic() {
@@ -120,19 +117,19 @@ namespace deployment {
     }
 
     config::Topic DeviceConfiguration::getRunWithDefaultPosixUser() {
-        return getRunWithTopic()->lookup()(configs.RUN_WITH_DEFAULT_POSIX_USER);
+        return getRunWithTopic()->lookup({configs.RUN_WITH_DEFAULT_POSIX_USER});
     }
 
     config::Topic DeviceConfiguration::getRunWithDefaultPosixShell() {
-        return getRunWithTopic()->lookup()(configs.RUN_WITH_DEFAULT_POSIX_SHELL);
+        return getRunWithTopic()->lookup({configs.RUN_WITH_DEFAULT_POSIX_SHELL});
     }
 
     config::Topic DeviceConfiguration::getRunWithDefaultWindowsUser() {
-        return getRunWithTopic()->lookup()(configs.RUN_WITH_DEFAULT_WINDOWS_USER);
+        return getRunWithTopic()->lookup({configs.RUN_WITH_DEFAULT_WINDOWS_USER});
     }
 
     std::shared_ptr<config::Topics> DeviceConfiguration::findRunWithDefaultSystemResourceLimits() {
-        return _kernel.getConfig().lookup().findTopics(
+        return _kernel.getConfig().findTopics(
             {"services",
              getNucleusComponentName(),
              "configuration",
@@ -149,12 +146,12 @@ namespace deployment {
     config::Topic DeviceConfiguration::getThingName() {
         config::Topic thingNameTopic =
             _kernel.getConfig()
-                .lookup()[configs.SYSTEM_NAMESPACE_KEY](configs.DEVICE_PARAM_THING_NAME)
+                .lookup({configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_THING_NAME})
                 .dflt("");
 
         // TODO: Greengrass Service
         _kernel.getConfig()
-            .lookup()["setenv"](configs.AWS_IOT_THING_NAME_ENV)
+            .lookup({"setenv", configs.AWS_IOT_THING_NAME_ENV})
             .withValue(thingNameTopic.getName());
 
         return thingNameTopic;
@@ -163,26 +160,26 @@ namespace deployment {
     config::Topic DeviceConfiguration::getCertificateFilePath() {
         // TODO: Add validator
         return _kernel.getConfig()
-            .lookup()[configs.SYSTEM_NAMESPACE_KEY](configs.DEVICE_PARAM_CERTIFICATE_FILE_PATH)
+            .lookup({configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_CERTIFICATE_FILE_PATH})
             .dflt("");
     }
 
     config::Topic DeviceConfiguration::getPrivateKeyFilePath() {
         // TODO: Add validator
         return _kernel.getConfig()
-            .lookup()[configs.SYSTEM_NAMESPACE_KEY](configs.DEVICE_PARAM_PRIVATE_KEY_PATH)
+            .lookup({configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_PRIVATE_KEY_PATH})
             .dflt("");
     }
 
     config::Topic DeviceConfiguration::getRootCAFilePath() {
         // TODO: Add validator
         return _kernel.getConfig()
-            .lookup()[configs.SYSTEM_NAMESPACE_KEY](configs.DEVICE_PARAM_ROOT_CA_PATH)
+            .lookup({configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_ROOT_CA_PATH})
             .dflt("");
     }
 
     config::Topic DeviceConfiguration::getIpcSocketPath() {
-        return _kernel.getConfig().lookup().findTopic(
+        return _kernel.getConfig().find(
             {configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_IPC_SOCKET_PATH}
         );
     }
@@ -232,7 +229,7 @@ namespace deployment {
     }
 
     std::shared_ptr<config::Topics> DeviceConfiguration::getSpoolerNamespace() {
-        return getMQTTNamespace()->lookup()[configs.DEVICE_SPOOLER_NAMESPACE].getTopics();
+        return getMQTTNamespace()->lookupTopics({configs.DEVICE_SPOOLER_NAMESPACE});
     }
 
     std::shared_ptr<config::Topics> DeviceConfiguration::getNetworkProxyNamespace() {
@@ -240,25 +237,24 @@ namespace deployment {
     }
 
     std::shared_ptr<config::Topics> DeviceConfiguration::getProxyNamespace() {
-        return getNetworkProxyNamespace()->lookup()[configs.DEVICE_PROXY_NAMESPACE].getTopics();
+        return getNetworkProxyNamespace()->lookupTopics({configs.DEVICE_PROXY_NAMESPACE});
     }
 
     std::string DeviceConfiguration::getNoProxyAddresses() {
         config::Topic potentialTopic =
-            getNetworkProxyNamespace()->lookup().findTopic({configs.DEVICE_PARAM_NO_PROXY_ADDRESSES}
-            );
+            getNetworkProxyNamespace()->lookup({configs.DEVICE_PARAM_NO_PROXY_ADDRESSES});
         return potentialTopic.getParent() == nullptr ? "" : potentialTopic.getString();
     }
 
     std::string DeviceConfiguration::getProxyUrl() {
         config::Topic potentialTopic =
-            getNetworkProxyNamespace()->lookup().findTopic({configs.DEVICE_PARAM_PROXY_URL});
+            getNetworkProxyNamespace()->find({configs.DEVICE_PARAM_PROXY_URL});
         return potentialTopic.getParent() == nullptr ? "" : potentialTopic.getString();
     }
 
     std::string DeviceConfiguration::getProxyPassword() {
         config::Topic potentialTopic =
-            getNetworkProxyNamespace()->lookup().findTopic({configs.DEVICE_PARAM_PROXY_PASSWORD});
+            getNetworkProxyNamespace()->find({configs.DEVICE_PARAM_PROXY_PASSWORD});
         return potentialTopic.getParent() == nullptr ? "" : potentialTopic.getString();
     }
 
@@ -327,23 +323,23 @@ namespace deployment {
 
     config::Topic DeviceConfiguration::getTopic(data::StringOrdInit parameterName) {
         return _kernel.getConfig().lookup(
-        )[{"services", getNucleusComponentName(), "configuration"}](parameterName);
+            {"services", getNucleusComponentName(), "configuration", parameterName}
+        );
     }
 
     std::shared_ptr<config::Topics> DeviceConfiguration::getTopics(data::StringOrdInit parameterName
     ) {
-        return _kernel.getConfig()
-            .lookup()[{"services", getNucleusComponentName(), "configuration", parameterName}]
-            .getTopics();
+        return _kernel.getConfig().lookupTopics(
+            {"services", getNucleusComponentName(), "configuration", parameterName}
+        );
     }
 
     std::string DeviceConfiguration::getNucleusVersion() {
         std::string version;
         std::shared_ptr<config::Topics> componentTopic =
             _kernel.findServiceTopic(getNucleusComponentName());
-        if(componentTopic
-           && componentTopic->lookup().findTopic({"version"}).getParent() != nullptr) {
-            version = componentTopic->lookup().findTopic({"version"}).getName();
+        if(componentTopic && componentTopic->find({"version"}).getParent() != nullptr) {
+            version = componentTopic->find({"version"}).getName();
         }
         if(version.empty()) {
             return configs.FALLBACK_VERSION;

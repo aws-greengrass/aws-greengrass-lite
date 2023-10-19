@@ -296,6 +296,7 @@ namespace config {
         void updateChild(const Topic &element);
         std::shared_ptr<ConfigNode> getNode(data::StringOrd handle);
         std::shared_ptr<ConfigNode> getNode(std::string_view name);
+        std::shared_ptr<ConfigNode> getNode(const std::vector<std::string> &path);
         Topic createTopic(data::StringOrd nameOrd, const Timestamp &timestamp = Timestamp());
         Topic createTopic(std::string_view name, const Timestamp &timestamp = Timestamp());
         std::shared_ptr<Topics> createInteriorChild(
@@ -305,13 +306,20 @@ namespace config {
             std::string_view name, const Timestamp &timestamp = Timestamp::now()
         );
         std::shared_ptr<Topics> findInteriorChild(std::string_view name);
-        Topic findLeafChild(std::string_view name);
+        std::shared_ptr<Topics> findInteriorChild(data::StringOrd handle);
         std::vector<std::shared_ptr<Topics>> getInteriors();
         std::vector<Topic> getLeafs();
         Topic getTopic(data::StringOrd handle);
         Topic getTopic(std::string_view name);
-        Lookup lookup();
-        Lookup lookup(Timestamp timestamp);
+        Topic lookup(const std::vector<std::string> &path);
+        Topic lookup(Timestamp timestamp, const std::vector<std::string> &path);
+        std::shared_ptr<Topics> lookupTopics(const std::initializer_list<std::string> &path);
+        std::shared_ptr<Topics> lookupTopics(
+            Timestamp timestamp, const std::initializer_list<std::string> &path
+        );
+        Topic find(const std::initializer_list<std::string> &path);
+        data::ValueType findOrDefault(data::ValueType, std::initializer_list<std::string> &path);
+        std::shared_ptr<Topics> findTopics(const std::initializer_list<std::string> &path);
         void removeChild(ConfigNode &node);
     };
 
@@ -388,128 +396,6 @@ namespace config {
         Topic &dflt(data::ValueType defVal);
     };
 
-    class Lookup {
-        data::Environment *_environment;
-        std::shared_ptr<Topics> _node;
-        Timestamp _interiorTimestamp{};
-        Timestamp _leafTimestamp{};
-
-    public:
-        Lookup(const Lookup &el) = default;
-        Lookup(Lookup &&el) = default;
-        Lookup &operator=(const Lookup &other) = default;
-        Lookup &operator=(Lookup &&other) = default;
-        ~Lookup() = default;
-
-        explicit Lookup(
-            data::Environment &env,
-            const std::shared_ptr<Topics> &root,
-            const Timestamp &interiorTimestamp,
-            const Timestamp &leafTimestamp
-        )
-            : _environment{&env}, _node{root}, _interiorTimestamp{interiorTimestamp},
-              _leafTimestamp{leafTimestamp} {
-        }
-
-        [[nodiscard]] Lookup &operator[](data::StringOrd ord) {
-            _node = _node->createInteriorChild(ord, _interiorTimestamp);
-            return *this;
-        }
-
-        [[nodiscard]] Lookup &operator[](std::string_view sv) {
-            _node = _node->createInteriorChild(sv, _interiorTimestamp);
-            return *this;
-        }
-
-        [[nodiscard]] Lookup &operator[](const std::vector<std::string> &path) {
-            for(const auto &it : path) {
-                _node = _node->createInteriorChild(it, _interiorTimestamp);
-            }
-            return *this;
-        }
-
-        [[nodiscard]] Topic operator()(data::StringOrd ord) {
-            return _node->createTopic(ord, _leafTimestamp);
-        }
-
-        [[nodiscard]] Topic operator()(std::string_view sv) {
-            return _node->createTopic(sv, _leafTimestamp);
-        }
-
-        [[nodiscard]] Topic operator()(const std::vector<std::string> &path) {
-            if(path.empty()) {
-                throw std::runtime_error("Empty path provided");
-            }
-            auto steps = path.size();
-            auto it = path.begin();
-            while(--steps > 0) {
-                _node = _node->createInteriorChild(*it, _interiorTimestamp);
-                ++it;
-            }
-            return _node->createTopic(*it, _leafTimestamp);
-        }
-
-        [[nodiscard]] Topic getTopic(data::StringOrd ord) {
-            return _node->getTopic(ord);
-        }
-
-        [[nodiscard]] Topic getTopic(std::string_view sv) {
-            return _node->getTopic(sv);
-        }
-
-        [[nodiscard]] Topic findTopic(const std::initializer_list<std::string> &path) {
-            if(path.size() == 0) {
-                throw std::runtime_error("Empty path provided");
-            }
-            auto steps = path.size();
-            auto it = path.begin();
-            while(--steps > 0) {
-                _node = _node->findInteriorChild(*it);
-                ++it;
-            }
-            return _node->findLeafChild(*it);
-        }
-
-        [[nodiscard]] std::shared_ptr<config::Topics> findTopics(
-            const std::initializer_list<std::string> &path
-        ) {
-            for(const auto &it : path) {
-                _node = _node->findInteriorChild(it);
-            }
-            return _node;
-        }
-
-        [[nodiscard]] data::ValueType findOrDefault(
-            data::ValueType defaultV, std::initializer_list<std::string> &path
-        ) {
-            config::Topic potentialTopic = findTopic(path);
-            if(potentialTopic.getParent() != nullptr) {
-                return potentialTopic.get();
-            }
-            return defaultV;
-        }
-
-        [[nodiscard]] std::shared_ptr<ConfigNode> getNode(const std::vector<std::string> &path) {
-            if(path.empty()) {
-                throw std::runtime_error("Empty path provided");
-            }
-            std::shared_ptr<ConfigNode> node{_node};
-            auto it = path.begin();
-            for(; it != path.end(); ++it) {
-                std::shared_ptr<Topics> t{std::dynamic_pointer_cast<Topics>(node)};
-                if(!t) {
-                    return {};
-                }
-                node = t->getNode(*it);
-            }
-            return node;
-        }
-
-        std::shared_ptr<config::Topics> getTopics() {
-            return _node;
-        }
-    };
-
     class Manager {
     private:
         data::Environment &_environment;
@@ -528,18 +414,42 @@ namespace config {
             return _root;
         }
 
+        Topic lookup(const std::vector<std::string> &path) {
+            return _root->lookup(path);
+        }
+
+        Topic lookup(Timestamp timestamp, const std::vector<std::string> &path) {
+            return _root->lookup(timestamp, path);
+        }
+
+        std::shared_ptr<Topics> lookupTopics(const std::initializer_list<std::string> &path) {
+            return _root->lookupTopics(path);
+        }
+
+        std::shared_ptr<Topics> lookupTopics(
+            Timestamp timestamp, const std::initializer_list<std::string> &path
+        ) {
+            return _root->lookupTopics(timestamp, path);
+        }
+
+        Topic find(const std::initializer_list<std::string> &path) {
+            return _root->find(path);
+        }
+
+        data::ValueType findOrDefault(
+            data::ValueType defaultV, std::initializer_list<std::string> &path
+        ) {
+            return _root->findOrDefault(defaultV, path);
+        }
+
+        std::shared_ptr<config::Topics> findTopics(const std::initializer_list<std::string> &path) {
+            return _root->findTopics(path);
+        }
+
         PublishQueue &publishQueue() {
             return _publishQueue;
         }
 
         Manager &read(const std::filesystem::path &path);
-
-        Lookup lookup() {
-            return _root->lookup();
-        }
-
-        Lookup lookup(Timestamp timestamp) {
-            return _root->lookup(timestamp);
-        }
     };
 } // namespace config

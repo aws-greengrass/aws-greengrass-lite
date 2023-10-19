@@ -135,23 +135,4 @@ namespace lifecycle {
         }
     }
 
-    std::string CommandLine::deTilde(std::string s) {
-        if(s.rfind(HOME_DIR_PREFIX, 0)) {
-            // TODO: get user home directory based on OS
-        }
-        if(_nucleusPaths == nullptr) {
-            return s;
-        }
-        if(!_nucleusPaths->rootPath().empty() && s.rfind(ROOT_DIR_PREFIX, 0)) {
-            s = _nucleusPaths->rootPath() / s.substr(CONFIG_DIR_PREFIX.size());
-        }
-        if(!_nucleusPaths->configPath().empty() && s.rfind(CONFIG_DIR_PREFIX, 0)) {
-            s = _nucleusPaths->configPath() / s.substr(CONFIG_DIR_PREFIX.size());
-        }
-        if(!_nucleusPaths->componentStorePath().empty() && s.rfind(PACKAGE_DIR_PREFIX, 0)) {
-            s = _nucleusPaths->componentStorePath() / s.substr(PACKAGE_DIR_PREFIX.size());
-        }
-        return s;
-    }
-
 } // namespace lifecycle

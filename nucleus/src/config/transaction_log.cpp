@@ -275,7 +275,7 @@ namespace config {
                 continue;
             }
             if(tlogLine.action == WhatHappened::changed) {
-                Topic targetTopic{root->lookup()(tlogLine.topicPath)};
+                Topic targetTopic{root->lookup(tlogLine.topicPath)};
                 if(!mergeCondition(targetTopic)) {
                     continue;
                 }
@@ -285,7 +285,7 @@ namespace config {
                     );
                 }
             } else if(tlogLine.action == WhatHappened::removed) {
-                std::shared_ptr<ConfigNode> node{root->lookup().getNode(tlogLine.topicPath)};
+                std::shared_ptr<ConfigNode> node{root->getNode(tlogLine.topicPath)};
                 if(!node) {
                     continue;
                 }
@@ -297,10 +297,10 @@ namespace config {
                     node->remove(tlogLine.timestamp);
                 }
             } else if(tlogLine.action == WhatHappened::timestampUpdated) {
-                Topic targetTopic{root->lookup()(tlogLine.topicPath)};
+                Topic targetTopic{root->lookup(tlogLine.topicPath)};
                 targetTopic.withNewerModTime(tlogLine.timestamp);
             } else if(tlogLine.action == WhatHappened::interiorAdded) {
-                (void) root->lookup()[tlogLine.topicPath];
+                (void) root->lookup(tlogLine.topicPath);
             }
         }
     }

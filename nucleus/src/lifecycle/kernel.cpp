@@ -26,7 +26,8 @@ namespace lifecycle {
     void Kernel::preLaunch(CommandLine &commandLine) {
         getConfig().publishQueue().start();
         _rootPathWatcher = std::make_shared<RootPathWatcher>(*this);
-        _global.environment.configManager.lookup()["system"]("rootpath")
+        _global.environment.configManager.root()
+            ->lookup({"system", "rootpath"})
             .dflt(getPaths()->rootPath().generic_string())
             .addWatcher(_rootPathWatcher, config::WhatHappened::changed);
 

@@ -77,12 +77,13 @@ extern "C" bool greengrass_lifecycle(
     ggapi::StringOrd phaseOrd{phase};
     ggapi::Struct structData{dataHandle};
 
-    ggapi::Struct configStruct = structData.getValue<ggapi::Struct>("config");
+    ggapi::Struct configStruct = structData.getValue<ggapi::Struct>({"config"});
 
-    std::string certPath = configStruct.getValue<std::string>("system/certificateFilePath");
-    std::string keyPath = configStruct.getValue<std::string>("system/privateKeyPath");
-    std::string credEndpoint =
-        configStruct.getValue<std::string>("services/aws.greengrass.Nucleus-Lite/iotCredEndpoint");
+    std::string certPath = configStruct.getValue<std::string>({"system", "certificateFilePath"});
+    std::string keyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
+    std::string credEndpoint = configStruct.getValue<std::string>(
+        {"services", "aws.greengrass.Nucleus-Lite", "iotCredEndpoint"}
+    );
 
     std::cout << "[mqtt-plugin] Running lifecycle phase " << phaseOrd.toString() << std::endl;
 
