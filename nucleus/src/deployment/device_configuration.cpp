@@ -49,7 +49,7 @@ namespace deployment {
             .dflt("nucleus");
         config::Topic potentialTopic =
             _kernel.getConfig().lookup({"services", "main", "dependencies"});
-        if(potentialTopic.getParent() != nullptr) {
+        if(potentialTopic.getParent()) {
             _kernel.getConfig()
                 .lookup({"services", "main", "dependencies"})
                 .dflt(potentialTopic.get()); // TODO: add nucleusComponentName
@@ -243,19 +243,19 @@ namespace deployment {
     std::string DeviceConfiguration::getNoProxyAddresses() {
         config::Topic potentialTopic =
             getNetworkProxyNamespace()->lookup({configs.DEVICE_PARAM_NO_PROXY_ADDRESSES});
-        return potentialTopic.getParent() == nullptr ? "" : potentialTopic.getString();
+        return potentialTopic.getParent() ? "" : potentialTopic.getString();
     }
 
     std::string DeviceConfiguration::getProxyUrl() {
         config::Topic potentialTopic =
             getNetworkProxyNamespace()->find({configs.DEVICE_PARAM_PROXY_URL});
-        return potentialTopic.getParent() == nullptr ? "" : potentialTopic.getString();
+        return potentialTopic.getParent() ? "" : potentialTopic.getString();
     }
 
     std::string DeviceConfiguration::getProxyPassword() {
         config::Topic potentialTopic =
             getNetworkProxyNamespace()->find({configs.DEVICE_PARAM_PROXY_PASSWORD});
-        return potentialTopic.getParent() == nullptr ? "" : potentialTopic.getString();
+        return potentialTopic.getParent() ? "" : potentialTopic.getString();
     }
 
     config::Topic DeviceConfiguration::getIotRoleAlias() {
@@ -338,7 +338,7 @@ namespace deployment {
         std::string version;
         std::shared_ptr<config::Topics> componentTopic =
             _kernel.findServiceTopic(getNucleusComponentName());
-        if(componentTopic && componentTopic->find({"version"}).getParent() != nullptr) {
+        if(componentTopic && componentTopic->find({"version"}).getParent()) {
             version = componentTopic->find({"version"}).getName();
         }
         if(version.empty()) {

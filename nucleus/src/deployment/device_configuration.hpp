@@ -153,7 +153,7 @@ namespace deployment {
         DeviceConfiguration &operator=(DeviceConfiguration &&) noexcept = default;
         ~DeviceConfiguration() = default;
 
-        // TODO: Refactor into new classes
+        // TODO: Refactor into new classes and implement
         std::string getNucleusComponentName();
         std::shared_ptr<config::Topics> getLoggingConfigurationTopics();
         std::shared_ptr<config::Topics> getTelemetryConfigurationTopics();
@@ -177,8 +177,9 @@ namespace deployment {
         void handleLoggingConfigurationChanges(config::WhatHappened, config::ConfigNode);
         //        void reconfigureLogging(LogConfigUpdate);
         std::string getComponentType(std::string);
-        config::Validator &getDeTildeValidator(lifecycle::CommandLine &commandLine);
-        config::Validator &getRegionValidator(lifecycle::CommandLine &commandLine);
+        //        std::shared_ptr<config::Validator> &getDeTildeValidator(lifecycle::CommandLine
+        //        &commandLine); std::shared_ptr<config::Validator>
+        //        &getRegionValidator(lifecycle::CommandLine &commandLine);
         std::shared_ptr<config::Topics> getRunWithTopic();
         config::Topic getRunWithDefaultPosixUser();
         config::Topic getRunWithDefaultPosixShell();

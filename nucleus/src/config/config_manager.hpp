@@ -412,11 +412,11 @@ namespace config {
             return _root;
         }
 
-        Topic lookup(const std::vector<std::string> &path) {
+        Topic lookup(const std::initializer_list<std::string> &path) {
             return _root->lookup(path);
         }
 
-        Topic lookup(Timestamp timestamp, const std::vector<std::string> &path) {
+        Topic lookup(Timestamp timestamp, const std::initializer_list<std::string> &path) {
             return _root->lookup(timestamp, path);
         }
 

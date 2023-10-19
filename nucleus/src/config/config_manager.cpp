@@ -316,7 +316,7 @@ namespace config {
         data::ValueType defaultV, std::initializer_list<std::string> &path
     ) {
         config::Topic potentialTopic = find(path);
-        if(potentialTopic.getParent() != nullptr) {
+        if(potentialTopic.getParent()) {
             return potentialTopic.get();
         }
         return defaultV;
@@ -437,13 +437,12 @@ namespace config {
             throw std::runtime_error("Empty path provided");
         }
         std::shared_ptr<ConfigNode> node{ref<Topics>()};
-        auto it = path.begin();
-        for(; it != path.end(); ++it) {
+        for(auto &it : path) {
             std::shared_ptr<Topics> t{std::dynamic_pointer_cast<Topics>(node)};
             if(!t) {
                 return {};
             }
-            node = t->getNode(*it);
+            node = t->getNode(it);
         }
         return node;
     }

@@ -134,11 +134,11 @@ namespace data {
 
     public:
         // NOLINTNEXTLINE(*-explicit-constructor)
-        StringOrdInit(const char *_constString) : _string(_constString) {
+        StringOrdInit(const char *constString) : _string(constString) {
         }
 
         // NOLINTNEXTLINE(*-explicit-constructor)
-        StringOrdInit(std::string _constString) : _string(_constString) {
+        StringOrdInit(std::string_view constString) : _string(constString) {
         }
 
         // NOLINTNEXTLINE(*-explicit-constructor)

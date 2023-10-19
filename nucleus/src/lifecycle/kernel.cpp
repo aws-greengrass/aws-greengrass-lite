@@ -274,7 +274,7 @@ namespace lifecycle {
         //
         _global.loader->discoverPlugins(); // TODO: replace with looking in plugin directory
         std::shared_ptr<data::SharedStruct> configStruct{
-            std::make_shared<data::SharedStruct>(_global.environment)}; // TODO, empty for now
+            std::make_shared<data::SharedStruct>(_global.environment)};
         std::shared_ptr<data::ContainerModelBase> rootStruct = getConfig().root();
         configStruct->put("config", data::StructElement({rootStruct}));
         _global.loader->lifecycleBootstrap(configStruct);
