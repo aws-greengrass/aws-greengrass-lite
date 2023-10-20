@@ -284,21 +284,21 @@ namespace config {
         return node->createTopic(*it, timestamp);
     }
 
-    std::shared_ptr<Topics> Topics::lookupTopics(const std::initializer_list<std::string> &path) {
+    std::shared_ptr<Topics> Topics::lookupTopics(std::initializer_list<std::string> path) {
         return lookupTopics(Timestamp::now(), path);
     }
 
     std::shared_ptr<Topics> Topics::lookupTopics(
-        Timestamp timestamp, const std::initializer_list<std::string> &path
+        Timestamp timestamp, std::initializer_list<std::string> path
     ) {
         std::shared_ptr<Topics> node{ref<Topics>()};
-        for(auto p : path) {
+        for(const auto &p : path) {
             node = node->createInteriorChild(p, timestamp);
         }
         return node;
     }
 
-    Topic Topics::find(const std::initializer_list<std::string> &path) {
+    std::optional<Topic> Topics::find(std::initializer_list<std::string> path) {
         std::shared_ptr<Topics> _node = ref<Topics>();
         if(path.size() == 0) {
             throw std::runtime_error("Empty path provided");
@@ -309,22 +309,23 @@ namespace config {
             _node = _node->findInteriorChild(*it);
             ++it;
         }
+        if(!_node) {
+            return {};
+        }
         return _node->getTopic(*it);
     }
 
     data::ValueType Topics::findOrDefault(
-        data::ValueType defaultV, std::initializer_list<std::string> &path
+        const data::ValueType &defaultV, std::initializer_list<std::string> path
     ) {
-        config::Topic potentialTopic = find(path);
-        if(potentialTopic.getParent()) {
-            return potentialTopic.get();
+        std::optional<config::Topic> potentialTopic = find(path);
+        if(potentialTopic.has_value()) {
+            return potentialTopic->get();
         }
         return defaultV;
     }
 
-    std::shared_ptr<config::Topics> Topics::findTopics(
-        const std::initializer_list<std::string> &path
-    ) {
+    std::shared_ptr<config::Topics> Topics::findTopics(std::initializer_list<std::string> path) {
         std::shared_ptr<Topics> _node = ref<Topics>();
         for(const auto &it : path) {
             _node = _node->findInteriorChild(it);

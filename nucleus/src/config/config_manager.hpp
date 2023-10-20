@@ -311,13 +311,15 @@ namespace config {
         Topic getTopic(std::string_view name);
         Topic lookup(const std::vector<std::string> &path);
         Topic lookup(Timestamp timestamp, const std::vector<std::string> &path);
-        std::shared_ptr<Topics> lookupTopics(const std::initializer_list<std::string> &path);
+        std::shared_ptr<Topics> lookupTopics(std::initializer_list<std::string> path);
         std::shared_ptr<Topics> lookupTopics(
-            Timestamp timestamp, const std::initializer_list<std::string> &path
+            Timestamp timestamp, std::initializer_list<std::string> path
         );
-        Topic find(const std::initializer_list<std::string> &path);
-        data::ValueType findOrDefault(data::ValueType, std::initializer_list<std::string> &path);
-        std::shared_ptr<Topics> findTopics(const std::initializer_list<std::string> &path);
+        std::optional<Topic> find(std::initializer_list<std::string> path);
+        data::ValueType findOrDefault(
+            const data::ValueType &, std::initializer_list<std::string> path
+        );
+        std::shared_ptr<Topics> findTopics(std::initializer_list<std::string> path);
         void removeChild(ConfigNode &node);
     };
 
@@ -412,35 +414,35 @@ namespace config {
             return _root;
         }
 
-        Topic lookup(const std::initializer_list<std::string> &path) {
+        Topic lookup(std::initializer_list<std::string> path) {
             return _root->lookup(path);
         }
 
-        Topic lookup(Timestamp timestamp, const std::initializer_list<std::string> &path) {
+        Topic lookup(Timestamp timestamp, std::initializer_list<std::string> path) {
             return _root->lookup(timestamp, path);
         }
 
-        std::shared_ptr<Topics> lookupTopics(const std::initializer_list<std::string> &path) {
+        std::shared_ptr<Topics> lookupTopics(std::initializer_list<std::string> path) {
             return _root->lookupTopics(path);
         }
 
         std::shared_ptr<Topics> lookupTopics(
-            Timestamp timestamp, const std::initializer_list<std::string> &path
+            Timestamp timestamp, std::initializer_list<std::string> path
         ) {
             return _root->lookupTopics(timestamp, path);
         }
 
-        Topic find(const std::initializer_list<std::string> &path) {
+        std::optional<Topic> find(std::initializer_list<std::string> path) {
             return _root->find(path);
         }
 
         data::ValueType findOrDefault(
-            data::ValueType defaultV, std::initializer_list<std::string> &path
+            const data::ValueType &defaultV, std::initializer_list<std::string> path
         ) {
             return _root->findOrDefault(defaultV, path);
         }
 
-        std::shared_ptr<config::Topics> findTopics(const std::initializer_list<std::string> &path) {
+        std::shared_ptr<config::Topics> findTopics(std::initializer_list<std::string> path) {
             return _root->findTopics(path);
         }
 

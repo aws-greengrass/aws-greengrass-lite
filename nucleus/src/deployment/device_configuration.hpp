@@ -177,7 +177,7 @@ namespace deployment {
         void
         handleLoggingConfigurationChanges(config::WhatHappened, const std::shared_ptr<config::ConfigNode> &);
         //        void reconfigureLogging(LogConfigUpdate);
-        std::string getComponentType(std::string);
+        std::optional<std::string> getComponentType(std::string);
         //        std::shared_ptr<config::Validator> &getDeTildeValidator(lifecycle::CommandLine
         //        &commandLine); std::shared_ptr<config::Validator>
         //        &getRegionValidator(lifecycle::CommandLine &commandLine);
@@ -191,7 +191,7 @@ namespace deployment {
         config::Topic getCertificateFilePath();
         config::Topic getPrivateKeyFilePath();
         config::Topic getRootCAFilePath();
-        config::Topic getIpcSocketPath();
+        std::optional<config::Topic> getIpcSocketPath();
         config::Topic getInterpolateComponentConfiguration();
         config::Topic getGGDataEndpoint();
         config::Topic getIoTDataEndpoint();

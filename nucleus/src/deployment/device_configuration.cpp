@@ -50,7 +50,7 @@ namespace deployment {
             .dflt("nucleus");
         config::Topic potentialTopic =
             _kernel.getConfig().lookup({"services", "main", "dependencies"});
-        if(potentialTopic.getParent()) {
+        if(potentialTopic) {
             _kernel.getConfig()
                 .lookup({"services", "main", "dependencies"})
                 .dflt(potentialTopic.get()); // TODO: add nucleusComponentName
@@ -108,8 +108,14 @@ namespace deployment {
     //    void DeviceConfiguration::reconfigureLogging(LogConfigUpdate) {
     //    }
 
-    std::string DeviceConfiguration::getComponentType(std::string serviceName) {
-        return _kernel.getConfig().find({"services", serviceName, "componentType"}).getName();
+    std::optional<std::string> DeviceConfiguration::getComponentType(std::string serviceName) {
+        std::optional<config::Topic> componentType =
+            _kernel.getConfig().find({"services", serviceName, "componentType"});
+        if(componentType.has_value()) {
+            return componentType->getString();
+        } else {
+            return {};
+        }
     }
 
     std::shared_ptr<config::Topics> DeviceConfiguration::getRunWithTopic() {
@@ -178,7 +184,7 @@ namespace deployment {
             .dflt("");
     }
 
-    config::Topic DeviceConfiguration::getIpcSocketPath() {
+    std::optional<config::Topic> DeviceConfiguration::getIpcSocketPath() {
         return _kernel.getConfig().find(
             {configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_IPC_SOCKET_PATH}
         );
@@ -243,19 +249,19 @@ namespace deployment {
     std::string DeviceConfiguration::getNoProxyAddresses() {
         config::Topic potentialTopic =
             getNetworkProxyNamespace()->lookup({configs.DEVICE_PARAM_NO_PROXY_ADDRESSES});
-        return potentialTopic.getParent() ? "" : potentialTopic.getString();
+        return potentialTopic.empty() ? "" : potentialTopic.getString();
     }
 
     std::string DeviceConfiguration::getProxyUrl() {
-        config::Topic potentialTopic =
+        std::optional<config::Topic> potentialTopic =
             getNetworkProxyNamespace()->find({configs.DEVICE_PARAM_PROXY_URL});
-        return potentialTopic.getParent() ? "" : potentialTopic.getString();
+        return potentialTopic.has_value() ? "" : potentialTopic->getString();
     }
 
     std::string DeviceConfiguration::getProxyPassword() {
-        config::Topic potentialTopic =
+        std::optional<config::Topic> potentialTopic =
             getNetworkProxyNamespace()->find({configs.DEVICE_PARAM_PROXY_PASSWORD});
-        return potentialTopic.getParent() ? "" : potentialTopic.getString();
+        return potentialTopic.has_value() ? "" : potentialTopic->getString();
     }
 
     config::Topic DeviceConfiguration::getIotRoleAlias() {
@@ -339,14 +345,13 @@ namespace deployment {
         std::string version;
         std::shared_ptr<config::Topics> componentTopic =
             _kernel.findServiceTopic(getNucleusComponentName());
-        if(componentTopic && componentTopic->find({"version"}).getParent()) {
-            version = componentTopic->find({"version"}).getName();
+        if(componentTopic) {
+            std::optional<config::Topic> versionTopic = componentTopic->find({"version"});
+            if(versionTopic.has_value()) {
+                return versionTopic->getString();
+            }
         }
-        if(version.empty()) {
-            return configs.FALLBACK_VERSION;
-        } else {
-            return version;
-        }
+        return configs.FALLBACK_VERSION;
     }
 
     std::string DeviceConfiguration::getVersionFromBuildRecipeFile() {
