@@ -35,9 +35,20 @@ namespace data {
             }
         };
 
-        struct Hash : protected std::hash<std::string> {
+        struct Hash {
+            using hash_type = std::hash<std::string_view>;
+            using is_transparent = void;
+
             [[nodiscard]] std::size_t operator()(const InternedString &k) const noexcept {
-                return std::hash<std::string>::operator()(k._value);
+                return hash_type{}(k._value);
+            }
+
+            [[nodiscard]] std::size_t operator()(const std::string &s) const noexcept {
+                return hash_type{}(s);
+            }
+
+            [[nodiscard]] std::size_t operator()(std::string_view sv) const noexcept {
+                return hash_type{}(sv);
             }
         };
 
@@ -48,13 +59,16 @@ namespace data {
         InternedString &operator=(InternedString &&) = default;
         ~InternedString() = default;
 
+        // NOLINTNEXTLINE(*-explicit-constructor)
         InternedString(std::string_view sv) : _value{sv} {
-        } // NOLINT(*-explicit-constructor)
+        }
 
+        // NOLINTNEXTLINE(*-explicit-constructor)
         InternedString(std::string s) : _value{std::move(s)} {
-        } // NOLINT(*-explicit-constructor)
+        }
 
-        operator std::string() const { // NOLINT(*-explicit-constructor)
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        [[nodiscard]] operator std::string() const {
             return _value;
         }
     };
@@ -62,7 +76,7 @@ namespace data {
     //
     // Handles for strings only
     //
-    typedef Handle<InternedString> StringOrd;
+    using StringOrd = Handle<InternedString>;
 
     class StringTable {
         static const int PRIME{15299};
@@ -72,7 +86,7 @@ namespace data {
         std::unordered_map<StringOrd, InternedString, StringOrd::Hash, StringOrd::CompEq> _reverse;
 
     public:
-        StringOrd testAndGetOrd(const std::string &str) const {
+        StringOrd testAndGetOrd(std::string_view str) const {
             std::shared_lock guard{_mutex};
             auto i = _interned.find(str);
             if(i == _interned.end()) {
@@ -82,7 +96,7 @@ namespace data {
             }
         }
 
-        StringOrd getOrCreateOrd(const std::string &str) {
+        StringOrd getOrCreateOrd(std::string_view str) {
             Handle ord = testAndGetOrd(str); // optimistic using shared lock
             if(ord.isNull()) {
                 std::unique_lock guard(_mutex);
@@ -91,12 +105,12 @@ namespace data {
                     // expected case
                     // ordinals are computed this way to optimize std::map
                     StringOrd new_ord{
-                        static_cast<uint32_t>(std::hash<std::string>()(str))}; // distribute IDs
+                        static_cast<uint32_t>(InternedString::Hash{}(str))}; // distribute IDs
                     while(_reverse.find(new_ord) != _reverse.end()) {
                         new_ord = StringOrd{new_ord.asInt() + PRIME};
                     }
-                    _reverse[new_ord] = str;
-                    _interned[str] = new_ord;
+                    _reverse.emplace(new_ord, str);
+                    _interned.emplace(str, new_ord);
                     return new_ord;
                 } else {
                     // this path handles a race condition

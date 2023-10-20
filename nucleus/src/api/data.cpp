@@ -10,7 +10,7 @@ using namespace data;
 uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) noexcept {
     try {
         Global &global = Global::self();
-        return global.environment.stringTable.getOrCreateOrd(std::string{bytes, len}).asInt();
+        return global.environment.stringTable.getOrCreateOrd(std::string_view{bytes, len}).asInt();
     } catch(...) {
         std::terminate(); // any string table put errors would be a critical
                           // error requiring termination

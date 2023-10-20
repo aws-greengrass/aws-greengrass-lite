@@ -256,9 +256,9 @@ namespace config {
     }
 
     std::shared_ptr<Topics> Topics::createInteriorChild(
-        std::string_view sv, const Timestamp &timestamp
+        std::string_view name, const Timestamp &timestamp
     ) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
         return createInteriorChild(handle, timestamp);
     }
 
@@ -346,7 +346,7 @@ namespace config {
     }
 
     std::shared_ptr<Topics> Topics::findInteriorChild(std::string_view name) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(name));
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
         return findInteriorChild(handle);
     }
 
@@ -381,7 +381,7 @@ namespace config {
     }
 
     Topic Topics::createTopic(std::string_view name, const Timestamp &timestamp) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(name));
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
         return createTopic(handle, timestamp);
     }
 
@@ -397,7 +397,7 @@ namespace config {
     }
 
     Topic Topics::getTopic(std::string_view name) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(name));
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
         return getTopic(handle);
     }
 
@@ -428,8 +428,8 @@ namespace config {
         }
     }
 
-    std::shared_ptr<ConfigNode> Topics::getNode(std::string_view sv) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
+    std::shared_ptr<ConfigNode> Topics::getNode(std::string_view name) {
+        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
         return getNode(handle);
     }
 
@@ -438,7 +438,7 @@ namespace config {
             throw std::runtime_error("Empty path provided");
         }
         std::shared_ptr<ConfigNode> node{ref<Topics>()};
-        for(auto &it : path) {
+        for(const auto &it : path) {
             std::shared_ptr<Topics> t{std::dynamic_pointer_cast<Topics>(node)};
             if(!t) {
                 return {};
