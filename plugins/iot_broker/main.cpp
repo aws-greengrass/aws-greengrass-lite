@@ -82,7 +82,7 @@ extern "C" bool greengrass_lifecycle(
     std::string certPath = configStruct.getValue<std::string>({"system", "certificateFilePath"});
     std::string keyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
     std::string credEndpoint = configStruct.getValue<std::string>(
-        {"services", "aws.greengrass.Nucleus-Lite", "iotCredEndpoint"}
+        {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotCredEndpoint"}
     );
 
     std::cout << "[mqtt-plugin] Running lifecycle phase " << phaseOrd.toString() << std::endl;
