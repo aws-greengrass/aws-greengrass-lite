@@ -13,3 +13,7 @@ FetchContent_MakeAvailable(device-sdk-cpp)
 
 add_library(iot_broker MODULE main.cpp)
 target_link_libraries(iot_broker PRIVATE nucleus-core aws-crt-cpp)
+add_custom_command(TARGET iot_broker
+        POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:iot_broker>" "${PLUGIN_BINARY_DIR}"
+        )

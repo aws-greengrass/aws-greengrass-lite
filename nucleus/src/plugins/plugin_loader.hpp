@@ -113,7 +113,7 @@ namespace plugins {
         explicit PluginLoader(data::Environment &environment) : TrackingScope(environment) {
         }
 
-        void discoverPlugins();
+        void discoverPlugins(const std::filesystem::path &pluginDir);
         void discoverPlugin(const std::filesystem::directory_entry &entry);
 
         void loadNativePlugin(const std::string &name);

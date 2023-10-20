@@ -174,7 +174,8 @@ namespace deployment {
         void
         copyUnpackedNucleusArtifacts(const std::filesystem::path &, const std::filesystem::path &);
         void handleLoggingConfig();
-        void handleLoggingConfigurationChanges(config::WhatHappened, config::ConfigNode);
+        void
+        handleLoggingConfigurationChanges(config::WhatHappened, const std::shared_ptr<config::ConfigNode> &);
         //        void reconfigureLogging(LogConfigUpdate);
         std::string getComponentType(std::string);
         //        std::shared_ptr<config::Validator> &getDeTildeValidator(lifecycle::CommandLine
@@ -216,7 +217,7 @@ namespace deployment {
         void validate();
         void validate(bool);
         bool isDeviceConfiguredToTalkToCloud();
-        bool provisionInfoNodeChanged(config::ConfigNode, bool);
+        bool provisionInfoNodeChanged(const std::shared_ptr<config::ConfigNode> &node, bool);
         config::Topic getTopic(data::StringOrdInit);
         std::shared_ptr<config::Topics> getTopics(data::StringOrdInit);
         std::string getNucleusVersion();

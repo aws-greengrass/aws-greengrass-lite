@@ -923,7 +923,6 @@ namespace ggapi {
 
     public:
         explicit BufferInStream(const Buffer buffer) : _stream(buffer), std::istream(&_stream) {
-            init(&_stream);
         }
     };
 
@@ -931,8 +930,7 @@ namespace ggapi {
         BufferStream _stream;
 
     public:
-        explicit BufferOutStream(const Buffer buffer) : _stream(buffer) {
-            init(&_stream);
+        explicit BufferOutStream(const Buffer buffer) : _stream(buffer), std::ostream(&_stream) {
             _stream.pubseekoff(0, std::ios_base::end, std::ios_base::out);
         }
     };

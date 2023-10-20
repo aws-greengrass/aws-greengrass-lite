@@ -41,6 +41,7 @@ namespace deployment {
 
     std::string DeviceConfiguration::initNucleusComponentName() {
         // TODO: missing code
+        return {};
     }
 
     void DeviceConfiguration::initializeNucleusComponentConfig(std::string nucleusComponentName) {
@@ -99,9 +100,8 @@ namespace deployment {
         // TODO: missing code
     }
 
-    void DeviceConfiguration::handleLoggingConfigurationChanges(
-        config::WhatHappened, config::ConfigNode
-    ) {
+    void DeviceConfiguration::
+        handleLoggingConfigurationChanges(config::WhatHappened, const std::shared_ptr<config::ConfigNode> &) {
         // TODO: missing code
     }
 
@@ -316,9 +316,10 @@ namespace deployment {
     }
 
     bool DeviceConfiguration::provisionInfoNodeChanged(
-        config::ConfigNode node, bool checkThingNameOnly
+        const std::shared_ptr<config::ConfigNode> &node, bool checkThingNameOnly
     ) {
         // TODO: missing code
+        return false;
     }
 
     config::Topic DeviceConfiguration::getTopic(data::StringOrdInit parameterName) {
@@ -350,6 +351,7 @@ namespace deployment {
 
     std::string DeviceConfiguration::getVersionFromBuildRecipeFile() {
         // TODO: missing code
+        return {};
     }
 
     void DeviceConfiguration::validateDeviceConfiguration(

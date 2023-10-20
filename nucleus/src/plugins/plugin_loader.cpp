@@ -119,10 +119,10 @@ bool plugins::DelegatePlugin::lifecycle(
     return true;
 }
 
-void plugins::PluginLoader::discoverPlugins() {
-    // two-layer iterator just to make testing easier
-    fs::path root = fs::absolute(".");
-    for(const auto &top : fs::directory_iterator(root)) {
+void plugins::PluginLoader::discoverPlugins(const std::filesystem::path &pluginDir) {
+    // The only plugins used are those in the plugin directory, or subdirectory of
+    // plugin directory
+    for(const auto &top : fs::directory_iterator(pluginDir)) {
         if(top.is_regular_file()) {
             discoverPlugin(top);
         } else if(top.is_directory()) {
