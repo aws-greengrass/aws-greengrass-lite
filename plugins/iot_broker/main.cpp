@@ -8,21 +8,29 @@
 #include <cpp_api.hpp>
 #include <iostream>
 #include <memory>
+#include <regex>
 #include <thread>
+#include <unordered_map>
 
 struct Keys {
     ggapi::StringOrd start{"start"};
     ggapi::StringOrd run{"run"};
     ggapi::StringOrd publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
+    ggapi::StringOrd subscribeToIoTCoreTopic{"aws.greengrass.SubscribeToIoTCore"};
     ggapi::StringOrd topicName{"topicName"};
+    ggapi::StringOrd topicFilter{"topicFilter"};
     ggapi::StringOrd qos{"qos"};
     ggapi::StringOrd payload{"payload"};
+    ggapi::StringOrd lpcResponseTopic{"lpcResponseTopic"};
 };
 
 static const Keys keys;
 
 static int demo();
 static bool startPhase(std::string, std::string, std::string);
+
+static std::unordered_multimap<std::string, ggapi::StringOrd> subscriptions;
+static std::mutex subscriptionMutex;
 
 // Initializes global CRT API
 // TODO: What happens when multiple plugins use the CRT?
@@ -35,12 +43,12 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
     int qos{args.get<int>(keys.qos)};
     std::string payload{args.get<std::string>(keys.payload)};
 
-    std::cout << "[mqtt-plugin] Sending " << payload << " to " << topic << std::endl;
+    std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topic << std::endl;
 
     auto onPublishComplete = [](int,
                                 const std::shared_ptr<Aws::Crt::Mqtt5::PublishResult> &result) {
         if(!result->wasSuccessful()) {
-            std::cout << "[mqtt-plugin] Publish failed with error_code: " << result->getErrorCode()
+            std::cerr << "[mqtt-plugin] Publish failed with error_code: " << result->getErrorCode()
                       << std::endl;
             return;
         }
@@ -50,10 +58,10 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
         if(puback) {
 
             if(puback->getReasonCode() == 0) {
-                std::cout << "[mqtt-plugin] Puback success." << std::endl;
+                std::cerr << "[mqtt-plugin] Puback success" << std::endl;
             } else {
-                std::cout << "[mqtt-plugin] Puback failed: " << puback->getReasonString().value()
-                          << "." << std::endl;
+                std::cerr << "[mqtt-plugin] Puback failed: " << puback->getReasonString().value()
+                          << std::endl;
             }
         }
     };
@@ -65,7 +73,53 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
     );
 
     if(!client->Publish(publish, onPublishComplete)) {
-        std::cout << "[mqtt-plugin] Publish failed." << std::endl;
+        std::cerr << "[mqtt-plugin] Publish failed" << std::endl;
+    }
+
+    return task.createStruct();
+}
+
+ggapi::Struct subscribeHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct args) {
+    std::string topicFilter{args.get<std::string>(keys.topicFilter)};
+    int qos{args.get<int>(keys.qos)};
+    ggapi::StringOrd responseTopic{args.get<uint32_t>(keys.lpcResponseTopic)};
+
+    std::cerr << "[mqtt-plugin] Subscribing to " << topicFilter << std::endl;
+
+    auto onSubscribeComplete = [topicFilter, responseTopic](
+                                   int error_code,
+                                   const std::shared_ptr<Aws::Crt::Mqtt5::SubAckPacket> &suback
+                               ) {
+        if(error_code != 0) {
+            std::cerr << "[mqtt-plugin] Subscribe failed with error_code: " << error_code
+                      << std::endl;
+            return;
+        }
+
+        if(suback && !suback->getReasonCodes().empty()) {
+            auto reasonCode = suback->getReasonCodes()[0];
+            if(reasonCode >= Aws::Crt::Mqtt5::SubAckReasonCode::AWS_MQTT5_SARC_UNSPECIFIED_ERROR) {
+                std::cerr << "[mqtt-plugin] Subscribe rejected with reason code: " << reasonCode
+                          << std::endl;
+                return;
+            } else {
+                std::cerr << "[mqtt-plugin] Subscribe accepted" << std::endl;
+            }
+        };
+
+        {
+            std::lock_guard<std::mutex> lock(subscriptionMutex);
+            subscriptions.insert({topicFilter, responseTopic});
+        }
+    };
+
+    auto subscribe = std::make_shared<Aws::Crt::Mqtt5::SubscribePacket>();
+    subscribe->WithSubscription(std::move(Aws::Crt::Mqtt5::Subscription(
+        Aws::Crt::String(topicFilter), static_cast<Aws::Crt::Mqtt5::QOS>(qos)
+    )));
+
+    if(!client->Subscribe(subscribe, onSubscribeComplete)) {
+        std::cerr << "[mqtt-plugin] Subscribe failed" << std::endl;
     }
 
     return task.createStruct();
@@ -85,7 +139,7 @@ extern "C" bool greengrass_lifecycle(
         {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotCredEndpoint"}
     );
 
-    std::cout << "[mqtt-plugin] Running lifecycle phase " << phaseOrd.toString() << std::endl;
+    std::cerr << "[mqtt-plugin] Running lifecycle phase " << phaseOrd.toString() << std::endl;
 
     if(phaseOrd == keys.start) {
         return startPhase(credEndpoint, certPath, keyPath);
@@ -117,7 +171,7 @@ static bool startPhase(
             )};
 
         if(!builder) {
-            std::cout << "[mqtt-plugin] Failed to set up MQTT client builder." << std::endl;
+            std::cerr << "[mqtt-plugin] Failed to set up MQTT client builder." << std::endl;
             return false;
         }
 
@@ -127,7 +181,7 @@ static bool startPhase(
 
         builder->WithClientConnectionSuccessCallback(
             [&connectionPromise](const Aws::Crt::Mqtt5::OnConnectionSuccessEventData &eventData) {
-                std::cout << "[mqtt-plugin] Connection successful with clientid "
+                std::cerr << "[mqtt-plugin] Connection successful with clientid "
                           << eventData.negotiatedSettings->getClientId() << "." << std::endl;
                 connectionPromise.set_value(true);
             }
@@ -135,7 +189,7 @@ static bool startPhase(
 
         builder->WithClientConnectionFailureCallback(
             [&connectionPromise](const Aws::Crt::Mqtt5::OnConnectionFailureEventData &eventData) {
-                std::cout << "[mqtt-plugin] Connection failed: "
+                std::cerr << "[mqtt-plugin] Connection failed: "
                           << aws_error_debug_str(eventData.errorCode) << "." << std::endl;
                 connectionPromise.set_value(false);
             }
@@ -147,9 +201,39 @@ static bool startPhase(
                     return;
                 }
 
-                std::cout << "[mqtt-plugin] Publish recieved on topic "
-                          << eventData.publishPacket->getTopic() << ": "
-                          << eventData.publishPacket->getPayload() << std::endl;
+                std::string topic{eventData.publishPacket->getTopic()};
+                std::string payload{
+                    reinterpret_cast<char *>(eventData.publishPacket->getPayload().ptr),
+                    eventData.publishPacket->getPayload().len};
+
+                std::cerr << "[mqtt-plugin] Publish recieved on topic " << topic << ": " << payload
+                          << std::endl;
+
+                static thread_local auto threadScope = ggapi::ThreadScope::claimThread();
+                auto response{threadScope.createStruct()};
+                response.put(keys.topicName, topic);
+                response.put(keys.payload, payload);
+
+                {
+                    std::lock_guard<std::mutex> lock(subscriptionMutex);
+                    for(const auto &[key, value] : subscriptions) {
+
+                        // TODO: Do this in a better way
+                        std::string rx = key;
+                        rx = std::regex_replace(rx, std::regex("\\\\", std::regex::basic), "\\\\");
+                        rx = std::regex_replace(rx, std::regex("\\.", std::regex::basic), "\\.");
+                        rx = std::regex_replace(rx, std::regex("\\[", std::regex::basic), "\\[");
+                        rx = std::regex_replace(rx, std::regex("\\*", std::regex::basic), "\\*");
+                        rx = std::regex_replace(rx, std::regex("\\^", std::regex::basic), "\\^");
+                        rx = std::regex_replace(rx, std::regex("\\$", std::regex::basic), "\\$");
+                        rx = std::regex_replace(rx, std::regex("+", std::regex::basic), "[^/]*");
+                        rx = std::regex_replace(rx, std::regex("#", std::regex::basic), ".*");
+
+                        if(std::regex_match(topic, std::regex(rx, std::regex::basic))) {
+                            (void) threadScope.sendToTopic(value, response);
+                        }
+                    }
+                }
             }
         );
 
@@ -157,13 +241,13 @@ static bool startPhase(
     }
 
     if(!client) {
-        std::cout << "[mqtt-plugin] Failed to init MQTT client: "
+        std::cerr << "[mqtt-plugin] Failed to init MQTT client: "
                   << Aws::Crt::ErrorDebugString(Aws::Crt::LastError()) << "." << std::endl;
         return false;
     }
 
     if(!client->Start()) {
-        std::cout << "[mqtt-plugin] Failed to start MQTT client." << std::endl;
+        std::cerr << "[mqtt-plugin] Failed to start MQTT client." << std::endl;
         return false;
     }
 
@@ -172,6 +256,9 @@ static bool startPhase(
     }
 
     (void) ggapi::Scope::thisTask().subscribeToTopic(keys.publishToIoTCoreTopic, publishHandler);
+    (void) ggapi::Scope::thisTask().subscribeToTopic(
+        keys.subscribeToIoTCoreTopic, subscribeHandler
+    );
 
     return true;
 }
