@@ -13,6 +13,8 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=null")
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
 
+enable_testing()
+
 find_package(Threads REQUIRED)
 
 set(FETCHCONTENT_QUIET FALSE)
@@ -26,9 +28,9 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(Catch2)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
-if(UNIX)
+if (UNIX)
     add_compile_options(-fvisibility=hidden)
-endif()
+endif ()
 
 add_subdirectory(plugin_api)
 add_subdirectory(nucleus)
