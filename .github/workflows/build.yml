@@ -132,6 +132,7 @@ jobs:
     steps:
       - name: Clone the repo
         uses: actions/checkout@v3
+
       - name: Install clang-format
         env:
           bashPass: \033[32;1mPASSED -
@@ -151,6 +152,7 @@ jobs:
 
           echo -e "${{ env.bashInfo }} Using clang-format Version "$(clang-format --version)" ${{ env.bashEnd }}"
           echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
+
       - name: Check Formatting
         id: action-formatting-check
         shell: bash
@@ -216,8 +218,10 @@ jobs:
           repository: awslabs/git-secrets
           ref: master
           path: git-secrets
+
       - name: Install git-secrets
         run: cd git-secrets && sudo make install && cd ..
+      
       - name: Run git-secrets
         run: |
           git-secrets --register-aws
