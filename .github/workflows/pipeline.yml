@@ -23,16 +23,16 @@ jobs:
         include:
           - os: windows-latest
             cpp_compiler: cl
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             cpp_compiler: g++
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             cpp_compiler: clang++
           - os: macos-latest
             cpp_compiler: clang++
         exclude:
           - os: windows-latest
             cpp_compiler: clang
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
             cpp_compiler: cl
           - os: macos-latest
             cpp_compiler: gcc
@@ -109,13 +109,13 @@ jobs:
           fi
 
           if [ $RESULT -eq 0 ]; then
-            echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
+            # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
           else
             echo -e "::group::Create Failed Codecov HTML Report"
             genhtml --rc lcov_branch_coverage=1 --ignore-errors source build/coverage.info --legend --title "$(basename `git rev-parse --show-toplevel`) $(git rev-parse HEAD)" --output-directory=CodecovHTMLReport
             zip -r CodecovHTMLReport.zip CodecovHTMLReport
             echo -e "::endgroup::"
-            echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
+            # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $RESULT
       - name: Upload Coverage
@@ -126,7 +126,7 @@ jobs:
           name: CodecovHTMLReport
           path: CodecovHTMLReport.zip
           retention-days: 5
-  
+
   format-check:
     runs-on: ubuntu-20.04
     steps:
@@ -139,8 +139,8 @@ jobs:
           bashInfo: \033[33;1mINFO -
           bashFail: \033[31;1mFAILED -
           bashEnd: \033[0m
-        run:
-          echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
+        run: >
+          # echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
 
           sudo apt-get install clang-format fd-find dos2unix
           echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
@@ -149,9 +149,9 @@ jobs:
           # Check that the commands installed correctly
           fdfind --version
           echo -e "::endgroup::"
-
+          
+          # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
           echo -e "${{ env.bashInfo }} Using clang-format Version "$(clang-format --version)" ${{ env.bashEnd }}"
-          echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
 
       - name: Check Formatting
         id: action-formatting-check
@@ -163,40 +163,40 @@ jobs:
           bashEnd: \033[0m
         run: |
           # ${{ env.stepName }}
-          echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
-          
+          # echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
+
           exitCode=0
           export PATH="$PATH:$GITHUB_ACTION_PATH"
-          
+
           # Parse the optional inputs
           args=""
-          
+
           # Get all .cpp and .hpp files, as well as any other requested file types.
           # Then run clang-format with the common config file.
-          
+
           echo -e "${{ env.bashInfo }} fdfind -e cpp -e hpp ${args} --exec clang-format -i ${{ env.bashEnd }}"
           fdfind -e cpp -e hpp ${args} --exec clang-format --verbose -i
-          
+
           # Replace all trailing whitespace, exclude photo and binary files
           echo -e "${{ env.bashInfo }} Check for Trailing Whitespace ${{ env.bashEnd }}"
           echo -e "${{ env.bashInfo }} fdfind --type=file -E '*.png' -E '*.jpg' -E '*.svg' -E '*.a' -E '*.lib' -E '*.patch' ${args} . --exec sed -Ei 's/[[:blank:]]+$//' ${{ env.bashEnd }}"
           fdfind --type=file -E '*.png' -E '*.jpg' -E '*.svg' -E '*.a' -E '*.lib' -E '*.patch' ${args} . --exec sed -Ei 's/[[:blank:]]+$//'
-          
+
           # Replace all line endings with LF ones instead of CRLF
           echo -e "${{ env.bashInfo }} Check for CRLF Line Endings ${{ env.bashEnd }}"
           echo -e "${{ env.bashInfo }} fdfind --type=file ${args} . --exec dos2unix ${{ env.bashEnd }}"
           fdfind --type=file ${args} . --exec dos2unix -q
-          
+
           # Determine if there was a formatting diff.
           # If there was, create a patch of it.
           set +e
           git diff --exit-code >> formattingChanges.patch
           exitCode=$?
           set -e
-          
+
           if [ $exitCode -eq 0 ]; then
               echo -e "::endgroup::"
-              echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
+              # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
           else
               # Run a git diff to print the formatting differences
               echo -e "::group::${{ env.bashInfo }} Format Difference ${{ env.bashEnd }}"
@@ -204,9 +204,10 @@ jobs:
               echo -e "::endgroup::"
               echo -e "${{ env.bashFail }} List of files with formatting errors: ${{ env.bashEnd }}"
               echo -e "${{ env.bashFail }} "$(git diff --name-only)" ${{ env.bashEnd }} "
-              echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
+              # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $exitCode
+
 
   git-secrets:
     runs-on: ubuntu-20.04
@@ -221,7 +222,7 @@ jobs:
 
       - name: Install git-secrets
         run: cd git-secrets && sudo make install && cd ..
-      
+
       - name: Run git-secrets
         run: |
           git-secrets --register-aws
