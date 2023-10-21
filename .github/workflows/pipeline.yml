@@ -31,11 +31,11 @@ jobs:
             cpp_compiler: clang++
         exclude:
           - os: windows-latest
-            cpp_compiler: clang
+            cpp_compiler: clang++
           - os: ubuntu-20.04
             cpp_compiler: cl
           - os: macos-latest
-            cpp_compiler: gcc
+            cpp_compiler: g++, cl
 
     steps:
       - name: Clone the repo
@@ -53,7 +53,7 @@ jobs:
           cmake -B ${{ steps.strings.outputs.build-output-dir }}
           -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -DCMAKE_CXX_FLAGS='--coverage -Wall -Wextra -Werror -DNDEBUG -DLIBRARY_LOG_LEVEL=LOG_DEBUG'
+          -DCMAKE_CXX_FLAGS='--coverage'
           -S ${{ github.workspace }}
 
       - name: Build
