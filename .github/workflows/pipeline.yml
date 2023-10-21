@@ -69,13 +69,6 @@ jobs:
       - name: Check Coverage
         id: action-check-line-and-branch-coverage
         if: matrix.os == 'ubuntu-20.04'
-        with:
-          coverage-file: ./${{ steps.strings.outputs.build-output-dir }}/coverage.info
-        env:
-          bashPass: \033[32;1mPASSED -
-          bashInfo: \033[33;1mINFO -
-          bashFail: \033[31;1mFAILED -
-          bashEnd: \033[0m
         run: >
           sudo apt-get install lcov fd-find
           # ${{ env.stepName }}
@@ -118,6 +111,12 @@ jobs:
             # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $RESULT
+        env:
+          bashPass: \033[32;1mPASSED -
+          bashInfo: \033[33;1mINFO -
+          bashFail: \033[31;1mFAILED -
+          bashEnd: \033[0m
+
       - name: Upload Coverage
         uses: actions/upload-artifact@v3
         if: matrix.os == 'ubuntu-20.04' && failure() && ( steps.action-check-line-and-branch-coverage.outcome == 'failure' )
@@ -134,11 +133,6 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install clang-format
-        env:
-          bashPass: \033[32;1mPASSED -
-          bashInfo: \033[33;1mINFO -
-          bashFail: \033[31;1mFAILED -
-          bashEnd: \033[0m
         run: >
           # echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
 
@@ -152,15 +146,14 @@ jobs:
           
           # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
           echo -e "${{ env.bashInfo }} Using clang-format Version "$(clang-format --version)" ${{ env.bashEnd }}"
-
-      - name: Check Formatting
-        id: action-formatting-check
-        shell: bash
         env:
           bashPass: \033[32;1mPASSED -
           bashInfo: \033[33;1mINFO -
           bashFail: \033[31;1mFAILED -
           bashEnd: \033[0m
+
+      - name: Check Formatting
+        id: action-formatting-check
         run: |
           # ${{ env.stepName }}
           # echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
@@ -207,6 +200,11 @@ jobs:
               # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $exitCode
+        env:
+          bashPass: \033[32;1mPASSED -
+          bashInfo: \033[33;1mINFO -
+          bashFail: \033[31;1mFAILED -
+          bashEnd: \033[0m
 
 
   git-secrets:
