@@ -144,7 +144,7 @@ namespace deployment {
         const DeviceConfigConsts configs;
         static constexpr uint64_t COMPONENT_STORE_MAX_SIZE_DEFAULT_BYTES = 10'000'000'000L;
         static constexpr long DEPLOYMENT_POLLING_FREQUENCY_DEFAULT_SECONDS = 15L;
-        static constexpr uint32_t GG_DATA_PLANE_PORT_DEFAULT = 8443;
+        static constexpr uint64_t GG_DATA_PLANE_PORT_DEFAULT = 8443;
 
         DeviceConfiguration(data::Environment &environment, lifecycle::Kernel &kernel);
         DeviceConfiguration(const DeviceConfiguration &) = delete;
