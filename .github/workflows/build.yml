@@ -21,7 +21,9 @@ jobs:
           - os: ubuntu-20.04
             cpp_compiler: cl
           - os: macos-latest
-            cpp_compiler: [ g++, cl ]
+            cpp_compiler: g++
+          - os: macos-latest
+            cpp_compiler: cl
 
     steps:
       - name: Clone the repo

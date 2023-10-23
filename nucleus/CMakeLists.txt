@@ -135,15 +135,13 @@ if (CMAKE_BUILD_TYPE STREQUAL Debug)
         target_link_options(nucleus-tests PUBLIC --coverage)
         add_custom_command(TARGET nucleus-tests PRE_BUILD COMMAND
                 find ${CMAKE_BINARY_DIR} -type f -name '*.gcda' -exec rm {} +)
-        find_program(LCOV_PATH lcov REQUIRED)
-        find_program(GENHTML_PATH genhtml REQUIRED)
         add_custom_target(coverage
                 COMMENT "Running coverage for nucleus-tests"
-                COMMAND ${LCOV_PATH} -d . --zerocounters
-                COMMAND ${LCOV_PATH} -d . --capture -o coverage.info
-                COMMAND ${LCOV_PATH} -r coverage.info '/usr/include/*' -o filtered.info
-                COMMAND ${GENHTML_PATH} -o coverage filtered.info
-                COMMAND ${GENHTML_PATH} -o coverage filtered.info --legend
+                COMMAND lcov -d . --zerocounters
+                COMMAND lcov -d . --capture -o coverage.info
+                COMMAND lcov -r coverage.info '/usr/include/*' -o filtered.info
+                COMMAND genhtml -o coverage filtered.info
+                COMMAND genhtml -o coverage filtered.info --legend
                 COMMAND rm -rf coverage.info filtered.info
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
                 DEPENDS nucleus-tests
