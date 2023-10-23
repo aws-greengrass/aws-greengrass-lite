@@ -35,13 +35,6 @@ jobs:
         run: >
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
-      - name: Cache the build
-        uses: actions/cache@v3
-        with:
-          path: ${{github.workspace}}/build
-          key: ${{matrix.os}}-build
-          restore-keys: ${{matrix.os}}-build
-
       - name: Configure CMake
         run: >
           cmake -B ${{ steps.strings.outputs.build-output-dir }}
