@@ -1,0 +1,113 @@
+name: Build
+
+on:
+  workflow_call:
+
+jobs:
+  build:
+    timeout-minutes: 60
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        os: [ ubuntu-20.04, windows-latest, macos-latest ]
+        build_type: [ Debug ]
+        cpp_compiler: [ g++, clang++, cl ]
+        exclude:
+          - os: windows-latest
+            cpp_compiler: clang++
+          - os: ubuntu-20.04
+            cpp_compiler: cl
+          - os: macos-latest
+            cpp_compiler: [ g++, cl ]
+
+    steps:
+      - name: Clone the repo
+        uses: actions/checkout@v3
+        shell: bash
+        run: >
+          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+
+      - name: Cache the build
+        uses: actions/cache@v3
+        with:
+          path: ${{github.workspace}}/build
+          key: ${{matrix.os}}-build
+          restore-keys: ${{matrix.os}}-build
+
+      - name: Configure CMake
+        run: >
+          cmake -B ${{ steps.strings.outputs.build-output-dir }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+          -DCMAKE_CXX_FLAGS='-coverage'
+          -S ${{ github.workspace }}
+
+      - name: Build
+        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+
+      - name: Run Tests
+        working-directory: ${{ steps.strings.outputs.build-output-dir }}
+        run: ctest --build-config ${{ matrix.build_type }} --output-on-failure
+
+      - name: Check Coverage
+        id: action-check-line-and-branch-coverage
+        if: matrix.os == 'ubuntu-20.04'
+        run: |
+          sudo apt-get install lcov fd-find
+          # ${{ env.stepName }}
+          echo -e "::group::${{ env.bashInfo }} Build Coverage Target ${{ env.bashEnd }}"
+          # Build the coverage target
+          make -C build/ coverage
+
+          echo -e "::group::${{ env.bashInfo }} Generate Coverage Report ${{ env.bashEnd }}"
+          # Generate coverage report, excluding extra directories
+          lcov --rc lcov_branch_coverage=1 -r build/coverage.info -o build/coverage.info '*test*' '*CMakeCCompilerId*' '*mocks*'
+
+          echo "::endgroup::"
+          lcov --list --rc lcov_branch_coverage=1 --list build/coverage.info
+          LINE_COVERAGE=$(lcov --list build/coverage.info | tail -n 1 | cut -d '|' -f 2 | sed -n "s/\([^%]*\)%.*/\1/p")
+          BRANCH_COVERAGE=$(lcov --rc lcov_branch_coverage=1 --list build/coverage.info | tail -n 1 | cut -d '|' -f 4 | sed -n "s/\([^%]*\)%.*/\1/p")
+          RESULT=0
+
+          # Check Line Coverage
+          echo -e " ${{ env.bashInfo }} Required Line Coverage: 95 ${{ env.bashEnd}}"
+          echo -e " ${{ env.bashInfo }} Line Coverage of PR: $LINE_COVERAGE ${{ env.bashEnd}}\n"
+          if [[ $(echo "$LINE_COVERAGE < 95" | bc) -ne 0 ]]; then
+            echo -e "${{ env.bashFail }} Line Coverage is too low. ${{ env.bashEnd }}"
+            RESULT=1
+          fi
+
+          echo -e " ${{ env.bashInfo }} Required Branch Coverage: 95 ${{ env.bashEnd}}"
+          echo -e " ${{ env.bashInfo }} Line Coverage of PR: $BRANCH_COVERAGE ${{ env.bashEnd}}"
+          if [[ $(echo "$BRANCH_COVERAGE < 95" | bc) -ne 0 ]]; then
+            echo -e "${{ env.bashFail }} Branch Coverage is too low. ${{ env.bashEnd }}"
+            RESULT=1
+          fi
+
+          if [ $RESULT -eq 0 ]; then
+            # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
+          else
+            echo -e "::group::Create Failed Codecov HTML Report"
+            genhtml --rc lcov_branch_coverage=1 --ignore-errors source build/coverage.info --legend --title "$(basename `git rev-parse --show-toplevel`) $(git rev-parse HEAD)" --output-directory=CodecovHTMLReport
+            zip -r CodecovHTMLReport.zip CodecovHTMLReport
+            echo -e "::endgroup::"
+            # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
+          fi
+          exit $RESULT
+        env:
+          bashPass: \033[32;1mPASSED -
+          bashInfo: \033[33;1mINFO -
+          bashFail: \033[31;1mFAILED -
+          bashEnd: \033[0m
+
+      - name: Upload Coverage
+        uses: actions/upload-artifact@v3
+        if: matrix.os == 'ubuntu-20.04' && failure() && ( steps.action-check-line-and-branch-coverage.outcome == 'failure' )
+        id: upload-codecov-report
+        with:
+          name: CodecovHTMLReport
+          path: CodecovHTMLReport.zip
+          retention-days: 5

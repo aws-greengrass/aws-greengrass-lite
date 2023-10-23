@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 project(greengrass-lite)
 
+# Compiler definitions
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
@@ -13,8 +14,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=null")
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
 
-enable_testing()
-
+# Dependencies
 find_package(Threads REQUIRED)
 
 set(FETCHCONTENT_QUIET FALSE)
@@ -32,6 +32,11 @@ if (UNIX)
     add_compile_options(-fvisibility=hidden)
 endif ()
 
+# Targets
 add_subdirectory(plugin_api)
 add_subdirectory(nucleus)
 add_subdirectory(plugins)
+
+
+# Testing
+enable_testing()

@@ -1,0 +1,85 @@
+name: Format
+
+on:
+  workflow_call:
+
+jobs:
+  format-check:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Clone the repo
+        uses: actions/checkout@v3
+
+      - name: Install clang-format
+        run: |
+          # echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
+
+          sudo apt-get install clang-format fd-find dos2unix
+          echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
+          export PATH="$PATH:$GITHUB_ACTION_PATH"
+
+          # Check that the commands installed correctly
+          fdfind --version
+          echo -e "::endgroup::"
+
+          # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
+          echo -e "${{ env.bashInfo }} Using clang-format Version "$(clang-format --version)" ${{ env.bashEnd }}"
+        env:
+          bashPass: \033[32;1mPASSED -
+          bashInfo: \033[33;1mINFO -
+          bashFail: \033[31;1mFAILED -
+          bashEnd: \033[0m
+
+      - name: Check Formatting
+        id: action-formatting-check
+        run: |
+          # ${{ env.stepName }}
+          # echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
+
+          exitCode=0
+          export PATH="$PATH:$GITHUB_ACTION_PATH"
+
+          # Parse the optional inputs
+          args=""
+
+          # Get all .cpp and .hpp files, as well as any other requested file types.
+          # Then run clang-format with the common config file.
+
+          echo -e "${{ env.bashInfo }} fdfind -e cpp -e hpp ${args} --exec clang-format -i ${{ env.bashEnd }}"
+          fdfind -e cpp -e hpp ${args} --exec clang-format --verbose -i
+
+          # Replace all trailing whitespace, exclude photo and binary files
+          echo -e "${{ env.bashInfo }} Check for Trailing Whitespace ${{ env.bashEnd }}"
+          echo -e "${{ env.bashInfo }} fdfind --type=file -E '*.png' -E '*.jpg' -E '*.svg' -E '*.a' -E '*.lib' -E '*.patch' ${args} . --exec sed -Ei 's/[[:blank:]]+$//' ${{ env.bashEnd }}"
+          fdfind --type=file -E '*.png' -E '*.jpg' -E '*.svg' -E '*.a' -E '*.lib' -E '*.patch' ${args} . --exec sed -Ei 's/[[:blank:]]+$//'
+
+          # Replace all line endings with LF ones instead of CRLF
+          echo -e "${{ env.bashInfo }} Check for CRLF Line Endings ${{ env.bashEnd }}"
+          echo -e "${{ env.bashInfo }} fdfind --type=file ${args} . --exec dos2unix ${{ env.bashEnd }}"
+          fdfind --type=file ${args} . --exec dos2unix -q
+
+          # Determine if there was a formatting diff.
+          # If there was, create a patch of it.
+          set +e
+          git diff --exit-code >> formattingChanges.patch
+          exitCode=$?
+          set -e
+
+          if [ $exitCode -eq 0 ]; then
+              echo -e "::endgroup::"
+              # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
+          else
+              # Run a git diff to print the formatting differences
+              echo -e "::group::${{ env.bashInfo }} Format Difference ${{ env.bashEnd }}"
+              git diff --color=always
+              echo -e "::endgroup::"
+              echo -e "${{ env.bashFail }} List of files with formatting errors: ${{ env.bashEnd }}"
+              echo -e "${{ env.bashFail }} "$(git diff --name-only)" ${{ env.bashEnd }} "
+              # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
+          fi
+          exit $exitCode
+        env:
+          bashPass: \033[32;1mPASSED -
+          bashInfo: \033[33;1mINFO -
+          bashFail: \033[31;1mFAILED -
+          bashEnd: \033[0m
