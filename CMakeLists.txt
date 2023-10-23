@@ -8,7 +8,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 # set(CMAKE_CXX_FLAGS_RELEASE "-Os") #-- for size
 # set(CMAKE_CXX_FLAGS_RELEASE "-O3") #-- for speed
 
-# Uncomment to enable santizers - thread & address cannot be combined
+# Uncomment to enable sanitizers - thread & address cannot be combined
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined")
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=null")
