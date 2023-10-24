@@ -45,8 +45,8 @@ jobs:
           # Get all .cpp and .hpp files, as well as any other requested file types.
           # Then run clang-format with the common config file.
 
-          echo -e "${{ env.bashInfo }} fdfind -e cpp -e hpp ${args} --exec clang-format -i ${{ env.bashEnd }}"
-          fdfind -e cpp -e hpp ${args} --exec clang-format --verbose -i
+          echo -e "${{ env.bashInfo }} fdfind -e cpp -e hpp ${args} --exec clang-format -i -style=file ${{ env.bashEnd }}"
+          fdfind -e cpp -e hpp ${args} --exec clang-format --verbose -i -style=file
 
           # Replace all trailing whitespace, exclude photo and binary files
           echo -e "${{ env.bashInfo }} Check for Trailing Whitespace ${{ env.bashEnd }}"
@@ -78,6 +78,16 @@ jobs:
               # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $exitCode
+
+      - name: Upload Git Patch
+        if: failure() && ( steps.action-formatting-check.outcome == 'failure' )
+        id: upload-formatting-patch
+        uses: actions/upload-artifact@v3
+        with:
+          name: formattingChanges
+          path: ${{ inputs.path }}/formattingChanges.patch
+          retention-days: 7
+
         env:
           bashPass: \033[32;1mPASSED -
           bashInfo: \033[33;1mINFO -

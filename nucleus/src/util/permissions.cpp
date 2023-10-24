@@ -1,5 +1,3 @@
 #include "permissions.hpp"
 
-namespace util {
-
-}
+namespace util {}

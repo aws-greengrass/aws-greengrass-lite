@@ -143,8 +143,8 @@ if (CMAKE_BUILD_TYPE STREQUAL Debug)
                 COMMAND genhtml -o coverage filtered.info
                 COMMAND genhtml -o coverage filtered.info --legend
                 COMMAND rm -rf coverage.info filtered.info
-                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
                 DEPENDS nucleus-tests
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         )
     endif ()
 endif ()

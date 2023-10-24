@@ -15,8 +15,8 @@ jobs:
   build:
     uses: ./.github/workflows/build.yml
 
-  format:
-    uses: ./.github/workflows/format.yml
+  static:
+    uses: ./.github/workflows/static.yml
 
   git-secrets:
     runs-on: ubuntu-20.04

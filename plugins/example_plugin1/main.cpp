@@ -41,7 +41,9 @@ void doStartPhase() {
 void doRunPhase() {
 }
 
-extern "C" bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
+extern "C" bool greengrass_lifecycle(
+    uint32_t moduleHandle, uint32_t phase, uint32_t data
+) noexcept {
     std::cout << "Running lifecycle plugins 1... " << ggapi::StringOrd{phase}.toString()
               << std::endl;
     const auto &keys = Keys::get();

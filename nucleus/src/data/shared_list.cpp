@@ -18,7 +18,7 @@ namespace data {
             }
         }
         guard.unlock();
-        for (auto const & i : containers) {
+        for(const auto &i : containers) {
             i->rootsCheck(target);
         }
     }
