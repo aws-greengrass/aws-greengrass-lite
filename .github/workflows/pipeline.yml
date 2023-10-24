@@ -12,10 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  call-build:
+  build:
     uses: ./.github/workflows/build.yml
 
-  call-format:
+  format:
     uses: ./.github/workflows/format.yml
 
   git-secrets:

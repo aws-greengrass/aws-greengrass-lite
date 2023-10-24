@@ -36,7 +36,3 @@ endif ()
 add_subdirectory(plugin_api)
 add_subdirectory(nucleus)
 add_subdirectory(plugins)
-
-
-# Testing
-enable_testing()
