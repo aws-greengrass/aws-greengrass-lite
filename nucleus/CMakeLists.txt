@@ -125,7 +125,6 @@ add_executable(nucleus-tests
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
         PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
-include(CTest)
 include(Catch)
 catch_discover_tests(nucleus-tests)
 

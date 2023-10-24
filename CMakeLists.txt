@@ -20,6 +20,7 @@ find_package(Threads REQUIRED)
 set(FETCHCONTENT_QUIET FALSE)
 
 include(FetchContent)
+include(CTest)
 
 FetchContent_Declare(
         Catch2
