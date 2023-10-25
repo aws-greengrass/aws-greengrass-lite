@@ -87,6 +87,7 @@ static inline data::ObjectAnchor pubSubCreateCommon(
 static inline data::ObjHandle pubSubQueueAndWaitCommon(const data::ObjectAnchor &taskAnchor) {
     data::Global &global = data::Global::self();
     auto taskObj{taskAnchor.getObject<tasks::Task>()};
+    taskObj->setDefaultThread(tasks::TaskThread::getThreadContext());
     global.taskManager->queueTask(taskObj);
     if(taskObj->waitForCompletion(tasks::ExpireTime::infinite())) {
         std::shared_ptr<tasks::Task> anchorScope{
@@ -101,7 +102,6 @@ static inline data::ObjHandle pubSubQueueAsyncCommon(const data::ObjectAnchor &t
     data::Global &global = data::Global::self();
     auto taskObj{taskAnchor.getObject<tasks::Task>()};
     global.taskManager->queueTask(taskObj);
-    global.taskManager->allocateNextWorker();
     return taskAnchor.getHandle();
 }
 

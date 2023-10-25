@@ -103,7 +103,6 @@ void asyncThreadFn() {
 
     std::cout << "Pong..." << pongString << std::endl;
 
-<<<<<<< Updated upstream
     ggapi::Buffer buf = threadScope.createBuffer();
     std::vector<uint8_t> vecData;
     vecData.push_back(1);
@@ -113,15 +112,4 @@ void asyncThreadFn() {
     buf.insert(1, vecData);
     vecData.resize(10);
     buf.get(0, vecData);
-=======
-//    ggapi::Buffer buf = threadScope.createBuffer();
-//    ggapi::Buffer::Vector vecData;
-//    vecData.push_back(1);
-//    vecData.push_back(2);
-//    vecData.push_back(3);
-//    buf.insert(0, vecData);
-//    buf.insert(1, vecData);
-//    vecData.resize(10);
-//    buf.get(0, vecData);
->>>>>>> Stashed changes
 }

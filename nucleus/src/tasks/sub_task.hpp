@@ -21,6 +21,6 @@ namespace tasks {
             const std::shared_ptr<Task> &task, const std::shared_ptr<data::StructModelBase> &dataIn
         ) = 0;
         void setAffinity(const std::shared_ptr<TaskThread> &affinity);
-        std::shared_ptr<TaskThread> getAffinity();
+        std::shared_ptr<TaskThread> getAffinity(const std::shared_ptr<TaskThread> &defaultThread);
     };
 } // namespace tasks

@@ -61,8 +61,12 @@ namespace tasks { //
             return ExpireTime(MAX);
         }
 
-        [[nodiscard]] static ExpireTime past() {
+        [[nodiscard]] static ExpireTime unspecified() {
             return ExpireTime(MIN);
+        }
+
+        [[nodiscard]] static ExpireTime epoch() {
+            return ExpireTime(MIN + Clock::duration(1));
         }
 
         [[nodiscard]] static ExpireTime fromNowMillis(int32_t smallDelta) {

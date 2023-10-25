@@ -3,7 +3,7 @@
 #include "tasks/task.hpp"
 
 // NOLINTBEGIN
-static constexpr auto TIMER_GRANULARITY{100}; // If too small, tests will become unstable
+static constexpr auto TIMER_GRANULARITY{200}; // If too small, tests will become unstable
 
 class SubTaskStub : public tasks::SubTask {
     std::string _flagName;
@@ -282,9 +282,12 @@ SCENARIO("Deferred task management", "[tasks]") {
         auto task2Time = now + std::chrono::milliseconds(TIMER_GRANULARITY * 4);
         auto task3Time = now + std::chrono::milliseconds(TIMER_GRANULARITY * 6);
         auto maxTime = now + std::chrono::milliseconds(TIMER_GRANULARITY * 8);
-        taskManager->queueTaskAsync(task3, task3Time);
-        taskManager->queueTaskAsync(task1, task1Time);
-        taskManager->queueTaskAsync(task2, task2Time);
+        task1->setStartTime(task1Time);
+        task2->setStartTime(task2Time);
+        task3->setStartTime(task3Time);
+        taskManager->queueTask(task3);
+        taskManager->queueTask(task1);
+        taskManager->queueTask(task2);
 
         WHEN("Waiting for all three tasks completed") {
             bool didComplete2 = task2->waitForCompletion(maxTime);
@@ -311,6 +314,49 @@ SCENARIO("Deferred task management", "[tasks]") {
                         REQUIRE((task1Millis - thenAsMillis) < TIMER_GRANULARITY * 3);
                         REQUIRE((task2Millis - thenAsMillis) < TIMER_GRANULARITY * 5);
                         REQUIRE((task3Millis - thenAsMillis) < TIMER_GRANULARITY * 7);
+                    }
+                }
+            }
+        }
+        WHEN("Tasks start times are modified") {
+            task1->setStartTime(task3Time);
+            task3->setStartTime(task1Time);
+            AND_WHEN("Waiting for tasks to complete") {
+                bool didComplete2 = task2->waitForCompletion(maxTime);
+                bool didComplete1 = task1->waitForCompletion(maxTime);
+                bool didComplete3 = task3->waitForCompletion(maxTime);
+                THEN("Tasks did complete") {
+                    REQUIRE(didComplete1);
+                    REQUIRE(didComplete2);
+                    REQUIRE(didComplete3);
+                    AND_THEN("Tasks completed in correct order") {
+                        uint64_t thenAsMillis = now.asMilliseconds();
+                        uint64_t task1Millis = taskRetData1->get("$task1").getInt();
+                        uint64_t task2Millis = taskRetData2->get("$task2").getInt();
+                        uint64_t task3Millis = taskRetData3->get("$task3").getInt();
+                        REQUIRE(task3Millis > thenAsMillis);
+                        REQUIRE(task2Millis > task3Millis);
+                        REQUIRE(task1Millis > task2Millis);
+                    }
+                }
+            }
+        }
+        WHEN("A task is cancelled") {
+            task2->cancelTask();
+            AND_WHEN("Waiting for tasks to complete") {
+                bool didComplete2 = task2->waitForCompletion(maxTime);
+                bool didComplete1 = task1->waitForCompletion(maxTime);
+                bool didComplete3 = task3->waitForCompletion(maxTime);
+                THEN("Expected tasks did complete") {
+                    REQUIRE(didComplete1);
+                    REQUIRE_FALSE(didComplete2);
+                    REQUIRE(didComplete3);
+                    AND_THEN("Tasks completed in correct order") {
+                        uint64_t thenAsMillis = now.asMilliseconds();
+                        uint64_t task1Millis = taskRetData1->get("$task1").getInt();
+                        uint64_t task3Millis = taskRetData3->get("$task3").getInt();
+                        REQUIRE(task1Millis > thenAsMillis);
+                        REQUIRE(task3Millis > task1Millis);
                     }
                 }
             }

@@ -36,8 +36,7 @@ namespace tasks {
     protected:
         void releaseBlockedThreads(bool isLocked);
         void signalBlockedThreads(bool isLocked);
-        void attach(const std::shared_ptr<TaskManager> &taskManager);
-        bool markRunning();
+        bool queueTaskInterlockedTrySetRunning(const std::shared_ptr<TaskManager> &taskManager);
 
         std::shared_ptr<TaskManager> getTaskManager() {
             return _taskManager.lock();
@@ -48,9 +47,10 @@ namespace tasks {
         std::unique_ptr<SubTask> _finalize;
         std::list<std::unique_ptr<SubTask>> _subtasks;
         std::list<std::shared_ptr<TaskThread>> _blockedThreads;
+        std::shared_ptr<TaskThread> _defaultThread;
         data::ObjHandle _self;
         ExpireTime _timeout; // time before task is automatically cancelled
-        ExpireTime _start{ExpireTime::past()}; // desired start time (default is immediately)
+        ExpireTime _start{ExpireTime::unspecified()}; // desired start time (default is immediately)
         Status _lastStatus{Pending};
         std::weak_ptr<TaskManager> _taskManager; // needed to fulfil a cancel
 
@@ -89,6 +89,7 @@ namespace tasks {
             _data = newData;
         }
 
+        void setDefaultThread(const std::shared_ptr<TaskThread> &thread);
         std::shared_ptr<TaskThread> getThreadAffinity();
         void markTaskComplete();
         void cancelTask();
@@ -111,7 +112,7 @@ namespace tasks {
 
         void setTimeout(const ExpireTime &terminateTime);
         ExpireTime getTimeout() const;
-        void getStartTime(const ExpireTime &terminateTime);
+        bool setStartTime(const ExpireTime &terminateTime);
         ExpireTime getStartTime() const;
 
         ExpireTime getEffectiveTimeout(const ExpireTime &terminalTime) const {
@@ -292,7 +293,7 @@ namespace tasks {
                 thread->claimFixedThread();
             }
         }
-        
+
         void release() {
             if(_thread) {
                 _thread->releaseFixedThread();
@@ -321,8 +322,15 @@ namespace tasks {
         _threadAffinity = affinity;
     }
 
-    inline std::shared_ptr<TaskThread> SubTask::getAffinity() {
-        return _threadAffinity;
+    inline std::shared_ptr<TaskThread> SubTask::getAffinity(
+        const std::shared_ptr<TaskThread> &defaultThread
+    ) {
+        std::shared_ptr<TaskThread> affinity = _threadAffinity;
+        if(affinity) {
+            return affinity;
+        } else {
+            return defaultThread;
+        }
     }
 
     class TaskManager : public data::TrackingScope {
@@ -334,21 +342,29 @@ namespace tasks {
         std::list<std::shared_ptr<Task>> _backlog; // tasks with no thread affinity
                                                    // (assumed async)
         std::weak_ptr<TaskThread> _timerWorkerThread;
-        std::map<ExpireTime, std::shared_ptr<Task>> _delayedTasks;
+        std::multimap<ExpireTime, std::shared_ptr<Task>> _delayedTasks;
         int _maxWorkers{5}; // TODO, from configuration
+
+        void scheduleFutureTaskAssumeLocked(
+            const ExpireTime &when, const std::shared_ptr<Task> &task
+        );
+        void descheduleFutureTaskAssumeLocked(
+            const ExpireTime &when, const std::shared_ptr<Task> &task
+        );
+        std::shared_ptr<Task> acquireTaskForWorker(TaskThread *worker);
+        std::shared_ptr<Task> acquireTaskWhenStealing(
+            TaskThread *worker, const std::shared_ptr<Task> &priorityTask
+        );
+        bool allocateNextWorker();
+        friend class Task;
+        friend class TaskThread;
 
     public:
         explicit TaskManager(data::Environment &environment) : data::TrackingScope{environment} {
         }
 
         data::ObjectAnchor createTask();
-        std::shared_ptr<Task> acquireTaskForWorker(TaskThread *worker);
+        void queueTask(const std::shared_ptr<Task> &task);
         ExpireTime pollNextDeferredTask(TaskThread *worker);
-        std::shared_ptr<Task> acquireTaskWhenStealing(
-            TaskThread *worker, const std::shared_ptr<Task> &priorityTask
-        );
-        bool allocateNextWorker();
-        void queueTask(const std::shared_ptr<Task> &task, bool async = false);
-        void queueTaskAsync(const std::shared_ptr<Task> &task, const ExpireTime &when);
     };
 } // namespace tasks
