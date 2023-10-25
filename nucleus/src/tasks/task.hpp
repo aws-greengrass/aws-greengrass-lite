@@ -22,6 +22,7 @@ namespace tasks {
     class Task : public data::TrackingScope {
     public:
         enum Status {
+            Pending,
             Running,
             NoSubTasks,
             HasReturnValue,
@@ -32,6 +33,16 @@ namespace tasks {
         };
         friend class TaskManager;
 
+    protected:
+        void releaseBlockedThreads(bool isLocked);
+        void signalBlockedThreads(bool isLocked);
+        void attach(const std::shared_ptr<TaskManager> &taskManager);
+        bool markRunning();
+
+        std::shared_ptr<TaskManager> getTaskManager() {
+            return _taskManager.lock();
+        }
+
     private:
         std::shared_ptr<data::StructModelBase> _data;
         std::unique_ptr<SubTask> _finalize;
@@ -39,7 +50,9 @@ namespace tasks {
         std::list<std::shared_ptr<TaskThread>> _blockedThreads;
         data::ObjHandle _self;
         ExpireTime _timeout; // time before task is automatically cancelled
-        Status _lastStatus{Running};
+        ExpireTime _start{ExpireTime::past()}; // desired start time (default is immediately)
+        Status _lastStatus{Pending};
+        std::weak_ptr<TaskManager> _taskManager; // needed to fulfil a cancel
 
         static data::ObjHandle getSetThreadSelf(data::ObjHandle h, bool set) {
             // This addresses a problem on (at least) Windows machines
@@ -96,14 +109,18 @@ namespace tasks {
             _finalize = std::move(finalize);
         }
 
-        void setTimeout(const ExpireTime &terminateTime) {
-            std::unique_lock guard{_mutex};
-            _timeout = terminateTime;
-        }
+        void setTimeout(const ExpireTime &terminateTime);
+        ExpireTime getTimeout() const;
+        void getStartTime(const ExpireTime &terminateTime);
+        ExpireTime getStartTime() const;
 
-        ExpireTime getTimeout() const {
+        ExpireTime getEffectiveTimeout(const ExpireTime &terminalTime) const {
             std::unique_lock guard{_mutex};
-            return _timeout;
+            if(terminalTime < _timeout) {
+                return terminalTime;
+            } else {
+                return _timeout;
+            }
         }
 
         ExpireTime getTimeout(const ExpireTime &terminalTime) const {
@@ -182,7 +199,7 @@ namespace tasks {
             if(_shutdown) {
                 return;
             }
-            _wake.wait_for(guard, end.remaining());
+            _wake.wait_until(guard, end.toTimePoint());
         }
 
         void waken() {
@@ -196,6 +213,7 @@ namespace tasks {
         }
 
         void taskStealing(const std::shared_ptr<Task> &blockedTask, const ExpireTime &end);
+        virtual ExpireTime taskStealingHook(ExpireTime time);
 
         std::shared_ptr<Task> pickupTask(const std::shared_ptr<Task> &blockingTask);
 
@@ -235,6 +253,17 @@ namespace tasks {
         void releaseFixedThread() override;
     };
 
+    class FixedTimerTaskThread : public FixedTaskThread {
+    public:
+        explicit FixedTimerTaskThread(
+            data::Environment &environment, const std::shared_ptr<TaskManager> &pool
+        )
+            : FixedTaskThread(environment, pool) {
+        }
+
+        ExpireTime taskStealingHook(ExpireTime time) override;
+    };
+
     class FixedTaskThreadScope {
         std::shared_ptr<FixedTaskThread> _thread;
 
@@ -249,11 +278,12 @@ namespace tasks {
             release();
         }
 
-        FixedTaskThreadScope(const std::shared_ptr<FixedTaskThread> &thread) : _thread(thread) {
+        explicit FixedTaskThreadScope(const std::shared_ptr<FixedTaskThread> &thread)
+            : _thread(thread) {
             if(thread) {
                 thread->claimFixedThread();
             }
-        }
+        } // namespace tasks
 
         void claim(const std::shared_ptr<FixedTaskThread> &thread) {
             release();
@@ -262,11 +292,7 @@ namespace tasks {
                 thread->claimFixedThread();
             }
         }
-
-        void claim(data::Environment &environment, const std::shared_ptr<TaskManager> &manager) {
-            claim(std::make_shared<FixedTaskThread>(environment, manager));
-        }
-
+        
         void release() {
             if(_thread) {
                 _thread->releaseFixedThread();
@@ -307,6 +333,8 @@ namespace tasks {
         std::list<std::shared_ptr<TaskPoolWorker>> _idleWorkers; // LIFO
         std::list<std::shared_ptr<Task>> _backlog; // tasks with no thread affinity
                                                    // (assumed async)
+        std::weak_ptr<TaskThread> _timerWorkerThread;
+        std::map<ExpireTime, std::shared_ptr<Task>> _delayedTasks;
         int _maxWorkers{5}; // TODO, from configuration
 
     public:
@@ -315,10 +343,12 @@ namespace tasks {
 
         data::ObjectAnchor createTask();
         std::shared_ptr<Task> acquireTaskForWorker(TaskThread *worker);
+        ExpireTime pollNextDeferredTask(TaskThread *worker);
         std::shared_ptr<Task> acquireTaskWhenStealing(
             TaskThread *worker, const std::shared_ptr<Task> &priorityTask
         );
         bool allocateNextWorker();
-        void queueTask(const std::shared_ptr<Task> &task);
+        void queueTask(const std::shared_ptr<Task> &task, bool async = false);
+        void queueTaskAsync(const std::shared_ptr<Task> &task, const ExpireTime &when);
     };
 } // namespace tasks

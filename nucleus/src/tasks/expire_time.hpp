@@ -9,8 +9,16 @@ namespace tasks { //
     // epoch assumes conversion with milliseconds
     //
     class ExpireTime {
+    public:
+        using Clock = std::chrono::steady_clock;
+        using TimePoint = std::chrono::time_point<Clock>;
+        using Milliseconds = std::chrono::milliseconds;
+        using Seconds = std::chrono::seconds;
+
     private:
-        std::chrono::time_point<std::chrono::steady_clock> _steadyTime;
+        TimePoint _steadyTime;
+        auto static constexpr MAX{TimePoint::max()};
+        auto static constexpr MIN{TimePoint::min()};
 
     public:
         ExpireTime(const ExpireTime &) = default;
@@ -19,56 +27,80 @@ namespace tasks { //
         ExpireTime &operator=(const ExpireTime &) = default;
         ExpireTime &operator=(ExpireTime &&) = default;
 
-        explicit ExpireTime(std::chrono::time_point<std::chrono::steady_clock> time)
-            : _steadyTime{time} {
+        explicit ExpireTime(TimePoint time) : _steadyTime{time} {
         }
 
-        explicit operator std::chrono::time_point<std::chrono::steady_clock>() const {
+        [[nodiscard]] TimePoint toTimePoint() const {
             return _steadyTime;
         }
 
+        [[nodiscard]] uint64_t asMilliseconds() const {
+            return std::chrono::duration_cast<Milliseconds>(_steadyTime.time_since_epoch()).count();
+        }
+
+        explicit operator TimePoint() const {
+            return toTimePoint();
+        }
+
+        template<typename T>
+        ExpireTime operator+(const T &delta) const {
+            auto newTime = _steadyTime + delta;
+            if(newTime < _steadyTime && delta.count() > 0) {
+                newTime = MAX;
+            } else if(newTime > _steadyTime && delta.count() < 0) {
+                newTime = MIN;
+            }
+            return ExpireTime{newTime};
+        }
+
+        Milliseconds operator-(const ExpireTime &other) const {
+            return std::chrono::duration_cast<Milliseconds>(_steadyTime - other._steadyTime);
+        }
+
         [[nodiscard]] static ExpireTime infinite() {
-            return ExpireTime(std::chrono::time_point<std::chrono::steady_clock>::max());
+            return ExpireTime(MAX);
+        }
+
+        [[nodiscard]] static ExpireTime past() {
+            return ExpireTime(MIN);
         }
 
         [[nodiscard]] static ExpireTime fromNowMillis(int32_t smallDelta) {
             if(smallDelta < 0) {
                 // negative means max time
-                return ExpireTime(std::chrono::time_point<std::chrono::steady_clock>::max());
+                return infinite();
             }
-            return fromNow(std::chrono::milliseconds(smallDelta));
+            return fromNow(Milliseconds(smallDelta));
         }
 
         [[nodiscard]] static ExpireTime fromNowSecs(int32_t delta) {
             if(delta < 0) {
                 // negative means max time
-                return ExpireTime(std::chrono::time_point<std::chrono::steady_clock>::max());
-            }
-            return fromNow(std::chrono::seconds(delta));
-        }
-
-        [[nodiscard]] static ExpireTime fromNow(std::chrono::milliseconds delta) {
-            if(delta == std::chrono::milliseconds::max()) {
                 return infinite();
             }
-            return ExpireTime(std::chrono::steady_clock::now() + delta);
+            return fromNow(Seconds(delta));
         }
 
-        [[nodiscard]] static ExpireTime fromNow(std::chrono::seconds delta) {
-            if(delta == std::chrono::seconds::max()) {
+        [[nodiscard]] static ExpireTime fromNow(Milliseconds delta) {
+            if(delta == Milliseconds::max()) {
                 return infinite();
             }
-            return ExpireTime(std::chrono::steady_clock::now() + delta);
+            return ExpireTime(Clock::now() + delta);
+        }
+
+        [[nodiscard]] static ExpireTime fromNow(Seconds delta) {
+            if(delta == Seconds::max()) {
+                return infinite();
+            }
+            return ExpireTime(Clock::now() + delta);
         }
 
         [[nodiscard]] static ExpireTime now() {
-            return ExpireTime(std::chrono::steady_clock::now());
+            return ExpireTime(Clock::now());
         }
 
-        [[nodiscard]] std::chrono::milliseconds remaining() const {
-            return std::chrono::duration_cast<std::chrono::milliseconds>(
-                _steadyTime - std::chrono::steady_clock::now()
-            );
+        [[nodiscard]] Milliseconds remaining() const {
+            return std::chrono::duration_cast<Milliseconds>(_steadyTime - Clock::now());
         }
 
         [[nodiscard]] bool operator<(const ExpireTime &other) const {
