@@ -614,12 +614,17 @@ namespace tasks {
                 auto task = it->second;
                 _delayedTasks.erase(it);
                 guard.unlock();
+                // Note, at this point, _delayedTasks may get modified, and the iterator
+                // must be considered invalid. Given that we always remove head in each iteration
+                // we don't need to do any tricks to maintain the iterator.
                 queueTask(task);
                 guard.lock();
             } else {
+                // Next task to be executed in the future
                 return nextTime;
             }
         }
+        // No deferred tasks
         return ExpireTime::infinite();
     }
 } // namespace tasks

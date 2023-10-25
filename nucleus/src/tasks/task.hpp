@@ -342,6 +342,8 @@ namespace tasks {
         std::list<std::shared_ptr<Task>> _backlog; // tasks with no thread affinity
                                                    // (assumed async)
         std::weak_ptr<TaskThread> _timerWorkerThread;
+        // _delayedTasks is using multimap as an insertable ordered list,
+        // TODO: is there a better std library for this?
         std::multimap<ExpireTime, std::shared_ptr<Task>> _delayedTasks;
         int _maxWorkers{5}; // TODO, from configuration
 

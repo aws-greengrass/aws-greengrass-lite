@@ -1,6 +1,6 @@
-#include "catch2/catch_all.hpp"
 #include "data/shared_struct.hpp"
 #include "tasks/task.hpp"
+#include <catch2/catch_all.hpp>
 
 // NOLINTBEGIN
 static constexpr auto TIMER_GRANULARITY{200}; // If too small, tests will become unstable
