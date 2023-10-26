@@ -1,4 +1,5 @@
 #include "plugin_loader.hpp"
+#include "pubsub/local_topics.hpp"
 #include "tasks/task.hpp"
 #include <iostream>
 
@@ -45,8 +46,8 @@ void plugins::NativePlugin::load(const std::string &filePath) {
             + std::to_string(lastError)
         );
     }
-    // NOLINTNEXTLINE(*-reinterpret-cast)
     _lifecycleFn.store(
+        // NOLINTNEXTLINE(*-reinterpret-cast)
         reinterpret_cast<lifecycleFn_t>(::GetProcAddress(_handle.load(), "greengrass_lifecycle"))
     );
 #endif

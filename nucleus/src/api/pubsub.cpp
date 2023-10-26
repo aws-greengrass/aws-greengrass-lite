@@ -1,5 +1,8 @@
 #include "data/globals.hpp"
 #include "tasks/expire_time.hpp"
+#include "tasks/task.hpp"
+#include "tasks/task_manager.hpp"
+#include "tasks/task_threads.hpp"
 #include <cpp_api.hpp>
 
 class NativeCallback : public pubsub::AbstractCallback {

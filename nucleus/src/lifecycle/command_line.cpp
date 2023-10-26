@@ -1,5 +1,6 @@
 #include "command_line.hpp"
 #include "kernel.hpp"
+#include "tasks/task_manager.hpp"
 #include <optional>
 #include <util.hpp>
 namespace fs = std::filesystem;

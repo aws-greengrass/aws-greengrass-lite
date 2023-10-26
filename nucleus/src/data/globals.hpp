@@ -2,7 +2,7 @@
 #include "environment.hpp"
 #include "plugins/plugin_loader.hpp"
 #include "pubsub/local_topics.hpp"
-#include "tasks/task.hpp"
+#include "tasks/task_manager.hpp"
 
 namespace data {
     struct Global {

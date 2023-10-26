@@ -1,5 +1,8 @@
+#include "data/environment.hpp"
 #include "data/shared_struct.hpp"
 #include "tasks/task.hpp"
+#include "tasks/task_manager.hpp"
+#include "tasks/task_threads.hpp"
 #include <catch2/catch_all.hpp>
 
 // NOLINTBEGIN
