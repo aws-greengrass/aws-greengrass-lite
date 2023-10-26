@@ -53,6 +53,7 @@ IMPEXP bool ggapiStructPutInt64(uint32_t structHandle, uint32_t ord, uint64_t va
 IMPEXP bool ggapiStructPutFloat64(uint32_t structHandle, uint32_t ord, double value) NOEXCEPT;
 IMPEXP bool ggapiStructPutString(uint32_t structHandle, uint32_t ord, const char *bytes, size_t len)
     NOEXCEPT;
+IMPEXP bool ggapiStructPutStringOrd(uint32_t listHandle, uint32_t ord, uint32_t stringOrd) NOEXCEPT;
 IMPEXP bool ggapiStructPutHandle(uint32_t structHandle, uint32_t ord, uint32_t nestedHandle)
     NOEXCEPT;
 IMPEXP bool ggapiStructHasKey(uint32_t structHandle, uint32_t ord) NOEXCEPT;
@@ -68,12 +69,14 @@ IMPEXP bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) 
 IMPEXP bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) NOEXCEPT;
 IMPEXP bool ggapiListPutString(uint32_t listHandle, int32_t idx, const char *bytes, size_t len)
     NOEXCEPT;
+IMPEXP bool ggapiListPutStringOrd(uint32_t listHandle, int32_t idx, uint32_t stringOrd) NOEXCEPT;
 IMPEXP bool ggapiListPutHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) NOEXCEPT;
 IMPEXP bool ggapiListInsertBool(uint32_t listHandle, int32_t idx, bool value) NOEXCEPT;
 IMPEXP bool ggapiListInsertInt64(uint32_t listHandle, int32_t idx, uint64_t value) NOEXCEPT;
 IMPEXP bool ggapiListInsertFloat64(uint32_t listHandle, int32_t idx, double value) NOEXCEPT;
 IMPEXP bool ggapiListInsertString(uint32_t listHandle, int32_t idx, const char *bytes, size_t len)
     NOEXCEPT;
+IMPEXP bool ggapiListInsertStringOrd(uint32_t listHandle, int32_t idx, uint32_t stringOrd) NOEXCEPT;
 IMPEXP bool ggapiListInsertHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) NOEXCEPT;
 IMPEXP bool ggapiListGetBool(uint32_t structHandle, int32_t idx) NOEXCEPT;
 IMPEXP uint64_t ggapiListGetInt64(uint32_t structHandle, int32_t idx) NOEXCEPT;

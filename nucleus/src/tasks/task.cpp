@@ -35,7 +35,7 @@ namespace tasks {
     ) {
         auto first = _delayedTasks.begin();
         bool needsSignal = first == _delayedTasks.end() || when < first->first;
-        _delayedTasks.emplace(when, task); // insert into sorted order
+        _delayedTasks.emplace(when, task); // insert into sorted order (duplicates ok)
         auto thread{_timerWorkerThread.lock()};
         if(thread && needsSignal) {
             // Wake timer thread early - its wait time is incorrect

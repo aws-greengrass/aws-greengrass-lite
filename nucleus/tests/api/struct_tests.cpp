@@ -13,6 +13,7 @@ SCENARIO("Shared structure API", "[struct]") {
     GIVEN("A structure") {
         auto s = scope.createStruct();
         ggapi::StringOrd ping{"ping"};
+        ggapi::StringOrd pow{"pow"};
 
         THEN("Structure is empty") {
             REQUIRE(s.size() == 0);
@@ -23,10 +24,11 @@ SCENARIO("Shared structure API", "[struct]") {
                 {"bar",  2      },
                 {ping,   3      },
                 {"zing", 4.6    },
-                {"zap",  "zooey"}
+                {"zap",  "zooey"},
+                {pow,    pow    }
             });
             THEN("Structure size increased") {
-                REQUIRE(s.size() == 6);
+                REQUIRE(s.size() == 7);
             }
             THEN("Structure contents are as expected") {
                 REQUIRE(s.get<int>("foo") == 1);
@@ -35,21 +37,30 @@ SCENARIO("Shared structure API", "[struct]") {
                 REQUIRE(s.get<int>("ping") == 3);
                 REQUIRE(s.get<double>("zing") == 4.6);
                 REQUIRE(s.get<std::string>("zap") == "zooey");
+                REQUIRE(s.get<std::string>("pow") == "pow");
             }
             AND_WHEN("A key of same name is used") {
                 s.put("ping", true);
                 THEN("The item is replaced in structure") {
-                    REQUIRE(s.size() == 6);
+                    REQUIRE(s.size() == 7);
                     REQUIRE(s.get<bool>(ping) == true);
                 }
             }
             AND_WHEN("A key of mixed-case is used") {
                 s.put("Ping", 30);
                 THEN("The item is unique in structure") {
-                    REQUIRE(s.size() == 7);
+                    REQUIRE(s.size() == 8);
                     REQUIRE(s.get<int>(ping) == 3);
                     REQUIRE(s.get<int>("ping") == 3);
                     REQUIRE(s.get<int>("Ping") == 30);
+                }
+            }
+            AND_WHEN("An interned string is used internally") {
+                s.put("ping", 10);
+                s.put("ping", pow.toString());
+                THEN("The item is replaced in structure as expected") {
+                    REQUIRE(s.size() == 7);
+                    REQUIRE(s.get<std::string>(ping) == "pow");
                 }
             }
         }

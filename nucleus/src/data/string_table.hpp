@@ -174,4 +174,67 @@ namespace data {
 
         static void init(Environment &environment, std::initializer_list<StringOrdInit> list);
     };
+
+    //
+    // Helper class for when we need to pass string table reference with string ordinal
+    //
+    class StringOrdExt {
+        // Code assumes global lifetime safety
+        StringTable *_table;
+        // Doing as base-class causes slicing warnings
+        StringOrd _ord;
+
+    public:
+        StringOrdExt(const StringOrdExt &) = default;
+        StringOrdExt(StringOrdExt &&) = default;
+        StringOrdExt &operator=(const StringOrdExt &) = default;
+        StringOrdExt &operator=(StringOrdExt &&) = default;
+        ~StringOrdExt() = default;
+
+        bool operator==(const StringOrdExt &other) const {
+            return this == &other || (this->_ord == other._ord && this->_table == other._table);
+        }
+
+        bool operator!=(const StringOrdExt &other) const {
+            return !(*this == other);
+        }
+
+        StringOrdExt(StringTable &table, StringOrd ord) : _table(&table), _ord(ord) {
+        }
+
+        StringOrdExt(Environment &env, StringOrd ord);
+        StringOrdExt(StringTable &table, std::string_view str);
+        StringOrdExt(Environment &env, std::string_view str);
+
+        [[nodiscard]] std::string asString() const {
+            if(_ord.isNull()) {
+                return "";
+            } else {
+                return _table->getString(_ord);
+            }
+        }
+
+        [[nodiscard]] StringOrd asStringOrd() const {
+            return _ord;
+        }
+
+        [[nodiscard]] uint32_t asInt() const {
+            return _ord.asInt();
+        }
+
+        [[nodiscard]] bool isNull() const {
+            return _ord.isNull();
+        }
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator std::string() const {
+            return asString();
+        }
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator StringOrd() const {
+            return asStringOrd();
+        }
+    };
+
 } // namespace data

@@ -70,7 +70,7 @@ namespace config {
         }
         checkedPut(element, [this, key, &element](auto &el) {
             std::unique_lock guard{_mutex};
-            _children[key] = element;
+            _children.insert_or_assign(key, element);
         });
     }
 
@@ -238,7 +238,9 @@ namespace config {
         if(i != _children.end()) {
             return i->second;
         } else {
-            return _children[key] = creator(nameOrd);
+            TopicElement element = creator(key);
+            _children.emplace(key, element);
+            return element;
         }
     }
 
@@ -334,7 +336,6 @@ namespace config {
     }
 
     std::shared_ptr<Topics> Topics::findInteriorChild(data::StringOrd handle) {
-        TopicElement node = _children[handle];
         data::StringOrd key = TopicElement::getKey(_environment, handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
