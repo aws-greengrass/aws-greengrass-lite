@@ -8,7 +8,6 @@ tasks::ExpireTime data::Environment::translateExpires(int32_t delta) {
 
 namespace data {
     void SysProperties::parseEnv(char *envp[]) { // NOLINT(*-avoid-c-arrays)
-        std::unique_lock guard{_mutex};
         char **p = envp;
         for(; *p != nullptr; ++p) { // NOLINT(*-pointer-arithmetic)
             char *key = *p;
