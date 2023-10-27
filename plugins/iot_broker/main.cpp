@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <regex>
+#include <shared_mutex>
 #include <thread>
 #include <unordered_map>
 
@@ -24,12 +25,100 @@ struct Keys {
     ggapi::StringOrd lpcResponseTopic{"lpcResponseTopic"};
 };
 
+class TopicFilter {
+public:
+    explicit TopicFilter(std::string_view str) : _value{str} {
+        validateFilter();
+    }
+
+    explicit TopicFilter(std::string &&str) : _value{std::move(str)} {
+        validateFilter();
+    }
+
+    TopicFilter(const TopicFilter &) = default;
+    TopicFilter(TopicFilter &&) noexcept = default;
+    TopicFilter &operator=(const TopicFilter &) = default;
+    TopicFilter &operator=(TopicFilter &&) noexcept = default;
+    ~TopicFilter() noexcept = default;
+
+    explicit operator const std::string &() const noexcept {
+        return _value;
+    }
+
+    friend bool operator==(const TopicFilter &a, const TopicFilter &b) noexcept {
+        return a._value == b._value;
+    }
+
+    [[nodiscard]] bool match(std::string_view topic) const noexcept {
+        std::string_view filter = this->_value;
+
+        if(filter == "#") {
+            return true;
+        }
+
+        bool hasHash = false;
+
+        if((filter.length() >= 2) && (filter.substr(filter.length() - 2, 2) == "/#")) {
+            hasHash = true;
+            filter = filter.substr(0, filter.length() - 2);
+        }
+
+        size_t index = 0;
+
+        for(char c : filter) {
+            if(c == '+') {
+                size_t pos = topic.find('/', index);
+                if(pos == std::string_view::npos) {
+                    index = topic.length();
+                } else {
+                    index = pos;
+                }
+            } else if((index < topic.length()) && (c == topic[index])) {
+                index += 1;
+            } else {
+                return false;
+            }
+        }
+
+        if(index == topic.length()) {
+            return true;
+        }
+
+        if(hasHash && (topic[index] == '/')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    struct Hash {
+        size_t operator()(const TopicFilter &filter) const noexcept {
+            return std::hash<std::string>{}(filter._value);
+        }
+    };
+
+    [[nodiscard]] const std::string &get() const noexcept {
+        return _value;
+    }
+
+private:
+    std::string _value;
+
+    void validateFilter() const {
+        static const std::regex filterRegex{
+            R"(^(?:#|\+|(?:\+/)?([^\+#]*/\+/)*?[^\+#]*(/\+|/#|))$)"};
+        if((_value.length() < 1) || !std::regex_match(_value, filterRegex)) {
+            throw std::invalid_argument("Invalid topic filter");
+        }
+    }
+};
+
 static const Keys keys;
 
 static int demo();
 static bool startPhase(std::string, std::string, std::string);
 
-static std::unordered_multimap<std::string, ggapi::StringOrd> subscriptions;
+static std::unordered_multimap<TopicFilter, ggapi::StringOrd, TopicFilter::Hash> subscriptions;
 static std::mutex subscriptionMutex;
 
 // Initializes global CRT API
@@ -80,11 +169,11 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
 }
 
 ggapi::Struct subscribeHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct args) {
-    std::string topicFilter{args.get<std::string>(keys.topicFilter)};
+    TopicFilter topicFilter{args.get<std::string>(keys.topicFilter)};
     int qos{args.get<int>(keys.qos)};
     ggapi::StringOrd responseTopic{args.get<uint32_t>(keys.lpcResponseTopic)};
 
-    std::cerr << "[mqtt-plugin] Subscribing to " << topicFilter << std::endl;
+    std::cerr << "[mqtt-plugin] Subscribing to " << topicFilter.get() << std::endl;
 
     auto onSubscribeComplete = [topicFilter, responseTopic](
                                    int error_code,
@@ -115,7 +204,7 @@ ggapi::Struct subscribeHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struc
 
     auto subscribe = std::make_shared<Aws::Crt::Mqtt5::SubscribePacket>();
     subscribe->WithSubscription(std::move(Aws::Crt::Mqtt5::Subscription(
-        Aws::Crt::String(topicFilter), static_cast<Aws::Crt::Mqtt5::QOS>(qos)
+        Aws::Crt::String(topicFilter.get()), static_cast<Aws::Crt::Mqtt5::QOS>(qos)
     )));
 
     if(!client->Subscribe(subscribe, onSubscribeComplete)) {
@@ -217,19 +306,7 @@ static bool startPhase(
                 {
                     std::lock_guard<std::mutex> lock(subscriptionMutex);
                     for(const auto &[key, value] : subscriptions) {
-
-                        // TODO: Do this in a better way
-                        std::string rx = key;
-                        rx = std::regex_replace(rx, std::regex("\\\\", std::regex::basic), "\\\\");
-                        rx = std::regex_replace(rx, std::regex("\\.", std::regex::basic), "\\.");
-                        rx = std::regex_replace(rx, std::regex("\\[", std::regex::basic), "\\[");
-                        rx = std::regex_replace(rx, std::regex("\\*", std::regex::basic), "\\*");
-                        rx = std::regex_replace(rx, std::regex("\\^", std::regex::basic), "\\^");
-                        rx = std::regex_replace(rx, std::regex("\\$", std::regex::basic), "\\$");
-                        rx = std::regex_replace(rx, std::regex("+", std::regex::basic), "[^/]*");
-                        rx = std::regex_replace(rx, std::regex("#", std::regex::basic), ".*");
-
-                        if(std::regex_match(topic, std::regex(rx, std::regex::basic))) {
+                        if(key.match(topic)) {
                             (void) threadScope.sendToTopic(value, response);
                         }
                     }
