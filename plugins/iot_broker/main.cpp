@@ -50,23 +50,11 @@ public:
     }
 
     [[nodiscard]] bool match(std::string_view topic) const noexcept {
-        std::string_view filter = this->_value;
-
-        if(filter == "#") {
-            return true;
-        }
-
-        bool hasHash = false;
-
-        if((filter.length() >= 2) && (filter.substr(filter.length() - 2, 2) == "/#")) {
-            hasHash = true;
-            filter = filter.substr(0, filter.length() - 2);
-        }
-
         size_t index = 0;
-
-        for(char c : filter) {
-            if(c == '+') {
+        for(char c : this->_value) {
+            if(c == '#') {
+                return true;
+            } else if(c == '+') {
                 size_t pos = topic.find('/', index);
                 if(pos == std::string_view::npos) {
                     index = topic.length();
@@ -79,16 +67,7 @@ public:
                 return false;
             }
         }
-
-        if(index == topic.length()) {
-            return true;
-        }
-
-        if(hasHash && (topic[index] == '/')) {
-            return true;
-        }
-
-        return false;
+        return index == topic.length();
     }
 
     struct Hash {
