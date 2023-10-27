@@ -2,6 +2,12 @@ name: Format
 
 on:
   workflow_call:
+    
+env:
+  bashPass: \033[32;1mPASSED -
+  bashInfo: \033[33;1mINFO -
+  bashFail: \033[31;1mFAILED -
+  bashEnd: \033[0m
 
 jobs:
   format-check:
@@ -24,11 +30,6 @@ jobs:
 
           # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
           echo -e "${{ env.bashInfo }} Using clang-format Version "$(clang-format --version)" ${{ env.bashEnd }}"
-        env:
-          bashPass: \033[32;1mPASSED -
-          bashInfo: \033[33;1mINFO -
-          bashFail: \033[31;1mFAILED -
-          bashEnd: \033[0m
 
       - name: Check Formatting
         id: action-formatting-check
@@ -88,8 +89,38 @@ jobs:
           path: ${{ inputs.path }}/formattingChanges.patch
           retention-days: 7
 
-        env:
-          bashPass: \033[32;1mPASSED -
-          bashInfo: \033[33;1mINFO -
-          bashFail: \033[31;1mFAILED -
-          bashEnd: \033[0m
+  analysis:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Clone the repo
+        uses: actions/checkout@v3
+
+      - name: Install cppcheck
+        run: |
+          sudo apt-get install -y cppcheck fd-find
+          echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
+          export PATH="$PATH:$GITHUB_ACTION_PATH"
+
+          # Check that the commands installed correctly
+          fdfind --version
+          echo -e "::endgroup::"
+
+      - name: Perform analysis
+        run: |
+          # Parse the optional inputs
+          args=""
+
+          # Get all .cpp and .hpp files, as well as any other requested file types.
+          # Then run cppcheck.
+          fdfind -e cpp -e hpp ${args} --exec cppcheck --enable=all --inconclusive --std=c++17 --error-exitcode=1 --suppress=missingIncludeSystem --verbose --check-config --xml {} 2> report.xml \;
+
+      - name: Generate report
+        run: >
+          cppcheck-htmlreport --file=report.xml
+
+      - name: Upload report
+        uses: actions/upload-artifact@v3
+        with:
+          name: report
+          path: report

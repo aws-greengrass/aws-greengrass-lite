@@ -9,6 +9,7 @@
 #include <shared_mutex>
 #include <unordered_map>
 #include <util.hpp>
+#include <vector>
 
 namespace data {
 

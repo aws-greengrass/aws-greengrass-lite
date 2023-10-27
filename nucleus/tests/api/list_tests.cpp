@@ -12,7 +12,7 @@ SCENARIO("Shared list API", "[list]") {
             REQUIRE(list.size() == 0);
         }
         WHEN("Items are appended to list") {
-            list.append({1, 2, "foo", 4.6, true});
+            list.append({uint64_t{1}, uint64_t{2}, "foo", 4.6, true});
             THEN("List size increased") {
                 REQUIRE(list.size() == 5);
             }
