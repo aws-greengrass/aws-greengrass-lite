@@ -116,10 +116,10 @@ private:
 static const Keys keys;
 
 static int demo();
-static bool startPhase(std::string, std::string, std::string);
+static bool startPhase(const std::string &, const std::string &, const std::string &);
 
 static std::unordered_multimap<TopicFilter, ggapi::StringOrd, TopicFilter::Hash> subscriptions;
-static std::mutex subscriptionMutex;
+static std::shared_mutex subscriptionMutex;
 
 // Initializes global CRT API
 // TODO: What happens when multiple plugins use the CRT?
@@ -197,7 +197,7 @@ ggapi::Struct subscribeHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struc
         };
 
         {
-            std::lock_guard<std::mutex> lock(subscriptionMutex);
+            std::unique_lock lock(subscriptionMutex);
             subscriptions.insert({topicFilter, responseTopic});
         }
     };
@@ -220,11 +220,11 @@ extern "C" bool greengrass_lifecycle(
     ggapi::StringOrd phaseOrd{phase};
     ggapi::Struct structData{dataHandle};
 
-    ggapi::Struct configStruct = structData.getValue<ggapi::Struct>({"config"});
+    auto configStruct = structData.getValue<ggapi::Struct>({"config"});
 
-    std::string certPath = configStruct.getValue<std::string>({"system", "certificateFilePath"});
-    std::string keyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
-    std::string credEndpoint = configStruct.getValue<std::string>(
+    auto certPath = configStruct.getValue<std::string>({"system", "certificateFilePath"});
+    auto keyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
+    auto credEndpoint = configStruct.getValue<std::string>(
         {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotCredEndpoint"}
     );
 
@@ -248,7 +248,9 @@ static std::ostream &operator<<(std::ostream &os, Aws::Crt::ByteCursor bc) {
 }
 
 static bool startPhase(
-    std::string credEndpoint, std::string certificateFilePath, std::string privateKeyPath
+    const std::string &credEndpoint,
+    const std::string &certificateFilePath,
+    const std::string &privateKeyPath
 ) {
     std::promise<bool> connectionPromise;
 
@@ -304,7 +306,7 @@ static bool startPhase(
                 response.put(keys.payload, payload);
 
                 {
-                    std::lock_guard<std::mutex> lock(subscriptionMutex);
+                    std::shared_lock lock(subscriptionMutex);
                     for(const auto &[key, value] : subscriptions) {
                         if(key.match(topic)) {
                             (void) threadScope.sendToTopic(value, response);
