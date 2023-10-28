@@ -7,8 +7,7 @@
 namespace data {
     struct Global {
         Environment environment;
-        std::shared_ptr<tasks::TaskManager> taskManager{
-            std::make_shared<tasks::TaskManager>(environment)};
+        tasks::TaskManagerContainer taskManager{environment};
         std::shared_ptr<pubsub::PubSubManager> lpcTopics{
             std::make_shared<pubsub::PubSubManager>(environment)};
         std::shared_ptr<plugins::PluginLoader> loader{

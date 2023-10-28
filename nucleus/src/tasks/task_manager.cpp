@@ -173,6 +173,10 @@ namespace tasks {
 
     TaskManager::~TaskManager() {
         // Clean shutdown of all workers and tasks that are accessible to task manager
+        assert(_shutdown);
+    }
+
+    void TaskManager::shutdownAndWait() {
         std::unique_lock guard{_mutex};
         _shutdown = true;
         guard.unlock();

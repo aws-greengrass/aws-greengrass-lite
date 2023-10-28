@@ -42,8 +42,7 @@ public:
 
 SCENARIO("Task management", "[tasks]") {
     data::Environment environment;
-    std::shared_ptr<tasks::TaskManager> taskManager{
-        std::make_shared<tasks::TaskManager>(environment)};
+    tasks::TaskManagerContainer taskManager{environment};
     tasks::FixedTaskThreadScope threadScope{
         std::make_shared<tasks::FixedTaskThread>(environment, taskManager)};
 
@@ -253,8 +252,7 @@ SCENARIO("Task management", "[tasks]") {
 
 SCENARIO("Deferred task management", "[tasks]") {
     data::Environment environment;
-    std::shared_ptr<tasks::TaskManager> taskManager{
-        std::make_shared<tasks::TaskManager>(environment)};
+    tasks::TaskManagerContainer taskManager{environment};
     tasks::FixedTaskThreadScope threadScope{
         std::make_shared<tasks::FixedTimerTaskThread>(environment, taskManager)};
 

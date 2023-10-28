@@ -34,6 +34,8 @@ namespace tasks {
             TaskThread *worker, const std::shared_ptr<Task> &priorityTask
         );
         bool allocateNextWorker();
+        void cancelWaitingTasks();
+        void shutdownAllWorkers(bool join);
         friend class Task;
         friend class TaskThread;
 
@@ -51,8 +53,32 @@ namespace tasks {
         void queueTask(const std::shared_ptr<Task> &task);
         void resumeTask(const std::shared_ptr<Task> &task);
         ExpireTime pollNextDeferredTask(TaskThread *worker);
-        void cancelWaitingTasks();
-        void shutdownAllWorkers(bool join);
+        void shutdownAndWait();
+    };
+
+    class TaskManagerContainer {
+        std::shared_ptr<TaskManager> _mgr;
+
+    public:
+        explicit TaskManagerContainer(data::Environment &env)
+            : _mgr{std::make_shared<tasks::TaskManager>(env)} {
+        }
+
+        TaskManager *operator->() {
+            return _mgr.get();
+        }
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator std::shared_ptr<TaskManager>() {
+            return _mgr;
+        }
+
+        ~TaskManagerContainer() {
+            if(_mgr) {
+                _mgr->shutdownAndWait();
+                _mgr.reset();
+            }
+        }
     };
 
 } // namespace tasks
