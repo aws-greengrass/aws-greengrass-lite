@@ -76,6 +76,7 @@ jobs:
               echo -e "::endgroup::"
               echo -e "${{ env.bashFail }} List of files with formatting errors: ${{ env.bashEnd }}"
               echo -e "${{ env.bashFail }} "$(git diff --name-only)" ${{ env.bashEnd }} "
+              git diff --name-only
               # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $exitCode
@@ -113,7 +114,7 @@ jobs:
           
           # Get all .cpp and .hpp files, as well as any other requested file types.
           # Then run cppcheck.
-          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy --warnings-as-errors=* --fix --fix-errors \;
+          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy --warnings-as-errors --fix --fix-errors \;
           
           # Determine if there was a linting diff.
           # If there was, create a patch of it.
@@ -126,12 +127,13 @@ jobs:
               echo -e "::endgroup::"
               # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
           else
-              # Run a git diff to print the formatting differences
+              # Run a git diff to print the linting differences
               echo -e "::group::${{ env.bashInfo }} Linting Difference ${{ env.bashEnd }}"
               git diff --color=always
               echo -e "::endgroup::"
               echo -e "${{ env.bashFail }} List of files with linting errors: ${{ env.bashEnd }}"
               echo -e "${{ env.bashFail }} "$(git diff --name-only)" ${{ env.bashEnd }} "
+              git diff --name-only
               # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $exitCode
