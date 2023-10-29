@@ -100,6 +100,50 @@ target_include_directories(nucleus-core
 #
 # Build a static library for use by tests and also for single-binary use-cases
 #
+add_library(nucleus-sut STATIC
+        src/api/data.cpp
+        src/api/error.cpp
+        src/api/main.cpp
+        src/api/plugins.cpp
+        src/api/pubsub.cpp
+        src/api/tasks.cpp
+        src/config/config_manager.cpp
+        src/config/json_helper.cpp
+        src/config/publish_queue.cpp
+        src/config/transaction_log.cpp
+        src/config/watcher.hpp
+        src/config/yaml_helper.cpp
+        src/data/environment.cpp
+        src/data/handle_table.cpp
+        src/data/safe_handle.cpp
+        src/data/shared_buffer.cpp
+        src/data/shared_list.cpp
+        src/data/shared_struct.cpp
+        src/data/string_table.cpp
+        src/data/struct_model.cpp
+        src/data/tracked_object.cpp
+        src/deployment/deployment_model.cpp
+        src/deployment/device_configuration.cpp
+        src/lifecycle/command_line.cpp
+        src/lifecycle/kernel.cpp
+        src/lifecycle/kernel_alternatives.cpp
+        src/plugins/plugin_loader.cpp
+        src/pubsub/local_topics.cpp
+        src/tasks/task.cpp
+        src/util/commitable_file.cpp
+        src/util/nucleus_paths.cpp
+        src/util/permissions.cpp
+)
+target_compile_options(nucleus-sut PRIVATE --coverage)
+target_link_options(nucleus-sut PUBLIC --coverage)
+add_custom_command(TARGET nucleus-sut PRE_BUILD COMMAND
+        find ${CMAKE_BINARY_DIR} -type f -name '*.gcda' -exec rm {} +)
+target_link_libraries(nucleus-sut
+        PUBLIC gg_plugin_api Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
+target_include_directories(nucleus-sut
+        PUBLIC include
+        PRIVATE src ${rapidjson_SOURCE_DIR}/include)
+
 add_library(nucleus-lib STATIC $<TARGET_OBJECTS:nucleus-obj>)
 target_link_libraries(nucleus-lib
         PUBLIC gg_plugin_api Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
@@ -122,28 +166,25 @@ add_executable(nucleus-tests
         tests/pubsub/pubsub_tests.cpp
         tests/tasks/task_tests.cpp
 )
-target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
+target_link_libraries(nucleus-tests PRIVATE nucleus-sut Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
         PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
 include(Catch)
 catch_discover_tests(nucleus-tests)
 
-if (CMAKE_BUILD_TYPE STREQUAL Debug)
-    if (UNIX)
-        target_compile_options(nucleus-tests PRIVATE --coverage)
-        target_link_options(nucleus-tests PUBLIC --coverage)
-        add_custom_command(TARGET nucleus-tests PRE_BUILD COMMAND
-                find ${CMAKE_BINARY_DIR} -type f -name '*.gcda' -exec rm {} +)
-        add_custom_target(coverage
-                COMMENT "Running coverage for nucleus-tests"
-                COMMAND lcov -d . --zerocounters
-                COMMAND lcov -d . --capture -o coverage.info
-                COMMAND lcov -r coverage.info '/usr/include/*' -o filtered.info
-                COMMAND genhtml -o coverage filtered.info
-                COMMAND genhtml -o coverage filtered.info --legend
-                COMMAND rm -rf coverage.info filtered.info
-                DEPENDS nucleus-tests
-                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        )
-    endif ()
-endif ()
+add_custom_target(coverage
+        COMMENT "Running coverage for nucleus-tests"
+        COMMAND lcov -d . --zerocounters
+        COMMAND lcov -d . --capture -o coverage.info
+        COMMAND lcov -r coverage.info '/usr/include/*' -o filtered.info
+        COMMAND genhtml -o coverage filtered.info
+        COMMAND genhtml -o coverage filtered.info --legend
+        COMMAND rm -rf coverage.info filtered.info
+        DEPENDS nucleus-tests
+        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+#if (CMAKE_BUILD_TYPE STREQUAL Debug)
+#    if (UNIX)
+#
+#    endif ()
+#endif ()

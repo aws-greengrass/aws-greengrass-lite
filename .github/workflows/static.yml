@@ -2,7 +2,7 @@ name: Format
 
 on:
   workflow_call:
-    
+
 env:
   bashPass: \033[32;1mPASSED -
   bashInfo: \033[33;1mINFO -
@@ -89,6 +89,62 @@ jobs:
           path: ${{ inputs.path }}/formattingChanges.patch
           retention-days: 7
 
+  linting:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Clone the repo
+        uses: actions/checkout@v3
+
+      - name: Install clang-tidy
+        run: |
+          sudo apt-get install -y clang-tidy fd-find
+          echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
+          export PATH="$PATH:$GITHUB_ACTION_PATH"
+
+          # Check that the commands installed correctly
+          fdfind --version
+          echo -e "::endgroup::"
+
+      - name: Linting
+        run: |
+          # Parse the optional inputs
+          args=""
+          
+          # Get all .cpp and .hpp files, as well as any other requested file types.
+          # Then run cppcheck.
+          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy --warnings-as-errors=* --fix --fix-errors \;
+          
+          # Determine if there was a linting diff.
+          # If there was, create a patch of it.
+          set +e
+          git diff --exit-code >> lintChanges.patch
+          exitCode=$?
+          set -e
+
+          if [ $exitCode -eq 0 ]; then
+              echo -e "::endgroup::"
+              # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
+          else
+              # Run a git diff to print the formatting differences
+              echo -e "::group::${{ env.bashInfo }} Linting Difference ${{ env.bashEnd }}"
+              git diff --color=always
+              echo -e "::endgroup::"
+              echo -e "${{ env.bashFail }} List of files with linting errors: ${{ env.bashEnd }}"
+              echo -e "${{ env.bashFail }} "$(git diff --name-only)" ${{ env.bashEnd }} "
+              # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
+          fi
+          exit $exitCode
+
+      - name: Upload Git Patch
+        if: failure() && ( steps.action-linting.outcome == 'failure' )
+        id: upload-linting-patch
+        uses: actions/upload-artifact@v3
+        with:
+          name: lintingChanges
+          path: ${{ inputs.path }}/lintingChanges.patch
+          retention-days: 7
+
   analysis:
     runs-on: ubuntu-20.04
 
@@ -117,10 +173,10 @@ jobs:
 
       - name: Generate report
         run: >
-          cppcheck-htmlreport --file=report.xml
+          cppcheck-htmlreport --file=report.xml --report-dir=cppcheck_report
 
       - name: Upload report
         uses: actions/upload-artifact@v3
         with:
-          name: report
-          path: report
+          name: ${{ github.repository }}
+          path: cppcheck_report
