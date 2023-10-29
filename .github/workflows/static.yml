@@ -170,7 +170,7 @@ jobs:
           args=""
           
           # Get all .cpp and .hpp files, as well as any other requested file types.
-          target_files="$(fd -e cpp -e hpp ${args})"
+          target_files="$(fdfind -e cpp -e hpp ${args})"
           
           # Then run cppcheck.
           cppcheck --enable=all --inconclusive --std=c++17 --error-exitcode=1 --suppress=missingIncludeSystem --verbose --check-config --xml $(echo $target_files) 2> report.xml \;
