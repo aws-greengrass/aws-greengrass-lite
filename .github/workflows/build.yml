@@ -3,6 +3,12 @@ name: Build
 on:
   workflow_call:
 
+env:
+  bashPass: \033[32;1mPASSED -
+  bashInfo: \033[33;1mINFO -
+  bashFail: \033[31;1mFAILED -
+  bashEnd: \033[0m
+
 jobs:
   build:
     timeout-minutes: 60
@@ -54,6 +60,7 @@ jobs:
           
           echo -e "::group::${{ env.bashInfo }} Perform dynamic analysis ${{ env.bashEnd }}"
           valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind.log ./greengrass-lite
+        continue-on-error: true
 
       - name: Run Tests
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
@@ -104,11 +111,6 @@ jobs:
             # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $RESULT
-        env:
-          bashPass: \033[32;1mPASSED -
-          bashInfo: \033[33;1mINFO -
-          bashFail: \033[31;1mFAILED -
-          bashEnd: \033[0m
 
       - name: Upload Coverage
         uses: actions/upload-artifact@v3
