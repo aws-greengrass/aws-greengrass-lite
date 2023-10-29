@@ -182,5 +182,5 @@ jobs:
       - name: Upload report
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ github.repository }}
+          name: cppcheck_report
           path: cppcheck_report
