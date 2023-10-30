@@ -66,8 +66,8 @@ jobs:
         id: upload-linting-patch
         uses: actions/upload-artifact@v3
         with:
-          name: lintingChanges
-          path: ${{ inputs.path }}/lintingChanges.patch
+          name: lintChanges
+          path: ${{ inputs.path }}/lintChanges.patch
           retention-days: 7
 
   analysis:
@@ -172,7 +172,7 @@ jobs:
           # Determine if there was a formatting diff.
           # If there was, create a patch of it.
           set +e
-          git diff --exit-code >> formattingChanges.patch
+          git diff --exit-code >> formatChanges.patch
           exitCode=$?
           set -e
 
@@ -196,6 +196,6 @@ jobs:
         id: upload-formatting-patch
         uses: actions/upload-artifact@v3
         with:
-          name: formattingChanges
-          path: ${{ inputs.path }}/formattingChanges.patch
+          name: formatChanges
+          path: ${{ inputs.path }}/formatChanges.patch
           retention-days: 5
