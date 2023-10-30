@@ -37,7 +37,7 @@ jobs:
           
           # Get all .cpp and .hpp files, as well as any other requested file types.
           # Then run cppcheck.
-          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy --checks=* \
+          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy \
           --warnings-as-errors --fix --fix-errors \;
           
           # Determine if there was a linting diff.
@@ -67,8 +67,8 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: lintChanges
-          path: ${{ inputs.path }}/lintChanges.patch
-          retention-days: 7
+          path: lintChanges.patch
+          retention-days: 5
 
   analysis:
     runs-on: ubuntu-latest
@@ -121,7 +121,7 @@ jobs:
           path: cppcheck_report
 
   format-check:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Clone the repo
         uses: actions/checkout@v3
@@ -130,7 +130,7 @@ jobs:
         run: |
           # echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
 
-          sudo apt-get install clang-format fd-find dos2unix
+          sudo apt-get install clang-format-10 fd-find dos2unix
           echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
           export PATH="$PATH:$GITHUB_ACTION_PATH"
 
@@ -197,5 +197,5 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: formatChanges
-          path: ${{ inputs.path }}/formatChanges.patch
+          path: formatChanges.patch
           retention-days: 5

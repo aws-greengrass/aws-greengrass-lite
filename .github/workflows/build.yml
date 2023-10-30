@@ -107,6 +107,6 @@ jobs:
         if: matrix.os == 'ubuntu-20.04' && failure() && ( steps.action-check-line-and-branch-coverage.outcome == 'failure' )
         id: upload-codecov-report
         with:
-          name: CodecovHTMLReport
-          path: CodecovHTMLReport.zip
+          name: CodecovReport
+          path: CodecovReport.zip
           retention-days: 5
