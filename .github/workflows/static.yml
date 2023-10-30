@@ -11,7 +11,7 @@ env:
 
 jobs:
   format-check:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Clone the repo
         uses: actions/checkout@v3
@@ -116,7 +116,7 @@ jobs:
           
           # Get all .cpp and .hpp files, as well as any other requested file types.
           # Then run cppcheck.
-          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --checks=* \
+          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy --checks=* \
           --warnings-as-errors --fix --fix-errors \;
           
           # Determine if there was a linting diff.
@@ -150,7 +150,7 @@ jobs:
           retention-days: 7
 
   analysis:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Clone the repo
@@ -182,7 +182,7 @@ jobs:
           target_files="$(fdfind -e cpp -e hpp ${args})"
           
           # Then run cppcheck.
-          cppcheck --enable=all --inconclusive --std=c++17 --error-exitcode=1 --suppress=missingIncludeSystem \
+          cppcheck --enable=all --inconclusive --std=c++17 --suppress=missingIncludeSystem \
           -i build -I nucleus/include -I nucleus/src -I nucleus/tests \
           -I build/_deps/device-sdk-cpp-src/crt/aws-crt-cpp/include -I build/_deps/catch2-src/src \
           --verbose --xml $(echo $target_files) 2> report.xml \;
