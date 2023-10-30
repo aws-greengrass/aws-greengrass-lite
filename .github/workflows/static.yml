@@ -114,7 +114,7 @@ jobs:
           
           # Get all .cpp and .hpp files, as well as any other requested file types.
           # Then run cppcheck.
-          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy \
+          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config=.clang-tidy \
           --warnings-as-errors --fix --fix-errors \;
           
           # Determine if there was a linting diff.
