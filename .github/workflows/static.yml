@@ -121,7 +121,7 @@ jobs:
           path: cppcheck_report
 
   format-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Clone the repo
         uses: actions/checkout@v3
@@ -130,7 +130,7 @@ jobs:
         run: |
           # echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
 
-          sudo apt-get install clang-format-10 fd-find dos2unix
+          sudo apt-get install clang-format fd-find dos2unix
           echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
           export PATH="$PATH:$GITHUB_ACTION_PATH"
 
