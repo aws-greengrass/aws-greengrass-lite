@@ -48,7 +48,7 @@ namespace util {
 
         static void createPath(const std::filesystem::path &path);
 
-        std::filesystem::path deTilde(std::string_view s) const;
+        static std::filesystem::path deTilde(std::string_view s) ;
         static std::filesystem::path resolve(
             const std::filesystem::path &first, const std::filesystem::path &second
         );
@@ -235,7 +235,7 @@ namespace util {
         [[nodiscard]] std::filesystem::path getLoaderPath();
         [[nodiscard]] std::filesystem::path getBinDir();
 
-        [[nodiscard]] std::filesystem::path workPath(const std::string_view serviceName) {
+        [[nodiscard]] std::filesystem::path workPath(const std::string_view serviceName) const {
             std::filesystem::path path{workPath() / serviceName};
             createPath(path);
             _permissions.setServiceWorkPathPermission(path);

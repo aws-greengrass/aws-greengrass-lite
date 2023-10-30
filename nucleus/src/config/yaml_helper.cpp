@@ -11,7 +11,7 @@ namespace config {
         read(stream);
     }
 
-    void YamlReader::read(std::ifstream &stream) {
+    static void YamlReader::read(std::ifstream &stream) {
         //
         // yaml-cpp has a number of flaws, but short of rewriting a YAML parser, is
         // sufficient to get going
@@ -24,7 +24,7 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    void YamlReader::inplaceMap(const std::shared_ptr<Topics> &topics, YAML::Node &node) {
+    static void YamlReader::inplaceMap(const std::shared_ptr<Topics> &topics, YAML::Node &node) {
         if(!node.IsMap()) {
             throw std::runtime_error("Expecting a map");
         }
@@ -35,7 +35,7 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    void YamlReader::inplaceValue(
+    static void YamlReader::inplaceValue(
         const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
     ) {
         switch(node.Type()) {
@@ -54,7 +54,7 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    data::ValueType YamlReader::rawValue(YAML::Node &node) {
+    static data::ValueType YamlReader::rawValue(YAML::Node &node) {
         switch(node.Type()) {
         case YAML::NodeType::Map:
             return rawMapValue(node);
@@ -76,7 +76,7 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    void YamlReader::nestedMapValue(
+    static void YamlReader::nestedMapValue(
         const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
     ) {
         std::shared_ptr<Topics> nested = topics->createInteriorChild(key, _timestamp);
@@ -84,7 +84,7 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    data::ValueType YamlReader::rawSequenceValue(YAML::Node &node) {
+    static data::ValueType YamlReader::rawSequenceValue(YAML::Node &node) {
         std::shared_ptr<data::SharedList> newList{std::make_shared<data::SharedList>(_environment)};
         int idx = 0;
         for(auto i : node) {
@@ -94,7 +94,7 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    data::ValueType YamlReader::rawMapValue(YAML::Node &node) {
+    static data::ValueType YamlReader::rawMapValue(YAML::Node &node) {
         std::shared_ptr<data::SharedStruct> newMap{
             std::make_shared<data::SharedStruct>(_environment)};
         for(auto i : node) {
@@ -104,7 +104,7 @@ namespace config {
         return newMap;
     }
 
-    void YamlHelper::write(
+    static void YamlHelper::write(
         data::Environment &environment,
         util::CommitableFile &path,
         const std::shared_ptr<Topics> &node
@@ -116,7 +116,7 @@ namespace config {
         path.commit();
     }
 
-    void YamlHelper::write(
+    static void YamlHelper::write(
         data::Environment &environment, std::ofstream &stream, const std::shared_ptr<Topics> &node
     ) {
         YAML::Emitter out;
@@ -128,7 +128,7 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    void YamlHelper::serialize(
+    static void YamlHelper::serialize(
         data::Environment &environment, YAML::Emitter &emitter, const std::shared_ptr<Topics> &node
     ) {
         emitter << YAML::BeginMap;
@@ -149,7 +149,7 @@ namespace config {
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
-    void YamlHelper::serialize(
+    static void YamlHelper::serialize(
         data::Environment &environment, YAML::Emitter &emitter, const data::StructElement &value
     ) {
         switch(value.getType()) {

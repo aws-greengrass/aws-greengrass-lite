@@ -72,7 +72,7 @@ namespace data {
         _buffer.resize(newSize, 0);
     }
 
-    uint32_t SharedBuffer::get(int idx, MemoryView bytes) const {
+    uint32_t SharedBuffer::get(int idx, MemoryView bytes) {
         std::shared_lock guard{_mutex};
         size_t realIdx;
         if(idx < 0) {

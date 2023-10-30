@@ -3,7 +3,7 @@
 
 namespace tasks {
 
-    data::ObjectAnchor TaskManager::createTask() {
+    static data::ObjectAnchor TaskManager::createTask() {
         auto task{std::make_shared<Task>(_environment)};
         auto taskAnchor{anchor(task)};
         task->setSelf(taskAnchor.getHandle());
@@ -95,7 +95,7 @@ namespace tasks {
         return work;
     }
 
-    void Task::addSubtask(std::unique_ptr<SubTask> subTask) {
+    static void Task::addSubtask(std::unique_ptr<SubTask> subTask) {
         std::unique_lock guard{_mutex};
         _subtasks.emplace_back(std::move(subTask));
     }
@@ -114,12 +114,12 @@ namespace tasks {
         }
     }
 
-    void FixedTaskThread::setDefaultTask(const data::ObjectAnchor &task) {
+    static void FixedTaskThread::setDefaultTask(const data::ObjectAnchor &task) {
         std::unique_lock guard{_mutex};
         _defaultTask = task;
     }
 
-    data::ObjectAnchor FixedTaskThread::getDefaultTask() {
+    static data::ObjectAnchor FixedTaskThread::getDefaultTask() {
         std::unique_lock guard{_mutex};
         return _defaultTask;
     }
@@ -270,7 +270,7 @@ namespace tasks {
         return _lastStatus == Completed;
     }
 
-    Task::Status Task::removeSubtask(std::unique_ptr<SubTask> &subTask) {
+    static Task::Status Task::removeSubtask(std::unique_ptr<SubTask> &subTask) {
         std::unique_lock guard{_mutex};
         if(_subtasks.empty()) {
             return NoSubTasks;
@@ -286,7 +286,7 @@ namespace tasks {
 
     class ThreadSelf {
     private:
-        data::ObjHandle _oldHandle;
+        data::ObjHandle _oldHandle{};
 
     public:
         ThreadSelf(const ThreadSelf &) = delete;
@@ -395,7 +395,7 @@ namespace tasks {
         return isCompleted();
     }
 
-    Task::Status Task::runInThreadCallNext(
+    static Task::Status Task::runInThreadCallNext(
         const std::shared_ptr<Task> &task,
         const std::shared_ptr<data::StructModelBase> &dataIn,
         std::shared_ptr<data::StructModelBase> &dataOut

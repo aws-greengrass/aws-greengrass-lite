@@ -11,13 +11,13 @@ namespace lifecycle {
     private:
         data::Global &_global;
         lifecycle::Kernel &_kernel;
-        std::shared_ptr<util::NucleusPaths> _nucleusPaths;
+        std::shared_ptr<util::NucleusPaths> _nucleusPaths{};
 
         std::filesystem::path _providedConfigPath;
         std::filesystem::path _providedInitialConfigPath;
-        std::string _awsRegionFromCmdLine;
-        std::string _envStageFromCmdLine;
-        std::string _defaultUserFromCmdLine;
+        std::string _awsRegionFromCmdLine{};
+        std::string _envStageFromCmdLine{};
+        std::string _defaultUserFromCmdLine{};
 
         static std::string nextArg(
             const std::vector<std::string> &args, std::vector<std::string>::const_iterator &iter

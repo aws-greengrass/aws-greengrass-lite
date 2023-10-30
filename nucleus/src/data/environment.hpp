@@ -10,22 +10,22 @@ namespace data {
     class SysProperties {
     private:
         mutable std::shared_mutex _mutex;
-        std::map<std::string, std::string> _cache;
+        std::map<std::string, std::string> _cache{};
 
     public:
         static constexpr auto HOME = {"HOME"};
 
         SysProperties() = default;
 
-        void parseEnv(char *envp[]); // NOLINT(*-avoid-c-arrays)
+        static void parseEnv(char *envp[]); // NOLINT(*-avoid-c-arrays)
 
         std::optional<std::string> get(std::string_view name) const;
 
         void put(std::string_view name, const std::string &value);
 
-        bool exists(std::string_view name) const;
+        static bool exists(std::string_view name) ;
 
-        void remove(std::string_view name);
+        static void remove(std::string_view name);
     };
 
     struct Environment { // NOLINT(*-special-member-functions)

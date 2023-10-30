@@ -24,7 +24,7 @@ namespace plugins {
     //
     class AbstractPlugin : public data::TrackingScope {
     protected:
-        std::string _moduleName;
+        std::string _moduleName{};
 
     public:
         explicit AbstractPlugin(data::Environment &environment, const std::string_view &name)
@@ -114,7 +114,7 @@ namespace plugins {
         }
 
         void discoverPlugins(const std::filesystem::path &pluginDir);
-        void discoverPlugin(const std::filesystem::directory_entry &entry);
+      static   void discoverPlugin(const std::filesystem::directory_entry &entry);
 
         void loadNativePlugin(const std::string &name);
 

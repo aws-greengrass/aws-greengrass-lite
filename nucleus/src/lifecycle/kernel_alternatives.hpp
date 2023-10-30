@@ -7,15 +7,15 @@ namespace deployment {}
 namespace lifecycle {
 
     class KernelAlternatives {
-        std::shared_ptr<util::NucleusPaths> _nucleusPaths;
+        std::shared_ptr<util::NucleusPaths> _nucleusPaths{};
 
         std::filesystem::path getAltsDir();
-        std::filesystem::path getLoaderPathFromLaunchDir(const std::filesystem::path);
+        std::filesystem::path getLoaderPathFromLaunchDir(std::filesystem::path);
 
-        bool validateLaunchDirSetup(const std::filesystem::path);
+        bool validateLaunchDirSetup(std::filesystem::path);
 
-        void cleanupLaunchDirectoryLink(const std::filesystem::path);
-        void cleanupLaunchDirectorySingleLevel(const std::filesystem::path);
+        void cleanupLaunchDirectoryLink(std::filesystem::path);
+        void cleanupLaunchDirectorySingleLevel(std::filesystem::path);
 
     public:
         explicit KernelAlternatives(std::shared_ptr<util::NucleusPaths> nucleusPaths);
@@ -26,20 +26,20 @@ namespace lifecycle {
 
         std::filesystem::path getLaunchParamsPath();
 
-        void writeLaunchParamsToFile(const std::string content);
+        void writeLaunchParamsToFile(std::string content);
         bool isLaunchDirSetup();
         void validateLaunchDirSetupVerbose();
         void setupInitLaunchDirIfAbsent();
 
-        void relinkInitLaunchDir(const std::filesystem::path, bool);
+        void relinkInitLaunchDir(std::filesystem::path, bool);
         std::filesystem::path locateCurrentKernelUnpackDir();
 
         deployment::DeploymentStage determineDeploymentStage();
         void activationSucceeds();
         void prepareRollback();
         void rollbackCompletes();
-        void prepareBootstrap(const std::string);
-        void setupLinkToDirectory(const std::filesystem::path, const std::filesystem::path);
+        void prepareBootstrap(std::string);
+        void setupLinkToDirectory(std::filesystem::path, std::filesystem::path);
 
         void cleanupLaunchDirectoryLinks();
     };

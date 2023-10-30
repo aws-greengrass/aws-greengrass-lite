@@ -2,7 +2,7 @@
 #include "environment.hpp"
 
 namespace data {
-    ObjectAnchor HandleTable::tryGet(ObjHandle handle) const {
+    ObjectAnchor HandleTable::tryGet(ObjHandle handle) {
         std::shared_lock guard{_mutex};
         auto i = _handles.find(handle);
         if(i == _handles.end()) {

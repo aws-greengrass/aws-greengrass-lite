@@ -122,7 +122,7 @@ namespace config {
         }
     }
 
-    TlogLine TlogLine::readRecord(data::Environment &environment, std::ifstream &stream) {
+    static TlogLine TlogLine::readRecord(data::Environment &environment, std::ifstream &stream) {
         TlogLine tlogLine;
         tlogLine.deserialize(environment, stream);
         return tlogLine;
@@ -141,7 +141,7 @@ namespace config {
         throw std::runtime_error("JSON structure invalid");
     }
 
-    rapidjson::ParseResult JsonReader::read(std::ifstream &stream) {
+    static rapidjson::ParseResult JsonReader::read(std::ifstream &stream) {
         if(!stream.is_open()) {
             throw std::invalid_argument("JSON stream is not open");
         }
@@ -257,7 +257,7 @@ namespace config {
         }
     }
 
-    bool JsonSharedStructResponder::parseKeyValue(
+    static bool JsonSharedStructResponder::parseKeyValue(
         const std::string &key, data::StructElement value
     ) {
         _target->put(key, value);

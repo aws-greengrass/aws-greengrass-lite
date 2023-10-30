@@ -13,7 +13,7 @@ public:
 
 class LayeredPlugin : public ggapi::Plugin {
     mutable std::mutex _mutex;
-    std::map<uint32_t, std::unique_ptr<DelegatePlugin>> _delegates;
+    std::map<uint32_t, std::unique_ptr<DelegatePlugin>> _delegates{};
 
 public:
     void onDiscover(ggapi::Struct data) override;
@@ -23,7 +23,7 @@ public:
         return layeredPlugin;
     }
 
-    DelegatePlugin &getDelegate(ggapi::Scope scope) {
+    static DelegatePlugin &getDelegate(ggapi::Scope scope) {
         std::unique_lock guard{_mutex};
         return *_delegates[scope.getHandleId()];
     }
@@ -48,11 +48,11 @@ void greengrass_delegate_lifecycle(
     LayeredPlugin::getSelf().getDelegate(moduleHandle).lifecycle(moduleHandle, phase, data);
 }
 
-void DelegatePlugin::onStart(ggapi::Struct data) {
+static void DelegatePlugin::onStart(ggapi::Struct data) {
     std::cout << "Running getDelegate start... " << std::endl;
 }
 
-void LayeredPlugin::onDiscover(ggapi::Struct data) {
+static void LayeredPlugin::onDiscover(ggapi::Struct data) {
     std::cout << "Layered Plugin: Running lifecycle discovery" << std::endl;
     std::unique_lock guard{_mutex};
     ggapi::ObjHandle nestedPlugin =

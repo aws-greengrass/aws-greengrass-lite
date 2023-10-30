@@ -45,7 +45,7 @@ namespace config {
     class JsonStructResponder : public JsonResponder {
     protected:
         JsonState _state;
-        std::string _key;
+        std::string _key{};
 
     public:
         JsonStructResponder(JsonReader &reader, bool started)
@@ -55,7 +55,7 @@ namespace config {
 
         virtual bool parseKeyValue(const std::string &key, data::StructElement value) = 0;
 
-        virtual data::StructElement buildValue() {
+        static virtual data::StructElement buildValue() {
             return {};
         }
 
@@ -77,7 +77,7 @@ namespace config {
               _state(started ? JsonState::ExpectValue : JsonState::ExpectStartArray) {
         }
 
-        virtual data::StructElement buildValue() {
+        static virtual data::StructElement buildValue() {
             return {};
         }
 
@@ -90,7 +90,7 @@ namespace config {
 
     class JsonSharedStructResponder : public JsonStructResponder {
     protected:
-        std::shared_ptr<data::StructModelBase> _target;
+        std::shared_ptr<data::StructModelBase> _target{};
 
     public:
         JsonSharedStructResponder(
@@ -106,7 +106,7 @@ namespace config {
     class JsonSharedListResponder : public JsonArrayResponder {
     protected:
         int32_t _idx{0};
-        std::shared_ptr<data::ListModelBase> _target;
+        std::shared_ptr<data::ListModelBase> _target{};
 
     public:
         JsonSharedListResponder(
@@ -125,11 +125,11 @@ namespace config {
             : JsonStructResponder(reader, started) {
         }
 
-        bool parseKeyValue(const std::string &key, data::StructElement value) override {
+        static bool parseKeyValue(const std::string &key, data::StructElement value) override {
             return true;
         }
 
-        data::StructElement buildValue() override {
+        static data::StructElement buildValue() override {
             return {};
         }
     };
@@ -139,11 +139,11 @@ namespace config {
         JsonArrayValidator(JsonReader &reader, bool started) : JsonArrayResponder(reader, started) {
         }
 
-        bool parseValue(data::StructElement value) override {
+        static bool parseValue(data::StructElement value) override {
             return true;
         }
 
-        data::StructElement buildValue() override {
+        static data::StructElement buildValue() override {
             return {};
         }
     };
@@ -152,7 +152,7 @@ namespace config {
 
     private:
         data::Environment &_environment;
-        std::vector<std::unique_ptr<JsonResponder>> _responders;
+        std::vector<std::unique_ptr<JsonResponder>> _responders{};
 
     public:
         explicit JsonReader(data::Environment &environment) : _environment{environment} {
@@ -263,7 +263,7 @@ namespace config {
 
     class TlogLinePathResponder : public JsonArrayResponder {
         TlogLine &_tlogLine;
-        std::vector<std::string> _path;
+        std::vector<std::string> _path{};
 
     public:
         explicit TlogLinePathResponder(JsonReader &reader, TlogLine &line, bool started)

@@ -45,7 +45,7 @@ namespace config {
         Watcher &operator=(Watcher &&) = delete;
         virtual ~Watcher() = default;
 
-        [[nodiscard]] virtual std::optional<data::ValueType> validate(
+        [[nodiscard]] static virtual std::optional<data::ValueType> validate(
             const std::shared_ptr<Topics> &topics,
             data::StringOrd key,
             const data::ValueType &proposed,

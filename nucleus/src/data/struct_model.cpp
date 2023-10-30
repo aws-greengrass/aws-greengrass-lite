@@ -7,7 +7,7 @@ namespace data {
     ) {
         std::unique_lock cycleGuard{_environment.cycleCheckMutex, std::defer_lock};
 
-        if(element.isContainer()) {
+        if(data::StructElement::isContainer()) {
             std::shared_ptr<data::ContainerModelBase> otherContainer = element.getContainer();
             if(otherContainer) {
                 // prepare for cycle checks

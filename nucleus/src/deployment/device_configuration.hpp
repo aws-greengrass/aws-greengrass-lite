@@ -132,13 +132,13 @@ namespace deployment {
     };
 
     class DeviceConfiguration {
-        mutable std::shared_mutex _mutex;
+        mutable std::shared_mutex _mutex{};
         data::Environment &_environment;
         lifecycle::Kernel &_kernel;
-        std::string _nucleusComponentNameCache;
-        std::shared_ptr<util::NucleusPaths> _nucleusPaths;
+        std::string _nucleusComponentNameCache{};
+        std::shared_ptr<util::NucleusPaths> _nucleusPaths{};
         std::atomic_bool _deviceConfigValidationCachedResult{false};
-        std::shared_ptr<config::Topics> _loggingTopics;
+        std::shared_ptr<config::Topics> _loggingTopics{};
 
     public:
         const DeviceConfigConsts configs;
@@ -215,7 +215,7 @@ namespace deployment {
         config::Topic gets3EndpointType();
         // void onAnyChange(ChildChanged);
         void validate();
-        void validate(bool);
+        static void validate(bool);
         bool isDeviceConfiguredToTalkToCloud();
         bool provisionInfoNodeChanged(const std::shared_ptr<config::ConfigNode> &node, bool);
         config::Topic getTopic(data::StringOrdInit);

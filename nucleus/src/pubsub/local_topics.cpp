@@ -50,7 +50,7 @@ namespace pubsub {
         }
     }
 
-    std::shared_ptr<Listener> Listeners::newReceiver(std::unique_ptr<AbstractCallback> &callback) {
+    static std::shared_ptr<Listener> Listeners::newReceiver(std::unique_ptr<AbstractCallback> &callback) {
         std::shared_ptr<Listener> receiver{
             std::make_shared<Listener>(_environment, _topicOrd, this, callback)};
         std::unique_lock guard{_environment.sharedLocalTopicsMutex};
@@ -58,7 +58,7 @@ namespace pubsub {
         return receiver;
     }
 
-    std::shared_ptr<Listeners> PubSubManager::tryGetListeners(data::StringOrd topicOrd) {
+    static std::shared_ptr<Listeners> PubSubManager::tryGetListeners(data::StringOrd topicOrd) {
         std::shared_lock guard{_environment.sharedLocalTopicsMutex};
         auto i = _topics.find(topicOrd);
         if(i == _topics.end()) {
@@ -68,7 +68,7 @@ namespace pubsub {
         }
     }
 
-    std::shared_ptr<Listeners> PubSubManager::getListeners(data::StringOrd topicOrd) {
+    static std::shared_ptr<Listeners> PubSubManager::getListeners(data::StringOrd topicOrd) {
         std::shared_ptr<Listeners> receivers = tryGetListeners(topicOrd);
         if(receivers) {
             return receivers;
@@ -84,7 +84,7 @@ namespace pubsub {
         return receivers;
     }
 
-    data::ObjectAnchor PubSubManager::subscribe(
+    static data::ObjectAnchor PubSubManager::subscribe(
         data::ObjHandle anchor,
         data::StringOrd topicOrd,
         std::unique_ptr<AbstractCallback> &callback
@@ -96,7 +96,7 @@ namespace pubsub {
         return root->anchor(receiver); // if handle or root goes away, unsubscribe
     }
 
-    void PubSubManager::insertCallQueue(
+    static void PubSubManager::insertCallQueue(
         std::shared_ptr<tasks::Task> &task, data::StringOrd topicOrd
     ) {
         if(!topicOrd) {
@@ -140,7 +140,7 @@ namespace pubsub {
         ) override;
     };
 
-    std::unique_ptr<tasks::SubTask> Listener::toSubTask() {
+    static std::unique_ptr<tasks::SubTask> Listener::toSubTask() {
         std::shared_lock guard{_environment.sharedLocalTopicsMutex};
         std::shared_ptr<Listener> receiver{std::static_pointer_cast<Listener>(shared_from_this())};
         std::unique_ptr<tasks::SubTask> subTask{new ReceiverSubTask(receiver)};
@@ -176,7 +176,7 @@ namespace pubsub {
         return nullptr;
     }
 
-    std::unique_ptr<tasks::SubTask> CompletionSubTask::of(
+    static std::unique_ptr<tasks::SubTask> CompletionSubTask::of(
         data::StringOrd topicOrd, std::unique_ptr<AbstractCallback> callback
     ) {
         if(topicOrd && callback) {

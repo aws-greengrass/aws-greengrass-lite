@@ -40,10 +40,10 @@ namespace lifecycle {
 
     class Kernel : public util::RefObject<Kernel> {
         data::Global &_global;
-        std::shared_ptr<util::NucleusPaths> _nucleusPaths;
+        std::shared_ptr<util::NucleusPaths> _nucleusPaths{};
         std::shared_ptr<RootPathWatcher> _rootPathWatcher;
-        tasks::FixedTaskThreadScope _mainThread;
-        std::unique_ptr<config::TlogWriter> _tlog;
+        tasks::FixedTaskThreadScope _mainThread{};
+        std::unique_ptr<config::TlogWriter> _tlog{};
         deployment::DeploymentStage _deploymentStageAtLaunch{deployment::DeploymentStage::DEFAULT};
         std::unique_ptr<deployment::DeviceConfiguration> _deviceConfiguration{nullptr};
         std::unique_ptr<KernelAlternatives> _kernelAlts{nullptr};
@@ -71,29 +71,28 @@ namespace lifecycle {
             CommandLine &commandLine, const std::filesystem::path &configFile
         );
         void initConfigAndTlog(CommandLine &commandLine);
-        void updateDeviceConfiguration(CommandLine &commandLine);
+        static void updateDeviceConfiguration(CommandLine &commandLine);
         void initializeNucleusFromRecipe();
         void setupProxy();
-        void launchBootstrap();
-        void launchLifecycle();
-        void launchKernelDeployment();
+        static void launchBootstrap();
+        static void launchLifecycle();
+        static void launchKernelDeployment();
         static bool handleIncompleteTlogTruncation(const std::filesystem::path &tlogFile);
-        void readConfigFromBackUpTLog(
+        static void readConfigFromBackUpTLog(
             const std::filesystem::path &tlogFile, const std::filesystem::path &bootstrapTlogFile
         );
         void writeEffectiveConfigAsTransactionLog(const std::filesystem::path &tlogFile);
-        void writeEffectiveConfig();
+        static void writeEffectiveConfig();
         void writeEffectiveConfig(const std::filesystem::path &configFile);
         std::shared_ptr<config::Topics> findServiceTopic(const std::string_view &serviceName);
 
         void stopAllServices(std::chrono::seconds timeoutSeconds);
         void shutdown(std::chrono::seconds timeoutSeconds, int exitCode);
         void shutdown(
-            std::chrono::seconds timeoutSeconds = std::chrono::seconds(SHUTDOWN_TIMEOUT_SECONDS)
+  static_cast<std::chrono::seconds>o::seconds timeoutSeconds = std::chrono::seconds(SHUTDOWN_TIMEOUT_SECONDS)
         );
 
-        void softShutdown(
-            std::chrono::seconds expireTime = std::chrono::seconds(SHUTDOWN_TIMEOUT_SECONDS)
+        void softShutdownstatic_cast<std::chrono::seconds>hrono::seconds expireTime = std::chrono::seconds(SHUTDOWN_TIMEOUT_SECONDS)
         );
 
         std::shared_ptr<util::NucleusPaths> getPaths() {

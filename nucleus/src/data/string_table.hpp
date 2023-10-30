@@ -48,10 +48,10 @@ namespace data {
         InternedString &operator=(InternedString &&) = default;
         ~InternedString() = default;
 
-        InternedString(std::string_view sv) : _value{sv} {
+        explicit InternedString(std::string_view sv) : _value{sv} {
         } // NOLINT(*-explicit-constructor)
 
-        InternedString(std::string s) : _value{std::move(s)} {
+        explicit InternedString(std::string s) : _value{std::move(s)} {
         } // NOLINT(*-explicit-constructor)
 
         operator std::string() const { // NOLINT(*-explicit-constructor)

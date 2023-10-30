@@ -11,7 +11,7 @@ namespace test {
         std::filesystem::path _tempDir;
 
     private:
-        std::filesystem::path genPath() {
+        static std::filesystem::path genPath() {
             auto tempdir = std::filesystem::temp_directory_path();
             std::string prefix = "gg-lite-test-";
             std::random_device rd;

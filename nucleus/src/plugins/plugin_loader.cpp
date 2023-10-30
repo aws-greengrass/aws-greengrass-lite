@@ -79,7 +79,7 @@ void plugins::PluginLoader::lifecycle(
     }
 }
 
-bool plugins::NativePlugin::lifecycle(
+static bool plugins::NativePlugin::lifecycle(
     data::ObjHandle pluginAnchor,
     data::StringOrd phase,
     const std::shared_ptr<data::StructModelBase> &data
@@ -99,7 +99,7 @@ bool plugins::DelegatePlugin::lifecycle(
     data::ObjHandle pluginAnchor,
     data::StringOrd phase,
     const std::shared_ptr<data::StructModelBase> &data
-) {
+) const {
     uintptr_t delegateContext;
     ggapiLifecycleCallback delegateLifecycle;
     {
@@ -143,7 +143,7 @@ void plugins::PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
     }
 }
 
-void plugins::PluginLoader::loadNativePlugin(const std::string &name) {
+static void plugins::PluginLoader::loadNativePlugin(const std::string &name) {
     std::shared_ptr<NativePlugin> plugin{std::make_shared<NativePlugin>(_environment, name)};
     std::cout << "Loading native plugin from " << name << std::endl;
     plugin->load(name);
@@ -152,27 +152,27 @@ void plugins::PluginLoader::loadNativePlugin(const std::string &name) {
     anchor(plugin);
 }
 
-void plugins::PluginLoader::lifecycleBootstrap(const std::shared_ptr<data::StructModelBase> &data) {
+static void plugins::PluginLoader::lifecycleBootstrap(const std::shared_ptr<data::StructModelBase> &data) {
     data::Handle key = _environment.stringTable.getOrCreateOrd("bootstrap");
     lifecycle(key, data);
 }
 
-void plugins::PluginLoader::lifecycleDiscover(const std::shared_ptr<data::StructModelBase> &data) {
+static void plugins::PluginLoader::lifecycleDiscover(const std::shared_ptr<data::StructModelBase> &data) {
     data::Handle key = _environment.stringTable.getOrCreateOrd("discover");
     lifecycle(key, data);
 }
 
-void plugins::PluginLoader::lifecycleStart(const std::shared_ptr<data::StructModelBase> &data) {
+static void plugins::PluginLoader::lifecycleStart(const std::shared_ptr<data::StructModelBase> &data) {
     data::Handle key = _environment.stringTable.getOrCreateOrd("start");
     lifecycle(key, data);
 }
 
-void plugins::PluginLoader::lifecycleRun(const std::shared_ptr<data::StructModelBase> &data) {
+static void plugins::PluginLoader::lifecycleRun(const std::shared_ptr<data::StructModelBase> &data) {
     data::Handle key = _environment.stringTable.getOrCreateOrd("run");
     lifecycle(key, data);
 }
 
-void plugins::PluginLoader::lifecycleTerminate(const std::shared_ptr<data::StructModelBase> &data) {
+static void plugins::PluginLoader::lifecycleTerminate(const std::shared_ptr<data::StructModelBase> &data) {
     data::Handle key = _environment.stringTable.getOrCreateOrd("terminate");
     lifecycle(key, data);
 }

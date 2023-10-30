@@ -18,9 +18,9 @@ namespace util {
 
     public:
         CommitableFile(const CommitableFile &) = delete;
-        CommitableFile(CommitableFile &&) = default;
+        CommitableFile(CommitableFile &&)  noexcept = default;
         CommitableFile &operator=(const CommitableFile &) = delete;
-        CommitableFile &operator=(CommitableFile &&) = default;
+        CommitableFile &operator=(CommitableFile &&)  noexcept = default;
         explicit CommitableFile(
             std::filesystem::path newPath,
             std::filesystem::path backupPath,
