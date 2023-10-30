@@ -106,6 +106,7 @@ jobs:
           # Check that the commands installed correctly
           fdfind --version
           echo -e "::endgroup::"
+          clang-tidy --help
 
       - name: Linting
         run: |
