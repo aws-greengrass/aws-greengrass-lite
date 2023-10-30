@@ -106,7 +106,7 @@ jobs:
           # Check that the commands installed correctly
           fdfind --version
           echo -e "::endgroup::"
-          clang-tidy --help
+          clang-tidy --version
 
       - name: Linting
         run: |
@@ -115,7 +115,7 @@ jobs:
           
           # Get all .cpp and .hpp files, as well as any other requested file types.
           # Then run cppcheck.
-          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config=.clang-tidy \
+          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --checks=* \
           --warnings-as-errors --fix --fix-errors \;
           
           # Determine if there was a linting diff.
