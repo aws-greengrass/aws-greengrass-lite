@@ -114,7 +114,8 @@ jobs:
           
           # Get all .cpp and .hpp files, as well as any other requested file types.
           # Then run cppcheck.
-          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy --warnings-as-errors --fix --fix-errors \;
+          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy \
+          --warnings-as-errors --fix --fix-errors \;
           
           # Determine if there was a linting diff.
           # If there was, create a patch of it.
@@ -164,6 +165,13 @@ jobs:
           fdfind --version
           echo -e "::endgroup::"
 
+      - name: Configure project
+        run: >
+          cmake -B build
+          -DCMAKE_CXX_COMPILER=g++
+          -DCMAKE_BUILD_TYPE=Debug
+          -S ${{ github.workspace }}
+
       - name: Perform analysis
         run: |
           # Parse the optional inputs
@@ -173,7 +181,10 @@ jobs:
           target_files="$(fdfind -e cpp -e hpp ${args})"
           
           # Then run cppcheck.
-          cppcheck --enable=all --inconclusive --std=c++17 --error-exitcode=1 --suppress=missingIncludeSystem --verbose --check-config --xml $(echo $target_files) 2> report.xml \;
+          cppcheck --enable=all --inconclusive --std=c++17 --error-exitcode=1 --suppress=missingIncludeSystem \
+          -i build -I nucleus/include -I nucleus/src -I nucleus/tests \
+          -I build/_deps/device-sdk-cpp-src/crt/aws-crt-cpp/include -I build/_deps/catch2-src/src \
+          --verbose --xml $(echo $target_files) 2> report.xml \;
 
       - name: Generate report
         run: >

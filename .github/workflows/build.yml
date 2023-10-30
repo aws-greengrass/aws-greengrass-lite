@@ -52,16 +52,6 @@ jobs:
       - name: Build
         run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
-      - name: Valgrind
-        if: matrix.os == 'ubuntu-20.04'
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}/nucleus
-        run: |
-          sudo apt-get install -y valgrind
-          
-          echo -e "::group::${{ env.bashInfo }} Perform dynamic analysis ${{ env.bashEnd }}"
-          valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=valgrind.log ./greengrass-lite
-        continue-on-error: true
-
       - name: Run Tests
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
         run: ctest --build-config ${{ matrix.build_type }} --output-on-failure
@@ -119,13 +109,4 @@ jobs:
         with:
           name: CodecovHTMLReport
           path: CodecovHTMLReport.zip
-          retention-days: 5
-
-      - name: Upload Logs
-        uses: actions/upload-artifact@v3
-        if: matrix.os == 'ubuntu-20.04'
-        id: upload-valgrind-logs
-        with:
-          name: valgrind.log
-          path: valgrind.log
           retention-days: 5
