@@ -76,7 +76,7 @@ namespace config {
 
         data::Environment &_environment;
         mutable std::mutex _mutex;
-        util::CommitableFile _tlogFile{};
+        util::CommitableFile _tlogFile;
         std::shared_ptr<Topics> _root;
         std::shared_ptr<TlogWatcher> _watcher;
         bool _truncateQueue{false};
@@ -86,7 +86,7 @@ namespace config {
         uint32_t _maxEntries{DEFAULT_MAX_TLOG_ENTRIES};
         uint32_t _retryCount{0};
 
-        static void writeAll(const std::shared_ptr<Topics> &node);
+        void writeAll(const std::shared_ptr<Topics> &node);
 
     public:
         TlogWriter(
@@ -100,8 +100,8 @@ namespace config {
         TlogWriter &operator=(TlogWriter &&other) = delete;
         ~TlogWriter() = default;
 
-        static void abandon();
-        static void commit();
+        void abandon();
+        void commit();
         TlogWriter &withAutoTruncate(bool f = true);
         TlogWriter &withWatcher(bool f = true);
         TlogWriter &withMaxEntries(uint32_t maxEntries = DEFAULT_MAX_TLOG_ENTRIES);
@@ -109,7 +109,7 @@ namespace config {
         TlogWriter &flushImmediately(bool f = true);
         TlogWriter &startNew();
         TlogWriter &append();
-        static std::filesystem::path getPath() ;
+        std::filesystem::path getPath() const;
         void childChanged(ConfigNode &node, WhatHappened changeType);
         TlogWriter &dump();
 

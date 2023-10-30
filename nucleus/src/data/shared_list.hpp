@@ -9,7 +9,7 @@ namespace data {
     protected:
         static constexpr uint32_t MAX_LIST_SIZE{0x10000};
 
-        std::vector<StructElement> _elements{};
+        std::vector<StructElement> _elements;
         mutable std::shared_mutex _mutex;
 
         void rootsCheck(const ContainerModelBase *target) const override;

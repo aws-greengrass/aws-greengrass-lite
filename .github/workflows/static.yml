@@ -91,7 +91,7 @@ jobs:
           retention-days: 7
 
   linting:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Clone the repo
@@ -107,7 +107,6 @@ jobs:
           fdfind --version
           echo -e "::endgroup::"
           clang-tidy --version
-          clang-tidy --help
 
       - name: Linting
         run: |
@@ -136,12 +135,13 @@ jobs:
               echo -e "::endgroup::"
               echo -e "${{ env.bashFail }} List of files with linting errors: ${{ env.bashEnd }}"
               echo -e "${{ env.bashFail }} "$(git diff --name-only)" ${{ env.bashEnd }} "
+              git diff --name-only
               # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $exitCode
 
       - name: Upload Git Patch
-        if: failure() && ( steps.linting.outcome == 'failure' )
+        if: failure() && ( steps.action-linting.outcome == 'failure' )
         id: upload-linting-patch
         uses: actions/upload-artifact@v3
         with:

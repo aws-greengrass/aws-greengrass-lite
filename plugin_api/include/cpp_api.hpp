@@ -236,10 +236,10 @@ namespace ggapi {
         }
 
         [[nodiscard]] Subscription subscribeToTopic(StringOrd topic, topicCallback_t callback);
-        [[nodiscard]] static Scope sendToTopicAsync(
+        [[nodiscard]] Scope sendToTopicAsync(
             StringOrd topic, Struct message, topicCallback_t result, int32_t timeout = -1
         );
-        [[nodiscard]] static Scope sendToListenerAsync(
+        [[nodiscard]] Scope sendToListenerAsync(
             Subscription listener, Struct message, topicCallback_t result, int32_t timeout = -1
         );
         [[nodiscard]] static Struct sendToTopic(

@@ -46,7 +46,8 @@ namespace data {
         ValueType _value;
 
     public:
-        StructElement() : _value{} = default;
+        StructElement() : _value{} {
+        }
 
         StructElement(ValueType v) : _value(std::move(v)) { // NOLINT(*-explicit-constructor)
         }
@@ -100,7 +101,7 @@ namespace data {
             return _value.index() == OBJECT;
         }
 
-        [[nodiscard]] static bool isContainer() {
+        [[nodiscard]] bool isContainer() const {
             return isType<ContainerModelBase>();
         }
 
@@ -112,7 +113,7 @@ namespace data {
             return _value.index() == NONE;
         }
 
-        [[nodiscard]] static bool getBool() {
+        [[nodiscard]] bool getBool() const {
             switch(_value.index()) {
             case BOOL:
                 return std::get<bool>(_value);
@@ -129,7 +130,7 @@ namespace data {
             }
         }
 
-        [[nodiscard]] static uint64_t getInt() {
+        [[nodiscard]] uint64_t getInt() const {
             switch(_value.index()) {
             case BOOL:
                 return std::get<bool>(_value) ? 1 : 0;
@@ -144,7 +145,7 @@ namespace data {
             }
         }
 
-        [[nodiscard]] static double getDouble() {
+        [[nodiscard]] double getDouble() const {
             switch(_value.index()) {
             case BOOL:
                 return std::get<bool>(_value) ? 1.0 : 0.0;
@@ -159,7 +160,7 @@ namespace data {
             }
         }
 
-        [[nodiscard]] static std::string getString() {
+        [[nodiscard]] std::string getString() const {
             switch(_value.index()) {
             case BOOL:
                 return std::get<bool>(_value) ? "true" : "false";
@@ -174,7 +175,7 @@ namespace data {
             }
         }
 
-        [[nodiscard]] static std::shared_ptr<TrackedObject> getObject() {
+        [[nodiscard]] std::shared_ptr<TrackedObject> getObject() const {
             switch(_value.index()) {
             case NONE:
                 return {};
@@ -185,7 +186,7 @@ namespace data {
             }
         }
 
-        [[nodiscard]] static std::shared_ptr<ContainerModelBase> getContainer() {
+        [[nodiscard]] std::shared_ptr<ContainerModelBase> getContainer() const {
             return castObject<ContainerModelBase>();
         }
 
@@ -248,7 +249,7 @@ namespace data {
         // Used for lists and structures
         //
         virtual void rootsCheck(const ContainerModelBase *target) const = 0;
-        [[nodiscard]] virtual uint32_t size() const = 0;
+        virtual uint32_t size() const = 0;
         void checkedPut(
             const StructElement &element,
             const std::function<void(const StructElement &)> &putAction
@@ -262,8 +263,8 @@ namespace data {
     class StructModelBase : public ContainerModelBase {
     protected:
         virtual void putImpl(StringOrd handle, const StructElement &element) = 0;
-        [[nodiscard]] virtual bool hasKeyImpl(StringOrd handle) const = 0;
-        [[nodiscard]] virtual StructElement getImpl(StringOrd handle) const = 0;
+        virtual bool hasKeyImpl(StringOrd handle) const = 0;
+        virtual StructElement getImpl(StringOrd handle) const = 0;
 
     public:
         explicit StructModelBase(Environment &environment) : ContainerModelBase{environment} {
@@ -271,12 +272,12 @@ namespace data {
 
         void put(StringOrd handle, const StructElement &element);
         void put(std::string_view sv, const StructElement &element);
-        [[nodiscard]] virtual std::vector<data::StringOrd> getKeys() const = 0;
-        [[nodiscard]] bool hasKey(StringOrd handle) const;
-        [[nodiscard]] bool hasKey(std::string_view sv) const;
-        [[nodiscard]] StructElement get(StringOrd handle) const;
-        [[nodiscard]] StructElement get(std::string_view sv) const;
-        [[nodiscard]] virtual std::shared_ptr<StructModelBase> copy() const = 0;
+        virtual std::vector<data::StringOrd> getKeys() const = 0;
+        bool hasKey(StringOrd handle) const;
+        bool hasKey(std::string_view sv) const;
+        StructElement get(StringOrd handle) const;
+        StructElement get(std::string_view sv) const;
+        virtual std::shared_ptr<StructModelBase> copy() const = 0;
     };
 
     //
@@ -290,8 +291,8 @@ namespace data {
 
         virtual void put(int32_t idx, const StructElement &element) = 0;
         virtual void insert(int32_t idx, const StructElement &element) = 0;
-        [[nodiscard]] virtual StructElement get(int idx) const = 0;
-        [[nodiscard]] virtual std::shared_ptr<ListModelBase> copy() const = 0;
+        virtual StructElement get(int idx) const = 0;
+        virtual std::shared_ptr<ListModelBase> copy() const = 0;
     };
 
     inline StructElement::StructElement(const std::shared_ptr<TrackedObject> &p) {

@@ -9,24 +9,25 @@ namespace test {
 
     class GGRoot : public TempDir {
     protected:
-        static void threadRunner() {
+        void threadRunner() {
             int res = kernel.launch();
             result.store(res);
             finished.store(true);
         }
 
     public:
-        data::Global global{};
-        data::SysProperties sysProps{};
-        std::vector<std::string> args{};
-        lifecycle::Kernel kernel{};
+        data::Global global;
+        data::SysProperties sysProps;
+        std::vector<std::string> args;
+        lifecycle::Kernel kernel;
         std::thread kernelThread;
         std::atomic_int result;
         std::atomic_bool finished;
 
-        GGRoot() : kernel(global) = default;
+        GGRoot() : kernel(global) {
+        }
 
-        static void preLaunch() {
+        void preLaunch() {
             lifecycle::CommandLine commandLine{global, kernel};
             commandLine.parseArgs(args);
             kernel.preLaunch(commandLine);

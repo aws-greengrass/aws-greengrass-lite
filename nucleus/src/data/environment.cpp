@@ -29,7 +29,7 @@ namespace data {
         }
     }
 
-    static std::optional<std::string> SysProperties::get(std::string_view name) {
+    std::optional<std::string> SysProperties::get(std::string_view name) const {
         std::shared_lock guard{_mutex};
         std::string key{name};
         const auto &i = _cache.find(key);
@@ -40,14 +40,14 @@ namespace data {
         }
     }
 
-    bool SysProperties::exists(std::string_view name) {
+    bool SysProperties::exists(std::string_view name) const {
         std::shared_lock guard{_mutex};
         std::string key{name};
         const auto &i = _cache.find(key);
         return i != _cache.end();
     }
 
-    static void SysProperties::put(std::string_view name, const std::string &value) {
+    void SysProperties::put(std::string_view name, const std::string &value) {
         std::unique_lock guard{_mutex};
         _cache.emplace(name, value);
     }

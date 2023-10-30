@@ -27,7 +27,7 @@ namespace pubsub {
     // Translated callback exception
     //
     class CallbackError : public std::exception {
-        data::StringOrd _ord{};
+        data::StringOrd _ord;
 
     public:
         constexpr CallbackError(const CallbackError &) noexcept = default;
@@ -63,8 +63,8 @@ namespace pubsub {
 
     class CompletionSubTask : public tasks::SubTask {
     private:
-        data::StringOrd _topicOrd{};
-        std::unique_ptr<pubsub::AbstractCallback> _callback{};
+        data::StringOrd _topicOrd;
+        std::unique_ptr<pubsub::AbstractCallback> _callback;
 
     public:
         explicit CompletionSubTask(
@@ -73,7 +73,7 @@ namespace pubsub {
             : _topicOrd{topicOrd}, _callback{std::move(callback)} {
         }
 
-  static       std::shared_ptr<data::StructModelBase> runInThread(
+        std::shared_ptr<data::StructModelBase> runInThread(
             const std::shared_ptr<tasks::Task> &task,
             const std::shared_ptr<data::StructModelBase> &result
         ) override;
@@ -88,9 +88,9 @@ namespace pubsub {
     //
     class Listener : public data::TrackedObject {
     private:
-        data::StringOrd _to{}picOrd;
+        data::StringOrd _topicOrd;
         std::weak_ptr<Listeners> _parent;
-        std::unique_ptr<AbstractCallback> _ca{}llback;
+        std::unique_ptr<AbstractCallback> _callback;
 
     public:
         Listener(const Listener &) = delete;
@@ -105,7 +105,7 @@ namespace pubsub {
             std::unique_ptr<AbstractCallback> &callback
         );
         std::unique_ptr<tasks::SubTask> toSubTask();
-  static       std::shared_ptr<data::StructModelBase> runInTaskThread(
+        std::shared_ptr<data::StructModelBase> runInTaskThread(
             const std::shared_ptr<tasks::Task> &task,
             const std::shared_ptr<data::StructModelBase> &dataIn
         );
@@ -118,13 +118,13 @@ namespace pubsub {
     class Listeners : public util::RefObject<Listeners> {
     private:
         data::Environment &_environment;
-        data::StringOrd _to{}picOrd;
+        data::StringOrd _topicOrd;
         std::weak_ptr<PubSubManager> _parent;
-        std::vector<std::weak_ptr<Listener>> _lis{}teners;
+        std::vector<std::weak_ptr<Listener>> _listeners;
 
     public:
         Listeners(data::Environment &environment, data::StringOrd topicOrd, PubSubManager *topics);
-  static       void cleanup();
+        void cleanup();
 
         bool isEmpty() {
             return _listeners.empty();
@@ -146,7 +146,7 @@ namespace pubsub {
         explicit PubSubManager(data::Environment &environment) : _environment{environment} {
         }
 
-  static       void cleanup();
+        void cleanup();
         // if listeners exist for a given topic, return those listeners
         std::shared_ptr<Listeners> tryGetListeners(data::StringOrd topicOrd);
         // get listeners, create if there is none for given topic

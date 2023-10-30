@@ -47,7 +47,7 @@ namespace lifecycle {
         _kernel.getPaths()->setRootPath(root, true /* passive */);
     }
 
-    static std::string CommandLine::nextArg(
+    std::string CommandLine::nextArg(
         const std::vector<std::string> &args, std::vector<std::string>::const_iterator &iter
     ) {
         if(iter == args.end()) {
@@ -58,7 +58,7 @@ namespace lifecycle {
         return v;
     }
 
-    static void CommandLine::parseHome(data::SysProperties &env) {
+    void CommandLine::parseHome(data::SysProperties &env) {
         std::optional<std::string> homePath = env.get("HOME");
         std::shared_ptr<util::NucleusPaths> paths = _kernel.getPaths();
         if(homePath.has_value() && !homePath.value().empty()) {

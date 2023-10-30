@@ -21,7 +21,7 @@ namespace util {
         );
     }
 
-    std::filesystem::path NucleusPaths::deTilde(std::string_view s) {
+    std::filesystem::path NucleusPaths::deTilde(std::string_view s) const {
         std::shared_lock guard{_mutex};
         // converts a string-form path into an OS path
         // replicates GG-Java

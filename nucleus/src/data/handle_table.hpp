@@ -67,7 +67,7 @@ namespace data {
 
     public:
         // Retrieve object, safe if handle does not exist
-        static ObjectAnchor tryGet(ObjHandle handle) ;
+        ObjectAnchor tryGet(ObjHandle handle) const;
         // Retrieve object, handle is expected to exist
         ObjectAnchor get(ObjHandle handle) const;
 
@@ -80,6 +80,6 @@ namespace data {
         // Creates a new handle, even if one exists
         ObjectAnchor create(const ObjectAnchor &partial);
         // remove a handle
-        static void remove(const ObjectAnchor &anchor);
+        void remove(const ObjectAnchor &anchor);
     };
 } // namespace data

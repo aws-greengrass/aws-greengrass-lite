@@ -71,7 +71,7 @@ namespace config {
         return *this;
     }
 
-    std::filesystem::path TlogWriter::getPath() {
+    std::filesystem::path TlogWriter::getPath() const {
         std::unique_lock guard{_mutex};
         return _tlogFile.getTargetFile();
     }
@@ -168,7 +168,7 @@ namespace config {
     ) {
     }
 
-    static bool TlogReader::handleTlogTornWrite(
+    bool TlogReader::handleTlogTornWrite(
         data::Environment &environment, const std::filesystem::path &tlogFile
     ) {
         uintmax_t fileSize = 0;
@@ -261,7 +261,7 @@ namespace config {
         }
     }
 
-    static void TlogReader::mergeTlogInto(
+    void TlogReader::mergeTlogInto(
         data::Environment &environment,
         const std::shared_ptr<Topics> &root,
         std::ifstream &stream,
@@ -305,7 +305,7 @@ namespace config {
         }
     }
 
-    static void TlogReader::mergeTlogInto(
+    void TlogReader::mergeTlogInto(
         data::Environment &environment,
         const std::shared_ptr<Topics> &root,
         const std::filesystem::path &path,

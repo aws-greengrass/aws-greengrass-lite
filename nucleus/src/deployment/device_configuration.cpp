@@ -17,7 +17,7 @@ namespace deployment {
         // TODO: OnAnyChange
     }
 
-    static std::string DeviceConfiguration::getNucleusComponentName() {
+    std::string DeviceConfiguration::getNucleusComponentName() {
         std::unique_lock guard{_mutex};
         if(!_nucleusComponentNameCache.empty()) {
             if(_kernel.findServiceTopic(_nucleusComponentNameCache)) {
@@ -39,7 +39,7 @@ namespace deployment {
         return getTopics(configs.FLEET_STATUS_CONFIG_TOPICS);
     }
 
-    static std::string DeviceConfiguration::initNucleusComponentName() {
+    std::string DeviceConfiguration::initNucleusComponentName() {
         // TODO: missing code
         return {};
     }
@@ -108,7 +108,7 @@ namespace deployment {
     //    void DeviceConfiguration::reconfigureLogging(LogConfigUpdate) {
     //    }
 
-    static std::optional<std::string> DeviceConfiguration::getComponentType(std::string serviceName) {
+    std::optional<std::string> DeviceConfiguration::getComponentType(std::string serviceName) {
         std::optional<config::Topic> componentType =
             _kernel.getConfig().find({"services", serviceName, "componentType"});
         if(componentType.has_value()) {
@@ -149,7 +149,7 @@ namespace deployment {
     }
 
     // Get thing name configuration. Also adds the thing name to the env vars if it has changed.
-    static config::Topic DeviceConfiguration::getThingName() {
+    config::Topic DeviceConfiguration::getThingName() {
         config::Topic thingNameTopic =
             _kernel.getConfig()
                 .lookup({configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_THING_NAME})
@@ -246,7 +246,7 @@ namespace deployment {
         return getNetworkProxyNamespace()->lookupTopics({configs.DEVICE_PROXY_NAMESPACE});
     }
 
-    static std::string DeviceConfiguration::getNoProxyAddresses() {
+    std::string DeviceConfiguration::getNoProxyAddresses() {
         config::Topic potentialTopic =
             getNetworkProxyNamespace()->lookup({configs.DEVICE_PARAM_NO_PROXY_ADDRESSES});
         return potentialTopic.empty() ? "" : potentialTopic.getString();
@@ -321,7 +321,7 @@ namespace deployment {
         }
     }
 
-    static bool DeviceConfiguration::provisionInfoNodeChanged(
+    bool DeviceConfiguration::provisionInfoNodeChanged(
         const std::shared_ptr<config::ConfigNode> &node, bool checkThingNameOnly
     ) {
         // TODO: missing code
@@ -341,7 +341,7 @@ namespace deployment {
         );
     }
 
-    static std::string DeviceConfiguration::getNucleusVersion() {
+    std::string DeviceConfiguration::getNucleusVersion() {
         std::string version;
         std::shared_ptr<config::Topics> componentTopic =
             _kernel.findServiceTopic(getNucleusComponentName());
@@ -354,12 +354,12 @@ namespace deployment {
         return configs.FALLBACK_VERSION;
     }
 
-    static std::string DeviceConfiguration::getVersionFromBuildRecipeFile() {
+    std::string DeviceConfiguration::getVersionFromBuildRecipeFile() {
         // TODO: missing code
         return {};
     }
 
-    static void DeviceConfiguration::validateDeviceConfiguration(
+    void DeviceConfiguration::validateDeviceConfiguration(
         std::string_view thingName,
         std::string_view certificateFilePath,
         std::string_view privateKeyPath,
@@ -408,7 +408,7 @@ namespace deployment {
     // Validate the IoT credential and data endpoint with the provided AWS region. Currently, it
     // checks that if the endpoints are provided, then the AWS region should be a part of the
     // URL.
-    static void DeviceConfiguration::validateEndpoints(
+    void DeviceConfiguration::validateEndpoints(
         std::string_view awsRegion,
         std::string_view iotCredEndpoint,
         std::string_view iotDataEndpoint

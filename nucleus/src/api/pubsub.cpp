@@ -4,8 +4,8 @@
 
 class NativeCallback : public pubsub::AbstractCallback {
 private:
-    ggapiTopicCallback _callback{};
-    uintptr_t _context{};
+    ggapiTopicCallback _callback;
+    uintptr_t _context;
 
 public:
     explicit NativeCallback(ggapiTopicCallback callback, uintptr_t context)

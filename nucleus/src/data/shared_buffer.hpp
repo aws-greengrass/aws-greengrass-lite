@@ -13,14 +13,14 @@ namespace data {
     protected:
         static constexpr uint32_t MAX_BUFFER_SIZE{0x100000};
 
-        std::vector<char> _buffer{};
+        std::vector<char> _buffer;
         mutable std::shared_mutex _mutex;
 
         void rootsCheck(const ContainerModelBase *target) const override {
             // no-op
         }
 
-      static   void putOrInsert(int32_t idx, ConstMemoryView bytes, bool insert);
+        void putOrInsert(int32_t idx, ConstMemoryView bytes, bool insert);
 
     public:
         explicit SharedBuffer(Environment &environment) : ContainerModelBase{environment} {
@@ -29,7 +29,7 @@ namespace data {
         void put(int32_t idx, ConstMemoryView bytes);
         void insert(int32_t idx, ConstMemoryView bytes);
         uint32_t size() const override;
-      static   void resize(uint32_t newSize);
-      static   uint32_t get(int idx, MemoryView bytesst;
+        void resize(uint32_t newSize);
+        uint32_t get(int idx, MemoryView bytes) const;
     };
 } // namespace data

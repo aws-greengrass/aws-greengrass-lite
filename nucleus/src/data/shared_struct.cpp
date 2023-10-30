@@ -47,7 +47,7 @@ namespace data {
         return i != _elements.end();
     }
 
-    static std::vector<data::StringOrd> SharedStruct::getKeys() {
+    std::vector<data::StringOrd> SharedStruct::getKeys() const {
         std::vector<data::StringOrd> keys;
         std::shared_lock guard{_mutex};
         keys.reserve(_elements.size());

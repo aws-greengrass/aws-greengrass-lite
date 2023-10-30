@@ -181,7 +181,7 @@ namespace config {
     //
     class TopicElement : public data::StructElement {
     protected:
-        data::StringOrd _nameOrd{};
+        data::StringOrd _nameOrd;
         Timestamp _modtime;
 
     public:
@@ -219,14 +219,14 @@ namespace config {
     //
     class Topics : public data::StructModelBase, public ConfigNode {
     private:
-        data::StringOrd _nameO{}rd;
+        data::StringOrd _nameOrd;
         Timestamp _modtime;
         std::atomic_bool _excludeTlog{false};
         bool _notifyParent{true};
         std::weak_ptr<Topics> _parent;
-        std::map<data::StringOrd, TopicElement, data::StringOrd::CompLess> _childr{}en;
-        std::vector<Watching> _watchi{}ng;
-        mutable std::shared_mutex _mut{}ex;
+        std::map<data::StringOrd, TopicElement, data::StringOrd::CompLess> _children;
+        std::vector<Watching> _watching;
+        mutable std::shared_mutex _mutex;
 
         void rootsCheck(const data::ContainerModelBase *target) const override;
         void updateChild(const TopicElement &element);
@@ -259,26 +259,27 @@ namespace config {
         // Don't use directly, but behave correctly when used via API
 
         void putImpl(data::StringOrd handle, const data::StructElement &element) override;
-        [[nodiscard]] data::StructElement getImpl(data::StringOrd handle) const override;
-        [[nodiscard]] bool hasKeyImpl(data::StringOrd handle) const override;
-        [[nodiscard]] std::vector<data::StringOrd> getKstatic eys() const over        [[nodiscard]] uint32_t size() const override;
-        [[nodiscard]] std::shared_ptr<data::StructModelBase> copy() const override;
+        data::StructElement getImpl(data::StringOrd handle) const override;
+        bool hasKeyImpl(data::StringOrd handle) const override;
+        [[nodiscard]] std::vector<data::StringOrd> getKeys() const override;
+        uint32_t size() const override;
+        std::shared_ptr<data::StructModelBase> copy() const override;
 
         // Watchers/Publishing
 
         void addWatcher(
             data::StringOrd subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons
         );
-        void addWatcher(const std::shastatic red_ptr<Watcher> &wr, WhatHapstatic pened reasons);
-        [scard]] bool hasWatchers() const;
-        [[nodiscard]] bool parentNeedsToKnow() const;
+        void addWatcher(const std::shared_ptr<Watcher> &watcher, WhatHappened reasons);
+        bool hasWatchers() const;
+        bool parentNeedsToKnow() const;
         void setParentNeedsToKnow(bool f);
 
-        [[nodiscard]] std::optional<std::vector<std::shared_ptr<Watcher>>> filterWatchers(
+        std::optional<std::vector<std::shared_ptr<Watcher>>> filterWatchers(
             data::StringOrd subKey, WhatHappened reasons
         ) const;
 
-        [[nodiscard]] std::optional<std::vector<std::shared_ptr<Watcher>>> filterWatchers(WhatHappened reasons
+        std::optional<std::vector<std::shared_ptr<Watcher>>> filterWatchers(WhatHappened reasons
         ) const;
         void notifyChange(data::StringOrd subKey, WhatHappened changeType);
         void notifyChange(WhatHappened changeType);
@@ -299,7 +300,7 @@ namespace config {
         std::shared_ptr<Topics> createInteriorChild(
             data::StringOrd nameOrd, const Timestamp &timestamp = Timestamp::now()
         );
-        std::shared_ptr<Topics> createIstatic nteriorChild(
+        std::shared_ptr<Topics> createInteriorChild(
             std::string_view name, const Timestamp &timestamp = Timestamp::now()
         );
         std::shared_ptr<Topics> findInteriorChild(std::string_view name);
@@ -328,7 +329,7 @@ namespace config {
     //
     class Topic : public TopicElement, public ConfigNode {
     protected:
-        data::Environment *_environment{}; // By-ref to allow copying
+        data::Environment *_environment; // By-ref to allow copying
         std::shared_ptr<Topics> _parent;
 
     public:
@@ -399,7 +400,7 @@ namespace config {
     private:
         data::Environment &_environment;
         std::shared_ptr<Topics> _root;
-        PublishQueue _publishQueue{};
+        PublishQueue _publishQueue;
 
     public:
         explicit Manager(data::Environment &environment)

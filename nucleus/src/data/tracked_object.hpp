@@ -123,10 +123,10 @@ namespace data {
         friend class HandleTable;
 
     protected:
-        std::map<ObjHandle, std::shared_ptr<TrackedObject>, ObjHandle::CompLess> _roots{};
+        std::map<ObjHandle, std::shared_ptr<TrackedObject>, ObjHandle::CompLess> _roots;
         mutable std::shared_mutex _mutex;
-        static void removeRootHelper(const ObjectAnchor &anchor);
-        static ObjectAnchor createRootHelper(const ObjectAnchor &anchor);
+        void removeRootHelper(const ObjectAnchor &anchor);
+        ObjectAnchor createRootHelper(const ObjectAnchor &anchor);
         std::vector<ObjectAnchor> getRootsHelper(const std::weak_ptr<TrackingScope> &assumedOwner);
 
     public:
@@ -142,11 +142,11 @@ namespace data {
         ObjectAnchor reanchor(const ObjectAnchor &anchor);
         void remove(const ObjectAnchor &anchor);
 
-        static std::shared_ptr<const TrackingScope> scopeRef() {
+        std::shared_ptr<const TrackingScope> scopeRef() const {
             return ref<TrackingScope>();
         }
 
-        static std::shared_ptr<TrackingScope> scopeRef() {
+        std::shared_ptr<TrackingScope> scopeRef() {
             return ref<TrackingScope>();
         }
 

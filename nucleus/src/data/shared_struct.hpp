@@ -8,7 +8,7 @@ namespace data {
      */
     class SharedStruct : public StructModelBase {
     protected:
-        std::map<StringOrd, StructElement, StringOrd::CompLess> _elements{};
+        std::map<StringOrd, StructElement, StringOrd::CompLess> _elements;
         mutable std::shared_mutex _mutex;
 
         void rootsCheck(const ContainerModelBase *target) const override;
