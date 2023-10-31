@@ -114,7 +114,6 @@ target_link_libraries(greengrass-lite nucleus-core)
 add_executable(nucleus-tests
         tests/test_tools.hpp
         tests/test_ggroot.hpp
-
         tests/api/buffer_tests.cpp
         tests/api/list_tests.cpp
         tests/api/pubsub_tests.cpp
@@ -127,6 +126,25 @@ add_executable(nucleus-tests
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
         PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
-include(CTest)
 include(Catch)
 catch_discover_tests(nucleus-tests)
+
+if (CMAKE_BUILD_TYPE STREQUAL Debug)
+    if (UNIX)
+        target_compile_options(nucleus-tests PRIVATE --coverage)
+        target_link_options(nucleus-tests PUBLIC --coverage)
+        add_custom_command(TARGET nucleus-tests PRE_BUILD COMMAND
+                find ${CMAKE_BINARY_DIR} -type f -name '*.gcda' -exec rm {} +)
+        add_custom_target(coverage
+                COMMENT "Running coverage for nucleus-tests"
+                COMMAND lcov -d . --zerocounters
+                COMMAND lcov -d . --capture -o coverage.info
+                COMMAND lcov -r coverage.info '/usr/include/*' -o filtered.info
+                COMMAND genhtml -o coverage filtered.info
+                COMMAND genhtml -o coverage filtered.info --legend
+                COMMAND rm -rf coverage.info filtered.info
+                DEPENDS nucleus-tests
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+        )
+    endif ()
+endif ()

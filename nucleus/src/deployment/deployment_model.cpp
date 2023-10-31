@@ -1,5 +1,3 @@
 #include "deployment_model.hpp"
 
-namespace deployment {
-
-}
+namespace deployment {}

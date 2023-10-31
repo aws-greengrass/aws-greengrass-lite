@@ -1,7 +1,6 @@
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
 
-
 static ggapi::Struct simpleListener(ggapi::Scope, ggapi::StringOrd, ggapi::Struct) {
     return ggapi::Struct{0};
 }

@@ -1,0 +1,38 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+
+  static:
+    uses: ./.github/workflows/static.yml
+
+  git-secrets:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - name: Checkout awslabs/git-secrets
+        uses: actions/checkout@v3
+        with:
+          repository: awslabs/git-secrets
+          ref: master
+          path: git-secrets
+
+      - name: Install git-secrets
+        run: cd git-secrets && sudo make install && cd ..
+
+      - name: Run git-secrets
+        run: |
+          git-secrets --register-aws
+          git-secrets --scan
