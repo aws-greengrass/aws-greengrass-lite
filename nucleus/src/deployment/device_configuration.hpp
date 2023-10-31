@@ -150,7 +150,7 @@ namespace deployment {
         DeviceConfiguration(const DeviceConfiguration &) = delete;
         DeviceConfiguration &operator=(const DeviceConfiguration &) = delete;
         DeviceConfiguration(DeviceConfiguration &&) noexcept = delete;
-        DeviceConfiguration &operator=(DeviceConfiguration &&) noexcept = default;
+        DeviceConfiguration &operator=(DeviceConfiguration &&) noexcept = delete;
         ~DeviceConfiguration() = default;
 
         // TODO: Refactor into new classes and implement
