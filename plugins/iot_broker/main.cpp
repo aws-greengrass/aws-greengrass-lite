@@ -1,15 +1,20 @@
 #include "aws/crt/Types.h"
 #include "aws/crt/mqtt/Mqtt5Types.h"
+#include <algorithm>
 #include <aws/crt/Api.h>
 #include <aws/crt/UUID.h>
 #include <aws/crt/mqtt/Mqtt5Packets.h>
 #include <aws/iot/Mqtt5Client.h>
 #include <cassert>
 #include <cpp_api.hpp>
+#include <cstddef>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <regex>
 #include <shared_mutex>
+#include <stdexcept>
+#include <string_view>
 #include <thread>
 #include <unordered_map>
 
@@ -25,8 +30,84 @@ struct Keys {
     ggapi::StringOrd lpcResponseTopic{"lpcResponseTopic"};
 };
 
+struct TopicLevelIterator {
+    using value_type = std::string_view;
+    using difference_type = std::ptrdiff_t;
+    using reference = const value_type &;
+    using pointer = const value_type *;
+    using iterator_category = std::input_iterator_tag;
+
+    explicit TopicLevelIterator(std::string_view topic) noexcept
+        : _str(topic), _index(0), _current(_str.substr(_index, _str.find('/', _index))) {
+    }
+
+    friend bool operator==(const TopicLevelIterator &a, const TopicLevelIterator &b) noexcept {
+        return (a._index == b._index) && (a._str.data() == b._str.data());
+    }
+
+    friend bool operator!=(const TopicLevelIterator &a, const TopicLevelIterator &b) noexcept {
+        return (a._index != b._index) || (a._str.data() != b._str.data());
+    }
+
+    reference operator*() const {
+        if(_index == value_type::npos) {
+            throw std::out_of_range{"Using depleted TopicLevelIterator."};
+        }
+        return _current;
+    }
+
+    pointer operator->() const {
+        if(_index == value_type::npos) {
+            throw std::out_of_range{"Using depleted TopicLevelIterator."};
+        }
+        return &_current;
+    }
+
+    TopicLevelIterator &operator++() {
+        if(_index == value_type::npos) {
+            throw std::out_of_range{"Using depleted TopicLevelIterator."};
+        }
+        _index += _current.length() + 1;
+        if(_index > _str.length()) {
+            _index = value_type::npos;
+        } else {
+            size_t nextIndex = _str.find('/', _index);
+            if(nextIndex == value_type::npos) {
+                nextIndex = _str.length();
+            }
+            _current = _str.substr(_index, nextIndex - _index);
+        }
+        return *this;
+    }
+
+    // NOLINTNEXTLINE(readability-const-return-type) Conflicting lints.
+    const TopicLevelIterator operator++(int) {
+        TopicLevelIterator tmp = *this;
+        ++*this;
+        return tmp;
+    }
+
+    [[nodiscard]] TopicLevelIterator begin() const {
+        return *this;
+    }
+
+    [[nodiscard]] TopicLevelIterator end() const {
+        return TopicLevelIterator{this->_str, value_type::npos};
+    }
+
+private:
+    explicit TopicLevelIterator(std::string_view topic, size_t index) : _str(topic), _index(index) {
+    }
+
+    std::string_view _str;
+    size_t _index;
+    value_type _current;
+};
+
 class TopicFilter {
 public:
+    using const_iterator = TopicLevelIterator;
+
     explicit TopicFilter(std::string_view str) : _value{str} {
         validateFilter();
     }
@@ -50,24 +131,22 @@ public:
     }
 
     [[nodiscard]] bool match(std::string_view topic) const noexcept {
-        size_t index = 0;
-        for(char c : this->_value) {
-            if(c == '#') {
-                return true;
-            } else if(c == '+') {
-                size_t pos = topic.find('/', index);
-                if(pos == std::string_view::npos) {
-                    index = topic.length();
-                } else {
-                    index = pos;
+        TopicLevelIterator topicIter{topic};
+        bool hash = false;
+        auto [filterTail, topicTail] = std::mismatch(
+            begin(),
+            end(),
+            topicIter.begin(),
+            topicIter.end(),
+            [&hash](std::string_view filterLevel, std::string_view topicLevel) {
+                if(filterLevel == "#") {
+                    hash = true;
+                    return true;
                 }
-            } else if((index < topic.length()) && (c == topic[index])) {
-                index += 1;
-            } else {
-                return false;
+                return (filterLevel == "+") || (filterLevel == topicLevel);
             }
-        }
-        return index == topic.length();
+        );
+        return hash || ((filterTail == end()) && (topicTail == topicIter.end()));
     }
 
     struct Hash {
@@ -75,6 +154,14 @@ public:
             return std::hash<std::string>{}(filter._value);
         }
     };
+
+    [[nodiscard]] const_iterator begin() const {
+        return TopicLevelIterator(_value).begin();
+    }
+
+    [[nodiscard]] const_iterator end() const {
+        return TopicLevelIterator(_value).end();
+    }
 
     [[nodiscard]] const std::string &get() const noexcept {
         return _value;
@@ -84,10 +171,19 @@ private:
     std::string _value;
 
     void validateFilter() const {
-        static const std::regex filterRegex{
-            R"(^(?:#|\+|(?:\+/)?([^\+#]*/\+/)*?[^\+#]*(/\+|/#|))$)"};
-        if((_value.length() < 1) || !std::regex_match(_value, filterRegex)) {
+        if(_value.empty()) {
             throw std::invalid_argument("Invalid topic filter");
+        }
+        bool last = false;
+        for(auto level : *this) {
+            if(last
+               || ((level != "#") && (level != "+")
+                   && (level.find_first_of("#+") != std::string_view::npos))) {
+                throw std::invalid_argument("Invalid topic filter");
+            }
+            if(level == "#") {
+                last = true;
+            }
         }
     }
 };
