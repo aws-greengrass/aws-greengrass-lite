@@ -131,7 +131,9 @@ jobs:
           # echo -e "::group::${{ env.bashInfo }} ${{ env.stepName }} ${{ env.bashEnd }}"
           
           sudo apt-get update
-          sudo apt-get install clang-16 fd-find dos2unix
+          sudo apt-get install python3-pip
+          pip3 install clang-format
+          sudo apt-get install wget fd-find dos2unix
           
           echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
           export PATH="$PATH:$GITHUB_ACTION_PATH"
