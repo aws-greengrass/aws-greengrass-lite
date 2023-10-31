@@ -72,8 +72,9 @@ add_library(nucleus-obj OBJECT
         src/plugins/plugin_loader.cpp src/plugins/plugin_loader.hpp
         src/pubsub/local_topics.cpp src/pubsub/local_topics.hpp
         src/tasks/expire_time.hpp
-        src/tasks/sub_task.hpp
         src/tasks/task.cpp src/tasks/task.hpp
+        src/tasks/task_manager.cpp src/tasks/task_manager.hpp
+        src/tasks/task_threads.cpp src/tasks/task_threads.hpp
         src/util/commitable_file.cpp src/util/commitable_file.hpp
         src/util/nucleus_paths.cpp src/util/nucleus_paths.hpp
         src/util/permissions.cpp src/util/permissions.hpp
@@ -128,9 +129,12 @@ target_include_directories(nucleus-tests
 include(Catch)
 catch_discover_tests(nucleus-tests)
 
-
 if (CMAKE_BUILD_TYPE STREQUAL Debug)
     if (UNIX)
+        target_compile_options(nucleus-tests PRIVATE --coverage)
+        target_link_options(nucleus-tests PUBLIC --coverage)
+        add_custom_command(TARGET nucleus-tests PRE_BUILD COMMAND
+                find ${CMAKE_BINARY_DIR} -type f -name '*.gcda' -exec rm {} +)
         add_custom_target(coverage
                 COMMENT "Running coverage for nucleus-tests"
                 COMMAND lcov -d . --zerocounters

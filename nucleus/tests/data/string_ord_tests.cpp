@@ -1,5 +1,5 @@
-#include "catch2/catch_all.hpp"
 #include "data/globals.hpp"
+#include <catch2/catch_all.hpp>
 
 // NOLINTBEGIN
 SCENARIO("String ordinals are consistent", "[ordinal]") {

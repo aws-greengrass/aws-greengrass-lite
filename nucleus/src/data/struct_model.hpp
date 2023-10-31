@@ -12,16 +12,16 @@ namespace data {
     class StructModelBase;
     class ListModelBase;
 
-    typedef std::variant<
+    using ValueType = std::variant<
         // types in same order as type consts in ValueTypes below
         std::monostate, // Always first (NONE)
         bool, // BOOL
         uint64_t, // INT
         double, // DOUBLE
         std::string, // STRING
+        StringOrdExt, // STRING_ORD
         std::shared_ptr<TrackedObject> // OBJECT
-        >
-        ValueType;
+        >;
 
     // enum class ValueTypes would seem to be better, but we need to compare int to
     // int, so this is easier
@@ -31,7 +31,8 @@ namespace data {
         static constexpr auto INT{2};
         static constexpr auto DOUBLE{3};
         static constexpr auto STRING{4};
-        static constexpr auto OBJECT{5};
+        static constexpr auto STRING_ORD{5};
+        static constexpr auto OBJECT{6};
     };
 
     //
@@ -49,28 +50,46 @@ namespace data {
         StructElement() : _value{} {
         }
 
-        StructElement(ValueType v) : _value(std::move(v)) { // NOLINT(*-explicit-constructor)
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(ValueType v) : _value(std::move(v)) {
         }
 
-        StructElement(const bool v) : _value{v} { // NOLINT(*-explicit-constructor)
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(const bool v) : _value{v} {
         }
 
-        StructElement(const uint64_t v) : _value{v} { // NOLINT(*-explicit-constructor)
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(const uint64_t v) : _value{v} {
         }
 
-        StructElement(const double v) : _value{v} { // NOLINT(*-explicit-constructor)
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(const int64_t v) : _value{static_cast<uint64_t>(v)} {
         }
 
-        StructElement(const std::shared_ptr<TrackedObject> &p); // NOLINT(*-explicit-constructor)
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(const double v) : _value{v} {
+        }
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(const std::shared_ptr<TrackedObject> &p);
 
         // NOLINTNEXTLINE(*-explicit-constructor)
         StructElement(const std::shared_ptr<ContainerModelBase> &p)
             : StructElement(std::static_pointer_cast<TrackedObject>(p)) {
         }
 
-        StructElement(const std::string &str) : _value{str} { // NOLINT(*-explicit-constructor)
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(const std::string &str) : _value{str} {
         }
 
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(std::string_view str) : _value{static_cast<std::string>(str)} {
+        }
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        StructElement(StringOrdExt ord) : _value{ord} {
+        }
+        
         StructElement(const StructElement &) = default;
         StructElement(StructElement &&) = default;
         StructElement &operator=(const StructElement &el) = default;
@@ -113,6 +132,14 @@ namespace data {
             return _value.index() == NONE;
         }
 
+        [[nodiscard]] static bool getBool(std::string_view str) {
+            if(str.empty()) {
+                return false;
+            }
+            std::string s{util::lower(str)};
+            return s != "false" && s != "no" && s != "0" && s != "0.0";
+        }
+
         [[nodiscard]] bool getBool() const {
             switch(_value.index()) {
             case BOOL:
@@ -121,9 +148,10 @@ namespace data {
                 return std::get<uint64_t>(_value) != 0;
             case DOUBLE:
                 return std::get<double>(_value) != 0.0;
-            case STRING: {
-                std::string s = util::lower(std::get<std::string>(_value));
-                return !s.empty() && s != "false" && s != "no" && s != "0" && s != "0.0";
+            case STRING:
+                return getBool(std::get<std::string>(_value));
+            case STRING_ORD: {
+                return getBool(std::get<StringOrdExt>(_value).asString());
             }
             default:
                 throw std::runtime_error("Unsupported type conversion to integer");
@@ -140,6 +168,8 @@ namespace data {
                 return static_cast<uint64_t>(std::get<double>(_value));
             case STRING:
                 return std::stoul(std::get<std::string>(_value));
+            case STRING_ORD:
+                return std::stoul(std::get<StringOrdExt>(_value).asString());
             default:
                 throw std::runtime_error("Unsupported type conversion to integer");
             }
@@ -155,6 +185,8 @@ namespace data {
                 return std::get<double>(_value);
             case STRING:
                 return std::stod(std::get<std::string>(_value));
+            case STRING_ORD:
+                return std::stod(std::get<StringOrdExt>(_value).asString());
             default:
                 throw std::runtime_error("Unsupported type conversion to double");
             }
@@ -170,6 +202,8 @@ namespace data {
                 return std::to_string(std::get<double>(_value));
             case STRING:
                 return std::get<std::string>(_value);
+            case STRING_ORD:
+                return std::get<StringOrdExt>(_value).asString();
             default:
                 throw std::runtime_error("Unsupported type conversion to string");
             }

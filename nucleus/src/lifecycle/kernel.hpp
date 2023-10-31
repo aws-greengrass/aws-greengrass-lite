@@ -6,6 +6,7 @@
 #include "deployment/device_configuration.hpp"
 #include "lifecycle/kernel_alternatives.hpp"
 #include "tasks/expire_time.hpp"
+#include "tasks/task_threads.hpp"
 #include "util/nucleus_paths.hpp"
 #include <filesystem>
 #include <optional>

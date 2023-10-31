@@ -113,7 +113,7 @@ namespace ggapi {
         }
 
         constexpr bool operator!=(StringOrd other) const noexcept {
-            return _ord == other._ord;
+            return _ord != other._ord;
         }
 
         [[nodiscard]] constexpr uint32_t toOrd() const noexcept {
@@ -309,7 +309,17 @@ namespace ggapi {
     class Container : public ObjHandle {
     private:
     public:
-        using Value = std::variant<bool, int64_t, uint64_t, double, std::string, ObjHandle>;
+        // Value can only be used for parameter values
+        using Value = std::variant<
+            bool,
+            int64_t,
+            uint64_t,
+            double,
+            std::string,
+            std::string_view,
+            const char *,
+            ObjHandle,
+            StringOrd>;
         using KeyValue = std::pair<StringOrd, Value>;
 
         explicit Container(const ObjHandle &other) : ObjHandle{other} {
@@ -358,6 +368,10 @@ namespace ggapi {
                 auto floatv = static_cast<double>(v);
                 callApi([*this, ord, floatv]() {
                     ::ggapiStructPutFloat64(_handle, ord.toOrd(), floatv);
+                });
+            } else if constexpr(std::is_base_of_v<StringOrd, T>) {
+                callApi([*this, ord, v]() {
+                    ::ggapiStructPutStringOrd(_handle, ord.toOrd(), v.toOrd());
                 });
             } else if constexpr(std::is_constructible_v<std::string_view, T>) {
                 std::string_view str(v);
@@ -471,6 +485,8 @@ namespace ggapi {
             } else if constexpr(std::is_floating_point_v<T>) {
                 auto floatv = static_cast<double>(v);
                 callApi([*this, idx, floatv]() { ::ggapiListPutFloat64(_handle, idx, floatv); });
+            } else if constexpr(std::is_base_of_v<StringOrd, T>) {
+                callApi([*this, idx, v]() { ::ggapiListPutStringOrd(_handle, idx, v.toOrd()); });
             } else if constexpr(std::is_constructible_v<std::string_view, T>) {
                 std::string_view str(v);
                 callApi([*this, idx, str]() {
@@ -497,6 +513,8 @@ namespace ggapi {
             } else if constexpr(std::is_floating_point_v<T>) {
                 auto floatv = static_cast<double>(v);
                 callApi([*this, idx, floatv]() { ::ggapiListInsertFloat64(_handle, idx, floatv); });
+            } else if constexpr(std::is_base_of_v<StringOrd, T>) {
+                callApi([*this, idx, v]() { ::ggapiListInsertStringOrd(_handle, idx, v.toOrd()); });
             } else if constexpr(std::is_constructible_v<std::string_view, T>) {
                 std::string_view str(v);
                 callApi([*this, idx, str]() {

@@ -186,7 +186,6 @@ jobs:
               echo -e "::endgroup::"
               echo -e "${{ env.bashFail }} List of files with formatting errors: ${{ env.bashEnd }}"
               echo -e "${{ env.bashFail }} "$(git diff --name-only)" ${{ env.bashEnd }} "
-              git diff --name-only
               # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
           fi
           exit $exitCode

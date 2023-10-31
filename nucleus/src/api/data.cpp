@@ -10,7 +10,7 @@ using namespace data;
 uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) noexcept {
     try {
         Global &global = Global::self();
-        return global.environment.stringTable.getOrCreateOrd(std::string{bytes, len}).asInt();
+        return global.environment.stringTable.getOrCreateOrd(std::string_view{bytes, len}).asInt();
     } catch(...) {
         std::terminate(); // any string table put errors would be a critical
                           // error requiring termination
@@ -215,6 +215,17 @@ bool ggapiListInsertFloat64(uint32_t listHandle, int32_t idx, double value) noex
     });
 }
 
+static StructElement optimizeString(Environment &env, std::string_view str) {
+    // Opportunistic - if string matches an existing ordinal, use it,
+    // otherwise just store as a string as not to pollute string ord table
+    StringOrd ord = env.stringTable.testAndGetOrd(str);
+    if(ord) {
+        return {StringOrdExt(env, ord)};
+    } else {
+        return {str};
+    }
+}
+
 bool ggapiStructPutString(
     uint32_t structHandle, uint32_t ord, const char *bytes, size_t len
 ) noexcept {
@@ -222,7 +233,7 @@ bool ggapiStructPutString(
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
         StringOrd ordH = StringOrd{ord};
-        StructElement newElement{std::string(bytes, len)};
+        StructElement newElement{optimizeString(global.environment, std::string_view(bytes, len))};
         ss->put(ordH, newElement);
         return true;
     });
@@ -232,7 +243,7 @@ bool ggapiListPutString(uint32_t listHandle, int32_t idx, const char *bytes, siz
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
-        StructElement newElement{std::string(bytes, len)};
+        StructElement newElement{optimizeString(global.environment, std::string_view(bytes, len))};
         ss->put(idx, newElement);
         return true;
     });
@@ -244,7 +255,41 @@ bool ggapiListInsertString(
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         Global &global = Global::self();
         auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
-        StructElement newElement{std::string(bytes, len)};
+        StructElement newElement{optimizeString(global.environment, std::string_view(bytes, len))};
+        ss->insert(idx, newElement);
+        return true;
+    });
+}
+
+bool ggapiStructPutStringOrd(uint32_t structHandle, uint32_t ord, uint32_t stringOrd) noexcept {
+    return ggapi::trapErrorReturn<bool>([structHandle, ord, stringOrd]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<StructModelBase>(ObjHandle{structHandle})};
+        StringOrd ordH = StringOrd{ord};
+        StringOrd valueH = StringOrd{stringOrd};
+        StructElement newElement{StringOrdExt(global.environment, valueH)};
+        ss->put(ordH, newElement);
+        return true;
+    });
+}
+
+bool ggapiListPutStringOrd(uint32_t listHandle, int32_t idx, uint32_t stringOrd) noexcept {
+    return ggapi::trapErrorReturn<bool>([listHandle, idx, stringOrd]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
+        StringOrd valueH = StringOrd{stringOrd};
+        StructElement newElement{StringOrdExt(global.environment, valueH)};
+        ss->put(idx, newElement);
+        return true;
+    });
+}
+
+bool ggapiListInsertStringOrd(uint32_t listHandle, int32_t idx, uint32_t stringOrd) noexcept {
+    return ggapi::trapErrorReturn<bool>([listHandle, idx, stringOrd]() {
+        Global &global = Global::self();
+        auto ss{global.environment.handleTable.getObject<ListModelBase>(ObjHandle{listHandle})};
+        StringOrd valueH = StringOrd{stringOrd};
+        StructElement newElement{StringOrdExt(global.environment, valueH)};
         ss->insert(idx, newElement);
         return true;
     });

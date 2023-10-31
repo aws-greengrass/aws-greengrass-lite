@@ -36,7 +36,7 @@ namespace data {
     void SharedStruct::putImpl(const StringOrd handle, const StructElement &element) {
         checkedPut(element, [this, handle](auto &el) {
             std::unique_lock guard{_mutex};
-            _elements.emplace(handle, el);
+            _elements.insert_or_assign(handle, el);
         });
     }
 

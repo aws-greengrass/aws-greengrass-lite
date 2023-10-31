@@ -1,6 +1,5 @@
-#include "catch2/catch_all.hpp"
+#include <catch2/catch_all.hpp>
 #include "data/globals.hpp"
-#include "lifecycle/kernel.hpp"
 #include "test_ggroot.hpp"
 
 namespace fs = std::filesystem;

@@ -28,7 +28,7 @@ namespace data {
     }
 
     void StructModelBase::put(std::string_view sv, const StructElement &element) {
-        Handle handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
+        Handle handle = _environment.stringTable.getOrCreateOrd(sv);
         putImpl(handle, element);
     }
 
@@ -37,7 +37,7 @@ namespace data {
     }
 
     bool StructModelBase::hasKey(const std::string_view sv) const {
-        Handle handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
+        Handle handle = _environment.stringTable.getOrCreateOrd(sv);
         return hasKeyImpl(handle);
     }
 
@@ -45,8 +45,8 @@ namespace data {
         return hasKeyImpl(handle);
     }
 
-    StructElement StructModelBase::get(const std::string_view sv) const {
-        Handle handle = _environment.stringTable.getOrCreateOrd(std::string(sv));
+    StructElement StructModelBase::get(std::string_view sv) const {
+        Handle handle = _environment.stringTable.getOrCreateOrd(sv);
         return getImpl(handle);
     }
 

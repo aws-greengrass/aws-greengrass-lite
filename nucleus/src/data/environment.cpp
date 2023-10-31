@@ -8,7 +8,6 @@ tasks::ExpireTime data::Environment::translateExpires(int32_t delta) {
 
 namespace data {
     void SysProperties::parseEnv(char *envp[]) { // NOLINT(*-avoid-c-arrays)
-        std::unique_lock guard{_mutex};
         char **p = envp;
         for(; *p != nullptr; ++p) { // NOLINT(*-pointer-arithmetic)
             char *key = *p;
@@ -19,12 +18,10 @@ namespace data {
                 }
             }
             if(*eq) {
-                _cache.emplace(
-                    std::string(key, eq - key),
-                    std::string(eq + 1)
-                ); // NOLINT(*-pointer-arithmetic)
+                put(std::string_view(key, eq - key),
+                    std::string_view(eq + 1)); // NOLINT(*-pointer-arithmetic)
             } else {
-                _cache.emplace(std::string(key, eq - key), "");
+                put(std::string_view(key, eq - key), "");
             }
         }
     }
@@ -47,9 +44,9 @@ namespace data {
         return i != _cache.end();
     }
 
-    void SysProperties::put(std::string_view name, const std::string &value) {
+    void SysProperties::put(const std::string &name, const std::string &value) {
         std::unique_lock guard{_mutex};
-        _cache.emplace(name, value);
+        _cache.insert_or_assign(name, value);
     }
 
     void SysProperties::remove(std::string_view name) {

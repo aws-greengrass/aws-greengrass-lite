@@ -21,7 +21,11 @@ namespace data {
 
         std::optional<std::string> get(std::string_view name) const;
 
-        void put(std::string_view name, const std::string &value);
+        void put(const std::string &name, const std::string &value);
+
+        void put(std::string_view name, std::string_view value) {
+            put(std::string(name), std::string(value));
+        }
 
         bool exists(std::string_view name) const;
 

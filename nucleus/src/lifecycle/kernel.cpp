@@ -237,9 +237,9 @@ namespace lifecycle {
 
     int Kernel::launch() {
         if(!_mainThread) {
-            _mainThread.claim(
-                std::make_shared<tasks::FixedTaskThread>(_global.environment, _global.taskManager)
-            );
+            _mainThread.claim(std::make_shared<tasks::FixedTimerTaskThread>(
+                _global.environment, _global.taskManager
+            ));
         }
 
         switch(_deploymentStageAtLaunch) {
@@ -284,7 +284,7 @@ namespace lifecycle {
 
         (void) ggapiWaitForTaskCompleted(
             ggapiGetCurrentTask(), -1
-        ); // essentially blocks forever but allows main thread to do work
+        ); // essentially blocks until kernel signalled to terminate
         _global.loader->lifecycleTerminate(configStruct);
         getConfig().publishQueue().stop();
     }
