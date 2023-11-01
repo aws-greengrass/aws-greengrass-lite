@@ -263,9 +263,9 @@ namespace tasks {
         _blockedThreads.remove(blockedThread);
     }
 
-    bool Task::waitForCompletion(const ExpireTime &expireTime) {
+    bool Task::waitForCompletion(const ExpireTime &terminateTime) {
         BlockedThreadScope scope{ref<Task>(), TaskThread::getThreadContext()};
-        scope.taskStealing(expireTime); // exception safe
+        scope.taskStealing(terminateTime); // exception safe
         return isCompleted();
     }
 

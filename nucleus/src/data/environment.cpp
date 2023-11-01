@@ -1,7 +1,7 @@
 #include "environment.hpp"
 #include "tasks/expire_time.hpp"
 
-tasks::ExpireTime data::Environment::translateExpires(int32_t delta) {
+tasks::ExpireTime data::Environment::translateExpires(int32_t delta) noexcept {
     // override this to enable time-based testing
     return tasks::ExpireTime::fromNowMillis(delta);
 }

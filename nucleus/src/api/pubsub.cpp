@@ -92,7 +92,7 @@ static inline data::ObjHandle pubSubQueueAndWaitCommon(const data::ObjectAnchor 
     auto taskObj{taskAnchor.getObject<tasks::Task>()};
     taskObj->setDefaultThread(tasks::TaskThread::getThreadContext());
     global.taskManager->queueTask(taskObj);
-    if(taskObj->waitForCompletion(tasks::ExpireTime::infinite())) {
+    if(taskObj->wait()) {
         std::shared_ptr<tasks::Task> anchorScope{
             global.environment.handleTable.getObject<tasks::Task>(tasks::Task::getThreadSelf())};
         return anchorScope->anchor(taskObj->getData()).getHandle();

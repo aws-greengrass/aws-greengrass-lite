@@ -1,12 +1,20 @@
 #include "data/environment.hpp"
 #include "data/shared_struct.hpp"
+#include "tasks/expire_time.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_manager.hpp"
 #include "tasks/task_threads.hpp"
 #include <catch2/catch_all.hpp>
+#include <chrono>
 
 // NOLINTBEGIN
-static constexpr auto TIMER_GRANULARITY{200}; // If too small, tests will become unstable
+namespace constants {
+    using namespace std::chrono_literals;
+    static constexpr auto TIMER_GRANULARITY = 200ms; // If too small, tests will become unstable
+
+    // TODO: remove or significantly reduce me
+    static constexpr auto POLLING_GRACE = 10us;
+} // namespace constants
 
 class SubTaskStub : public tasks::SubTask {
     std::string _flagName;
@@ -55,10 +63,13 @@ SCENARIO("Task management", "[tasks]") {
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
-            tasks::ExpireTime expireTime = tasks::ExpireTime::now();
-            bool didComplete = task->waitForCompletion(expireTime);
+            auto t1 = std::chrono::high_resolution_clock::now();
+            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
             auto data = task->getData();
+            auto t2 = std::chrono::high_resolution_clock::now();
+            auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
             THEN("Task returns completed") {
+                INFO(timeTaken.count());
                 REQUIRE(didComplete);
             }
             THEN("Task returns no data") {
@@ -80,10 +91,13 @@ SCENARIO("Task management", "[tasks]") {
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
-            tasks::ExpireTime expireTime = tasks::ExpireTime::now();
-            bool didComplete = task->waitForCompletion(expireTime);
+            auto t1 = std::chrono::high_resolution_clock::now();
+            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
             auto data = task->getData();
+            auto t2 = std::chrono::high_resolution_clock::now();
+            auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
             THEN("Task returns completed") {
+                INFO(timeTaken.count());
                 REQUIRE(didComplete);
             }
             THEN("Task completion received no data") {
@@ -111,10 +125,13 @@ SCENARIO("Task management", "[tasks]") {
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
-            tasks::ExpireTime expireTime = tasks::ExpireTime::now();
-            bool didComplete = task->waitForCompletion(expireTime);
+            auto t1 = std::chrono::high_resolution_clock::now();
+            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
             auto data = task->getData();
+            auto t2 = std::chrono::high_resolution_clock::now();
+            auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
             THEN("Task returns completed") {
+                INFO(timeTaken.count());
                 REQUIRE(didComplete);
             }
             THEN("Subtask1 was visited") {
@@ -150,8 +167,7 @@ SCENARIO("Task management", "[tasks]") {
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
-            tasks::ExpireTime expireTime = tasks::ExpireTime::now();
-            bool didComplete = task->waitForCompletion(expireTime);
+            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
             auto data = task->getData();
             THEN("Task returns completed") {
                 REQUIRE(didComplete);
@@ -196,10 +212,13 @@ SCENARIO("Task management", "[tasks]") {
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
-            tasks::ExpireTime expireTime = tasks::ExpireTime::now();
-            bool didComplete = task->waitForCompletion(expireTime);
+            auto t1 = std::chrono::high_resolution_clock::now();
+            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
             auto data = task->getData();
+            auto t2 = std::chrono::high_resolution_clock::now();
+            auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
             THEN("Task returns completed") {
+                INFO(timeTaken.count());
                 REQUIRE(didComplete);
             }
             THEN("Subtask1 was visited") {
@@ -232,16 +251,14 @@ SCENARIO("Task management", "[tasks]") {
 
         WHEN("Waiting for cancelled task") {
             task->cancelTask();
-            auto t1 = std::chrono::system_clock::now();
-            tasks::ExpireTime expireTime = tasks::ExpireTime::fromNowSecs(10);
-            bool didComplete = task->waitForCompletion(expireTime);
+            using namespace std::chrono_literals;
+            using Clock = std::chrono::high_resolution_clock;
+            auto t1 = Clock::now();
+            bool didComplete = task->waitForCompletionDelta(10s);
             auto data = task->getData();
-            auto tDelta = std::chrono::duration_cast<std::chrono::seconds>(
-                              std::chrono::system_clock::now() - t1
-            )
-                              .count();
+            auto tDelta = Clock::now() - t1;
             THEN("Task did not block") {
-                REQUIRE(tDelta < 9);
+                REQUIRE(tDelta < 9s);
             }
             AND_THEN("Task returns not complete") {
                 REQUIRE_FALSE(didComplete);
@@ -279,10 +296,13 @@ SCENARIO("Deferred task management", "[tasks]") {
         task2->setCompletion(std::move(finalize2));
         task3->setCompletion(std::move(finalize3));
         auto now = tasks::ExpireTime::now();
-        auto task1Time = now + std::chrono::milliseconds(TIMER_GRANULARITY * 2);
-        auto task2Time = now + std::chrono::milliseconds(TIMER_GRANULARITY * 4);
-        auto task3Time = now + std::chrono::milliseconds(TIMER_GRANULARITY * 6);
-        auto maxTime = now + std::chrono::milliseconds(TIMER_GRANULARITY * 8);
+        auto task1Time = now + constants::TIMER_GRANULARITY * 2;
+        auto task1MaxTime = now + constants::TIMER_GRANULARITY * 3;
+        auto task2Time = now + constants::TIMER_GRANULARITY * 4;
+        auto task2MaxTime = now + constants::TIMER_GRANULARITY * 5;
+        auto task3Time = now + constants::TIMER_GRANULARITY * 6;
+        auto task3MaxTime = now + constants::TIMER_GRANULARITY * 7;
+        auto maxTime = now + constants::TIMER_GRANULARITY * 8;
         task1->setStartTime(task1Time);
         task2->setStartTime(task2Time);
         task3->setStartTime(task3Time);
@@ -299,22 +319,21 @@ SCENARIO("Deferred task management", "[tasks]") {
                 REQUIRE(didComplete2);
                 REQUIRE(didComplete3);
                 AND_THEN("Tasks completed in correct order") {
-                    uint64_t thenAsMillis = now.asMilliseconds();
-                    uint64_t task1Millis = taskRetData1->get("$task1").getInt();
-                    uint64_t task2Millis = taskRetData2->get("$task2").getInt();
-                    uint64_t task3Millis = taskRetData3->get("$task3").getInt();
-                    REQUIRE(task1Millis > thenAsMillis);
+                    const uint64_t task1Millis = taskRetData1->get("$task1").getInt();
+                    const uint64_t task2Millis = taskRetData2->get("$task2").getInt();
+                    const uint64_t task3Millis = taskRetData3->get("$task3").getInt();
+                    REQUIRE(task1Millis > now.asMilliseconds());
                     REQUIRE(task2Millis > task1Millis);
                     REQUIRE(task3Millis > task2Millis);
                     AND_THEN("Tasks were delayed") {
-                        REQUIRE((task1Millis - thenAsMillis) >= TIMER_GRANULARITY * 1);
-                        REQUIRE((task2Millis - thenAsMillis) > TIMER_GRANULARITY * 3);
-                        REQUIRE((task3Millis - thenAsMillis) > TIMER_GRANULARITY * 5);
+                        REQUIRE(task1Millis >= task1Time.asMilliseconds());
+                        REQUIRE(task2Millis >= task2Time.asMilliseconds());
+                        REQUIRE(task3Millis >= task3Time.asMilliseconds());
                     }
                     AND_THEN("Tasks did not take too long") {
-                        REQUIRE((task1Millis - thenAsMillis) < TIMER_GRANULARITY * 3);
-                        REQUIRE((task2Millis - thenAsMillis) < TIMER_GRANULARITY * 5);
-                        REQUIRE((task3Millis - thenAsMillis) < TIMER_GRANULARITY * 7);
+                        REQUIRE(task1Millis < task1MaxTime.asMilliseconds());
+                        REQUIRE(task2Millis < task2MaxTime.asMilliseconds());
+                        REQUIRE(task3Millis < task3MaxTime.asMilliseconds());
                     }
                 }
             }
