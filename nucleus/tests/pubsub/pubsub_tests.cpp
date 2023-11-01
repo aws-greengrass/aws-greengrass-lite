@@ -30,7 +30,7 @@ public:
     ) override {
         std::shared_ptr<data::TrackingScope> scope =
             _env.handleTable.getObject<data::TrackingScope>(taskHandle);
-        std::string topic = _env.stringTable.getStringOr(topicOrd, "(anon)");
+        std::string topic = _env.stringTable.getStringOr(topicOrd, "(anon)"s);
         std::shared_ptr<data::StructModelBase> data;
         if(dataStruct) {
             data = _env.handleTable.getObject<data::StructModelBase>(dataStruct);
