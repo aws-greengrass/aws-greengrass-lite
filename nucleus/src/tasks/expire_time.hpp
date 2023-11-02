@@ -93,8 +93,7 @@ namespace tasks { //
         }
 
         [[nodiscard]] static constexpr ExpireTime epoch() noexcept {
-            using namespace std::chrono_literals;
-            return ExpireTime{MIN + 1ns};
+            return ExpireTime{MIN + Clock::duration{1}};
         }
 
         template<class Rep, class Period>
