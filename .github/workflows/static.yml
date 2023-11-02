@@ -1,4 +1,4 @@
-name: Format
+name: Static
 
 on:
   workflow_call:
