@@ -45,7 +45,7 @@ namespace tasks { //
             return _steadyTime;
         }
 
-        [[nodiscard]] constexpr inline uint64_t asMilliseconds() const {
+        [[nodiscard]] inline uint64_t asMilliseconds() const {
             return asCount<uint64_t, std::milli>();
         }
 
