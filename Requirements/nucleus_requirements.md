@@ -1,8 +1,34 @@
 # Nucleus Requirements
 
->TODO remove most block quotes 
+## Background
+GGvL is an application called Nucleus that manages plugins & libraries.  To facilitate communications between plugins
+the Nucleus provides the Local Process Communications (LPC) bus.  To facilitate communications between components the
+Nucleus provides the Interprocess Communications (IPC) bus.  Plugins are libraries (details are OS specific) that
+Nucleus loads at runtime according to a recipe.  Plugins are authenticated as they are installed and as they load.
+Once loaded they are trusted entities and are safe to execute inside the Nucleus process.
 
-## API requirements
+![](./images/top_level_nucleus_components.png "top level block diagram")
+
+
+## Nucleus functionality
+Nucleus has the following functions:
+1. Lifecycle management of plugins
+   1. Locate Plugins
+   2. Install Plugins
+   3. Load Plugins
+   4. Run Plugins
+   5. Unload Plugins
+   6. Update Plugins
+   7. Delete Plugins
+2. Provide a Lifecycle API interface to the Plugin
+3. Distribute messages on the IPC bus
+4. Provide an API for the plugins to access the IPC bus
+5. Distribute messages on the LPC bus
+6. Provide an API for plugins to access the LPC bus
+7. String Internment
+8. 
+
+## Plugin API requirements
 These requirements are derived from the API tests.
 
 ## Buffer requirements
@@ -59,8 +85,8 @@ One list can contain elements of any type.
 
 ### _PUBSUB-01_ Topics shall be created when listeners subscribe
 
-### _PUBSUB-02_ Topics shall be identified by strings
+### _PUBSUB-02_ Named Topics shall be identified by strings
 
-### _PUBSUB_03_ <Topic String Rules are Required>
+>### _PUBSUB_03_ Topic String Naming Rules are Required
 
-### _PUBSUB_04_ 
+### _PUBSUB_04_ Listeners shall be tracked by listener objects
