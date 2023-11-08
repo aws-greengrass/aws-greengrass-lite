@@ -1,12 +1,20 @@
 # Nucleus Requirements
 
+## Abbreviations and Jargon
+1. GG-Java : The existing Greengrass v2 in Java.
+2. GG-Lite : The new implementatyion of Greengrass v2 in C++.
+3. Nucleus : The executable core of Greengrass.
+4. 
+
 ## Background
-GGvL is an application called Nucleus that manages plugins & libraries.  To facilitate communications between plugins
+GG-Lite is an application called Nucleus that manages plugins & libraries.  To facilitate communications between plugins
 the Nucleus provides the Local Process Communications (LPC) bus.  To facilitate communications between components the
 Nucleus provides the Interprocess Communications (IPC) bus.  Plugins are libraries (details are OS specific) that
 Nucleus loads at runtime according to a recipe.  Plugins are authenticated as they are installed and as they load.
 Once loaded they are trusted entities and are safe to execute inside the Nucleus process.
 
+>TODO: Fix the abbreviations in this diagram.
+> 
 ![](./images/top_level_nucleus_components.png "top level block diagram")
 
 
@@ -23,13 +31,63 @@ Nucleus has the following functions:
 2. Provide a Lifecycle API interface to the Plugin
 3. Distribute messages on the IPC bus
 4. Provide an API for the plugins to access the IPC bus
+5. Specify the IPC bus message format
 5. Distribute messages on the LPC bus
 6. Provide an API for plugins to access the LPC bus
 7. String Internment
 8. 
 
-## Plugin API requirements
-These requirements are derived from the API tests.
+## Compatibility Requirements
+### 1. 
+
+GG-Lite Components (not plugins) will run in the GG-Java environment. 
+>Test by running a representative "complete" GG-Lite components in a GG-Java environment 
+
+### 2. 
+
+GG-Lite Components (not plugins) can communicate over the IPC bus hosted by GG-Java
+>Test by ensuring the complete GG-Lite component communicates via IPC
+
+### 4. 
+
+GG-Lite Components (not plugins) have the same lifecycle management
+> Test by ensuring the test GG-Lite component receives each of the GG-Java lifecycle events.
+
+### 5. 
+All IPC communications shall be compatible with GG-Java (GGv2) based IPC.
+
+## Lifecycle Management Requirements
+
+
+## Lifecycle API Requirements
+### 1.
+
+There is only one "C" entry point called `greengrass_lifecycle`
+
+### 2.
+The `greengrass_lifecycle` entry point accepts the following parameters: 
+1. uint32_t moduleHandle, 
+2. uint32_t phase,
+3. uint32_t data
+
+and returns a boolean indicating success.
+
+### 3.
+
+
+## IPC Message Distribution Requirements
+
+## IPC Interface API Requirements
+
+## IPC Message Format Requirements
+
+## LPC Message Distribution Requirements
+
+## LPC Authentication Requirements
+
+## LPC Message Format Requirements
+
+## String Internment Requirements
 
 ## Buffer requirements
 >These tests are derived from buffer_tests.cpp
@@ -81,7 +139,7 @@ One list can contain elements of any type.
 
 ### _LIST_06_ The list interface shall include a method `insert` That will allow inserting new elements at an index.
 
-## PUBSUB requirements
+## IPC requirements
 
 ### _PUBSUB-01_ Topics shall be created when listeners subscribe
 
