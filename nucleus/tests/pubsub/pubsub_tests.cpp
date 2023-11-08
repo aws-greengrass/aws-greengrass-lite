@@ -5,6 +5,8 @@
 
 // NOLINTBEGIN
 
+using namespace std::literals;
+
 class ListenerStub : public pubsub::AbstractCallback {
     data::Environment &_env;
     std::string _flagName;
@@ -28,7 +30,7 @@ public:
     ) override {
         std::shared_ptr<data::TrackingScope> scope =
             _env.handleTable.getObject<data::TrackingScope>(taskHandle);
-        std::string topic = topicOrd ? _env.stringTable.getString(topicOrd) : "(anon)";
+        std::string topic = _env.stringTable.getStringOr(topicOrd, "(anon)"s);
         std::shared_ptr<data::StructModelBase> data;
         if(dataStruct) {
             data = _env.handleTable.getObject<data::StructModelBase>(dataStruct);
@@ -125,7 +127,7 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             auto newTaskAnchor{global.taskManager->createTask()};
             auto newTaskObj{newTaskAnchor.getObject<tasks::Task>()};
             global.lpcTopics->initializePubSubCall(
-                newTaskObj, subs1, topic, callArgData, {}, tasks::ExpireTime::fromNowSecs(10)
+                newTaskObj, subs1, topic, callArgData, {}, tasks::ExpireTime::fromNow(10s)
             );
             global.taskManager->queueTask(newTaskObj);
             bool didComplete = newTaskObj->waitForCompletion(expireTime);
@@ -158,7 +160,7 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             auto newTaskAnchor{global.taskManager->createTask()};
             auto newTaskObj{newTaskAnchor.getObject<tasks::Task>()};
             global.lpcTopics->initializePubSubCall(
-                newTaskObj, subs1, {}, callArgData, {}, tasks::ExpireTime::fromNowSecs(10)
+                newTaskObj, subs1, {}, callArgData, {}, tasks::ExpireTime::fromNow(10s)
             );
             global.taskManager->queueTask(newTaskObj);
             bool didComplete = newTaskObj->waitForCompletion(expireTime);

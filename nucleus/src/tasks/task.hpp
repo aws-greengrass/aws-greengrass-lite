@@ -2,6 +2,7 @@
 #include "data/handle_table.hpp"
 #include "data/struct_model.hpp"
 #include "tasks/expire_time.hpp"
+#include <chrono>
 #include <list>
 
 namespace tasks {
@@ -41,7 +42,7 @@ namespace tasks {
         std::list<std::shared_ptr<TaskThread>> _blockedThreads;
         std::shared_ptr<TaskThread> _defaultThread;
         data::ObjHandle _self;
-        ExpireTime _timeout; // time before task is automatically cancelled
+        ExpireTime _timeout{ExpireTime::infinite()}; // time before task is automatically cancelled
         ExpireTime _start{ExpireTime::unspecified()}; // desired start time (default is immediately)
         Status _lastStatus{Pending};
         std::weak_ptr<TaskManager> _taskManager; // needed to fulfil a cancel
@@ -57,8 +58,7 @@ namespace tasks {
         }
 
     public:
-        explicit Task(data::Environment &environment)
-            : TrackingScope{environment}, _timeout{ExpireTime::fromNowMillis(-1)} {
+        explicit Task(data::Environment &environment) : TrackingScope{environment} {
         }
 
         void setSelf(data::ObjHandle self) {
@@ -127,6 +127,18 @@ namespace tasks {
 
         Status runInThread();
         bool waitForCompletion(const ExpireTime &terminateTime);
+
+        template<class Rep, class Period>
+        inline bool waitForCompletionDelta(const std::chrono::duration<Rep, Period> &delta) {
+            return waitForCompletion(ExpireTime::fromNow(delta));
+        }
+
+        // Waits indefinitely for task completion.
+        // May return early with false if wait is terminated externally.
+        inline bool wait() {
+            return waitForCompletion(ExpireTime::infinite());
+        }
+
         Status runInThreadCallNext(
             const std::shared_ptr<Task> &task,
             const std::shared_ptr<data::StructModelBase> &dataIn,

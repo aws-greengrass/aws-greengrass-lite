@@ -131,6 +131,17 @@ namespace data {
             return _reverse.at(ord);
         }
 
+        template<typename StringLike>
+        std::string getStringOr(StringOrd ord, StringLike &&default_value) const {
+            static_assert(
+                std::is_convertible_v<StringLike, std::string>, "Requires stringlike type"
+            );
+            if(!ord) {
+                return {std::forward<StringLike>(default_value)};
+            }
+            return getString(ord);
+        }
+
         void assertStringHandle(const StringOrd ord) const {
             if(!isStringOrdValid(ord)) {
                 throw std::invalid_argument("String ordinal is not valid");

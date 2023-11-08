@@ -66,6 +66,8 @@ void threadFn() {
         ggapi::Struct result = threadScope.sendToTopic(keys.publishToIoTCoreTopic, request);
         std::cerr << "[example-mqtt-sender] Sending complete." << std::endl;
 
-        std::this_thread::sleep_for(std::chrono::seconds(5));
+        using namespace std::chrono_literals;
+
+        std::this_thread::sleep_for(5s);
     }
 }

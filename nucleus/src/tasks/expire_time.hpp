@@ -1,7 +1,7 @@
 #pragma once
 
 #include <chrono>
-#include <ctime>
+#include <type_traits>
 
 namespace tasks { //
 
@@ -20,115 +20,145 @@ namespace tasks { //
         auto static constexpr MAX{TimePoint::max()};
         auto static constexpr MIN{TimePoint::min()};
 
-    public:
-        ExpireTime(const ExpireTime &) = default;
-        ExpireTime(ExpireTime &&) = default;
-        ~ExpireTime() = default;
-        ExpireTime &operator=(const ExpireTime &) = default;
-        ExpireTime &operator=(ExpireTime &&) = default;
-
-        explicit ExpireTime(TimePoint time) : _steadyTime{time} {
+        // performs an add of a positive duration to a timepoint
+        // overflows saturate to infinite()
+        template<class Duration>
+        [[nodiscard]] constexpr ExpireTime checkedPositiveAdd(const Duration &delta
+        ) const noexcept {
+            if(MAX - delta < _steadyTime) {
+                return infinite();
+            }
+            return ExpireTime{_steadyTime + delta};
         }
 
-        [[nodiscard]] TimePoint toTimePoint() const {
+    public:
+        constexpr ExpireTime(const ExpireTime &) noexcept = default;
+        constexpr ExpireTime(ExpireTime &&) noexcept = default;
+        ~ExpireTime() noexcept = default;
+        constexpr ExpireTime &operator=(const ExpireTime &) noexcept = default;
+        constexpr ExpireTime &operator=(ExpireTime &&) noexcept = default;
+
+        explicit constexpr ExpireTime(TimePoint time) noexcept : _steadyTime{time} {
+        }
+
+        [[nodiscard]] constexpr TimePoint toTimePoint() const noexcept {
             return _steadyTime;
         }
 
-        [[nodiscard]] uint64_t asMilliseconds() const {
-            return std::chrono::duration_cast<Milliseconds>(_steadyTime.time_since_epoch()).count();
+        [[nodiscard]] inline uint64_t asMilliseconds() const {
+            return asCount<uint64_t, std::milli>();
         }
 
-        explicit operator TimePoint() const {
+        template<class Rep = TimePoint::rep, class Period = TimePoint::period>
+        [[nodiscard]] Rep asCount() const {
+            using TargetDuration = typename std::chrono::duration<Rep, Period>;
+            return std::chrono::duration_cast<TargetDuration>(_steadyTime.time_since_epoch())
+                .count();
+        }
+
+        explicit constexpr operator TimePoint() const noexcept {
             return toTimePoint();
         }
 
-        template<typename T>
-        ExpireTime operator+(const T &delta) const {
-            auto newTime = _steadyTime + delta;
-            if(newTime < _steadyTime && delta.count() > 0) {
-                newTime = MAX;
-            } else if(newTime > _steadyTime && delta.count() < 0) {
-                newTime = MIN;
+        // adds a delta to an existing time
+        // overflows saturate to maximal values (infinite() and unspecified())
+        template<class Rep, class Period>
+        constexpr ExpireTime operator+(const std::chrono::duration<Rep, Period> &delta
+        ) const noexcept {
+            using SourceDuration = typename std::chrono::duration<Rep, Period>;
+
+            if constexpr(std::is_signed_v<Rep>) {
+                if(delta < SourceDuration::zero()) {
+                    if(_steadyTime < MIN - delta) {
+                        return unspecified();
+                    }
+                    return ExpireTime{_steadyTime + delta};
+                }
             }
-            return ExpireTime{newTime};
+
+            return checkedPositiveAdd(delta);
         }
 
-        Milliseconds operator-(const ExpireTime &other) const {
+        // TODO: unused and subtraction may overflow
+        constexpr Milliseconds operator-(const ExpireTime &other) const {
             return std::chrono::duration_cast<Milliseconds>(_steadyTime - other._steadyTime);
         }
 
-        [[nodiscard]] static ExpireTime infinite() {
-            return ExpireTime(MAX);
+        [[nodiscard]] static constexpr ExpireTime infinite() noexcept {
+            return ExpireTime{MAX};
         }
 
-        [[nodiscard]] static ExpireTime unspecified() {
-            return ExpireTime(MIN);
+        [[nodiscard]] static constexpr ExpireTime unspecified() noexcept {
+            return ExpireTime{MIN};
         }
 
-        [[nodiscard]] static ExpireTime epoch() {
-            return ExpireTime(MIN + Clock::duration(1));
+        [[nodiscard]] static constexpr ExpireTime epoch() noexcept {
+            return ExpireTime{MIN + Clock::duration{1}};
         }
 
-        [[nodiscard]] static ExpireTime fromNowMillis(int32_t smallDelta) {
-            if(smallDelta < 0) {
-                // negative means max time
-                return infinite();
+        template<class Rep, class Period>
+        [[nodiscard]] static ExpireTime fromNow(std::chrono::duration<Rep, Period> delta) noexcept {
+            using TargetDuration = typename std::chrono::duration<Rep, Period>;
+            if constexpr(std::is_signed_v<Rep>) {
+                if(delta < TargetDuration::zero()) {
+                    // negative delta means max time
+                    return infinite();
+                }
             }
-            return fromNow(Milliseconds(smallDelta));
+
+            return ExpireTime::now().checkedPositiveAdd(delta);
         }
 
-        [[nodiscard]] static ExpireTime fromNowSecs(int32_t delta) {
-            if(delta < 0) {
-                // negative means max time
-                return infinite();
-            }
-            return fromNow(Seconds(delta));
+        // for converting durations received from cross-plugin API calls
+        [[nodiscard]] inline static ExpireTime fromNowMillis(Milliseconds::rep milliseconds
+        ) noexcept {
+            return fromNow(Milliseconds{milliseconds});
         }
 
-        [[nodiscard]] static ExpireTime fromNow(Milliseconds delta) {
-            if(delta == Milliseconds::max()) {
-                return infinite();
-            }
-            return ExpireTime(Clock::now() + delta);
+        [[nodiscard]] static ExpireTime now() noexcept {
+            return ExpireTime{Clock::now()};
         }
 
-        [[nodiscard]] static ExpireTime fromNow(Seconds delta) {
-            if(delta == Seconds::max()) {
-                return infinite();
-            }
-            return ExpireTime(Clock::now() + delta);
+        // TODO: unused and also subtraction may overflow
+        template<class Duration = Milliseconds>
+        [[nodiscard]] Duration remaining() const {
+            return std::chrono::duration_cast<Duration>(_steadyTime - Clock::now());
         }
 
-        [[nodiscard]] static ExpireTime now() {
-            return ExpireTime(Clock::now());
+        [[nodiscard]] friend constexpr bool operator==(
+            const ExpireTime &a, const ExpireTime &b
+        ) noexcept {
+            return a._steadyTime == b._steadyTime;
         }
 
-        [[nodiscard]] Milliseconds remaining() const {
-            return std::chrono::duration_cast<Milliseconds>(_steadyTime - Clock::now());
+        [[nodiscard]] friend constexpr bool operator!=(
+            const ExpireTime &a, const ExpireTime &b
+        ) noexcept {
+            return !(a == b);
         }
 
-        [[nodiscard]] bool operator<(const ExpireTime &other) const {
-            return _steadyTime < other._steadyTime;
+        [[nodiscard]] friend constexpr bool operator<(
+            const ExpireTime &a, const ExpireTime &b
+        ) noexcept {
+            return a._steadyTime < b._steadyTime;
         }
 
-        [[nodiscard]] bool operator<=(const ExpireTime &other) const {
-            return _steadyTime <= other._steadyTime;
+        [[nodiscard]] friend constexpr bool operator<=(
+            const ExpireTime &a, const ExpireTime &b
+        ) noexcept {
+            return !(b < a);
         }
 
-        [[nodiscard]] bool operator>(const ExpireTime &other) const {
-            return _steadyTime > other._steadyTime;
+        [[nodiscard]] friend constexpr bool operator>(
+            const ExpireTime &a, const ExpireTime &b
+        ) noexcept {
+            return b < a;
         }
 
-        [[nodiscard]] bool operator>=(const ExpireTime &other) const {
-            return _steadyTime >= other._steadyTime;
-        }
-
-        [[nodiscard]] bool operator==(const ExpireTime &other) const {
-            return _steadyTime == other._steadyTime;
-        }
-
-        [[nodiscard]] bool operator!=(const ExpireTime &other) const {
-            return _steadyTime != other._steadyTime;
+        [[nodiscard]] friend constexpr bool operator>=(
+            const ExpireTime &a, const ExpireTime &b
+        ) noexcept {
+            return !(a < b);
         }
     };
 } // namespace tasks

@@ -1,7 +1,8 @@
-name: Format
+name: Static
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 env:
   bashPass: \033[32;1mPASSED -
