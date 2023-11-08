@@ -133,7 +133,7 @@ namespace config {
     ) {
         emitter << YAML::BeginMap;
         std::vector<Topic> leafs = node->getLeafs();
-        for(auto i : leafs) {
+        for(const auto &i : leafs) {
             emitter << YAML::Key << environment.stringTable.getString(i.getNameOrd())
                     << YAML::Value;
             serialize(environment, emitter, i);

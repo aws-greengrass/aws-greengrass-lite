@@ -61,6 +61,10 @@ namespace tasks {
         explicit Task(data::Environment &environment) : TrackingScope{environment} {
         }
 
+        data::LocalCallScope callScope() {
+            return data::LocalCallScope(_environment);
+        }
+
         void setSelf(data::ObjHandle self) {
             std::unique_lock guard{_mutex};
             _self = self;
@@ -153,6 +157,8 @@ namespace tasks {
 
         Status finalizeTask(const std::shared_ptr<data::StructModelBase> &data);
         void requeueTask();
+
+        void beforeRemove(const data::ObjectAnchor &anchor) override;
     };
 
     class SubTask : public util::RefObject<SubTask> {

@@ -1,58 +1,45 @@
-#include <cpp_api.hpp>
 #include <iostream>
+#include <plugin.hpp>
 
-struct Keys {
-    ggapi::StringOrd start{"start"};
-    ggapi::StringOrd run{"run"};
-    ggapi::StringOrd publishToIoTCoreTopic{"aws.greengrass."
-                                           "PublishToIoTCore"};
-    ggapi::StringOrd topicName{"topicName"};
-    ggapi::StringOrd qos{"qos"};
-    ggapi::StringOrd payload{"payload"};
-    ggapi::StringOrd retain{"retain"};
-    ggapi::StringOrd userProperties{"userProperties"};
-    ggapi::StringOrd messageExpiryIntervalSeconds{"messageExpiryIntervalSecon"
-                                                  "ds"};
-    ggapi::StringOrd correlationData{"correlationData"};
-    ggapi::StringOrd responseTopic{"responseTopic"};
-    ggapi::StringOrd payloadFormat{"payloadFormat"};
-    ggapi::StringOrd contentType{"contentType"};
+class ExamplePlugin : public ggapi::Plugin {
+public:
+    void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
+    bool onStart(ggapi::Struct data) override;
 
-    static const Keys &get() {
-        static std::unique_ptr<Keys> keyRef;
-        if(keyRef == nullptr) {
-            keyRef = std::make_unique<Keys>();
-        }
-        return *keyRef;
+    bool onRun(ggapi::Struct data) override;
+
+    static ggapi::Struct testListener(
+        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData
+    );
+
+    static ExamplePlugin &get() {
+        static ExamplePlugin instance{};
+        return instance;
     }
 };
 
-ggapi::Struct testListener(ggapi::Scope task, ggapi::StringOrd topic, ggapi::Struct callData) {
+ggapi::Struct ExamplePlugin::testListener(ggapi::Task, ggapi::StringOrd, ggapi::Struct callData) {
+
     std::string pingMessage{callData.get<std::string>("ping")};
-    ggapi::Struct response = task.createStruct();
+    ggapi::Struct response = ggapi::Struct::create();
     response.put("pong", pingMessage);
     return response;
 }
 
-void doStartPhase() {
-    (void) ggapi::Scope::thisTask().subscribeToTopic(ggapi::StringOrd{"test"}, testListener);
+bool ExamplePlugin::onStart(ggapi::Struct data) {
+    (void) getScope().subscribeToTopic(ggapi::StringOrd{"test"}, testListener);
+    return true;
 }
 
-void doRunPhase() {
+bool ExamplePlugin::onRun(ggapi::Struct data) {
+    return true;
 }
 
-extern "C" bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t data
-) noexcept {
+void ExamplePlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) {
     std::cout << "Running lifecycle plugins 1... " << ggapi::StringOrd{phase}.toString()
               << std::endl;
-    const auto &keys = Keys::get();
+}
 
-    ggapi::StringOrd phaseOrd{phase};
-    if(phaseOrd == keys.start) {
-        doStartPhase();
-    } else if(phaseOrd == keys.run) {
-        doRunPhase();
-    }
-    return true;
+bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
+    return ExamplePlugin::get().lifecycle(moduleHandle, phase, data);
 }

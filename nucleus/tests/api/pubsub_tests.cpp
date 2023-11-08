@@ -3,30 +3,32 @@
 
 // NOLINTBEGIN
 
-static ggapi::Struct simpleListener1(ggapi::Scope, ggapi::StringOrd, ggapi::Struct s) {
+static ggapi::Struct simpleListener1(ggapi::Task, ggapi::StringOrd, ggapi::Struct s) {
     s.put("=1", true);
     return ggapi::Struct{0};
 }
 
-static ggapi::Struct simpleListener2(ggapi::Scope, ggapi::StringOrd, ggapi::Struct s) {
+static ggapi::Struct simpleListener2(ggapi::Task, ggapi::StringOrd, ggapi::Struct s) {
     s.put("=2", true);
     return ggapi::Struct{0};
 }
 
-static ggapi::Struct simpleListener3(ggapi::Scope, ggapi::StringOrd, ggapi::Struct s) {
+static ggapi::Struct simpleListener3(ggapi::Task, ggapi::StringOrd, ggapi::Struct s) {
     s.put("=3", true);
     return ggapi::Struct{0};
 }
 
 SCENARIO("PubSub API", "[pubsub]") {
-    auto scope = ggapi::ThreadScope::claimThread();
+    auto threadScope = ggapi::ThreadScope::claimThread();
+    auto callScope = ggapi::CallScope::newCallScope();
+
     GIVEN("Some listeners") {
-        ggapi::Subscription handle1{scope.subscribeToTopic({}, simpleListener1)};
-        ggapi::Subscription handle2{scope.subscribeToTopic("some-topic", simpleListener2)};
-        (void) scope.subscribeToTopic("some-topic", simpleListener3);
+        ggapi::Subscription subs1{threadScope.subscribeToTopic({}, simpleListener1)};
+        ggapi::Subscription subs2{threadScope.subscribeToTopic("some-topic", simpleListener2)};
+        (void) threadScope.subscribeToTopic("some-topic", simpleListener3);
         WHEN("Calling by topic") {
-            ggapi::Struct data = scope.createStruct();
-            (void) scope.sendToTopic("some-topic", data);
+            auto data = ggapi::Struct::create();
+            (void) ggapi::Task::sendToTopic("some-topic", data);
             THEN("Topic listeners were visited") {
                 REQUIRE_FALSE(data.hasKey("=1"));
                 REQUIRE(data.hasKey("=2"));
@@ -34,8 +36,8 @@ SCENARIO("PubSub API", "[pubsub]") {
             }
         }
         WHEN("Calling by handle") {
-            ggapi::Struct data = scope.createStruct();
-            (void) scope.sendToListener(handle1, data);
+            auto data = ggapi::Struct::create();
+            (void) subs1.call(data);
             THEN("Single listener was visited") {
                 REQUIRE(data.hasKey("=1"));
                 REQUIRE_FALSE(data.hasKey("=2"));
@@ -43,8 +45,8 @@ SCENARIO("PubSub API", "[pubsub]") {
             }
         }
         WHEN("Calling topic listener by handle") {
-            ggapi::Struct data = scope.createStruct();
-            (void) scope.sendToListener(handle2, data);
+            auto data = ggapi::Struct::create();
+            (void) subs2.call(data);
             THEN("Single listener was visited") {
                 REQUIRE_FALSE(data.hasKey("=1"));
                 REQUIRE(data.hasKey("=2"));

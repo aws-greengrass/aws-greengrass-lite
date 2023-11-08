@@ -1,7 +1,6 @@
 #include "data/globals.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task.hpp"
-#include "tasks/task_manager.hpp"
 #include "tasks/task_threads.hpp"
 #include <cpp_api.hpp>
 
@@ -29,21 +28,29 @@ uint32_t ggapiGetCurrentTask() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() { return tasks::Task::getThreadSelf().asInt(); });
 }
 
+bool ggapiIsTask(uint32_t handle) noexcept {
+    return ggapi::trapErrorReturn<bool>([handle]() {
+        data::Global &global = data::Global::self();
+        auto ss{
+            global.environment.handleTable.getObject<data::TrackedObject>(data::ObjHandle{handle})};
+        return std::dynamic_pointer_cast<tasks::Task>(ss) != nullptr;
+    });
+}
+
 //
 // Cause the current thread to block waiting on the provided task, either until it has
 // completed, or cancelled (including time-out).
 //
 uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([asyncTask, timeout]() {
-        data::Global &global = data::Global::self();
-        data::Handle parentTask{tasks::Task::getThreadSelf()};
-        std::shared_ptr<tasks::Task> parentTaskObj{
-            global.environment.handleTable.getObject<tasks::Task>(parentTask)};
+        auto &global = data::Global::self();
+        auto scope =
+            data::CallScope::getCurrent(global.environment).getObject<data::TrackingScope>();
         std::shared_ptr<tasks::Task> asyncTaskObj{
             global.environment.handleTable.getObject<tasks::Task>(data::ObjHandle{asyncTask})};
         tasks::ExpireTime expireTime = global.environment.translateExpires(timeout);
         if(asyncTaskObj->waitForCompletion(expireTime)) {
-            return parentTaskObj->anchor(asyncTaskObj->getData()).getHandle().asInt();
+            return scope->anchor(asyncTaskObj->getData()).getHandle().asInt();
         } else {
             return static_cast<uint32_t>(0);
         }

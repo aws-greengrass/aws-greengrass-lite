@@ -79,6 +79,9 @@ namespace data {
             return;
         }
         std::shared_ptr<TrackingScope> scope{anchor.getOwner()};
+        if(scope) {
+            anchor.getBase()->beforeRemove(anchor);
+        }
         std::unique_lock guard{_mutex};
         // remove global first - mitigates resource leakage on error
         _handles.erase(h);

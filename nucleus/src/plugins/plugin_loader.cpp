@@ -27,6 +27,11 @@ void plugins::NativePlugin::load(const std::string &filePath) {
     nativeHandle_t handle = ::dlopen(filePath.c_str(), RTLD_NOW | RTLD_LOCAL);
     _handle.store(handle);
     if(handle == nullptr) {
+        // Note, dlerror() below will flag "concurrency-mt-unsafe"
+        // It is thread safe on Linux and Mac
+        // There is no safer alternative, so all we can do is suppress
+        // TODO: When implementing loader thread, make sure this is all in same thread
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
         std::string error{dlerror()};
         throw std::runtime_error(
             std::string("Cannot load shared object: ") + filePath + std::string(" ") + error
@@ -60,20 +65,26 @@ bool plugins::NativePlugin::isActive() noexcept {
 void plugins::PluginLoader::lifecycle(
     data::StringOrd phase, const std::shared_ptr<data::StructModelBase> &data
 ) {
-    // TODO: Run this inside of a task, right now we end up using calling
-    // threads task However probably good to defer that until there's a basic
-    // lifecycle manager
+    // TODO: Run this inside of a task?
     for(const auto &i : getRoots()) {
         std::shared_ptr<AbstractPlugin> plugin{i.getObject<AbstractPlugin>()};
         if(plugin->isActive()) {
             ::ggapiSetError(0);
+            // TODO: convert to logging
+            std::cerr << "Plugin \"" << plugin->getName()
+                      << "\" lifecycle phase: " << _environment.stringTable.getString(phase)
+                      << std::endl;
             if(!plugin->lifecycle(i.getHandle(), phase, data)) {
-                // TODO: errors should not break lifecycle
                 data::StringOrd lastError{::ggapiGetError()};
                 if(lastError) {
-                    throw pubsub::CallbackError(lastError);
+                    std::cerr << "Plugin \"" << plugin->getName()
+                              << "\" lifecycle error during phase: "
+                              << _environment.stringTable.getString(phase) << " - "
+                              << _environment.stringTable.getString(lastError) << std::endl;
                 } else {
-                    throw std::runtime_error("Unspecified lifecycle error");
+                    std::cerr << "Plugin \"" << plugin->getName()
+                              << "\" lifecycle unhandled phase: "
+                              << _environment.stringTable.getString(phase) << std::endl;
                 }
             }
         }
@@ -87,10 +98,9 @@ bool plugins::NativePlugin::lifecycle(
 ) {
     lifecycleFn_t lifecycleFn = _lifecycleFn.load();
     if(lifecycleFn != nullptr) {
+        data::LocalCallScope scope{_environment};
         std::shared_ptr<data::StructModelBase> copy = data->copy();
-        std::shared_ptr<tasks::Task> threadTask =
-            _environment.handleTable.getObject<tasks::Task>(tasks::Task::getThreadSelf());
-        data::ObjectAnchor dataAnchor = threadTask->anchor(copy);
+        data::ObjectAnchor dataAnchor = scope->anchor(copy);
         return lifecycleFn(pluginAnchor.asInt(), phase.asInt(), dataAnchor.getHandle().asInt());
     }
     return true; // no error
@@ -109,10 +119,9 @@ bool plugins::DelegatePlugin::lifecycle(
         delegateLifecycle = _delegateLifecycle;
     }
     if(delegateLifecycle != nullptr) {
+        data::LocalCallScope scope{_environment};
         std::shared_ptr<data::StructModelBase> copy = data->copy();
-        std::shared_ptr<tasks::Task> threadTask =
-            _environment.handleTable.getObject<tasks::Task>(tasks::Task::getThreadSelf());
-        data::ObjectAnchor dataAnchor = threadTask->anchor(copy);
+        data::ObjectAnchor dataAnchor = scope->anchor(copy);
         return delegateLifecycle(
             delegateContext, pluginAnchor.asInt(), phase.asInt(), dataAnchor.getHandle().asInt()
         );

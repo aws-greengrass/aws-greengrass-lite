@@ -7,10 +7,11 @@
 
 // NOLINTBEGIN
 SCENARIO("Buffer API", "[buffer]") {
+    auto threadScope = ggapi::ThreadScope::claimThread();
+    auto callScope = ggapi::CallScope::newCallScope();
 
-    GIVEN("A buffer") {
-        auto scope = ggapi::ThreadScope::claimThread();
-        auto buf = scope.createBuffer();
+        GIVEN("A buffer") {
+        auto buf = ggapi::Buffer::create();
 
         THEN("Buffer is empty") {
             REQUIRE(buf.size() == 0);

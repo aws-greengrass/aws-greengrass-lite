@@ -110,7 +110,7 @@ namespace config {
         TlogWriter &startNew();
         TlogWriter &append();
         std::filesystem::path getPath() const;
-        void childChanged(ConfigNode &node, WhatHappened changeType);
+        void childChanged(const ConfigNode &node, WhatHappened changeType);
         TlogWriter &dump();
 
         static std::filesystem::path getOldTlogPath(const std::filesystem::path &path);

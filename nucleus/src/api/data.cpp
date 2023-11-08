@@ -41,42 +41,33 @@ size_t ggapiGetOrdinalStringLen(uint32_t ord) noexcept {
     });
 }
 
-uint32_t ggapiCreateStruct(uint32_t anchorHandle) noexcept {
-    if(anchorHandle == 0) {
-        anchorHandle = tasks::Task::getThreadSelf().asInt();
-    }
-    return ggapi::trapErrorReturn<uint32_t>([anchorHandle]() {
+uint32_t ggapiCreateStruct() noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([]() {
         Global &global = Global::self();
+        auto scope =
+            data::CallScope::getCurrent(global.environment).getObject<data::TrackingScope>();
         auto ss{std::make_shared<SharedStruct>(global.environment)};
-        auto owner{
-            global.environment.handleTable.getObject<TrackingScope>(ObjHandle{anchorHandle})};
-        return owner->anchor(ss).getHandle().asInt();
+        return scope->anchor(ss).getHandle().asInt();
     });
 }
 
-uint32_t ggapiCreateList(uint32_t anchorHandle) noexcept {
-    if(anchorHandle == 0) {
-        anchorHandle = tasks::Task::getThreadSelf().asInt();
-    }
-    return ggapi::trapErrorReturn<uint32_t>([anchorHandle]() {
+uint32_t ggapiCreateList() noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([]() {
         Global &global = Global::self();
+        auto scope =
+            data::CallScope::getCurrent(global.environment).getObject<data::TrackingScope>();
         auto ss{std::make_shared<SharedList>(global.environment)};
-        auto owner{
-            global.environment.handleTable.getObject<TrackingScope>(ObjHandle{anchorHandle})};
-        return owner->anchor(ss).getHandle().asInt();
+        return scope->anchor(ss).getHandle().asInt();
     });
 }
 
-uint32_t ggapiCreateBuffer(uint32_t anchorHandle) noexcept {
-    if(anchorHandle == 0) {
-        anchorHandle = tasks::Task::getThreadSelf().asInt();
-    }
-    return ggapi::trapErrorReturn<uint32_t>([anchorHandle]() {
+uint32_t ggapiCreateBuffer() noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([]() {
         Global &global = Global::self();
+        auto scope =
+            data::CallScope::getCurrent(global.environment).getObject<data::TrackingScope>();
         auto ss{std::make_shared<SharedBuffer>(global.environment)};
-        auto owner{
-            global.environment.handleTable.getObject<TrackingScope>(ObjHandle{anchorHandle})};
-        return owner->anchor(ss).getHandle().asInt();
+        return scope->anchor(ss).getHandle().asInt();
     });
 }
 
@@ -521,5 +512,22 @@ bool ggapiReleaseHandle(uint32_t objectHandle) noexcept {
             anchored.release();
         }
         return true;
+    });
+}
+
+uint32_t ggapiCreateCallScope() noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([]() {
+        Global &global = Global::self();
+        auto scope{CallScope::create(global.environment)};
+        scope->setThreadSelf(); // this is the scope until released
+        return scope->getSelf().asInt(); // self describing handle
+    });
+}
+
+uint32_t ggapiGetCurrentCallScope() noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([]() {
+        Global &global = Global::self();
+        auto scope = CallScope::getCurrent(global.environment);
+        return scope.getHandle().asInt();
     });
 }
