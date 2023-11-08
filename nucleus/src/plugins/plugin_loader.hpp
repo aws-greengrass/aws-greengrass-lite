@@ -40,6 +40,10 @@ namespace plugins {
         virtual bool isActive() noexcept {
             return true;
         }
+
+        [[nodiscard]] std::string getName() {
+            return _moduleName;
+        }
     };
 
     //

@@ -286,12 +286,12 @@ namespace config {
         return node->createTopic(*it, timestamp);
     }
 
-    std::shared_ptr<Topics> Topics::lookupTopics(std::initializer_list<std::string> path) {
+    std::shared_ptr<Topics> Topics::lookupTopics(const std::vector<std::string> &path) {
         return lookupTopics(Timestamp::now(), path);
     }
 
     std::shared_ptr<Topics> Topics::lookupTopics(
-        Timestamp timestamp, std::initializer_list<std::string> path
+        Timestamp timestamp, const std::vector<std::string> &path
     ) {
         std::shared_ptr<Topics> node{ref<Topics>()};
         for(const auto &p : path) {

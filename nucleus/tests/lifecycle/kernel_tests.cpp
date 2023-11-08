@@ -1,12 +1,12 @@
-#include <catch2/catch_all.hpp>
 #include "data/globals.hpp"
 #include "test_ggroot.hpp"
+#include <catch2/catch_all.hpp>
 
 namespace fs = std::filesystem;
 
 // NOLINTBEGIN
 
-SCENARIO("Basic Kernel lifecycle", "[kernel]") {
+SCENARIO("Basic Kernel lifecycle", "[.kernel]") {
     // Incomplete tests, just getting started
     test::GGRoot ggRoot;
     GIVEN("A very basic startup") {

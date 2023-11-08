@@ -1,7 +1,6 @@
 #include "data/globals.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task.hpp"
-#include "tasks/task_manager.hpp"
 #include "tasks/task_threads.hpp"
 #include <cpp_api.hpp>
 
@@ -89,13 +88,12 @@ static inline data::ObjectAnchor pubSubCreateCommon(
 
 static inline data::ObjHandle pubSubQueueAndWaitCommon(const data::ObjectAnchor &taskAnchor) {
     data::Global &global = data::Global::self();
+    auto scope = data::CallScope::getCurrent(global.environment).getObject<data::TrackingScope>();
     auto taskObj{taskAnchor.getObject<tasks::Task>()};
     taskObj->setDefaultThread(tasks::TaskThread::getThreadContext());
     global.taskManager->queueTask(taskObj);
     if(taskObj->wait()) {
-        std::shared_ptr<tasks::Task> anchorScope{
-            global.environment.handleTable.getObject<tasks::Task>(tasks::Task::getThreadSelf())};
-        return anchorScope->anchor(taskObj->getData()).getHandle();
+        return scope->anchor(taskObj->getData()).getHandle();
     } else {
         return {};
     }
@@ -197,5 +195,5 @@ uint32_t ggapiSendToListenerAsync(
 //    std::shared_ptr<StructModelBase> dataIn { taskObj->getData() };
 //    std::shared_ptr<StructModelBase> dataOut {
 //    taskObj->runInThreadCallNext(taskObj, dataIn) }; return
-//    Handle{taskObj->anchor(dataOut.get())}.asInt();
+//    Handle{scope->anchor(dataOut.get())}.asInt();
 //}

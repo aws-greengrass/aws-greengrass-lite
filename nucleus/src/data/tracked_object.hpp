@@ -41,6 +41,10 @@ namespace data {
 
         explicit TrackedObject(Environment &environment) : _environment{environment} {
         }
+
+        virtual void beforeRemove(const ObjectAnchor &anchor) {
+            // Allow special cleanup when specified handle is removed
+        }
     };
 
     //
@@ -152,6 +156,76 @@ namespace data {
 
         std::vector<ObjectAnchor> getRoots() {
             return getRootsHelper(scopeRef());
+        }
+    };
+
+    // A scope that is intended to be stack based, is split into two, and should be used
+    // via the CallScope stack class.
+    class CallScope : public TrackingScope {
+        data::ObjHandle _self;
+
+        static data::ObjHandle getSetThreadSelf(data::ObjHandle h, bool set) {
+            // This addresses a problem on (at least) Windows machines
+            static thread_local uint32_t _threadTask{0};
+            data::ObjHandle current{_threadTask};
+            if(set) {
+                _threadTask = h.asInt();
+            }
+            return current;
+        }
+
+        bool checkIfParent(ObjHandle target) const;
+
+    public:
+        explicit CallScope(Environment &env) : TrackingScope(env) {
+        }
+
+        [[nodiscard]] static std::shared_ptr<CallScope> create(Environment &env);
+        void release();
+
+        void setSelf(data::ObjHandle self) {
+            std::unique_lock guard{_mutex};
+            _self = self;
+        }
+
+        data::ObjHandle getSelf() const {
+            std::unique_lock guard{_mutex};
+            return _self;
+        }
+
+        static data::ObjHandle getThreadSelf() {
+            return getSetThreadSelf({}, false);
+        }
+
+        data::ObjHandle setThreadSelf() {
+            return getSetThreadSelf(getSelf(), true);
+        }
+
+        static ObjectAnchor getCurrent(data::Environment &environment);
+
+        void beforeRemove(const ObjectAnchor &anchor) override;
+    };
+
+    class LocalCallScope {
+        std::shared_ptr<CallScope> _scopeData;
+
+    public:
+        explicit LocalCallScope(Environment &env) : _scopeData{CallScope::create(env)} {
+        }
+
+        LocalCallScope(const LocalCallScope &) = delete;
+        LocalCallScope(LocalCallScope &&) = default;
+        LocalCallScope &operator=(const LocalCallScope &) = delete;
+        LocalCallScope &operator=(LocalCallScope &&) = default;
+        ~LocalCallScope();
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator std::shared_ptr<CallScope>() {
+            return _scopeData;
+        }
+
+        CallScope *operator->() {
+            return _scopeData.get();
         }
     };
 

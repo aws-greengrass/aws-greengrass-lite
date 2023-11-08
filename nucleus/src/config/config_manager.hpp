@@ -311,9 +311,9 @@ namespace config {
         Topic getTopic(std::string_view name);
         Topic lookup(const std::vector<std::string> &path);
         Topic lookup(Timestamp timestamp, const std::vector<std::string> &path);
-        std::shared_ptr<Topics> lookupTopics(std::initializer_list<std::string> path);
+        std::shared_ptr<Topics> lookupTopics(const std::vector<std::string> &path);
         std::shared_ptr<Topics> lookupTopics(
-            Timestamp timestamp, std::initializer_list<std::string> path
+            Timestamp timestamp, const std::vector<std::string> &path
         );
         std::optional<Topic> find(std::initializer_list<std::string> path);
         data::ValueType findOrDefault(

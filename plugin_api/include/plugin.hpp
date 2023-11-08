@@ -6,8 +6,28 @@ namespace ggapi {
 
     class Plugin {
     private:
-        std::atomic<Scope> _moduleScope{Scope{}};
+        std::atomic<ModuleScope> _moduleScope{ModuleScope{}};
         std::atomic<StringOrd> _phase{StringOrd{}};
+
+        //
+        // Generic lifecycle dispatch
+        //
+        bool lifecycleDispatch(StringOrd phase, Struct data) {
+            if(phase == BOOTSTRAP) {
+                return onBootstrap(data);
+            } else if(phase == DISCOVER) {
+                return onDiscover(data);
+            } else if(phase == START) {
+                return onStart(data);
+            } else if(phase == RUN) {
+                return onRun(data);
+            } else if(phase == TERMINATE) {
+                return onTerminate(data);
+            } else {
+                // Return to caller that phase was not handled
+                return false;
+            }
+        }
 
     public:
         static const StringOrd BOOTSTRAP;
@@ -25,37 +45,25 @@ namespace ggapi {
 
         bool lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
             // No exceptions may cross API boundary
-            // true on success (no exception), false on exception
+            // Return true if handled.
             return trapErrorReturn<bool>([this, moduleHandle, phase, data]() {
-                lifecycle(Scope{moduleHandle}, StringOrd{phase}, Struct{data});
-                return true;
+                return lifecycle(ModuleScope{moduleHandle}, StringOrd{phase}, Struct{data});
             });
         }
 
-        //
-        // Generic lifecycle - may be overridden and extended
-        //
-        virtual void lifecycle(Scope moduleScope, StringOrd phase, Struct data) {
+        bool lifecycle(ModuleScope moduleScope, StringOrd phase, Struct data) {
             _moduleScope = moduleScope;
             _phase = phase;
-            if(phase == BOOTSTRAP) {
-                onBootstrap(data);
-            } else if(phase == DISCOVER) {
-                onDiscover(data);
-            } else if(phase == START) {
-                onStart(data);
-            } else if(phase == RUN) {
-                onRun(data);
-            } else if(phase == TERMINATE) {
-                onTerminate(data);
-            }
-            // All unhandled phases are ignored by design
+            beforeLifecycle(phase, data);
+            bool handled = lifecycleDispatch(phase, data);
+            afterLifecycle(phase, data);
+            return handled;
         }
 
         //
         // Retrieve scope of plugin
         //
-        Scope getScope() {
+        ModuleScope getScope() {
             return _moduleScope.load();
         }
 
@@ -66,37 +74,48 @@ namespace ggapi {
             return _phase.load();
         }
 
+        virtual void beforeLifecycle(StringOrd phase, Struct data) {
+        }
+
+        virtual void afterLifecycle(StringOrd phase, Struct data) {
+        }
+
         //
-        // For plugins discovered during bootstrap
+        // For plugins discovered during bootstrap. Return true if handled.
         // TODO: This may change
         //
-        virtual void onBootstrap(Struct data) {
+        virtual bool onBootstrap(Struct data) {
+            return false;
         }
 
         //
         // For plugins discovered during bootstrap, permits discovering other
-        // plugins.
+        // plugins. Return true if handled.
         // TODO: This may change
         //
-        virtual void onDiscover(Struct data) {
+        virtual bool onDiscover(Struct data) {
+            return false;
         }
 
         //
-        // Plugin is about to move into an active state
+        // Plugin is about to move into an active state. Return true if handled.
         //
-        virtual void onStart(Struct data) {
+        virtual bool onStart(Struct data) {
+            return false;
         }
 
         //
-        // Plugin has transitioned into an active state
+        // Plugin has transitioned into an active state. Return true if handled.
         //
-        virtual void onRun(Struct data) {
+        virtual bool onRun(Struct data) {
+            return false;
         }
 
         //
-        // Plugin is being terminated - use for cleanup
+        // Plugin is being terminated - use for cleanup. Return true if handled.
         //
-        virtual void onTerminate(Struct data) {
+        virtual bool onTerminate(Struct data) {
+            return false;
         }
     };
 

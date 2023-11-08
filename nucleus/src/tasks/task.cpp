@@ -64,6 +64,9 @@ namespace tasks {
 
     void Task::cancelTask() {
         std::unique_lock guard{_mutex};
+        if(_lastStatus == Cancelled || _lastStatus == Completed || _lastStatus == Finalizing) {
+            return; // cannot cancel in these states
+        }
         std::shared_ptr<TaskManager> taskManager = getTaskManager();
         if(!taskManager) {
             assert(_lastStatus == Pending);
@@ -82,12 +85,9 @@ namespace tasks {
             releaseBlockedThreads(true);
             return;
         }
-        if(_lastStatus != Completed && _lastStatus != Finalizing) {
-            // cancelling running task
-            _lastStatus = Cancelled;
-            releaseBlockedThreads(true);
-            return;
-        }
+        // cancelling running task
+        _lastStatus = Cancelled;
+        releaseBlockedThreads(true);
     }
 
     void Task::setTimeout(const ExpireTime &terminateTime) {
@@ -216,8 +216,12 @@ namespace tasks {
             }
             requeueTask(); // move to another thread if applicable
             return status;
+        } catch(const std::exception &e) {
+            std::cerr << "Exception during task execution: " << e.what() << std::endl;
+            cancelTask();
+            return Cancelled;
         } catch(...) {
-            std::cerr << "Exception during task execution" << std::endl;
+            std::cerr << "Exception during task execution: (Unknown)" << std::endl;
             cancelTask();
             return Cancelled;
         }
@@ -284,6 +288,13 @@ namespace tasks {
             if(dataOut != nullptr) {
                 return HasReturnValue;
             }
+        }
+    }
+
+    void Task::beforeRemove(const data::ObjectAnchor &anchor) {
+        if(anchor.getHandle() == getSelf()) {
+            // if the task handle itself is released, perform an implicit cancel
+            cancelTask();
         }
     }
 

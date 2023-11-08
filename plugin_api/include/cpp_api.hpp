@@ -30,13 +30,15 @@ namespace ggapi {
     class List;
     class Buffer;
     class Scope;
+    class Task;
+    class ModuleScope;
     class Subscription;
     class GgApiError; // error from GG API call
 
     typedef std::function<Struct(Scope, StringOrd, Struct)> topicCallbackLambda;
     typedef std::function<void(Scope, StringOrd, Struct)> lifecycleCallbackLambda;
-    typedef Struct (*topicCallback_t)(Scope, StringOrd, Struct);
-    typedef void (*lifecycleCallback_t)(Scope, StringOrd, Struct);
+    typedef Struct (*topicCallback_t)(Task, StringOrd, Struct);
+    typedef void (*lifecycleCallback_t)(ModuleScope, StringOrd, Struct);
     uint32_t topicCallbackProxy(
         uintptr_t callbackContext, uint32_t taskHandle, uint32_t topicOrd, uint32_t dataStruct
     ) noexcept;
@@ -132,7 +134,8 @@ namespace ggapi {
     };
 
     //
-    // All objects are passed by handle, this class abstracts the object handles
+    // All objects are passed by handle, this class abstracts the object handles.
+    // The main categories of objects are Containers, Scopes, and Subscriptions.
     //
     class ObjHandle {
     protected:
@@ -149,33 +152,47 @@ namespace ggapi {
         explicit constexpr ObjHandle(uint32_t handle) noexcept : _handle{handle} {
         }
 
-        constexpr bool operator==(ObjHandle other) const {
+        constexpr bool operator==(ObjHandle other) const noexcept {
             return _handle == other._handle;
         }
 
-        constexpr bool operator!=(ObjHandle other) const {
+        constexpr bool operator!=(ObjHandle other) const noexcept {
             return _handle != other._handle;
         }
 
-        constexpr explicit operator bool() const {
+        constexpr explicit operator bool() const noexcept {
             return _handle != 0;
         }
 
-        constexpr bool operator!() const {
+        constexpr bool operator!() const noexcept {
             return _handle == 0;
         }
 
         //
-        // Retrieve underlying handle ID
+        // Retrieve underlying handle ID - this is should never be used directly.
         //
-        [[nodiscard]] constexpr uint32_t getHandleId() const {
+        [[nodiscard]] constexpr uint32_t getHandleId() const noexcept {
             return _handle;
         }
 
+        //
+        // Allows a handle to be released early.
+        //
         void release() const {
             callApi([*this]() { ::ggapiReleaseHandle(_handle); });
         }
 
+        //
+        // Detaches underlying handle, cancelling any side effects such as auto-releasing.
+        //
+        void detach() noexcept {
+            _handle = 0;
+        }
+
+        //
+        // Checks if this object is the same as the other even if the handles are different.
+        // May throw if either handle no longer is valid.
+        //
         [[nodiscard]] bool isSameObject(ObjHandle other) const {
             return *this == other || callApiReturn<bool>([*this, other]() {
                 return ::ggapiIsSameObject(_handle, other._handle);
@@ -184,35 +201,96 @@ namespace ggapi {
     };
 
     //
-    // Generic operations for all object types
+    // A task handle represents an active LPC operation. The handle is deleted after the completion
+    // callback (if any).
     //
-    template<typename T>
-    class ObjectBase : public ObjHandle {
+    class Task : public ObjHandle {
+        void check() {
+            if(getHandleId() != 0 && !ggapiIsTask(getHandleId())) {
+                throw std::runtime_error("Task handle expected");
+            }
+        }
+
     public:
-        ObjectBase() noexcept = default;
-        ObjectBase(const ObjectBase &) noexcept = default;
-        ObjectBase(ObjectBase &&) noexcept = default;
-        ObjectBase &operator=(const ObjectBase &) noexcept = default;
-        ObjectBase &operator=(ObjectBase &&) noexcept = default;
-        ~ObjectBase() = default;
-
-        explicit ObjectBase(const ObjHandle &other) noexcept : ObjHandle{other} {
-            static_assert(std::is_base_of_v<ObjHandle, T>);
+        explicit Task(const ObjHandle &other) : ObjHandle{other} {
+            check();
         }
 
-        explicit ObjectBase(uint32_t handle) noexcept : ObjHandle{handle} {
+        explicit Task(uint32_t handle) : ObjHandle{handle} {
+            check();
         }
 
         //
-        // Anchor this against another scope
+        // Create an asynchronous LPC call - returning the Task handle for the call.
         //
-        [[nodiscard]] T anchor(Scope newParent) const;
+        [[nodiscard]] static Task sendToTopicAsync(
+            StringOrd topic, Struct message, topicCallback_t result, int32_t timeout = -1
+        );
+
+        //
+        // Create a synchronous LPC call - a task handle is created, and observable by subscribers
+        // however the task is deleted by the time the call returns. Most handlers are called in
+        // the same (callers) thread, however this must not be assumed.
+        //
+        [[nodiscard]] static Struct sendToTopic(
+            StringOrd topic, Struct message, int32_t timeout = -1
+        );
+
+        //
+        // Block until task completes including final callback if there is one.
+        //
+        [[nodiscard]] Struct waitForTaskCompleted(int32_t timeout = -1);
+
+        //
+        // Cancel task - if a callback is executing, it will complete first.
+        //
+        void cancelTask();
+
+        //
+        // When in a task callback, returns the associated task.
+        //
+        [[nodiscard]] static Task current();
     };
 
     //
-    // Scopes are a class of handles that are used as targets for anchors
+    // Subscription handles indicate an active listener for LPC topics. Anonymous listeners
+    // can also exist.
     //
-    class Scope : public ObjectBase<Scope> {
+    class Subscription : public ObjHandle {
+        void check() {
+            if(getHandleId() != 0 && !ggapiIsSubscription(getHandleId())) {
+                throw std::runtime_error("Subscription handle expected");
+            }
+        }
+
+    public:
+        explicit Subscription(const ObjHandle &other) : ObjHandle{other} {
+            check();
+        }
+
+        explicit Subscription(uint32_t handle) : ObjHandle{handle} {
+            check();
+        }
+
+        //
+        // Send a message to this specific subscription. Return immediately.
+        //
+        [[nodiscard]] Task callAsync(Struct message, topicCallback_t result, int32_t timeout = -1)
+            const;
+
+        //
+        // Send a message to this specific subscription. If possible, run in same thread.
+        // Block until completion.
+        //
+        [[nodiscard]] Struct call(Struct message, int32_t timeout = -1) const;
+    };
+
+    //
+    // Scopes are a class of handles that are used as targets for anchoring other handles.
+    // See the subclasses to understand the specific types of scopes.
+    //
+    class Scope : public ObjHandle {
+
         void check() {
             if(getHandleId() != 0 && !ggapiIsScope(getHandleId())) {
                 throw std::runtime_error("Scope handle expected");
@@ -227,41 +305,56 @@ namespace ggapi {
         Scope &operator=(Scope &&) noexcept = default;
         ~Scope() = default;
 
-        explicit Scope(const ObjHandle &other) noexcept : ObjectBase{other} {
+        explicit Scope(const ObjHandle &other) noexcept : ObjHandle(other) {
             check();
         }
 
-        explicit Scope(uint32_t handle) noexcept : ObjectBase{handle} {
+        explicit Scope(uint32_t handle) noexcept : ObjHandle(handle) {
             check();
         }
 
+        //
+        // Creates a subscription. A subscription is tied to scope and will be unsubscribed if
+        // the scope is deleted.
+        //
         [[nodiscard]] Subscription subscribeToTopic(StringOrd topic, topicCallback_t callback);
-        [[nodiscard]] Scope sendToTopicAsync(
-            StringOrd topic, Struct message, topicCallback_t result, int32_t timeout = -1
-        );
-        [[nodiscard]] Scope sendToListenerAsync(
-            Subscription listener, Struct message, topicCallback_t result, int32_t timeout = -1
-        );
-        [[nodiscard]] static Struct sendToTopic(
-            StringOrd topic, Struct message, int32_t timeout = -1
-        );
-        [[nodiscard]] static Struct sendToListener(
-            Subscription listener, Struct message, int32_t timeout = -1
-        );
-        [[nodiscard]] Struct waitForTaskCompleted(int32_t timeout = -1);
-        void cancelTask();
-        [[nodiscard]] Scope registerPlugin(StringOrd componentName, lifecycleCallback_t callback);
-        [[nodiscard]] static Scope thisTask();
 
-        [[nodiscard]] Struct createStruct();
-        [[nodiscard]] List createList();
-        [[nodiscard]] Buffer createBuffer();
+        //
+        // Anchor an object against this scope.
+        //
+        template<typename T>
+        [[nodiscard]] T anchor(T currentHandle) const;
     };
 
     //
-    // Scopes are a class of handles that are used as targets for anchors
+    // Module scope. For module-global data.
+    //
+    class ModuleScope : public Scope {
+    public:
+        ModuleScope() noexcept = default;
+        ModuleScope(const ModuleScope &) noexcept = default;
+        ModuleScope(ModuleScope &&) noexcept = default;
+        ModuleScope &operator=(const ModuleScope &) noexcept = default;
+        ModuleScope &operator=(ModuleScope &&) noexcept = default;
+
+        explicit ModuleScope(const ObjHandle &other) noexcept : Scope{other} {
+        }
+
+        explicit ModuleScope(uint32_t handle) noexcept : Scope{handle} {
+        }
+
+        [[nodiscard]] ModuleScope registerPlugin(
+            StringOrd componentName, lifecycleCallback_t callback
+        );
+    };
+
+    //
+    // Thread scope. Used by plugin for each created thread to allow handles to be
+    // associated with a thread. It also allows tasks to run on this thread.
     //
     class ThreadScope : public Scope {
+        bool _autoRelease{false};
+
     public:
         ThreadScope() noexcept = default;
         ThreadScope(const ThreadScope &) noexcept = default;
@@ -272,34 +365,63 @@ namespace ggapi {
         explicit ThreadScope(uint32_t handle) noexcept : Scope{handle} {
         }
 
-        [[nodiscard]] static ThreadScope claimThread();
-
-        static void releaseThread() {
-            return callApi([]() { ::ggapiReleaseThread(); });
+        ThreadScope &autoRelease(bool f = true) {
+            _autoRelease = f;
+            return *this;
         }
 
-        ~ThreadScope() {
-            ::ggapiReleaseThread();
+        [[nodiscard]] static ThreadScope claimThread();
+
+        void releaseThread() {
+            callApi([]() { ::ggapiReleaseThread(); });
+            _handle = 0;
+            _autoRelease = false;
+        }
+
+        ~ThreadScope() noexcept {
+            if(_autoRelease) {
+                ::ggapiReleaseThread(); // do not (re)throw exception
+            }
         }
     };
 
     //
-    // Scopes are a class of handles that are used as targets for anchors
+    // Temporary (stack-local) scope, that is default scope for objects.
     //
-    class Subscription : public ObjectBase<Subscription> {
-        void check() {
-            if(getHandleId() != 0 && !ggapiIsSubscription(getHandleId())) {
-                throw std::runtime_error("Subscription handle expected");
+    class CallScope : public Scope {
+        bool _autoRelease{false};
+
+    public:
+        explicit CallScope(uint32_t handle) noexcept : Scope{handle} {
+        }
+
+        CallScope() = default;
+        CallScope(const CallScope &) = delete;
+        CallScope &operator=(const CallScope &) = delete;
+        CallScope(CallScope &&) noexcept = default;
+        CallScope &operator=(CallScope &&) noexcept = default;
+
+        ~CallScope() noexcept {
+            if(_autoRelease) {
+                ::ggapiReleaseHandle(_handle); // do not (re)throw exception
             }
         }
 
-    public:
-        explicit Subscription(const ObjHandle &other) : ObjectBase{other} {
-            check();
+        CallScope &autoRelease(bool f = true) {
+            _autoRelease = f;
+            return *this;
         }
 
-        explicit Subscription(uint32_t handle) : ObjectBase{handle} {
-            check();
+        static CallScope newCallScope() {
+            auto s = callApiReturnHandle<CallScope>([]() { return ::ggapiCreateCallScope(); });
+            s._autoRelease = true;
+            return s;
+        }
+
+        static CallScope current() {
+            // peeks into current call scope. Wrapping in CallScope would be an error
+            // as it would cause scope to get deleted.
+            return callApiReturnHandle<CallScope>([]() { return ::ggapiGetCurrentCallScope(); });
         }
     };
 
@@ -352,8 +474,8 @@ namespace ggapi {
             check();
         }
 
-        static Struct create(ObjHandle parent) {
-            return Struct(::ggapiCreateStruct(parent.getHandleId()));
+        static Struct create() {
+            return Struct(::ggapiCreateStruct());
         }
 
         template<typename T>
@@ -471,8 +593,8 @@ namespace ggapi {
             check();
         }
 
-        static List create(ObjHandle parent) {
-            return List(::ggapiCreateList(parent.getHandleId()));
+        static List create() {
+            return List(::ggapiCreateList());
         }
 
         template<typename T>
@@ -602,8 +724,8 @@ namespace ggapi {
             check();
         }
 
-        static Buffer create(ObjHandle parent) {
-            return Buffer(::ggapiCreateBuffer(parent.getHandleId()));
+        static Buffer create() {
+            return Buffer(::ggapiCreateBuffer());
         }
 
         BufferStream stream();
@@ -967,26 +1089,17 @@ namespace ggapi {
     }
 
     template<typename T>
-    inline T ObjectBase<T>::anchor(Scope newParent) const {
-        return callApiReturnHandle<T>([newParent, *this]() {
-            return ::ggapiAnchorHandle(newParent.getHandleId(), _handle);
+    inline T Scope::anchor(T otherHandle) const {
+        static_assert(std::is_base_of_v<ObjHandle, T>);
+        return callApiReturnHandle<T>([this, otherHandle]() {
+            return ::ggapiAnchorHandle(getHandleId(), otherHandle);
         });
     }
 
     inline ThreadScope ThreadScope::claimThread() {
-        return callApiReturnHandle<ThreadScope>([]() { return ::ggapiClaimThread(); });
-    }
-
-    inline Struct Scope::createStruct() {
-        return Struct::create(*this);
-    }
-
-    inline List Scope::createList() {
-        return List::create(*this);
-    }
-
-    inline Buffer Scope::createBuffer() {
-        return Buffer::create(*this);
+        auto scope = callApiReturnHandle<ThreadScope>([]() { return ::ggapiClaimThread(); });
+        scope._autoRelease = true;
+        return scope;
     }
 
     inline Subscription Scope::subscribeToTopic(StringOrd topic, topicCallback_t callback) {
@@ -1004,10 +1117,10 @@ namespace ggapi {
         });
     }
 
-    inline Scope Scope::sendToTopicAsync(
+    inline Task Task::sendToTopicAsync(
         StringOrd topic, Struct message, topicCallback_t result, int32_t timeout
     ) {
-        return callApiReturnHandle<Scope>([topic, message, result, timeout]() {
+        return callApiReturnHandle<Task>([topic, message, result, timeout]() {
             return ::ggapiSendToTopicAsync(
                 topic.toOrd(),
                 message.getHandleId(),
@@ -1018,12 +1131,17 @@ namespace ggapi {
         });
     }
 
-    inline Scope Scope::sendToListenerAsync(
-        Subscription listener, Struct message, topicCallback_t result, int32_t timeout
-    ) {
-        return callApiReturnHandle<Scope>([listener, message, result, timeout]() {
+    inline Struct Task::sendToTopic(ggapi::StringOrd topic, Struct message, int32_t timeout) {
+        return callApiReturnHandle<Struct>([topic, message, timeout]() {
+            return ::ggapiSendToTopic(topic.toOrd(), message.getHandleId(), timeout);
+        });
+    }
+
+    inline Task Subscription::callAsync(Struct message, topicCallback_t result, int32_t timeout)
+        const {
+        return callApiReturnHandle<Task>([this, message, result, timeout]() {
             return ::ggapiSendToListenerAsync(
-                listener.getHandleId(),
+                getHandleId(),
                 message.getHandleId(),
                 topicCallbackProxy,
                 reinterpret_cast<uintptr_t>(result), // NOLINT(*-reinterpret-cast)
@@ -1032,36 +1150,30 @@ namespace ggapi {
         });
     }
 
-    inline Struct Scope::sendToTopic(ggapi::StringOrd topic, Struct message, int32_t timeout) {
-        return callApiReturnHandle<Struct>([topic, message, timeout]() {
-            return ::ggapiSendToTopic(topic.toOrd(), message.getHandleId(), timeout);
+    inline Struct Subscription::call(Struct message, int32_t timeout) const {
+        return callApiReturnHandle<Struct>([this, message, timeout]() {
+            return ::ggapiSendToListener(getHandleId(), message.getHandleId(), timeout);
         });
     }
 
-    inline Struct Scope::sendToListener(
-        ggapi::Subscription listener, Struct message, int32_t timeout
-    ) {
-        return callApiReturnHandle<Struct>([listener, message, timeout]() {
-            return ::ggapiSendToListener(listener.getHandleId(), message.getHandleId(), timeout);
-        });
-    }
-
-    inline Struct Scope::waitForTaskCompleted(int32_t timeout) {
-        return callApiReturnHandle<Struct>([*this, timeout]() {
+    inline Struct Task::waitForTaskCompleted(int32_t timeout) {
+        return callApiReturnHandle<Struct>([this, timeout]() {
             return ::ggapiWaitForTaskCompleted(getHandleId(), timeout);
         });
     }
 
-    inline void Scope::cancelTask() {
-        callApi([*this]() { return ::ggapiCancelTask(getHandleId()); });
+    inline void Task::cancelTask() {
+        callApi([this]() { return ::ggapiCancelTask(getHandleId()); });
     }
 
-    inline Scope Scope::thisTask() {
-        return callApiReturnHandle<Scope>([]() { return ::ggapiGetCurrentTask(); });
+    inline Task Task::current() {
+        return callApiReturnHandle<Task>([]() { return ::ggapiGetCurrentTask(); });
     }
 
-    inline Scope Scope::registerPlugin(StringOrd componentName, lifecycleCallback_t callback) {
-        return callApiReturnHandle<Scope>([*this, componentName, callback]() {
+    inline ModuleScope ModuleScope::registerPlugin(
+        StringOrd componentName, lifecycleCallback_t callback
+    ) {
+        return callApiReturnHandle<ModuleScope>([*this, componentName, callback]() {
             return ::ggapiRegisterPlugin(
                 getHandleId(),
                 componentName.toOrd(),
@@ -1077,7 +1189,7 @@ namespace ggapi {
         return trapErrorReturn<uint32_t>([callbackContext, taskHandle, topicOrd, dataStruct]() {
             auto callback =
                 reinterpret_cast<topicCallback_t>(callbackContext); // NOLINT(*-reinterpret-cast)
-            return callback(Scope{taskHandle}, StringOrd{topicOrd}, Struct{dataStruct})
+            return callback(Task{taskHandle}, StringOrd{topicOrd}, Struct{dataStruct})
                 .getHandleId();
         });
     }
@@ -1088,7 +1200,7 @@ namespace ggapi {
         return trapErrorReturn<bool>([callbackContext, moduleHandle, phaseOrd, dataStruct]() {
             // NOLINTNEXTLINE(*-reinterpret-cast)
             auto callback = reinterpret_cast<lifecycleCallback_t>(callbackContext);
-            callback(Scope{moduleHandle}, StringOrd{phaseOrd}, Struct{dataStruct});
+            callback(ModuleScope{moduleHandle}, StringOrd{phaseOrd}, Struct{dataStruct});
             return true;
         });
     }

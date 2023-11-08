@@ -185,7 +185,8 @@ namespace pubsub {
         const std::shared_ptr<tasks::Task> &task,
         const std::shared_ptr<data::StructModelBase> &dataIn
     ) {
-        data::ObjectAnchor anchor{task->anchor(dataIn)};
+        data::LocalCallScope callScope{_environment};
+        data::ObjectAnchor anchor{callScope->anchor(dataIn)};
         data::Handle resp = _callback->operator()(task->getSelf(), _topicOrd, anchor.getHandle());
         std::shared_ptr<data::StructModelBase> respData;
         if(resp) {
@@ -198,7 +199,8 @@ namespace pubsub {
         const std::shared_ptr<tasks::Task> &task,
         const std::shared_ptr<data::StructModelBase> &result
     ) {
-        data::ObjectAnchor anchor{task->anchor(result)};
+        data::LocalCallScope callScope{task->callScope()};
+        data::ObjectAnchor anchor{callScope->anchor(result)};
         (void) _callback->operator()(task->getSelf(), _topicOrd, anchor.getHandle());
         return nullptr;
     }

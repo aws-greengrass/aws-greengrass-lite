@@ -90,7 +90,7 @@ namespace config {
 
     void TlogWriter::writeAll(const std::shared_ptr<Topics> &node) { // NOLINT(*-no-recursion)
         std::vector<Topic> leafs = node->getLeafs();
-        for(auto i : leafs) {
+        for(const auto &i : leafs) {
             childChanged(i, WhatHappened::childChanged);
         }
         leafs.clear();
@@ -102,11 +102,11 @@ namespace config {
         subTopics.clear();
     }
 
-    void TlogWriter::childChanged(ConfigNode &node, WhatHappened changeType) {
+    void TlogWriter::childChanged(const ConfigNode &node, WhatHappened changeType) {
         if(node.excludeTlog()) {
             return;
         }
-        auto *nodeAsTopic = dynamic_cast<Topic *>(&node);
+        auto *nodeAsTopic = dynamic_cast<const Topic *>(&node);
         TlogLine tlogline;
         tlogline.topicPath = node.getKeyPath();
         tlogline.timestamp = node.getModTime();
@@ -300,7 +300,7 @@ namespace config {
                 Topic targetTopic{root->lookup(tlogLine.topicPath)};
                 targetTopic.withNewerModTime(tlogLine.timestamp);
             } else if(tlogLine.action == WhatHappened::interiorAdded) {
-                (void) root->lookup(tlogLine.topicPath);
+                (void) root->lookupTopics(tlogLine.topicPath);
             }
         }
     }

@@ -3,10 +3,11 @@
 
 // NOLINTBEGIN
 SCENARIO("Shared list API", "[list]") {
+    auto threadScope = ggapi::ThreadScope::claimThread();
+    auto callScope = ggapi::CallScope::newCallScope();
 
     GIVEN("A list") {
-        auto scope = ggapi::ThreadScope::claimThread();
-        auto list = scope.createList();
+        auto list = ggapi::List::create();
 
         THEN("List is empty") {
             REQUIRE(list.size() == 0);
