@@ -56,25 +56,6 @@ GG-Lite Components (not plugins) have the same lifecycle management
 ### 5. 
 All IPC communications shall be compatible with GG-Java (GGv2) based IPC.
 
-## Lifecycle Management Requirements
-
-
-## Lifecycle API Requirements
-### 1.
-
-There is only one "C" entry point called `greengrass_lifecycle`
-
-### 2.
-The `greengrass_lifecycle` entry point accepts the following parameters: 
-1. uint32_t moduleHandle, 
-2. uint32_t phase,
-3. uint32_t data
-
-and returns a boolean indicating success.
-
-### 3.
-
-
 ## IPC Message Distribution Requirements
 
 ## IPC Interface API Requirements
