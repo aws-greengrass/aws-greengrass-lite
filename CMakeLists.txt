@@ -20,15 +20,11 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -Og")
 # Dependencies
 find_package(Threads REQUIRED)
 
-set(FETCHCONTENT_QUIET FALSE)
-
 include(FetchContent)
+include(./utils/fetchContentFromDeps.cmake)
 include(CTest)
 
-FetchContent_Declare(
-        Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG v3.4.0)
+fetchContentFromDeps(Catch2)
 FetchContent_MakeAvailable(Catch2)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 

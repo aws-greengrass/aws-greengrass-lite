@@ -1,0 +1,22 @@
+{
+  "Catch2": {
+    "url": "https://github.com/catchorg/Catch2.git",
+    "rev": "v3.4.0",
+    "hash": "sha256-DqGGfNjKPW9HFJrX9arFHyNYjB61uoL6NabZatTWrr0="
+  },
+  "yaml-cpp": {
+    "url": "https://github.com/jbeder/yaml-cpp.git",
+    "rev": "f7320141120f720aecc4c32be25586e7da9eb978",
+    "hash": "sha256-J87oS6Az1/vNdyXu3L7KmUGWzU0IAkGrGMUUha+xDXI="
+  },
+  "rapidjson": {
+    "url": "https://github.com/Tencent/rapidjson.git",
+    "rev": "f54b0e47a08782a6131cc3d60f94d038fa6e0a51",
+    "hash": "sha256-mFM1Etpf+qF/G0t91eXD8FQXwSQKyQbJq8gUA0jsm4Q="
+  },
+  "device-sdk-cpp": {
+    "url": "https://github.com/aws/aws-iot-device-sdk-cpp-v2.git",
+    "rev": "8f6e11482df6edeee89c770119184c94d0a399e2",
+    "hash": "sha256-/W2rZWFX4dMUrjGiZ92pTRIwUpKcWo+CEOpvSXGai5U="
+  }
+}

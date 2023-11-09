@@ -1,14 +1,10 @@
 cmake_minimum_required(VERSION 3.25)
 project(iot_broker)
 
-set(FETCHCONTENT_QUIET FALSE)
-
 include(FetchContent)
+include(../../utils/fetchContentFromDeps.cmake)
 
-FetchContent_Declare(
-  device-sdk-cpp
-  GIT_REPOSITORY https://github.com/aws/aws-iot-device-sdk-cpp-v2.git
-  GIT_TAG v1.29.0)
+fetchContentFromDeps(device-sdk-cpp)
 
 FetchContent_GetProperties(device-sdk-cpp)
 if (NOT device-sdk-cpp_POPULATED)
