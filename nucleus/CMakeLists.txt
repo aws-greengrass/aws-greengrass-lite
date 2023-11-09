@@ -13,20 +13,10 @@ endif ()
 
 add_compile_definitions(PLATFORM_SHLIB_SUFFIX=${CMAKE_SHARED_MODULE_SUFFIX})
 
-set(FETCHCONTENT_QUIET FALSE)
-
 include(FetchContent)
+include(../utils/fetchContentFromDeps.cmake)
 
-FetchContent_Declare(
-        yaml-cpp
-        GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-        GIT_TAG f7320141120f720aecc4c32be25586e7da9eb978)
-
-FetchContent_Declare(
-        rapidjson
-        GIT_REPOSITORY https://github.com/Tencent/rapidjson.git
-        GIT_TAG f54b0e47a08782a6131cc3d60f94d038fa6e0a51
-        GIT_SHALLOW TRUE)
+fetchContentFromDeps(yaml-cpp rapidjson)
 
 FetchContent_GetProperties(yaml-cpp)
 if (NOT yaml-cpp_POPULATED)
