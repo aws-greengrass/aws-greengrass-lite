@@ -42,7 +42,17 @@ Nucleus has the following functions:
 
 ## IPC Interface API Requirements
 
+### 1.0
+
+T
+
 ## IPC Message Format Requirements
+
+### 1.0 
+
+IPC message formatting conforms to the following specification: https://quip-amazon.com/aECHAUcJkIk8/IPC-as-is-2022#temp:C:QcL33a7ae991c1c44709189e52af
+> This specification needs to be updated to a public facing document.
+
 
 ## LPC Message Distribution Requirements
 
