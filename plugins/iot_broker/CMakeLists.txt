@@ -9,11 +9,14 @@ FetchContent_Declare(
   device-sdk-cpp
   GIT_REPOSITORY https://github.com/aws/aws-iot-device-sdk-cpp-v2.git
   GIT_TAG v1.29.0)
-FetchContent_MakeAvailable(device-sdk-cpp)
+
+FetchContent_GetProperties(device-sdk-cpp)
+if (NOT device-sdk-cpp_POPULATED)
+    FetchContent_Populate(device-sdk-cpp)
+    add_subdirectory(${device-sdk-cpp_SOURCE_DIR} ${device-sdk-cpp_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif ()
 
 add_library(iot_broker MODULE main.cpp)
 target_link_libraries(iot_broker PRIVATE nucleus-core aws-crt-cpp)
-add_custom_command(TARGET iot_broker
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:iot_broker>" "${PLUGIN_BINARY_DIR}"
-        )
+
+install(TARGETS iot_broker DESTINATION plugins)
