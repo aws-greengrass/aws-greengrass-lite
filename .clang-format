@@ -1,8 +1,7 @@
 ---
 Language: Cpp
 AccessModifierOffset: -4
-AlignAfterOpenBracket: BlockIndent
-AlignArrayOfStructures: Left
+AlignAfterOpenBracket: AlwaysBreak
 AlignTrailingComments: false
 AllowShortFunctionsOnASingleLine: None
 AlwaysBreakTemplateDeclarations: Yes
@@ -14,14 +13,9 @@ IncludeCategories:
   - Regex:           '<.*'
     Priority:        2
 IndentWidth: 4
-InsertBraces: true
-InsertNewlineAtEOF: true
-LineEnding: LF
 NamespaceIndentation: All
 PenaltyReturnTypeOnItsOwnLine: 300
-QualifierAlignment: Left
-SeparateDefinitionBlocks: Always
-SortIncludes: CaseSensitive
+SortIncludes: true
 SpaceAfterCStyleCast: true
 SpaceAfterTemplateKeyword: false
 SpaceBeforeParens: Never
