@@ -3,7 +3,5 @@ project(example_plugin2)
 
 add_library(example_plugin2 MODULE main.cpp)
 target_link_libraries(example_plugin2 PRIVATE nucleus-core)
-add_custom_command(TARGET example_plugin2
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy "$<TARGET_FILE:example_plugin2>" "${PLUGIN_BINARY_DIR}"
-        )
+
+install(TARGETS example_plugin2 DESTINATION plugins)

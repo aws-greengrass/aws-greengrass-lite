@@ -108,6 +108,8 @@ target_link_libraries(nucleus-lib
 add_executable(greengrass-lite stub/main.cpp)
 target_link_libraries(greengrass-lite nucleus-core)
 
+install(TARGETS greengrass-lite DESTINATION bin)
+
 #
 # Build unit tests
 #
