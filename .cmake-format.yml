@@ -1,0 +1,5 @@
+format:
+  autosort: true
+  command_case: unchanged
+markup:
+  enable_markup: false
