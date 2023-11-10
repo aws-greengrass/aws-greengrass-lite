@@ -135,3 +135,14 @@ jobs:
 
       - name: Check editorconfig-checker
         run: nix build -L .#checks.x86_64-linux.editorconfig
+
+  cmake-lint:
+    name: Check CMake
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check CMake
+        run: nix build -L .#checks.x86_64-linux.cmake-lint

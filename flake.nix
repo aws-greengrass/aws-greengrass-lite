@@ -69,6 +69,11 @@
             ${pkgs.editorconfig-checker}/bin/editorconfig-checker \
               -disable-indent-size -disable-max-line-length
           '';
+          cmake-lint = runCheck ''
+            ${pkgs.cmake-format}/bin/cmake-lint \
+              $(${pkgs.fd}/bin/fd '.*\.cmake|CMakeLists.txt') \
+              -c .cmake-format.yml
+          '';
         };
 
         formatter =
