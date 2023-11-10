@@ -21,7 +21,7 @@ Once loaded they are trusted entities and are safe to execute inside the Nucleus
 ## Nucleus functionality
 Nucleus has the following functions:
 1. Lifecycle management of plugins
-   1. Locate Plugins
+   1. Locate Plugins (_Temporary until plugin deployment is ready_)
    2. Install Plugins
    3. Load Plugins
    4. Run Plugins
