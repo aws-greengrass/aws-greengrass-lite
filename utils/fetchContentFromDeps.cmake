@@ -12,8 +12,6 @@ function(fetchContentFromDeps)
 
         FetchContent_Declare("${name}"
             GIT_REPOSITORY "${url}"
-            GIT_TAG "${rev}"
-            GIT_SHALLOW TRUE)
+            GIT_TAG "${rev}")
     endforeach()
 endfunction()
-
