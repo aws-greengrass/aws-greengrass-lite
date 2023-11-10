@@ -38,6 +38,8 @@
           cmake-format
           nixpkgs-fmt
           nodePackages.prettier
+          fd
+          git
         ];
 
         withDevShellPkgs = drv: drv.overrideAttrs (old: {

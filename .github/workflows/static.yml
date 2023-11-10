@@ -11,66 +11,6 @@ env:
   bashEnd: \033[0m
 
 jobs:
-  linting:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Clone the repo
-        uses: actions/checkout@v3
-
-      - name: Install clang-tidy
-        run: |
-          sudo apt-get install -y clang-tidy fd-find
-          echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
-          export PATH="$PATH:$GITHUB_ACTION_PATH"
-
-          # Check that the commands installed correctly
-          fdfind --version
-          echo -e "::endgroup::"
-          
-          echo -e "${{ env.bashInfo }} Using clang-tidy version "$(clang-tidy --version)" ${{ env.bashEnd }}"
-
-      - name: Linting
-        id: action-linting
-        run: |
-          # Parse the optional inputs
-          args=""
-          
-          # Get all .cpp and .hpp files, as well as any other requested file types.
-          # Then run cppcheck.
-          fdfind -e cpp -e hpp ${args} --exec clang-tidy {} --config-file=.clang-tidy \
-          --warnings-as-errors --fix --fix-errors \;
-          
-          # Determine if there was a linting diff.
-          # If there was, create a patch of it.
-          set +e
-          git diff --exit-code >> lintChanges.patch
-          exitCode=$?
-          set -e
-
-          if [ $exitCode -eq 0 ]; then
-              echo -e "::endgroup::"
-              # echo -e "${{ env.bashPass }} ${{ env.stepName }} ${{ env.bashEnd }}"
-          else
-              # Run a git diff to print the linting differences
-              echo -e "::group::${{ env.bashInfo }} Linting Difference ${{ env.bashEnd }}"
-              git diff --color=always
-              echo -e "::endgroup::"
-              echo -e "${{ env.bashFail }} List of files with linting errors: ${{ env.bashEnd }}"
-              echo -e "${{ env.bashFail }} "$(git diff --name-only)" ${{ env.bashEnd }} "
-              # echo -e "${{ env.bashFail }} ${{ env.stepName }} ${{ env.bashEnd }}"
-          fi
-          exit $exitCode
-
-      - name: Upload Git Patch
-        if: failure() && ( steps.action-linting.outcome == 'failure' )
-        id: upload-linting-patch
-        uses: actions/upload-artifact@v3
-        with:
-          name: lintChanges
-          path: lintChanges.patch
-          retention-days: 5
-
   analysis:
     runs-on: ubuntu-latest
 
@@ -147,4 +87,40 @@ jobs:
         with:
           name: formatting_patch
           path: formatting.patch
+          retention-days: 5
+
+  clang-tidy:
+    name: Check Clang-tidy
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: nix develop -c bash -exo pipefail {0}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Configure project
+        run: cmake $cmakeFlags -B build
+
+      - name: Check Clang-tidy
+        id: clang-tidy-check
+        run: |
+          clang-tidy -p ./build --warnings-as-errors='*' -header-filter=.* \
+            $(fd -t f -e cpp)
+
+      - name: Generate / Show Patch
+        if: ${{ failure() && steps.clang-tidy-check.outcome == 'failure' }}
+        run: |
+          clang-tidy -p ./build -header-filter=.* --fix --fix-errors --quiet \
+            $(fd -t f -e cpp)
+          git diff >> clang-tidy.patch
+          git diff --color=always
+
+      - name: Upload Patch
+        if: ${{ failure() && steps.clang-tidy-check.outcome == 'failure' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: clang-tidy_patch
+          path: clang-tidy.patch
           retention-days: 5
