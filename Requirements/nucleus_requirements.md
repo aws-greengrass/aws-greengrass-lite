@@ -7,7 +7,7 @@
 4. 
 
 ## Background
-GG-Lite is an application called Nucleus that manages plugins & libraries.  To facilitate communications between plugins
+Nucleus is the runtime for GG-Lite is an application called Nucleus that manages plugins & libraries.  To facilitate communications between plugins
 the Nucleus provides the Local Process Communications (LPC) bus.  To facilitate communications between components the
 Nucleus provides the Interprocess Communications (IPC) bus.  Plugins are libraries (details are OS specific) that
 Nucleus loads at runtime according to a recipe.  Plugins are authenticated as they are installed and as they load.
