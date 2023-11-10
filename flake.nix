@@ -31,10 +31,18 @@
               deps;
           };
 
+        devTools = with pkgs; [
+          coreutils
+          clang-tools_16
+          gdb
+          cmake-format
+          nixpkgs-fmt
+          nodePackages.prettier
+        ];
+
         withDevShellPkgs = drv: drv.overrideAttrs (old: {
           CMAKE_EXPORT_COMPILE_COMMANDS = "1";
-          nativeBuildInputs = old.nativeBuildInputs or [ ] ++ (with pkgs;
-            [ clang-tools_16 gdb ]);
+          nativeBuildInputs = old.nativeBuildInputs or [ ] ++ devTools;
         });
       in
       rec {
@@ -46,6 +54,27 @@
 
         devShells = mapAttrs (_: withDevShellPkgs) packages;
 
-        formatter = pkgs.nixpkgs-fmt;
+        formatter =
+          let
+            format_cmd = pkgs.writeShellScript "format-file" ''
+              PATH=${lib.makeBinPath devTools}
+              case "$1" in
+                *.c | *.h | *.cpp | *.hpp) clang-format -i "$1";;
+                *.cmake | *CMakeLists.txt)
+                   cmake-format -c ${./.cmake-format.yml} -i "$1";;
+                *.nix) nixpkgs-fmt "$1";;
+                *.md | *.json | *.yml) prettier --write "$1";;
+              esac &>/dev/null
+            '';
+          in
+          pkgs.writeShellScriptBin "format" ''
+            for f in "$@"; do
+              if [ -d "$f" ]; then
+                (cd "$f"; ${pkgs.fd}/bin/fd -t f -H -x ${format_cmd})
+              else
+                ${format_cmd} "$f"
+              fi
+            done
+          '';
       });
 }
