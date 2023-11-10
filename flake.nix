@@ -65,6 +65,10 @@
             ${pkgs.diffutils}/bin/diff -rq --no-dereference . ${./.} | \
               sed -e 's/Files \(.*\) and .* differ/\1 not formatted/'
           '';
+          editorconfig = runCheck ''
+            ${pkgs.editorconfig-checker}/bin/editorconfig-checker \
+              -disable-indent-size -disable-max-line-length
+          '';
         };
 
         formatter =
