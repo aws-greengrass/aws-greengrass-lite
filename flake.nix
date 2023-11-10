@@ -44,6 +44,9 @@
           CMAKE_EXPORT_COMPILE_COMMANDS = "1";
           nativeBuildInputs = old.nativeBuildInputs or [ ] ++ devTools;
         });
+
+        runCheck = cmd: pkgs.runCommand "check" { }
+          "cp --no-preserve=mode -r ${./.} src; cd src\n${cmd}\n touch $out";
       in
       rec {
         packages = {
@@ -53,6 +56,14 @@
         };
 
         devShells = mapAttrs (_: withDevShellPkgs) packages;
+
+        checks = {
+          formatting = runCheck ''
+            ${lib.getExe formatter} .
+            ${pkgs.diffutils}/bin/diff -rq --no-dereference . ${./.} | \
+              sed -e 's/Files \(.*\) and .* differ/\1 not formatted/'
+          '';
+        };
 
         formatter =
           let
