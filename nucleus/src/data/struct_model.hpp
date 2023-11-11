@@ -89,7 +89,7 @@ namespace data {
         // NOLINTNEXTLINE(*-explicit-constructor)
         StructElement(StringOrdExt ord) : _value{ord} {
         }
-        
+
         StructElement(const StructElement &) = default;
         StructElement(StructElement &&) = default;
         StructElement &operator=(const StructElement &el) = default;
