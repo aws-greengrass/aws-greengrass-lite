@@ -11,56 +11,6 @@ env:
   bashEnd: \033[0m
 
 jobs:
-  analysis:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Clone the repo
-        uses: actions/checkout@v3
-
-      - name: Install cppcheck
-        run: |
-          sudo apt-get install -y cppcheck fd-find
-          echo "$GITHUB_ACTION_PATH" >> $GITHUB_PATH
-          export PATH="$PATH:$GITHUB_ACTION_PATH"
-
-          # Check that the commands installed correctly
-          fdfind --version
-          echo -e "::endgroup::"
-          
-          echo -e "${{ env.bashInfo }} Using cppcheck version "$(cppcheck --version)" ${{ env.bashEnd }}"
-
-      - name: Configure project
-        run: >
-          cmake -B build
-          -DCMAKE_CXX_COMPILER=g++
-          -DCMAKE_BUILD_TYPE=Debug
-          -S ${{ github.workspace }}
-
-      - name: Perform analysis
-        run: |
-          # Parse the optional inputs
-          args=""
-          
-          # Get all .cpp and .hpp files, as well as any other requested file types.
-          target_files="$(fdfind -e cpp -e hpp ${args})"
-          
-          # Then run cppcheck.
-          cppcheck --enable=all --inconclusive --std=c++17 --suppress=missingIncludeSystem \
-          -i build -I nucleus/include -I nucleus/src -I nucleus/tests \
-          -I build/_deps/device-sdk-cpp-src/crt/aws-crt-cpp/include -I build/_deps/catch2-src/src \
-          --verbose --xml $(echo $target_files) 2> report.xml \;
-
-      - name: Generate report
-        run: >
-          cppcheck-htmlreport --file=report.xml --report-dir=cppcheck_report
-
-      - name: Upload report
-        uses: actions/upload-artifact@v3
-        with:
-          name: cppcheck_report
-          path: cppcheck_report
-
   format-check:
     name: Check Formatting
     runs-on: ubuntu-22.04
@@ -123,6 +73,47 @@ jobs:
         with:
           name: clang-tidy_patch
           path: clang-tidy.patch
+          retention-days: 5
+
+  cppcheck:
+    name: Check cppcheck
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: nix develop -c bash -exo pipefail {0}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Configure project
+        run: cmake $cmakeFlags -B build
+
+      - name: Check cppcheck
+        id: cppcheck-run
+        run: |
+          mkdir .cppcheck
+          cppcheck_flags="--cppcheck-build-dir=.cppcheck --quiet --std=c++17 \
+            --project=build/compile_commands.json -ibuild -inucleus/tests \
+            --check-level=exhaustive --enable=all --inconclusive --verbose \
+            --suppress=missingIncludeSystem --suppress=*:build/* \
+            --inline-suppr"
+          # print output, save to text file, and save to xml (only checks once)
+          cppcheck $cppcheck_flags
+          cppcheck $cppcheck_flags 2> report.txt
+          cppcheck $cppcheck_flags --xml 2> report.xml
+          [ ! -s report.txt ] || exit 1
+
+      - name: Generate report
+        if: ${{ failure() && steps.cppcheck-run.outcome == 'failure' }}
+        run: cppcheck-htmlreport --file=report.xml --report-dir=cppcheck_report
+
+      - name: Upload report
+        if: ${{ failure() && steps.cppcheck-run.outcome == 'failure' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: cppcheck_report
+          path: cppcheck_report
           retention-days: 5
 
   editorconfig:

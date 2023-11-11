@@ -35,6 +35,7 @@
           coreutils
           clang-tools_16
           gdb
+          cppcheck
           cmake-format
           nixpkgs-fmt
           nodePackages.prettier
