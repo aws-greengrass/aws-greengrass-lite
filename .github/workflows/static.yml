@@ -137,3 +137,16 @@ jobs:
 
       - name: Check CMake
         run: nix build -L .#checks.x86_64-linux.cmake-lint
+
+  git-secrets:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Run git-secrets
+        shell: nix develop -c bash -eo pipefail {0}
+        run: |
+          git-secrets --register-aws
+          git-secrets --scan
