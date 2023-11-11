@@ -4,12 +4,6 @@ on:
   workflow_call:
   workflow_dispatch:
 
-env:
-  bashPass: \033[32;1mPASSED -
-  bashInfo: \033[33;1mINFO -
-  bashFail: \033[31;1mFAILED -
-  bashEnd: \033[0m
-
 jobs:
   build:
     timeout-minutes: 60

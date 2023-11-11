@@ -7,13 +7,8 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build:
     uses: ./.github/workflows/build.yml
-
-  static:
-    uses: ./.github/workflows/static.yml
+  linting:
+    uses: ./.github/workflows/lints.yml
