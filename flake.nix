@@ -41,6 +41,7 @@
           nodePackages.prettier
           fd
           git
+          git-secrets
         ];
 
         withDevShellPkgs = drv: drv.overrideAttrs (old: {
