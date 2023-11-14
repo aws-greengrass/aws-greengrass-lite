@@ -47,26 +47,22 @@ namespace config {
 
         [[nodiscard]] virtual std::optional<data::ValueType> validate(
             const std::shared_ptr<Topics> &topics,
-            data::StringOrd key,
+            data::Symbol key,
             const data::ValueType &proposed,
-            const data::ValueType &currentValue
-        ) {
+            const data::ValueType &currentValue) {
             return {};
         }
 
         virtual void changed(
-            const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-        ) {
+            const std::shared_ptr<Topics> &topics, data::Symbol key, WhatHappened changeType) {
         }
 
         virtual void childChanged(
-            const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-        ) {
+            const std::shared_ptr<Topics> &topics, data::Symbol key, WhatHappened changeType) {
         }
 
         virtual void initialized(
-            const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-        ) {
+            const std::shared_ptr<Topics> &topics, data::Symbol key, WhatHappened changeType) {
         }
     };
 

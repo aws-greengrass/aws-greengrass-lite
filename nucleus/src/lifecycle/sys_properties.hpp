@@ -1,12 +1,10 @@
 #pragma once
-#include "config/config_manager.hpp"
-#include "handle_table.hpp"
-#include "string_table.hpp"
-#include "tasks/expire_time.hpp"
+#include <map>
+#include <mutex>
 #include <optional>
 #include <shared_mutex>
 
-namespace data {
+namespace lifecycle {
     class SysProperties {
     private:
         mutable std::shared_mutex _mutex;
@@ -31,16 +29,4 @@ namespace data {
 
         void remove(std::string_view name);
     };
-
-    struct Environment { // NOLINT(*-special-member-functions)
-        HandleTable handleTable;
-        StringTable stringTable;
-        config::Manager configManager{*this};
-        SysProperties sysProperties;
-        std::shared_mutex sharedLocalTopicsMutex;
-        std::mutex cycleCheckMutex;
-        virtual ~Environment() = default;
-
-        virtual tasks::ExpireTime translateExpires(int32_t delta) noexcept;
-    };
-} // namespace data
+} // namespace lifecycle

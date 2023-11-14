@@ -1,141 +1,82 @@
 #include "tracked_object.hpp"
-#include "environment.hpp"
+#include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 
 namespace data {
-    ObjectAnchor TrackingScope::anchor(const std::shared_ptr<TrackedObject> &obj) {
+    ObjectAnchor TrackingRoot::anchor(const std::shared_ptr<TrackedObject> &obj) {
         if(!obj) {
             return {};
         }
-        return _environment.handleTable.create(ObjectAnchor{obj, scopeRef()});
+        return context().handles().create(ObjectAnchor{obj, baseRef()});
     }
 
-    ObjectAnchor TrackingScope::reanchor(const data::ObjectAnchor &anchored) {
-        return anchor(anchored.getBase());
-    }
-
-    ObjectAnchor TrackingScope::createRootHelper(const data::ObjectAnchor &anchor) {
+    ObjectAnchor TrackingRoot::createRootHelper(const data::ObjectAnchor &anchor) {
         // assume handleTable may be locked on entry, beware of recursive locks
         std::unique_lock guard{_mutex};
-        _roots.emplace(anchor.getHandle(), anchor.getBase());
+        _roots.emplace(context().handles().partial(anchor.getHandle()), anchor.getBase());
         return anchor;
     }
 
-    void TrackingScope::remove(const data::ObjectAnchor &anchor) {
-        _environment.handleTable.remove(anchor);
+    void TrackingRoot::remove(const data::ObjectAnchor &anchor) {
+        context().handles().remove(anchor);
     }
 
     void ObjectAnchor::release() {
-        std::shared_ptr<TrackingScope> owner{_owner.lock()};
-        if(owner) {
-            // go via owner - owner has access to _environment
-            owner->remove(*this);
+        std::shared_ptr<TrackingRoot> root{_root.lock()};
+        if(root) {
+            // go via root - root has access to context()
+            root->remove(*this);
         } else {
             // if owner has gone away, handle will be deleted
             // so nothing to do here
         }
     }
 
-    void TrackingScope::removeRootHelper(const data::ObjectAnchor &anchor) {
+    void TrackingRoot::removeRootHelper(const data::ObjectAnchor &anchor) {
         // always called from HandleTable
         // assume handleTable could be locked on entry, beware of recursive locks
+        auto p = context().handles().partial(anchor);
         std::unique_lock guard{_mutex};
-        _roots.erase(anchor.getHandle());
+        _roots.erase(p);
     }
 
-    std::vector<ObjectAnchor> TrackingScope::getRootsHelper(
-        const std::weak_ptr<TrackingScope> &assumedOwner
-    ) {
+    std::vector<ObjectAnchor> TrackingRoot::getRootsHelper(
+        const std::weak_ptr<TrackingRoot> &assumedOwner) {
+        auto ctx = _context.lock();
+        if(!ctx) {
+            return {}; // context shutting down, short circuit
+        }
         std::shared_lock guard{_mutex};
         std::vector<ObjectAnchor> copy;
         for(const auto &i : _roots) {
             ObjectAnchor anc{i.second, assumedOwner};
-            copy.push_back(anc.withHandle(i.first));
+            copy.push_back(anc.withHandle(ctx->handles().apply(i.first)));
         }
         return copy;
     }
 
-    TrackingScope::~TrackingScope() {
+    TrackingRoot::~TrackingRoot() {
+        if(_context.expired()) {
+            return; // cleanup not required if context destroyed
+        }
         for(const auto &i : getRootsHelper({})) {
             remove(i);
         }
     }
 
-    ObjectAnchor CallScope::getCurrent(Environment &env) {
-        ObjHandle handle = CallScope::getThreadSelf();
-        if(!handle) {
-            handle = tasks::Task::getThreadSelf();
-            if(!handle) {
-                throw std::runtime_error("CallScope: no parent");
-            }
-        }
-        return env.handleTable.get(handle);
+    TrackingScope::~TrackingScope() {
+        _root.reset();
     }
 
-    std::shared_ptr<CallScope> CallScope::create(Environment &env) {
-        std::shared_ptr<TrackingScope> parent{getCurrent(env).getObject<TrackingScope>()};
-        auto newScope{std::make_shared<CallScope>(env)};
-        auto selfAnchor = parent->anchor(newScope);
-        newScope->setSelf(selfAnchor.getHandle());
-        newScope->setThreadSelf();
-        return newScope;
+    TrackingScope::TrackingScope(const std::shared_ptr<scope::Context> &context)
+        : TrackedObject(context), _root(std::make_shared<TrackingRoot>(context)) {
     }
 
-    // NOLINTNEXTLINE(*-no-recursion)
-    bool CallScope::checkIfParent(ObjHandle target) const {
-        if(!target) {
-            return false;
-        }
-        ObjHandle selfHandle = getSelf();
-        if(target == getSelf()) {
-            return true;
-        }
-        auto selfAnchor = _environment.handleTable.get(selfHandle);
-        auto owner = selfAnchor.getOwner();
-        auto ownerCallScope = std::dynamic_pointer_cast<CallScope>(owner);
-        if(!ownerCallScope) {
-            return false;
-        }
-        return ownerCallScope->checkIfParent(target);
-    }
-
-    void CallScope::release() {
-        ObjHandle selfHandle = getSelf();
-        if(!selfHandle) {
-            return;
-        }
-        auto selfAnchor = _environment.handleTable.get(selfHandle);
-        auto parent = selfAnchor.getOwner();
-        parent->remove(selfAnchor);
-    }
-
-    void CallScope::beforeRemove(const ObjectAnchor &anchor) {
-        if(anchor.getHandle() != getSelf()) {
-            return; // only for controlling handle
-        }
-        std::shared_ptr<CallScope> callScopeParent =
-            std::dynamic_pointer_cast<CallScope>(anchor.getOwner());
-        ObjHandle threadHandle = getThreadSelf();
-        if(!checkIfParent(threadHandle)) {
-            // thread scope mismatch, we'll only allow if thread is a parent
-            throw std::runtime_error("CallScope: scope is used incorrectly and thread scope "
-                                     "mismatches this call scope");
-        }
-        if(threadHandle == getSelf()) {
-            if(callScopeParent) {
-                // parent is a call scope
-                callScopeParent->setThreadSelf();
-            } else {
-                // (assume) parent is a task
-                getSetThreadSelf({}, true);
-            }
-        }
-    }
-
-    LocalCallScope::~LocalCallScope() {
-        if(_scopeData) {
-            _scopeData->release();
-            _scopeData.reset();
+    ObjectAnchor ObjHandle::toAnchor() const {
+        if(*this) {
+            return table().get(partial());
+        } else {
+            return {};
         }
     }
 } // namespace data

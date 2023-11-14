@@ -1,5 +1,6 @@
 #include "plugin_loader.hpp"
 #include "pubsub/local_topics.hpp"
+#include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 #include <iostream>
 
@@ -34,11 +35,10 @@ void plugins::NativePlugin::load(const std::string &filePath) {
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
         std::string error{dlerror()};
         throw std::runtime_error(
-            std::string("Cannot load shared object: ") + filePath + std::string(" ") + error
-        );
+            std::string("Cannot load shared object: ") + filePath + std::string(" ") + error);
     }
     // NOLINTNEXTLINE(*-reinterpret-cast)
-    _lifecycleFn.store(reinterpret_cast<lifecycleFn_t>(::dlsym(_handle, "greengrass_lifecycle")));
+    _lifecycleFn.store(reinterpret_cast<lifecycleFn_t>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
 #elif defined(USE_WINDLL)
     nativeHandle_t handle =
         ::LoadLibraryEx(filePath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
@@ -53,8 +53,7 @@ void plugins::NativePlugin::load(const std::string &filePath) {
     }
     _lifecycleFn.store(
         // NOLINTNEXTLINE(*-reinterpret-cast)
-        reinterpret_cast<lifecycleFn_t>(::GetProcAddress(_handle.load(), "greengrass_lifecycle"))
-    );
+        reinterpret_cast<lifecycleFn_t>(::GetProcAddress(_handle.load(), NATIVE_ENTRY_NAME)));
 #endif
 }
 
@@ -63,28 +62,25 @@ bool plugins::NativePlugin::isActive() noexcept {
 }
 
 void plugins::PluginLoader::lifecycle(
-    data::StringOrd phase, const std::shared_ptr<data::StructModelBase> &data
-) {
+    data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data) {
     // TODO: Run this inside of a task?
-    for(const auto &i : getRoots()) {
+    for(const auto &i : _root->getRoots()) {
         std::shared_ptr<AbstractPlugin> plugin{i.getObject<AbstractPlugin>()};
         if(plugin->isActive()) {
             ::ggapiSetError(0);
             // TODO: convert to logging
             std::cerr << "Plugin \"" << plugin->getName()
-                      << "\" lifecycle phase: " << _environment.stringTable.getString(phase)
-                      << std::endl;
+                      << "\" lifecycle phase: " << phase.toString() << std::endl;
             if(!plugin->lifecycle(i.getHandle(), phase, data)) {
-                data::StringOrd lastError{::ggapiGetError()};
+                data::Symbol lastError{
+                    context().symbols().apply(data::Symbol::Partial{::ggapiGetError()})};
                 if(lastError) {
                     std::cerr << "Plugin \"" << plugin->getName()
-                              << "\" lifecycle error during phase: "
-                              << _environment.stringTable.getString(phase) << " - "
-                              << _environment.stringTable.getString(lastError) << std::endl;
+                              << "\" lifecycle error during phase: " << phase.toString() << " - "
+                              << lastError.toString() << std::endl;
                 } else {
                     std::cerr << "Plugin \"" << plugin->getName()
-                              << "\" lifecycle unhandled phase: "
-                              << _environment.stringTable.getString(phase) << std::endl;
+                              << "\" lifecycle unhandled phase: " << phase.toString() << std::endl;
                 }
             }
         }
@@ -93,24 +89,25 @@ void plugins::PluginLoader::lifecycle(
 
 bool plugins::NativePlugin::lifecycle(
     data::ObjHandle pluginAnchor,
-    data::StringOrd phase,
-    const std::shared_ptr<data::StructModelBase> &data
-) {
+    data::Symbol phase,
+    const std::shared_ptr<data::StructModelBase> &data) {
     lifecycleFn_t lifecycleFn = _lifecycleFn.load();
     if(lifecycleFn != nullptr) {
-        data::LocalCallScope scope{_environment};
+        // Below scope ensures local resources - handles and thread local data - are cleaned up
+        // when plugin code returns
+        scope::StackScope scopeForHandles{};
+
         std::shared_ptr<data::StructModelBase> copy = data->copy();
-        data::ObjectAnchor dataAnchor = scope->anchor(copy);
-        return lifecycleFn(pluginAnchor.asInt(), phase.asInt(), dataAnchor.getHandle().asInt());
+        data::ObjectAnchor dataAnchor = scopeForHandles.call()->root()->anchor(copy);
+        return lifecycleFn(pluginAnchor.asInt(), phase.asInt(), dataAnchor.asIntHandle());
     }
     return true; // no error
 }
 
 bool plugins::DelegatePlugin::lifecycle(
     data::ObjHandle pluginAnchor,
-    data::StringOrd phase,
-    const std::shared_ptr<data::StructModelBase> &data
-) {
+    data::Symbol phase,
+    const std::shared_ptr<data::StructModelBase> &data) {
     uintptr_t delegateContext;
     ggapiLifecycleCallback delegateLifecycle;
     {
@@ -119,12 +116,14 @@ bool plugins::DelegatePlugin::lifecycle(
         delegateLifecycle = _delegateLifecycle;
     }
     if(delegateLifecycle != nullptr) {
-        data::LocalCallScope scope{_environment};
+        // Below scope ensures local resources - handles and thread local data - are cleaned up
+        // when plugin code returns
+        scope::StackScope scopeForHandles{};
+
         std::shared_ptr<data::StructModelBase> copy = data->copy();
-        data::ObjectAnchor dataAnchor = scope->anchor(copy);
+        data::ObjectAnchor dataAnchor = scopeForHandles.call()->root()->anchor(copy);
         return delegateLifecycle(
-            delegateContext, pluginAnchor.asInt(), phase.asInt(), dataAnchor.getHandle().asInt()
-        );
+            delegateContext, pluginAnchor.asInt(), phase.asInt(), dataAnchor.getHandle().asInt());
     }
     return true;
 }
@@ -154,35 +153,30 @@ void plugins::PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
 }
 
 void plugins::PluginLoader::loadNativePlugin(const std::string &name) {
-    std::shared_ptr<NativePlugin> plugin{std::make_shared<NativePlugin>(_environment, name)};
+    std::shared_ptr<NativePlugin> plugin{std::make_shared<NativePlugin>(_context.lock(), name)};
     std::cout << "Loading native plugin from " << name << std::endl;
     plugin->load(name);
     // add the plugins to collection by "anchoring"
     // which solves a number of interesting problems
-    anchor(plugin);
+    _root->anchor(plugin);
 }
 
 void plugins::PluginLoader::lifecycleBootstrap(const std::shared_ptr<data::StructModelBase> &data) {
-    data::Handle key = _environment.stringTable.getOrCreateOrd("bootstrap");
-    lifecycle(key, data);
+    lifecycle(_bootstrap, data);
 }
 
 void plugins::PluginLoader::lifecycleDiscover(const std::shared_ptr<data::StructModelBase> &data) {
-    data::Handle key = _environment.stringTable.getOrCreateOrd("discover");
-    lifecycle(key, data);
+    lifecycle(_discover, data);
 }
 
 void plugins::PluginLoader::lifecycleStart(const std::shared_ptr<data::StructModelBase> &data) {
-    data::Handle key = _environment.stringTable.getOrCreateOrd("start");
-    lifecycle(key, data);
+    lifecycle(_start, data);
 }
 
 void plugins::PluginLoader::lifecycleRun(const std::shared_ptr<data::StructModelBase> &data) {
-    data::Handle key = _environment.stringTable.getOrCreateOrd("run");
-    lifecycle(key, data);
+    lifecycle(_run, data);
 }
 
 void plugins::PluginLoader::lifecycleTerminate(const std::shared_ptr<data::StructModelBase> &data) {
-    data::Handle key = _environment.stringTable.getOrCreateOrd("terminate");
-    lifecycle(key, data);
+    lifecycle(_terminate, data);
 }

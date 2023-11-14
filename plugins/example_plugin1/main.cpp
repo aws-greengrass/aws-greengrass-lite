@@ -27,7 +27,7 @@ ggapi::Struct ExamplePlugin::testListener(ggapi::Task, ggapi::StringOrd, ggapi::
 }
 
 bool ExamplePlugin::onStart(ggapi::Struct data) {
-    (void) getScope().subscribeToTopic(ggapi::StringOrd{"test"}, testListener);
+    std::ignore = getScope().subscribeToTopic(ggapi::StringOrd{"test"}, testListener);
     return true;
 }
 

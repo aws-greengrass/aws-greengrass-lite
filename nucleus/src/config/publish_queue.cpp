@@ -1,4 +1,5 @@
 #include "publish_queue.hpp"
+#include "scope/context_full.hpp"
 
 namespace config {
 
@@ -23,6 +24,7 @@ namespace config {
     }
 
     void PublishQueue::publishThread() {
+        scope::Context::thread().changeContext(_context.lock());
         for(;;) {
             std::optional<PublishAction> action = pickupAction();
             if(action.has_value()) {

@@ -78,7 +78,6 @@ bool MqttSender::onTerminate(ggapi::Struct data) {
 
 void threadFn() {
     std::cerr << "[example-mqtt-sender] Started thread" << std::endl;
-    auto threadScope = ggapi::ThreadScope::claimThread();
 
     while(true) {
         ggapi::CallScope iterScope = ggapi::CallScope::newCallScope(); // localize all structures

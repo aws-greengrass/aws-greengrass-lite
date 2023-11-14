@@ -1,5 +1,5 @@
-#include "data/globals.hpp"
 #include "pubsub/local_topics.hpp"
+#include "scope/context_full.hpp"
 #include "tasks/task_threads.hpp"
 #include <catch2/catch_all.hpp>
 
@@ -8,40 +8,36 @@
 using namespace std::literals;
 
 class ListenerStub : public pubsub::AbstractCallback {
-    data::Environment &_env;
+    std::shared_ptr<scope::Context> _context;
     std::string _flagName;
     std::shared_ptr<data::StructModelBase> _returnData;
 
 public:
     ListenerStub(
-        data::Environment &env,
+        const std::shared_ptr<scope::Context> &context,
         const std::string_view &flagName,
-        const std::shared_ptr<data::StructModelBase> &returnData
-    )
-        : _env(env), _flagName(flagName), _returnData{returnData} {
+        const std::shared_ptr<data::StructModelBase> &returnData)
+        : _context(context), _flagName(flagName), _returnData{returnData} {
     }
 
-    ListenerStub(data::Environment &env, const std::string_view &flagName)
-        : _env(env), _flagName(flagName) {
+    ListenerStub(const std::shared_ptr<scope::Context> &context, const std::string_view &flagName)
+        : _context(context), _flagName(flagName) {
     }
 
     data::ObjHandle operator()(
-        data::ObjHandle taskHandle, data::StringOrd topicOrd, data::ObjHandle dataStruct
-    ) override {
-        std::shared_ptr<data::TrackingScope> scope =
-            _env.handleTable.getObject<data::TrackingScope>(taskHandle);
-        std::string topic = _env.stringTable.getStringOr(topicOrd, "(anon)"s);
+        data::ObjHandle taskHandle, data::Symbol topicOrd, data::ObjHandle dataStruct) override {
+        auto scope = taskHandle.toObject<tasks::Task>();
+        auto topic = topicOrd.toStringOr("(anon)"s);
         std::shared_ptr<data::StructModelBase> data;
         if(dataStruct) {
-            data = _env.handleTable.getObject<data::StructModelBase>(dataStruct);
+            data = dataStruct.toObject<data::StructModelBase>();
             data->put(_flagName, topic);
         }
         if(_returnData) {
             _returnData->put(
                 "_" + _flagName,
-                data::StructElement{std::static_pointer_cast<data::ContainerModelBase>(data)}
-            );
-            return scope->anchor(_returnData).getHandle();
+                data::StructElement{std::static_pointer_cast<data::ContainerModelBase>(data)});
+            return scope::ScopedContext::handle(_returnData);
         } else {
             return {};
         }
@@ -49,28 +45,23 @@ public:
 };
 
 SCENARIO("PubSub Internal Behavior", "[pubsub]") {
-    data::Global global;
-    tasks::FixedTaskThreadScope threadScope{
-        std::make_shared<tasks::FixedTaskThread>(global.environment, global.taskManager)};
+    scope::LocalizedScope forTesting{scope::Context::create()};
+    auto context = forTesting.context()->context();
 
     GIVEN("Some listeners") {
-        data::StringOrd topic{global.environment.stringTable.getOrCreateOrd("topic")};
-        data::StringOrd topic2{global.environment.stringTable.getOrCreateOrd("other-topic")};
-        auto callRetData{std::make_shared<data::SharedStruct>(global.environment)};
-        std::shared_ptr<pubsub::Listener> subs1{global.lpcTopics->subscribe(
-            {}, std::make_unique<ListenerStub>(global.environment, "subs1")
-        )};
-        std::shared_ptr<pubsub::Listener> subs2{global.lpcTopics->subscribe(
-            topic, std::make_unique<ListenerStub>(global.environment, "subs2", callRetData)
-        )};
-        std::shared_ptr<pubsub::Listener> subs3{global.lpcTopics->subscribe(
-            topic, std::make_unique<ListenerStub>(global.environment, "subs3")
-        )};
-        std::shared_ptr<pubsub::Listener> subs4{global.lpcTopics->subscribe(
-            topic2, std::make_unique<ListenerStub>(global.environment, "subs4", callRetData)
-        )};
+        data::Symbol topic{context->intern("topic")};
+        data::Symbol topic2{context->intern("other-topic")};
+        auto callRetData{std::make_shared<data::SharedStruct>(context)};
+        std::shared_ptr<pubsub::Listener> subs1{
+            context->lpcTopics().subscribe({}, std::make_unique<ListenerStub>(context, "subs1"))};
+        std::shared_ptr<pubsub::Listener> subs2{context->lpcTopics().subscribe(
+            topic, std::make_unique<ListenerStub>(context, "subs2", callRetData))};
+        std::shared_ptr<pubsub::Listener> subs3{context->lpcTopics().subscribe(
+            topic, std::make_unique<ListenerStub>(context, "subs3"))};
+        std::shared_ptr<pubsub::Listener> subs4{context->lpcTopics().subscribe(
+            topic2, std::make_unique<ListenerStub>(context, "subs4", callRetData))};
         WHEN("A query of topic listeners is made") {
-            std::shared_ptr<pubsub::Listeners> listeners{global.lpcTopics->getListeners(topic)};
+            std::shared_ptr<pubsub::Listeners> listeners{context->lpcTopics().getListeners(topic)};
             THEN("The set of listeners is returned") {
                 REQUIRE(static_cast<bool>(listeners));
                 AND_WHEN("The set is queried") {
@@ -87,7 +78,7 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             }
         }
         WHEN("A query of other-topic listeners is made") {
-            std::shared_ptr<pubsub::Listeners> listeners{global.lpcTopics->getListeners(topic2)};
+            std::shared_ptr<pubsub::Listeners> listeners{context->lpcTopics().getListeners(topic2)};
             THEN("The set of listeners is returned") {
                 REQUIRE(static_cast<bool>(listeners));
                 AND_WHEN("The set is queried") {
@@ -104,7 +95,7 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             }
         }
         WHEN("A query of anon listeners is made") {
-            std::shared_ptr<pubsub::Listeners> listeners{global.lpcTopics->getListeners({})};
+            std::shared_ptr<pubsub::Listeners> listeners{context->lpcTopics().getListeners({})};
             THEN("The set of anon listeners is returned") {
                 REQUIRE(static_cast<bool>(listeners));
                 AND_WHEN("The set is queried") {
@@ -123,15 +114,13 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
         }
         WHEN("Performing an LPC call with topic") {
             tasks::ExpireTime expireTime = tasks::ExpireTime::now();
-            auto callArgData{std::make_shared<data::SharedStruct>(global.environment)};
-            auto newTaskAnchor{global.taskManager->createTask()};
-            auto newTaskObj{newTaskAnchor.getObject<tasks::Task>()};
-            global.lpcTopics->initializePubSubCall(
-                newTaskObj, subs1, topic, callArgData, {}, tasks::ExpireTime::fromNow(10s)
-            );
-            global.taskManager->queueTask(newTaskObj);
-            bool didComplete = newTaskObj->waitForCompletion(expireTime);
-            auto returnedData = newTaskObj->getData();
+            auto callArgData{std::make_shared<data::SharedStruct>(context)};
+            auto newTask{std::make_shared<tasks::Task>(context)};
+            context->lpcTopics().initializePubSubCall(
+                newTask, subs1, topic, callArgData, {}, tasks::ExpireTime::fromNow(10s));
+            context->taskManager().queueTask(newTask);
+            bool didComplete = newTask->waitForCompletion(expireTime);
+            auto returnedData = newTask->getData();
             THEN("LPC completed") {
                 REQUIRE(didComplete);
             }
@@ -156,15 +145,16 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
         }
         WHEN("Performing an Anon LPC call") {
             tasks::ExpireTime expireTime = tasks::ExpireTime::now();
-            auto callArgData{std::make_shared<data::SharedStruct>(global.environment)};
-            auto newTaskAnchor{global.taskManager->createTask()};
-            auto newTaskObj{newTaskAnchor.getObject<tasks::Task>()};
-            global.lpcTopics->initializePubSubCall(
-                newTaskObj, subs1, {}, callArgData, {}, tasks::ExpireTime::fromNow(10s)
-            );
-            global.taskManager->queueTask(newTaskObj);
-            bool didComplete = newTaskObj->waitForCompletion(expireTime);
-            auto returnedData = newTaskObj->getData();
+            auto callArgData{std::make_shared<data::SharedStruct>(context)};
+            auto newTask{std::make_shared<tasks::Task>(context)};
+            context->lpcTopics().initializePubSubCall(
+                newTask, subs1, {}, callArgData, {}, tasks::ExpireTime::fromNow(10s));
+            context->taskManager().queueTask(newTask);
+            bool didComplete = newTask->waitForCompletion(expireTime);
+            auto returnedData = newTask->getData();
+            THEN("LPC completed") {
+                REQUIRE(didComplete);
+            }
             THEN("Topic listeners were visited") {
                 REQUIRE(callArgData->hasKey("subs1"));
                 REQUIRE(callArgData->get("subs1").getString() == "(anon)");

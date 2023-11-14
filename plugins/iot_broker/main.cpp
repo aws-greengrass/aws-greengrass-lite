@@ -282,7 +282,7 @@ ggapi::Struct IotBroker::subscribeHandlerImpl(ggapi::Struct args) {
             } else {
                 std::cerr << "[mqtt-plugin] Subscribe accepted" << std::endl;
             }
-        };
+        }
 
         {
             std::unique_lock lock(_subscriptionMutex);
@@ -328,9 +328,10 @@ bool IotBroker::onStart(ggapi::Struct structData) {
     auto certificateFilePath =
         configStruct.getValue<std::string>({"system", "certificateFilePath"});
     auto privateKeyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
+    // TODO: Note, reference of the module name will be done by Nucleus, this is temporary.
     auto credEndpoint = configStruct.getValue<std::string>(
-        {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotCredEndpoint"}
-    );
+        {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotCredEndpoint"});
+    auto thingName = configStruct.getValue<std::string>({"system", "thingName"});
 
     std::promise<bool> connectionPromise;
 
@@ -338,8 +339,7 @@ bool IotBroker::onStart(ggapi::Struct structData) {
         Aws::Crt::String crtEndpoint{credEndpoint};
         std::unique_ptr<Aws::Iot::Mqtt5ClientBuilder> builder{
             Aws::Iot::Mqtt5ClientBuilder::NewMqtt5ClientBuilderWithMtlsFromPath(
-                crtEndpoint, certificateFilePath.c_str(), privateKeyPath.c_str()
-            )};
+                crtEndpoint, certificateFilePath.c_str(), privateKeyPath.c_str())};
 
         if(!builder) {
             std::cerr << "[mqtt-plugin] Failed to set up MQTT client builder." << std::endl;
@@ -347,7 +347,7 @@ bool IotBroker::onStart(ggapi::Struct structData) {
         }
 
         auto connectOptions = std::make_shared<Aws::Crt::Mqtt5::ConnectPacket>();
-        connectOptions->WithClientId("gglite-test");
+        connectOptions->WithClientId(thingName.c_str());
         builder->WithConnectOptions(connectOptions);
 
         builder->WithClientConnectionSuccessCallback(

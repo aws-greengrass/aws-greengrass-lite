@@ -44,9 +44,8 @@ public:
 
 const Keys ExamplePlugin::KEYS{};
 
-extern "C" [[maybe_unused]] [[maybe_unused]] EXPORT bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t data
-) noexcept {
+extern "C" EXPORT bool greengrass_lifecycle(
+    uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
     return ExamplePlugin::get().lifecycle(moduleHandle, phase, data);
 }
 
@@ -102,14 +101,9 @@ ggapi::Struct ExamplePlugin::publishToIoTCoreResponder(
 // NOLINTNEXTLINE(*-convert-member-functions-to-static)
 void ExamplePlugin::asyncThreadFn() {
     std::cout << "Running async plugins 2..." << std::endl;
-    auto threadScope = ggapi::ThreadScope::claimThread(); // assume long-running
-                                                          // thread, this
-                                                          // provides a
-                                                          // long-running task
-                                                          // handle
 
     ggapi::Subscription publishToIoTCoreListenerHandle{
-        threadScope.subscribeToTopic(KEYS.publishToIoTCoreTopic, publishToIoTCoreListener)};
+        getScope().subscribeToTopic(KEYS.publishToIoTCoreTopic, publishToIoTCoreListener)};
 
     auto request{ggapi::Struct::create()};
     request.put(KEYS.topicName, "some-cloud-topic")

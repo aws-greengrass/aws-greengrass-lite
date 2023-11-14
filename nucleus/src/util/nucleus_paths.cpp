@@ -38,12 +38,11 @@ namespace util {
         if(!_componentStorePath.empty() && util::startsWith(s, PACKAGE_DIR_PREFIX)) {
             return resolve(_componentStorePath, util::trimStart(s, PACKAGE_DIR_PREFIX));
         }
-        return resolve(".", s);
+        return resolve(s);
     }
 
     void NucleusPaths::initPaths(std::string_view rootPathString) {
-        std::filesystem::path rootPath{
-            std::filesystem::absolute(std::filesystem::path(rootPathString))};
+        std::filesystem::path rootPath = resolve(rootPathString);
         setRootPath(rootPath);
         createPluginPath();
         // TODO: Telementry
@@ -60,19 +59,29 @@ namespace util {
     }
 
     std::filesystem::path NucleusPaths::resolve(
-        const std::filesystem::path &first, const std::filesystem::path &second
-    ) {
+        const std::filesystem::path &first, const std::filesystem::path &second) {
         if(second.is_absolute()) {
             return second;
         } else {
-            return std::filesystem::absolute(first / second);
+            return resolve(first / second);
         }
     }
 
+    std::filesystem::path NucleusPaths::resolveRelative(std::string_view path) {
+        return {path};
+    }
+
     std::filesystem::path NucleusPaths::resolve(
-        const std::filesystem::path &first, std::string_view second
-    ) {
-        return resolve(first, std::filesystem::path(second));
+        const std::filesystem::path &first, std::string_view second) {
+        return resolve(first, resolveRelative(second));
+    }
+
+    std::filesystem::path NucleusPaths::resolve(std::string_view path) {
+        return resolve(resolveRelative(path));
+    }
+
+    std::filesystem::path NucleusPaths::resolve(const std::filesystem::path &path) {
+        return std::filesystem::canonical(path);
     }
 
 } // namespace util

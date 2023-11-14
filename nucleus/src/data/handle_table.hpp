@@ -1,5 +1,7 @@
 #pragma once
+#include "safe_handle.hpp"
 #include "tracked_object.hpp"
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -19,17 +21,16 @@ namespace data {
     class WeakObjectAnchor {
     private:
         std::weak_ptr<TrackedObject> _object; // multiple anchors to one object
-        std::weak_ptr<TrackingScope> _owner; // owner container
+        std::weak_ptr<TrackingRoot> _root; // roots
 
     public:
         explicit WeakObjectAnchor(
-            const std::weak_ptr<TrackedObject> &obj, const std::weak_ptr<TrackingScope> &owner
-        )
-            : _object{obj}, _owner(owner) {
+            const std::weak_ptr<TrackedObject> &obj, const std::weak_ptr<TrackingRoot> &root)
+            : _object{obj}, _root(root) {
         }
 
         explicit WeakObjectAnchor(const ObjectAnchor &anchor)
-            : _object{anchor.getBase()}, _owner(anchor.getOwner()) {
+            : _object{anchor.getBase()}, _root(anchor.getRoot()) {
         }
 
         WeakObjectAnchor() = default;
@@ -40,12 +41,12 @@ namespace data {
         virtual ~WeakObjectAnchor() = default;
 
         explicit operator bool() const {
-            return !(_object.expired() || _owner.expired());
+            return !(_object.expired() || _root.expired());
         }
 
         [[nodiscard]] ObjectAnchor lock() const {
             if(*this) {
-                return ObjectAnchor{_object.lock(), _owner.lock()};
+                return ObjectAnchor{_object.lock(), _root.lock()};
             } else {
                 return {};
             }
@@ -61,25 +62,64 @@ namespace data {
         static const int PRIME2{431};
         static const int PRIME_INC{15299};
         mutable std::shared_mutex _mutex;
+        mutable scope::FixedPtr<HandleTable> _table{scope::FixedPtr<HandleTable>::of(this)};
         uint32_t _salt{0};
-        std::unordered_map<ObjHandle, WeakObjectAnchor, ObjHandle::Hash, ObjHandle::CompEq>
+        std::unordered_map<
+            ObjHandle::Partial,
+            WeakObjectAnchor,
+            ObjHandle::Partial::Hash,
+            ObjHandle::Partial::CompEq>
             _handles;
 
-    public:
-        // Retrieve object, safe if handle does not exist
-        ObjectAnchor tryGet(ObjHandle handle) const;
-        // Retrieve object, handle is expected to exist
-        ObjectAnchor get(ObjHandle handle) const;
-
-        // Convenience function
-        template<typename T>
-        std::shared_ptr<T> getObject(ObjHandle handle) const {
-            return get(handle).getObject<T>();
+        ObjHandle applyUnchecked(ObjHandle::Partial h) const {
+            return {_table, h};
         }
 
-        // Creates a new handle, even if one exists
-        ObjectAnchor create(const ObjectAnchor &partial);
+    public:
+        HandleTable() = default;
+        HandleTable(const HandleTable &) = delete;
+        HandleTable(HandleTable &&) noexcept = delete;
+        ~HandleTable() = default;
+        HandleTable &operator=(const HandleTable &) = delete;
+        HandleTable &operator=(HandleTable &&) noexcept = delete;
+        ObjHandle apply(ObjHandle::Partial h) const;
+        // Retrieve object, safe if handle does not exist
+        ObjectAnchor tryGet(ObjHandle::Partial handle) const;
+        // Retrieve object, handle is expected to exist
+        ObjectAnchor get(ObjHandle::Partial handle) const;
+
+        // Creates a new handle, even if one exists, using
+        // partially constructed anchor
+        ObjectAnchor create(const ObjectAnchor &partFilled);
         // remove a handle
         void remove(const ObjectAnchor &anchor);
+
+        bool isObjHandleValid(const ObjHandle::Partial handle) const {
+            std::shared_lock guard{_mutex};
+            return _handles.find(handle) != _handles.end();
+        }
+
+        void check(const ObjHandle::Partial handle) const {
+            if(!isObjHandleValid(handle)) {
+                throw std::invalid_argument("Object handle is not valid");
+            }
+        }
+
+        ObjHandle::Partial partial(const ObjectAnchor &anchor) {
+            if(anchor) {
+                return partial(anchor.getHandle());
+            } else {
+                return {};
+            }
+        }
+
+        ObjHandle::Partial partial(const ObjHandle &handle) {
+            if(handle) {
+                assert(this == &handle.table());
+                return handle.partial();
+            } else {
+                return {};
+            }
+        }
     };
 } // namespace data

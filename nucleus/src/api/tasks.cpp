@@ -1,38 +1,17 @@
-#include "data/globals.hpp"
+#include "scope/context_full.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_threads.hpp"
 #include <cpp_api.hpp>
 
-uint32_t ggapiClaimThread() noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([]() {
-        data::Global &global = data::Global::self();
-        if(ggapiGetCurrentTask() != 0) {
-            throw std::runtime_error("Thread already claimed");
-        }
-        std::shared_ptr<tasks::FixedTaskThread> thread{
-            std::make_shared<tasks::FixedTaskThread>(global.environment, global.taskManager)};
-        return thread->claimFixedThread().getHandle().asInt();
-    });
-}
-
-bool ggapiReleaseThread() noexcept {
-    return ggapi::trapErrorReturn<bool>([]() {
-        std::shared_ptr<tasks::TaskThread> thread = tasks::FixedTaskThread::getThreadContext();
-        thread->releaseFixedThread();
-        return true;
-    });
-}
-
 uint32_t ggapiGetCurrentTask() noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([]() { return tasks::Task::getThreadSelf().asInt(); });
+    return ggapi::trapErrorReturn<uint32_t>(
+        []() { return scope::Context::thread().getActiveTask()->getSelf().asInt(); });
 }
 
 bool ggapiIsTask(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
-        data::Global &global = data::Global::self();
-        auto ss{
-            global.environment.handleTable.getObject<data::TrackedObject>(data::ObjHandle{handle})};
+        auto ss{scope::context().objFromInt(handle)};
         return std::dynamic_pointer_cast<tasks::Task>(ss) != nullptr;
     });
 }
@@ -43,14 +22,12 @@ bool ggapiIsTask(uint32_t handle) noexcept {
 //
 uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([asyncTask, timeout]() {
-        auto &global = data::Global::self();
-        auto scope =
-            data::CallScope::getCurrent(global.environment).getObject<data::TrackingScope>();
+        auto &context = scope::Context::get();
         std::shared_ptr<tasks::Task> asyncTaskObj{
-            global.environment.handleTable.getObject<tasks::Task>(data::ObjHandle{asyncTask})};
-        tasks::ExpireTime expireTime = global.environment.translateExpires(timeout);
+            context.handleFromInt(asyncTask).toObject<tasks::Task>()};
+        tasks::ExpireTime expireTime = tasks::ExpireTime::fromNowMillis(timeout);
         if(asyncTaskObj->waitForCompletion(expireTime)) {
-            return scope->anchor(asyncTaskObj->getData()).getHandle().asInt();
+            return scope::ScopedContext::anchor(asyncTaskObj->getData()).asIntHandle();
         } else {
             return static_cast<uint32_t>(0);
         }
@@ -64,10 +41,7 @@ uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept
 //
 bool ggapiCancelTask(uint32_t asyncTask) noexcept {
     return ggapi::trapErrorReturn<bool>([asyncTask]() {
-        data::Global &global = data::Global::self();
-        std::shared_ptr<tasks::Task> asyncTaskObj{
-            global.environment.handleTable.getObject<tasks::Task>(data::ObjHandle{asyncTask})};
-        asyncTaskObj->cancelTask();
+        scope::context().objFromInt<tasks::Task>(asyncTask)->cancelTask();
         return true;
     });
 }

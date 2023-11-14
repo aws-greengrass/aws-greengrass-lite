@@ -9,76 +9,55 @@ namespace tasks {
     class TaskThread;
     class TaskPoolWorker;
 
-    class TaskManager : public data::TrackingScope {
-        std::list<std::shared_ptr<TaskPoolWorker>> _busyWorkers; // assumes small
-                                                                 // pool, else
-                                                                 // std::set
-        std::list<std::shared_ptr<TaskPoolWorker>> _idleWorkers; // LIFO
-        std::list<std::shared_ptr<Task>> _backlog; // tasks with no thread affinity
-                                                   // (assumed async)
+    class TaskManager {
+        std::weak_ptr<scope::Context> _context;
+        // Root of all active tasks, an active task is assumed to eventually terminate
+        std::shared_ptr<data::TrackingRoot> _root;
+        // A set of worker threads that are currently busy, assumed small
+        std::list<std::shared_ptr<TaskPoolWorker>> _busyWorkers;
+        // A set of idle worker threads, LIFO, assumed small
+        std::list<std::shared_ptr<TaskPoolWorker>> _idleWorkers;
+        // A set of async tasks that are looking for an idle worker
+        std::list<std::shared_ptr<Task>> _backlog;
+        // The thread that is handling time-based tasks
         std::weak_ptr<TaskThread> _timerWorkerThread;
         // _delayedTasks is using multimap as an insertable ordered list,
         // TODO: is there a better std library for this?
         std::multimap<ExpireTime, std::shared_ptr<Task>> _delayedTasks;
         int _maxWorkers{5}; // TODO, from configuration
+        // Indicates that task manager is shutting down
         std::atomic_bool _shutdown{false};
 
         void scheduleFutureTaskAssumeLocked(
-            const ExpireTime &when, const std::shared_ptr<Task> &task
-        );
+            const ExpireTime &when, const std::shared_ptr<Task> &task);
         void descheduleFutureTaskAssumeLocked(
-            const ExpireTime &when, const std::shared_ptr<Task> &task
-        );
+            const ExpireTime &when, const std::shared_ptr<Task> &task);
         std::shared_ptr<Task> acquireTaskForWorker(TaskThread *worker);
-        std::shared_ptr<Task> acquireTaskWhenStealing(
-            TaskThread *worker, const std::shared_ptr<Task> &priorityTask
-        );
+        std::shared_ptr<Task> acquireTaskWhenStealing(const std::shared_ptr<Task> &priorityTask);
         bool allocateNextWorker();
         void cancelWaitingTasks();
         void shutdownAllWorkers(bool join);
         friend class Task;
         friend class TaskThread;
 
+    protected:
+        mutable std::mutex _mutex;
+
     public:
-        explicit TaskManager(data::Environment &environment) : data::TrackingScope{environment} {
+        explicit TaskManager(const std::shared_ptr<scope::Context> &context)
+            : _context(context), _root(std::make_shared<data::TrackingRoot>(context)) {
         }
 
         TaskManager(const TaskManager &) = delete;
         TaskManager(TaskManager &&) = delete;
         TaskManager &operator=(const TaskManager &) = delete;
         TaskManager &operator=(TaskManager &&) = delete;
-        ~TaskManager() override;
+        ~TaskManager();
 
-        data::ObjectAnchor createTask();
         void queueTask(const std::shared_ptr<Task> &task);
         void resumeTask(const std::shared_ptr<Task> &task);
         ExpireTime pollNextDeferredTask(TaskThread *worker);
         void shutdownAndWait();
-    };
-
-    class TaskManagerContainer {
-        std::shared_ptr<TaskManager> _mgr;
-
-    public:
-        explicit TaskManagerContainer(data::Environment &env)
-            : _mgr{std::make_shared<tasks::TaskManager>(env)} {
-        }
-
-        TaskManager *operator->() {
-            return _mgr.get();
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        operator std::shared_ptr<TaskManager>() {
-            return _mgr;
-        }
-
-        ~TaskManagerContainer() {
-            if(_mgr) {
-                _mgr->shutdownAndWait();
-                _mgr.reset();
-            }
-        }
     };
 
 } // namespace tasks

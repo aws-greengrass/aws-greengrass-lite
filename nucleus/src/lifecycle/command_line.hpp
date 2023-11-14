@@ -1,6 +1,6 @@
 #pragma once
-#include "data/globals.hpp"
 #include "kernel.hpp"
+#include "scope/context.hpp"
 #include <optional>
 
 namespace lifecycle {
@@ -9,7 +9,7 @@ namespace lifecycle {
 
     class CommandLine {
     private:
-        data::Global &_global;
+        std::weak_ptr<scope::Context> _context;
         lifecycle::Kernel &_kernel;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
 
@@ -19,17 +19,21 @@ namespace lifecycle {
         std::string _envStageFromCmdLine;
         std::string _defaultUserFromCmdLine;
 
-        static std::string nextArg(
-            const std::vector<std::string> &args, std::vector<std::string>::const_iterator &iter
-        );
-
-    public:
-        explicit CommandLine(data::Global &global, lifecycle::Kernel &kernel)
-            : _global(global), _kernel(kernel) {
+        [[nodiscard]] scope::Context &context() const {
+            return *_context.lock();
         }
 
-        void parseEnv(data::SysProperties &sysProperties);
-        void parseHome(data::SysProperties &sysProperties);
+        static std::string nextArg(
+            const std::vector<std::string> &args, std::vector<std::string>::const_iterator &iter);
+
+    public:
+        explicit CommandLine(
+            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel)
+            : _context(context), _kernel(kernel) {
+        }
+
+        void parseEnv(SysProperties &sysProperties);
+        void parseHome(SysProperties &sysProperties);
         void parseArgs(int argc, char *argv[]); // NOLINT(*-avoid-c-arrays)
         void parseArgs(const std::vector<std::string> &args);
         void parseProgramName(std::string_view progName);

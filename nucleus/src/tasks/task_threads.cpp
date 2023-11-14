@@ -1,7 +1,7 @@
 #include "task_threads.hpp"
 #include "expire_time.hpp"
+#include "scope/context_full.hpp"
 #include "task.hpp"
-#include "task_manager.hpp"
 #include <iostream>
 
 namespace tasks {
@@ -16,54 +16,21 @@ namespace tasks {
     }
 
     void TaskThread::bindThreadContext() {
-        getSetTaskThread(this, true);
+        auto tc = scope::ThreadContext::get();
+        _threadContext = tc;
+        tc->changeContext(_context.lock());
+        tc->setThreadContext(baseRef());
     }
 
     std::shared_ptr<TaskThread> TaskThread::getThreadContext() {
-        // TaskThread for current thread
-        TaskThread *thread = getSetTaskThread(nullptr, false);
-        if(thread) {
-            return thread->shared_from_this();
-        } else {
-            return nullptr;
-        }
+        return scope::Context::thread().getThreadContext();
     }
 
-    void FixedTaskThread::setDefaultTask(const data::ObjectAnchor &task) {
-        std::unique_lock guard{_mutex};
-        _defaultTask = task;
+    TaskThread::TaskThread(const std::shared_ptr<scope::Context> &context) : _context(context) {
     }
 
-    data::ObjectAnchor FixedTaskThread::getDefaultTask() {
-        std::unique_lock guard{_mutex};
-        return _defaultTask;
-    }
-
-    void FixedTaskThread::protect() {
-        std::unique_lock guard{_mutex};
-        _protectThread = ref<FixedTaskThread>();
-    }
-
-    void FixedTaskThread::unprotect() {
-        std::unique_lock guard{_mutex};
-        _protectThread = nullptr;
-    }
-
-    void FixedTaskThread::bindThreadContext(const data::ObjectAnchor &task) {
-        // Run on target thread
-        setDefaultTask(task);
-        task.getObject<Task>()->getSetThreadSelf(task.getHandle());
-        TaskThread::bindThreadContext();
-    }
-
-    TaskThread::TaskThread(data::Environment &environment, const std::shared_ptr<TaskManager> &pool)
-        : _environment{environment}, _pool{pool} {
-    }
-
-    TaskPoolWorker::TaskPoolWorker(
-        data::Environment &environment, const std::shared_ptr<TaskManager> &pool
-    )
-        : TaskThread(environment, pool) {
+    TaskPoolWorker::TaskPoolWorker(const std::shared_ptr<scope::Context> &context)
+        : TaskThread(context) {
         _thread = std::thread(&TaskPoolWorker::runner, this);
     }
 
@@ -115,19 +82,21 @@ namespace tasks {
     }
 
     std::shared_ptr<Task> TaskThread::pickupPoolTask(const std::shared_ptr<Task> &blockingTask) {
-        std::shared_ptr<TaskManager> pool = _pool.lock();
-        if(!pool || isShutdown()) {
+        std::shared_ptr<scope::Context> context = _context.lock();
+        if(!context || isShutdown()) {
             return {};
         }
-        return pool->acquireTaskWhenStealing(this, blockingTask);
+        auto &pool = context->taskManager();
+        return pool.acquireTaskWhenStealing(blockingTask);
     }
 
     std::shared_ptr<Task> TaskThread::pickupPoolTask() {
-        std::shared_ptr<TaskManager> pool = _pool.lock();
-        if(!pool || isShutdown()) {
+        std::shared_ptr<scope::Context> context = _context.lock();
+        if(!context || isShutdown()) {
             return {};
         }
-        return pool->acquireTaskForWorker(this);
+        auto &pool = context->taskManager();
+        return pool.acquireTaskForWorker(this);
     }
 
     std::shared_ptr<Task> TaskThread::pickupTask() {
@@ -146,41 +115,40 @@ namespace tasks {
         return pickupPoolTask(blockingTask);
     }
 
-    data::ObjectAnchor FixedTaskThread::claimFixedThread() {
-        std::shared_ptr<TaskManager> mgr{_pool.lock()};
-        data::ObjectAnchor taskAnchor{mgr->createTask()};
-        bindThreadContext(taskAnchor);
-        protect();
-        return taskAnchor;
+    std::shared_ptr<Task> TaskThread::getActiveTask() const {
+        std::shared_ptr<scope::ThreadContext> tc = _threadContext.lock();
+        if(tc) {
+            return tc->getActiveTask();
+        } else {
+            return {};
+        }
     }
 
-    void TaskThread::releaseFixedThread() {
-        throw std::runtime_error("Releasing a non-fixed thread");
+    void TaskThread::unbindThreadContext() {
+        std::shared_ptr<scope::ThreadContext> tc = _threadContext.lock();
+        if(!tc) {
+            return;
+        }
+        auto prev = tc->getThreadContext();
+        if(prev && prev.get() == this) {
+            tc->setThreadContext({});
+            tc->setActiveTask({});
+        } else {
+            throw std::runtime_error("Unable to unbind thread");
+        }
     }
 
     ExpireTime TaskThread::taskStealingHook(ExpireTime time) {
         return time;
     }
 
-    void FixedTaskThread::releaseFixedThread() {
-        data::ObjectAnchor defaultTask = FixedTaskThread::getDefaultTask();
-        data::ObjHandle taskHandle{Task::getThreadSelf()};
-        if((!defaultTask) || defaultTask.getHandle() != taskHandle) {
-            throw std::runtime_error("Thread associated with another task");
-        }
-        setDefaultTask({});
-        defaultTask.release();
-        Task::getSetThreadSelf({});
-        unprotect();
-        getSetTaskThread(nullptr, true);
-    }
-
     ExpireTime FixedTimerTaskThread::taskStealingHook(ExpireTime time) {
-        std::shared_ptr<TaskManager> taskManager{_pool.lock()};
-        if(!taskManager) {
+        std::shared_ptr<scope::Context> context = _context.lock();
+        if(!context || isShutdown()) {
             return time;
         }
-        ExpireTime nextDeferredTime = taskManager->pollNextDeferredTask(this);
+        auto &taskManager = context->taskManager();
+        ExpireTime nextDeferredTime = taskManager.pollNextDeferredTask(this);
         if(nextDeferredTime == ExpireTime::infinite() || time < nextDeferredTime) {
             return time;
         } else {
@@ -205,16 +173,6 @@ namespace tasks {
         for(auto &task : tasks) {
             task->cancelTask();
         }
-    }
-
-    TaskThread *TaskThread::getSetTaskThread(TaskThread *setValue, bool set) {
-        // NOLINTNEXTLINE(*-avoid-non-const-global-variables)
-        static thread_local TaskThread *_threadContext{nullptr};
-        TaskThread *current = _threadContext;
-        if(set) {
-            _threadContext = setValue;
-        }
-        return current;
     }
 
     void TaskThread::shutdown() {
@@ -242,20 +200,11 @@ namespace tasks {
     }
 
     std::shared_ptr<Task> FixedTaskThreadScope::getTask() const {
-        return _thread->getDefaultTask().getObject<tasks::Task>();
-    }
-
-    ThreadSelf::ThreadSelf(Task *contextTask) {
-        _oldHandle = Task::getSetThreadSelf(contextTask->getSelf());
-    }
-
-    ThreadSelf::~ThreadSelf() {
-        Task::getSetThreadSelf(_oldHandle);
+        return _thread->getActiveTask();
     }
 
     BlockedThreadScope::BlockedThreadScope(
-        const std::shared_ptr<Task> &task, const std::shared_ptr<TaskThread> &thread
-    )
+        const std::shared_ptr<Task> &task, const std::shared_ptr<TaskThread> &thread)
         : _task(task), _thread(thread) {
         _task->addBlockedThread(_thread);
     }

@@ -1,39 +1,20 @@
 #pragma once
-#include "handle_table.hpp"
-#include "string_table.hpp"
+#include "data/handle_table.hpp"
+#include "data/string_table.hpp"
+#include "data/value_type.hpp"
 #include <map>
 #include <mutex>
 #include <set>
-#include <variant>
 #include <vector>
+
+namespace scope {
+    class Context;
+}
 
 namespace data {
     class ContainerModelBase;
     class StructModelBase;
     class ListModelBase;
-
-    using ValueType = std::variant<
-        // types in same order as type consts in ValueTypes below
-        std::monostate, // Always first (NONE)
-        bool, // BOOL
-        uint64_t, // INT
-        double, // DOUBLE
-        std::string, // STRING
-        StringOrdExt, // STRING_ORD
-        std::shared_ptr<TrackedObject> // OBJECT
-        >;
-
-    // enum class ValueTypes would seem to be better, but we need to compare int to
-    // int, so this is easier
-    struct ValueTypes {
-        static constexpr auto NONE{0};
-        static constexpr auto BOOL{1};
-        static constexpr auto INT{2};
-        static constexpr auto DOUBLE{3};
-        static constexpr auto STRING{4};
-        static constexpr auto STRING_ORD{5};
-        static constexpr auto OBJECT{6};
-    };
 
     //
     // Data storage element with implicit type conversion
@@ -50,44 +31,11 @@ namespace data {
         StructElement() : _value{} {
         }
 
+        template<typename T>
         // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(ValueType v) : _value(std::move(v)) {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(const bool v) : _value{v} {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(const uint64_t v) : _value{v} {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(const int64_t v) : _value{static_cast<uint64_t>(v)} {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(const double v) : _value{v} {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(const std::shared_ptr<TrackedObject> &p);
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(const std::shared_ptr<ContainerModelBase> &p)
-            : StructElement(std::static_pointer_cast<TrackedObject>(p)) {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(const std::string &str) : _value{str} {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(std::string_view str) : _value{static_cast<std::string>(str)} {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        StructElement(StringOrdExt ord) : _value{ord} {
+        StructElement(const T &v) : _value(v) {
+            static_assert(
+                std::is_assignable_v<ValueType, T>, "Must be a ValueType permitted value");
         }
 
         StructElement(const StructElement &) = default;
@@ -142,70 +90,70 @@ namespace data {
 
         [[nodiscard]] bool getBool() const {
             switch(_value.index()) {
-            case BOOL:
-                return std::get<bool>(_value);
-            case INT:
-                return std::get<uint64_t>(_value) != 0;
-            case DOUBLE:
-                return std::get<double>(_value) != 0.0;
-            case STRING:
-                return getBool(std::get<std::string>(_value));
-            case STRING_ORD: {
-                return getBool(std::get<StringOrdExt>(_value).asString());
-            }
-            default:
-                throw std::runtime_error("Unsupported type conversion to integer");
+                case BOOL:
+                    return std::get<bool>(_value);
+                case INT:
+                    return std::get<uint64_t>(_value) != 0;
+                case DOUBLE:
+                    return std::get<double>(_value) != 0.0;
+                case STRING:
+                    return getBool(std::get<std::string>(_value));
+                case SYMBOL: {
+                    return getBool(std::get<Symbol>(_value).toString());
+                }
+                default:
+                    throw std::runtime_error("Unsupported type conversion to integer");
             }
         }
 
         [[nodiscard]] uint64_t getInt() const {
             switch(_value.index()) {
-            case BOOL:
-                return std::get<bool>(_value) ? 1 : 0;
-            case INT:
-                return std::get<uint64_t>(_value);
-            case DOUBLE:
-                return static_cast<uint64_t>(std::get<double>(_value));
-            case STRING:
-                return std::stoul(std::get<std::string>(_value));
-            case STRING_ORD:
-                return std::stoul(std::get<StringOrdExt>(_value).asString());
-            default:
-                throw std::runtime_error("Unsupported type conversion to integer");
+                case BOOL:
+                    return std::get<bool>(_value) ? 1 : 0;
+                case INT:
+                    return std::get<uint64_t>(_value);
+                case DOUBLE:
+                    return static_cast<uint64_t>(std::get<double>(_value));
+                case STRING:
+                    return std::stoul(std::get<std::string>(_value));
+                case SYMBOL:
+                    return std::stoul(std::get<Symbol>(_value).toString());
+                default:
+                    throw std::runtime_error("Unsupported type conversion to integer");
             }
         }
 
         [[nodiscard]] double getDouble() const {
             switch(_value.index()) {
-            case BOOL:
-                return std::get<bool>(_value) ? 1.0 : 0.0;
-            case INT:
-                return static_cast<double>(std::get<uint64_t>(_value));
-            case DOUBLE:
-                return std::get<double>(_value);
-            case STRING:
-                return std::stod(std::get<std::string>(_value));
-            case STRING_ORD:
-                return std::stod(std::get<StringOrdExt>(_value).asString());
-            default:
-                throw std::runtime_error("Unsupported type conversion to double");
+                case BOOL:
+                    return std::get<bool>(_value) ? 1.0 : 0.0;
+                case INT:
+                    return static_cast<double>(std::get<uint64_t>(_value));
+                case DOUBLE:
+                    return std::get<double>(_value);
+                case STRING:
+                    return std::stod(std::get<std::string>(_value));
+                case SYMBOL:
+                    return std::stod(std::get<Symbol>(_value).toString());
+                default:
+                    throw std::runtime_error("Unsupported type conversion to double");
             }
         }
 
         [[nodiscard]] std::string getString() const {
             switch(_value.index()) {
-            case BOOL:
-                return std::get<bool>(_value) ? "true" : "false";
-            case INT:
-                return std::to_string(std::get<uint64_t>(_value));
-            case DOUBLE:
-                return std::to_string(std::get<double>(_value));
-            case STRING:
-                return std::get<std::string>(_value);
-            case STRING_ORD:
-                return std::get<StringOrdExt>(_value).asString();
-            default:
-                throw std::runtime_error("Unsupported type conversion to string");
+                case BOOL:
+                    return std::get<bool>(_value) ? "true" : "false";
+                case INT:
+                    return std::to_string(std::get<uint64_t>(_value));
+                case DOUBLE:
+                    return std::to_string(std::get<double>(_value));
+                case STRING:
+                    return std::get<std::string>(_value);
+                case SYMBOL:
+                    return std::get<Symbol>(_value).toString();
+                default:
+                    throw std::runtime_error("Unsupported type conversion to string");
             }
         }
 
@@ -276,7 +224,8 @@ namespace data {
     //
     class ContainerModelBase : public TrackedObject {
     public:
-        explicit ContainerModelBase(Environment &environment) : TrackedObject{environment} {
+        explicit ContainerModelBase(const std::shared_ptr<scope::Context> &context)
+            : TrackedObject(context) {
         }
 
         //
@@ -286,8 +235,7 @@ namespace data {
         virtual uint32_t size() const = 0;
         void checkedPut(
             const StructElement &element,
-            const std::function<void(const StructElement &)> &putAction
-        );
+            const std::function<void(const StructElement &)> &putAction);
     };
 
     //
@@ -296,20 +244,21 @@ namespace data {
     //
     class StructModelBase : public ContainerModelBase {
     protected:
-        virtual void putImpl(StringOrd handle, const StructElement &element) = 0;
-        virtual bool hasKeyImpl(StringOrd handle) const = 0;
-        virtual StructElement getImpl(StringOrd handle) const = 0;
+        virtual void putImpl(Symbol handle, const StructElement &element) = 0;
+        virtual bool hasKeyImpl(Symbol handle) const = 0;
+        virtual StructElement getImpl(Symbol handle) const = 0;
 
     public:
-        explicit StructModelBase(Environment &environment) : ContainerModelBase{environment} {
+        explicit StructModelBase(const std::shared_ptr<scope::Context> &context)
+            : ContainerModelBase(context) {
         }
 
-        void put(StringOrd handle, const StructElement &element);
+        void put(Symbol handle, const StructElement &element);
         void put(std::string_view sv, const StructElement &element);
-        virtual std::vector<data::StringOrd> getKeys() const = 0;
-        bool hasKey(StringOrd handle) const;
+        virtual std::vector<data::Symbol> getKeys() const = 0;
+        bool hasKey(Symbol handle) const;
         bool hasKey(std::string_view sv) const;
-        StructElement get(StringOrd handle) const;
+        StructElement get(Symbol handle) const;
         StructElement get(std::string_view sv) const;
         virtual std::shared_ptr<StructModelBase> copy() const = 0;
     };
@@ -320,7 +269,8 @@ namespace data {
     //
     class ListModelBase : public ContainerModelBase {
     public:
-        explicit ListModelBase(Environment &environment) : ContainerModelBase{environment} {
+        explicit ListModelBase(const std::shared_ptr<scope::Context> &context)
+            : ContainerModelBase(context) {
         }
 
         virtual void put(int32_t idx, const StructElement &element) = 0;
@@ -328,12 +278,5 @@ namespace data {
         virtual StructElement get(int idx) const = 0;
         virtual std::shared_ptr<ListModelBase> copy() const = 0;
     };
-
-    inline StructElement::StructElement(const std::shared_ptr<TrackedObject> &p) {
-        if(p) {
-            _value = p;
-        }
-        // !p results in type NONE, force consistent treatment of null
-    }
 
 } // namespace data

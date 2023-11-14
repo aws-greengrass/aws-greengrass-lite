@@ -1,28 +1,30 @@
-#include "data/globals.hpp"
+#include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 
 // NOLINTBEGIN
 SCENARIO("String ordinals are consistent", "[ordinal]") {
 
     GIVEN("A string table") {
-        data::Environment environment;
+        scope::LocalizedScope forTesting{scope::Context::create()};
+
+        auto &symbols = scope::Context::get().symbols();
         WHEN("An ordinal is not assigned") {
-            data::StringOrd ord;
+            data::Symbol ord;
             THEN("Ordinal reports as null") {
                 REQUIRE(ord.asInt() == 0);
                 REQUIRE(ord.isNull());
             }
         }
         WHEN("A few ordinals are allocated") {
-            auto foo{environment.stringTable.getOrCreateOrd("foo")};
-            auto bar{environment.stringTable.getOrCreateOrd("bar")};
-            auto baz{environment.stringTable.getOrCreateOrd("baz")};
+            auto foo{symbols.intern("foo")};
+            auto bar{symbols.intern("bar")};
+            auto baz{symbols.intern("baz")};
             THEN("The ordinals are non-null") {
                 REQUIRE(foo.asInt() != 0);
                 REQUIRE(bar.asInt() != 0);
                 REQUIRE(baz.asInt() != 0);
             }
-            THEN("The ordinal null check is false") {
+            THEN("The ordinal null assertValidSymbol is false") {
                 REQUIRE(!foo.isNull());
             }
             THEN("The ordinals do not conflict") {
@@ -31,14 +33,14 @@ SCENARIO("String ordinals are consistent", "[ordinal]") {
                 REQUIRE(bar.asInt() != baz.asInt());
             }
             THEN("The ordinals return original strings") {
-                REQUIRE(environment.stringTable.getString(foo) == "foo");
-                REQUIRE(environment.stringTable.getString(bar) == "bar");
-                REQUIRE(environment.stringTable.getString(baz) == "baz");
+                REQUIRE(foo.toString() == "foo");
+                REQUIRE(bar.toString() == "bar");
+                REQUIRE(baz.toString() == "baz");
             }
             AND_WHEN("Duplicate ordinals are created") {
-                auto foo2{environment.stringTable.getOrCreateOrd("foo")};
-                auto bar2{environment.stringTable.getOrCreateOrd("bar")};
-                auto bing{environment.stringTable.getOrCreateOrd("bing")};
+                auto foo2{symbols.intern("foo")};
+                auto bar2{symbols.intern("bar")};
+                auto bing{symbols.intern("bing")};
                 THEN("Duplicate ordinals are consistent") {
                     REQUIRE(foo.asInt() == foo2.asInt());
                     REQUIRE(bar.asInt() == bar2.asInt());
@@ -50,8 +52,8 @@ SCENARIO("String ordinals are consistent", "[ordinal]") {
                 }
             }
             AND_WHEN("Ordinals of mixed case are created") {
-                auto foo2{environment.stringTable.getOrCreateOrd("Foo")};
-                auto bar2{environment.stringTable.getOrCreateOrd("BAR")};
+                auto foo2{symbols.intern("Foo")};
+                auto bar2{symbols.intern("BAR")};
                 THEN("Ordinals are unique") {
                     REQUIRE(foo.asInt() != foo2.asInt());
                     REQUIRE(bar.asInt() != bar2.asInt());

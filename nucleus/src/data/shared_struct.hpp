@@ -1,5 +1,7 @@
 #pragma once
+#include "scope/mapper.hpp"
 #include "struct_model.hpp"
+#include "symbol_value_map.hpp"
 
 namespace data {
 
@@ -7,21 +9,25 @@ namespace data {
      * Typical implementation of StructModelBase
      */
     class SharedStruct : public StructModelBase {
+    private:
+        scope::SharedContextMapper _symbolMapper;
+
     protected:
-        std::map<StringOrd, StructElement, StringOrd::CompLess> _elements;
+        SymbolValueMap<StructElement> _elements{_symbolMapper};
         mutable std::shared_mutex _mutex;
 
         void rootsCheck(const ContainerModelBase *target) const override;
 
     public:
-        explicit SharedStruct(Environment &environment) : StructModelBase{environment} {
+        explicit SharedStruct(const std::shared_ptr<scope::Context> &context)
+            : StructModelBase(context), _symbolMapper(context) {
         }
 
         uint32_t size() const override;
-        void putImpl(StringOrd handle, const StructElement &element) override;
-        bool hasKeyImpl(StringOrd handle) const override;
-        std::vector<data::StringOrd> getKeys() const override;
-        StructElement getImpl(StringOrd handle) const override;
+        void putImpl(Symbol symbol, const StructElement &element) override;
+        bool hasKeyImpl(Symbol symbol) const override;
+        std::vector<data::Symbol> getKeys() const override;
+        StructElement getImpl(Symbol symbol) const override;
         std::shared_ptr<StructModelBase> copy() const override;
     };
 

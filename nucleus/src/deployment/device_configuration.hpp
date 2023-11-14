@@ -23,122 +23,125 @@ namespace config {
 
 namespace deployment {
     struct DeviceConfigConsts {
-        data::StringOrdInit DEFAULT_NUCLEUS_COMPONENT_NAME{"aws.greengrass.Nucleus-lite"};
+        data::SymbolInit DEFAULT_NUCLEUS_COMPONENT_NAME{"aws.greengrass.Nucleus-lite"};
 
-        data::StringOrdInit DEVICE_PARAM_THING_NAME{"thingName"};
-        data::StringOrdInit DEVICE_PARAM_GG_DATA_ENDPOINT{"greengrassDataPlaneEndpoint"};
-        data::StringOrdInit DEVICE_PARAM_IOT_DATA_ENDPOINT{"iotDataEndpoint"};
-        data::StringOrdInit DEVICE_PARAM_IOT_CRED_ENDPOINT{"iotCredEndpoint"};
-        data::StringOrdInit DEVICE_PARAM_PRIVATE_KEY_PATH{"privateKeyPath"};
-        data::StringOrdInit DEVICE_PARAM_CERTIFICATE_FILE_PATH{"certificateFilePath"};
-        data::StringOrdInit DEVICE_PARAM_ROOT_CA_PATH{"rootCaPath"};
-        data::StringOrdInit DEVICE_PARAM_INTERPOLATE_COMPONENT_CONFIGURATION{
+        data::SymbolInit DEVICE_PARAM_THING_NAME{"thingName"};
+        data::SymbolInit DEVICE_PARAM_GG_DATA_ENDPOINT{"greengrassDataPlaneEndpoint"};
+        data::SymbolInit DEVICE_PARAM_IOT_DATA_ENDPOINT{"iotDataEndpoint"};
+        data::SymbolInit DEVICE_PARAM_IOT_CRED_ENDPOINT{"iotCredEndpoint"};
+        data::SymbolInit DEVICE_PARAM_PRIVATE_KEY_PATH{"privateKeyPath"};
+        data::SymbolInit DEVICE_PARAM_CERTIFICATE_FILE_PATH{"certificateFilePath"};
+        data::SymbolInit DEVICE_PARAM_ROOT_CA_PATH{"rootCaPath"};
+        data::SymbolInit DEVICE_PARAM_INTERPOLATE_COMPONENT_CONFIGURATION{
             "interpolateComponentConfiguration"};
-        data::StringOrdInit DEVICE_PARAM_IPC_SOCKET_PATH{"ipcSocketPath"};
-        data::StringOrdInit SYSTEM_NAMESPACE_KEY{"system"};
-        data::StringOrdInit PLATFORM_OVERRIDE_TOPIC{"platformOverride"};
-        data::StringOrdInit DEVICE_PARAM_AWS_REGION{"awsRegion"};
-        data::StringOrdInit DEVICE_PARAM_FIPS_MODE{"fipsMode"};
-        data::StringOrdInit DEVICE_MQTT_NAMESPACE{"mqtt"};
-        data::StringOrdInit DEVICE_SPOOLER_NAMESPACE{"spooler"};
-        data::StringOrdInit RUN_WITH_TOPIC{"runWithDefault"};
-        data::StringOrdInit RUN_WITH_DEFAULT_POSIX_USER{"posixUser"};
-        data::StringOrdInit RUN_WITH_DEFAULT_WINDOWS_USER{"windowsUser"};
-        data::StringOrdInit RUN_WITH_DEFAULT_POSIX_SHELL{"posixShell"};
-        data::StringOrdInit RUN_WITH_DEFAULT_POSIX_SHELL_VALUE{"sh"};
-        data::StringOrdInit FLEET_STATUS_CONFIG_TOPICS{"fleetStatus"};
+        data::SymbolInit DEVICE_PARAM_IPC_SOCKET_PATH{"ipcSocketPath"};
+        data::SymbolInit SYSTEM_NAMESPACE_KEY{"system"};
+        data::SymbolInit PLATFORM_OVERRIDE_TOPIC{"platformOverride"};
+        data::SymbolInit DEVICE_PARAM_AWS_REGION{"awsRegion"};
+        data::SymbolInit DEVICE_PARAM_FIPS_MODE{"fipsMode"};
+        data::SymbolInit DEVICE_MQTT_NAMESPACE{"mqtt"};
+        data::SymbolInit DEVICE_SPOOLER_NAMESPACE{"spooler"};
+        data::SymbolInit RUN_WITH_TOPIC{"runWithDefault"};
+        data::SymbolInit RUN_WITH_DEFAULT_POSIX_USER{"posixUser"};
+        data::SymbolInit RUN_WITH_DEFAULT_WINDOWS_USER{"windowsUser"};
+        data::SymbolInit RUN_WITH_DEFAULT_POSIX_SHELL{"posixShell"};
+        data::SymbolInit RUN_WITH_DEFAULT_POSIX_SHELL_VALUE{"sh"};
+        data::SymbolInit FLEET_STATUS_CONFIG_TOPICS{"fleetStatus"};
 
-        data::StringOrdInit IOT_ROLE_ALIAS_TOPIC{"iotRoleAlias"};
-        data::StringOrdInit COMPONENT_STORE_MAX_SIZE_BYTES{"componentStoreMaxSizeBytes"};
-        data::StringOrdInit DEPLOYMENT_POLLING_FREQUENCY_SECONDS = {
+        data::SymbolInit IOT_ROLE_ALIAS_TOPIC{"iotRoleAlias"};
+        data::SymbolInit COMPONENT_STORE_MAX_SIZE_BYTES{"componentStoreMaxSizeBytes"};
+        data::SymbolInit DEPLOYMENT_POLLING_FREQUENCY_SECONDS = {
             "deploymentPollingFrequencySeconds"};
-        data::StringOrdInit NUCLEUS_CONFIG_LOGGING_TOPICS{"logging"};
-        data::StringOrdInit TELEMETRY_CONFIG_LOGGING_TOPICS{"telemetry"};
+        data::SymbolInit NUCLEUS_CONFIG_LOGGING_TOPICS{"logging"};
+        data::SymbolInit TELEMETRY_CONFIG_LOGGING_TOPICS{"telemetry"};
 
-        data::StringOrdInit S3_ENDPOINT_TYPE{"s3EndpointType"};
+        data::SymbolInit S3_ENDPOINT_TYPE{"s3EndpointType"};
         //        data::StringOrdInit S3_ENDPOINT_PROP_NAME =
         //            SdkSystemSetting.AWS_S3_US_EAST_1_REGIONAL_ENDPOINT.property();
-        data::StringOrdInit DEVICE_NETWORK_PROXY_NAMESPACE{"networkProxy"};
-        data::StringOrdInit DEVICE_PROXY_NAMESPACE{"proxy"};
-        data::StringOrdInit DEVICE_PARAM_NO_PROXY_ADDRESSES{"noProxyAddresses"};
-        data::StringOrdInit DEVICE_PARAM_PROXY_URL{"url"};
-        data::StringOrdInit DEVICE_PARAM_PROXY_USERNAME{"username"};
-        data::StringOrdInit DEVICE_PARAM_PROXY_PASSWORD{"password"};
+        data::SymbolInit DEVICE_NETWORK_PROXY_NAMESPACE{"networkProxy"};
+        data::SymbolInit DEVICE_PROXY_NAMESPACE{"proxy"};
+        data::SymbolInit DEVICE_PARAM_NO_PROXY_ADDRESSES{"noProxyAddresses"};
+        data::SymbolInit DEVICE_PARAM_PROXY_URL{"url"};
+        data::SymbolInit DEVICE_PARAM_PROXY_USERNAME{"username"};
+        data::SymbolInit DEVICE_PARAM_PROXY_PASSWORD{"password"};
 
-        data::StringOrdInit DEVICE_PARAM_GG_DATA_PLANE_PORT{"greengrassDataPlanePort"};
+        data::SymbolInit DEVICE_PARAM_GG_DATA_PLANE_PORT{"greengrassDataPlanePort"};
 
-        data::StringOrdInit DEVICE_PARAM_ENV_STAGE{"envStage"};
-        data::StringOrdInit DEFAULT_ENV_STAGE{"prod"};
-        data::StringOrdInit CANNOT_BE_EMPTY{"cannot be empty"};
-        data::StringOrdInit AWS_IOT_THING_NAME_ENV{"AWS_IOT_THING_NAME"};
-        data::StringOrdInit GGC_VERSION_ENV{"GGC_VERSION"};
-        data::StringOrdInit NUCLEUS_BUILD_METADATA_DIRECTORY{"conf"};
-        data::StringOrdInit NUCLEUS_RECIPE_FILENAME{"recipe.yaml"};
-        data::StringOrdInit FALLBACK_DEFAULT_REGION{"us-east-1"};
-        data::StringOrdInit AMAZON_DOMAIN_SEQUENCE{".amazonaws."};
-        data::StringOrdInit FALLBACK_VERSION{"0.0.0"};
+        data::SymbolInit DEVICE_PARAM_ENV_STAGE{"envStage"};
+        data::SymbolInit DEFAULT_ENV_STAGE{"prod"};
+        data::SymbolInit CANNOT_BE_EMPTY{"cannot be empty"};
+        data::SymbolInit AWS_IOT_THING_NAME_ENV{"AWS_IOT_THING_NAME"};
+        data::SymbolInit GGC_VERSION_ENV{"GGC_VERSION"};
+        data::SymbolInit NUCLEUS_BUILD_METADATA_DIRECTORY{"conf"};
+        data::SymbolInit NUCLEUS_RECIPE_FILENAME{"recipe.yaml"};
+        data::SymbolInit FALLBACK_DEFAULT_REGION{"us-east-1"};
+        data::SymbolInit AMAZON_DOMAIN_SEQUENCE{".amazonaws."};
+        data::SymbolInit FALLBACK_VERSION{"0.0.0"};
 
-        explicit DeviceConfigConsts(data::Environment &environment) {
-            data::StringOrdInit::init(
-                environment,
-                {DEFAULT_NUCLEUS_COMPONENT_NAME,
-                 DEVICE_PARAM_THING_NAME,
-                 DEVICE_PARAM_GG_DATA_ENDPOINT,
-                 DEVICE_PARAM_IOT_DATA_ENDPOINT,
-                 DEVICE_PARAM_IOT_CRED_ENDPOINT,
-                 DEVICE_PARAM_PRIVATE_KEY_PATH,
-                 DEVICE_PARAM_CERTIFICATE_FILE_PATH,
-                 DEVICE_PARAM_ROOT_CA_PATH,
-                 DEVICE_PARAM_INTERPOLATE_COMPONENT_CONFIGURATION,
-                 DEVICE_PARAM_IPC_SOCKET_PATH,
-                 SYSTEM_NAMESPACE_KEY,
-                 PLATFORM_OVERRIDE_TOPIC,
-                 DEVICE_PARAM_AWS_REGION,
-                 DEVICE_PARAM_FIPS_MODE,
-                 DEVICE_MQTT_NAMESPACE,
-                 DEVICE_SPOOLER_NAMESPACE,
-                 RUN_WITH_TOPIC,
-                 RUN_WITH_DEFAULT_POSIX_USER,
-                 RUN_WITH_DEFAULT_WINDOWS_USER,
-                 RUN_WITH_DEFAULT_POSIX_SHELL,
-                 RUN_WITH_DEFAULT_POSIX_SHELL_VALUE,
-                 FLEET_STATUS_CONFIG_TOPICS,
-                 IOT_ROLE_ALIAS_TOPIC,
-                 COMPONENT_STORE_MAX_SIZE_BYTES,
-                 DEPLOYMENT_POLLING_FREQUENCY_SECONDS,
-                 NUCLEUS_CONFIG_LOGGING_TOPICS,
-                 TELEMETRY_CONFIG_LOGGING_TOPICS,
-                 S3_ENDPOINT_TYPE,
-                 // S3_ENDPOINT_PROP_NAME
-                 DEVICE_NETWORK_PROXY_NAMESPACE,
-                 DEVICE_PROXY_NAMESPACE,
-                 DEVICE_PARAM_NO_PROXY_ADDRESSES,
-                 DEVICE_PARAM_PROXY_URL,
-                 DEVICE_PARAM_PROXY_USERNAME,
-                 DEVICE_PARAM_PROXY_PASSWORD,
-                 DEVICE_PARAM_GG_DATA_PLANE_PORT,
-                 DEVICE_PARAM_ENV_STAGE,
-                 DEFAULT_ENV_STAGE,
-                 CANNOT_BE_EMPTY,
-                 AWS_IOT_THING_NAME_ENV,
-                 GGC_VERSION_ENV,
-                 NUCLEUS_BUILD_METADATA_DIRECTORY,
-                 NUCLEUS_RECIPE_FILENAME,
-                 FALLBACK_DEFAULT_REGION,
-                 AMAZON_DOMAIN_SEQUENCE,
-                 FALLBACK_VERSION}
-            );
+        explicit DeviceConfigConsts(const std::shared_ptr<scope::Context> &context) {
+            data::SymbolInit::init(
+                context,
+                {&DEFAULT_NUCLEUS_COMPONENT_NAME,
+                 &DEVICE_PARAM_THING_NAME,
+                 &DEVICE_PARAM_GG_DATA_ENDPOINT,
+                 &DEVICE_PARAM_IOT_DATA_ENDPOINT,
+                 &DEVICE_PARAM_IOT_CRED_ENDPOINT,
+                 &DEVICE_PARAM_PRIVATE_KEY_PATH,
+                 &DEVICE_PARAM_CERTIFICATE_FILE_PATH,
+                 &DEVICE_PARAM_ROOT_CA_PATH,
+                 &DEVICE_PARAM_INTERPOLATE_COMPONENT_CONFIGURATION,
+                 &DEVICE_PARAM_IPC_SOCKET_PATH,
+                 &SYSTEM_NAMESPACE_KEY,
+                 &PLATFORM_OVERRIDE_TOPIC,
+                 &DEVICE_PARAM_AWS_REGION,
+                 &DEVICE_PARAM_FIPS_MODE,
+                 &DEVICE_MQTT_NAMESPACE,
+                 &DEVICE_SPOOLER_NAMESPACE,
+                 &RUN_WITH_TOPIC,
+                 &RUN_WITH_DEFAULT_POSIX_USER,
+                 &RUN_WITH_DEFAULT_WINDOWS_USER,
+                 &RUN_WITH_DEFAULT_POSIX_SHELL,
+                 &RUN_WITH_DEFAULT_POSIX_SHELL_VALUE,
+                 &FLEET_STATUS_CONFIG_TOPICS,
+                 &IOT_ROLE_ALIAS_TOPIC,
+                 &COMPONENT_STORE_MAX_SIZE_BYTES,
+                 &DEPLOYMENT_POLLING_FREQUENCY_SECONDS,
+                 &NUCLEUS_CONFIG_LOGGING_TOPICS,
+                 &TELEMETRY_CONFIG_LOGGING_TOPICS,
+                 &S3_ENDPOINT_TYPE,
+                 // &S3_ENDPOINT_PROP_NAME
+                 &DEVICE_NETWORK_PROXY_NAMESPACE,
+                 &DEVICE_PROXY_NAMESPACE,
+                 &DEVICE_PARAM_NO_PROXY_ADDRESSES,
+                 &DEVICE_PARAM_PROXY_URL,
+                 &DEVICE_PARAM_PROXY_USERNAME,
+                 &DEVICE_PARAM_PROXY_PASSWORD,
+                 &DEVICE_PARAM_GG_DATA_PLANE_PORT,
+                 &DEVICE_PARAM_ENV_STAGE,
+                 &DEFAULT_ENV_STAGE,
+                 &CANNOT_BE_EMPTY,
+                 &AWS_IOT_THING_NAME_ENV,
+                 &GGC_VERSION_ENV,
+                 &NUCLEUS_BUILD_METADATA_DIRECTORY,
+                 &NUCLEUS_RECIPE_FILENAME,
+                 &FALLBACK_DEFAULT_REGION,
+                 &AMAZON_DOMAIN_SEQUENCE,
+                 &FALLBACK_VERSION});
         }
     };
 
     class DeviceConfiguration {
         mutable std::shared_mutex _mutex;
-        data::Environment &_environment;
+        std::weak_ptr<scope::Context> _context;
         lifecycle::Kernel &_kernel;
         std::string _nucleusComponentNameCache;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
         std::atomic_bool _deviceConfigValidationCachedResult{false};
         std::shared_ptr<config::Topics> _loggingTopics;
+
+        scope::Context &context() const {
+            return *_context.lock();
+        }
 
     public:
         const DeviceConfigConsts configs;
@@ -146,7 +149,8 @@ namespace deployment {
         static constexpr long DEPLOYMENT_POLLING_FREQUENCY_DEFAULT_SECONDS = 15L;
         static constexpr uint64_t GG_DATA_PLANE_PORT_DEFAULT = 8443;
 
-        DeviceConfiguration(data::Environment &environment, lifecycle::Kernel &kernel);
+        DeviceConfiguration(
+            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel);
         DeviceConfiguration(const DeviceConfiguration &) = delete;
         DeviceConfiguration &operator=(const DeviceConfiguration &) = delete;
         DeviceConfiguration(DeviceConfiguration &&) noexcept = delete;
@@ -218,8 +222,8 @@ namespace deployment {
         void validate(bool);
         bool isDeviceConfiguredToTalkToCloud();
         bool provisionInfoNodeChanged(const std::shared_ptr<config::ConfigNode> &node, bool);
-        config::Topic getTopic(data::StringOrdInit);
-        std::shared_ptr<config::Topics> getTopics(data::StringOrdInit);
+        config::Topic getTopic(data::SymbolInit);
+        std::shared_ptr<config::Topics> getTopics(data::SymbolInit);
         std::string getNucleusVersion();
         std::string getVersionFromBuildRecipeFile();
         void validateDeviceConfiguration(

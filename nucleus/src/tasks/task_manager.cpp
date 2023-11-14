@@ -1,19 +1,12 @@
 #include "task_manager.hpp"
 #include "expire_time.hpp"
+#include "scope/context_full.hpp"
 #include "task.hpp"
 #include "task_threads.hpp"
-#include <iostream>
 
 namespace tasks {
-    data::ObjectAnchor TaskManager::createTask() {
-        auto task{std::make_shared<Task>(_environment)};
-        auto taskAnchor{anchor(task)};
-        task->setSelf(taskAnchor.getHandle());
-        return taskAnchor;
-    }
-
     void TaskManager::queueTask(const std::shared_ptr<Task> &task) {
-        if(!task->queueTaskInterlockedTrySetRunning(ref<TaskManager>())) {
+        if(!task->queueTaskInterlockedTrySetRunning()) {
             return; // Cannot start at this time
         }
         resumeTask(task);
@@ -86,10 +79,8 @@ namespace tasks {
             // allocate a new worker - it will be tasked with picking up next task
             // TODO: add some kind of knowledge of workers starting
             // code as is can cause a scramble
-            std::shared_ptr<TaskManager> pool{
-                std::static_pointer_cast<TaskManager>(this->shared_from_this())};
             std::shared_ptr<TaskPoolWorker> worker{
-                std::make_shared<TaskPoolWorker>(_environment, pool)};
+                std::make_shared<TaskPoolWorker>(_context.lock())};
             _busyWorkers.push_back(worker);
             worker->waken();
             return true;
@@ -103,8 +94,7 @@ namespace tasks {
     }
 
     std::shared_ptr<Task> TaskManager::acquireTaskWhenStealing(
-        TaskThread *worker, const std::shared_ptr<Task> &priorityTask
-    ) {
+        const std::shared_ptr<Task> &priorityTask) {
         std::unique_lock guard{_mutex};
         if(_shutdown || _backlog.empty()) {
             return {};
@@ -173,7 +163,8 @@ namespace tasks {
 
     TaskManager::~TaskManager() {
         // Clean shutdown of all workers and tasks that are accessible to task manager
-        assert(_shutdown);
+        // This happens when the context as ref-counted to zero
+        shutdownAndWait();
     }
 
     void TaskManager::shutdownAndWait() {

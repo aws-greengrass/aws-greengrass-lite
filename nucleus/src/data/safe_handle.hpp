@@ -1,48 +1,54 @@
 #pragma once
+#include "scope/fixed_pointer.hpp"
 #include <memory>
+
+namespace scope {
+    class Context;
+}
 
 namespace data {
     class ObjectAnchor;
 
     //
-    // Templated class for handles
+    // Templated class for partial handles (no table reference)
     //
-    template<typename T>
-    class Handle {
+    class PartialHandle {
     private:
         uint32_t _asInt;
 
     public:
         struct CompEq {
-            [[nodiscard]] bool operator()(const Handle a, const Handle b) const noexcept {
+            [[nodiscard]] bool operator()(
+                const PartialHandle a, const PartialHandle b) const noexcept {
                 return a._asInt == b._asInt;
             }
         };
 
         struct CompLess {
-            [[nodiscard]] bool operator()(const Handle a, const Handle b) const noexcept {
+            [[nodiscard]] bool operator()(
+                const PartialHandle a, const PartialHandle b) const noexcept {
                 return a._asInt < b._asInt;
             }
         };
 
         struct Hash {
-            [[nodiscard]] std::size_t operator()(const Handle k) const noexcept {
+            [[nodiscard]] std::size_t operator()(const PartialHandle k) const noexcept {
                 return k._asInt;
             }
         };
 
-        constexpr Handle() noexcept : _asInt{0} {
+        constexpr PartialHandle() noexcept : _asInt{0} {
         }
 
-        explicit constexpr Handle(const uint32_t i) noexcept : _asInt{i} {
+        explicit constexpr PartialHandle(const uint32_t i) noexcept : _asInt{i} {
         }
 
-        constexpr Handle(const Handle &) noexcept = default;
-        constexpr Handle(Handle &&) noexcept = default;
-        ~Handle() noexcept = default;
+        constexpr PartialHandle(const PartialHandle &) noexcept = default;
+        constexpr PartialHandle(PartialHandle &&) noexcept = default;
+        ~PartialHandle() noexcept = default;
 
-        constexpr Handle &operator=(const Handle &) noexcept = default;
-        constexpr Handle &operator=(Handle &&) noexcept = default;
+        constexpr PartialHandle &operator=(const PartialHandle &) noexcept = default;
+        constexpr PartialHandle &operator=(PartialHandle &&) noexcept = default;
 
         [[nodiscard]] uint32_t asInt() const noexcept {
             return _asInt;
@@ -53,26 +59,81 @@ namespace data {
         }
 
         explicit operator bool() const noexcept {
-            return _asInt != 0;
+            return !isNull();
         }
 
         bool operator!() const noexcept {
-            return _asInt == 0;
+            return isNull();
         }
 
-        bool operator==(Handle other) const noexcept {
+        bool operator==(PartialHandle other) const noexcept {
             return _asInt == other._asInt;
         }
 
-        bool operator!=(Handle other) const noexcept {
+        bool operator!=(PartialHandle other) const noexcept {
             return _asInt != other._asInt;
         }
-
-        static constexpr Handle nullHandle() noexcept;
     };
 
-    template<typename T>
-    inline constexpr Handle<T> Handle<T>::nullHandle() noexcept {
-        return {};
-    }
+    //
+    // Templated class for full (resolvable) handles
+    //
+    template<typename TableType>
+    class Handle {
+    public:
+        using Partial = PartialHandle;
+
+    private:
+        Partial _partial;
+        mutable scope::FixedPtr<TableType> _table;
+
+    public:
+        constexpr Handle() noexcept = default;
+        constexpr Handle(const Handle &) noexcept = default;
+        constexpr Handle(Handle &&) noexcept = default;
+        constexpr Handle &operator=(const Handle &) noexcept = default;
+        constexpr Handle &operator=(Handle &&) noexcept = default;
+        ~Handle() noexcept = default;
+
+        constexpr Handle(scope::FixedPtr<TableType> table, Partial h) noexcept
+            : _table(table), _partial(h) {
+        }
+
+        [[nodiscard]] uint32_t asInt() const noexcept {
+            return _partial.asInt();
+        }
+
+        [[nodiscard]] TableType &table() noexcept {
+            return *_table;
+        }
+
+        [[nodiscard]] const TableType &table() const noexcept {
+            return *_table;
+        }
+
+        [[nodiscard]] Partial partial() const noexcept {
+            return _partial;
+        }
+
+        [[nodiscard]] bool isNull() const noexcept {
+            return _partial.isNull();
+        }
+
+        explicit operator bool() const noexcept {
+            return !isNull();
+        }
+
+        bool operator!() const noexcept {
+            return isNull();
+        }
+
+        bool operator==(Handle other) const noexcept {
+            return _partial == other._partial && _table == other._table;
+        }
+
+        bool operator!=(Handle other) const noexcept {
+            return _partial != other._partial || _table != other._table;
+        }
+    };
+
 } // namespace data

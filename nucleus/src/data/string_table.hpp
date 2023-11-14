@@ -1,18 +1,22 @@
 #pragma once
-#include "safe_handle.hpp"
+#include "data/safe_handle.hpp"
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 
-namespace data {
+namespace scope {
+    class Context;
+}
 
-    class Environment;
+namespace data {
+    class ValueType;
 
     //
     // Internalized string (right now simple a wrapper around string)
@@ -76,176 +80,202 @@ namespace data {
     //
     // Handles for strings only
     //
-    using StringOrd = Handle<InternedString>;
+    class SymbolTable;
 
-    class StringTable {
+    class Symbol : public Handle<SymbolTable> {
+    public:
+        constexpr Symbol() noexcept = default;
+        constexpr Symbol(const Symbol &) noexcept = default;
+        constexpr Symbol(Symbol &&) noexcept = default;
+        constexpr Symbol &operator=(const Symbol &) noexcept = default;
+        constexpr Symbol &operator=(Symbol &&) noexcept = default;
+        ~Symbol() noexcept = default;
+
+        constexpr Symbol(scope::FixedPtr<SymbolTable> table, Partial h) noexcept
+            : Handle(table, h) {
+        }
+
+        std::string toString() const;
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator std::string() const {
+            return toString();
+        }
+
+        template<typename StringLike>
+        std::string toStringOr(StringLike &&default_value) const {
+            static_assert(
+                std::is_convertible_v<StringLike, std::string>, "Requires stringlike type");
+            if(isNull()) {
+                return {std::forward<StringLike>(default_value)};
+            } else {
+                return toString();
+            }
+        }
+    };
+
+    class SymbolTable {
         static const int PRIME{15299};
         mutable std::shared_mutex _mutex;
-        std::unordered_map<InternedString, StringOrd, InternedString::Hash, InternedString::CompEq>
+        mutable scope::FixedPtr<SymbolTable> _table{scope::FixedPtr<SymbolTable>::of(this)};
+        std::unordered_map<
+            InternedString,
+            Symbol::Partial,
+            InternedString::Hash,
+            InternedString::CompEq>
             _interned;
-        std::unordered_map<StringOrd, InternedString, StringOrd::Hash, StringOrd::CompEq> _reverse;
+        std::unordered_map<
+            Symbol::Partial,
+            InternedString,
+            Symbol::Partial::Hash,
+            Symbol::Partial::CompEq>
+            _reverse;
+
+        Symbol applyUnchecked(Symbol::Partial h) const {
+            return {_table, h};
+        }
 
     public:
-        StringOrd testAndGetOrd(std::string_view str) const {
+        Symbol testAndGetSymbol(std::string_view str) const {
             std::shared_lock guard{_mutex};
             auto i = _interned.find(str);
             if(i == _interned.end()) {
-                return StringOrd::nullHandle();
+                return {};
             } else {
-                return i->second;
+                return applyUnchecked(i->second);
             }
         }
 
-        StringOrd getOrCreateOrd(std::string_view str) {
-            Handle ord = testAndGetOrd(str); // optimistic using shared lock
+        Symbol intern(std::string_view str) {
+            Symbol ord = testAndGetSymbol(str); // optimistic using shared lock
             if(ord.isNull()) {
                 std::unique_lock guard(_mutex);
                 auto i = _interned.find(str);
                 if(i == _interned.end()) {
                     // expected case
                     // ordinals are computed this way to optimize std::map
-                    StringOrd new_ord{
+                    Symbol::Partial new_ord{
                         static_cast<uint32_t>(InternedString::Hash{}(str))}; // distribute IDs
                     while(_reverse.find(new_ord) != _reverse.end()) {
-                        new_ord = StringOrd{new_ord.asInt() + PRIME};
+                        new_ord = Symbol::Partial{new_ord.asInt() + PRIME};
                     }
                     _reverse.emplace(new_ord, str);
                     _interned.emplace(str, new_ord);
-                    return new_ord;
+                    return applyUnchecked(new_ord);
                 } else {
                     // this path handles a race condition
-                    return i->second;
+                    return applyUnchecked(i->second);
                 }
             } else {
                 return ord;
             }
         }
 
-        bool isStringOrdValid(StringOrd ord) const {
+        bool isSymbolValid(Symbol::Partial symbol) const {
             std::shared_lock guard{_mutex};
-            return _reverse.find(ord) != _reverse.end();
+            return _reverse.find(symbol) != _reverse.end();
         }
 
-        std::string getString(StringOrd ord) const {
+        bool isSymbolValid(const Symbol &symbol) const {
+            return isSymbolValid(symbol.partial());
+        };
+
+        std::string getString(Symbol::Partial symbol) const {
             std::shared_lock guard{_mutex};
-            return _reverse.at(ord);
+            return _reverse.at(symbol);
         }
 
-        template<typename StringLike>
-        std::string getStringOr(StringOrd ord, StringLike &&default_value) const {
-            static_assert(
-                std::is_convertible_v<StringLike, std::string>, "Requires stringlike type"
-            );
-            if(!ord) {
-                return {std::forward<StringLike>(default_value)};
-            }
-            return getString(ord);
-        }
-
-        void assertStringHandle(const StringOrd ord) const {
-            if(!isStringOrdValid(ord)) {
+        void assertValidSymbol(const Symbol::Partial symbol) const {
+            if(!isSymbolValid(symbol)) {
                 throw std::invalid_argument("String ordinal is not valid");
             }
         }
+
+        // NOLINTNEXTLINE(readability-convert-member-functions-to-static) false due to assert
+        Symbol::Partial partial(const Symbol &symbol) const {
+            if(!symbol) {
+                return {};
+            }
+            assert(this == &symbol.table());
+            return symbol.partial();
+        }
+
+        Symbol apply(const Symbol::Partial symbol) const {
+            if(!symbol) {
+                return {};
+            }
+            assertValidSymbol(symbol);
+            return {_table, symbol};
+        }
     };
+
+    inline std::string Symbol::toString() const {
+        return table().getString(partial());
+    }
 
     //
     // Helper class for dealing with large numbers of constants
     //
-    class StringOrdInit {
-        mutable StringOrd _ord{};
+    class SymbolInit {
+        mutable Symbol _symbol{};
         std::string _string;
-        void init(Environment &environment) const;
+        void init(const std::shared_ptr<scope::Context> &context) const;
 
     public:
         // NOLINTNEXTLINE(*-explicit-constructor)
-        StringOrdInit(const char *constString) : _string(constString) {
+        SymbolInit(const char *constString) : _string(constString) {
         }
 
         // NOLINTNEXTLINE(*-explicit-constructor)
-        StringOrdInit(std::string_view constString) : _string(constString) {
+        SymbolInit(std::string_view constString) : _string(constString) {
         }
 
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        operator StringOrd() const {
-            assert(!_ord.isNull());
-            return _ord;
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        operator std::string() const {
+        std::string toString() const {
             return _string;
         }
 
-        StringOrdInit operator+(const StringOrdInit &other) const {
-            StringOrdInit result{_string};
-            result._string += other._string;
-            return result;
+        Symbol toSymbol() const {
+            assert(!_symbol.isNull());
+            return _symbol;
         }
 
-        static void init(Environment &environment, std::initializer_list<StringOrdInit> list);
-    };
-
-    //
-    // Helper class for when we need to pass string table reference with string ordinal
-    //
-    class StringOrdExt {
-        // Code assumes global lifetime safety
-        StringTable *_table;
-        // Doing as base-class causes slicing warnings
-        StringOrd _ord;
-
-    public:
-        StringOrdExt(const StringOrdExt &) = default;
-        StringOrdExt(StringOrdExt &&) = default;
-        StringOrdExt &operator=(const StringOrdExt &) = default;
-        StringOrdExt &operator=(StringOrdExt &&) = default;
-        ~StringOrdExt() = default;
-
-        bool operator==(const StringOrdExt &other) const {
-            return this == &other || (this->_ord == other._ord && this->_table == other._table);
-        }
-
-        bool operator!=(const StringOrdExt &other) const {
-            return !(*this == other);
-        }
-
-        StringOrdExt(StringTable &table, StringOrd ord) : _table(&table), _ord(ord) {
-        }
-
-        StringOrdExt(Environment &env, StringOrd ord);
-        StringOrdExt(StringTable &table, std::string_view str);
-        StringOrdExt(Environment &env, std::string_view str);
-
-        [[nodiscard]] std::string asString() const {
-            if(_ord.isNull()) {
-                return "";
-            } else {
-                return _table->getString(_ord);
-            }
-        }
-
-        [[nodiscard]] StringOrd asStringOrd() const {
-            return _ord;
-        }
-
-        [[nodiscard]] uint32_t asInt() const {
-            return _ord.asInt();
-        }
-
-        [[nodiscard]] bool isNull() const {
-            return _ord.isNull();
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator Symbol() const {
+            return toSymbol();
         }
 
         // NOLINTNEXTLINE(*-explicit-constructor)
         operator std::string() const {
-            return asString();
+            return toString();
         }
 
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        operator StringOrd() const {
-            return asStringOrd();
-        }
+        static void init(
+            const std::shared_ptr<scope::Context> &context,
+            std::initializer_list<const SymbolInit *> list);
     };
+
+    inline std::string operator+(const Symbol &x, const std::string &y) {
+        return x.toString() + y;
+    }
+
+    inline std::string operator+(const std::string &x, const Symbol &y) {
+        return x + y.toString();
+    }
+
+    inline std::string operator+(const Symbol &x, const Symbol &y) {
+        return x.toString() + y.toString();
+    }
+
+    inline std::string operator+(const SymbolInit &x, const std::string &y) {
+        return x.toString() + y;
+    }
+
+    inline std::string operator+(const std::string &x, const SymbolInit &y) {
+        return x + y.toString();
+    }
+
+    inline std::string operator+(const SymbolInit &x, const SymbolInit &y) {
+        return x.toString() + y.toString();
+    }
 
 } // namespace data

@@ -1,3 +1,4 @@
+#include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
 
@@ -19,13 +20,13 @@ static ggapi::Struct simpleListener3(ggapi::Task, ggapi::StringOrd, ggapi::Struc
 }
 
 SCENARIO("PubSub API", "[pubsub]") {
-    auto threadScope = ggapi::ThreadScope::claimThread();
-    auto callScope = ggapi::CallScope::newCallScope();
+    scope::LocalizedScope forTesting{scope::Context::create()};
+    ggapi::CallScope localScope{ggapi::CallScope::newCallScope()};
 
     GIVEN("Some listeners") {
-        ggapi::Subscription subs1{threadScope.subscribeToTopic({}, simpleListener1)};
-        ggapi::Subscription subs2{threadScope.subscribeToTopic("some-topic", simpleListener2)};
-        (void) threadScope.subscribeToTopic("some-topic", simpleListener3);
+        ggapi::Subscription subs1{localScope.subscribeToTopic({}, simpleListener1)};
+        ggapi::Subscription subs2{localScope.subscribeToTopic("some-topic", simpleListener2)};
+        (void) localScope.subscribeToTopic("some-topic", simpleListener3);
         WHEN("Calling by topic") {
             auto data = ggapi::Struct::create();
             (void) ggapi::Task::sendToTopic("some-topic", data);

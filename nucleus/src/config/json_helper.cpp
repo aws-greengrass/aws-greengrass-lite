@@ -1,13 +1,13 @@
 #include "json_helper.hpp"
-#include "data/environment.hpp"
+#include "scope/context_full.hpp"
 #include <fstream>
 #include <rapidjson/istreamwrapper.h>
 
 namespace config {
 
     void TlogLine::serialize(
-        data::Environment &environment, rapidjson::Writer<rapidjson::StringBuffer> &writer
-    ) {
+        const std::shared_ptr<scope::Context> &context,
+        rapidjson::Writer<rapidjson::StringBuffer> &writer) {
         writer.StartObject();
 
         writer.Key(TS);
@@ -42,7 +42,7 @@ namespace config {
         writer.String(actionText);
 
         writer.Key("V");
-        JsonHelper::serialize(environment, writer, value);
+        JsonHelper::serialize(context, writer, value);
 
         writer.EndObject();
     }
@@ -74,62 +74,63 @@ namespace config {
 
     // NOLINTNEXTLINE(*-no-recursion)
     void JsonHelper::serialize(
-        data::Environment &environment,
+        const std::shared_ptr<scope::Context> &context,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
-        const data::StructElement &value
-    ) {
+        const data::StructElement &value) {
         switch(value.getType()) {
-        case data::ValueTypes::NONE:
-            writer.Null();
-            break;
-        case data::ValueTypes::BOOL:
-            writer.Bool(value.getBool());
-            break;
-        case data::ValueTypes::INT:
-            writer.Int64(static_cast<int64_t>(value.getInt()));
-            break;
-        case data::ValueTypes::DOUBLE:
-            writer.Double(value.getDouble());
-            break;
-        case data::ValueTypes::OBJECT:
-            if(value.isType<data::ListModelBase>()) {
-                std::shared_ptr<data::ListModelBase> list =
-                    value.castObject<data::ListModelBase>()->copy();
-                auto size = static_cast<int32_t>(list->size());
-                writer.StartArray();
-                for(int32_t idx = 0; idx < size; idx++) {
-                    serialize(environment, writer, list->get(idx));
-                }
+            case data::ValueTypes::NONE:
+                writer.Null();
+                break;
+            case data::ValueTypes::BOOL:
+                writer.Bool(value.getBool());
+                break;
+            case data::ValueTypes::INT:
+                writer.Int64(static_cast<int64_t>(value.getInt()));
+                break;
+            case data::ValueTypes::DOUBLE:
+                writer.Double(value.getDouble());
+                break;
+            case data::ValueTypes::OBJECT:
+                if(value.isType<data::ListModelBase>()) {
+                    std::shared_ptr<data::ListModelBase> list =
+                        value.castObject<data::ListModelBase>()->copy();
+                    auto size = static_cast<int32_t>(list->size());
+                    writer.StartArray();
+                    for(int32_t idx = 0; idx < size; idx++) {
+                        serialize(context, writer, list->get(idx));
+                    }
                 writer.EndArray();
             } else if(value.isType<data::StructModelBase>()) {
                 std::shared_ptr<data::StructModelBase> s =
                     value.castObject<data::StructModelBase>()->copy();
-                std::vector<data::StringOrd> keys = s->getKeys();
+                std::vector<data::Symbol> keys = s->getKeys();
                 writer.StartObject();
                 for(const auto &i : keys) {
-                    std::string k = environment.stringTable.getString(i);
-                    writer.Key(k.c_str());
-                    serialize(environment, writer, s->get(i));
+                        std::string k = i.toString();
+                        writer.Key(k.c_str());
+                        serialize(context, writer, s->get(i));
                 }
                 writer.EndObject();
             } else {
                 // Ignore other objects, they cannot be serialized
             }
             break;
-        default:
+            default:
             writer.String(value.getString().c_str());
             break;
         }
     }
 
-    TlogLine TlogLine::readRecord(data::Environment &environment, std::ifstream &stream) {
+    TlogLine TlogLine::readRecord(
+        const std::shared_ptr<scope::Context> &context, std::ifstream &stream) {
         TlogLine tlogLine;
-        tlogLine.deserialize(environment, stream);
+        tlogLine.deserialize(context, stream);
         return tlogLine;
     }
 
-    bool TlogLine::deserialize(data::Environment &environment, std::ifstream &stream) {
-        JsonReader reader(environment);
+    bool TlogLine::deserialize(
+        const std::shared_ptr<scope::Context> &context, std::ifstream &stream) {
+        JsonReader reader(context);
         reader.push(std::make_unique<TlogLineResponder>(reader, *this, false));
         rapidjson::ParseResult result = reader.read(stream);
         if(result) {
@@ -178,8 +179,7 @@ namespace config {
         } else if(_state == JsonState::ExpectValue) {
             _state = JsonState::ExpectKey;
             std::shared_ptr<data::SharedStruct> target(
-                std::make_shared<data::SharedStruct>(_reader.environment())
-            );
+                std::make_shared<data::SharedStruct>(_reader.refContext()));
             _reader.push(std::make_unique<JsonSharedStructResponder>(_reader, target, true));
             return true;
         } else {
@@ -200,8 +200,7 @@ namespace config {
         if(_state == JsonState::ExpectValue) {
             _state = JsonState::ExpectKey;
             std::shared_ptr<data::SharedList> target(
-                std::make_shared<data::SharedList>(_reader.environment())
-            );
+                std::make_shared<data::SharedList>(_reader.refContext()));
             _reader.push(std::make_unique<JsonSharedListResponder>(_reader, target, true));
             return true;
         } else {
@@ -220,8 +219,7 @@ namespace config {
     bool JsonArrayResponder::parseStartObject() {
         if(_state == JsonState::ExpectValue) {
             std::shared_ptr<data::SharedStruct> target(
-                std::make_shared<data::SharedStruct>(_reader.environment())
-            );
+                std::make_shared<data::SharedStruct>(_reader.refContext()));
             _reader.push(std::make_unique<JsonSharedStructResponder>(_reader, target, true));
             return true;
         } else {
@@ -239,8 +237,7 @@ namespace config {
             return true;
         } else if(_state == JsonState::ExpectValue) {
             std::shared_ptr<data::SharedList> target(
-                std::make_shared<data::SharedList>(_reader.environment())
-            );
+                std::make_shared<data::SharedList>(_reader.refContext()));
             _reader.push(std::make_unique<JsonSharedListResponder>(_reader, target, true));
             return true;
         } else {
@@ -278,7 +275,7 @@ namespace config {
     }
 
     data::StructElement JsonSharedListResponder::buildValue() {
-        return data::StructElement(std::static_pointer_cast<data::ContainerModelBase>(_target));
+        return {std::static_pointer_cast<data::ContainerModelBase>(_target)};
     }
 
     bool TlogLineResponder::parseKeyValue(const std::string &key, data::StructElement value) {

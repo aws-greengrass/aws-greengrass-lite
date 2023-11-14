@@ -1,6 +1,7 @@
 #pragma once
 #include "lifecycle/command_line.hpp"
 #include "lifecycle/kernel.hpp"
+#include "scope/context_full.hpp"
 #include "test_tools.hpp"
 #include <atomic>
 #include <thread>
@@ -16,19 +17,19 @@ namespace test {
         }
 
     public:
-        data::Global global;
-        data::SysProperties sysProps;
+        scope::LocalizedScope scope{scope::Context::create()};
+        lifecycle::SysProperties sysProps;
         std::vector<std::string> args;
         lifecycle::Kernel kernel;
         std::thread kernelThread;
-        std::atomic_int result;
-        std::atomic_bool finished;
+        std::atomic_int result{0};
+        std::atomic_bool finished{false};
 
-        GGRoot() : kernel(global) {
+        GGRoot() : kernel(scope.context()->context()) {
         }
 
         void preLaunch() {
-            lifecycle::CommandLine commandLine{global, kernel};
+            lifecycle::CommandLine commandLine{scope.context()->context(), kernel};
             commandLine.parseArgs(args);
             kernel.preLaunch(commandLine);
         }

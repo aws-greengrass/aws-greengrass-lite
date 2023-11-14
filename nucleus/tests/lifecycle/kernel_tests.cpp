@@ -1,4 +1,3 @@
-#include "data/globals.hpp"
 #include "test_ggroot.hpp"
 #include <catch2/catch_all.hpp>
 

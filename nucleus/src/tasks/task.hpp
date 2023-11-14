@@ -1,6 +1,7 @@
 #pragma once
 #include "data/handle_table.hpp"
 #include "data/struct_model.hpp"
+#include "scope/call_scope.hpp"
 #include "tasks/expire_time.hpp"
 #include <chrono>
 #include <list>
@@ -12,7 +13,7 @@ namespace tasks {
     class Task;
     class TaskManager;
 
-    class Task : public data::TrackingScope {
+    class Task : public data::TrackedObject {
     public:
         enum Status {
             Pending,
@@ -29,13 +30,19 @@ namespace tasks {
     protected:
         void releaseBlockedThreads(bool isLocked);
         void signalBlockedThreads(bool isLocked);
-        bool queueTaskInterlockedTrySetRunning(const std::shared_ptr<TaskManager> &taskManager);
+        bool queueTaskInterlockedTrySetRunning();
 
-        std::shared_ptr<TaskManager> getTaskManager() {
-            return _taskManager.lock();
+        scope::FixedPtr<TaskManager> getTaskManager() {
+            std::shared_ptr<scope::Context> ctx = _context.lock();
+            if(ctx) {
+                return scope::FixedPtr<TaskManager>::of(&ctx->taskManager());
+            } else {
+                return {};
+            }
         }
 
     private:
+        mutable std::shared_mutex _mutex;
         std::shared_ptr<data::StructModelBase> _data;
         std::unique_ptr<SubTask> _finalize;
         std::list<std::unique_ptr<SubTask>> _subtasks;
@@ -45,24 +52,10 @@ namespace tasks {
         ExpireTime _timeout{ExpireTime::infinite()}; // time before task is automatically cancelled
         ExpireTime _start{ExpireTime::unspecified()}; // desired start time (default is immediately)
         Status _lastStatus{Pending};
-        std::weak_ptr<TaskManager> _taskManager; // needed to fulfil a cancel
-
-        static data::ObjHandle getSetThreadSelf(data::ObjHandle h, bool set) {
-            // This addresses a problem on (at least) Windows machines
-            static thread_local uint32_t _threadTask{0};
-            data::ObjHandle current{_threadTask};
-            if(set) {
-                _threadTask = h.asInt();
-            }
-            return current;
-        }
 
     public:
-        explicit Task(data::Environment &environment) : TrackingScope{environment} {
-        }
-
-        data::LocalCallScope callScope() {
-            return data::LocalCallScope(_environment);
+        explicit Task(const std::shared_ptr<scope::Context> &context)
+            : data::TrackedObject(context) {
         }
 
         void setSelf(data::ObjHandle self) {
@@ -89,14 +82,6 @@ namespace tasks {
         std::shared_ptr<TaskThread> getThreadAffinity();
         void markTaskComplete();
         void cancelTask();
-
-        static data::ObjHandle getThreadSelf() {
-            return getSetThreadSelf({}, false);
-        }
-
-        static data::ObjHandle getSetThreadSelf(data::ObjHandle h) {
-            return getSetThreadSelf(h, true);
-        }
 
         Status removeSubtask(std::unique_ptr<SubTask> &subTask);
         void addSubtask(std::unique_ptr<SubTask> subTask);
@@ -161,6 +146,21 @@ namespace tasks {
         void beforeRemove(const data::ObjectAnchor &anchor) override;
     };
 
+    // Ensures thread data contains information about current task, and
+    // performs RII cleanup
+    class CurrentTaskScope {
+    private:
+        std::shared_ptr<Task> _oldTask;
+        std::shared_ptr<Task> _activeTask;
+
+    public:
+        explicit CurrentTaskScope(const std::shared_ptr<Task> &activeTask);
+        CurrentTaskScope(const CurrentTaskScope &) = delete;
+        CurrentTaskScope(CurrentTaskScope &&) = delete;
+        CurrentTaskScope &operator=(const CurrentTaskScope &) = delete;
+        CurrentTaskScope &operator=(CurrentTaskScope &&) = delete;
+        ~CurrentTaskScope();
+    };
     class SubTask : public util::RefObject<SubTask> {
     protected:
         std::shared_ptr<TaskThread> _threadAffinity;

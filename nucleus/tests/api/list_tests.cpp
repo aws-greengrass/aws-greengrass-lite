@@ -1,10 +1,10 @@
+#include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
 
 // NOLINTBEGIN
 SCENARIO("Shared list API", "[list]") {
-    auto threadScope = ggapi::ThreadScope::claimThread();
-    auto callScope = ggapi::CallScope::newCallScope();
+    scope::LocalizedScope forTesting{scope::Context::create()};
 
     GIVEN("A list") {
         auto list = ggapi::List::create();

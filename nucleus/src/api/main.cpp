@@ -1,19 +1,20 @@
 // Main blocking thread, called by containing process
 #include "lifecycle/command_line.hpp"
 #include "nucleus_core.hpp"
+#include "scope/context_full.hpp"
 
 // NOLINTNEXTLINE(*-avoid-c-arrays)
 int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
     try {
-        data::Global &global = data::Global::self();
+        scope::Context &context = scope::Context::get();
         if(envp != nullptr) {
-            global.environment.sysProperties.parseEnv(envp);
+            context.sysProperties().parseEnv(envp);
         }
-        lifecycle::Kernel kernel{global};
+        lifecycle::Kernel kernel{context.baseRef()};
         // limited scope
         {
-            lifecycle::CommandLine commandLine{global, kernel};
-            commandLine.parseEnv(global.environment.sysProperties);
+            lifecycle::CommandLine commandLine{context.baseRef(), kernel};
+            commandLine.parseEnv(context.sysProperties());
             if(argc > 0 && argv != nullptr) {
                 commandLine.parseArgs(argc, argv);
             }

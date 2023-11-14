@@ -140,6 +140,11 @@ namespace ggapi {
     class ObjHandle {
     protected:
         uint32_t _handle{0};
+        void required() const {
+            if(_handle == 0) {
+                throw std::runtime_error("Handle is required");
+            }
+        }
 
     public:
         constexpr ObjHandle() noexcept = default;
@@ -179,6 +184,7 @@ namespace ggapi {
         // Allows a handle to be released early.
         //
         void release() const {
+            required();
             callApi([*this]() { ::ggapiReleaseHandle(_handle); });
         }
 
@@ -305,11 +311,11 @@ namespace ggapi {
         Scope &operator=(Scope &&) noexcept = default;
         ~Scope() = default;
 
-        explicit Scope(const ObjHandle &other) noexcept : ObjHandle(other) {
+        explicit Scope(const ObjHandle &other) : ObjHandle(other) {
             check();
         }
 
-        explicit Scope(uint32_t handle) noexcept : ObjHandle(handle) {
+        explicit Scope(uint32_t handle) : ObjHandle(handle) {
             check();
         }
 
@@ -323,7 +329,7 @@ namespace ggapi {
         // Anchor an object against this scope.
         //
         template<typename T>
-        [[nodiscard]] T anchor(T currentHandle) const;
+        [[nodiscard]] T anchor(T otherHandle) const;
     };
 
     //
@@ -336,53 +342,17 @@ namespace ggapi {
         ModuleScope(ModuleScope &&) noexcept = default;
         ModuleScope &operator=(const ModuleScope &) noexcept = default;
         ModuleScope &operator=(ModuleScope &&) noexcept = default;
+        ~ModuleScope() = default;
 
-        explicit ModuleScope(const ObjHandle &other) noexcept : Scope{other} {
+        explicit ModuleScope(const ObjHandle &other) : Scope{other} {
         }
 
-        explicit ModuleScope(uint32_t handle) noexcept : Scope{handle} {
+        explicit ModuleScope(uint32_t handle) : Scope{handle} {
         }
 
         [[nodiscard]] ModuleScope registerPlugin(
             StringOrd componentName, lifecycleCallback_t callback
         );
-    };
-
-    //
-    // Thread scope. Used by plugin for each created thread to allow handles to be
-    // associated with a thread. It also allows tasks to run on this thread.
-    //
-    class ThreadScope : public Scope {
-        bool _autoRelease{false};
-
-    public:
-        ThreadScope() noexcept = default;
-        ThreadScope(const ThreadScope &) noexcept = default;
-        ThreadScope(ThreadScope &&) noexcept = default;
-        ThreadScope &operator=(const ThreadScope &) noexcept = default;
-        ThreadScope &operator=(ThreadScope &&) noexcept = default;
-
-        explicit ThreadScope(uint32_t handle) noexcept : Scope{handle} {
-        }
-
-        ThreadScope &autoRelease(bool f = true) {
-            _autoRelease = f;
-            return *this;
-        }
-
-        [[nodiscard]] static ThreadScope claimThread();
-
-        void releaseThread() {
-            callApi([]() { ::ggapiReleaseThread(); });
-            _handle = 0;
-            _autoRelease = false;
-        }
-
-        ~ThreadScope() noexcept {
-            if(_autoRelease) {
-                ::ggapiReleaseThread(); // do not (re)throw exception
-            }
-        }
     };
 
     //
@@ -392,7 +362,7 @@ namespace ggapi {
         bool _autoRelease{false};
 
     public:
-        explicit CallScope(uint32_t handle) noexcept : Scope{handle} {
+        explicit CallScope(uint32_t handle) : Scope{handle} {
         }
 
         CallScope() = default;
@@ -402,7 +372,7 @@ namespace ggapi {
         CallScope &operator=(CallScope &&) noexcept = default;
 
         ~CallScope() noexcept {
-            if(_autoRelease) {
+            if(_autoRelease && *this) {
                 ::ggapiReleaseHandle(_handle); // do not (re)throw exception
             }
         }
@@ -480,6 +450,7 @@ namespace ggapi {
 
         template<typename T>
         Struct &put(StringOrd ord, T v) {
+            required();
             if constexpr(std::is_same_v<bool, T>) {
                 callApi([*this, ord, v]() { ::ggapiStructPutBool(_handle, ord.toOrd(), v); });
             } else if constexpr(std::is_integral_v<T>) {
@@ -505,7 +476,7 @@ namespace ggapi {
                     ::ggapiStructPutHandle(_handle, ord.toOrd(), v.getHandleId());
                 });
             } else if constexpr(std::is_same_v<Value, T>) {
-                std::visit([this, ord](auto &&value) { put(ord, value); }, v);
+                std::visit([this, ord](auto &&value) { this->put(ord, value); }, v);
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
@@ -524,6 +495,7 @@ namespace ggapi {
         }
 
         [[nodiscard]] bool hasKey(StringOrd ord) const {
+            required();
             return callApiReturn<bool>([*this, ord]() {
                 return ::ggapiStructHasKey(_handle, ord.toOrd());
             });
@@ -531,6 +503,7 @@ namespace ggapi {
 
         template<typename T>
         T get(StringOrd ord) {
+            required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>([*this, ord]() {
                     return ::ggapiStructGetBool(_handle, ord.toOrd());
@@ -599,6 +572,7 @@ namespace ggapi {
 
         template<typename T>
         List &put(int32_t idx, T v) {
+            required();
             if constexpr(std::is_same_v<bool, T>) {
                 callApi([*this, idx, v]() { ::ggapiListPutBool(_handle, idx, v); });
             } else if constexpr(std::is_integral_v<T>) {
@@ -627,6 +601,7 @@ namespace ggapi {
 
         template<typename T>
         List &insert(int32_t idx, T v) {
+            required();
             if constexpr(std::is_same_v<bool, T>) {
                 callApi([*this, idx, v]() { ::ggapiListInsertBool(_handle, idx, v); });
             } else if constexpr(std::is_integral_v<T>) {
@@ -655,11 +630,13 @@ namespace ggapi {
         }
 
         List &append(const Value &value) {
+            required();
             std::visit([this](auto &&value) { insert(-1, value); }, value);
             return *this;
         }
 
         List &append(std::initializer_list<Value> list) {
+            required();
             for(const auto &i : list) {
                 append(i);
             }
@@ -668,6 +645,7 @@ namespace ggapi {
 
         template<typename T>
         T get(int32_t idx) {
+            required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>([*this, idx]() {
                     return ::ggapiListGetBool(_handle, idx);
@@ -733,6 +711,7 @@ namespace ggapi {
         BufferOutStream out();
 
         Buffer &put(int32_t idx, const char *data, size_t n) {
+            required();
             if(n > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("length out of range");
             }
@@ -742,6 +721,7 @@ namespace ggapi {
 
         template<typename T>
         Buffer &put(int32_t idx, const T *data, size_t n) {
+            required();
             // NOLINTNEXTLINE(*-type-reinterpret-cast)
             const char *d = reinterpret_cast<const char *>(data);
             size_t nn = n * sizeof(const char);
@@ -762,6 +742,7 @@ namespace ggapi {
         }
 
         Buffer &insert(int32_t idx, const char *data, size_t n) {
+            required();
             if(n > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("length out of range");
             }
@@ -771,6 +752,7 @@ namespace ggapi {
 
         template<typename T>
         Buffer &insert(int32_t idx, const T *data, size_t n) {
+            required();
             // NOLINTNEXTLINE(*-type-reinterpret-cast)
             const char *d = reinterpret_cast<const char *>(data);
             size_t nn = n * sizeof(const char);
@@ -791,6 +773,7 @@ namespace ggapi {
         }
 
         size_t get(int32_t idx, char *data, size_t max) {
+            required();
             if(max > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("max length out of range");
             }
@@ -801,6 +784,7 @@ namespace ggapi {
 
         template<typename T>
         size_t get(int32_t idx, T *data, size_t max) {
+            required();
             // NOLINTNEXTLINE(*-type-reinterpret-cast)
             char *d = reinterpret_cast<char *>(data);
             size_t nn = max * sizeof(const char);
@@ -837,6 +821,7 @@ namespace ggapi {
         }
 
         Buffer &resize(uint32_t newSize) {
+            required();
             callApi([*this, newSize]() { ::ggapiBufferResize(_handle, newSize); });
             return *this;
         }
@@ -1090,19 +1075,15 @@ namespace ggapi {
 
     template<typename T>
     inline T Scope::anchor(T otherHandle) const {
+        required();
         static_assert(std::is_base_of_v<ObjHandle, T>);
         return callApiReturnHandle<T>([this, otherHandle]() {
             return ::ggapiAnchorHandle(getHandleId(), otherHandle);
         });
     }
 
-    inline ThreadScope ThreadScope::claimThread() {
-        auto scope = callApiReturnHandle<ThreadScope>([]() { return ::ggapiClaimThread(); });
-        scope._autoRelease = true;
-        return scope;
-    }
-
     inline Subscription Scope::subscribeToTopic(StringOrd topic, topicCallback_t callback) {
+        required();
         return callApiReturnHandle<Subscription>([*this, topic, callback]() {
             return ::ggapiSubscribeToTopic(
                 getHandleId(),
@@ -1139,6 +1120,7 @@ namespace ggapi {
 
     inline Task Subscription::callAsync(Struct message, topicCallback_t result, int32_t timeout)
         const {
+        required();
         return callApiReturnHandle<Task>([this, message, result, timeout]() {
             return ::ggapiSendToListenerAsync(
                 getHandleId(),
@@ -1151,18 +1133,21 @@ namespace ggapi {
     }
 
     inline Struct Subscription::call(Struct message, int32_t timeout) const {
+        required();
         return callApiReturnHandle<Struct>([this, message, timeout]() {
             return ::ggapiSendToListener(getHandleId(), message.getHandleId(), timeout);
         });
     }
 
     inline Struct Task::waitForTaskCompleted(int32_t timeout) {
+        required();
         return callApiReturnHandle<Struct>([this, timeout]() {
             return ::ggapiWaitForTaskCompleted(getHandleId(), timeout);
         });
     }
 
     inline void Task::cancelTask() {
+        required();
         callApi([this]() { return ::ggapiCancelTask(getHandleId()); });
     }
 
@@ -1173,6 +1158,7 @@ namespace ggapi {
     inline ModuleScope ModuleScope::registerPlugin(
         StringOrd componentName, lifecycleCallback_t callback
     ) {
+        required();
         return callApiReturnHandle<ModuleScope>([*this, componentName, callback]() {
             return ::ggapiRegisterPlugin(
                 getHandleId(),
