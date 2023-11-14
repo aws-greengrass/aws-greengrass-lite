@@ -30,7 +30,8 @@ if (NOT rapidjson_POPULATED)
 endif ()
 
 #
-# Build the set of objects used for both static library and shared object library
+# Build the set of objects used for both static library and shared object
+# library
 #
 add_library(nucleus-obj OBJECT
         src/api/data.cpp
@@ -125,7 +126,9 @@ if (CMAKE_BUILD_TYPE STREQUAL Debug)
     if (UNIX)
         target_compile_options(nucleus-tests PRIVATE --coverage)
         target_link_options(nucleus-tests PUBLIC --coverage)
-        add_custom_command(TARGET nucleus-tests PRE_BUILD COMMAND
+        add_custom_command(TARGET nucleus-tests
+                COMMENT "Delete existing coverage info"
+                PRE_BUILD COMMAND
                 find ${CMAKE_BINARY_DIR} -type f -name '*.gcda' -exec rm {} +)
         add_custom_target(coverage
                 COMMENT "Running coverage for nucleus-tests"
