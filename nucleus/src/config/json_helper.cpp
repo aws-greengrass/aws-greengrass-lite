@@ -1,4 +1,5 @@
 #include "json_helper.hpp"
+#include "data/value_type.hpp"
 #include "scope/context_full.hpp"
 #include <fstream>
 #include <rapidjson/istreamwrapper.h>
@@ -11,7 +12,7 @@ namespace config {
         writer.StartObject();
 
         writer.Key(TS);
-        writer.Int64(timestamp.asMilliseconds());
+        writer.Uint64(timestamp.asMilliseconds());
 
         writer.Key(TP);
         writer.StartArray();
@@ -77,48 +78,85 @@ namespace config {
         const std::shared_ptr<scope::Context> &context,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
         const data::StructElement &value) {
-        switch(value.getType()) {
-            case data::ValueTypes::NONE:
-                writer.Null();
-                break;
-            case data::ValueTypes::BOOL:
-                writer.Bool(value.getBool());
-                break;
-            case data::ValueTypes::INT:
-                writer.Int64(static_cast<int64_t>(value.getInt()));
-                break;
-            case data::ValueTypes::DOUBLE:
-                writer.Double(value.getDouble());
-                break;
-            case data::ValueTypes::OBJECT:
-                if(value.isType<data::ListModelBase>()) {
-                    std::shared_ptr<data::ListModelBase> list =
-                        value.castObject<data::ListModelBase>()->copy();
-                    auto size = static_cast<int32_t>(list->size());
-                    writer.StartArray();
-                    for(int32_t idx = 0; idx < size; idx++) {
-                        serialize(context, writer, list->get(idx));
-                    }
-                writer.EndArray();
-            } else if(value.isType<data::StructModelBase>()) {
-                std::shared_ptr<data::StructModelBase> s =
-                    value.castObject<data::StructModelBase>()->copy();
-                std::vector<data::Symbol> keys = s->getKeys();
-                writer.StartObject();
-                for(const auto &i : keys) {
-                        std::string k = i.toString();
-                        writer.Key(k.c_str());
-                        serialize(context, writer, s->get(i));
-                }
-                writer.EndObject();
-            } else {
-                // Ignore other objects, they cannot be serialized
+        std::visit(
+            [&context, &writer](auto &&x) { serialize(context, writer, x); }, value.get().base());
+    }
+    void JsonHelper::serialize(
+        const std::shared_ptr<scope::Context> &,
+        rapidjson::Writer<rapidjson::StringBuffer> &writer,
+        std::monostate) {
+        writer.Null();
+    }
+
+    void JsonHelper::serialize(
+        const std::shared_ptr<scope::Context> &,
+        rapidjson::Writer<rapidjson::StringBuffer> &writer,
+        bool b) {
+        writer.Bool(b);
+    }
+
+    void JsonHelper::serialize(
+        const std::shared_ptr<scope::Context> &,
+        rapidjson::Writer<rapidjson::StringBuffer> &writer,
+        uint64_t i) {
+        writer.Uint64(i);
+    }
+
+    void JsonHelper::serialize(
+        const std::shared_ptr<scope::Context> &,
+        rapidjson::Writer<rapidjson::StringBuffer> &writer,
+        double d) {
+        writer.Double(d);
+    }
+
+    void JsonHelper::serialize(
+        const std::shared_ptr<scope::Context> &,
+        rapidjson::Writer<rapidjson::StringBuffer> &writer,
+        const std::string &str) {
+        writer.String(str.c_str());
+    }
+
+    void JsonHelper::serialize(
+        const std::shared_ptr<scope::Context> &,
+        rapidjson::Writer<rapidjson::StringBuffer> &writer,
+        const data::Symbol &sym) {
+        writer.String(sym.toString().c_str());
+    }
+
+    void JsonHelper::serialize(
+        const std::shared_ptr<scope::Context> &context,
+        rapidjson::Writer<rapidjson::StringBuffer> &writer,
+        const std::shared_ptr<data::TrackedObject> &obj) {
+
+        std::shared_ptr<data::ListModelBase> asList =
+            std::dynamic_pointer_cast<data::ListModelBase>(obj);
+        if(asList) {
+            asList = asList->copy();
+            auto size = static_cast<int32_t>(asList->size());
+            writer.StartArray();
+            for(int32_t idx = 0; idx < size; idx++) {
+                serialize(context, writer, asList->get(idx));
             }
-            break;
-            default:
-            writer.String(value.getString().c_str());
-            break;
+            writer.EndArray();
+            return;
         }
+
+        std::shared_ptr<data::StructModelBase> asStruct =
+            std::dynamic_pointer_cast<data::StructModelBase>(obj);
+        if(asStruct) {
+            asStruct = asStruct->copy();
+            std::vector<data::Symbol> keys = asStruct->getKeys();
+            writer.StartObject();
+            for(const auto &i : keys) {
+                std::string k = i.toString();
+                writer.Key(k.c_str());
+                serialize(context, writer, asStruct->get(i));
+            }
+            writer.EndObject();
+            return;
+        }
+
+        // Other objects are ignored
     }
 
     TlogLine TlogLine::readRecord(

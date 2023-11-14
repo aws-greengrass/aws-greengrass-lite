@@ -304,5 +304,33 @@ namespace config {
             const std::shared_ptr<scope::Context> &context,
             rapidjson::Writer<rapidjson::StringBuffer> &writer,
             const data::StructElement &value);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            std::monostate);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            bool b);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            uint64_t i);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            double d);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            const std::string &str);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            const data::Symbol &sym);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            const std::shared_ptr<data::TrackedObject> &obj);
     };
 } // namespace config

@@ -49,7 +49,7 @@ namespace data {
             return _value.index() == NONE;
         }
 
-        ValueType get() {
+        ValueType get() const {
             return _value;
         }
 

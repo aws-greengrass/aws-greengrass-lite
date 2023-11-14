@@ -25,6 +25,10 @@ namespace data {
         ValueType &operator=(ValueType &&) = default;
         ~ValueType() = default;
 
+        ValueTypeBase &base() {
+            return *this;
+        }
+
         template<typename T>
         // NOLINTNEXTLINE(*-explicit-constructor)
         ValueType(T x) : ValueTypeBase(convert(x)) {
