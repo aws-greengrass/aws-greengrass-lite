@@ -12,6 +12,7 @@ ColumnLimit: 100
 IncludeCategories:
   - Regex:           '<.*'
     Priority:        2
+IndentCaseLabels: true
 IndentWidth: 4
 NamespaceIndentation: All
 PenaltyReturnTypeOnItsOwnLine: 300
