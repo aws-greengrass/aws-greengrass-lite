@@ -95,7 +95,7 @@ namespace data {
         _handles.erase(p);
         guard.unlock();
         if(root) {
-            // scope can be unset if scope is in middle of being destroyed
+            // root can be unset if owning scope is in middle of being destroyed
             root->removeRootHelper(anchor);
         }
     }

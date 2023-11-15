@@ -27,7 +27,7 @@ uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept
             context.handleFromInt(asyncTask).toObject<tasks::Task>()};
         tasks::ExpireTime expireTime = tasks::ExpireTime::fromNowMillis(timeout);
         if(asyncTaskObj->waitForCompletion(expireTime)) {
-            return scope::ScopedContext::anchor(asyncTaskObj->getData()).asIntHandle();
+            return scope::NucleusCallScopeContext::anchor(asyncTaskObj->getData()).asIntHandle();
         } else {
             return static_cast<uint32_t>(0);
         }

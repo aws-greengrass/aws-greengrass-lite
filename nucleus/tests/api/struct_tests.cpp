@@ -8,7 +8,7 @@ static ggapi::Struct simpleListener(ggapi::Task, ggapi::StringOrd, ggapi::Struct
 
 // NOLINTBEGIN
 SCENARIO("Shared structure API", "[struct]") {
-    scope::LocalizedScope forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{scope::Context::create()};
 
     GIVEN("A structure") {
         auto s = ggapi::Struct::create();
@@ -95,8 +95,8 @@ SCENARIO("Shared structure API", "[struct]") {
             }
         }
         WHEN("A listener is added to structure") {
-            ggapi::CallScope scope = ggapi::CallScope::newCallScope();
-            ggapi::Subscription handle{scope.subscribeToTopic({}, simpleListener)};
+            ggapi::CallScope callScope{};
+            ggapi::Subscription handle{callScope.subscribeToTopic({}, simpleListener)};
             s.put("Listener", handle);
             THEN("Listener can be retrieved from structure") {
                 ggapi::Subscription other = s.get<ggapi::Subscription>("Listener");

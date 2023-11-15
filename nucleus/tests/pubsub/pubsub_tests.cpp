@@ -37,7 +37,7 @@ public:
             _returnData->put(
                 "_" + _flagName,
                 data::StructElement{std::static_pointer_cast<data::ContainerModelBase>(data)});
-            return scope::ScopedContext::handle(_returnData);
+            return scope::NucleusCallScopeContext::handle(_returnData);
         } else {
             return {};
         }
@@ -45,7 +45,7 @@ public:
 };
 
 SCENARIO("PubSub Internal Behavior", "[pubsub]") {
-    scope::LocalizedScope forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{scope::Context::create()};
     auto context = forTesting.context()->context();
 
     GIVEN("Some listeners") {
@@ -105,9 +105,7 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
                         REQUIRE_THAT(
                             vec,
                             Catch::Matchers::UnorderedEquals(
-                                std::vector<std::shared_ptr<pubsub::Listener>>{subs1}
-                            )
-                        );
+                                std::vector<std::shared_ptr<pubsub::Listener>>{subs1}));
                     }
                 }
             }

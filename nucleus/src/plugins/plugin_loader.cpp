@@ -98,7 +98,7 @@ bool plugins::NativePlugin::lifecycle(
         scope::StackScope scopeForHandles{};
 
         std::shared_ptr<data::StructModelBase> copy = data->copy();
-        data::ObjectAnchor dataAnchor = scopeForHandles.call()->root()->anchor(copy);
+        data::ObjectAnchor dataAnchor = scopeForHandles.getCallScope()->root()->anchor(copy);
         return lifecycleFn(pluginAnchor.asInt(), phase.asInt(), dataAnchor.asIntHandle());
     }
     return true; // no error
@@ -121,7 +121,7 @@ bool plugins::DelegatePlugin::lifecycle(
         scope::StackScope scopeForHandles{};
 
         std::shared_ptr<data::StructModelBase> copy = data->copy();
-        data::ObjectAnchor dataAnchor = scopeForHandles.call()->root()->anchor(copy);
+        data::ObjectAnchor dataAnchor = scopeForHandles.getCallScope()->root()->anchor(copy);
         return delegateLifecycle(
             delegateContext, pluginAnchor.asInt(), phase.asInt(), dataAnchor.getHandle().asInt());
     }

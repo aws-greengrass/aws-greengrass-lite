@@ -16,7 +16,7 @@
   },
   "device-sdk-cpp": {
     "url": "https://github.com/aws/aws-iot-device-sdk-cpp-v2.git",
-    "rev": "8f6e11482df6edeee89c770119184c94d0a399e2",
-    "hash": "sha256-/W2rZWFX4dMUrjGiZ92pTRIwUpKcWo+CEOpvSXGai5U="
+    "rev": "v1.30.3",
+    "hash": "sha256-0PCy4fIzZybL0eVegqQQqG61IDikk190NuKSO4D7+zM="
   }
 }

@@ -205,7 +205,7 @@ const Keys IotBroker::keys{};
 
 // Initializes global CRT API
 // TODO: What happens when multiple plugins use the CRT?
-static const Aws::Crt::ApiHandle apiHandle;
+static const Aws::Crt::ApiHandle apiHandle{};
 
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::StringOrd, ggapi::Struct args) {
     return get().publishHandlerImpl(args);

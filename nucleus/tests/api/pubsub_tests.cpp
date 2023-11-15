@@ -20,13 +20,13 @@ static ggapi::Struct simpleListener3(ggapi::Task, ggapi::StringOrd, ggapi::Struc
 }
 
 SCENARIO("PubSub API", "[pubsub]") {
-    scope::LocalizedScope forTesting{scope::Context::create()};
-    ggapi::CallScope localScope{ggapi::CallScope::newCallScope()};
+    scope::LocalizedContext forTesting{scope::Context::create()};
+    ggapi::CallScope callScope{};
 
     GIVEN("Some listeners") {
-        ggapi::Subscription subs1{localScope.subscribeToTopic({}, simpleListener1)};
-        ggapi::Subscription subs2{localScope.subscribeToTopic("some-topic", simpleListener2)};
-        (void) localScope.subscribeToTopic("some-topic", simpleListener3);
+        ggapi::Subscription subs1{callScope.subscribeToTopic({}, simpleListener1)};
+        ggapi::Subscription subs2{callScope.subscribeToTopic("some-topic", simpleListener2)};
+        (void) callScope.subscribeToTopic("some-topic", simpleListener3);
         WHEN("Calling by topic") {
             auto data = ggapi::Struct::create();
             (void) ggapi::Task::sendToTopic("some-topic", data);

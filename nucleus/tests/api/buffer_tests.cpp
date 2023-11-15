@@ -8,7 +8,7 @@
 
 // NOLINTBEGIN
 SCENARIO("Buffer API", "[buffer]") {
-    scope::LocalizedScope forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{scope::Context::create()};
 
     GIVEN("A buffer") {
         auto buf = ggapi::Buffer::create();

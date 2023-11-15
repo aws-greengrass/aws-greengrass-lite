@@ -4,7 +4,7 @@
 
 // NOLINTBEGIN
 SCENARIO("Shared list API", "[list]") {
-    scope::LocalizedScope forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{scope::Context::create()};
 
     GIVEN("A list") {
         auto list = ggapi::List::create();

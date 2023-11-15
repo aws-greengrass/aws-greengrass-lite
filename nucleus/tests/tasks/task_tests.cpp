@@ -48,7 +48,7 @@ public:
 };
 
 SCENARIO("Task management", "[tasks]") {
-    scope::LocalizedScope forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{scope::Context::create()};
     auto context = forTesting.context()->context();
     auto &taskManager = context->taskManager();
     tasks::FixedTaskThreadScope threadScope{std::make_shared<tasks::FixedTaskThread>(context)};
@@ -261,7 +261,7 @@ SCENARIO("Task management", "[tasks]") {
 }
 
 SCENARIO("Deferred task management", "[tasks]") {
-    scope::LocalizedScope forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{scope::Context::create()};
     auto context = forTesting.context()->context();
     auto &taskManager = context->taskManager();
     tasks::FixedTaskThreadScope threadScope{std::make_shared<tasks::FixedTimerTaskThread>(context)};

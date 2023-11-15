@@ -7,7 +7,7 @@
 
 namespace scope {
     class Context;
-    class ThreadContext;
+    class PerThreadContext;
 } // namespace scope
 
 namespace tasks {
@@ -22,7 +22,7 @@ namespace tasks {
 
     protected:
         std::weak_ptr<scope::Context> _context;
-        std::weak_ptr<scope::ThreadContext> _threadContext;
+        std::weak_ptr<scope::PerThreadContext> _threadContext;
         std::list<std::shared_ptr<Task>> _tasks;
         std::mutex _mutex;
         std::condition_variable _wake;
@@ -89,11 +89,15 @@ namespace tasks {
             joinImpl();
         }
 
+        void start();
+
         void join() override {
             joinImpl();
         }
 
         void runner();
+        static std::shared_ptr<TaskPoolWorker> create(
+            const std::shared_ptr<scope::Context> &context);
     };
 
     //

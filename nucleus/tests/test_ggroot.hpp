@@ -17,7 +17,7 @@ namespace test {
         }
 
     public:
-        scope::LocalizedScope scope{scope::Context::create()};
+        scope::LocalizedContext scope{scope::Context::create()};
         lifecycle::SysProperties sysProps;
         std::vector<std::string> args;
         lifecycle::Kernel kernel;

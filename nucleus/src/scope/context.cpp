@@ -5,57 +5,62 @@
 
 namespace scope {
 
-    std::shared_ptr<ThreadContext> ThreadContext::get() {
+    std::shared_ptr<PerThreadContext> PerThreadContext::get() {
         auto tc = ThreadContextContainer::perThread().get();
         if(!tc) {
-            tc = std::make_shared<ThreadContext>();
+            tc = std::make_shared<PerThreadContext>();
             ThreadContextContainer::perThread().set(tc);
         }
         return tc;
     }
 
-    std::shared_ptr<ThreadContext> ThreadContext::set() {
+    std::shared_ptr<PerThreadContext> PerThreadContext::set() {
         return ThreadContextContainer::perThread().set(baseRef());
     }
 
-    std::shared_ptr<ThreadContext> ThreadContext::reset() {
+    std::shared_ptr<PerThreadContext> PerThreadContext::reset() {
         return ThreadContextContainer::perThread().set({});
     }
 
     StackScope::StackScope() {
-        auto thread = ThreadContext::get();
-        auto newScope = std::make_shared<ScopedContext>(thread);
+        auto thread = PerThreadContext::get();
+        auto newScope = std::make_shared<NucleusCallScopeContext>(thread);
         _saved = newScope->set();
         _temp = newScope;
     }
 
-    StackScope::~StackScope() {
-        _saved->set();
-    }
-
-    LocalizedScope::LocalizedScope() {
-        auto newScope = std::make_shared<ThreadContext>();
-        _saved = newScope->set();
-        _temp = newScope;
-    }
-
-    LocalizedScope::LocalizedScope(const std::shared_ptr<Context> &context) : LocalizedScope() {
-        _temp->changeContext(context);
-    }
-
-    LocalizedScope::~LocalizedScope() {
-        if(_saved) {
+    void StackScope::release() {
+        if(_temp) {
             _saved->set();
-        } else {
-            scope::ThreadContext::reset();
+            _temp = nullptr;
         }
     }
 
-    ScopedContext::ScopedContext(const std::shared_ptr<ThreadContext> &thread)
+    LocalizedContext::LocalizedContext() {
+        auto newScope = std::make_shared<PerThreadContext>();
+        _saved = newScope->set();
+        _temp = newScope;
+    }
+
+    LocalizedContext::LocalizedContext(const std::shared_ptr<Context> &context)
+        : LocalizedContext() {
+        _temp->changeContext(context);
+    }
+
+    LocalizedContext::~LocalizedContext() {
+        if(_saved) {
+            _saved->set();
+        } else {
+            scope::PerThreadContext::reset();
+        }
+    }
+
+    NucleusCallScopeContext::NucleusCallScopeContext(
+        const std::shared_ptr<PerThreadContext> &thread)
         : _threadContext(thread) {
     }
 
-    std::shared_ptr<ScopedContext> ScopedContext::set() {
+    std::shared_ptr<NucleusCallScopeContext> NucleusCallScopeContext::set() {
         return _threadContext->changeScope(baseRef());
     }
 
@@ -71,7 +76,7 @@ namespace scope {
     }
 
     std::shared_ptr<Context> Context::getPtr() {
-        std::shared_ptr<ThreadContext> threadContext = ThreadContext::get();
+        std::shared_ptr<PerThreadContext> threadContext = PerThreadContext::get();
         if(threadContext) {
             return threadContext->context();
         } else {
@@ -103,7 +108,7 @@ namespace scope {
         return _glob->_loader;
     }
 
-    std::shared_ptr<Context> ThreadContext::context() {
+    std::shared_ptr<Context> PerThreadContext::context() {
         // Thread safe - assume object per thread
         if(!_context) {
             _context = Context::getDefaultContext();
@@ -111,16 +116,16 @@ namespace scope {
         return _context;
     }
 
-    std::shared_ptr<ScopedContext> ThreadContext::rootScoped() {
+    std::shared_ptr<NucleusCallScopeContext> PerThreadContext::rootScoped() {
         // Only one per thread
         auto active = _rootScopedContext;
         if(!active) {
-            _rootScopedContext = active = std::make_shared<ScopedContext>(baseRef());
+            _rootScopedContext = active = std::make_shared<NucleusCallScopeContext>(baseRef());
         }
         return active;
     }
 
-    std::shared_ptr<Context> ThreadContext::changeContext(
+    std::shared_ptr<Context> PerThreadContext::changeContext(
         // For testing
         const std::shared_ptr<Context> &newContext) {
         auto prev = context();
@@ -128,14 +133,14 @@ namespace scope {
         return prev;
     }
 
-    std::shared_ptr<ScopedContext> ThreadContext::changeScope(
-        const std::shared_ptr<ScopedContext> &context) {
+    std::shared_ptr<NucleusCallScopeContext> PerThreadContext::changeScope(
+        const std::shared_ptr<NucleusCallScopeContext> &context) {
         auto prev = scoped();
         _scopedContext = context;
         return prev;
     }
 
-    std::shared_ptr<ScopedContext> ThreadContext::scoped() {
+    std::shared_ptr<NucleusCallScopeContext> PerThreadContext::scoped() {
         // Either explicit, or the per-thread scope
         auto active = _scopedContext;
         if(!active) {
@@ -144,11 +149,11 @@ namespace scope {
         return active;
     }
 
-    std::shared_ptr<Context> ScopedContext::context() {
+    std::shared_ptr<Context> NucleusCallScopeContext::context() {
         return _threadContext->context();
     }
 
-    std::shared_ptr<data::TrackingRoot> ScopedContext::root() {
+    std::shared_ptr<data::TrackingRoot> NucleusCallScopeContext::root() {
         auto active = _scopeRoot;
         if(!active) {
             _scopeRoot = active = std::make_shared<data::TrackingRoot>(context());
@@ -156,41 +161,41 @@ namespace scope {
         return active;
     }
 
-    std::shared_ptr<CallScope> ScopedContext::getCallScope() {
+    std::shared_ptr<CallScope> NucleusCallScopeContext::getCallScope() {
         // Thread safe - assume object per thread
         auto active = _callScope;
         if(!active) {
             if(!_scopeRoot) {
                 _scopeRoot = std::make_shared<data::TrackingRoot>(context());
             }
-            _callScope = active = CallScope::create(context(), _scopeRoot);
+            _callScope = active = CallScope::create(context(), _scopeRoot, baseRef(), {});
         }
         return active;
     }
 
-    std::shared_ptr<CallScope> ThreadContext::newCallScope() {
+    std::shared_ptr<CallScope> PerThreadContext::newCallScope() {
         auto prev = getCallScope();
-        return CallScope::create(_context, prev->root());
+        return CallScope::create(_context, prev->root(), scoped(), prev);
     }
 
-    std::shared_ptr<CallScope> ScopedContext::setCallScope(
+    std::shared_ptr<CallScope> NucleusCallScopeContext::setCallScope(
         const std::shared_ptr<CallScope> &callScope) {
         std::shared_ptr<CallScope> prev = getCallScope();
         _callScope = callScope;
         return prev;
     }
 
-    data::Symbol ThreadContext::setLastError(const data::Symbol &errorSymbol) {
+    data::Symbol PerThreadContext::setLastError(const data::Symbol &errorSymbol) {
         data::Symbol prev = getLastError();
         ::ggapiSetError(errorSymbol.asInt());
         return prev;
     }
 
-    data::Symbol ThreadContext::getLastError() {
+    data::Symbol PerThreadContext::getLastError() {
         return context()->symbolFromInt(::ggapiGetError());
     }
 
-    std::shared_ptr<tasks::TaskThread> ThreadContext::getThreadContext() {
+    std::shared_ptr<tasks::TaskThread> PerThreadContext::getThreadContext() {
         auto active = _threadContext;
         if(!active) {
             // Auto-assign a thread context
@@ -199,14 +204,14 @@ namespace scope {
         return active;
     }
 
-    std::shared_ptr<tasks::TaskThread> ThreadContext::setThreadContext(
+    std::shared_ptr<tasks::TaskThread> PerThreadContext::setThreadContext(
         const std::shared_ptr<tasks::TaskThread> &threadContext) {
         auto prev = _threadContext;
         _threadContext = threadContext;
         return prev;
     }
 
-    std::shared_ptr<tasks::Task> ThreadContext::getActiveTask() {
+    std::shared_ptr<tasks::Task> PerThreadContext::getActiveTask() {
         std::shared_ptr<tasks::Task> active = _activeTask;
         if(!active) {
             // Auto-assign a default task, anchored to local context
@@ -218,14 +223,14 @@ namespace scope {
         return active;
     }
 
-    std::shared_ptr<tasks::Task> ThreadContext::setActiveTask(
+    std::shared_ptr<tasks::Task> PerThreadContext::setActiveTask(
         const std::shared_ptr<tasks::Task> &task) {
         auto prev = _activeTask;
         _activeTask = task;
         return prev;
     }
 
-    ScopedContext::~ScopedContext() {
+    NucleusCallScopeContext::~NucleusCallScopeContext() {
         ::ggapiSetError(0);
     }
 

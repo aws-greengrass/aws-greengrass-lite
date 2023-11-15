@@ -4,7 +4,7 @@
 // NOLINTBEGIN
 
 scope::Context *pAltCtx = nullptr;
-scope::ThreadContext *pAltThreadCtx = nullptr;
+scope::PerThreadContext *pAltThreadCtx = nullptr;
 void altThread() {
     pAltCtx = &scope::context();
     pAltThreadCtx = &scope::thread();
@@ -19,22 +19,26 @@ void altThread2(std::shared_ptr<scope::Context> other) {
 SCENARIO("Context behavior", "[context]") {
     GIVEN("No override of context") {
         WHEN("Default context is accessed") {
+            auto pContext1 = scope::Context::getPtr(); // smart-pointer
             auto &context1 = scope::context();
             auto &context2 = scope::context();
             THEN("Context is not null") {
-                REQUIRE(&context1 != nullptr);
+                REQUIRE(pContext1.get() != nullptr);
             }
             THEN("Contexts are returned consistently") {
+                REQUIRE(&context1 == pContext1.get());
                 REQUIRE(&context1 == &context2);
             }
         }
         WHEN("Per thread context is accessed in main thread") {
+            auto pThreadCtx1 = scope::PerThreadContext::get(); // smart-pointer
             auto &threadCtx1 = scope::thread();
             auto &threadCtx2 = scope::thread();
             THEN("Context is not null") {
-                REQUIRE(&threadCtx1 != nullptr);
+                REQUIRE(pThreadCtx1 != nullptr);
             }
             THEN("Contexts are returned consistently") {
+                REQUIRE(&threadCtx1 == pThreadCtx1.get());
                 REQUIRE(&threadCtx1 == &threadCtx2);
             }
         }
@@ -60,13 +64,15 @@ SCENARIO("Context behavior", "[context]") {
     GIVEN("Context is overridden for testing") {
         auto &defContext = scope::context();
         auto &defThreadCtx = scope::thread();
-        scope::LocalizedScope forTesting{scope::Context::create()};
+        scope::LocalizedContext forTesting{scope::Context::create()};
         WHEN("Contexts are accessed") {
+            auto pContext2 = scope::Context::getPtr(); // smart-pointer
+            auto pThreadCtx2 = scope::PerThreadContext::get(); // smart-pointer
             auto &context2 = scope::context();
             auto &threadCtx2 = scope::thread();
             THEN("New contexts are not null") {
-                REQUIRE(&context2 != nullptr);
-                REQUIRE(&threadCtx2 != nullptr);
+                REQUIRE(pContext2.get() != nullptr);
+                REQUIRE(pThreadCtx2.get() != nullptr);
             }
             THEN("New contexts are unique") {
                 REQUIRE(&context2 != &defContext);

@@ -80,7 +80,7 @@ void threadFn() {
     std::cerr << "[example-mqtt-sender] Started thread" << std::endl;
 
     while(true) {
-        ggapi::CallScope iterScope = ggapi::CallScope::newCallScope(); // localize all structures
+        ggapi::CallScope iterScope; // localize all structures
         auto request{ggapi::Struct::create()};
         request.put(keys.topicName, "hello");
         request.put(keys.qos, 1);

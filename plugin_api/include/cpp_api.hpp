@@ -351,47 +351,45 @@ namespace ggapi {
         }
 
         [[nodiscard]] ModuleScope registerPlugin(
-            StringOrd componentName, lifecycleCallback_t callback
-        );
+            StringOrd componentName, lifecycleCallback_t callback);
     };
 
-    //
-    // Temporary (stack-local) scope, that is default scope for objects.
-    //
+    /**
+     * Temporary (stack-local) scope, that is default scope for objects.
+     */
     class CallScope : public Scope {
-        bool _autoRelease{false};
 
     public:
-        explicit CallScope(uint32_t handle) : Scope{handle} {
+        /**
+         * Use only in stack context, push and create a stack-local call scope
+         * that is popped when object is destroyed.
+         */
+        explicit CallScope() : Scope() {
+            _handle = callApiReturn<uint32_t>([]() { return ::ggapiCreateCallScope(); });
         }
 
-        CallScope() = default;
         CallScope(const CallScope &) = delete;
         CallScope &operator=(const CallScope &) = delete;
-        CallScope(CallScope &&) noexcept = default;
-        CallScope &operator=(CallScope &&) noexcept = default;
+        CallScope(CallScope &&) noexcept = delete;
+        CallScope &operator=(CallScope &&) noexcept = delete;
 
-        ~CallScope() noexcept {
-            if(_autoRelease && *this) {
+        void release() noexcept {
+            if(_handle) {
                 ::ggapiReleaseHandle(_handle); // do not (re)throw exception
+                _handle = 0;
             }
         }
 
-        CallScope &autoRelease(bool f = true) {
-            _autoRelease = f;
-            return *this;
+        ~CallScope() noexcept {
+            release();
         }
 
-        static CallScope newCallScope() {
-            auto s = callApiReturnHandle<CallScope>([]() { return ::ggapiCreateCallScope(); });
-            s._autoRelease = true;
-            return s;
+        static Scope newCallScope() {
+            return callApiReturnHandle<Scope>([]() { return ::ggapiCreateCallScope(); });
         }
 
-        static CallScope current() {
-            // peeks into current call scope. Wrapping in CallScope would be an error
-            // as it would cause scope to get deleted.
-            return callApiReturnHandle<CallScope>([]() { return ::ggapiGetCurrentCallScope(); });
+        static Scope current() {
+            return callApiReturnHandle<Scope>([]() { return ::ggapiGetCurrentCallScope(); });
         }
     };
 

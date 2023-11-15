@@ -40,7 +40,7 @@ namespace data {
 
         ObjectAnchor toAnchor() const;
 
-        template<typename T>
+        template<typename T = data::TrackedObject>
         std::shared_ptr<T> toObject() const;
     };
 
@@ -145,7 +145,7 @@ namespace data {
         void release();
     };
 
-    template<typename T = data::TrackedObject>
+    template<typename T>
     std::shared_ptr<T> ObjHandle::toObject() const {
         if(*this) {
             return toAnchor().getObject<T>();

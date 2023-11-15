@@ -38,21 +38,21 @@ size_t ggapiGetOrdinalStringLen(uint32_t symbolInt) noexcept {
 
 uint32_t ggapiCreateStruct() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() {
-        auto anchor = scope::ScopedContext::make<SharedStruct>();
+        auto anchor = scope::NucleusCallScopeContext::make<SharedStruct>();
         return anchor.asIntHandle();
     });
 }
 
 uint32_t ggapiCreateList() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() {
-        auto anchor = scope::ScopedContext::make<SharedList>();
+        auto anchor = scope::NucleusCallScopeContext::make<SharedList>();
         return anchor.asIntHandle();
     });
 }
 
 uint32_t ggapiCreateBuffer() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() {
-        auto anchor = scope::ScopedContext::make<SharedBuffer>();
+        auto anchor = scope::NucleusCallScopeContext::make<SharedBuffer>();
         return anchor.asIntHandle();
     });
 }
@@ -395,7 +395,7 @@ uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t keyInt) noexcept {
         auto ss{context.objFromInt<StructModelBase>(structHandle)};
         Symbol key = context.symbolFromInt(keyInt);
         auto v = ss->get(key).getObject();
-        return scope::ScopedContext::intHandle(v);
+        return scope::NucleusCallScopeContext::intHandle(v);
     });
 }
 
@@ -404,7 +404,7 @@ uint32_t ggapiListGetHandle(uint32_t listHandle, int32_t idx) noexcept {
         auto &context = scope::Context::get();
         auto ss{context.objFromInt<ListModelBase>(listHandle)};
         auto v = ss->get(idx).getObject();
-        return scope::ScopedContext::intHandle(v);
+        return scope::NucleusCallScopeContext::intHandle(v);
     });
 }
 

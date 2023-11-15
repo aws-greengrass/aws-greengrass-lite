@@ -91,7 +91,7 @@ static inline data::ObjHandle pubSubQueueAndWaitCommon(
     scope::context().taskManager().queueTask(taskObj);
     if(taskObj->wait()) {
         // Return data needs to be anchored
-        return scope::ScopedContext::anchor(taskObj->getData()).getHandle();
+        return scope::NucleusCallScopeContext::anchor(taskObj->getData()).getHandle();
     } else {
         return {};
     }

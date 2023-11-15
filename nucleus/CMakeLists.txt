@@ -125,8 +125,9 @@ add_executable(nucleus-tests
         tests/lifecycle/kernel_tests.cpp
         tests/pubsub/pubsub_tests.cpp
         tests/scope/context_tests.cpp
+        tests/scope/scope_tests.cpp
         tests/tasks/task_tests.cpp
-)
+        )
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
         PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)

@@ -16,7 +16,7 @@ namespace tasks {
     }
 
     void TaskThread::bindThreadContext() {
-        auto tc = scope::ThreadContext::get();
+        auto tc = scope::PerThreadContext::get();
         _threadContext = tc;
         tc->changeContext(_context.lock());
         tc->setThreadContext(baseRef());
@@ -31,11 +31,23 @@ namespace tasks {
 
     TaskPoolWorker::TaskPoolWorker(const std::shared_ptr<scope::Context> &context)
         : TaskThread(context) {
+    }
+
+    std::shared_ptr<TaskPoolWorker> TaskPoolWorker::create(
+        const std::shared_ptr<scope::Context> &context) {
+
+        std::shared_ptr<TaskPoolWorker> worker{std::make_shared<TaskPoolWorker>(context)};
+        worker->start();
+        return worker;
+    }
+
+    void TaskPoolWorker::start() {
+        // Do not call in constructor, see notes in runner()
         _thread = std::thread(&TaskPoolWorker::runner, this);
     }
 
     void TaskPoolWorker::runner() {
-        bindThreadContext();
+        bindThreadContext(); // TaskPoolWorker must be fully initialized before this
         while(!isShutdown()) {
             std::shared_ptr<Task> task = pickupTask();
             if(task) {
@@ -116,7 +128,7 @@ namespace tasks {
     }
 
     std::shared_ptr<Task> TaskThread::getActiveTask() const {
-        std::shared_ptr<scope::ThreadContext> tc = _threadContext.lock();
+        std::shared_ptr<scope::PerThreadContext> tc = _threadContext.lock();
         if(tc) {
             return tc->getActiveTask();
         } else {
@@ -125,7 +137,7 @@ namespace tasks {
     }
 
     void TaskThread::unbindThreadContext() {
-        std::shared_ptr<scope::ThreadContext> tc = _threadContext.lock();
+        std::shared_ptr<scope::PerThreadContext> tc = _threadContext.lock();
         if(!tc) {
             return;
         }

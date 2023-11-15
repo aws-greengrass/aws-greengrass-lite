@@ -79,8 +79,7 @@ namespace tasks {
             // allocate a new worker - it will be tasked with picking up next task
             // TODO: add some kind of knowledge of workers starting
             // code as is can cause a scramble
-            std::shared_ptr<TaskPoolWorker> worker{
-                std::make_shared<TaskPoolWorker>(_context.lock())};
+            std::shared_ptr<TaskPoolWorker> worker = TaskPoolWorker::create(_context.lock());
             _busyWorkers.push_back(worker);
             worker->waken();
             return true;

@@ -29,24 +29,25 @@ namespace tasks {
 namespace scope {
     class Context;
     class ContextGlob;
-    class ThreadContext;
-    class ScopedContext;
+    class ThreadContextContainer;
+    class PerThreadContext;
+    class NucleusCallScopeContext;
     class CallScope;
 
-    //
-    // Subset of per-thread context. Used to allow Nucleus stack-local settings to override
-    // plugin stack-local settings
-    //
-    class ScopedContext : public util::RefObject<ScopedContext> {
+    /**
+     * Track a call scope managed by Nucleus - this provides call framing for handle roots
+     * that are considered more authoritative than CallScope's.
+     */
+    class NucleusCallScopeContext : public util::RefObject<NucleusCallScopeContext> {
     public:
-        explicit ScopedContext(const std::shared_ptr<ThreadContext> &thread);
-        ScopedContext(const ScopedContext &) = delete;
-        ScopedContext(ScopedContext &&) = delete;
-        ScopedContext &operator=(const ScopedContext &) = delete;
-        ScopedContext &operator=(ScopedContext &&) = delete;
-        ~ScopedContext();
+        explicit NucleusCallScopeContext(const std::shared_ptr<PerThreadContext> &thread);
+        NucleusCallScopeContext(const NucleusCallScopeContext &) = delete;
+        NucleusCallScopeContext(NucleusCallScopeContext &&) = delete;
+        NucleusCallScopeContext &operator=(const NucleusCallScopeContext &) = delete;
+        NucleusCallScopeContext &operator=(NucleusCallScopeContext &&) = delete;
+        ~NucleusCallScopeContext();
 
-        std::shared_ptr<ScopedContext> set();
+        std::shared_ptr<NucleusCallScopeContext> set();
         std::shared_ptr<CallScope> getCallScope();
         std::shared_ptr<CallScope> setCallScope(const std::shared_ptr<CallScope> &callScope);
         std::shared_ptr<data::TrackingRoot> root();
@@ -64,17 +65,18 @@ namespace scope {
         }
 
     private:
-        std::shared_ptr<ThreadContext> _threadContext;
+        std::shared_ptr<PerThreadContext> _threadContext;
         std::shared_ptr<CallScope> _callScope;
         std::shared_ptr<data::TrackingRoot> _scopeRoot;
     };
 
-    //
-    // Utility class for managing stack-local scope
-    //
+    /**
+     * Utility class for managing stack-local scope, on Nucleus. Similar functionality to
+     * GGAPI CallScope.
+     */
     class StackScope {
-        std::shared_ptr<ScopedContext> _saved;
-        std::shared_ptr<ScopedContext> _temp;
+        std::shared_ptr<NucleusCallScopeContext> _saved;
+        std::shared_ptr<NucleusCallScopeContext> _temp;
 
     public:
         StackScope();
@@ -82,24 +84,30 @@ namespace scope {
         StackScope(StackScope &&) = default;
         StackScope &operator=(const StackScope &) = default;
         StackScope &operator=(StackScope &&) = default;
-        ~StackScope();
+        ~StackScope() {
+            release();
+        }
+        void release();
 
-        std::shared_ptr<CallScope> call() {
+        std::shared_ptr<CallScope> getCallScope() {
+            if(!_temp) {
+                return {};
+            }
             return _temp->getCallScope();
         }
     };
 
-    //
-    // Thread-Local storage has a weird behavior (bug) in the combination of Windows/MingGW/GCC
-    // where the memory is lost before destructor is called. This complex workaround allows
-    // Storing a pointer per thread efficiently while also having correct delete behavior
-    // Note, even std::weak_ptr does not work correctly here. Essentially each thread data is
-    // stored via a map, and ThreadContextContainer is a cache.
-    //
-    class ThreadContextContainer;
+    /**
+     * Helper class to support thread local data addressing issues on some compiler/OS mixes.
+     * Thread-Local storage has a weird behavior (bug) in the combination of Windows/MingGW/GCC
+     * where the memory is lost before destructor is called. This complex workaround allows
+     * Storing a pointer per thread efficiently while also having correct delete behavior
+     * Note, even std::weak_ptr does not work correctly here. Essentially each thread data is
+     * stored via a map, and ThreadContextContainer is a cache.
+     */
     // NOLINTNEXTLINE(*-special-member-functions)
     class ThreadContextManager {
-        using Ptr = std::shared_ptr<ThreadContext>;
+        using Ptr = std::shared_ptr<PerThreadContext>;
         std::mutex _globalMutex;
         using Map = std::unordered_map<ThreadContextContainer *, std::unique_ptr<Ptr>>;
         Map _contextMap;
@@ -148,8 +156,12 @@ namespace scope {
         }
     };
 
+    /**
+     * Helper class to support thread local data addressing issues on some compiler/OS mixes.
+     * Used with ThreadContextManager.
+     */
     class ThreadContextContainer {
-        using Ptr = std::shared_ptr<ThreadContext>;
+        using Ptr = std::shared_ptr<PerThreadContext>;
         scope::FixedPtr<Ptr> _cachedIndirect;
 
     public:
@@ -172,37 +184,38 @@ namespace scope {
             return _current;
         }
 
-        std::shared_ptr<ThreadContext> get() {
+        std::shared_ptr<PerThreadContext> get() {
             return *_cachedIndirect;
         }
 
-        std::shared_ptr<ThreadContext> set(const std::shared_ptr<ThreadContext> &context) {
+        std::shared_ptr<PerThreadContext> set(const std::shared_ptr<PerThreadContext> &context) {
             auto prev = get();
             (*_cachedIndirect) = context;
             return prev;
         }
     };
 
-    //
-    // Per-thread context.
-    //
-    class ThreadContext : public util::RefObject<ThreadContext> {
+    /**
+     * Per-thread context such as call scopes and also context overrides.
+     */
+    class PerThreadContext : public util::RefObject<PerThreadContext> {
     public:
-        ThreadContext() = default;
-        ThreadContext(const ThreadContext &) = delete;
-        ThreadContext(ThreadContext &&) = delete;
-        ThreadContext &operator=(const ThreadContext &) = delete;
-        ThreadContext &operator=(ThreadContext &&) = delete;
-        ~ThreadContext() = default;
+        PerThreadContext() = default;
+        PerThreadContext(const PerThreadContext &) = delete;
+        PerThreadContext(PerThreadContext &&) = delete;
+        PerThreadContext &operator=(const PerThreadContext &) = delete;
+        PerThreadContext &operator=(PerThreadContext &&) = delete;
+        ~PerThreadContext() = default;
 
-        std::shared_ptr<ThreadContext> set();
-        static std::shared_ptr<ThreadContext> get();
-        static std::shared_ptr<ThreadContext> reset();
+        std::shared_ptr<PerThreadContext> set();
+        static std::shared_ptr<PerThreadContext> get();
+        static std::shared_ptr<PerThreadContext> reset();
         std::shared_ptr<Context> context();
         std::shared_ptr<Context> changeContext(const std::shared_ptr<Context> &newContext);
-        std::shared_ptr<ScopedContext> scoped();
-        std::shared_ptr<ScopedContext> rootScoped();
-        std::shared_ptr<ScopedContext> changeScope(const std::shared_ptr<ScopedContext> &newScope);
+        std::shared_ptr<NucleusCallScopeContext> scoped();
+        std::shared_ptr<NucleusCallScopeContext> rootScoped();
+        std::shared_ptr<NucleusCallScopeContext> changeScope(
+            const std::shared_ptr<NucleusCallScopeContext> &newScope);
         std::shared_ptr<CallScope> newCallScope();
         std::shared_ptr<CallScope> getCallScope() {
             return scoped()->getCallScope();
@@ -220,33 +233,38 @@ namespace scope {
 
     private:
         std::shared_ptr<Context> _context;
-        std::shared_ptr<ScopedContext> _scopedContext;
-        std::shared_ptr<ScopedContext> _rootScopedContext;
+        std::shared_ptr<NucleusCallScopeContext> _scopedContext;
+        std::shared_ptr<NucleusCallScopeContext> _rootScopedContext;
         std::shared_ptr<tasks::TaskThread> _threadContext;
         std::shared_ptr<tasks::Task> _activeTask;
     };
 
-    //
-    // Utility class used during testing to manage localized per-thread contexts
-    //
-    class LocalizedScope {
-        std::shared_ptr<ThreadContext> _saved;
-        std::shared_ptr<ThreadContext> _temp;
+    /**
+     * Localized context, particularly useful for testing.
+     */
+    class LocalizedContext {
+        std::shared_ptr<PerThreadContext> _saved;
+        std::shared_ptr<PerThreadContext> _temp;
 
     public:
-        LocalizedScope();
-        explicit LocalizedScope(const std::shared_ptr<Context> &context);
-        LocalizedScope(const LocalizedScope &) = default;
-        LocalizedScope(LocalizedScope &&) = default;
-        LocalizedScope &operator=(const LocalizedScope &) = default;
-        LocalizedScope &operator=(LocalizedScope &&) = default;
-        ~LocalizedScope();
+        LocalizedContext();
+        explicit LocalizedContext(const std::shared_ptr<Context> &context);
+        LocalizedContext(const LocalizedContext &) = default;
+        LocalizedContext(LocalizedContext &&) = default;
+        LocalizedContext &operator=(const LocalizedContext &) = default;
+        LocalizedContext &operator=(LocalizedContext &&) = default;
+        ~LocalizedContext();
 
-        std::shared_ptr<ThreadContext> context() {
+        std::shared_ptr<PerThreadContext> context() {
             return _temp;
         }
     };
 
+    /**
+     * GG-Interop: Context name matches similar functionality in GG-Java
+     * This context provides access to global tables and config. Note that when testing, it
+     * is possible to localize the context to aid test scenarios.
+     */
     class Context : public util::RefObject<Context> {
 
     public:
@@ -262,8 +280,8 @@ namespace scope {
             return *getPtr();
         }
 
-        static ThreadContext &thread() {
-            return *ThreadContext::get();
+        static PerThreadContext &thread() {
+            return *PerThreadContext::get();
         }
 
         static std::shared_ptr<Context> getPtr();
@@ -303,22 +321,22 @@ namespace scope {
     };
 
     template<typename T>
-    inline data::ObjectAnchor ScopedContext::make() {
+    inline data::ObjectAnchor NucleusCallScopeContext::make() {
         static_assert(std::is_base_of_v<data::TrackedObject, T>);
         std::shared_ptr<data::TrackedObject> obj = std::make_shared<T>(Context::getPtr());
         return anchor(obj);
     }
 
-    inline data::ObjectAnchor ScopedContext::anchor(
+    inline data::ObjectAnchor NucleusCallScopeContext::anchor(
         const std::shared_ptr<data::TrackedObject> &obj) {
-        return ThreadContext::get()->scoped()->root()->anchor(obj);
+        return PerThreadContext::get()->scoped()->root()->anchor(obj);
     }
 
     inline Context &context() {
         return Context::get();
     }
 
-    inline ThreadContext &thread() {
+    inline PerThreadContext &thread() {
         return Context::thread();
     }
 
