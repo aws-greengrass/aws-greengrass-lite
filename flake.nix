@@ -42,6 +42,7 @@
           fd
           git
           git-secrets
+          (python3.withPackages (ps: with ps; [ yapf python-lsp-server ]))
         ];
 
         withDevShellPkgs = drv: drv.overrideAttrs (old: {
@@ -88,6 +89,7 @@
                    cmake-format -c ${./.cmake-format.yml} -i "$1";;
                 *.nix) nixpkgs-fmt "$1";;
                 *.md | *.json | *.yml) prettier --write "$1";;
+                *.py) yapf -i "$1";;
               esac &>/dev/null
             '';
           in
