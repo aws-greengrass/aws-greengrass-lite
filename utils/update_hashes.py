@@ -11,6 +11,7 @@ import pathlib
 
 
 class narWriter:
+
     def __init__(self, write):
         self._write = write
 

@@ -13,9 +13,9 @@ jobs:
       fail-fast: false
 
       matrix:
-        os: [ ubuntu-20.04, windows-latest, macos-latest ]
-        build_type: [ Debug ]
-        cpp_compiler: [ g++, clang++, cl ]
+        os: [ubuntu-20.04, windows-latest, macos-latest]
+        build_type: [Debug]
+        cpp_compiler: [g++, clang++, cl]
         exclude:
           - os: windows-latest
             cpp_compiler: clang++
@@ -34,18 +34,20 @@ jobs:
         id: strings
         shell: bash
         run: >
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+          echo "build-output-dir=${{ github.workspace }}/build" >>
+          "$GITHUB_OUTPUT"
 
       - name: Configure CMake
         run: >
           cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
-          -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-          -DCMAKE_CXX_FLAGS='-coverage'
-          -S ${{ github.workspace }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} -DCMAKE_BUILD_TYPE=${{
+          matrix.build_type }} -DCMAKE_CXX_FLAGS='-coverage' -S ${{
+          github.workspace }}
 
       - name: Build
-        run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+        run:
+          cmake --build ${{ steps.strings.outputs.build-output-dir }} --config
+          ${{ matrix.build_type }}
 
       - name: Run Tests
         working-directory: ${{ steps.strings.outputs.build-output-dir }}

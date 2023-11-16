@@ -40,11 +40,15 @@ namespace ggapi {
     typedef Struct (*topicCallback_t)(Task, StringOrd, Struct);
     typedef void (*lifecycleCallback_t)(ModuleScope, StringOrd, Struct);
     uint32_t topicCallbackProxy(
-        uintptr_t callbackContext, uint32_t taskHandle, uint32_t topicOrd, uint32_t dataStruct
-    ) noexcept;
+        uintptr_t callbackContext,
+        uint32_t taskHandle,
+        uint32_t topicOrd,
+        uint32_t dataStruct) noexcept;
     bool lifecycleCallbackProxy(
-        uintptr_t callbackContext, uint32_t moduleHandle, uint32_t phaseOrd, uint32_t dataStruct
-    ) noexcept;
+        uintptr_t callbackContext,
+        uint32_t moduleHandle,
+        uint32_t phaseOrd,
+        uint32_t dataStruct) noexcept;
     template<typename T>
     T trapErrorReturn(const std::function<T()> &fn) noexcept;
     uint32_t trapErrorReturnHandle(const std::function<ObjHandle()> &fn) noexcept;
@@ -58,8 +62,7 @@ namespace ggapi {
 
     // Helper functions for consistent string copy pattern
     inline std::string stringFillHelper(
-        size_t strLen, const std::function<size_t(char *, size_t)> &stringFillFn
-    ) {
+        size_t strLen, const std::function<size_t(char *, size_t)> &stringFillFn) {
         if(strLen == 0) {
             return {};
         }
@@ -126,9 +129,8 @@ namespace ggapi {
             auto len =
                 callApiReturn<size_t>([*this]() { return ::ggapiGetOrdinalStringLen(_ord); });
             return stringFillHelper(len, [*this](auto buf, auto bufLen) {
-                return callApiReturn<size_t>([*this, &buf, bufLen]() {
-                    return ::ggapiGetOrdinalString(_ord, buf, bufLen);
-                });
+                return callApiReturn<size_t>(
+                    [*this, &buf, bufLen]() { return ::ggapiGetOrdinalString(_ord, buf, bufLen); });
             });
         }
     };
@@ -230,8 +232,7 @@ namespace ggapi {
         // Create an asynchronous LPC call - returning the Task handle for the call.
         //
         [[nodiscard]] static Task sendToTopicAsync(
-            StringOrd topic, Struct message, topicCallback_t result, int32_t timeout = -1
-        );
+            StringOrd topic, Struct message, topicCallback_t result, int32_t timeout = -1);
 
         //
         // Create a synchronous LPC call - a task handle is created, and observable by subscribers
@@ -239,8 +240,7 @@ namespace ggapi {
         // the same (callers) thread, however this must not be assumed.
         //
         [[nodiscard]] static Struct sendToTopic(
-            StringOrd topic, Struct message, int32_t timeout = -1
-        );
+            StringOrd topic, Struct message, int32_t timeout = -1);
 
         //
         // Block until task completes including final callback if there is one.
@@ -281,8 +281,8 @@ namespace ggapi {
         //
         // Send a message to this specific subscription. Return immediately.
         //
-        [[nodiscard]] Task callAsync(Struct message, topicCallback_t result, int32_t timeout = -1)
-            const;
+        [[nodiscard]] Task callAsync(
+            Struct message, topicCallback_t result, int32_t timeout = -1) const;
 
         //
         // Send a message to this specific subscription. If possible, run in same thread.
@@ -453,8 +453,8 @@ namespace ggapi {
                 callApi([*this, ord, v]() { ::ggapiStructPutBool(_handle, ord.toOrd(), v); });
             } else if constexpr(std::is_integral_v<T>) {
                 auto intv = static_cast<uint64_t>(v);
-                callApi([*this, ord, intv]() { ::ggapiStructPutInt64(_handle, ord.toOrd(), intv); }
-                );
+                callApi(
+                    [*this, ord, intv]() { ::ggapiStructPutInt64(_handle, ord.toOrd(), intv); });
             } else if constexpr(std::is_floating_point_v<T>) {
                 auto floatv = static_cast<double>(v);
                 callApi([*this, ord, floatv]() {
@@ -494,41 +494,35 @@ namespace ggapi {
 
         [[nodiscard]] bool hasKey(StringOrd ord) const {
             required();
-            return callApiReturn<bool>([*this, ord]() {
-                return ::ggapiStructHasKey(_handle, ord.toOrd());
-            });
+            return callApiReturn<bool>(
+                [*this, ord]() { return ::ggapiStructHasKey(_handle, ord.toOrd()); });
         }
 
         template<typename T>
         T get(StringOrd ord) {
             required();
             if constexpr(std::is_same_v<bool, T>) {
-                return callApiReturn<bool>([*this, ord]() {
-                    return ::ggapiStructGetBool(_handle, ord.toOrd());
-                });
+                return callApiReturn<bool>(
+                    [*this, ord]() { return ::ggapiStructGetBool(_handle, ord.toOrd()); });
             } else if constexpr(std::is_integral_v<T>) {
-                auto intv = callApiReturn<uint64_t>([*this, ord]() {
-                    return ::ggapiStructGetInt64(_handle, ord.toOrd());
-                });
+                auto intv = callApiReturn<uint64_t>(
+                    [*this, ord]() { return ::ggapiStructGetInt64(_handle, ord.toOrd()); });
                 return static_cast<T>(intv);
             } else if constexpr(std::is_floating_point_v<T>) {
-                auto floatv = callApiReturn<double>([*this, ord]() {
-                    return ::ggapiStructGetFloat64(_handle, ord.toOrd());
-                });
+                auto floatv = callApiReturn<double>(
+                    [*this, ord]() { return ::ggapiStructGetFloat64(_handle, ord.toOrd()); });
                 return static_cast<T>(floatv);
             } else if constexpr(std::is_base_of_v<std::string, T>) {
-                size_t len = callApiReturn<size_t>([*this, ord]() {
-                    return ::ggapiStructGetStringLen(_handle, ord.toOrd());
-                });
+                size_t len = callApiReturn<size_t>(
+                    [*this, ord]() { return ::ggapiStructGetStringLen(_handle, ord.toOrd()); });
                 return stringFillHelper(len, [*this, ord](auto buf, auto bufLen) {
                     return callApiReturn<size_t>([*this, ord, &buf, bufLen]() {
                         return ::ggapiStructGetString(_handle, ord.toOrd(), buf, bufLen);
                     });
                 });
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                return callApiReturnHandle<T>([*this, ord]() {
-                    return ::ggapiStructGetHandle(_handle, ord.toOrd());
-                });
+                return callApiReturnHandle<T>(
+                    [*this, ord]() { return ::ggapiStructGetHandle(_handle, ord.toOrd()); });
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
@@ -587,8 +581,8 @@ namespace ggapi {
                     ::ggapiListPutString(_handle, idx, str.data(), str.length());
                 });
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                callApi([*this, idx, &v]() { ::ggapiListPutHandle(_handle, idx, v.getHandleId()); }
-                );
+                callApi(
+                    [*this, idx, &v]() { ::ggapiListPutHandle(_handle, idx, v.getHandleId()); });
             } else if constexpr(std::is_same_v<Value, T>) {
                 std::visit([this, idx](auto &&value) { put(idx, value); }, v);
             } else {
@@ -616,9 +610,8 @@ namespace ggapi {
                     ::ggapiListInsertString(_handle, idx, str.data(), str.length());
                 });
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                callApi([*this, idx, &v]() {
-                    ::ggapiListInsertHandle(_handle, idx, v.getHandleId());
-                });
+                callApi(
+                    [*this, idx, &v]() { ::ggapiListInsertHandle(_handle, idx, v.getHandleId()); });
             } else if constexpr(std::is_same_v<Value, T>) {
                 std::visit([this, idx](auto &&value) { insert(idx, value); }, v);
             } else {
@@ -645,32 +638,27 @@ namespace ggapi {
         T get(int32_t idx) {
             required();
             if constexpr(std::is_same_v<bool, T>) {
-                return callApiReturn<bool>([*this, idx]() {
-                    return ::ggapiListGetBool(_handle, idx);
-                });
+                return callApiReturn<bool>(
+                    [*this, idx]() { return ::ggapiListGetBool(_handle, idx); });
             } else if constexpr(std::is_integral_v<T>) {
-                auto intv = callApiReturn<uint64_t>([*this, idx]() {
-                    return ::ggapiListGetInt64(_handle, idx);
-                });
+                auto intv = callApiReturn<uint64_t>(
+                    [*this, idx]() { return ::ggapiListGetInt64(_handle, idx); });
                 return static_cast<T>(intv);
             } else if constexpr(std::is_floating_point_v<T>) {
-                auto floatv = callApiReturn<double>([*this, idx]() {
-                    return ::ggapiListGetFloat64(_handle, idx);
-                });
+                auto floatv = callApiReturn<double>(
+                    [*this, idx]() { return ::ggapiListGetFloat64(_handle, idx); });
                 return static_cast<T>(floatv);
             } else if constexpr(std::is_base_of_v<std::string, T>) {
-                size_t len = callApiReturn<size_t>([*this, idx]() {
-                    return ::ggapiListGetStringLen(_handle, idx);
-                });
+                size_t len = callApiReturn<size_t>(
+                    [*this, idx]() { return ::ggapiListGetStringLen(_handle, idx); });
                 return stringFillHelper(len, [*this, idx](auto buf, auto bufLen) {
                     return callApiReturn<size_t>([*this, idx, &buf, bufLen]() {
                         return ::ggapiListGetString(_handle, idx, buf, bufLen);
                     });
                 });
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                return callApiReturnHandle<T>([*this, idx]() {
-                    return ::ggapiListGetHandle(_handle, idx);
-                });
+                return callApiReturnHandle<T>(
+                    [*this, idx]() { return ::ggapiListGetHandle(_handle, idx); });
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
@@ -918,17 +906,17 @@ namespace ggapi {
             off_type newPos;
 
             switch(seekdir) {
-            case std::ios_base::beg:
-                newPos = pos;
-                break;
-            case std::ios_base::end:
-                newPos = end + pos;
-                break;
-            case std::ios_base::cur:
-                newPos = cur + pos;
-                break;
-            default:
-                throw std::invalid_argument("Seekdir is invalid");
+                case std::ios_base::beg:
+                    newPos = pos;
+                    break;
+                case std::ios_base::end:
+                    newPos = end + pos;
+                    break;
+                case std::ios_base::cur:
+                    newPos = cur + pos;
+                    break;
+                default:
+                    throw std::invalid_argument("Seekdir is invalid");
             }
             if(newPos < 0) {
                 newPos = 0;
@@ -941,8 +929,9 @@ namespace ggapi {
 
     protected:
         pos_type seekoff(
-            off_type pos, std::ios_base::seekdir seekdir, std::ios_base::openmode openmode
-        ) override {
+            off_type pos,
+            std::ios_base::seekdir seekdir,
+            std::ios_base::openmode openmode) override {
             bool _seekIn = (openmode & std::ios_base::in) != 0;
             bool _seekOut = (openmode & std::ios_base::out) != 0;
             if(_seekIn && _seekOut) {
@@ -1075,9 +1064,8 @@ namespace ggapi {
     inline T Scope::anchor(T otherHandle) const {
         required();
         static_assert(std::is_base_of_v<ObjHandle, T>);
-        return callApiReturnHandle<T>([this, otherHandle]() {
-            return ::ggapiAnchorHandle(getHandleId(), otherHandle);
-        });
+        return callApiReturnHandle<T>(
+            [this, otherHandle]() { return ::ggapiAnchorHandle(getHandleId(), otherHandle); });
     }
 
     inline Subscription Scope::subscribeToTopic(StringOrd topic, topicCallback_t callback) {
@@ -1097,16 +1085,14 @@ namespace ggapi {
     }
 
     inline Task Task::sendToTopicAsync(
-        StringOrd topic, Struct message, topicCallback_t result, int32_t timeout
-    ) {
+        StringOrd topic, Struct message, topicCallback_t result, int32_t timeout) {
         return callApiReturnHandle<Task>([topic, message, result, timeout]() {
             return ::ggapiSendToTopicAsync(
                 topic.toOrd(),
                 message.getHandleId(),
                 topicCallbackProxy,
                 reinterpret_cast<uintptr_t>(result), // NOLINT(*-reinterpret-cast)
-                timeout
-            );
+                timeout);
         });
     }
 
@@ -1116,8 +1102,8 @@ namespace ggapi {
         });
     }
 
-    inline Task Subscription::callAsync(Struct message, topicCallback_t result, int32_t timeout)
-        const {
+    inline Task Subscription::callAsync(
+        Struct message, topicCallback_t result, int32_t timeout) const {
         required();
         return callApiReturnHandle<Task>([this, message, result, timeout]() {
             return ::ggapiSendToListenerAsync(
@@ -1125,8 +1111,7 @@ namespace ggapi {
                 message.getHandleId(),
                 topicCallbackProxy,
                 reinterpret_cast<uintptr_t>(result), // NOLINT(*-reinterpret-cast)
-                timeout
-            );
+                timeout);
         });
     }
 
@@ -1139,9 +1124,8 @@ namespace ggapi {
 
     inline Struct Task::waitForTaskCompleted(int32_t timeout) {
         required();
-        return callApiReturnHandle<Struct>([this, timeout]() {
-            return ::ggapiWaitForTaskCompleted(getHandleId(), timeout);
-        });
+        return callApiReturnHandle<Struct>(
+            [this, timeout]() { return ::ggapiWaitForTaskCompleted(getHandleId(), timeout); });
     }
 
     inline void Task::cancelTask() {
@@ -1154,8 +1138,7 @@ namespace ggapi {
     }
 
     inline ModuleScope ModuleScope::registerPlugin(
-        StringOrd componentName, lifecycleCallback_t callback
-    ) {
+        StringOrd componentName, lifecycleCallback_t callback) {
         required();
         return callApiReturnHandle<ModuleScope>([*this, componentName, callback]() {
             return ::ggapiRegisterPlugin(
@@ -1168,8 +1151,10 @@ namespace ggapi {
     }
 
     inline uint32_t topicCallbackProxy(
-        uintptr_t callbackContext, uint32_t taskHandle, uint32_t topicOrd, uint32_t dataStruct
-    ) noexcept {
+        uintptr_t callbackContext,
+        uint32_t taskHandle,
+        uint32_t topicOrd,
+        uint32_t dataStruct) noexcept {
         return trapErrorReturn<uint32_t>([callbackContext, taskHandle, topicOrd, dataStruct]() {
             auto callback =
                 reinterpret_cast<topicCallback_t>(callbackContext); // NOLINT(*-reinterpret-cast)
@@ -1179,8 +1164,10 @@ namespace ggapi {
     }
 
     inline bool lifecycleCallbackProxy(
-        uintptr_t callbackContext, uint32_t moduleHandle, uint32_t phaseOrd, uint32_t dataStruct
-    ) noexcept {
+        uintptr_t callbackContext,
+        uint32_t moduleHandle,
+        uint32_t phaseOrd,
+        uint32_t dataStruct) noexcept {
         return trapErrorReturn<bool>([callbackContext, moduleHandle, phaseOrd, dataStruct]() {
             // NOLINTNEXTLINE(*-reinterpret-cast)
             auto callback = reinterpret_cast<lifecycleCallback_t>(callbackContext);

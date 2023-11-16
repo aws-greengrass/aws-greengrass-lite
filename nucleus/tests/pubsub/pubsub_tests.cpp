@@ -70,9 +70,8 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
                     THEN("The set is ordered correctly") {
                         REQUIRE_THAT(
                             vec,
-                            Catch::Matchers::Equals(std::vector<std::shared_ptr<pubsub::Listener>>{
-                                subs3, subs2})
-                        );
+                            Catch::Matchers::Equals(
+                                std::vector<std::shared_ptr<pubsub::Listener>>{subs3, subs2}));
                     }
                 }
             }
@@ -87,9 +86,8 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
                     THEN("The set is ordered correctly") {
                         REQUIRE_THAT(
                             vec,
-                            Catch::Matchers::Equals(std::vector<std::shared_ptr<pubsub::Listener>>{
-                                subs4})
-                        );
+                            Catch::Matchers::Equals(
+                                std::vector<std::shared_ptr<pubsub::Listener>>{subs4}));
                     }
                 }
             }

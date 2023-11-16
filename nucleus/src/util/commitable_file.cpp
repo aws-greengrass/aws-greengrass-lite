@@ -6,8 +6,7 @@ namespace util {
     CommitableFile::CommitableFile(
         std::filesystem::path newPath,
         std::filesystem::path backupPath,
-        std::filesystem::path targetPath
-    )
+        std::filesystem::path targetPath)
         : _new(std::move(newPath)), _backup(std::move(backupPath)), _target(std::move(targetPath)) {
     }
 
@@ -123,12 +122,12 @@ namespace util {
 
     CommitableFile::~CommitableFile() {
         switch(_mode) {
-        case APPEND_EXISTING:
-            commit();
-            break;
-        default:
-            abandon();
-            break;
+            case APPEND_EXISTING:
+                commit();
+                break;
+            default:
+                abandon();
+                break;
         }
     }
 

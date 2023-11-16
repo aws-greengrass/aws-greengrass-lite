@@ -61,8 +61,7 @@ namespace lifecycle {
     // a config specified in the command line.
     //
     void Kernel::overrideConfigLocation(
-        CommandLine &commandLine, const std::filesystem::path &configFile
-    ) {
+        CommandLine &commandLine, const std::filesystem::path &configFile) {
         if(configFile.empty()) {
             throw std::invalid_argument("Config file expected to be specified");
         }
@@ -204,8 +203,7 @@ namespace lifecycle {
     }
 
     void Kernel::readConfigFromBackUpTLog(
-        const std::filesystem::path &tlogFile, const std::filesystem::path &bootstrapTlogFile
-    ) {
+        const std::filesystem::path &tlogFile, const std::filesystem::path &bootstrapTlogFile) {
         std::vector<std::filesystem::path> paths{
             util::CommitableFile::getBackupFile(tlogFile),
             bootstrapTlogFile,
@@ -243,18 +241,18 @@ namespace lifecycle {
         }
 
         switch(_deploymentStageAtLaunch) {
-        case deployment::DeploymentStage::DEFAULT:
-            launchLifecycle();
-            break;
-        case deployment::DeploymentStage::BOOTSTRAP:
-            launchBootstrap();
-            break;
-        case deployment::DeploymentStage::KERNEL_ACTIVATION:
-        case deployment::DeploymentStage::KERNEL_ROLLBACK:
-            launchKernelDeployment();
-            break;
-        default:
-            throw std::runtime_error("Provided deployment stage at launch is not understood");
+            case deployment::DeploymentStage::DEFAULT:
+                launchLifecycle();
+                break;
+            case deployment::DeploymentStage::BOOTSTRAP:
+                launchBootstrap();
+                break;
+            case deployment::DeploymentStage::KERNEL_ACTIVATION:
+            case deployment::DeploymentStage::KERNEL_ROLLBACK:
+                launchKernelDeployment();
+                break;
+            default:
+                throw std::runtime_error("Provided deployment stage at launch is not understood");
         }
         _mainThread.release();
         return _exitCode;
@@ -308,7 +306,7 @@ namespace lifecycle {
         config::WhatHappened changeType) {
         config::Topic topic = topics->getTopic(key);
         if(!topic.isNull()) {
-        _kernel.getPaths()->initPaths(topic.getString());
+            _kernel.getPaths()->initPaths(topic.getString());
         }
     }
 

@@ -37,8 +37,7 @@ namespace tasks {
     }
 
     void TaskManager::scheduleFutureTaskAssumeLocked(
-        const ExpireTime &when, const std::shared_ptr<Task> &task
-    ) {
+        const ExpireTime &when, const std::shared_ptr<Task> &task) {
         auto first = _delayedTasks.begin();
         bool needsSignal = first == _delayedTasks.end() || when < first->first;
         _delayedTasks.emplace(when, task); // insert into sorted order (duplicates ok)
@@ -50,8 +49,7 @@ namespace tasks {
     }
 
     void TaskManager::descheduleFutureTaskAssumeLocked(
-        const ExpireTime &when, const std::shared_ptr<Task> &task
-    ) {
+        const ExpireTime &when, const std::shared_ptr<Task> &task) {
         if(when == ExpireTime::unspecified()) {
             return;
         }

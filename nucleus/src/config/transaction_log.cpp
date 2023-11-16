@@ -215,8 +215,7 @@ namespace config {
             // whitespace is permitted after last valid position
             stream.seekg(
                 lastValid, // NOLINT(*-narrowing-conversions)
-                std::ifstream::beg
-            );
+                std::ifstream::beg);
             std::string_view whitespace{" \t\n\v\f\r"};
             while(!stream.eof()) {
                 char c;
@@ -275,8 +274,7 @@ namespace config {
                 }
                 if(configurationMode == ConfigurationMode::WITH_VALUES) {
                     targetTopic.withNewerValue(
-                        tlogLine.timestamp, tlogLine.value.get(), forceTimestamp
-                    );
+                        tlogLine.timestamp, tlogLine.value.get(), forceTimestamp);
                 }
             } else if(tlogLine.action == WhatHappened::removed) {
                 std::shared_ptr<ConfigNode> node{root->getNode(tlogLine.topicPath)};

@@ -67,8 +67,7 @@ namespace deployment {
     }
 
     void DeviceConfiguration::initializeNucleusVersion(
-        std::string nucleusComponentName, std::string nucleusComponentVersion
-    ) {
+        std::string nucleusComponentName, std::string nucleusComponentVersion) {
         _kernel.getConfig()
             .lookup({"services", nucleusComponentName, "version"})
             .dflt(nucleusComponentVersion);
@@ -82,8 +81,7 @@ namespace deployment {
         std::string,
         std::string,
         std::filesystem::path,
-        std::filesystem::path
-    ) {
+        std::filesystem::path) {
         // TODO: change definition and missing code
     }
 
@@ -91,8 +89,8 @@ namespace deployment {
         // TODO: missing code
     }
 
-    void DeviceConfiguration::
-        copyUnpackedNucleusArtifacts(const std::filesystem::path &, const std::filesystem::path &) {
+    void DeviceConfiguration::copyUnpackedNucleusArtifacts(
+        const std::filesystem::path &, const std::filesystem::path &) {
         // TODO: missing code
     }
 
@@ -100,8 +98,8 @@ namespace deployment {
         // TODO: missing code
     }
 
-    void DeviceConfiguration::
-        handleLoggingConfigurationChanges(config::WhatHappened, const std::shared_ptr<config::ConfigNode> &) {
+    void DeviceConfiguration::handleLoggingConfigurationChanges(
+        config::WhatHappened, const std::shared_ptr<config::ConfigNode> &) {
         // TODO: missing code
     }
 
@@ -140,8 +138,7 @@ namespace deployment {
              getNucleusComponentName(),
              "configuration",
              configs.RUN_WITH_TOPIC,
-             "systemResourceLimits"}
-        );
+             "systemResourceLimits"});
     }
 
     std::shared_ptr<config::Topics> DeviceConfiguration::getPlatformOverrideTopic() {
@@ -186,8 +183,7 @@ namespace deployment {
 
     std::optional<config::Topic> DeviceConfiguration::getIpcSocketPath() {
         return _kernel.getConfig().find(
-            {configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_IPC_SOCKET_PATH}
-        );
+            {configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_IPC_SOCKET_PATH});
     }
 
     config::Topic DeviceConfiguration::getInterpolateComponentConfiguration() {
@@ -301,8 +297,7 @@ namespace deployment {
             iotDataEndpoint,
             iotCredEndpoint,
             awsRegion,
-            cloudOnly
-        );
+            cloudOnly);
     }
 
     bool DeviceConfiguration::isDeviceConfiguredToTalkToCloud() {
@@ -322,8 +317,7 @@ namespace deployment {
     }
 
     bool DeviceConfiguration::provisionInfoNodeChanged(
-        const std::shared_ptr<config::ConfigNode> &node, bool checkThingNameOnly
-    ) {
+        const std::shared_ptr<config::ConfigNode> &node, bool checkThingNameOnly) {
         // TODO: missing code
         return false;
     }
@@ -364,16 +358,14 @@ namespace deployment {
         std::string_view iotDataEndpoint,
         std::string_view iotCredEndpoint,
         std::string_view awsRegion,
-        bool cloudOnly
-    ) {
+        bool cloudOnly) {
         std::vector<std::string> errors;
         if(thingName.empty()) {
             errors.emplace_back(configs.DEVICE_PARAM_THING_NAME + configs.CANNOT_BE_EMPTY);
         }
         if(certificateFilePath.empty()) {
             errors.emplace_back(
-                configs.DEVICE_PARAM_CERTIFICATE_FILE_PATH + configs.CANNOT_BE_EMPTY
-            );
+                configs.DEVICE_PARAM_CERTIFICATE_FILE_PATH + configs.CANNOT_BE_EMPTY);
         }
         if(privateKeyPath.empty()) {
             errors.emplace_back(configs.DEVICE_PARAM_PRIVATE_KEY_PATH + configs.CANNOT_BE_EMPTY);
@@ -408,8 +400,7 @@ namespace deployment {
     void DeviceConfiguration::validateEndpoints(
         std::string_view awsRegion,
         std::string_view iotCredEndpoint,
-        std::string_view iotDataEndpoint
-    ) {
+        std::string_view iotDataEndpoint) {
         if(!awsRegion.empty()) {
             // TODO: missing code
         }

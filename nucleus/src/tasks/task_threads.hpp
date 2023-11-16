@@ -187,8 +187,7 @@ namespace tasks {
         BlockedThreadScope &operator=(BlockedThreadScope &&) = delete;
 
         explicit BlockedThreadScope(
-            const std::shared_ptr<Task> &task, const std::shared_ptr<TaskThread> &thread
-        );
+            const std::shared_ptr<Task> &task, const std::shared_ptr<TaskThread> &thread);
 
         void taskStealing(const ExpireTime &end);
 

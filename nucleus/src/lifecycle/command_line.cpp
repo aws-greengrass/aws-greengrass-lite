@@ -49,8 +49,7 @@ namespace lifecycle {
     }
 
     std::string CommandLine::nextArg(
-        const std::vector<std::string> &args, std::vector<std::string>::const_iterator &iter
-    ) {
+        const std::vector<std::string> &args, std::vector<std::string>::const_iterator &iter) {
         if(iter == args.end()) {
             throw std::runtime_error("Expecting argument");
         }

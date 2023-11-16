@@ -112,8 +112,7 @@ uint32_t ggapiSendToTopic(uint32_t topicOrd, uint32_t callStruct, int32_t timeou
 }
 
 uint32_t ggapiSendToListener(
-    uint32_t listenerHandle, uint32_t callStruct, int32_t timeout
-) noexcept {
+    uint32_t listenerHandle, uint32_t callStruct, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listenerHandle, callStruct, timeout]() {
         auto &context = scope::Context::get();
         std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(

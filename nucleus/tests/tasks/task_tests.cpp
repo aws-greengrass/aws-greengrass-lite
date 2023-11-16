@@ -21,8 +21,7 @@ class SubTaskStub : public tasks::SubTask {
 
 public:
     SubTaskStub(
-        const std::string_view &flagName, const std::shared_ptr<data::StructModelBase> &returnData
-    )
+        const std::string_view &flagName, const std::shared_ptr<data::StructModelBase> &returnData)
         : _flagName(flagName), _returnData{returnData} {
     }
 
@@ -31,16 +30,14 @@ public:
 
     std::shared_ptr<data::StructModelBase> runInThread(
         const std::shared_ptr<tasks::Task> &task,
-        const std::shared_ptr<data::StructModelBase> &dataIn
-    ) override {
+        const std::shared_ptr<data::StructModelBase> &dataIn) override {
         if(dataIn) {
             dataIn->put(_flagName, data::StructElement{true});
         }
         if(_returnData) {
             _returnData->put(
                 "_" + _flagName,
-                data::StructElement{std::static_pointer_cast<data::ContainerModelBase>(dataIn)}
-            );
+                data::StructElement{std::static_pointer_cast<data::ContainerModelBase>(dataIn)});
             _returnData->put("$" + _flagName, tasks::ExpireTime::now().asMilliseconds());
         }
         return _returnData;

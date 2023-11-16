@@ -48,8 +48,7 @@ void plugins::NativePlugin::load(const std::string &filePath) {
         // TODO: use FormatMessage
         throw std::runtime_error(
             std::string("Cannot load DLL: ") + filePath + std::string(" ")
-            + std::to_string(lastError)
-        );
+            + std::to_string(lastError));
     }
     _lifecycleFn.store(
         // NOLINTNEXTLINE(*-reinterpret-cast)

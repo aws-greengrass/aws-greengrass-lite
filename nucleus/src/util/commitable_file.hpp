@@ -24,8 +24,7 @@ namespace util {
         explicit CommitableFile(
             std::filesystem::path newPath,
             std::filesystem::path backupPath,
-            std::filesystem::path targetPath
-        );
+            std::filesystem::path targetPath);
         explicit CommitableFile(const std::filesystem::path &path);
         virtual ~CommitableFile();
 
@@ -42,11 +41,9 @@ namespace util {
         }
 
         CommitableFile &begin(
-            std::ios_base::openmode mode = std::ios_base::trunc | std::ios_base::out
-        );
+            std::ios_base::openmode mode = std::ios_base::trunc | std::ios_base::out);
         CommitableFile &append(
-            std::ios_base::openmode mode = std::ios_base::app | std::ios_base::out
-        );
+            std::ios_base::openmode mode = std::ios_base::app | std::ios_base::out);
         CommitableFile &commit();
         CommitableFile &abandon();
         CommitableFile &deleteNew();

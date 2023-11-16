@@ -136,8 +136,7 @@ public:
                     return true;
                 }
                 return (filterLevel == "+") || (filterLevel == topicLevel);
-            }
-        );
+            });
         return hash || ((filterTail == end()) && (topicTail == topicIter.end()));
     }
 
@@ -242,8 +241,7 @@ ggapi::Struct IotBroker::publishHandlerImpl(ggapi::Struct args) {
     auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
         Aws::Crt::String(topic),
         ByteCursorFromString(Aws::Crt::String(payload)),
-        static_cast<Aws::Crt::Mqtt5::QOS>(qos)
-    );
+        static_cast<Aws::Crt::Mqtt5::QOS>(qos));
 
     if(!_client->Publish(publish, onPublishComplete)) {
         std::cerr << "[mqtt-plugin] Publish failed" << std::endl;
@@ -265,8 +263,7 @@ ggapi::Struct IotBroker::subscribeHandlerImpl(ggapi::Struct args) {
 
     auto onSubscribeComplete = [this, topicFilter, responseTopic](
                                    int error_code,
-                                   const std::shared_ptr<Aws::Crt::Mqtt5::SubAckPacket> &suback
-                               ) {
+                                   const std::shared_ptr<Aws::Crt::Mqtt5::SubAckPacket> &suback) {
         if(error_code != 0) {
             std::cerr << "[mqtt-plugin] Subscribe failed with error_code: " << error_code
                       << std::endl;
@@ -292,8 +289,7 @@ ggapi::Struct IotBroker::subscribeHandlerImpl(ggapi::Struct args) {
 
     auto subscribe = std::make_shared<Aws::Crt::Mqtt5::SubscribePacket>();
     subscribe->WithSubscription(std::move(Aws::Crt::Mqtt5::Subscription(
-        Aws::Crt::String(topicFilter.get()), static_cast<Aws::Crt::Mqtt5::QOS>(qos)
-    )));
+        Aws::Crt::String(topicFilter.get()), static_cast<Aws::Crt::Mqtt5::QOS>(qos))));
 
     if(!_client->Subscribe(subscribe, onSubscribeComplete)) {
         std::cerr << "[mqtt-plugin] Subscribe failed" << std::endl;
@@ -303,8 +299,7 @@ ggapi::Struct IotBroker::subscribeHandlerImpl(ggapi::Struct args) {
 }
 
 extern "C" [[maybe_unused]] bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t dataHandle
-) noexcept {
+    uint32_t moduleHandle, uint32_t phase, uint32_t dataHandle) noexcept {
     return IotBroker::get().lifecycle(moduleHandle, phase, dataHandle);
 }
 
@@ -355,16 +350,14 @@ bool IotBroker::onStart(ggapi::Struct structData) {
                 std::cerr << "[mqtt-plugin] Connection successful with clientid "
                           << eventData.negotiatedSettings->getClientId() << "." << std::endl;
                 connectionPromise.set_value(true);
-            }
-        );
+            });
 
         builder->WithClientConnectionFailureCallback(
             [&connectionPromise](const Aws::Crt::Mqtt5::OnConnectionFailureEventData &eventData) {
                 std::cerr << "[mqtt-plugin] Connection failed: "
                           << aws_error_debug_str(eventData.errorCode) << "." << std::endl;
                 connectionPromise.set_value(false);
-            }
-        );
+            });
 
         builder->WithPublishReceivedCallback(
             [this](const Aws::Crt::Mqtt5::PublishReceivedEventData &eventData) {
@@ -392,8 +385,7 @@ bool IotBroker::onStart(ggapi::Struct structData) {
                         }
                     }
                 }
-            }
-        );
+            });
 
         _client = builder->Build();
     }

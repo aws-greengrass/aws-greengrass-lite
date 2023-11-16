@@ -23,8 +23,8 @@ namespace tasks { //
         // performs an add of a positive duration to a timepoint
         // overflows saturate to infinite()
         template<class Duration>
-        [[nodiscard]] constexpr ExpireTime checkedPositiveAdd(const Duration &delta
-        ) const noexcept {
+        [[nodiscard]] constexpr ExpireTime checkedPositiveAdd(
+            const Duration &delta) const noexcept {
             if(MAX - delta < _steadyTime) {
                 return infinite();
             }
@@ -63,8 +63,8 @@ namespace tasks { //
         // adds a delta to an existing time
         // overflows saturate to maximal values (infinite() and unspecified())
         template<class Rep, class Period>
-        constexpr ExpireTime operator+(const std::chrono::duration<Rep, Period> &delta
-        ) const noexcept {
+        constexpr ExpireTime operator+(
+            const std::chrono::duration<Rep, Period> &delta) const noexcept {
             using SourceDuration = typename std::chrono::duration<Rep, Period>;
 
             if constexpr(std::is_signed_v<Rep>) {
@@ -110,8 +110,8 @@ namespace tasks { //
         }
 
         // for converting durations received from cross-plugin API calls
-        [[nodiscard]] inline static ExpireTime fromNowMillis(Milliseconds::rep milliseconds
-        ) noexcept {
+        [[nodiscard]] inline static ExpireTime fromNowMillis(
+            Milliseconds::rep milliseconds) noexcept {
             return fromNow(Milliseconds{milliseconds});
         }
 
@@ -126,38 +126,32 @@ namespace tasks { //
         }
 
         [[nodiscard]] friend constexpr bool operator==(
-            const ExpireTime &a, const ExpireTime &b
-        ) noexcept {
+            const ExpireTime &a, const ExpireTime &b) noexcept {
             return a._steadyTime == b._steadyTime;
         }
 
         [[nodiscard]] friend constexpr bool operator!=(
-            const ExpireTime &a, const ExpireTime &b
-        ) noexcept {
+            const ExpireTime &a, const ExpireTime &b) noexcept {
             return !(a == b);
         }
 
         [[nodiscard]] friend constexpr bool operator<(
-            const ExpireTime &a, const ExpireTime &b
-        ) noexcept {
+            const ExpireTime &a, const ExpireTime &b) noexcept {
             return a._steadyTime < b._steadyTime;
         }
 
         [[nodiscard]] friend constexpr bool operator<=(
-            const ExpireTime &a, const ExpireTime &b
-        ) noexcept {
+            const ExpireTime &a, const ExpireTime &b) noexcept {
             return !(b < a);
         }
 
         [[nodiscard]] friend constexpr bool operator>(
-            const ExpireTime &a, const ExpireTime &b
-        ) noexcept {
+            const ExpireTime &a, const ExpireTime &b) noexcept {
             return b < a;
         }
 
         [[nodiscard]] friend constexpr bool operator>=(
-            const ExpireTime &a, const ExpireTime &b
-        ) noexcept {
+            const ExpireTime &a, const ExpireTime &b) noexcept {
             return !(a < b);
         }
     };

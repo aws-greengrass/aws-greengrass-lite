@@ -71,8 +71,7 @@ namespace lifecycle {
         void preLaunch(CommandLine &commandLine);
         int launch();
         static void overrideConfigLocation(
-            CommandLine &commandLine, const std::filesystem::path &configFile
-        );
+            CommandLine &commandLine, const std::filesystem::path &configFile);
         void initConfigAndTlog(CommandLine &commandLine);
         void updateDeviceConfiguration(CommandLine &commandLine);
         void initializeNucleusFromRecipe();
@@ -82,8 +81,7 @@ namespace lifecycle {
         void launchKernelDeployment();
         static bool handleIncompleteTlogTruncation(const std::filesystem::path &tlogFile);
         void readConfigFromBackUpTLog(
-            const std::filesystem::path &tlogFile, const std::filesystem::path &bootstrapTlogFile
-        );
+            const std::filesystem::path &tlogFile, const std::filesystem::path &bootstrapTlogFile);
         void writeEffectiveConfigAsTransactionLog(const std::filesystem::path &tlogFile);
         void writeEffectiveConfig();
         void writeEffectiveConfig(const std::filesystem::path &configFile);
@@ -92,12 +90,10 @@ namespace lifecycle {
         void stopAllServices(std::chrono::seconds timeoutSeconds);
         void shutdown(std::chrono::seconds timeoutSeconds, int exitCode);
         void shutdown(
-            std::chrono::seconds timeoutSeconds = std::chrono::seconds(SHUTDOWN_TIMEOUT_SECONDS)
-        );
+            std::chrono::seconds timeoutSeconds = std::chrono::seconds(SHUTDOWN_TIMEOUT_SECONDS));
 
         void softShutdown(
-            std::chrono::seconds expireTime = std::chrono::seconds(SHUTDOWN_TIMEOUT_SECONDS)
-        );
+            std::chrono::seconds expireTime = std::chrono::seconds(SHUTDOWN_TIMEOUT_SECONDS));
 
         std::shared_ptr<util::NucleusPaths> getPaths() {
             return _nucleusPaths;

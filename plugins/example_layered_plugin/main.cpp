@@ -35,14 +35,12 @@ public:
 // Recommended stub
 //
 extern "C" [[maybe_unused]] [[maybe_unused]] EXPORT bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t data
-) noexcept {
+    uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
     return LayeredPlugin::get().lifecycle(moduleHandle, phase, data);
 }
 
 void greengrass_delegate_lifecycle(
-    ggapi::ModuleScope moduleHandle, ggapi::StringOrd phase, ggapi::Struct data
-) {
+    ggapi::ModuleScope moduleHandle, ggapi::StringOrd phase, ggapi::Struct data) {
     std::cout << "Running lifecycle getDelegate... " << moduleHandle.getHandleId() << " phase "
               << phase.toString() << std::endl;
     LayeredPlugin::get().getDelegate(moduleHandle).lifecycle(moduleHandle, phase, data);
