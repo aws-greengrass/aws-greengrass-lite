@@ -36,8 +36,9 @@ jobs:
           choco install mingw
 
       - name: Configure CMake
-        run: >
-          cmake -B ${{ github.workspace }}/build -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+        run: |
+          where gcc
+          cmake -B ${{ github.workspace }}/build -DCMAKE_CXX_COMPILER=${{matrix.compiler}} \
           -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S ${{github.workspace}}
 
       - name: Build
