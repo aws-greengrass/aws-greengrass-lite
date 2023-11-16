@@ -36,11 +36,11 @@ jobs:
           - os: windows-latest
             cpp_compiler: clang++
           - os: ubuntu-20.04
-            cpp_compiler: cl
+            cpp_compiler: msvc
           - os: macos-latest
             cpp_compiler: g++
           - os: macos-latest
-            cpp_compiler: cl
+            cpp_compiler: msvc
 
     steps:
       - name: Clone the repo
