@@ -15,16 +15,16 @@ jobs:
       matrix:
         os: [ubuntu-20.04, windows-latest, macos-latest]
         build_type: [Debug]
-        compiler: [g++, clang++, cl]
+        compiler: [g++, clang++, msvc]
         exclude:
           - os: windows-latest
             compiler: clang++
           - os: ubuntu-20.04
-            compiler: cl
+            compiler: msvc
           - os: macos-latest
             compiler: g++
           - os: macos-latest
-            compiler: cl
+            compiler: msvc
 
     steps:
       - name: Clone the repo
