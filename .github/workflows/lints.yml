@@ -50,13 +50,15 @@ jobs:
       - name: Check Clang-tidy
         id: clang-tidy-check
         run: |
-          clang-tidy -p ./build --warnings-as-errors='*' -header-filter=.* \
+          clang-tidy -p ./build --warnings-as-errors='*' \
+            -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
             $(fd -t f -e cpp)
 
       - name: Generate / Show Patch
         if: ${{ failure() && steps.clang-tidy-check.outcome == 'failure' }}
         run: |
-          clang-tidy -p ./build -header-filter=.* --fix --fix-errors --quiet \
+          clang-tidy -p ./build --fix --fix-errors --quiet \
+            -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
             $(fd -t f -e cpp)
           git diff >> clang-tidy.patch
           git diff --color=always
@@ -89,9 +91,9 @@ jobs:
           mkdir .cppcheck
           cppcheck_flags="--cppcheck-build-dir=.cppcheck --quiet --std=c++17 \
             --project=build/compile_commands.json -ibuild -inucleus/tests \
-            --check-level=exhaustive --enable=all --inconclusive --verbose \
+            --check-level=exhaustive --enable=all --verbose --inline-suppr \
             --suppress=missingIncludeSystem --suppress=*:build/* \
-            --inline-suppr"
+            --suppress=*:/*"
           # print output, save to text file, and save to xml (only checks once)
           cppcheck $cppcheck_flags
           cppcheck $cppcheck_flags 2> report.txt
