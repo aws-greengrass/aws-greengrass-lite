@@ -32,13 +32,13 @@ jobs:
 
       - name: Install dependencies
         if: matrix.os == 'windows-latest' && matrix.compiler == 'g++'
-        run: >
-          choco install mingw
+        run: |
+          choco install mingw -y
+          gcc --version
 
       - name: Configure CMake
-        run: |
-          where gcc
-          cmake -B ${{ github.workspace }}/build -DCMAKE_CXX_COMPILER=${{matrix.compiler}} \
+        run: >
+          cmake -B ${{ github.workspace }}/build -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
           -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S ${{github.workspace}}
 
       - name: Build
