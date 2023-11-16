@@ -1,7 +1,7 @@
 ---
 system:
-  privateKeyPath: "..."
-  certificateFilePath: "..."
+  privateKeyPath: "/Users/sdarahas/Desktop/src/dev/aws-greengrass-lite/device.key"
+  certificateFilePath: "/Users/sdarahas/Desktop/src/dev/aws-greengrass-lite/device.pem"
   rootCaPath: "..."
   rootpath: "."
   thingName: "GGC-test"
@@ -17,7 +17,7 @@ services:
         periodicStatusPublishIntervalSeconds: 86400
       greengrassDataPlanePort: "8443"
       httpClient: {}
-      iotCredEndpoint: "..."
+      iotCredEndpoint: "a3w4eclq1cog1t-ats.iot.us-east-2.amazonaws.com"
       iotDataEndpoint: "..."
       iotRoleAlias: "GreengrassV2TokenExchangeRoleAlias"
       logging:

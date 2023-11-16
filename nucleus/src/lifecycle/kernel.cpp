@@ -11,7 +11,7 @@ namespace lifecycle {
     //
     // GG-Interop:
     // GG-Java tightly couples Kernel and KernelLifecycle, this class combines functionality from
-    // both. Also some functionality from KernelCommandLine is moved here.
+    // both. Also, some functionality from KernelCommandLine is moved here.
     //
 
     Kernel::Kernel(const std::shared_ptr<scope::Context> &context) : _context(context) {
@@ -53,7 +53,6 @@ namespace lifecycle {
         initConfigAndTlog(commandLine);
         updateDeviceConfiguration(commandLine);
         initializeNucleusFromRecipe();
-        setupProxy();
     }
 
     //
@@ -152,7 +151,17 @@ namespace lifecycle {
             _deviceConfiguration->getEnvironmentStage().withValue(commandLine.getEnvStage());
         }
         if(!commandLine.getDefaultUser().empty()) {
-            // TODO: platform resolver for user
+#if defined(_WIN32)
+            _deviceConfiguration->getRunWithDefaultWindowsUser().withValue(
+                commandLine.getDefaultUser()
+            );
+#else
+            _deviceConfiguration->getRunWithDefaultPosixUser().withValue(commandLine.getDefaultUser(
+            ));
+#endif
+        }
+        if(!_deviceConfiguration->isDeviceConfiguredToTalkToCloud()) {
+            getConfig().lookup({"aws.greengrass.provisioning"}).dflt("");
         }
     }
 
@@ -207,8 +216,9 @@ namespace lifecycle {
         std::vector<std::filesystem::path> paths{
             util::CommitableFile::getBackupFile(tlogFile),
             bootstrapTlogFile,
-            util::CommitableFile::getBackupFile(bootstrapTlogFile)};
-        for(auto backupPath : paths) {
+            util::CommitableFile::getBackupFile(bootstrapTlogFile)
+        };
+        for(const auto &backupPath : paths) {
             if(config::TlogReader::handleTlogTornWrite(_context.lock(), backupPath)) {
                 // TODO: log
                 std::cerr << "Transaction log " << tlogFile

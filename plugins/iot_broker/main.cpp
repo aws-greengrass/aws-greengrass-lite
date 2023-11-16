@@ -370,7 +370,7 @@ bool IotBroker::onStart(ggapi::Struct structData) {
                     reinterpret_cast<char *>(eventData.publishPacket->getPayload().ptr),
                     eventData.publishPacket->getPayload().len};
 
-                std::cerr << "[mqtt-plugin] Publish recieved on topic " << topic << ": " << payload
+                std::cerr << "[mqtt-plugin] Publish received on topic " << topic << ": " << payload
                           << std::endl;
 
                 auto response{ggapi::Struct::create()};

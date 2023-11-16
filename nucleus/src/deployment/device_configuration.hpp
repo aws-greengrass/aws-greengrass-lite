@@ -130,6 +130,32 @@ namespace deployment {
         }
     };
 
+    //
+    // A custom device configuration exception.
+    //
+    class DeviceConfigurationException : public std::exception {
+        std::string _msg;
+
+    public:
+        // constexpr DeviceConfigurationException(const DeviceConfigurationException &) noexcept =
+        //     default;
+        // constexpr DeviceConfigurationException(DeviceConfigurationException &&) noexcept =
+        // default; DeviceConfigurationException &operator=(const DeviceConfigurationException &)
+        // noexcept =
+        //     default;
+        // DeviceConfigurationException &operator=(DeviceConfigurationException &&) noexcept =
+        // default;
+
+        explicit DeviceConfigurationException(const std::string &msg) noexcept : _msg{msg} {
+        }
+
+        ~DeviceConfigurationException() override = default;
+
+        [[nodiscard]] const char *what() const noexcept override {
+            return _msg.c_str();
+        }
+    };
+
     class DeviceConfiguration {
         mutable std::shared_mutex _mutex;
         std::weak_ptr<scope::Context> _context;
@@ -172,10 +198,10 @@ namespace deployment {
             std::string,
             std::string,
             std::filesystem::path,
-            std::filesystem::path);
-        void initializeNucleusFromRecipe(lifecycle::KernelAlternatives);
-        void copyUnpackedNucleusArtifacts(
-            const std::filesystem::path &, const std::filesystem::path &);
+            std::filesystem::path
+        );
+        void copyUnpackedNucleusArtifacts(const std::filesystem::path &,
+                                          const std::filesystem::path &);
         void handleLoggingConfig();
         void handleLoggingConfigurationChanges(
             config::WhatHappened, const std::shared_ptr<config::ConfigNode> &);
@@ -217,8 +243,8 @@ namespace deployment {
         config::Topic getDeploymentPollingFrequencySeconds();
         config::Topic gets3EndpointType();
         // void onAnyChange(ChildChanged);
-        void validate();
-        void validate(bool);
+        void validateConfiguration();
+        void validateConfiguration(bool);
         bool isDeviceConfiguredToTalkToCloud();
         bool provisionInfoNodeChanged(const std::shared_ptr<config::ConfigNode> &node, bool);
         config::Topic getTopic(data::SymbolInit);
