@@ -1,7 +1,10 @@
 // Main blocking thread, called by containing process
 #include "lifecycle/command_line.hpp"
-#include "nucleus_core.hpp"
 #include "scope/context_full.hpp"
+
+extern "C" {
+#include "nucleus_core.h"
+}
 
 // NOLINTNEXTLINE(*-avoid-c-arrays)
 int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
