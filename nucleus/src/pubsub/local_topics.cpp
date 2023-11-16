@@ -161,8 +161,7 @@ namespace pubsub {
 
         std::shared_ptr<data::StructModelBase> runInThread(
             const std::shared_ptr<tasks::Task> &task,
-            const std::shared_ptr<data::StructModelBase> &dataIn
-        ) override;
+            const std::shared_ptr<data::StructModelBase> &dataIn) override;
     };
 
     std::unique_ptr<tasks::SubTask> Listener::toSubTask() {
@@ -174,16 +173,14 @@ namespace pubsub {
 
     std::shared_ptr<data::StructModelBase> ListenerSubTask::runInThread(
         const std::shared_ptr<tasks::Task> &task,
-        const std::shared_ptr<data::StructModelBase> &dataIn
-    ) {
+        const std::shared_ptr<data::StructModelBase> &dataIn) {
         assert(scope::Context::thread().getActiveTask() == task); // sanity
         return _listener->runInTaskThread(task, dataIn);
     }
 
     std::shared_ptr<data::StructModelBase> Listener::runInTaskThread(
         const std::shared_ptr<tasks::Task> &task,
-        const std::shared_ptr<data::StructModelBase> &dataIn
-    ) {
+        const std::shared_ptr<data::StructModelBase> &dataIn) {
         assert(task->getSelf());
         assert(scope::Context::thread().getActiveTask() == task);
 
@@ -201,8 +198,7 @@ namespace pubsub {
 
     std::shared_ptr<data::StructModelBase> CompletionSubTask::runInThread(
         const std::shared_ptr<tasks::Task> &task,
-        const std::shared_ptr<data::StructModelBase> &result
-    ) {
+        const std::shared_ptr<data::StructModelBase> &result) {
         assert(scope::Context::thread().getActiveTask() == task); // sanity
         assert(task->getSelf()); // sanity
         auto scope = scope::Context::thread().getCallScope();

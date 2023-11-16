@@ -172,14 +172,13 @@ namespace deployment {
             std::string,
             std::string,
             std::filesystem::path,
-            std::filesystem::path
-        );
+            std::filesystem::path);
         void initializeNucleusFromRecipe(lifecycle::KernelAlternatives);
-        void
-        copyUnpackedNucleusArtifacts(const std::filesystem::path &, const std::filesystem::path &);
+        void copyUnpackedNucleusArtifacts(
+            const std::filesystem::path &, const std::filesystem::path &);
         void handleLoggingConfig();
-        void
-        handleLoggingConfigurationChanges(config::WhatHappened, const std::shared_ptr<config::ConfigNode> &);
+        void handleLoggingConfigurationChanges(
+            config::WhatHappened, const std::shared_ptr<config::ConfigNode> &);
         //        void reconfigureLogging(LogConfigUpdate);
         std::optional<std::string> getComponentType(std::string);
         //        std::shared_ptr<config::Validator> &getDeTildeValidator(lifecycle::CommandLine
@@ -234,8 +233,7 @@ namespace deployment {
             std::string_view,
             std::string_view,
             std::string_view,
-            bool
-        );
+            bool);
         void validateEndpoints(std::string_view, std::string_view, std::string_view);
         // LogConfigUpdate fromPojo(std::unordered_map<std::string, >);
         // KeyManager[] getDeviceIdentityKeyManagers();

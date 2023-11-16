@@ -107,8 +107,7 @@ IMPEXP uint32_t ggapiSubscribeToTopic(
     uint32_t anchorHandle,
     uint32_t topicOrd,
     ggapiTopicCallback rxCallback,
-    uintptr_t callbackContext
-) NOEXCEPT;
+    uintptr_t callbackContext) NOEXCEPT;
 IMPEXP uint32_t ggapiSendToTopic(uint32_t topicOrd, uint32_t callStruct, int32_t timeout) NOEXCEPT;
 IMPEXP uint32_t
 ggapiSendToListener(uint32_t listenerHandle, uint32_t callStruct, int32_t timeout) NOEXCEPT;
@@ -131,7 +130,6 @@ IMPEXP uint32_t ggapiRegisterPlugin(
     uint32_t moduleHandle,
     uint32_t componentName,
     ggapiLifecycleCallback lifecycleCallback,
-    uintptr_t callbackContext
-) NOEXCEPT;
+    uintptr_t callbackContext) NOEXCEPT;
 
 #endif // GG_PLUGIN_API

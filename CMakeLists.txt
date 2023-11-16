@@ -27,9 +27,9 @@ fetchContentFromDeps(Catch2)
 FetchContent_MakeAvailable(Catch2)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
-if (UNIX)
-    add_compile_options(-fvisibility=hidden)
-endif ()
+if(UNIX)
+  add_compile_options(-fvisibility=hidden)
+endif()
 
 # Targets
 add_subdirectory(plugin_api)

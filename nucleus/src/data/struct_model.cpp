@@ -3,8 +3,7 @@
 
 namespace data {
     void ContainerModelBase::checkedPut(
-        const StructElement &element, const std::function<void(const StructElement &)> &putAction
-    ) {
+        const StructElement &element, const std::function<void(const StructElement &)> &putAction) {
         std::unique_lock cycleGuard{context().cycleCheckMutex(), std::defer_lock};
 
         if(element.isContainer()) {

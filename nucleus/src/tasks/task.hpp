@@ -131,8 +131,7 @@ namespace tasks {
         Status runInThreadCallNext(
             const std::shared_ptr<Task> &task,
             const std::shared_ptr<data::StructModelBase> &dataIn,
-            std::shared_ptr<data::StructModelBase> &dataOut
-        );
+            std::shared_ptr<data::StructModelBase> &dataOut);
 
         void addBlockedThread(const std::shared_ptr<TaskThread> &blockedThread);
         void removeBlockedThread(const std::shared_ptr<TaskThread> &blockedThread);
@@ -173,8 +172,8 @@ namespace tasks {
         SubTask &operator=(SubTask &&) = delete;
         virtual ~SubTask() = default;
         virtual std::shared_ptr<data::StructModelBase> runInThread(
-            const std::shared_ptr<Task> &task, const std::shared_ptr<data::StructModelBase> &dataIn
-        ) = 0;
+            const std::shared_ptr<Task> &task,
+            const std::shared_ptr<data::StructModelBase> &dataIn) = 0;
         void setAffinity(const std::shared_ptr<TaskThread> &affinity);
         std::shared_ptr<TaskThread> getAffinity(const std::shared_ptr<TaskThread> &defaultThread);
     };

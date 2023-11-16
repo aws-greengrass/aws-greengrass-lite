@@ -294,8 +294,7 @@ namespace tasks {
     Task::Status Task::runInThreadCallNext(
         const std::shared_ptr<Task> &task,
         const std::shared_ptr<data::StructModelBase> &dataIn,
-        std::shared_ptr<data::StructModelBase> &dataOut
-    ) {
+        std::shared_ptr<data::StructModelBase> &dataOut) {
         assert(task->getSelf());
         for(;;) {
             std::unique_ptr<SubTask> subTask;
@@ -327,8 +326,7 @@ namespace tasks {
     }
 
     std::shared_ptr<TaskThread> SubTask::getAffinity(
-        const std::shared_ptr<TaskThread> &defaultThread
-    ) {
+        const std::shared_ptr<TaskThread> &defaultThread) {
         std::shared_ptr<TaskThread> affinity = _threadAffinity;
         if(affinity) {
             return affinity;

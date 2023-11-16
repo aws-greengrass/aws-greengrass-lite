@@ -78,8 +78,7 @@ namespace pubsub {
 
         std::shared_ptr<data::StructModelBase> runInThread(
             const std::shared_ptr<tasks::Task> &task,
-            const std::shared_ptr<data::StructModelBase> &result
-        ) override;
+            const std::shared_ptr<data::StructModelBase> &result) override;
 
         static std::unique_ptr<tasks::SubTask> of(
             data::Symbol topicOrd, std::unique_ptr<AbstractCallback> callback);
@@ -108,8 +107,7 @@ namespace pubsub {
         std::unique_ptr<tasks::SubTask> toSubTask();
         std::shared_ptr<data::StructModelBase> runInTaskThread(
             const std::shared_ptr<tasks::Task> &task,
-            const std::shared_ptr<data::StructModelBase> &dataIn
-        );
+            const std::shared_ptr<data::StructModelBase> &dataIn);
     };
 
     //

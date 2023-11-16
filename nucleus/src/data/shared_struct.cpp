@@ -4,8 +4,8 @@
 
 namespace data {
 
-    void SharedStruct::rootsCheck(const ContainerModelBase *target
-    ) const { // NOLINT(*-no-recursion)
+    void SharedStruct::rootsCheck(
+        const ContainerModelBase *target) const { // NOLINT(*-no-recursion)
         if(this == target) {
             throw std::runtime_error("Recursive reference of container");
         }

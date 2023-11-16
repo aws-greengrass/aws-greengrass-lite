@@ -31,16 +31,15 @@ namespace config {
         void inplaceMap(const std::shared_ptr<Topics> &topics, YAML::Node &node);
 
         void inplaceValue(
-            const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
-        );
+            const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node);
 
         void inplaceTopicValue(
-            const std::shared_ptr<Topics> &topics, const std::string &key, const data::ValueType &vt
-        );
+            const std::shared_ptr<Topics> &topics,
+            const std::string &key,
+            const data::ValueType &vt);
 
         void nestedMapValue(
-            const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
-        );
+            const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node);
     };
 
     struct YamlHelper {

@@ -26,15 +26,15 @@ namespace data {
 
     public:
         struct CompEq {
-            [[nodiscard]] bool operator()(const InternedString &a, const InternedString &b)
-                const noexcept {
+            [[nodiscard]] bool operator()(
+                const InternedString &a, const InternedString &b) const noexcept {
                 return a._value == b._value;
             }
         };
 
         struct CompLess {
-            [[nodiscard]] bool operator()(const InternedString &a, const InternedString &b)
-                const noexcept {
+            [[nodiscard]] bool operator()(
+                const InternedString &a, const InternedString &b) const noexcept {
                 return a._value < b._value;
             }
         };

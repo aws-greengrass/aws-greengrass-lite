@@ -9,8 +9,7 @@ public:
     bool onRun(ggapi::Struct data) override;
 
     static ggapi::Struct testListener(
-        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData
-    );
+        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
 
     static ExamplePlugin &get() {
         static ExamplePlugin instance{};

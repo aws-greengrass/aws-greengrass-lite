@@ -17,8 +17,7 @@ namespace util {
         std::filesystem::permissions(
             path,
             std::filesystem::perms::group_write | std::filesystem::perms::others_write,
-            std::filesystem::perm_options::remove
-        );
+            std::filesystem::perm_options::remove);
     }
 
     std::filesystem::path NucleusPaths::deTilde(std::string_view s) const {

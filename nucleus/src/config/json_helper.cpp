@@ -293,8 +293,7 @@ namespace config {
     }
 
     bool JsonSharedStructResponder::parseKeyValue(
-        const std::string &key, data::StructElement value
-    ) {
+        const std::string &key, data::StructElement value) {
         _target->put(key, value);
         return true;
     }

@@ -42,8 +42,7 @@ ggapi::Struct mqttListener(ggapi::Task task, ggapi::StringOrd, ggapi::Struct arg
 }
 
 extern "C" [[maybe_unused]] bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t data
-) noexcept {
+    uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
     return MqttSender::get().lifecycle(moduleHandle, phase, data);
 }
 

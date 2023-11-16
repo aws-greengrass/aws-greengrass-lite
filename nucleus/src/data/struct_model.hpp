@@ -159,12 +159,12 @@ namespace data {
 
         [[nodiscard]] std::shared_ptr<TrackedObject> getObject() const {
             switch(_value.index()) {
-            case NONE:
-                return {};
-            case OBJECT:
-                return std::get<std::shared_ptr<TrackedObject>>(_value);
-            default:
-                throw std::runtime_error("Unsupported type conversion to object");
+                case NONE:
+                    return {};
+                case OBJECT:
+                    return std::get<std::shared_ptr<TrackedObject>>(_value);
+                default:
+                    throw std::runtime_error("Unsupported type conversion to object");
             }
         }
 

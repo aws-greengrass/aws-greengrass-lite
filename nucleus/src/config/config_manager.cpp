@@ -75,8 +75,8 @@ namespace config {
         });
     }
 
-    void Topics::rootsCheck(const data::ContainerModelBase *target
-    ) const { // NOLINT(*-no-recursion)
+    void Topics::rootsCheck(
+        const data::ContainerModelBase *target) const { // NOLINT(*-no-recursion)
         if(this == target) {
             throw std::runtime_error("Recursive reference of structure");
         }
@@ -126,8 +126,7 @@ namespace config {
     }
 
     Topic &Topic::addWatcher(
-        const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons
-    ) {
+        const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons) {
         _parent->addWatcher(_name, watcher, reasons);
         return *this;
     }
@@ -148,8 +147,7 @@ namespace config {
     }
 
     std::optional<std::vector<std::shared_ptr<Watcher>>> Topics::filterWatchers(
-        config::WhatHappened reasons
-    ) const {
+        config::WhatHappened reasons) const {
         return filterWatchers({}, reasons);
     }
 
@@ -254,8 +252,7 @@ namespace config {
     }
 
     std::shared_ptr<Topics> Topics::createInteriorChild(
-        std::string_view name, const Timestamp &timestamp
-    ) {
+        std::string_view name, const Timestamp &timestamp) {
         data::Symbol handle = context().symbols().intern(name);
         return createInteriorChild(handle, timestamp);
     }
@@ -287,8 +284,7 @@ namespace config {
     }
 
     std::shared_ptr<Topics> Topics::lookupTopics(
-        Timestamp timestamp, const std::vector<std::string> &path
-    ) {
+        Timestamp timestamp, const std::vector<std::string> &path) {
         std::shared_ptr<Topics> node{ref<Topics>()};
         for(const auto &p : path) {
             node = node->createInteriorChild(p, timestamp);
@@ -314,8 +310,7 @@ namespace config {
     }
 
     data::ValueType Topics::findOrDefault(
-        const data::ValueType &defaultV, std::initializer_list<std::string> path
-    ) {
+        const data::ValueType &defaultV, std::initializer_list<std::string> path) {
         std::optional<config::Topic> potentialTopic = find(path);
         if(potentialTopic.has_value()) {
             return potentialTopic->get();
@@ -567,8 +562,7 @@ namespace config {
         const config::Timestamp &proposedModTime,
         data::ValueType proposed,
         bool allowTimestampToDecrease,
-        bool allowTimestampToIncreaseWhenValueHasntChanged
-    ) {
+        bool allowTimestampToIncreaseWhenValueHasntChanged) {
         // Logic tracks that in GG-Java
         data::ValueType currentValue = _value;
         data::ValueType newValue = std::move(proposed);

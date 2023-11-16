@@ -50,13 +50,7 @@ SCENARIO("Shared structure API", "[struct]") {
         }
         WHEN("Items are added to structure") {
             s.put("foo", 1).put("baz", 10);
-            s.put({
-                {"bar",  2      },
-                {ping,   3      },
-                {"zing", 4.6    },
-                {"zap",  "zooey"},
-                {pow,    pow    }
-            });
+            s.put({{"bar", 2}, {ping, 3}, {"zing", 4.6}, {"zap", "zooey"}, {pow, pow}});
             THEN("Structure size increased") {
                 REQUIRE(s.size() == 7);
             }

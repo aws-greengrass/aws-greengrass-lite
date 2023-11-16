@@ -36,49 +36,46 @@ namespace config {
 
     // NOLINTNEXTLINE(*-no-recursion)
     void YamlReader::inplaceValue(
-        const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
-    ) {
+        const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node) {
         switch(node.Type()) {
-        case YAML::NodeType::Map:
-            nestedMapValue(topics, key, node);
-            break;
-        case YAML::NodeType::Sequence:
-        case YAML::NodeType::Scalar:
-        case YAML::NodeType::Null:
-            inplaceTopicValue(topics, key, rawValue(node));
-            break;
-        default:
-            // ignore anything else
-            break;
+            case YAML::NodeType::Map:
+                nestedMapValue(topics, key, node);
+                break;
+            case YAML::NodeType::Sequence:
+            case YAML::NodeType::Scalar:
+            case YAML::NodeType::Null:
+                inplaceTopicValue(topics, key, rawValue(node));
+                break;
+            default:
+                // ignore anything else
+                break;
         }
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
     data::ValueType YamlReader::rawValue(YAML::Node &node) {
         switch(node.Type()) {
-        case YAML::NodeType::Map:
-            return rawMapValue(node);
-        case YAML::NodeType::Sequence:
-            return rawSequenceValue(node);
-        case YAML::NodeType::Scalar:
-            return node.as<std::string>();
-        default:
-            break;
+            case YAML::NodeType::Map:
+                return rawMapValue(node);
+            case YAML::NodeType::Sequence:
+                return rawSequenceValue(node);
+            case YAML::NodeType::Scalar:
+                return node.as<std::string>();
+            default:
+                break;
         }
         return {};
     }
 
     void YamlReader::inplaceTopicValue(
-        const std::shared_ptr<Topics> &topics, const std::string &key, const data::ValueType &vt
-    ) {
+        const std::shared_ptr<Topics> &topics, const std::string &key, const data::ValueType &vt) {
         Topic topic = topics->createTopic(key, _timestamp);
         topic.withNewerValue(_timestamp, vt);
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
     void YamlReader::nestedMapValue(
-        const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node
-    ) {
+        const std::shared_ptr<Topics> &topics, const std::string &key, YAML::Node &node) {
         std::shared_ptr<Topics> nested = topics->createInteriorChild(key, _timestamp);
         inplaceMap(nested, node);
     }
@@ -154,45 +151,45 @@ namespace config {
         const data::StructElement &value) {
         switch(value.getType()) {
             case data::ValueTypes::NONE:
-            emitter << YAML::Null;
-            break;
+                emitter << YAML::Null;
+                break;
             case data::ValueTypes::BOOL:
-            emitter << value.getBool();
-            break;
+                emitter << value.getBool();
+                break;
             case data::ValueTypes::INT:
-            emitter << value.getInt();
-            break;
+                emitter << value.getInt();
+                break;
             case data::ValueTypes::DOUBLE:
-            emitter << value.getDouble();
-            break;
-        case data::ValueTypes::OBJECT:
-            if(value.isType<data::ListModelBase>()) {
-                std::shared_ptr<data::ListModelBase> list =
-                    value.castObject<data::ListModelBase>()->copy();
-                auto size = static_cast<int32_t>(list->size());
-                emitter << YAML::BeginSeq;
-                for(int32_t idx = 0; idx < size; idx++) {
-                    serialize(context, emitter, list->get(idx));
+                emitter << value.getDouble();
+                break;
+            case data::ValueTypes::OBJECT:
+                if(value.isType<data::ListModelBase>()) {
+                    std::shared_ptr<data::ListModelBase> list =
+                        value.castObject<data::ListModelBase>()->copy();
+                    auto size = static_cast<int32_t>(list->size());
+                    emitter << YAML::BeginSeq;
+                    for(int32_t idx = 0; idx < size; idx++) {
+                        serialize(context, emitter, list->get(idx));
+                    }
+                    emitter << YAML::EndSeq;
+                } else if(value.isType<data::StructModelBase>()) {
+                    std::shared_ptr<data::StructModelBase> s =
+                        value.castObject<data::StructModelBase>()->copy();
+                    std::vector<data::Symbol> keys = s->getKeys();
+                    emitter << YAML::BeginMap;
+                    for(const auto &i : keys) {
+                        std::string k = i.toString();
+                        emitter << YAML::Key << k.c_str() << YAML::Value;
+                        serialize(context, emitter, s->get(i));
+                    }
+                    emitter << YAML::EndMap;
+                } else {
+                    // Ignore objects that cannot be serialized
                 }
-                emitter << YAML::EndSeq;
-            } else if(value.isType<data::StructModelBase>()) {
-                std::shared_ptr<data::StructModelBase> s =
-                    value.castObject<data::StructModelBase>()->copy();
-                std::vector<data::Symbol> keys = s->getKeys();
-                emitter << YAML::BeginMap;
-                for(const auto &i : keys) {
-                    std::string k = i.toString();
-                    emitter << YAML::Key << k.c_str() << YAML::Value;
-                    serialize(context, emitter, s->get(i));
-                }
-                emitter << YAML::EndMap;
-            } else {
-                // Ignore objects that cannot be serialized
-            }
-            break;
-        default:
-            emitter << value.getString().c_str();
-            break;
+                break;
+            default:
+                emitter << value.getString().c_str();
+                break;
         }
     }
 } // namespace config

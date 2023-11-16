@@ -222,8 +222,7 @@ bool ggapiListPutString(uint32_t listHandle, int32_t idx, const char *bytes, siz
 }
 
 bool ggapiListInsertString(
-    uint32_t listHandle, int32_t idx, const char *bytes, size_t len
-) noexcept {
+    uint32_t listHandle, int32_t idx, const char *bytes, size_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         auto &context = scope::Context::get();
         auto ss{context.objFromInt<ListModelBase>(listHandle)};

@@ -25,15 +25,13 @@ namespace config {
     // allow combining of bit-flags
     inline WhatHappened operator|(WhatHappened left, WhatHappened right) {
         return static_cast<WhatHappened>(
-            static_cast<uint32_t>(left) | static_cast<uint32_t>(right)
-        );
+            static_cast<uint32_t>(left) | static_cast<uint32_t>(right));
     }
 
     // allow masking of bit-flags
     inline WhatHappened operator&(WhatHappened left, WhatHappened right) {
         return static_cast<WhatHappened>(
-            static_cast<uint32_t>(left) & static_cast<uint32_t>(right)
-        );
+            static_cast<uint32_t>(left) & static_cast<uint32_t>(right));
     }
 
     class Watcher {

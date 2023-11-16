@@ -28,11 +28,9 @@ public:
     bool onRun(ggapi::Struct data) override;
 
     static ggapi::Struct publishToIoTCoreResponder(
-        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct respData
-    );
+        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct respData);
     static ggapi::Struct publishToIoTCoreListener(
-        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData
-    );
+        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
 
     static ExamplePlugin &get() {
         static ExamplePlugin instance{};
@@ -64,8 +62,7 @@ bool ExamplePlugin::onRun(ggapi::Struct data) {
 }
 
 ggapi::Struct ExamplePlugin::publishToIoTCoreListener(
-    ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData
-) {
+    ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData) {
     std::ignore = task; // task handle for task operations
     std::ignore = topic; // topic name in case same callback used for multiple topics
     // real work
@@ -85,8 +82,7 @@ ggapi::Struct ExamplePlugin::publishToIoTCoreListener(
 }
 
 ggapi::Struct ExamplePlugin::publishToIoTCoreResponder(
-    ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct respData
-) {
+    ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct respData) {
     std::ignore = task; // task handle for task operations
     std::ignore = topic; // topic name in case same callback used for multiple topics
     if(!respData) {
@@ -112,8 +108,7 @@ void ExamplePlugin::asyncThreadFn() {
 
     // Async style
     auto newTask = ggapi::Task::sendToTopicAsync(
-        KEYS.publishToIoTCoreTopic, request, publishToIoTCoreResponder, -1
-    );
+        KEYS.publishToIoTCoreTopic, request, publishToIoTCoreResponder, -1);
     auto respData = newTask.waitForTaskCompleted();
     uint32_t status{respData.get<uint32_t>("status")};
 

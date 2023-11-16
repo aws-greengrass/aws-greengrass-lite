@@ -75,7 +75,7 @@ return a symbol value that is equal to the symbol returned from that call.
 ### 4.2.
 
 If this function is used to obtain a symbol for a string that is not equal to
-any string previously supplied to the function, the function must return a 
+any string previously supplied to the function, the function must return a
 symbol value that is not equal to any previously returned symbol.
 
 ### 4.3.

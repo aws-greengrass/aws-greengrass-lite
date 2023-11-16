@@ -94,8 +94,7 @@ namespace config {
 
     public:
         JsonSharedStructResponder(
-            JsonReader &reader, const std::shared_ptr<data::StructModelBase> &target, bool started
-        )
+            JsonReader &reader, const std::shared_ptr<data::StructModelBase> &target, bool started)
             : JsonStructResponder(reader, started), _target(target) {
         }
 
@@ -110,8 +109,7 @@ namespace config {
 
     public:
         JsonSharedListResponder(
-            JsonReader &reader, const std::shared_ptr<data::ListModelBase> &target, bool started
-        )
+            JsonReader &reader, const std::shared_ptr<data::ListModelBase> &target, bool started)
             : JsonArrayResponder(reader, started), _target(target) {
         }
 

@@ -39,7 +39,7 @@ services:
     version: "0.0.0"
   main:
     dependencies:
-    - "aws.greengrass.Nucleus-Lite"
+      - "aws.greengrass.Nucleus-Lite"
     lifecycle: {}
   TelemetryAgent:
     dependencies: []
