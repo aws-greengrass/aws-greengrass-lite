@@ -30,21 +30,22 @@ jobs:
       - name: Clone the repo
         uses: actions/checkout@v3
 
+      - name: Install dependencies
+        if: matrix.os == 'windows-latest' && matrix.compiler == 'g++'
+        run: >
+          choco install mingw
+
       - name: Configure CMake
         shell: bash
-        run: |
-          if [[ "${{matrix.os}}" == "windows-latest" && "${{matrix.compiler}}" == "g++" ]]; then
-            choco install mingw
-          fi
-
-          cmake -B build -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
-          -DCMAKE_BUILD_TYPE=${{matrix.build_type }} -S ${{github.workspace }}
+        run: >
+          cmake -B ${{ github.workspace }}/build -DCMAKE_CXX_COMPILER=${{matrix.compiler}}
+          -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S ${{github.workspace}}
 
       - name: Build
         run:
-          cmake --build build --config
+          cmake --build ${{ github.workspace }}/build --config
           ${{ matrix.build_type }}
 
       - name: Run Tests
-        working-directory: build
+        working-directory: ${{ github.workspace }}/build
         run: ./nucleus/nucleus-tests -d yes
