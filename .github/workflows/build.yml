@@ -30,26 +30,21 @@ jobs:
       - name: Clone the repo
         uses: actions/checkout@v3
 
-      - name: Set reusable strings
-        id: strings
-        shell: bash
-        run: >
-          echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-
       - name: Configure CMake
         shell: bash
         run: |
           if [[ "${{matrix.os}}" == "windows-latest" && "${{matrix.compiler}}" == "g++" ]]; then
             choco install mingw
           fi
-          cmake -B "${{ steps.strings.outputs.build-output-dir }}" -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
+
+          cmake -B build -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
           -DCMAKE_BUILD_TYPE=${{matrix.build_type }} -S ${{github.workspace }}
 
       - name: Build
         run:
-          cmake --build ${{ steps.strings.outputs.build-output-dir }} --config
+          cmake --build build --config
           ${{ matrix.build_type }}
 
       - name: Run Tests
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
+        working-directory: build
         run: ./nucleus/nucleus-tests -d yes
