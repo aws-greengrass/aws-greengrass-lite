@@ -1,4 +1,4 @@
-#include "nucleus_core.hpp"
+#include "nucleus_core.h"
 
 int main(int argc, char *argv[], char *envp[]) {
     return ggapiMainThread(argc, argv, envp);

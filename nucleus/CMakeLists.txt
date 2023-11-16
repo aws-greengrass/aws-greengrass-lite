@@ -36,6 +36,7 @@ endif()
 #
 add_library(
   nucleus-obj OBJECT
+  include/nucleus_core.h
   src/api/data.cpp
   src/api/error.cpp
   src/api/main.cpp
@@ -139,7 +140,7 @@ add_library(nucleus-lib STATIC $<TARGET_OBJECTS:nucleus-obj>)
 target_link_libraries(nucleus-lib PUBLIC gg_plugin_api Threads::Threads
                                          ${CMAKE_DL_LIBS} yaml-cpp)
 
-add_executable(greengrass-lite stub/main.cpp)
+add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
 
 install(TARGETS greengrass-lite DESTINATION bin)
