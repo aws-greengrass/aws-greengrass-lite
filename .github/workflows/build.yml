@@ -42,7 +42,7 @@ jobs:
           if [[ "${{matrix.os}}" == "windows-latest" && "${{matrix.compiler}}" == "g++" ]]; then
             choco install mingw
           fi
-          cmake -B ${{ steps.strings.outputs.build-output-dir }} -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
+          cmake -B "${{ steps.strings.outputs.build-output-dir }}" -DCMAKE_CXX_COMPILER=${{ matrix.compiler }} \
           -DCMAKE_BUILD_TYPE=${{matrix.build_type }} -S ${{github.workspace }}
 
       - name: Build
