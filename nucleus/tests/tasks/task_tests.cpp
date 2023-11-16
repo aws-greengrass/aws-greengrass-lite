@@ -1,8 +1,7 @@
-#include "data/environment.hpp"
 #include "data/shared_struct.hpp"
+#include "scope/context_full.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task.hpp"
-#include "tasks/task_manager.hpp"
 #include "tasks/task_threads.hpp"
 #include <catch2/catch_all.hpp>
 #include <chrono>
@@ -10,7 +9,7 @@
 // NOLINTBEGIN
 namespace constants {
     using namespace std::chrono_literals;
-    static constexpr auto TIMER_GRANULARITY = 200ms; // If too small, tests will become unstable
+    static constexpr auto TIMER_GRANULARITY = 300ms; // If too small, tests will become unstable
 
     // TODO: remove or significantly reduce me
     static constexpr auto POLLING_GRACE = 10us;
@@ -49,17 +48,16 @@ public:
 };
 
 SCENARIO("Task management", "[tasks]") {
-    data::Environment environment;
-    tasks::TaskManagerContainer taskManager{environment};
-    tasks::FixedTaskThreadScope threadScope{
-        std::make_shared<tasks::FixedTaskThread>(environment, taskManager)};
+    scope::LocalizedContext forTesting{scope::Context::create()};
+    auto context = forTesting.context()->context();
+    auto &taskManager = context->taskManager();
+    tasks::FixedTaskThreadScope threadScope{std::make_shared<tasks::FixedTaskThread>(context)};
 
     GIVEN("An empty task") {
-        auto taskAnchor{taskManager->createTask()};
-        auto task{taskAnchor.getObject<tasks::Task>()};
-        auto taskInitData{std::make_shared<data::SharedStruct>(environment)};
+        auto task{std::make_shared<tasks::Task>(context)};
+        auto taskInitData{std::make_shared<data::SharedStruct>(context)};
         task->setData(taskInitData);
-        taskManager->queueTask(task);
+        taskManager.queueTask(task);
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
@@ -80,14 +78,13 @@ SCENARIO("Task management", "[tasks]") {
 
     GIVEN("An empty task with completion function") {
 
-        auto taskAnchor{taskManager->createTask()};
-        auto task{taskAnchor.getObject<tasks::Task>()};
-        auto taskInitData{std::make_shared<data::SharedStruct>(environment)};
-        auto taskCompData{std::make_shared<data::SharedStruct>(environment)};
+        auto task{std::make_shared<tasks::Task>(context)};
+        auto taskInitData{std::make_shared<data::SharedStruct>(context)};
+        auto taskCompData{std::make_shared<data::SharedStruct>(context)};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
         task->setCompletion(std::move(finalize));
-        taskManager->queueTask(task);
+        taskManager.queueTask(task);
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
@@ -112,16 +109,15 @@ SCENARIO("Task management", "[tasks]") {
     }
 
     GIVEN("A single non-return sub-task with completion function") {
-        auto taskAnchor{taskManager->createTask()};
-        auto task{taskAnchor.getObject<tasks::Task>()};
-        auto taskInitData{std::make_shared<data::SharedStruct>(environment)};
-        auto taskCompData{std::make_shared<data::SharedStruct>(environment)};
+        auto task{std::make_shared<tasks::Task>(context)};
+        auto taskInitData{std::make_shared<data::SharedStruct>(context)};
+        auto taskCompData{std::make_shared<data::SharedStruct>(context)};
         auto subTask1{std::make_unique<SubTaskStub>("subTask1")};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
         task->addSubtask(std::move(subTask1));
         task->setCompletion(std::move(finalize));
-        taskManager->queueTask(task);
+        taskManager.queueTask(task);
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
@@ -149,11 +145,10 @@ SCENARIO("Task management", "[tasks]") {
     }
 
     GIVEN("Three sub-tasks with completion function") {
-        auto taskAnchor{taskManager->createTask()};
-        auto task{taskAnchor.getObject<tasks::Task>()};
-        auto taskInitData{std::make_shared<data::SharedStruct>(environment)};
-        auto taskRetData{std::make_shared<data::SharedStruct>(environment)};
-        auto taskCompData{std::make_shared<data::SharedStruct>(environment)};
+        auto task{std::make_shared<tasks::Task>(context)};
+        auto taskInitData{std::make_shared<data::SharedStruct>(context)};
+        auto taskRetData{std::make_shared<data::SharedStruct>(context)};
+        auto taskCompData{std::make_shared<data::SharedStruct>(context)};
         auto subTask1{std::make_unique<SubTaskStub>("subTask1")};
         auto subTask2{std::make_unique<SubTaskStub>("subTask2")};
         auto subTask3{std::make_unique<SubTaskStub>("subTask3", taskRetData)};
@@ -163,7 +158,7 @@ SCENARIO("Task management", "[tasks]") {
         task->addSubtask(std::move(subTask2));
         task->addSubtask(std::move(subTask3));
         task->setCompletion(std::move(finalize));
-        taskManager->queueTask(task);
+        taskManager.queueTask(task);
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
@@ -193,12 +188,11 @@ SCENARIO("Task management", "[tasks]") {
     }
 
     GIVEN("Three sub-tasks returning early with completion function") {
-        auto taskAnchor{taskManager->createTask()};
-        auto task{taskAnchor.getObject<tasks::Task>()};
-        auto taskInitData{std::make_shared<data::SharedStruct>(environment)};
-        auto taskRetData2{std::make_shared<data::SharedStruct>(environment)};
-        auto taskRetData3{std::make_shared<data::SharedStruct>(environment)};
-        auto taskCompData{std::make_shared<data::SharedStruct>(environment)};
+        auto task{std::make_shared<tasks::Task>(context)};
+        auto taskInitData{std::make_shared<data::SharedStruct>(context)};
+        auto taskRetData2{std::make_shared<data::SharedStruct>(context)};
+        auto taskRetData3{std::make_shared<data::SharedStruct>(context)};
+        auto taskCompData{std::make_shared<data::SharedStruct>(context)};
         auto subTask1{std::make_unique<SubTaskStub>("subTask1")};
         auto subTask2{std::make_unique<SubTaskStub>("subTask2", taskRetData2)};
         auto subTask3{std::make_unique<SubTaskStub>("subTask3", taskRetData3)};
@@ -208,7 +202,7 @@ SCENARIO("Task management", "[tasks]") {
         task->addSubtask(std::move(subTask2));
         task->addSubtask(std::move(subTask3));
         task->setCompletion(std::move(finalize));
-        taskManager->queueTask(task);
+        taskManager.queueTask(task);
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
@@ -242,9 +236,8 @@ SCENARIO("Task management", "[tasks]") {
     }
 
     GIVEN("An unqueued task") {
-        auto taskAnchor{taskManager->createTask()};
-        auto task{taskAnchor.getObject<tasks::Task>()};
-        auto taskInitData{std::make_shared<data::SharedStruct>(environment)};
+        auto task{std::make_shared<tasks::Task>(context)};
+        auto taskInitData{std::make_shared<data::SharedStruct>(context)};
         task->setData(taskInitData);
         // note, for this test, do not queue
         // note, for this test, no worker allocated
@@ -268,24 +261,21 @@ SCENARIO("Task management", "[tasks]") {
 }
 
 SCENARIO("Deferred task management", "[tasks]") {
-    data::Environment environment;
-    tasks::TaskManagerContainer taskManager{environment};
-    tasks::FixedTaskThreadScope threadScope{
-        std::make_shared<tasks::FixedTimerTaskThread>(environment, taskManager)};
+    scope::LocalizedContext forTesting{scope::Context::create()};
+    auto context = forTesting.context()->context();
+    auto &taskManager = context->taskManager();
+    tasks::FixedTaskThreadScope threadScope{std::make_shared<tasks::FixedTimerTaskThread>(context)};
 
     GIVEN("Three independent tasks") {
-        auto taskAnchor1{taskManager->createTask()};
-        auto taskAnchor2{taskManager->createTask()};
-        auto taskAnchor3{taskManager->createTask()};
-        auto task1{taskAnchor1.getObject<tasks::Task>()};
-        auto task2{taskAnchor2.getObject<tasks::Task>()};
-        auto task3{taskAnchor3.getObject<tasks::Task>()};
-        auto taskInitData1{std::make_shared<data::SharedStruct>(environment)};
-        auto taskInitData2{std::make_shared<data::SharedStruct>(environment)};
-        auto taskInitData3{std::make_shared<data::SharedStruct>(environment)};
-        auto taskRetData1{std::make_shared<data::SharedStruct>(environment)};
-        auto taskRetData2{std::make_shared<data::SharedStruct>(environment)};
-        auto taskRetData3{std::make_shared<data::SharedStruct>(environment)};
+        auto task1{std::make_shared<tasks::Task>(context)};
+        auto task2{std::make_shared<tasks::Task>(context)};
+        auto task3{std::make_shared<tasks::Task>(context)};
+        auto taskInitData1{std::make_shared<data::SharedStruct>(context)};
+        auto taskInitData2{std::make_shared<data::SharedStruct>(context)};
+        auto taskInitData3{std::make_shared<data::SharedStruct>(context)};
+        auto taskRetData1{std::make_shared<data::SharedStruct>(context)};
+        auto taskRetData2{std::make_shared<data::SharedStruct>(context)};
+        auto taskRetData3{std::make_shared<data::SharedStruct>(context)};
         auto finalize1{std::make_unique<SubTaskStub>("task1", taskRetData1)};
         auto finalize2{std::make_unique<SubTaskStub>("task2", taskRetData2)};
         auto finalize3{std::make_unique<SubTaskStub>("task3", taskRetData3)};
@@ -306,9 +296,9 @@ SCENARIO("Deferred task management", "[tasks]") {
         task1->setStartTime(task1Time);
         task2->setStartTime(task2Time);
         task3->setStartTime(task3Time);
-        taskManager->queueTask(task3);
-        taskManager->queueTask(task1);
-        taskManager->queueTask(task2);
+        taskManager.queueTask(task3);
+        taskManager.queueTask(task1);
+        taskManager.queueTask(task2);
 
         WHEN("Waiting for all three tasks completed") {
             bool didComplete2 = task2->waitForCompletion(maxTime);

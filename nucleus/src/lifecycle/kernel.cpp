@@ -2,6 +2,7 @@
 #include "command_line.hpp"
 #include "config/yaml_helper.hpp"
 #include "deployment/device_configuration.hpp"
+#include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
 #include <filesystem>
 #include <iostream>
@@ -13,9 +14,9 @@ namespace lifecycle {
     // both. Also some functionality from KernelCommandLine is moved here.
     //
 
-    Kernel::Kernel(data::Global &global) : _global{global} {
+    Kernel::Kernel(const std::shared_ptr<scope::Context> &context) : _context(context) {
         _nucleusPaths = std::make_shared<util::NucleusPaths>();
-        data::StringOrdInit::init(global.environment, {SERVICES_TOPIC_KEY});
+        data::SymbolInit::init(_context.lock(), {&SERVICES_TOPIC_KEY});
     }
 
     //
@@ -26,7 +27,9 @@ namespace lifecycle {
     void Kernel::preLaunch(CommandLine &commandLine) {
         getConfig().publishQueue().start();
         _rootPathWatcher = std::make_shared<RootPathWatcher>(*this);
-        _global.environment.configManager.lookup({"system", "rootpath"})
+        context()
+            .configManager()
+            .lookup({"system", "rootpath"})
             .dflt(getPaths()->rootPath().generic_string())
             .addWatcher(_rootPathWatcher, config::WhatHappened::changed);
 
@@ -34,15 +37,15 @@ namespace lifecycle {
         deployment::DeploymentStage stage = deployment::DeploymentStage::DEFAULT;
         std::filesystem::path overrideConfigFile;
         switch(stage) {
-        case deployment::DeploymentStage::KERNEL_ACTIVATION:
-        case deployment::DeploymentStage::BOOTSTRAP:
-            _deploymentStageAtLaunch = stage;
-            throw std::runtime_error("TODO: preLaunch() stages");
-        case deployment::DeploymentStage::KERNEL_ROLLBACK:
-            _deploymentStageAtLaunch = stage;
-            throw std::runtime_error("TODO: preLaunch() stages");
-        default:
-            break;
+            case deployment::DeploymentStage::KERNEL_ACTIVATION:
+            case deployment::DeploymentStage::BOOTSTRAP:
+                _deploymentStageAtLaunch = stage;
+                throw std::runtime_error("TODO: preLaunch() stages");
+            case deployment::DeploymentStage::KERNEL_ROLLBACK:
+                _deploymentStageAtLaunch = stage;
+                throw std::runtime_error("TODO: preLaunch() stages");
+            default:
+                break;
         }
         if(!overrideConfigFile.empty()) {
             overrideConfigLocation(commandLine, overrideConfigFile);
@@ -94,7 +97,7 @@ namespace lifecycle {
             // tlog content is validated - torn writes also handled here
             bool transactionTlogValid =
                 handleIncompleteTlogTruncation(transactionLogPath)
-                && config::TlogReader::handleTlogTornWrite(_global.environment, transactionLogPath);
+                && config::TlogReader::handleTlogTornWrite(_context.lock(), transactionLogPath);
 
             if(transactionTlogValid) {
                 // if config.tlog is valid, use it
@@ -135,15 +138,14 @@ namespace lifecycle {
 
         // hook tlog to config so that changes over time are persisted to the tlog
         _tlog = std::make_unique<config::TlogWriter>(
-            _global.environment, getConfig().root(), transactionLogPath
-        );
+            _context.lock(), getConfig().root(), transactionLogPath);
         // TODO: per KernelLifecycle.initConfigAndTlog(), configure auto truncate from config
         _tlog->flushImmediately().withAutoTruncate().append().withWatcher();
     }
 
     void Kernel::updateDeviceConfiguration(CommandLine &commandLine) {
         _deviceConfiguration =
-            std::make_unique<deployment::DeviceConfiguration>(_global.environment, *this);
+            std::make_unique<deployment::DeviceConfiguration>(_context.lock(), *this);
         if(!commandLine.getAwsRegion().empty()) {
             _deviceConfiguration->setAwsRegion(commandLine.getAwsRegion());
         }
@@ -209,7 +211,7 @@ namespace lifecycle {
             bootstrapTlogFile,
             util::CommitableFile::getBackupFile(bootstrapTlogFile)};
         for(auto backupPath : paths) {
-            if(config::TlogReader::handleTlogTornWrite(_global.environment, backupPath)) {
+            if(config::TlogReader::handleTlogTornWrite(_context.lock(), backupPath)) {
                 // TODO: log
                 std::cerr << "Transaction log " << tlogFile
                           << " is invalid, attempting to load from " << backupPath << std::endl;
@@ -220,7 +222,7 @@ namespace lifecycle {
     }
 
     void Kernel::writeEffectiveConfigAsTransactionLog(const std::filesystem::path &tlogFile) {
-        config::TlogWriter(_global.environment, getConfig().root(), tlogFile).dump();
+        config::TlogWriter(_context.lock(), getConfig().root(), tlogFile).dump();
     }
 
     void Kernel::writeEffectiveConfig() {
@@ -232,14 +234,12 @@ namespace lifecycle {
 
     void Kernel::writeEffectiveConfig(const std::filesystem::path &configFile) {
         util::CommitableFile commitable(configFile);
-        config::YamlHelper::write(_global.environment, commitable, getConfig().root());
+        config::YamlHelper::write(_context.lock(), commitable, getConfig().root());
     }
 
     int Kernel::launch() {
         if(!_mainThread) {
-            _mainThread.claim(std::make_shared<tasks::FixedTimerTaskThread>(
-                _global.environment, _global.taskManager
-            ));
+            _mainThread.claim(std::make_shared<tasks::FixedTimerTaskThread>(_context.lock()));
         }
 
         switch(_deploymentStageAtLaunch) {
@@ -272,20 +272,20 @@ namespace lifecycle {
         //
         // TODO: This is stub/sample code
         //
-        _global.loader->discoverPlugins(getPaths()->pluginPath());
-        std::shared_ptr<data::SharedStruct> configStruct{
-            std::make_shared<data::SharedStruct>(_global.environment)};
+        context().pluginLoader().discoverPlugins(getPaths()->pluginPath());
+        std::shared_ptr<data::SharedStruct> lifecycleArgs{
+            std::make_shared<data::SharedStruct>(_context.lock())};
         std::shared_ptr<data::ContainerModelBase> rootStruct = getConfig().root();
-        configStruct->put("config", data::StructElement({rootStruct}));
-        _global.loader->lifecycleBootstrap(configStruct);
-        _global.loader->lifecycleDiscover(configStruct);
-        _global.loader->lifecycleStart(configStruct);
-        _global.loader->lifecycleRun(configStruct);
+        lifecycleArgs->put("config", rootStruct);
+
+        context().pluginLoader().lifecycleBootstrap(lifecycleArgs);
+        context().pluginLoader().lifecycleDiscover(lifecycleArgs);
+        context().pluginLoader().lifecycleStart(lifecycleArgs);
+        context().pluginLoader().lifecycleRun(lifecycleArgs);
 
         (void) ggapiWaitForTaskCompleted(
-            ggapiGetCurrentTask(), -1
-        ); // essentially blocks until kernel signalled to terminate
-        _global.loader->lifecycleTerminate(configStruct);
+            ggapiGetCurrentTask(), -1); // essentially blocks until kernel signalled to terminate
+        context().pluginLoader().lifecycleTerminate(lifecycleArgs);
         getConfig().publishQueue().stop();
     }
 
@@ -297,20 +297,18 @@ namespace lifecycle {
 
     void RootPathWatcher::initialized(
         const std::shared_ptr<config::Topics> &topics,
-        data::StringOrd key,
-        config::WhatHappened changeType
-    ) {
+        data::Symbol key,
+        config::WhatHappened changeType) {
         changed(topics, key, config::WhatHappened::never);
     }
 
     void RootPathWatcher::changed(
         const std::shared_ptr<config::Topics> &topics,
-        data::StringOrd key,
-        config::WhatHappened changeType
-    ) {
+        data::Symbol key,
+        config::WhatHappened changeType) {
         config::Topic topic = topics->getTopic(key);
         if(!topic.isNull()) {
-            _kernel.getPaths()->initPaths(topic.getString());
+        _kernel.getPaths()->initPaths(topic.getString());
         }
     }
 
@@ -337,6 +335,9 @@ namespace lifecycle {
         std::cerr << "Closing transaction log" << std::endl;
         _tlog->commit();
         writeEffectiveConfig();
+    }
+    config::Manager &Kernel::getConfig() {
+        return context().configManager();
     }
 
 } // namespace lifecycle

@@ -1,6 +1,6 @@
 #include "command_line.hpp"
 #include "kernel.hpp"
-#include "tasks/task_manager.hpp"
+#include "scope/context_full.hpp"
 #include <optional>
 #include <util.hpp>
 namespace fs = std::filesystem;
@@ -59,7 +59,7 @@ namespace lifecycle {
         return v;
     }
 
-    void CommandLine::parseHome(data::SysProperties &env) {
+    void CommandLine::parseHome(lifecycle::SysProperties &env) {
         std::optional<std::string> homePath = env.get("HOME");
         std::shared_ptr<util::NucleusPaths> paths = _kernel.getPaths();
         if(homePath.has_value() && !homePath.value().empty()) {
@@ -86,7 +86,7 @@ namespace lifecycle {
         }
     }
 
-    void CommandLine::parseEnv(data::SysProperties &env) {
+    void CommandLine::parseEnv(lifecycle::SysProperties &env) {
         parseHome(env);
     }
 

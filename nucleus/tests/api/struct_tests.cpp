@@ -1,21 +1,52 @@
+#include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
 
-static ggapi::Struct simpleListener(ggapi::Scope, ggapi::StringOrd, ggapi::Struct) {
+static ggapi::Struct simpleListener(ggapi::Task, ggapi::StringOrd, ggapi::Struct) {
     return ggapi::Struct{0};
 }
 
 // NOLINTBEGIN
 SCENARIO("Shared structure API", "[struct]") {
-    auto scope = ggapi::ThreadScope::claimThread();
+    scope::LocalizedContext forTesting{scope::Context::create()};
 
     GIVEN("A structure") {
-        auto s = scope.createStruct();
+        auto s = ggapi::Struct::create();
         ggapi::StringOrd ping{"ping"};
         ggapi::StringOrd pow{"pow"};
 
         THEN("Structure is empty") {
             REQUIRE(s.size() == 0);
+        }
+        WHEN("Items are added to structure key by key") {
+            // temporary to try and understand why automated build fails KV init list
+            s.put("foo", 1);
+            s.put(ping, 3);
+            s.put("zing", 4.6);
+            s.put("zap", "zooey");
+            s.put(pow, pow);
+            THEN("Structure size increased") {
+                REQUIRE(s.size() == 5);
+            }
+            THEN("Structure contents are as expected") {
+                REQUIRE(s.get<int>("foo") == 1);
+                REQUIRE(s.get<int>("ping") == 3);
+                REQUIRE(s.get<double>("zing") == 4.6);
+                REQUIRE(s.get<std::string>("zap") == "zooey");
+                REQUIRE(s.get<std::string>("pow") == "pow");
+            }
+        }
+        WHEN("Items are added with simple initialize list") {
+            // temporary to try and understand why automated build fails KV init list
+            s.put({"foo", 1});
+            s.put({{ping, 3}});
+            THEN("Structure size increased") {
+                REQUIRE(s.size() == 2);
+            }
+            THEN("Structure contents are as expected") {
+                REQUIRE(s.get<int>("foo") == 1);
+                REQUIRE(s.get<int>("ping") == 3);
+            }
         }
         WHEN("Items are added to structure") {
             s.put("foo", 1).put("baz", 10);
@@ -64,7 +95,8 @@ SCENARIO("Shared structure API", "[struct]") {
             }
         }
         WHEN("A listener is added to structure") {
-            ggapi::Subscription handle{scope.subscribeToTopic({}, simpleListener)};
+            ggapi::CallScope callScope{};
+            ggapi::Subscription handle{callScope.subscribeToTopic({}, simpleListener)};
             s.put("Listener", handle);
             THEN("Listener can be retrieved from structure") {
                 ggapi::Subscription other = s.get<ggapi::Subscription>("Listener");

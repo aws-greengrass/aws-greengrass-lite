@@ -1,17 +1,11 @@
-#include "aws/crt/Types.h"
-#include "aws/crt/mqtt/Mqtt5Types.h"
-#include <algorithm>
 #include <aws/crt/Api.h>
-#include <aws/crt/UUID.h>
+#include <aws/crt/Types.h>
 #include <aws/crt/mqtt/Mqtt5Packets.h>
+#include <aws/crt/mqtt/Mqtt5Types.h>
 #include <aws/iot/Mqtt5Client.h>
-#include <cassert>
-#include <cpp_api.hpp>
-#include <cstddef>
 #include <iostream>
-#include <iterator>
 #include <memory>
-#include <regex>
+#include <plugin.hpp>
 #include <shared_mutex>
 #include <stdexcept>
 #include <string_view>
@@ -19,8 +13,6 @@
 #include <unordered_map>
 
 struct Keys {
-    ggapi::StringOrd start{"start"};
-    ggapi::StringOrd run{"run"};
     ggapi::StringOrd publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
     ggapi::StringOrd subscribeToIoTCoreTopic{"aws.greengrass.SubscribeToIoTCore"};
     ggapi::StringOrd topicName{"topicName"};
@@ -188,24 +180,41 @@ private:
     }
 };
 
-static const Keys keys;
+class IotBroker : public ggapi::Plugin {
+public:
+    bool onStart(ggapi::Struct data) override;
+    void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
 
-static int demo();
-static bool startPhase(const std::string &, const std::string &, const std::string &);
+    static IotBroker &get() {
+        static IotBroker instance{};
+        return instance;
+    }
 
-static std::unordered_multimap<TopicFilter, ggapi::StringOrd, TopicFilter::Hash> subscriptions;
-static std::shared_mutex subscriptionMutex;
+private:
+    static const Keys keys;
+    std::unordered_multimap<TopicFilter, ggapi::StringOrd, TopicFilter::Hash> _subscriptions;
+    std::shared_mutex _subscriptionMutex;
+    std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
+    static ggapi::Struct publishHandler(ggapi::Task, ggapi::StringOrd, ggapi::Struct args);
+    ggapi::Struct publishHandlerImpl(ggapi::Struct args);
+    static ggapi::Struct subscribeHandler(ggapi::Task, ggapi::StringOrd, ggapi::Struct args);
+    ggapi::Struct subscribeHandlerImpl(ggapi::Struct args);
+};
+
+const Keys IotBroker::keys{};
 
 // Initializes global CRT API
 // TODO: What happens when multiple plugins use the CRT?
-static const Aws::Crt::ApiHandle apiHandle;
+static const Aws::Crt::ApiHandle apiHandle{};
 
-static std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> client;
+ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::StringOrd, ggapi::Struct args) {
+    return get().publishHandlerImpl(args);
+}
 
-ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct args) {
-    std::string topic{args.get<std::string>(keys.topicName)};
-    int qos{args.get<int>(keys.qos)};
-    std::string payload{args.get<std::string>(keys.payload)};
+ggapi::Struct IotBroker::publishHandlerImpl(ggapi::Struct args) {
+    auto topic{args.get<std::string>(keys.topicName)};
+    auto qos{args.get<int>(keys.qos)};
+    auto payload{args.get<std::string>(keys.payload)};
 
     std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topic << std::endl;
 
@@ -236,21 +245,25 @@ ggapi::Struct publishHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct 
         static_cast<Aws::Crt::Mqtt5::QOS>(qos)
     );
 
-    if(!client->Publish(publish, onPublishComplete)) {
+    if(!_client->Publish(publish, onPublishComplete)) {
         std::cerr << "[mqtt-plugin] Publish failed" << std::endl;
     }
 
-    return task.createStruct();
+    return ggapi::Struct::create();
 }
 
-ggapi::Struct subscribeHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struct args) {
+ggapi::Struct IotBroker::subscribeHandler(ggapi::Task, ggapi::StringOrd, ggapi::Struct args) {
+    return get().subscribeHandlerImpl(args);
+}
+
+ggapi::Struct IotBroker::subscribeHandlerImpl(ggapi::Struct args) {
     TopicFilter topicFilter{args.get<std::string>(keys.topicFilter)};
     int qos{args.get<int>(keys.qos)};
-    ggapi::StringOrd responseTopic{args.get<uint32_t>(keys.lpcResponseTopic)};
+    ggapi::StringOrd responseTopic{args.get<std::string>(keys.lpcResponseTopic)};
 
     std::cerr << "[mqtt-plugin] Subscribing to " << topicFilter.get() << std::endl;
 
-    auto onSubscribeComplete = [topicFilter, responseTopic](
+    auto onSubscribeComplete = [this, topicFilter, responseTopic](
                                    int error_code,
                                    const std::shared_ptr<Aws::Crt::Mqtt5::SubAckPacket> &suback
                                ) {
@@ -269,11 +282,11 @@ ggapi::Struct subscribeHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struc
             } else {
                 std::cerr << "[mqtt-plugin] Subscribe accepted" << std::endl;
             }
-        };
+        }
 
         {
-            std::unique_lock lock(subscriptionMutex);
-            subscriptions.insert({topicFilter, responseTopic});
+            std::unique_lock lock(_subscriptionMutex);
+            _subscriptions.insert({topicFilter, responseTopic});
         }
     };
 
@@ -282,33 +295,17 @@ ggapi::Struct subscribeHandler(ggapi::Scope task, ggapi::StringOrd, ggapi::Struc
         Aws::Crt::String(topicFilter.get()), static_cast<Aws::Crt::Mqtt5::QOS>(qos)
     )));
 
-    if(!client->Subscribe(subscribe, onSubscribeComplete)) {
+    if(!_client->Subscribe(subscribe, onSubscribeComplete)) {
         std::cerr << "[mqtt-plugin] Subscribe failed" << std::endl;
     }
 
-    return task.createStruct();
+    return ggapi::Struct::create();
 }
 
-extern "C" bool greengrass_lifecycle(
+extern "C" [[maybe_unused]] bool greengrass_lifecycle(
     uint32_t moduleHandle, uint32_t phase, uint32_t dataHandle
 ) noexcept {
-    ggapi::StringOrd phaseOrd{phase};
-    ggapi::Struct structData{dataHandle};
-
-    auto configStruct = structData.getValue<ggapi::Struct>({"config"});
-
-    auto certPath = configStruct.getValue<std::string>({"system", "certificateFilePath"});
-    auto keyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
-    auto credEndpoint = configStruct.getValue<std::string>(
-        {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotCredEndpoint"}
-    );
-
-    std::cerr << "[mqtt-plugin] Running lifecycle phase " << phaseOrd.toString() << std::endl;
-
-    if(phaseOrd == keys.start) {
-        return startPhase(credEndpoint, certPath, keyPath);
-    }
-    return true;
+    return IotBroker::get().lifecycle(moduleHandle, phase, dataHandle);
 }
 
 static std::ostream &operator<<(std::ostream &os, Aws::Crt::ByteCursor bc) {
@@ -322,19 +319,27 @@ static std::ostream &operator<<(std::ostream &os, Aws::Crt::ByteCursor bc) {
     return os;
 }
 
-static bool startPhase(
-    const std::string &credEndpoint,
-    const std::string &certificateFilePath,
-    const std::string &privateKeyPath
-) {
+void IotBroker::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) {
+    std::cerr << "[mqtt-plugin] Running lifecycle phase " << phase.toString() << std::endl;
+}
+
+bool IotBroker::onStart(ggapi::Struct structData) {
+    auto configStruct = structData.getValue<ggapi::Struct>({"config"});
+    auto certificateFilePath =
+        configStruct.getValue<std::string>({"system", "certificateFilePath"});
+    auto privateKeyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
+    // TODO: Note, reference of the module name will be done by Nucleus, this is temporary.
+    auto credEndpoint = configStruct.getValue<std::string>(
+        {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotCredEndpoint"});
+    auto thingName = configStruct.getValue<std::string>({"system", "thingName"});
+
     std::promise<bool> connectionPromise;
 
     {
         Aws::Crt::String crtEndpoint{credEndpoint};
         std::unique_ptr<Aws::Iot::Mqtt5ClientBuilder> builder{
             Aws::Iot::Mqtt5ClientBuilder::NewMqtt5ClientBuilderWithMtlsFromPath(
-                crtEndpoint, certificateFilePath.c_str(), privateKeyPath.c_str()
-            )};
+                crtEndpoint, certificateFilePath.c_str(), privateKeyPath.c_str())};
 
         if(!builder) {
             std::cerr << "[mqtt-plugin] Failed to set up MQTT client builder." << std::endl;
@@ -342,7 +347,7 @@ static bool startPhase(
         }
 
         auto connectOptions = std::make_shared<Aws::Crt::Mqtt5::ConnectPacket>();
-        connectOptions->WithClientId("gglite-test");
+        connectOptions->WithClientId(thingName.c_str());
         builder->WithConnectOptions(connectOptions);
 
         builder->WithClientConnectionSuccessCallback(
@@ -362,7 +367,7 @@ static bool startPhase(
         );
 
         builder->WithPublishReceivedCallback(
-            [](const Aws::Crt::Mqtt5::PublishReceivedEventData &eventData) {
+            [this](const Aws::Crt::Mqtt5::PublishReceivedEventData &eventData) {
                 if(!eventData.publishPacket) {
                     return;
                 }
@@ -375,32 +380,31 @@ static bool startPhase(
                 std::cerr << "[mqtt-plugin] Publish recieved on topic " << topic << ": " << payload
                           << std::endl;
 
-                static thread_local auto threadScope = ggapi::ThreadScope::claimThread();
-                auto response{threadScope.createStruct()};
+                auto response{ggapi::Struct::create()};
                 response.put(keys.topicName, topic);
                 response.put(keys.payload, payload);
 
                 {
-                    std::shared_lock lock(subscriptionMutex);
-                    for(const auto &[key, value] : subscriptions) {
+                    std::shared_lock lock(_subscriptionMutex);
+                    for(const auto &[key, value] : _subscriptions) {
                         if(key.match(topic)) {
-                            (void) threadScope.sendToTopic(value, response);
+                            (void) ggapi::Task::sendToTopic(value, response);
                         }
                     }
                 }
             }
         );
 
-        client = builder->Build();
+        _client = builder->Build();
     }
 
-    if(!client) {
+    if(!_client) {
         std::cerr << "[mqtt-plugin] Failed to init MQTT client: "
                   << Aws::Crt::ErrorDebugString(Aws::Crt::LastError()) << "." << std::endl;
         return false;
     }
 
-    if(!client->Start()) {
+    if(!_client->Start()) {
         std::cerr << "[mqtt-plugin] Failed to start MQTT client." << std::endl;
         return false;
     }
@@ -409,10 +413,8 @@ static bool startPhase(
         return false;
     }
 
-    (void) ggapi::Scope::thisTask().subscribeToTopic(keys.publishToIoTCoreTopic, publishHandler);
-    (void) ggapi::Scope::thisTask().subscribeToTopic(
-        keys.subscribeToIoTCoreTopic, subscribeHandler
-    );
+    (void) getScope().subscribeToTopic(keys.publishToIoTCoreTopic, publishHandler);
+    (void) getScope().subscribeToTopic(keys.subscribeToIoTCoreTopic, subscribeHandler);
 
     return true;
 }

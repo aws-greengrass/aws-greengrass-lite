@@ -50,11 +50,12 @@ namespace util {
 
         std::filesystem::path deTilde(std::string_view s) const;
         static std::filesystem::path resolve(
-            const std::filesystem::path &first, const std::filesystem::path &second
-        );
+            const std::filesystem::path &first, const std::filesystem::path &second);
         static std::filesystem::path resolve(
-            const std::filesystem::path &first, std::string_view second
-        );
+            const std::filesystem::path &first, std::string_view second);
+        static std::filesystem::path resolveRelative(std::string_view path);
+        static std::filesystem::path resolve(std::string_view path);
+        static std::filesystem::path resolve(const std::filesystem::path &path);
         void initPaths(std::string_view rootPathString);
 
         NucleusPaths &setHomePath(const std::filesystem::path &newPath) {

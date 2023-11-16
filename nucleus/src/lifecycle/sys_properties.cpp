@@ -1,12 +1,6 @@
-#include "environment.hpp"
-#include "tasks/expire_time.hpp"
+#include "sys_properties.hpp"
 
-tasks::ExpireTime data::Environment::translateExpires(int32_t delta) noexcept {
-    // override this to enable time-based testing
-    return tasks::ExpireTime::fromNowMillis(delta);
-}
-
-namespace data {
+namespace lifecycle {
     void SysProperties::parseEnv(char *envp[]) { // NOLINT(*-avoid-c-arrays)
         char **p = envp;
         for(; *p != nullptr; ++p) { // NOLINT(*-pointer-arithmetic)
@@ -54,4 +48,5 @@ namespace data {
         std::string key{name};
         _cache.erase(key);
     }
-} // namespace data
+
+} // namespace lifecycle

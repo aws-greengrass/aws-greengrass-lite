@@ -9,17 +9,16 @@ namespace config {
     class YamlReader {
 
     private:
-        data::Environment &_environment;
+        std::shared_ptr<scope::Context> _context;
         std::shared_ptr<Topics> _target;
         Timestamp _timestamp;
 
     public:
         explicit YamlReader(
-            data::Environment &environment,
+            const std::shared_ptr<scope::Context> &context,
             const std::shared_ptr<Topics> &target,
-            const Timestamp &timestamp
-        )
-            : _environment{environment}, _target{target}, _timestamp(timestamp) {
+            const Timestamp &timestamp)
+            : _context{context}, _target{target}, _timestamp(timestamp) {
         }
 
         void read(const std::filesystem::path &path);
@@ -46,22 +45,20 @@ namespace config {
 
     struct YamlHelper {
         static void serialize(
-            data::Environment &environment, YAML::Emitter &emitter, const data::StructElement &value
-        );
-        static void serialize(
-            data::Environment &environment,
+            const std::shared_ptr<scope::Context> &context,
             YAML::Emitter &emitter,
-            const std::shared_ptr<Topics> &value
-        );
+            const data::StructElement &value);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            YAML::Emitter &emitter,
+            const std::shared_ptr<Topics> &value);
         static void write(
-            data::Environment &environment,
+            const std::shared_ptr<scope::Context> &context,
             util::CommitableFile &path,
-            const std::shared_ptr<Topics> &node
-        );
+            const std::shared_ptr<Topics> &node);
         static void write(
-            data::Environment &environment,
+            const std::shared_ptr<scope::Context> &context,
             std::ofstream &stream,
-            const std::shared_ptr<Topics> &node
-        );
+            const std::shared_ptr<Topics> &node);
     };
 } // namespace config

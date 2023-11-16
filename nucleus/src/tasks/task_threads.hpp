@@ -5,6 +5,11 @@
 #include <mutex>
 #include <thread>
 
+namespace scope {
+    class Context;
+    class PerThreadContext;
+} // namespace scope
+
 namespace tasks {
     class ExpireTime;
     class Task;
@@ -16,20 +21,19 @@ namespace tasks {
     class TaskThread : public util::RefObject<TaskThread> {
 
     protected:
-        data::Environment &_environment;
-        std::weak_ptr<TaskManager> _pool;
+        std::weak_ptr<scope::Context> _context;
+        std::weak_ptr<scope::PerThreadContext> _threadContext;
         std::list<std::shared_ptr<Task>> _tasks;
         std::mutex _mutex;
         std::condition_variable _wake;
         bool _shutdown{false};
-        void bindThreadContext();
 
-        static TaskThread *getSetTaskThread(TaskThread *setValue, bool set);
+        [[nodiscard]] scope::Context &context() const {
+            return *_context.lock();
+        }
 
     public:
-        explicit TaskThread(
-            data::Environment &environment, const std::shared_ptr<TaskManager> &pool
-        );
+        explicit TaskThread(const std::shared_ptr<scope::Context> &context);
         TaskThread(const TaskThread &) = delete;
         TaskThread(TaskThread &&) = delete;
         TaskThread &operator=(const TaskThread &) = delete;
@@ -39,7 +43,9 @@ namespace tasks {
         std::shared_ptr<Task> pickupAffinitizedTask();
         std::shared_ptr<Task> pickupPoolTask();
         std::shared_ptr<Task> pickupTask();
-        virtual void releaseFixedThread();
+        void bindThreadContext();
+        void unbindThreadContext();
+        std::shared_ptr<Task> getActiveTask() const;
 
         static std::shared_ptr<TaskThread> getThreadContext();
 
@@ -73,9 +79,7 @@ namespace tasks {
         void joinImpl();
 
     public:
-        explicit TaskPoolWorker(
-            data::Environment &environment, const std::shared_ptr<TaskManager> &pool
-        );
+        explicit TaskPoolWorker(const std::shared_ptr<scope::Context> &context);
         TaskPoolWorker(const TaskPoolWorker &) = delete;
         TaskPoolWorker(TaskPoolWorker &&) = delete;
         TaskPoolWorker &operator=(const TaskPoolWorker &) = delete;
@@ -85,11 +89,15 @@ namespace tasks {
             joinImpl();
         }
 
+        void start();
+
         void join() override {
             joinImpl();
         }
 
         void runner();
+        static std::shared_ptr<TaskPoolWorker> create(
+            const std::shared_ptr<scope::Context> &context);
     };
 
     //
@@ -98,23 +106,11 @@ namespace tasks {
     class FixedTaskThread : public TaskThread {
     protected:
         data::ObjectAnchor _defaultTask;
-        std::shared_ptr<FixedTaskThread> _protectThread;
 
     public:
-        explicit FixedTaskThread(
-            data::Environment &environment, const std::shared_ptr<TaskManager> &pool
-        )
-            : TaskThread(environment, pool) {
+        explicit FixedTaskThread(const std::shared_ptr<scope::Context> &context)
+            : TaskThread(context) {
         }
-
-        // Call this on the native thread
-        void bindThreadContext(const data::ObjectAnchor &task);
-        void setDefaultTask(const data::ObjectAnchor &task);
-        data::ObjectAnchor getDefaultTask();
-        void protect();
-        void unprotect();
-        data::ObjectAnchor claimFixedThread();
-        void releaseFixedThread() override;
     };
 
     //
@@ -122,10 +118,8 @@ namespace tasks {
     //
     class FixedTimerTaskThread : public FixedTaskThread {
     public:
-        explicit FixedTimerTaskThread(
-            data::Environment &environment, const std::shared_ptr<TaskManager> &pool
-        )
-            : FixedTaskThread(environment, pool) {
+        explicit FixedTimerTaskThread(const std::shared_ptr<scope::Context> &context)
+            : FixedTaskThread(context) {
         }
 
         ExpireTime taskStealingHook(ExpireTime time) override;
@@ -148,7 +142,7 @@ namespace tasks {
         explicit FixedTaskThreadScope(const std::shared_ptr<FixedTaskThread> &thread)
             : _thread(thread) {
             if(thread) {
-                thread->claimFixedThread();
+                thread->bindThreadContext();
             }
         } // namespace tasks
 
@@ -156,13 +150,13 @@ namespace tasks {
             release();
             _thread = thread;
             if(thread) {
-                thread->claimFixedThread();
+                thread->bindThreadContext();
             }
         }
 
         void release() {
             if(_thread) {
-                _thread->releaseFixedThread();
+                _thread->unbindThreadContext();
                 _thread.reset();
             }
         }
@@ -180,22 +174,6 @@ namespace tasks {
         bool operator!() {
             return !_thread;
         }
-    };
-
-    // Ensures thread-self is assigned and cleaned up with stack unwinding (RII)
-    class ThreadSelf {
-    private:
-        data::ObjHandle _oldHandle;
-
-    public:
-        ThreadSelf(const ThreadSelf &) = delete;
-        ThreadSelf(ThreadSelf &&) = delete;
-        ThreadSelf &operator=(const ThreadSelf &) = delete;
-        ThreadSelf &operator=(ThreadSelf &&) = delete;
-
-        explicit ThreadSelf(Task *contextTask);
-
-        ~ThreadSelf();
     };
 
     class BlockedThreadScope {

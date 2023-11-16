@@ -1,12 +1,13 @@
+#include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
 
 // NOLINTBEGIN
 SCENARIO("Shared list API", "[list]") {
+    scope::LocalizedContext forTesting{scope::Context::create()};
 
     GIVEN("A list") {
-        auto scope = ggapi::ThreadScope::claimThread();
-        auto list = scope.createList();
+        auto list = ggapi::List::create();
 
         THEN("List is empty") {
             REQUIRE(list.size() == 0);

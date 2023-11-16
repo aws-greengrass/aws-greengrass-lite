@@ -1,0 +1,10 @@
+#pragma once
+#include "config/config_manager.hpp"
+#include "config/config_nodes.hpp"
+#include "lifecycle/sys_properties.hpp"
+#include "plugins/plugin_loader.hpp"
+#include "pubsub/local_topics.hpp"
+#include "scope/call_scope.hpp"
+#include "scope/context.hpp"
+#include "tasks/task_manager.hpp"
+#include "tasks/task_threads.hpp"

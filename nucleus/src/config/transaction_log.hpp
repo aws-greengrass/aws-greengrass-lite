@@ -10,6 +10,7 @@
 namespace config {
     class TlogReader;
     class TlogWriter;
+    class Topics;
 
     enum class ConfigurationMode : uint32_t { SKELETON_ONLY, WITH_VALUES };
 
@@ -22,26 +23,23 @@ namespace config {
 
     public:
         static bool handleTlogTornWrite(
-            data::Environment &environment, const std::filesystem::path &tlogFile
-        );
+            const std::shared_ptr<scope::Context> &context, const std::filesystem::path &tlogFile);
 
         static void mergeTlogInto(
-            data::Environment &environment,
+            const std::shared_ptr<scope::Context> &context,
             const std::shared_ptr<Topics> &root,
             std::ifstream &stream,
             bool forceTimestamp,
             const std::function<bool(ConfigNode &)> &mergeCondition = [](auto &) { return true; },
-            ConfigurationMode configurationMode = ConfigurationMode::WITH_VALUES
-        );
+            ConfigurationMode configurationMode = ConfigurationMode::WITH_VALUES);
 
         static void mergeTlogInto(
-            data::Environment &environment,
+            const std::shared_ptr<scope::Context> &context,
             const std::shared_ptr<Topics> &root,
             const std::filesystem::path &path,
             bool forceTimestamp,
             const std::function<bool(ConfigNode &)> &mergeCondition = [](auto &) { return true; },
-            ConfigurationMode configurationMode = ConfigurationMode::WITH_VALUES
-        );
+            ConfigurationMode configurationMode = ConfigurationMode::WITH_VALUES);
     };
 
     //
@@ -55,16 +53,19 @@ namespace config {
         }
 
         void changed(
-            const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-        ) override;
+            const std::shared_ptr<Topics> &topics,
+            data::Symbol key,
+            WhatHappened changeType) override;
 
         void childChanged(
-            const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-        ) override;
+            const std::shared_ptr<Topics> &topics,
+            data::Symbol key,
+            WhatHappened changeType) override;
 
         void initialized(
-            const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-        ) override;
+            const std::shared_ptr<Topics> &topics,
+            data::Symbol key,
+            WhatHappened changeType) override;
     };
 
     //
@@ -74,7 +75,7 @@ namespace config {
         static constexpr auto TRUNCATE_TLOG_EVENT{"truncate-tlog"};
         static constexpr long DEFAULT_MAX_TLOG_ENTRIES{15'000};
 
-        data::Environment &_environment;
+        std::weak_ptr<scope::Context> _context;
         mutable std::mutex _mutex;
         util::CommitableFile _tlogFile;
         std::shared_ptr<Topics> _root;
@@ -86,14 +87,17 @@ namespace config {
         uint32_t _maxEntries{DEFAULT_MAX_TLOG_ENTRIES};
         uint32_t _retryCount{0};
 
+        [[nodiscard]] scope::Context &context() const {
+            return *_context.lock();
+        }
+
         void writeAll(const std::shared_ptr<Topics> &node);
 
     public:
         TlogWriter(
-            data::Environment &environment,
+            const std::shared_ptr<scope::Context> &context,
             const std::shared_ptr<Topics> &root,
-            const std::filesystem::path &outputPath
-        );
+            const std::filesystem::path &outputPath);
         TlogWriter(const TlogWriter &) = delete;
         TlogWriter(TlogWriter &&) = delete;
         TlogWriter &operator=(const TlogWriter &) = delete;
@@ -110,7 +114,7 @@ namespace config {
         TlogWriter &startNew();
         TlogWriter &append();
         std::filesystem::path getPath() const;
-        void childChanged(ConfigNode &node, WhatHappened changeType);
+        void childChanged(const ConfigNode &node, WhatHappened changeType);
         TlogWriter &dump();
 
         static std::filesystem::path getOldTlogPath(const std::filesystem::path &path);

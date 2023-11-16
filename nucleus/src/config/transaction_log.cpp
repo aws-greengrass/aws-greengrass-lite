@@ -1,16 +1,15 @@
 #include "transaction_log.hpp"
-#include "data/environment.hpp"
 #include "json_helper.hpp"
+#include "scope/context_full.hpp"
 #include <iostream>
 #include <iterator>
 
 namespace config {
     TlogWriter::TlogWriter(
-        data::Environment &environment,
+        const std::shared_ptr<scope::Context> &context,
         const std::shared_ptr<Topics> &root,
-        const std::filesystem::path &outputPath
-    )
-        : _environment(environment), _root(root), _tlogFile(outputPath) {
+        const std::filesystem::path &outputPath)
+        : _context(context), _root(root), _tlogFile(outputPath) {
     }
 
     TlogWriter &TlogWriter::dump() {
@@ -90,7 +89,7 @@ namespace config {
 
     void TlogWriter::writeAll(const std::shared_ptr<Topics> &node) { // NOLINT(*-no-recursion)
         std::vector<Topic> leafs = node->getLeafs();
-        for(auto i : leafs) {
+        for(const auto &i : leafs) {
             childChanged(i, WhatHappened::childChanged);
         }
         leafs.clear();
@@ -102,11 +101,11 @@ namespace config {
         subTopics.clear();
     }
 
-    void TlogWriter::childChanged(ConfigNode &node, WhatHappened changeType) {
+    void TlogWriter::childChanged(const ConfigNode &node, WhatHappened changeType) {
         if(node.excludeTlog()) {
             return;
         }
-        auto *nodeAsTopic = dynamic_cast<Topic *>(&node);
+        auto *nodeAsTopic = dynamic_cast<const Topic *>(&node);
         TlogLine tlogline;
         tlogline.topicPath = node.getKeyPath();
         tlogline.timestamp = node.getModTime();
@@ -129,7 +128,7 @@ namespace config {
 
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        tlogline.serialize(_environment, writer);
+        tlogline.serialize(_context.lock(), writer);
 
         std::unique_lock guard{_mutex};
         if(!_tlogFile.is_open()) {
@@ -149,13 +148,11 @@ namespace config {
     }
 
     void TlogWatcher::changed(
-        const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-    ) {
+        const std::shared_ptr<Topics> &topics, data::Symbol key, WhatHappened changeType) {
     }
 
     void TlogWatcher::childChanged(
-        const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-    ) {
+        const std::shared_ptr<Topics> &topics, data::Symbol key, WhatHappened changeType) {
         if(key) {
             _writer.childChanged(*topics->getNode(key), changeType);
         } else {
@@ -164,13 +161,11 @@ namespace config {
     }
 
     void TlogWatcher::initialized(
-        const std::shared_ptr<Topics> &topics, data::StringOrd key, WhatHappened changeType
-    ) {
+        const std::shared_ptr<Topics> &topics, data::Symbol key, WhatHappened changeType) {
     }
 
     bool TlogReader::handleTlogTornWrite(
-        data::Environment &environment, const std::filesystem::path &tlogFile
-    ) {
+        const std::shared_ptr<scope::Context> &context, const std::filesystem::path &tlogFile) {
         uintmax_t fileSize = 0;
         uintmax_t lastValid = 0;
         try {
@@ -207,7 +202,7 @@ namespace config {
                 return false;
             }
             while(!stream.eof()) {
-                JsonReader reader(environment);
+                JsonReader reader(context);
                 reader.push(std::make_unique<JsonStructValidator>(reader, false));
                 rapidjson::ParseResult result = reader.read(stream);
                 if(result) {
@@ -262,15 +257,14 @@ namespace config {
     }
 
     void TlogReader::mergeTlogInto(
-        data::Environment &environment,
+        const std::shared_ptr<scope::Context> &context,
         const std::shared_ptr<Topics> &root,
         std::ifstream &stream,
         bool forceTimestamp,
         const std::function<bool(ConfigNode &)> &mergeCondition,
-        ConfigurationMode configurationMode
-    ) {
+        ConfigurationMode configurationMode) {
         while(!stream.eof()) {
-            TlogLine tlogLine = TlogLine::readRecord(environment, stream);
+            TlogLine tlogLine = TlogLine::readRecord(context, stream);
             if(tlogLine.action == WhatHappened::never) {
                 continue;
             }
@@ -300,23 +294,22 @@ namespace config {
                 Topic targetTopic{root->lookup(tlogLine.topicPath)};
                 targetTopic.withNewerModTime(tlogLine.timestamp);
             } else if(tlogLine.action == WhatHappened::interiorAdded) {
-                (void) root->lookup(tlogLine.topicPath);
+                (void) root->lookupTopics(tlogLine.topicPath);
             }
         }
     }
 
     void TlogReader::mergeTlogInto(
-        data::Environment &environment,
+        const std::shared_ptr<scope::Context> &context,
         const std::shared_ptr<Topics> &root,
         const std::filesystem::path &path,
         bool forceTimestamp,
         const std::function<bool(ConfigNode &)> &mergeCondition,
-        ConfigurationMode configurationMode
-    ) {
+        ConfigurationMode configurationMode) {
         std::ifstream stream;
         stream.exceptions(std::ios_base::failbit | std::ios_base::badbit);
         stream.open(path);
         stream.exceptions(std::ios_base::badbit);
-        mergeTlogInto(environment, root, stream, forceTimestamp, mergeCondition, configurationMode);
+        mergeTlogInto(context, root, stream, forceTimestamp, mergeCondition, configurationMode);
     }
 } // namespace config

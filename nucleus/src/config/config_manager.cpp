@@ -1,5 +1,6 @@
-#include "config_manager.hpp"
-#include "data/environment.hpp"
+#include "config/config_manager.hpp"
+#include "config/config_nodes.hpp"
+#include "scope/context_full.hpp"
 #include "transaction_log.hpp"
 #include "yaml_helper.hpp"
 #include <util.hpp>
@@ -13,33 +14,33 @@
 //
 namespace config {
 
-    data::StringOrd TopicElement::getKey(data::Environment &env) const {
-        return getKey(env, _nameOrd);
+    data::Symbol TopicElement::getKey() const {
+        return getKey(_name);
     }
 
-    data::StringOrd TopicElement::getKey(data::Environment &env, data::StringOrd nameOrd) {
-        if(!nameOrd) {
-            return nameOrd;
+    data::Symbol TopicElement::getKey(data::Symbol key) {
+        if(!key) {
+            return key;
         }
-        std::string str = env.stringTable.getString(nameOrd);
+        std::string str = key.toString();
         // a folded string strictly acts on the ascii range and not on international
         // characters this keeps it predictable and handles the problems with GG
         // configs
         std::string lowered = util::lower(str);
         if(str == lowered) {
-            return nameOrd;
+            return key;
         } else {
-            return env.stringTable.getOrCreateOrd(lowered);
+            return key.table().intern(lowered);
         }
     }
 
     Topics::Topics(
-        data::Environment &environment,
+        const std::shared_ptr<scope::Context> &context,
         const std::shared_ptr<Topics> &parent,
-        const data::StringOrd &key,
-        const Timestamp &modtime
-    )
-        : data::StructModelBase{environment}, _parent{parent}, _nameOrd{key}, _modtime(modtime) {
+        const data::Symbol &key,
+        const Timestamp &modtime)
+        : data::StructModelBase(context), _symbolMapper(context), _parent(parent), _nameOrd(key),
+          _modtime(modtime) {
         // Note: don't lock parent, it's most likely already locked - atomic used instead
         if((parent && parent->_excludeTlog)
            || (_nameOrd && util::startsWith(getNameUnsafe(), "_"))) {
@@ -51,7 +52,7 @@ namespace config {
         if(!_nameOrd) {
             return {}; // root
         }
-        return _environment.stringTable.getString(_nameOrd);
+        return _nameOrd.toString();
     }
 
     std::string Topics::getName() const {
@@ -64,7 +65,7 @@ namespace config {
     }
 
     void Topics::updateChild(const TopicElement &element) {
-        data::StringOrd key = element.getKey(_environment);
+        data::Symbol key = element.getKey();
         if(element.isType<data::StructModelBase>()) {
             throw std::runtime_error("Not permitted to insert structures/maps");
         }
@@ -82,7 +83,7 @@ namespace config {
         // we don't want to keep nesting locks else we will deadlock
         std::shared_lock guard{_mutex};
         std::vector<std::shared_ptr<data::ContainerModelBase>> structs;
-        for(const auto &i : _children) {
+        for(const auto &i : _children.get()) {
             if(i.second.isContainer()) {
                 std::shared_ptr<data::ContainerModelBase> otherContainer = i.second.getContainer();
                 if(otherContainer) {
@@ -101,12 +102,11 @@ namespace config {
     }
 
     void Topics::addWatcher(
-        data::StringOrd subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons
-    ) {
+        data::Symbol subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons) {
         if(!watcher) {
             return; // null watcher is a no-op
         }
-        data::StringOrd normKey = TopicElement::getKey(_environment, subKey);
+        data::Symbol normKey = TopicElement::getKey(subKey);
         std::unique_lock guard{_mutex};
         // opportunistic check if any watches need deleting - number of watches
         // expected to be small, number of expired watches rare, algorithm for
@@ -128,7 +128,7 @@ namespace config {
     Topic &Topic::addWatcher(
         const std::shared_ptr<Watcher> &watcher, config::WhatHappened reasons
     ) {
-        _parent->addWatcher(_nameOrd, watcher, reasons);
+        _parent->addWatcher(_name, watcher, reasons);
         return *this;
     }
 
@@ -154,12 +154,11 @@ namespace config {
     }
 
     std::optional<std::vector<std::shared_ptr<Watcher>>> Topics::filterWatchers(
-        data::StringOrd key, config::WhatHappened reasons
-    ) const {
+        data::Symbol key, config::WhatHappened reasons) const {
         if(!hasWatchers()) {
             return {};
         }
-        data::StringOrd normKey = TopicElement::getKey(_environment, key);
+        data::Symbol normKey = TopicElement::getKey(key);
         std::shared_lock guard{_mutex};
         std::vector<std::shared_ptr<Watcher>> filtered;
         for(auto i : _watching) {
@@ -181,20 +180,20 @@ namespace config {
         const std::shared_ptr<Topics> parent{_parent};
         std::shared_lock guard{_mutex}; // for source
         std::shared_ptr<Topics> newCopy{
-            std::make_shared<Topics>(_environment, parent, _nameOrd, _modtime)};
-        for(const auto &i : _children) {
-            newCopy->put(i.first, i.second);
+            std::make_shared<Topics>(_context.lock(), parent, _nameOrd, _modtime)};
+        for(const auto &i : _children.get()) {
+            newCopy->put(_children.apply(i.first), i.second);
         }
         return newCopy;
     }
 
-    void Topics::putImpl(const data::StringOrd handle, const data::StructElement &element) {
+    void Topics::putImpl(const data::Symbol handle, const data::StructElement &element) {
         updateChild(TopicElement{handle, Timestamp::never(), element});
     }
 
-    bool Topics::hasKeyImpl(const data::StringOrd handle) const {
+    bool Topics::hasKeyImpl(const data::Symbol handle) const {
         //_environment.stringTable.assertStringHandle(handle);
-        data::StringOrd key = TopicElement::getKey(_environment, handle);
+        data::Symbol key = TopicElement::getKey(handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
         return i != _children.end();
@@ -213,26 +212,24 @@ namespace config {
         return path;
     }
 
-    std::vector<data::StringOrd> Topics::getKeys() const {
-        std::vector<data::StringOrd> keys;
+    std::vector<data::Symbol> Topics::getKeys() const {
+        std::vector<data::Symbol> keys;
         std::shared_lock guard{_mutex};
         keys.reserve(_children.size());
         for(const auto &_element : _children) {
-            keys.emplace_back(_element.first);
+            keys.emplace_back(context().symbols().apply(_element.first));
         }
         return keys;
     }
 
     uint32_t Topics::size() const {
-        //_environment.stringTable.assertStringHandle(handle);
         std::shared_lock guard{_mutex};
         return _children.size();
     }
 
     TopicElement Topics::createChild(
-        data::StringOrd nameOrd, const std::function<TopicElement(data::StringOrd)> &creator
-    ) {
-        data::StringOrd key = TopicElement::getKey(_environment, nameOrd);
+        data::Symbol nameOrd, const std::function<TopicElement(data::Symbol)> &creator) {
+        data::Symbol key = TopicElement::getKey(nameOrd);
         std::unique_lock guard{_mutex};
         auto i = _children.find(key);
         if(i != _children.end()) {
@@ -245,14 +242,13 @@ namespace config {
     }
 
     std::shared_ptr<Topics> Topics::createInteriorChild(
-        data::StringOrd nameOrd, const Timestamp &timestamp
-    ) {
+        data::Symbol nameOrd, const Timestamp &timestamp) {
         TopicElement leaf = createChild(nameOrd, [this, &timestamp, nameOrd](auto ord) {
             std::shared_ptr<Topics> parent{ref<Topics>()};
             std::shared_ptr<Topics> nested{
-                std::make_shared<Topics>(_environment, parent, nameOrd, timestamp)};
+                std::make_shared<Topics>(_context.lock(), parent, nameOrd, timestamp)};
             // Note: Time on TopicElement is ignored for interior children - this is intentional
-            return TopicElement(ord, Timestamp::never(), nested);
+            return TopicElement(ord, Timestamp::never(), data::ValueType(nested));
         });
         return leaf.castObject<Topics>();
     }
@@ -260,7 +256,7 @@ namespace config {
     std::shared_ptr<Topics> Topics::createInteriorChild(
         std::string_view name, const Timestamp &timestamp
     ) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
+        data::Symbol handle = context().symbols().intern(name);
         return createInteriorChild(handle, timestamp);
     }
 
@@ -286,12 +282,12 @@ namespace config {
         return node->createTopic(*it, timestamp);
     }
 
-    std::shared_ptr<Topics> Topics::lookupTopics(std::initializer_list<std::string> path) {
+    std::shared_ptr<Topics> Topics::lookupTopics(const std::vector<std::string> &path) {
         return lookupTopics(Timestamp::now(), path);
     }
 
     std::shared_ptr<Topics> Topics::lookupTopics(
-        Timestamp timestamp, std::initializer_list<std::string> path
+        Timestamp timestamp, const std::vector<std::string> &path
     ) {
         std::shared_ptr<Topics> node{ref<Topics>()};
         for(const auto &p : path) {
@@ -335,8 +331,8 @@ namespace config {
         return _node;
     }
 
-    std::shared_ptr<Topics> Topics::findInteriorChild(data::StringOrd handle) {
-        data::StringOrd key = TopicElement::getKey(_environment, handle);
+    std::shared_ptr<Topics> Topics::findInteriorChild(data::Symbol handle) {
+        data::Symbol key = TopicElement::getKey(handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
         if(i != _children.end()) {
@@ -347,7 +343,7 @@ namespace config {
     }
 
     std::shared_ptr<Topics> Topics::findInteriorChild(std::string_view name) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
+        data::Symbol handle = context().symbols().intern(name);
         return findInteriorChild(handle);
     }
 
@@ -368,43 +364,42 @@ namespace config {
         std::shared_lock guard{_mutex};
         for(const auto &i : _children) {
             if(!i.second.isType<Topics>()) {
-                leafs.emplace_back(_environment, self, i.second);
+                leafs.emplace_back(_context.lock(), self, i.second);
             }
         }
         return leafs;
     }
 
-    Topic Topics::createTopic(data::StringOrd nameOrd, const Timestamp &timestamp) {
-        TopicElement el = createChild(nameOrd, [&](auto ord) {
-            return TopicElement(ord, timestamp, data::ValueType{});
-        });
-        return Topic(_environment, ref<Topics>(), el);
+    Topic Topics::createTopic(data::Symbol nameOrd, const Timestamp &timestamp) {
+        TopicElement el = createChild(
+            nameOrd, [&](auto ord) { return TopicElement(ord, timestamp, data::ValueType{}); });
+        return Topic(_context.lock(), ref<Topics>(), el);
     }
 
     Topic Topics::createTopic(std::string_view name, const Timestamp &timestamp) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
+        data::Symbol handle = context().symbols().intern(name);
         return createTopic(handle, timestamp);
     }
 
-    Topic Topics::getTopic(data::StringOrd handle) {
-        data::StringOrd key = TopicElement::getKey(_environment, handle);
+    Topic Topics::getTopic(data::Symbol handle) {
+        data::Symbol key = TopicElement::getKey(handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
         if(i != _children.end()) {
-            return Topic(_environment, ref<Topics>(), i->second);
+            return Topic(_context.lock(), ref<Topics>(), i->second);
         } else {
-            return Topic(_environment, nullptr, {});
+            return Topic(_context.lock(), nullptr, {});
         }
     }
 
     Topic Topics::getTopic(std::string_view name) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
+        data::Symbol handle = context().symbols().intern(name);
         return getTopic(handle);
     }
 
-    data::StructElement Topics::getImpl(data::StringOrd handle) const {
+    data::StructElement Topics::getImpl(data::Symbol handle) const {
         // needed for base class
-        data::StringOrd key = TopicElement::getKey(_environment, handle);
+        data::Symbol key = TopicElement::getKey(handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
         if(i != _children.end()) {
@@ -414,15 +409,15 @@ namespace config {
         }
     }
 
-    std::shared_ptr<ConfigNode> Topics::getNode(data::StringOrd handle) {
-        data::StringOrd key = TopicElement::getKey(_environment, handle);
+    std::shared_ptr<ConfigNode> Topics::getNode(data::Symbol handle) {
+        data::Symbol key = TopicElement::getKey(handle);
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
         if(i != _children.end()) {
             if(i->second.isType<Topics>()) {
                 return i->second.castObject<Topics>();
             } else {
-                return std::make_shared<Topic>(_environment, ref<Topics>(), i->second);
+                return std::make_shared<Topic>(_context.lock(), ref<Topics>(), i->second);
             }
         } else {
             return {};
@@ -430,7 +425,7 @@ namespace config {
     }
 
     std::shared_ptr<ConfigNode> Topics::getNode(std::string_view name) {
-        data::StringOrd handle = _environment.stringTable.getOrCreateOrd(name);
+        data::Symbol handle = context().symbols().intern(name);
         return getNode(handle);
     }
 
@@ -450,8 +445,7 @@ namespace config {
     }
 
     std::optional<data::ValueType> Topics::validate(
-        data::StringOrd subKey, const data::ValueType &proposed, const data::ValueType &currentValue
-    ) {
+        data::Symbol subKey, const data::ValueType &proposed, const data::ValueType &currentValue) {
         auto watchers = filterWatchers(subKey, WhatHappened::validation);
         if(!watchers.has_value()) {
             return {};
@@ -474,7 +468,7 @@ namespace config {
         return newValue;
     }
 
-    void Topics::notifyChange(data::StringOrd subKey, WhatHappened changeType) {
+    void Topics::notifyChange(data::Symbol subKey, WhatHappened changeType) {
         auto watchers = filterWatchers(subKey, changeType);
         auto self{ref<Topics>()};
         if(watchers.has_value()) {
@@ -529,13 +523,13 @@ namespace config {
 
     void Topics::removeChild(ConfigNode &node) {
         // Note, it's important that this is entered via child remove()
-        data::StringOrd key = TopicElement::getKey(_environment, node.getNameOrd());
+        data::Symbol key = TopicElement::getKey(node.getNameOrd());
         std::shared_lock guard{_mutex};
         _children.erase(key);
         notifyChange(node.getNameOrd(), WhatHappened::childRemoved);
     }
 
-    data::StringOrd Topics::getNameOrd() const {
+    data::Symbol Topics::getNameOrd() const {
         std::shared_lock guard{_mutex};
         return _nameOrd;
     }
@@ -554,8 +548,8 @@ namespace config {
         return _excludeTlog;
     }
 
-    void Topics::publish(PublishAction action) {
-        _environment.configManager.publishQueue().publish(std::move(action));
+    void Topics::publish(const PublishAction &action) {
+        context().configManager().publishQueue().publish(action);
     }
 
     TopicElement::TopicElement(const Topic &topic)
@@ -591,8 +585,7 @@ namespace config {
            && !timestampWouldIncrease) {
             return *this;
         }
-        std::optional<data::ValueType> validated =
-            _parent->validate(_nameOrd, newValue, currentValue);
+        std::optional<data::ValueType> validated = _parent->validate(_name, newValue, currentValue);
         if(validated.has_value()) {
             newValue = validated.value();
         }
@@ -608,9 +601,9 @@ namespace config {
         _modtime = proposedModTime;
         _parent->updateChild(*this);
         if(changed) {
-            _parent->notifyChange(_nameOrd, WhatHappened::changed);
+            _parent->notifyChange(_name, WhatHappened::changed);
         } else {
-            _parent->notifyChange(_nameOrd, WhatHappened::timestampUpdated);
+            _parent->notifyChange(_name, WhatHappened::timestampUpdated);
         }
         return *this;
     }
@@ -621,7 +614,7 @@ namespace config {
             _modtime = newModTime;
             _parent->updateChild(*this);
             // GG-Interop: This notification seems to be missed?
-            _parent->notifyChange(_nameOrd, WhatHappened::timestampUpdated);
+            _parent->notifyChange(_name, WhatHappened::timestampUpdated);
         }
         return *this;
     }
@@ -640,7 +633,7 @@ namespace config {
     }
 
     std::string Topic::getName() const {
-        return _environment->stringTable.getString(_nameOrd);
+        return _name.toString();
     }
 
     std::vector<std::string> Topic::getKeyPath() const {
@@ -661,16 +654,45 @@ namespace config {
         auto timestamp = Timestamp::ofFile(std::filesystem::last_write_time(path));
 
         if(ext == ".yaml" || ext == ".yml") {
-            YamlReader reader{_environment, _root, timestamp};
+            YamlReader reader{_context.lock(), _root, timestamp};
             reader.read(path);
         } else if(ext == ".tlog" || ext == ".tlog~") {
-            TlogReader::mergeTlogInto(_environment, _root, path, false);
+            TlogReader::mergeTlogInto(_context.lock(), _root, path, false);
         } else if(ext == ".json") {
             throw std::runtime_error("Json config type not yet implemented");
         } else {
             throw std::runtime_error(std::string("Unsupported extension type: ") + ext);
         }
         return *this;
+    }
+    Manager::Manager(const std::shared_ptr<scope::Context> &context)
+        : _context{context},
+          _root{std::make_shared<Topics>(context, nullptr, data::Symbol{}, Timestamp::never())},
+          _publishQueue(context) {
+    }
+
+    Topic Manager::lookup(std::initializer_list<std::string> path) {
+        return _root->lookup(path);
+    }
+    Topic Manager::lookup(Timestamp timestamp, std::initializer_list<std::string> path) {
+        return _root->lookup(timestamp, path);
+    }
+    std::shared_ptr<Topics> Manager::lookupTopics(std::initializer_list<std::string> path) {
+        return _root->lookupTopics(path);
+    }
+    std::shared_ptr<Topics> Manager::lookupTopics(
+        Timestamp timestamp, std::initializer_list<std::string> path) {
+        return _root->lookupTopics(timestamp, path);
+    }
+    std::optional<Topic> Manager::find(std::initializer_list<std::string> path) {
+        return _root->find(path);
+    }
+    data::ValueType Manager::findOrDefault(
+        const data::ValueType &defaultV, std::initializer_list<std::string> path) {
+        return _root->findOrDefault(defaultV, path);
+    }
+    std::shared_ptr<config::Topics> Manager::findTopics(std::initializer_list<std::string> path) {
+        return _root->findTopics(path);
     }
 
 } // namespace config

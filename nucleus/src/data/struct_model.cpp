@@ -1,11 +1,11 @@
 #include "struct_model.hpp"
-#include "environment.hpp"
+#include "scope/context_full.hpp"
 
 namespace data {
     void ContainerModelBase::checkedPut(
         const StructElement &element, const std::function<void(const StructElement &)> &putAction
     ) {
-        std::unique_lock cycleGuard{_environment.cycleCheckMutex, std::defer_lock};
+        std::unique_lock cycleGuard{context().cycleCheckMutex(), std::defer_lock};
 
         if(element.isContainer()) {
             std::shared_ptr<data::ContainerModelBase> otherContainer = element.getContainer();
@@ -28,29 +28,29 @@ namespace data {
     }
 
     void StructModelBase::put(std::string_view sv, const StructElement &element) {
-        Handle handle = _environment.stringTable.getOrCreateOrd(sv);
+        Symbol handle = context().symbols().intern(sv);
         putImpl(handle, element);
     }
 
-    void StructModelBase::put(data::StringOrd handle, const data::StructElement &element) {
+    void StructModelBase::put(data::Symbol handle, const data::StructElement &element) {
         putImpl(handle, element);
     }
 
     bool StructModelBase::hasKey(const std::string_view sv) const {
-        Handle handle = _environment.stringTable.getOrCreateOrd(sv);
+        Symbol handle = context().symbols().intern(sv);
         return hasKeyImpl(handle);
     }
 
-    bool StructModelBase::hasKey(data::StringOrd handle) const {
+    bool StructModelBase::hasKey(data::Symbol handle) const {
         return hasKeyImpl(handle);
     }
 
     StructElement StructModelBase::get(std::string_view sv) const {
-        Handle handle = _environment.stringTable.getOrCreateOrd(sv);
+        Symbol handle = context().symbols().intern(sv);
         return getImpl(handle);
     }
 
-    StructElement StructModelBase::get(data::StringOrd handle) const {
+    StructElement StructModelBase::get(data::Symbol handle) const {
         return getImpl(handle);
     }
 

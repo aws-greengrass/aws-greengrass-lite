@@ -1,6 +1,6 @@
 #include "shared_struct.hpp"
-#include "environment.hpp"
 #include "safe_handle.hpp"
+#include "scope/context_full.hpp"
 
 namespace data {
 
@@ -27,46 +27,44 @@ namespace data {
     }
 
     std::shared_ptr<StructModelBase> SharedStruct::copy() const {
-        std::shared_ptr<SharedStruct> newCopy{std::make_shared<SharedStruct>(_environment)};
+        std::shared_ptr<SharedStruct> newCopy{std::make_shared<SharedStruct>(_context.lock())};
         std::shared_lock guard{_mutex}; // for source
         newCopy->_elements = _elements; // shallow copy
         return newCopy;
     }
 
-    void SharedStruct::putImpl(const StringOrd handle, const StructElement &element) {
-        checkedPut(element, [this, handle](auto &el) {
+    void SharedStruct::putImpl(const Symbol symbol, const StructElement &element) {
+        checkedPut(element, [this, symbol](auto &el) {
             std::unique_lock guard{_mutex};
-            _elements.insert_or_assign(handle, el);
+            _elements.insert_or_assign(symbol, el);
         });
     }
 
-    bool SharedStruct::hasKeyImpl(const StringOrd handle) const {
+    bool SharedStruct::hasKeyImpl(const Symbol symbol) const {
         //_environment.stringTable.assertStringHandle(handle);
         std::shared_lock guard{_mutex};
-        auto i = _elements.find(handle);
+        auto i = _elements.find(symbol);
         return i != _elements.end();
     }
 
-    std::vector<data::StringOrd> SharedStruct::getKeys() const {
-        std::vector<data::StringOrd> keys;
+    std::vector<data::Symbol> SharedStruct::getKeys() const {
+        std::vector<data::Symbol> keys;
         std::shared_lock guard{_mutex};
         keys.reserve(_elements.size());
         for(const auto &_element : _elements) {
-            keys.emplace_back(_element.first);
+            keys.emplace_back(context().symbols().apply(_element.first));
         }
         return keys;
     }
 
     uint32_t SharedStruct::size() const {
-        //_environment.stringTable.assertStringHandle(handle);
         std::shared_lock guard{_mutex};
         return _elements.size();
     }
 
-    StructElement SharedStruct::getImpl(StringOrd handle) const {
-        //_environment.stringTable.assertStringHandle(handle);
+    StructElement SharedStruct::getImpl(Symbol symbol) const {
         std::shared_lock guard{_mutex};
-        auto i = _elements.find(handle);
+        auto i = _elements.find(symbol);
         if(i == _elements.end()) {
             return {};
         } else {

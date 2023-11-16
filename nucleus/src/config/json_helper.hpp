@@ -151,11 +151,11 @@ namespace config {
     class JsonReader {
 
     private:
-        data::Environment &_environment;
+        std::shared_ptr<scope::Context> _context;
         std::vector<std::unique_ptr<JsonResponder>> _responders;
 
     public:
-        explicit JsonReader(data::Environment &environment) : _environment{environment} {
+        explicit JsonReader(const std::shared_ptr<scope::Context> &context) : _context(context) {
         }
 
         [[nodiscard]] rapidjson::ParseResult read(std::ifstream &stream);
@@ -180,8 +180,8 @@ namespace config {
             return true;
         }
 
-        data::Environment &environment() {
-            return _environment;
+        std::shared_ptr<scope::Context> refContext() {
+            return _context;
         }
 
         bool Null() {
@@ -290,19 +290,47 @@ namespace config {
         data::StructElement value{};
 
         void serialize(
-            data::Environment &environment, rapidjson::Writer<rapidjson::StringBuffer> &writer
-        );
-        bool deserialize(data::Environment &environment, std::ifstream &stream);
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer);
+        bool deserialize(const std::shared_ptr<scope::Context> &context, std::ifstream &stream);
 
-        static TlogLine readRecord(data::Environment &environment, std::ifstream &stream);
+        static TlogLine readRecord(
+            const std::shared_ptr<scope::Context> &context, std::ifstream &stream);
         static WhatHappened decodeWhatHappened(std::string_view whatHappenedString);
     };
 
     struct JsonHelper {
         static void serialize(
-            data::Environment &environment,
+            const std::shared_ptr<scope::Context> &context,
             rapidjson::Writer<rapidjson::StringBuffer> &writer,
-            const data::StructElement &value
-        );
+            const data::StructElement &value);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            std::monostate);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            bool b);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            uint64_t i);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            double d);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            const std::string &str);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            const data::Symbol &sym);
+        static void serialize(
+            const std::shared_ptr<scope::Context> &context,
+            rapidjson::Writer<rapidjson::StringBuffer> &writer,
+            const std::shared_ptr<data::TrackedObject> &obj);
     };
 } // namespace config

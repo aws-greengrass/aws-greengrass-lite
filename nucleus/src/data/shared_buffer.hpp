@@ -23,7 +23,8 @@ namespace data {
         void putOrInsert(int32_t idx, ConstMemoryView bytes, bool insert);
 
     public:
-        explicit SharedBuffer(Environment &environment) : ContainerModelBase{environment} {
+        explicit SharedBuffer(const std::shared_ptr<scope::Context> &context)
+            : ContainerModelBase{context} {
         }
 
         void put(int32_t idx, ConstMemoryView bytes);

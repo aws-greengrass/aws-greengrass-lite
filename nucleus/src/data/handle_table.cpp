@@ -1,17 +1,17 @@
 #include "handle_table.hpp"
-#include "environment.hpp"
+#include "scope/context_full.hpp"
 
 namespace data {
-    ObjectAnchor HandleTable::tryGet(ObjHandle handle) const {
+    ObjectAnchor HandleTable::tryGet(ObjHandle::Partial handle) const {
         std::shared_lock guard{_mutex};
         auto i = _handles.find(handle);
         if(i == _handles.end()) {
             return {};
         }
-        return i->second.lock().withHandle(handle);
+        return i->second.lock().withHandle(applyUnchecked(handle));
     }
 
-    ObjectAnchor HandleTable::get(ObjHandle handle) const {
+    ObjectAnchor HandleTable::get(ObjHandle::Partial handle) const {
         ObjectAnchor anchor = tryGet(handle);
         if(anchor) {
             return anchor;
@@ -30,35 +30,37 @@ namespace data {
     // release-then-create bugs. The handle system ensures that if a handle is
     // returned, it points to a real object of the required type.
     //
-    ObjectAnchor HandleTable::create(const ObjectAnchor &partial) {
-        if(!partial) {
+    ObjectAnchor HandleTable::create(const ObjectAnchor &partFilled) {
+        auto p = partial(partFilled);
+        if(!partFilled) {
             return {}; // pass through null anchor
         }
-        if(partial.getHandle()) {
-            return partial; // already created handle
+        if(p) {
+            return partFilled; // already created handle
         }
-        std::shared_ptr<TrackingScope> scope{partial.getOwner()};
-        if(!scope) {
-            throw std::runtime_error("create handle with null scope");
+        std::shared_ptr<TrackingRoot> root{partFilled.getRoot()};
+        if(!root) {
+            throw std::runtime_error("create handle with no root");
         }
         std::unique_lock guard{_mutex};
-        std::hash<std::shared_ptr<TrackedObject>> hashFunc;
+        std::hash<std::shared_ptr<TrackedObject>> objHashFunc;
+        std::hash<std::shared_ptr<TrackingRoot>> rootHashFunc;
         // 1/ don't create incrementing numbers - hashing used for this
         // 2/ don't reuse numbers (help catch handle bugs) for the same pair - _salt
         // used for this
-        size_t ptrHash =
-            hashFunc(partial.getBase()) * PRIME1 + hashFunc(partial.getOwner()) * PRIME2;
+        size_t ptrHash = objHashFunc(partFilled.getBase()) * PRIME1
+                         + rootHashFunc(partFilled.getRoot()) * PRIME2;
         _salt = _salt * PRIME_SALT + static_cast<uint32_t>(ptrHash);
         for(;;) {
-            ObjHandle newHandle{_salt};
+            ObjHandle::Partial newHandle{_salt};
             // typically once, but will keep repeating if there is a handle
             // collision
             auto i = _handles.find(newHandle);
             if(i == _handles.end()) {
                 // unused value found - note nested lock scope here
                 // handle must be added to scope table before global table
-                ObjectAnchor withHandle{partial.withHandle(newHandle)};
-                scope->createRootHelper(withHandle);
+                ObjectAnchor withHandle{partFilled.withHandle(applyUnchecked(newHandle))};
+                root->createRootHelper(withHandle);
                 // Only do this unless createRootHelper succeeds - mitigates
                 // resource leakage on error
                 _handles.emplace(newHandle, withHandle);
@@ -69,23 +71,32 @@ namespace data {
         }
     }
 
+    ObjHandle HandleTable::apply(ObjHandle::Partial h) const {
+        if(!h) {
+            return {};
+        }
+        check(h);
+        return {_table, h};
+    }
+
     //
     // Removes typically come in via this path. It guarantees it's removed from
     // global handle table before removed from scope table
     //
     void HandleTable::remove(const ObjectAnchor &anchor) {
-        ObjHandle h = anchor.getHandle();
-        if(!h) {
-            return;
+        auto p = partial(anchor);
+        check(p);
+        std::shared_ptr<TrackingRoot> root{anchor.getRoot()};
+        if(root) {
+            anchor.getBase()->beforeRemove(anchor);
         }
-        std::shared_ptr<TrackingScope> scope{anchor.getOwner()};
         std::unique_lock guard{_mutex};
         // remove global first - mitigates resource leakage on error
-        _handles.erase(h);
+        _handles.erase(p);
         guard.unlock();
-        if(scope) {
-            // scope can be unset if scope is in middle of being destroyed
-            scope->removeRootHelper(anchor);
+        if(root) {
+            // root can be unset if owning scope is in middle of being destroyed
+            root->removeRootHelper(anchor);
         }
     }
 } // namespace data

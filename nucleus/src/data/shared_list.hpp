@@ -15,7 +15,8 @@ namespace data {
         void rootsCheck(const ContainerModelBase *target) const override;
 
     public:
-        explicit SharedList(Environment &environment) : ListModelBase{environment} {
+        explicit SharedList(const std::shared_ptr<scope::Context> &context)
+            : ListModelBase{context} {
         }
 
         void put(int32_t idx, const StructElement &element) override;

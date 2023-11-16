@@ -3,9 +3,14 @@
 namespace error {
     //
     // lastError can be assumed to be a string ord, but for these functions,
-    // it's simple a thread local integer
+    // it's simple a thread local integer - Implemented this way to guarantee no
+    // exceptions are thrown.
     //
-    uint32_t getSetLastError(uint32_t newValue, bool write) {
+    // Most other cases of thread_local are managed by context, however
+    // setLastError/getLastError() cannot throw
+    //
+    uint32_t getSetLastError(uint32_t newValue, bool write) noexcept {
+
         static thread_local uint32_t lastError = 0;
         uint32_t current = lastError;
         if(write) {

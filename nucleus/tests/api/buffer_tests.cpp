@@ -1,3 +1,4 @@
+#include "scope/context_full.hpp"
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
@@ -7,10 +8,10 @@
 
 // NOLINTBEGIN
 SCENARIO("Buffer API", "[buffer]") {
+    scope::LocalizedContext forTesting{scope::Context::create()};
 
     GIVEN("A buffer") {
-        auto scope = ggapi::ThreadScope::claimThread();
-        auto buf = scope.createBuffer();
+        auto buf = ggapi::Buffer::create();
 
         THEN("Buffer is empty") {
             REQUIRE(buf.size() == 0);

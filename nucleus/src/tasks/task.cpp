@@ -1,10 +1,19 @@
 #include "task.hpp"
-#include "expire_time.hpp"
-#include "task_manager.hpp"
-#include "task_threads.hpp"
+#include "scope/context_full.hpp"
+#include "tasks/expire_time.hpp"
+#include "tasks/task_manager.hpp"
+#include "tasks/task_threads.hpp"
 #include <iostream>
 
 namespace tasks {
+
+    CurrentTaskScope::CurrentTaskScope(const std::shared_ptr<Task> &activeTask)
+        : _activeTask(activeTask) {
+        _oldTask = scope::Context::thread().setActiveTask(_activeTask);
+    }
+    CurrentTaskScope::~CurrentTaskScope() {
+        scope::Context::thread().setActiveTask(_oldTask);
+    }
 
     void Task::addSubtask(std::unique_ptr<SubTask> subTask) {
         std::unique_lock guard{_mutex};
@@ -30,16 +39,21 @@ namespace tasks {
         _blockedThreads.clear();
     }
 
-    bool Task::queueTaskInterlockedTrySetRunning(const std::shared_ptr<TaskManager> &taskManager) {
+    bool Task::queueTaskInterlockedTrySetRunning() {
         //
         // This logic including double-locking ensures the correct interplay with setStartTime()
         //
+        auto taskManager = getTaskManager();
+        if(!taskManager) {
+            // context deleted, tasks implicitly cancelled
+            cancelTask();
+            return false;
+        }
         std::scoped_lock multi{_mutex, taskManager->_mutex};
         if(taskManager->_shutdown) {
             cancelTask();
-            return false; // don't start anything hew
+            return false;
         }
-        _taskManager = taskManager;
         if(_lastStatus != Pending) {
             return false; // already started, cannot start again
         }
@@ -51,6 +65,10 @@ namespace tasks {
             taskManager->scheduleFutureTaskAssumeLocked(_start, ref<Task>());
             return false;
         }
+        // Task is now live, it needs to be concretely owned by task manager
+        // calling getSelf will return task manager's handle
+        data::ObjectAnchor anchor = taskManager->_root->anchor(ref<Task>());
+        _self = anchor.getHandle();
         _lastStatus = Running;
         return true;
     }
@@ -64,7 +82,10 @@ namespace tasks {
 
     void Task::cancelTask() {
         std::unique_lock guard{_mutex};
-        std::shared_ptr<TaskManager> taskManager = getTaskManager();
+        if(_lastStatus == Cancelled || _lastStatus == Completed || _lastStatus == Finalizing) {
+            return; // cannot cancel in these states
+        }
+        auto taskManager = getTaskManager();
         if(!taskManager) {
             assert(_lastStatus == Pending);
             // Cancelled before queued
@@ -82,12 +103,9 @@ namespace tasks {
             releaseBlockedThreads(true);
             return;
         }
-        if(_lastStatus != Completed && _lastStatus != Finalizing) {
-            // cancelling running task
-            _lastStatus = Cancelled;
-            releaseBlockedThreads(true);
-            return;
-        }
+        // cancelling running task
+        _lastStatus = Cancelled;
+        releaseBlockedThreads(true);
     }
 
     void Task::setTimeout(const ExpireTime &terminateTime) {
@@ -104,7 +122,7 @@ namespace tasks {
         // Lock MUST be acquired prior to obtaining taskManager reference to
         // prevent race condition with TaskManager's queueTask() function
         std::unique_lock guard{_mutex};
-        std::shared_ptr<TaskManager> taskManager = getTaskManager();
+        auto taskManager = getTaskManager();
         if(!taskManager) {
             assert(_lastStatus == Pending);
             // The queueTask function has not been called yet. Just set new start time and done
@@ -197,8 +215,8 @@ namespace tasks {
     }
 
     Task::Status Task::runInThread() {
-        std::shared_ptr<Task> taskObj{std::static_pointer_cast<Task>(shared_from_this())};
-        [[maybe_unused]] ThreadSelf threadSelf(this);
+        std::shared_ptr<Task> taskObj{ref<Task>()};
+        CurrentTaskScope scopeThatTaskIsAssociatedWithThread{taskObj};
         std::shared_ptr<data::StructModelBase> dataIn{getData()};
         std::shared_ptr<data::StructModelBase> dataOut;
         try {
@@ -216,20 +234,24 @@ namespace tasks {
             }
             requeueTask(); // move to another thread if applicable
             return status;
+        } catch(const std::exception &e) {
+            std::cerr << "Exception during task execution: " << e.what() << std::endl;
+            cancelTask();
+            return Cancelled;
         } catch(...) {
-            std::cerr << "Exception during task execution" << std::endl;
+            std::cerr << "Exception during task execution: (Unknown)" << std::endl;
             cancelTask();
             return Cancelled;
         }
     }
 
     void Task::requeueTask() {
-        std::shared_ptr<TaskManager> mgr = _taskManager.lock();
-        if(!mgr) {
+        auto taskManager = getTaskManager();
+        if(!taskManager) {
             cancelTask();
             return;
         }
-        mgr->resumeTask(ref<Task>());
+        taskManager->resumeTask(ref<Task>());
     }
 
     Task::Status Task::finalizeTask(const std::shared_ptr<data::StructModelBase> &data) {
@@ -274,16 +296,29 @@ namespace tasks {
         const std::shared_ptr<data::StructModelBase> &dataIn,
         std::shared_ptr<data::StructModelBase> &dataOut
     ) {
+        assert(task->getSelf());
         for(;;) {
             std::unique_ptr<SubTask> subTask;
             Status status = removeSubtask(subTask);
             if(status != Running) {
                 return status;
             }
+
+            // Below scope ensures local resources - handles and thread local data - are cleaned up
+            // when plugin code returns.
+            scope::StackScope scopeToEnsureStackResourcesCleanedUp{};
+
             dataOut = subTask->runInThread(task, dataIn);
             if(dataOut != nullptr) {
                 return HasReturnValue;
             }
+        }
+    }
+
+    void Task::beforeRemove(const data::ObjectAnchor &anchor) {
+        if(anchor.getHandle() == getSelf()) {
+            // if the task handle itself is released, perform an implicit cancel
+            cancelTask();
         }
     }
 

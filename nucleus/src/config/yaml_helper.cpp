@@ -1,6 +1,6 @@
 #include "yaml_helper.hpp"
-#include "data/environment.hpp"
 #include "data/shared_list.hpp"
+#include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
 #include <memory>
 
@@ -85,7 +85,7 @@ namespace config {
 
     // NOLINTNEXTLINE(*-no-recursion)
     data::ValueType YamlReader::rawSequenceValue(YAML::Node &node) {
-        std::shared_ptr<data::SharedList> newList{std::make_shared<data::SharedList>(_environment)};
+        std::shared_ptr<data::SharedList> newList{std::make_shared<data::SharedList>(_context)};
         int idx = 0;
         for(auto i : node) {
             newList->put(idx++, data::StructElement(rawValue(i)));
@@ -95,8 +95,7 @@ namespace config {
 
     // NOLINTNEXTLINE(*-no-recursion)
     data::ValueType YamlReader::rawMapValue(YAML::Node &node) {
-        std::shared_ptr<data::SharedStruct> newMap{
-            std::make_shared<data::SharedStruct>(_environment)};
+        std::shared_ptr<data::SharedStruct> newMap{std::make_shared<data::SharedStruct>(_context)};
         for(auto i : node) {
             auto key = i.first.as<std::string>();
             newMap->put(key, data::StructElement(rawValue(node)));
@@ -105,44 +104,44 @@ namespace config {
     }
 
     void YamlHelper::write(
-        data::Environment &environment,
+        const std::shared_ptr<scope::Context> &context,
         util::CommitableFile &path,
-        const std::shared_ptr<Topics> &node
-    ) {
+        const std::shared_ptr<Topics> &node) {
         path.begin(std::ios_base::out | std::ios_base::trunc);
         std::ofstream &stream = path.getStream();
         stream.exceptions(std::ios::failbit | std::ios::badbit);
-        write(environment, stream, node);
+        write(context, stream, node);
         path.commit();
     }
 
     void YamlHelper::write(
-        data::Environment &environment, std::ofstream &stream, const std::shared_ptr<Topics> &node
-    ) {
+        const std::shared_ptr<scope::Context> &context,
+        std::ofstream &stream,
+        const std::shared_ptr<Topics> &node) {
         YAML::Emitter out;
         if(!stream.is_open()) {
             throw std::runtime_error("Unable to write config file");
         }
-        serialize(environment, out, node);
+        serialize(context, out, node);
         stream << out.c_str();
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
     void YamlHelper::serialize(
-        data::Environment &environment, YAML::Emitter &emitter, const std::shared_ptr<Topics> &node
-    ) {
+        const std::shared_ptr<scope::Context> &context,
+        YAML::Emitter &emitter,
+        const std::shared_ptr<Topics> &node) {
         emitter << YAML::BeginMap;
         std::vector<Topic> leafs = node->getLeafs();
-        for(auto i : leafs) {
-            emitter << YAML::Key << environment.stringTable.getString(i.getNameOrd())
-                    << YAML::Value;
-            serialize(environment, emitter, i);
+        for(const auto &i : leafs) {
+            emitter << YAML::Key << i.getNameOrd().toString() << YAML::Value;
+            serialize(context, emitter, i);
         }
         leafs.clear();
         std::vector<std::shared_ptr<Topics>> subTopics = node->getInteriors();
         for(const auto &i : subTopics) {
             emitter << YAML::Key << i->getName() << YAML::Value;
-            serialize(environment, emitter, i);
+            serialize(context, emitter, i);
         }
         subTopics.clear();
         emitter << YAML::EndMap;
@@ -150,19 +149,20 @@ namespace config {
 
     // NOLINTNEXTLINE(*-no-recursion)
     void YamlHelper::serialize(
-        data::Environment &environment, YAML::Emitter &emitter, const data::StructElement &value
-    ) {
+        const std::shared_ptr<scope::Context> &context,
+        YAML::Emitter &emitter,
+        const data::StructElement &value) {
         switch(value.getType()) {
-        case data::ValueTypes::NONE:
+            case data::ValueTypes::NONE:
             emitter << YAML::Null;
             break;
-        case data::ValueTypes::BOOL:
+            case data::ValueTypes::BOOL:
             emitter << value.getBool();
             break;
-        case data::ValueTypes::INT:
+            case data::ValueTypes::INT:
             emitter << value.getInt();
             break;
-        case data::ValueTypes::DOUBLE:
+            case data::ValueTypes::DOUBLE:
             emitter << value.getDouble();
             break;
         case data::ValueTypes::OBJECT:
@@ -172,18 +172,18 @@ namespace config {
                 auto size = static_cast<int32_t>(list->size());
                 emitter << YAML::BeginSeq;
                 for(int32_t idx = 0; idx < size; idx++) {
-                    serialize(environment, emitter, list->get(idx));
+                    serialize(context, emitter, list->get(idx));
                 }
                 emitter << YAML::EndSeq;
             } else if(value.isType<data::StructModelBase>()) {
                 std::shared_ptr<data::StructModelBase> s =
                     value.castObject<data::StructModelBase>()->copy();
-                std::vector<data::StringOrd> keys = s->getKeys();
+                std::vector<data::Symbol> keys = s->getKeys();
                 emitter << YAML::BeginMap;
                 for(const auto &i : keys) {
-                    std::string k = environment.stringTable.getString(i);
+                    std::string k = i.toString();
                     emitter << YAML::Key << k.c_str() << YAML::Value;
-                    serialize(environment, emitter, s->get(i));
+                    serialize(context, emitter, s->get(i));
                 }
                 emitter << YAML::EndMap;
             } else {

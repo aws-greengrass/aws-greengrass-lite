@@ -1,10 +1,10 @@
 #pragma once
 #include "config/transaction_log.hpp"
 #include "config/watcher.hpp"
-#include "data/globals.hpp"
 #include "deployment/deployment_model.hpp"
 #include "deployment/device_configuration.hpp"
 #include "lifecycle/kernel_alternatives.hpp"
+#include "scope/context.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task_threads.hpp"
 #include "util/nucleus_paths.hpp"
@@ -29,18 +29,16 @@ namespace lifecycle {
 
         void initialized(
             const std::shared_ptr<config::Topics> &topics,
-            data::StringOrd key,
-            config::WhatHappened changeType
-        ) override;
+            data::Symbol key,
+            config::WhatHappened changeType) override;
         void changed(
             const std::shared_ptr<config::Topics> &topics,
-            data::StringOrd key,
-            config::WhatHappened changeType
-        ) override;
+            data::Symbol key,
+            config::WhatHappened changeType) override;
     };
 
     class Kernel : public util::RefObject<Kernel> {
-        data::Global &_global;
+        std::weak_ptr<scope::Context> _context;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
         std::shared_ptr<RootPathWatcher> _rootPathWatcher;
         tasks::FixedTaskThreadScope _mainThread;
@@ -50,8 +48,12 @@ namespace lifecycle {
         std::unique_ptr<KernelAlternatives> _kernelAlts{nullptr};
         std::atomic_int _exitCode{0};
 
+        [[nodiscard]] scope::Context &context() const {
+            return *_context.lock();
+        }
+
     public:
-        explicit Kernel(data::Global &global);
+        explicit Kernel(const std::shared_ptr<scope::Context> &context);
 
         static constexpr auto SERVICE_TYPE_TOPIC_KEY{"componentType"};
         static constexpr auto SERVICE_TYPE_TO_CLASS_MAP_KEY{"componentTypeToClassMap"};
@@ -64,7 +66,7 @@ namespace lifecycle {
         static constexpr auto DEPLOYMENT_STAGE_LOG_KEY{"stage"};
         static constexpr auto SHUTDOWN_TIMEOUT_SECONDS{30};
         static constexpr auto SERVICE_SHUTDOWN_TIMEOUT_SECONDS{5};
-        const data::StringOrdInit SERVICES_TOPIC_KEY{"services"};
+        const data::SymbolInit SERVICES_TOPIC_KEY{"services"};
 
         void preLaunch(CommandLine &commandLine);
         int launch();
@@ -101,9 +103,7 @@ namespace lifecycle {
             return _nucleusPaths;
         }
 
-        config::Manager &getConfig() {
-            return _global.environment.configManager;
-        }
+        config::Manager &getConfig();
 
         void setExitCode(int exitCode) {
             _exitCode.store(exitCode);

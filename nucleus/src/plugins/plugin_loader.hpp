@@ -1,5 +1,4 @@
 #pragma once
-#include "data/environment.hpp"
 #include "data/handle_table.hpp"
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
@@ -27,18 +26,22 @@ namespace plugins {
         std::string _moduleName;
 
     public:
-        explicit AbstractPlugin(data::Environment &environment, const std::string_view &name)
-            : TrackingScope(environment), _moduleName{name} {
+        explicit AbstractPlugin(
+            const std::shared_ptr<scope::Context> &context, const std::string_view &name)
+            : TrackingScope(context), _moduleName{name} {
         }
 
         virtual bool lifecycle(
             data::ObjHandle pluginRoot,
-            data::StringOrd phase,
-            const std::shared_ptr<data::StructModelBase> &data
-        ) = 0;
+            data::Symbol phase,
+            const std::shared_ptr<data::StructModelBase> &data) = 0;
 
         virtual bool isActive() noexcept {
             return true;
+        }
+
+        [[nodiscard]] std::string getName() {
+            return _moduleName;
         }
     };
 
@@ -47,6 +50,7 @@ namespace plugins {
     //
     class DelegatePlugin : public AbstractPlugin {
     private:
+        mutable std::shared_mutex _mutex;
         std::shared_ptr<AbstractPlugin> _parent; // delegate keeps parent in memory
         ggapiLifecycleCallback _delegateLifecycle{nullptr}; // called to handle
                                                             // this delegate
@@ -54,27 +58,28 @@ namespace plugins {
 
     public:
         explicit DelegatePlugin(
-            data::Environment &environment,
+            const std::shared_ptr<scope::Context> &context,
             std::string_view name,
             const std::shared_ptr<AbstractPlugin> &parent,
             ggapiLifecycleCallback delegateLifecycle,
-            uintptr_t delegateContext
-        )
-            : AbstractPlugin(environment, name), _parent{parent},
-              _delegateLifecycle{delegateLifecycle}, _delegateContext{delegateContext} {
+            uintptr_t delegateContext)
+            : AbstractPlugin(context, name), _parent{parent}, _delegateLifecycle{delegateLifecycle},
+              _delegateContext{delegateContext} {
         }
 
         bool lifecycle(
             data::ObjHandle pluginRoot,
-            data::StringOrd phase,
-            const std::shared_ptr<data::StructModelBase> &data
-        ) override;
+            data::Symbol phase,
+            const std::shared_ptr<data::StructModelBase> &data) override;
     };
 
     //
     // Native plugins are first-class, handled by the Nucleus itself
     //
     class NativePlugin : public AbstractPlugin {
+    public:
+        static constexpr auto NATIVE_ENTRY_NAME = "greengrass_lifecycle";
+
     private:
 #if defined(USE_DLFCN)
         typedef void *nativeHandle_t;
@@ -87,8 +92,8 @@ namespace plugins {
         std::atomic<lifecycleFn_t> _lifecycleFn{nullptr};
 
     public:
-        explicit NativePlugin(data::Environment &environment, std::string_view name)
-            : AbstractPlugin(environment, name) {
+        explicit NativePlugin(const std::shared_ptr<scope::Context> &context, std::string_view name)
+            : AbstractPlugin(context, name) {
         }
 
         NativePlugin(const NativePlugin &) = delete;
@@ -99,18 +104,32 @@ namespace plugins {
         void load(const std::string &filePath);
         bool lifecycle(
             data::ObjHandle pluginRoot,
-            data::StringOrd phase,
-            const std::shared_ptr<data::StructModelBase> &data
-        ) override;
+            data::Symbol phase,
+            const std::shared_ptr<data::StructModelBase> &data) override;
         bool isActive() noexcept override;
     };
 
     //
     // Loader is responsible for handling all plugins
     //
-    class PluginLoader : public data::TrackingScope {
+    class PluginLoader {
+    private:
+        std::weak_ptr<scope::Context> _context;
+        std::shared_ptr<data::TrackingRoot> _root;
+        data::SymbolInit _bootstrap{"bootstrap"};
+        data::SymbolInit _discover{"discover"};
+        data::SymbolInit _start{"start"};
+        data::SymbolInit _run{"run"};
+        data::SymbolInit _terminate{"terminate"};
+
     public:
-        explicit PluginLoader(data::Environment &environment) : TrackingScope(environment) {
+        explicit PluginLoader(const std::shared_ptr<scope::Context> &context)
+            : _context(context), _root(std::make_shared<data::TrackingRoot>(context)) {
+            data::SymbolInit::init(context, {&_bootstrap, &_discover, &_start, &_run, &_terminate});
+        }
+
+        scope::Context &context() const {
+            return *_context.lock();
         }
 
         void discoverPlugins(const std::filesystem::path &pluginDir);
@@ -123,6 +142,6 @@ namespace plugins {
         void lifecycleStart(const std::shared_ptr<data::StructModelBase> &data);
         void lifecycleRun(const std::shared_ptr<data::StructModelBase> &data);
         void lifecycleTerminate(const std::shared_ptr<data::StructModelBase> &data);
-        void lifecycle(data::StringOrd phase, const std::shared_ptr<data::StructModelBase> &data);
+        void lifecycle(data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data);
     };
 } // namespace plugins

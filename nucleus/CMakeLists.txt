@@ -41,27 +41,37 @@ add_library(nucleus-obj OBJECT
         src/api/pubsub.cpp
         src/api/tasks.cpp
         src/config/config_manager.cpp src/config/config_manager.hpp
+        src/config/config_nodes.hpp
+        src/config/config_timestamp.hpp
         src/config/json_helper.cpp src/config/json_helper.hpp
         src/config/publish_queue.cpp src/config/publish_queue.hpp
         src/config/transaction_log.cpp src/config/transaction_log.hpp
         src/config/watcher.hpp
         src/config/yaml_helper.cpp src/config/yaml_helper.hpp
-        src/data/environment.cpp src/data/environment.hpp
         src/data/handle_table.cpp src/data/handle_table.hpp
-        src/data/safe_handle.cpp src/data/safe_handle.hpp
+        src/data/safe_handle.hpp
         src/data/shared_buffer.cpp src/data/shared_buffer.hpp
         src/data/shared_list.cpp src/data/shared_list.hpp
         src/data/shared_struct.cpp src/data/shared_struct.hpp
         src/data/string_table.cpp src/data/string_table.hpp
         src/data/struct_model.cpp src/data/struct_model.hpp
+        src/data/symbol_value_map.hpp
         src/data/tracked_object.cpp src/data/tracked_object.hpp
+        src/data/value_type.hpp
         src/deployment/deployment_model.cpp src/deployment/deployment_model.hpp
         src/deployment/device_configuration.cpp src/deployment/device_configuration.hpp
         src/lifecycle/command_line.cpp src/lifecycle/command_line.hpp
         src/lifecycle/kernel.cpp src/lifecycle/kernel.hpp
         src/lifecycle/kernel_alternatives.cpp src/lifecycle/kernel_alternatives.hpp
+        src/lifecycle/sys_properties.cpp src/lifecycle/sys_properties.hpp
         src/plugins/plugin_loader.cpp src/plugins/plugin_loader.hpp
         src/pubsub/local_topics.cpp src/pubsub/local_topics.hpp
+        src/scope/context.cpp src/scope/context.hpp
+        src/scope/context_full.hpp
+        src/scope/context_glob.hpp
+        src/scope/fixed_pointer.hpp
+        src/scope/call_scope.cpp src/scope/call_scope.hpp
+        src/scope/mapper.hpp
         src/tasks/expire_time.hpp
         src/tasks/task.cpp src/tasks/task.hpp
         src/tasks/task_manager.cpp src/tasks/task_manager.hpp
@@ -69,7 +79,7 @@ add_library(nucleus-obj OBJECT
         src/util/commitable_file.cpp src/util/commitable_file.hpp
         src/util/nucleus_paths.cpp src/util/nucleus_paths.hpp
         src/util/permissions.cpp src/util/permissions.hpp
-)
+        )
 target_link_libraries(nucleus-obj
         PUBLIC gg_plugin_api
         PRIVATE Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
@@ -111,11 +121,13 @@ add_executable(nucleus-tests
         tests/api/list_tests.cpp
         tests/api/pubsub_tests.cpp
         tests/api/struct_tests.cpp
-        tests/data/string_ord_tests.cpp
+        tests/data/symbol_tests.cpp
         tests/lifecycle/kernel_tests.cpp
         tests/pubsub/pubsub_tests.cpp
+        tests/scope/context_tests.cpp
+        tests/scope/scope_tests.cpp
         tests/tasks/task_tests.cpp
-)
+        )
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
         PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
@@ -140,6 +152,6 @@ if (CMAKE_BUILD_TYPE STREQUAL Debug)
                 COMMAND rm -rf coverage.info filtered.info
                 DEPENDS nucleus-tests
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-        )
+                )
     endif ()
 endif ()

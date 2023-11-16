@@ -1,13 +1,13 @@
 #include "device_configuration.hpp"
 #include "lifecycle/command_line.hpp"
 #include "lifecycle/kernel.hpp"
+#include "scope/context_full.hpp"
 
 namespace deployment {
 
     DeviceConfiguration::DeviceConfiguration(
-        data::Environment &environment, lifecycle::Kernel &kernel
-    )
-        : _environment(environment), _kernel(kernel), configs(environment) {
+        const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel)
+        : _context(context), _kernel(kernel), configs(context) {
         // TODO: deTildeValidator
         // TODO: regionValidator
         // TODO: loggingConfig
@@ -328,17 +328,14 @@ namespace deployment {
         return false;
     }
 
-    config::Topic DeviceConfiguration::getTopic(data::StringOrdInit parameterName) {
+    config::Topic DeviceConfiguration::getTopic(data::SymbolInit parameterName) {
         return _kernel.getConfig().lookup(
-            {"services", getNucleusComponentName(), "configuration", parameterName}
-        );
+            {"services", getNucleusComponentName(), "configuration", parameterName});
     }
 
-    std::shared_ptr<config::Topics> DeviceConfiguration::getTopics(data::StringOrdInit parameterName
-    ) {
+    std::shared_ptr<config::Topics> DeviceConfiguration::getTopics(data::SymbolInit parameterName) {
         return _kernel.getConfig().lookupTopics(
-            {"services", getNucleusComponentName(), "configuration", parameterName}
-        );
+            {"services", getNucleusComponentName(), "configuration", parameterName});
     }
 
     std::string DeviceConfiguration::getNucleusVersion() {
