@@ -53,4 +53,4 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
-        run: ./nucleus/nucleus-tests -d yes -v high
+        run: ./nucleus/nucleus-tests -d yes
