@@ -38,7 +38,7 @@ jobs:
 
       - name: Configure CMake
         run: |
-          if [ "${{matrix.os}}" == "windows-latest" && "${{matrix.compiler}}" == "g++"]; then
+          if [[ "${{matrix.os}}" == "windows-latest" && "${{matrix.compiler}}" == "g++" ]]; then
             choco install mingw
           fi
           cmake -B ${{ steps.strings.outputs.build-output-dir }}
