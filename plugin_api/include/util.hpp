@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -59,6 +60,9 @@ namespace util {
         return target;
     }
 
+    template<class T>
+    using type_identity = T;
+
     //
     // Used for views into memory buffers with safe copies (C++20 has span, C++17 does not)
     //
@@ -74,6 +78,11 @@ namespace util {
         Span(DataT *ptr, SizeT len) noexcept : _ptr(ptr), _len(len) {
         }
 
+        template<size_t N>
+        // NOLINTNEXTLINE (*-c-arrays)
+        Span(type_identity<DataT> (&e)[N]) : _ptr(std::data(e)), _len(std::size(e)) {
+        }
+
         DataT &operator[](SizeT i) noexcept {
             return *_ptr[i];
         }
@@ -84,6 +93,10 @@ namespace util {
 
         [[nodiscard]] SizeT size() const noexcept {
             return _len;
+        }
+
+        DataT *data() noexcept {
+            return _ptr;
         }
 
         DataT *begin() noexcept {
