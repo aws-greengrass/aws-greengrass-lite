@@ -49,8 +49,8 @@ jobs:
       - name: Install dependencies
         if: matrix.os == 'windows-latest' && matrix.cpp_compiler == 'msvc'
         run: |
-          choco install visualstudio2022buildtools -y --package-parameters "--add Microsoft.VisualStudio.Component.VSSDKBuildTools"
-          "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+          choco install winget
+          winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended"
 
       - name: Configure CMake
         shell: bash
