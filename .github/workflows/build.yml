@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         if: matrix.os == 'windows-latest'
         run: >
-          choco install visualstudio2022buildtools -y
+          choco install visualstudio2022buildtools -y --package-parameters "--add Microsoft.VisualStudio.Component.VSSDKBuildTools"
 
       - name: Configure CMake
         shell: bash
@@ -60,7 +60,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "MinGW Makefiles"
           elif [[ "${{matrix.os}}" == "windows-latest" ]]; then
             cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "Visual Studio 17"
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "Visual Studio 17 2022" v143;--version=19.30
           else
             cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
             -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S .
