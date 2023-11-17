@@ -54,7 +54,7 @@ jobs:
             cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
             -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "MinGW Makefiles"
           elif [[ "${{matrix.os}}" == "windows-latest" ]]; then
-            pwd
+            ls "/c/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/"
             cmake -B build \
             -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "Visual Studio 17 2022"
           else
