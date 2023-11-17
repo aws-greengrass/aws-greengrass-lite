@@ -95,8 +95,7 @@ namespace Aws {
                     if(bind(
                            _socketId,
                            reinterpret_cast<sockaddr *>(&name),
-                           offsetof(sockaddr_un, sun_path) + len
-                       )
+                           offsetof(sockaddr_un, sun_path) + len)
                        < 0) {
                         std::terminate();
                     }
@@ -113,8 +112,7 @@ namespace Aws {
                     if(connect(
                            _socketId,
                            reinterpret_cast<sockaddr *>(&name),
-                           offsetof(sockaddr_un, sun_path) + len
-                       )
+                           offsetof(sockaddr_un, sun_path) + len)
                        < 0) {
                         std::terminate();
                     }
@@ -200,13 +198,13 @@ namespace Aws {
                                     request.put(keys.topicName, std::to_string(i));
                                     request.put(keys.qos, 1);
                                     request.put(
-                                        keys.payload, std::string_view{buffer.data(), static_cast<size_t>(count)}
-                                    );
+                                        keys.payload,
+                                        std::string_view{
+                                            buffer.data(), static_cast<size_t>(count)});
 
                                     std::cerr << "[example-ipc] Sending..." << std::endl;
                                     ggapi::Struct result = threadScope.sendToTopic(
-                                        keys.publishToIoTCoreTopic, request
-                                    );
+                                        keys.publishToIoTCoreTopic, request);
                                     std::cerr << "[example-ipc] Sending complete." << std::endl;
                                     std::cout.write(buffer.data(), count) << '\n';
                                 }
@@ -232,9 +230,7 @@ namespace Aws {
             std::array<std::thread, 5> clients;
 
             std::generate(
-                clients.begin(),
-                clients.end(),
-                [&socketPath, count = 0]() mutable -> std::thread {
+                clients.begin(), clients.end(), [&socketPath, count = 0]() mutable -> std::thread {
                     return std::thread{
                         [&socketPath](int count) {
                             DomainSocket<Client> client{socketPath};
@@ -244,8 +240,7 @@ namespace Aws {
                                 ss << message << " from " << std::this_thread::get_id() << '\n';
                                 auto str = ss.str();
 
-                                if(int error =
-                                       send(client.getSocket(), str.data(), str.size(), 0);
+                                if(int error = send(client.getSocket(), str.data(), str.size(), 0);
                                    error < 0) {
                                     std::terminate();
                                 } else {
@@ -254,10 +249,8 @@ namespace Aws {
                                 std::this_thread::sleep_for(10us);
                             }
                         },
-                        ++count * 100
-                    };
-                }
-            );
+                        ++count * 100};
+                });
 
             for(auto &client : clients) {
                 client.join();
@@ -289,8 +282,7 @@ void doRunPhase() {
 }
 
 extern "C" bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t data
-) noexcept {
+    uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
     std::cout << "Running lifecycle plugins 1... " << ggapi::StringOrd{phase}.toString()
               << std::endl;
     const auto &keys = Keys::get();
