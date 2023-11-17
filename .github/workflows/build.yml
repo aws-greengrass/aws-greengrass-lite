@@ -50,7 +50,7 @@ jobs:
         if: matrix.os == 'windows-latest' && matrix.cpp_compiler == 'msvc'
         run: |
           choco install winget
-          winget install -e --id Microsoft.VisualStudio.2022.BuildTools --accept-package-agreements --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended"
+          winget install -e --id Microsoft.VisualStudio.2022.BuildTools --accept-package-agreements --accept-package-agreements --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended"
 
       - name: Configure CMake
         shell: bash
