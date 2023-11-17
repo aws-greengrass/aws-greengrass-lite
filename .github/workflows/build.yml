@@ -50,7 +50,7 @@ jobs:
         if: matrix.os == 'windows-latest' && matrix.cpp_compiler == 'msvc'
         run: |
           choco install winget
-          winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended"
+          winget install -e --id Microsoft.VisualStudio.2022.BuildTools --override --accept-source-agreements "--passive --wait --add Microsoft.VisualStudio.Workload.VCTools;includeRecommended"
 
       - name: Configure CMake
         shell: bash
@@ -61,7 +61,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "MinGW Makefiles"
           elif [[ "${{matrix.os}}" == "windows-latest" ]]; then
             cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "Visual Studio 17 2022" v143;--version=19.30
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "Visual Studio 17 2022"
           else
             cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
             -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S .
