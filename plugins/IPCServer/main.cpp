@@ -1,8 +1,14 @@
+#include "util.hpp"
+#include <bits/chrono.h>
 #include <cpp_api.hpp>
+#include <cstddef>
 #include <iostream>
 
 #include <filesystem>
+#include <optional>
+#include <ratio>
 #include <sys/ioctl.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -15,6 +21,7 @@
 #include <chrono>
 #include <sstream>
 #include <thread>
+#include <utility>
 
 struct Keys {
     ggapi::StringOrd start{"start"};
@@ -41,6 +48,47 @@ struct Keys {
 
 namespace Aws {
     namespace Greengrass {
+        struct SocketSet {
+            fd_set set{[] {
+                fd_set set;
+                FD_ZERO(&set);
+                return set;
+            }()};
+
+            [[nodiscard]] bool contains(int sd) const noexcept {
+                return FD_ISSET(sd, &set);
+            }
+
+            void insert(int sd) noexcept {
+                FD_SET(sd, &set);
+            }
+
+            void erase(int sd) noexcept {
+                FD_CLR(sd, &set);
+            }
+
+            // TODO not sure if this is sound
+            template<class Timeout>
+            static int select(
+                int max,
+                SocketSet *read,
+                SocketSet *write,
+                SocketSet *error,
+                const Timeout &timeout) {
+
+                using seconds = std::chrono::duration<decltype(timeval::tv_sec)>;
+                using microseconds = std::chrono::duration<decltype(timeval::tv_usec), std::micro>;
+                using std::chrono::duration_cast;
+
+                timeval t{
+                    .tv_sec = duration_cast<seconds>(timeout).count(),
+                    .tv_usec = duration_cast<microseconds>(timeout).count()};
+
+                static_assert(offsetof(SocketSet, set) == 0);
+                return ::select(max, &read->set, &write->set, &error->set, &t);
+            }
+        };
+
         class Server {};
 
         class Client {};
@@ -50,22 +98,28 @@ namespace Aws {
         private:
             int _socketId;
             std::filesystem::path _path;
-            static constexpr short GREENGRASS_IPC_PORT = 8383; // TODO: Configuration
             static constexpr int GREENGRASS_IPC_MAX_CONN = 32;
 
         public:
-            fd_set initSet() const noexcept {
+            [[nodiscard]] fd_set initSet() const noexcept {
                 fd_set set;
                 FD_ZERO(&set);
                 FD_SET(_socketId, &set);
                 return set;
             }
 
-            int getSocket() const noexcept {
+            [[nodiscard]] int getSocket() const noexcept {
                 return _socketId;
             }
 
-            DomainSocket(std::filesystem::path path) noexcept
+            DomainSocket(const DomainSocket &) = delete;
+            DomainSocket &operator=(const DomainSocket &) = delete;
+            DomainSocket(DomainSocket &&other) noexcept
+                : _socketId(std::exchange(other._socketId, 0)), _path(std::move(other._path)) {
+            }
+            DomainSocket &operator=(DomainSocket &&) noexcept = default;
+
+            explicit DomainSocket(const std::filesystem::path &path) noexcept
                 : _socketId(socket(AF_UNIX, SOCK_STREAM, 0)) {
                 struct sockaddr_un name {};
 
@@ -79,10 +133,13 @@ namespace Aws {
                 }
 
                 auto str = path.string();
+
+                auto namePath = util::Span(name.sun_path);
+
                 name.sun_family = AF_LOCAL;
-                auto len = str.copy(name.sun_path, std::size(name.sun_path));
+                auto len = str.copy(namePath.data(), namePath.size());
                 if(len == std::size(name.sun_path)) {
-                    *(std::end(name.sun_path) - 1) = '\0';
+                    *(std::prev(std::end(name.sun_path))) = '\0';
                     --len;
                 }
 
@@ -94,6 +151,7 @@ namespace Aws {
 
                     if(bind(
                            _socketId,
+                           // NOLINTNEXTLINE (*reinterpret-cast)
                            reinterpret_cast<sockaddr *>(&name),
                            offsetof(sockaddr_un, sun_path) + len)
                        < 0) {
@@ -105,12 +163,14 @@ namespace Aws {
                     }
 
                     // make socket and all created sockets non-blocking
+                    // NOLINTNEXTLINE (*vararg-function)
                     if(ioctl(_socketId, FIONBIO, &on) < 0) {
                         std::terminate();
                     }
                 } else {
                     if(connect(
                            _socketId,
+                           // NOLINTNEXTLINE (*reinterpret-cast)
                            reinterpret_cast<sockaddr *>(&name),
                            offsetof(sockaddr_un, sun_path) + len)
                        < 0) {
@@ -127,7 +187,7 @@ namespace Aws {
                 }
 
                 if constexpr(std::is_same_v<S, Server>) {
-                    if(std::filesystem::exists(_path)) {
+                    if(!_path.empty() && std::filesystem::exists(_path)) {
                         std::error_code ec{};
                         std::filesystem::remove(_path, ec);
                         if(ec != std::error_code{}) {
@@ -143,12 +203,11 @@ namespace Aws {
             DomainSocket<Server> _listen;
 
         public:
-            IpcThread(std::filesystem::path path) : _listen(path) {
+            explicit IpcThread(const std::filesystem::path &path) : _listen(path) {
             }
 
             void operator()() {
                 _running.store(true);
-                auto threadScope = ggapi::ThreadScope::claimThread();
                 auto set = _listen.initSet();
                 auto last = _listen.getSocket();
                 while(_running.load()) {
@@ -166,9 +225,8 @@ namespace Aws {
                             ready--;
                             // new sockets ready from listener
                             if(i == _listen.getSocket()) {
-                                int socket{};
-                                do {
-                                    socket = accept(_listen.getSocket(), nullptr, nullptr);
+                                for(;;) {
+                                    int socket = accept(_listen.getSocket(), nullptr, nullptr);
                                     if(socket < 0) {
                                         if(errno != EWOULDBLOCK) {
                                             std::cout << "Accept failed\n";
@@ -178,12 +236,13 @@ namespace Aws {
                                     }
                                     FD_SET(socket, &set);
                                     last = std::max(socket, last);
-                                } while(socket != -1);
+                                }
                             }
                             // data available from sockets
                             else {
-                                std::array<char, 1028> buffer;
-                                int count = recv(i, buffer.data(), buffer.size(), 0);
+                                static constexpr size_t bufferLen = 1024;
+                                std::array<char, bufferLen> buffer{};
+                                ssize_t count = recv(i, buffer.data(), buffer.size(), 0);
                                 if(count < 0) {
                                     std::cout << "recv failed: " << errno << '\n';
                                 } else if(count == 0) {
@@ -193,7 +252,7 @@ namespace Aws {
                                         --last;
                                     }
                                 } else {
-                                    auto request{threadScope.createStruct()};
+                                    auto request{ggapi::Struct::create()};
                                     auto &keys = Keys::get();
                                     request.put(keys.topicName, std::to_string(i));
                                     request.put(keys.qos, 1);
@@ -203,7 +262,7 @@ namespace Aws {
                                             buffer.data(), static_cast<size_t>(count)});
 
                                     std::cerr << "[example-ipc] Sending..." << std::endl;
-                                    ggapi::Struct result = threadScope.sendToTopic(
+                                    ggapi::Struct result = ggapi::Task::sendToTopic(
                                         keys.publishToIoTCoreTopic, request);
                                     std::cerr << "[example-ipc] Sending complete." << std::endl;
                                     std::cout.write(buffer.data(), count) << '\n';
@@ -227,7 +286,8 @@ namespace Aws {
             using namespace std::literals;
             std::this_thread::sleep_for(1s);
 
-            std::array<std::thread, 5> clients;
+            static constexpr size_t clientN = 5;
+            std::array<std::thread, clientN> clients;
 
             std::generate(
                 clients.begin(), clients.end(), [&socketPath, count = 0]() mutable -> std::thread {
@@ -240,7 +300,7 @@ namespace Aws {
                                 ss << message << " from " << std::this_thread::get_id() << '\n';
                                 auto str = ss.str();
 
-                                if(int error = send(client.getSocket(), str.data(), str.size(), 0);
+                                if(auto error = send(client.getSocket(), str.data(), str.size(), 0);
                                    error < 0) {
                                     std::terminate();
                                 } else {
@@ -249,7 +309,7 @@ namespace Aws {
                                 std::this_thread::sleep_for(10us);
                             }
                         },
-                        ++count * 100};
+                        ++count * 4};
                 });
 
             for(auto &client : clients) {
@@ -266,15 +326,7 @@ namespace Aws {
 
 }; // namespace Aws
 
-ggapi::Struct testListener(ggapi::Scope task, ggapi::StringOrd topic, ggapi::Struct callData) {
-    std::string pingMessage{callData.get<std::string>("ping")};
-    ggapi::Struct response = task.createStruct();
-    response.put("pong", pingMessage);
-    return response;
-}
-
 void doStartPhase() {
-    //(void) ggapi::Scope::thisTask().subscribeToTopic(ggapi::StringOrd{"test"}, testListener);
     Aws::Greengrass::entry();
 }
 
