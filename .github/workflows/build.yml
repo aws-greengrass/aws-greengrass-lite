@@ -47,9 +47,10 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install dependencies
-        if: matrix.os == 'windows-latest'
-        run: >
+        if: matrix.os == 'windows-latest' && matrix.cpp_compiler == 'msvc'
+        run: |
           choco install visualstudio2022buildtools -y --package-parameters "--add Microsoft.VisualStudio.Component.VSSDKBuildTools"
+          "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 
       - name: Configure CMake
         shell: bash
