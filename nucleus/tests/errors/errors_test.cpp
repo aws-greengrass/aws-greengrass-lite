@@ -1,4 +1,5 @@
 #include "errors/error_base.hpp"
+#include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 
 // NOLINTBEGIN
@@ -11,11 +12,7 @@ SCENARIO("Last error is invariant in thread", "[errors]") {
             auto gotErr = errors::ThreadErrorContainer::get().getError();
             THEN("Retrieved error is valid") {
                 REQUIRE(gotErr.has_value());
-                // The kind name is internal, and depends on implementation detail
-                // The platform safe way is to use typeid
-                // When manually testing, this was string like "std13runtime_error"
-                std::string kindName = gotErr.value().kind().toString();
-                REQUIRE(kindName == typeid(std::runtime_error).name());
+                REQUIRE(gotErr.value().kind() == errors::Error::kind("std::runtime_error"));
                 REQUIRE(
                     std::string_view(gotErr.value().what()) == std::string_view("Some error text"));
             }

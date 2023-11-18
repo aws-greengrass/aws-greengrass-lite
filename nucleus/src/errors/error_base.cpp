@@ -2,10 +2,10 @@
 #include "scope/context_full.hpp"
 
 namespace errors {
-    uint32_t ThreadErrorContainer::fetchKindAsInt() const {
-        return scope::thread().getThreadErrorDetail().kind().asInt();
+    //
+    data::Symbol::Partial ThreadErrorContainer::getKindPartial() const noexcept {
+        return data::Symbol::Partial(_kindSymbolId);
     }
-
     data::Symbol ThreadErrorContainer::getCachedKind() const {
         if(hasError()) {
             return scope::context().symbolFromInt(_kindSymbolId);
@@ -13,7 +13,6 @@ namespace errors {
             return {};
         }
     }
-
     const char *ThreadErrorContainer::getCachedWhat() const {
         if(hasError()) {
             return scope::thread().getThreadErrorDetail().what();
@@ -32,17 +31,9 @@ namespace errors {
         scope::thread().setThreadErrorDetail(error);
         _kindSymbolId = error.kind().asInt();
     }
-    void ThreadErrorContainer::reset() noexcept {
-        // Defer caching until first access - most of the time
-        // calls will alternate between UNKNOWN and NO_ERROR
-        _kindSymbolId = KIND_UNKNOWN;
-    }
     void ThreadErrorContainer::clear() {
-        if(_kindSymbolId == KIND_NO_ERROR) {
-            return;
-        }
+        _kindSymbolId = 0;
         scope::thread().setThreadErrorDetail(Error({}, ""));
-        _kindSymbolId = KIND_NO_ERROR;
     }
     void ThreadErrorContainer::throwIfError() {
         // Wrap in fast check

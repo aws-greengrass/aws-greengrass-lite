@@ -169,7 +169,6 @@ namespace scope {
                 _scopeRoot = std::make_shared<data::TrackingRoot>(context());
             }
             _callScope = active = CallScope::create(context(), _scopeRoot, baseRef(), {});
-            errors::ThreadErrorContainer::get().reset();
         }
         return active;
     }
@@ -183,7 +182,6 @@ namespace scope {
         const std::shared_ptr<CallScope> &callScope) {
         std::shared_ptr<CallScope> prev = getCallScope();
         _callScope = callScope;
-        errors::ThreadErrorContainer::get().reset();
         return prev;
     }
 
@@ -237,7 +235,7 @@ namespace scope {
     }
 
     NucleusCallScopeContext::~NucleusCallScopeContext() {
-        errors::ThreadErrorContainer::get().reset();
+        errors::ThreadErrorContainer::get().clear();
     }
 
     Context &SharedContextMapper::context() const {

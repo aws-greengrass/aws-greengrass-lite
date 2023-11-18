@@ -242,7 +242,7 @@ namespace scope {
         std::shared_ptr<NucleusCallScopeContext> _rootScopedContext;
         std::shared_ptr<tasks::TaskThread> _threadContext;
         std::shared_ptr<tasks::Task> _activeTask;
-        errors::Error _threadErrorDetail{{}, ""}; // Modify only via ThreadErrorManager
+        errors::Error _threadErrorDetail; // Modify only via ThreadErrorManager
     };
 
     /**
