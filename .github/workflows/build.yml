@@ -46,11 +46,18 @@ jobs:
       - name: Clone the repo
         uses: actions/checkout@v3
 
+      - name: Install dependencies
+        if: matrix.os == "windows-latest" && matrix.cpp_compiler == "msvc"
+        run: >
+          "C:\Program Files (x86)\Microsoft Visual studio\Installer\setup.exe" modify ^
+           --installPath "C:\Program Files\Microsoft Visual Studio\2022\Enterprise" ^
+           --removeOos true ^
+           --passive
+
       - name: Configure CMake
         shell: bash
         run: |
           if [[ "${{matrix.os}}" == "windows-latest" && "${{matrix.cpp_compiler}}" == "g++" ]]; then
-            choco install mingw
             cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
             -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "MinGW Makefiles"
           elif [[ "${{matrix.os}}" == "windows-latest" ]]; then
