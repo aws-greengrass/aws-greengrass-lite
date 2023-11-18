@@ -48,11 +48,9 @@ jobs:
 
       - name: Install dependencies
         if: matrix.os == 'windows-latest' && matrix.cpp_compiler == 'msvc'
+        shell: pwsh
         run: >
-          "C:\Program Files (x86)\Microsoft Visual studio\Installer\setup.exe" modify ^
-           --installPath "C:\Program Files\Microsoft Visual Studio\2022\Enterprise" ^
-           --removeOos true ^
-           --passive
+          "C:\Program Files (x86)\Microsoft Visual studio\Installer\setup.exe" modify --installPath "C:\Program Files\Microsoft Visual Studio\2022\Enterprise" --removeOos true --passive
 
       - name: Configure CMake
         shell: bash
