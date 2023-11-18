@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           choco install winget
-          winget upgrade --id Microsoft.VisualStudio.2022.Enterprise --passive --removeOos true
+          winget upgrade --id Microsoft.VisualStudio.2022.Enterprise --override "--passive --removeOos"
 
       - name: Configure CMake
         shell: bash
