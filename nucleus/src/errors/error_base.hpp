@@ -17,30 +17,37 @@ namespace errors {
         // Note that destructor cannot access data, use only
         // trivial data values.
 
+        constexpr static int64_t KIND_UNKNOWN{-1};
+        constexpr static int64_t KIND_NO_ERROR{0};
+
         ThreadErrorContainer() = default;
-        uint32_t _kindSymbolId{0};
+        int64_t _kindSymbolId{KIND_UNKNOWN};
+
+        [[nodiscard]] uint32_t fetchKindAsInt() const;
 
     public:
-        bool hasError() const noexcept {
-            return _kindSymbolId != 0;
+        [[nodiscard]] bool hasError() const noexcept {
+            return getKindAsInt() != 0;
         }
 
-        uint32_t getKindAsInt() const noexcept {
-            return _kindSymbolId;
+        [[nodiscard]] uint32_t getKindAsInt() const {
+            if(_kindSymbolId >= 0) {
+                return static_cast<uint32_t>(_kindSymbolId);
+            } else {
+                return fetchKindAsInt();
+            }
         }
 
-        data::Symbol::Partial getKindPartial() const noexcept;
+        [[nodiscard]] data::Symbol getCachedKind() const;
 
-        data::Symbol getCachedKind() const;
+        [[nodiscard]] const char *getCachedWhat() const;
 
-        const char *getCachedWhat() const;
-
-        std::optional<Error> getError() const;
+        [[nodiscard]] std::optional<Error> getError() const;
 
         void setError(const Error &error);
 
         void clear();
-
+        void reset() noexcept;
         void throwIfError();
 
         /**
@@ -72,9 +79,7 @@ namespace errors {
         Error &operator=(Error &&) noexcept = default;
         ~Error() override = default;
 
-        explicit Error(
-            data::Symbol kind = typeKind<Error>(),
-            const std::string &what = "Unspecified Error") noexcept
+        explicit Error(data::Symbol kind, const std::string &what = "Unspecified Error") noexcept
             : std::runtime_error(what), _kind(kind) {
         }
 
@@ -88,7 +93,7 @@ namespace errors {
         }
         static data::Symbol kind(std::string_view kind);
 
-        void toThreadLastError() {
+        void toThreadLastError() const {
             ThreadErrorContainer::get().setError(*this);
         }
     };
