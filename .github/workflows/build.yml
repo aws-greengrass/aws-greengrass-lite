@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         if: matrix.os == 'windows-latest' && matrix.cpp_compiler == 'msvc'
         shell: bash
-        run: >
+        run: |
           winget upgrade --id Microsoft.VisualStudio.2022.Enterprise --passive --removeOos true
 
       - name: Configure CMake
