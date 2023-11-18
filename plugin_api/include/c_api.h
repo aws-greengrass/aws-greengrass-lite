@@ -36,8 +36,9 @@ typedef bool (*ggapiLifecycleCallback)(
 
 [[maybe_unused]] EXPORT bool greengrass_lifecycle(
     uint32_t moduleHandle, uint32_t phase, uint32_t data) NOEXCEPT;
-IMPEXP void ggapiSetError(uint32_t errorOrd) NOEXCEPT;
-IMPEXP uint32_t ggapiGetError() NOEXCEPT;
+IMPEXP void ggapiSetError(uint32_t kind, const char *what, size_t len) NOEXCEPT;
+IMPEXP uint32_t ggapiGetErrorKind() NOEXCEPT;
+IMPEXP const char *ggapiGetErrorWhat() NOEXCEPT;
 
 IMPEXP uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) NOEXCEPT;
 IMPEXP size_t ggapiGetOrdinalString(uint32_t symbolInt, char *bytes, size_t len) NOEXCEPT;

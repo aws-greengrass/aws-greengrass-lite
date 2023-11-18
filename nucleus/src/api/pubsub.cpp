@@ -1,3 +1,4 @@
+#include "errors/error_base.hpp"
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/expire_time.hpp"
@@ -18,16 +19,12 @@ public:
     data::ObjHandle operator()(
         data::ObjHandle taskHandle, data::Symbol topicOrd, data::ObjHandle argsHandle) override {
         auto &context = scope::Context::get();
-        auto &threadContext = scope::Context::thread();
-        threadContext.setLastError();
+        errors::ThreadErrorContainer::get().clear();
         auto resIntHandle =
             _callback(_context, taskHandle.asInt(), topicOrd.asInt(), argsHandle.asInt());
         data::ObjHandle v = context.handleFromInt(resIntHandle);
         if(!v) {
-            data::Symbol lastError{threadContext.setLastError()};
-            if(lastError) {
-                throw pubsub::CallbackError(lastError);
-            }
+            errors::ThreadErrorContainer::get().throwIfError();
         }
         return v;
     }

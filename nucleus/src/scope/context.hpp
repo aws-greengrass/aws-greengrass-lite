@@ -2,6 +2,7 @@
 #include "config/config_manager.hpp"
 #include "data/handle_table.hpp"
 #include "data/string_table.hpp"
+#include "errors/error_base.hpp"
 #include "lifecycle/sys_properties.hpp"
 #include "scope/fixed_pointer.hpp"
 #include "tasks/expire_time.hpp"
@@ -12,6 +13,10 @@
 
 namespace config {
     class Manager;
+}
+
+namespace errors {
+    class Error;
 }
 
 namespace plugins {
@@ -225,8 +230,8 @@ namespace scope {
         }
         std::shared_ptr<tasks::Task> getActiveTask();
         std::shared_ptr<tasks::Task> setActiveTask(const std::shared_ptr<tasks::Task> &task = {});
-        data::Symbol getLastError();
-        data::Symbol setLastError(const data::Symbol &errorSymbol = {});
+        const errors::Error &getThreadErrorDetail() const;
+        void setThreadErrorDetail(const errors::Error &error);
         std::shared_ptr<tasks::TaskThread> getThreadContext();
         std::shared_ptr<tasks::TaskThread> setThreadContext(
             const std::shared_ptr<tasks::TaskThread> &threadContext = {});
@@ -237,6 +242,7 @@ namespace scope {
         std::shared_ptr<NucleusCallScopeContext> _rootScopedContext;
         std::shared_ptr<tasks::TaskThread> _threadContext;
         std::shared_ptr<tasks::Task> _activeTask;
+        errors::Error _threadErrorDetail; // Modify only via ThreadErrorManager
     };
 
     /**

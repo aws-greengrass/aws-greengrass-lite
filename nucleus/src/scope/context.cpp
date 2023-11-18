@@ -185,14 +185,18 @@ namespace scope {
         return prev;
     }
 
-    data::Symbol PerThreadContext::setLastError(const data::Symbol &errorSymbol) {
-        data::Symbol prev = getLastError();
-        ::ggapiSetError(errorSymbol.asInt());
-        return prev;
+    /**
+     * Used only from errors::ThreadErrorContainer - makes a copy of current thread error.
+     */
+    void PerThreadContext::setThreadErrorDetail(const errors::Error &error) {
+        _threadErrorDetail = error;
     }
 
-    data::Symbol PerThreadContext::getLastError() {
-        return context()->symbolFromInt(::ggapiGetError());
+    /**
+     * Retrieve current thread error by reference (ensures the what() value does not go away).
+     */
+    const errors::Error &PerThreadContext::getThreadErrorDetail() const {
+        return _threadErrorDetail;
     }
 
     std::shared_ptr<tasks::TaskThread> PerThreadContext::getThreadContext() {
@@ -231,7 +235,7 @@ namespace scope {
     }
 
     NucleusCallScopeContext::~NucleusCallScopeContext() {
-        ::ggapiSetError(0);
+        errors::ThreadErrorContainer::get().clear();
     }
 
     Context &SharedContextMapper::context() const {

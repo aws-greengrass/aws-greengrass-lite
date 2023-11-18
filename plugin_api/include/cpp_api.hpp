@@ -5,6 +5,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -1235,55 +1236,85 @@ namespace ggapi {
     }
 
     //
-    // Symbol constants - done as inline methods so that only used constants are included. Note
-    // that ordinal gets are idempotent and thread safe.
-    //
-    struct Consts {
-
-        static Symbol error() {
-            static const Symbol error{"error"};
-            return error;
-        }
-    };
-
-    //
     // Translated exception
     //
-    class GgApiError : public std::exception {
-        Symbol _symbol;
+    class GgApiError : public std::runtime_error {
+        Symbol _kind;
+
+        template<typename Error>
+        static Symbol typeKind() {
+            static_assert(std::is_base_of_v<std::exception, Error>);
+            return typeid(Error).name();
+        }
 
     public:
-        constexpr GgApiError(const GgApiError &) noexcept = default;
-        constexpr GgApiError(GgApiError &&) noexcept = default;
+        GgApiError(const GgApiError &) noexcept = default;
+        GgApiError(GgApiError &&) noexcept = default;
         GgApiError &operator=(const GgApiError &) noexcept = default;
         GgApiError &operator=(GgApiError &&) noexcept = default;
-
-        explicit GgApiError(const Symbol &errorClass) noexcept : _symbol{errorClass} {
-        }
-
-        explicit GgApiError(std::string_view errorClass) noexcept : _symbol{errorClass} {
-        }
-
         ~GgApiError() override = default;
 
-        constexpr explicit operator Symbol() const {
-            return _symbol;
+        explicit GgApiError(
+            Symbol kind = typeKind<GgApiError>(),
+            const std::string &what = "Unspecified Error") noexcept
+            : std::runtime_error(what) {
         }
 
-        [[nodiscard]] constexpr Symbol get() const {
-            return _symbol;
+        template<typename E>
+        static GgApiError of(const E &error) {
+            static_assert(std::is_base_of_v<std::exception, E>);
+            return GgApiError(typeKind<E>(), error.what());
+        }
+
+        [[nodiscard]] constexpr Symbol kind() const {
+            return _kind;
+        }
+
+        void toThreadLastError() {
+            toThreadLastError(_kind, what());
+        }
+
+        static void toThreadLastError(Symbol kind, std::string_view what) {
+            ::ggapiSetError(kind.asInt(), what.data(), what.length());
+        }
+
+        static void clearThreadLastError() {
+            ::ggapiSetError(0, nullptr, 0);
+        }
+
+        static std::optional<GgApiError> fromThreadLastError(bool clear = false) {
+            auto lastErrorKind = ::ggapiGetErrorKind();
+            if(lastErrorKind != 0) {
+                Symbol sym(lastErrorKind);
+                std::string copy{::ggapiGetErrorWhat()}; // before clear
+                if(clear) {
+                    clearThreadLastError();
+                }
+                return GgApiError(copy);
+            } else {
+                return {};
+            }
+        }
+
+        static bool hasThreadLastError() {
+            return ::ggapiGetErrorKind() != 0;
+        }
+
+        static void throwIfThreadHasError() {
+            // Wrap in fast check
+            if(hasThreadLastError()) {
+                // Slower path
+                auto lastError = fromThreadLastError(true);
+                if(lastError.has_value()) {
+                    throw GgApiError(lastError.value());
+                }
+            }
         }
     };
 
-    //
-    // Helper function to throw an exception if there is a thread error
-    //
-    inline void rethrowOnThreadError() {
-        uint32_t errCode = ggapiGetError();
-        if(errCode != 0) {
-            ggapiSetError(0); // consider error 'handled'
-            throw GgApiError(Symbol(errCode));
-        }
+    template<>
+    inline GgApiError GgApiError::of<GgApiError>(const GgApiError &error) {
+        return error;
     }
 
     //
@@ -1292,26 +1323,28 @@ namespace ggapi {
     template<typename T>
     inline T trapErrorReturn(const std::function<T()> &fn) noexcept {
         try {
-            ggapiSetError(0);
+            GgApiError::clearThreadLastError();
             if constexpr(std::is_void_v<T>) {
                 fn();
             } else {
                 return fn();
             }
+        } catch(std::exception &e) {
+            GgApiError::of(e).toThreadLastError();
         } catch(...) {
-            ggapiSetError(Consts::error().asInt());
-            if constexpr(std::is_void_v<T>) {
-                return;
-            } else {
-                return static_cast<T>(0);
-            }
+            GgApiError().toThreadLastError();
+        }
+        if constexpr(std::is_void_v<T>) {
+            return;
+        } else {
+            return static_cast<T>(0);
         }
     }
 
     inline void callApi(const std::function<void()> &fn) {
-        ggapiSetError(0);
+        GgApiError::clearThreadLastError();
         fn();
-        rethrowOnThreadError();
+        GgApiError::throwIfThreadHasError();
     }
 
     template<typename T>
@@ -1319,9 +1352,9 @@ namespace ggapi {
         if constexpr(std::is_void_v<T>) {
             callApi(fn);
         } else {
-            ggapiSetError(0);
+            GgApiError::clearThreadLastError();
             T v = fn();
-            rethrowOnThreadError();
+            GgApiError::throwIfThreadHasError();
             return v;
         }
     }

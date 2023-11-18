@@ -1,4 +1,5 @@
 #include "plugin_loader.hpp"
+#include "errors/error_base.hpp"
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
@@ -66,17 +67,17 @@ void plugins::PluginLoader::lifecycle(
     for(const auto &i : _root->getRoots()) {
         std::shared_ptr<AbstractPlugin> plugin{i.getObject<AbstractPlugin>()};
         if(plugin->isActive()) {
-            ::ggapiSetError(0);
+            errors::ThreadErrorContainer::get().clear();
             // TODO: convert to logging
             std::cerr << "Plugin \"" << plugin->getName()
                       << "\" lifecycle phase: " << phase.toString() << std::endl;
             if(!plugin->lifecycle(i.getHandle(), phase, data)) {
-                data::Symbol lastError{
-                    context().symbols().apply(data::Symbol::Partial{::ggapiGetError()})};
-                if(lastError) {
+                std::optional<errors::Error> lastError{
+                    errors::ThreadErrorContainer::get().getError()};
+                if(lastError.has_value()) {
                     std::cerr << "Plugin \"" << plugin->getName()
                               << "\" lifecycle error during phase: " << phase.toString() << " - "
-                              << lastError.toString() << std::endl;
+                              << lastError.value().what() << std::endl;
                 } else {
                     std::cerr << "Plugin \"" << plugin->getName()
                               << "\" lifecycle unhandled phase: " << phase.toString() << std::endl;
