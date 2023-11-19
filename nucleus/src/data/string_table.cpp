@@ -1,4 +1,5 @@
 #include "string_table.hpp"
+#include "data/data_util.hpp"
 #include "scope/context_full.hpp"
 
 namespace data {

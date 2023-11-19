@@ -56,6 +56,7 @@ add_library(
   src/config/watcher.hpp
   src/config/yaml_helper.cpp
   src/config/yaml_helper.hpp
+  src/data/data_util.hpp
   src/data/handle_table.cpp
   src/data/handle_table.hpp
   src/data/safe_handle.hpp
@@ -164,7 +165,7 @@ add_executable(
   tests/scope/scope_tests.cpp
   tests/tasks/task_tests.cpp
   tests/test_ggroot.hpp
-  tests/test_tools.hpp)
+  tests/test_tools.hpp tests/data/obfuscator_test.cpp)
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
                            PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
