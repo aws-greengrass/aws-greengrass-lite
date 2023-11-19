@@ -173,7 +173,7 @@ add_executable(
   tests/scope/scope_tests.cpp
   tests/tasks/task_tests.cpp
   tests/test_ggroot.hpp
-  tests/test_tools.hpp tests/data/obfuscator_test.cpp)
+  tests/test_tools.hpp)
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
                            PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
