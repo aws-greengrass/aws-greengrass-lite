@@ -2,9 +2,8 @@
 #include "struct_model.hpp"
 
 namespace data {
-
-    typedef util::Span<char, uint32_t> MemoryView;
-    typedef util::Span<const char, uint32_t> ConstMemoryView;
+    using MemoryView = util::Span<char, uint32_t>;
+    using ConstMemoryView = util::Span<const char, uint32_t>;
 
     //
     // A byte-buffer that can be shared between multiple modules

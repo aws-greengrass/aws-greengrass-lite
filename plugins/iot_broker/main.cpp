@@ -22,6 +22,15 @@ struct Keys {
     ggapi::StringOrd lpcResponseTopic{"lpcResponseTopic"};
 };
 
+struct ThingInfo {
+    std::string thingName;
+    std::string credEndpoint;
+    std::string dataEndpoint;
+    std::string certPath;
+    std::string keyPath;
+    std::string rootPath;
+};
+
 struct TopicLevelIterator {
     using value_type = std::string_view;
     using difference_type = std::ptrdiff_t;
@@ -180,9 +189,14 @@ private:
 };
 
 class IotBroker : public ggapi::Plugin {
+    struct ThingInfo _thingInfo;
+    std::thread _asyncThread;
 public:
     bool onStart(ggapi::Struct data) override;
     void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
+    bool validateConfig() const;
+    bool initMqtt();
+    void asyncThreadFn(const ggapi::Struct &reqData);
 
     static IotBroker &get() {
         static IotBroker instance{};
@@ -320,21 +334,58 @@ void IotBroker::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) {
 
 bool IotBroker::onStart(ggapi::Struct structData) {
     auto configStruct = structData.getValue<ggapi::Struct>({"config"});
-    auto certificateFilePath =
-        configStruct.getValue<std::string>({"system", "certificateFilePath"});
-    auto privateKeyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
+    _thingInfo.certPath = configStruct.getValue<std::string>({"system", "certificateFilePath"});
+    _thingInfo.keyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
     // TODO: Note, reference of the module name will be done by Nucleus, this is temporary.
-    auto credEndpoint = configStruct.getValue<std::string>(
+    _thingInfo.credEndpoint = configStruct.getValue<std::string>(
         {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotCredEndpoint"});
-    auto thingName = configStruct.getValue<std::string>({"system", "thingName"});
+    _thingInfo.dataEndpoint = configStruct.getValue<std::string>(
+        {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotDataEndpoint"});
+    _thingInfo.thingName = configStruct.getValue<std::string>({"system", "thingName"});
 
+    if (true) {
+        std::cout << "[mqtt-plugin] Device is not provisioned\n";
+        try {
+            auto provData = ggapi::Struct::create().put("templateName", "fleet_test_template");
+//            provData.put("keyPath", _thingInfo.claimKeyPath);
+//            provData.put("certPath", _thingInfo.claimCertPath);
+//            provData.put("endpoint", _thingInfo.dataEndpoint);
+            provData.put("rootPath", _thingInfo.rootPath);
+            provData.put("templateParams", "")
+
+            std::cout << "[mqtt-plugin] Running provision plugin\n";
+            auto reqData = ggapi::Struct::create().put("config", provData);
+            _asyncThread = std::thread{&IotBroker::asyncThreadFn, this, reqData};
+            _asyncThread.join(); // wait for provisioning to complete
+        }
+        catch (const std::exception &e) {
+            std::cerr<<"[mqtt-plugin] Error while running the provision plugin \n."<<e.what();
+            return false;
+        }
+    }
+    if (initMqtt()) {
+        std::ignore = getScope().subscribeToTopic(keys.publishToIoTCoreTopic, publishHandler);
+        std::ignore = getScope().subscribeToTopic(keys.subscribeToIoTCoreTopic, subscribeHandler);
+        return true;
+    }
+    return false;
+}
+
+bool IotBroker::validateConfig() const {
+    if (_thingInfo.certPath.empty() || _thingInfo.keyPath.empty() || _thingInfo.thingName.empty()) {
+        return false;
+    }
+    return true;
+}
+
+bool IotBroker::initMqtt() {
     std::promise<bool> connectionPromise;
 
     {
-        Aws::Crt::String crtEndpoint{credEndpoint};
+        Aws::Crt::String crtEndpoint{_thingInfo.credEndpoint};
         std::unique_ptr<Aws::Iot::Mqtt5ClientBuilder> builder{
             Aws::Iot::Mqtt5ClientBuilder::NewMqtt5ClientBuilderWithMtlsFromPath(
-                crtEndpoint, certificateFilePath.c_str(), privateKeyPath.c_str())};
+                crtEndpoint, _thingInfo.certPath.c_str(), _thingInfo.keyPath.c_str())};
 
         if(!builder) {
             std::cerr << "[mqtt-plugin] Failed to set up MQTT client builder." << std::endl;
@@ -342,7 +393,7 @@ bool IotBroker::onStart(ggapi::Struct structData) {
         }
 
         auto connectOptions = std::make_shared<Aws::Crt::Mqtt5::ConnectPacket>();
-        connectOptions->WithClientId(thingName.c_str());
+        connectOptions->WithClientId(_thingInfo.thingName.c_str());
         builder->WithConnectOptions(connectOptions);
 
         builder->WithClientConnectionSuccessCallback(
@@ -381,7 +432,7 @@ bool IotBroker::onStart(ggapi::Struct structData) {
                     std::shared_lock lock(_subscriptionMutex);
                     for(const auto &[key, value] : _subscriptions) {
                         if(key.match(topic)) {
-                            (void) ggapi::Task::sendToTopic(value, response);
+                            std::ignore = ggapi::Task::sendToTopic(value, response);
                         }
                     }
                 }
@@ -405,8 +456,12 @@ bool IotBroker::onStart(ggapi::Struct structData) {
         return false;
     }
 
-    (void) getScope().subscribeToTopic(keys.publishToIoTCoreTopic, publishHandler);
-    (void) getScope().subscribeToTopic(keys.subscribeToIoTCoreTopic, subscribeHandler);
-
     return true;
+}
+
+void IotBroker::asyncThreadFn(const ggapi::Struct &reqData) {
+    auto respData = ggapi::Task::sendToTopic(ggapi::StringOrd{"aws.greengrass.provisioning"}, reqData);
+    _thingInfo.thingName = respData.get<std::string>("thingName");
+    _thingInfo.keyPath = respData.get<std::string>("keyPath");
+    _thingInfo.certPath = respData.get<std::string>("certPath");
 }

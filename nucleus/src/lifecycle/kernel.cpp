@@ -291,7 +291,7 @@ namespace lifecycle {
         context().pluginLoader().lifecycleStart(lifecycleArgs);
         context().pluginLoader().lifecycleRun(lifecycleArgs);
 
-        (void) ggapiWaitForTaskCompleted(
+        std::ignore = ggapiWaitForTaskCompleted(
             ggapiGetCurrentTask(), -1); // essentially blocks until kernel signalled to terminate
         context().pluginLoader().lifecycleTerminate(lifecycleArgs);
         getConfig().publishQueue().stop();

@@ -28,7 +28,7 @@ namespace pubsub {
         // scoped lock
         {
             std::unique_lock guard{managerMutex()};
-            (void) std::remove_if(_listeners.begin(), _listeners.end(), [&](const auto &item) {
+            std::ignore = std::remove_if(_listeners.begin(), _listeners.end(), [&](const auto &item) {
                 return item.expired();
             });
         }
@@ -203,7 +203,7 @@ namespace pubsub {
         assert(task->getSelf()); // sanity
         auto scope = scope::Context::thread().getCallScope();
         auto anchor{scope->root()->anchor(result)};
-        (void) _callback->operator()(task->getSelf(), _topicOrd, anchor.getHandle());
+        std::ignore = _callback->operator()(task->getSelf(), _topicOrd, anchor.getHandle());
         return nullptr;
     }
 

@@ -35,10 +35,10 @@ namespace ggapi {
     class Subscription;
     class GgApiError; // error from GG API call
 
-    typedef std::function<Struct(Scope, StringOrd, Struct)> topicCallbackLambda;
-    typedef std::function<void(Scope, StringOrd, Struct)> lifecycleCallbackLambda;
-    typedef Struct (*topicCallback_t)(Task, StringOrd, Struct);
-    typedef void (*lifecycleCallback_t)(ModuleScope, StringOrd, Struct);
+    using topicCallbackLambda = std::function<Struct(Scope, StringOrd, Struct)>;
+    using lifecycleCallbackLambda = std::function<void(Scope, StringOrd, Struct)>;
+    using topicCallback_t = Struct(*)(Task, StringOrd, Struct);
+    using lifecycleCallback_t = void(*)(ModuleScope, StringOrd, Struct);
     uint32_t topicCallbackProxy(
         uintptr_t callbackContext,
         uint32_t taskHandle,
