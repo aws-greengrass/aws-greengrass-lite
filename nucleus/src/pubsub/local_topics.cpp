@@ -15,9 +15,10 @@ namespace pubsub {
         const std::shared_ptr<scope::Context> &context,
         data::Symbol topicOrd,
         Listeners *listeners,
-        std::unique_ptr<AbstractCallback> callback)
+        std::unique_ptr<AbstractCallback> callback,
+        const std::shared_ptr<tasks::TaskThread> &affinity)
         : data::TrackedObject(context), _topicOrd(topicOrd), _parent(listeners->weak_from_this()),
-          _callback(std::move(callback)) {
+          _callback(std::move(callback)), _affinity(affinity) {
     }
 
     Listeners::Listeners(const std::shared_ptr<scope::Context> &context, data::Symbol topic)
@@ -49,9 +50,10 @@ namespace pubsub {
     }
 
     std::shared_ptr<Listener> Listeners::addNewListener(
-        std::unique_ptr<AbstractCallback> callback) {
-        std::shared_ptr<Listener> listener{
-            std::make_shared<Listener>(_context.lock(), _topic, this, std::move(callback))};
+        std::unique_ptr<AbstractCallback> callback,
+        const std::shared_ptr<tasks::TaskThread> &affinity) {
+        std::shared_ptr<Listener> listener{std::make_shared<Listener>(
+            _context.lock(), _topic, this, std::move(callback), affinity)};
         std::unique_lock guard{managerMutex()};
         _listeners.push_back(listener);
         return listener;
@@ -84,19 +86,13 @@ namespace pubsub {
     }
 
     std::shared_ptr<Listener> PubSubManager::subscribe(
-        data::Symbol topicOrd, std::unique_ptr<AbstractCallback> callback) {
-        std::shared_ptr<Listeners> listeners = getListeners(topicOrd);
-        std::shared_ptr<Listener> listener = listeners->addNewListener(std::move(callback));
-        return listener;
-    }
-
-    data::ObjectAnchor PubSubManager::subscribe(
-        data::ObjHandle scopeHandle,
         data::Symbol topicOrd,
-        std::unique_ptr<AbstractCallback> callback) {
-        auto scope = scopeHandle.toObject<data::TrackingScope>();
-        // if handle or root goes away, unsubscribe
-        return scope->root()->anchor(subscribe(topicOrd, std::move(callback)));
+        std::unique_ptr<AbstractCallback> callback,
+        const std::shared_ptr<tasks::TaskThread> &affinity) {
+        std::shared_ptr<Listeners> listeners = getListeners(topicOrd);
+        std::shared_ptr<Listener> listener =
+            listeners->addNewListener(std::move(callback), affinity);
+        return listener;
     }
 
     void PubSubManager::insertTopicListenerSubTasks(
@@ -169,6 +165,7 @@ namespace pubsub {
         std::shared_lock guard{context().lpcTopics().managerMutex()};
         std::shared_ptr<Listener> listener{ref<Listener>()};
         std::unique_ptr<tasks::SubTask> subTask{new ListenerSubTask(listener)};
+        subTask->setAffinity(_affinity.lock());
         return subTask;
     }
 
@@ -183,9 +180,9 @@ namespace pubsub {
         const std::shared_ptr<tasks::Task> &task,
         const std::shared_ptr<data::StructModelBase> &dataIn) {
         assert(task->getSelf());
-        assert(scope::Context::thread().getActiveTask() == task);
+        assert(scope::thread().getActiveTask() == task);
 
-        auto scope = scope::Context::thread().getCallScope();
+        auto scope = scope::thread().getCallScope();
 
         data::ObjectAnchor anchor{scope->root()->anchor(dataIn)};
         data::ObjHandle resp =
@@ -200,7 +197,7 @@ namespace pubsub {
     std::shared_ptr<data::StructModelBase> CompletionSubTask::runInThread(
         const std::shared_ptr<tasks::Task> &task,
         const std::shared_ptr<data::StructModelBase> &result) {
-        assert(scope::Context::thread().getActiveTask() == task); // sanity
+        assert(scope::thread().getActiveTask() == task); // sanity
         assert(task->getSelf()); // sanity
         auto scope = scope::Context::thread().getCallScope();
         auto anchor{scope->root()->anchor(result)};

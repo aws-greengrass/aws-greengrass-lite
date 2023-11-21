@@ -19,11 +19,11 @@ namespace tasks {
         auto tc = scope::PerThreadContext::get();
         _threadContext = tc;
         tc->changeContext(_context.lock());
-        tc->setThreadContext(baseRef());
+        tc->setThreadTaskData(baseRef());
     }
 
     std::shared_ptr<TaskThread> TaskThread::getThreadContext() {
-        return scope::Context::thread().getThreadContext();
+        return scope::Context::thread().getThreadTaskData();
     }
 
     TaskThread::TaskThread(const std::shared_ptr<scope::Context> &context) : _context(context) {
@@ -71,6 +71,21 @@ namespace tasks {
             ExpireTime adjEnd = blockedTask->getEffectiveTimeout(end); // Note: timeout may change
             adjEnd = taskStealingHook(adjEnd);
             std::shared_ptr<Task> task = pickupTask(blockedTask);
+            if(task) {
+                task->runInThread();
+            } else {
+                if(adjEnd <= ExpireTime::now()) {
+                    return;
+                }
+                stall(adjEnd);
+            }
+        }
+    }
+
+    void TaskThread::sleep(const ExpireTime &end) {
+        while(!isShutdown()) {
+            ExpireTime adjEnd = taskStealingHook(end);
+            std::shared_ptr<Task> task = pickupTask();
             if(task) {
                 task->runInThread();
             } else {
@@ -141,9 +156,9 @@ namespace tasks {
         if(!tc) {
             return;
         }
-        auto prev = tc->getThreadContext();
+        auto prev = tc->getThreadTaskData();
         if(prev && prev.get() == this) {
-            tc->setThreadContext({});
+            tc->setThreadTaskData({});
             tc->setActiveTask({});
         } else {
             throw std::runtime_error("Unable to unbind thread");

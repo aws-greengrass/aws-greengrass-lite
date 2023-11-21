@@ -1,4 +1,7 @@
 #include "shared_buffer.hpp"
+#include "conv/json_conv.hpp"
+#include <buffer_stream.hpp>
+#include <sstream>
 
 namespace data {
     void SharedBuffer::put(int32_t idx, ConstMemoryView bytes) {
@@ -92,6 +95,26 @@ namespace data {
         auto end = _buffer.begin();
         std::advance(end, dataEndIdx);
         return bytes.copyFrom(start, end);
+    }
+
+    std::shared_ptr<ContainerModelBase> SharedBuffer::parseJson() {
+        // Prevent modification of buffer during conversion - saves double-buffering
+        std::shared_lock guard{_mutex};
+
+        util::MemoryReader memReader(_buffer.data(), _buffer.size());
+        util::BufferInStreamBase<util::MemoryReader> istream(memReader);
+        conv::JsonReader reader(_context.lock());
+        data::StructElement value;
+        reader.push(std::make_unique<conv::JsonElementResponder>(reader, value));
+        rapidjson::ParseResult result = reader.readStream(istream);
+        if(!result) {
+            if(result.Code() == rapidjson::ParseErrorCode::kParseErrorDocumentEmpty) {
+                return {}; // no JSON
+            }
+            throw errors::JsonParseError();
+        }
+        guard.unlock();
+        return data::Boxed::box(_context.lock(), value);
     }
 
 } // namespace data

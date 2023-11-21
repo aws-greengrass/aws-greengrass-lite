@@ -22,6 +22,8 @@ namespace data {
         void putOrInsert(int32_t idx, ConstMemoryView bytes, bool insert);
 
     public:
+        using BadCastError = errors::InvalidBufferError;
+
         explicit SharedBuffer(const std::shared_ptr<scope::Context> &context)
             : ContainerModelBase{context} {
         }
@@ -31,5 +33,6 @@ namespace data {
         uint32_t size() const override;
         void resize(uint32_t newSize);
         uint32_t get(int idx, MemoryView bytes) const;
+        std::shared_ptr<ContainerModelBase> parseJson();
     };
 } // namespace data

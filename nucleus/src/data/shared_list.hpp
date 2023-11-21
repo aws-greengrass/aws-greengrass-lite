@@ -15,6 +15,8 @@ namespace data {
         void rootsCheck(const ContainerModelBase *target) const override;
 
     public:
+        using BadCastError = errors::InvalidListError;
+
         explicit SharedList(const std::shared_ptr<scope::Context> &context)
             : ListModelBase{context} {
         }

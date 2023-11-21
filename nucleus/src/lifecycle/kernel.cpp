@@ -1,6 +1,6 @@
 #include "kernel.hpp"
 #include "command_line.hpp"
-#include "config/yaml_helper.hpp"
+#include "config/yaml_config.hpp"
 #include "deployment/device_configuration.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
@@ -237,7 +237,7 @@ namespace lifecycle {
 
     void Kernel::writeEffectiveConfig(const std::filesystem::path &configFile) {
         util::CommitableFile commitable(configFile);
-        config::YamlHelper::write(_context.lock(), commitable, getConfig().root());
+        config::YamlConfigHelper::write(_context.lock(), commitable, getConfig().root());
     }
 
     int Kernel::launch() {

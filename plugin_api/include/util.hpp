@@ -68,6 +68,9 @@ namespace util {
         SizeT _len;
 
     public:
+        using DataType = DataT;
+        using SizeType = SizeT;
+
         Span(DataT *ptr, SizeT len) noexcept : _ptr(ptr), _len(len) {
         }
 

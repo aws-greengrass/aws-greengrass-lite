@@ -52,14 +52,14 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
         data::Symbol topic{context->intern("topic")};
         data::Symbol topic2{context->intern("other-topic")};
         auto callRetData{std::make_shared<data::SharedStruct>(context)};
-        std::shared_ptr<pubsub::Listener> subs1{
-            context->lpcTopics().subscribe({}, std::make_unique<ListenerStub>(context, "subs1"))};
+        std::shared_ptr<pubsub::Listener> subs1{context->lpcTopics().subscribe(
+            {}, std::make_unique<ListenerStub>(context, "subs1"), {})};
         std::shared_ptr<pubsub::Listener> subs2{context->lpcTopics().subscribe(
-            topic, std::make_unique<ListenerStub>(context, "subs2", callRetData))};
+            topic, std::make_unique<ListenerStub>(context, "subs2", callRetData), {})};
         std::shared_ptr<pubsub::Listener> subs3{context->lpcTopics().subscribe(
-            topic, std::make_unique<ListenerStub>(context, "subs3"))};
+            topic, std::make_unique<ListenerStub>(context, "subs3"), {})};
         std::shared_ptr<pubsub::Listener> subs4{context->lpcTopics().subscribe(
-            topic2, std::make_unique<ListenerStub>(context, "subs4", callRetData))};
+            topic2, std::make_unique<ListenerStub>(context, "subs4", callRetData), {})};
         WHEN("A query of topic listeners is made") {
             std::shared_ptr<pubsub::Listeners> listeners{context->lpcTopics().getListeners(topic)};
             THEN("The set of listeners is returned") {

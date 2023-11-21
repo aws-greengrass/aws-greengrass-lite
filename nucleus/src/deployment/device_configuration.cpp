@@ -43,7 +43,8 @@ namespace deployment {
         return configs.DEFAULT_NUCLEUS_COMPONENT_NAME;
     }
 
-    void DeviceConfiguration::initializeNucleusComponentConfig(std::string nucleusComponentName) {
+    void DeviceConfiguration::initializeNucleusComponentConfig(
+        const std::string &nucleusComponentName) {
         _kernel.getConfig()
             .lookup({"services", nucleusComponentName, _kernel.SERVICES_TOPIC_KEY})
             .dflt("nucleus");
@@ -57,16 +58,17 @@ namespace deployment {
     }
 
     // Persist initial launch parameters of JVM options.
-    void DeviceConfiguration::persistInitialLaunchParams(lifecycle::KernelAlternatives kernelAlts) {
+    void DeviceConfiguration::persistInitialLaunchParams(
+        lifecycle::KernelAlternatives &kernelAlts) {
         // TODO: missing code
     }
 
-    void DeviceConfiguration::initializeNucleusLifecycleConfig(std::string) {
+    void DeviceConfiguration::initializeNucleusLifecycleConfig(const std::string &) {
         // TODO: missing code
     }
 
     void DeviceConfiguration::initializeNucleusVersion(
-        std::string nucleusComponentName, std::string nucleusComponentVersion) {
+        const std::string &nucleusComponentName, const std::string &nucleusComponentVersion) {
         _kernel.getConfig()
             .lookup({"services", nucleusComponentName, "version"})
             .dflt(nucleusComponentVersion);
@@ -76,11 +78,11 @@ namespace deployment {
     }
 
     void DeviceConfiguration::initializeComponentStore(
-        lifecycle::KernelAlternatives,
-        std::string,
-        std::string,
-        std::filesystem::path,
-        std::filesystem::path) {
+        lifecycle::KernelAlternatives &,
+        const std::string &,
+        const std::string &,
+        const std::filesystem::path &,
+        const std::filesystem::path &) {
         // TODO: change definition and missing code
     }
 
@@ -101,7 +103,8 @@ namespace deployment {
     //    void DeviceConfiguration::reconfigureLogging(LogConfigUpdate) {
     //    }
 
-    std::optional<std::string> DeviceConfiguration::getComponentType(std::string serviceName) {
+    std::optional<std::string> DeviceConfiguration::getComponentType(
+        const std::string &serviceName) {
         std::optional<config::Topic> componentType =
             _kernel.getConfig().find({"services", serviceName, "componentType"});
         if(componentType.has_value()) {
@@ -210,7 +213,7 @@ namespace deployment {
         return getTopic(configs.DEVICE_PARAM_GG_DATA_PLANE_PORT).dflt(GG_DATA_PLANE_PORT_DEFAULT);
     }
 
-    void DeviceConfiguration::setAwsRegion(std::string region) {
+    void DeviceConfiguration::setAwsRegion(const std::string &region) {
         // TODO: Add validator
         getTopic(configs.DEVICE_PARAM_AWS_REGION).withValue(region);
     }
@@ -317,12 +320,12 @@ namespace deployment {
         return false;
     }
 
-    config::Topic DeviceConfiguration::getTopic(data::SymbolInit parameterName) {
+    config::Topic DeviceConfiguration::getTopic(data::Symbol parameterName) {
         return _kernel.getConfig().lookup(
             {"services", getNucleusComponentName(), "configuration", parameterName});
     }
 
-    std::shared_ptr<config::Topics> DeviceConfiguration::getTopics(data::SymbolInit parameterName) {
+    std::shared_ptr<config::Topics> DeviceConfiguration::getTopics(data::Symbol parameterName) {
         return _kernel.getConfig().lookupTopics(
             {"services", getNucleusComponentName(), "configuration", parameterName});
     }
@@ -337,7 +340,7 @@ namespace deployment {
                 return versionTopic->getString();
             }
         }
-        return configs.FALLBACK_VERSION;
+        return std::string(DeviceConfigConsts::FALLBACK_VERSION);
     }
 
     std::string DeviceConfiguration::getVersionFromBuildRecipeFile() {
@@ -356,31 +359,31 @@ namespace deployment {
         bool cloudOnly) {
         if(thingName.empty()) {
             throw DeviceConfigurationException(
-                configs.DEVICE_PARAM_THING_NAME + configs.CANNOT_BE_EMPTY);
+                configs.DEVICE_PARAM_THING_NAME + DeviceConfigConsts::CANNOT_BE_EMPTY);
         }
         if(certificateFilePath.empty()) {
             throw DeviceConfigurationException(
-                configs.DEVICE_PARAM_CERTIFICATE_FILE_PATH + configs.CANNOT_BE_EMPTY);
+                configs.DEVICE_PARAM_CERTIFICATE_FILE_PATH + DeviceConfigConsts::CANNOT_BE_EMPTY);
         }
         if(privateKeyPath.empty()) {
             throw DeviceConfigurationException(
-                configs.DEVICE_PARAM_PRIVATE_KEY_PATH + configs.CANNOT_BE_EMPTY);
+                configs.DEVICE_PARAM_PRIVATE_KEY_PATH + DeviceConfigConsts::CANNOT_BE_EMPTY);
         }
         if(rootCAPath.empty()) {
             throw DeviceConfigurationException(
-                configs.DEVICE_PARAM_ROOT_CA_PATH + configs.CANNOT_BE_EMPTY);
+                configs.DEVICE_PARAM_ROOT_CA_PATH + DeviceConfigConsts::CANNOT_BE_EMPTY);
         }
         if(iotDataEndpoint.empty()) {
             throw DeviceConfigurationException(
-                configs.DEVICE_PARAM_IOT_DATA_ENDPOINT + configs.CANNOT_BE_EMPTY);
+                configs.DEVICE_PARAM_IOT_DATA_ENDPOINT + DeviceConfigConsts::CANNOT_BE_EMPTY);
         }
         if(iotCredEndpoint.empty()) {
             throw DeviceConfigurationException(
-                configs.DEVICE_PARAM_IOT_CRED_ENDPOINT + configs.CANNOT_BE_EMPTY);
+                configs.DEVICE_PARAM_IOT_CRED_ENDPOINT + DeviceConfigConsts::CANNOT_BE_EMPTY);
         }
         if(awsRegion.empty()) {
             throw DeviceConfigurationException(
-                configs.DEVICE_PARAM_AWS_REGION + configs.CANNOT_BE_EMPTY);
+                configs.DEVICE_PARAM_AWS_REGION + DeviceConfigConsts::CANNOT_BE_EMPTY);
         }
         validateEndpoints(awsRegion, iotCredEndpoint, iotDataEndpoint);
 
@@ -409,7 +412,7 @@ namespace deployment {
                 "the device");
         }
         if(!iotDataEndpoint.empty()
-           && iotDataEndpoint.find(std::string{configs.AMAZON_DOMAIN_SEQUENCE})
+           && iotDataEndpoint.find(std::string{DeviceConfigConsts::AMAZON_DOMAIN_SEQUENCE})
                   != std::string_view::npos) {
             throw DeviceConfigurationException(
                 "IoT data endpoint region does not match the AWS region of the device");
@@ -417,7 +420,7 @@ namespace deployment {
     }
 
     std::shared_ptr<config::Topics> DeviceConfiguration::getHttpClientOptions() {
-        return getTopics("httpClient");
+        return getTopics(configs.HTTP_CLIENT);
     }
 
 } // namespace deployment

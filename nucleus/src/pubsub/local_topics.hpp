@@ -71,8 +71,11 @@ namespace pubsub {
         data::Symbol _topicOrd;
         std::weak_ptr<Listeners> _parent;
         std::unique_ptr<AbstractCallback> _callback;
+        std::weak_ptr<tasks::TaskThread> _affinity;
 
     public:
+        using BadCastError = errors::InvalidSubscriberError;
+
         Listener(const Listener &) = delete;
         Listener(Listener &&) noexcept = delete;
         Listener &operator=(const Listener &) = delete;
@@ -82,7 +85,8 @@ namespace pubsub {
             const std::shared_ptr<scope::Context> &context,
             data::Symbol topicOrd,
             Listeners *listeners,
-            std::unique_ptr<AbstractCallback> callback);
+            std::unique_ptr<AbstractCallback> callback,
+            const std::shared_ptr<tasks::TaskThread> &affinity);
         std::unique_ptr<tasks::SubTask> toSubTask();
         std::shared_ptr<data::StructModelBase> runInTaskThread(
             const std::shared_ptr<tasks::Task> &task,
@@ -117,7 +121,9 @@ namespace pubsub {
             return _listeners.empty();
         }
 
-        std::shared_ptr<Listener> addNewListener(std::unique_ptr<AbstractCallback> callback);
+        std::shared_ptr<Listener> addNewListener(
+            std::unique_ptr<AbstractCallback> callback,
+            const std::shared_ptr<tasks::TaskThread> &affinity);
         void fillTopicListeners(std::vector<std::shared_ptr<Listener>> &callOrder);
     };
 
@@ -155,12 +161,9 @@ namespace pubsub {
         std::shared_ptr<Listeners> getListeners(data::Symbol topicName);
         // subscribe a new listener to a callback
         std::shared_ptr<Listener> subscribe(
-            data::Symbol topicOrd, std::unique_ptr<AbstractCallback> callback);
-        // subscribe a new listener to a callback with anchoring
-        data::ObjectAnchor subscribe(
-            data::ObjHandle scopeHandle,
             data::Symbol topicOrd,
-            std::unique_ptr<AbstractCallback> callback);
+            std::unique_ptr<AbstractCallback> callback,
+            const std::shared_ptr<tasks::TaskThread> &affinity);
         void insertTopicListenerSubTasks(std::shared_ptr<tasks::Task> &task, data::Symbol topicOrd);
         void initializePubSubCall(
             std::shared_ptr<tasks::Task> &task,

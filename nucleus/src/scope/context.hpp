@@ -232,17 +232,17 @@ namespace scope {
         std::shared_ptr<tasks::Task> setActiveTask(const std::shared_ptr<tasks::Task> &task = {});
         const errors::Error &getThreadErrorDetail() const;
         void setThreadErrorDetail(const errors::Error &error);
-        std::shared_ptr<tasks::TaskThread> getThreadContext();
-        std::shared_ptr<tasks::TaskThread> setThreadContext(
-            const std::shared_ptr<tasks::TaskThread> &threadContext = {});
+        std::shared_ptr<tasks::TaskThread> getThreadTaskData();
+        std::shared_ptr<tasks::TaskThread> setThreadTaskData(
+            const std::shared_ptr<tasks::TaskThread> &threadTaskData = {});
 
     private:
         std::shared_ptr<Context> _context;
         std::shared_ptr<NucleusCallScopeContext> _scopedContext;
         std::shared_ptr<NucleusCallScopeContext> _rootScopedContext;
-        std::shared_ptr<tasks::TaskThread> _threadContext;
+        std::shared_ptr<tasks::TaskThread> _threadTaskData;
         std::shared_ptr<tasks::Task> _activeTask;
-        errors::Error _threadErrorDetail{{}, ""}; // Modify only via ThreadErrorManager
+        errors::Error _threadErrorDetail{data::Symbol{}, ""}; // Modify only via ThreadErrorManager
     };
 
     /**

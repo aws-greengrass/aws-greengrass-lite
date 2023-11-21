@@ -1,4 +1,5 @@
 #include "struct_model.hpp"
+#include "conv/json_conv.hpp"
 #include "scope/context_full.hpp"
 
 namespace data {
@@ -24,6 +25,10 @@ namespace data {
 
         // cycleGuard may still be locked - intentional
         putAction(element);
+    }
+
+    std::shared_ptr<data::SharedBuffer> ContainerModelBase::toJson() {
+        return conv::JsonHelper::serializeToBuffer(_context.lock(), baseRef());
     }
 
     void StructModelBase::put(std::string_view sv, const StructElement &element) {
@@ -53,4 +58,62 @@ namespace data {
         return getImpl(handle);
     }
 
+    void Boxed::rootsCheck(const ContainerModelBase *target) const { // NOLINT(*-no-recursion)
+        if(this == target) {
+            throw std::runtime_error("Recursive reference of container");
+        }
+        // we don't want to keep nesting locks else we will deadlock, retrieve under lock
+        // and use outside of lock.
+        std::shared_lock guard{_mutex};
+        std::shared_ptr<ContainerModelBase> other;
+        if(_value.isContainer()) {
+            other = _value.getContainer();
+        }
+        guard.unlock();
+        if(other) {
+            other->rootsCheck(target);
+        }
+    }
+
+    void Boxed::put(const StructElement &element) {
+        checkedPut(element, [this](auto &el) {
+            std::unique_lock guard{_mutex};
+            _value = el;
+        });
+    }
+
+    StructElement Boxed::get() const {
+        std::shared_lock guard{_mutex};
+        return _value;
+    }
+
+    std::shared_ptr<data::ContainerModelBase> Boxed::box(
+        const std::shared_ptr<scope::Context> &context, const StructElement &element) {
+        if(element.isContainer() || element.isNull()) {
+            return element.getContainer();
+        }
+        auto boxed = std::make_shared<Boxed>(context);
+        boxed->put(element);
+        return boxed;
+    }
+
+    uint32_t Boxed::size() const {
+        std::shared_lock guard{_mutex};
+        return _value.isNull() ? 0 : 1;
+    }
+
+    std::shared_ptr<ContainerModelBase> StructElement::getBoxed() const {
+        return Boxed::box(scope::context().baseRef(), *this);
+    }
+
+    std::shared_ptr<TrackedObject> StructElement::getObject() const {
+        switch(_value.index()) {
+            case NONE:
+                return {};
+            case OBJECT:
+                return std::get<std::shared_ptr<TrackedObject>>(_value);
+            default:
+                return getBoxed();
+        }
+    }
 } // namespace data

@@ -33,6 +33,8 @@ namespace plugins {
         data::ObjHandle _self;
 
     public:
+        using BadCastError = errors::InvalidModuleError;
+
         explicit AbstractPlugin(
             const std::shared_ptr<scope::Context> &context, const std::string_view &name)
             : TrackingScope(context), _moduleName(name) {

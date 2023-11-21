@@ -1,8 +1,8 @@
 #include "config/config_manager.hpp"
 #include "config/config_nodes.hpp"
+#include "config/yaml_config.hpp"
 #include "scope/context_full.hpp"
 #include "transaction_log.hpp"
-#include "yaml_helper.hpp"
 #include <util.hpp>
 #include <utility>
 
@@ -648,7 +648,7 @@ namespace config {
         auto timestamp = Timestamp::ofFile(std::filesystem::last_write_time(path));
 
         if(ext == ".yaml" || ext == ".yml") {
-            YamlReader reader{_context.lock(), _root, timestamp};
+            YamlConfigReader reader{_context.lock(), _root, timestamp};
             reader.read(path);
         } else if(ext == ".tlog" || ext == ".tlog~") {
             TlogReader::mergeTlogInto(_context.lock(), _root, path, false);

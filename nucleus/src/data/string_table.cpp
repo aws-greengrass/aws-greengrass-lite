@@ -1,4 +1,5 @@
 #include "string_table.hpp"
+#include "errors/errors.hpp"
 #include "scope/context_full.hpp"
 
 namespace data {
@@ -9,12 +10,24 @@ namespace data {
         _symbol = context->symbols().intern(_string);
     }
 
+    void data::SymbolInit::initOnce(const std::shared_ptr<scope::Context> &context) const {
+        std::call_once(_onceFlag, [this, context]() { init(context); });
+    }
+
+    void data::SymbolInit::initOnce() const {
+        std::call_once(_onceFlag, [this]() { init(scope::context().baseRef()); });
+    }
+
     void SymbolInit::init(
         const std::shared_ptr<scope::Context> &context,
         std::initializer_list<const SymbolInit *> list) {
         for(auto i : list) {
-            i->init(context);
+            i->initOnce(context);
         }
+    }
+
+    SymbolInit::operator ValueType() const {
+        return {toSymbol()};
     }
 
     SymbolTable::Buffer::Buffer() {
@@ -71,5 +84,20 @@ namespace data {
         }
         _spans.emplace_back(bufferIndex, source.length());
         return symbolOf(spanIndex);
+    }
+    SymbolTable::StringSpan SymbolTable::Buffer::getSpan(Symbol::Partial symbol) const {
+        if(symbol.isNull()) {
+            throw errors::NullSymbolError();
+        }
+        uint32_t index = indexOf(symbol);
+        if(index >= _spans.size()) {
+            throw errors::InvalidSymbolError();
+        }
+        return _spans.at(index);
+    }
+    void SymbolTable::assertValidSymbol(const Symbol::Partial symbol) const {
+        if(!isSymbolValid(symbol)) {
+            throw errors::InvalidSymbolError();
+        }
     }
 } // namespace data

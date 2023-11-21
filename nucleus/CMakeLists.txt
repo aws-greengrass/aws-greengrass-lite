@@ -161,9 +161,11 @@ add_executable(
   nucleus-tests
   tests/api/buffer_tests.cpp
   tests/api/enum_tests.cpp
+  tests/api/json_tests.cpp
   tests/api/list_tests.cpp
   tests/api/pubsub_tests.cpp
   tests/api/struct_tests.cpp
+  tests/api/task_tests.cpp
   tests/data/obfuscator_test.cpp
   tests/data/symbol_tests.cpp
   tests/errors/errors_test.cpp

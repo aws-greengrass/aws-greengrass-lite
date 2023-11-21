@@ -103,13 +103,7 @@ namespace data {
                 return indexOf(symbol) < _spans.size();
             }
 
-            [[nodiscard]] StringSpan getSpan(Symbol::Partial symbol) const {
-                uint32_t index = indexOf(symbol);
-                if(index >= _spans.size()) {
-                    throw std::out_of_range("Symbol ID is invalid");
-                }
-                return _spans.at(index);
-            }
+            [[nodiscard]] StringSpan getSpan(Symbol::Partial symbol) const;
 
             [[nodiscard]] std::string_view at(Symbol::Partial symbol) const {
                 return toView(getSpan(symbol));
@@ -172,11 +166,7 @@ namespace data {
             return std::string(_buffer.at(symbol));
         }
 
-        void assertValidSymbol(const Symbol::Partial symbol) const {
-            if(!isSymbolValid(symbol)) {
-                throw std::invalid_argument("Symbol is not valid");
-            }
-        }
+        void assertValidSymbol(Symbol::Partial symbol) const;
 
         // NOLINTNEXTLINE(readability-convert-member-functions-to-static) false due to assert
         Symbol::Partial partial(const Symbol &symbol) const {
@@ -200,31 +190,42 @@ namespace data {
         return table().getString(partial());
     }
 
-    //
-    // Helper class for dealing with large numbers of constants
-    //
+    /**
+     * Helper class for dealing with symbol constants
+     * TODO: Change all uses of SymbolInit to inline static const
+     */
     class SymbolInit {
+        std::string_view _string;
         mutable Symbol _symbol{};
-        std::string _string;
+        mutable std::once_flag _onceFlag;
         void init(const std::shared_ptr<scope::Context> &context) const;
+        void initOnce(const std::shared_ptr<scope::Context> &context) const;
+        void initOnce() const;
 
     public:
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        SymbolInit(const char *constString) : _string(constString) {
-        }
+        // SymbolInit is never intended to be used as a parameter for move/copy - it's purpose
+        // is to help define symbol constants.
+        SymbolInit(const SymbolInit &) = delete;
+        SymbolInit(SymbolInit &&) = delete;
+        SymbolInit &operator=(const SymbolInit &) = delete;
+        SymbolInit &operator=(SymbolInit &&) = delete;
+        ~SymbolInit() = default;
 
         // NOLINTNEXTLINE(*-explicit-constructor)
         SymbolInit(std::string_view constString) : _string(constString) {
         }
 
         std::string toString() const {
-            return _string;
+            return std::string(_string);
         }
 
         Symbol toSymbol() const {
-            assert(!_symbol.isNull());
+            initOnce();
             return _symbol;
         }
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator ValueType() const;
 
         // NOLINTNEXTLINE(*-explicit-constructor)
         operator Symbol() const {

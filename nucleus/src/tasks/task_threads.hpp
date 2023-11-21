@@ -15,9 +15,10 @@ namespace tasks {
     class Task;
     class TaskManager;
 
-    //
-    // Base of all task threads, workers and fixed
-    //
+    /**
+     * Base of all task threads strategies. This can be overridden to change behavior of a thread,
+     * for example if it's a worker thread, or if it handles deferred tasks.
+     */
     class TaskThread : public util::RefObject<TaskThread> {
 
     protected:
@@ -53,6 +54,12 @@ namespace tasks {
 
         virtual void join() {
         }
+        virtual void setSingleThreadMode(bool) {
+            // Override to do adhere to mode request
+        }
+        virtual bool isSingleThreadMode() {
+            return false; // by default, mode is ignored
+        }
 
         void stall(const ExpireTime &end);
 
@@ -61,6 +68,7 @@ namespace tasks {
         bool isShutdown();
 
         void taskStealing(const std::shared_ptr<Task> &blockedTask, const ExpireTime &end);
+        void sleep(const ExpireTime &end);
         virtual ExpireTime taskStealingHook(ExpireTime time);
 
         std::shared_ptr<Task> pickupTask(const std::shared_ptr<Task> &blockingTask);
@@ -100,16 +108,24 @@ namespace tasks {
             const std::shared_ptr<scope::Context> &context);
     };
 
-    //
-    // Fixed threads that never go away
-    //
+    /**
+     * Fixed threads that have no special behavior. This is the default thread assignment for
+     * any thread that is not associated with any other task thread strategy.
+     */
     class FixedTaskThread : public TaskThread {
     protected:
         data::ObjectAnchor _defaultTask;
+        bool _singleThreadMode{false};
 
     public:
         explicit FixedTaskThread(const std::shared_ptr<scope::Context> &context)
             : TaskThread(context) {
+        }
+        void setSingleThreadMode(bool f) override {
+            _singleThreadMode = f;
+        }
+        bool isSingleThreadMode() override {
+            return _singleThreadMode;
         }
     };
 

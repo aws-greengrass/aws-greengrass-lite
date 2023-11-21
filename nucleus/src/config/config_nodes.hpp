@@ -131,6 +131,8 @@ namespace config {
         [[nodiscard]] std::string getNameUnsafe() const;
 
     public:
+        using BadCastError = errors::InvalidConfigTopicsError;
+
         explicit Topics(
             const std::shared_ptr<scope::Context> &context,
             const std::shared_ptr<Topics> &parent,

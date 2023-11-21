@@ -19,6 +19,8 @@ namespace data {
         void rootsCheck(const ContainerModelBase *target) const override;
 
     public:
+        using BadCastError = errors::InvalidStructError;
+
         explicit SharedStruct(const std::shared_ptr<scope::Context> &context)
             : StructModelBase(context), _symbolMapper(context) {
         }

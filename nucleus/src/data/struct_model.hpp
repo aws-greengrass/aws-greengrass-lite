@@ -5,6 +5,7 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <util.hpp>
 #include <vector>
 
 namespace scope {
@@ -15,6 +16,7 @@ namespace data {
     class ContainerModelBase;
     class StructModelBase;
     class ListModelBase;
+    class SharedBuffer;
 
     //
     // Data storage element with implicit type conversion
@@ -157,16 +159,23 @@ namespace data {
             }
         }
 
-        [[nodiscard]] std::shared_ptr<TrackedObject> getObject() const {
-            switch(_value.index()) {
-                case NONE:
-                    return {};
-                case OBJECT:
-                    return std::get<std::shared_ptr<TrackedObject>>(_value);
-                default:
-                    throw std::runtime_error("Unsupported type conversion to object");
+        [[nodiscard]] size_t getString(util::Span<char> span) const {
+            // TODO: Enable future optimization
+            std::string s = getString();
+            if(s.length() > span.size()) {
+                throw std::runtime_error("Destination buffer is too small");
             }
+            return span.copyFrom(s.begin(), s.end());
         }
+
+        [[nodiscard]] size_t getStringLen() const {
+            // TODO: Enable future optimization
+            return getString().length();
+        }
+
+        [[nodiscard]] std::shared_ptr<ContainerModelBase> getBoxed() const;
+
+        [[nodiscard]] std::shared_ptr<TrackedObject> getObject() const;
 
         [[nodiscard]] std::shared_ptr<ContainerModelBase> getContainer() const {
             return castObject<ContainerModelBase>();
@@ -224,6 +233,8 @@ namespace data {
     //
     class ContainerModelBase : public TrackedObject {
     public:
+        using BadCastError = errors::InvalidContainerError;
+
         explicit ContainerModelBase(const std::shared_ptr<scope::Context> &context)
             : TrackedObject(context) {
         }
@@ -236,6 +247,31 @@ namespace data {
         void checkedPut(
             const StructElement &element,
             const std::function<void(const StructElement &)> &putAction);
+        virtual std::shared_ptr<data::SharedBuffer> toJson();
+    };
+
+    /**
+     * Wraps a non-container value inside a container - almost equivalent of an array of
+     * exactly one value.
+     */
+    class Boxed : public ContainerModelBase {
+    protected:
+        StructElement _value;
+        mutable std::shared_mutex _mutex;
+        void rootsCheck(const ContainerModelBase *target) const override;
+
+    public:
+        explicit Boxed(const std::shared_ptr<scope::Context> &context)
+            : ContainerModelBase(context) {
+        }
+
+        void put(const StructElement &element);
+        StructElement get() const;
+        uint32_t size() const override;
+
+        static std::shared_ptr<ContainerModelBase> box(
+            const std::shared_ptr<scope::Context> &context, const StructElement &element);
+        static StructElement unbox(const std::shared_ptr<TrackedObject> value);
     };
 
     //

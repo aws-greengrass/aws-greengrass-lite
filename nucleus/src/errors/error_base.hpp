@@ -23,7 +23,7 @@ namespace errors {
         ThreadErrorContainer() = default;
         int64_t _kindSymbolId{KIND_UNKNOWN};
 
-        [[nodiscard]] uint32_t fetchKindAsInt() const;
+        [[nodiscard]] static uint32_t fetchKindAsInt();
 
     public:
         [[nodiscard]] bool hasError() const noexcept {
@@ -81,6 +81,10 @@ namespace errors {
 
         explicit Error(data::Symbol kind, const std::string &what = "Unspecified Error") noexcept
             : std::runtime_error(what), _kind(kind) {
+        }
+
+        explicit Error(std::string_view kindStr, const std::string &what = "Unspecified Error")
+            : Error(kind(kindStr), what) {
         }
 
         template<typename E>

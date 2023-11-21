@@ -201,19 +201,25 @@ namespace scope {
         return _threadErrorDetail;
     }
 
-    std::shared_ptr<tasks::TaskThread> PerThreadContext::getThreadContext() {
-        auto active = _threadContext;
+    /**
+     * Retrieve a per-thread object that is used for task strategy, data and affinity.
+     */
+    std::shared_ptr<tasks::TaskThread> PerThreadContext::getThreadTaskData() {
+        auto active = _threadTaskData;
         if(!active) {
             // Auto-assign a thread context
-            _threadContext = active = std::make_shared<tasks::FixedTaskThread>(context());
+            _threadTaskData = active = std::make_shared<tasks::FixedTaskThread>(context());
         }
         return active;
     }
 
-    std::shared_ptr<tasks::TaskThread> PerThreadContext::setThreadContext(
-        const std::shared_ptr<tasks::TaskThread> &threadContext) {
-        auto prev = _threadContext;
-        _threadContext = threadContext;
+    /**
+     * Change task strategy and per thread task data associated with thread.
+     */
+    std::shared_ptr<tasks::TaskThread> PerThreadContext::setThreadTaskData(
+        const std::shared_ptr<tasks::TaskThread> &threadTaskData) {
+        auto prev = _threadTaskData;
+        _threadTaskData = threadTaskData;
         return prev;
     }
 

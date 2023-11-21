@@ -2,7 +2,7 @@
 #include "scope/context_full.hpp"
 
 namespace errors {
-    uint32_t ThreadErrorContainer::fetchKindAsInt() const {
+    uint32_t ThreadErrorContainer::fetchKindAsInt() {
         return scope::thread().getThreadErrorDetail().kind().asInt();
     }
 
@@ -41,7 +41,7 @@ namespace errors {
         if(_kindSymbolId == KIND_NO_ERROR) {
             return;
         }
-        scope::thread().setThreadErrorDetail(Error({}, ""));
+        scope::thread().setThreadErrorDetail(Error(data::Symbol{}, ""));
         _kindSymbolId = KIND_NO_ERROR;
     }
     void ThreadErrorContainer::throwIfError() {
