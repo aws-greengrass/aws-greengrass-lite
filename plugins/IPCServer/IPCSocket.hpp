@@ -1,4 +1,6 @@
 #pragma once
+#include <cstddef>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <string_view>
@@ -37,6 +39,16 @@ static inline std::error_code logLastError(
     return ec;
 }
 
+static constexpr bool isNonblockingError(std::errc ec) noexcept {
+    switch(ec) {
+        case std::errc::operation_would_block:
+        case std::errc::connection_already_in_progress:
+            return true;
+        default:
+            return false;
+    }
+}
+
 struct SocketSet;
 
 class CloseableSocket {
@@ -46,7 +58,7 @@ protected:
 public:
     friend class SocketSet;
 
-    // TODO: make private member and wrap all usages
+    // TODO: make private member and wrap all other usages
     [[nodiscard]] int getSocket() const noexcept {
         return _socketId;
     }
@@ -68,7 +80,7 @@ public:
     }
 
     size_t read(util::Span<char> buffer, std::error_code &ec) const noexcept {
-        if(auto received = recv(_socketId, buffer.data(), buffer.size(), 0); received >= 0) {
+        if(auto received = recv(getSocket(), buffer.data(), buffer.size(), 0); received >= 0) {
             ec = {};
             return received;
         } else {
@@ -78,7 +90,7 @@ public:
     }
 
     size_t write(util::Span<char> buffer, std::error_code &ec) const noexcept {
-        if(auto sent = send(_socketId, buffer.data(), buffer.size(), 0); sent >= 0) {
+        if(auto sent = send(getSocket(), buffer.data(), buffer.size(), 0); sent >= 0) {
             ec = {};
             return sent;
         } else {
@@ -94,14 +106,6 @@ public:
 
     virtual ~CloseableSocket() noexcept {
         if(*this) {
-            if(shutdown(_socketId, SHUT_RDWR) < 0) {
-                auto ec = getLastError();
-                if(!(std::errc{ec.value()} == std::errc::not_connected)) {
-                    logLastError("Socket shutdown()");
-                    return;
-                }
-            }
-
             if(close(_socketId) < 0) {
                 logLastError("Socket close()");
             }
@@ -137,11 +141,14 @@ private:
             throw std::system_error(logLastError("Socket setsockopt"));
         }
 
-        auto [name, size] = [&path]() -> auto {
+        std::array<char, sizeof(sockaddr_un)> buffer{};
+
+        auto size = [&buffer, &path]() -> auto {
             sockaddr_un name{.sun_family = AF_LOCAL};
             auto nameSpan = util::Span(name.sun_path);
             auto pathStr = path.string();
             auto len = pathStr.copy(nameSpan.data(), nameSpan.size() - 1);
+            auto size = offsetof(sockaddr_un, sun_path) + len;
             nameSpan[len] = '\0';
 
             // handle truncation
@@ -151,7 +158,9 @@ private:
                 path = std::move(pathStr);
             }
 
-            return std::make_pair(name, offsetof(sockaddr_un, sun_path) + len);
+            // avoids pointer-aliasing between sockaddr and sockaddr_un
+            std::memcpy(buffer.data(), &name, size);
+            return size;
         }();
 
         if constexpr(std::is_same_v<S, Server>) {
@@ -160,7 +169,7 @@ private:
             if(bind(
                    _socketId,
                    // NOLINTNEXTLINE (*reinterpret-cast)
-                   reinterpret_cast<sockaddr *>(&name),
+                   reinterpret_cast<sockaddr *>(buffer.data()),
                    size)
                < 0) {
                 throw std::system_error(logLastError("Socket bind()"));
@@ -179,7 +188,7 @@ private:
             if(connect(
                    _socketId,
                    // NOLINTNEXTLINE (*reinterpret-cast)
-                   reinterpret_cast<sockaddr *>(&name),
+                   reinterpret_cast<sockaddr *>(buffer.data()),
                    size)
                < 0) {
                 throw std::system_error(logLastError("Socket connect()"));
@@ -226,7 +235,7 @@ public:
     }
 
     template<class OutputIt>
-    OutputIt accept(OutputIt it, SocketSet &set, std::error_code &ec);
+    OutputIt accept_range(OutputIt it, SocketSet &set, std::error_code &ec);
 
     ~DomainSocket() noexcept override {
         close(_path);
@@ -332,11 +341,11 @@ struct SocketSet {
 
 template<class S>
 template<class OutputIt>
-OutputIt DomainSocket<S>::accept(OutputIt it, SocketSet &set, std::error_code &ec) {
+OutputIt DomainSocket<S>::accept_range(OutputIt it, SocketSet &set, std::error_code &ec) {
     for(;; ++it) {
         auto socket = accept(ec);
         if(ec) {
-            if(std::errc{ec.value()} == std::errc::operation_would_block) {
+            if(isNonblockingError(std::errc{ec.value()})) {
                 ec = {};
             }
             break;
