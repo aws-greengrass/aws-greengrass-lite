@@ -29,7 +29,7 @@ namespace lifecycle {
         _rootPathWatcher = std::make_shared<RootPathWatcher>(*this);
         context()
             .configManager()
-            .lookup({"system", "rootpath"})
+            .lookup({"system", "rootPath"})
             .dflt(getPaths()->rootPath().generic_string())
             .addWatcher(_rootPathWatcher, config::WhatHappened::changed);
 
@@ -159,9 +159,6 @@ namespace lifecycle {
             _deviceConfiguration->getRunWithDefaultPosixUser().withValue(commandLine.getDefaultUser(
             ));
 #endif
-        }
-        if(!_deviceConfiguration->isDeviceConfiguredToTalkToCloud()) {
-            getConfig().lookup({"aws.greengrass.provisioning"}).dflt("");
         }
     }
 
@@ -332,7 +329,7 @@ namespace lifecycle {
     void Kernel::shutdown(std::chrono::seconds timeoutSeconds) {
         // TODO: missing code
         softShutdown(timeoutSeconds);
-        // Cancel main task causes main thread to terminate, causing clean shutdown
+        // Cancel the main task causes the main thread to terminate, causing clean shutdown
         _mainThread.getTask()->cancelTask();
     }
 

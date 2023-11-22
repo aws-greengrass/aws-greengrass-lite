@@ -11,7 +11,7 @@ if (NOT device-sdk-cpp_POPULATED)
 endif ()
 
 add_library(provision_plugin MODULE main.cpp
-        src/device_provisioning.cpp include/device_provisioning.hpp
+        src/provision_plugin.cpp include/provision_plugin.hpp
 )
 target_include_directories(provision_plugin PRIVATE include)
 target_link_libraries(provision_plugin PRIVATE nucleus-core aws-crt-cpp IotIdentity-cpp)

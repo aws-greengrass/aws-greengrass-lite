@@ -16,6 +16,7 @@ struct Keys {
     ggapi::StringOrd publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
     ggapi::StringOrd subscribeToIoTCoreTopic{"aws.greengrass.SubscribeToIoTCore"};
     ggapi::StringOrd topicName{"topicName"};
+    ggapi::StringOrd provisionTopicName{"aws.greengrass.FleetProvisioningByClaim"};
     ggapi::StringOrd topicFilter{"topicFilter"};
     ggapi::StringOrd qos{"qos"};
     ggapi::StringOrd payload{"payload"};
@@ -28,6 +29,7 @@ struct ThingInfo {
     std::string dataEndpoint;
     std::string certPath;
     std::string keyPath;
+    std::string rootCaPath;
     std::string rootPath;
 };
 
@@ -194,7 +196,7 @@ class IotBroker : public ggapi::Plugin {
 public:
     bool onStart(ggapi::Struct data) override;
     void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
-    bool validateConfig() const;
+    bool validConfig() const;
     bool initMqtt();
     void asyncThreadFn(const ggapi::Struct &reqData);
 
@@ -332,8 +334,8 @@ void IotBroker::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) {
     std::cerr << "[mqtt-plugin] Running lifecycle phase " << phase.toString() << std::endl;
 }
 
-bool IotBroker::onStart(ggapi::Struct structData) {
-    auto configStruct = structData.getValue<ggapi::Struct>({"config"});
+bool IotBroker::onStart(ggapi::Struct data) {
+    auto configStruct = data.getValue<ggapi::Struct>({"config"});
     _thingInfo.certPath = configStruct.getValue<std::string>({"system", "certificateFilePath"});
     _thingInfo.keyPath = configStruct.getValue<std::string>({"system", "privateKeyPath"});
     // TODO: Note, reference of the module name will be done by Nucleus, this is temporary.
@@ -342,18 +344,36 @@ bool IotBroker::onStart(ggapi::Struct structData) {
     _thingInfo.dataEndpoint = configStruct.getValue<std::string>(
         {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotDataEndpoint"});
     _thingInfo.thingName = configStruct.getValue<std::string>({"system", "thingName"});
+    _thingInfo.rootPath = configStruct.getValue<std::string>({"system", "rootPath"});
+    _thingInfo.rootCaPath = configStruct.getValue<std::string>({"system", "rootCaPath"});
 
-    if (true) {
-        std::cout << "[mqtt-plugin] Device is not provisioned\n";
+    if (!validConfig()) {
+        std::cout << "[mqtt-plugin] Device is not provisioned. Running provision plugin...\n";
         try {
-            auto provData = ggapi::Struct::create().put("templateName", "fleet_test_template");
-//            provData.put("keyPath", _thingInfo.claimKeyPath);
-//            provData.put("certPath", _thingInfo.claimCertPath);
-//            provData.put("endpoint", _thingInfo.dataEndpoint);
+            // TODO: Fix config with recipe
+            auto provData = ggapi::Struct::create();
+            provData.put("templateName", configStruct.getValue<std::string>(
+                                             {"services", keys.provisionTopicName.toString(), "configuration", "templateName"}));
+            provData.put("templateParams", configStruct.getValue<std::string>(
+                                               {"services", keys.provisionTopicName.toString(), "configuration", "templateParams"}));
+            provData.put("claimKeyPath", configStruct.getValue<std::string>(
+                                             {"services", keys.provisionTopicName.toString(), "configuration", "claimKeyPath"}));
+            provData.put("claimCertPath", configStruct.getValue<std::string>(
+                                              {"services", keys.provisionTopicName.toString(), "configuration", "claimCertPath"}));
+            provData.put("endpoint", configStruct.getValue<std::string>(
+                                         {"services", keys.provisionTopicName.toString(), "configuration", "iotDataEndpoint"}));
+            provData.put("mqttPort", configStruct.getValue<std::string>(
+                                         {"services", keys.provisionTopicName.toString(), "configuration", "mqttPort"}));
+            provData.put("proxyUsername", configStruct.getValue<std::string>(
+                                          {"services", keys.provisionTopicName.toString(), "configuration", "proxyUsername"}));
+            provData.put("proxyPassword", configStruct.getValue<std::string>(
+                                          {"services", keys.provisionTopicName.toString(), "configuration", "proxyPassword"}));
+            provData.put("proxyUrl", configStruct.getValue<std::string>(
+                                              {"services", keys.provisionTopicName.toString(), "configuration", "proxyUrl"}));
+            provData.put("csrPath", configStruct.getValue<std::string>(
+                                         {"services", keys.provisionTopicName.toString(), "configuration", "csrPath"}));
             provData.put("rootPath", _thingInfo.rootPath);
-            provData.put("templateParams", "")
-
-            std::cout << "[mqtt-plugin] Running provision plugin\n";
+            provData.put("rootCaPath", _thingInfo.rootCaPath);
             auto reqData = ggapi::Struct::create().put("config", provData);
             _asyncThread = std::thread{&IotBroker::asyncThreadFn, this, reqData};
             _asyncThread.join(); // wait for provisioning to complete
@@ -371,7 +391,7 @@ bool IotBroker::onStart(ggapi::Struct structData) {
     return false;
 }
 
-bool IotBroker::validateConfig() const {
+bool inline IotBroker::validConfig() const {
     if (_thingInfo.certPath.empty() || _thingInfo.keyPath.empty() || _thingInfo.thingName.empty()) {
         return false;
     }
@@ -460,7 +480,7 @@ bool IotBroker::initMqtt() {
 }
 
 void IotBroker::asyncThreadFn(const ggapi::Struct &reqData) {
-    auto respData = ggapi::Task::sendToTopic(ggapi::StringOrd{"aws.greengrass.provisioning"}, reqData);
+    auto respData = ggapi::Task::sendToTopic(ggapi::StringOrd{keys.provisionTopicName}, reqData);
     _thingInfo.thingName = respData.get<std::string>("thingName");
     _thingInfo.keyPath = respData.get<std::string>("keyPath");
     _thingInfo.certPath = respData.get<std::string>("certPath");

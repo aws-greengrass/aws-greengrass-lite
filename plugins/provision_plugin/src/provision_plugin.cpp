@@ -1,8 +1,12 @@
-#include "device_provisioning.hpp"
-#include <iostream>
+#include "provision_plugin.hpp"
 #include <chrono>
+#include <iostream>
 
 using namespace std::chrono_literals;
+
+// Global initialization of the API
+static const Aws::Crt::ApiHandle apiHandle{};
+const Keys ProvisionPlugin::keys{};
 
 /**
  *
@@ -21,10 +25,9 @@ void ProvisionPlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data
  * @param callData
  * @return
  */
-ggapi::Struct ProvisionPlugin::testListener(ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData) {
+ggapi::Struct ProvisionPlugin::brokerListener(ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData) {
     auto configStruct = callData.getValue<ggapi::Struct>({"config"});
 
-    // TODO: Alternative rootCa provisioning
     DeviceConfig deviceConfig;
     deviceConfig.templateName = configStruct.getValue<std::string>({"templateName"});
     deviceConfig.claimKeyPath = configStruct.getValue<std::string>({"claimKeyPath"});
@@ -32,12 +35,13 @@ ggapi::Struct ProvisionPlugin::testListener(ggapi::Task task, ggapi::StringOrd t
     deviceConfig.endpoint = configStruct.getValue<std::string>({"endpoint"});
     deviceConfig.rootPath = configStruct.getValue<std::string>({"rootPath"});
     deviceConfig.templateParams = configStruct.getValue<std::string>({"templateParams"});
-//    deviceConfig.rootCaPath = configStruct.getValue<std::string>({"rootCaPath"});
-//    deviceConfig.awsRegion = configStruct.getValue<std::string>(
-//        {"awsRegion"}
-//    );
-    deviceConfig.deviceId = Aws::Crt::UUID().ToString();
-//    deviceConfig.mqttPort = 80; // https - 443 and http - 80
+    deviceConfig.rootCaPath = configStruct.getValue<std::string>({"rootCaPath"});
+    deviceConfig.proxyUsername = configStruct.getValue<std::string>({"proxyUsername"});
+    deviceConfig.proxyPassword = configStruct.getValue<std::string>({"proxyPassword"});
+    deviceConfig.mqttPort = configStruct.getValue<uint64_t>({"mqttPort"});
+    deviceConfig.proxyUrl = configStruct.getValue<std::string>({"proxyUrl"});
+    deviceConfig.csrPath = configStruct.getValue<std::string>({"csrPath"});
+    deviceConfig.deviceId = Aws::Crt::String("test-") + Aws::Crt::UUID().ToString();
 
     auto deviceProvisioning = std::make_unique<ProvisionPlugin>();
     deviceProvisioning->setDeviceConfig(deviceConfig);
@@ -47,17 +51,25 @@ ggapi::Struct ProvisionPlugin::testListener(ggapi::Task task, ggapi::StringOrd t
 /**
  *
  * @param data
- * @return
+ * @return True if successful, false otherwise.
+ */
+bool ProvisionPlugin::onDiscover(ggapi::Struct data) {
+    std::ignore = getScope().subscribeToTopic(keys.topicName, brokerListener);
+    return true;
+}
+/**
+ *
+ * @param data
+ * @return True if successful, false otherwise.
  */
 bool ProvisionPlugin::onStart(ggapi::Struct data) {
-    std::ignore = getScope().subscribeToTopic(ggapi::StringOrd{"aws.greengrass.provisioning"}, testListener);
     return true;
 }
 
 /**
  *
  * @param data
- * @return
+ * @return True if successful, false otherwise.
  */
 bool ProvisionPlugin::onRun(ggapi::Struct data) {
     return true;
@@ -65,96 +77,83 @@ bool ProvisionPlugin::onRun(ggapi::Struct data) {
 
 /**
  * Provision device with csr or create key and certificate with certificate authority
- * @return
+ * @return Response containing provisioned thing information
  */
 ggapi::Struct ProvisionPlugin::provisionDevice() {
-//        Aws::Crt::Io::EventLoopGroup eventLoopGroup(1, allocator);
-//        Aws::Crt::Io::DefaultHostResolver hostResolver(eventLoopGroup, 8, 30, allocator);
-//        Aws::Crt::Io::ClientBootstrap clientBootstrap(eventLoopGroup, hostResolver);
-        if (initMqtt()) {
-            try {
-                generateCredentials();
-                ggapi::Struct response = ggapi::Struct::create();
-                response.put("thingName", _thingName);
-                response.put("keyPath", _keyPath.c_str());
-                response.put("certPath", _certPath.c_str());
-                return response;
-            }
-            catch (const std::exception &e) {
-                std::cerr<<"[provision-plugin] Error while provisioning the device\n";
-                throw e;
-            }
+    if (initMqtt()) {
+        try {
+            generateCredentials();
+            ggapi::Struct response = ggapi::Struct::create();
+            response.put("thingName", _thingName);
+            response.put("keyPath", _keyPath.c_str());
+            response.put("certPath", _certPath.c_str());
+            return response;
         }
-        else {
-            throw std::runtime_error("[provision-plugin] Unable to initialize the mqtt client\n");
+        catch (const std::exception &e) {
+            std::cerr<<"[provision-plugin] Error while provisioning the device\n";
+            throw e;
         }
+    }
+    else {
+        throw std::runtime_error("[provision-plugin] Unable to initialize the mqtt client\n");
+    }
 }
 
 /**
- *
- * @param deviceConfig
+ * Set the device configuration for provisioning
+ * @param deviceConfig Device configuration to be copied
  */
 void ProvisionPlugin::setDeviceConfig(const DeviceConfig &deviceConfig) {
     _deviceConfig = deviceConfig;
     if(_deviceConfig.templateName.empty()) {
-        throw std::runtime_error("Template name not found");
+        throw std::runtime_error("Template name not found.");
     }
-    if(_deviceConfig.claimCertPath.empty()) {
-        throw std::runtime_error("Path to claim certificate not found");
-    }
-    if(_deviceConfig.claimKeyPath.empty()) {
-        throw std::runtime_error("Path to claim private key not found");
-    }
-    //    if(_deviceConfig.rootCaPath.empty()) {
-    //        throw std::runtime_error("Path to root CA not found");
-    //    }
-    if(_deviceConfig.endpoint.empty()) {
-        throw std::runtime_error("IoT endpoint not found");
+    if((_deviceConfig.claimCertPath.empty() || _deviceConfig.claimKeyPath.empty()) && _deviceConfig.rootCaPath.empty()) {
+        throw std::runtime_error("Not enough information to provision the device, check the configuration.");
     }
     if(_deviceConfig.rootPath.empty()) {
-        throw std::runtime_error("Root path for greengrass not found");
+        throw std::runtime_error("Root path not found.");
     }
     _keyPath = std::filesystem::path(_deviceConfig.rootPath) / PRIVATE_KEY_PATH_RELATIVE_TO_ROOT;
     _certPath = std::filesystem::path(_deviceConfig.rootPath) / DEVICE_CERTIFICATE_PATH_RELATIVE_TO_ROOT;
 }
 
 /**
- *
- * @return
+ * Initialize the Mqtt client
+ * @return True if successful, false otherwise.
  */
 bool ProvisionPlugin::initMqtt() {
-    struct aws_allocator *allocator = aws_default_allocator();
-
     std::promise<bool> connectionPromise;
-    std::promise<void> stoppedPromise;
     std::promise<void> disconnectPromise;
-    std::promise<bool> subscribeSuccess;
 
     std::unique_ptr<Aws::Iot::Mqtt5ClientBuilder> builder{
         Aws::Iot::Mqtt5ClientBuilder::NewMqtt5ClientBuilderWithMtlsFromPath(
             _deviceConfig.endpoint, _deviceConfig.claimCertPath.c_str(), _deviceConfig.claimKeyPath.c_str()
                 )};
 
-    if (builder == nullptr)
+    if (!builder)
     {
         std::cerr<<"Failed to setup MQTT client builder "<<Aws::Crt::LastError()<<": "<<Aws::Crt::ErrorDebugString(Aws::Crt::LastError())<<std::endl;
         return false;
     }
 
 
-//    builder->WithCertificateAuthority(_deviceConfig.rootCaPath.c_str());
-    if (_deviceConfig.mqttPort.has_value()) {
-        builder->WithPort(static_cast<uint16_t>(_deviceConfig.mqttPort.value()));
-    }
-    else {
-        builder->WithPort(433);
-    }
+    builder->WithCertificateAuthority(_deviceConfig.rootCaPath.c_str());
+
+    // TODO: Custom mqtt port
+    //    if (_deviceConfig.mqttPort != -1) {
+    //        builder->WithPort(static_cast<uint16_t>(_deviceConfig.mqttPort));
+    //    }
+    //    else {
+    //        builder->WithPort(80);
+    //    }
 
     // http proxy
-    if (_deviceConfig.proxyUrl.has_value() && _deviceConfig.proxyUsername.has_value() && _deviceConfig.proxyPassword.has_value() && _deviceConfig.proxyPort.has_value()) {
+    if (!(_deviceConfig.proxyUrl.empty() || _deviceConfig.proxyUsername.empty() || _deviceConfig.proxyPassword.empty())) {
+        struct aws_allocator *allocator = aws_default_allocator();
         Aws::Crt::Http::HttpClientConnectionProxyOptions proxyOptions;
-        proxyOptions.HostName = _deviceConfig.endpoint;
-        proxyOptions.Port = _deviceConfig.proxyPort.value();
+        proxyOptions.HostName = getHostFromProxyUrl(_deviceConfig.proxyUrl);
+        proxyOptions.Port = getPortFromProxyUrl(_deviceConfig.proxyUrl);
         proxyOptions.ProxyConnectionType = Aws::Crt::Http::AwsHttpProxyConnectionType::Tunneling;
 
         Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions;
@@ -170,16 +169,14 @@ bool ProvisionPlugin::initMqtt() {
         proxyOptions.TlsOptions = tlsConnectionOptions;
 
         proxyOptions.AuthType = Aws::Crt::Http::AwsHttpProxyAuthenticationType::Basic;
-        proxyOptions.BasicAuthUsername = *_deviceConfig.proxyUsername;
-        proxyOptions.BasicAuthPassword = *_deviceConfig.proxyPassword;
+        proxyOptions.BasicAuthUsername = _deviceConfig.proxyUsername;
+        proxyOptions.BasicAuthPassword = _deviceConfig.proxyPassword;
         builder->WithHttpProxyOptions(proxyOptions);
     }
 
     // connection options
     auto connectOptions = std::make_shared<Aws::Crt::Mqtt5::ConnectPacket>();
-    if (_deviceConfig.deviceId.has_value()) {
-        connectOptions->WithClientId(_deviceConfig.deviceId.value());
-    }
+    connectOptions->WithClientId(_deviceConfig.deviceId);
     builder->WithConnectOptions(connectOptions);
 
     // register callbacks
@@ -199,16 +196,13 @@ bool ProvisionPlugin::initMqtt() {
         }
     );
 
-    builder->WithClientStoppedCallback([&stoppedPromise](const Aws::Crt::Mqtt5::OnStoppedEventData &) {
-        std::cout<<"[provision-plugin] Mqtt client stopped\n";
-    });
-
     builder->WithClientAttemptingConnectCallback([](const Aws::Crt::Mqtt5::OnAttemptingConnectEventData &) {
         std::cout<<"[provision-plugin] Attempting to connect...\n";
     });
 
-    builder->WithClientDisconnectionCallback([](const Aws::Crt::Mqtt5::OnDisconnectionEventData &eventData) {
+    builder->WithClientDisconnectionCallback([&disconnectPromise](const Aws::Crt::Mqtt5::OnDisconnectionEventData &eventData) {
         std::cout<<"[provision-plugin] Mqtt client disconnected\n"<<aws_error_debug_str(eventData.errorCode);
+        disconnectPromise.set_value();
     });
 
     _mqttClient = builder->Build();
@@ -229,6 +223,7 @@ bool ProvisionPlugin::initMqtt() {
     }
     return true;
 }
+
 /**
  * Obtain credentials from AWS IoT
  */
@@ -237,17 +232,15 @@ void ProvisionPlugin::generateCredentials() {
     _identityClient = std::make_shared<Aws::Iotidentity::IotIdentityClient>(_mqttClient);
     Aws::Iotidentity::IotIdentityClient identityClient(_mqttClient);
 
-    if (_deviceConfig.csrPath->empty()) {
+    if (_deviceConfig.csrPath.empty()) {
         std::promise<void> keysPublishCompletedPromise;
         std::promise<void> keysAcceptedCompletedPromise;
         std::promise<void> keysRejectedCompletedPromise;
 
-        Aws::Crt::String token;
-
         auto onKeysPublishSubAck = [&](int ioErr) {
             if (ioErr != AWS_OP_SUCCESS)
             {
-                std::cerr<<"[provision-plugin] Error publishing to CreateKeysAndCertificate: %s\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error publishing to CreateKeysAndCertificate: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
 
@@ -257,7 +250,7 @@ void ProvisionPlugin::generateCredentials() {
         auto onKeysAcceptedSubAck = [&](int ioErr) {
             if (ioErr != AWS_OP_SUCCESS)
             {
-                std::cerr<<"[provision-plugin] Error subscribing to CreateKeysAndCertificate accepted: %s\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error subscribing to CreateKeysAndCertificate accepted: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
 
@@ -267,7 +260,7 @@ void ProvisionPlugin::generateCredentials() {
         auto onKeysRejectedSubAck = [&](int ioErr) {
             if (ioErr != AWS_OP_SUCCESS)
             {
-                std::cerr<<"[provision-plugin] Error subscribing to CreateKeysAndCertificate rejected: %s\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error subscribing to CreateKeysAndCertificate rejected: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
             keysRejectedCompletedPromise.set_value();
@@ -278,7 +271,7 @@ void ProvisionPlugin::generateCredentials() {
                 try {
                     std::filesystem::path rootPath = _deviceConfig.rootPath;
 
-                    // Write key and certificate to path
+                    // Write key and certificate to the root path
                     std::filesystem::path certPath =
                         rootPath / DEVICE_CERTIFICATE_PATH_RELATIVE_TO_ROOT;
                     std::ofstream certStream(certPath);
@@ -294,16 +287,15 @@ void ProvisionPlugin::generateCredentials() {
                     }
                     keyStream.close();
 
-                    std::cerr << "[provision-plugin] certificateId: %s.\n" << response->CertificateId->c_str();
-                    token = *response->CertificateOwnershipToken;
+                    _token = *response->CertificateOwnershipToken;
                 }
                 catch (std::exception &e) {
-                    std::cerr<<"[provision-plugin] Error while writing keys and certificate to root path: %s.\n"<<e.what();
+                    std::cerr<<"[provision-plugin] Error while writing keys and certificate to root path: "<<e.what()<<std::endl;
                 }
             }
             else
             {
-                std::cerr<<"[provision-plugin] Error on subscription: %s.\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error on subscription: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
         };
@@ -311,13 +303,12 @@ void ProvisionPlugin::generateCredentials() {
         auto onKeysRejected = [&](Aws::Iotidentity::ErrorResponse *error, int ioErr) {
             if (ioErr == AWS_OP_SUCCESS)
             {
-                std::cout<<"[provision-plugin] CreateKeysAndCertificate failed with statusCode %d, errorMessage %s and errorCode %s."
-                        <<*error->StatusCode<<error->ErrorMessage->c_str()<<error->ErrorCode->c_str();
+                std::cout<<"[provision-plugin] CreateKeysAndCertificate failed with statusCode "<<*error->StatusCode<<", errorMessage "<<error->ErrorMessage->c_str()<<" and errorCode "<<error->ErrorCode->c_str();
                 return;
             }
             else
             {
-                std::cerr<<"[provision-plugin] Error on subscription: %s.\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error on subscription: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
         };
@@ -344,12 +335,10 @@ void ProvisionPlugin::generateCredentials() {
         std::promise<void> csrAcceptedCompletedPromise;
         std::promise<void> csrRejectedCompletedPromise;
 
-        Aws::Crt::String token;
-
         auto onCsrPublishSubAck = [&](int ioErr) {
             if (ioErr != AWS_OP_SUCCESS)
             {
-                std::cerr<<"[provision-plugin] Error publishing to CreateCertificateFromCsr: %s\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error publishing to CreateCertificateFromCsr: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
 
@@ -359,7 +348,7 @@ void ProvisionPlugin::generateCredentials() {
         auto onCsrAcceptedSubAck = [&](int ioErr) {
             if (ioErr != AWS_OP_SUCCESS)
             {
-                std::cerr<<"[provision-plugin] Error subscribing to CreateCertificateFromCsr accepted: %s\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error subscribing to CreateCertificateFromCsr accepted: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
 
@@ -369,7 +358,7 @@ void ProvisionPlugin::generateCredentials() {
         auto onCsrRejectedSubAck = [&](int ioErr) {
             if (ioErr != AWS_OP_SUCCESS)
             {
-                std::cerr<<"[provision-plugin] Error subscribing to CreateCertificateFromCsr rejected: %s\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error subscribing to CreateCertificateFromCsr rejected: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
             csrRejectedCompletedPromise.set_value();
@@ -393,15 +382,15 @@ void ProvisionPlugin::generateCredentials() {
                     std::filesystem::copy(_deviceConfig.claimKeyPath, desiredPath, std::filesystem::copy_options::overwrite_existing);
                 }
                 catch (const std::exception &e) {
-                    std::cerr<<"[provision-plugin] Error while writing certificate and copying key to root path %s.\n"<<e.what();
+                    std::cerr<<"[provision-plugin] Error while writing certificate and copying key to root path "<<e.what()<<std::endl;
                 }
 
-                std::cout<<"[provision-plugin] CreateCertificateFromCsrResponse certificateId: %s.\n"<<response->CertificateId->c_str();
-                token = *response->CertificateOwnershipToken;
+                std::cout<<"[provision-plugin] CreateCertificateFromCsrResponse certificateId: "<<response->CertificateId->c_str()<<std::endl;
+                _token = *response->CertificateOwnershipToken;
             }
             else
             {
-                std::cerr<<"[provision-plugin] Error on subscription: %s.\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error on subscription: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
         };
@@ -409,13 +398,12 @@ void ProvisionPlugin::generateCredentials() {
         auto onCsrRejected = [&](Aws::Iotidentity::ErrorResponse *error, int ioErr) {
             if (ioErr == AWS_OP_SUCCESS)
             {
-                std::cout<<"[provision-plugin] CreateCertificateFromCsr failed with statusCode %d, errorMessage %s and errorCode %s."
-                          <<*error->StatusCode<<error->ErrorMessage->c_str()<<error->ErrorCode->c_str();
+                std::cout<<"[provision-plugin] CreateCertificateFromCsr failed with statusCode "<<*error->StatusCode<<", errorMessage "<<error->ErrorMessage->c_str()<<" and errorCode "<<error->ErrorCode->c_str();
                 return;
             }
             else
             {
-                std::cerr<<"[provision-plugin] Error on subscription: %s.\n"<<Aws::Crt::ErrorDebugString(ioErr);
+                std::cerr<<"[provision-plugin] Error on subscription: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
                 return;
             }
         };
@@ -431,7 +419,7 @@ void ProvisionPlugin::generateCredentials() {
 
         std::cout << "[provision-plugin] Publishing to CreateCertificateFromCsr topic" << std::endl;
         Aws::Iotidentity::CreateCertificateFromCsrRequest createCertificateFromCsrRequest;
-        createCertificateFromCsrRequest.CertificateSigningRequest = _deviceConfig.csrPath.value();
+        createCertificateFromCsrRequest.CertificateSigningRequest = _deviceConfig.csrPath;
         _identityClient->PublishCreateCertificateFromCsr(
             createCertificateFromCsrRequest, AWS_MQTT_QOS_AT_LEAST_ONCE, onCsrPublishSubAck);
 
@@ -442,9 +430,48 @@ void ProvisionPlugin::generateCredentials() {
 
     std::this_thread::sleep_for(1s);
 
-    if (_deviceConfig.templateParams.has_value()) {
-        registerThing();
+    registerThing();
+}
+
+/**
+ * Get port from a valid url
+ * @param proxyUrl A proxy url to get the port from
+ * @return Port of the proxy url
+ */
+uint64_t ProvisionPlugin::getPortFromProxyUrl(const Aws::Crt::String& proxyUrl) {
+    size_t first = proxyUrl.find_first_of(':');
+    size_t last = proxyUrl.find_last_of(':');
+    std::string proxyString{proxyUrl};
+    if (first != last) {
+        return std::stoi(proxyString.substr(last + 1));
     }
+    else {
+        std::string protocol = proxyString.substr(0, last);
+        if (protocol == "https") {
+            return 443;
+        }
+        else if (protocol == "http") {
+            return 80;
+        }
+        else if (protocol == "socks5") {
+            return 1080;
+        }
+        else {
+            return -1;
+        }
+    }
+}
+
+/**
+ * Get hostname from a valid url
+ * @param proxyUrl A proxy url to get the hostname from
+ * @return Hostname of the proxy url
+ */
+Aws::Crt::String ProvisionPlugin::getHostFromProxyUrl(const Aws::Crt::String &proxyUrl) {
+    auto first = proxyUrl.find_first_of(':');
+    auto last = proxyUrl.find_first_of(':', first + 1);
+    first += 3;
+    return proxyUrl.substr(first, last - first);
 }
 
 /**
@@ -455,12 +482,10 @@ void ProvisionPlugin::registerThing() {
     std::promise<void> registerAcceptedCompletedPromise;
     std::promise<void> registerRejectedCompletedPromise;
 
-    Aws::Crt::String token;
-
     auto onRegisterAcceptedSubAck = [&](int ioErr) {
         if (ioErr != AWS_OP_SUCCESS)
         {
-            std::cerr<<"[provision-plugin] Error subscribing to RegisterThing accepted: %s\n"<<Aws::Crt::ErrorDebugString(ioErr);
+            std::cerr<<"[provision-plugin] Error subscribing to RegisterThing accepted: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
             return;
         }
 
@@ -470,7 +495,7 @@ void ProvisionPlugin::registerThing() {
     auto onRegisterRejectedSubAck = [&](int ioErr) {
         if (ioErr != AWS_OP_SUCCESS)
         {
-            std::cerr<<"[provision-plugin] Error subscribing to RegisterThing rejected: %s\n"<<Aws::Crt::ErrorDebugString(ioErr);
+            std::cerr<<"[provision-plugin] Error subscribing to RegisterThing rejected: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
             return;
         }
         registerRejectedCompletedPromise.set_value();
@@ -483,7 +508,7 @@ void ProvisionPlugin::registerThing() {
         }
         else
         {
-            std::cerr<<"[provision-plugin] Error on subscription: %s.\n"<<Aws::Crt::ErrorDebugString(ioErr);
+            std::cerr<<"[provision-plugin] Error on subscription: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
             return;
         }
     };
@@ -491,12 +516,11 @@ void ProvisionPlugin::registerThing() {
     auto onRegisterRejected = [&](Aws::Iotidentity::ErrorResponse *error, int ioErr) {
         if (ioErr == AWS_OP_SUCCESS)
         {
-            std::cout<<"[provision-plugin] RegisterThing failed with statusCode %d, errorMessage %s and errorCode %s."
-                    <<*error->StatusCode<<error->ErrorMessage->c_str()<<error->ErrorCode->c_str();
+            std::cout<<"[provision-plugin] RegisterThing failed with statusCode "<<*error->StatusCode<<", errorMessage "<<error->ErrorMessage->c_str()<<" and errorCode "<<error->ErrorCode->c_str()<<std::endl;
         }
         else
         {
-            std::cerr<<"[provision-plugin] Error on subscription: %s.\n"<<Aws::Crt::ErrorDebugString(ioErr);
+            std::cerr<<"[provision-plugin] Error on subscription: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
             return;
         }
     };
@@ -504,7 +528,7 @@ void ProvisionPlugin::registerThing() {
     auto onRegisterPublishSubAck = [&](int ioErr) {
         if (ioErr != AWS_OP_SUCCESS)
         {
-            std::cerr<<"[provision-plugin] Error publishing to RegisterThing: %s\n"<<Aws::Crt::ErrorDebugString(ioErr);
+            std::cerr<<"[provision-plugin] Error publishing to RegisterThing: "<<Aws::Crt::ErrorDebugString(ioErr)<<std::endl;
             return;
         }
 
@@ -521,14 +545,14 @@ void ProvisionPlugin::registerThing() {
     _identityClient->SubscribeToRegisterThingRejected(
         registerSubscriptionRequest, AWS_MQTT_QOS_AT_LEAST_ONCE, onRegisterRejected, onRegisterRejectedSubAck);
 
-    std::this_thread::sleep_for(2s);
+    std::this_thread::sleep_for(1s);
 
     std::cout << "[provision-plugin] Publishing to RegisterThing topic" << std::endl;
     Aws::Iotidentity::RegisterThingRequest registerThingRequest;
     registerThingRequest.TemplateName = _deviceConfig.templateName;
 
 
-    const Aws::Crt::String jsonValue = _deviceConfig.templateParams.value();
+    const Aws::Crt::String jsonValue = _deviceConfig.templateParams;
     Aws::Crt::JsonObject value(jsonValue);
     Aws::Crt::Map<Aws::Crt::String, Aws::Crt::JsonView> pm = value.View().GetAllObjects();
     Aws::Crt::Map<Aws::Crt::String, Aws::Crt::String> params =
@@ -540,12 +564,12 @@ void ProvisionPlugin::registerThing() {
     }
 
     registerThingRequest.Parameters = params;
-    registerThingRequest.CertificateOwnershipToken = token;
+    registerThingRequest.CertificateOwnershipToken = _token;
 
     _identityClient->PublishRegisterThing(
         registerThingRequest, AWS_MQTT_QOS_AT_LEAST_ONCE, onRegisterPublishSubAck);
 
-    std::this_thread::sleep_for(2s);
+    std::this_thread::sleep_for(1s);
 
     registerPublishCompletedPromise.get_future().wait();
     registerAcceptedCompletedPromise.get_future().wait();
