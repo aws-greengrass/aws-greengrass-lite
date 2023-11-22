@@ -137,12 +137,13 @@ namespace deployment {
         std::string _msg;
 
     public:
-         DeviceConfigurationException(const DeviceConfigurationException &) noexcept = default;
-         DeviceConfigurationException(DeviceConfigurationException &&) noexcept = default;
-         DeviceConfigurationException &operator=(const DeviceConfigurationException &) noexcept = default;
-         DeviceConfigurationException &operator=(DeviceConfigurationException &&) noexcept = default;
-         explicit DeviceConfigurationException(const std::string &msg) noexcept : _msg{msg} {
-         }
+        DeviceConfigurationException(const DeviceConfigurationException &) noexcept = default;
+        DeviceConfigurationException(DeviceConfigurationException &&) noexcept = default;
+        DeviceConfigurationException &operator=(const DeviceConfigurationException &) noexcept =
+            default;
+        DeviceConfigurationException &operator=(DeviceConfigurationException &&) noexcept = default;
+        explicit DeviceConfigurationException(const std::string &msg) noexcept : _msg{msg} {
+        }
 
         ~DeviceConfigurationException() override = default;
 
@@ -193,10 +194,9 @@ namespace deployment {
             std::string,
             std::string,
             std::filesystem::path,
-            std::filesystem::path
-        );
-        void copyUnpackedNucleusArtifacts(const std::filesystem::path &,
-                                          const std::filesystem::path &);
+            std::filesystem::path);
+        void copyUnpackedNucleusArtifacts(
+            const std::filesystem::path &, const std::filesystem::path &);
         void handleLoggingConfig();
         void handleLoggingConfigurationChanges(
             config::WhatHappened, const std::shared_ptr<config::ConfigNode> &);

@@ -1,17 +1,17 @@
 #pragma once
 
-#include <utility>
 #include <filesystem>
 #include <fstream>
+#include <utility>
 
 #include <plugin.hpp>
 
 #include <aws/crt/Api.h>
 #include <aws/crt/UUID.h>
 #include <aws/crt/http/HttpConnection.h>
-#include <aws/crt/io/TlsOptions.h>
 #include <aws/crt/http/HttpProxyStrategy.h>
 #include <aws/crt/http/HttpRequestResponse.h>
+#include <aws/crt/io/TlsOptions.h>
 #include <aws/crt/mqtt/Mqtt5Packets.h>
 
 #include <aws/iot/Mqtt5Client.h>
@@ -28,7 +28,6 @@
 #include <aws/iotidentity/RegisterThingResponse.h>
 #include <aws/iotidentity/RegisterThingSubscriptionRequest.h>
 
-
 struct Keys {
     ggapi::StringOrd topicName{"aws.greengrass.FleetProvisioningByClaim"};
 
@@ -41,6 +40,9 @@ struct Keys {
     }
 };
 
+static void sleep(int secs) {
+    std::this_thread::sleep_until(std::chrono::system_clock::now() + std::chrono::seconds{secs});
+}
 
 struct DeviceConfig {
     Aws::Crt::String templateName;
@@ -50,7 +52,7 @@ struct DeviceConfig {
     Aws::Crt::String endpoint;
     Aws::Crt::String rootPath;
     Aws::Crt::String templateParams;
-    uint64_t mqttPort;
+    uint64_t mqttPort = -1;
     Aws::Crt::String csrPath;
     Aws::Crt::String deviceId;
     Aws::Crt::String awsRegion;
@@ -59,43 +61,48 @@ struct DeviceConfig {
     Aws::Crt::String proxyPassword;
 };
 
-class ProvisionPlugin: public ggapi::Plugin {
-        struct DeviceConfig _deviceConfig;
-        std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _mqttClient;
-        std::shared_ptr<Aws::Iotidentity::IotIdentityClient> _identityClient;
-        Aws::Crt::String _token;
+class ProvisionPlugin : public ggapi::Plugin {
+    struct DeviceConfig _deviceConfig;
+    std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _mqttClient;
+    std::shared_ptr<Aws::Iotidentity::IotIdentityClient> _identityClient;
+    Aws::Crt::String _token;
 
-        Aws::Crt::String _thingName;
-        std::filesystem::path _certPath;
-        std::filesystem::path _keyPath;
+    Aws::Crt::String _thingName;
+    std::filesystem::path _certPath;
+    std::filesystem::path _keyPath;
 
-        static const Keys keys;
-        static inline std::string DEVICE_CERTIFICATE_PATH_RELATIVE_TO_ROOT = "thingCert.crt";
-        static inline std::string PRIVATE_KEY_PATH_RELATIVE_TO_ROOT = "privateKey.key";
+    static const Keys keys;
+    static constexpr std::string_view DEVICE_CERTIFICATE_PATH_RELATIVE_TO_ROOT = "thingCert.crt";
+    static constexpr std::string_view PRIVATE_KEY_PATH_RELATIVE_TO_ROOT = "privateKey.key";
 
-    public:
-        ProvisionPlugin() = default;
-        ~ProvisionPlugin() override = default;
-        void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
-        bool onDiscover(ggapi::Struct data) override;
-        bool onStart(ggapi::Struct data) override;
-        bool onRun(ggapi::Struct data) override;
-        static ggapi::Struct brokerListener(ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
-        static ProvisionPlugin &get() {
-            static ProvisionPlugin instance{};
-            return instance;
-        }
+public:
+    ProvisionPlugin() = default;
+    ~ProvisionPlugin() override = default;
+    ProvisionPlugin(const ProvisionPlugin &) = delete;
+    ProvisionPlugin(ProvisionPlugin &&) noexcept = delete;
+    ProvisionPlugin &operator=(const ProvisionPlugin &) = delete;
+    ProvisionPlugin &operator=(ProvisionPlugin &&) noexcept = delete;
+    void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
+    bool onDiscover(ggapi::Struct data) override;
+    bool onStart(ggapi::Struct data) override;
+    bool onRun(ggapi::Struct data) override;
+    static ggapi::Struct brokerListener(
+        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
+    static ProvisionPlugin &get() {
+        static ProvisionPlugin instance{};
+        return instance;
+    }
 
-        static uint64_t getPortFromProxyUrl(const Aws::Crt::String &proxyUrl);
-        static Aws::Crt::String getHostFromProxyUrl(const Aws::Crt::String &proxyUrl);
+    static uint64_t getPortFromProxyUrl(const Aws::Crt::String &proxyUrl);
+    static Aws::Crt::String getHostFromProxyUrl(const Aws::Crt::String &proxyUrl);
 
-        void generateCredentials();
+    void generateCredentials();
 
-        void registerThing();
+    void registerThing();
 
-        bool initMqtt();
+    bool initMqtt();
 
-        void setDeviceConfig(const DeviceConfig &);
+    void setDeviceConfig(const DeviceConfig &);
 
-        ggapi::Struct provisionDevice();
+    ggapi::Struct provisionDevice();
 };

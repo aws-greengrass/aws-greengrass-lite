@@ -38,8 +38,8 @@ namespace ggapi {
 
     using topicCallbackLambda = std::function<Struct(Scope, Symbol, Struct)>;
     using lifecycleCallbackLambda = std::function<void(Scope, Symbol, Struct)>;
-    using topicCallback_t = Struct(*)(Task, Symbol, Struct);
-    using lifecycleCallback_t = void(*)(ModuleScope, Symbol, Struct);
+    using topicCallback_t = Struct (*)(Task, Symbol, Struct);
+    using lifecycleCallback_t = void (*)(ModuleScope, Symbol, Struct);
     uint32_t topicCallbackProxy(
         uintptr_t callbackContext,
         uint32_t taskHandle,

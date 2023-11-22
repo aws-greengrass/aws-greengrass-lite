@@ -192,6 +192,7 @@ private:
 class IotBroker : public ggapi::Plugin {
     struct ThingInfo _thingInfo;
     std::thread _asyncThread;
+
 public:
     bool onStart(ggapi::Struct data) override;
     void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
@@ -346,43 +347,83 @@ bool IotBroker::onStart(ggapi::Struct data) {
     _thingInfo.rootPath = configStruct.getValue<std::string>({"system", "rootPath"});
     _thingInfo.rootCaPath = configStruct.getValue<std::string>({"system", "rootCaPath"});
 
-    if (!validConfig()) {
+    if(!validConfig()) {
         std::cout << "[mqtt-plugin] Device is not provisioned. Running provision plugin...\n";
         try {
             // TODO: Fix config with recipe
             auto provData = ggapi::Struct::create();
-            provData.put("templateName", configStruct.getValue<std::string>(
-                                             {"services", keys.provisionTopicName.toString(), "configuration", "templateName"}));
-            provData.put("templateParams", configStruct.getValue<std::string>(
-                                               {"services", keys.provisionTopicName.toString(), "configuration", "templateParams"}));
-            provData.put("claimKeyPath", configStruct.getValue<std::string>(
-                                             {"services", keys.provisionTopicName.toString(), "configuration", "claimKeyPath"}));
-            provData.put("claimCertPath", configStruct.getValue<std::string>(
-                                              {"services", keys.provisionTopicName.toString(), "configuration", "claimCertPath"}));
-            provData.put("endpoint", configStruct.getValue<std::string>(
-                                         {"services", keys.provisionTopicName.toString(), "configuration", "iotDataEndpoint"}));
-            provData.put("mqttPort", configStruct.getValue<std::string>(
-                                         {"services", keys.provisionTopicName.toString(), "configuration", "mqttPort"}));
-            provData.put("proxyUsername", configStruct.getValue<std::string>(
-                                          {"services", keys.provisionTopicName.toString(), "configuration", "proxyUsername"}));
-            provData.put("proxyPassword", configStruct.getValue<std::string>(
-                                          {"services", keys.provisionTopicName.toString(), "configuration", "proxyPassword"}));
-            provData.put("proxyUrl", configStruct.getValue<std::string>(
-                                              {"services", keys.provisionTopicName.toString(), "configuration", "proxyUrl"}));
-            provData.put("csrPath", configStruct.getValue<std::string>(
-                                         {"services", keys.provisionTopicName.toString(), "configuration", "csrPath"}));
+            provData.put(
+                "templateName",
+                configStruct.getValue<std::string>(
+                    {"services",
+                     keys.provisionTopicName.toString(),
+                     "configuration",
+                     "templateName"}));
+            provData.put(
+                "templateParams",
+                configStruct.getValue<std::string>(
+                    {"services",
+                     keys.provisionTopicName.toString(),
+                     "configuration",
+                     "templateParams"}));
+            provData.put(
+                "claimKeyPath",
+                configStruct.getValue<std::string>(
+                    {"services",
+                     keys.provisionTopicName.toString(),
+                     "configuration",
+                     "claimKeyPath"}));
+            provData.put(
+                "claimCertPath",
+                configStruct.getValue<std::string>(
+                    {"services",
+                     keys.provisionTopicName.toString(),
+                     "configuration",
+                     "claimCertPath"}));
+            provData.put(
+                "endpoint",
+                configStruct.getValue<std::string>(
+                    {"services",
+                     keys.provisionTopicName.toString(),
+                     "configuration",
+                     "iotDataEndpoint"}));
+            provData.put(
+                "mqttPort",
+                configStruct.getValue<std::string>(
+                    {"services", keys.provisionTopicName.toString(), "configuration", "mqttPort"}));
+            provData.put(
+                "proxyUsername",
+                configStruct.getValue<std::string>(
+                    {"services",
+                     keys.provisionTopicName.toString(),
+                     "configuration",
+                     "proxyUsername"}));
+            provData.put(
+                "proxyPassword",
+                configStruct.getValue<std::string>(
+                    {"services",
+                     keys.provisionTopicName.toString(),
+                     "configuration",
+                     "proxyPassword"}));
+            provData.put(
+                "proxyUrl",
+                configStruct.getValue<std::string>(
+                    {"services", keys.provisionTopicName.toString(), "configuration", "proxyUrl"}));
+            provData.put(
+                "csrPath",
+                configStruct.getValue<std::string>(
+                    {"services", keys.provisionTopicName.toString(), "configuration", "csrPath"}));
             provData.put("rootPath", _thingInfo.rootPath);
             provData.put("rootCaPath", _thingInfo.rootCaPath);
             auto reqData = ggapi::Struct::create().put("config", provData);
             _asyncThread = std::thread{&IotBroker::asyncThreadFn, this, reqData};
             _asyncThread.join(); // wait for provisioning to complete
-        }
-        catch (const std::exception &e) {
-            std::cerr<<"[mqtt-plugin] Error while running the provision plugin \n."<<e.what();
+        } catch(const std::exception &e) {
+            std::cerr << "[mqtt-plugin] Error while running the provision plugin \n." << e.what();
             return false;
         }
     }
-    if (initMqtt()) {
+    if(initMqtt()) {
         std::ignore = getScope().subscribeToTopic(keys.publishToIoTCoreTopic, publishHandler);
         std::ignore = getScope().subscribeToTopic(keys.subscribeToIoTCoreTopic, subscribeHandler);
         return true;
@@ -391,7 +432,7 @@ bool IotBroker::onStart(ggapi::Struct data) {
 }
 
 bool inline IotBroker::validConfig() const {
-    if (_thingInfo.certPath.empty() || _thingInfo.keyPath.empty() || _thingInfo.thingName.empty()) {
+    if(_thingInfo.certPath.empty() || _thingInfo.keyPath.empty() || _thingInfo.thingName.empty()) {
         return false;
     }
     return true;

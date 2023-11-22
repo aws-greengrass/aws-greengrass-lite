@@ -354,30 +354,34 @@ namespace deployment {
         std::string_view iotDataEndpoint,
         std::string_view iotCredEndpoint,
         std::string_view awsRegion,
-        bool cloudOnly
-    ) {
+        bool cloudOnly) {
         if(thingName.empty()) {
-            throw DeviceConfigurationException(configs.DEVICE_PARAM_THING_NAME + configs.CANNOT_BE_EMPTY);
+            throw DeviceConfigurationException(
+                configs.DEVICE_PARAM_THING_NAME + configs.CANNOT_BE_EMPTY);
         }
         if(certificateFilePath.empty()) {
             throw DeviceConfigurationException(
-                configs.DEVICE_PARAM_CERTIFICATE_FILE_PATH + configs.CANNOT_BE_EMPTY
-            );
+                configs.DEVICE_PARAM_CERTIFICATE_FILE_PATH + configs.CANNOT_BE_EMPTY);
         }
         if(privateKeyPath.empty()) {
-            throw DeviceConfigurationException(configs.DEVICE_PARAM_PRIVATE_KEY_PATH + configs.CANNOT_BE_EMPTY);
+            throw DeviceConfigurationException(
+                configs.DEVICE_PARAM_PRIVATE_KEY_PATH + configs.CANNOT_BE_EMPTY);
         }
         if(rootCAPath.empty()) {
-            throw DeviceConfigurationException(configs.DEVICE_PARAM_ROOT_CA_PATH + configs.CANNOT_BE_EMPTY);
+            throw DeviceConfigurationException(
+                configs.DEVICE_PARAM_ROOT_CA_PATH + configs.CANNOT_BE_EMPTY);
         }
         if(iotDataEndpoint.empty()) {
-            throw DeviceConfigurationException(configs.DEVICE_PARAM_IOT_DATA_ENDPOINT + configs.CANNOT_BE_EMPTY);
+            throw DeviceConfigurationException(
+                configs.DEVICE_PARAM_IOT_DATA_ENDPOINT + configs.CANNOT_BE_EMPTY);
         }
         if(iotCredEndpoint.empty()) {
-            throw DeviceConfigurationException(configs.DEVICE_PARAM_IOT_CRED_ENDPOINT + configs.CANNOT_BE_EMPTY);
+            throw DeviceConfigurationException(
+                configs.DEVICE_PARAM_IOT_CRED_ENDPOINT + configs.CANNOT_BE_EMPTY);
         }
         if(awsRegion.empty()) {
-            throw DeviceConfigurationException(configs.DEVICE_PARAM_AWS_REGION + configs.CANNOT_BE_EMPTY);
+            throw DeviceConfigurationException(
+                configs.DEVICE_PARAM_AWS_REGION + configs.CANNOT_BE_EMPTY);
         }
         validateEndpoints(awsRegion, iotCredEndpoint, iotDataEndpoint);
 
@@ -403,15 +407,13 @@ namespace deployment {
            && iotCredEndpoint.find(awsRegion) == std::string::npos) {
             throw DeviceConfigurationException(
                 "IoT credential endpoint region does not match the AWS region of "
-                "the device"
-            );
+                "the device");
         }
         if(!iotDataEndpoint.empty()
            && iotDataEndpoint.find(std::string{configs.AMAZON_DOMAIN_SEQUENCE})
                   != std::string_view::npos) {
             throw DeviceConfigurationException(
-                "IoT data endpoint region does not match the AWS region of the device"
-            );
+                "IoT data endpoint region does not match the AWS region of the device");
         }
     }
 

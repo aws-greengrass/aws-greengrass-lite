@@ -153,11 +153,10 @@ namespace lifecycle {
         if(!commandLine.getDefaultUser().empty()) {
 #if defined(_WIN32)
             _deviceConfiguration->getRunWithDefaultWindowsUser().withValue(
-                commandLine.getDefaultUser()
-            );
+                commandLine.getDefaultUser());
 #else
-            _deviceConfiguration->getRunWithDefaultPosixUser().withValue(commandLine.getDefaultUser(
-            ));
+            _deviceConfiguration->getRunWithDefaultPosixUser().withValue(
+                commandLine.getDefaultUser());
 #endif
         }
     }
@@ -213,8 +212,7 @@ namespace lifecycle {
         std::vector<std::filesystem::path> paths{
             util::CommitableFile::getBackupFile(tlogFile),
             bootstrapTlogFile,
-            util::CommitableFile::getBackupFile(bootstrapTlogFile)
-        };
+            util::CommitableFile::getBackupFile(bootstrapTlogFile)};
         for(const auto &backupPath : paths) {
             if(config::TlogReader::handleTlogTornWrite(_context.lock(), backupPath)) {
                 // TODO: log

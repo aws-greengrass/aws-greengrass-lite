@@ -28,9 +28,10 @@ namespace pubsub {
         // scoped lock
         {
             std::unique_lock guard{managerMutex()};
-            std::ignore = std::remove_if(_listeners.begin(), _listeners.end(), [&](const auto &item) {
-                return item.expired();
-            });
+            std::ignore =
+                std::remove_if(_listeners.begin(), _listeners.end(), [&](const auto &item) {
+                    return item.expired();
+                });
         }
         // lock must be released before this step
         if(_listeners.empty() && !_context.expired()) {
