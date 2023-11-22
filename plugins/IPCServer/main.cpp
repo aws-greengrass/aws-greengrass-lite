@@ -15,7 +15,6 @@
 #include <string_view>
 #include <system_error>
 #include <thread>
-#include <sstream>
 
 #include <cpp_api.hpp>
 
