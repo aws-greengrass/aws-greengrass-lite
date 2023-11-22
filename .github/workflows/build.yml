@@ -50,7 +50,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{matrix.os}}" == "windows-latest" && "${{matrix.cpp_compiler}}" == "g++" ]]; then
-            choco install mingw
+            gcc --version
             cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
             -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "MinGW Makefiles"
           elif [[ "${{matrix.os}}" == "windows-latest" ]]; then

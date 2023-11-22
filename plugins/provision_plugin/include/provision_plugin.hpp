@@ -40,10 +40,6 @@ struct Keys {
     }
 };
 
-static void sleep(int secs) {
-    std::this_thread::sleep_until(std::chrono::system_clock::now() + std::chrono::seconds{secs});
-}
-
 struct DeviceConfig {
     Aws::Crt::String templateName;
     Aws::Crt::String claimCertPath;

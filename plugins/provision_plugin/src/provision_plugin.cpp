@@ -454,7 +454,7 @@ void ProvisionPlugin::generateCredentials() {
         csrRejectedCompletedPromise.get_future().wait();
     }
 
-    sleep(1);
+    std::this_thread::sleep_for(1s);
 
     registerThing();
 }
@@ -572,7 +572,7 @@ void ProvisionPlugin::registerThing() {
         onRegisterRejected,
         onRegisterRejectedSubAck);
 
-    sleep(1);
+    std::this_thread::sleep_for(1s);
 
     std::cout << "[provision-plugin] Publishing to RegisterThing topic" << std::endl;
     Aws::Iotidentity::RegisterThingRequest registerThingRequest;
@@ -594,7 +594,7 @@ void ProvisionPlugin::registerThing() {
     _identityClient->PublishRegisterThing(
         registerThingRequest, AWS_MQTT_QOS_AT_LEAST_ONCE, onRegisterPublishSubAck);
 
-    sleep(1);
+    std::this_thread::sleep_for(1s);
 
     registerPublishCompletedPromise.get_future().wait();
     registerAcceptedCompletedPromise.get_future().wait();
