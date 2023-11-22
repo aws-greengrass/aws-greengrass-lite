@@ -12,7 +12,6 @@
 #include <filesystem>
 #include <optional>
 #include <utility>
-#include <iostream>
 
 namespace scope {
     class Context;
