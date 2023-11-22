@@ -1,9 +1,9 @@
 ---
 system:
-  privateKeyPath: "/Users/sdarahas/Desktop/src/dev/aws-greengrass-lite/device.key"
-  certificateFilePath: "/Users/sdarahas/Desktop/src/dev/aws-greengrass-lite/device.pem"
+  privateKeyPath: "..."
+  certificateFilePath: "..."
   rootCaPath: "..."
-  rootpath: "."
+  rootPath: "."
   thingName: "GGC-test"
 services:
   aws.greengrass.Nucleus-Lite:
@@ -17,7 +17,7 @@ services:
         periodicStatusPublishIntervalSeconds: 86400
       greengrassDataPlanePort: "8443"
       httpClient: {}
-      iotCredEndpoint: "a3w4eclq1cog1t-ats.iot.us-east-2.amazonaws.com"
+      iotCredEndpoint: "..."
       iotDataEndpoint: "..."
       iotRoleAlias: "GreengrassV2TokenExchangeRoleAlias"
       logging:
@@ -31,6 +31,19 @@ services:
         posixUser: "ggc_user:ggc_group"
       telemetry: {}
     dependencies: []
+  aws.greengrass.FleetProvisioningByClaim:
+    configuration:
+      iotDataEndpoint: "..."
+      iotCredEndpoint: ""
+      claimKeyPath: "..."
+      claimCertPath: "..."
+      templateName: "..."
+      templateParams: "..."
+      csrPath: ""
+      mqttPort: 80
+      proxyUrl: ""
+      proxyUsername: ""
+      proxyPassword: ""
   DeploymentService:
     dependencies: []
     version: "0.0.0"
