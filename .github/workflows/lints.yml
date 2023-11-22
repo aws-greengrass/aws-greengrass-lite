@@ -1,4 +1,4 @@
-name: Linting / Formatting
+name: Linting
 
 on:
   workflow_dispatch:
