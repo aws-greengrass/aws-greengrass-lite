@@ -565,7 +565,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T get(Symbol key) {
+        T get(Symbol key) const {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(
@@ -595,7 +595,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T getValue(const std::initializer_list<std::string_view> &keys) {
+        T getValue(const std::initializer_list<std::string_view> &keys) const {
             ggapi::Struct childStruct = *this;
             auto it = keys.begin();
             for(; it != std::prev(keys.end()); it++) {

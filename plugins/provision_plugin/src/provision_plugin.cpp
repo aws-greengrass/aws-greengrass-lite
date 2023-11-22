@@ -87,8 +87,8 @@ ggapi::Struct ProvisionPlugin::provisionDevice() {
             generateCredentials();
             ggapi::Struct response = ggapi::Struct::create();
             response.put("thingName", _thingName);
-            response.put("keyPath", _keyPath.c_str());
-            response.put("certPath", _certPath.c_str());
+            response.put("keyPath", _keyPath.string());
+            response.put("certPath", _certPath.string());
             return response;
         } catch(const std::exception &e) {
             std::cerr << "[provision-plugin] Error while provisioning the device\n";
