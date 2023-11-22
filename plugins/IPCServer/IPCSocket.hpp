@@ -10,7 +10,7 @@
 #include <system_error>
 #include <type_traits>
 #include <utility>
-#include <vector>
+#include <array>
 
 // TODO: Might need to break out usage into a private implemenation
 #if defined(__linux__) || defined(__APPLE__) || defined(__unix__) || defined(__CYGWIN__)
