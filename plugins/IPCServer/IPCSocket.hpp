@@ -347,7 +347,7 @@ struct SocketSet {
     template<class Timeout>
     [[nodiscard]] SocketSet select(const Timeout &timeout, std::error_code &ec) const noexcept {
         if(empty()) {
-            return {};
+            return SocketSet{};
         }
 
         using seconds = std::chrono::duration<decltype(timeval::tv_sec)>;
