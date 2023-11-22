@@ -74,7 +74,7 @@ public:
     CloseableSocket(const CloseableSocket &) = delete;
     CloseableSocket &operator=(const CloseableSocket &) = delete;
 
-    constexpr CloseableSocket(CloseableSocket &&other) noexcept
+    CloseableSocket(CloseableSocket &&other) noexcept
         : _socketId{std::exchange(other._socketId, 0)} {
     }
 
