@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <bits/chrono.h>
 #include <cstddef>
 #include <cstring>
 #include <filesystem>
@@ -351,12 +352,13 @@ struct SocketSet {
 
         using seconds = std::chrono::duration<decltype(timeval::tv_sec)>;
         using microseconds = std::chrono::duration<decltype(timeval::tv_usec), std::micro>;
+        using namespace std::chrono_literals;
         using std::chrono::duration_cast;
 
         SocketSet other{*this};
         timeval t{
             .tv_sec = duration_cast<seconds>(timeout).count(),
-            .tv_usec = duration_cast<microseconds>(timeout).count()};
+            .tv_usec = (duration_cast<microseconds>(timeout) % 1s).count()};
         other._max = ::select(other.max() + 1, other.data(), nullptr, nullptr, &t);
         if(other._max < 0) {
             ec = getLastError();
