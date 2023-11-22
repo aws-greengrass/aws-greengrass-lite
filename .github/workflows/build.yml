@@ -71,7 +71,7 @@ jobs:
 
       - name: Build
         run:
-          cmake --build ${{ github.workspace }}/build --config ${{
+          cmake --build ${{ github.workspace }}/build --config -j4${{
           matrix.build_type }}
 
       - name: Run Tests
