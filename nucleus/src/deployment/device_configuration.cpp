@@ -19,10 +19,8 @@ namespace deployment {
 
     std::string DeviceConfiguration::getNucleusComponentName() {
         std::unique_lock guard{_mutex};
-        if(!_nucleusComponentNameCache.empty()) {
-            if(_kernel.findServiceTopic(_nucleusComponentNameCache)) {
-                _nucleusComponentNameCache = initNucleusComponentName();
-            }
+        if(_nucleusComponentNameCache.empty() || _kernel.findServiceTopic(_nucleusComponentNameCache)) {
+            _nucleusComponentNameCache = initNucleusComponentName();
         }
         return _nucleusComponentNameCache;
     }
@@ -41,7 +39,7 @@ namespace deployment {
 
     std::string DeviceConfiguration::initNucleusComponentName() {
         // TODO: missing code
-        return {};
+        return configs.DEFAULT_NUCLEUS_COMPONENT_NAME;
     }
 
     void DeviceConfiguration::initializeNucleusComponentConfig(std::string nucleusComponentName) {

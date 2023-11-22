@@ -293,9 +293,12 @@ namespace lifecycle {
     }
 
     std::shared_ptr<config::Topics> Kernel::findServiceTopic(const std::string_view &serviceName) {
-        std::shared_ptr<config::ConfigNode> node =
-            getConfig().root()->createInteriorChild(SERVICES_TOPIC_KEY)->getNode(serviceName);
-        return std::dynamic_pointer_cast<config::Topics>(node);
+        if (!serviceName.empty()) {
+            std::shared_ptr<config::ConfigNode> node =
+                getConfig().root()->createInteriorChild(SERVICES_TOPIC_KEY)->getNode(serviceName);
+            return std::dynamic_pointer_cast<config::Topics>(node);
+        }
+        return nullptr;
     }
 
     void RootPathWatcher::initialized(

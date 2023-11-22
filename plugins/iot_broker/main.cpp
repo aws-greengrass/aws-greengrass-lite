@@ -389,7 +389,7 @@ bool IotBroker::onStart(ggapi::Struct data) {
                      "iotDataEndpoint"}));
             provData.put(
                 "mqttPort",
-                configStruct.getValue<std::string>(
+                configStruct.getValue<uint64_t>(
                     {"services", keys.provisionTopicName.toString(), "configuration", "mqttPort"}));
             provData.put(
                 "proxyUsername",
