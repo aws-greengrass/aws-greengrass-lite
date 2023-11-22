@@ -565,7 +565,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T get(Symbol key) const {
+        T get(Symbol key) {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(
