@@ -1,6 +1,6 @@
 #pragma once
 #include <algorithm>
-#include <bits/chrono.h>
+#include <array>
 #include <cstddef>
 #include <cstring>
 #include <filesystem>
@@ -10,7 +10,6 @@
 #include <system_error>
 #include <type_traits>
 #include <utility>
-#include <array>
 
 // TODO: Might need to break out usage into a private implemenation
 #if defined(__linux__) || defined(__APPLE__) || defined(__unix__) || defined(__CYGWIN__)
