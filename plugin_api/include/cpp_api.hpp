@@ -595,7 +595,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T getValue(const std::initializer_list<std::string_view> &keys) const {
+        T getValue(const std::initializer_list<std::string_view> &keys) {
             ggapi::Struct childStruct = *this;
             auto it = keys.begin();
             for(; it != std::prev(keys.end()); it++) {
