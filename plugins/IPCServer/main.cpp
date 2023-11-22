@@ -10,6 +10,7 @@
 #include <memory>
 #include <mutex>
 #include <ratio>
+#include <sstream>
 #include <stdexcept>
 #include <string_view>
 #include <system_error>
@@ -57,6 +58,7 @@ namespace Aws {
 
             bool signalStart() noexcept {
                 if(!_running.exchange(true)) {
+                    std::unique_lock guard{m};
                     barrier.notify_one();
                     return true;
                 }
@@ -80,16 +82,17 @@ namespace Aws {
                     std::error_code ec{};
 
                     // wait for next socket event, need to poll running status every second
-                    auto workingSet = set.select(1s, ec);
+                    auto workingSet = set.select(5s, ec);
                     if(ec) {
                         std::cerr << IPC_LOG_TAG << "ERROR: " << ec << '\n';
                         throw std::system_error(ec);
-                    } else if(workingSet.empty()) {
+                    }
+                    if(workingSet.empty()) {
                         continue;
                     }
 
                     bool clientClosed = false;
-                    auto ready = workingSet.size();
+                    auto ready = workingSet.max();
                     for(auto &client : _clients) {
                         if(ready == 0) {
                             break;
@@ -151,6 +154,7 @@ namespace Aws {
                         }
                     }
                 }
+                std::cout << "End of server\n";
             }
         };
     }; // namespace Greengrass
@@ -166,23 +170,38 @@ auto doStartPhase() {
 void doRunPhase() {
     std::filesystem::path socketPath{"file"};
 
-    static constexpr size_t clientN = 5;
+    using namespace std::literals;
+
+    std::condition_variable barrier;
+    std::mutex mutex;
+
+    static constexpr size_t clientN = 32;
     std::array<std::thread, clientN> clients;
     std::generate(
-        clients.begin(), clients.end(), [&socketPath, count = 0]() mutable -> std::thread {
+        clients.begin(),
+        clients.end(),
+        [&mutex, &barrier, &socketPath, count = 0]() mutable -> std::thread {
+            static constexpr int MESSAGE_COUNT = 10;
             return std::thread{
-                [&socketPath](int count) {
+                [&mutex, &barrier, &socketPath](int count) {
                     DomainSocket<Client> client{socketPath};
-                    for(size_t i = 0; i != count; ++i) {
+                    auto message = []() {
                         static constexpr std::string_view message = "hello world";
                         std::stringstream ss;
                         ss << message << " from " << std::this_thread::get_id() << '\n';
-                        auto str = ss.str();
-                        auto buffer = util::Span{str.data(), str.size()};
+                        return ss.str();
+                    }();
+
+                    {
+                        std::unique_lock guard{mutex};
+                        barrier.wait(guard);
+                    }
+
+                    for(int i = 0; i != count; ++i) {
+
                         std::error_code ec{};
                         std::cout << "Client starts write\n";
-                        auto count = client.write(buffer, ec);
-
+                        auto count = client.write(util::Span(message.data(), message.size()), ec);
                         if(ec) {
                             std::cerr << "Client couldn't write\n";
                             return;
@@ -194,8 +213,10 @@ void doRunPhase() {
                         std::this_thread::sleep_for(10us);
                     }
                 },
-                ++count * 4};
+                MESSAGE_COUNT};
         });
+
+    barrier.notify_all();
 
     for(auto &client : clients) {
         client.join();

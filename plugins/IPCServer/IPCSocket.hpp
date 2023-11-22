@@ -1,8 +1,10 @@
 #pragma once
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <filesystem>
 #include <iostream>
+#include <stdexcept>
 #include <string_view>
 #include <system_error>
 #include <type_traits>
@@ -74,9 +76,17 @@ public:
         : _socketId{std::exchange(other._socketId, 0)} {
     }
 
-    constexpr CloseableSocket &operator=(CloseableSocket &&other) noexcept {
-        std::swap(_socketId, other._socketId);
+    CloseableSocket &operator=(CloseableSocket &&other) noexcept {
+        if(this != &other) {
+            this->~CloseableSocket();
+            new(this) CloseableSocket{std::move(other)};
+        }
         return *this;
+    }
+
+    friend void swap(CloseableSocket &lhs, CloseableSocket &rhs) noexcept {
+        using std::swap;
+        swap(lhs._socketId, rhs._socketId);
     }
 
     size_t read(util::Span<char> buffer, std::error_code &ec) const noexcept {
@@ -220,6 +230,12 @@ public:
     DomainSocket(DomainSocket &&other) noexcept = default;
     DomainSocket &operator=(DomainSocket &&) noexcept = default;
 
+    friend void swap(DomainSocket<S> &lhs, DomainSocket<S> &rhs) noexcept {
+        using std::swap;
+        swap(static_cast<CloseableSocket &>(lhs), static_cast<CloseableSocket &>(rhs));
+        swap(lhs._path, rhs._path);
+    }
+
     explicit DomainSocket(std::filesystem::path path)
         : CloseableSocket{open(path)}, _path(std::move(path)) {
     }
@@ -251,7 +267,7 @@ struct SocketSet {
         FD_ZERO(&set);
         return set;
     }()};
-    size_type _size{};
+    size_type _max{};
 
     // NOLINTNEXTLINE(bugprone-exception-escape)
     explicit SocketSet(const DomainSocket<Server> &sd) {
@@ -259,36 +275,38 @@ struct SocketSet {
         insert(sd.getSocket());
     }
 
-    [[nodiscard]] bool contains(value_type sd) const noexcept {
+    constexpr SocketSet() noexcept = default;
+
+    [[nodiscard]] inline bool contains(value_type sd) const noexcept {
         return FD_ISSET(sd, &_set);
     }
 
     template<class Socket>
-    [[nodiscard]] bool contains(const Socket &socket) const noexcept {
+    [[nodiscard]] inline bool contains(const Socket &socket) const noexcept {
         return contains(socket.getSocket());
     }
 
-    [[nodiscard]] bool empty() const noexcept {
-        return size() == size_type{0};
+    [[nodiscard]] inline bool empty() const noexcept {
+        return max() == size_type{0};
     }
 
-    [[nodiscard]] size_type size() const noexcept {
-        return _size;
+    [[nodiscard]] inline size_type max() const noexcept {
+        return _max;
     }
 
-    [[nodiscard]] static size_type max_size() noexcept {
+    [[nodiscard]] inline static size_type max_size() noexcept {
         return FD_SETSIZE;
     }
 
     void insert(value_type sd) {
-        if(size() == max_size()) {
-            throw std::out_of_range("size() == max_size()");
+        if(sd >= FD_SETSIZE) {
+            throw std::out_of_range("Bad key");
         }
         if(contains(sd)) {
             throw std::invalid_argument("Key already exists");
         }
         FD_SET(sd, &_set);
-        ++_size;
+        _max = std::max(sd, _max);
     }
 
     template<class Socket>
@@ -300,8 +318,15 @@ struct SocketSet {
         if(!contains(sd)) {
             throw std::invalid_argument("Key error");
         }
-        --_size;
+
         FD_CLR(sd, &_set);
+
+        --sd;
+        while(sd > 0 && !contains(sd)) {
+            --sd;
+        }
+
+        _max = sd;
     }
 
     template<class Socket>
@@ -310,7 +335,7 @@ struct SocketSet {
     }
 
     void clear() noexcept {
-        _size = 0;
+        _max = 0;
         FD_ZERO(&_set);
     }
 
@@ -320,6 +345,10 @@ struct SocketSet {
 
     template<class Timeout>
     [[nodiscard]] SocketSet select(const Timeout &timeout, std::error_code &ec) const noexcept {
+        if(empty()) {
+            return {};
+        }
+
         using seconds = std::chrono::duration<decltype(timeval::tv_sec)>;
         using microseconds = std::chrono::duration<decltype(timeval::tv_usec), std::micro>;
         using std::chrono::duration_cast;
@@ -328,8 +357,8 @@ struct SocketSet {
         timeval t{
             .tv_sec = duration_cast<seconds>(timeout).count(),
             .tv_usec = duration_cast<microseconds>(timeout).count()};
-        other._size = ::select(other.size(), other.data(), nullptr, nullptr, &t);
-        if(other._size < 0) {
+        other._max = ::select(other.max() + 1, other.data(), nullptr, nullptr, &t);
+        if(other._max < 0) {
             ec = getLastError();
             other.clear();
         } else {
