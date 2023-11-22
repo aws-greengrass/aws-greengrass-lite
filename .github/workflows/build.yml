@@ -15,40 +15,57 @@ jobs:
       matrix:
         os: [ubuntu-20.04, windows-latest, macos-latest]
         build_type: [Debug]
-        cpp_compiler: [g++, clang++, cl]
+        cpp_compiler: [g++, clang++, msvc]
+        include:
+          - os: windows-latest
+            c_compiler: msvc
+            cpp_compiler: msvc
+          - os: windows-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: ubuntu-20.04
+            c_compiler: gcc
+            cpp_compiler: g++
+          - os: ubuntu-20.04
+            c_compiler: clang
+            cpp_compiler: clang++
+          - os: macos-latest
+            c_compiler: clang
+            cpp_compiler: clang++
         exclude:
           - os: windows-latest
             cpp_compiler: clang++
           - os: ubuntu-20.04
-            cpp_compiler: cl
+            cpp_compiler: msvc
           - os: macos-latest
             cpp_compiler: g++
           - os: macos-latest
-            cpp_compiler: cl
+            cpp_compiler: msvc
 
     steps:
       - name: Clone the repo
         uses: actions/checkout@v3
 
-      - name: Set reusable strings
-        id: strings
-        shell: bash
-        run: >
-          echo "build-output-dir=${{ github.workspace }}/build" >>
-          "$GITHUB_OUTPUT"
-
       - name: Configure CMake
-        run: >
-          cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }} -DCMAKE_BUILD_TYPE=${{
-          matrix.build_type }} -DCMAKE_CXX_FLAGS='-coverage' -S ${{
-          github.workspace }}
+        shell: bash
+        run: |
+          if [[ "${{matrix.os}}" == "windows-latest" && "${{matrix.cpp_compiler}}" == "g++" ]]; then
+            choco install mingw
+            cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "MinGW Makefiles"
+          elif [[ "${{matrix.os}}" == "windows-latest" ]]; then
+            cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S . -G "Visual Studio 17 2022"
+          else
+            cmake -B build -DCMAKE_C_COMPILER=${{matrix.c_compiler}} -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} -S .
+          fi
 
       - name: Build
         run:
-          cmake --build ${{ steps.strings.outputs.build-output-dir }} --config
-          ${{ matrix.build_type }}
+          cmake --build ${{ github.workspace }}/build --config ${{
+          matrix.build_type }}
 
       - name: Run Tests
-        working-directory: ${{ steps.strings.outputs.build-output-dir }}
+        working-directory: ${{ github.workspace }}/build
         run: ./nucleus/nucleus-tests

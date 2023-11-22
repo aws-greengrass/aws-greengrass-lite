@@ -5,6 +5,7 @@
 #include <iostream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -23,7 +24,7 @@ extern "C" {
 //
 namespace ggapi {
 
-    class StringOrd;
+    class Symbol;
     class ObjHandle;
     class Container;
     class Struct;
@@ -35,10 +36,10 @@ namespace ggapi {
     class Subscription;
     class GgApiError; // error from GG API call
 
-    using topicCallbackLambda = std::function<Struct(Scope, StringOrd, Struct)>;
-    using lifecycleCallbackLambda = std::function<void(Scope, StringOrd, Struct)>;
-    using topicCallback_t = Struct(*)(Task, StringOrd, Struct);
-    using lifecycleCallback_t = void(*)(ModuleScope, StringOrd, Struct);
+    using topicCallbackLambda = std::function<Struct(Scope, Symbol, Struct)>;
+    using lifecycleCallbackLambda = std::function<void(Scope, Symbol, Struct)>;
+    using topicCallback_t = Struct(*)(Task, Symbol, Struct);
+    using lifecycleCallback_t = void(*)(ModuleScope, Symbol, Struct);
     uint32_t topicCallbackProxy(
         uintptr_t callbackContext,
         uint32_t taskHandle,
@@ -52,12 +53,12 @@ namespace ggapi {
     template<typename T>
     T trapErrorReturn(const std::function<T()> &fn) noexcept;
     uint32_t trapErrorReturnHandle(const std::function<ObjHandle()> &fn) noexcept;
-    uint32_t trapErrorReturnOrd(const std::function<StringOrd()> &fn) noexcept;
+    uint32_t trapErrorReturnOrd(const std::function<Symbol()> &fn) noexcept;
     template<typename T>
     T callApiReturn(const std::function<T()> &fn);
     template<typename T>
     T callApiReturnHandle(const std::function<uint32_t()> &fn);
-    StringOrd callApiReturnOrd(const std::function<uint32_t()> &fn);
+    Symbol callApiReturnOrd(const std::function<uint32_t()> &fn);
     void callApi(const std::function<void()> &fn);
 
     // Helper functions for consistent string copy pattern
@@ -71,16 +72,16 @@ namespace ggapi {
         return {buffer.data(), finalLen};
     }
 
-    //
-    // Wraps a string ordinal as consumer of the APIs
-    //
-    // The constructors will typically be used before a module is fully initialized
-    // ggapiGetStringOrdinal is expected to only fail if out of memory, and we'll
-    // consider that unrecoverable
-    //
-    class StringOrd {
+    /**
+     * Wraps a string ordinal as consumer of the APIs
+     *
+     * The constructors will typically be used before a module is fully initialized
+     * ggapiGetStringOrdinal is expected to only fail if out of memory, and we'll
+     * consider that unrecoverable
+     */
+    class Symbol {
     private:
-        uint32_t _ord{0};
+        uint32_t _asInt{0};
 
     public:
         static uint32_t intern(std::string_view sv) noexcept {
@@ -92,48 +93,54 @@ namespace ggapi {
         }
 
         // NOLINTNEXTLINE(google-explicit-constructor)
-        StringOrd(const std::string &sv) noexcept : _ord{intern(sv)} {
+        Symbol(const std::string &sv) noexcept : _asInt{intern(sv)} {
         }
 
         // NOLINTNEXTLINE(google-explicit-constructor)
-        StringOrd(std::string_view sv) noexcept : _ord{intern(sv)} {
+        Symbol(std::string_view sv) noexcept : _asInt{intern(sv)} {
         }
 
         // NOLINTNEXTLINE(google-explicit-constructor)
-        StringOrd(const char *sv) noexcept : _ord{intern(sv)} {
+        Symbol(const char *sv) noexcept : _asInt{intern(sv)} {
         }
 
-        explicit constexpr StringOrd(uint32_t ord) noexcept : _ord{ord} {
+        explicit constexpr Symbol(uint32_t internedVal) noexcept : _asInt{internedVal} {
         }
 
-        constexpr StringOrd() noexcept = default;
-        constexpr StringOrd(const StringOrd &) noexcept = default;
-        constexpr StringOrd(StringOrd &&) noexcept = default;
-        constexpr StringOrd &operator=(const StringOrd &) noexcept = default;
-        constexpr StringOrd &operator=(StringOrd &&) noexcept = default;
-        ~StringOrd() noexcept = default;
+        constexpr Symbol() noexcept = default;
+        constexpr Symbol(const Symbol &) noexcept = default;
+        constexpr Symbol(Symbol &&) noexcept = default;
+        constexpr Symbol &operator=(const Symbol &) noexcept = default;
+        constexpr Symbol &operator=(Symbol &&) noexcept = default;
+        ~Symbol() noexcept = default;
 
-        constexpr bool operator==(StringOrd other) const noexcept {
-            return _ord == other._ord;
+        constexpr bool operator==(Symbol other) const noexcept {
+            return _asInt == other._asInt;
         }
 
-        constexpr bool operator!=(StringOrd other) const noexcept {
-            return _ord != other._ord;
+        constexpr bool operator!=(Symbol other) const noexcept {
+            return _asInt != other._asInt;
         }
 
-        [[nodiscard]] constexpr uint32_t toOrd() const noexcept {
-            return _ord;
+        [[nodiscard]] constexpr uint32_t asInt() const noexcept {
+            return _asInt;
         }
 
         [[nodiscard]] std::string toString() const {
             auto len =
-                callApiReturn<size_t>([*this]() { return ::ggapiGetOrdinalStringLen(_ord); });
+                callApiReturn<size_t>([*this]() { return ::ggapiGetOrdinalStringLen(_asInt); });
             return stringFillHelper(len, [*this](auto buf, auto bufLen) {
-                return callApiReturn<size_t>(
-                    [*this, &buf, bufLen]() { return ::ggapiGetOrdinalString(_ord, buf, bufLen); });
+                return callApiReturn<size_t>([*this, &buf, bufLen]() {
+                    return ::ggapiGetOrdinalString(_asInt, buf, bufLen);
+                });
             });
         }
     };
+
+    /**
+     * Replace uses of StringOrd with Symbol
+     */
+    using StringOrd = Symbol;
 
     //
     // All objects are passed by handle, this class abstracts the object handles.
@@ -232,15 +239,14 @@ namespace ggapi {
         // Create an asynchronous LPC call - returning the Task handle for the call.
         //
         [[nodiscard]] static Task sendToTopicAsync(
-            StringOrd topic, Struct message, topicCallback_t result, int32_t timeout = -1);
+            Symbol topic, Struct message, topicCallback_t result, int32_t timeout = -1);
 
         //
         // Create a synchronous LPC call - a task handle is created, and observable by subscribers
         // however the task is deleted by the time the call returns. Most handlers are called in
         // the same (callers) thread, however this must not be assumed.
         //
-        [[nodiscard]] static Struct sendToTopic(
-            StringOrd topic, Struct message, int32_t timeout = -1);
+        [[nodiscard]] static Struct sendToTopic(Symbol topic, Struct message, int32_t timeout = -1);
 
         //
         // Block until task completes including final callback if there is one.
@@ -323,7 +329,7 @@ namespace ggapi {
         // Creates a subscription. A subscription is tied to scope and will be unsubscribed if
         // the scope is deleted.
         //
-        [[nodiscard]] Subscription subscribeToTopic(StringOrd topic, topicCallback_t callback);
+        [[nodiscard]] Subscription subscribeToTopic(Symbol topic, topicCallback_t callback);
 
         //
         // Anchor an object against this scope.
@@ -351,7 +357,7 @@ namespace ggapi {
         }
 
         [[nodiscard]] ModuleScope registerPlugin(
-            StringOrd componentName, lifecycleCallback_t callback);
+            Symbol componentName, lifecycleCallback_t callback);
     };
 
     /**
@@ -397,20 +403,85 @@ namespace ggapi {
     // Containers are the root for Structures and Lists
     //
     class Container : public ObjHandle {
-    private:
     public:
-        // Value can only be used for parameter values
-        using Value = std::variant<
-            bool,
-            int64_t,
-            uint64_t,
-            double,
-            std::string,
-            std::string_view,
-            const char *,
-            ObjHandle,
-            StringOrd>;
-        using KeyValue = std::pair<StringOrd, Value>;
+        using ArgValueBase =
+            std::variant<bool, uint64_t, double, std::string_view, ObjHandle, Symbol>;
+
+    protected:
+        template<typename FT, typename VT>
+        static decltype(auto) visitArg(FT &&fn, VT x) {
+            if constexpr(std::is_same_v<bool, VT>) {
+                return fn(x);
+            } else if constexpr(std::is_integral_v<VT>) {
+                return fn(static_cast<uint64_t>(x));
+            } else if constexpr(std::is_floating_point_v<VT>) {
+                return fn(static_cast<double>(x));
+            } else if constexpr(std::is_assignable_v<Symbol, VT>) {
+                return fn(static_cast<Symbol>(x));
+            } else if constexpr(std::is_assignable_v<ObjHandle, VT>) {
+                return fn(static_cast<ObjHandle>(x));
+            } else if constexpr(std ::is_assignable_v<std::string_view, VT>) {
+                return fn(static_cast<std::string_view>(x));
+            } else if constexpr(std ::is_assignable_v<ArgValueBase, VT>) {
+                return std::visit(fn, static_cast<ArgValueBase>(x));
+            } else {
+                static_assert(VT::usingUnsupportedType, "Unsupported type");
+            }
+        }
+
+    public:
+        /**
+         * Variant-class for argument values. Note that this wraps the variant
+         * ArgValueBase to allow control of type conversions
+         */
+        struct ArgValue : public ArgValueBase {
+            ArgValue() = default;
+            ArgValue(const ArgValue &) = default;
+            ArgValue(ArgValue &&) = default;
+            ArgValue &operator=(const ArgValue &) = default;
+            ArgValue &operator=(ArgValue &&) = default;
+            ~ArgValue() = default;
+
+            ArgValueBase &base() {
+                return *this;
+            }
+
+            [[nodiscard]] const ArgValueBase &base() const {
+                return *this;
+            }
+
+            template<typename T>
+            // NOLINTNEXTLINE(*-explicit-constructor)
+            ArgValue(T x) : ArgValueBase(convert(x)) {
+            }
+
+            template<typename T>
+            ArgValue &operator=(T x) {
+                ArgValueBase::operator=(convert(x));
+                return *this;
+            }
+
+            template<typename T>
+            static ArgValueBase convert(T x) noexcept {
+                if constexpr(std::is_same_v<bool, T>) {
+                    return ArgValueBase(x);
+                } else if constexpr(std::is_integral_v<T>) {
+                    return static_cast<uint64_t>(x);
+                } else if constexpr(std::is_floating_point_v<T>) {
+                    return static_cast<double>(x);
+                } else if constexpr(std::is_assignable_v<Symbol, T>) {
+                    return static_cast<Symbol>(x);
+                } else if constexpr(std::is_assignable_v<ObjHandle, T>) {
+                    return static_cast<ObjHandle>(x);
+                } else if constexpr(std ::is_assignable_v<std::string_view, T>) {
+                    return static_cast<std::string_view>(x);
+                } else {
+                    return x;
+                }
+            }
+        };
+
+        using KeyValue = std::pair<Symbol, ArgValue>;
 
         explicit Container(const ObjHandle &other) : ObjHandle{other} {
         }
@@ -432,6 +503,29 @@ namespace ggapi {
                 throw std::runtime_error("Structure handle expected");
             }
         }
+        void putImpl(Symbol key, bool v) {
+            callApi([*this, key, v]() { ::ggapiStructPutBool(_handle, key.asInt(), v); });
+        }
+        void putImpl(Symbol key, uint64_t v) {
+            callApi([*this, key, v]() { ::ggapiStructPutInt64(_handle, key.asInt(), v); });
+        }
+        void putImpl(Symbol key, double v) {
+            callApi([*this, key, v]() { ::ggapiStructPutFloat64(_handle, key.asInt(), v); });
+        }
+        void putImpl(Symbol key, Symbol v) {
+            callApi(
+                [*this, key, v]() { ::ggapiStructPutStringOrd(_handle, key.asInt(), v.asInt()); });
+        }
+        void putImpl(Symbol key, std::string_view v) {
+            callApi([*this, key, v]() {
+                ::ggapiStructPutString(_handle, key.asInt(), v.data(), v.length());
+            });
+        }
+        void putImpl(Symbol key, ObjHandle v) {
+            callApi([*this, key, v]() {
+                ::ggapiStructPutHandle(_handle, key.asInt(), v.getHandleId());
+            });
+        }
 
     public:
         explicit Struct(const ObjHandle &other) : Container{other} {
@@ -447,37 +541,9 @@ namespace ggapi {
         }
 
         template<typename T>
-        Struct &put(StringOrd ord, T v) {
+        Struct &put(Symbol key, T v) {
             required();
-            if constexpr(std::is_same_v<bool, T>) {
-                callApi([*this, ord, v]() { ::ggapiStructPutBool(_handle, ord.toOrd(), v); });
-            } else if constexpr(std::is_integral_v<T>) {
-                auto intv = static_cast<uint64_t>(v);
-                callApi(
-                    [*this, ord, intv]() { ::ggapiStructPutInt64(_handle, ord.toOrd(), intv); });
-            } else if constexpr(std::is_floating_point_v<T>) {
-                auto floatv = static_cast<double>(v);
-                callApi([*this, ord, floatv]() {
-                    ::ggapiStructPutFloat64(_handle, ord.toOrd(), floatv);
-                });
-            } else if constexpr(std::is_base_of_v<StringOrd, T>) {
-                callApi([*this, ord, v]() {
-                    ::ggapiStructPutStringOrd(_handle, ord.toOrd(), v.toOrd());
-                });
-            } else if constexpr(std::is_constructible_v<std::string_view, T>) {
-                std::string_view str(v);
-                callApi([*this, ord, str]() {
-                    ::ggapiStructPutString(_handle, ord.toOrd(), str.data(), str.length());
-                });
-            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                callApi([*this, ord, &v]() {
-                    ::ggapiStructPutHandle(_handle, ord.toOrd(), v.getHandleId());
-                });
-            } else if constexpr(std::is_same_v<Value, T>) {
-                std::visit([this, ord](auto &&value) { this->put(ord, value); }, v);
-            } else {
-                static_assert(T::usingUnsupportedType, "Unsupported type");
-            }
+            visitArg([this, key](auto &&v) { this->putImpl(key, v); }, v);
             return *this;
         }
 
@@ -492,37 +558,37 @@ namespace ggapi {
             return *this;
         }
 
-        [[nodiscard]] bool hasKey(StringOrd ord) const {
+        [[nodiscard]] bool hasKey(Symbol key) const {
             required();
             return callApiReturn<bool>(
-                [*this, ord]() { return ::ggapiStructHasKey(_handle, ord.toOrd()); });
+                [*this, key]() { return ::ggapiStructHasKey(_handle, key.asInt()); });
         }
 
         template<typename T>
-        T get(StringOrd ord) const {
+        T get(Symbol key) const {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(
-                    [*this, ord]() { return ::ggapiStructGetBool(_handle, ord.toOrd()); });
+                    [*this, key]() { return ::ggapiStructGetBool(_handle, key.asInt()); });
             } else if constexpr(std::is_integral_v<T>) {
                 auto intv = callApiReturn<uint64_t>(
-                    [*this, ord]() { return ::ggapiStructGetInt64(_handle, ord.toOrd()); });
+                    [*this, key]() { return ::ggapiStructGetInt64(_handle, key.asInt()); });
                 return static_cast<T>(intv);
             } else if constexpr(std::is_floating_point_v<T>) {
                 auto floatv = callApiReturn<double>(
-                    [*this, ord]() { return ::ggapiStructGetFloat64(_handle, ord.toOrd()); });
+                    [*this, key]() { return ::ggapiStructGetFloat64(_handle, key.asInt()); });
                 return static_cast<T>(floatv);
-            } else if constexpr(std::is_base_of_v<std::string, T>) {
+            } else if constexpr(std::is_assignable_v<ObjHandle, T>) {
+                return callApiReturnHandle<T>(
+                    [*this, key]() { return ::ggapiStructGetHandle(_handle, key.asInt()); });
+            } else if constexpr(std ::is_assignable_v<std::string, T>) {
                 size_t len = callApiReturn<size_t>(
-                    [*this, ord]() { return ::ggapiStructGetStringLen(_handle, ord.toOrd()); });
-                return stringFillHelper(len, [*this, ord](auto buf, auto bufLen) {
-                    return callApiReturn<size_t>([*this, ord, &buf, bufLen]() {
-                        return ::ggapiStructGetString(_handle, ord.toOrd(), buf, bufLen);
+                    [*this, key]() { return ::ggapiStructGetStringLen(_handle, key.asInt()); });
+                return stringFillHelper(len, [*this, key](auto buf, auto bufLen) {
+                    return callApiReturn<size_t>([*this, key, &buf, bufLen]() {
+                        return ::ggapiStructGetString(_handle, key.asInt(), buf, bufLen);
                     });
                 });
-            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                return callApiReturnHandle<T>(
-                    [*this, ord]() { return ::ggapiStructGetHandle(_handle, ord.toOrd()); });
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
@@ -548,6 +614,44 @@ namespace ggapi {
                 throw std::runtime_error("List handle expected");
             }
         }
+        void putImpl(int32_t idx, bool v) {
+            callApi([*this, idx, v]() { ::ggapiListPutBool(_handle, idx, v); });
+        }
+        void putImpl(int32_t idx, uint64_t v) {
+            callApi([*this, idx, v]() { ::ggapiListPutInt64(_handle, idx, v); });
+        }
+        void putImpl(int32_t idx, double v) {
+            callApi([*this, idx, v]() { ::ggapiListPutFloat64(_handle, idx, v); });
+        }
+        void putImpl(int32_t idx, Symbol v) {
+            callApi([*this, idx, v]() { ::ggapiListPutStringOrd(_handle, idx, v.asInt()); });
+        }
+        void putImpl(int32_t idx, std::string_view v) {
+            callApi(
+                [*this, idx, v]() { ::ggapiListPutString(_handle, idx, v.data(), v.length()); });
+        }
+        void putImpl(int32_t idx, ObjHandle v) {
+            callApi([*this, idx, v]() { ::ggapiListPutHandle(_handle, idx, v.getHandleId()); });
+        }
+        void insertImpl(int32_t idx, bool v) {
+            callApi([*this, idx, v]() { ::ggapiListInsertBool(_handle, idx, v); });
+        }
+        void insertImpl(int32_t idx, uint64_t v) {
+            callApi([*this, idx, v]() { ::ggapiListInsertInt64(_handle, idx, v); });
+        }
+        void insertImpl(int32_t idx, double v) {
+            callApi([*this, idx, v]() { ::ggapiListInsertFloat64(_handle, idx, v); });
+        }
+        void insertImpl(int32_t idx, Symbol v) {
+            callApi([*this, idx, v]() { ::ggapiListInsertStringOrd(_handle, idx, v.asInt()); });
+        }
+        void insertImpl(int32_t idx, std::string_view v) {
+            callApi(
+                [*this, idx, v]() { ::ggapiListInsertString(_handle, idx, v.data(), v.length()); });
+        }
+        void insertImpl(int32_t idx, ObjHandle v) {
+            callApi([*this, idx, v]() { ::ggapiListInsertHandle(_handle, idx, v.getHandleId()); });
+        }
 
     public:
         explicit List(const ObjHandle &other) : Container{other} {
@@ -565,68 +669,24 @@ namespace ggapi {
         template<typename T>
         List &put(int32_t idx, T v) {
             required();
-            if constexpr(std::is_same_v<bool, T>) {
-                callApi([*this, idx, v]() { ::ggapiListPutBool(_handle, idx, v); });
-            } else if constexpr(std::is_integral_v<T>) {
-                auto intv = static_cast<uint64_t>(v);
-                callApi([*this, idx, intv]() { ::ggapiListPutInt64(_handle, idx, intv); });
-            } else if constexpr(std::is_floating_point_v<T>) {
-                auto floatv = static_cast<double>(v);
-                callApi([*this, idx, floatv]() { ::ggapiListPutFloat64(_handle, idx, floatv); });
-            } else if constexpr(std::is_base_of_v<StringOrd, T>) {
-                callApi([*this, idx, v]() { ::ggapiListPutStringOrd(_handle, idx, v.toOrd()); });
-            } else if constexpr(std::is_constructible_v<std::string_view, T>) {
-                std::string_view str(v);
-                callApi([*this, idx, str]() {
-                    ::ggapiListPutString(_handle, idx, str.data(), str.length());
-                });
-            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                callApi(
-                    [*this, idx, &v]() { ::ggapiListPutHandle(_handle, idx, v.getHandleId()); });
-            } else if constexpr(std::is_same_v<Value, T>) {
-                std::visit([this, idx](auto &&value) { put(idx, value); }, v);
-            } else {
-                static_assert(T::usingUnsupportedType, "Unsupported type");
-            }
+            visitArg([this, idx](auto &&v) { this->putImpl(idx, v); }, v);
             return *this;
         }
 
         template<typename T>
         List &insert(int32_t idx, T v) {
             required();
-            if constexpr(std::is_same_v<bool, T>) {
-                callApi([*this, idx, v]() { ::ggapiListInsertBool(_handle, idx, v); });
-            } else if constexpr(std::is_integral_v<T>) {
-                auto intv = static_cast<uint64_t>(v);
-                callApi([*this, idx, intv]() { ::ggapiListInsertInt64(_handle, idx, intv); });
-            } else if constexpr(std::is_floating_point_v<T>) {
-                auto floatv = static_cast<double>(v);
-                callApi([*this, idx, floatv]() { ::ggapiListInsertFloat64(_handle, idx, floatv); });
-            } else if constexpr(std::is_base_of_v<StringOrd, T>) {
-                callApi([*this, idx, v]() { ::ggapiListInsertStringOrd(_handle, idx, v.toOrd()); });
-            } else if constexpr(std::is_constructible_v<std::string_view, T>) {
-                std::string_view str(v);
-                callApi([*this, idx, str]() {
-                    ::ggapiListInsertString(_handle, idx, str.data(), str.length());
-                });
-            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                callApi(
-                    [*this, idx, &v]() { ::ggapiListInsertHandle(_handle, idx, v.getHandleId()); });
-            } else if constexpr(std::is_same_v<Value, T>) {
-                std::visit([this, idx](auto &&value) { insert(idx, value); }, v);
-            } else {
-                static_assert(T::usingUnsupportedType, "Unsupported type");
-            }
+            visitArg([this, idx](auto &&v) { this->insertImpl(idx, v); }, v);
             return *this;
         }
 
-        List &append(const Value &value) {
+        List &append(const ArgValue &value) {
             required();
-            std::visit([this](auto &&value) { insert(-1, value); }, value);
+            std::visit([this](auto &&value) { insert(-1, value); }, value.base());
             return *this;
         }
 
-        List &append(std::initializer_list<Value> list) {
+        List &append(std::initializer_list<ArgValue> list) {
             required();
             for(const auto &i : list) {
                 append(i);
@@ -648,7 +708,10 @@ namespace ggapi {
                 auto floatv = callApiReturn<double>(
                     [*this, idx]() { return ::ggapiListGetFloat64(_handle, idx); });
                 return static_cast<T>(floatv);
-            } else if constexpr(std::is_base_of_v<std::string, T>) {
+            } else if constexpr(std::is_assignable_v<ObjHandle, T>) {
+                return callApiReturnHandle<T>(
+                    [*this, idx]() { return ::ggapiListGetHandle(_handle, idx); });
+            } else if constexpr(std ::is_assignable_v<std::string, T>) {
                 size_t len = callApiReturn<size_t>(
                     [*this, idx]() { return ::ggapiListGetStringLen(_handle, idx); });
                 return stringFillHelper(len, [*this, idx](auto buf, auto bufLen) {
@@ -656,9 +719,6 @@ namespace ggapi {
                         return ::ggapiListGetString(_handle, idx, buf, bufLen);
                     });
                 });
-            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                return callApiReturnHandle<T>(
-                    [*this, idx]() { return ::ggapiListGetHandle(_handle, idx); });
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
@@ -1068,12 +1128,12 @@ namespace ggapi {
             [this, otherHandle]() { return ::ggapiAnchorHandle(getHandleId(), otherHandle); });
     }
 
-    inline Subscription Scope::subscribeToTopic(StringOrd topic, topicCallback_t callback) {
+    inline Subscription Scope::subscribeToTopic(Symbol topic, topicCallback_t callback) {
         required();
         return callApiReturnHandle<Subscription>([*this, topic, callback]() {
             return ::ggapiSubscribeToTopic(
                 getHandleId(),
-                topic.toOrd(),
+                topic.asInt(),
                 topicCallbackProxy,
                 // TODO: This is undefined behavior; uintptr_t is size of data
                 // pointer, not function pointer. This should use static_cast to
@@ -1085,10 +1145,10 @@ namespace ggapi {
     }
 
     inline Task Task::sendToTopicAsync(
-        StringOrd topic, Struct message, topicCallback_t result, int32_t timeout) {
+        Symbol topic, Struct message, topicCallback_t result, int32_t timeout) {
         return callApiReturnHandle<Task>([topic, message, result, timeout]() {
             return ::ggapiSendToTopicAsync(
-                topic.toOrd(),
+                topic.asInt(),
                 message.getHandleId(),
                 topicCallbackProxy,
                 reinterpret_cast<uintptr_t>(result), // NOLINT(*-reinterpret-cast)
@@ -1096,9 +1156,9 @@ namespace ggapi {
         });
     }
 
-    inline Struct Task::sendToTopic(ggapi::StringOrd topic, Struct message, int32_t timeout) {
+    inline Struct Task::sendToTopic(ggapi::Symbol topic, Struct message, int32_t timeout) {
         return callApiReturnHandle<Struct>([topic, message, timeout]() {
-            return ::ggapiSendToTopic(topic.toOrd(), message.getHandleId(), timeout);
+            return ::ggapiSendToTopic(topic.asInt(), message.getHandleId(), timeout);
         });
     }
 
@@ -1138,12 +1198,12 @@ namespace ggapi {
     }
 
     inline ModuleScope ModuleScope::registerPlugin(
-        StringOrd componentName, lifecycleCallback_t callback) {
+        Symbol componentName, lifecycleCallback_t callback) {
         required();
         return callApiReturnHandle<ModuleScope>([*this, componentName, callback]() {
             return ::ggapiRegisterPlugin(
                 getHandleId(),
-                componentName.toOrd(),
+                componentName.asInt(),
                 lifecycleCallbackProxy,
                 reinterpret_cast<uintptr_t>(callback) // NOLINT(*-reinterpret-cast)
             );
@@ -1158,8 +1218,7 @@ namespace ggapi {
         return trapErrorReturn<uint32_t>([callbackContext, taskHandle, topicOrd, dataStruct]() {
             auto callback =
                 reinterpret_cast<topicCallback_t>(callbackContext); // NOLINT(*-reinterpret-cast)
-            return callback(Task{taskHandle}, StringOrd{topicOrd}, Struct{dataStruct})
-                .getHandleId();
+            return callback(Task{taskHandle}, Symbol{topicOrd}, Struct{dataStruct}).getHandleId();
         });
     }
 
@@ -1171,61 +1230,91 @@ namespace ggapi {
         return trapErrorReturn<bool>([callbackContext, moduleHandle, phaseOrd, dataStruct]() {
             // NOLINTNEXTLINE(*-reinterpret-cast)
             auto callback = reinterpret_cast<lifecycleCallback_t>(callbackContext);
-            callback(ModuleScope{moduleHandle}, StringOrd{phaseOrd}, Struct{dataStruct});
+            callback(ModuleScope{moduleHandle}, Symbol{phaseOrd}, Struct{dataStruct});
             return true;
         });
     }
 
     //
-    // StringOrd constants - done as inline methods so that only used constants are included. Note
-    // that ordinal gets are idempotent and thread safe.
-    //
-    struct Consts {
-
-        static StringOrd error() {
-            static const StringOrd error{"error"};
-            return error;
-        }
-    };
-
-    //
     // Translated exception
     //
-    class GgApiError : public std::exception {
-        StringOrd _ord;
+    class GgApiError : public std::runtime_error {
+        Symbol _kind;
+
+        template<typename Error>
+        static Symbol typeKind() {
+            static_assert(std::is_base_of_v<std::exception, Error>);
+            return typeid(Error).name();
+        }
 
     public:
-        constexpr GgApiError(const GgApiError &) noexcept = default;
-        constexpr GgApiError(GgApiError &&) noexcept = default;
+        GgApiError(const GgApiError &) noexcept = default;
+        GgApiError(GgApiError &&) noexcept = default;
         GgApiError &operator=(const GgApiError &) noexcept = default;
         GgApiError &operator=(GgApiError &&) noexcept = default;
-
-        explicit GgApiError(const StringOrd &ord) noexcept : _ord{ord} {
-        }
-
-        explicit GgApiError(std::string_view errorClass) noexcept : _ord{errorClass} {
-        }
-
         ~GgApiError() override = default;
 
-        constexpr explicit operator StringOrd() const {
-            return _ord;
+        explicit GgApiError(
+            Symbol kind = typeKind<GgApiError>(),
+            const std::string &what = "Unspecified Error") noexcept
+            : std::runtime_error(what) {
         }
 
-        [[nodiscard]] constexpr StringOrd get() const {
-            return _ord;
+        template<typename E>
+        static GgApiError of(const E &error) {
+            static_assert(std::is_base_of_v<std::exception, E>);
+            return GgApiError(typeKind<E>(), error.what());
+        }
+
+        [[nodiscard]] constexpr Symbol kind() const {
+            return _kind;
+        }
+
+        void toThreadLastError() {
+            toThreadLastError(_kind, what());
+        }
+
+        static void toThreadLastError(Symbol kind, std::string_view what) {
+            ::ggapiSetError(kind.asInt(), what.data(), what.length());
+        }
+
+        static void clearThreadLastError() {
+            ::ggapiSetError(0, nullptr, 0);
+        }
+
+        static std::optional<GgApiError> fromThreadLastError(bool clear = false) {
+            auto lastErrorKind = ::ggapiGetErrorKind();
+            if(lastErrorKind != 0) {
+                Symbol sym(lastErrorKind);
+                std::string copy{::ggapiGetErrorWhat()}; // before clear
+                if(clear) {
+                    clearThreadLastError();
+                }
+                return GgApiError(copy);
+            } else {
+                return {};
+            }
+        }
+
+        static bool hasThreadLastError() {
+            return ::ggapiGetErrorKind() != 0;
+        }
+
+        static void throwIfThreadHasError() {
+            // Wrap in fast check
+            if(hasThreadLastError()) {
+                // Slower path
+                auto lastError = fromThreadLastError(true);
+                if(lastError.has_value()) {
+                    throw GgApiError(lastError.value());
+                }
+            }
         }
     };
 
-    //
-    // Helper function to throw an exception if there is a thread error
-    //
-    inline void rethrowOnThreadError() {
-        uint32_t errCode = ggapiGetError();
-        if(errCode != 0) {
-            ggapiSetError(0); // consider error 'handled'
-            throw GgApiError(StringOrd(errCode));
-        }
+    template<>
+    inline GgApiError GgApiError::of<GgApiError>(const GgApiError &error) {
+        return error;
     }
 
     //
@@ -1234,26 +1323,28 @@ namespace ggapi {
     template<typename T>
     inline T trapErrorReturn(const std::function<T()> &fn) noexcept {
         try {
-            ggapiSetError(0);
+            GgApiError::clearThreadLastError();
             if constexpr(std::is_void_v<T>) {
                 fn();
             } else {
                 return fn();
             }
+        } catch(std::exception &e) {
+            GgApiError::of(e).toThreadLastError();
         } catch(...) {
-            ggapiSetError(Consts::error().toOrd());
-            if constexpr(std::is_void_v<T>) {
-                return;
-            } else {
-                return static_cast<T>(0);
-            }
+            GgApiError().toThreadLastError();
+        }
+        if constexpr(std::is_void_v<T>) {
+            return;
+        } else {
+            return static_cast<T>(0);
         }
     }
 
     inline void callApi(const std::function<void()> &fn) {
-        ggapiSetError(0);
+        GgApiError::clearThreadLastError();
         fn();
-        rethrowOnThreadError();
+        GgApiError::throwIfThreadHasError();
     }
 
     template<typename T>
@@ -1261,9 +1352,9 @@ namespace ggapi {
         if constexpr(std::is_void_v<T>) {
             callApi(fn);
         } else {
-            ggapiSetError(0);
+            GgApiError::clearThreadLastError();
             T v = fn();
-            rethrowOnThreadError();
+            GgApiError::throwIfThreadHasError();
             return v;
         }
     }
@@ -1272,8 +1363,8 @@ namespace ggapi {
         return trapErrorReturn<uint32_t>([&fn]() { return fn().getHandleId(); });
     }
 
-    inline uint32_t trapErrorReturnOrd(const std::function<StringOrd()> &fn) noexcept {
-        return trapErrorReturn<uint32_t>([&fn]() { return fn().toOrd(); });
+    inline uint32_t trapErrorReturnOrd(const std::function<Symbol()> &fn) noexcept {
+        return trapErrorReturn<uint32_t>([&fn]() { return fn().asInt(); });
     }
 
     template<typename T>
@@ -1282,8 +1373,8 @@ namespace ggapi {
         return T(callApiReturn<uint32_t>(fn));
     }
 
-    inline StringOrd callApiReturnOrd(const std::function<uint32_t()> &fn) {
-        return StringOrd(callApiReturn<uint32_t>(fn));
+    inline Symbol callApiReturnOrd(const std::function<uint32_t()> &fn) {
+        return Symbol(callApiReturn<uint32_t>(fn));
     }
 
 } // namespace ggapi

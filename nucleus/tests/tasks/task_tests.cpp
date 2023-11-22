@@ -12,7 +12,7 @@ namespace constants {
     static constexpr auto TIMER_GRANULARITY = 300ms; // If too small, tests will become unstable
 
     // TODO: remove or significantly reduce me
-    static constexpr auto POLLING_GRACE = 10us;
+    static constexpr auto POLLING_GRACE = 1ms;
 } // namespace constants
 
 class SubTaskStub : public tasks::SubTask {

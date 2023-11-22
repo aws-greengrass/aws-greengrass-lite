@@ -169,6 +169,7 @@ namespace scope {
                 _scopeRoot = std::make_shared<data::TrackingRoot>(context());
             }
             _callScope = active = CallScope::create(context(), _scopeRoot, baseRef(), {});
+            errors::ThreadErrorContainer::get().reset();
         }
         return active;
     }
@@ -182,17 +183,22 @@ namespace scope {
         const std::shared_ptr<CallScope> &callScope) {
         std::shared_ptr<CallScope> prev = getCallScope();
         _callScope = callScope;
+        errors::ThreadErrorContainer::get().reset();
         return prev;
     }
 
-    data::Symbol PerThreadContext::setLastError(const data::Symbol &errorSymbol) {
-        data::Symbol prev = getLastError();
-        ::ggapiSetError(errorSymbol.asInt());
-        return prev;
+    /**
+     * Used only from errors::ThreadErrorContainer - makes a copy of current thread error.
+     */
+    void PerThreadContext::setThreadErrorDetail(const errors::Error &error) {
+        _threadErrorDetail = error;
     }
 
-    data::Symbol PerThreadContext::getLastError() {
-        return context()->symbolFromInt(::ggapiGetError());
+    /**
+     * Retrieve current thread error by reference (ensures the what() value does not go away).
+     */
+    const errors::Error &PerThreadContext::getThreadErrorDetail() const {
+        return _threadErrorDetail;
     }
 
     std::shared_ptr<tasks::TaskThread> PerThreadContext::getThreadContext() {
@@ -231,7 +237,7 @@ namespace scope {
     }
 
     NucleusCallScopeContext::~NucleusCallScopeContext() {
-        ::ggapiSetError(0);
+        errors::ThreadErrorContainer::get().reset();
     }
 
     Context &SharedContextMapper::context() const {

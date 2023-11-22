@@ -56,6 +56,7 @@ add_library(
   src/config/watcher.hpp
   src/config/yaml_helper.cpp
   src/config/yaml_helper.hpp
+  src/data/data_util.hpp
   src/data/handle_table.cpp
   src/data/handle_table.hpp
   src/data/safe_handle.hpp
@@ -77,6 +78,8 @@ add_library(
   src/deployment/deployment_model.hpp
   src/deployment/device_configuration.cpp
   src/deployment/device_configuration.hpp
+  src/errors/error_base.cpp
+  src/errors/error_base.hpp
   src/lifecycle/command_line.cpp
   src/lifecycle/command_line.hpp
   src/lifecycle/kernel.cpp
@@ -154,7 +157,9 @@ add_executable(
   tests/api/list_tests.cpp
   tests/api/pubsub_tests.cpp
   tests/api/struct_tests.cpp
+  tests/data/obfuscator_test.cpp
   tests/data/symbol_tests.cpp
+  tests/errors/errors_test.cpp
   tests/lifecycle/kernel_tests.cpp
   tests/pubsub/pubsub_tests.cpp
   tests/scope/context_tests.cpp

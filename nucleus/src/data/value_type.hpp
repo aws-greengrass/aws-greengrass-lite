@@ -29,6 +29,10 @@ namespace data {
             return *this;
         }
 
+        [[nodiscard]] const ValueTypeBase &base() const {
+            return *this;
+        }
+
         template<typename T>
         // NOLINTNEXTLINE(*-explicit-constructor)
         ValueType(T x) : ValueTypeBase(convert(x)) {
