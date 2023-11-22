@@ -4,6 +4,7 @@
 #include "data/shared_struct.hpp"
 #include "data/string_table.hpp"
 #include "data/symbol_value_map.hpp"
+#include "errors/error_base.hpp"
 #include "scope/context.hpp"
 #include "tasks/task.hpp"
 #include <functional>
@@ -27,28 +28,6 @@ namespace scope {
 namespace pubsub {
     class Listeners;
     class PubSubManager;
-
-    //
-    // Translated callback exception
-    //
-    class CallbackError : public std::exception {
-        data::Symbol _ord;
-
-    public:
-        constexpr CallbackError(const CallbackError &) noexcept = default;
-        constexpr CallbackError(CallbackError &&) noexcept = default;
-        CallbackError &operator=(const CallbackError &) noexcept = default;
-        CallbackError &operator=(CallbackError &&) noexcept = default;
-
-        explicit CallbackError(const data::Symbol &ord) noexcept : _ord{ord} {
-        }
-
-        ~CallbackError() override = default;
-
-        [[nodiscard]] constexpr data::Symbol get() const {
-            return _ord;
-        }
-    };
 
     //
     // Encapsulates callbacks
