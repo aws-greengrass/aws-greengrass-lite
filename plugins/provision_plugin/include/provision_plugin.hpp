@@ -12,9 +12,6 @@
 #include <aws/crt/io/TlsOptions.h>
 #include <aws/crt/http/HttpProxyStrategy.h>
 #include <aws/crt/http/HttpRequestResponse.h>
-#include <aws/crt/Types.h>
-
-#include <aws/crt/mqtt/Mqtt5Types.h>
 #include <aws/crt/mqtt/Mqtt5Packets.h>
 
 #include <aws/iot/Mqtt5Client.h>
