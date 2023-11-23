@@ -344,7 +344,7 @@ bool IotBroker::onStart(ggapi::Struct data) {
     _thingInfo.dataEndpoint = configStruct.getValue<std::string>(
         {"services", "aws.greengrass.Nucleus-Lite", "configuration", "iotDataEndpoint"});
     _thingInfo.thingName = configStruct.getValue<std::string>({"system", "thingName"});
-    _thingInfo.rootPath = configStruct.getValue<std::string>({"system", "rootPath"});
+    _thingInfo.rootPath = configStruct.getValue<std::string>({"system", "rootpath"});
     _thingInfo.rootCaPath = configStruct.getValue<std::string>({"system", "rootCaPath"});
 
     if(!validConfig()) {
@@ -413,7 +413,7 @@ bool IotBroker::onStart(ggapi::Struct data) {
                 "csrPath",
                 configStruct.getValue<std::string>(
                     {"services", keys.provisionTopicName.toString(), "configuration", "csrPath"}));
-            provData.put("rootPath", _thingInfo.rootPath);
+            provData.put("rootpath", _thingInfo.rootPath);
             provData.put("rootCaPath", _thingInfo.rootCaPath);
             auto reqData = ggapi::Struct::create().put("config", provData);
             _asyncThread = std::thread{&IotBroker::asyncThreadFn, this, reqData};

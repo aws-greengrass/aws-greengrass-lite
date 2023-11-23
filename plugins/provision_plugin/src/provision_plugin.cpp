@@ -35,7 +35,7 @@ ggapi::Struct ProvisionPlugin::brokerListener(
     deviceConfig.claimKeyPath = configStruct.getValue<std::string>({"claimKeyPath"});
     deviceConfig.claimCertPath = configStruct.getValue<std::string>({"claimCertPath"});
     deviceConfig.endpoint = configStruct.getValue<std::string>({"endpoint"});
-    deviceConfig.rootPath = configStruct.getValue<std::string>({"rootPath"});
+    deviceConfig.rootPath = configStruct.getValue<std::string>({"rootpath"});
     deviceConfig.templateParams = configStruct.getValue<std::string>({"templateParams"});
     deviceConfig.rootCaPath = configStruct.getValue<std::string>({"rootCaPath"});
     deviceConfig.proxyUsername = configStruct.getValue<std::string>({"proxyUsername"});

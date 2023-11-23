@@ -29,7 +29,7 @@ namespace lifecycle {
         _rootPathWatcher = std::make_shared<RootPathWatcher>(*this);
         context()
             .configManager()
-            .lookup({"system", "rootPath"})
+            .lookup({"system", "rootpath"})
             .dflt(getPaths()->rootPath().generic_string())
             .addWatcher(_rootPathWatcher, config::WhatHappened::changed);
 

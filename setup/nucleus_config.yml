@@ -3,7 +3,7 @@ system:
   privateKeyPath: "..."
   certificateFilePath: "..."
   rootCaPath: "..."
-  rootPath: "."
+  rootpath: "."
   thingName: "GGC-test"
 services:
   aws.greengrass.Nucleus-Lite:

@@ -10,7 +10,7 @@ This plugin takes following parameters from config file
 ---
 system:
   rootCaPath: "/path/to/AmazonRootCA1.pem"
-  rootPath: "."
+  rootpath: "."
 services:
   aws.greengrass.FleetProvisioningByClaim:
     configuration:
@@ -33,7 +33,7 @@ services:
 - **claimKeyPath**: Path of the claim certificate private key on the device
 - **rootCaPath**: Path of the root CA
 - **iotDataEndpoint**: IoT data endpoint for the AWS account
-- **rootPath**: Root path for Greengrass
+- **rootpath**: Root path for Greengrass
 
 ### Optional
 
