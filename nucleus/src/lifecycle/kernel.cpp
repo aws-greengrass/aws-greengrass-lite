@@ -143,7 +143,7 @@ namespace lifecycle {
 
     void Kernel::updateDeviceConfiguration(CommandLine &commandLine) {
         _deviceConfiguration =
-            std::make_unique<deployment::DeviceConfiguration>(_context.lock(), *this);
+            std::make_shared<deployment::DeviceConfiguration>(_context.lock(), *this);
         if(!commandLine.getAwsRegion().empty()) {
             _deviceConfiguration->setAwsRegion(commandLine.getAwsRegion());
         }
@@ -273,22 +273,29 @@ namespace lifecycle {
 
     void Kernel::launchLifecycle() {
         //
-        // TODO: This is stub/sample code
+        // TODO: All of below is temporary logic - all this will be rewritten when the lifecycle
+        // management is implemented.
         //
-        context().pluginLoader().discoverPlugins(getPaths()->pluginPath());
-        std::shared_ptr<data::SharedStruct> lifecycleArgs{
-            std::make_shared<data::SharedStruct>(_context.lock())};
-        std::shared_ptr<data::ContainerModelBase> rootStruct = getConfig().root();
-        lifecycleArgs->put("config", rootStruct);
 
-        context().pluginLoader().lifecycleBootstrap(lifecycleArgs);
-        context().pluginLoader().lifecycleDiscover(lifecycleArgs);
-        context().pluginLoader().lifecycleStart(lifecycleArgs);
-        context().pluginLoader().lifecycleRun(lifecycleArgs);
+        auto &loader = context().pluginLoader();
+        loader.setDeviceConfiguration(_deviceConfiguration);
+        loader.discoverPlugins(getPaths()->pluginPath());
+
+        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
+            plugin.lifecycle(loader.DISCOVER, data);
+        });
+        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
+            plugin.lifecycle(loader.START, data);
+        });
+        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
+            plugin.lifecycle(loader.RUN, data);
+        });
 
         std::ignore = ggapiWaitForTaskCompleted(
             ggapiGetCurrentTask(), -1); // essentially blocks until kernel signalled to terminate
-        context().pluginLoader().lifecycleTerminate(lifecycleArgs);
+        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
+            plugin.lifecycle(loader.TERMINATE, data);
+        });
         getConfig().publishQueue().stop();
     }
 

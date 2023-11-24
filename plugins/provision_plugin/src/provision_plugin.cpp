@@ -20,17 +20,15 @@ void ProvisionPlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data
 }
 
 /**
- *
- * @param task
- * @param topic
- * @param callData
- * @return
+ * Listen on the well-known Provisioning topic, and if a request for provisioning comes in,
+ * perform a By-Claim provisioning action to IoT Core.
  */
 ggapi::Struct ProvisionPlugin::brokerListener(
-    ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData) {
+    ggapi::Task, ggapi::StringOrd, ggapi::Struct callData) {
     auto configStruct = callData.getValue<ggapi::Struct>({"config"});
 
     DeviceConfig deviceConfig;
+    // TODO: most of these can come from getConfig()
     deviceConfig.templateName = configStruct.getValue<std::string>({"templateName"});
     deviceConfig.claimKeyPath = configStruct.getValue<std::string>({"claimKeyPath"});
     deviceConfig.claimCertPath = configStruct.getValue<std::string>({"claimCertPath"});
@@ -43,22 +41,27 @@ ggapi::Struct ProvisionPlugin::brokerListener(
     deviceConfig.mqttPort = configStruct.getValue<uint64_t>({"mqttPort"});
     deviceConfig.proxyUrl = configStruct.getValue<std::string>({"proxyUrl"});
     deviceConfig.csrPath = configStruct.getValue<std::string>({"csrPath"});
-    deviceConfig.deviceId = Aws::Crt::String("test-") + Aws::Crt::UUID().ToString();
+    deviceConfig.deviceId = Aws::Crt::String("temp-") + Aws::Crt::UUID().ToString();
 
     auto deviceProvisioning = std::make_unique<ProvisionPlugin>();
     deviceProvisioning->setDeviceConfig(deviceConfig);
     return deviceProvisioning->provisionDevice();
 }
 
-/**
- *
- * @param data
- * @return True if successful, false otherwise.
- */
-bool ProvisionPlugin::onDiscover(ggapi::Struct data) {
-    std::ignore = getScope().subscribeToTopic(keys.topicName, brokerListener);
+bool ProvisionPlugin::onBootstrap(ggapi::Struct data) {
+    data.put(NAME, keys.serviceName);
     return true;
 }
+
+/**
+ * This cycle is normally used for binding. Provisioning may be called very early on, so
+ * bind the provisioning topic during this binding phase. (Atypical)
+ */
+bool ProvisionPlugin::onBind(ggapi::Struct data) {
+    _subscription = getScope().subscribeToTopic(keys.topicName, brokerListener);
+    return true;
+}
+
 /**
  *
  * @param data
@@ -74,6 +77,14 @@ bool ProvisionPlugin::onStart(ggapi::Struct data) {
  * @return True if successful, false otherwise.
  */
 bool ProvisionPlugin::onRun(ggapi::Struct data) {
+    return true;
+}
+
+/**
+ * Release subscriptions during termination.
+ */
+bool ProvisionPlugin::onTerminate(ggapi::Struct data) {
+    _subscription.load().release();
     return true;
 }
 
@@ -275,7 +286,8 @@ void ProvisionPlugin::generateCredentials() {
             keysRejectedCompletedPromise.set_value();
         };
 
-        auto onKeysAccepted = [&](Aws::Iotidentity::CreateKeysAndCertificateResponse *response,
+        auto onKeysAccepted = [this](
+                                  Aws::Iotidentity::CreateKeysAndCertificateResponse *response,
                                   int ioErr) {
             if(ioErr == AWS_OP_SUCCESS) {
                 try {
@@ -383,7 +395,8 @@ void ProvisionPlugin::generateCredentials() {
             csrRejectedCompletedPromise.set_value();
         };
 
-        auto onCsrAccepted = [&](Aws::Iotidentity::CreateCertificateFromCsrResponse *response,
+        auto onCsrAccepted = [this](
+                                 Aws::Iotidentity::CreateCertificateFromCsrResponse *response,
                                  int ioErr) {
             if(ioErr == AWS_OP_SUCCESS) {
                 try {
@@ -455,6 +468,8 @@ void ProvisionPlugin::generateCredentials() {
         csrRejectedCompletedPromise.get_future().wait();
     }
 
+    // TODO: Comment needs to explain why we need to sleep for 1s here, it seems so arbitrary
+    // Also, use the new API instead to schedule registerThing() after 1 second
     std::this_thread::sleep_for(1s);
 
     registerThing();
@@ -474,11 +489,11 @@ uint64_t ProvisionPlugin::getPortFromProxyUrl(const Aws::Crt::String &proxyUrl) 
     } else {
         std::string protocol = proxyString.substr(0, last);
         if(protocol == "https") {
-            return 443;
+            return HTTPS_PORT;
         } else if(protocol == "http") {
-            return 80;
+            return HTTP_PORT;
         } else if(protocol == "socks5") {
-            return 1080;
+            return SOCKS5_PORT;
         } else {
             return -1;
         }
@@ -524,9 +539,9 @@ void ProvisionPlugin::registerThing() {
         registerRejectedCompletedPromise.set_value();
     };
 
-    auto onRegisterAccepted = [&](Aws::Iotidentity::RegisterThingResponse *response, int ioErr) {
+    auto onRegisterAccepted = [this](Aws::Iotidentity::RegisterThingResponse *response, int ioErr) {
         if(ioErr == AWS_OP_SUCCESS) {
-            _thingName = response->ThingName->c_str();
+            _thingName = response->ThingName->c_str(); // NOLINT(*-redundant-string-cstr)
         } else {
             std::cerr << "[provision-plugin] Error on subscription: "
                       << Aws::Crt::ErrorDebugString(ioErr) << std::endl;

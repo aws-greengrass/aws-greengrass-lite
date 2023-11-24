@@ -2,6 +2,7 @@
 #include "config/config_manager.hpp"
 #include "config/validator.hpp"
 #include "data/string_table.hpp"
+#include "errors/error_base.hpp"
 #include "lifecycle/kernel.hpp"
 #include "util/nucleus_paths.hpp"
 #include <atomic>

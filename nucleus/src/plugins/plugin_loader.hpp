@@ -17,24 +17,33 @@
 #include <windows.h>
 #endif
 
+namespace deployment {
+    class DeviceConfiguration;
+}
+
 namespace plugins {
+    class PluginLoader;
+
     //
     // Abstract plugins also acts as a global anchor for the given plugins module
     //
     class AbstractPlugin : public data::TrackingScope {
     protected:
         std::string _moduleName;
+        data::ObjHandle _self;
 
     public:
         explicit AbstractPlugin(
             const std::shared_ptr<scope::Context> &context, const std::string_view &name)
-            : TrackingScope(context), _moduleName{name} {
+            : TrackingScope(context), _moduleName(name) {
         }
 
-        virtual bool lifecycle(
-            data::ObjHandle pluginRoot,
-            data::Symbol phase,
-            const std::shared_ptr<data::StructModelBase> &data) = 0;
+        virtual bool callNativeLifecycle(
+            const data::ObjHandle &pluginRoot,
+            const data::Symbol &phase,
+            const data::ObjHandle &data) = 0;
+
+        void lifecycle(data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data);
 
         virtual bool isActive() noexcept {
             return true;
@@ -43,6 +52,21 @@ namespace plugins {
         [[nodiscard]] std::string getName() {
             return _moduleName;
         }
+
+        data::ObjHandle getSelf() {
+            return _self;
+        }
+
+        void setSelf(const data::ObjHandle &self) {
+            _self = self;
+        }
+
+        void invoke(
+            const std::function<void(
+                plugins::AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)> &fn);
+
+        void bootstrap(PluginLoader &loader);
+        PluginLoader &loader();
     };
 
     //
@@ -67,10 +91,10 @@ namespace plugins {
               _delegateContext{delegateContext} {
         }
 
-        bool lifecycle(
-            data::ObjHandle pluginRoot,
-            data::Symbol phase,
-            const std::shared_ptr<data::StructModelBase> &data) override;
+        bool callNativeLifecycle(
+            const data::ObjHandle &pluginRoot,
+            const data::Symbol &phase,
+            const data::ObjHandle &data) override;
     };
 
     //
@@ -101,47 +125,105 @@ namespace plugins {
         NativePlugin &operator=(const NativePlugin &) = delete;
         NativePlugin &operator=(NativePlugin &&) noexcept = delete;
         ~NativePlugin() override;
-        void load(const std::string &filePath);
-        bool lifecycle(
-            data::ObjHandle pluginRoot,
-            data::Symbol phase,
-            const std::shared_ptr<data::StructModelBase> &data) override;
+        void load(const std::filesystem::path &path);
+        bool callNativeLifecycle(
+            const data::ObjHandle &pluginHandle,
+            const data::Symbol &phase,
+            const data::ObjHandle &dataHandle) override;
         bool isActive() noexcept override;
     };
 
-    //
-    // Loader is responsible for handling all plugins
-    //
+    /**
+     * Loader is responsible for handling all plugins
+     */
     class PluginLoader {
     private:
         std::weak_ptr<scope::Context> _context;
         std::shared_ptr<data::TrackingRoot> _root;
-        data::SymbolInit _bootstrap{"bootstrap"};
-        data::SymbolInit _discover{"discover"};
-        data::SymbolInit _start{"start"};
-        data::SymbolInit _run{"run"};
-        data::SymbolInit _terminate{"terminate"};
+        std::shared_ptr<deployment::DeviceConfiguration> _deviceConfig;
 
     public:
+        /*
+         * Plugin loaded, recipe/config unknown
+         */
+        data::SymbolInit BOOTSTRAP{"bootstrap"};
+        /*
+         * Plugin loaded, recipe/config filled in
+         */
+        data::SymbolInit BIND{"bind"};
+        /**
+         * Request to discover nested plugins (may be deprecated)
+         */
+        data::SymbolInit DISCOVER{"discover"};
+        /**
+         * Plugin component enter start phase - request to get ready for run
+         */
+        data::SymbolInit START{"start"};
+        /**
+         * Plugin component enter run phase - plugin can issue traffic to other plugins
+         */
+        data::SymbolInit RUN{"run"};
+        /**
+         * Plugin component enter terminate phase - plugin is about to be unloaded
+         */
+        data::SymbolInit TERMINATE{"terminate"};
+        /**
+         * Root of configuration tree (used by special plugins only)
+         */
+        data::SymbolInit CONFIG_ROOT{"configRoot"};
+        /**
+         * Plugin specific configuration (services/component-name)
+         */
+        data::SymbolInit CONFIG{"config"};
+        /**
+         * Nucleus configuration (services/nucleus-name)
+         */
+        data::SymbolInit NUCLEUS_CONFIG{"nucleus"};
+        /**
+         * Component name
+         */
+        data::SymbolInit NAME{"name"};
+
+        data::SymbolInit SERVICES{"services"};
+        data::SymbolInit SYSTEM{"system"};
+
         explicit PluginLoader(const std::shared_ptr<scope::Context> &context)
             : _context(context), _root(std::make_shared<data::TrackingRoot>(context)) {
-            data::SymbolInit::init(context, {&_bootstrap, &_discover, &_start, &_run, &_terminate});
+            data::SymbolInit::init(
+                context,
+                {&BOOTSTRAP,
+                 &BIND,
+                 &DISCOVER,
+                 &START,
+                 &RUN,
+                 &TERMINATE,
+                 &CONFIG_ROOT,
+                 &CONFIG,
+                 &NUCLEUS_CONFIG,
+                 &NAME,
+                 &SERVICES,
+                 &SYSTEM});
         }
 
         scope::Context &context() const {
             return *_context.lock();
         }
 
+        std::shared_ptr<data::StructModelBase> buildParams(
+            plugins::AbstractPlugin &plugin, bool bootstrap = false) const;
+
         void discoverPlugins(const std::filesystem::path &pluginDir);
         void discoverPlugin(const std::filesystem::directory_entry &entry);
 
-        void loadNativePlugin(const std::string &name);
+        void loadNativePlugin(const std::filesystem::path &path);
 
-        void lifecycleBootstrap(const std::shared_ptr<data::StructModelBase> &data);
-        void lifecycleDiscover(const std::shared_ptr<data::StructModelBase> &data);
-        void lifecycleStart(const std::shared_ptr<data::StructModelBase> &data);
-        void lifecycleRun(const std::shared_ptr<data::StructModelBase> &data);
-        void lifecycleTerminate(const std::shared_ptr<data::StructModelBase> &data);
-        void lifecycle(data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data);
+        void forAllPlugins(const std::function<void(
+                               plugins::AbstractPlugin &,
+                               const std::shared_ptr<data::StructModelBase> &)> &fn) const;
+
+        void setDeviceConfiguration(
+            const std::shared_ptr<deployment::DeviceConfiguration> &deviceConfig) {
+            _deviceConfig = deviceConfig;
+        }
     };
 } // namespace plugins

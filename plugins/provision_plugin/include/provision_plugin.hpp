@@ -29,7 +29,8 @@
 #include <aws/iotidentity/RegisterThingSubscriptionRequest.h>
 
 struct Keys {
-    ggapi::StringOrd topicName{"aws.greengrass.FleetProvisioningByClaim"};
+    ggapi::Symbol topicName{"aws.greengrass.RequestDeviceProvision"};
+    ggapi::Symbol serviceName{"aws.greengrass.FleetProvisioningByClaim"};
 
     static const Keys &get() {
         static std::unique_ptr<Keys> keyRef;
@@ -58,7 +59,9 @@ struct DeviceConfig {
 };
 
 class ProvisionPlugin : public ggapi::Plugin {
+    // TODO - values below are shared across multiple threads and needs to be made thread safe
     struct DeviceConfig _deviceConfig;
+    std::atomic<ggapi::Subscription> _subscription;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _mqttClient;
     std::shared_ptr<Aws::Iotidentity::IotIdentityClient> _identityClient;
     Aws::Crt::String _token;
@@ -70,6 +73,9 @@ class ProvisionPlugin : public ggapi::Plugin {
     static const Keys keys;
     static constexpr std::string_view DEVICE_CERTIFICATE_PATH_RELATIVE_TO_ROOT = "thingCert.crt";
     static constexpr std::string_view PRIVATE_KEY_PATH_RELATIVE_TO_ROOT = "privateKey.key";
+    static constexpr auto HTTP_PORT = 80;
+    static constexpr auto HTTPS_PORT = 443;
+    static constexpr auto SOCKS5_PORT = 1080;
 
 public:
     ProvisionPlugin() = default;
@@ -79,9 +85,11 @@ public:
     ProvisionPlugin &operator=(const ProvisionPlugin &) = delete;
     ProvisionPlugin &operator=(ProvisionPlugin &&) noexcept = delete;
     void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
-    bool onDiscover(ggapi::Struct data) override;
+    bool onBootstrap(ggapi::Struct data) override;
+    bool onBind(ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;
     bool onRun(ggapi::Struct data) override;
+    bool onTerminate(ggapi::Struct data) override;
     static ggapi::Struct brokerListener(
         ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
     static ProvisionPlugin &get() {

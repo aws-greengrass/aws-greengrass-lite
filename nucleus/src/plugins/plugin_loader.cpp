@@ -1,4 +1,5 @@
 #include "plugin_loader.hpp"
+#include "deployment/device_configuration.hpp"
 #include "errors/error_base.hpp"
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
@@ -11,172 +12,209 @@ namespace fs = std::filesystem;
 #define STRINGIFY2(x) STRINGIFY(x)
 #define NATIVE_SUFFIX STRINGIFY2(PLATFORM_SHLIB_SUFFIX)
 
-plugins::NativePlugin::~NativePlugin() {
-    nativeHandle_t h = _handle.load();
-    _handle.store(nullptr);
-    if(!h) {
-        return;
-    }
-#if defined(USE_DLFCN)
-    ::dlclose(_handle);
-#elif defined(USE_WINDLL)
-    ::FreeLibrary(_handle);
-#endif
-}
+namespace plugins {
 
-void plugins::NativePlugin::load(const std::string &filePath) {
+    NativePlugin::~NativePlugin() {
+        nativeHandle_t h = _handle.load();
+        _handle.store(nullptr);
+        if(!h) {
+            return;
+        }
 #if defined(USE_DLFCN)
-    nativeHandle_t handle = ::dlopen(filePath.c_str(), RTLD_NOW | RTLD_LOCAL);
-    _handle.store(handle);
-    if(handle == nullptr) {
-        // Note, dlerror() below will flag "concurrency-mt-unsafe"
-        // It is thread safe on Linux and Mac
-        // There is no safer alternative, so all we can do is suppress
-        // TODO: When implementing loader thread, make sure this is all in same thread
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        std::string error{dlerror()};
-        throw std::runtime_error(
-            std::string("Cannot load shared object: ") + filePath + std::string(" ") + error);
-    }
-    // NOLINTNEXTLINE(*-reinterpret-cast)
-    _lifecycleFn.store(reinterpret_cast<lifecycleFn_t>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
+        ::dlclose(_handle);
 #elif defined(USE_WINDLL)
-    nativeHandle_t handle =
-        ::LoadLibraryEx(filePath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
-    _handle.store(handle);
-    if(handle == nullptr) {
-        uint32_t lastError = ::GetLastError();
-        // TODO: use FormatMessage
-        throw std::runtime_error(
-            std::string("Cannot load DLL: ") + filePath + std::string(" ")
-            + std::to_string(lastError));
+        ::FreeLibrary(_handle);
+#endif
     }
-    _lifecycleFn.store(
+
+    void NativePlugin::load(const std::filesystem::path &path) {
+        std::string filePath = path.generic_string();
+#if defined(USE_DLFCN)
+        nativeHandle_t handle = ::dlopen(filePath.c_str(), RTLD_NOW | RTLD_LOCAL);
+        _handle.store(handle);
+        if(handle == nullptr) {
+            // Note, dlerror() below will flag "concurrency-mt-unsafe"
+            // It is thread safe on Linux and Mac
+            // There is no safer alternative, so all we can do is suppress
+            // TODO: When implementing loader thread, make sure this is all in same thread
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            std::string error{dlerror()};
+            throw std::runtime_error(
+                std::string("Cannot load shared object: ") + filePath + std::string(" ") + error);
+        }
         // NOLINTNEXTLINE(*-reinterpret-cast)
-        reinterpret_cast<lifecycleFn_t>(::GetProcAddress(_handle.load(), NATIVE_ENTRY_NAME)));
+        _lifecycleFn.store(reinterpret_cast<lifecycleFn_t>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
+#elif defined(USE_WINDLL)
+        nativeHandle_t handle =
+            ::LoadLibraryEx(filePath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        _handle.store(handle);
+        if(handle == nullptr) {
+            uint32_t lastError = ::GetLastError();
+            // TODO: use FormatMessage
+            throw std::runtime_error(
+                std::string("Cannot load DLL: ") + filePath + std::string(" ")
+                + std::to_string(lastError));
+        }
+        _lifecycleFn.store(
+            // NOLINTNEXTLINE(*-reinterpret-cast)
+            reinterpret_cast<lifecycleFn_t>(::GetProcAddress(_handle.load(), NATIVE_ENTRY_NAME)));
 #endif
-}
+    }
 
-bool plugins::NativePlugin::isActive() noexcept {
-    return _lifecycleFn.load() != nullptr;
-}
+    bool NativePlugin::isActive() noexcept {
+        return _lifecycleFn.load() != nullptr;
+    }
 
-void plugins::PluginLoader::lifecycle(
-    data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data) {
-    // TODO: Run this inside of a task?
-    for(const auto &i : _root->getRoots()) {
-        std::shared_ptr<AbstractPlugin> plugin{i.getObject<AbstractPlugin>()};
-        if(plugin->isActive()) {
-            errors::ThreadErrorContainer::get().clear();
-            // TODO: convert to logging
-            std::cerr << "Plugin \"" << plugin->getName()
-                      << "\" lifecycle phase: " << phase.toString() << std::endl;
-            if(!plugin->lifecycle(i.getHandle(), phase, data)) {
-                std::optional<errors::Error> lastError{
-                    errors::ThreadErrorContainer::get().getError()};
-                if(lastError.has_value()) {
-                    std::cerr << "Plugin \"" << plugin->getName()
-                              << "\" lifecycle error during phase: " << phase.toString() << " - "
-                              << lastError.value().what() << std::endl;
-                } else {
-                    std::cerr << "Plugin \"" << plugin->getName()
-                              << "\" lifecycle unhandled phase: " << phase.toString() << std::endl;
+    bool NativePlugin::callNativeLifecycle(
+        const data::ObjHandle &pluginHandle,
+        const data::Symbol &phase,
+        const data::ObjHandle &dataHandle) {
+
+        lifecycleFn_t lifecycleFn = _lifecycleFn.load();
+        if(lifecycleFn != nullptr) {
+            return lifecycleFn(pluginHandle.asInt(), phase.asInt(), dataHandle.asInt());
+        }
+        return true; // no error
+    }
+
+    bool DelegatePlugin::callNativeLifecycle(
+        const data::ObjHandle &pluginHandle,
+        const data::Symbol &phase,
+        const data::ObjHandle &dataHandle) {
+
+        uintptr_t delegateContext;
+        ggapiLifecycleCallback delegateLifecycle;
+        {
+            std::shared_lock guard{_mutex};
+            delegateContext = _delegateContext;
+            delegateLifecycle = _delegateLifecycle;
+        }
+        if(delegateLifecycle != nullptr) {
+            return delegateLifecycle(
+                delegateContext, pluginHandle.asInt(), phase.asInt(), dataHandle.asInt());
+        }
+        return true;
+    }
+
+    void PluginLoader::discoverPlugins(const std::filesystem::path &pluginDir) {
+        // The only plugins used are those in the plugin directory, or subdirectory of
+        // plugin directory
+        for(const auto &top : fs::directory_iterator(pluginDir)) {
+            if(top.is_regular_file()) {
+                discoverPlugin(top);
+            } else if(top.is_directory()) {
+                for(const auto &fileEnt : fs::directory_iterator(top)) {
+                    if(fileEnt.is_regular_file()) {
+                        discoverPlugin(fileEnt);
+                    }
                 }
             }
         }
     }
-}
 
-bool plugins::NativePlugin::lifecycle(
-    data::ObjHandle pluginAnchor,
-    data::Symbol phase,
-    const std::shared_ptr<data::StructModelBase> &data) {
-    lifecycleFn_t lifecycleFn = _lifecycleFn.load();
-    if(lifecycleFn != nullptr) {
-        // Below scope ensures local resources - handles and thread local data - are cleaned up
-        // when plugin code returns
-        scope::StackScope scopeForHandles{};
-
-        std::shared_ptr<data::StructModelBase> copy = data->copy();
-        data::ObjectAnchor dataAnchor = scopeForHandles.getCallScope()->root()->anchor(copy);
-        return lifecycleFn(pluginAnchor.asInt(), phase.asInt(), dataAnchor.asIntHandle());
+    void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
+        if(entry.path().extension().compare(NATIVE_SUFFIX) == 0) {
+            loadNativePlugin(entry.path());
+            return;
+        }
     }
-    return true; // no error
-}
 
-bool plugins::DelegatePlugin::lifecycle(
-    data::ObjHandle pluginAnchor,
-    data::Symbol phase,
-    const std::shared_ptr<data::StructModelBase> &data) {
-    uintptr_t delegateContext;
-    ggapiLifecycleCallback delegateLifecycle;
-    {
-        std::shared_lock guard{_mutex};
-        delegateContext = _delegateContext;
-        delegateLifecycle = _delegateLifecycle;
+    void PluginLoader::loadNativePlugin(const std::filesystem::path &path) {
+        auto stem = path.stem().generic_string();
+        auto name = util::trimStart(stem, "lib");
+        std::string serviceName = std::string("local.plugins.discovered.") + std::string(name);
+        std::shared_ptr<NativePlugin> plugin{
+            std::make_shared<NativePlugin>(_context.lock(), serviceName)};
+        std::cout << "Loading native plugin from " << path << std::endl;
+        plugin->load(path);
+        // add the plugins to collection by "anchoring"
+        // which solves a number of interesting problems
+        auto anchor = _root->anchor(plugin);
+        plugin->setSelf(anchor.getHandle());
+        plugin->bootstrap(*this);
     }
-    if(delegateLifecycle != nullptr) {
-        // Below scope ensures local resources - handles and thread local data - are cleaned up
-        // when plugin code returns
-        scope::StackScope scopeForHandles{};
 
-        std::shared_ptr<data::StructModelBase> copy = data->copy();
-        data::ObjectAnchor dataAnchor = scopeForHandles.getCallScope()->root()->anchor(copy);
-        return delegateLifecycle(
-            delegateContext, pluginAnchor.asInt(), phase.asInt(), dataAnchor.getHandle().asInt());
+    void PluginLoader::forAllPlugins(
+        const std::function<void(AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)>
+            &fn) const {
+
+        for(const auto &i : _root->getRoots()) {
+            std::shared_ptr<AbstractPlugin> plugin{i.getObject<AbstractPlugin>()};
+            plugin->invoke(fn);
+        }
     }
-    return true;
-}
 
-void plugins::PluginLoader::discoverPlugins(const std::filesystem::path &pluginDir) {
-    // The only plugins used are those in the plugin directory, or subdirectory of
-    // plugin directory
-    for(const auto &top : fs::directory_iterator(pluginDir)) {
-        if(top.is_regular_file()) {
-            discoverPlugin(top);
-        } else if(top.is_directory()) {
-            for(const auto &fileEnt : fs::directory_iterator(top)) {
-                if(fileEnt.is_regular_file()) {
-                    discoverPlugin(fileEnt);
-                }
+    PluginLoader &AbstractPlugin::loader() {
+        return context().pluginLoader();
+    }
+
+    std::shared_ptr<data::StructModelBase> PluginLoader::buildParams(
+        AbstractPlugin &plugin, bool bootstrap) const {
+        std::string nucleusName = _deviceConfig->getNucleusComponentName();
+        auto data = std::make_shared<data::SharedStruct>(_context.lock());
+        data->put(CONFIG_ROOT, context().configManager().root());
+        data->put(SYSTEM, context().configManager().lookupTopics({SYSTEM}));
+        if(!bootstrap) {
+            data->put(
+                NUCLEUS_CONFIG, context().configManager().lookupTopics({SERVICES, nucleusName}));
+            data->put(CONFIG, context().configManager().lookupTopics({SERVICES, plugin.getName()}));
+        }
+        data->put(NAME, plugin.getName());
+        return data;
+    }
+
+    void AbstractPlugin::invoke(
+        const std::function<void(AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)>
+            &fn) {
+
+        if(!isActive()) {
+            return;
+        }
+        std::shared_ptr<data::StructModelBase> data = loader().buildParams(*this);
+        fn(*this, data);
+    }
+
+    void AbstractPlugin::lifecycle(
+        data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data) {
+
+        errors::ThreadErrorContainer::get().clear();
+        // TODO: convert to logging
+        std::cerr << "Plugin \"" << getName() << "\" lifecycle phase: " << phase.toString()
+                  << std::endl;
+        scope::StackScope scope{};
+        data::ObjHandle dataHandle = scope.getCallScope()->root()->anchor(data).getHandle();
+        if(!callNativeLifecycle(getSelf(), phase, dataHandle)) {
+            std::optional<errors::Error> lastError{errors::ThreadErrorContainer::get().getError()};
+            if(lastError.has_value()) {
+                std::cerr << "Plugin \"" << getName()
+                          << "\" lifecycle error during phase: " << phase.toString() << " - "
+                          << lastError.value().what() << std::endl;
+            } else {
+                std::cerr << "Plugin \"" << getName()
+                          << "\" lifecycle unhandled phase: " << phase.toString() << std::endl;
             }
         }
     }
-}
 
-void plugins::PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
-    std::string name{entry.path().generic_string()};
-    if(entry.path().extension().compare(NATIVE_SUFFIX) == 0) {
-        loadNativePlugin(name);
-        return;
+    void AbstractPlugin::bootstrap(PluginLoader &loader) {
+        if(!isActive()) {
+            return;
+        }
+        auto data = loader.buildParams(*this, true);
+        lifecycle(loader.BOOTSTRAP, data);
+        data::StructElement el = data->get(loader.NAME);
+        if(el.isScalar()) {
+            // Allow name to be changed
+            _moduleName = el.getString();
+        }
+        // Update data, module name is now known
+        // TODO: This path is only when recipe is unknown
+        data = loader.buildParams(*this, false);
+        auto config = data->get(loader.CONFIG).castObject<data::StructModelBase>();
+        config->put("version", std::string("0.0.0"));
+        config->put("dependencies", std::make_shared<data::SharedList>(_context.lock()));
+        // Now allow plugin to bind to service part of config tree
+        lifecycle(loader.BIND, data);
     }
-}
 
-void plugins::PluginLoader::loadNativePlugin(const std::string &name) {
-    std::shared_ptr<NativePlugin> plugin{std::make_shared<NativePlugin>(_context.lock(), name)};
-    std::cout << "Loading native plugin from " << name << std::endl;
-    plugin->load(name);
-    // add the plugins to collection by "anchoring"
-    // which solves a number of interesting problems
-    _root->anchor(plugin);
-}
-
-void plugins::PluginLoader::lifecycleBootstrap(const std::shared_ptr<data::StructModelBase> &data) {
-    lifecycle(_bootstrap, data);
-}
-
-void plugins::PluginLoader::lifecycleDiscover(const std::shared_ptr<data::StructModelBase> &data) {
-    lifecycle(_discover, data);
-}
-
-void plugins::PluginLoader::lifecycleStart(const std::shared_ptr<data::StructModelBase> &data) {
-    lifecycle(_start, data);
-}
-
-void plugins::PluginLoader::lifecycleRun(const std::shared_ptr<data::StructModelBase> &data) {
-    lifecycle(_run, data);
-}
-
-void plugins::PluginLoader::lifecycleTerminate(const std::shared_ptr<data::StructModelBase> &data) {
-    lifecycle(_terminate, data);
-}
+} // namespace plugins

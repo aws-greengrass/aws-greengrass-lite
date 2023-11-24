@@ -143,6 +143,7 @@ namespace data {
         Symbol applyUnchecked(Symbol::Partial h) const {
             return {_table, h};
         }
+
     public:
         SymbolTable();
         Symbol testAndGetSymbol(std::string_view str) const {

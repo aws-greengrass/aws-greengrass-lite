@@ -227,6 +227,8 @@ namespace ggapi {
         }
 
     public:
+        constexpr Task() noexcept = default;
+
         explicit Task(const ObjHandle &other) : ObjHandle{other} {
             check();
         }
@@ -276,6 +278,8 @@ namespace ggapi {
         }
 
     public:
+        constexpr Subscription() noexcept = default;
+
         explicit Subscription(const ObjHandle &other) : ObjHandle{other} {
             check();
         }
@@ -310,7 +314,7 @@ namespace ggapi {
         }
 
     public:
-        Scope() noexcept = default;
+        constexpr Scope() noexcept = default;
         Scope(const Scope &) noexcept = default;
         Scope(Scope &&) noexcept = default;
         Scope &operator=(const Scope &) noexcept = default;
@@ -343,7 +347,7 @@ namespace ggapi {
     //
     class ModuleScope : public Scope {
     public:
-        ModuleScope() noexcept = default;
+        constexpr ModuleScope() noexcept = default;
         ModuleScope(const ModuleScope &) noexcept = default;
         ModuleScope(ModuleScope &&) noexcept = default;
         ModuleScope &operator=(const ModuleScope &) noexcept = default;
@@ -483,6 +487,8 @@ namespace ggapi {
 
         using KeyValue = std::pair<Symbol, ArgValue>;
 
+        constexpr Container() noexcept = default;
+
         explicit Container(const ObjHandle &other) : ObjHandle{other} {
         }
 
@@ -528,6 +534,8 @@ namespace ggapi {
         }
 
     public:
+        constexpr Struct() noexcept = default;
+
         explicit Struct(const ObjHandle &other) : Container{other} {
             check();
         }
@@ -565,7 +573,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T get(Symbol key) const {
+        [[nodiscard]] T get(Symbol key) const {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(
@@ -654,6 +662,8 @@ namespace ggapi {
         }
 
     public:
+        constexpr List() noexcept = default;
+
         explicit List(const ObjHandle &other) : Container{other} {
             check();
         }
@@ -740,6 +750,8 @@ namespace ggapi {
         }
 
     public:
+        constexpr Buffer() noexcept = default;
+
         explicit Buffer(const ObjHandle &other) : Container{other} {
             check();
         }
@@ -1124,8 +1136,9 @@ namespace ggapi {
     inline T Scope::anchor(T otherHandle) const {
         required();
         static_assert(std::is_base_of_v<ObjHandle, T>);
-        return callApiReturnHandle<T>(
-            [this, otherHandle]() { return ::ggapiAnchorHandle(getHandleId(), otherHandle); });
+        return callApiReturnHandle<T>([this, otherHandle]() {
+            return ::ggapiAnchorHandle(getHandleId(), otherHandle.getHandleId());
+        });
     }
 
     inline Subscription Scope::subscribeToTopic(Symbol topic, topicCallback_t callback) {
