@@ -61,6 +61,7 @@ struct DeviceConfig {
 class ProvisionPlugin : public ggapi::Plugin {
     // TODO - values below are shared across multiple threads and needs to be made thread safe
     struct DeviceConfig _deviceConfig;
+    static std::unique_ptr<ProvisionPlugin> _pluginInstance;
     std::atomic<ggapi::Subscription> _subscription;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _mqttClient;
     std::shared_ptr<Aws::Iotidentity::IotIdentityClient> _identityClient;
@@ -79,11 +80,6 @@ class ProvisionPlugin : public ggapi::Plugin {
 
 public:
     ProvisionPlugin() = default;
-    ~ProvisionPlugin() override = default;
-    ProvisionPlugin(const ProvisionPlugin &) = delete;
-    ProvisionPlugin(ProvisionPlugin &&) noexcept = delete;
-    ProvisionPlugin &operator=(const ProvisionPlugin &) = delete;
-    ProvisionPlugin &operator=(ProvisionPlugin &&) noexcept = delete;
     void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
     bool onBootstrap(ggapi::Struct data) override;
     bool onBind(ggapi::Struct data) override;
@@ -92,9 +88,11 @@ public:
     bool onTerminate(ggapi::Struct data) override;
     static ggapi::Struct brokerListener(
         ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
-    static ProvisionPlugin &get() {
-        static ProvisionPlugin instance{};
-        return instance;
+    static std::unique_ptr<ProvisionPlugin> &get() {
+        if (!_pluginInstance) {
+            _pluginInstance = std::make_unique<ProvisionPlugin>();
+        }
+        return _pluginInstance;
     }
 
     static uint64_t getPortFromProxyUrl(const Aws::Crt::String &proxyUrl);
@@ -106,7 +104,7 @@ public:
 
     bool initMqtt();
 
-    void setDeviceConfig(const DeviceConfig &);
+    void setDeviceConfig();
 
     ggapi::Struct provisionDevice();
 };

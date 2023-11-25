@@ -17,6 +17,7 @@ services:
       iotDataEndpoint: "device-data-prefix-ats.iot.us-west-2.amazonaws.com"
       claimKeyPath: "/path/to/claim.private.pem.key"
       claimCertPath: "/path/to/claim.pem.crt"
+      deviceId: "device_id"
       templateName: "template_name"
       templateParams: '{"key1":"value1",...}'
       csrPath: "/path/to/claim.csr"
@@ -39,6 +40,7 @@ services:
 
 - **csrPath**: CSR file to be used for creating the device certificate from a
   CSR
+- **deviceId**: The device identifier which will be used as client id in the mqtt connection to AWS IoT
 - **templateParams**: Map<String, String> of parameters which will be passed to
   provisioning template
 - **proxyUrl**: Http proxy url to be used for mqtt connection. The url is of

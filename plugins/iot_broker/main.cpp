@@ -205,7 +205,7 @@ public:
     void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
     bool validConfig() const;
     bool initMqtt();
-    void asyncThreadFn(const ggapi::Struct &reqData);
+    void asyncThreadFn();
 
     static IotBroker &get() {
         static IotBroker instance{};
@@ -361,98 +361,21 @@ bool IotBroker::onStart(ggapi::Struct data) {
     auto service = getConfig();
     auto nucleus = _nucleus.load();
     auto system = _system.load();
-    // TODO: We should not be using configRoot at all in code below
-    auto configRoot = data.getValue<ggapi::Struct>({"configRoot"});
+
     _thingInfo.certPath = system.getValue<std::string>({"certificateFilePath"});
     _thingInfo.keyPath = system.getValue<std::string>({"privateKeyPath"});
+    _thingInfo.rootPath = system.getValue<std::string>({"rootpath"});
+    _thingInfo.rootCaPath = system.getValue<std::string>({"rootCaPath"});
+    _thingInfo.thingName = system.getValue<std::string>({"thingName"});
+
     // TODO: Note, reference of the module name will be done by Nucleus, this is temporary.
     _thingInfo.credEndpoint = nucleus.getValue<std::string>({"configuration", "iotCredEndpoint"});
     _thingInfo.dataEndpoint = nucleus.getValue<std::string>({"configuration", "iotDataEndpoint"});
-    _thingInfo.thingName = system.getValue<std::string>({"thingName"});
-    _thingInfo.rootPath = system.getValue<std::string>({"rootpath"});
-    _thingInfo.rootCaPath = system.getValue<std::string>({"rootCaPath"});
 
     if(!validConfig()) {
         std::cout << "[mqtt-plugin] Device is not provisioned. Running provision plugin...\n";
         try {
-            // TODO: Each fleetProvisioningByClaimService reference below should be retrieved
-            // from config directly by provisioning_plugin, it doesn't need to be retrieved from
-            // this plugin
-            auto provData = ggapi::Struct::create();
-            provData.put(
-                "templateName",
-                configRoot.getValue<std::string>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "templateName"}));
-            provData.put(
-                "templateParams",
-                configRoot.getValue<std::string>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "templateParams"}));
-            provData.put(
-                "claimKeyPath",
-                configRoot.getValue<std::string>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "claimKeyPath"}));
-            provData.put(
-                "claimCertPath",
-                configRoot.getValue<std::string>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "claimCertPath"}));
-            provData.put(
-                "endpoint",
-                configRoot.getValue<std::string>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "iotDataEndpoint"}));
-            provData.put(
-                "mqttPort",
-                configRoot.getValue<uint64_t>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "mqttPort"}));
-            provData.put(
-                "proxyUsername",
-                configRoot.getValue<std::string>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "proxyUsername"}));
-            provData.put(
-                "proxyPassword",
-                configRoot.getValue<std::string>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "proxyPassword"}));
-            provData.put(
-                "proxyUrl",
-                configRoot.getValue<std::string>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "proxyUrl"}));
-            provData.put(
-                "csrPath",
-                configRoot.getValue<std::string>(
-                    {"services",
-                     keys.fleetProvisioningByClaimService.toString(),
-                     "configuration",
-                     "csrPath"}));
-            provData.put("rootpath", _thingInfo.rootPath);
-            provData.put("rootCaPath", _thingInfo.rootCaPath);
-            auto reqData = ggapi::Struct::create().put("config", provData);
-            _asyncThread = std::thread{&IotBroker::asyncThreadFn, this, reqData};
+            _asyncThread = std::thread{&IotBroker::asyncThreadFn, this};
             _asyncThread.join(); // wait for provisioning to complete
         } catch(const std::exception &e) {
             std::cerr << "[mqtt-plugin] Error while running the provision plugin \n." << e.what();
@@ -489,7 +412,7 @@ bool IotBroker::initMqtt() {
         }
 
         auto connectOptions = std::make_shared<Aws::Crt::Mqtt5::ConnectPacket>();
-        connectOptions->WithClientId(_thingInfo.thingName.c_str());
+        connectOptions->WithClientId(_thingInfo.thingName.c_str()); // NOLINT(*-redundant-string-cstr)
         builder->WithConnectOptions(connectOptions);
 
         builder->WithClientConnectionSuccessCallback(
@@ -555,7 +478,8 @@ bool IotBroker::initMqtt() {
     return true;
 }
 
-void IotBroker::asyncThreadFn(const ggapi::Struct &reqData) {
+void IotBroker::asyncThreadFn() {
+    auto reqData = ggapi::Struct::create();
     auto respData =
         ggapi::Task::sendToTopic(ggapi::Symbol{keys.requestDeviceProvisionTopic}, reqData);
     _thingInfo.thingName = respData.get<std::string>("thingName");
