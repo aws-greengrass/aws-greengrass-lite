@@ -88,24 +88,12 @@ namespace data {
                 return Symbol::Partial{data::IdObfuscator::obfuscate(idx)};
             }
 
+            constexpr static auto EMPTY_LENGTH_INDEX = 0;
+
         public:
-            Symbol::Partial push(std::string_view &source) {
-                uint32_t bufferIndex = _strings.size();
-                uint32_t currCapacity = _strings.capacity();
-                if(currCapacity < bufferIndex + source.length()) {
-                    uint32_t newCapacity = bufferIndex + source.length() + CHAR_CAPACITY_SPARE;
-                    _strings.reserve(newCapacity);
-                }
-                _strings.insert(_strings.end(), source.begin(), source.end());
-                uint32_t spanIndex = _spans.size();
-                uint32_t spanCapacity = _spans.capacity();
-                if(spanCapacity <= spanIndex) {
-                    uint32_t newCapacity = spanIndex + SPAN_CAPACITY_SPARE;
-                    _spans.reserve(newCapacity);
-                }
-                _spans.emplace_back(bufferIndex, source.length());
-                return symbolOf(spanIndex);
-            }
+            Buffer();
+            Symbol::Partial push(std::string_view &source);
+            static Symbol::Partial empty();
 
             [[nodiscard]] std::string_view toView(const StringSpan &span) const {
                 return {&_strings.at(span.offset()), span.len()};
@@ -157,6 +145,7 @@ namespace data {
         }
 
     public:
+        SymbolTable();
         Symbol testAndGetSymbol(std::string_view str) const {
             std::shared_lock guard{_mutex};
             auto i = _lookup.find(str);
@@ -167,23 +156,7 @@ namespace data {
             }
         }
 
-        Symbol intern(std::string_view str) {
-            Symbol sym = testAndGetSymbol(str); // optimistic using shared lock
-            if(sym.isNull()) {
-                std::unique_lock guard(_mutex);
-                auto i = _lookup.find(str);
-                if(i == _lookup.end()) {
-                    auto partial = _buffer.push(str);
-                    _lookup.emplace(_buffer.getSpan(partial), partial);
-                    return applyUnchecked(partial);
-                } else {
-                    // this path handles a race condition
-                    return applyUnchecked(i->second);
-                }
-            } else {
-                return sym;
-            }
-        }
+        Symbol intern(std::string_view str);
 
         bool isSymbolValid(Symbol::Partial symbol) const {
             std::shared_lock guard{_mutex};
