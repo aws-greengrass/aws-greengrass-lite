@@ -79,7 +79,7 @@ class ProvisionPlugin : public ggapi::Plugin {
     static constexpr auto SOCKS5_PORT = 1080;
 
 public:
-    ProvisionPlugin() = default;
+    ProvisionPlugin(){ };
     void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
     bool onBootstrap(ggapi::Struct data) override;
     bool onBind(ggapi::Struct data) override;
