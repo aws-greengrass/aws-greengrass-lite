@@ -127,7 +127,7 @@ namespace plugins {
             std::make_shared<NativePlugin>(_context.lock(), serviceName)};
         std::cout << "Loading native plugin from " << path << std::endl;
         plugin->load(path);
-        // add the plugins to collection by "anchoring"
+        // add the plugins to a collection by "anchoring"
         // which solves a number of interesting problems
         auto anchor = _root->anchor(plugin);
         plugin->setSelf(anchor.getHandle());
@@ -213,7 +213,7 @@ namespace plugins {
         auto config = data->get(loader.CONFIG).castObject<data::StructModelBase>();
         config->put("version", std::string("0.0.0"));
         config->put("dependencies", std::make_shared<data::SharedList>(_context.lock()));
-        // Now allow plugin to bind to service part of config tree
+        // Now allow plugin to bind to service part of the config tree
         lifecycle(loader.BIND, data);
     }
 

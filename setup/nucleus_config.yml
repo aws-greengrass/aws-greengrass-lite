@@ -33,6 +33,8 @@ services:
     dependencies: []
   aws.greengrass.FleetProvisioningByClaim:
     configuration:
+      rootPath: "."
+      rootCaPath: "..."
       iotDataEndpoint: "..."
       iotCredEndpoint: ""
       claimKeyPath: "..."

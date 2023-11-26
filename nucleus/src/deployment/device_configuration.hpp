@@ -37,6 +37,7 @@ namespace deployment {
             "interpolateComponentConfiguration"};
         data::SymbolInit DEVICE_PARAM_IPC_SOCKET_PATH{"ipcSocketPath"};
         data::SymbolInit SYSTEM_NAMESPACE_KEY{"system"};
+        data::SymbolInit SERVICES_NAMESPACE_KEY{"services"};
         data::SymbolInit PLATFORM_OVERRIDE_TOPIC{"platformOverride"};
         data::SymbolInit DEVICE_PARAM_AWS_REGION{"awsRegion"};
         data::SymbolInit DEVICE_PARAM_FIPS_MODE{"fipsMode"};

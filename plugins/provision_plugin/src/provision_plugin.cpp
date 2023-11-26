@@ -25,8 +25,9 @@ void ProvisionPlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data
  */
 ggapi::Struct ProvisionPlugin::brokerListener(
     ggapi::Task, ggapi::StringOrd, ggapi::Struct) {
-    _pluginInstance->setDeviceConfig();
-    return _pluginInstance->provisionDevice();
+    ProvisionPlugin& pluginInstance = ProvisionPlugin::get();
+    pluginInstance.setDeviceConfig();
+    return pluginInstance.provisionDevice();
 }
 
 bool ProvisionPlugin::onBootstrap(ggapi::Struct data) {
@@ -96,20 +97,21 @@ ggapi::Struct ProvisionPlugin::provisionDevice() {
  * @param deviceConfig Device configuration to be copied
  */
 void ProvisionPlugin::setDeviceConfig() {
-    auto service = getConfig();
-    _deviceConfig.templateName = service.getValue<std::string>({"templateName"});
-    _deviceConfig.claimKeyPath = service.getValue<std::string>({"claimKeyPath"});
-    _deviceConfig.claimCertPath = service.getValue<std::string>({"claimCertPath"});
-    _deviceConfig.endpoint = service.getValue<std::string>({"endpoint"});
-    _deviceConfig.rootPath = service.getValue<std::string>({"rootpath"});
-    _deviceConfig.templateParams = service.getValue<std::string>({"templateParams"});
-    _deviceConfig.rootCaPath = service.getValue<std::string>({"rootCaPath"});
-    _deviceConfig.proxyUsername = service.getValue<std::string>({"proxyUsername"});
-    _deviceConfig.proxyPassword = service.getValue<std::string>({"proxyPassword"});
-    _deviceConfig.mqttPort = service.getValue<uint64_t>({"mqttPort"});
-    _deviceConfig.proxyUrl = service.getValue<std::string>({"proxyUrl"});
-    _deviceConfig.csrPath = service.getValue<std::string>({"csrPath"});
-    _deviceConfig.deviceId  = service.getValue<std::string>({"deviceId"});
+    auto serviceConfig = getConfig().getValue<ggapi::Struct>({"configuration"});
+
+    _deviceConfig.rootPath = serviceConfig.getValue<std::string>({"rootPath"});
+    _deviceConfig.rootCaPath = serviceConfig.getValue<std::string>({"rootCaPath"});
+    _deviceConfig.templateName = serviceConfig.getValue<std::string>({"templateName"});
+    _deviceConfig.claimKeyPath = serviceConfig.getValue<std::string>({"claimKeyPath"});
+    _deviceConfig.claimCertPath = serviceConfig.getValue<std::string>({"claimCertPath"});
+    _deviceConfig.endpoint = serviceConfig.getValue<std::string>({"iotDataEndpoint"});
+    _deviceConfig.templateParams = serviceConfig.getValue<std::string>({"templateParams"});
+    _deviceConfig.proxyUsername = serviceConfig.getValue<std::string>({"proxyUsername"});
+    _deviceConfig.proxyPassword = serviceConfig.getValue<std::string>({"proxyPassword"});
+    _deviceConfig.mqttPort = serviceConfig.getValue<uint64_t>({"mqttPort"});
+    _deviceConfig.proxyUrl = serviceConfig.getValue<std::string>({"proxyUrl"});
+    _deviceConfig.csrPath = serviceConfig.getValue<std::string>({"csrPath"});
+    _deviceConfig.deviceId  = serviceConfig.getValue<std::string>({"deviceId"});
 
     if(_deviceConfig.templateName.empty()) {
         throw std::runtime_error("Template name not found.");

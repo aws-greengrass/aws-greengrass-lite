@@ -61,7 +61,6 @@ struct DeviceConfig {
 class ProvisionPlugin : public ggapi::Plugin {
     // TODO - values below are shared across multiple threads and needs to be made thread safe
     struct DeviceConfig _deviceConfig;
-    static std::unique_ptr<ProvisionPlugin> _pluginInstance;
     std::atomic<ggapi::Subscription> _subscription;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _mqttClient;
     std::shared_ptr<Aws::Iotidentity::IotIdentityClient> _identityClient;
@@ -88,11 +87,9 @@ public:
     bool onTerminate(ggapi::Struct data) override;
     static ggapi::Struct brokerListener(
         ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
-    static std::unique_ptr<ProvisionPlugin> &get() {
-        if (!_pluginInstance) {
-            _pluginInstance = std::make_unique<ProvisionPlugin>();
-        }
-        return _pluginInstance;
+    static ProvisionPlugin &get() {
+        static ProvisionPlugin instance{};
+        return instance;
     }
 
     static uint64_t getPortFromProxyUrl(const Aws::Crt::String &proxyUrl);
