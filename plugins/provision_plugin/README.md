@@ -27,6 +27,7 @@ services:
 ```
 
 ### Required
+
 - **rootPath**: Root path for Greengrass
 - **rootCaPath**: Path of the root CA
 - **iotDataEndpoint**: IoT data endpoint for the AWS account
@@ -38,7 +39,8 @@ services:
 
 - **csrPath**: CSR file to be used for creating the device certificate from a
   CSR
-- **deviceId**: The device identifier which will be used as client id in the mqtt connection to AWS IoT
+- **deviceId**: The device identifier which will be used as client id in the
+  mqtt connection to AWS IoT
 - **templateParams**: Json object of parameters which will be passed to
   provisioning template
 - **proxyUrl**: Http proxy url to be used for mqtt connection. The url is of

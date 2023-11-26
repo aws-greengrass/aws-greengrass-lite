@@ -23,9 +23,8 @@ void ProvisionPlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data
  * Listen on the well-known Provisioning topic, and if a request for provisioning comes in,
  * perform a By-Claim provisioning action to IoT Core.
  */
-ggapi::Struct ProvisionPlugin::brokerListener(
-    ggapi::Task, ggapi::StringOrd, ggapi::Struct) {
-    ProvisionPlugin& pluginInstance = ProvisionPlugin::get();
+ggapi::Struct ProvisionPlugin::brokerListener(ggapi::Task, ggapi::StringOrd, ggapi::Struct) {
+    ProvisionPlugin &pluginInstance = ProvisionPlugin::get();
     pluginInstance.setDeviceConfig();
     return pluginInstance.provisionDevice();
 }
@@ -111,7 +110,7 @@ void ProvisionPlugin::setDeviceConfig() {
     _deviceConfig.mqttPort = serviceConfig.getValue<uint64_t>({"mqttPort"});
     _deviceConfig.proxyUrl = serviceConfig.getValue<std::string>({"proxyUrl"});
     _deviceConfig.csrPath = serviceConfig.getValue<std::string>({"csrPath"});
-    _deviceConfig.deviceId  = serviceConfig.getValue<std::string>({"deviceId"});
+    _deviceConfig.deviceId = serviceConfig.getValue<std::string>({"deviceId"});
 
     if(_deviceConfig.templateName.empty()) {
         throw std::runtime_error("Template name not found.");
@@ -124,7 +123,7 @@ void ProvisionPlugin::setDeviceConfig() {
     if(_deviceConfig.rootPath.empty()) {
         throw std::runtime_error("Root path not found.");
     }
-    if (_deviceConfig.deviceId.empty()) {
+    if(_deviceConfig.deviceId.empty()) {
         _deviceConfig.deviceId = Aws::Crt::String("temp-") + Aws::Crt::UUID().ToString();
     }
     _keyPath = std::filesystem::path(_deviceConfig.rootPath) / PRIVATE_KEY_PATH_RELATIVE_TO_ROOT;

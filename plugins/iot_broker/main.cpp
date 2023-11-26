@@ -412,7 +412,8 @@ bool IotBroker::initMqtt() {
         }
 
         auto connectOptions = std::make_shared<Aws::Crt::Mqtt5::ConnectPacket>();
-        connectOptions->WithClientId(_thingInfo.thingName.c_str()); // NOLINT(*-redundant-string-cstr)
+        connectOptions->WithClientId(
+            _thingInfo.thingName.c_str()); // NOLINT(*-redundant-string-cstr)
         builder->WithConnectOptions(connectOptions);
 
         builder->WithClientConnectionSuccessCallback(
