@@ -4,12 +4,46 @@
 
 // NOLINTBEGIN
 
+enum class MyEnum { Foo, Bar, Baz, Other };
+using MyEnums = util::Enum<MyEnum, MyEnum::Foo, MyEnum::Bar, MyEnum::Baz>;
+
+int func(MyEnums::ConstType<MyEnum::Foo>) {
+    return 1;
+}
+
+int func(MyEnums::ConstType<MyEnum::Bar>) {
+    return 2;
+}
+
+int func(MyEnums::ConstType<MyEnum::Baz>) {
+    return 3;
+}
+
 SCENARIO("Test enum capabilities", "[enum]") {
-    GIVEN("An enum") {
-        ggapi::Symbol foo("foo");
-        ggapi::Symbol bar("bar");
-        ggapi::Symbol baz("baz");
-        enum class MyEnum { Foo, Bar, Baz, Other };
+    ggapi::Symbol foo("foo");
+    ggapi::Symbol bar("bar");
+    ggapi::Symbol baz("baz");
+    GIVEN("An enum value") {
+        util::LookupTable expected{MyEnum::Foo, 1, MyEnum::Bar, 2, MyEnum::Baz, 3};
+        auto in = GENERATE(MyEnum::Foo, MyEnum::Bar, MyEnum::Baz);
+        WHEN("Visiting the enum value") {
+            std::optional<int> v = MyEnums::visit<int>(in, [](auto e) { return func(e); });
+            THEN("Returned value is valid") {
+                REQUIRE(v.has_value());
+                REQUIRE(v.value() == expected.lookup(in).value_or(0));
+            }
+        }
+    }
+    GIVEN("An invalid enum value") {
+        auto in = MyEnum::Other;
+        WHEN("Visiting the enum value") {
+            std::optional<int> v = MyEnums::visit<int>(in, [](auto e) { return func(e); });
+            THEN("No value is returned") {
+                REQUIRE_FALSE(v.has_value());
+            }
+        }
+    }
+    GIVEN("An enum table") {
         util::LookupTable table{foo, MyEnum::Foo, bar, MyEnum::Bar, baz, MyEnum::Baz};
         WHEN("Performing a lookup") {
             ggapi::Symbol value("bar");

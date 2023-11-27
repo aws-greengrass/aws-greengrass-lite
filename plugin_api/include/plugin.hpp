@@ -11,34 +11,48 @@ namespace ggapi {
     class Plugin {
     public:
         enum class Phase { UNKNOWN, BOOTSTRAP, BIND, DISCOVER, START, RUN, TERMINATE };
+        using PhaseEnum = util::Enum<
+            Phase,
+            Phase::UNKNOWN,
+            Phase::BOOTSTRAP,
+            Phase::BIND,
+            Phase::DISCOVER,
+            Phase::START,
+            Phase::RUN,
+            Phase::TERMINATE>;
 
     private:
         std::atomic<ModuleScope> _moduleScope{ModuleScope{}};
         std::atomic<Phase> _phase{Phase::UNKNOWN};
         std::atomic<Struct> _config{};
 
-        /**
-         * Generic lifecycle dispatch
-         */
-        bool lifecycleDispatch(Phase phase, Struct data) {
-            switch(phase) {
-                case Phase::BOOTSTRAP:
-                    return onBootstrap(data);
-                case Phase::BIND:
-                    return onBind(data);
-                case Phase::DISCOVER:
-                    return onDiscover(data);
-                case Phase::START:
-                    return onStart(data);
-                case Phase::RUN:
-                    return onRun(data);
-                case Phase::TERMINATE:
-                    return onTerminate(data);
-                default:
-                    // 'UNKNOWN' is supported, but not expected to be handled, since this indicates
-                    // Plugin assumes a Nucleus version earlier than this plugin.hpp
-                    return false;
-            }
+        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::BOOTSTRAP> &, Struct data) {
+            return onBootstrap(data);
+        }
+
+        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::BIND> &, Struct data) {
+            internalBind(data);
+            return onBootstrap(data);
+        }
+
+        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::DISCOVER> &, Struct data) {
+            return onBootstrap(data);
+        }
+
+        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::START> &, Struct data) {
+            return onStart(data);
+        }
+
+        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::RUN> &, Struct data) {
+            return onRun(data);
+        }
+
+        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::TERMINATE> &, Struct data) {
+            return onTerminate(data);
+        }
+
+        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::UNKNOWN> &, Struct data) {
+            return false;
         }
 
         void internalBind(Struct data) {
@@ -95,7 +109,9 @@ namespace ggapi {
             _phase = mappedPhase;
             beforeLifecycle(phase, data); // TODO: Deprecate
             beforeLifecycle(mappedPhase, data);
-            bool handled = lifecycleDispatch(mappedPhase, data);
+            bool handled = PhaseEnum::visit<bool>(mappedPhase, [this, data](auto p) {
+                               return this->lifecycleDispatch(p, data);
+                           }).value_or(false);
             afterLifecycle(mappedPhase, data);
             afterLifecycle(phase, data); // TODO: Deprecate
             return handled;
