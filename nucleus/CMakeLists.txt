@@ -154,6 +154,7 @@ install(TARGETS greengrass-lite DESTINATION bin)
 add_executable(
   nucleus-tests
   tests/api/buffer_tests.cpp
+  tests/api/enum_tests.cpp
   tests/api/list_tests.cpp
   tests/api/pubsub_tests.cpp
   tests/api/struct_tests.cpp

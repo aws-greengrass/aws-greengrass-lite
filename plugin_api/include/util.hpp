@@ -1,7 +1,9 @@
 #pragma once
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -189,4 +191,69 @@ namespace util {
         }
         return ptr;
     }
+
+    /**
+     * Create a simple 1:1 lookup table (e.g. Symbols to Enums)
+     */
+    template<typename VT1, typename VT2, uint32_t Nm>
+    class LookupTable {
+        std::array<VT1, Nm> _first;
+        std::array<VT2, Nm> _second;
+        template<uint32_t index, typename... Rest>
+        void place() noexcept {
+            static_assert(index == Nm);
+        }
+        template<uint32_t index, typename V1, typename V2, typename... Rest>
+        void place(const V1 &v1, const V2 &v2, const Rest &...rest) noexcept {
+            _first[index] = std::move(v1);
+            _second[index] = std::move(v2);
+            place<index + 1, Rest...>(rest...);
+        }
+
+    public:
+        template<typename... Ts>
+        explicit LookupTable(const Ts &...args) noexcept {
+            place<0, Ts...>(args...);
+        }
+
+        [[nodiscard]] std::optional<VT2> lookup(const VT1 &v) const noexcept {
+            auto i = indexOf(v);
+            if(i.has_value()) {
+                return _second[i.value()];
+            } else {
+                return {};
+            }
+        }
+
+        [[nodiscard]] std::optional<VT1> rlookup(const VT2 &v) const noexcept {
+            auto i = rindexOf(v);
+            if(i.has_value()) {
+                return _first[i.value()];
+            } else {
+                return {};
+            }
+        }
+
+        [[nodiscard]] std::optional<uint32_t> indexOf(const VT1 &v) const noexcept {
+            for(uint32_t i = 0; i < Nm; ++i) {
+                if(_first[i] == v) {
+                    return i;
+                }
+            }
+            return {};
+        }
+
+        [[nodiscard]] std::optional<uint32_t> rindexOf(const VT2 &v) const noexcept {
+            for(uint32_t i = 0; i < Nm; ++i) {
+                if(_second[i] == v) {
+                    return i;
+                }
+            }
+            return {};
+        }
+    };
+    template<typename VT1, typename VT2, typename... Rest>
+    LookupTable(const VT1 &v1, const VT2 &v2, const Rest &...args)
+        -> LookupTable<VT1, VT2, 1 + sizeof...(Rest) / 2>;
+
 } // namespace util
