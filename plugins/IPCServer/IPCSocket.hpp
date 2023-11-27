@@ -322,12 +322,9 @@ struct SocketSet {
 
         FD_CLR(sd, &_set);
 
-        --sd;
-        while(sd > 0 && !contains(sd)) {
-            --sd;
+        while(_max > 0 && !contains(_max)) {
+            --_max;
         }
-
-        _max = sd;
     }
 
     template<class Socket>
