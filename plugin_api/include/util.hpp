@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -57,41 +58,61 @@ namespace util {
         return target;
     }
 
+    template<class T>
+    using type_identity = T;
+
     //
     // Used for views into memory buffers with safe copies (C++20 has span, C++17 does not)
     //
     template<typename DataT, typename SizeT = std::size_t>
     class Span {
-        DataT *_ptr;
-        SizeT _len;
+        DataT *_ptr{nullptr};
+        SizeT _len{0};
 
     public:
-        Span(DataT *ptr, SizeT len) noexcept : _ptr(ptr), _len(len) {
+        constexpr Span() noexcept = default;
+        constexpr Span(DataT *ptr, SizeT len) noexcept : _ptr(ptr), _len(len) {
         }
 
-        DataT &operator[](SizeT i) noexcept {
-            return *_ptr[i];
+        template<size_t N>
+        // NOLINTNEXTLINE (*-c-arrays)
+        constexpr Span(type_identity<DataT> (&e)[N]) noexcept
+            : _ptr(std::data(e)), _len{std::size(e)} {
         }
 
-        const DataT &operator[](SizeT i) const noexcept {
-            return *_ptr[i];
+        template<size_t N>
+        // NOLINTNEXTLINE (*-explicit-constructor)
+        constexpr Span(std::array<DataT, N> &arr) noexcept
+            : _ptr{std::data(arr)}, _len{std::size(arr)} {
         }
 
-        [[nodiscard]] SizeT size() const noexcept {
+        constexpr DataT &operator[](SizeT i) const noexcept {
+            return _ptr[i];
+        }
+
+        [[nodiscard]] constexpr SizeT size() const noexcept {
             return _len;
         }
 
-        DataT *begin() noexcept {
+        [[nodiscard]] constexpr bool empty() const noexcept {
+            return size() == SizeT{0};
+        }
+
+        constexpr DataT *data() const noexcept {
             return _ptr;
         }
 
-        DataT *end() noexcept {
+        constexpr DataT *begin() const noexcept {
+            return _ptr;
+        }
+
+        constexpr DataT *end() const noexcept {
             return _ptr + _len;
         }
 
         template<typename OutputIt>
-        SizeT copyTo(OutputIt d_first, OutputIt d_last) {
-            DataT *s = begin();
+        SizeT copyTo(OutputIt d_first, OutputIt d_last) const noexcept {
+            const DataT *s = begin();
             DataT *s_last = end();
             OutputIt d = d_first;
             for(; s != s_last && d != d_last; ++s, ++d) {
@@ -101,7 +122,7 @@ namespace util {
         }
 
         template<typename InputIt>
-        SizeT copyFrom(InputIt s_first, InputIt s_last) {
+        SizeT copyFrom(InputIt s_first, InputIt s_last) const noexcept {
             DataT *d = begin();
             DataT *d_last = end();
             InputIt s = s_first;
@@ -109,6 +130,14 @@ namespace util {
                 *d = *s;
             }
             return d - begin();
+        }
+
+        constexpr Span first(SizeT n) const noexcept {
+            return {data(), n};
+        }
+
+        constexpr Span last(SizeT n) const noexcept {
+            return {end() - n, n};
         }
     };
 

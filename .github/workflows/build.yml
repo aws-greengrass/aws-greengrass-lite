@@ -72,7 +72,7 @@ jobs:
       - name: Build
         run:
           cmake --build ${{ github.workspace }}/build --config ${{
-          matrix.build_type }}
+          matrix.build_type }} -j4
 
       - name: Run Tests
         working-directory: ${{ github.workspace }}/build
