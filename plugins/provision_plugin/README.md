@@ -8,11 +8,12 @@ This plugin takes following parameters from config file
 
 ```yaml
 ---
+system:
+  rootPath: "/"
+  rootCaPath: "/path/to/AmazonRootCA1.pem"
 services:
   aws.greengrass.FleetProvisioningByClaim:
     configuration:
-      rootPath: "/"
-      rootCaPath: "/path/to/AmazonRootCA1.pem"
       iotDataEndpoint: "device-data-prefix-ats.iot.us-west-2.amazonaws.com"
       claimKeyPath: "/path/to/claim.private.pem.key"
       claimCertPath: "/path/to/claim.pem.crt"

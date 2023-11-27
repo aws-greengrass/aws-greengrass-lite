@@ -70,6 +70,8 @@ class ProvisionPlugin : public ggapi::Plugin {
     std::filesystem::path _certPath;
     std::filesystem::path _keyPath;
 
+    std::atomic<ggapi::Struct> _system;
+
     static const Keys keys;
     static constexpr std::string_view DEVICE_CERTIFICATE_PATH_RELATIVE_TO_ROOT = "thingCert.crt";
     static constexpr std::string_view PRIVATE_KEY_PATH_RELATIVE_TO_ROOT = "privateKey.key";
@@ -77,9 +79,8 @@ class ProvisionPlugin : public ggapi::Plugin {
     static constexpr auto HTTPS_PORT = 443;
     static constexpr auto SOCKS5_PORT = 1080;
 
-    explicit ProvisionPlugin(){};
-
 public:
+    ProvisionPlugin() = default;
     void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
     bool onBootstrap(ggapi::Struct data) override;
     bool onBind(ggapi::Struct data) override;

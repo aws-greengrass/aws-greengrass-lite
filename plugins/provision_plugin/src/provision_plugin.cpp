@@ -40,6 +40,7 @@ bool ProvisionPlugin::onBootstrap(ggapi::Struct data) {
  */
 bool ProvisionPlugin::onBind(ggapi::Struct data) {
     _subscription = getScope().subscribeToTopic(keys.topicName, brokerListener);
+    _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
     return true;
 }
 
@@ -96,10 +97,12 @@ ggapi::Struct ProvisionPlugin::provisionDevice() {
  * @param deviceConfig Device configuration to be copied
  */
 void ProvisionPlugin::setDeviceConfig() {
-    auto serviceConfig = getConfig().getValue<ggapi::Struct>({"configuration"});
+    // GG-Interop: Load from the system instead of service
+    auto system = _system.load();
+    _deviceConfig.rootPath = system.getValue<std::string>({"rootpath"});
+    _deviceConfig.rootCaPath = system.getValue<std::string>({"rootCaPath"});
 
-    _deviceConfig.rootPath = serviceConfig.getValue<std::string>({"rootPath"});
-    _deviceConfig.rootCaPath = serviceConfig.getValue<std::string>({"rootCaPath"});
+    auto serviceConfig = getConfig().getValue<ggapi::Struct>({"configuration"});
     _deviceConfig.templateName = serviceConfig.getValue<std::string>({"templateName"});
     _deviceConfig.claimKeyPath = serviceConfig.getValue<std::string>({"claimKeyPath"});
     _deviceConfig.claimCertPath = serviceConfig.getValue<std::string>({"claimCertPath"});

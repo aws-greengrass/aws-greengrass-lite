@@ -205,7 +205,7 @@ public:
     void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
     bool validConfig() const;
     bool initMqtt();
-    void asyncThreadFn();
+    void publishToProvisionPlugin();
 
     static IotBroker &get() {
         static IotBroker instance{};
@@ -375,8 +375,7 @@ bool IotBroker::onStart(ggapi::Struct data) {
     if(!validConfig()) {
         std::cout << "[mqtt-plugin] Device is not provisioned. Running provision plugin...\n";
         try {
-            _asyncThread = std::thread{&IotBroker::asyncThreadFn, this};
-            _asyncThread.join(); // wait for provisioning to complete
+            publishToProvisionPlugin();
         } catch(const std::exception &e) {
             std::cerr << "[mqtt-plugin] Error while running the provision plugin \n." << e.what();
             return false;
@@ -479,7 +478,7 @@ bool IotBroker::initMqtt() {
     return true;
 }
 
-void IotBroker::asyncThreadFn() {
+void IotBroker::publishToProvisionPlugin() {
     auto reqData = ggapi::Struct::create();
     auto respData =
         ggapi::Task::sendToTopic(ggapi::Symbol{keys.requestDeviceProvisionTopic}, reqData);
