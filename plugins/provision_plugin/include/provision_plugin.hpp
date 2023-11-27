@@ -77,8 +77,9 @@ class ProvisionPlugin : public ggapi::Plugin {
     static constexpr auto HTTPS_PORT = 443;
     static constexpr auto SOCKS5_PORT = 1080;
 
+    explicit ProvisionPlugin(){};
+
 public:
-    ProvisionPlugin(){};
     void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
     bool onBootstrap(ggapi::Struct data) override;
     bool onBind(ggapi::Struct data) override;
@@ -88,7 +89,7 @@ public:
     static ggapi::Struct brokerListener(
         ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
     static ProvisionPlugin &get() {
-        static ProvisionPlugin instance{};
+        static ProvisionPlugin instance;
         return instance;
     }
 
