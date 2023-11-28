@@ -25,7 +25,7 @@ namespace plugins {
     class PluginLoader;
 
     //
-    // Abstract plugins also acts as a global anchor for the given plugins module
+    // Abstract plugins also act as a global anchor for the given plugins module
     //
     class AbstractPlugin : public data::TrackingScope {
     protected:
@@ -70,7 +70,7 @@ namespace plugins {
     };
 
     //
-    // Delegate plugins is managed by a parent (typically native) plugins
+    // Delegate plugins are managed by a parent (typically native) plugins
     //
     class DelegatePlugin : public AbstractPlugin {
     private:

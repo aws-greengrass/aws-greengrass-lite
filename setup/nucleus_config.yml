@@ -37,6 +37,7 @@ services:
       iotCredEndpoint: ""
       claimKeyPath: "..."
       claimCertPath: "..."
+      deviceId: ""
       templateName: "..."
       templateParams: "..."
       csrPath: ""

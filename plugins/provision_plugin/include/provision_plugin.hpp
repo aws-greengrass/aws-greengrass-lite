@@ -70,6 +70,8 @@ class ProvisionPlugin : public ggapi::Plugin {
     std::filesystem::path _certPath;
     std::filesystem::path _keyPath;
 
+    std::atomic<ggapi::Struct> _system;
+
     static const Keys keys;
     static constexpr std::string_view DEVICE_CERTIFICATE_PATH_RELATIVE_TO_ROOT = "thingCert.crt";
     static constexpr std::string_view PRIVATE_KEY_PATH_RELATIVE_TO_ROOT = "privateKey.key";
@@ -79,11 +81,6 @@ class ProvisionPlugin : public ggapi::Plugin {
 
 public:
     ProvisionPlugin() = default;
-    ~ProvisionPlugin() override = default;
-    ProvisionPlugin(const ProvisionPlugin &) = delete;
-    ProvisionPlugin(ProvisionPlugin &&) noexcept = delete;
-    ProvisionPlugin &operator=(const ProvisionPlugin &) = delete;
-    ProvisionPlugin &operator=(ProvisionPlugin &&) noexcept = delete;
     void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
     bool onBootstrap(ggapi::Struct data) override;
     bool onBind(ggapi::Struct data) override;
@@ -93,7 +90,7 @@ public:
     static ggapi::Struct brokerListener(
         ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
     static ProvisionPlugin &get() {
-        static ProvisionPlugin instance{};
+        static ProvisionPlugin instance;
         return instance;
     }
 
@@ -106,7 +103,7 @@ public:
 
     bool initMqtt();
 
-    void setDeviceConfig(const DeviceConfig &);
+    void setDeviceConfig();
 
     ggapi::Struct provisionDevice();
 };

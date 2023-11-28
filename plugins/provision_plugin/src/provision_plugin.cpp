@@ -23,29 +23,10 @@ void ProvisionPlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data
  * Listen on the well-known Provisioning topic, and if a request for provisioning comes in,
  * perform a By-Claim provisioning action to IoT Core.
  */
-ggapi::Struct ProvisionPlugin::brokerListener(
-    ggapi::Task, ggapi::StringOrd, ggapi::Struct callData) {
-    auto configStruct = callData.getValue<ggapi::Struct>({"config"});
-
-    DeviceConfig deviceConfig;
-    // TODO: most of these can come from getConfig()
-    deviceConfig.templateName = configStruct.getValue<std::string>({"templateName"});
-    deviceConfig.claimKeyPath = configStruct.getValue<std::string>({"claimKeyPath"});
-    deviceConfig.claimCertPath = configStruct.getValue<std::string>({"claimCertPath"});
-    deviceConfig.endpoint = configStruct.getValue<std::string>({"endpoint"});
-    deviceConfig.rootPath = configStruct.getValue<std::string>({"rootpath"});
-    deviceConfig.templateParams = configStruct.getValue<std::string>({"templateParams"});
-    deviceConfig.rootCaPath = configStruct.getValue<std::string>({"rootCaPath"});
-    deviceConfig.proxyUsername = configStruct.getValue<std::string>({"proxyUsername"});
-    deviceConfig.proxyPassword = configStruct.getValue<std::string>({"proxyPassword"});
-    deviceConfig.mqttPort = configStruct.getValue<uint64_t>({"mqttPort"});
-    deviceConfig.proxyUrl = configStruct.getValue<std::string>({"proxyUrl"});
-    deviceConfig.csrPath = configStruct.getValue<std::string>({"csrPath"});
-    deviceConfig.deviceId = Aws::Crt::String("temp-") + Aws::Crt::UUID().ToString();
-
-    auto deviceProvisioning = std::make_unique<ProvisionPlugin>();
-    deviceProvisioning->setDeviceConfig(deviceConfig);
-    return deviceProvisioning->provisionDevice();
+ggapi::Struct ProvisionPlugin::brokerListener(ggapi::Task, ggapi::StringOrd, ggapi::Struct) {
+    ProvisionPlugin &pluginInstance = ProvisionPlugin::get();
+    pluginInstance.setDeviceConfig();
+    return pluginInstance.provisionDevice();
 }
 
 bool ProvisionPlugin::onBootstrap(ggapi::Struct data) {
@@ -59,6 +40,7 @@ bool ProvisionPlugin::onBootstrap(ggapi::Struct data) {
  */
 bool ProvisionPlugin::onBind(ggapi::Struct data) {
     _subscription = getScope().subscribeToTopic(keys.topicName, brokerListener);
+    _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
     return true;
 }
 
@@ -114,8 +96,25 @@ ggapi::Struct ProvisionPlugin::provisionDevice() {
  * Set the device configuration for provisioning
  * @param deviceConfig Device configuration to be copied
  */
-void ProvisionPlugin::setDeviceConfig(const DeviceConfig &deviceConfig) {
-    _deviceConfig = deviceConfig;
+void ProvisionPlugin::setDeviceConfig() {
+    // GG-Interop: Load from the system instead of service
+    auto system = _system.load();
+    _deviceConfig.rootPath = system.getValue<std::string>({"rootpath"});
+    _deviceConfig.rootCaPath = system.getValue<std::string>({"rootCaPath"});
+
+    auto serviceConfig = getConfig().getValue<ggapi::Struct>({"configuration"});
+    _deviceConfig.templateName = serviceConfig.getValue<std::string>({"templateName"});
+    _deviceConfig.claimKeyPath = serviceConfig.getValue<std::string>({"claimKeyPath"});
+    _deviceConfig.claimCertPath = serviceConfig.getValue<std::string>({"claimCertPath"});
+    _deviceConfig.endpoint = serviceConfig.getValue<std::string>({"iotDataEndpoint"});
+    _deviceConfig.templateParams = serviceConfig.getValue<std::string>({"templateParams"});
+    _deviceConfig.proxyUsername = serviceConfig.getValue<std::string>({"proxyUsername"});
+    _deviceConfig.proxyPassword = serviceConfig.getValue<std::string>({"proxyPassword"});
+    _deviceConfig.mqttPort = serviceConfig.getValue<uint64_t>({"mqttPort"});
+    _deviceConfig.proxyUrl = serviceConfig.getValue<std::string>({"proxyUrl"});
+    _deviceConfig.csrPath = serviceConfig.getValue<std::string>({"csrPath"});
+    _deviceConfig.deviceId = serviceConfig.getValue<std::string>({"deviceId"});
+
     if(_deviceConfig.templateName.empty()) {
         throw std::runtime_error("Template name not found.");
     }
@@ -126,6 +125,9 @@ void ProvisionPlugin::setDeviceConfig(const DeviceConfig &deviceConfig) {
     }
     if(_deviceConfig.rootPath.empty()) {
         throw std::runtime_error("Root path not found.");
+    }
+    if(_deviceConfig.deviceId.empty()) {
+        _deviceConfig.deviceId = Aws::Crt::String("temp-") + Aws::Crt::UUID().ToString();
     }
     _keyPath = std::filesystem::path(_deviceConfig.rootPath) / PRIVATE_KEY_PATH_RELATIVE_TO_ROOT;
     _certPath =
