@@ -1,17 +1,9 @@
 #include "IPCSocket.hpp"
 
-#include <condition_variable>
-#include <cstddef>
-
-#include <algorithm>
-#include <exception>
 #include <iostream>
 #include <iterator>
 #include <memory>
-#include <mutex>
-#include <ratio>
 #include <sstream>
-#include <stdexcept>
 #include <string_view>
 #include <system_error>
 #include <thread>
@@ -220,42 +212,4 @@ void doRunPhase() {
     for(auto &client : clients) {
         client.join();
     }
-}
-
-extern "C" bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept
-    try {
-    std::cout << "Running lifecycle plugins 1... " << ggapi::StringOrd{phase}.toString()
-              << std::endl;
-    const auto &keys = Keys::get();
-
-    ggapi::StringOrd phaseOrd{phase};
-
-    static std::unique_ptr<Aws::Greengrass::IpcThread> ipc{};
-    static std::thread thread{};
-
-    if(phaseOrd == keys.start) {
-        if(!ipc && !thread.joinable()) {
-            std::tie(ipc, thread) = doStartPhase();
-        }
-    } else if(phaseOrd == keys.run) {
-        if(ipc && thread.joinable()) {
-            if(ipc->signalStart()) {
-                doRunPhase();
-            }
-        }
-    } else if(phaseOrd == keys.shutdown) {
-        if(ipc && thread.joinable()) {
-            ipc->signalStop();
-            thread.join();
-        }
-        ipc.reset();
-    }
-
-    return true;
-} catch(const std::exception &e) {
-    std::cerr << e.what() << '\n';
-    return false;
-} catch(...) {
-    std::cerr << "Unknown exception caught\n";
-    return false;
 }

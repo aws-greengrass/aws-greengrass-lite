@@ -27,7 +27,7 @@
 #error IPC unsupported OS
 #endif
 
-#include <util.hpp>
+#include "util.hpp"
 
 static constexpr std::string_view IPC_LOG_TAG = "[IPCServer] ";
 
