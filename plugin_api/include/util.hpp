@@ -343,16 +343,16 @@ namespace util {
     class Enum {
 
         template<typename Ret, typename Func, EType Vfirst, EType... Vrest>
-        constexpr static std::optional<Ret> _visit(const EType &v, Func func) {
+        constexpr static std::optional<Ret> _visit(const EType &v, Func &&func) {
             if(v == Vfirst) {
-                return func(enumConst<Vfirst>);
+                return std::invoke(std::forward<Func>(func), enumConst<Vfirst>);
             } else {
-                return _visit<Ret, Func, Vrest...>(v, func);
+                return _visit<Ret, Func, Vrest...>(v, std::forward<Func>(func));
             }
         }
 
         template<typename Ret, typename Func>
-        constexpr static std::optional<Ret> _visit(const EType &, Func) {
+        constexpr static std::optional<Ret> _visit(const EType &, Func &&) {
             return {};
         }
 
@@ -362,18 +362,18 @@ namespace util {
         template<EType T>
         using ConstType = EnumConst<EType, T>;
         template<EType T>
-        static constexpr auto enumConst = ConstType<T>();
+        static constexpr ConstType<T> enumConst = ConstType<T>();
 
         template<uint32_t index>
         static constexpr auto enumAt = TmplConstAt<index, EType, EVals...>::value;
         template<uint32_t index>
         using ConstTypeAt = ConstType<enumAt<index>>;
         template<uint32_t index>
-        static constexpr auto enumConstAt = enumConst<enumAt<index>>;
+        static constexpr ConstTypeAt<index> enumConstAt = enumConst<enumAt<index>>;
 
         template<typename Ret, typename Func>
-        static std::optional<Ret> visit(const BaseType &v, Func func) {
-            return _visit<Ret, Func, EVals...>(v, func);
+        static std::optional<Ret> visit(const BaseType &v, Func &&func) {
+            return _visit<Ret, Func, EVals...>(v, std::forward<Func>(func));
         }
     };
 
