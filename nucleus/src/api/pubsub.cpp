@@ -3,32 +3,9 @@
 #include "scope/context_full.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task.hpp"
+#include "tasks/task_callbacks.hpp"
 #include "tasks/task_threads.hpp"
 #include <cpp_api.hpp>
-
-class NativeTopicCallback : public pubsub::AbstractCallback {
-private:
-    ggapiTopicCallback _callback;
-    uintptr_t _context;
-
-public:
-    explicit NativeTopicCallback(ggapiTopicCallback callback, uintptr_t context)
-        : _callback{callback}, _context{context} {
-    }
-
-    data::ObjHandle operator()(
-        data::ObjHandle taskHandle, data::Symbol topicOrd, data::ObjHandle argsHandle) override {
-        auto &context = scope::Context::get();
-        errors::ThreadErrorContainer::get().clear();
-        auto resIntHandle =
-            _callback(_context, taskHandle.asInt(), topicOrd.asInt(), argsHandle.asInt());
-        data::ObjHandle v = context.handleFromInt(resIntHandle);
-        if(!v) {
-            errors::ThreadErrorContainer::get().throwIfError();
-        }
-        return v;
-    }
-};
 
 bool ggapiIsSubscription(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
@@ -38,39 +15,23 @@ bool ggapiIsSubscription(uint32_t handle) noexcept {
 }
 
 uint32_t ggapiSubscribeToTopic(
-    uint32_t anchorHandle,
-    uint32_t topicOrd,
-    ggapiTopicCallback rxCallback,
-    uintptr_t contextInt) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([anchorHandle, topicOrd, rxCallback, contextInt]() {
+    uint32_t anchorHandle, uint32_t topic, uint32_t rxCallback) noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([anchorHandle, topic, rxCallback]() {
         auto &context = scope::context();
-        auto scope = context.objFromInt<data::TrackingScope>(anchorHandle);
-        if(!scope) {
-            throw errors::NullHandleError();
-        }
-        if(!rxCallback) {
-            throw errors::InvalidCallbackError();
-        }
-        auto threadTaskData = scope::thread().getThreadTaskData();
-        std::shared_ptr<tasks::TaskThread> affinity;
-        if(threadTaskData->isSingleThreadMode()) {
-            affinity = threadTaskData;
-        }
-        std::unique_ptr<pubsub::AbstractCallback> callback{
-            new NativeTopicCallback(rxCallback, contextInt)};
-        auto anchor = scope->root()->anchor(context.lpcTopics().subscribe(
-            context.symbolFromInt(topicOrd), std::move(callback), affinity));
-        return anchor.asIntHandle();
+        auto callback = context.objFromInt<tasks::Callback>(rxCallback);
+        return context.lpcTopics()
+            .subscribe(context.handleFromInt(anchorHandle), context.symbolFromInt(topic), callback)
+            .asIntHandle();
     });
 }
 
 static inline std::shared_ptr<tasks::Task> pubSubCreateCommon(
     data::ObjHandle listenerHandle,
-    data::Symbol topicOrd,
+    data::Symbol topic,
     data::ObjHandle callStructHandle,
     std::unique_ptr<tasks::SubTask> callback,
     int timeout) {
-    auto &context = scope::Context::get();
+    auto &context = scope::context();
 
     // New Task
     auto newTaskObj = std::make_shared<tasks::Task>(context.baseRef());
@@ -88,7 +49,7 @@ static inline std::shared_ptr<tasks::Task> pubSubCreateCommon(
     }
 
     context.lpcTopics().initializePubSubCall(
-        newTaskObj, explicitListener, topicOrd, callDataStruct, std::move(callback), expireTime);
+        newTaskObj, explicitListener, topic, callDataStruct, std::move(callback), expireTime);
     return newTaskObj;
 }
 
@@ -115,11 +76,11 @@ static inline data::ObjHandle pubSubQueueAsyncCommon(const std::shared_ptr<tasks
     return taskObj->getSelf();
 }
 
-uint32_t ggapiSendToTopic(uint32_t topicOrd, uint32_t callStruct, int32_t timeout) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([topicOrd, callStruct, timeout]() {
-        auto &context = scope::Context::get();
+uint32_t ggapiSendToTopic(uint32_t topic, uint32_t callStruct, int32_t timeout) noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([topic, callStruct, timeout]() {
+        auto &context = scope::context();
         std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(
-            {}, context.symbolFromInt(topicOrd), context.handleFromInt(callStruct), {}, timeout);
+            {}, context.symbolFromInt(topic), context.handleFromInt(callStruct), {}, timeout);
         return pubSubQueueAndWaitCommon(taskObj).asInt();
     });
 }
@@ -127,7 +88,7 @@ uint32_t ggapiSendToTopic(uint32_t topicOrd, uint32_t callStruct, int32_t timeou
 uint32_t ggapiSendToListener(
     uint32_t listenerHandle, uint32_t callStruct, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listenerHandle, callStruct, timeout]() {
-        auto &context = scope::Context::get();
+        auto &context = scope::context();
         std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(
             context.handleFromInt(listenerHandle),
             {},
@@ -139,50 +100,40 @@ uint32_t ggapiSendToListener(
 }
 
 uint32_t ggapiSendToTopicAsync(
-    uint32_t topicOrd,
-    uint32_t callStruct,
-    ggapiTopicCallback respCallback,
-    uintptr_t callbackCtx,
-    int32_t timeout) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>(
-        [topicOrd, callStruct, respCallback, callbackCtx, timeout]() {
-            auto &context = scope::Context::get();
-            std::unique_ptr<tasks::SubTask> callback;
-            if(respCallback) {
-                callback = pubsub::CompletionSubTask::of(
-                    context.symbolFromInt(topicOrd),
-                    std::make_unique<NativeTopicCallback>(respCallback, callbackCtx));
-            }
-            std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(
-                {},
-                context.symbolFromInt(topicOrd),
-                context.handleFromInt(callStruct),
-                std::move(callback),
-                timeout);
-            return pubSubQueueAsyncCommon(taskObj).asInt();
-        });
+    uint32_t topic, uint32_t callStruct, uint32_t respCallback, int32_t timeout) noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([topic, callStruct, respCallback, timeout]() {
+        auto &context = scope::context();
+        auto callback = context.objFromInt<tasks::Callback>(respCallback);
+        std::unique_ptr<tasks::SubTask> respSubTask;
+        if(callback) {
+            respSubTask =
+                std::make_unique<pubsub::TopicSubTask>(context.symbolFromInt(topic), callback);
+        }
+        std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(
+            {},
+            context.symbolFromInt(topic),
+            context.handleFromInt(callStruct),
+            std::move(respSubTask),
+            timeout);
+        return pubSubQueueAsyncCommon(taskObj).asInt();
+    });
 }
 
 uint32_t ggapiSendToListenerAsync(
-    uint32_t listenerHandle,
-    uint32_t callStruct,
-    ggapiTopicCallback respCallback,
-    uintptr_t callbackCtx,
-    int32_t timeout) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>(
-        [listenerHandle, callStruct, respCallback, callbackCtx, timeout]() {
-            auto &context = scope::Context::get();
-            std::unique_ptr<tasks::SubTask> callback;
-            if(respCallback) {
-                callback = pubsub::CompletionSubTask::of(
-                    {}, std::make_unique<NativeTopicCallback>(respCallback, callbackCtx));
-            }
-            std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(
-                context.handleFromInt(listenerHandle),
-                {},
-                context.handleFromInt(callStruct),
-                std::move(callback),
-                timeout);
-            return pubSubQueueAsyncCommon(taskObj).asInt();
-        });
+    uint32_t listenerHandle, uint32_t callStruct, uint32_t respCallback, int32_t timeout) noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([listenerHandle, callStruct, respCallback, timeout]() {
+        auto &context = scope::context();
+        auto callback = context.objFromInt<tasks::Callback>(respCallback);
+        std::unique_ptr<tasks::SubTask> respSubTask;
+        if(callback) {
+            respSubTask = std::make_unique<pubsub::TopicSubTask>(data::Symbol{}, callback);
+        }
+        std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(
+            context.handleFromInt(listenerHandle),
+            {},
+            context.handleFromInt(callStruct),
+            std::move(respSubTask),
+            timeout);
+        return pubSubQueueAsyncCommon(taskObj).asInt();
+    });
 }

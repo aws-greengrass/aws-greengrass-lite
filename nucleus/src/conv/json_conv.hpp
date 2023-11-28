@@ -2,9 +2,9 @@
 
 #include "data/shared_list.hpp"
 #include "data/struct_model.hpp"
-#include "rapidjson/reader.h"
-#include "rapidjson/stringbuffer.h"
-#include "rapidjson/writer.h"
+#include <rapidjson/reader.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 
 namespace conv {
     class JsonReader;

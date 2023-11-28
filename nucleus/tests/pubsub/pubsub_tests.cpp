@@ -1,5 +1,6 @@
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
+#include "tasks/task_callbacks.hpp"
 #include "tasks/task_threads.hpp"
 #include <catch2/catch_all.hpp>
 
@@ -7,8 +8,7 @@
 
 using namespace std::literals;
 
-class ListenerStub : public pubsub::AbstractCallback {
-    std::shared_ptr<scope::Context> _context;
+class ListenerStub : public tasks::Callback {
     std::string _flagName;
     std::shared_ptr<data::StructModelBase> _returnData;
 
@@ -17,30 +17,28 @@ public:
         const std::shared_ptr<scope::Context> &context,
         const std::string_view &flagName,
         const std::shared_ptr<data::StructModelBase> &returnData)
-        : _context(context), _flagName(flagName), _returnData{returnData} {
+        : tasks::Callback(context), _flagName(flagName), _returnData{returnData} {
     }
 
     ListenerStub(const std::shared_ptr<scope::Context> &context, const std::string_view &flagName)
-        : _context(context), _flagName(flagName) {
+        : tasks::Callback(context), _flagName(flagName) {
     }
 
-    data::ObjHandle operator()(
-        data::ObjHandle taskHandle, data::Symbol topicOrd, data::ObjHandle dataStruct) override {
-        auto scope = taskHandle.toObject<tasks::Task>();
-        auto topic = topicOrd.toStringOr("(anon)"s);
-        std::shared_ptr<data::StructModelBase> data;
-        if(dataStruct) {
-            data = dataStruct.toObject<data::StructModelBase>();
+    std::shared_ptr<data::StructModelBase> invokeTopicCallback(
+        const std::shared_ptr<tasks::Task> &task,
+        const data::Symbol &topicSymbol,
+        const std::shared_ptr<data::StructModelBase> &data) override {
+
+        auto topic = topicSymbol.toStringOr("(anon)"s);
+        if(data) {
             data->put(_flagName, topic);
         }
         if(_returnData) {
             _returnData->put(
                 "_" + _flagName,
                 data::StructElement{std::static_pointer_cast<data::ContainerModelBase>(data)});
-            return scope::NucleusCallScopeContext::handle(_returnData);
-        } else {
-            return {};
         }
+        return _returnData;
     }
 };
 
@@ -52,14 +50,14 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
         data::Symbol topic{context->intern("topic")};
         data::Symbol topic2{context->intern("other-topic")};
         auto callRetData{std::make_shared<data::SharedStruct>(context)};
-        std::shared_ptr<pubsub::Listener> subs1{context->lpcTopics().subscribe(
-            {}, std::make_unique<ListenerStub>(context, "subs1"), {})};
+        std::shared_ptr<pubsub::Listener> subs1{
+            context->lpcTopics().subscribe({}, std::make_shared<ListenerStub>(context, "subs1"))};
         std::shared_ptr<pubsub::Listener> subs2{context->lpcTopics().subscribe(
-            topic, std::make_unique<ListenerStub>(context, "subs2", callRetData), {})};
+            topic, std::make_shared<ListenerStub>(context, "subs2", callRetData))};
         std::shared_ptr<pubsub::Listener> subs3{context->lpcTopics().subscribe(
-            topic, std::make_unique<ListenerStub>(context, "subs3"), {})};
+            topic, std::make_shared<ListenerStub>(context, "subs3"))};
         std::shared_ptr<pubsub::Listener> subs4{context->lpcTopics().subscribe(
-            topic2, std::make_unique<ListenerStub>(context, "subs4", callRetData), {})};
+            topic2, std::make_shared<ListenerStub>(context, "subs4", callRetData))};
         WHEN("A query of topic listeners is made") {
             std::shared_ptr<pubsub::Listeners> listeners{context->lpcTopics().getListeners(topic)};
             THEN("The set of listeners is returned") {
@@ -123,7 +121,7 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             THEN("Topic listeners were visited") {
                 // inserted first... is this correct? maybe doesn't matter
                 REQUIRE(callArgData->hasKey("subs1"));
-                REQUIRE(callArgData->get("subs1").getString() == "(anon)");
+                REQUIRE(callArgData->get("subs1").getString() == "topic");
                 // last-in-first-out
                 REQUIRE(callArgData->hasKey("subs3"));
                 REQUIRE(callArgData->get("subs3").getString() == "topic");

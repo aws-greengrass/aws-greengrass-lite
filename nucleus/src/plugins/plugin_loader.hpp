@@ -21,6 +21,10 @@ namespace deployment {
     class DeviceConfiguration;
 }
 
+namespace tasks {
+    class Callback;
+}
+
 namespace plugins {
     class PluginLoader;
 
@@ -67,7 +71,7 @@ namespace plugins {
             const std::function<void(
                 plugins::AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)> &fn);
 
-        void bootstrap(PluginLoader &loader);
+        void initialize(PluginLoader &loader);
         PluginLoader &loader();
     };
 
@@ -78,19 +82,15 @@ namespace plugins {
     private:
         mutable std::shared_mutex _mutex;
         std::shared_ptr<AbstractPlugin> _parent; // delegate keeps parent in memory
-        ggapiLifecycleCallback _delegateLifecycle{nullptr}; // called to handle
-                                                            // this delegate
-        uintptr_t _delegateContext{0}; // use of this defined by delegate
+        std::shared_ptr<tasks::Callback> _callback;
 
     public:
         explicit DelegatePlugin(
             const std::shared_ptr<scope::Context> &context,
             std::string_view name,
             const std::shared_ptr<AbstractPlugin> &parent,
-            ggapiLifecycleCallback delegateLifecycle,
-            uintptr_t delegateContext)
-            : AbstractPlugin(context, name), _parent{parent}, _delegateLifecycle{delegateLifecycle},
-              _delegateContext{delegateContext} {
+            const std::shared_ptr<tasks::Callback> &callback)
+            : AbstractPlugin(context, name), _parent{parent}, _callback{callback} {
         }
 
         bool callNativeLifecycle(
@@ -212,7 +212,7 @@ namespace plugins {
         }
 
         std::shared_ptr<data::StructModelBase> buildParams(
-            plugins::AbstractPlugin &plugin, bool bootstrap = false) const;
+            plugins::AbstractPlugin &plugin, bool partial = false) const;
 
         void discoverPlugins(const std::filesystem::path &pluginDir);
         void discoverPlugin(const std::filesystem::directory_entry &entry);

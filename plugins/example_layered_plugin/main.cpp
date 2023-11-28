@@ -39,11 +39,12 @@ extern "C" [[maybe_unused]] [[maybe_unused]] EXPORT bool greengrass_lifecycle(
     return LayeredPlugin::get().lifecycle(moduleHandle, phase, data);
 }
 
-void greengrass_delegate_lifecycle(
+bool greengrass_delegate_lifecycle(
     ggapi::ModuleScope moduleHandle, ggapi::StringOrd phase, ggapi::Struct data) {
     std::cout << "Running lifecycle getDelegate... " << moduleHandle.getHandleId() << " phase "
               << phase.toString() << std::endl;
     LayeredPlugin::get().getDelegate(moduleHandle).lifecycle(moduleHandle, phase, data);
+    return true;
 }
 
 bool DelegatePlugin::onStart(ggapi::Struct data) {
