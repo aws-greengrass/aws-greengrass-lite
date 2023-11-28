@@ -13,18 +13,21 @@ endif()
 
 add_library(
   ipc MODULE
+  include/adapter.hpp
   include/event_stream.hpp
   include/ipc_plugin.hpp
   include/rpc_server.hpp
   include/server_connection.hpp
   include/server_listener.hpp
   main.cpp
+  src/adapter.cpp
   src/basic_server.cpp
   src/event_stream.cpp
   src/ipc_plugin.cpp
   src/rpc_server.cpp
   src/server_connection.cpp
   src/server_listener.cpp)
-target_link_libraries(ipc PRIVATE nucleus-core aws-crt-cpp)
+target_link_libraries(ipc PRIVATE nucleus-core aws-crt-cpp EventstreamRpc-cpp
+                                  GreengrassIpc-cpp)
 target_include_directories(ipc PRIVATE include)
 install(TARGETS ipc DESTINATION plugins)

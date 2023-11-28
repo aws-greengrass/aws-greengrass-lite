@@ -14,6 +14,11 @@ void IpcPlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) {
               << ggapi::StringOrd{phase}.toString() << std::endl;
 }
 
+/**
+ *
+ * @param data
+ * @return
+ */
 bool IpcPlugin::onBootstrap(ggapi::Struct data) {
     data.put(NAME, keys.serviceName);
     return true;
