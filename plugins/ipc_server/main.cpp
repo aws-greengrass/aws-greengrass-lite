@@ -101,10 +101,11 @@ static void s_fixture_on_protocol_message(
     void *user_data) {
     std::cerr << "😹 called s_fixture_on_protocol_message" << std::endl;
     for(auto item : util::Span{message_args->headers, message_args->headers_count}) {
-        std::cerr.write(std::data(item.header_name), item.header_value_len);
+        std::cerr.write(std::data(item.header_name), item.header_name_len);
+        std::cerr << '=';
         std::visit(
             [](auto &&val) {
-                using T = decltype(val);
+                using T = std::decay_t<decltype(val)>;
                 if constexpr(
                     std::is_arithmetic_v<T> || std::is_same_v<std::true_type, T>
                     || std::is_same_v<std::false_type, T> || std::is_same_v<std::string_view, T>) {
@@ -112,23 +113,24 @@ static void s_fixture_on_protocol_message(
                 } else if constexpr(std::is_same_v<timestamp, T>) {
                     std::cerr << val.count() << "ms";
                 } else if constexpr(std::is_same_v<util::Span<std::byte, uint16_t>, T>) {
-                    std::cerr.write(val.data(), val.size());
+                    std::cerr.write(reinterpret_cast<const char *>(val.begin()), val.size());
                 } else if constexpr(std::is_same_v<T, aws_uuid>) {
                     auto flags = std::cerr.flags();
                     std::cerr.flags(std::ios::hex | std::ios::uppercase);
-                    for(auto &&v : val) {
+                    for(auto &&v : val.uuid_data) {
                         std::cerr << v;
                     }
                     std::cerr.flags(flags);
                 }
-                std::cerr << ':';
+                std::cerr << '\n';
             },
             getValue(item));
-        std::cerr.write(
-            reinterpret_cast<const char *>(message_args->payload->buffer),
-            message_args->payload->len)
-            << std::endl;
     }
+    (std::cerr << '\n')
+            .write(
+                reinterpret_cast<const char *>(message_args->payload->buffer),
+                message_args->payload->len)
+        << std::endl;
 }
 static int on_incoming_stream(
     struct aws_event_stream_rpc_server_connection *connection,
