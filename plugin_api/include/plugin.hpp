@@ -32,11 +32,11 @@ namespace ggapi {
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::BIND> &, Struct data) {
             internalBind(data);
-            return onBootstrap(data);
+            return onBind(data);
         }
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::DISCOVER> &, Struct data) {
-            return onBootstrap(data);
+            return onDiscover(data);
         }
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::START> &, Struct data) {
@@ -169,6 +169,7 @@ namespace ggapi {
          * TODO: This may change
          */
         virtual bool onBootstrap(Struct data) {
+            std::cout << "Default onBootstrap\n";
             return false;
         }
 
@@ -177,6 +178,7 @@ namespace ggapi {
          * lifecycle stages. Use this cycle for any data binding.
          */
         virtual bool onBind(Struct data) {
+            std::cout << "Default onBind\n";
             return false;
         }
 
@@ -186,6 +188,7 @@ namespace ggapi {
          * TODO: This may change
          */
         virtual bool onDiscover(Struct data) {
+            std::cout << "Default onDiscover\n";
             return false;
         }
 
@@ -193,6 +196,7 @@ namespace ggapi {
          * Plugin is about to move into an active state. Return true if handled.
          */
         virtual bool onStart(Struct data) {
+            std::cout << "Default onStart\n";
             return false;
         }
 
@@ -200,6 +204,7 @@ namespace ggapi {
          * Plugin has transitioned into an active state. Return true if handled.
          */
         virtual bool onRun(Struct data) {
+            std::cout << "Default onRun\n";
             return false;
         }
 
@@ -207,6 +212,7 @@ namespace ggapi {
          * Plugin is being terminated - use for cleanup. Return true if handled.
          */
         virtual bool onTerminate(Struct data) {
+            std::cout << "Default onTerminate\n";
             return false;
         }
     };
