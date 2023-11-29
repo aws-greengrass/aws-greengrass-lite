@@ -1,14 +1,38 @@
+#include "util.hpp"
 #include <aws/crt/Allocator.h>
 #include <aws/crt/Api.h>
 #include <aws/crt/io/EventLoopGroup.h>
 #include <aws/crt/io/SocketOptions.h>
 #include <aws/event-stream/event_stream_rpc_server.h>
 #include <aws/io/channel_bootstrap.h>
+#include <cstdio>
+#include <filesystem>
+#include <future>
 #include <iostream>
+#include <ostream>
 #include <plugin.hpp>
 #include <stdexcept>
 #include <system_error>
 #include <tuple>
+
+static void s_fixture_on_protocol_message(
+    struct aws_event_stream_rpc_server_connection *connection,
+    const struct aws_event_stream_rpc_message_args *message_args,
+    void *user_data) {
+    std::cerr << "😹 called s_fixture_on_protocol_message" << std::endl;
+    for(auto item : util::Span{message_args->headers, message_args->headers_count}) {
+    }
+}
+static int on_incoming_stream(
+    struct aws_event_stream_rpc_server_connection *connection,
+    struct aws_event_stream_rpc_server_continuation_token *token,
+    struct aws_byte_cursor operation_name,
+    struct aws_event_stream_rpc_server_stream_continuation_options *continuation_options,
+    void *user_data) {
+    std::cerr << "😹 called on_server_incoming_stream" << std::endl;
+
+    return AWS_OP_SUCCESS;
+}
 
 class IpcServer : public ggapi::Plugin {
 
@@ -30,7 +54,7 @@ private:
     Aws::Crt::Io::SocketOptions socketOpts = []() -> auto {
         using namespace Aws::Crt::Io;
         SocketOptions opts{};
-        opts.SetSocketDomain(SocketDomain::IPv4);
+        opts.SetSocketDomain(SocketDomain::Local);
         opts.SetSocketType(SocketType::Stream);
         return opts;
     }();
@@ -72,9 +96,15 @@ static int s_fixture_on_new_server_connection(
     void *user_data) {
     std::ignore = connection;
     std::ignore = error_code;
-    std::ignore = connection_options;
     std::ignore = user_data;
 
+    *connection_options = {
+        .on_incoming_stream = on_incoming_stream,
+        .on_connection_protocol_message = s_fixture_on_protocol_message,
+        .user_data = nullptr,
+    };
+
+    std::cerr << "😾 s_on_new_server_connection called " << error_code << std::endl;
     return AWS_OP_SUCCESS;
 }
 
@@ -83,16 +113,24 @@ static void s_fixture_on_server_connection_shutdown(
     std::ignore = connection;
     std::ignore = error_code;
     std::ignore = user_data;
+    std::cerr << "😾 s_on_server_connection_shutdown called: " << error_code << std::endl;
 }
 
 static void s_on_listener_destroy(
     struct aws_event_stream_rpc_server_listener *server, void *user_data) {
+    std::cerr << "😾 s_on_listener_destroy called." << std::endl;
 }
 
 bool IpcServer::onStart(ggapi::Struct data) {
+    std::cerr << "onStart started 😹" << std::endl;
+    static constexpr std::string_view socket_path = "/tmp/gglite-ipc.socket";
+
+    if(std::filesystem::exists(socket_path)) {
+        std::filesystem::remove(socket_path);
+    }
 
     aws_event_stream_rpc_server_listener_options listenerOptions = {
-        .host_name = "127.0.0.1",
+        .host_name = socket_path.data(),
         .port = port,
         .socket_options = &socketOpts.GetImpl(),
         .bootstrap = bootstrap,
@@ -108,6 +146,8 @@ bool IpcServer::onStart(ggapi::Struct data) {
         int error_code = aws_last_error();
         throw std::runtime_error("Failed to create RPC server 😿 " + std::to_string(error_code));
     }
+
+    aws_event_stream_rpc_server_continuation_is_closed;
 
     std::cerr << "Wow 🙀" << std::endl;
 
