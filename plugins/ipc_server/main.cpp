@@ -1,3 +1,5 @@
+#include "aws/common/uuid.h"
+#include "aws/event-stream/event_stream.h"
 #include "util.hpp"
 #include <aws/crt/Allocator.h>
 #include <aws/crt/Api.h>
@@ -5,7 +7,9 @@
 #include <aws/crt/io/SocketOptions.h>
 #include <aws/event-stream/event_stream_rpc_server.h>
 #include <aws/io/channel_bootstrap.h>
+#include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <future>
 #include <iostream>
@@ -14,6 +18,82 @@
 #include <stdexcept>
 #include <system_error>
 #include <tuple>
+#include <type_traits>
+
+using timestamp = std::chrono::duration<uint32_t, std::milli>;
+
+using HeaderValue = std::variant<
+    std::true_type,
+    std::false_type,
+    std::byte,
+    uint16_t,
+    uint32_t,
+    uint64_t,
+    util::Span<std::byte, uint16_t>,
+    std::string_view,
+    timestamp,
+    aws_uuid>;
+
+template<typename To, size_t N>
+// NOLINTNEXTLINE(*-c-arrays)
+To bit_cast(const uint8_t (&buffer)[N]) noexcept {
+    static_assert(N >= sizeof(To));
+    static_assert(std::is_trivially_default_constructible_v<To>);
+    static_assert(std::is_trivially_copy_assignable_v<To>);
+    To to{};
+    std::memcpy(&to, std::data(buffer), sizeof(to));
+    return to;
+}
+
+// NOLINTBEGIN(*-union-access)
+HeaderValue getValue(const aws_event_stream_header_value_pair &header) noexcept {
+    auto *staticData = std::data(header.header_value.static_val);
+    auto *variableData = header.header_value.variable_len_val;
+    switch(header.header_value_type) {
+        case AWS_EVENT_STREAM_HEADER_BOOL_TRUE:
+            return std::true_type{};
+        case AWS_EVENT_STREAM_HEADER_BOOL_FALSE:
+            return std::false_type{};
+        case AWS_EVENT_STREAM_HEADER_BYTE:
+            return bit_cast<std::byte>(header.header_value.static_val);
+        case AWS_EVENT_STREAM_HEADER_INT16:
+            return bit_cast<uint16_t>(header.header_value.static_val);
+        case AWS_EVENT_STREAM_HEADER_INT32:
+            return bit_cast<uint32_t>(header.header_value.static_val);
+        case AWS_EVENT_STREAM_HEADER_INT64:
+            return bit_cast<uint64_t>(header.header_value.static_val);
+        case AWS_EVENT_STREAM_HEADER_BYTE_BUF:
+            // NOLINTNEXTLINE(*-reinterpret-cast)
+            return util::Span{reinterpret_cast<std::byte *>(variableData), header.header_value_len};
+        case AWS_EVENT_STREAM_HEADER_STRING:
+            return std::string_view{// NOLINTNEXTLINE(*-reinterpret-cast)
+                                    reinterpret_cast<const char *>(variableData),
+                                    header.header_value_len};
+        case AWS_EVENT_STREAM_HEADER_TIMESTAMP:
+            return timestamp{bit_cast<uint32_t>(header.header_value.static_val)};
+        case AWS_EVENT_STREAM_HEADER_UUID: {
+            return bit_cast<aws_uuid>(header.header_value.static_val);
+        }
+    }
+}
+// NOLINTEND(*-union-access)
+
+template<class T>
+class Print {
+    void operator()(T a) {
+    }
+};
+
+struct Foo {
+    int bar;
+};
+
+template<>
+class Print<Foo> {
+    void operator()(Foo a) {
+        std::cout << 1 << '\n';
+    }
+};
 
 static void s_fixture_on_protocol_message(
     struct aws_event_stream_rpc_server_connection *connection,
@@ -21,6 +101,33 @@ static void s_fixture_on_protocol_message(
     void *user_data) {
     std::cerr << "😹 called s_fixture_on_protocol_message" << std::endl;
     for(auto item : util::Span{message_args->headers, message_args->headers_count}) {
+        std::cerr.write(std::data(item.header_name), item.header_value_len);
+        std::visit(
+            [](auto &&val) {
+                using T = decltype(val);
+                if constexpr(
+                    std::is_arithmetic_v<T> || std::is_same_v<std::true_type, T>
+                    || std::is_same_v<std::false_type, T> || std::is_same_v<std::string_view, T>) {
+                    std::cerr << val;
+                } else if constexpr(std::is_same_v<timestamp, T>) {
+                    std::cerr << val.count() << "ms";
+                } else if constexpr(std::is_same_v<util::Span<std::byte, uint16_t>, T>) {
+                    std::cerr.write(val.data(), val.size());
+                } else if constexpr(std::is_same_v<T, aws_uuid>) {
+                    auto flags = std::cerr.flags();
+                    std::cerr.flags(std::ios::hex | std::ios::uppercase);
+                    for(auto &&v : val) {
+                        std::cerr << v;
+                    }
+                    std::cerr.flags(flags);
+                }
+                std::cerr << ':';
+            },
+            getValue(item));
+        std::cerr.write(
+            reinterpret_cast<const char *>(message_args->payload->buffer),
+            message_args->payload->len)
+            << std::endl;
     }
 }
 static int on_incoming_stream(
@@ -146,8 +253,6 @@ bool IpcServer::onStart(ggapi::Struct data) {
         int error_code = aws_last_error();
         throw std::runtime_error("Failed to create RPC server 😿 " + std::to_string(error_code));
     }
-
-    aws_event_stream_rpc_server_continuation_is_closed;
 
     std::cerr << "Wow 🙀" << std::endl;
 
