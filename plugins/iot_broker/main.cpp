@@ -15,8 +15,6 @@ struct Keys {
     ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
     ggapi::Symbol subscribeToIoTCoreTopic{"aws.greengrass.SubscribeToIoTCore"};
     ggapi::Symbol requestDeviceProvisionTopic{"aws.greengrass.RequestDeviceProvision"};
-    // TODO: This needs to be encapsulated within provisioning_plugin
-    ggapi::Symbol fleetProvisioningByClaimService{"aws.greengrass.FleetProvisioningByClaim"};
     ggapi::Symbol topicName{"topicName"};
     ggapi::Symbol topicFilter{"topicFilter"};
     ggapi::Symbol qos{"qos"};
@@ -134,7 +132,7 @@ public:
         return a._value == b._value;
     }
 
-    [[nodiscard]] bool match(std::string_view topic) const noexcept {
+    [[nodiscard]] bool match(std::string_view topic) const {
         TopicLevelIterator topicIter{topic};
         bool hash = false;
         auto [filterTail, topicTail] = std::mismatch(
@@ -365,7 +363,6 @@ bool IotBroker::onBind(ggapi::Struct data) {
 bool IotBroker::onStart(ggapi::Struct data) {
     std::cout << "[mqtt-plugin] starting\n";
 
-    auto service = getConfig();
     auto nucleus = _nucleus.load();
     auto system = _system.load();
 
@@ -443,6 +440,7 @@ bool IotBroker::initMqtt() {
 
                 std::string topic{eventData.publishPacket->getTopic()};
                 std::string payload{
+                    // NOLINTNEXTLINE(*-pro-type-reinterpret-cast)
                     reinterpret_cast<char *>(eventData.publishPacket->getPayload().ptr),
                     eventData.publishPacket->getPayload().len};
 

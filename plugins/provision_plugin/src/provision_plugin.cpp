@@ -24,9 +24,8 @@ void ProvisionPlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data
  * perform a By-Claim provisioning action to IoT Core.
  */
 ggapi::Struct ProvisionPlugin::brokerListener(ggapi::Task, ggapi::StringOrd, ggapi::Struct) {
-    ProvisionPlugin &pluginInstance = ProvisionPlugin::get();
-    pluginInstance.setDeviceConfig();
-    return pluginInstance.provisionDevice();
+    setDeviceConfig();
+    return provisionDevice();
 }
 
 bool ProvisionPlugin::onBootstrap(ggapi::Struct data) {
@@ -39,7 +38,10 @@ bool ProvisionPlugin::onBootstrap(ggapi::Struct data) {
  * bind the provisioning topic during this binding phase. (Atypical)
  */
 bool ProvisionPlugin::onBind(ggapi::Struct data) {
-    _subscription = getScope().subscribeToTopic(keys.topicName, brokerListener);
+    _subscription = getScope().subscribeToTopic(
+        keys.topicName, [this](ggapi::Task t, ggapi::Symbol s, ggapi::Struct d) {
+            return brokerListener(t, s, d);
+        });
     _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
     return true;
 }

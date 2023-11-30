@@ -87,8 +87,7 @@ public:
     bool onStart(ggapi::Struct data) override;
     bool onRun(ggapi::Struct data) override;
     bool onTerminate(ggapi::Struct data) override;
-    static ggapi::Struct brokerListener(
-        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
+    ggapi::Struct brokerListener(ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
     static ProvisionPlugin &get() {
         static ProvisionPlugin instance;
         return instance;

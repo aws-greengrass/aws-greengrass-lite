@@ -3,18 +3,18 @@
 #include <thread>
 
 struct Keys {
-    const ggapi::StringOrd publishToIoTCoreTopic{"aws.greengrass."
-                                                 "PublishToIoTCore"};
-    const ggapi::StringOrd topicName{"topicName"};
-    const ggapi::StringOrd qos{"qos"};
-    const ggapi::StringOrd payload{"payload"};
-    const ggapi::StringOrd retain{"retain"};
-    const ggapi::StringOrd userProperties{"userProperties"};
-    const ggapi::StringOrd messageExpiryIntervalSeconds{"messageExpiryIntervalSeconds"};
-    const ggapi::StringOrd correlationData{"correlationData"};
-    const ggapi::StringOrd responseTopic{"responseTopic"};
-    const ggapi::StringOrd payloadFormat{"payloadFormat"};
-    const ggapi::StringOrd contentType{"contentType"};
+    const ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass."
+                                              "PublishToIoTCore"};
+    const ggapi::Symbol topicName{"topicName"};
+    const ggapi::Symbol qos{"qos"};
+    const ggapi::Symbol payload{"payload"};
+    const ggapi::Symbol retain{"retain"};
+    const ggapi::Symbol userProperties{"userProperties"};
+    const ggapi::Symbol messageExpiryIntervalSeconds{"messageExpiryIntervalSeconds"};
+    const ggapi::Symbol correlationData{"correlationData"};
+    const ggapi::Symbol responseTopic{"responseTopic"};
+    const ggapi::Symbol payloadFormat{"payloadFormat"};
+    const ggapi::Symbol contentType{"contentType"};
 };
 
 class ExamplePlugin : public ggapi::Plugin {
@@ -22,15 +22,15 @@ class ExamplePlugin : public ggapi::Plugin {
     std::thread _asyncThread;
 
 public:
-    void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
+    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;
 
     bool onRun(ggapi::Struct data) override;
 
     static ggapi::Struct publishToIoTCoreResponder(
-        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct respData);
+        ggapi::Task task, ggapi::Symbol topic, ggapi::Struct respData);
     static ggapi::Struct publishToIoTCoreListener(
-        ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
+        ggapi::Task task, ggapi::Symbol topic, ggapi::Struct callData);
 
     static ExamplePlugin &get() {
         static ExamplePlugin instance{};
@@ -47,9 +47,8 @@ extern "C" EXPORT bool greengrass_lifecycle(
     return ExamplePlugin::get().lifecycle(moduleHandle, phase, data);
 }
 
-void ExamplePlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) {
-    std::cout << "Running lifecycle plugins 2... " << ggapi::StringOrd{phase}.toString()
-              << std::endl;
+void ExamplePlugin::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
+    std::cout << "Running lifecycle plugins 2... " << ggapi::Symbol{phase}.toString() << std::endl;
 }
 
 bool ExamplePlugin::onStart(ggapi::Struct data) {
@@ -62,7 +61,7 @@ bool ExamplePlugin::onRun(ggapi::Struct data) {
 }
 
 ggapi::Struct ExamplePlugin::publishToIoTCoreListener(
-    ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData) {
+    ggapi::Task task, ggapi::Symbol topic, ggapi::Struct callData) {
     std::ignore = task; // task handle for task operations
     std::ignore = topic; // topic name in case same callback used for multiple topics
     // real work
@@ -82,7 +81,7 @@ ggapi::Struct ExamplePlugin::publishToIoTCoreListener(
 }
 
 ggapi::Struct ExamplePlugin::publishToIoTCoreResponder(
-    ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct respData) {
+    ggapi::Task task, ggapi::Symbol topic, ggapi::Struct respData) {
     std::ignore = task; // task handle for task operations
     std::ignore = topic; // topic name in case same callback used for multiple topics
     if(!respData) {
@@ -119,7 +118,7 @@ void ExamplePlugin::asyncThreadFn() {
     std::cout << "Ping..." << std::endl;
 
     auto pingData = ggapi::Struct::create().put("ping", "abcde");
-    auto pongData = ggapi::Task::sendToTopic(ggapi::StringOrd{"test"}, pingData);
+    auto pongData = ggapi::Task::sendToTopic(ggapi::Symbol{"test"}, pingData);
     auto pongString = pongData.get<std::string>("pong");
 
     std::cout << "Pong..." << pongString << std::endl;
