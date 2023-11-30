@@ -303,10 +303,11 @@ static void on_continuation(
     auto jsonBuf = Buffer::create();
     jsonBuf.insert(-1, message_args->payload->buffer, message_args->payload->len);
     auto json = jsonBuf.fromJson().unbox<Struct>();
-    static const StringOrd publishToIoTCoreTopic{"IPC::aws.greengrass.PublishToIoTCore"};
+
+    std::string_view name{reinterpret_cast<const char *>(user_data)};
 
     std::cerr << "[IPC] publishToIoTCoreTopic\n";
-    std::ignore = Task::sendToTopic(publishToIoTCoreTopic, json);
+    std::ignore = Task::sendToTopic(name, json);
     std::cerr << "[IPC] publish complete\n";
 }
 
@@ -314,6 +315,9 @@ void on_continuation_close(
     struct aws_event_stream_rpc_server_continuation_token *token, void *user_data) {
     std::cerr << "⛔ called on_continuation_close" << std::endl;
     std::cerr << token << '\n';
+
+    // NOLINTNEXTLINE
+    delete[] reinterpret_cast<uint8_t *>(user_data);
 }
 
 static int on_incoming_stream(
@@ -331,8 +335,16 @@ static int on_incoming_stream(
         static_cast<std::ptrdiff_t>(operation_name.len))
         << '\n';
 
+    // TODO: refactor into using a container type
+    static constexpr std::string_view prefix = "IPC::";
+    auto copy = new uint8_t[operation_name.len + prefix.size() + 1]{};
+
+    auto middle = std::copy(prefix.begin(), prefix.end(), copy);
+    std::copy_n(operation_name.ptr, operation_name.len, middle);
+
     continuation_options->on_continuation = on_continuation;
     continuation_options->on_continuation_closed = on_continuation_close;
+    continuation_options->user_data = copy;
 
     return AWS_OP_SUCCESS;
 }

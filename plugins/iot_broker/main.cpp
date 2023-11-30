@@ -13,7 +13,7 @@
 
 struct Keys {
     ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
-    ggapi::Symbol ipcPublishToIoTCoreTopic{"IPC::aws.greengrass.PublishToIoTCore"};
+    ggapi::Symbol ipcPublishToIoTCoreTopic{"IPC::aws.greengrass#PublishToIoTCore"};
 
     ggapi::Symbol subscribeToIoTCoreTopic{"aws.greengrass.SubscribeToIoTCore"};
     ggapi::Symbol requestDeviceProvisionTopic{"aws.greengrass.RequestDeviceProvision"};
