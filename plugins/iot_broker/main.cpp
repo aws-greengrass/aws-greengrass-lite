@@ -251,7 +251,7 @@ ggapi::Struct IotBroker::ipcPublishHandlerImpl(ggapi::Struct args) {
     auto v = Aws::Crt::Base64Decode(copy);
     auto &decoded = encoded;
     decoded.resize(v.size(), '\0');
-    std::copy(v.begin(), v.end(), decoded.end());
+    std::copy(v.begin(), v.end(), decoded.begin());
     args.put(keys.payload, std::move(decoded));
 
     return publishHandlerImpl(args);
