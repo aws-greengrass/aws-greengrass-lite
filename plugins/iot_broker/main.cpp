@@ -227,7 +227,7 @@ const Keys IotBroker::keys{};
 
 // Initializes global CRT API
 // TODO: What happens when multiple plugins use the CRT?
-static const Aws::Crt::ApiHandle apiHandle{};
+static Aws::Crt::ApiHandle apiHandle{};
 
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
     return get().publishHandlerImpl(args);
@@ -343,21 +343,27 @@ void IotBroker::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
 
 bool IotBroker::onBootstrap(ggapi::Struct structData) {
     structData.put("name", "aws.greengrass.iot_broker");
+    std::cout << "[mqtt-plugin] bootstrapping\n";
+    apiHandle.InitializeLogging(Aws::Crt::LogLevel::Debug, stderr);
     return true;
 }
 
 bool IotBroker::onTerminate(ggapi::Struct structData) {
     // TODO: Cleanly stop thread and clean up listeners
+    std::cout << "[mqtt-plugin] terminating\n";
     return true;
 }
 
 bool IotBroker::onBind(ggapi::Struct data) {
     _nucleus = getScope().anchor(data.getValue<ggapi::Struct>({"nucleus"}));
     _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
+    std::cout << "[mqtt-plugin] binding\n";
     return true;
 }
 
 bool IotBroker::onStart(ggapi::Struct data) {
+    std::cout << "[mqtt-plugin] starting\n";
+
     auto service = getConfig();
     auto nucleus = _nucleus.load();
     auto system = _system.load();
@@ -386,6 +392,7 @@ bool IotBroker::onStart(ggapi::Struct data) {
         std::ignore = getScope().subscribeToTopic(keys.subscribeToIoTCoreTopic, subscribeHandler);
         return true;
     }
+    std::cerr << "[mqtt-plugin] initMqtt returned false." << std::endl;
     return false;
 }
 
@@ -398,9 +405,10 @@ bool inline IotBroker::validConfig() const {
 
 bool IotBroker::initMqtt() {
     std::promise<bool> connectionPromise;
+    std::cerr << "[mqtt-plugin] initMqtt." << std::endl;
 
     {
-        Aws::Crt::String crtEndpoint{_thingInfo.credEndpoint};
+        Aws::Crt::String crtEndpoint{_thingInfo.dataEndpoint};
         std::unique_ptr<Aws::Iot::Mqtt5ClientBuilder> builder{
             Aws::Iot::Mqtt5ClientBuilder::NewMqtt5ClientBuilderWithMtlsFromPath(
                 crtEndpoint, _thingInfo.certPath.c_str(), _thingInfo.keyPath.c_str())};
@@ -419,14 +427,12 @@ bool IotBroker::initMqtt() {
             [&connectionPromise](const Aws::Crt::Mqtt5::OnConnectionSuccessEventData &eventData) {
                 std::cerr << "[mqtt-plugin] Connection successful with clientid "
                           << eventData.negotiatedSettings->getClientId() << "." << std::endl;
-                connectionPromise.set_value(true);
             });
 
         builder->WithClientConnectionFailureCallback(
             [&connectionPromise](const Aws::Crt::Mqtt5::OnConnectionFailureEventData &eventData) {
                 std::cerr << "[mqtt-plugin] Connection failed: "
                           << aws_error_debug_str(eventData.errorCode) << "." << std::endl;
-                connectionPromise.set_value(false);
             });
 
         builder->WithPublishReceivedCallback(
@@ -468,10 +474,6 @@ bool IotBroker::initMqtt() {
 
     if(!_client->Start()) {
         std::cerr << "[mqtt-plugin] Failed to start MQTT client." << std::endl;
-        return false;
-    }
-
-    if(!connectionPromise.get_future().get()) {
         return false;
     }
 
