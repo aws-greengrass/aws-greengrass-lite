@@ -155,17 +155,11 @@ static aws_event_stream_header_value_pair makeHeader(std::string_view name, Head
 
             using T = std::decay_t<decltype(val)>;
             if constexpr(is_static_value<T>) {
-                std::memcpy(std::data(args.header_value.static_val), &val, sizeof(val));
+                to_network_bytes(args.header_value.static_val, val);
                 args.header_value_len = sizeof(val);
             } else { // span or string view
                 args.header_value.variable_len_val = reinterpret_cast<uint8_t *>(std::data(val));
                 args.header_value_len = std::size(val);
-
-                if constexpr(std::is_same_v<T, stringbuffer>) { // string
-                    args.header_value_type = AWS_EVENT_STREAM_HEADER_STRING;
-                } else { // buffer
-                    args.header_value_type = AWS_EVENT_STREAM_HEADER_BYTE_BUF;
-                }
             }
 
             args.header_value_type = getType(var);
