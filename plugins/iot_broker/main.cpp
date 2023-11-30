@@ -13,6 +13,8 @@
 
 struct Keys {
     ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
+    ggapi::Symbol ipcPublishToIoTCoreTopic{"IPC::aws.greengrass.PublishToIoTCore"};
+
     ggapi::Symbol subscribeToIoTCoreTopic{"aws.greengrass.SubscribeToIoTCore"};
     ggapi::Symbol requestDeviceProvisionTopic{"aws.greengrass.RequestDeviceProvision"};
     // TODO: This needs to be encapsulated within provisioning_plugin
@@ -219,6 +221,8 @@ private:
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
     static ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
     ggapi::Struct publishHandlerImpl(ggapi::Struct args);
+    static ggapi::Struct ipcPublishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
+    ggapi::Struct ipcPublishHandlerImpl(ggapi::Struct args);
     static ggapi::Struct subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
     ggapi::Struct subscribeHandlerImpl(ggapi::Struct args);
 };
@@ -229,11 +233,29 @@ const Keys IotBroker::keys{};
 // TODO: What happens when multiple plugins use the CRT?
 static Aws::Crt::ApiHandle apiHandle{};
 
+ggapi::Struct IotBroker::ipcPublishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
+    return get().ipcPublishHandlerImpl(args);
+}
+
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
     std::cerr << "[mqtt-plugin] received a publish request" << std::endl;
     return get().publishHandlerImpl(args);
 }
 
+ggapi::Struct IotBroker::ipcPublishHandlerImpl(ggapi::Struct args) {
+    auto encoded = args.get<std::string>(keys.payload);
+
+    // TODO: perform this conversion in-place
+    Aws::Crt::String copy(encoded.size(), '\0');
+    std::copy(encoded.begin(), encoded.end(), copy.begin());
+    auto v = Aws::Crt::Base64Decode(copy);
+    auto &decoded = encoded;
+    decoded.resize(v.size(), '\0');
+    std::copy(v.begin(), v.end(), decoded.end());
+    args.put(keys.payload, std::move(decoded));
+
+    return publishHandlerImpl(args);
+}
 ggapi::Struct IotBroker::publishHandlerImpl(ggapi::Struct args) {
     auto topic{args.get<std::string>(keys.topicName)};
     auto qos{args.get<int>(keys.qos)};
@@ -390,6 +412,7 @@ bool IotBroker::onStart(ggapi::Struct data) {
     }
     if(initMqtt()) {
         std::ignore = getScope().subscribeToTopic(keys.publishToIoTCoreTopic, publishHandler);
+        std::ignore = getScope().subscribeToTopic(keys.ipcPublishToIoTCoreTopic, ipcPublishHandler);
         std::ignore = getScope().subscribeToTopic(keys.subscribeToIoTCoreTopic, subscribeHandler);
         return true;
     }

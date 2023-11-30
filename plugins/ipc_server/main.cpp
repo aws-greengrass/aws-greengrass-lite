@@ -303,7 +303,7 @@ static void on_continuation(
     auto jsonBuf = Buffer::create();
     jsonBuf.insert(-1, message_args->payload->buffer, message_args->payload->len);
     auto json = jsonBuf.fromJson().unbox<Struct>();
-    static const StringOrd publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
+    static const StringOrd publishToIoTCoreTopic{"IPC::aws.greengrass.PublishToIoTCore"};
 
     std::cerr << "[IPC] publishToIoTCoreTopic\n";
     std::ignore = Task::sendToTopic(publishToIoTCoreTopic, json);
@@ -451,5 +451,5 @@ bool IpcServer::onStart(ggapi::Struct data) {
 
     std::cerr << "Wow 🙀" << std::endl;
 
-    return false;
+    return true;
 }
