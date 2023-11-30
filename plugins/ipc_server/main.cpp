@@ -1,9 +1,10 @@
-#include "aws/common/array_list.h"
-#include "aws/common/byte_buf.h"
+#include <cpp_api.hpp>
 #include <plugin.hpp>
-#include <string_view>
 #include <util.hpp>
 
+#include <algorithm>
+#include <aws/common/array_list.h>
+#include <aws/common/byte_buf.h>
 #include <aws/common/uuid.h>
 #include <aws/crt/Allocator.h>
 #include <aws/crt/Api.h>
@@ -18,7 +19,6 @@
 #include <aws/http/request_response.h>
 #include <aws/io/channel_bootstrap.h>
 
-#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <future>
@@ -27,6 +27,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <streambuf>
+#include <string_view>
 #include <system_error>
 #include <tuple>
 #include <type_traits>
@@ -254,7 +255,9 @@ static void doConnection(aws_event_stream_rpc_server_connection &connection) {
     aws_event_stream_rpc_server_connection_send_protocol_message(
         &connection, &connect_ack_args, s_on_message_flush_fn, nullptr);
 
-    aws_array_list_clean_up(&headers_list);
+    if(aws_array_list_is_valid(&headers_list)) {
+        aws_array_list_clean_up(&headers_list);
+    }
     aws_event_stream_message_clean_up(&message);
 }
 
@@ -300,6 +303,17 @@ static void on_continuation(
     std::cerr << "🙀 called on_continutation" << std::endl;
     std::cerr << token << '\n';
     std::cerr << *message_args << '\n';
+
+    using namespace ggapi;
+
+    auto jsonBuf = Buffer::create();
+    jsonBuf.insert(-1, message_args->payload->buffer, message_args->payload->len);
+    auto json = jsonBuf.fromJson().unbox<Struct>();
+    static const StringOrd publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
+
+    std::cerr << "[IPC] publishToIoTCoreTopic\n";
+    std::ignore = Task::sendToTopic(publishToIoTCoreTopic, json);
+    std::cerr << "[IPC] publish complete\n";
 }
 
 void on_continuation_close(
