@@ -188,7 +188,7 @@ static std::ostream &operator<<(std::ostream &os, HeaderValue v) {
                 os.flags(flags);
             } else if constexpr(std::is_same_v<timestamp, T>) {
                 os << val.count() << "ms";
-            } else if constexpr(std::is_same_v<util::Span<uint8_t, uint16_t>, T>) {
+            } else if constexpr(std::is_same_v<stringbuffer, T> || std::is_same_v<bytebuffer, T>) {
                 os.write(reinterpret_cast<const char *>(val.begin()), val.size());
             } else if constexpr(std::is_same_v<T, aws_uuid>) {
                 auto flags = os.flags();
