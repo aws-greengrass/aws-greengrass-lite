@@ -9,6 +9,15 @@
 class DelegatePlugin : public ggapi::Plugin {
 public:
     bool onStart(ggapi::Struct data) override;
+    bool callback(
+        ggapi::Symbol name,
+        ggapi::ModuleScope moduleScope,
+        ggapi::Symbol phase,
+        ggapi::Struct data) {
+        // Example of using the callback to introduce extra data
+        std::ignore = name;
+        return lifecycle(moduleScope, phase, data);
+    }
 };
 
 class LayeredPlugin : public ggapi::Plugin {
@@ -48,11 +57,9 @@ bool LayeredPlugin::onDiscover(ggapi::Struct data) {
     std::unique_lock guard{_mutex};
     std::unique_ptr<DelegatePlugin> plugin{std::make_unique<DelegatePlugin>()};
     DelegatePlugin &ref = *plugin;
+    auto name = ggapi::Symbol("MyDelegate");
     ggapi::ObjHandle nestedPlugin = getScope().registerPlugin(
-        ggapi::StringOrd{"MyDelegate"},
-        [&ref](ggapi::ModuleScope moduleScope, ggapi::Symbol phase, ggapi::Struct data) {
-            return ref.lifecycle(moduleScope, phase, data);
-        });
+        name, ggapi::LifecycleCallback::of(&DelegatePlugin::callback, &ref, name));
     _delegates.emplace(nestedPlugin.getHandleId(), std::move(plugin));
     return true;
 }

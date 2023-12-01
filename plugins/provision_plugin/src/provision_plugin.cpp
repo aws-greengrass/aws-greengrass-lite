@@ -39,9 +39,7 @@ bool ProvisionPlugin::onBootstrap(ggapi::Struct data) {
  */
 bool ProvisionPlugin::onBind(ggapi::Struct data) {
     _subscription = getScope().subscribeToTopic(
-        keys.topicName, [this](ggapi::Task t, ggapi::Symbol s, ggapi::Struct d) {
-            return brokerListener(t, s, d);
-        });
+        keys.topicName, ggapi::TopicCallback::of(&ProvisionPlugin::brokerListener, this));
     _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
     return true;
 }
