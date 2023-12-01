@@ -1,4 +1,6 @@
+#include "aws/crt/Types.h"
 #include <cpp_api.hpp>
+#include <optional>
 #include <plugin.hpp>
 #include <util.hpp>
 
@@ -17,7 +19,6 @@
 #include <aws/event-stream/event_stream_rpc.h>
 #include <aws/event-stream/event_stream_rpc_server.h>
 #include <aws/http/request_response.h>
-#include <aws/io/channel_bootstrap.h>
 
 #include <chrono>
 #include <filesystem>
@@ -37,8 +38,8 @@
 #include <variant>
 
 using timestamp = std::chrono::duration<uint32_t, std::milli>;
-using bytebuffer = util::Span<uint8_t, uint16_t>;
-using stringbuffer = util::Span<char, uint16_t>;
+using bytebuffer = util::Span<uint8_t>;
+using stringbuffer = util::Span<char>;
 
 using HeaderValue = std::variant<
     bool,
@@ -153,6 +154,9 @@ static aws_event_stream_header_value_pair makeHeader(std::string_view name, Head
         [&var, name](auto &&val) {
             aws_event_stream_header_value_pair args{};
 
+            args.header_name_len =
+                name.copy(std::data(args.header_name), std::size(args.header_name));
+
             using T = std::decay_t<decltype(val)>;
             if constexpr(is_static_value<T>) {
                 to_network_bytes(args.header_value.static_val, val);
@@ -224,35 +228,56 @@ static void s_on_message_flush_fn(int error_code, void *user_data) {
     std::ignore = user_data;
 }
 
+template<class SendFn, size_t N, typename DataT = std::nullptr_t>
+int sendMessage(
+    SendFn fn,
+    std::array<aws_event_stream_header_value_pair, N> &headers,
+    std::optional<ggapi::Buffer> payload,
+    aws_event_stream_rpc_message_type message_type,
+    uint32_t flags = 0) {
+    aws_array_list headers_list{
+        .alloc = nullptr,
+        .current_size = util::Span{headers}.size_bytes(),
+        .length = std::size(headers),
+        .item_size = sizeof(aws_event_stream_header_value_pair),
+        .data = std::data(headers),
+    };
+
+    Aws::Crt::Vector<uint8_t> payloadVec{};
+    if(payload.has_value()) {
+        payloadVec = payload->get<Aws::Crt::Vector<uint8_t>>(
+            0, std::min(payload->size(), uint32_t{AWS_EVENT_STREAM_MAX_MESSAGE_SIZE}));
+    }
+    auto payloadBytes = Aws::Crt::ByteBufFromArray(payloadVec.data(), payloadVec.size());
+    aws_event_stream_message message{};
+    aws_event_stream_message_init(&message, Aws::Crt::ApiAllocator(), &headers_list, &payloadBytes);
+
+    struct aws_event_stream_rpc_message_args args = {
+        .headers = std::data(headers),
+        .headers_count = std::size(headers),
+        .payload = &payloadBytes,
+        .message_type = message_type,
+        .message_flags = flags,
+    };
+
+    return fn(&args);
+}
+
 static void doConnection(aws_event_stream_rpc_server_connection &connection) {
     std::array<aws_event_stream_header_value_pair, 3> headers{
         makeHeader(":message-type", int32_t{AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT}),
         makeHeader(":message-flags", int32_t{0}),
         makeHeader(":stream-id", int32_t{0})};
 
-    aws_array_list headers_list{};
-    aws_event_stream_headers_list_init(&headers_list, Aws::Crt::ApiAllocator());
-    for(auto &&header : headers) {
-        aws_array_list_push_back(&headers_list, &header);
-    }
-
-    aws_byte_buf payload{aws_byte_buf_from_c_str("")};
-    aws_event_stream_message message{};
-    aws_event_stream_message_init(&message, Aws::Crt::ApiAllocator(), &headers_list, &payload);
-
-    struct aws_event_stream_rpc_message_args connect_ack_args = {
-        .payload = &payload,
-        .message_type = AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT_ACK,
-        .message_flags = AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_CONNECTION_ACCEPTED,
-    };
-
-    aws_event_stream_rpc_server_connection_send_protocol_message(
-        &connection, &connect_ack_args, s_on_message_flush_fn, nullptr);
-
-    if(aws_array_list_is_valid(&headers_list)) {
-        aws_array_list_clean_up(&headers_list);
-    }
-    aws_event_stream_message_clean_up(&message);
+    sendMessage(
+        [connection = &connection](auto *args) {
+            return aws_event_stream_rpc_server_connection_send_protocol_message(
+                connection, args, s_on_message_flush_fn, nullptr);
+        },
+        headers,
+        std::nullopt,
+        AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT_ACK,
+        AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_CONNECTION_ACCEPTED);
 }
 
 static std::ostream &operator<<(
@@ -298,17 +323,60 @@ static void on_continuation(
     std::cerr << token << '\n';
     std::cerr << *message_args << '\n';
 
+    if(message_args->message_flags & AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_TERMINATE_STREAM) {
+        std::cerr << "Stream terminating\n";
+        return;
+    }
+
     using namespace ggapi;
 
     auto jsonBuf = Buffer::create();
     jsonBuf.insert(-1, util::Span{message_args->payload->buffer, message_args->payload->len});
-    auto json = jsonBuf.fromJson().unbox<Struct>();
+    auto jsonHandle = jsonBuf.fromJson();
+    auto json = jsonHandle.getHandleId() ? jsonHandle.unbox<Struct>() : Struct::create();
 
     std::string_view name{reinterpret_cast<const char *>(user_data)};
 
     std::cerr << "[IPC] publishToIoTCoreTopic\n";
-    std::ignore = Task::sendToTopic(name, json);
+    auto response = Task::sendToTopic(name, json);
     std::cerr << "[IPC] publish complete\n";
+
+    auto getStreamHeader = [message_args] {
+        for(auto &&header : util::Span{message_args->headers, message_args->headers_count}) {
+            auto &&[name, value] = parseHeader(header);
+            if(name == ":stream-id") {
+                return header;
+            }
+        }
+        return makeHeader(":stream-id", int32_t{0});
+    };
+
+    // NOLINTBEGIN(*-c-arrays)
+    // headers store their dynamic value as non-const pointer
+    // avoids const-cast, and is correct even when the dynamic value is modified by the CRT
+    char contentType[] = "application/json";
+    auto valueFromArray = [](auto &&e) { return stringbuffer{std::data(e), std::size(e) - 1}; };
+    // NOLINTEND(*-c-arrays).
+
+    auto operation = reinterpret_cast<const char *>(user_data);
+    auto oSpan = util::Span{operation, strlen(operation)}.subspan(sizeof("IPC::") - 1);
+    auto serviceModel = std::string{oSpan.data(), oSpan.size()} + "Response";
+
+    std::array headers{
+        makeHeader(":message-type", int32_t{AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_APPLICATION_MESSAGE}),
+        makeHeader(":message-flags", int32_t{0}),
+        getStreamHeader(),
+        makeHeader("service-model-type", stringbuffer{serviceModel}),
+        makeHeader(":content-type", valueFromArray(contentType))};
+
+    sendMessage(
+        [token](auto *args) {
+            return aws_event_stream_rpc_server_continuation_send_message(
+                token, args, s_on_message_flush_fn, nullptr);
+        },
+        headers,
+        response.getHandleId() ? std::make_optional(response.toJson()) : std::nullopt,
+        aws_event_stream_rpc_message_type::AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_APPLICATION_MESSAGE);
 }
 
 void on_continuation_close(
