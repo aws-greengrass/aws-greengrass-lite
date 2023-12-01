@@ -1,4 +1,7 @@
 #pragma once
+#include "util.hpp"
+
+#include <ios>
 #include <iostream>
 #include <limits>
 #include <type_traits>
@@ -53,10 +56,9 @@ namespace util {
         ~MemoryWriter() override = default;
 
         explicit MemoryWriter(char *data, uint32_t len) {
-            // NOLINTNEXTLINE(*-pro-bounds-pointer-arithmetic)
-            auto end = data + len;
-            setg(data, data, end);
-            setp(data, end);
+            auto span = util::Span{data, len};
+            setg(span.begin(), span.begin(), span.end());
+            setp(span.begin(), span.end());
         }
     };
 
@@ -73,10 +75,8 @@ namespace util {
 
         explicit MemoryReader(const char *data, uint32_t len) {
             // NOLINTNEXTLINE(*-pro-type-const-cast)
-            auto base = const_cast<char *>(data);
-            // NOLINTNEXTLINE(*-pro-bounds-pointer-arithmetic)
-            auto end = base + len;
-            setg(base, base, end);
+            auto span = util::Span{const_cast<char *>(data), len};
+            setg(span.begin(), span.begin(), span.end());
             setp(nullptr, nullptr);
         }
     };
@@ -122,8 +122,8 @@ namespace util {
             auto didRead = _buffer.get(pos, temp);
             if(didRead > 0) {
                 _inbuf = std::move(temp);
-                // NOLINTNEXTLINE(*-pointer-arithmetic)
-                setg(_inbuf.data(), _inbuf.data(), _inbuf.data() + _inbuf.size());
+                auto span = util::Span{_inbuf};
+                setg(span.begin(), span.begin(), span.end());
                 return true;
             } else {
                 return false;
@@ -135,8 +135,8 @@ namespace util {
             if(!_outbuf.empty()) {
                 if(unflushed() > 0) {
                     int32_t pos = outAsInt();
-                    _buffer.put(pos, pbase(), unflushed());
-                    _outpos += unflushed(); // NOLINT(*-narrowing-conversions)
+                    _buffer.put(pos, util::Span{pbase(), unflushed()});
+                    _outpos += unflushed();
                 }
                 _outbuf.clear();
                 setp(nullptr, nullptr);
@@ -151,16 +151,16 @@ namespace util {
             }
         }
 
-        uint32_t unflushed() {
-            return pptr() - pbase(); // NOLINT(*-narrowing-conversions)
+        std::ptrdiff_t unflushed() {
+            return pptr() - pbase();
         }
 
-        uint32_t unread() {
-            return egptr() - gptr(); // NOLINT(*-narrowing-conversions)
+        std::ptrdiff_t unread() {
+            return egptr() - gptr();
         }
 
-        uint32_t consumed() {
-            return gptr() - eback(); // NOLINT(*-narrowing-conversions)
+        std::ptrdiff_t consumed() {
+            return gptr() - eback();
         }
 
         pos_type eInPos() {
@@ -170,8 +170,8 @@ namespace util {
         void prepareWrite() {
             flushWrite();
             _outbuf.resize(BUFFER_SIZE);
-            // NOLINTNEXTLINE(*-pointer-arithmetic)
-            setp(_outbuf.data(), _outbuf.data() + _outbuf.size());
+            auto span = util::Span{_outbuf};
+            setp(span.begin(), span.end());
         }
 
         pos_type seek(pos_type cur, off_type pos, std::ios_base::seekdir seekdir) {
@@ -260,8 +260,8 @@ namespace util {
             }
             _inpos -= 1;
             if(traits_type::not_eof(c)) {
-                char cc = static_cast<char_type>(c);
-                _buffer.put(inAsInt(), std::string_view(&cc, 1));
+                auto cc = static_cast<char_type>(c);
+                _buffer.put(inAsInt(), std::basic_string_view(&cc, 1));
                 return c;
             } else {
                 return 0;
