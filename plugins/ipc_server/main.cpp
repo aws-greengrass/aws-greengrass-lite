@@ -301,7 +301,7 @@ static void on_continuation(
     using namespace ggapi;
 
     auto jsonBuf = Buffer::create();
-    jsonBuf.insert(-1, message_args->payload->buffer, message_args->payload->len);
+    jsonBuf.insert(-1, util::Span{message_args->payload->buffer, message_args->payload->len});
     auto json = jsonBuf.fromJson().unbox<Struct>();
 
     std::string_view name{reinterpret_cast<const char *>(user_data)};
