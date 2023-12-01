@@ -230,6 +230,7 @@ const Keys IotBroker::keys{};
 static Aws::Crt::ApiHandle apiHandle{};
 
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
+    std::cerr << "[mqtt-plugin] received a publish request" << std::endl;
     return get().publishHandlerImpl(args);
 }
 
@@ -404,7 +405,6 @@ bool inline IotBroker::validConfig() const {
 }
 
 bool IotBroker::initMqtt() {
-    std::promise<bool> connectionPromise;
     std::cerr << "[mqtt-plugin] initMqtt." << std::endl;
 
     {
@@ -424,13 +424,13 @@ bool IotBroker::initMqtt() {
         builder->WithConnectOptions(connectOptions);
 
         builder->WithClientConnectionSuccessCallback(
-            [&connectionPromise](const Aws::Crt::Mqtt5::OnConnectionSuccessEventData &eventData) {
+            [](const Aws::Crt::Mqtt5::OnConnectionSuccessEventData &eventData) {
                 std::cerr << "[mqtt-plugin] Connection successful with clientid "
                           << eventData.negotiatedSettings->getClientId() << "." << std::endl;
             });
 
         builder->WithClientConnectionFailureCallback(
-            [&connectionPromise](const Aws::Crt::Mqtt5::OnConnectionFailureEventData &eventData) {
+            [](const Aws::Crt::Mqtt5::OnConnectionFailureEventData &eventData) {
                 std::cerr << "[mqtt-plugin] Connection failed: "
                           << aws_error_debug_str(eventData.errorCode) << "." << std::endl;
             });
