@@ -1,6 +1,7 @@
 #pragma once
 
 #include "buffer_stream.hpp"
+#include "util.hpp"
 #include <array>
 #include <cstdint>
 #include <functional>
@@ -931,101 +932,88 @@ namespace ggapi {
          */
         BufferOutStream out();
 
-        Buffer &put(int32_t idx, const char *data, size_t n) {
-            required();
-            if(n > std::numeric_limits<uint32_t>::max()) {
+        template<typename DataT, typename SizeT>
+        Buffer &put(int32_t idx, util::Span<DataT, SizeT> span) {
+            if(span.size_bytes() > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("length out of range");
             }
-            callApi([*this, idx, data, n]() { ::ggapiBufferPut(_handle, idx, data, n); });
+            required();
+            callApi([*this, idx, span]() {
+                ::ggapiBufferPut(
+                    _handle,
+                    idx,
+                    // NOLINTNEXTLINE(*-type-reinterpret-cast)
+                    reinterpret_cast<const char *>(span.data()),
+                    span.size_bytes());
+            });
             return *this;
         }
 
-        template<typename T>
-        Buffer &put(int32_t idx, const T *data, size_t n) {
-            required();
-            // NOLINTNEXTLINE(*-type-reinterpret-cast)
-            const char *d = reinterpret_cast<const char *>(data);
-            size_t nn = n * sizeof(const char);
-            if(nn < n) {
+        template<typename T, class Alloc>
+        Buffer &put(int32_t idx, const std::vector<T, Alloc> &vec) {
+            return put(idx, util::Span{vec});
+        }
+
+        template<typename CharT, class Traits>
+        Buffer &put(int32_t idx, std::basic_string_view<CharT, Traits> sv) {
+            return put(idx, util::Span<const CharT>{sv});
+        }
+
+        template<typename DataT, typename SizeT>
+        Buffer &insert(int32_t idx, util::Span<DataT, SizeT> span) {
+            if(span.size_bytes() > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("length out of range");
             }
-            return put(idx, d, nn);
-        }
-
-        template<typename T>
-        Buffer &put(int32_t idx, const std::vector<T> &vec) {
-            return put(idx, vec.data(), vec.size());
-        }
-
-        template<typename T>
-        Buffer &put(int32_t idx, const std::basic_string_view<T> sv) {
-            return put(idx, sv.data(), sv.length());
-        }
-
-        Buffer &insert(int32_t idx, const char *data, size_t n) {
             required();
-            if(n > std::numeric_limits<uint32_t>::max()) {
-                throw std::out_of_range("length out of range");
-            }
-            callApi([*this, idx, data, n]() { ::ggapiBufferInsert(_handle, idx, data, n); });
+            callApi([*this, idx, span]() {
+                ::ggapiBufferInsert(
+                    _handle,
+                    idx,
+                    // NOLINTNEXTLINE(*-type-reinterpret-cast)
+                    reinterpret_cast<const char *>(span.data()),
+                    span.size_bytes());
+            });
             return *this;
         }
 
-        template<typename T>
-        Buffer &insert(int32_t idx, const T *data, size_t n) {
-            required();
-            // NOLINTNEXTLINE(*-type-reinterpret-cast)
-            const char *d = reinterpret_cast<const char *>(data);
-            size_t nn = n * sizeof(const char);
-            if(nn < n) {
+        template<typename T, class Alloc>
+        Buffer &insert(int32_t idx, const std::vector<T, Alloc> &vec) {
+            return insert(idx, util::Span{vec});
+        }
+
+        template<typename CharT, class Traits>
+        Buffer &insert(int32_t idx, const std::basic_string_view<CharT, Traits> sv) {
+            return insert(idx, util::Span<const CharT>{sv});
+        }
+
+        template<typename DataT, typename SizeT>
+        uint32_t get(int32_t idx, util::Span<DataT, SizeT> span) {
+            if(span.size_bytes() > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("length out of range");
             }
-            return insert(idx, d, nn);
-        }
 
-        template<typename T>
-        Buffer &insert(int32_t idx, const std::vector<T> &vec) {
-            return insert(idx, vec.data(), vec.size());
-        }
-
-        template<typename T>
-        Buffer &insert(int32_t idx, const std::basic_string_view<T> sv) {
-            return insert(idx, sv.data(), sv.length());
-        }
-
-        size_t get(int32_t idx, char *data, size_t max) {
             required();
-            if(max > std::numeric_limits<uint32_t>::max()) {
-                throw std::out_of_range("max length out of range");
-            }
-            return callApiReturn<size_t>([*this, idx, data, max]() -> size_t {
-                return ::ggapiBufferGet(_handle, idx, data, max);
+            return callApiReturn<uint32_t>([this, idx, span]() -> size_t {
+                return ::ggapiBufferGet(
+                           _handle,
+                           idx,
+                           // NOLINTNEXTLINE(*-reinterpret-cast)
+                           reinterpret_cast<char *>(span.data()),
+                           span.size_bytes())
+                       / sizeof(DataT);
             });
         }
 
-        template<typename T>
-        size_t get(int32_t idx, T *data, size_t max) {
-            required();
-            // NOLINTNEXTLINE(*-type-reinterpret-cast)
-            char *d = reinterpret_cast<char *>(data);
-            size_t nn = max * sizeof(const char);
-            if(nn < max) {
-                throw std::out_of_range("length out of range");
-            }
-            size_t act = get(idx, d, nn);
-            return act / sizeof(T);
-        }
-
-        template<typename T>
-        size_t get(int32_t idx, std::vector<T> &vec) {
-            size_t actual = get(idx, vec.data(), vec.size());
+        template<typename T, class Alloc>
+        size_t get(int32_t idx, std::vector<T, Alloc> &vec) {
+            size_t actual = get(idx, util::Span{vec});
             vec.resize(actual);
             return actual;
         }
 
-        template<typename T>
-        size_t get(int32_t idx, std::basic_string<T> &str) {
-            size_t actual = get(idx, str.data(), str.size());
+        template<typename CharT, class Traits, class Alloc>
+        size_t get(int32_t idx, std::basic_string<CharT, Traits, Alloc> &str) {
+            size_t actual = get(idx, util::Span{str});
             str.resize(actual);
             return actual;
         }
