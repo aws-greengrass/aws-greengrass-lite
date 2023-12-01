@@ -32,11 +32,11 @@ namespace ggapi {
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::BIND> &, Struct data) {
             internalBind(data);
-            return onBootstrap(data);
+            return onBind(data);
         }
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::DISCOVER> &, Struct data) {
-            return onBootstrap(data);
+            return onDiscover(data);
         }
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::START> &, Struct data) {
