@@ -99,8 +99,12 @@ namespace data {
                 return {&_strings.at(span.offset()), span.len()};
             }
 
+            [[nodiscard]] uint32_t size() const {
+                return _spans.size();
+            }
+
             [[nodiscard]] bool isValid(Symbol::Partial symbol) const {
-                return indexOf(symbol) < _spans.size();
+                return indexOf(symbol) < size();
             }
 
             [[nodiscard]] StringSpan getSpan(Symbol::Partial symbol) const;
