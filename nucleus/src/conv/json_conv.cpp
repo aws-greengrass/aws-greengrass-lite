@@ -1,76 +1,22 @@
-#include "json_helper.hpp"
-#include "data/value_type.hpp"
+#include "json_conv.hpp"
+#include "data/shared_buffer.hpp"
+#include "data/struct_model.hpp"
+#include "rapidjson/istreamwrapper.h"
 #include "scope/context_full.hpp"
 #include <fstream>
-#include <rapidjson/istreamwrapper.h>
 
-namespace config {
+namespace conv {
 
-    void TlogLine::serialize(
+    std::shared_ptr<data::SharedBuffer> JsonHelper::serializeToBuffer(
         const std::shared_ptr<scope::Context> &context,
-        rapidjson::Writer<rapidjson::StringBuffer> &writer) {
-        writer.StartObject();
+        const std::shared_ptr<data::TrackedObject> &obj) {
 
-        writer.Key(TS);
-        writer.Uint64(timestamp.asMilliseconds());
-
-        writer.Key(TP);
-        writer.StartArray();
-        for(const auto &i : topicPath) {
-            writer.String(i.c_str());
-        }
-        writer.EndArray();
-
-        const char *actionText;
-        if((action & WhatHappened::interiorAdded) != WhatHappened::never) {
-            actionText = "interiorAdded";
-        } else if((action & WhatHappened::childChanged) != WhatHappened::never) {
-            actionText = "childChanged";
-        } else if((action & WhatHappened::childRemoved) != WhatHappened::never) {
-            actionText = "childRemoved";
-        } else if((action & WhatHappened::changed) != WhatHappened::never) {
-            actionText = "changed";
-        } else if((action & WhatHappened::removed) != WhatHappened::never) {
-            actionText = "removed";
-        } else if((action & WhatHappened::timestampUpdated) != WhatHappened::never) {
-            actionText = "timestampUpdated";
-        } else if((action & WhatHappened::initialized) != WhatHappened::never) {
-            actionText = "initialized";
-        } else {
-            actionText = "";
-        }
-        writer.Key("W");
-        writer.String(actionText);
-
-        writer.Key("V");
-        JsonHelper::serialize(context, writer, value);
-
-        writer.EndObject();
-    }
-
-    WhatHappened TlogLine::decodeWhatHappened(std::string_view whatHappenedString) {
-        if(whatHappenedString == "changed") {
-            return WhatHappened::changed;
-        }
-        if(whatHappenedString == "initialized") {
-            return WhatHappened::initialized;
-        }
-        if(whatHappenedString == "childChanged") {
-            return WhatHappened::childChanged;
-        }
-        if(whatHappenedString == "removed") {
-            return WhatHappened::removed;
-        }
-        if(whatHappenedString == "childRemoved") {
-            return WhatHappened::childRemoved;
-        }
-        if(whatHappenedString == "timestampUpdated") {
-            return WhatHappened::timestampUpdated;
-        }
-        if(whatHappenedString == "interiorAdded") {
-            return WhatHappened::interiorAdded;
-        }
-        return WhatHappened::never;
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        serialize(context, writer, obj);
+        auto targetBuffer = std::make_shared<data::SharedBuffer>(context);
+        targetBuffer->put(0, data::ConstMemoryView(buffer.GetString(), buffer.GetSize()));
+        return targetBuffer;
     }
 
     // NOLINTNEXTLINE(*-no-recursion)
@@ -81,6 +27,7 @@ namespace config {
         std::visit(
             [&context, &writer](auto &&x) { serialize(context, writer, x); }, value.get().base());
     }
+
     void JsonHelper::serialize(
         const std::shared_ptr<scope::Context> &,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
@@ -127,7 +74,6 @@ namespace config {
         const std::shared_ptr<scope::Context> &context,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
         const std::shared_ptr<data::TrackedObject> &obj) {
-
         std::shared_ptr<data::ListModelBase> asList =
             std::dynamic_pointer_cast<data::ListModelBase>(obj);
         if(asList) {
@@ -159,36 +105,19 @@ namespace config {
         // Other objects are ignored
     }
 
-    TlogLine TlogLine::readRecord(
-        const std::shared_ptr<scope::Context> &context, std::ifstream &stream) {
-        TlogLine tlogLine;
-        tlogLine.deserialize(context, stream);
-        return tlogLine;
-    }
-
-    bool TlogLine::deserialize(
-        const std::shared_ptr<scope::Context> &context, std::ifstream &stream) {
-        JsonReader reader(context);
-        reader.push(std::make_unique<TlogLineResponder>(reader, *this, false));
-        rapidjson::ParseResult result = reader.read(stream);
-        if(result) {
-            return true;
-        }
-        if(result.Code() == rapidjson::ParseErrorCode::kParseErrorDocumentEmpty) {
-            return false; // failure occured prior to parsing
-        }
-        throw std::runtime_error("JSON structure invalid");
+    rapidjson::ParseResult JsonReader::readStream(std::istream &stream) {
+        rapidjson::IStreamWrapper wrapper{stream};
+        rapidjson::Reader reader;
+        return reader.Parse<
+            rapidjson::kParseStopWhenDoneFlag | rapidjson::kParseCommentsFlag
+            | rapidjson::kParseFullPrecisionFlag | rapidjson::kParseNanAndInfFlag>(wrapper, *this);
     }
 
     rapidjson::ParseResult JsonReader::read(std::ifstream &stream) {
         if(!stream.is_open()) {
             throw std::invalid_argument("JSON stream is not open");
         }
-        rapidjson::IStreamWrapper wrapper{stream};
-        rapidjson::Reader reader;
-        return reader.Parse<
-            rapidjson::kParseStopWhenDoneFlag | rapidjson::kParseCommentsFlag
-            | rapidjson::kParseFullPrecisionFlag | rapidjson::kParseNanAndInfFlag>(wrapper, *this);
+        return readStream(stream);
     }
 
     bool JsonStructResponder::parseValue(data::StructElement value) {
@@ -215,7 +144,6 @@ namespace config {
             _state = JsonState::ExpectKey;
             return true;
         } else if(_state == JsonState::ExpectValue) {
-            _state = JsonState::ExpectKey;
             std::shared_ptr<data::SharedStruct> target(
                 std::make_shared<data::SharedStruct>(_reader.refContext()));
             _reader.push(std::make_unique<JsonSharedStructResponder>(_reader, target, true));
@@ -236,7 +164,6 @@ namespace config {
 
     bool JsonStructResponder::parseStartArray() {
         if(_state == JsonState::ExpectValue) {
-            _state = JsonState::ExpectKey;
             std::shared_ptr<data::SharedList> target(
                 std::make_shared<data::SharedList>(_reader.refContext()));
             _reader.push(std::make_unique<JsonSharedListResponder>(_reader, target, true));
@@ -315,76 +242,27 @@ namespace config {
         return {std::static_pointer_cast<data::ContainerModelBase>(_target)};
     }
 
-    bool TlogLineResponder::parseKeyValue(const std::string &key, data::StructElement value) {
-        if(key == TlogLine::TS) {
-            _tlogLine.timestamp = Timestamp(static_cast<int64_t>(value.getInt()));
-            return true;
-        } else if(key == TlogLine::W) {
-            _tlogLine.action = TlogLine::decodeWhatHappened(value.getString());
-            return true;
-        } else if(key == TlogLine::V) {
-            _tlogLine.value = value;
-            return true;
-        } else {
-            // Note, TlogLine::TP is handled in parseStartArray
-            // Ignore other values
-            return true;
-        }
+    bool JsonElementResponder::parseValue(data::StructElement value) {
+        _value = value;
+        return _reader.pop(value);
     }
-
-    bool TlogLineResponder::parseStartArray() {
-        if(_state != JsonState::ExpectValue) {
-            return JsonStructResponder::parseStartArray();
-        }
-        if(_key == TlogLine::TP) {
-            _reader.push(std::make_unique<TlogLinePathResponder>(_reader, _tlogLine, true));
-            _state = JsonState::ExpectKey; // once done
-            return true;
-        }
-        if(_key == TlogLine::V) {
-            return JsonStructResponder::parseStartArray();
-        }
+    bool JsonElementResponder::parseStartObject() {
+        auto target = std::make_shared<data::SharedStruct>(_reader.refContext());
+        _reader.push(std::make_unique<JsonSharedStructResponder>(_reader, target, true));
+        return true;
+    }
+    bool JsonElementResponder::parseStartArray() {
+        auto target = std::make_shared<data::SharedList>(_reader.refContext());
+        _reader.push(std::make_unique<JsonSharedListResponder>(_reader, target, true));
+        return true;
+    }
+    bool JsonElementResponder::parseKey(const std::string_view &view) {
         return false;
     }
-
-    bool TlogLineResponder::parseStartObject() {
-        if(_state == JsonState::ExpectStartObject
-           || _state == JsonState::ExpectValue && _key == TlogLine::V) {
-            return JsonStructResponder::parseStartObject();
-        } else {
-            return false;
-        }
-    }
-
-    bool TlogLinePathResponder::parseStartArray() {
-        if(_state == JsonState::ExpectStartArray) {
-            _state = JsonState::ExpectValue;
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    bool TlogLinePathResponder::parseEndArray() {
-        if(_state == JsonState::ExpectValue) {
-            _tlogLine.topicPath = _path;
-            return _reader.pop({});
-        } else {
-            return false;
-        }
-    }
-
-    bool TlogLinePathResponder::parseValue(data::StructElement value) {
-        if(_state == JsonState::ExpectValue) {
-            _path.emplace_back(value.getString());
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    bool TlogLinePathResponder::parseStartObject() {
+    bool JsonElementResponder::parseEndObject() {
         return false;
     }
-
-} // namespace config
+    bool JsonElementResponder::parseEndArray() {
+        return false;
+    }
+} // namespace conv

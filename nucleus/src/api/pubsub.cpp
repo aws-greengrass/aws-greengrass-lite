@@ -1,3 +1,4 @@
+#include "errors/error_base.hpp"
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/expire_time.hpp"
@@ -5,29 +6,25 @@
 #include "tasks/task_threads.hpp"
 #include <cpp_api.hpp>
 
-class NativeCallback : public pubsub::AbstractCallback {
+class NativeTopicCallback : public pubsub::AbstractCallback {
 private:
     ggapiTopicCallback _callback;
     uintptr_t _context;
 
 public:
-    explicit NativeCallback(ggapiTopicCallback callback, uintptr_t context)
+    explicit NativeTopicCallback(ggapiTopicCallback callback, uintptr_t context)
         : _callback{callback}, _context{context} {
     }
 
     data::ObjHandle operator()(
         data::ObjHandle taskHandle, data::Symbol topicOrd, data::ObjHandle argsHandle) override {
         auto &context = scope::Context::get();
-        auto &threadContext = scope::Context::thread();
-        threadContext.setLastError();
+        errors::ThreadErrorContainer::get().clear();
         auto resIntHandle =
             _callback(_context, taskHandle.asInt(), topicOrd.asInt(), argsHandle.asInt());
         data::ObjHandle v = context.handleFromInt(resIntHandle);
         if(!v) {
-            data::Symbol lastError{threadContext.setLastError()};
-            if(lastError) {
-                throw pubsub::CallbackError(lastError);
-            }
+            errors::ThreadErrorContainer::get().throwIfError();
         }
         return v;
     }
@@ -46,15 +43,24 @@ uint32_t ggapiSubscribeToTopic(
     ggapiTopicCallback rxCallback,
     uintptr_t contextInt) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([anchorHandle, topicOrd, rxCallback, contextInt]() {
-        auto &context = scope::Context::get();
+        auto &context = scope::context();
+        auto scope = context.objFromInt<data::TrackingScope>(anchorHandle);
+        if(!scope) {
+            throw errors::NullHandleError();
+        }
+        if(!rxCallback) {
+            throw errors::InvalidCallbackError();
+        }
+        auto threadTaskData = scope::thread().getThreadTaskData();
+        std::shared_ptr<tasks::TaskThread> affinity;
+        if(threadTaskData->isSingleThreadMode()) {
+            affinity = threadTaskData;
+        }
         std::unique_ptr<pubsub::AbstractCallback> callback{
-            new NativeCallback(rxCallback, contextInt)};
-        return context.lpcTopics()
-            .subscribe(
-                context.handleFromInt(anchorHandle),
-                context.symbolFromInt(topicOrd),
-                std::move(callback))
-            .asIntHandle();
+            new NativeTopicCallback(rxCallback, contextInt)};
+        auto anchor = scope->root()->anchor(context.lpcTopics().subscribe(
+            context.symbolFromInt(topicOrd), std::move(callback), affinity));
+        return anchor.asIntHandle();
     });
 }
 
@@ -65,10 +71,8 @@ static inline std::shared_ptr<tasks::Task> pubSubCreateCommon(
     std::unique_ptr<tasks::SubTask> callback,
     int timeout) {
     auto &context = scope::Context::get();
-    auto &threadContext = scope::Context::thread();
 
     // New Task
-    auto scope = threadContext.getCallScope();
     auto newTaskObj = std::make_shared<tasks::Task>(context.baseRef());
 
     // Fill out task
@@ -78,7 +82,10 @@ static inline std::shared_ptr<tasks::Task> pubSubCreateCommon(
     }
     std::shared_ptr<data::StructModelBase> callDataStruct{
         callStructHandle.toObject<data::StructModelBase>()};
-    tasks::ExpireTime expireTime = tasks::ExpireTime::fromNowMillis(timeout);
+    tasks::ExpireTime expireTime = tasks::ExpireTime::infinite(); // negative values
+    if(timeout >= 0) {
+        expireTime = tasks::ExpireTime::fromNowMillis(timeout);
+    }
 
     context.lpcTopics().initializePubSubCall(
         newTaskObj, explicitListener, topicOrd, callDataStruct, std::move(callback), expireTime);
@@ -87,6 +94,7 @@ static inline std::shared_ptr<tasks::Task> pubSubCreateCommon(
 
 static inline data::ObjHandle pubSubQueueAndWaitCommon(
     const std::shared_ptr<tasks::Task> &taskObj) {
+    // Behave as if single thread mode
     taskObj->setDefaultThread(tasks::TaskThread::getThreadContext());
     scope::context().taskManager().queueTask(taskObj);
     if(taskObj->wait()) {
@@ -99,6 +107,11 @@ static inline data::ObjHandle pubSubQueueAndWaitCommon(
 
 static inline data::ObjHandle pubSubQueueAsyncCommon(const std::shared_ptr<tasks::Task> &taskObj) {
     scope::context().taskManager().queueTask(taskObj);
+    auto threadTaskData = scope::thread().getThreadTaskData();
+    if(threadTaskData->isSingleThreadMode()) {
+        // If single thread mode, then specify preferred thread for callbacks
+        taskObj->setDefaultThread(threadTaskData);
+    }
     return taskObj->getSelf();
 }
 
@@ -138,7 +151,7 @@ uint32_t ggapiSendToTopicAsync(
             if(respCallback) {
                 callback = pubsub::CompletionSubTask::of(
                     context.symbolFromInt(topicOrd),
-                    std::make_unique<NativeCallback>(respCallback, callbackCtx));
+                    std::make_unique<NativeTopicCallback>(respCallback, callbackCtx));
             }
             std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(
                 {},
@@ -162,7 +175,7 @@ uint32_t ggapiSendToListenerAsync(
             std::unique_ptr<tasks::SubTask> callback;
             if(respCallback) {
                 callback = pubsub::CompletionSubTask::of(
-                    {}, std::make_unique<NativeCallback>(respCallback, callbackCtx));
+                    {}, std::make_unique<NativeTopicCallback>(respCallback, callbackCtx));
             }
             std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(
                 context.handleFromInt(listenerHandle),
@@ -173,8 +186,3 @@ uint32_t ggapiSendToListenerAsync(
             return pubSubQueueAsyncCommon(taskObj).asInt();
         });
 }
-
-//
-// TODO: Code yet to be written...
-// uint32_t ggapiCallNext(uint32_t dataStruct) {
-//}

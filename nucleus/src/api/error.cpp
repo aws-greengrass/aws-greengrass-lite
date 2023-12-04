@@ -1,29 +1,50 @@
+#include "errors/error_base.hpp"
+#include "scope/context_full.hpp"
 #include <cpp_api.hpp>
 
-namespace error {
-    //
-    // lastError can be assumed to be a string ord, but for these functions,
-    // it's simple a thread local integer - Implemented this way to guarantee no
-    // exceptions are thrown.
-    //
-    // Most other cases of thread_local are managed by context, however
-    // setLastError/getLastError() cannot throw
-    //
-    uint32_t getSetLastError(uint32_t newValue, bool write) noexcept {
-
-        static thread_local uint32_t lastError = 0;
-        uint32_t current = lastError;
-        if(write) {
-            lastError = newValue;
-        }
-        return current;
-    }
-} // namespace error
-
-uint32_t ggapiGetError() noexcept {
-    return error::getSetLastError(0, false);
+/**
+ * Nucleus guarantees that the returned kind remains valid until the next
+ * call to ggapiSetError() in the same thread.
+ *
+ * @return last error kind (a symbol)
+ */
+uint32_t ggapiGetErrorKind() noexcept {
+    return errors::ThreadErrorContainer::get().getKindAsInt();
 }
 
-void ggapiSetError(uint32_t code) noexcept {
-    error::getSetLastError(code, true);
+/**
+ * Nucleus guarantees that the returned pointer remains valid until the next
+ * call to ggapiSetError() in the same thread.
+ *
+ * @return last error text, or nullptr if no error
+ */
+const char *ggapiGetErrorWhat() noexcept {
+    return errors::ThreadErrorContainer::get().getCachedWhat();
+}
+
+/**
+ * Set or clear a last error state.
+ *
+ * @return last error text, or nullptr if no error
+ */
+void ggapiSetError(uint32_t kind, const char *what, size_t len) noexcept {
+    static const auto DEFAULT_ERROR_WHAT = "Unspecified Error";
+    try {
+        if(kind == 0) {
+            errors::ThreadErrorContainer::get().clear();
+            return;
+        }
+        auto kindAsSymbol = scope::context().symbolFromInt(kind);
+        std::string whatString;
+        if(what == nullptr || len == 0) {
+            whatString = DEFAULT_ERROR_WHAT;
+        } else {
+            whatString = std::string(what, len);
+        }
+        auto err = errors::Error(kindAsSymbol, whatString);
+        errors::ThreadErrorContainer::get().setError(err);
+    } catch(...) {
+        // If we cannot set an error, terminate process - this is a critical condition
+        std::terminate();
+    }
 }

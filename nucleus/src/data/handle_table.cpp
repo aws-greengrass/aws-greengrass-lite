@@ -1,4 +1,5 @@
 #include "handle_table.hpp"
+#include "errors/errors.hpp"
 #include "scope/context_full.hpp"
 
 namespace data {
@@ -12,11 +13,14 @@ namespace data {
     }
 
     ObjectAnchor HandleTable::get(ObjHandle::Partial handle) const {
+        if(handle.isNull()) {
+            throw errors::NullHandleError();
+        }
         ObjectAnchor anchor = tryGet(handle);
         if(anchor) {
             return anchor;
         } else {
-            throw std::invalid_argument("Object handle is not valid");
+            throw errors::InvalidHandleError();
         }
     }
 
@@ -97,6 +101,14 @@ namespace data {
         if(root) {
             // root can be unset if owning scope is in middle of being destroyed
             root->removeRootHelper(anchor);
+        }
+    }
+    void HandleTable::check(const ObjHandle::Partial handle) const {
+        if(handle.isNull()) {
+            throw errors::NullHandleError();
+        }
+        if(!isObjHandleValid(handle)) {
+            throw errors::InvalidHandleError();
         }
     }
 } // namespace data

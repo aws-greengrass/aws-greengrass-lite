@@ -31,6 +31,20 @@ services:
         posixUser: "ggc_user:ggc_group"
       telemetry: {}
     dependencies: []
+  aws.greengrass.FleetProvisioningByClaim:
+    configuration:
+      iotDataEndpoint: "..."
+      iotCredEndpoint: ""
+      claimKeyPath: "..."
+      claimCertPath: "..."
+      deviceId: ""
+      templateName: "..."
+      templateParams: "..."
+      csrPath: ""
+      mqttPort: 80
+      proxyUrl: ""
+      proxyUsername: ""
+      proxyPassword: ""
   DeploymentService:
     dependencies: []
     version: "0.0.0"

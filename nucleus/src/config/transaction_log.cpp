@@ -1,6 +1,6 @@
 #include "transaction_log.hpp"
-#include "json_helper.hpp"
 #include "scope/context_full.hpp"
+#include "tlog_json.hpp"
 #include <iostream>
 #include <iterator>
 
@@ -202,8 +202,8 @@ namespace config {
                 return false;
             }
             while(!stream.eof()) {
-                JsonReader reader(context);
-                reader.push(std::make_unique<JsonStructValidator>(reader, false));
+                conv::JsonReader reader(context);
+                reader.push(std::make_unique<conv::JsonStructValidator>(reader, false));
                 rapidjson::ParseResult result = reader.read(stream);
                 if(result) {
                     lastValid = stream.tellg(); // update watermark

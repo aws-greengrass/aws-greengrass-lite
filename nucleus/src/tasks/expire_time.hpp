@@ -98,14 +98,6 @@ namespace tasks { //
 
         template<class Rep, class Period>
         [[nodiscard]] static ExpireTime fromNow(std::chrono::duration<Rep, Period> delta) noexcept {
-            using TargetDuration = typename std::chrono::duration<Rep, Period>;
-            if constexpr(std::is_signed_v<Rep>) {
-                if(delta < TargetDuration::zero()) {
-                    // negative delta means max time
-                    return infinite();
-                }
-            }
-
             return ExpireTime::now().checkedPositiveAdd(delta);
         }
 

@@ -26,10 +26,10 @@ SCENARIO("PubSub API", "[pubsub]") {
     GIVEN("Some listeners") {
         ggapi::Subscription subs1{callScope.subscribeToTopic({}, simpleListener1)};
         ggapi::Subscription subs2{callScope.subscribeToTopic("some-topic", simpleListener2)};
-        (void) callScope.subscribeToTopic("some-topic", simpleListener3);
+        std::ignore = callScope.subscribeToTopic("some-topic", simpleListener3);
         WHEN("Calling by topic") {
             auto data = ggapi::Struct::create();
-            (void) ggapi::Task::sendToTopic("some-topic", data);
+            std::ignore = ggapi::Task::sendToTopic("some-topic", data);
             THEN("Topic listeners were visited") {
                 REQUIRE_FALSE(data.hasKey("=1"));
                 REQUIRE(data.hasKey("=2"));
@@ -38,7 +38,7 @@ SCENARIO("PubSub API", "[pubsub]") {
         }
         WHEN("Calling by handle") {
             auto data = ggapi::Struct::create();
-            (void) subs1.call(data);
+            std::ignore = subs1.call(data);
             THEN("Single listener was visited") {
                 REQUIRE(data.hasKey("=1"));
                 REQUIRE_FALSE(data.hasKey("=2"));
@@ -47,7 +47,7 @@ SCENARIO("PubSub API", "[pubsub]") {
         }
         WHEN("Calling topic listener by handle") {
             auto data = ggapi::Struct::create();
-            (void) subs2.call(data);
+            std::ignore = subs2.call(data);
             THEN("Single listener was visited") {
                 REQUIRE_FALSE(data.hasKey("=1"));
                 REQUIRE(data.hasKey("=2"));

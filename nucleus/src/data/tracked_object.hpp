@@ -1,5 +1,6 @@
 #pragma once
 #include "data/safe_handle.hpp"
+#include "errors/errors.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -57,6 +58,8 @@ namespace data {
         }
 
     public:
+        using BadCastError = std::bad_cast;
+
         TrackedObject(const TrackedObject &) = delete;
         TrackedObject(TrackedObject &&) noexcept = default;
         TrackedObject &operator=(const TrackedObject &) = delete;
@@ -102,7 +105,11 @@ namespace data {
         template<typename T = data::TrackedObject>
         [[nodiscard]] std::shared_ptr<T> getObject() const {
             if(*this) {
-                return _object->ref<T>();
+                try {
+                    return _object->ref<T>();
+                } catch(std::bad_cast &) {
+                    throw typename T::BadCastError();
+                }
             } else {
                 return {};
             }
@@ -198,6 +205,8 @@ namespace data {
         std::shared_ptr<TrackingRoot> _root;
 
     public:
+        using BadCastError = errors::InvalidScopeError;
+
         explicit TrackingScope(const std::shared_ptr<scope::Context> &context);
 
         TrackingScope(const TrackingScope &) = delete;

@@ -53,7 +53,7 @@ void MqttSender::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) {
 }
 
 bool MqttSender::onStart(ggapi::Struct data) {
-    (void) getScope().subscribeToTopic(keys.mqttPing, mqttListener);
+    std::ignore = getScope().subscribeToTopic(keys.mqttPing, mqttListener);
     return true;
 }
 
@@ -63,7 +63,7 @@ bool MqttSender::onRun(ggapi::Struct data) {
     request.put(keys.qos, 1);
     // TODO: Use anonymous listener handle
     request.put(keys.lpcResponseTopic, keys.mqttPing);
-    (void) ggapi::Task::sendToTopic(keys.subscribeToIoTCoreTopic, request);
+    std::ignore = ggapi::Task::sendToTopic(keys.subscribeToIoTCoreTopic, request);
 
     std::thread asyncThread{threadFn};
     asyncThread.detach();

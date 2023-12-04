@@ -1,18 +1,16 @@
 #pragma once
 
-#include "config_manager.hpp"
 #include "data/shared_list.hpp"
 #include "data/struct_model.hpp"
-#include <rapidjson/reader.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
+#include "rapidjson/reader.h"
+#include "rapidjson/stringbuffer.h"
+#include "rapidjson/writer.h"
 
-namespace config {
+namespace conv {
     class JsonReader;
 
     enum class JsonState {
         Any,
-        Completed,
         ExpectValue,
         ExpectStartObject,
         ExpectStartArray,
@@ -117,6 +115,23 @@ namespace config {
         data::StructElement buildValue() override;
     };
 
+    class JsonElementResponder : public JsonResponder {
+    protected:
+        data::StructElement &_value;
+
+    public:
+        JsonElementResponder(JsonReader &reader, data::StructElement &value)
+            : JsonResponder(reader), _value(value) {
+        }
+
+        bool parseValue(data::StructElement value) override;
+        bool parseKey(const std::string_view &view) override;
+        bool parseStartObject() override;
+        bool parseStartArray() override;
+        bool parseEndObject() override;
+        bool parseEndArray() override;
+    };
+
     class JsonStructValidator : public JsonStructResponder {
     public:
         explicit JsonStructValidator(JsonReader &reader, bool started)
@@ -157,6 +172,7 @@ namespace config {
         }
 
         [[nodiscard]] rapidjson::ParseResult read(std::ifstream &stream);
+        [[nodiscard]] rapidjson::ParseResult readStream(std::istream &stream);
 
         void push(std::unique_ptr<JsonResponder> responder) {
             _responders.emplace_back(std::move(responder));
@@ -244,60 +260,12 @@ namespace config {
         }
     };
 
-    class TlogLine;
-
-    class TlogLineResponder : public JsonStructResponder {
-        TlogLine &_tlogLine;
-
-    public:
-        explicit TlogLineResponder(JsonReader &reader, TlogLine &line, bool started)
-            : JsonStructResponder(reader, started), _tlogLine(line) {
-        }
-
-        bool parseKeyValue(const std::string &key, data::StructElement value) override;
-        bool parseStartArray() override;
-        bool parseStartObject() override;
-    };
-
-    class TlogLinePathResponder : public JsonArrayResponder {
-        TlogLine &_tlogLine;
-        std::vector<std::string> _path;
-
-    public:
-        explicit TlogLinePathResponder(JsonReader &reader, TlogLine &line, bool started)
-            : JsonArrayResponder(reader, started), _tlogLine(line) {
-        }
-
-        bool parseValue(data::StructElement value) override;
-        bool parseStartArray() override;
-        bool parseStartObject() override;
-        bool parseEndArray() override;
-    };
-
-    //
-    // Translation of a log line to/from JSON
-    //
-    struct TlogLine {
-        static constexpr const char *TS = {"TS"};
-        Timestamp timestamp{};
-        static constexpr const char *TP = {"TP"};
-        std::vector<std::string> topicPath{};
-        static constexpr const char *W = {"W"};
-        WhatHappened action{WhatHappened::never};
-        static constexpr const char *V = {"V"};
-        data::StructElement value{};
-
-        void serialize(
-            const std::shared_ptr<scope::Context> &context,
-            rapidjson::Writer<rapidjson::StringBuffer> &writer);
-        bool deserialize(const std::shared_ptr<scope::Context> &context, std::ifstream &stream);
-
-        static TlogLine readRecord(
-            const std::shared_ptr<scope::Context> &context, std::ifstream &stream);
-        static WhatHappened decodeWhatHappened(std::string_view whatHappenedString);
-    };
-
     struct JsonHelper {
+
+        static std::shared_ptr<data::SharedBuffer> serializeToBuffer(
+            const std::shared_ptr<scope::Context> &context,
+            const std::shared_ptr<data::TrackedObject> &obj);
+
         static void serialize(
             const std::shared_ptr<scope::Context> &context,
             rapidjson::Writer<rapidjson::StringBuffer> &writer,
@@ -331,4 +299,4 @@ namespace config {
             rapidjson::Writer<rapidjson::StringBuffer> &writer,
             const std::shared_ptr<data::TrackedObject> &obj);
     };
-} // namespace config
+} // namespace conv

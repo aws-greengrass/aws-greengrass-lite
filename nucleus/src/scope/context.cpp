@@ -169,6 +169,7 @@ namespace scope {
                 _scopeRoot = std::make_shared<data::TrackingRoot>(context());
             }
             _callScope = active = CallScope::create(context(), _scopeRoot, baseRef(), {});
+            errors::ThreadErrorContainer::get().reset();
         }
         return active;
     }
@@ -182,32 +183,43 @@ namespace scope {
         const std::shared_ptr<CallScope> &callScope) {
         std::shared_ptr<CallScope> prev = getCallScope();
         _callScope = callScope;
+        errors::ThreadErrorContainer::get().reset();
         return prev;
     }
 
-    data::Symbol PerThreadContext::setLastError(const data::Symbol &errorSymbol) {
-        data::Symbol prev = getLastError();
-        ::ggapiSetError(errorSymbol.asInt());
-        return prev;
+    /**
+     * Used only from errors::ThreadErrorContainer - makes a copy of current thread error.
+     */
+    void PerThreadContext::setThreadErrorDetail(const errors::Error &error) {
+        _threadErrorDetail = error;
     }
 
-    data::Symbol PerThreadContext::getLastError() {
-        return context()->symbolFromInt(::ggapiGetError());
+    /**
+     * Retrieve current thread error by reference (ensures the what() value does not go away).
+     */
+    const errors::Error &PerThreadContext::getThreadErrorDetail() const {
+        return _threadErrorDetail;
     }
 
-    std::shared_ptr<tasks::TaskThread> PerThreadContext::getThreadContext() {
-        auto active = _threadContext;
+    /**
+     * Retrieve a per-thread object that is used for task strategy, data and affinity.
+     */
+    std::shared_ptr<tasks::TaskThread> PerThreadContext::getThreadTaskData() {
+        auto active = _threadTaskData;
         if(!active) {
             // Auto-assign a thread context
-            _threadContext = active = std::make_shared<tasks::FixedTaskThread>(context());
+            _threadTaskData = active = std::make_shared<tasks::FixedTaskThread>(context());
         }
         return active;
     }
 
-    std::shared_ptr<tasks::TaskThread> PerThreadContext::setThreadContext(
-        const std::shared_ptr<tasks::TaskThread> &threadContext) {
-        auto prev = _threadContext;
-        _threadContext = threadContext;
+    /**
+     * Change task strategy and per thread task data associated with thread.
+     */
+    std::shared_ptr<tasks::TaskThread> PerThreadContext::setThreadTaskData(
+        const std::shared_ptr<tasks::TaskThread> &threadTaskData) {
+        auto prev = _threadTaskData;
+        _threadTaskData = threadTaskData;
         return prev;
     }
 
@@ -231,7 +243,7 @@ namespace scope {
     }
 
     NucleusCallScopeContext::~NucleusCallScopeContext() {
-        ::ggapiSetError(0);
+        errors::ThreadErrorContainer::get().reset();
     }
 
     Context &SharedContextMapper::context() const {

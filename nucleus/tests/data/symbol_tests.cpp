@@ -60,6 +60,15 @@ SCENARIO("String ordinals are consistent", "[ordinal]") {
                 }
             }
         }
+        WHEN("Zero-length ordinal allocated") {
+            auto empty{symbols.intern("")};
+            THEN("The ordinals is non-null") {
+                REQUIRE(empty.asInt() != 0);
+            }
+            THEN("Ordinal value is empty") {
+                REQUIRE(empty.toString() == "");
+            }
+        }
     }
 }
 

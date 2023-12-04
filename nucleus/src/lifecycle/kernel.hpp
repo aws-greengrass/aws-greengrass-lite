@@ -44,7 +44,7 @@ namespace lifecycle {
         tasks::FixedTaskThreadScope _mainThread;
         std::unique_ptr<config::TlogWriter> _tlog;
         deployment::DeploymentStage _deploymentStageAtLaunch{deployment::DeploymentStage::DEFAULT};
-        std::unique_ptr<deployment::DeviceConfiguration> _deviceConfiguration{nullptr};
+        std::shared_ptr<deployment::DeviceConfiguration> _deviceConfiguration{nullptr};
         std::unique_ptr<KernelAlternatives> _kernelAlts{nullptr};
         std::atomic_int _exitCode{0};
 

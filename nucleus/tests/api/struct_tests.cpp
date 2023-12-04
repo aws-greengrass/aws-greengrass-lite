@@ -100,6 +100,18 @@ SCENARIO("Shared structure API", "[struct]") {
             }
         }
     }
+    GIVEN("A empty value structure") {
+        auto s = ggapi::Struct::create();
+        THEN("Structure is empty") {
+            REQUIRE(s.size() == 0);
+        }
+        WHEN("Empty Items are added to structure") {
+            s.put("foo", "");
+            THEN("Value is a empty string") {
+                REQUIRE(s.get<std::string>("foo") == "");
+            }
+        }
+    }
 }
 
 // NOLINTEND

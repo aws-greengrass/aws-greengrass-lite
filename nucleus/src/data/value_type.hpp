@@ -39,21 +39,23 @@ namespace data {
         }
 
         template<typename T>
-        ValueType &operator=(T x) {
+        ValueType &operator=(const T &x) {
             ValueTypeBase::operator=(convert(x));
             return *this;
         }
 
         template<typename T>
-        static ValueTypeBase convert(T x) noexcept {
+        static ValueTypeBase convert(const T &x) {
             if constexpr(std::is_same_v<bool, T>) {
                 return ValueTypeBase(x);
             } else if constexpr(std::is_integral_v<T>) {
                 return static_cast<uint64_t>(x);
             } else if constexpr(std::is_floating_point_v<T>) {
                 return static_cast<double>(x);
-            } else if constexpr(std::is_assignable_v<Symbol, T>) {
+            } else if constexpr(std::is_base_of_v<Symbol, T>) {
                 return static_cast<Symbol>(x);
+            } else if constexpr(std::is_base_of_v<SymbolInit, T>) {
+                return x.toSymbol();
             } else if constexpr(std::is_assignable_v<std::shared_ptr<TrackedObject>, T>) {
                 return static_cast<std::shared_ptr<TrackedObject>>(x);
             } else if constexpr(std::is_assignable_v<std::string, T>) {

@@ -2,6 +2,7 @@
 #include "config/config_manager.hpp"
 #include "config/validator.hpp"
 #include "data/string_table.hpp"
+#include "errors/error_base.hpp"
 #include "lifecycle/kernel.hpp"
 #include "util/nucleus_paths.hpp"
 #include <atomic>
@@ -36,6 +37,7 @@ namespace deployment {
             "interpolateComponentConfiguration"};
         data::SymbolInit DEVICE_PARAM_IPC_SOCKET_PATH{"ipcSocketPath"};
         data::SymbolInit SYSTEM_NAMESPACE_KEY{"system"};
+        data::SymbolInit SERVICES_NAMESPACE_KEY{"services"};
         data::SymbolInit PLATFORM_OVERRIDE_TOPIC{"platformOverride"};
         data::SymbolInit DEVICE_PARAM_AWS_REGION{"awsRegion"};
         data::SymbolInit DEVICE_PARAM_FIPS_MODE{"fipsMode"};
@@ -69,64 +71,72 @@ namespace deployment {
 
         data::SymbolInit DEVICE_PARAM_ENV_STAGE{"envStage"};
         data::SymbolInit DEFAULT_ENV_STAGE{"prod"};
-        data::SymbolInit CANNOT_BE_EMPTY{"cannot be empty"};
         data::SymbolInit AWS_IOT_THING_NAME_ENV{"AWS_IOT_THING_NAME"};
         data::SymbolInit GGC_VERSION_ENV{"GGC_VERSION"};
-        data::SymbolInit NUCLEUS_BUILD_METADATA_DIRECTORY{"conf"};
-        data::SymbolInit NUCLEUS_RECIPE_FILENAME{"recipe.yaml"};
-        data::SymbolInit FALLBACK_DEFAULT_REGION{"us-east-1"};
-        data::SymbolInit AMAZON_DOMAIN_SEQUENCE{".amazonaws."};
-        data::SymbolInit FALLBACK_VERSION{"0.0.0"};
+        data::SymbolInit HTTP_CLIENT{"httpClient"};
+
+        // Strings that are not used as keys
+        constexpr static std::string_view CANNOT_BE_EMPTY{"cannot be empty"};
+        constexpr static std::string_view NUCLEUS_BUILD_METADATA_DIRECTORY{"conf"};
+        constexpr static std::string_view NUCLEUS_RECIPE_FILENAME{"recipe.yaml"};
+        constexpr static std::string_view FALLBACK_DEFAULT_REGION{"us-east-1"};
+        constexpr static std::string_view AMAZON_DOMAIN_SEQUENCE{".amazonaws."};
+        constexpr static std::string_view FALLBACK_VERSION{"0.0.0"};
 
         explicit DeviceConfigConsts(const std::shared_ptr<scope::Context> &context) {
             data::SymbolInit::init(
                 context,
-                {&DEFAULT_NUCLEUS_COMPONENT_NAME,
-                 &DEVICE_PARAM_THING_NAME,
-                 &DEVICE_PARAM_GG_DATA_ENDPOINT,
-                 &DEVICE_PARAM_IOT_DATA_ENDPOINT,
-                 &DEVICE_PARAM_IOT_CRED_ENDPOINT,
-                 &DEVICE_PARAM_PRIVATE_KEY_PATH,
-                 &DEVICE_PARAM_CERTIFICATE_FILE_PATH,
-                 &DEVICE_PARAM_ROOT_CA_PATH,
-                 &DEVICE_PARAM_INTERPOLATE_COMPONENT_CONFIGURATION,
-                 &DEVICE_PARAM_IPC_SOCKET_PATH,
-                 &SYSTEM_NAMESPACE_KEY,
-                 &PLATFORM_OVERRIDE_TOPIC,
-                 &DEVICE_PARAM_AWS_REGION,
-                 &DEVICE_PARAM_FIPS_MODE,
-                 &DEVICE_MQTT_NAMESPACE,
-                 &DEVICE_SPOOLER_NAMESPACE,
-                 &RUN_WITH_TOPIC,
-                 &RUN_WITH_DEFAULT_POSIX_USER,
-                 &RUN_WITH_DEFAULT_WINDOWS_USER,
-                 &RUN_WITH_DEFAULT_POSIX_SHELL,
-                 &RUN_WITH_DEFAULT_POSIX_SHELL_VALUE,
-                 &FLEET_STATUS_CONFIG_TOPICS,
-                 &IOT_ROLE_ALIAS_TOPIC,
-                 &COMPONENT_STORE_MAX_SIZE_BYTES,
-                 &DEPLOYMENT_POLLING_FREQUENCY_SECONDS,
-                 &NUCLEUS_CONFIG_LOGGING_TOPICS,
-                 &TELEMETRY_CONFIG_LOGGING_TOPICS,
-                 &S3_ENDPOINT_TYPE,
-                 // &S3_ENDPOINT_PROP_NAME
-                 &DEVICE_NETWORK_PROXY_NAMESPACE,
-                 &DEVICE_PROXY_NAMESPACE,
-                 &DEVICE_PARAM_NO_PROXY_ADDRESSES,
-                 &DEVICE_PARAM_PROXY_URL,
-                 &DEVICE_PARAM_PROXY_USERNAME,
-                 &DEVICE_PARAM_PROXY_PASSWORD,
-                 &DEVICE_PARAM_GG_DATA_PLANE_PORT,
-                 &DEVICE_PARAM_ENV_STAGE,
-                 &DEFAULT_ENV_STAGE,
-                 &CANNOT_BE_EMPTY,
-                 &AWS_IOT_THING_NAME_ENV,
-                 &GGC_VERSION_ENV,
-                 &NUCLEUS_BUILD_METADATA_DIRECTORY,
-                 &NUCLEUS_RECIPE_FILENAME,
-                 &FALLBACK_DEFAULT_REGION,
-                 &AMAZON_DOMAIN_SEQUENCE,
-                 &FALLBACK_VERSION});
+                {
+                    &DEFAULT_NUCLEUS_COMPONENT_NAME,
+                    &DEVICE_PARAM_THING_NAME,
+                    &DEVICE_PARAM_GG_DATA_ENDPOINT,
+                    &DEVICE_PARAM_IOT_DATA_ENDPOINT,
+                    &DEVICE_PARAM_IOT_CRED_ENDPOINT,
+                    &DEVICE_PARAM_PRIVATE_KEY_PATH,
+                    &DEVICE_PARAM_CERTIFICATE_FILE_PATH,
+                    &DEVICE_PARAM_ROOT_CA_PATH,
+                    &DEVICE_PARAM_INTERPOLATE_COMPONENT_CONFIGURATION,
+                    &DEVICE_PARAM_IPC_SOCKET_PATH,
+                    &SYSTEM_NAMESPACE_KEY,
+                    &PLATFORM_OVERRIDE_TOPIC,
+                    &DEVICE_PARAM_AWS_REGION,
+                    &DEVICE_PARAM_FIPS_MODE,
+                    &DEVICE_MQTT_NAMESPACE,
+                    &DEVICE_SPOOLER_NAMESPACE,
+                    &RUN_WITH_TOPIC,
+                    &RUN_WITH_DEFAULT_POSIX_USER,
+                    &RUN_WITH_DEFAULT_WINDOWS_USER,
+                    &RUN_WITH_DEFAULT_POSIX_SHELL,
+                    &RUN_WITH_DEFAULT_POSIX_SHELL_VALUE,
+                    &FLEET_STATUS_CONFIG_TOPICS,
+                    &IOT_ROLE_ALIAS_TOPIC,
+                    &COMPONENT_STORE_MAX_SIZE_BYTES,
+                    &DEPLOYMENT_POLLING_FREQUENCY_SECONDS,
+                    &NUCLEUS_CONFIG_LOGGING_TOPICS,
+                    &TELEMETRY_CONFIG_LOGGING_TOPICS,
+                    &S3_ENDPOINT_TYPE,
+                    // &S3_ENDPOINT_PROP_NAME
+                    &DEVICE_NETWORK_PROXY_NAMESPACE,
+                    &DEVICE_PROXY_NAMESPACE,
+                    &DEVICE_PARAM_NO_PROXY_ADDRESSES,
+                    &DEVICE_PARAM_PROXY_URL,
+                    &DEVICE_PARAM_PROXY_USERNAME,
+                    &DEVICE_PARAM_PROXY_PASSWORD,
+                    &DEVICE_PARAM_GG_DATA_PLANE_PORT,
+                    &DEVICE_PARAM_ENV_STAGE,
+                    &DEFAULT_ENV_STAGE,
+                    &AWS_IOT_THING_NAME_ENV,
+                    &GGC_VERSION_ENV,
+                    &HTTP_CLIENT,
+                });
+        }
+    };
+
+    class DeviceConfigurationException : public errors::Error {
+
+    public:
+        explicit DeviceConfigurationException(const std::string &msg) noexcept
+            : Error("DeviceConfigurationException", msg) {
         }
     };
 
@@ -163,24 +173,23 @@ namespace deployment {
         std::shared_ptr<config::Topics> getTelemetryConfigurationTopics();
         std::shared_ptr<config::Topics> getStatusConfigurationTopics();
         std::string initNucleusComponentName();
-        void initializeNucleusComponentConfig(std::string);
-        void persistInitialLaunchParams(lifecycle::KernelAlternatives);
-        void initializeNucleusLifecycleConfig(std::string);
-        void initializeNucleusVersion(std::string, std::string);
+        void initializeNucleusComponentConfig(const std::string &);
+        void persistInitialLaunchParams(lifecycle::KernelAlternatives &);
+        void initializeNucleusLifecycleConfig(const std::string &);
+        void initializeNucleusVersion(const std::string &, const std::string &);
         void initializeComponentStore(
-            lifecycle::KernelAlternatives,
-            std::string,
-            std::string,
-            std::filesystem::path,
-            std::filesystem::path);
-        void initializeNucleusFromRecipe(lifecycle::KernelAlternatives);
+            lifecycle::KernelAlternatives &,
+            const std::string &,
+            const std::string &,
+            const std::filesystem::path &,
+            const std::filesystem::path &);
         void copyUnpackedNucleusArtifacts(
             const std::filesystem::path &, const std::filesystem::path &);
         void handleLoggingConfig();
         void handleLoggingConfigurationChanges(
             config::WhatHappened, const std::shared_ptr<config::ConfigNode> &);
         //        void reconfigureLogging(LogConfigUpdate);
-        std::optional<std::string> getComponentType(std::string);
+        std::optional<std::string> getComponentType(const std::string &);
         //        std::shared_ptr<config::Validator> &getDeTildeValidator(lifecycle::CommandLine
         //        &commandLine); std::shared_ptr<config::Validator>
         //        &getRegionValidator(lifecycle::CommandLine &commandLine);
@@ -202,7 +211,7 @@ namespace deployment {
         config::Topic getAWSRegion();
         config::Topic getFipsMode();
         config::Topic getGreengrassDataPlanePort();
-        void setAwsRegion(std::string);
+        void setAwsRegion(const std::string &);
         config::Topic getEnvironmentStage();
         std::shared_ptr<config::Topics> getMQTTNamespace();
         std::shared_ptr<config::Topics> getSpoolerNamespace();
@@ -217,12 +226,12 @@ namespace deployment {
         config::Topic getDeploymentPollingFrequencySeconds();
         config::Topic gets3EndpointType();
         // void onAnyChange(ChildChanged);
-        void validate();
-        void validate(bool);
+        void validateConfiguration();
+        void validateConfiguration(bool);
         bool isDeviceConfiguredToTalkToCloud();
         bool provisionInfoNodeChanged(const std::shared_ptr<config::ConfigNode> &node, bool);
-        config::Topic getTopic(data::SymbolInit);
-        std::shared_ptr<config::Topics> getTopics(data::SymbolInit);
+        config::Topic getTopic(data::Symbol);
+        std::shared_ptr<config::Topics> getTopics(data::Symbol);
         std::string getNucleusVersion();
         std::string getVersionFromBuildRecipeFile();
         void validateDeviceConfiguration(

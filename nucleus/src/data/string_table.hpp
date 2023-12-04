@@ -1,4 +1,5 @@
 #pragma once
+#include "data/data_util.hpp"
 #include "data/safe_handle.hpp"
 #include <cassert>
 #include <cstddef>
@@ -10,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <vector>
 
 namespace scope {
     class Context;
@@ -17,65 +19,6 @@ namespace scope {
 
 namespace data {
     class ValueType;
-
-    //
-    // Internalized string (right now simple a wrapper around string)
-    //
-    class InternedString {
-        std::string _value;
-
-    public:
-        struct CompEq {
-            [[nodiscard]] bool operator()(
-                const InternedString &a, const InternedString &b) const noexcept {
-                return a._value == b._value;
-            }
-        };
-
-        struct CompLess {
-            [[nodiscard]] bool operator()(
-                const InternedString &a, const InternedString &b) const noexcept {
-                return a._value < b._value;
-            }
-        };
-
-        struct Hash {
-            using hash_type = std::hash<std::string_view>;
-            using is_transparent = void;
-
-            [[nodiscard]] std::size_t operator()(const InternedString &k) const noexcept {
-                return hash_type{}(k._value);
-            }
-
-            [[nodiscard]] std::size_t operator()(const std::string &s) const noexcept {
-                return hash_type{}(s);
-            }
-
-            [[nodiscard]] std::size_t operator()(std::string_view sv) const noexcept {
-                return hash_type{}(sv);
-            }
-        };
-
-        InternedString() = default;
-        InternedString(const InternedString &) = default;
-        InternedString(InternedString &&) = default;
-        InternedString &operator=(const InternedString &) = default;
-        InternedString &operator=(InternedString &&) = default;
-        ~InternedString() = default;
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        InternedString(std::string_view sv) : _value{sv} {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        InternedString(std::string s) : _value{std::move(s)} {
-        }
-
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        [[nodiscard]] operator std::string() const {
-            return _value;
-        }
-    };
 
     //
     // Handles for strings only
@@ -115,65 +58,103 @@ namespace data {
     };
 
     class SymbolTable {
-        static const int PRIME{15299};
+        class StringSpan {
+            uint32_t _offset{0};
+            uint32_t _len{0};
+
+        public:
+            constexpr StringSpan() noexcept = default;
+            constexpr StringSpan(uint32_t offset, uint32_t len) noexcept
+                : _offset(offset), _len(len) {
+            }
+            [[nodiscard]] uint32_t offset() const noexcept {
+                return _offset;
+            }
+            [[nodiscard]] uint32_t len() const noexcept {
+                return _len;
+            }
+        };
+        class Buffer {
+            std::vector<char> _strings;
+            std::vector<StringSpan> _spans;
+            constexpr static auto CHAR_CAPACITY_SPARE{0x3000};
+            constexpr static auto SPAN_CAPACITY_SPARE{0x800};
+
+            static uint32_t indexOf(Symbol::Partial h) {
+                return data::IdObfuscator::deobfuscate(h.asInt());
+            }
+
+            static Symbol::Partial symbolOf(uint32_t idx) {
+                return Symbol::Partial{data::IdObfuscator::obfuscate(idx)};
+            }
+
+            constexpr static auto EMPTY_LENGTH_INDEX = 0;
+
+        public:
+            Buffer();
+            Symbol::Partial push(std::string_view &source);
+            static Symbol::Partial empty();
+
+            [[nodiscard]] std::string_view toView(const StringSpan &span) const {
+                return {&_strings.at(span.offset()), span.len()};
+            }
+
+            [[nodiscard]] bool isValid(Symbol::Partial symbol) const {
+                return indexOf(symbol) < _spans.size();
+            }
+
+            [[nodiscard]] StringSpan getSpan(Symbol::Partial symbol) const;
+
+            [[nodiscard]] std::string_view at(Symbol::Partial symbol) const {
+                return toView(getSpan(symbol));
+            }
+        };
+        class RbCompLess {
+            Buffer &_buffer;
+
+        public:
+            using is_transparent = void;
+
+            explicit RbCompLess(Buffer &b) : _buffer(b) {
+            }
+            [[nodiscard]] bool operator()(const StringSpan &a, const StringSpan &b) const noexcept {
+                return _buffer.toView(a) < _buffer.toView(b);
+            }
+            [[nodiscard]] bool operator()(const StringSpan &a, std::string_view b) const noexcept {
+                return _buffer.toView(a) < b;
+            }
+            [[nodiscard]] bool operator()(std::string_view a, const StringSpan &b) const noexcept {
+                return a < _buffer.toView(b);
+            }
+        };
+
         mutable std::shared_mutex _mutex;
         mutable scope::FixedPtr<SymbolTable> _table{scope::FixedPtr<SymbolTable>::of(this)};
-        std::unordered_map<
-            InternedString,
-            Symbol::Partial,
-            InternedString::Hash,
-            InternedString::CompEq>
-            _interned;
-        std::unordered_map<
-            Symbol::Partial,
-            InternedString,
-            Symbol::Partial::Hash,
-            Symbol::Partial::CompEq>
-            _reverse;
+        Buffer _buffer;
+        RbCompLess _rbCompLess{_buffer};
+        std::map<StringSpan, Symbol::Partial, RbCompLess> _lookup{_rbCompLess};
 
         Symbol applyUnchecked(Symbol::Partial h) const {
             return {_table, h};
         }
 
     public:
+        SymbolTable();
         Symbol testAndGetSymbol(std::string_view str) const {
             std::shared_lock guard{_mutex};
-            auto i = _interned.find(str);
-            if(i == _interned.end()) {
+            auto i = _lookup.find(str);
+            if(i == _lookup.end()) {
                 return {};
             } else {
                 return applyUnchecked(i->second);
             }
         }
 
-        Symbol intern(std::string_view str) {
-            Symbol ord = testAndGetSymbol(str); // optimistic using shared lock
-            if(ord.isNull()) {
-                std::unique_lock guard(_mutex);
-                auto i = _interned.find(str);
-                if(i == _interned.end()) {
-                    // expected case
-                    // ordinals are computed this way to optimize std::map
-                    Symbol::Partial new_ord{
-                        static_cast<uint32_t>(InternedString::Hash{}(str))}; // distribute IDs
-                    while(_reverse.find(new_ord) != _reverse.end()) {
-                        new_ord = Symbol::Partial{new_ord.asInt() + PRIME};
-                    }
-                    _reverse.emplace(new_ord, str);
-                    _interned.emplace(str, new_ord);
-                    return applyUnchecked(new_ord);
-                } else {
-                    // this path handles a race condition
-                    return applyUnchecked(i->second);
-                }
-            } else {
-                return ord;
-            }
-        }
+        Symbol intern(std::string_view str);
 
         bool isSymbolValid(Symbol::Partial symbol) const {
             std::shared_lock guard{_mutex};
-            return _reverse.find(symbol) != _reverse.end();
+            return _buffer.isValid(symbol);
         }
 
         bool isSymbolValid(const Symbol &symbol) const {
@@ -182,14 +163,10 @@ namespace data {
 
         std::string getString(Symbol::Partial symbol) const {
             std::shared_lock guard{_mutex};
-            return _reverse.at(symbol);
+            return std::string(_buffer.at(symbol));
         }
 
-        void assertValidSymbol(const Symbol::Partial symbol) const {
-            if(!isSymbolValid(symbol)) {
-                throw std::invalid_argument("String ordinal is not valid");
-            }
-        }
+        void assertValidSymbol(Symbol::Partial symbol) const;
 
         // NOLINTNEXTLINE(readability-convert-member-functions-to-static) false due to assert
         Symbol::Partial partial(const Symbol &symbol) const {
@@ -213,31 +190,42 @@ namespace data {
         return table().getString(partial());
     }
 
-    //
-    // Helper class for dealing with large numbers of constants
-    //
+    /**
+     * Helper class for dealing with symbol constants
+     * TODO: Change all uses of SymbolInit to inline static const
+     */
     class SymbolInit {
+        std::string_view _string;
         mutable Symbol _symbol{};
-        std::string _string;
+        mutable std::once_flag _onceFlag;
         void init(const std::shared_ptr<scope::Context> &context) const;
+        void initOnce(const std::shared_ptr<scope::Context> &context) const;
+        void initOnce() const;
 
     public:
-        // NOLINTNEXTLINE(*-explicit-constructor)
-        SymbolInit(const char *constString) : _string(constString) {
-        }
+        // SymbolInit is never intended to be used as a parameter for move/copy - it's purpose
+        // is to help define symbol constants.
+        SymbolInit(const SymbolInit &) = delete;
+        SymbolInit(SymbolInit &&) = delete;
+        SymbolInit &operator=(const SymbolInit &) = delete;
+        SymbolInit &operator=(SymbolInit &&) = delete;
+        ~SymbolInit() = default;
 
         // NOLINTNEXTLINE(*-explicit-constructor)
         SymbolInit(std::string_view constString) : _string(constString) {
         }
 
         std::string toString() const {
-            return _string;
+            return std::string(_string);
         }
 
         Symbol toSymbol() const {
-            assert(!_symbol.isNull());
+            initOnce();
             return _symbol;
         }
+
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        operator ValueType() const;
 
         // NOLINTNEXTLINE(*-explicit-constructor)
         operator Symbol() const {

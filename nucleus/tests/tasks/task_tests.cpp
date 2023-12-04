@@ -11,8 +11,7 @@ namespace constants {
     using namespace std::chrono_literals;
     static constexpr auto TIMER_GRANULARITY = 300ms; // If too small, tests will become unstable
 
-    // TODO: remove or significantly reduce me
-    static constexpr auto POLLING_GRACE = 1ms;
+    static constexpr auto ZERO_TIME = 0ms;
 } // namespace constants
 
 class SubTaskStub : public tasks::SubTask {
@@ -50,16 +49,17 @@ SCENARIO("Task management", "[tasks]") {
     auto &taskManager = context->taskManager();
     tasks::FixedTaskThreadScope threadScope{std::make_shared<tasks::FixedTaskThread>(context)};
 
-    GIVEN("An empty task") {
+    GIVEN("An empty task with thread affinity") {
         auto task{std::make_shared<tasks::Task>(context)};
         auto taskInitData{std::make_shared<data::SharedStruct>(context)};
         task->setData(taskInitData);
+        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
         taskManager.queueTask(task);
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
             auto t1 = std::chrono::high_resolution_clock::now();
-            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
+            bool didComplete = task->waitForCompletionDelta(constants::ZERO_TIME);
             auto data = task->getData();
             auto t2 = std::chrono::high_resolution_clock::now();
             auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
@@ -73,20 +73,21 @@ SCENARIO("Task management", "[tasks]") {
         }
     }
 
-    GIVEN("An empty task with completion function") {
+    GIVEN("An empty task with affinity and completion function") {
 
         auto task{std::make_shared<tasks::Task>(context)};
         auto taskInitData{std::make_shared<data::SharedStruct>(context)};
         auto taskCompData{std::make_shared<data::SharedStruct>(context)};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
+        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
         task->setCompletion(std::move(finalize));
         taskManager.queueTask(task);
         // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
             auto t1 = std::chrono::high_resolution_clock::now();
-            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
+            bool didComplete = task->waitForCompletionDelta(constants::ZERO_TIME);
             auto data = task->getData();
             auto t2 = std::chrono::high_resolution_clock::now();
             auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
@@ -105,13 +106,14 @@ SCENARIO("Task management", "[tasks]") {
         }
     }
 
-    GIVEN("A single non-return sub-task with completion function") {
+    GIVEN("A single non-return sub-task with affinity and completion function") {
         auto task{std::make_shared<tasks::Task>(context)};
         auto taskInitData{std::make_shared<data::SharedStruct>(context)};
         auto taskCompData{std::make_shared<data::SharedStruct>(context)};
         auto subTask1{std::make_unique<SubTaskStub>("subTask1")};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
+        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
         task->addSubtask(std::move(subTask1));
         task->setCompletion(std::move(finalize));
         taskManager.queueTask(task);
@@ -119,7 +121,7 @@ SCENARIO("Task management", "[tasks]") {
 
         WHEN("Polling once for completion") {
             auto t1 = std::chrono::high_resolution_clock::now();
-            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
+            bool didComplete = task->waitForCompletionDelta(constants::ZERO_TIME);
             auto data = task->getData();
             auto t2 = std::chrono::high_resolution_clock::now();
             auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
@@ -141,7 +143,7 @@ SCENARIO("Task management", "[tasks]") {
         }
     }
 
-    GIVEN("Three sub-tasks with completion function") {
+    GIVEN("Three sub-tasks with affinity and completion function") {
         auto task{std::make_shared<tasks::Task>(context)};
         auto taskInitData{std::make_shared<data::SharedStruct>(context)};
         auto taskRetData{std::make_shared<data::SharedStruct>(context)};
@@ -151,15 +153,15 @@ SCENARIO("Task management", "[tasks]") {
         auto subTask3{std::make_unique<SubTaskStub>("subTask3", taskRetData)};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
+        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
         task->addSubtask(std::move(subTask1));
         task->addSubtask(std::move(subTask2));
         task->addSubtask(std::move(subTask3));
         task->setCompletion(std::move(finalize));
         taskManager.queueTask(task);
-        // note, for this test, no worker allocated
 
         WHEN("Polling once for completion") {
-            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
+            bool didComplete = task->waitForCompletionDelta(constants::ZERO_TIME);
             auto data = task->getData();
             THEN("Task returns completed") {
                 REQUIRE(didComplete);
@@ -195,6 +197,7 @@ SCENARIO("Task management", "[tasks]") {
         auto subTask3{std::make_unique<SubTaskStub>("subTask3", taskRetData3)};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
+        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
         task->addSubtask(std::move(subTask1));
         task->addSubtask(std::move(subTask2));
         task->addSubtask(std::move(subTask3));
@@ -204,7 +207,7 @@ SCENARIO("Task management", "[tasks]") {
 
         WHEN("Polling once for completion") {
             auto t1 = std::chrono::high_resolution_clock::now();
-            bool didComplete = task->waitForCompletionDelta(constants::POLLING_GRACE);
+            bool didComplete = task->waitForCompletionDelta(constants::ZERO_TIME);
             auto data = task->getData();
             auto t2 = std::chrono::high_resolution_clock::now();
             auto timeTaken = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
@@ -264,6 +267,7 @@ SCENARIO("Deferred task management", "[tasks]") {
     tasks::FixedTaskThreadScope threadScope{std::make_shared<tasks::FixedTimerTaskThread>(context)};
 
     GIVEN("Three independent tasks") {
+        // For this test, no affinity is used
         auto task1{std::make_shared<tasks::Task>(context)};
         auto task2{std::make_shared<tasks::Task>(context)};
         auto task3{std::make_shared<tasks::Task>(context)};

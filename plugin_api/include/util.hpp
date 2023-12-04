@@ -1,7 +1,9 @@
 #pragma once
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -66,6 +68,9 @@ namespace util {
         SizeT _len;
 
     public:
+        using DataType = DataT;
+        using SizeType = SizeT;
+
         Span(DataT *ptr, SizeT len) noexcept : _ptr(ptr), _len(len) {
         }
 
@@ -189,4 +194,190 @@ namespace util {
         }
         return ptr;
     }
+
+    /**
+     * Create a simple 1:1 lookup table (e.g. Symbols to Enums)
+     */
+    template<typename VT1, typename VT2, uint32_t Nm>
+    class LookupTable {
+        std::array<VT1, Nm> _first;
+        std::array<VT2, Nm> _second;
+        template<uint32_t index, typename... Rest>
+        void place() noexcept {
+            static_assert(index == Nm);
+        }
+        template<uint32_t index, typename V1, typename V2, typename... Rest>
+        void place(const V1 &v1, const V2 &v2, const Rest &...rest) noexcept {
+            _first[index] = std::move(v1);
+            _second[index] = std::move(v2);
+            place<index + 1, Rest...>(rest...);
+        }
+
+    public:
+        template<typename... Ts>
+        explicit LookupTable(const Ts &...args) noexcept {
+            place<0, Ts...>(args...);
+        }
+
+        [[nodiscard]] std::optional<VT2> lookup(const VT1 &v) const noexcept {
+            auto i = indexOf(v);
+            if(i.has_value()) {
+                return _second[i.value()];
+            } else {
+                return {};
+            }
+        }
+
+        [[nodiscard]] std::optional<VT1> rlookup(const VT2 &v) const noexcept {
+            auto i = rindexOf(v);
+            if(i.has_value()) {
+                return _first[i.value()];
+            } else {
+                return {};
+            }
+        }
+
+        [[nodiscard]] std::optional<uint32_t> indexOf(const VT1 &v) const noexcept {
+            for(uint32_t i = 0; i < Nm; ++i) {
+                if(_first[i] == v) {
+                    return i;
+                }
+            }
+            return {};
+        }
+
+        [[nodiscard]] std::optional<uint32_t> rindexOf(const VT2 &v) const noexcept {
+            for(uint32_t i = 0; i < Nm; ++i) {
+                if(_second[i] == v) {
+                    return i;
+                }
+            }
+            return {};
+        }
+    };
+    template<typename VT1, typename VT2, typename... Rest>
+    LookupTable(const VT1 &v1, const VT2 &v2, const Rest &...args)
+        -> LookupTable<VT1, VT2, 1 + sizeof...(Rest) / 2>;
+
+    /**
+     * Given a template of index, type, and values, it will retrieve the nth value
+     * from the template list of values. Essentially a template const lookup.
+     *
+     * TmplConstAt<2,int, -1,100,200,300,400>::value == 200
+     *
+     * @tparam n Index of value to obtain, > 0
+     * @tparam T Type of value
+     * @tparam Vnext Next value (discarded)
+     * @tparam Vrest Rest of the values
+     */
+    template<uint32_t n, typename T, T Vnext, T... Vrest>
+    struct TmplConstAt {
+        static constexpr T value = TmplConstAt<n - 1, T, Vrest...>::value;
+    };
+    /**
+     * Given a template of index, type, and values, it will retrieve the nth value
+     * from the template list of values. Essentially a template const lookup.
+     *
+     * Specialized for n=0
+     *
+     * @tparam T Type of value
+     * @tparam Vnext Desired value (used)
+     * @tparam Vrest Rest of the values (discarded)
+     */
+    template<typename T, T Vnext, T... Vrest>
+    struct TmplConstAt<0, T, Vnext, Vrest...> {
+        static constexpr T value = Vnext;
+    };
+
+    /**
+     * Given a template of index, and list of types, it will retrieve the nth type
+     * from the list of types. Essentially a template type lookup
+     *
+     * TmplTypeAt<2,Z,A,B,C>::type == B
+     *
+     * @tparam n Index of value to obtain, > 0
+     * @tparam Tnext Next type (discarded)
+     * @tparam Trest Rest of the types
+     */
+    template<uint32_t n, typename Tnext, typename... Trest>
+    struct TmplTypeAt {
+        using type = typename TmplTypeAt<n - 1, Tnext, Trest...>::type;
+    };
+    /**
+     * Given a template of index, type, and values, it will retrieve the nth value
+     * from the template list of values. Essentially a template const lookup.
+     *
+     * Specialized for n=0
+     *
+     * @tparam Tnext Desired value (used)
+     * @tparam Trest Rest of the values (discarded)
+     */
+    template<typename Tnext, typename... Trest>
+    struct TmplTypeAt<0, Tnext, Trest...> {
+        using type = Tnext;
+    };
+
+    //
+    // Enum magic to allow a unique type per enum value and visitor patterns around it
+    //
+
+    /**
+     * An Enum constant that is a unique class for each constant value. It is legal to create
+     * instances of this class, which simplifies use as constexpr.
+     *
+     * @tparam EType Base Enum Type, typically "enum class" but can be any simple type.
+     * @tparam enumVal simple type value - must be of type EType.
+     */
+    template<typename EType, EType enumVal>
+    class EnumConst {
+
+    public:
+        static constexpr EType v = enumVal;
+
+        constexpr EnumConst() noexcept = default;
+    };
+
+    /**
+     * A class based Enum bound to a set of valid simple type values.
+     * @tparam EType Base Enum Type
+     * @tparam EVals Set of valid Enum values
+     */
+    template<typename EType, EType... EVals>
+    class Enum {
+
+        template<typename Ret, typename Func, EType Vfirst, EType... Vrest>
+        constexpr static std::optional<Ret> _visit(const EType &v, Func &&func) {
+            if(v == Vfirst) {
+                return std::invoke(std::forward<Func>(func), enumConst<Vfirst>);
+            } else {
+                return _visit<Ret, Func, Vrest...>(v, std::forward<Func>(func));
+            }
+        }
+
+        template<typename Ret, typename Func>
+        constexpr static std::optional<Ret> _visit(const EType &, Func &&) {
+            return {};
+        }
+
+    public:
+        using BaseType = EType;
+        static constexpr uint32_t count = sizeof...(EVals);
+        template<EType T>
+        using ConstType = EnumConst<EType, T>;
+        template<EType T>
+        static constexpr ConstType<T> enumConst = ConstType<T>();
+
+        template<uint32_t index>
+        static constexpr auto enumAt = TmplConstAt<index, EType, EVals...>::value;
+        template<uint32_t index>
+        using ConstTypeAt = ConstType<enumAt<index>>;
+        template<uint32_t index>
+        static constexpr ConstTypeAt<index> enumConstAt = enumConst<enumAt<index>>;
+
+        template<typename Ret, typename Func>
+        static std::optional<Ret> visit(const BaseType &v, Func &&func) {
+            return _visit<Ret, Func, EVals...>(v, std::forward<Func>(func));
+        }
+    };
+
 } // namespace util

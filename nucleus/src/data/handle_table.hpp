@@ -99,11 +99,7 @@ namespace data {
             return _handles.find(handle) != _handles.end();
         }
 
-        void check(const ObjHandle::Partial handle) const {
-            if(!isObjHandleValid(handle)) {
-                throw std::invalid_argument("Object handle is not valid");
-            }
-        }
+        void check(ObjHandle::Partial handle) const;
 
         ObjHandle::Partial partial(const ObjectAnchor &anchor) {
             if(anchor) {

@@ -1,10 +1,12 @@
 #pragma once
 
+#include "buffer_stream.hpp"
+#include <array>
 #include <cstdint>
 #include <functional>
-#include <iostream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -35,10 +37,13 @@ namespace ggapi {
     class Subscription;
     class GgApiError; // error from GG API call
 
-    typedef std::function<Struct(Scope, Symbol, Struct)> topicCallbackLambda;
-    typedef std::function<void(Scope, Symbol, Struct)> lifecycleCallbackLambda;
-    typedef Struct (*topicCallback_t)(Task, Symbol, Struct);
-    typedef void (*lifecycleCallback_t)(ModuleScope, Symbol, Struct);
+    using topicCallbackLambda = std::function<Struct(Scope, Symbol, Struct)>;
+    using lifecycleCallbackLambda = std::function<void(Scope, Symbol, Struct)>;
+    using taskCallbackLambda = std::function<void(Struct)>;
+    using topicCallback_t = Struct (*)(Task, Symbol, Struct);
+    using lifecycleCallback_t = void (*)(ModuleScope, Symbol, Struct);
+    using taskCallback_t = void (*)(Struct);
+
     uint32_t topicCallbackProxy(
         uintptr_t callbackContext,
         uint32_t taskHandle,
@@ -49,6 +54,7 @@ namespace ggapi {
         uint32_t moduleHandle,
         uint32_t phaseOrd,
         uint32_t dataStruct) noexcept;
+    bool taskCallbackProxy(uintptr_t callbackContext, uint32_t dataStruct) noexcept;
     template<typename T>
     T trapErrorReturn(const std::function<T()> &fn) noexcept;
     uint32_t trapErrorReturnHandle(const std::function<ObjHandle()> &fn) noexcept;
@@ -212,20 +218,54 @@ namespace ggapi {
                 return ::ggapiIsSameObject(_handle, other._handle);
             });
         }
+
+        [[nodiscard]] bool isTask() const {
+            return ::ggapiIsTask(getHandleId());
+        }
+
+        [[nodiscard]] bool isScope() const {
+            return ::ggapiIsScope(getHandleId());
+        }
+
+        [[nodiscard]] bool isSubscription() const {
+            return ::ggapiIsSubscription(getHandleId());
+        }
+
+        [[nodiscard]] bool isStruct() const {
+            return ::ggapiIsStruct(getHandleId());
+        }
+
+        [[nodiscard]] bool isList() const {
+            return ::ggapiIsList(getHandleId());
+        }
+
+        [[nodiscard]] bool isBuffer() const {
+            return ::ggapiIsBuffer(getHandleId());
+        }
+
+        [[nodiscard]] bool isContainer() const {
+            return ::ggapiIsContainer(getHandleId());
+        }
+
+        [[nodiscard]] bool isScalar() const {
+            return ::ggapiIsScalar(getHandleId());
+        }
     };
 
-    //
-    // A task handle represents an active LPC operation. The handle is deleted after the completion
-    // callback (if any).
-    //
+    /**
+     * A task handle represents an active LPC operation or deferred function call. The handle is
+     * deleted after the completion callback (if any).
+     */
     class Task : public ObjHandle {
         void check() {
-            if(getHandleId() != 0 && !ggapiIsTask(getHandleId())) {
+            if(getHandleId() != 0 && !isTask()) {
                 throw std::runtime_error("Task handle expected");
             }
         }
 
     public:
+        constexpr Task() noexcept = default;
+
         explicit Task(const ObjHandle &other) : ObjHandle{other} {
             check();
         }
@@ -234,47 +274,82 @@ namespace ggapi {
             check();
         }
 
-        //
-        // Create an asynchronous LPC call - returning the Task handle for the call.
-        //
+        /**
+         * Changes affinitized callback model. Listeners created in this thread will only
+         * be executed in same thread. Tasks created in this thread will use this thread by
+         * default for callbacks if not otherwise affinitized. See individual functions
+         * for single thread behavior.
+         */
+        static void setSingleThread(bool singleThread) {
+            callApi([singleThread]() { ::ggapiSetSingleThread(singleThread); });
+        }
+
+        /**
+         * Create an asynchronous LPC call - returning the Task handle for the call. This
+         * function allows a "run later" behavior (e.g. for retries). If calling thread is
+         * marked as "single thread", any callbacks not already affinitized will run on this
+         * thread during "waitForTaskCompleted".
+         */
         [[nodiscard]] static Task sendToTopicAsync(
             Symbol topic, Struct message, topicCallback_t result, int32_t timeout = -1);
 
-        //
-        // Create a synchronous LPC call - a task handle is created, and observable by subscribers
-        // however the task is deleted by the time the call returns. Most handlers are called in
-        // the same (callers) thread, however this must not be assumed.
-        //
+        /**
+         * Create a synchronous LPC call - a task handle is created, and observable by subscribers
+         * however the task is deleted by the time the call returns. Most handlers are called in
+         * the same (callers) thread as if "setSingleThread" set to true, however this must not be
+         * assumed as some callbacks may be affinitized to another thread.
+         */
         [[nodiscard]] static Struct sendToTopic(Symbol topic, Struct message, int32_t timeout = -1);
 
-        //
-        // Block until task completes including final callback if there is one.
-        //
+        /**
+         * A deferred asynchronous call using the task system. If calling thread is in "single
+         * thread" mode, the call will not run until "waitForTaskCompleted" is called (for any
+         * task).
+         */
+        [[nodiscard]] static Task callAsync(
+            Struct data, taskCallback_t callback, uint32_t delay = 0);
+
+        /**
+         * Block until task completes including final callback if there is one. If thread is in
+         * "single thread" mode, callbacks will execute during this callback even if associated
+         * with other tasks.
+         */
         [[nodiscard]] Struct waitForTaskCompleted(int32_t timeout = -1);
 
-        //
-        // Cancel task - if a callback is executing, it will complete first.
-        //
+        /**
+         * Block for set period of time while allowing thread to be used for other tasks.
+         */
+        static void sleep(uint32_t duration);
+
+        /**
+         * Cancel task - if a callback is asynchronously executing, they will still continue to
+         * run, it does not kill underlying threads.
+         */
         void cancelTask();
 
-        //
-        // When in a task callback, returns the associated task.
-        //
+        /**
+         * When in a task callback, returns the associated task. When not in a task callback, it
+         * returns a task handle associated with the thread.
+         */
         [[nodiscard]] static Task current();
     };
 
-    //
-    // Subscription handles indicate an active listener for LPC topics. Anonymous listeners
-    // can also exist.
-    //
+    /**
+     * Subscription handles indicate an active listener for LPC topics. Anonymous listeners
+     * can also exist. Subscriptions are associated with a scope. A module-scope subscription
+     * will exist for the entire lifetime of the module. A local-scope subscription will exist
+     * until the enclosing scope returns (useful for single-thread subscriptions).
+     */
     class Subscription : public ObjHandle {
         void check() {
-            if(getHandleId() != 0 && !ggapiIsSubscription(getHandleId())) {
+            if(getHandleId() != 0 && !isSubscription()) {
                 throw std::runtime_error("Subscription handle expected");
             }
         }
 
     public:
+        constexpr Subscription() noexcept = default;
+
         explicit Subscription(const ObjHandle &other) : ObjHandle{other} {
             check();
         }
@@ -283,33 +358,37 @@ namespace ggapi {
             check();
         }
 
-        //
-        // Send a message to this specific subscription. Return immediately.
-        //
+        /**
+         * Send a message to this specific subscription. Return immediately. If the calling thread
+         * is in "single thread" mode, the 'result' callback will not execute until
+         * waitForTaskCompleted is called in the same thread.
+         */
         [[nodiscard]] Task callAsync(
             Struct message, topicCallback_t result, int32_t timeout = -1) const;
 
-        //
-        // Send a message to this specific subscription. If possible, run in same thread.
-        // Block until completion.
-        //
+        /**
+         * Send a message to this specific subscription. Wait until task completes, as if
+         * waitForTaskCompleted is called on the same thread.
+         */
         [[nodiscard]] Struct call(Struct message, int32_t timeout = -1) const;
     };
 
-    //
-    // Scopes are a class of handles that are used as targets for anchoring other handles.
-    // See the subclasses to understand the specific types of scopes.
-    //
+    /**
+     * Scopes are a class of handles that are used as targets for anchoring other handles.
+     * See the subclasses to understand the specific types of scopes. There are currently two
+     * kinds of scopes - Module scope (for the duration plugin is loaded), and Call scope
+     * (stack-based).
+     */
     class Scope : public ObjHandle {
 
         void check() {
-            if(getHandleId() != 0 && !ggapiIsScope(getHandleId())) {
+            if(getHandleId() != 0 && !isScope()) {
                 throw std::runtime_error("Scope handle expected");
             }
         }
 
     public:
-        Scope() noexcept = default;
+        constexpr Scope() noexcept = default;
         Scope(const Scope &) noexcept = default;
         Scope(Scope &&) noexcept = default;
         Scope &operator=(const Scope &) noexcept = default;
@@ -337,12 +416,12 @@ namespace ggapi {
         [[nodiscard]] T anchor(T otherHandle) const;
     };
 
-    //
-    // Module scope. For module-global data.
-    //
+    /**
+     * Module scope. For module-global data. Typically used for listeners.
+     */
     class ModuleScope : public Scope {
     public:
-        ModuleScope() noexcept = default;
+        constexpr ModuleScope() noexcept = default;
         ModuleScope(const ModuleScope &) noexcept = default;
         ModuleScope(ModuleScope &&) noexcept = default;
         ModuleScope &operator=(const ModuleScope &) noexcept = default;
@@ -398,9 +477,9 @@ namespace ggapi {
         }
     };
 
-    //
-    // Containers are the root for Structures and Lists
-    //
+    /**
+     * Containers are the root for Structures, Lists and Buffers.
+     */
     class Container : public ObjHandle {
     public:
         using ArgValueBase =
@@ -415,9 +494,9 @@ namespace ggapi {
                 return fn(static_cast<uint64_t>(x));
             } else if constexpr(std::is_floating_point_v<VT>) {
                 return fn(static_cast<double>(x));
-            } else if constexpr(std::is_assignable_v<Symbol, VT>) {
+            } else if constexpr(std::is_base_of_v<Symbol, VT>) {
                 return fn(static_cast<Symbol>(x));
-            } else if constexpr(std::is_assignable_v<ObjHandle, VT>) {
+            } else if constexpr(std::is_base_of_v<ObjHandle, VT>) {
                 return fn(static_cast<ObjHandle>(x));
             } else if constexpr(std ::is_assignable_v<std::string_view, VT>) {
                 return fn(static_cast<std::string_view>(x));
@@ -426,6 +505,28 @@ namespace ggapi {
             } else {
                 static_assert(VT::usingUnsupportedType, "Unsupported type");
             }
+        }
+
+    private:
+        static Container boxImpl(bool v) {
+            return callApiReturnHandle<Container>([v]() { return ::ggapiBoxBool(v); });
+        }
+        static Container boxImpl(uint64_t v) {
+            return callApiReturnHandle<Container>([v]() { return ::ggapiBoxInt64(v); });
+        }
+        static Container boxImpl(double v) {
+            return callApiReturnHandle<Container>([v]() { return ::ggapiBoxFloat64(v); });
+        }
+        static Container boxImpl(std::string_view v) {
+            return callApiReturnHandle<Container>(
+                [v]() { return ::ggapiBoxString(v.data(), v.length()); });
+        }
+        static Container boxImpl(Symbol v) {
+            return callApiReturnHandle<Container>([v]() { return ::ggapiBoxSymbol(v.asInt()); });
+        }
+        static Container boxImpl(ObjHandle v) {
+            return callApiReturnHandle<Container>(
+                [v]() { return ::ggapiBoxHandle(v.getHandleId()); });
         }
 
     public:
@@ -451,26 +552,26 @@ namespace ggapi {
 
             template<typename T>
             // NOLINTNEXTLINE(*-explicit-constructor)
-            ArgValue(T x) : ArgValueBase(convert(x)) {
+            ArgValue(const T &x) : ArgValueBase(convert(x)) {
             }
 
             template<typename T>
-            ArgValue &operator=(T x) {
+            ArgValue &operator=(const T &x) {
                 ArgValueBase::operator=(convert(x));
                 return *this;
             }
 
             template<typename T>
-            static ArgValueBase convert(T x) noexcept {
+            static ArgValueBase convert(const T &x) noexcept {
                 if constexpr(std::is_same_v<bool, T>) {
                     return ArgValueBase(x);
                 } else if constexpr(std::is_integral_v<T>) {
                     return static_cast<uint64_t>(x);
                 } else if constexpr(std::is_floating_point_v<T>) {
                     return static_cast<double>(x);
-                } else if constexpr(std::is_assignable_v<Symbol, T>) {
+                } else if constexpr(std::is_base_of_v<Symbol, T>) {
                     return static_cast<Symbol>(x);
-                } else if constexpr(std::is_assignable_v<ObjHandle, T>) {
+                } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                     return static_cast<ObjHandle>(x);
                 } else if constexpr(std ::is_assignable_v<std::string_view, T>) {
                     return static_cast<std::string_view>(x);
@@ -482,6 +583,8 @@ namespace ggapi {
 
         using KeyValue = std::pair<Symbol, ArgValue>;
 
+        constexpr Container() noexcept = default;
+
         explicit Container(const ObjHandle &other) : ObjHandle{other} {
         }
 
@@ -491,14 +594,68 @@ namespace ggapi {
         [[nodiscard]] uint32_t size() const {
             return callApiReturn<uint32_t>([*this]() { return ::ggapiGetSize(_handle); });
         }
+
+        /**
+         * Create a buffer that represents the JSON string for this container. If the container
+         * is a buffer, it is treated as a string.
+         */
+        [[nodiscard]] Buffer toJson() const;
+        /**
+         * Create a buffer that represents the YAML string for this container. If the container
+         * is a buffer, it is treated as a string.
+         */
+        [[nodiscard]] Buffer toYaml() const;
+
+        /**
+         * Convert a scalar value to a boxed container.
+         */
+        template<typename T>
+        [[nodiscard]] static Container box(T v) {
+            return visitArg([](auto &&v) { boxImpl(v); }, v);
+        }
+
+        /**
+         * Convert boxed container type into unboxed type, throwing an exception
+         * if conversion cannot be performed.
+         *
+         * @tparam T unboxed type
+         * @return value converted to requested type
+         */
+        template<typename T>
+        [[nodiscard]] T unbox() const {
+            required();
+            if constexpr(std::is_same_v<bool, T>) {
+                return callApiReturn<bool>([*this]() { return ::ggapiUnboxBool(_handle); });
+            } else if constexpr(std::is_integral_v<T>) {
+                auto intv =
+                    callApiReturn<uint64_t>([*this]() { return ::ggapiUnboxInt64(_handle); });
+                return static_cast<T>(intv);
+            } else if constexpr(std::is_floating_point_v<T>) {
+                auto floatv =
+                    callApiReturn<double>([*this]() { return ::ggapiUnboxFloat64(_handle); });
+                return static_cast<T>(floatv);
+            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
+                return callApiReturnHandle<T>([*this]() { return ::ggapiUnboxHandle(_handle); });
+            } else if constexpr(std ::is_assignable_v<std::string, T>) {
+                size_t len =
+                    callApiReturn<size_t>([*this]() { return ::ggapiUnboxStringLen(_handle); });
+                return stringFillHelper(len, [*this](auto buf, auto bufLen) {
+                    return callApiReturn<size_t>([*this, &buf, bufLen]() {
+                        return ::ggapiUnboxString(_handle, buf, bufLen);
+                    });
+                });
+            } else {
+                static_assert(T::usingUnsupportedType, "Unsupported type");
+            }
+        }
     };
 
-    //
-    // Structures are containers with associative keys
-    //
+    /**
+     * Structures are containers with associative keys.
+     */
     class Struct : public Container {
         void check() {
-            if(getHandleId() != 0 && !ggapiIsStruct(getHandleId())) {
+            if(getHandleId() != 0 && !isStruct()) {
                 throw std::runtime_error("Structure handle expected");
             }
         }
@@ -527,6 +684,8 @@ namespace ggapi {
         }
 
     public:
+        constexpr Struct() noexcept = default;
+
         explicit Struct(const ObjHandle &other) : Container{other} {
             check();
         }
@@ -564,7 +723,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T get(Symbol key) {
+        [[nodiscard]] T get(Symbol key) const {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(
@@ -577,7 +736,7 @@ namespace ggapi {
                 auto floatv = callApiReturn<double>(
                     [*this, key]() { return ::ggapiStructGetFloat64(_handle, key.asInt()); });
                 return static_cast<T>(floatv);
-            } else if constexpr(std::is_assignable_v<ObjHandle, T>) {
+            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                 return callApiReturnHandle<T>(
                     [*this, key]() { return ::ggapiStructGetHandle(_handle, key.asInt()); });
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
@@ -594,7 +753,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T getValue(const std::initializer_list<std::string_view> &keys) {
+        T getValue(const std::initializer_list<std::string_view> &keys) const {
             ggapi::Struct childStruct = *this;
             auto it = keys.begin();
             for(; it != std::prev(keys.end()); it++) {
@@ -604,12 +763,12 @@ namespace ggapi {
         }
     };
 
-    //
-    // Lists are containers with index-based keys
-    //
+    /**
+     * Lists are containers with index-based keys
+     */
     class List : public Container {
         void check() {
-            if(getHandleId() != 0 && !ggapiIsList(getHandleId())) {
+            if(getHandleId() != 0 && !isList()) {
                 throw std::runtime_error("List handle expected");
             }
         }
@@ -653,6 +812,8 @@ namespace ggapi {
         }
 
     public:
+        constexpr List() noexcept = default;
+
         explicit List(const ObjHandle &other) : Container{other} {
             check();
         }
@@ -694,7 +855,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T get(int32_t idx) {
+        [[nodiscard]] T get(int32_t idx) {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(
@@ -707,7 +868,7 @@ namespace ggapi {
                 auto floatv = callApiReturn<double>(
                     [*this, idx]() { return ::ggapiListGetFloat64(_handle, idx); });
                 return static_cast<T>(floatv);
-            } else if constexpr(std::is_assignable_v<ObjHandle, T>) {
+            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                 return callApiReturnHandle<T>(
                     [*this, idx]() { return ::ggapiListGetHandle(_handle, idx); });
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
@@ -724,21 +885,24 @@ namespace ggapi {
         }
     };
 
-    class BufferStream;
-    class BufferInStream;
-    class BufferOutStream;
+    class Buffer;
+    using BufferStream = util::BufferStreamBase<Buffer>;
+    using BufferInStream = util::BufferInStreamBase<BufferStream>;
+    using BufferOutStream = util::BufferOutStreamBase<BufferStream>;
 
-    //
-    // Buffers are shared containers of bytes
-    //
+    /**
+     * Buffers are shared mutable containers of bytes.
+     */
     class Buffer : public Container {
         void check() {
-            if(getHandleId() != 0 && !ggapiIsBuffer(getHandleId())) {
+            if(getHandleId() != 0 && !isBuffer()) {
                 throw std::runtime_error("Buffer handle expected");
             }
         }
 
     public:
+        constexpr Buffer() noexcept = default;
+
         explicit Buffer(const ObjHandle &other) : Container{other} {
             check();
         }
@@ -751,8 +915,20 @@ namespace ggapi {
             return Buffer(::ggapiCreateBuffer());
         }
 
+        /**
+         * BufferStream should be used only on buffers that will not be read/modified by a different
+         * thread until closed.
+         */
         BufferStream stream();
+        /**
+         * BufferInStream should be used only on buffers that will not be read/modified by a
+         * different thread until closed.
+         */
         BufferInStream in();
+        /**
+         * BufferOutStream should be used only on buffers that will not be read/modified by a
+         * different thread until closed.
+         */
         BufferOutStream out();
 
         Buffer &put(int32_t idx, const char *data, size_t n) {
@@ -870,240 +1046,21 @@ namespace ggapi {
             callApi([*this, newSize]() { ::ggapiBufferResize(_handle, newSize); });
             return *this;
         }
-    };
 
-    class BufferStream : public std::streambuf {
-        //
-        // Lightweight implementation to allow << and >> operators
-        //
-
-        Buffer _buffer;
-        pos_type _inpos{0}; // unbuffered position
-        pos_type _outpos{0};
-        std::vector<char> _inbuf;
-        std::vector<char> _outbuf;
-        static constexpr uint32_t BUFFER_SIZE{256};
-
-        int32_t inAsInt(uint32_t limit = std::numeric_limits<int32_t>::max()) {
-            if(_inpos > limit) {
-                throw std::invalid_argument("Seek position beyond limit");
-            }
-            return static_cast<int32_t>(_inpos);
+        /**
+         * Parse buffer as if a JSON string. Type of container depends on type of JSON structure.
+         */
+        [[nodiscard]] Container fromJson() const {
+            required();
+            return callApiReturnHandle<Container>([*this]() { return ::ggapiFromJson(_handle); });
         }
 
-        int32_t outAsInt(uint32_t limit = std::numeric_limits<int32_t>::max()) {
-            if(_outpos > limit) {
-                throw std::invalid_argument("Seek position beyond limit");
-            }
-            return static_cast<int32_t>(_outpos);
-        }
-
-        bool readMore() {
-            flushRead();
-            int32_t pos = inAsInt();
-            uint32_t end = _buffer.size();
-            if(pos >= end) {
-                return false;
-            }
-            std::vector<char> temp(std::min(end - pos, BUFFER_SIZE));
-            auto didRead = _buffer.get(pos, temp);
-            if(didRead > 0) {
-                _inbuf = std::move(temp);
-                // NOLINTNEXTLINE(*-pointer-arithmetic)
-                setg(_inbuf.data(), _inbuf.data(), _inbuf.data() + _inbuf.size());
-                return true;
-            } else {
-                return false;
-            }
-        }
-
-        void flushWrite() {
-            if(!_outbuf.empty()) {
-                if(unflushed() > 0) {
-                    int32_t pos = outAsInt();
-                    _buffer.put(pos, pbase(), unflushed());
-                    _outpos += unflushed(); // NOLINT(*-narrowing-conversions)
-                }
-                _outbuf.clear();
-                setp(nullptr, nullptr);
-            }
-        }
-
-        void flushRead() {
-            if(!_inbuf.empty()) {
-                _inpos += consumed();
-                _inbuf.clear();
-                setg(nullptr, nullptr, nullptr);
-            }
-        }
-
-        uint32_t unflushed() {
-            return pptr() - pbase(); // NOLINT(*-narrowing-conversions)
-        }
-
-        uint32_t unread() {
-            return egptr() - gptr(); // NOLINT(*-narrowing-conversions)
-        }
-
-        uint32_t consumed() {
-            return gptr() - eback(); // NOLINT(*-narrowing-conversions)
-        }
-
-        pos_type eInPos() {
-            return _inpos + static_cast<pos_type>(consumed());
-        }
-
-        void prepareWrite() {
-            flushWrite();
-            _outbuf.resize(BUFFER_SIZE);
-            // NOLINTNEXTLINE(*-pointer-arithmetic)
-            setp(_outbuf.data(), _outbuf.data() + _outbuf.size());
-        }
-
-        pos_type seek(pos_type cur, off_type pos, std::ios_base::seekdir seekdir) {
-            uint32_t end = _buffer.size();
-            off_type newPos;
-
-            switch(seekdir) {
-                case std::ios_base::beg:
-                    newPos = pos;
-                    break;
-                case std::ios_base::end:
-                    newPos = end + pos;
-                    break;
-                case std::ios_base::cur:
-                    newPos = cur + pos;
-                    break;
-                default:
-                    throw std::invalid_argument("Seekdir is invalid");
-            }
-            if(newPos < 0) {
-                newPos = 0;
-            }
-            if(newPos > end) {
-                newPos = end;
-            }
-            return newPos;
-        }
-
-    protected:
-        pos_type seekoff(
-            off_type pos,
-            std::ios_base::seekdir seekdir,
-            std::ios_base::openmode openmode) override {
-            bool _seekIn = (openmode & std::ios_base::in) != 0;
-            bool _seekOut = (openmode & std::ios_base::out) != 0;
-            if(_seekIn && _seekOut) {
-                flushRead();
-                flushWrite();
-                _outpos = _inpos = seek(_outpos, pos, seekdir);
-                return _outpos;
-            }
-            if(_seekIn) {
-                flushRead();
-                _inpos = seek(_inpos, pos, seekdir);
-                return _inpos;
-            }
-            if(_seekOut) {
-                flushWrite();
-                _outpos = seek(_outpos, pos, seekdir);
-                return _outpos;
-            }
-            return std::streambuf::seekoff(pos, seekdir, openmode);
-        }
-
-        pos_type seekpos(pos_type pos, std::ios_base::openmode openmode) override {
-            return seekoff(pos, std::ios_base::beg, openmode);
-        }
-
-        std::streamsize showmanyc() override {
-            pos_type end = _buffer.size();
-            pos_type cur = eInPos();
-
-            if(cur >= end) {
-                return -1;
-            } else {
-                return end - cur;
-            }
-        }
-
-        int underflow() override {
-            // called when get buffer underflows
-            readMore();
-            if(unread() == 0) {
-                return traits_type::eof();
-            } else {
-                return traits_type::to_int_type(*gptr());
-            }
-        }
-
-        int pbackfail(int_type c) override {
-            // called when put-back underflows
-            flushRead();
-            flushWrite();
-            if(eInPos() == 0) {
-                return traits_type::eof();
-            }
-            _inpos -= 1;
-            if(traits_type::not_eof(c)) {
-                char cc = static_cast<char_type>(c);
-                _buffer.put(inAsInt(), std::string_view(&cc, 1));
-                return c;
-            } else {
-                return 0;
-            }
-        }
-
-        int overflow(int_type c) override {
-            // called when buffer full
-            prepareWrite(); // make room for data
-            std::streambuf::overflow(c);
-            if(traits_type::not_eof(c)) {
-                // expected to write one character
-                *pptr() = static_cast<char_type>(c);
-                pbump(1);
-            }
-            return 0;
-        }
-
-        int sync() override {
-            flushRead();
-            flushWrite();
-            return 0;
-        }
-
-    public:
-        BufferStream(const BufferStream &) = delete;
-        BufferStream(BufferStream &&) noexcept = default;
-        BufferStream &operator=(const BufferStream &) = delete;
-        BufferStream &operator=(BufferStream &&) noexcept = default;
-
-        ~BufferStream() override {
-            try {
-                flushWrite(); // attempt final flush if omitted
-            } catch(...) {
-                // destructor not allowed to throw exceptions
-            }
-        };
-
-        explicit BufferStream(const Buffer buffer) : _buffer(buffer) {
-        }
-    };
-
-    class BufferInStream : public std::istream {
-        BufferStream _stream;
-
-    public:
-        explicit BufferInStream(const Buffer buffer) : _stream(buffer), std::istream(&_stream) {
-        }
-    };
-
-    class BufferOutStream : public std::ostream {
-        BufferStream _stream;
-
-    public:
-        explicit BufferOutStream(const Buffer buffer) : _stream(buffer), std::ostream(&_stream) {
-            _stream.pubseekoff(0, std::ios_base::end, std::ios_base::out);
+        /**
+         * Parse buffer as if a YAML string. Type of container depends on type of YAML structure.
+         */
+        [[nodiscard]] Container fromYaml() const {
+            required();
+            return callApiReturnHandle<Container>([*this]() { return ::ggapiFromYaml(_handle); });
         }
     };
 
@@ -1112,19 +1069,20 @@ namespace ggapi {
     }
 
     inline BufferInStream Buffer::in() {
-        return BufferInStream(*this);
+        return BufferInStream(std::move(stream()));
     }
 
     inline BufferOutStream Buffer::out() {
-        return BufferOutStream(*this);
+        return BufferOutStream(std::move(stream()));
     }
 
     template<typename T>
     inline T Scope::anchor(T otherHandle) const {
         required();
         static_assert(std::is_base_of_v<ObjHandle, T>);
-        return callApiReturnHandle<T>(
-            [this, otherHandle]() { return ::ggapiAnchorHandle(getHandleId(), otherHandle); });
+        return callApiReturnHandle<T>([this, otherHandle]() {
+            return ::ggapiAnchorHandle(getHandleId(), otherHandle.getHandleId());
+        });
     }
 
     inline Subscription Scope::subscribeToTopic(Symbol topic, topicCallback_t callback) {
@@ -1187,6 +1145,10 @@ namespace ggapi {
             [this, timeout]() { return ::ggapiWaitForTaskCompleted(getHandleId(), timeout); });
     }
 
+    inline void Task::sleep(uint32_t duration) {
+        return callApi([duration]() { ::ggapiSleep(duration); });
+    }
+
     inline void Task::cancelTask() {
         required();
         callApi([this]() { return ::ggapiCancelTask(getHandleId()); });
@@ -1194,6 +1156,16 @@ namespace ggapi {
 
     inline Task Task::current() {
         return callApiReturnHandle<Task>([]() { return ::ggapiGetCurrentTask(); });
+    }
+
+    inline Task Task::callAsync(Struct data, taskCallback_t callback, uint32_t delay) {
+        return callApiReturnHandle<Task>([data, callback, delay]() {
+            return ::ggapiCallAsync(
+                data.getHandleId(),
+                taskCallbackProxy,
+                reinterpret_cast<uintptr_t>(callback), // NOLINT(*-reinterpret-cast)
+                delay);
+        });
     }
 
     inline ModuleScope ModuleScope::registerPlugin(
@@ -1207,6 +1179,16 @@ namespace ggapi {
                 reinterpret_cast<uintptr_t>(callback) // NOLINT(*-reinterpret-cast)
             );
         });
+    }
+
+    inline Buffer Container::toJson() const {
+        required();
+        return callApiReturnHandle<Buffer>([*this]() { return ::ggapiToJson(_handle); });
+    }
+
+    inline Buffer Container::toYaml() const {
+        required();
+        return callApiReturnHandle<Buffer>([*this]() { return ::ggapiToYaml(_handle); });
     }
 
     inline uint32_t topicCallbackProxy(
@@ -1234,56 +1216,95 @@ namespace ggapi {
         });
     }
 
-    //
-    // Symbol constants - done as inline methods so that only used constants are included. Note
-    // that ordinal gets are idempotent and thread safe.
-    //
-    struct Consts {
-
-        static Symbol error() {
-            static const Symbol error{"error"};
-            return error;
-        }
-    };
+    inline bool taskCallbackProxy(uintptr_t callbackContext, uint32_t dataStruct) noexcept {
+        return trapErrorReturn<bool>([callbackContext, dataStruct]() {
+            // NOLINTNEXTLINE(*-reinterpret-cast)
+            auto callback = reinterpret_cast<taskCallback_t>(callbackContext);
+            callback(Struct{dataStruct});
+            return true;
+        });
+    }
 
     //
     // Translated exception
     //
-    class GgApiError : public std::exception {
-        Symbol _symbol;
+    class GgApiError : public std::runtime_error {
+        Symbol _kind;
+
+        template<typename Error>
+        static Symbol typeKind() {
+            static_assert(std::is_base_of_v<std::exception, Error>);
+            return typeid(Error).name();
+        }
 
     public:
-        constexpr GgApiError(const GgApiError &) noexcept = default;
-        constexpr GgApiError(GgApiError &&) noexcept = default;
+        GgApiError(const GgApiError &) noexcept = default;
+        GgApiError(GgApiError &&) noexcept = default;
         GgApiError &operator=(const GgApiError &) noexcept = default;
         GgApiError &operator=(GgApiError &&) noexcept = default;
-
-        explicit GgApiError(const Symbol &errorClass) noexcept : _symbol{errorClass} {
-        }
-
-        explicit GgApiError(std::string_view errorClass) noexcept : _symbol{errorClass} {
-        }
-
         ~GgApiError() override = default;
 
-        constexpr explicit operator Symbol() const {
-            return _symbol;
+        explicit GgApiError(
+            Symbol kind = typeKind<GgApiError>(),
+            const std::string &what = "Unspecified Error") noexcept
+            : _kind(kind), std::runtime_error(what) {
         }
 
-        [[nodiscard]] constexpr Symbol get() const {
-            return _symbol;
+        template<typename E>
+        static GgApiError of(const E &error) {
+            static_assert(std::is_base_of_v<std::exception, E>);
+            return GgApiError(typeKind<E>(), error.what());
+        }
+
+        [[nodiscard]] constexpr Symbol kind() const {
+            return _kind;
+        }
+
+        void toThreadLastError() {
+            toThreadLastError(_kind, what());
+        }
+
+        static void toThreadLastError(Symbol kind, std::string_view what) {
+            ::ggapiSetError(kind.asInt(), what.data(), what.length());
+        }
+
+        static void clearThreadLastError() {
+            ::ggapiSetError(0, nullptr, 0);
+        }
+
+        static std::optional<GgApiError> fromThreadLastError(bool clear = false) {
+            auto lastErrorKind = ::ggapiGetErrorKind();
+            if(lastErrorKind != 0) {
+                Symbol sym(lastErrorKind);
+                std::string copy{::ggapiGetErrorWhat()}; // before clear
+                if(clear) {
+                    clearThreadLastError();
+                }
+                return GgApiError(sym, copy);
+            } else {
+                return {};
+            }
+        }
+
+        static bool hasThreadLastError() {
+            return ::ggapiGetErrorKind() != 0;
+        }
+
+        static void throwIfThreadHasError() {
+            // Wrap in fast check
+            if(hasThreadLastError()) {
+                // Slower path
+                auto lastError = fromThreadLastError(true);
+                if(lastError.has_value()) {
+                    throw GgApiError(lastError.value());
+                }
+            }
         }
     };
 
-    //
-    // Helper function to throw an exception if there is a thread error
-    //
-    inline void rethrowOnThreadError() {
-        uint32_t errCode = ggapiGetError();
-        if(errCode != 0) {
-            ggapiSetError(0); // consider error 'handled'
-            throw GgApiError(Symbol(errCode));
-        }
+    template<>
+    inline GgApiError GgApiError::of<GgApiError>(const GgApiError &error) {
+        return error;
     }
 
     //
@@ -1292,26 +1313,28 @@ namespace ggapi {
     template<typename T>
     inline T trapErrorReturn(const std::function<T()> &fn) noexcept {
         try {
-            ggapiSetError(0);
+            GgApiError::clearThreadLastError();
             if constexpr(std::is_void_v<T>) {
                 fn();
             } else {
                 return fn();
             }
+        } catch(std::exception &e) {
+            GgApiError::of(e).toThreadLastError();
         } catch(...) {
-            ggapiSetError(Consts::error().asInt());
-            if constexpr(std::is_void_v<T>) {
-                return;
-            } else {
-                return static_cast<T>(0);
-            }
+            GgApiError().toThreadLastError();
+        }
+        if constexpr(std::is_void_v<T>) {
+            return;
+        } else {
+            return static_cast<T>(0);
         }
     }
 
     inline void callApi(const std::function<void()> &fn) {
-        ggapiSetError(0);
+        GgApiError::clearThreadLastError();
         fn();
-        rethrowOnThreadError();
+        GgApiError::throwIfThreadHasError();
     }
 
     template<typename T>
@@ -1319,9 +1342,9 @@ namespace ggapi {
         if constexpr(std::is_void_v<T>) {
             callApi(fn);
         } else {
-            ggapiSetError(0);
+            GgApiError::clearThreadLastError();
             T v = fn();
-            rethrowOnThreadError();
+            GgApiError::throwIfThreadHasError();
             return v;
         }
     }

@@ -33,11 +33,13 @@ typedef bool (*ggapiLifecycleCallback)(
     uint32_t moduleHandle,
     uint32_t phaseOrd,
     uint32_t dataStruct) NOEXCEPT;
+typedef bool (*ggapiTaskCallback)(uintptr_t callbackContext, uint32_t dataStruct) NOEXCEPT;
 
 [[maybe_unused]] EXPORT bool greengrass_lifecycle(
     uint32_t moduleHandle, uint32_t phase, uint32_t data) NOEXCEPT;
-IMPEXP void ggapiSetError(uint32_t errorOrd) NOEXCEPT;
-IMPEXP uint32_t ggapiGetError() NOEXCEPT;
+IMPEXP void ggapiSetError(uint32_t kind, const char *what, size_t len) NOEXCEPT;
+IMPEXP uint32_t ggapiGetErrorKind() NOEXCEPT;
+IMPEXP const char *ggapiGetErrorWhat() NOEXCEPT;
 
 IMPEXP uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) NOEXCEPT;
 IMPEXP size_t ggapiGetOrdinalString(uint32_t symbolInt, char *bytes, size_t len) NOEXCEPT;
@@ -45,6 +47,8 @@ IMPEXP size_t ggapiGetOrdinalStringLen(uint32_t symbolInt) NOEXCEPT;
 IMPEXP uint32_t ggapiCreateStruct() NOEXCEPT;
 IMPEXP uint32_t ggapiCreateList() NOEXCEPT;
 IMPEXP uint32_t ggapiCreateBuffer() NOEXCEPT;
+IMPEXP bool ggapiIsContainer(uint32_t handle) NOEXCEPT;
+IMPEXP bool ggapiIsScalar(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsStruct(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsList(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsBuffer(uint32_t handle) NOEXCEPT;
@@ -52,6 +56,19 @@ IMPEXP bool ggapiIsTask(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsSubscription(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsScope(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsSameObject(uint32_t handle1, uint32_t handle2) NOEXCEPT;
+IMPEXP uint32_t ggapiBoxBool(bool value) NOEXCEPT;
+IMPEXP uint32_t ggapiBoxInt64(uint64_t value) NOEXCEPT;
+IMPEXP uint32_t ggapiBoxFloat64(double value) NOEXCEPT;
+IMPEXP uint32_t ggapiBoxString(const char *bytes, size_t len) NOEXCEPT;
+IMPEXP uint32_t ggapiBoxSymbol(uint32_t symValInt) NOEXCEPT;
+IMPEXP uint32_t ggapiBoxHandle(uint32_t handle) NOEXCEPT;
+IMPEXP bool ggapiUnboxBool(uint32_t handle) NOEXCEPT;
+IMPEXP uint64_t ggapiUnboxInt64(uint32_t handle) NOEXCEPT;
+IMPEXP double ggapiUnboxFloat64(uint32_t handle) NOEXCEPT;
+IMPEXP size_t ggapiUnboxString(uint32_t handle, char *buffer, size_t buflen) NOEXCEPT;
+IMPEXP size_t ggapiUnboxStringLen(uint32_t handle) NOEXCEPT;
+IMPEXP uint32_t ggapiUnboxSymbol(uint32_t handle) NOEXCEPT;
+IMPEXP uint32_t ggapiUnboxHandle(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiStructPutBool(uint32_t structHandle, uint32_t keyInt, bool value) NOEXCEPT;
 IMPEXP bool ggapiStructPutInt64(uint32_t structHandle, uint32_t symInt, uint64_t value) NOEXCEPT;
 IMPEXP bool ggapiStructPutFloat64(uint32_t structHandle, uint32_t symInt, double value) NOEXCEPT;
@@ -100,6 +117,10 @@ IMPEXP bool ggapiBufferResize(uint32_t structHandle, uint32_t newSize) NOEXCEPT;
 IMPEXP uint32_t ggapiGetSize(uint32_t structHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) NOEXCEPT;
 IMPEXP bool ggapiReleaseHandle(uint32_t objectHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiToJson(uint32_t containerHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiFromJson(uint32_t bufferHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiToYaml(uint32_t containerHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiFromYaml(uint32_t bufferHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiCreateCallScope() NOEXCEPT;
 IMPEXP uint32_t ggapiGetCurrentCallScope() NOEXCEPT;
 IMPEXP uint32_t ggapiGetCurrentTask() NOEXCEPT;
@@ -123,8 +144,14 @@ IMPEXP uint32_t ggapiSendToListenerAsync(
     ggapiTopicCallback respCallback,
     uintptr_t callbackCtx,
     int32_t timeout) NOEXCEPT;
-IMPEXP uint32_t ggapiCallNext(uint32_t dataStruct) NOEXCEPT;
+IMPEXP uint32_t ggapiCallAsync(
+    uint32_t callStruct,
+    ggapiTaskCallback futureCallback,
+    uintptr_t callbackCtx,
+    uint32_t delay) NOEXCEPT;
+IMPEXP bool ggapiSetSingleThread(bool enable) NOEXCEPT;
 IMPEXP uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) NOEXCEPT;
+IMPEXP bool ggapiSleep(uint32_t timeout) NOEXCEPT;
 IMPEXP bool ggapiCancelTask(uint32_t asyncTask) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterPlugin(
     uint32_t moduleHandle,

@@ -1,6 +1,6 @@
 #include "kernel.hpp"
 #include "command_line.hpp"
-#include "config/yaml_helper.hpp"
+#include "config/yaml_config.hpp"
 #include "deployment/device_configuration.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
@@ -11,7 +11,7 @@ namespace lifecycle {
     //
     // GG-Interop:
     // GG-Java tightly couples Kernel and KernelLifecycle, this class combines functionality from
-    // both. Also some functionality from KernelCommandLine is moved here.
+    // both. Also, some functionality from KernelCommandLine is moved here.
     //
 
     Kernel::Kernel(const std::shared_ptr<scope::Context> &context) : _context(context) {
@@ -53,7 +53,6 @@ namespace lifecycle {
         initConfigAndTlog(commandLine);
         updateDeviceConfiguration(commandLine);
         initializeNucleusFromRecipe();
-        setupProxy();
     }
 
     //
@@ -144,7 +143,7 @@ namespace lifecycle {
 
     void Kernel::updateDeviceConfiguration(CommandLine &commandLine) {
         _deviceConfiguration =
-            std::make_unique<deployment::DeviceConfiguration>(_context.lock(), *this);
+            std::make_shared<deployment::DeviceConfiguration>(_context.lock(), *this);
         if(!commandLine.getAwsRegion().empty()) {
             _deviceConfiguration->setAwsRegion(commandLine.getAwsRegion());
         }
@@ -152,7 +151,13 @@ namespace lifecycle {
             _deviceConfiguration->getEnvironmentStage().withValue(commandLine.getEnvStage());
         }
         if(!commandLine.getDefaultUser().empty()) {
-            // TODO: platform resolver for user
+#if defined(_WIN32)
+            _deviceConfiguration->getRunWithDefaultWindowsUser().withValue(
+                commandLine.getDefaultUser());
+#else
+            _deviceConfiguration->getRunWithDefaultPosixUser().withValue(
+                commandLine.getDefaultUser());
+#endif
         }
     }
 
@@ -208,7 +213,7 @@ namespace lifecycle {
             util::CommitableFile::getBackupFile(tlogFile),
             bootstrapTlogFile,
             util::CommitableFile::getBackupFile(bootstrapTlogFile)};
-        for(auto backupPath : paths) {
+        for(const auto &backupPath : paths) {
             if(config::TlogReader::handleTlogTornWrite(_context.lock(), backupPath)) {
                 // TODO: log
                 std::cerr << "Transaction log " << tlogFile
@@ -232,7 +237,7 @@ namespace lifecycle {
 
     void Kernel::writeEffectiveConfig(const std::filesystem::path &configFile) {
         util::CommitableFile commitable(configFile);
-        config::YamlHelper::write(_context.lock(), commitable, getConfig().root());
+        config::YamlConfigHelper::write(_context.lock(), commitable, getConfig().root());
     }
 
     int Kernel::launch() {
@@ -268,29 +273,39 @@ namespace lifecycle {
 
     void Kernel::launchLifecycle() {
         //
-        // TODO: This is stub/sample code
+        // TODO: All of below is temporary logic - all this will be rewritten when the lifecycle
+        // management is implemented.
         //
-        context().pluginLoader().discoverPlugins(getPaths()->pluginPath());
-        std::shared_ptr<data::SharedStruct> lifecycleArgs{
-            std::make_shared<data::SharedStruct>(_context.lock())};
-        std::shared_ptr<data::ContainerModelBase> rootStruct = getConfig().root();
-        lifecycleArgs->put("config", rootStruct);
 
-        context().pluginLoader().lifecycleBootstrap(lifecycleArgs);
-        context().pluginLoader().lifecycleDiscover(lifecycleArgs);
-        context().pluginLoader().lifecycleStart(lifecycleArgs);
-        context().pluginLoader().lifecycleRun(lifecycleArgs);
+        auto &loader = context().pluginLoader();
+        loader.setDeviceConfiguration(_deviceConfiguration);
+        loader.discoverPlugins(getPaths()->pluginPath());
 
-        (void) ggapiWaitForTaskCompleted(
+        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
+            plugin.lifecycle(loader.DISCOVER, data);
+        });
+        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
+            plugin.lifecycle(loader.START, data);
+        });
+        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
+            plugin.lifecycle(loader.RUN, data);
+        });
+
+        std::ignore = ggapiWaitForTaskCompleted(
             ggapiGetCurrentTask(), -1); // essentially blocks until kernel signalled to terminate
-        context().pluginLoader().lifecycleTerminate(lifecycleArgs);
+        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
+            plugin.lifecycle(loader.TERMINATE, data);
+        });
         getConfig().publishQueue().stop();
     }
 
     std::shared_ptr<config::Topics> Kernel::findServiceTopic(const std::string_view &serviceName) {
-        std::shared_ptr<config::ConfigNode> node =
-            getConfig().root()->createInteriorChild(SERVICES_TOPIC_KEY)->getNode(serviceName);
-        return std::dynamic_pointer_cast<config::Topics>(node);
+        if(!serviceName.empty()) {
+            std::shared_ptr<config::ConfigNode> node =
+                getConfig().root()->createInteriorChild(SERVICES_TOPIC_KEY)->getNode(serviceName);
+            return std::dynamic_pointer_cast<config::Topics>(node);
+        }
+        return nullptr;
     }
 
     void RootPathWatcher::initialized(
@@ -322,7 +337,7 @@ namespace lifecycle {
     void Kernel::shutdown(std::chrono::seconds timeoutSeconds) {
         // TODO: missing code
         softShutdown(timeoutSeconds);
-        // Cancel main task causes main thread to terminate, causing clean shutdown
+        // Cancel the main task causes the main thread to terminate, causing clean shutdown
         _mainThread.getTask()->cancelTask();
     }
 

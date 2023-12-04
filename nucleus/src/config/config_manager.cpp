@@ -1,13 +1,13 @@
 #include "config/config_manager.hpp"
 #include "config/config_nodes.hpp"
+#include "config/yaml_config.hpp"
 #include "scope/context_full.hpp"
 #include "transaction_log.hpp"
-#include "yaml_helper.hpp"
 #include <util.hpp>
 #include <utility>
 
 //
-// Note that config intake is case insensitive - config comes from
+// Note that config intake is case-insensitive - config comes from
 // a settings file (YAML), transaction log (YAML), or cloud (JSON or YAML)
 // For optimization, this implementation assumes all config keys are stored
 // lower-case which means translation on intake is important
@@ -648,7 +648,7 @@ namespace config {
         auto timestamp = Timestamp::ofFile(std::filesystem::last_write_time(path));
 
         if(ext == ".yaml" || ext == ".yml") {
-            YamlReader reader{_context.lock(), _root, timestamp};
+            YamlConfigReader reader{_context.lock(), _root, timestamp};
             reader.read(path);
         } else if(ext == ".tlog" || ext == ".tlog~") {
             TlogReader::mergeTlogInto(_context.lock(), _root, path, false);
