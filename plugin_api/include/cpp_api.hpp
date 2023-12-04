@@ -136,9 +136,10 @@ namespace ggapi {
             auto len =
                 callApiReturn<size_t>([*this]() { return ::ggapiGetOrdinalStringLen(_asInt); });
             return stringFillHelper(len, [*this](auto buf, auto bufLen) {
-                return callApiReturn<size_t>([*this, &buf, bufLen]() {
+                std::function<size_t()> lamFunc = [*this, &buf, bufLen]() {
                     return ::ggapiGetOrdinalString(_asInt, buf, bufLen);
-                });
+                };
+                return callApiReturn<size_t>(lamFunc);
             });
         }
     };
