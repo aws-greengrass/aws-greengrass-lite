@@ -3,6 +3,10 @@
 #include <chrono>
 #include <type_traits>
 
+#ifdef _WIN32
+    #define NOMINMAX
+#endif
+
 namespace tasks { //
 
     // this class is used for timeouts, which depends on steady_clock rather than
