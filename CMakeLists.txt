@@ -35,7 +35,10 @@ if(UNIX)
 endif()
 if(MSVC)
   if(MSVC_VERSION LESS 1910)
-    message(SEND_ERROR "Microsoft Visual Studio 2019 with support for C++17 std::variant is required")
+    message(
+      SEND_ERROR
+        "Microsoft Visual Studio 2019 with support for C++17 std::variant is required"
+    )
   endif()
   if(MSVC_TOOLSET_VERSION LESS 141)
     message(SEND_ERROR "MSVC Toolset v141 is required for std::variant support")
