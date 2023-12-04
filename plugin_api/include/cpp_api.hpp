@@ -134,7 +134,7 @@ namespace ggapi {
         [[nodiscard]] std::string toString() const {
             auto len =
                 callApiReturn<size_t>([*this]() { return ::ggapiGetOrdinalStringLen(_asInt); });
-            const std::function<size_t(char *, size_t)> stringFillFn = [*this](auto buf, auto bufLen) {
+            const std::function<size_t(char *, size_t)> stringFillFn = [*this](char *buf, size_t bufLen) {
                 std::function<size_t()> apiFn = [*this, &buf, bufLen]() {
                     return ::ggapiGetOrdinalString(_asInt, buf, bufLen);
                 };

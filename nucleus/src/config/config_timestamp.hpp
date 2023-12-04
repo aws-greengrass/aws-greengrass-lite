@@ -3,6 +3,10 @@
 #include <filesystem>
 #include <optional>
 
+#ifdef _WIN32
+    #define NOMINMAX
+#endif
+
 namespace config {
     //
     // GG-Java use of config timestamp can be considered to be a signed long
