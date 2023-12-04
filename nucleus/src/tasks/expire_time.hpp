@@ -3,10 +3,6 @@
 #include <chrono>
 #include <type_traits>
 
-#ifdef _WIN32
-    #define NOMINMAX
-#endif
-
 namespace tasks { //
 
     // this class is used for timeouts, which depends on steady_clock rather than
@@ -21,8 +17,8 @@ namespace tasks { //
 
     private:
         TimePoint _steadyTime;
-        auto static constexpr MAX{TimePoint::max()};
-        auto static constexpr MIN{TimePoint::min()};
+        auto static constexpr MAX{(TimePoint::max)()};
+        auto static constexpr MIN{(TimePoint::min)()};
 
         // performs an add of a positive duration to a timepoint
         // overflows saturate to infinite()

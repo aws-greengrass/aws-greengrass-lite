@@ -241,7 +241,7 @@ namespace config {
 
     std::shared_ptr<Topics> Topics::createInteriorChild(
         data::Symbol nameOrd, const Timestamp &timestamp) {
-        std::function<TopicElement(data::Symbol)> creator = [this, &timestamp, nameOrd](auto ord) {
+        const std::function<TopicElement(data::Symbol)> creator = [this, &timestamp, nameOrd](data::Symbol ord) {
             const std::shared_ptr<Topics> parent{ref<Topics>()};
             std::shared_ptr<Topics> nested{
                 std::make_shared<Topics>(_context.lock(), parent, nameOrd, timestamp)};

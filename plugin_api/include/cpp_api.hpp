@@ -67,9 +67,8 @@ namespace ggapi {
     void callApi(const std::function<void()> &fn);
 
     // Helper functions for consistent string copy pattern
-    template<typename F>
     inline std::string stringFillHelper(
-        size_t strLen, F stringFillFn) {
+        size_t strLen, const std::function<size_t(char *, size_t)> &stringFillFn) {
         if(strLen == 0) {
             return {};
         }
@@ -135,12 +134,13 @@ namespace ggapi {
         [[nodiscard]] std::string toString() const {
             auto len =
                 callApiReturn<size_t>([*this]() { return ::ggapiGetOrdinalStringLen(_asInt); });
-            return stringFillHelper(len, [*this](auto buf, auto bufLen) {
-                std::function<size_t()> lamFunc = [*this, &buf, bufLen]() {
+            const std::function<size_t(char *, size_t)> stringFillFn = [*this](auto buf, auto bufLen) {
+                std::function<size_t()> apiFn = [*this, &buf, bufLen]() {
                     return ::ggapiGetOrdinalString(_asInt, buf, bufLen);
                 };
-                return callApiReturn<size_t>(lamFunc);
-            });
+                return callApiReturn<size_t>(apiFn);
+            };
+            return stringFillHelper(len, stringFillFn);
         }
     };
 
