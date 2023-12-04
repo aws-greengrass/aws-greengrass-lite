@@ -67,8 +67,9 @@ namespace ggapi {
     void callApi(const std::function<void()> &fn);
 
     // Helper functions for consistent string copy pattern
+    template<typename F>
     inline std::string stringFillHelper(
-        size_t strLen, const std::function<size_t(char *, size_t)> &stringFillFn) {
+        size_t strLen, F stringFillFn) {
         if(strLen == 0) {
             return {};
         }
