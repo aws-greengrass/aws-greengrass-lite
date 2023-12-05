@@ -141,8 +141,6 @@ namespace util {
         template<typename S>
         std::shared_ptr<const S> tryRef() const;
         template<typename S>
-        std::shared_ptr<const S> ref() const;
-        template<typename S>
         std::shared_ptr<S> tryRef();
         template<typename S>
         std::shared_ptr<S> ref();
@@ -177,7 +175,7 @@ namespace util {
 
     template<typename T>
     template<typename S>
-    std::shared_ptr<S> RefObject<T>::ref() {
+    std::shared_ptr<S> RefObject<T>::ref(){
         std::shared_ptr<S> ptr{tryRef<S>()};
         if(!ptr) {
             throw std::bad_cast();
