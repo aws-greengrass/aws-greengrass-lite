@@ -23,7 +23,7 @@
             pname = "greengrass-lite";
             version = "0.0.1";
             src = lib.sourceFilesBySuffices ./.
-              [ "cpp" "hpp" "h" "CMakeLists.txt" "cmake" "json" ];
+              [ "cpp" "hpp" "c" "h" "CMakeLists.txt" "cmake" "json" ];
             strictDeps = true;
             nativeBuildInputs = [ cmake ninja ];
             cmakeFlags = lib.mapAttrsToList
