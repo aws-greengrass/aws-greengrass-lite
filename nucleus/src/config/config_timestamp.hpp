@@ -68,10 +68,10 @@ namespace config {
         constexpr Timestamp &operator=(const Timestamp &time) = default;
         constexpr Timestamp &operator=(Timestamp &&time) = default;
 
-        static inline constexpr Timestamp never();
-        static inline constexpr Timestamp dawn();
-        static inline Timestamp infinite();
-        static inline Timestamp ofFile(std::filesystem::file_time_type fileTime);
+        static constexpr Timestamp never();
+        static constexpr Timestamp dawn();
+        static constexpr Timestamp infinite();
+        static Timestamp ofFile(std::filesystem::file_time_type fileTime);
     };
 
     inline constexpr Timestamp Timestamp::never() {
@@ -82,7 +82,7 @@ namespace config {
         return Timestamp{1};
     }
 
-    inline Timestamp Timestamp::infinite() {
+    inline constexpr Timestamp Timestamp::infinite() {
         return Timestamp{(std::numeric_limits<uint64_t>::max)()};
     }
 
