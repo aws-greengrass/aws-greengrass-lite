@@ -17,6 +17,22 @@ SCENARIO("callable", "[callable]") {
                 counter++;
                 return data;
             }
+
+            ggapi::Struct moreComplexCallback(
+                const std::string &stuff,
+                int moreStuff,
+                const ggapi::Task &task,
+                ggapi::StringOrd topic,
+                ggapi::Struct data) {
+
+                auto res = ggapi::Struct::create();
+                res.put("stuff", stuff);
+                res.put("moreStuff", moreStuff);
+                res.put("task", task); // passing in a handle
+                res.put("topic", topic); // passing in a symbol
+                res.put("data", data);
+                return res;
+            }
         };
         Test test;
         WHEN("Creating a callback as a lambda") {
@@ -57,6 +73,27 @@ SCENARIO("callable", "[callable]") {
                 }
                 THEN("Callback changed state") {
                     REQUIRE(test.counter == 6);
+                }
+            }
+        }
+
+        WHEN("Using ability to capture by-value arguments in a stack scope safe way") {
+            auto obj =
+                ggapi::TopicCallback::of(&Test::moreComplexCallback, &test, std::string{"foo"}, 5);
+            THEN("A callback handle is returned") {
+                REQUIRE(obj.getHandleId() != 0);
+            }
+            AND_WHEN("Calling the callback") {
+                auto callback = context->objFromInt<tasks::Callback>(obj.getHandleId());
+                auto task = std::make_shared<tasks::Task>(context);
+                auto topic = context->intern("test");
+                auto data = std::make_shared<data::SharedStruct>(context);
+                auto res = callback->invokeTopicCallback(task, topic, data);
+                THEN("Return value is as expected") {
+                    REQUIRE(res->get("stuff").getString() == std::string("foo"));
+                    REQUIRE(res->get("moreStuff").getInt() == 5);
+                    REQUIRE(res->get("topic").getString() == std::string("test"));
+                    REQUIRE(res->get("data").getObject() == data);
                 }
             }
         }
