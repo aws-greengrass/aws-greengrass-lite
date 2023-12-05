@@ -19,23 +19,23 @@ jobs:
           - os: windows-latest
             c_compiler: msvc
             cpp_compiler: msvc
-            build_type: [Debug]
+            build_type: Debug
           - os: windows-latest
             c_compiler: gcc
             cpp_compiler: g++
-            build_type: [Debug]
+            build_type: Debug
           - os: ubuntu-20.04
             c_compiler: gcc
             cpp_compiler: g++
-            build_type: [Debug]
+            build_type: Debug
           - os: ubuntu-20.04
             c_compiler: clang
             cpp_compiler: clang++
-            build_type: [Debug]
+            build_type: Debug
           - os: macos-latest
             c_compiler: clang
             cpp_compiler: clang++
-            build_type: [Debug]
+            build_type: Debug
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone the repo
