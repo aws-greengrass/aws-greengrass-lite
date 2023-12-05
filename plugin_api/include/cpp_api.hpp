@@ -1174,7 +1174,7 @@ namespace ggapi {
 
     private:
         std::shared_mutex _mutex;
-        std::map<uintptr_t, std::unique_ptr<CallbackDispatch>> _callbacks;
+        std::map<uintptr_t, std::unique_ptr<const CallbackDispatch>> _callbacks;
 
         /**
          * Round-trip point of entry that was passed to Nucleus for Nucleus to use when performing
@@ -1272,12 +1272,12 @@ namespace ggapi {
         template<typename Callable, typename... Args>
         class TopicDispatch : public CallbackManager::CallbackDispatch {
 
-            Callable _callable;
-            std::tuple<Args...> _args;
+            const Callable _callable;
+            const std::tuple<Args...> _args;
 
         public:
-            explicit TopicDispatch(Callable &&callable, Args &&...args)
-                : _callable{std::forward<Callable>(callable)}, _args{std::forward<Args>(args)...} {
+            explicit TopicDispatch(Callable callable, Args &&...args)
+                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
             }
             [[nodiscard]] Symbol type() const override {
                 return {"topic"};
@@ -1308,9 +1308,9 @@ namespace ggapi {
          * Create reference to a topic callback.
          */
         template<typename Callable, typename... Args>
-        static TopicCallback of(Callable &&callable, Args &&...args) {
+        static TopicCallback of(const Callable &callable, Args &&...args) {
             auto dispatch = std::make_unique<TopicDispatch<Callable, Args...>>(
-                std::forward<Callable>(callable), std::forward<Args>(args)...);
+                callable, std::forward<Args>(args)...);
             return CallbackManager::self().registerWithNucleus<TopicCallback>(std::move(dispatch));
         }
     };
@@ -1331,12 +1331,12 @@ namespace ggapi {
         template<typename Callable, typename... Args>
         class TaskDispatch : public CallbackManager::CallbackDispatch {
 
-            Callable _callable;
-            std::tuple<Args...> _args;
+            const Callable _callable;
+            const std::tuple<Args...> _args;
 
         public:
-            explicit TaskDispatch(Callable &&callable, Args &&...args)
-                : _callable{std::forward<Callable>(callable)}, _args{std::forward<Args>(args)...} {
+            explicit TaskDispatch(Callable callable, Args &&...args)
+                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
             }
             [[nodiscard]] Symbol type() const override {
                 return {"task"};
@@ -1365,9 +1365,9 @@ namespace ggapi {
          * Create reference to a simple async task callback.
          */
         template<typename Callable, typename... Args>
-        static TaskCallback of(Callable &&callable, Args &&...args) {
+        static TaskCallback of(const Callable &callable, Args &&...args) {
             auto dispatch = std::make_unique<TaskDispatch<Callable, Args...>>(
-                std::forward<Callable>(callable), std::forward<Args>(args)...);
+                callable, std::forward<Args>(args)...);
             return CallbackManager::self().registerWithNucleus<TaskCallback>(std::move(dispatch));
         }
     };
@@ -1388,12 +1388,12 @@ namespace ggapi {
         template<typename Callable, typename... Args>
         class LifecycleDispatch : public CallbackManager::CallbackDispatch {
 
-            Callable _callable;
-            std::tuple<Args...> _args;
+            const Callable _callable;
+            const std::tuple<Args...> _args;
 
         public:
-            explicit LifecycleDispatch(Callable &&callable, Args &&...args)
-                : _callable{std::forward<Callable>(callable)}, _args{std::forward<Args>(args)...} {
+            explicit LifecycleDispatch(Callable callable, Args &&...args)
+                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
             }
             [[nodiscard]] Symbol type() const override {
                 return {"lifecycle"};
@@ -1424,9 +1424,9 @@ namespace ggapi {
          * Create reference to a lifecycle callback.
          */
         template<typename Callable, typename... Args>
-        static LifecycleCallback of(Callable &&callable, Args &&...args) {
+        static LifecycleCallback of(const Callable &callable, Args &&...args) {
             auto dispatch = std::make_unique<LifecycleDispatch<Callable, Args...>>(
-                std::forward<Callable>(callable), std::forward<Args>(args)...);
+                callable, std::forward<Args>(args)...);
             return CallbackManager::self().registerWithNucleus<LifecycleCallback>(
                 std::move(dispatch));
         }
