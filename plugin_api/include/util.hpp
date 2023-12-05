@@ -177,16 +177,6 @@ namespace util {
 
     template<typename T>
     template<typename S>
-    std::shared_ptr<const S> RefObject<T>::ref() const {
-        std::shared_ptr<const S> ptr{tryRef<S>()};
-        if(!ptr) {
-            throw std::bad_cast();
-        }
-        return ptr;
-    }
-
-    template<typename T>
-    template<typename S>
     std::shared_ptr<S> RefObject<T>::ref() {
         std::shared_ptr<S> ptr{tryRef<S>()};
         if(!ptr) {
