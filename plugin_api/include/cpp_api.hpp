@@ -134,13 +134,11 @@ namespace ggapi {
         [[nodiscard]] std::string toString() const {
             auto len =
                 callApiReturn<size_t>([*this]() { return ::ggapiGetOrdinalStringLen(_asInt); });
-            const std::function<size_t(char *, size_t)> stringFillFn = [*this](char *buf, size_t bufLen) {
-                std::function<size_t()> apiFn = [*this, &buf, bufLen]() {
+            return stringFillHelper(len, [*this](char *buf, size_t bufLen) {
+                return callApiReturn<size_t>([*this, &buf, bufLen]() {
                     return ::ggapiGetOrdinalString(_asInt, buf, bufLen);
-                };
-                return callApiReturn<size_t>(apiFn);
-            };
-            return stringFillHelper(len, stringFillFn);
+                });
+            });
         }
     };
 
@@ -641,7 +639,7 @@ namespace ggapi {
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
                 size_t len =
                     callApiReturn<size_t>([*this]() { return ::ggapiUnboxStringLen(_handle); });
-                return stringFillHelper(len, [*this](auto buf, auto bufLen) {
+                return stringFillHelper(len, [*this](char *buf, size_t bufLen) {
                     return callApiReturn<size_t>([*this, &buf, bufLen]() {
                         return ::ggapiUnboxString(_handle, buf, bufLen);
                     });
@@ -876,7 +874,7 @@ namespace ggapi {
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
                 size_t len = callApiReturn<size_t>(
                     [*this, idx]() { return ::ggapiListGetStringLen(_handle, idx); });
-                return stringFillHelper(len, [*this, idx](auto buf, auto bufLen) {
+                return stringFillHelper(len, [*this, idx](char *buf, size_t bufLen) {
                     return callApiReturn<size_t>([*this, idx, &buf, bufLen]() {
                         return ::ggapiListGetString(_handle, idx, buf, bufLen);
                     });
