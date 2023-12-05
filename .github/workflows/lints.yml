@@ -16,7 +16,7 @@ jobs:
 
       - name: Check Formatting
         id: formatting-check
-        run: nix build -L .#checks.x86_64-linux.formatting
+        run: nix build -L --log-lines 0 .#checks.x86_64-linux.formatting
 
       - name: Generate / Show Patch
         if: ${{ failure() && steps.formatting-check.outcome == 'failure' }}
@@ -122,7 +122,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check editorconfig-checker
-        run: nix build -L .#checks.x86_64-linux.editorconfig
+        run: nix build -L --log-lines 0 .#checks.x86_64-linux.editorconfig
 
   cmake-lint:
     name: Check CMake
@@ -133,7 +133,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check CMake
-        run: nix build -L .#checks.x86_64-linux.cmake-lint
+        run: nix build -L --log-lines 0 .#checks.x86_64-linux.cmake-lint
 
   git-secrets:
     runs-on: ubuntu-22.04

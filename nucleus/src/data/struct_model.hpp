@@ -29,6 +29,16 @@ namespace data {
         // in theory, can be optimized, but is it worth it?
         ValueType _value;
 
+        // used below but also used by debugging
+        const std::string &rawGetString() const {
+            return std::get<std::string>(_value);
+        }
+
+        // used below but also used by debugging
+        const Symbol &rawGetSymbol() const {
+            return std::get<Symbol>(_value);
+        }
+
     public:
         StructElement() : _value{} {
         }
@@ -99,9 +109,9 @@ namespace data {
                 case DOUBLE:
                     return std::get<double>(_value) != 0.0;
                 case STRING:
-                    return getBool(std::get<std::string>(_value));
+                    return getBool(rawGetString());
                 case SYMBOL: {
-                    return getBool(std::get<Symbol>(_value).toString());
+                    return getBool(rawGetSymbol().toString());
                 }
                 default:
                     throw std::runtime_error("Unsupported type conversion to integer");
@@ -117,9 +127,9 @@ namespace data {
                 case DOUBLE:
                     return static_cast<uint64_t>(std::get<double>(_value));
                 case STRING:
-                    return std::stoul(std::get<std::string>(_value));
+                    return std::stoul(rawGetString());
                 case SYMBOL:
-                    return std::stoul(std::get<Symbol>(_value).toString());
+                    return std::stoul(rawGetSymbol().toString());
                 default:
                     throw std::runtime_error("Unsupported type conversion to integer");
             }
@@ -134,9 +144,9 @@ namespace data {
                 case DOUBLE:
                     return std::get<double>(_value);
                 case STRING:
-                    return std::stod(std::get<std::string>(_value));
+                    return std::stod(rawGetString());
                 case SYMBOL:
-                    return std::stod(std::get<Symbol>(_value).toString());
+                    return std::stod(rawGetSymbol().toString());
                 default:
                     throw std::runtime_error("Unsupported type conversion to double");
             }
@@ -151,11 +161,12 @@ namespace data {
                 case DOUBLE:
                     return std::to_string(std::get<double>(_value));
                 case STRING:
-                    return std::get<std::string>(_value);
+                    return rawGetString();
                 case SYMBOL:
-                    return std::get<Symbol>(_value).toString();
+                    return rawGetSymbol().toString();
                 default:
-                    throw std::runtime_error("Unsupported type conversion to string");
+                    std::cerr << "Unsupported index: " << _value.index() << std::endl;
+                    return {"bad conversion"};
             }
         }
 
