@@ -75,7 +75,8 @@ namespace config {
         static inline constexpr Timestamp never();
         static inline constexpr Timestamp dawn();
         static inline Timestamp infinite();
-        static inline Timestamp ofFile(std::filesystem::file_time_type fileTime);
+        template<typename FT>
+        static inline Timestamp ofFile(FT fileTime);
     };
 
     inline constexpr Timestamp Timestamp::never() {
@@ -90,12 +91,13 @@ namespace config {
         return Timestamp{std::numeric_limits<uint64_t>::max()};
     }
 
-    inline Timestamp Timestamp::ofFile(std::filesystem::file_time_type fileTime) {
+    template<typename FT>
+    inline Timestamp Timestamp::ofFile(FT fileTime) {
         // C++17 hack, there is no universal way to convert from file-time to sys-time
         // Because 'now' is obtained twice, time is subject to slight error
         // C++20 fixes this with file_clock::to_sys
         auto sysTimeNow = std::chrono::system_clock::now();
-        auto fileTimeNow = std::filesystem::file_time_type::clock::now();
+        auto fileTimeNow = FT::clock::now();
         return Timestamp(
             sysTimeNow
             + std::chrono::duration_cast<std::chrono::milliseconds>(fileTime - fileTimeNow));
