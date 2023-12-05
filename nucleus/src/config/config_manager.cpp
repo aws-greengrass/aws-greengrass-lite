@@ -241,14 +241,13 @@ namespace config {
 
     std::shared_ptr<Topics> Topics::createInteriorChild(
         data::Symbol nameOrd, const Timestamp &timestamp) {
-        const std::function<TopicElement(data::Symbol)> creator = [this, &timestamp, nameOrd](data::Symbol ord) {
+        TopicElement leaf = createChild(nameOrd, [this, &timestamp, nameOrd](data::Symbol ord) {
             const std::shared_ptr<Topics> parent{ref<Topics>()};
             std::shared_ptr<Topics> nested{
                 std::make_shared<Topics>(_context.lock(), parent, nameOrd, timestamp)};
             // Note: Time on TopicElement is ignored for interior children - this is intentional
             return TopicElement(ord, Timestamp::never(), data::ValueType(nested));
-        };
-        TopicElement leaf = createChild(nameOrd, creator);
+        });
         return leaf.castObject<Topics>();
     }
 
