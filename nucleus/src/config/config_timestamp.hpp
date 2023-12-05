@@ -3,8 +3,6 @@
 #include <filesystem>
 #include <optional>
 
-#define NOMINMAX
-
 namespace config {
     //
     // GG-Java use of config timestamp can be considered to be a signed long
@@ -86,7 +84,7 @@ namespace config {
     }
 
     inline Timestamp Timestamp::infinite() {
-        return Timestamp{std::numeric_limits<uint64_t>::max()};
+        return Timestamp{(std::numeric_limits<uint64_t>::max)()};
     }
 
     template<typename FT>
