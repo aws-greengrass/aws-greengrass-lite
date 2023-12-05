@@ -3,9 +3,7 @@
 #include <filesystem>
 #include <optional>
 
-#ifdef _WIN32
-    #define NOMINMAX
-#endif
+#define NOMINMAX
 
 namespace config {
     //
