@@ -75,5 +75,5 @@ jobs:
           matrix.build_type }}
 
       - name: Run Tests
-        working-directory: ${{ github.workspace }}/build
-        run: ctest --output-on-failure -E OperateWhileDisconnected
+        working-directory: ${{ github.workspace }}/build/nucleus
+        run: ctest --output-on-failure
