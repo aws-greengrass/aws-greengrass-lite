@@ -74,7 +74,7 @@ namespace config {
 
         static inline constexpr Timestamp never();
         static inline constexpr Timestamp dawn();
-        static inline constexpr Timestamp infinite();
+        static inline Timestamp infinite();
         static inline Timestamp ofFile(std::filesystem::file_time_type fileTime);
     };
 
@@ -86,7 +86,7 @@ namespace config {
         return Timestamp{1};
     }
 
-    inline constexpr Timestamp Timestamp::infinite() {
+    inline Timestamp Timestamp::infinite() {
         return Timestamp{std::numeric_limits<uint64_t>::max()};
     }
 
