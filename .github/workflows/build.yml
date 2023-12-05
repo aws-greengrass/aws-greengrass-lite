@@ -76,4 +76,4 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{ github.workspace }}/build/nucleus
-        run: ctest --output-on-failure
+        run: ctest --output-on-failure --rerun-failed
