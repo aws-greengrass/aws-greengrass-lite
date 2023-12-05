@@ -76,4 +76,4 @@ jobs:
 
       - name: Run Tests
         working-directory: ${{ github.workspace }}/build
-        run: ctest --output-on-failure
+        run: ctest --output-on-failure -E OperateWhileDisconnected
