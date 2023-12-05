@@ -744,7 +744,7 @@ namespace ggapi {
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
                 size_t len = callApiReturn<size_t>(
                     [*this, key]() { return ::ggapiStructGetStringLen(_handle, key.asInt()); });
-                return stringFillHelper(len, [*this, key](auto buf, auto bufLen) {
+                return stringFillHelper(len, [*this, key](char *buf, size_t bufLen) {
                     return callApiReturn<size_t>([*this, key, &buf, bufLen]() {
                         return ::ggapiStructGetString(_handle, key.asInt(), buf, bufLen);
                     });
