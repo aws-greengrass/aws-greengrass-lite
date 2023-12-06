@@ -4,7 +4,7 @@ project(iot_broker)
 include(FetchContent)
 include(../../utils/fetchContentFromDeps.cmake)
 
-fetchContentFromDeps(device-sdk-cpp)
+fetchcontentfromdeps(device-sdk-cpp)
 
 FetchContent_GetProperties(device-sdk-cpp)
 if(NOT device-sdk-cpp_POPULATED)
@@ -13,11 +13,8 @@ if(NOT device-sdk-cpp_POPULATED)
                    EXCLUDE_FROM_ALL)
 endif()
 
-add_library(iot_broker MODULE main.cpp
-        src/iot_broker.cpp
-        src/iot_broker.h
-        src/topic_level_iterator.h
-        src/topic_filter.h)
+add_library(iot_broker MODULE main.cpp src/iot_broker.cpp src/iot_broker.h
+                              src/topic_level_iterator.h src/topic_filter.h)
 target_link_libraries(iot_broker PRIVATE nucleus-core aws-crt-cpp)
 
 install(TARGETS iot_broker DESTINATION plugins)
