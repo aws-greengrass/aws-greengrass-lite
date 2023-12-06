@@ -1,9 +1,4 @@
-//
-// Created by Julicher, Joe on 12/5/23.
-//
-
-#ifndef GREENGRASS_LITE_IOT_BROKER_H
-#define GREENGRASS_LITE_IOT_BROKER_H
+#pragma once
 
 #include <iostream>
 #include <memory>
@@ -95,5 +90,3 @@ private:
     std::shared_mutex _subscriptionMutex;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
 };
-
-#endif // GREENGRASS_LITE_IOT_BROKER_H

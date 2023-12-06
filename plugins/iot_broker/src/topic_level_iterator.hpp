@@ -1,10 +1,4 @@
-//
-// Created by Julicher, Joe on 12/5/23.
-//
-
-#ifndef GREENGRASS_LITE_TOPIC_LEVEL_ITERATOR_H
-#define GREENGRASS_LITE_TOPIC_LEVEL_ITERATOR_H
-
+#pragma once
 #include <string_view>
 
 struct TopicLevelIterator {
@@ -79,5 +73,3 @@ private:
     size_t _index;
     value_type _current;
 };
-
-#endif // GREENGRASS_LITE_TOPIC_LEVEL_ITERATOR_H

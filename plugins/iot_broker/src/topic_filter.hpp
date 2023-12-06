@@ -2,8 +2,7 @@
 // Created by Julicher, Joe on 12/5/23.
 //
 
-#ifndef GREENGRASS_LITE_TOPIC_FILTER_H
-#define GREENGRASS_LITE_TOPIC_FILTER_H
+#pragma once
 
 #include "topic_level_iterator.hpp"
 
@@ -89,5 +88,3 @@ private:
         }
     }
 };
-
-#endif // GREENGRASS_LITE_TOPIC_FILTER_H

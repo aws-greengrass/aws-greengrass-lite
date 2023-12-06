@@ -1,7 +1,3 @@
-//
-// Created by Julicher, Joe on 12/5/23.
-//
-
 #include "iot_broker.hpp"
 
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
