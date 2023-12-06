@@ -5,15 +5,6 @@
 #include "iot_broker.hpp"
 
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
-    return get().publishHandlerImpl(args);
-}
-
-ggapi::Struct IotBroker::subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
-    return get().subscribeHandlerImpl(args);
-}
-
-
-ggapi::Struct IotBroker::publishHandlerImpl(ggapi::Struct args) {
     auto topic{args.get<std::string>(keys.topicName)};
     auto qos{args.get<int>(keys.qos)};
     auto payload{args.get<std::string>(keys.payload)};
@@ -54,7 +45,7 @@ ggapi::Struct IotBroker::publishHandlerImpl(ggapi::Struct args) {
 }
 
 
-ggapi::Struct IotBroker::subscribeHandlerImpl(ggapi::Struct args) {
+ggapi::Struct IotBroker::subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
     TopicFilter topicFilter{args.get<std::string>(keys.topicFilter)};
     int qos{args.get<int>(keys.qos)};
     ggapi::Symbol responseTopic{args.get<std::string>(keys.lpcResponseTopic)};
@@ -214,8 +205,8 @@ bool IotBroker::onStart(ggapi::Struct data) {
         _thingInfo.credEndpoint = nucleus.getValue<std::string>({"configuration", "iotCredEndpoint"});
         _thingInfo.dataEndpoint = nucleus.getValue<std::string>({"configuration", "iotDataEndpoint"});
         initMqtt();
-        std::ignore = getScope().subscribeToTopic(keys.publishToIoTCoreTopic, publishHandler);
-        std::ignore = getScope().subscribeToTopic(keys.subscribeToIoTCoreTopic, subscribeHandler);
+        std::ignore = getScope().subscribeToTopic(keys.publishToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::publishHandler,this));
+        std::ignore = getScope().subscribeToTopic(keys.subscribeToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::subscribeHandler,this));
         returnValue = true;
     } catch(const std::exception &e) {
         std::cerr << "[mqtt-plugin] Error: " << e.what() << std::endl;

@@ -21,7 +21,7 @@
 #include <plugin.hpp>
 #include "topic_filter.hpp"
 
-class mqttBuilderException: public std::exception
+class mqttBuilderException: public ggapi::GgApiError
 {
     virtual const char *what() const noexcept
     {
@@ -29,14 +29,16 @@ class mqttBuilderException: public std::exception
     }
 };
 
-class mqttClientException: public std::exception{
+class mqttClientException: public ggapi::GgApiError
+{
     virtual const char *what() const noexcept
     {
         return "MQTT failed to initialize the client";
     }
 };
 
-class mqttClienFailedToStart: public std::exception{
+class mqttClienFailedToStart: public ggapi::GgApiError
+{
     virtual const char *what() const noexcept
     {
         return "MQTT client failed to start";
@@ -87,8 +89,8 @@ public:
 
 private:
     static const Keys keys;
-    static ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
-    static ggapi::Struct subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
+    ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
+    ggapi::Struct subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
 
     ggapi::Struct publishHandlerImpl(ggapi::Struct args);
     ggapi::Struct subscribeHandlerImpl(ggapi::Struct args);
