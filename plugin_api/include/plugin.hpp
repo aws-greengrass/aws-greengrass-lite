@@ -51,7 +51,8 @@ namespace ggapi {
             return onTerminate(data);
         }
 
-        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::UNKNOWN> &, Struct data) {
+        // NOLINTNEXTLINE(*-convert-member-functions-to-static)
+        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::UNKNOWN> &, Struct) {
             return false;
         }
 

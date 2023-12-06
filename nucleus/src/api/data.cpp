@@ -7,7 +7,7 @@
 
 using namespace data;
 
-uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) noexcept {
+uint32_t ggapiGetSymbol(const char *bytes, size_t len) noexcept {
     try {
         return scope::context().intern(std::string_view{bytes, len}).asInt();
     } catch(...) {
@@ -16,7 +16,7 @@ uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) noexcept {
     }
 }
 
-size_t ggapiGetOrdinalString(uint32_t symbolInt, char *bytes, size_t len) noexcept {
+size_t ggapiGetSymbolString(uint32_t symbolInt, char *bytes, size_t len) noexcept {
     return ggapi::trapErrorReturn<size_t>([symbolInt, bytes, len]() {
         Symbol symbol = scope::context().symbolFromInt(symbolInt);
         std::string s{symbol.toString()};
@@ -28,7 +28,7 @@ size_t ggapiGetOrdinalString(uint32_t symbolInt, char *bytes, size_t len) noexce
     });
 }
 
-size_t ggapiGetOrdinalStringLen(uint32_t symbolInt) noexcept {
+size_t ggapiGetSymbolStringLen(uint32_t symbolInt) noexcept {
     return ggapi::trapErrorReturn<size_t>([symbolInt]() {
         Symbol symbol = scope::context().symbolFromInt(symbolInt);
         std::string s{symbol.toString()};
@@ -355,11 +355,11 @@ bool ggapiListInsertString(
     });
 }
 
-bool ggapiStructPutStringOrd(uint32_t structHandle, uint32_t keyInt, uint32_t symValInt) noexcept {
-    return ggapi::trapErrorReturn<bool>([structHandle, keyInt, symValInt]() {
+bool ggapiStructPutSymbol(uint32_t listHandle, uint32_t symInt, uint32_t symValInt) noexcept {
+    return ggapi::trapErrorReturn<bool>([listHandle, symInt, symValInt]() {
         auto &context = scope::context();
-        auto ss{context.objFromInt<StructModelBase>(structHandle)};
-        Symbol key = context.symbolFromInt(keyInt);
+        auto ss{context.objFromInt<StructModelBase>(listHandle)};
+        Symbol key = context.symbolFromInt(symInt);
         Symbol value = context.symbolFromInt(symValInt);
         StructElement newElement{value};
         ss->put(key, newElement);
@@ -367,7 +367,7 @@ bool ggapiStructPutStringOrd(uint32_t structHandle, uint32_t keyInt, uint32_t sy
     });
 }
 
-bool ggapiListPutStringOrd(uint32_t listHandle, int32_t idx, uint32_t symValInt) noexcept {
+bool ggapiListPutSymbol(uint32_t listHandle, int32_t idx, uint32_t symValInt) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, symValInt]() {
         auto &context = scope::context();
         auto ss{context.objFromInt<ListModelBase>(listHandle)};
@@ -378,7 +378,7 @@ bool ggapiListPutStringOrd(uint32_t listHandle, int32_t idx, uint32_t symValInt)
     });
 }
 
-bool ggapiListInsertStringOrd(uint32_t listHandle, int32_t idx, uint32_t symVal) noexcept {
+bool ggapiListInsertSymbol(uint32_t listHandle, int32_t idx, uint32_t symVal) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, symVal]() {
         auto &context = scope::context();
         auto ss{context.objFromInt<ListModelBase>(listHandle)};

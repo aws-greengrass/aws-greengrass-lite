@@ -5,8 +5,11 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <shared_mutex>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -16,9 +19,7 @@
 #include <variant>
 #include <vector>
 
-extern "C" {
-#include "c_api.h"
-}
+#include "c_api.hpp"
 
 //
 // Sugar around the c-api to make cpp development easier
@@ -35,35 +36,22 @@ namespace ggapi {
     class Task;
     class ModuleScope;
     class Subscription;
-    class GgApiError; // error from GG API call
+    class TopicCallback;
+    class TaskCallback;
+    class LifecycleCallback;
+    class CallbackManager;
+    class GgApiError;
 
-    using topicCallbackLambda = std::function<Struct(Scope, Symbol, Struct)>;
-    using lifecycleCallbackLambda = std::function<void(Scope, Symbol, Struct)>;
-    using taskCallbackLambda = std::function<void(Struct)>;
-    using topicCallback_t = Struct (*)(Task, Symbol, Struct);
-    using lifecycleCallback_t = void (*)(ModuleScope, Symbol, Struct);
-    using taskCallback_t = void (*)(Struct);
+    using TopicCallbackLambda = std::function<Struct(Task, Symbol, Struct)>;
+    using LifecycleCallbackLambda = std::function<bool(ModuleScope, Symbol, Struct)>;
+    using TaskCallbackLambda = std::function<void(Struct)>;
 
-    uint32_t topicCallbackProxy(
-        uintptr_t callbackContext,
-        uint32_t taskHandle,
-        uint32_t topicOrd,
-        uint32_t dataStruct) noexcept;
-    bool lifecycleCallbackProxy(
-        uintptr_t callbackContext,
-        uint32_t moduleHandle,
-        uint32_t phaseOrd,
-        uint32_t dataStruct) noexcept;
-    bool taskCallbackProxy(uintptr_t callbackContext, uint32_t dataStruct) noexcept;
     template<typename T>
     T trapErrorReturn(const std::function<T()> &fn) noexcept;
-    uint32_t trapErrorReturnHandle(const std::function<ObjHandle()> &fn) noexcept;
-    uint32_t trapErrorReturnOrd(const std::function<Symbol()> &fn) noexcept;
     template<typename T>
     T callApiReturn(const std::function<T()> &fn);
     template<typename T>
     T callApiReturnHandle(const std::function<uint32_t()> &fn);
-    Symbol callApiReturnOrd(const std::function<uint32_t()> &fn);
     void callApi(const std::function<void()> &fn);
 
     // Helper functions for consistent string copy pattern
@@ -81,7 +69,7 @@ namespace ggapi {
      * Wraps a string ordinal as consumer of the APIs
      *
      * The constructors will typically be used before a module is fully initialized
-     * ggapiGetStringOrdinal is expected to only fail if out of memory, and we'll
+     * ggapiGetSymbol is expected to only fail if out of memory, and we'll
      * consider that unrecoverable
      */
     class Symbol {
@@ -90,7 +78,7 @@ namespace ggapi {
 
     public:
         static uint32_t intern(std::string_view sv) noexcept {
-            uint32_t r = ::ggapiGetStringOrdinal(sv.data(), sv.length());
+            uint32_t r = ::ggapiGetSymbol(sv.data(), sv.length());
             if(r == 0) {
                 std::terminate();
             }
@@ -133,10 +121,10 @@ namespace ggapi {
 
         [[nodiscard]] std::string toString() const {
             auto len =
-                callApiReturn<size_t>([*this]() { return ::ggapiGetOrdinalStringLen(_asInt); });
+                callApiReturn<size_t>([*this]() { return ::ggapiGetSymbolStringLen(_asInt); });
             return stringFillHelper(len, [*this](auto buf, auto bufLen) {
                 return callApiReturn<size_t>([*this, &buf, bufLen]() {
-                    return ::ggapiGetOrdinalString(_asInt, buf, bufLen);
+                    return ::ggapiGetSymbolString(_asInt, buf, bufLen);
                 });
             });
         }
@@ -291,7 +279,16 @@ namespace ggapi {
          * thread during "waitForTaskCompleted".
          */
         [[nodiscard]] static Task sendToTopicAsync(
-            Symbol topic, Struct message, topicCallback_t result, int32_t timeout = -1);
+            Symbol topic,
+            Struct message,
+            const TopicCallbackLambda &resultCallback,
+            int32_t timeout = -1);
+
+        /**
+         * Generic form of sendToTopicAsync
+         */
+        [[nodiscard]] static Task sendToTopicAsync(
+            Symbol topic, Struct message, TopicCallback resultCallback, int32_t timeout = -1);
 
         /**
          * Create a synchronous LPC call - a task handle is created, and observable by subscribers
@@ -307,7 +304,12 @@ namespace ggapi {
          * task).
          */
         [[nodiscard]] static Task callAsync(
-            Struct data, taskCallback_t callback, uint32_t delay = 0);
+            Struct data, const TaskCallbackLambda &callback, uint32_t delay = 0);
+
+        /**
+         * Generic form of callAsync
+         */
+        [[nodiscard]] static Task callAsync(Struct data, TaskCallback callback, uint32_t delay = 0);
 
         /**
          * Block until task completes including final callback if there is one. If thread is in
@@ -364,7 +366,13 @@ namespace ggapi {
          * waitForTaskCompleted is called in the same thread.
          */
         [[nodiscard]] Task callAsync(
-            Struct message, topicCallback_t result, int32_t timeout = -1) const;
+            Struct message, const TopicCallbackLambda &resultCallback, int32_t timeout = -1) const;
+
+        /**
+         * Generic form of callAsync
+         */
+        [[nodiscard]] Task callAsync(
+            Struct message, TopicCallback result, int32_t timeout = -1) const;
 
         /**
          * Send a message to this specific subscription. Wait until task completes, as if
@@ -407,7 +415,13 @@ namespace ggapi {
         // Creates a subscription. A subscription is tied to scope and will be unsubscribed if
         // the scope is deleted.
         //
-        [[nodiscard]] Subscription subscribeToTopic(Symbol topic, topicCallback_t callback);
+        [[nodiscard]] Subscription subscribeToTopic(
+            Symbol topic, const TopicCallbackLambda &callback);
+
+        //
+        // Generic form of subscribeToTopic
+        //
+        [[nodiscard]] Subscription subscribeToTopic(Symbol topic, TopicCallback callback);
 
         //
         // Anchor an object against this scope.
@@ -435,7 +449,9 @@ namespace ggapi {
         }
 
         [[nodiscard]] ModuleScope registerPlugin(
-            Symbol componentName, lifecycleCallback_t callback);
+            Symbol componentName, const LifecycleCallbackLambda &callback);
+
+        [[nodiscard]] ModuleScope registerPlugin(Symbol componentName, LifecycleCallback callback);
     };
 
     /**
@@ -669,8 +685,7 @@ namespace ggapi {
             callApi([*this, key, v]() { ::ggapiStructPutFloat64(_handle, key.asInt(), v); });
         }
         void putImpl(Symbol key, Symbol v) {
-            callApi(
-                [*this, key, v]() { ::ggapiStructPutStringOrd(_handle, key.asInt(), v.asInt()); });
+            callApi([*this, key, v]() { ::ggapiStructPutSymbol(_handle, key.asInt(), v.asInt()); });
         }
         void putImpl(Symbol key, std::string_view v) {
             callApi([*this, key, v]() {
@@ -782,7 +797,7 @@ namespace ggapi {
             callApi([*this, idx, v]() { ::ggapiListPutFloat64(_handle, idx, v); });
         }
         void putImpl(int32_t idx, Symbol v) {
-            callApi([*this, idx, v]() { ::ggapiListPutStringOrd(_handle, idx, v.asInt()); });
+            callApi([*this, idx, v]() { ::ggapiListPutSymbol(_handle, idx, v.asInt()); });
         }
         void putImpl(int32_t idx, std::string_view v) {
             callApi(
@@ -801,7 +816,7 @@ namespace ggapi {
             callApi([*this, idx, v]() { ::ggapiListInsertFloat64(_handle, idx, v); });
         }
         void insertImpl(int32_t idx, Symbol v) {
-            callApi([*this, idx, v]() { ::ggapiListInsertStringOrd(_handle, idx, v.asInt()); });
+            callApi([*this, idx, v]() { ::ggapiListInsertSymbol(_handle, idx, v.asInt()); });
         }
         void insertImpl(int32_t idx, std::string_view v) {
             callApi(
@@ -1085,32 +1100,362 @@ namespace ggapi {
         });
     }
 
-    inline Subscription Scope::subscribeToTopic(Symbol topic, topicCallback_t callback) {
+    /**
+     * Factory to serve out callback handles allowing rich C++ style callbacks while maintaining
+     * a C interface to the API. Note that while this supports lambdas, lambdas should be used
+     * with caution. Better to use a callback function and callback parameters (see std::thread).
+     */
+    class CallbackManager {
+
+    public:
+        using Delegate = std::function<uint32_t()>;
+
+        /**
+         * Base class for dispatch classes. Subclasses need to implement prepare to construct
+         * a delegate lambda that will invoke the callback implementation.
+         */
+        struct CallbackDispatch {
+            /**
+             * Implement to creates a new lambda that wraps saved callback, ready to be called. This
+             * operation occurs inside a lock so the new lambda is used after releasing the lock.
+             *
+             * @param callbackType The 'type' of callback for validation
+             * @param size Size of callback structure for validation
+             * @param data Anonymous pointer to callback structure
+             * @return Delegate lambda ready for calling
+             */
+            [[nodiscard]] virtual Delegate prepare(
+                uint32_t callbackType, uint32_t size, const void *data) const = 0;
+            /**
+             * Expected callback type for validation
+             */
+            [[nodiscard]] virtual Symbol type() const = 0;
+
+            CallbackDispatch() = default;
+            CallbackDispatch(const CallbackDispatch &) = default;
+            CallbackDispatch(CallbackDispatch &&) = default;
+            CallbackDispatch &operator=(const CallbackDispatch &) = default;
+            CallbackDispatch &operator=(CallbackDispatch &&) = default;
+            virtual ~CallbackDispatch() = default;
+
+            void assertCallbackType(Symbol actual) const {
+                if(actual != type()) {
+                    throw std::runtime_error(
+                        "Mismatch callback type - received " + actual.toString() + " instead of "
+                        + type().toString());
+                }
+            }
+
+            /**
+             * The structure passed to the plugin from the Nucleus is anonymous. We know how
+             * to interpret this structure based on (1) matching context, (2) matching type,
+             * and (3) checking that the passed in structure is not too small. The passed in
+             * structure can be bigger if, for example, a newer version of Nucleus adds additional
+             * context, in which case, that additional context is ignored by older plugins.
+             * @tparam T Expected structure type
+             * @param size Size of structure reported by Nucleus
+             * @param data Anonymous pointer to structure
+             * @return Structure after trivial validation
+             */
+            template<typename T>
+            static const T &checkedStruct(uint32_t size, const void *data) {
+                if(data == nullptr) {
+                    throw std::runtime_error("Null pointer provided to callback");
+                }
+                if(size < sizeof(T)) {
+                    throw std::runtime_error(
+                        "Structure size error - maybe running with earlier version of Nucleus");
+                }
+                // Note, larger structure is ok - expectation is that new fields are added to end
+                // NOLINTNEXTLINE(*-pro-type-reinterpret-cast)
+                return *reinterpret_cast<const T *>(data);
+            }
+        };
+
+    private:
+        std::shared_mutex _mutex;
+        std::map<uintptr_t, std::unique_ptr<const CallbackDispatch>> _callbacks;
+
+        /**
+         * Round-trip point of entry that was passed to Nucleus for Nucleus to use when performing
+         * a callback.
+         *
+         * @param callbackContext Round-trip context, large enough to hold a pointer
+         * @param callbackType Callback type, indicating what structure was passed
+         * @param callbackDataSize Size of structure for validation
+         * @param callbackData Pointer to structure based on previous fields
+         * @return Interpretation of return value depends on callbackType
+         */
+        static uint32_t _callback(
+            uintptr_t callbackContext,
+            uint32_t callbackType,
+            uint32_t callbackDataSize,
+            const void *callbackData) noexcept {
+
+            return self().callback(callbackContext, callbackType, callbackDataSize, callbackData);
+        }
+
+        uint32_t callback(
+            uintptr_t callbackContext,
+            uint32_t callbackType,
+            uint32_t callbackDataSize,
+            const void *callbackData) {
+
+            if(callbackType == 0) {
+                // Nucleus indicates callback is no longer required
+                std::unique_lock guard{_mutex};
+                _callbacks.erase(callbackContext);
+                return 0;
+            } else {
+                // An actual call
+                std::shared_lock guard{_mutex};
+                // We could enable a fast "unsafe" option that just casts the callbackContext
+                // to a pointer. For now, this acts as a robust double-check.
+                const auto &cb = _callbacks.at(callbackContext);
+                // Pre-process callback while lock is held
+                auto delegate = cb->prepare(callbackType, callbackDataSize, callbackData);
+                guard.unlock();
+                // Actual call
+                return trapErrorReturn<uint32_t>(delegate);
+            }
+        }
+
+        ObjHandle wrapHelper(std::unique_ptr<CallbackDispatch> cb) {
+            // NOLINTNEXTLINE(*-pro-type-reinterpret-cast)
+            auto idx = reinterpret_cast<uintptr_t>(cb.get());
+            Symbol type = cb->type();
+            std::unique_lock guard{_mutex};
+            _callbacks.emplace(idx, std::move(cb));
+            return callApiReturnHandle<ObjHandle>([idx, type]() {
+                return ::ggapiRegisterCallback(&CallbackManager::_callback, idx, type.asInt());
+            });
+        }
+
+    public:
+        /**
+         * Register callback with Nucleus. The handle will be used to re-reference the callback
+         * for the intended function. The handle only needs local scope, as the Nucleus maintains
+         * the correct scope to hold on to the callback. Note, there is no way to prevent the
+         * actual callback function becoming invalid after this call. That all depends on C++
+         * scoping rules.
+         *
+         * @param cb Callback object that is used to dispatch to actual callback
+         * @return Typed Handle to registered callback
+         */
+        template<typename CallbackType>
+        CallbackType registerWithNucleus(std::unique_ptr<CallbackDispatch> cb) {
+            return CallbackType(wrapHelper(std::move(cb)));
+        }
+
+        /**
+         * Singleton
+         */
+        static CallbackManager &self() {
+            static CallbackManager singleton{};
+            return singleton;
+        }
+    };
+
+    /**
+     * Abstract topic callback
+     */
+    class TopicCallback : public ObjHandle {
+
+        /**
+         * Templated dispatch allows for capturing multiple arguments to pass to a callback
+         * routine. Note that this enables the same callback approach as std::invoke and std::thread
+         * where a typical use is (callbackMethod, this) but acceptable also to do something like
+         * (callbackMethod, this, extraArg1, extraArg2).
+         * @tparam Callable Lambda, function pointer, method, etc.
+         * @tparam Args Prefix arguments, particularly optional This
+         */
+        template<typename Callable, typename... Args>
+        class TopicDispatch : public CallbackManager::CallbackDispatch {
+
+            const Callable _callable;
+            const std::tuple<Args...> _args;
+
+        public:
+            explicit TopicDispatch(Callable callable, Args &&...args)
+                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+            }
+            [[nodiscard]] Symbol type() const override {
+                return {"topic"};
+            }
+            [[nodiscard]] CallbackManager::Delegate prepare(
+                uint32_t callbackType, uint32_t size, const void *data) const override {
+                assertCallbackType(Symbol(callbackType));
+                auto &cb = checkedStruct<TopicCallbackData>(size, data);
+                auto callable = _callable; // capture copy
+                auto task = Task(cb.taskHandle);
+                auto topic = Symbol(cb.topicSymbol);
+                auto dataStruct = Struct(cb.dataStruct);
+                auto args = std::tuple_cat(_args, std::tuple{task, topic, dataStruct});
+                return [callable, args]() {
+                    Struct s = std::apply(callable, args);
+                    return s.getHandleId();
+                };
+            }
+        };
+
+    public:
+        constexpr TopicCallback() noexcept = default;
+
+        explicit TopicCallback(const ObjHandle &other) : ObjHandle{other} {
+        }
+
+        /**
+         * Create reference to a topic callback.
+         */
+        template<typename Callable, typename... Args>
+        static TopicCallback of(const Callable &callable, Args &&...args) {
+            auto dispatch = std::make_unique<TopicDispatch<Callable, Args...>>(
+                callable, std::forward<Args>(args)...);
+            return CallbackManager::self().registerWithNucleus<TopicCallback>(std::move(dispatch));
+        }
+    };
+
+    /**
+     * Abstract task callback
+     */
+    class TaskCallback : public ObjHandle {
+
+        /**
+         * Templated dispatch allows for capturing multiple arguments to pass to a callback
+         * routine. Note that this enables the same callback approach as std::invoke and std::thread
+         * where a typical use is (callbackMethod, this) but acceptable also to do something like
+         * (callbackMethod, this, extraArg1, extraArg2).
+         * @tparam Callable Lambda, function pointer, method, etc.
+         * @tparam Args Prefix arguments, particularly optional This
+         */
+        template<typename Callable, typename... Args>
+        class TaskDispatch : public CallbackManager::CallbackDispatch {
+
+            const Callable _callable;
+            const std::tuple<Args...> _args;
+
+        public:
+            explicit TaskDispatch(Callable callable, Args &&...args)
+                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+            }
+            [[nodiscard]] Symbol type() const override {
+                return {"task"};
+            }
+            [[nodiscard]] CallbackManager::Delegate prepare(
+                uint32_t callbackType, uint32_t size, const void *data) const override {
+                assertCallbackType(Symbol(callbackType));
+                auto &cb = checkedStruct<TaskCallbackData>(size, data);
+                auto callable = _callable;
+                auto dataStruct = Struct(cb.dataStruct);
+                auto args = std::tuple_cat(_args, std::tuple{dataStruct});
+                return [callable, args]() {
+                    std::apply(callable, args);
+                    return static_cast<uint32_t>(true);
+                };
+            }
+        };
+
+    public:
+        constexpr TaskCallback() noexcept = default;
+
+        explicit TaskCallback(const ObjHandle &other) : ObjHandle{other} {
+        }
+
+        /**
+         * Create reference to a simple async task callback.
+         */
+        template<typename Callable, typename... Args>
+        static TaskCallback of(const Callable &callable, Args &&...args) {
+            auto dispatch = std::make_unique<TaskDispatch<Callable, Args...>>(
+                callable, std::forward<Args>(args)...);
+            return CallbackManager::self().registerWithNucleus<TaskCallback>(std::move(dispatch));
+        }
+    };
+
+    /**
+     * Abstract lifecycle callback
+     */
+    class LifecycleCallback : public ObjHandle {
+
+        /**
+         * Templated dispatch allows for capturing multiple arguments to pass to a callback
+         * routine. Note that this enables the same callback approach as std::invoke and std::thread
+         * where a typical use is (callbackMethod, this) but acceptable also to do something like
+         * (callbackMethod, this, extraArg1, extraArg2).
+         * @tparam Callable Lambda, function pointer, method, etc.
+         * @tparam Args Prefix arguments, particularly optional This
+         */
+        template<typename Callable, typename... Args>
+        class LifecycleDispatch : public CallbackManager::CallbackDispatch {
+
+            const Callable _callable;
+            const std::tuple<Args...> _args;
+
+        public:
+            explicit LifecycleDispatch(Callable callable, Args &&...args)
+                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+            }
+            [[nodiscard]] Symbol type() const override {
+                return {"lifecycle"};
+            }
+            [[nodiscard]] CallbackManager::Delegate prepare(
+                uint32_t callbackType, uint32_t size, const void *data) const override {
+                assertCallbackType(Symbol(callbackType));
+                auto &cb = checkedStruct<LifecycleCallbackData>(size, data);
+                auto target = _callable;
+                auto module = ModuleScope(cb.moduleHandle);
+                auto phase = Symbol(cb.phaseSymbol);
+                auto dataStruct = Struct(cb.dataStruct);
+                auto args = std::tuple_cat(_args, std::tuple{module, phase, dataStruct});
+                return [target, args]() {
+                    bool f = std::apply(target, args);
+                    return static_cast<uint32_t>(f);
+                };
+            }
+        };
+
+    public:
+        constexpr LifecycleCallback() noexcept = default;
+
+        explicit LifecycleCallback(const ObjHandle &other) : ObjHandle{other} {
+        }
+
+        /**
+         * Create reference to a lifecycle callback.
+         */
+        template<typename Callable, typename... Args>
+        static LifecycleCallback of(const Callable &callable, Args &&...args) {
+            auto dispatch = std::make_unique<LifecycleDispatch<Callable, Args...>>(
+                callable, std::forward<Args>(args)...);
+            return CallbackManager::self().registerWithNucleus<LifecycleCallback>(
+                std::move(dispatch));
+        }
+    };
+
+    inline Subscription Scope::subscribeToTopic(Symbol topic, TopicCallback callback) {
         required();
         return callApiReturnHandle<Subscription>([*this, topic, callback]() {
-            return ::ggapiSubscribeToTopic(
-                getHandleId(),
-                topic.asInt(),
-                topicCallbackProxy,
-                // TODO: This is undefined behavior; uintptr_t is size of data
-                // pointer, not function pointer. This should use static_cast to
-                // turn a data pointer to a void*. Will need to store the
-                // callback function pointer in some sort of struct
-                reinterpret_cast<uintptr_t>(callback) // NOLINT(*-reinterpret-cast)
-            );
+            return ::ggapiSubscribeToTopic(getHandleId(), topic.asInt(), callback.getHandleId());
+        });
+    }
+
+    inline Subscription Scope::subscribeToTopic(Symbol topic, const TopicCallbackLambda &callback) {
+        return subscribeToTopic(topic, TopicCallback::of(callback));
+    }
+
+    inline Task Task::sendToTopicAsync(
+        Symbol topic, Struct message, TopicCallback resultCallback, int32_t timeout) {
+
+        return callApiReturnHandle<Task>([topic, message, resultCallback, timeout]() {
+            return ::ggapiSendToTopicAsync(
+                topic.asInt(), message.getHandleId(), resultCallback.getHandleId(), timeout);
         });
     }
 
     inline Task Task::sendToTopicAsync(
-        Symbol topic, Struct message, topicCallback_t result, int32_t timeout) {
-        return callApiReturnHandle<Task>([topic, message, result, timeout]() {
-            return ::ggapiSendToTopicAsync(
-                topic.asInt(),
-                message.getHandleId(),
-                topicCallbackProxy,
-                reinterpret_cast<uintptr_t>(result), // NOLINT(*-reinterpret-cast)
-                timeout);
-        });
+        Symbol topic, Struct message, const TopicCallbackLambda &resultCallback, int32_t timeout) {
+
+        return sendToTopicAsync(topic, message, TopicCallback::of(resultCallback), timeout);
     }
 
     inline Struct Task::sendToTopic(ggapi::Symbol topic, Struct message, int32_t timeout) {
@@ -1120,16 +1465,18 @@ namespace ggapi {
     }
 
     inline Task Subscription::callAsync(
-        Struct message, topicCallback_t result, int32_t timeout) const {
+        Struct message, TopicCallback resultCallback, int32_t timeout) const {
         required();
-        return callApiReturnHandle<Task>([this, message, result, timeout]() {
+        return callApiReturnHandle<Task>([this, message, resultCallback, timeout]() {
             return ::ggapiSendToListenerAsync(
-                getHandleId(),
-                message.getHandleId(),
-                topicCallbackProxy,
-                reinterpret_cast<uintptr_t>(result), // NOLINT(*-reinterpret-cast)
-                timeout);
+                getHandleId(), message.getHandleId(), resultCallback.getHandleId(), timeout);
         });
+    }
+
+    inline Task Subscription::callAsync(
+        Struct message, const TopicCallbackLambda &resultCallback, int32_t timeout) const {
+        required();
+        return callAsync(message, TopicCallback::of(resultCallback), timeout);
     }
 
     inline Struct Subscription::call(Struct message, int32_t timeout) const {
@@ -1158,27 +1505,28 @@ namespace ggapi {
         return callApiReturnHandle<Task>([]() { return ::ggapiGetCurrentTask(); });
     }
 
-    inline Task Task::callAsync(Struct data, taskCallback_t callback, uint32_t delay) {
+    inline Task Task::callAsync(Struct data, TaskCallback callback, uint32_t delay) {
         return callApiReturnHandle<Task>([data, callback, delay]() {
-            return ::ggapiCallAsync(
-                data.getHandleId(),
-                taskCallbackProxy,
-                reinterpret_cast<uintptr_t>(callback), // NOLINT(*-reinterpret-cast)
-                delay);
+            return ::ggapiCallAsync(data.getHandleId(), callback.getHandleId(), delay);
+        });
+    }
+
+    inline Task Task::callAsync(Struct data, const TaskCallbackLambda &callback, uint32_t delay) {
+        return callAsync(data, TaskCallback::of(callback), delay);
+    }
+
+    inline ModuleScope ModuleScope::registerPlugin(
+        Symbol componentName, LifecycleCallback callback) {
+        required();
+        return callApiReturnHandle<ModuleScope>([*this, componentName, callback]() {
+            return ::ggapiRegisterPlugin(
+                getHandleId(), componentName.asInt(), callback.getHandleId());
         });
     }
 
     inline ModuleScope ModuleScope::registerPlugin(
-        Symbol componentName, lifecycleCallback_t callback) {
-        required();
-        return callApiReturnHandle<ModuleScope>([*this, componentName, callback]() {
-            return ::ggapiRegisterPlugin(
-                getHandleId(),
-                componentName.asInt(),
-                lifecycleCallbackProxy,
-                reinterpret_cast<uintptr_t>(callback) // NOLINT(*-reinterpret-cast)
-            );
-        });
+        Symbol componentName, const LifecycleCallbackLambda &callback) {
+        return registerPlugin(componentName, LifecycleCallback::of(callback));
     }
 
     inline Buffer Container::toJson() const {
@@ -1189,40 +1537,6 @@ namespace ggapi {
     inline Buffer Container::toYaml() const {
         required();
         return callApiReturnHandle<Buffer>([*this]() { return ::ggapiToYaml(_handle); });
-    }
-
-    inline uint32_t topicCallbackProxy(
-        uintptr_t callbackContext,
-        uint32_t taskHandle,
-        uint32_t topicOrd,
-        uint32_t dataStruct) noexcept {
-        return trapErrorReturn<uint32_t>([callbackContext, taskHandle, topicOrd, dataStruct]() {
-            auto callback =
-                reinterpret_cast<topicCallback_t>(callbackContext); // NOLINT(*-reinterpret-cast)
-            return callback(Task{taskHandle}, Symbol{topicOrd}, Struct{dataStruct}).getHandleId();
-        });
-    }
-
-    inline bool lifecycleCallbackProxy(
-        uintptr_t callbackContext,
-        uint32_t moduleHandle,
-        uint32_t phaseOrd,
-        uint32_t dataStruct) noexcept {
-        return trapErrorReturn<bool>([callbackContext, moduleHandle, phaseOrd, dataStruct]() {
-            // NOLINTNEXTLINE(*-reinterpret-cast)
-            auto callback = reinterpret_cast<lifecycleCallback_t>(callbackContext);
-            callback(ModuleScope{moduleHandle}, Symbol{phaseOrd}, Struct{dataStruct});
-            return true;
-        });
-    }
-
-    inline bool taskCallbackProxy(uintptr_t callbackContext, uint32_t dataStruct) noexcept {
-        return trapErrorReturn<bool>([callbackContext, dataStruct]() {
-            // NOLINTNEXTLINE(*-reinterpret-cast)
-            auto callback = reinterpret_cast<taskCallback_t>(callbackContext);
-            callback(Struct{dataStruct});
-            return true;
-        });
     }
 
     //
@@ -1349,22 +1663,10 @@ namespace ggapi {
         }
     }
 
-    inline uint32_t trapErrorReturnHandle(const std::function<ObjHandle()> &fn) noexcept {
-        return trapErrorReturn<uint32_t>([&fn]() { return fn().getHandleId(); });
-    }
-
-    inline uint32_t trapErrorReturnOrd(const std::function<Symbol()> &fn) noexcept {
-        return trapErrorReturn<uint32_t>([&fn]() { return fn().asInt(); });
-    }
-
     template<typename T>
     inline T callApiReturnHandle(const std::function<uint32_t()> &fn) {
         static_assert(std::is_base_of_v<ObjHandle, T>);
         return T(callApiReturn<uint32_t>(fn));
-    }
-
-    inline Symbol callApiReturnOrd(const std::function<uint32_t()> &fn) {
-        return Symbol(callApiReturn<uint32_t>(fn));
     }
 
 } // namespace ggapi

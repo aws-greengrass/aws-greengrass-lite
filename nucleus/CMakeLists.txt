@@ -109,6 +109,8 @@ add_library(
   src/tasks/expire_time.hpp
   src/tasks/task.cpp
   src/tasks/task.hpp
+  src/tasks/task_callbacks.cpp
+  src/tasks/task_callbacks.hpp
   src/tasks/task_manager.cpp
   src/tasks/task_manager.hpp
   src/tasks/task_threads.cpp
@@ -160,6 +162,7 @@ install(TARGETS greengrass-lite DESTINATION bin)
 add_executable(
   nucleus-tests
   tests/api/buffer_tests.cpp
+  tests/api/callback_tests.cpp
   tests/api/enum_tests.cpp
   tests/api/json_tests.cpp
   tests/api/list_tests.cpp

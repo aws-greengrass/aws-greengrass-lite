@@ -23,27 +23,38 @@
 #define IMPEXP IMPORT
 #endif
 
-typedef uint32_t (*ggapiTopicCallback)(
+struct TopicCallbackData {
+    uint32_t taskHandle;
+    uint32_t topicSymbol;
+    uint32_t dataStruct;
+};
+
+struct LifecycleCallbackData {
+    uint32_t moduleHandle;
+    uint32_t phaseSymbol;
+    uint32_t dataStruct;
+};
+
+struct TaskCallbackData {
+    uint32_t dataStruct;
+};
+
+typedef uint32_t (*ggapiGenericCallback)(
     uintptr_t callbackContext,
-    uint32_t taskHandle,
-    uint32_t topicOrd,
-    uint32_t dataStruct) NOEXCEPT;
-typedef bool (*ggapiLifecycleCallback)(
-    uintptr_t callbackContext,
-    uint32_t moduleHandle,
-    uint32_t phaseOrd,
-    uint32_t dataStruct) NOEXCEPT;
-typedef bool (*ggapiTaskCallback)(uintptr_t callbackContext, uint32_t dataStruct) NOEXCEPT;
+    uint32_t callbackType,
+    uint32_t callbackDataSize,
+    const void *callbackData) NOEXCEPT;
 
 [[maybe_unused]] EXPORT bool greengrass_lifecycle(
     uint32_t moduleHandle, uint32_t phase, uint32_t data) NOEXCEPT;
+
 IMPEXP void ggapiSetError(uint32_t kind, const char *what, size_t len) NOEXCEPT;
 IMPEXP uint32_t ggapiGetErrorKind() NOEXCEPT;
 IMPEXP const char *ggapiGetErrorWhat() NOEXCEPT;
 
-IMPEXP uint32_t ggapiGetStringOrdinal(const char *bytes, size_t len) NOEXCEPT;
-IMPEXP size_t ggapiGetOrdinalString(uint32_t symbolInt, char *bytes, size_t len) NOEXCEPT;
-IMPEXP size_t ggapiGetOrdinalStringLen(uint32_t symbolInt) NOEXCEPT;
+IMPEXP uint32_t ggapiGetSymbol(const char *bytes, size_t len) NOEXCEPT;
+IMPEXP size_t ggapiGetSymbolString(uint32_t symbolInt, char *bytes, size_t len) NOEXCEPT;
+IMPEXP size_t ggapiGetSymbolStringLen(uint32_t symbolInt) NOEXCEPT;
 IMPEXP uint32_t ggapiCreateStruct() NOEXCEPT;
 IMPEXP uint32_t ggapiCreateList() NOEXCEPT;
 IMPEXP uint32_t ggapiCreateBuffer() NOEXCEPT;
@@ -74,8 +85,7 @@ IMPEXP bool ggapiStructPutInt64(uint32_t structHandle, uint32_t symInt, uint64_t
 IMPEXP bool ggapiStructPutFloat64(uint32_t structHandle, uint32_t symInt, double value) NOEXCEPT;
 IMPEXP bool ggapiStructPutString(
     uint32_t structHandle, uint32_t symInt, const char *bytes, size_t len) NOEXCEPT;
-IMPEXP bool ggapiStructPutStringOrd(
-    uint32_t listHandle, uint32_t symInt, uint32_t symValInt) NOEXCEPT;
+IMPEXP bool ggapiStructPutSymbol(uint32_t listHandle, uint32_t symInt, uint32_t symValInt) NOEXCEPT;
 IMPEXP bool ggapiStructPutHandle(
     uint32_t structHandle, uint32_t symInt, uint32_t nestedHandle) NOEXCEPT;
 IMPEXP bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
@@ -91,14 +101,14 @@ IMPEXP bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) 
 IMPEXP bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) NOEXCEPT;
 IMPEXP bool ggapiListPutString(
     uint32_t listHandle, int32_t idx, const char *bytes, size_t len) NOEXCEPT;
-IMPEXP bool ggapiListPutStringOrd(uint32_t listHandle, int32_t idx, uint32_t symValInt) NOEXCEPT;
+IMPEXP bool ggapiListPutSymbol(uint32_t listHandle, int32_t idx, uint32_t symValInt) NOEXCEPT;
 IMPEXP bool ggapiListPutHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) NOEXCEPT;
 IMPEXP bool ggapiListInsertBool(uint32_t listHandle, int32_t idx, bool value) NOEXCEPT;
 IMPEXP bool ggapiListInsertInt64(uint32_t listHandle, int32_t idx, uint64_t value) NOEXCEPT;
 IMPEXP bool ggapiListInsertFloat64(uint32_t listHandle, int32_t idx, double value) NOEXCEPT;
 IMPEXP bool ggapiListInsertString(
     uint32_t listHandle, int32_t idx, const char *bytes, size_t len) NOEXCEPT;
-IMPEXP bool ggapiListInsertStringOrd(uint32_t listHandle, int32_t idx, uint32_t symVal) NOEXCEPT;
+IMPEXP bool ggapiListInsertSymbol(uint32_t listHandle, int32_t idx, uint32_t symVal) NOEXCEPT;
 IMPEXP bool ggapiListInsertHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) NOEXCEPT;
 IMPEXP bool ggapiListGetBool(uint32_t structHandle, int32_t idx) NOEXCEPT;
 IMPEXP uint64_t ggapiListGetInt64(uint32_t structHandle, int32_t idx) NOEXCEPT;
@@ -124,39 +134,27 @@ IMPEXP uint32_t ggapiFromYaml(uint32_t bufferHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiCreateCallScope() NOEXCEPT;
 IMPEXP uint32_t ggapiGetCurrentCallScope() NOEXCEPT;
 IMPEXP uint32_t ggapiGetCurrentTask() NOEXCEPT;
-IMPEXP uint32_t ggapiSubscribeToTopic(
-    uint32_t anchorHandle,
-    uint32_t topicOrd,
-    ggapiTopicCallback rxCallback,
-    uintptr_t callbackContext) NOEXCEPT;
-IMPEXP uint32_t ggapiSendToTopic(uint32_t topicOrd, uint32_t callStruct, int32_t timeout) NOEXCEPT;
+IMPEXP uint32_t
+ggapiSubscribeToTopic(uint32_t anchorHandle, uint32_t topic, uint32_t callbackHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiSendToTopic(uint32_t topic, uint32_t callStruct, int32_t timeout) NOEXCEPT;
 IMPEXP uint32_t
 ggapiSendToListener(uint32_t listenerHandle, uint32_t callStruct, int32_t timeout) NOEXCEPT;
 IMPEXP uint32_t ggapiSendToTopicAsync(
-    uint32_t topicOrd,
-    uint32_t callStruct,
-    ggapiTopicCallback respCallback,
-    uintptr_t callbackCtx,
-    int32_t timeout) NOEXCEPT;
+    uint32_t topic, uint32_t callStruct, uint32_t callbackHandle, int32_t timeout) NOEXCEPT;
 IMPEXP uint32_t ggapiSendToListenerAsync(
     uint32_t listenerHandle,
     uint32_t callStruct,
-    ggapiTopicCallback respCallback,
-    uintptr_t callbackCtx,
+    uint32_t callbackHandle,
     int32_t timeout) NOEXCEPT;
-IMPEXP uint32_t ggapiCallAsync(
-    uint32_t callStruct,
-    ggapiTaskCallback futureCallback,
-    uintptr_t callbackCtx,
-    uint32_t delay) NOEXCEPT;
+IMPEXP uint32_t
+ggapiCallAsync(uint32_t callStruct, uint32_t callbackHandle, uint32_t delay) NOEXCEPT;
 IMPEXP bool ggapiSetSingleThread(bool enable) NOEXCEPT;
 IMPEXP uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) NOEXCEPT;
 IMPEXP bool ggapiSleep(uint32_t timeout) NOEXCEPT;
 IMPEXP bool ggapiCancelTask(uint32_t asyncTask) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterPlugin(
-    uint32_t moduleHandle,
-    uint32_t componentName,
-    ggapiLifecycleCallback lifecycleCallback,
-    uintptr_t callbackContext) NOEXCEPT;
+    uint32_t moduleHandle, uint32_t componentName, uint32_t callbackHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiRegisterCallback(
+    ggapiGenericCallback callbackFunction, uintptr_t callbackCtx, uint32_t callbackType) NOEXCEPT;
 
 #endif // GG_PLUGIN_API

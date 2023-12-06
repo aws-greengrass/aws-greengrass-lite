@@ -7,6 +7,7 @@
 #include <list>
 
 namespace tasks {
+    class Callback;
     class SubTask;
     class TaskManager;
     class TaskThread;
@@ -176,6 +177,20 @@ namespace tasks {
             const std::shared_ptr<data::StructModelBase> &dataIn) = 0;
         void setAffinity(const std::shared_ptr<TaskThread> &affinity);
         std::shared_ptr<TaskThread> getAffinity(const std::shared_ptr<TaskThread> &defaultThread);
+    };
+
+    class SimpleSubTask : public tasks::SubTask {
+    private:
+        std::shared_ptr<tasks::Callback> _callback;
+
+    public:
+        explicit SimpleSubTask(const std::shared_ptr<tasks::Callback> &callback)
+            : _callback{callback} {
+        }
+
+        std::shared_ptr<data::StructModelBase> runInThread(
+            const std::shared_ptr<tasks::Task> &task,
+            const std::shared_ptr<data::StructModelBase> &data) override;
     };
 
 } // namespace tasks

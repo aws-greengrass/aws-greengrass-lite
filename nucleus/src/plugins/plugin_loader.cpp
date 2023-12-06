@@ -4,6 +4,7 @@
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
+#include "tasks/task_callbacks.hpp"
 #include <iostream>
 
 namespace fs = std::filesystem;
@@ -82,16 +83,9 @@ namespace plugins {
         const data::Symbol &phase,
         const data::ObjHandle &dataHandle) {
 
-        uintptr_t delegateContext;
-        ggapiLifecycleCallback delegateLifecycle;
-        {
-            std::shared_lock guard{_mutex};
-            delegateContext = _delegateContext;
-            delegateLifecycle = _delegateLifecycle;
-        }
-        if(delegateLifecycle != nullptr) {
-            return delegateLifecycle(
-                delegateContext, pluginHandle.asInt(), phase.asInt(), dataHandle.asInt());
+        auto callback = _callback;
+        if(callback) {
+            return callback->invokeLifecycleCallback(pluginHandle, phase, dataHandle);
         }
         return true;
     }
@@ -131,7 +125,7 @@ namespace plugins {
         // which solves a number of interesting problems
         auto anchor = _root->anchor(plugin);
         plugin->setSelf(anchor.getHandle());
-        plugin->bootstrap(*this);
+        plugin->initialize(*this);
     }
 
     void PluginLoader::forAllPlugins(
@@ -149,12 +143,12 @@ namespace plugins {
     }
 
     std::shared_ptr<data::StructModelBase> PluginLoader::buildParams(
-        AbstractPlugin &plugin, bool bootstrap) const {
+        AbstractPlugin &plugin, bool partial) const {
         std::string nucleusName = _deviceConfig->getNucleusComponentName();
         auto data = std::make_shared<data::SharedStruct>(_context.lock());
         data->put(CONFIG_ROOT, context().configManager().root());
         data->put(SYSTEM, context().configManager().lookupTopics({SYSTEM}));
-        if(!bootstrap) {
+        if(!partial) {
             data->put(
                 NUCLEUS_CONFIG, context().configManager().lookupTopics({SERVICES, nucleusName}));
             data->put(CONFIG, context().configManager().lookupTopics({SERVICES, plugin.getName()}));
@@ -196,7 +190,7 @@ namespace plugins {
         }
     }
 
-    void AbstractPlugin::bootstrap(PluginLoader &loader) {
+    void AbstractPlugin::initialize(PluginLoader &loader) {
         if(!isActive()) {
             return;
         }

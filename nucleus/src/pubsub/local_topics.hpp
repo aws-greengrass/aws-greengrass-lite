@@ -13,6 +13,7 @@
 #include <vector>
 
 namespace tasks {
+    class Callback;
     class Task;
     class SubTask;
 } // namespace tasks
@@ -29,38 +30,20 @@ namespace pubsub {
     class Listeners;
     class PubSubManager;
 
-    //
-    // Encapsulates callbacks
-    //
-    class AbstractCallback {
-    public:
-        AbstractCallback() = default;
-        AbstractCallback(const AbstractCallback &) = default;
-        AbstractCallback(AbstractCallback &&) noexcept = default;
-        AbstractCallback &operator=(const AbstractCallback &) = default;
-        AbstractCallback &operator=(AbstractCallback &&) noexcept = default;
-        virtual ~AbstractCallback() = default;
-        virtual data::ObjHandle operator()(
-            data::ObjHandle taskHandle, data::Symbol topicOrd, data::ObjHandle dataStruct) = 0;
-    };
-
-    class CompletionSubTask : public tasks::SubTask {
+    class TopicSubTask : public tasks::SubTask {
     private:
-        data::Symbol _topicOrd;
-        std::unique_ptr<pubsub::AbstractCallback> _callback;
+        data::Symbol _topic;
+        std::shared_ptr<tasks::Callback> _callback;
 
     public:
-        explicit CompletionSubTask(
-            data::Symbol topicOrd, std::unique_ptr<pubsub::AbstractCallback> callback)
-            : _topicOrd{topicOrd}, _callback{std::move(callback)} {
+        explicit TopicSubTask(
+            const data::Symbol &topic, const std::shared_ptr<tasks::Callback> &callback)
+            : _topic(topic), _callback(callback) {
         }
 
         std::shared_ptr<data::StructModelBase> runInThread(
             const std::shared_ptr<tasks::Task> &task,
-            const std::shared_ptr<data::StructModelBase> &result) override;
-
-        static std::unique_ptr<tasks::SubTask> of(
-            data::Symbol topicOrd, std::unique_ptr<AbstractCallback> callback);
+            const std::shared_ptr<data::StructModelBase> &data) override;
     };
 
     //
@@ -68,10 +51,9 @@ namespace pubsub {
     //
     class Listener : public data::TrackedObject {
     private:
-        data::Symbol _topicOrd;
+        data::Symbol _topic;
         std::weak_ptr<Listeners> _parent;
-        std::unique_ptr<AbstractCallback> _callback;
-        std::weak_ptr<tasks::TaskThread> _affinity;
+        std::shared_ptr<tasks::Callback> _callback;
 
     public:
         using BadCastError = errors::InvalidSubscriberError;
@@ -85,9 +67,8 @@ namespace pubsub {
             const std::shared_ptr<scope::Context> &context,
             data::Symbol topicOrd,
             Listeners *listeners,
-            std::unique_ptr<AbstractCallback> callback,
-            const std::shared_ptr<tasks::TaskThread> &affinity);
-        std::unique_ptr<tasks::SubTask> toSubTask();
+            const std::shared_ptr<tasks::Callback> &callback);
+        std::unique_ptr<tasks::SubTask> toSubTask(const data::Symbol &topic);
         std::shared_ptr<data::StructModelBase> runInTaskThread(
             const std::shared_ptr<tasks::Task> &task,
             const std::shared_ptr<data::StructModelBase> &dataIn);
@@ -121,9 +102,7 @@ namespace pubsub {
             return _listeners.empty();
         }
 
-        std::shared_ptr<Listener> addNewListener(
-            std::unique_ptr<AbstractCallback> callback,
-            const std::shared_ptr<tasks::TaskThread> &affinity);
+        std::shared_ptr<Listener> addNewListener(const std::shared_ptr<tasks::Callback> &callback);
         void fillTopicListeners(std::vector<std::shared_ptr<Listener>> &callOrder);
     };
 
@@ -161,10 +140,13 @@ namespace pubsub {
         std::shared_ptr<Listeners> getListeners(data::Symbol topicName);
         // subscribe a new listener to a callback
         std::shared_ptr<Listener> subscribe(
-            data::Symbol topicOrd,
-            std::unique_ptr<AbstractCallback> callback,
-            const std::shared_ptr<tasks::TaskThread> &affinity);
-        void insertTopicListenerSubTasks(std::shared_ptr<tasks::Task> &task, data::Symbol topicOrd);
+            data::Symbol topic, const std::shared_ptr<tasks::Callback> &callback);
+        // subscribe a new listener to a callback with anchoring
+        data::ObjectAnchor subscribe(
+            data::ObjHandle scopeHandle,
+            data::Symbol topic,
+            const std::shared_ptr<tasks::Callback> &callback);
+        void insertTopicListenerSubTasks(std::shared_ptr<tasks::Task> &task, data::Symbol topic);
         void initializePubSubCall(
             std::shared_ptr<tasks::Task> &task,
             const std::shared_ptr<Listener> &explicitListener,

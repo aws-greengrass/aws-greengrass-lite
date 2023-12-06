@@ -6,6 +6,7 @@ add_library(
   INTERFACE
   include/buffer_stream.hpp
   include/c_api.h
+  include/c_api.hpp
   include/cpp_api.hpp
   include/plugin.hpp
   include/util.hpp)

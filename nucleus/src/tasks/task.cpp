@@ -1,6 +1,7 @@
 #include "task.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/expire_time.hpp"
+#include "tasks/task_callbacks.hpp"
 #include "tasks/task_manager.hpp"
 #include "tasks/task_threads.hpp"
 #include <iostream>
@@ -334,4 +335,14 @@ namespace tasks {
             return defaultThread;
         }
     }
+
+    std::shared_ptr<data::StructModelBase> SimpleSubTask::runInThread(
+        const std::shared_ptr<tasks::Task> &task,
+        const std::shared_ptr<data::StructModelBase> &data) {
+        assert(scope::thread().getActiveTask() == task); // sanity
+        assert(task->getSelf()); // sanity
+        _callback->invokeTaskCallback(data);
+        return {};
+    }
+
 } // namespace tasks

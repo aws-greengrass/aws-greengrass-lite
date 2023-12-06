@@ -9,6 +9,15 @@
 class DelegatePlugin : public ggapi::Plugin {
 public:
     bool onStart(ggapi::Struct data) override;
+    bool callback(
+        ggapi::Symbol name,
+        ggapi::ModuleScope moduleScope,
+        ggapi::Symbol phase,
+        ggapi::Struct data) {
+        // Example of using the callback to introduce extra data
+        std::ignore = name;
+        return lifecycle(moduleScope, phase, data);
+    }
 };
 
 class LayeredPlugin : public ggapi::Plugin {
@@ -34,16 +43,8 @@ public:
 //
 // Recommended stub
 //
-extern "C" [[maybe_unused]] [[maybe_unused]] EXPORT bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
+bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
     return LayeredPlugin::get().lifecycle(moduleHandle, phase, data);
-}
-
-void greengrass_delegate_lifecycle(
-    ggapi::ModuleScope moduleHandle, ggapi::StringOrd phase, ggapi::Struct data) {
-    std::cout << "Running lifecycle getDelegate... " << moduleHandle.getHandleId() << " phase "
-              << phase.toString() << std::endl;
-    LayeredPlugin::get().getDelegate(moduleHandle).lifecycle(moduleHandle, phase, data);
 }
 
 bool DelegatePlugin::onStart(ggapi::Struct data) {
@@ -54,9 +55,11 @@ bool DelegatePlugin::onStart(ggapi::Struct data) {
 bool LayeredPlugin::onDiscover(ggapi::Struct data) {
     std::cout << "Layered Plugin: Running lifecycle discovery" << std::endl;
     std::unique_lock guard{_mutex};
-    ggapi::ObjHandle nestedPlugin =
-        getScope().registerPlugin(ggapi::StringOrd{"MyDelegate"}, greengrass_delegate_lifecycle);
     std::unique_ptr<DelegatePlugin> plugin{std::make_unique<DelegatePlugin>()};
+    DelegatePlugin &ref = *plugin;
+    auto name = ggapi::Symbol("MyDelegate");
+    ggapi::ObjHandle nestedPlugin = getScope().registerPlugin(
+        name, ggapi::LifecycleCallback::of(&DelegatePlugin::callback, &ref, name));
     _delegates.emplace(nestedPlugin.getHandleId(), std::move(plugin));
     return true;
 }
