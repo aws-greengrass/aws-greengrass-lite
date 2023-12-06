@@ -18,29 +18,23 @@
 #include <aws/crt/mqtt/Mqtt5Packets.h>
 #include <aws/iot/Mqtt5Client.h>
 
-#include <plugin.hpp>
 #include "topic_filter.hpp"
+#include <plugin.hpp>
 
-class mqttBuilderException: public ggapi::GgApiError
-{
-    virtual const char *what() const noexcept
-    {
+class mqttBuilderException : public ggapi::GgApiError {
+    virtual const char *what() const noexcept {
         return "MQTT Failed setup MQTT client builder";
     }
 };
 
-class mqttClientException: public ggapi::GgApiError
-{
-    virtual const char *what() const noexcept
-    {
+class mqttClientException : public ggapi::GgApiError {
+    virtual const char *what() const noexcept {
         return "MQTT failed to initialize the client";
     }
 };
 
-class mqttClienFailedToStart: public ggapi::GgApiError
-{
-    virtual const char *what() const noexcept
-    {
+class mqttClienFailedToStart : public ggapi::GgApiError {
+    virtual const char *what() const noexcept {
         return "MQTT client failed to start";
     }
 };
@@ -101,6 +95,5 @@ private:
     std::shared_mutex _subscriptionMutex;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
 };
-
 
 #endif // GREENGRASS_LITE_IOT_BROKER_H
