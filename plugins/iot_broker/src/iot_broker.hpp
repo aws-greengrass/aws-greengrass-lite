@@ -21,6 +21,28 @@
 #include <plugin.hpp>
 #include "topic_filter.hpp"
 
+class mqttBuilderException: public std::exception
+{
+    virtual const char *what() const noexcept
+    {
+        return "MQTT Failed setup MQTT client builder";
+    }
+};
+
+class mqttClientException: public std::exception{
+    virtual const char *what() const noexcept
+    {
+        return "MQTT failed to initialize the client";
+    }
+};
+
+class mqttClienFailedToStart: public std::exception{
+    virtual const char *what() const noexcept
+    {
+        return "MQTT client failed to start";
+    }
+};
+
 class IotBroker : public ggapi::Plugin {
     struct Keys {
         ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
@@ -58,16 +80,6 @@ public:
     void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
     void afterLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
 
-    bool inline validConfig() const {
-        if(_thingInfo.certPath.empty() || _thingInfo.keyPath.empty() || _thingInfo.thingName.empty()) {
-            return false;
-        }
-        return true;
-    }
-
-    bool initMqtt();
-    void publishToProvisionPlugin();
-
     static IotBroker &get() {
         static IotBroker instance{};
         return instance;
@@ -80,6 +92,8 @@ private:
 
     ggapi::Struct publishHandlerImpl(ggapi::Struct args);
     ggapi::Struct subscribeHandlerImpl(ggapi::Struct args);
+
+    void initMqtt();
 
     std::unordered_multimap<TopicFilter, ggapi::Symbol, TopicFilter::Hash> _subscriptions;
     std::shared_mutex _subscriptionMutex;
