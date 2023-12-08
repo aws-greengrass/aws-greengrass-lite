@@ -452,6 +452,12 @@ namespace ggapi {
             Symbol componentName, const LifecycleCallbackLambda &callback);
 
         [[nodiscard]] ModuleScope registerPlugin(Symbol componentName, LifecycleCallback callback);
+
+        // Note: Using this can lead to unpredictable results if the parent plugin is unloaded.
+        [[nodiscard]] static ModuleScope registerGlobalPlugin(
+            Symbol componentName, const LifecycleCallbackLambda &callback);
+
+        [[nodiscard]] static ModuleScope registerGlobalPlugin(Symbol componentName, LifecycleCallback callback);
     };
 
     /**
@@ -1527,6 +1533,19 @@ namespace ggapi {
     inline ModuleScope ModuleScope::registerPlugin(
         Symbol componentName, const LifecycleCallbackLambda &callback) {
         return registerPlugin(componentName, LifecycleCallback::of(callback));
+    }
+
+    inline ModuleScope ModuleScope::registerGlobalPlugin(
+        Symbol componentName, LifecycleCallback callback) {
+        return callApiReturnHandle<ModuleScope>([componentName, callback]() {
+            return ::ggapiRegisterPlugin(
+                0, componentName.asInt(), callback.getHandleId());
+        });
+    }
+
+    inline ModuleScope ModuleScope::registerGlobalPlugin(
+        Symbol componentName, const LifecycleCallbackLambda &callback) {
+        return registerGlobalPlugin(componentName, LifecycleCallback::of(callback));
     }
 
     inline Buffer Container::toJson() const {

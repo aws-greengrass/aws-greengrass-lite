@@ -8,8 +8,8 @@
 #include <shared_mutex>
 #include <stdexcept>
 #include <string_view>
-#include <thread>
 #include <unordered_map>
+#include "util.hpp"
 
 struct Keys {
     ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
@@ -32,166 +32,8 @@ struct ThingInfo {
     std::string rootPath;
 };
 
-struct TopicLevelIterator {
-    using value_type = std::string_view;
-    using difference_type = std::ptrdiff_t;
-    using reference = const value_type &;
-    using pointer = const value_type *;
-    using iterator_category = std::input_iterator_tag;
-
-    explicit TopicLevelIterator(std::string_view topic) noexcept
-        : _str(topic), _index(0), _current(_str.substr(_index, _str.find('/', _index))) {
-    }
-
-    friend bool operator==(const TopicLevelIterator &a, const TopicLevelIterator &b) noexcept {
-        return (a._index == b._index) && (a._str.data() == b._str.data());
-    }
-
-    friend bool operator!=(const TopicLevelIterator &a, const TopicLevelIterator &b) noexcept {
-        return (a._index != b._index) || (a._str.data() != b._str.data());
-    }
-
-    reference operator*() const {
-        if(_index == value_type::npos) {
-            throw std::out_of_range{"Using depleted TopicLevelIterator."};
-        }
-        return _current;
-    }
-
-    pointer operator->() const {
-        if(_index == value_type::npos) {
-            throw std::out_of_range{"Using depleted TopicLevelIterator."};
-        }
-        return &_current;
-    }
-
-    TopicLevelIterator &operator++() {
-        if(_index == value_type::npos) {
-            throw std::out_of_range{"Using depleted TopicLevelIterator."};
-        }
-        _index += _current.length() + 1;
-        if(_index > _str.length()) {
-            _index = value_type::npos;
-        } else {
-            size_t nextIndex = _str.find('/', _index);
-            if(nextIndex == value_type::npos) {
-                nextIndex = _str.length();
-            }
-            _current = _str.substr(_index, nextIndex - _index);
-        }
-        return *this;
-    }
-
-    // NOLINTNEXTLINE(readability-const-return-type) Conflicting lints.
-    const TopicLevelIterator operator++(int) {
-        TopicLevelIterator tmp = *this;
-        ++*this;
-        return tmp;
-    }
-
-    [[nodiscard]] TopicLevelIterator begin() const {
-        return *this;
-    }
-
-    [[nodiscard]] TopicLevelIterator end() const {
-        return TopicLevelIterator{this->_str, value_type::npos};
-    }
-
-private:
-    explicit TopicLevelIterator(std::string_view topic, size_t index) : _str(topic), _index(index) {
-    }
-
-    std::string_view _str;
-    size_t _index;
-    value_type _current;
-};
-
-class TopicFilter {
-public:
-    using const_iterator = TopicLevelIterator;
-
-    explicit TopicFilter(std::string_view str) : _value{str} {
-        validateFilter();
-    }
-
-    explicit TopicFilter(std::string &&str) : _value{std::move(str)} {
-        validateFilter();
-    }
-
-    TopicFilter(const TopicFilter &) = default;
-    TopicFilter(TopicFilter &&) noexcept = default;
-    TopicFilter &operator=(const TopicFilter &) = default;
-    TopicFilter &operator=(TopicFilter &&) noexcept = default;
-    ~TopicFilter() noexcept = default;
-
-    explicit operator const std::string &() const noexcept {
-        return _value;
-    }
-
-    friend bool operator==(const TopicFilter &a, const TopicFilter &b) noexcept {
-        return a._value == b._value;
-    }
-
-    [[nodiscard]] bool match(std::string_view topic) const {
-        TopicLevelIterator topicIter{topic};
-        bool hash = false;
-        auto [filterTail, topicTail] = std::mismatch(
-            begin(),
-            end(),
-            topicIter.begin(),
-            topicIter.end(),
-            [&hash](std::string_view filterLevel, std::string_view topicLevel) {
-                if(filterLevel == "#") {
-                    hash = true;
-                    return true;
-                }
-                return (filterLevel == "+") || (filterLevel == topicLevel);
-            });
-        return hash || ((filterTail == end()) && (topicTail == topicIter.end()));
-    }
-
-    struct Hash {
-        size_t operator()(const TopicFilter &filter) const noexcept {
-            return std::hash<std::string>{}(filter._value);
-        }
-    };
-
-    [[nodiscard]] const_iterator begin() const {
-        return TopicLevelIterator(_value).begin();
-    }
-
-    [[nodiscard]] const_iterator end() const {
-        return TopicLevelIterator(_value).end();
-    }
-
-    [[nodiscard]] const std::string &get() const noexcept {
-        return _value;
-    }
-
-private:
-    std::string _value;
-
-    void validateFilter() const {
-        if(_value.empty()) {
-            throw std::invalid_argument("Invalid topic filter");
-        }
-        bool last = false;
-        for(auto level : *this) {
-            if(last
-               || ((level != "#") && (level != "+")
-                   && (level.find_first_of("#+") != std::string_view::npos))) {
-                throw std::invalid_argument("Invalid topic filter");
-            }
-            if(level == "#") {
-                last = true;
-            }
-        }
-    }
-};
-
 class IotBroker : public ggapi::Plugin {
     struct ThingInfo _thingInfo;
-    std::thread _asyncThread;
     std::atomic<ggapi::Struct> _nucleus;
     std::atomic<ggapi::Struct> _system;
 
@@ -212,7 +54,7 @@ public:
 
 private:
     static const Keys keys;
-    std::unordered_multimap<TopicFilter, ggapi::Symbol, TopicFilter::Hash> _subscriptions;
+    std::unordered_multimap<util::TopicFilter, ggapi::Symbol, util::TopicFilter::Hash> _subscriptions;
     std::shared_mutex _subscriptionMutex;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
     static ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
@@ -277,7 +119,7 @@ ggapi::Struct IotBroker::subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Str
 }
 
 ggapi::Struct IotBroker::subscribeHandlerImpl(ggapi::Struct args) {
-    TopicFilter topicFilter{args.get<std::string>(keys.topicFilter)};
+    util::TopicFilter topicFilter{args.get<std::string>(keys.topicFilter)};
     int qos{args.get<int>(keys.qos)};
     ggapi::Symbol responseTopic{args.get<std::string>(keys.lpcResponseTopic)};
 

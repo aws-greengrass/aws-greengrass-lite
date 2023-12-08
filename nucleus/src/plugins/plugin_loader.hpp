@@ -211,6 +211,10 @@ namespace plugins {
             return *_context.lock();
         }
 
+        std::shared_ptr<data::TrackingRoot> root() const {
+            return _root;
+        }
+
         std::shared_ptr<data::StructModelBase> buildParams(
             plugins::AbstractPlugin &plugin, bool partial = false) const;
 

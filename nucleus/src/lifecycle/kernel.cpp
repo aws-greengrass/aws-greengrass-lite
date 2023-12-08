@@ -72,7 +72,7 @@ namespace lifecycle {
     }
 
     //
-    // TLOG has preference over config, unless customer has explicitly chosen to override.
+    // TLOG has a preference over config, unless customer has explicitly chosen to override.
     // The TLOG contains more type-correct information and timestamps. When reading from
     // a config file, timestamps are lost. More so, if reading from YAML, type information is
     // mostly lost.
@@ -121,7 +121,7 @@ namespace lifecycle {
             }
 
             // If no bootstrap was present, then write one out now that we've loaded our config so
-            // that we can fallback to something in future
+            // that we can fall back to something in the future
             if(!std::filesystem::exists(bootstrapTlogPath)) {
                 writeEffectiveConfigAsTransactionLog(bootstrapTlogPath);
             }

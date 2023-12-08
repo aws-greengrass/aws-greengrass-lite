@@ -197,7 +197,7 @@ namespace data {
     };
 
     //
-    // Tracking scope is base class for handles that manage scope - namely modules
+    // Tracking scope is the base class for handles that manage scope - namely modules
     // and call scope
     //
     class TrackingScope : public TrackedObject {

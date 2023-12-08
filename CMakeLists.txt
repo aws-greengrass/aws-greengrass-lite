@@ -28,6 +28,8 @@ include(CTest)
 
 fetchContentFromDeps(Catch2)
 FetchContent_MakeAvailable(Catch2)
+include(Catch)
+target_compile_features(Catch2 PRIVATE cxx_std_17)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
 if(UNIX)
