@@ -1,6 +1,5 @@
 #pragma once
 #include "example_mqtt_sender.hpp"
-#include "util.hpp"
 
 static const Keys keys;
 
