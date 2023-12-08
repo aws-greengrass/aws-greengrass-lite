@@ -5,6 +5,7 @@ add_library(example_mqtt_sender_obj OBJECT src/example_mqtt_sender.cpp
                                            include/example_mqtt_sender.hpp)
 target_link_libraries(example_mqtt_sender_obj PUBLIC nucleus-core)
 target_include_directories(example_mqtt_sender_obj PUBLIC include)
+set_property(TARGET example_mqtt_sender_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 add_library(example_mqtt_sender MODULE $<TARGET_OBJECTS:example_mqtt_sender_obj>
                                        main.cpp)
