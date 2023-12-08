@@ -10,12 +10,12 @@ constexpr std::string_view START = "start";
 constexpr std::string_view RUN = "run";
 constexpr std::string_view TERMINATE = "terminate";
 
-
 class TestExampleMqttSender : public ExampleMqttSender {
     ggapi::ModuleScope _moduleScope;
-public:
-    explicit TestExampleMqttSender(ggapi::ModuleScope moduleScope) : ExampleMqttSender(), _moduleScope(moduleScope) {
 
+public:
+    explicit TestExampleMqttSender(ggapi::ModuleScope moduleScope)
+        : ExampleMqttSender(), _moduleScope(moduleScope) {
     }
 
     bool executePhase(std::string_view phase) {
@@ -42,5 +42,4 @@ public:
     ggapi::Struct getSubscribeMessage() {
         return _subscribeMessage;
     }
-
 };

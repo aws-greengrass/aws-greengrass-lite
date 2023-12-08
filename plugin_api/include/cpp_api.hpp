@@ -457,7 +457,8 @@ namespace ggapi {
         [[nodiscard]] static ModuleScope registerGlobalPlugin(
             Symbol componentName, const LifecycleCallbackLambda &callback);
 
-        [[nodiscard]] static ModuleScope registerGlobalPlugin(Symbol componentName, LifecycleCallback callback);
+        [[nodiscard]] static ModuleScope registerGlobalPlugin(
+            Symbol componentName, LifecycleCallback callback);
     };
 
     /**
@@ -1538,8 +1539,7 @@ namespace ggapi {
     inline ModuleScope ModuleScope::registerGlobalPlugin(
         Symbol componentName, LifecycleCallback callback) {
         return callApiReturnHandle<ModuleScope>([componentName, callback]() {
-            return ::ggapiRegisterPlugin(
-                0, componentName.asInt(), callback.getHandleId());
+            return ::ggapiRegisterPlugin(0, componentName.asInt(), callback.getHandleId());
         });
     }
 

@@ -25,7 +25,8 @@ void ExampleMqttSender::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data)
 }
 
 bool ExampleMqttSender::onStart(ggapi::Struct data) {
-    std::ignore = getScope().subscribeToTopic(keys.mqttPing, ggapi::TopicCallback::of(&ExampleMqttSender::mqttListener, this));
+    std::ignore = getScope().subscribeToTopic(
+        keys.mqttPing, ggapi::TopicCallback::of(&ExampleMqttSender::mqttListener, this));
     return true;
 }
 
@@ -42,11 +43,10 @@ bool ExampleMqttSender::onRun(ggapi::Struct data) {
     request.put(keys.lpcResponseTopic, keys.mqttPing);
     std::ignore = ggapi::Task::sendToTopic(keys.subscribeToIoTCoreTopic, request);
     return true;
-
 }
 
 bool ExampleMqttSender::onTerminate(ggapi::Struct data) {
-    std::cerr<<"[example-mqtt-sender] Stopping publish thread..."<<std::endl;
+    std::cerr << "[example-mqtt-sender] Stopping publish thread..." << std::endl;
     _running.store(false);
     return true;
 }

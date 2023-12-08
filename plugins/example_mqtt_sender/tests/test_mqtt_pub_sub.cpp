@@ -5,12 +5,13 @@ using Catch::Matchers::Equals;
 
 using namespace std::chrono_literals;
 
-
 TEST_CASE("Example Mqtt Sender pub/sub", "mqtt") {
-    auto pluginScope = ggapi::ModuleScope::registerGlobalPlugin("test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) {return false;});
+    auto pluginScope = ggapi::ModuleScope::registerGlobalPlugin(
+        "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
     TestExampleMqttSender sender = TestExampleMqttSender(pluginScope);
     SECTION("Publish to Topic") {
-        auto testScope = ggapi::ModuleScope::registerGlobalPlugin("test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) {return false;});
+        auto testScope = ggapi::ModuleScope::registerGlobalPlugin(
+            "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
         // create a subscriber
         auto publishHandler = [](ggapi::Task, ggapi::Symbol, ggapi::Struct request) {
             REQUIRE(request.hasKey(keys.topicName));
@@ -44,7 +45,8 @@ TEST_CASE("Example Mqtt Sender pub/sub", "mqtt") {
 
     SECTION("Subscribe to Topic") {
         // create a publisher
-        auto testScope1 = ggapi::ModuleScope::registerGlobalPlugin("test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) {return false;});
+        auto testScope1 = ggapi::ModuleScope::registerGlobalPlugin(
+            "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
         auto subscribeHandler1 = [](ggapi::Task, ggapi::Symbol, ggapi::Struct request) {
             REQUIRE(request.hasKey(keys.topicFilter));
             REQUIRE(request.hasKey(keys.qos));
@@ -86,7 +88,8 @@ TEST_CASE("Example Mqtt Sender pub/sub", "mqtt") {
         }
 
         SECTION("Multiple Subscriptions") {
-            auto testScope2 = ggapi::ModuleScope::registerGlobalPlugin("test2", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) {return false;});
+            auto testScope2 = ggapi::ModuleScope::registerGlobalPlugin(
+                "test2", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
 
             // create another publisher
             auto subscribeHandler2 = [](ggapi::Task, ggapi::Symbol, ggapi::Struct request) {

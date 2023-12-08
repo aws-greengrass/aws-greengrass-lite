@@ -186,20 +186,20 @@ if(CMAKE_BUILD_TYPE STREQUAL Debug)
     target_compile_options(nucleus-tests PRIVATE --coverage)
     target_link_options(nucleus-tests PUBLIC --coverage)
     add_custom_command(
-            TARGET nucleus-tests
-            COMMENT "Delete existing coverage info"
-            PRE_BUILD
-            COMMAND find ${CMAKE_BINARY_DIR} -type f -name '*.gcda' -exec rm {} +)
+      TARGET nucleus-tests
+      COMMENT "Delete existing coverage info"
+      PRE_BUILD
+      COMMAND find ${CMAKE_BINARY_DIR} -type f -name '*.gcda' -exec rm {} +)
     add_custom_target(
-            coverage
-            COMMENT "Running coverage for nucleus-tests"
-            COMMAND lcov -d . --zerocounters
-            COMMAND lcov -d . --capture -o coverage.info
-            COMMAND lcov -r coverage.info '/usr/include/*' -o filtered.info
-            COMMAND genhtml -o coverage filtered.info
-            COMMAND genhtml -o coverage filtered.info --legend
-            COMMAND rm -rf coverage.info filtered.info
-            DEPENDS nucleus-tests
-            WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+      coverage
+      COMMENT "Running coverage for nucleus-tests"
+      COMMAND lcov -d . --zerocounters
+      COMMAND lcov -d . --capture -o coverage.info
+      COMMAND lcov -r coverage.info '/usr/include/*' -o filtered.info
+      COMMAND genhtml -o coverage filtered.info
+      COMMAND genhtml -o coverage filtered.info --legend
+      COMMAND rm -rf coverage.info filtered.info
+      DEPENDS nucleus-tests
+      WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
   endif()
 endif()

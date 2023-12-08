@@ -449,7 +449,8 @@ namespace util {
         }
 
     private:
-        explicit TopicLevelIterator(std::string_view topic, size_t index) : _str(topic), _index(index) {
+        explicit TopicLevelIterator(std::string_view topic, size_t index)
+            : _str(topic), _index(index) {
         }
 
         std::string_view _str;

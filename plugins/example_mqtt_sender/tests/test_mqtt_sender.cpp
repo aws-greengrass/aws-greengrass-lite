@@ -2,10 +2,8 @@
 #include <catch2/catch_all.hpp>
 #include <type_traits>
 
-TEST_CASE("Example Mqtt Sender plugin characteristics")
-{
-    SECTION("Type traits")
-    {
+TEST_CASE("Example Mqtt Sender plugin characteristics") {
+    SECTION("Type traits") {
         STATIC_CHECK(std::is_default_constructible_v<ExampleMqttSender>);
         STATIC_CHECK(!std::is_copy_constructible_v<ExampleMqttSender>);
         STATIC_CHECK(!std::is_copy_assignable_v<ExampleMqttSender>);
@@ -20,7 +18,8 @@ TEST_CASE("Example Mqtt Sender plugin characteristics")
     }
 
     SECTION("Complete lifecycle") {
-        auto moduleScope = ggapi::ModuleScope::registerGlobalPlugin("test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) {return false;});
+        auto moduleScope = ggapi::ModuleScope::registerGlobalPlugin(
+            "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
         TestExampleMqttSender sender = TestExampleMqttSender(moduleScope);
         REQUIRE(!sender.executePhase(BOOTSTRAP));
         REQUIRE(!sender.executePhase(BIND));

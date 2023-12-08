@@ -14,10 +14,9 @@ uint32_t ggapiRegisterPlugin(
         auto delegate{std::make_shared<plugins::DelegatePlugin>(
             context.baseRef(), componentName.toString(), parentModule, lifecycleCallback)};
         std::shared_ptr<data::TrackingRoot> root;
-        if (parentModule) {
+        if(parentModule) {
             root = parentModule->root();
-        }
-        else {
+        } else {
             root = context.pluginLoader().root();
         }
         auto anchor = root->anchor(delegate);
