@@ -136,6 +136,7 @@ target_link_libraries(
   nucleus-core
   PUBLIC gg_plugin_api
   PRIVATE Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
+
 target_include_directories(
   nucleus-core
   PUBLIC include
@@ -151,7 +152,13 @@ target_link_libraries(nucleus-lib PUBLIC gg_plugin_api Threads::Threads
 add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
 
+if(UNIX AND NOT APPLE)
+  set_target_properties(greengrass-lite PROPERTIES INSTALL_RPATH
+                                                   "\$ORIGIN/../lib")
+endif()
+
 install(TARGETS greengrass-lite DESTINATION bin)
+install(TARGETS nucleus-core DESTINATION bin)
 
 #
 # Build unit tests
