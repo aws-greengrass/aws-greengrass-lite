@@ -43,3 +43,8 @@ public:
         return _subscribeMessage;
     }
 };
+
+
+class PubSubCallback {
+
+};
