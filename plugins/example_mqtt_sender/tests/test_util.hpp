@@ -19,7 +19,7 @@ public:
     }
 
     bool executePhase(std::string_view phase) {
-        // TODO: Return before afterlifecycle?
+        // TODO: Return before afterLifecycle?
         beforeLifecycle(ggapi::Symbol{phase}, ggapi::Struct::create());
         bool status = lifecycle(_moduleScope, ggapi::Symbol{phase}, ggapi::Struct::create());
         afterLifecycle(ggapi::Symbol{phase}, ggapi::Struct::create());
@@ -44,7 +44,9 @@ public:
     }
 };
 
-
 class PubSubCallback {
-
+public:
+    virtual ~PubSubCallback() = default;
+    virtual ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) = 0;
+    virtual ggapi::Struct subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) = 0;
 };

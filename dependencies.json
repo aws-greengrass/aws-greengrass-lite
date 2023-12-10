@@ -18,5 +18,10 @@
     "url": "https://github.com/aws/aws-iot-device-sdk-cpp-v2.git",
     "rev": "v1.30.3",
     "hash": "sha256-0PCy4fIzZybL0eVegqQQqG61IDikk190NuKSO4D7+zM="
+  },
+  "trompeloeil": {
+    "url": "https://github.com/rollbear/trompeloeil.git",
+    "rev": "v46",
+    "hash": "sha256-x/Chzho6RTfyOb/Is7bAM8KrvipEqQ/+a6pVCuTG108="
   }
 }
