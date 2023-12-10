@@ -13,7 +13,7 @@ struct Keys {
 };
 
 class ExampleMqttSender : public ggapi::Plugin {
-    std::atomic_bool _running{};
+    std::atomic_bool _running = false;
     void threadFn();
     ggapi::Struct mqttListener(ggapi::Task task, ggapi::Symbol, ggapi::Struct args);
 
