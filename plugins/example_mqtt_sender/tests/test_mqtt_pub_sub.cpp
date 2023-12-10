@@ -2,8 +2,6 @@
 #include <catch2/catch_all.hpp>
 #include <catch2/trompeloeil.hpp>
 
-using namespace std::chrono_literals;
-
 using Catch::Matchers::Equals;
 using trompeloeil::_;
 
@@ -151,6 +149,9 @@ TEST_CASE("Example Mqtt Sender subscribe", "[pubsub]") {
         // start the lifecycle
         CHECK(sender.startLifecycle());
 
+        // wait for the lifecycle to start
+        std::this_thread::sleep_for(1s);
+
         // check the subscribed message
         auto subMsg = sender.getSubscribeMessage();
         REQUIRE(subMsg.hasKey(keys.topicName));
@@ -192,6 +193,9 @@ TEST_CASE("Example Mqtt Sender subscribe", "[pubsub]") {
 
             // start the lifecycle
             CHECK(sender.startLifecycle());
+
+            // wait for the lifecycle to start
+            std::this_thread::sleep_for(1s);
         }
 
         SECTION("Multiple publishers to different topics") {
@@ -216,6 +220,9 @@ TEST_CASE("Example Mqtt Sender subscribe", "[pubsub]") {
 
             // start the lifecycle
             CHECK(sender.startLifecycle());
+
+            // wait for the lifecycle to start
+            std::this_thread::sleep_for(1s);
         }
     }
     // stop lifecycle

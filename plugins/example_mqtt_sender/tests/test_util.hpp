@@ -1,6 +1,8 @@
 #pragma once
 #include "example_mqtt_sender.hpp"
 
+using namespace std::chrono_literals;
+
 static const Keys keys;
 
 constexpr std::string_view BOOTSTRAP = "bootstrap";
