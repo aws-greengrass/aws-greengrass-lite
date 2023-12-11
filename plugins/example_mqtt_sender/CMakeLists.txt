@@ -25,7 +25,7 @@ add_executable(
                             tests/test_mqtt_sender.cpp tests/test_util.hpp)
 target_link_libraries(
   example_mqtt_sender_tests
-  PUBLIC example_mqtt_sender_lib Catch2::Catch2WithMain
-         trompeloeil::trompeloeil)
+  PRIVATE example_mqtt_sender_lib Catch2::Catch2WithMain
+          trompeloeil::trompeloeil)
 target_include_directories(example_mqtt_sender_tests PRIVATE tests)
 catch_discover_tests(example_mqtt_sender_tests)
