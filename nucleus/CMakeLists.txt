@@ -148,6 +148,10 @@ target_include_directories(
 add_library(nucleus-lib STATIC $<TARGET_OBJECTS:nucleus-obj>)
 target_link_libraries(nucleus-lib PUBLIC gg_plugin_api Threads::Threads
                                          ${CMAKE_DL_LIBS} yaml-cpp)
+target_include_directories(
+        nucleus-lib
+        PUBLIC include
+        PRIVATE src ${rapidjson_SOURCE_DIR}/include)
 
 add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
