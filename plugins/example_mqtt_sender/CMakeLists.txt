@@ -12,13 +12,12 @@ add_library(example_mqtt_sender MODULE $<TARGET_OBJECTS:example_mqtt_sender_obj>
                                        main.cpp)
 target_link_libraries(example_mqtt_sender PRIVATE nucleus-core)
 target_include_directories(example_mqtt_sender PRIVATE include)
+install(TARGETS example_mqtt_sender DESTINATION plugins)
 
 add_library(example_mqtt_sender_lib STATIC
             $<TARGET_OBJECTS:example_mqtt_sender_obj>)
 target_link_libraries(example_mqtt_sender_lib PUBLIC nucleus-lib)
 target_include_directories(example_mqtt_sender_lib PUBLIC include)
-
-install(TARGETS example_mqtt_sender DESTINATION plugins)
 
 add_executable(
   example_mqtt_sender_tests tests/test_mqtt_pub_sub.cpp
