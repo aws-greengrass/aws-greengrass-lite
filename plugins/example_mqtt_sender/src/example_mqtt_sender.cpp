@@ -5,11 +5,11 @@ static const Keys keys;
 ggapi::Struct ExampleMqttSender::mqttListener(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
 
     // TODO: Extend api to perform struct deep copy to outlive the listener
-    _subscribeMessage.load().put(keys.topicName, args.get<std::string>(keys.topicName));
-    _subscribeMessage.load().put(keys.payload, args.get<std::string>(keys.payload));
+    _subscribeMessage.put(keys.topicName, args.get<std::string>(keys.topicName));
+    _subscribeMessage.put(keys.payload, args.get<std::string>(keys.payload));
 
-    std::string topic{_subscribeMessage.load().get<std::string>(keys.topicName)};
-    std::string payload{_subscribeMessage.load().get<std::string>(keys.payload)};
+    std::string topic{_subscribeMessage.get<std::string>(keys.topicName)};
+    std::string payload{_subscribeMessage.get<std::string>(keys.payload)};
 
     std::cout << "[example-mqtt-sender] Publish received on topic " << topic << ": " << payload
               << std::endl;
