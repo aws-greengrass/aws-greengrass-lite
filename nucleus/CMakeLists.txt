@@ -155,6 +155,8 @@ target_link_libraries(nucleus-lib PUBLIC gg_plugin_api Threads::Threads
 add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
 
+set_target_properties(greengrass-lite PROPERTIES BUILD_RPATH_USE_ORIGIN ON)
+
 if(UNIX AND NOT APPLE)
   set_target_properties(greengrass-lite PROPERTIES INSTALL_RPATH
                                                    "\$ORIGIN/../lib")
