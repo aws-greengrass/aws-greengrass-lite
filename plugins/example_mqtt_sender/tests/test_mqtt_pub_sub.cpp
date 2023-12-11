@@ -113,6 +113,7 @@ TEST_CASE("Example Mqtt Sender pub/sub", "[pubsub]") {
     }
 
     SECTION("Example Mqtt Sender subscribe") {
+        // create a publisher
         CHECK(testScope1.subscribeToTopic(
             keys.subscribeToIoTCoreTopic,
             ggapi::TopicCallback::of(&MockPubSubCallback::subscribeHandler, mockCallback1)));
@@ -151,7 +152,7 @@ TEST_CASE("Example Mqtt Sender pub/sub", "[pubsub]") {
             // start the lifecycle
             CHECK(sender.startLifecycle());
 
-            // check the subscribed message
+            // verify the subscribed message
             auto subMsg = sender.getSubscribeMessage();
             REQUIRE(subMsg.hasKey(keys.topicName));
             REQUIRE(subMsg.hasKey(keys.payload));

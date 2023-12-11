@@ -27,6 +27,6 @@ target_include_directories(example_mqtt_sender_tests PRIVATE tests)
 
 target_link_libraries(
   example_mqtt_sender_tests
-  PRIVATE example_mqtt_sender_lib nucleus-lib Catch2::Catch2WithMain
+  PRIVATE example_mqtt_sender_lib Catch2::Catch2WithMain
           trompeloeil::trompeloeil)
 catch_discover_tests(example_mqtt_sender_tests)
