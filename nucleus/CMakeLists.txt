@@ -161,7 +161,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 install(TARGETS greengrass-lite DESTINATION bin)
-install(TARGETS nucleus-core DESTINATION bin)
+install(TARGETS nucleus-core DESTINATION lib)
 
 #
 # Build unit tests
