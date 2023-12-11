@@ -29,5 +29,7 @@ TEST_CASE("Example Mqtt Sender plugin characteristics", "[mqtt]") {
         // wait for the lifecycle to start
         std::this_thread::sleep_for(1s);
         REQUIRE(sender.executePhase(TERMINATE));
+        // wait for the lifecycle to stop
+        std::this_thread::sleep_for(1s);
     }
 }
