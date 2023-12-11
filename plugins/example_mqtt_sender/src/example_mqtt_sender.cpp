@@ -54,7 +54,7 @@ bool ExampleMqttSender::onTerminate(ggapi::Struct data) {
 void ExampleMqttSender::threadFn() {
     std::cerr << "[example-mqtt-sender] Started publish thread" << std::endl;
 
-    while(!_running.exchange(true)) {
+    while(_running.load()) {
         ggapi::CallScope iterScope; // localize all structures
         auto request{ggapi::Struct::create()};
         request.put(keys.topicName, "hello");

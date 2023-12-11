@@ -51,259 +51,238 @@ inline auto subStructMatcher(ggapi::Struct expected) {
         },
         expected);
 }
-
-TEST_CASE("Example Mqtt Sender publish", "[pubsub]") {
+TEST_CASE("Example Mqtt Sender pub/sub", "[pubsub]") {
     auto pluginScope = ggapi::ModuleScope::registerGlobalPlugin(
-        "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
+        "plugin", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
     TestExampleMqttSender sender = TestExampleMqttSender(pluginScope);
-    // create a subscriber
     MockPubSubCallback mockCallback1;
     auto testScope1 = ggapi::ModuleScope::registerGlobalPlugin(
-        "test1", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
+        "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
 
-    CHECK(testScope1.subscribeToTopic(
-        keys.publishToIoTCoreTopic,
-        ggapi::TopicCallback::of(&MockPubSubCallback::publishHandler, mockCallback1)));
-
-    auto expected = ggapi::Struct::create();
-    expected.put(keys.topicName, "hello");
-    expected.put(keys.qos, 1);
-    expected.put(keys.payload, "Hello world!");
-
-    SECTION("Single subscriber") {
-        REQUIRE_CALL(mockCallback1, publishHandler(_, _, pubStructMatcher(expected)))
-            .RETURN(ggapi::Struct::create().put("status", true))
-            .TIMES(AT_LEAST(1));
-
-        // start the lifecycle
-        CHECK(sender.startLifecycle());
-
-        // wait for the lifecycle to start
-        std::this_thread::sleep_for(1s);
-
-        // verify the publish response message
-        auto pubMsg = sender.getPublishMessage();
-        REQUIRE(pubMsg.hasKey("status"));
-        REQUIRE(pubMsg.get<bool>("status"));
-    }
-
-    SECTION("Multiple subscribers") {
-        // create another subscriber
-        MockPubSubCallback mockCallback2;
-        auto testScope2 = ggapi::ModuleScope::registerGlobalPlugin(
-            "test2", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
-
-        CHECK(testScope2.subscribeToTopic(
+    SECTION("Example Mqtt Sender publish") {
+        CHECK(testScope1.subscribeToTopic(
             keys.publishToIoTCoreTopic,
-            ggapi::TopicCallback::of(&MockPubSubCallback::publishHandler, mockCallback2)));
+            ggapi::TopicCallback::of(&MockPubSubCallback::publishHandler, mockCallback1)));
 
-        REQUIRE_CALL(mockCallback1, publishHandler(_, _, pubStructMatcher(expected)))
-            .RETURN(ggapi::Struct::create().put("status", true))
-            .TIMES(AT_LEAST(1));
+        auto expected = ggapi::Struct::create();
+        expected.put(keys.topicName, "hello");
+        expected.put(keys.qos, 1);
+        expected.put(keys.payload, "Hello world!");
 
-        REQUIRE_CALL(mockCallback2, publishHandler(_, _, pubStructMatcher(expected)))
-            .RETURN(ggapi::Struct::create().put("status", true))
-            .TIMES(AT_LEAST(1));
+        SECTION("Single subscriber") {
+            REQUIRE_CALL(mockCallback1, publishHandler(_, _, pubStructMatcher(expected)))
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
 
-        // start the lifecycle
-        CHECK(sender.startLifecycle());
+            // start the lifecycle
+            CHECK(sender.startLifecycle());
 
-        // wait for the lifecycle to start
-        std::this_thread::sleep_for(1s);
-    }
-    // stop lifecycle
-    CHECK(sender.stopLifecycle());
-    // wait for the lifecycle to stop
-    std::this_thread::sleep_for(1s);
-}
+            // wait for the lifecycle to start
+            std::this_thread::sleep_for(1s);
 
-TEST_CASE("Example Mqtt Sender subscribe", "[pubsub]") {
-    auto pluginScope = ggapi::ModuleScope::registerGlobalPlugin(
-        "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
-    TestExampleMqttSender sender = TestExampleMqttSender(pluginScope);
-    // create a publisher
-    MockPubSubCallback mockCallback1;
-    auto testScope1 = ggapi::ModuleScope::registerGlobalPlugin(
-        "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
+            // verify the publish response message
+            auto pubMsg = sender.getPublishMessage();
+            REQUIRE(pubMsg.hasKey("status"));
+            REQUIRE(pubMsg.get<bool>("status"));
+        }
 
-    CHECK(testScope1.subscribeToTopic(
-        keys.subscribeToIoTCoreTopic,
-        ggapi::TopicCallback::of(&MockPubSubCallback::subscribeHandler, mockCallback1)));
+        SECTION("Multiple subscribers") {
+            // create another subscriber
+            MockPubSubCallback mockCallback2;
+            auto testScope2 = ggapi::ModuleScope::registerGlobalPlugin(
+                "test2", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
 
-    auto expected = ggapi::Struct::create();
-    expected.put(keys.topicFilter, "ping/#");
-    expected.put(keys.qos, 1);
-    expected.put(keys.lpcResponseTopic, "mqttPing");
+            CHECK(testScope2.subscribeToTopic(
+                keys.publishToIoTCoreTopic,
+                ggapi::TopicCallback::of(&MockPubSubCallback::publishHandler, mockCallback2)));
 
-    // response values
-    auto topicName1 = "ping/hello";
-    auto payload1 = "Hello World!";
+            REQUIRE_CALL(mockCallback1, publishHandler(_, _, pubStructMatcher(expected)))
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
 
-    SECTION("Single Publisher") {
-        REQUIRE_CALL(mockCallback1, subscribeHandler(_, _, subStructMatcher(expected)))
-            .SIDE_EFFECT(auto message = ggapi::Struct::create();
-                         message.put(keys.topicName, topicName1);
-                         message.put(keys.payload, payload1);
-                         std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
-            .RETURN(ggapi::Struct::create().put("status", true))
-            .TIMES(AT_LEAST(1));
+            REQUIRE_CALL(mockCallback2, publishHandler(_, _, pubStructMatcher(expected)))
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
 
-        // start the lifecycle
-        CHECK(sender.startLifecycle());
+            // start the lifecycle
+            CHECK(sender.startLifecycle());
 
-        // wait for the lifecycle to start
-        std::this_thread::sleep_for(1s);
-
-        // check the subscribed message
-        auto subMsg = sender.getSubscribeMessage();
-        REQUIRE(subMsg.hasKey(keys.topicName));
-        REQUIRE(subMsg.hasKey(keys.payload));
-
-        REQUIRE_THAT(subMsg.get<std::string>(keys.topicName), Equals(topicName1));
-        REQUIRE_THAT(subMsg.get<std::string>(keys.payload), Equals(payload1));
+            // wait for the lifecycle to start
+            std::this_thread::sleep_for(1s);
+        }
     }
 
-    SECTION("Multiple publishers to same topic") {
-        // create another publisher
-        MockPubSubCallback mockCallback2;
-        auto testScope2 = ggapi::ModuleScope::registerGlobalPlugin(
-            "test2", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
-
-        CHECK(testScope2.subscribeToTopic(
+    SECTION("Example Mqtt Sender subscribe") {
+        CHECK(testScope1.subscribeToTopic(
             keys.subscribeToIoTCoreTopic,
-            ggapi::TopicCallback::of(&MockPubSubCallback::subscribeHandler, mockCallback2)));
+            ggapi::TopicCallback::of(&MockPubSubCallback::subscribeHandler, mockCallback1)));
 
-        auto topicName2 = topicName1;
-        auto payload2 = "Sweet home!";
+        auto expected = ggapi::Struct::create();
+        expected.put(keys.topicFilter, "ping/#");
+        expected.put(keys.qos, 1);
+        expected.put(keys.lpcResponseTopic, "mqttPing");
 
-        REQUIRE_CALL(mockCallback1, subscribeHandler(_, _, subStructMatcher(expected)))
-            .SIDE_EFFECT(auto message = ggapi::Struct::create();
-                         message.put(keys.topicName, topicName1);
-                         message.put(keys.payload, payload1);
-                         std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
+        // response values
+        auto topicName1 = "ping/hello";
+        auto payload1 = "Hello World!";
+
+        // TODO: Why need this?
+        auto pubExpected = ggapi::Struct::create();
+        pubExpected.put(keys.topicName, "hello");
+        pubExpected.put(keys.qos, 1);
+        pubExpected.put(keys.payload, "Hello world!");
+        REQUIRE_CALL(mockCallback1, publishHandler(_, _, pubStructMatcher(pubExpected)))
             .RETURN(ggapi::Struct::create().put("status", true))
             .TIMES(AT_LEAST(1));
 
-        REQUIRE_CALL(mockCallback2, subscribeHandler(_, _, subStructMatcher(expected)))
-            .SIDE_EFFECT(auto message = ggapi::Struct::create();
-                         message.put(keys.topicName, topicName2);
-                         message.put(keys.payload, payload2);
-                         std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
-            .RETURN(ggapi::Struct::create().put("status", true))
-            .TIMES(AT_LEAST(1));
+        SECTION("Single Publisher") {
+            CHECK(testScope1.subscribeToTopic(
+                keys.publishToIoTCoreTopic,
+                ggapi::TopicCallback::of(&MockPubSubCallback::publishHandler, mockCallback1)));
 
-        // start the lifecycle
-        CHECK(sender.startLifecycle());
+            REQUIRE_CALL(mockCallback1, subscribeHandler(_, _, subStructMatcher(expected)))
+                .SIDE_EFFECT(auto message = ggapi::Struct::create();
+                             message.put(keys.topicName, topicName1);
+                             message.put(keys.payload, payload1);
+                             std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
 
-        // wait for the lifecycle to start
-        std::this_thread::sleep_for(1s);
+            // start the lifecycle
+            CHECK(sender.startLifecycle());
+
+            // check the subscribed message
+            auto subMsg = sender.getSubscribeMessage();
+            REQUIRE(subMsg.hasKey(keys.topicName));
+            REQUIRE(subMsg.hasKey(keys.payload));
+
+            REQUIRE_THAT(subMsg.get<std::string>(keys.topicName), Equals(topicName1));
+            REQUIRE_THAT(subMsg.get<std::string>(keys.payload), Equals(payload1));
+        }
+
+        SECTION("Multiple publishers to same topic") {
+            // create another publisher
+            MockPubSubCallback mockCallback2;
+            auto testScope2 = ggapi::ModuleScope::registerGlobalPlugin(
+                "test2", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
+
+            CHECK(testScope2.subscribeToTopic(
+                keys.subscribeToIoTCoreTopic,
+                ggapi::TopicCallback::of(&MockPubSubCallback::subscribeHandler, mockCallback2)));
+
+            auto topicName2 = topicName1;
+            auto payload2 = "Sweet home!";
+
+            REQUIRE_CALL(mockCallback1, subscribeHandler(_, _, subStructMatcher(expected)))
+                .SIDE_EFFECT(auto message = ggapi::Struct::create();
+                             message.put(keys.topicName, topicName1);
+                             message.put(keys.payload, payload1);
+                             std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
+
+            REQUIRE_CALL(mockCallback2, subscribeHandler(_, _, subStructMatcher(expected)))
+                .SIDE_EFFECT(auto message = ggapi::Struct::create();
+                             message.put(keys.topicName, topicName2);
+                             message.put(keys.payload, payload2);
+                             std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
+
+            // start the lifecycle
+            CHECK(sender.startLifecycle());
+        }
+
+        SECTION("Multiple publishers to different topics") {
+            // create another publisher
+            MockPubSubCallback mockCallback2;
+            auto testScope2 = ggapi::ModuleScope::registerGlobalPlugin(
+                "test2", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
+
+            CHECK(testScope2.subscribeToTopic(
+                keys.subscribeToIoTCoreTopic,
+                ggapi::TopicCallback::of(&MockPubSubCallback::subscribeHandler, mockCallback2)));
+
+            auto topicName2 = "ping/clock";
+            auto payload2 = "Sweet home!";
+
+            REQUIRE_CALL(mockCallback1, subscribeHandler(_, _, subStructMatcher(expected)))
+                .SIDE_EFFECT(auto message = ggapi::Struct::create();
+                             message.put(keys.topicName, topicName1);
+                             message.put(keys.payload, payload1);
+                             std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
+
+            REQUIRE_CALL(mockCallback2, subscribeHandler(_, _, subStructMatcher(expected)))
+                .SIDE_EFFECT(auto message = ggapi::Struct::create();
+                             message.put(keys.topicName, topicName2);
+                             message.put(keys.payload, payload2);
+                             std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
+
+            // start the lifecycle
+            CHECK(sender.startLifecycle());
+        }
     }
 
-    SECTION("Multiple publishers to different topics") {
-        // create another publisher
-        MockPubSubCallback mockCallback2;
-        auto testScope2 = ggapi::ModuleScope::registerGlobalPlugin(
-            "test2", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
+    SECTION("Example Mqtt Sender publish and subscribe") {
+        auto subExpected = ggapi::Struct::create();
+        subExpected.put(keys.topicFilter, "ping/#");
+        subExpected.put(keys.qos, 1);
+        subExpected.put(keys.lpcResponseTopic, "mqttPing");
 
-        CHECK(testScope2.subscribeToTopic(
+        auto pubExpected = ggapi::Struct::create();
+        pubExpected.put(keys.topicName, "hello");
+        pubExpected.put(keys.qos, 1);
+        pubExpected.put(keys.payload, "Hello world!");
+
+        // response values
+        auto topicName1 = "ping/hello";
+        auto payload1 = "Hello World!";
+
+        CHECK(testScope1.subscribeToTopic(
+            keys.publishToIoTCoreTopic,
+            ggapi::TopicCallback::of(&MockPubSubCallback::publishHandler, mockCallback1)));
+        CHECK(testScope1.subscribeToTopic(
             keys.subscribeToIoTCoreTopic,
-            ggapi::TopicCallback::of(&MockPubSubCallback::subscribeHandler, mockCallback2)));
+            ggapi::TopicCallback::of(&MockPubSubCallback::subscribeHandler, mockCallback1)));
 
-        auto topicName2 = "ping/clock";
-        auto payload2 = "Sweet home!";
+        SECTION("Single publisher and subscriber") {
+            REQUIRE_CALL(mockCallback1, publishHandler(_, _, pubStructMatcher(pubExpected)))
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
 
-        REQUIRE_CALL(mockCallback1, subscribeHandler(_, _, subStructMatcher(expected)))
-            .SIDE_EFFECT(auto message = ggapi::Struct::create();
-                         message.put(keys.topicName, topicName1);
-                         message.put(keys.payload, payload1);
-                         std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
-            .RETURN(ggapi::Struct::create().put("status", true))
-            .TIMES(AT_LEAST(1));
+            REQUIRE_CALL(mockCallback1, subscribeHandler(_, _, subStructMatcher(subExpected)))
+                .SIDE_EFFECT(auto message = ggapi::Struct::create();
+                             message.put(keys.topicName, topicName1);
+                             message.put(keys.payload, payload1);
+                             std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
+                .RETURN(ggapi::Struct::create().put("status", true))
+                .TIMES(AT_LEAST(1));
 
-        REQUIRE_CALL(mockCallback2, subscribeHandler(_, _, subStructMatcher(expected)))
-            .SIDE_EFFECT(auto message = ggapi::Struct::create();
-                         message.put(keys.topicName, topicName2);
-                         message.put(keys.payload, payload2);
-                         std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
-            .RETURN(ggapi::Struct::create().put("status", true))
-            .TIMES(AT_LEAST(1));
+            // start the lifecycle
+            CHECK(sender.startLifecycle());
 
-        // start the lifecycle
-        CHECK(sender.startLifecycle());
+            // wait for the lifecycle to start
+            std::this_thread::sleep_for(1s);
 
-        // wait for the lifecycle to start
-        std::this_thread::sleep_for(1s);
+            // verify the publish response message
+            auto pubMsg = sender.getPublishMessage();
+            REQUIRE(pubMsg.hasKey("status"));
+            REQUIRE(pubMsg.get<bool>("status"));
+
+            // check the subscribed message
+            auto subMsg = sender.getSubscribeMessage();
+            REQUIRE(subMsg.hasKey(keys.topicName));
+            REQUIRE(subMsg.hasKey(keys.payload));
+
+            REQUIRE_THAT(subMsg.get<std::string>(keys.topicName), Equals(topicName1));
+            REQUIRE_THAT(subMsg.get<std::string>(keys.payload), Equals(payload1));
+        }
     }
+
     // stop lifecycle
     CHECK(sender.stopLifecycle());
-    // wait for the lifecycle to stop
-    std::this_thread::sleep_for(1s);
-}
-
-TEST_CASE("Example Mqtt Sender publish and subscribe", "[pubsub]") {
-    auto pluginScope = ggapi::ModuleScope::registerGlobalPlugin(
-        "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
-    TestExampleMqttSender sender = TestExampleMqttSender(pluginScope);
-    // create a publisher
-    MockPubSubCallback mockCallback;
-    auto testScope = ggapi::ModuleScope::registerGlobalPlugin(
-        "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
-
-    auto subExpected = ggapi::Struct::create();
-    subExpected.put(keys.topicFilter, "ping/#");
-    subExpected.put(keys.qos, 1);
-    subExpected.put(keys.lpcResponseTopic, "mqttPing");
-
-    auto pubExpected = ggapi::Struct::create();
-    pubExpected.put(keys.topicName, "hello");
-    pubExpected.put(keys.qos, 1);
-    pubExpected.put(keys.payload, "Hello world!");
-
-    // response values
-    auto topicName1 = "ping/hello";
-    auto payload1 = "Hello World!";
-
-    CHECK(testScope.subscribeToTopic(
-        keys.publishToIoTCoreTopic,
-        ggapi::TopicCallback::of(&MockPubSubCallback::publishHandler, mockCallback)));
-    CHECK(testScope.subscribeToTopic(
-        keys.subscribeToIoTCoreTopic,
-        ggapi::TopicCallback::of(&MockPubSubCallback::subscribeHandler, mockCallback)));
-
-    SECTION("Single publisher and subscriber") {
-        REQUIRE_CALL(mockCallback, publishHandler(_, _, pubStructMatcher(pubExpected)))
-            .RETURN(ggapi::Struct::create().put("status", true))
-            .TIMES(AT_LEAST(1));
-
-        REQUIRE_CALL(mockCallback, subscribeHandler(_, _, subStructMatcher(subExpected)))
-            .SIDE_EFFECT(auto message = ggapi::Struct::create();
-                         message.put(keys.topicName, topicName1);
-                         message.put(keys.payload, payload1);
-                         std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
-            .RETURN(ggapi::Struct::create().put("status", true))
-            .TIMES(AT_LEAST(1));
-
-        // start the lifecycle
-        CHECK(sender.startLifecycle());
-
-        // wait for the lifecycle to start
-        std::this_thread::sleep_for(1s);
-
-        // verify the publish response message
-        auto pubMsg = sender.getPublishMessage();
-        REQUIRE(pubMsg.hasKey("status"));
-        REQUIRE(pubMsg.get<bool>("status"));
-
-        // check the subscribed message
-        auto subMsg = sender.getSubscribeMessage();
-        REQUIRE(subMsg.hasKey(keys.topicName));
-        REQUIRE(subMsg.hasKey(keys.payload));
-
-        REQUIRE_THAT(subMsg.get<std::string>(keys.topicName), Equals(topicName1));
-        REQUIRE_THAT(subMsg.get<std::string>(keys.payload), Equals(payload1));
-    }
-    // stop lifecycle
-    CHECK(sender.stopLifecycle());
-    // wait for the lifecycle to stop
-    std::this_thread::sleep_for(1s);
 }
