@@ -42,7 +42,7 @@ public:
     }
 
     ggapi::Struct getSubscribeMessage() {
-        return _subscribeMessage;
+        return _subscribeMessage.load();
     }
 };
 

@@ -19,7 +19,7 @@ class ExampleMqttSender : public ggapi::Plugin {
 
 protected:
     std::atomic<ggapi::Struct> _publishMessage{};
-    ggapi::Struct _subscribeMessage = ggapi::Struct::create();
+    std::atomic<ggapi::Struct> _subscribeMessage = ggapi::Struct::create();
 
 public:
     bool onStart(ggapi::Struct data) override;
