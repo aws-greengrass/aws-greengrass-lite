@@ -194,6 +194,9 @@ TEST_CASE("Example Mqtt Sender subscribe", "[pubsub]") {
 
         // start the lifecycle
         CHECK(sender.startLifecycle());
+
+        // wait for the lifecycle to start
+        std::this_thread::sleep_for(1s);
     }
 
     SECTION("Multiple publishers to different topics") {
@@ -227,6 +230,9 @@ TEST_CASE("Example Mqtt Sender subscribe", "[pubsub]") {
 
         // start the lifecycle
         CHECK(sender.startLifecycle());
+
+        // wait for the lifecycle to start
+        std::this_thread::sleep_for(1s);
     }
     // stop lifecycle
     CHECK(sender.stopLifecycle());
