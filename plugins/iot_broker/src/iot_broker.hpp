@@ -17,19 +17,19 @@
 #include <plugin.hpp>
 
 class mqttBuilderException : public ggapi::GgApiError {
-    virtual const char *what() const noexcept {
+    [[nodiscard]] const char *what() const noexcept override {
         return "MQTT Failed setup MQTT client builder";
     }
 };
 
 class mqttClientException : public ggapi::GgApiError {
-    virtual const char *what() const noexcept {
+    [[nodiscard]] const char *what() const noexcept override {
         return "MQTT failed to initialize the client";
     }
 };
 
 class mqttClienFailedToStart : public ggapi::GgApiError {
-    virtual const char *what() const noexcept {
+    [[nodiscard]] const char *what() const noexcept override {
         return "MQTT client failed to start";
     }
 };
@@ -37,6 +37,7 @@ class mqttClienFailedToStart : public ggapi::GgApiError {
 class IotBroker : public ggapi::Plugin {
     struct Keys {
         ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
+        ggapi::Symbol ipcPublishToIoTCoreTopic{"IPC::aws.greengrass#PublishToIoTCore"};
         ggapi::Symbol subscribeToIoTCoreTopic{"aws.greengrass.SubscribeToIoTCore"};
         ggapi::Symbol requestDeviceProvisionTopic{"aws.greengrass.RequestDeviceProvision"};
         ggapi::Symbol topicName{"topicName"};
@@ -44,6 +45,9 @@ class IotBroker : public ggapi::Plugin {
         ggapi::Symbol qos{"qos"};
         ggapi::Symbol payload{"payload"};
         ggapi::Symbol lpcResponseTopic{"lpcResponseTopic"};
+        ggapi::Symbol message{"message"};
+        ggapi::Symbol shape{"shape"};
+        ggapi::Symbol errorCode{"errorCode"};
     };
 
     struct ThingInfo {
@@ -79,10 +83,32 @@ public:
 private:
     static const Keys keys;
     ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
+    ggapi::Struct ipcPublishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
     ggapi::Struct subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
 
-    ggapi::Struct publishHandlerImpl(ggapi::Struct args);
-    ggapi::Struct subscribeHandlerImpl(ggapi::Struct args);
+    static std::string base64Decode(std::string encoded) {
+        // TODO: perform this conversion in-place
+        Aws::Crt::String copy(encoded.size(), '\0');
+        std::copy(encoded.begin(), encoded.end(), copy.begin());
+        auto v = Aws::Crt::Base64Decode(copy);
+
+        auto &decoded = encoded;
+        decoded.resize(v.size(), '\0');
+        std::copy(v.begin(), v.end(), decoded.begin());
+        return decoded;
+    }
+
+    static std::string base64Encode(std::string decoded) {
+        // TODO: perform this conversion in-place
+        Aws::Crt::Vector<uint8_t> copy(decoded.size(), u'\0');
+        std::copy(decoded.begin(), decoded.end(), copy.begin());
+        auto str = Aws::Crt::Base64Encode(copy);
+
+        auto &encoded = decoded;
+        decoded.resize(str.size(), '\0');
+        std::copy(str.begin(), str.end(), decoded.begin());
+        return decoded;
+    }
 
     void initMqtt();
 

@@ -1,43 +1,73 @@
 #include "iot_broker.hpp"
+#include <atomic>
+#include <condition_variable>
+#include <mutex>
+
+ggapi::Struct IotBroker::ipcPublishHandler(
+    ggapi::Task task, ggapi::Symbol symbol, ggapi::Struct args) {
+    // TODO: pretty sure we can detect whether to perform this base64decode
+    // from the json document. It's either bytes (base64) or plaintext
+    args.put(keys.payload, base64Decode(args.get<std::string>(keys.payload)));
+    auto response = publishHandler(task, symbol, args);
+    return ggapi::Struct::create().put(keys.shape, response);
+}
 
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
     auto topic{args.get<std::string>(keys.topicName)};
     auto qos{args.get<int>(keys.qos)};
     auto payload{args.get<std::string>(keys.payload)};
+    std::atomic_bool success = false;
 
     std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topic << std::endl;
 
-    auto onPublishComplete = [](int,
-                                const std::shared_ptr<Aws::Crt::Mqtt5::PublishResult> &result) {
-        if(!result->wasSuccessful()) {
-            std::cerr << "[mqtt-plugin] Publish failed with error_code: " << result->getErrorCode()
-                      << std::endl;
-            return;
-        }
+    std::condition_variable barrier{};
+    std::mutex mutex{};
 
-        auto puback = std::dynamic_pointer_cast<Aws::Crt::Mqtt5::PubAckPacket>(result->getAck());
+    auto onPublishComplete =
+        [&barrier, &success](int, const std::shared_ptr<Aws::Crt::Mqtt5::PublishResult> &result) {
+            success = [&result]() -> bool {
+                if(!result->wasSuccessful()) {
+                    std::cerr << "[mqtt-plugin] Publish failed with error_code: "
+                              << result->getErrorCode() << std::endl;
+                    return false;
+                }
 
-        if(puback) {
+                auto puback =
+                    std::dynamic_pointer_cast<Aws::Crt::Mqtt5::PubAckPacket>(result->getAck());
 
-            if(puback->getReasonCode() == 0) {
-                std::cerr << "[mqtt-plugin] Puback success" << std::endl;
-            } else {
-                std::cerr << "[mqtt-plugin] Puback failed: " << puback->getReasonString().value()
-                          << std::endl;
-            }
-        }
-    };
+                if(puback) {
+
+                    if(puback->getReasonCode() == 0) {
+                        std::cerr << "[mqtt-plugin] Puback success" << std::endl;
+                    } else {
+                        std::cerr << "[mqtt-plugin] Puback failed: "
+                                  << puback->getReasonString().value() << std::endl;
+                        return false;
+                    }
+                }
+
+                return true;
+            }();
+
+            barrier.notify_one();
+        };
 
     auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
         Aws::Crt::String(topic),
         ByteCursorFromString(Aws::Crt::String(payload)),
         static_cast<Aws::Crt::Mqtt5::QOS>(qos));
 
+    auto response = ggapi::Struct::create();
+
     if(!_client->Publish(publish, onPublishComplete)) {
         std::cerr << "[mqtt-plugin] Publish failed" << std::endl;
+    } else {
+        std::unique_lock lock{mutex};
+        barrier.wait(lock);
     }
 
-    return ggapi::Struct::create();
+    args.put(keys.errorCode, !success);
+    return response;
 }
 
 ggapi::Struct IotBroker::subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
@@ -223,6 +253,9 @@ bool IotBroker::onStart(ggapi::Struct data) {
         initMqtt();
         std::ignore = getScope().subscribeToTopic(
             keys.publishToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::publishHandler, this));
+        std::ignore = getScope().subscribeToTopic(
+            keys.ipcPublishToIoTCoreTopic,
+            ggapi::TopicCallback::of(&IotBroker::ipcPublishHandler, this));
         std::ignore = getScope().subscribeToTopic(
             keys.subscribeToIoTCoreTopic,
             ggapi::TopicCallback::of(&IotBroker::subscribeHandler, this));
