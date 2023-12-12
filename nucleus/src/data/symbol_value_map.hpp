@@ -89,8 +89,12 @@ namespace data {
             return _values.erase(pos);
         }
 
-        auto size() const {
+        auto size() const noexcept {
             return _values.size();
+        }
+
+        auto empty() const noexcept {
+            return _values.empty();
         }
 
         [[nodiscard]] Symbol::Partial partial(const Symbol &symbol) const {

@@ -255,6 +255,13 @@ namespace data {
         //
         virtual void rootsCheck(const ContainerModelBase *target) const = 0;
         virtual uint32_t size() const = 0;
+
+        // allow overriding for containers where emptiness check is
+        // faster than counting members (trees, graphs, etc)
+        virtual bool empty() const {
+            return size() == 0;
+        }
+
         void checkedPut(
             const StructElement &element,
             const std::function<void(const StructElement &)> &putAction);

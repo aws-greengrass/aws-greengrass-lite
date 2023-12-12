@@ -125,6 +125,7 @@ IMPEXP uint32_t
 ggapiBufferGet(uint32_t listHandle, int32_t idx, char *buffer, uint32_t buflen) NOEXCEPT;
 IMPEXP bool ggapiBufferResize(uint32_t structHandle, uint32_t newSize) NOEXCEPT;
 IMPEXP uint32_t ggapiGetSize(uint32_t structHandle) NOEXCEPT;
+IMPEXP bool ggapiStructIsEmpty(uint32_t structHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) NOEXCEPT;
 IMPEXP bool ggapiReleaseHandle(uint32_t objectHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiToJson(uint32_t containerHandle) NOEXCEPT;

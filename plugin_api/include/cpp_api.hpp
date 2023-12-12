@@ -611,6 +611,10 @@ namespace ggapi {
             return callApiReturn<uint32_t>([*this]() { return ::ggapiGetSize(_handle); });
         }
 
+        [[nodiscard]] bool empty() const {
+            return callApiReturn<bool>([*this]() { return ::ggapiStructIsEmpty(_handle); });
+        }
+
         /**
          * Create a buffer that represents the JSON string for this container. If the container
          * is a buffer, it is treated as a string.
@@ -1278,6 +1282,8 @@ namespace ggapi {
         public:
             explicit TopicDispatch(Callable callable, Args &&...args)
                 : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+                static_assert(
+                    std::is_invocable_r_v<Struct, Callable, Args..., Task, Symbol, Struct>);
             }
             [[nodiscard]] Symbol type() const override {
                 return {"topic"};

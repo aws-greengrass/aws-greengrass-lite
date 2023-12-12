@@ -225,6 +225,11 @@ namespace config {
         return _children.size();
     }
 
+    bool Topics::empty() const {
+        std::shared_lock guard{_mutex};
+        return _children.empty();
+    }
+
     TopicElement Topics::createChild(
         data::Symbol nameOrd, const std::function<TopicElement(data::Symbol)> &creator) {
         data::Symbol key = TopicElement::getKey(nameOrd);

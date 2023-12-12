@@ -460,6 +460,17 @@ uint32_t ggapiGetSize(uint32_t handle) noexcept {
     });
 }
 
+bool ggapiStructIsEmpty(uint32_t handle) noexcept {
+    return ggapi::trapErrorReturn<bool>([handle]() {
+        if(!handle) {
+            return true;
+        }
+        auto &context = scope::context();
+        auto ss{context.objFromInt<ContainerModelBase>(handle)};
+        return ss->empty();
+    });
+}
+
 bool ggapiStructGetBool(uint32_t structHandle, uint32_t keyInt) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, keyInt]() {
         auto &context = scope::context();

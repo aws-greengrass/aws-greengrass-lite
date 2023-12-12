@@ -26,6 +26,7 @@ namespace data {
         }
 
         uint32_t size() const override;
+        bool empty() const override;
         void putImpl(Symbol symbol, const StructElement &element) override;
         bool hasKeyImpl(Symbol symbol) const override;
         std::vector<data::Symbol> getKeys() const override;
