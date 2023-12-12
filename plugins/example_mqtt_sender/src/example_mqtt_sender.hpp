@@ -1,4 +1,4 @@
-#include <plugin.hpp>
+#include "plugin.hpp"
 #include <thread>
 
 struct Keys {
@@ -15,6 +15,7 @@ struct Keys {
 class ExampleMqttSender : public ggapi::Plugin {
     std::atomic_bool _running{true};
     void threadFn();
+    std::thread _asyncThread;
     ggapi::Struct mqttListener(ggapi::Task task, ggapi::Symbol, ggapi::Struct args);
 
 protected:

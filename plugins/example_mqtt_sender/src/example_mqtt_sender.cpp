@@ -32,8 +32,7 @@ bool ExampleMqttSender::onStart(ggapi::Struct data) {
 
 bool ExampleMqttSender::onRun(ggapi::Struct data) {
     // publish to a topic on an async thread
-    std::thread asyncThread{&ExampleMqttSender::threadFn, this};
-    asyncThread.detach();
+    _asyncThread = std::thread{&ExampleMqttSender::threadFn, this};
 
     // subscribe to a topic
     auto request{ggapi::Struct::create()};
@@ -48,6 +47,7 @@ bool ExampleMqttSender::onRun(ggapi::Struct data) {
 bool ExampleMqttSender::onTerminate(ggapi::Struct data) {
     std::cerr << "[example-mqtt-sender] Stopping publish thread..." << std::endl;
     _running.store(false);
+    _asyncThread.join();
     return true;
 }
 

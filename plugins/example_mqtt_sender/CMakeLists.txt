@@ -2,22 +2,22 @@ cmake_minimum_required(VERSION 3.25)
 project(example_mqtt_sender)
 
 add_library(example_mqtt_sender_obj OBJECT src/example_mqtt_sender.cpp
-                                           include/example_mqtt_sender.hpp)
+        src/example_mqtt_sender.hpp)
 target_link_libraries(example_mqtt_sender_obj PRIVATE gg_plugin_api)
-target_include_directories(example_mqtt_sender_obj PUBLIC include)
+target_include_directories(example_mqtt_sender_obj PUBLIC src)
 set_property(TARGET example_mqtt_sender_obj PROPERTY POSITION_INDEPENDENT_CODE
                                                      1)
 
 add_library(example_mqtt_sender MODULE $<TARGET_OBJECTS:example_mqtt_sender_obj>
                                        main.cpp)
 target_link_libraries(example_mqtt_sender PRIVATE nucleus-core)
-target_include_directories(example_mqtt_sender PRIVATE include)
+target_include_directories(example_mqtt_sender PRIVATE src)
 install(TARGETS example_mqtt_sender DESTINATION plugins)
 
 add_library(example_mqtt_sender_lib STATIC
             $<TARGET_OBJECTS:example_mqtt_sender_obj>)
 target_link_libraries(example_mqtt_sender_lib PUBLIC nucleus-lib)
-target_include_directories(example_mqtt_sender_lib PUBLIC include)
+target_include_directories(example_mqtt_sender_lib PUBLIC src)
 
 add_executable(
   example_mqtt_sender_tests tests/test_mqtt_pub_sub.cpp
