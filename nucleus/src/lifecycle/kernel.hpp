@@ -77,6 +77,7 @@ namespace lifecycle {
         void initializeNucleusFromRecipe();
         void setupProxy();
         void launchBootstrap();
+        void launchRollbackBootstrap();
         void launchLifecycle();
         void launchKernelDeployment();
         static bool handleIncompleteTlogTruncation(const std::filesystem::path &tlogFile);

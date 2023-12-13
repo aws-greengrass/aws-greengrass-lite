@@ -12,6 +12,9 @@ namespace fs = std::filesystem;
 #define STRINGIFY2(x) STRINGIFY(x)
 #define NATIVE_SUFFIX STRINGIFY2(PLATFORM_SHLIB_SUFFIX)
 
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.plugins");
+
 namespace plugins {
 
     NativePlugin::~NativePlugin() {
@@ -178,20 +181,34 @@ namespace plugins {
     void AbstractPlugin::lifecycle(
         data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data) {
 
+        LOG.atInfo().event("lifecycle").kv("name", getName()).kv("phase", phase).log();
         errors::ThreadErrorContainer::get().clear();
         scope::StackScope scope{};
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 
         data::ObjHandle dataHandle = scope.getCallScope()->root()->anchor(data).getHandle();
-        if(!callNativeLifecycle(getSelf(), phase, dataHandle)) {
+        if(callNativeLifecycle(getSelf(), phase, dataHandle)) {
+            LOG.atDebug()
+                .event("lifecycle-completed")
+                .kv("name", getName())
+                .kv("phase", phase)
+                .log();
+        } else {
             std::optional<errors::Error> lastError{errors::ThreadErrorContainer::get().getError()};
             if(lastError.has_value()) {
-                std::cerr << "Plugin \"" << getName()
-                          << "\" lifecycle error during phase: " << phase.toString() << " - "
-                          << lastError.value().what() << std::endl;
+                LOG.atError()
+                    .event("lifecycle-error")
+                    .kv("name", getName())
+                    .kv("phase", phase)
+                    .cause(lastError.value())
+                    .log();
             } else {
-                std::cerr << "Plugin \"" << getName()
-                          << "\" lifecycle unhandled phase: " << phase.toString() << std::endl;
+                LOG.atInfo()
+                    .event("lifecycle-unhandled")
+                    .kv("name", getName())
+                    .kv("phase", phase)
+                    .cause(lastError.value())
+                    .log();
             }
         }
     }

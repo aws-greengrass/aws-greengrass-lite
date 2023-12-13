@@ -3,6 +3,9 @@
 #include "scope/context_glob.hpp"
 #include <cpp_api.hpp>
 
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.scope.Context");
+
 namespace scope {
 
     std::shared_ptr<PerThreadContext> PerThreadContext::get() {
@@ -314,7 +317,10 @@ namespace scope {
                 return prevMod;
             }
         }
-        throw errors::ModuleError{"Not permitted to change context to specified module"};
+        LOG.atError()
+            .event("changeModule")
+            .logAndThrow(
+                errors::ModuleError{"Not permitted to change context to specified module"});
     }
 
     NucleusCallScopeContext::~NucleusCallScopeContext() {

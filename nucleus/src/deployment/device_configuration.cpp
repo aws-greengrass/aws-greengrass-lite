@@ -4,6 +4,9 @@
 #include "lifecycle/kernel.hpp"
 #include "scope/context_full.hpp"
 
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.deployment.DeviceConfiguration");
+
 namespace deployment {
 
     DeviceConfiguration::DeviceConfiguration(

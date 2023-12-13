@@ -3,6 +3,8 @@
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
 
+// NOLINTBEGIN
+
 SCENARIO("Basic use of logging", "[logging]") {
     GIVEN("A log context") {
 
@@ -18,6 +20,13 @@ SCENARIO("Basic use of logging", "[logging]") {
         WHEN("Logging a simple event at error") {
             LOG.atError().event("log-event").kv("key", "value").log("message");
             logManager.publishQueue()->drainQueue();
+            THEN("Log entry was filled with event details") {
+                auto data = lastEntry.second;
+                REQUIRE(data->get("event").getString() == "log-event");
+                // TODO: More assertions and tests needed
+            }
         }
     }
 }
+
+// NOLINTEND
