@@ -1,4 +1,5 @@
 #include "device_configuration.hpp"
+#include "config_watchers.hpp"
 #include "lifecycle/command_line.hpp"
 #include "lifecycle/kernel.hpp"
 #include "scope/context_full.hpp"
@@ -8,13 +9,28 @@ namespace deployment {
     DeviceConfiguration::DeviceConfiguration(
         const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel)
         : _context(context), _kernel(kernel), configs(context) {
-        // TODO: deTildeValidator
-        // TODO: regionValidator
-        // TODO: loggingConfig
+
+        handleLoggingConfig();
         getComponentStoreMaxSizeBytes().dflt(configs.COMPONENT_STORE_MAX_SIZE_BYTES);
         getDeploymentPollingFrequencySeconds().dflt(configs.DEPLOYMENT_POLLING_FREQUENCY_SECONDS);
         // TODO: S3-Endpoint-name
-        // TODO: OnAnyChange
+        onAnyChange(std::make_shared<InvalidateCache>(baseRef()));
+    }
+
+    void DeviceConfiguration::invalidateCachedResult() {
+        _deviceConfigValidationCachedResult.store(false);
+    }
+
+    void DeviceConfiguration::onAnyChange(const std::shared_ptr<config::Watcher> &watcher) {
+        _kernel.getConfig()
+            .lookupTopics(
+                {configs.SERVICES_NAMESPACE_KEY,
+                 getNucleusComponentName(),
+                 configs.CONFIGURATION_CONFIG_KEY})
+            ->addWatcher(watcher, config::WhatHappened::childChanged);
+        _kernel.getConfig()
+            .lookupTopics({configs.SYSTEM_NAMESPACE_KEY})
+            ->addWatcher(watcher, config::WhatHappened::childChanged);
     }
 
     std::string DeviceConfiguration::getNucleusComponentName() {
@@ -92,16 +108,28 @@ namespace deployment {
     }
 
     void DeviceConfiguration::handleLoggingConfig() {
-        // TODO: missing code
+        auto loggingTopics = getLoggingConfigurationTopics();
+        loggingTopics->addWatcher(
+            std::make_shared<LoggingConfigWatcher>(baseRef()), config::WhatHappened::childChanged);
     }
 
     void DeviceConfiguration::handleLoggingConfigurationChanges(
-        config::WhatHappened, const std::shared_ptr<config::ConfigNode> &) {
-        // TODO: missing code
-    }
+        const std::shared_ptr<config::Topics> &topics,
+        data::Symbol key,
+        config::WhatHappened changeType) {
 
-    //    void DeviceConfiguration::reconfigureLogging(LogConfigUpdate) {
-    //    }
+        LOG.atDebug()
+            .kv("logging-change-what", static_cast<int>(changeType))
+            .kv("logging-change-node", topics->getName())
+            .kv("logging-change-key", key)
+            .log();
+        // Change configuration
+        auto &context = scope::context();
+        auto &logManager = context.logManager();
+        auto paths = _kernel.getPaths();
+        logging::LogConfigUpdate logConfigUpdate{logManager, topics, paths};
+        logManager.reconfigure("", logConfigUpdate);
+    }
 
     std::optional<std::string> DeviceConfiguration::getComponentType(
         const std::string &serviceName) {
@@ -162,21 +190,24 @@ namespace deployment {
         // TODO: Add validator
         return _kernel.getConfig()
             .lookup({configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_CERTIFICATE_FILE_PATH})
-            .dflt("");
+            .dflt("")
+            .addWatcher(std::make_shared<ApplyDeTilde>(_kernel), config::WhatHappened::validation);
     }
 
     config::Topic DeviceConfiguration::getPrivateKeyFilePath() {
         // TODO: Add validator
         return _kernel.getConfig()
             .lookup({configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_PRIVATE_KEY_PATH})
-            .dflt("");
+            .dflt("")
+            .addWatcher(std::make_shared<ApplyDeTilde>(_kernel), config::WhatHappened::validation);
     }
 
     config::Topic DeviceConfiguration::getRootCAFilePath() {
         // TODO: Add validator
         return _kernel.getConfig()
             .lookup({configs.SYSTEM_NAMESPACE_KEY, configs.DEVICE_PARAM_ROOT_CA_PATH})
-            .dflt("");
+            .dflt("")
+            .addWatcher(std::make_shared<ApplyDeTilde>(_kernel), config::WhatHappened::validation);
     }
 
     std::optional<config::Topic> DeviceConfiguration::getIpcSocketPath() {
@@ -202,7 +233,9 @@ namespace deployment {
 
     config::Topic DeviceConfiguration::getAWSRegion() {
         // TODO: Add validator
-        return getTopic(configs.DEVICE_PARAM_AWS_REGION).dflt("");
+        return getTopic(configs.DEVICE_PARAM_AWS_REGION)
+            .dflt("")
+            .addWatcher(std::make_shared<RegionValidator>(), config::WhatHappened::validation);
     }
 
     config::Topic DeviceConfiguration::getFipsMode() {
@@ -215,7 +248,9 @@ namespace deployment {
 
     void DeviceConfiguration::setAwsRegion(const std::string &region) {
         // TODO: Add validator
-        getTopic(configs.DEVICE_PARAM_AWS_REGION).withValue(region);
+        getTopic(configs.DEVICE_PARAM_AWS_REGION)
+            .withValue(region)
+            .addWatcher(std::make_shared<RegionValidator>(), config::WhatHappened::validation);
     }
 
     config::Topic DeviceConfiguration::getEnvironmentStage() {
@@ -422,5 +457,4 @@ namespace deployment {
     std::shared_ptr<config::Topics> DeviceConfiguration::getHttpClientOptions() {
         return getTopics(configs.HTTP_CLIENT);
     }
-
 } // namespace deployment

@@ -1,7 +1,6 @@
 #include "plugin_loader.hpp"
 #include "deployment/device_configuration.hpp"
 #include "errors/error_base.hpp"
-#include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
@@ -143,6 +142,10 @@ namespace plugins {
         return context().pluginLoader();
     }
 
+    std::shared_ptr<config::Topics> PluginLoader::getServiceTopics(AbstractPlugin &plugin) const {
+        return context().configManager().lookupTopics({SERVICES, plugin.getName()});
+    }
+
     std::shared_ptr<data::StructModelBase> PluginLoader::buildParams(
         AbstractPlugin &plugin, bool partial) const {
         std::string nucleusName = _deviceConfig->getNucleusComponentName();
@@ -152,10 +155,13 @@ namespace plugins {
         if(!partial) {
             data->put(
                 NUCLEUS_CONFIG, context().configManager().lookupTopics({SERVICES, nucleusName}));
-            data->put(CONFIG, context().configManager().lookupTopics({SERVICES, plugin.getName()}));
+            data->put(CONFIG, getServiceTopics(plugin));
         }
         data->put(NAME, plugin.getName());
         return data;
+    }
+    void PluginLoader::setKernel(const std::shared_ptr<lifecycle::Kernel> &kernel) {
+        _kernel = kernel;
     }
 
     void AbstractPlugin::invoke(
@@ -201,6 +207,7 @@ namespace plugins {
             // Allow name to be changed
             _moduleName = el.getString();
         }
+        configure(loader);
         // Update data, module name is now known
         // TODO: This path is only when recipe is unknown
         data = loader.buildParams(*this, false);
@@ -209,6 +216,17 @@ namespace plugins {
         config->put("dependencies", std::make_shared<data::SharedList>(_context.lock()));
         // Now allow plugin to bind to service part of the config tree
         lifecycle(loader.BIND, data);
+    }
+
+    void AbstractPlugin::configure(PluginLoader &loader) {
+        auto serviceTopics = loader.getServiceTopics(*this);
+        auto configTopics = serviceTopics->lookupTopics({loader.CONFIGURATION});
+        auto loggingTopics = configTopics->lookupTopics({loader.LOGGING});
+        auto &logManager = context().logManager();
+        auto paths = loader.kernel().getPaths();
+        // TODO: Register a config watcher to monitor for logging config changes
+        logging::LogConfigUpdate logConfigUpdate{logManager, loggingTopics, paths};
+        logManager.reconfigure(_moduleName, logConfigUpdate);
     }
 
     CurrentModuleScope::CurrentModuleScope(const std::shared_ptr<AbstractPlugin> &activeModule) {

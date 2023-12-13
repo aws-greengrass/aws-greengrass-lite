@@ -279,6 +279,7 @@ namespace lifecycle {
         //
 
         auto &loader = context().pluginLoader();
+        loader.setKernel(baseRef());
         loader.setDeviceConfiguration(_deviceConfiguration);
         loader.discoverPlugins(getPaths()->pluginPath());
 

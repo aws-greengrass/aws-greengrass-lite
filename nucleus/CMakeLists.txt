@@ -82,6 +82,7 @@ add_library(
   src/data/tracked_object.cpp
   src/data/tracked_object.hpp
   src/data/value_type.hpp
+  src/deployment/config_watchers.hpp
   src/deployment/deployment_model.cpp
   src/deployment/deployment_model.hpp
   src/deployment/device_configuration.cpp
