@@ -70,9 +70,15 @@ namespace scope {
     }
 
     std::shared_ptr<Context> Context::create() {
-        std::shared_ptr<Context> impl{std::make_shared<Context>()};
-        impl->_glob = std::make_unique<ContextGlob>(impl);
-        return impl;
+        return std::make_shared<Context>();
+    }
+
+    void Context::lazyInit() {
+        std::shared_ptr<Context> self = baseRef();
+        if(!self) {
+            throw std::logic_error{"Init cycle: lazy() was called before Context() was created"};
+        }
+        _lazyContext = std::make_unique<LazyContext>(self);
     }
 
     std::shared_ptr<Context> Context::getDefaultContext() {
@@ -101,16 +107,19 @@ namespace scope {
         return symbols().intern(str);
     }
     config::Manager &Context::configManager() {
-        return _glob->_configManager;
+        return lazy()._configManager;
     }
     tasks::TaskManager &Context::taskManager() {
-        return _glob->_taskManager;
+        return lazy()._taskManager;
     }
     pubsub::PubSubManager &Context::lpcTopics() {
-        return _glob->_lpcTopics;
+        return lazy()._lpcTopics;
     }
     plugins::PluginLoader &Context::pluginLoader() {
-        return _glob->_loader;
+        return lazy()._loader;
+    }
+    logging::LogManager &Context::logManager() {
+        return *lazy()._logManager;
     }
 
     std::shared_ptr<Context> PerThreadContext::context() {

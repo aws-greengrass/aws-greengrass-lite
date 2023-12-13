@@ -30,6 +30,7 @@ namespace util {
         static constexpr auto PLUGINS_DIRECTORY{"plugins"};
         static constexpr auto ARTIFACT_DIRECTORY{"artifacts"};
         static constexpr auto RECIPE_DIRECTORY{"recipes"};
+        static constexpr auto DEFAULT_LOGS_DIRECTORY{"logs"};
         static constexpr auto ARTIFACTS_DECOMPRESSED_DIRECTORY{"artifacts-unarchived"};
         static constexpr auto CONFIG_PATH_NAME{"config"};
         static constexpr auto WORK_PATH_NAME{"work"};
@@ -249,10 +250,14 @@ namespace util {
             return *this;
         }
 
-        NucleusPaths &setLoggerPath(const std::filesystem::path &newPath) {
+        std::filesystem::path createLoggerPath(const std::filesystem::path &newPath) {
             createPath(newPath);
             _permissions.setLoggerPermission(newPath);
-            return *this;
+            return newPath;
+        }
+
+        std::filesystem::path getDefaultLoggerPath() const {
+            return rootPath() / DEFAULT_LOGS_DIRECTORY;
         }
     };
 } // namespace util

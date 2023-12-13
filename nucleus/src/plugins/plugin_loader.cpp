@@ -173,9 +173,6 @@ namespace plugins {
         data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data) {
 
         errors::ThreadErrorContainer::get().clear();
-        // TODO: convert to logging
-        std::cerr << "Plugin \"" << getName() << "\" lifecycle phase: " << phase.toString()
-                  << std::endl;
         scope::StackScope scope{};
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 

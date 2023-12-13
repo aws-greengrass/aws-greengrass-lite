@@ -2,6 +2,7 @@
 #include "command_line.hpp"
 #include "config/yaml_config.hpp"
 #include "deployment/device_configuration.hpp"
+#include "logging/log_queue.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
 #include <filesystem>
@@ -297,6 +298,7 @@ namespace lifecycle {
             plugin.lifecycle(loader.TERMINATE, data);
         });
         getConfig().publishQueue().stop();
+        context().logManager().publishQueue()->stop();
     }
 
     std::shared_ptr<config::Topics> Kernel::findServiceTopic(const std::string_view &serviceName) {

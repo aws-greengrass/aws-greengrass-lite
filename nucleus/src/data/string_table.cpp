@@ -4,6 +4,11 @@
 
 namespace data {
 
+    Symbolish::Symbolish(std::string_view str) : Symbol(scope::context().intern(str)) {
+    }
+    Symbolish::Symbolish(const char *str) : Symbol(scope::context().intern(str)) {
+    }
+
     void data::SymbolInit::init(const std::shared_ptr<scope::Context> &context) const {
         // 'const' is a hack to make this work with initializer_list below
         // actually it does behave as a const, so it's not that big of a hack

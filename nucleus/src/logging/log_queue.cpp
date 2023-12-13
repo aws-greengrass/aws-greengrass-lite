@@ -1,0 +1,114 @@
+#include "log_queue.hpp"
+#include "log_manager.hpp"
+#include "scope/context_full.hpp"
+
+namespace logging {
+
+    void LogQueue::publish(
+        const std::shared_ptr<LogState> &state,
+        const std::shared_ptr<data::StructModelBase> &entry) {
+
+        std::unique_lock guard{_mutex};
+        if(_terminate.load()) {
+            return; // if terminated, drop everything
+        }
+        _entries.emplace_back(state, entry);
+        if(!_thread.joinable()) {
+            _thread = std::thread(&LogQueue::publishThread, this);
+        }
+        _wake.notify_all();
+    }
+
+    void LogQueue::reconfigure(const std::shared_ptr<LogState> &state) {
+        publish(state, {});
+    }
+
+    void LogQueue::stop() {
+        _terminate = true;
+        _wake.notify_all();
+        if(_thread.joinable()) {
+            _thread.join();
+        }
+    }
+
+    void LogQueue::publishThread() {
+        scope::Context::thread().changeContext(_context.lock());
+        for(;;) {
+            auto entry = pickupEntry();
+            if(entry.has_value()) {
+                processEntry(entry.value());
+            } else {
+                break; // queue is empty and terminated
+            }
+        }
+    }
+
+    bool LogQueue::drainQueue() {
+        std::unique_lock guard{_mutex};
+        while(!_entries.empty()) {
+            _drained.wait(guard);
+        }
+        return _entries.empty();
+    }
+
+    std::optional<LogQueue::QueueEntry> LogQueue::pickupEntry() {
+        std::unique_lock guard{_mutex};
+        while(_entries.empty() && !_terminate) {
+            syncOutputs();
+            _drained.notify_all();
+            _wake.wait(guard);
+        }
+        if(_entries.empty()) {
+            return {}; // terminated and empty
+        }
+        auto entry = std::move(_entries.front());
+        _entries.pop_front();
+        return entry;
+    }
+
+    void LogQueue::setWatch(const std::function<bool(const QueueEntry &entry)> &fn) {
+
+        std::unique_lock guard{_mutex};
+        _watch = fn;
+        _watching = static_cast<bool>(fn);
+    }
+
+    void LogQueue::processEntry(const QueueEntry &entry) {
+        if(_watching) {
+            std::unique_lock guard{_mutex};
+            auto fn = _watch;
+            guard.unlock();
+            if(fn) {
+                bool resume = fn(entry);
+                if(!resume) {
+                    return;
+                }
+            }
+        }
+        if(entry.second) {
+            // only used in this thread
+            _needsSync.insert(entry.first->getContextName());
+            entry.first->writeLog(entry.second);
+        } else {
+            entry.first->changeOutput();
+        }
+    }
+
+    void LogQueue::syncOutputs() {
+        // needsSync only used in this thread
+        auto context = _context.lock();
+        if(context) {
+            for(auto &name : _needsSync) {
+                auto state = context->logManager().getState(name);
+                if(state) {
+                    state->syncOutput();
+                }
+            }
+        }
+        _needsSync.clear();
+    }
+
+    LogQueue::~LogQueue() {
+        stop();
+    }
+} // namespace logging
