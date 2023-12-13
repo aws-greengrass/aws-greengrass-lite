@@ -8,6 +8,7 @@ add_library(
   include/c_api.h
   include/c_api.hpp
   include/cpp_api.hpp
+  include/logging.hpp
   include/plugin.hpp
   include/util.hpp)
 
