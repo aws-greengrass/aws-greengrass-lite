@@ -453,6 +453,15 @@ namespace ggapi {
             Symbol componentName, const LifecycleCallbackLambda &callback);
 
         [[nodiscard]] ModuleScope registerPlugin(Symbol componentName, LifecycleCallback callback);
+
+        ModuleScope setActive() {
+            return callApiReturnHandle<ModuleScope>(
+                [this]() { return ::ggapiChangeModule(getHandleId()); });
+        }
+
+        [[nodiscard]] static ModuleScope current() {
+            return callApiReturnHandle<ModuleScope>([]() { return ::ggapiGetCurrentModule(); });
+        }
     };
 
     /**
@@ -613,7 +622,7 @@ namespace ggapi {
         }
 
         [[nodiscard]] bool empty() const {
-            return callApiReturn<bool>([*this]() { return ::ggapiStructIsEmpty(_handle); });
+            return callApiReturn<bool>([*this]() { return ::ggapiIsEmpty(_handle); });
         }
 
         /**
@@ -1331,6 +1340,7 @@ namespace ggapi {
         public:
             explicit TaskDispatch(Callable callable, Args &&...args)
                 : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+                static_assert(std::is_invocable_v<Callable, Args..., Struct>);
             }
             [[nodiscard]] Symbol type() const override {
                 return {"task"};
@@ -1388,6 +1398,8 @@ namespace ggapi {
         public:
             explicit LifecycleDispatch(Callable callable, Args &&...args)
                 : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+                static_assert(
+                    std::is_invocable_r_v<bool, Callable, Args..., ModuleScope, Symbol, Struct>);
             }
             [[nodiscard]] Symbol type() const override {
                 return {"lifecycle"};

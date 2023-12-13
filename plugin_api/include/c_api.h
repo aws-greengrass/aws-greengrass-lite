@@ -96,6 +96,7 @@ IMPEXP size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t keyInt) NO
 IMPEXP size_t
 ggapiStructGetString(uint32_t structHandle, uint32_t symInt, char *buffer, size_t buflen) NOEXCEPT;
 IMPEXP uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
+IMPEXP uint32_t ggapiStructClone(uint32_t structHandle) NOEXCEPT;
 IMPEXP bool ggapiListPutBool(uint32_t listHandle, int32_t idx, bool value) NOEXCEPT;
 IMPEXP bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) NOEXCEPT;
 IMPEXP bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) NOEXCEPT;
@@ -124,8 +125,8 @@ IMPEXP bool ggapiBufferInsert(
 IMPEXP uint32_t
 ggapiBufferGet(uint32_t listHandle, int32_t idx, char *buffer, uint32_t buflen) NOEXCEPT;
 IMPEXP bool ggapiBufferResize(uint32_t structHandle, uint32_t newSize) NOEXCEPT;
-IMPEXP uint32_t ggapiGetSize(uint32_t structHandle) NOEXCEPT;
-IMPEXP bool ggapiStructIsEmpty(uint32_t structHandle) NOEXCEPT;
+IMPEXP bool ggapiIsEmpty(uint32_t containerHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiGetSize(uint32_t containerHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) NOEXCEPT;
 IMPEXP bool ggapiReleaseHandle(uint32_t objectHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiToJson(uint32_t containerHandle) NOEXCEPT;
@@ -134,6 +135,7 @@ IMPEXP uint32_t ggapiToYaml(uint32_t containerHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiFromYaml(uint32_t bufferHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiCreateCallScope() NOEXCEPT;
 IMPEXP uint32_t ggapiGetCurrentCallScope() NOEXCEPT;
+IMPEXP uint32_t ggapiGetCurrentModule() NOEXCEPT;
 IMPEXP uint32_t ggapiGetCurrentTask() NOEXCEPT;
 IMPEXP uint32_t
 ggapiSubscribeToTopic(uint32_t anchorHandle, uint32_t topic, uint32_t callbackHandle) NOEXCEPT;
@@ -155,6 +157,7 @@ IMPEXP bool ggapiSleep(uint32_t timeout) NOEXCEPT;
 IMPEXP bool ggapiCancelTask(uint32_t asyncTask) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterPlugin(
     uint32_t moduleHandle, uint32_t componentName, uint32_t callbackHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiChangeModule(uint32_t moduleHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterCallback(
     ggapiGenericCallback callbackFunction, uintptr_t callbackCtx, uint32_t callbackType) NOEXCEPT;
 

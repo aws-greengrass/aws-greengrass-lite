@@ -7,7 +7,7 @@ namespace scope {
 
     /**
      * A scope that is intended to be stack based, is split into two, and should be used
-     * via the CallScope stack class.
+     * via the CallScope stack class. It provides a localized set of handle anchors
      */
     class CallScope : public data::TrackingScope {
         data::ObjHandle _self;

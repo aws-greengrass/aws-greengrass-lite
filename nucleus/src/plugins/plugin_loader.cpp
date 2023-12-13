@@ -93,6 +93,7 @@ namespace plugins {
     void PluginLoader::discoverPlugins(const std::filesystem::path &pluginDir) {
         // The only plugins used are those in the plugin directory, or subdirectory of
         // plugin directory
+        // TODO: This is temporary logic until recipe logic has been written
         for(const auto &top : fs::directory_iterator(pluginDir)) {
             if(top.is_regular_file()) {
                 discoverPlugin(top);
@@ -176,6 +177,8 @@ namespace plugins {
         std::cerr << "Plugin \"" << getName() << "\" lifecycle phase: " << phase.toString()
                   << std::endl;
         scope::StackScope scope{};
+        plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
+
         data::ObjHandle dataHandle = scope.getCallScope()->root()->anchor(data).getHandle();
         if(!callNativeLifecycle(getSelf(), phase, dataHandle)) {
             std::optional<errors::Error> lastError{errors::ThreadErrorContainer::get().getError()};
@@ -211,4 +214,10 @@ namespace plugins {
         lifecycle(loader.BIND, data);
     }
 
+    CurrentModuleScope::CurrentModuleScope(const std::shared_ptr<AbstractPlugin> &activeModule) {
+        _old = scope::Context::thread().setModules(std::pair(activeModule, activeModule));
+    }
+    CurrentModuleScope::~CurrentModuleScope() {
+        scope::Context::thread().setModules(_old);
+    }
 } // namespace plugins

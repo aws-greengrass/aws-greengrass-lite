@@ -1,12 +1,28 @@
 #include "task_callbacks.hpp"
 #include "data/struct_model.hpp"
+#include "errors/errors.hpp"
 #include "plugins/plugin_loader.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 
 namespace tasks {
 
+    std::shared_ptr<plugins::AbstractPlugin> RegisteredCallback::getModule() const {
+        if(_module.has_value()) {
+            std::shared_ptr<plugins::AbstractPlugin> module{_module.value().lock()};
+            if(!module) {
+                throw errors::CallbackError("Target module unloaded");
+            }
+            return module;
+        } else {
+            return {};
+        }
+    }
+
     uint32_t RegisteredCallback::invoke(const CallbackPackedData &packed) {
+
+        auto module = getModule();
+        plugins::CurrentModuleScope moduleScope(module);
 
         // No mutex required as the member variables are immutable
         // Assume a scope was allocated prior to this call

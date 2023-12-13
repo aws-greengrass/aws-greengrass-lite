@@ -10,6 +10,7 @@
 #include <optional>
 #include <shared_mutex>
 #include <util.hpp>
+#include <utility>
 
 namespace config {
     class Manager;
@@ -21,7 +22,8 @@ namespace errors {
 
 namespace plugins {
     class PluginLoader;
-}
+    class AbstractPlugin;
+} // namespace plugins
 
 namespace pubsub {
     class PubSubManager;
@@ -70,7 +72,7 @@ namespace scope {
         }
 
     private:
-        std::shared_ptr<PerThreadContext> _threadContext;
+        std::weak_ptr<PerThreadContext> _threadContext;
         std::shared_ptr<CallScope> _callScope;
         std::shared_ptr<data::TrackingRoot> _scopeRoot;
     };
@@ -205,6 +207,9 @@ namespace scope {
      */
     class PerThreadContext : public util::RefObject<PerThreadContext> {
     public:
+        using ModulePair = std::pair<
+            std::shared_ptr<plugins::AbstractPlugin>,
+            std::shared_ptr<plugins::AbstractPlugin>>;
         PerThreadContext() = default;
         PerThreadContext(const PerThreadContext &) = delete;
         PerThreadContext(PerThreadContext &&) = delete;
@@ -236,12 +241,20 @@ namespace scope {
         std::shared_ptr<tasks::TaskThread> setThreadTaskData(
             const std::shared_ptr<tasks::TaskThread> &threadTaskData = {});
 
+        ModulePair setModules(const ModulePair &modules);
+        std::shared_ptr<plugins::AbstractPlugin> getEffectiveModule();
+        std::shared_ptr<plugins::AbstractPlugin> setEffectiveModule(
+            const std::shared_ptr<plugins::AbstractPlugin> &newModule);
+        std::shared_ptr<plugins::AbstractPlugin> getParentModule();
+
     private:
         std::shared_ptr<Context> _context;
         std::shared_ptr<NucleusCallScopeContext> _scopedContext;
         std::shared_ptr<NucleusCallScopeContext> _rootScopedContext;
         std::shared_ptr<tasks::TaskThread> _threadTaskData;
         std::shared_ptr<tasks::Task> _activeTask;
+        std::shared_ptr<plugins::AbstractPlugin> _parentModule;
+        std::shared_ptr<plugins::AbstractPlugin> _effectiveModule;
         errors::Error _threadErrorDetail{data::Symbol{}, ""}; // Modify only via ThreadErrorManager
     };
 

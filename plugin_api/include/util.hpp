@@ -56,10 +56,26 @@ namespace util {
         }
     }
 
+    inline int upperChar(int c) {
+        // important: ignore Locale to ensure portability
+        if(c >= 'a' && c <= 'z') {
+            return c - 'z' + 'A';
+        } else {
+            return c;
+        }
+    }
+
     inline std::string lower(std::string_view source) {
         std::string target;
         target.resize(source.size());
         std::transform(source.begin(), source.end(), target.begin(), lowerChar);
+        return target;
+    }
+
+    inline std::string upper(std::string_view source) {
+        std::string target;
+        target.resize(source.size());
+        std::transform(source.begin(), source.end(), target.begin(), upperChar);
         return target;
     }
 
@@ -223,12 +239,12 @@ namespace util {
     template<typename T>
     class RefObject : public std::enable_shared_from_this<T> {
     public:
-        ~RefObject() = default;
-        RefObject();
+        ~RefObject() noexcept = default;
+        RefObject() noexcept;
         RefObject(const RefObject &) = delete;
         RefObject(RefObject &&) noexcept = default;
         RefObject &operator=(const RefObject &) = delete;
-        RefObject &operator=(RefObject &&) noexcept = delete;
+        RefObject &operator=(RefObject &&) = delete;
 
         std::shared_ptr<const T> baseRef() const {
             return std::enable_shared_from_this<T>::shared_from_this();
@@ -249,7 +265,7 @@ namespace util {
     };
 
     template<typename T>
-    RefObject<T>::RefObject() {
+    RefObject<T>::RefObject() noexcept {
         static_assert(std::is_base_of_v<RefObject, T>);
     }
 

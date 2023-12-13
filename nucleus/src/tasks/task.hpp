@@ -161,6 +161,7 @@ namespace tasks {
         CurrentTaskScope &operator=(CurrentTaskScope &&) = delete;
         ~CurrentTaskScope();
     };
+
     class SubTask : public util::RefObject<SubTask> {
     protected:
         std::shared_ptr<TaskThread> _threadAffinity;

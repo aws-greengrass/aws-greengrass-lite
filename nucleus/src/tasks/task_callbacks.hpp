@@ -67,7 +67,7 @@ namespace tasks {
         static data::Symbol taskType();
 
     public:
-        TaskCallbackData(const std::shared_ptr<data::StructModelBase> &data);
+        explicit TaskCallbackData(const std::shared_ptr<data::StructModelBase> &data);
         uint32_t size() const override;
         const void *data() const override;
     };
@@ -92,9 +92,20 @@ namespace tasks {
 
     class RegisteredCallback : public Callback {
         const data::Symbol _callbackType;
+        const std::optional<std::weak_ptr<plugins::AbstractPlugin>> _module;
         const ::ggapiGenericCallback _callback;
         const uintptr_t _callbackCtx;
 
+        [[nodiscard]] std::shared_ptr<plugins::AbstractPlugin> getModule() const;
+        static std::optional<std::weak_ptr<plugins::AbstractPlugin>> nullable(
+            const std::shared_ptr<plugins::AbstractPlugin> &module) {
+            // we need to differentiate between nullptr and expired, so wrap weak_ptr in optional
+            if(module) {
+                return module;
+            } else {
+                return {};
+            }
+        }
         uint32_t invoke(const CallbackPackedData &packed);
         std::shared_ptr<data::StructModelBase> asStruct(uint32_t retVal);
         static bool asBool(uint32_t retVal);
@@ -102,11 +113,12 @@ namespace tasks {
     public:
         explicit RegisteredCallback(
             const std::shared_ptr<scope::Context> &context,
+            const std::shared_ptr<plugins::AbstractPlugin> &module,
             data::Symbol callbackType,
             ::ggapiGenericCallback callback,
-            uintptr_t callbackCtx)
-            : Callback(context), _callbackType(callbackType), _callback(callback),
-              _callbackCtx(callbackCtx) {
+            uintptr_t callbackCtx) noexcept
+            : Callback(context), _module(nullable(module)), _callbackType(callbackType),
+              _callback(callback), _callbackCtx(callbackCtx) {
         }
         RegisteredCallback(const RegisteredCallback &) = delete;
         RegisteredCallback(RegisteredCallback &&) = delete;

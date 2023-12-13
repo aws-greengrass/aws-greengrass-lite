@@ -99,11 +99,10 @@ namespace errors {
         }
     };
 
-    class InvalidCallbackError : public Error {
+    class CallbackError : public Error {
     public:
-        explicit InvalidCallbackError(
-            const std::string &what = "Invalid Callback specified") noexcept
-            : Error("InvalidCallbackError", what) {
+        explicit CallbackError(const std::string &what = "Callback error") noexcept
+            : Error("CallbackError", what) {
         }
     };
 
@@ -111,6 +110,25 @@ namespace errors {
     public:
         explicit JsonParseError(const std::string &what = "Unable to parse JSON") noexcept
             : Error("JsonParseError", what) {
+        }
+    };
+
+    class CommandLineArgumentError : public Error {
+    public:
+        explicit CommandLineArgumentError(const std::string &what) noexcept
+            : Error("CommandLineArgumentError", what) {
+        }
+    };
+
+    class BootError : public Error {
+    public:
+        explicit BootError(const std::string &what) noexcept : Error("BootError", what) {
+        }
+    };
+
+    class ModuleError : public Error {
+    public:
+        explicit ModuleError(const std::string &what) noexcept : Error("ModuleError", what) {
         }
     };
 

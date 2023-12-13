@@ -452,22 +452,31 @@ bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) noexcept {
     });
 }
 
-uint32_t ggapiGetSize(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([handle]() {
+uint32_t ggapiGetSize(uint32_t containerHandle) noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([containerHandle]() {
         auto &context = scope::context();
-        auto ss{context.objFromInt<ContainerModelBase>(handle)};
+        auto ss{context.objFromInt<ContainerModelBase>(containerHandle)};
         return ss->size();
     });
 }
 
-bool ggapiStructIsEmpty(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<bool>([handle]() {
-        if(!handle) {
+bool ggapiIsEmpty(uint32_t containerHandle) noexcept {
+    return ggapi::trapErrorReturn<bool>([containerHandle]() {
+        if(!containerHandle) {
             return true;
         }
         auto &context = scope::context();
-        auto ss{context.objFromInt<ContainerModelBase>(handle)};
+        auto ss{context.objFromInt<ContainerModelBase>(containerHandle)};
         return ss->empty();
+    });
+}
+
+uint32_t ggapiStructClone(uint32_t structHandle) noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([structHandle]() {
+        auto &context = scope::context();
+        auto ss{context.objFromInt<StructModelBase>(structHandle)};
+        auto copy = ss->copy();
+        return scope::NucleusCallScopeContext::intHandle(copy);
     });
 }
 

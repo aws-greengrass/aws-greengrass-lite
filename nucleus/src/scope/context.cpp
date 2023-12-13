@@ -61,7 +61,12 @@ namespace scope {
     }
 
     std::shared_ptr<NucleusCallScopeContext> NucleusCallScopeContext::set() {
-        return _threadContext->changeScope(baseRef());
+        auto perThread = _threadContext.lock();
+        if(!perThread) {
+            // Should never happen, possible during shutdown
+            return {};
+        }
+        return perThread->changeScope(baseRef());
     }
 
     std::shared_ptr<Context> Context::create() {
@@ -150,7 +155,12 @@ namespace scope {
     }
 
     std::shared_ptr<Context> NucleusCallScopeContext::context() {
-        return _threadContext->context();
+        auto perThread = _threadContext.lock();
+        if(!perThread) {
+            // Should never happen, possible during shutdown
+            return {};
+        }
+        return perThread->context();
     }
 
     std::shared_ptr<data::TrackingRoot> NucleusCallScopeContext::root() {
@@ -242,6 +252,62 @@ namespace scope {
         return prev;
     }
 
+    /**
+     * Used when saving/restoring module state, pair is (parent,effective), which are both
+     * the same when setting, but may be different when restoring.
+     */
+    PerThreadContext::ModulePair PerThreadContext::setModules(const ModulePair &modules) {
+        auto prev = std::pair(_parentModule, _effectiveModule);
+        _parentModule = modules.first;
+        _effectiveModule = modules.second;
+        return prev;
+    }
+
+    /**
+     * Called by Nucleus to retrieve the 'owning' parent module, or nullptr when running
+     * in Nucleus context
+     */
+    std::shared_ptr<plugins::AbstractPlugin> PerThreadContext::getParentModule() {
+        return _parentModule;
+    }
+
+    /**
+     * Called by Nucleus to retrieve the context module - typically this will be same
+     * as parent.
+     */
+    std::shared_ptr<plugins::AbstractPlugin> PerThreadContext::getEffectiveModule() {
+        return _effectiveModule;
+    }
+
+    /**
+     * Called by A plugin to change context - this may be a direct child of current module, or
+     * a direct child of parent, or reset to parent
+     */
+    std::shared_ptr<plugins::AbstractPlugin> PerThreadContext::setEffectiveModule(
+        const std::shared_ptr<plugins::AbstractPlugin> &newModule) {
+        std::shared_ptr<plugins::AbstractPlugin> prevMod = _effectiveModule;
+        if(!_parentModule) {
+            // If no parent, then this is open-ended (e.g. testing)
+            _effectiveModule = newModule;
+            return prevMod;
+        }
+        if(!newModule || newModule == _parentModule) {
+            // Action to reset to parent
+            _effectiveModule = _parentModule;
+            return prevMod;
+        }
+        auto asDelegate = std::dynamic_pointer_cast<plugins::DelegatePlugin>(newModule);
+        if(asDelegate) {
+            auto newParent = asDelegate->getParent();
+            if(newParent == _parentModule || newParent == prevMod) {
+                // Action to change which child is used
+                _effectiveModule = newModule;
+                return prevMod;
+            }
+        }
+        throw errors::ModuleError{"Not permitted to change context to specified module"};
+    }
+
     NucleusCallScopeContext::~NucleusCallScopeContext() {
         errors::ThreadErrorContainer::get().reset();
     }
@@ -253,9 +319,11 @@ namespace scope {
         }
         return *context;
     }
+
     data::Symbol::Partial SharedContextMapper::partial(const data::Symbol &symbol) const {
         return context().symbols().partial(symbol);
     }
+
     data::Symbol SharedContextMapper::apply(data::Symbol::Partial partial) const {
         return context().symbols().apply(partial);
     }

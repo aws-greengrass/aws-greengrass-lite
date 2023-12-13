@@ -216,7 +216,7 @@ namespace data {
         ~SymbolInit() = default;
 
         // NOLINTNEXTLINE(*-explicit-constructor)
-        SymbolInit(std::string_view constString) : _string(constString) {
+        SymbolInit(std::string_view constString) noexcept : _string(constString) {
         }
 
         std::string toString() const {
