@@ -73,10 +73,9 @@ Create First go to AWS IoT Core and create a thing. Put the c
 ### Running Greengrass Lite
 
 For these examples greengrass is installed in the ~/gglite_testing folder. This
-can be changed to suit your system. The settings shown will proces the
-config.yaml and populate the config folder with pre-processed versions.  
-If you change config.yaml you will need to either delete the preprocessed files
-or
+can be changed to suit your system. The settings shown will process the
+config.yaml and populate the config folder with pre-processed versions. If you
+change config.yaml you will need to either delete the preprocessed files or
 
 ```bash
 ~/gglite_testing/bin/greengrass-lite -r ~/gglite_testing --init-config ~/gglite_testing/config/config.yaml

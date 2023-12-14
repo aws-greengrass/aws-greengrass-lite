@@ -194,6 +194,12 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
 
 namespace Headers {
     using namespace std::string_view_literals;
+    inline constexpr auto VERSION_HEADER = ":version"sv;
     inline constexpr auto ContentType = ":content-type"sv;
     inline constexpr auto ServiceModelType = "service-model-type"sv;
-}; // namespace Headers
+} // namespace Headers
+
+namespace ContentType {
+    static std::string JSON = "application/json";
+    static std::string Text = "text/plain";
+} // namespace ContentType
