@@ -16,9 +16,11 @@
 #include <cstdint>
 #include <cstring>
 
-using timestamp = std::chrono::duration<uint32_t, std::milli>;
-using bytebuffer = util::Span<uint8_t>;
-using stringbuffer = util::Span<char>;
+namespace Headervaluetypes {
+    using timestamp = std::chrono::duration<uint64_t, std::milli>;
+    using bytebuffer = util::Span<uint8_t>;
+    using stringbuffer = util::Span<char>;
+} // namespace Headervaluetypes
 
 using HeaderValue = std::variant<
     bool,
@@ -26,14 +28,14 @@ using HeaderValue = std::variant<
     int16_t,
     int32_t,
     int64_t,
-    bytebuffer,
-    stringbuffer,
-    timestamp,
+    Headervaluetypes::bytebuffer,
+    Headervaluetypes::stringbuffer,
+    Headervaluetypes::timestamp,
     aws_uuid>;
 
 template<typename T>
-constexpr bool is_static_value = std::is_arithmetic_v<T> || std::is_same_v<timestamp, T>
-                                 || std::is_same_v<aws_uuid, T> || std::is_same_v<T, bool>;
+constexpr bool is_variable_length_value = std::is_same_v<T, Headervaluetypes::bytebuffer>
+                                          || std::is_same_v<T, Headervaluetypes::stringbuffer>;
 
 template<typename To, size_t N>
 // NOLINTNEXTLINE(*-c-arrays)
@@ -88,13 +90,14 @@ static HeaderValue getValue(const aws_event_stream_header_value_pair &header) no
         case AWS_EVENT_STREAM_HEADER_INT64:
             return from_network_bytes<int64_t>(header.header_value.static_val);
         case AWS_EVENT_STREAM_HEADER_BYTE_BUF:
-            return bytebuffer{variableData, header.header_value_len};
+            return Headervaluetypes::bytebuffer{variableData, header.header_value_len};
         case AWS_EVENT_STREAM_HEADER_STRING:
-            return stringbuffer{// NOLINTNEXTLINE(*-reinterpret-cast)
-                                reinterpret_cast<char *>(variableData),
-                                header.header_value_len};
+            return Headervaluetypes::stringbuffer{// NOLINTNEXTLINE(*-reinterpret-cast)
+                                                  reinterpret_cast<char *>(variableData),
+                                                  header.header_value_len};
         case AWS_EVENT_STREAM_HEADER_TIMESTAMP:
-            return timestamp{from_network_bytes<uint32_t>(header.header_value.static_val)};
+            return Headervaluetypes::timestamp{
+                from_network_bytes<uint64_t>(header.header_value.static_val)};
         case AWS_EVENT_STREAM_HEADER_UUID: {
             return from_network_bytes<aws_uuid>(header.header_value.static_val);
         }
@@ -116,11 +119,11 @@ static inline aws_event_stream_header_value_type getType(const HeaderValue &vari
                 return AWS_EVENT_STREAM_HEADER_INT32;
             } else if constexpr(std::is_same_v<int64_t, T>) {
                 return AWS_EVENT_STREAM_HEADER_INT64;
-            } else if constexpr(std::is_same_v<bytebuffer, T>) {
+            } else if constexpr(std::is_same_v<Headervaluetypes::bytebuffer, T>) {
                 return AWS_EVENT_STREAM_HEADER_BYTE_BUF;
-            } else if constexpr(std::is_same_v<stringbuffer, T>) {
+            } else if constexpr(std::is_same_v<Headervaluetypes::stringbuffer, T>) {
                 return AWS_EVENT_STREAM_HEADER_STRING;
-            } else if constexpr(std::is_same_v<timestamp, T>) {
+            } else if constexpr(std::is_same_v<Headervaluetypes::timestamp, T>) {
                 return AWS_EVENT_STREAM_HEADER_TIMESTAMP;
             } else if constexpr(std::is_same_v<aws_uuid, T>) {
                 return AWS_EVENT_STREAM_HEADER_UUID;
@@ -136,13 +139,13 @@ makeHeader(std::string_view name, const T &val) noexcept {
 
     args.header_name_len = name.copy(std::data(args.header_name), std::size(args.header_name));
 
-    if constexpr(is_static_value<T>) {
-        to_network_bytes(args.header_value.static_val, val);
-        args.header_value_len = sizeof(val);
-    } else { // span or string view
+    if constexpr(is_variable_length_value<T>) {
         // NOLINTNEXTLINE(*-reinterpret-cast)
         args.header_value.variable_len_val = reinterpret_cast<uint8_t *>(std::data(val));
         args.header_value_len = std::size(val);
+    } else { // static-sized types
+        to_network_bytes(args.header_value.static_val, val);
+        args.header_value_len = sizeof(val);
     }
 
     args.header_value_type = getType(val);
@@ -152,7 +155,7 @@ makeHeader(std::string_view name, const T &val) noexcept {
 
 // NOLINTEND(*-union-access)
 
-static auto parseHeader(const aws_event_stream_header_value_pair &pair) {
+inline auto parseHeader(const aws_event_stream_header_value_pair &pair) {
     return std::make_pair(
         std::string_view{std::data(pair.header_name), pair.header_name_len}, getValue(pair));
 }
@@ -173,9 +176,11 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
                 os.flags(std::ios::boolalpha);
                 os << static_cast<bool>(val);
                 os.flags(flags);
-            } else if constexpr(std::is_same_v<timestamp, T>) {
+            } else if constexpr(std::is_same_v<Headervaluetypes::timestamp, T>) {
                 os << val.count() << "ms";
-            } else if constexpr(std::is_same_v<stringbuffer, T> || std::is_same_v<bytebuffer, T>) {
+            } else if constexpr(
+                std::is_same_v<Headervaluetypes::stringbuffer, T>
+                || std::is_same_v<Headervaluetypes::bytebuffer, T>) {
                 // NOLINTNEXTLINE(*-reinterpret-cast)
                 os.write(reinterpret_cast<const char *>(val.begin()), val.size());
             } else if constexpr(std::is_same_v<T, aws_uuid>) {
@@ -193,6 +198,6 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
 
 namespace Headers {
     using namespace std::string_view_literals;
-    static constexpr auto ContentType = ":content-type"sv;
-    static constexpr auto ServiceModelType = "service-model-type"sv;
+    inline constexpr auto ContentType = ":content-type"sv;
+    inline constexpr auto ServiceModelType = "service-model-type"sv;
 }; // namespace Headers

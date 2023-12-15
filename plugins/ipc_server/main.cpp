@@ -40,10 +40,10 @@ static void onListenerDestroy(
 // Messaging
 //
 
-template<class SendFn, size_t N>
+template<class SendFn>
 static int sendMessage(
     SendFn fn,
-    std::array<aws_event_stream_header_value_pair, N> &headers,
+    util::Span<aws_event_stream_header_value_pair> headers,
     ggapi::Buffer payload,
     aws_event_stream_rpc_message_type message_type,
     uint32_t flags = 0);
@@ -137,8 +137,8 @@ public:
                                : "application/json"s;
 
         std::array headers{
-            makeHeader(Headers::ServiceModelType, stringbuffer{serviceModel}),
-            makeHeader(Headers::ContentType, stringbuffer(contentType))};
+            makeHeader(Headers::ServiceModelType, Headervaluetypes::stringbuffer{serviceModel}),
+            makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(contentType))};
         sendMessage(sender, headers, json, messageType, flags);
         return ggapi::Struct::create();
     }
@@ -445,17 +445,16 @@ static int sendMessage(SendFn fn, aws_event_stream_rpc_message_type message_type
     return fn(&args);
 }
 
-template<class SendFn, size_t N>
+template<class SendFn>
 static int sendMessage(
     SendFn fn,
-    std::array<aws_event_stream_header_value_pair, N> &headers,
+    util::Span<aws_event_stream_header_value_pair> headers,
     ggapi::Buffer payload,
     aws_event_stream_rpc_message_type message_type,
     uint32_t flags) {
-    util::Span headerSpan{headers};
     aws_array_list headers_list{
         .alloc = nullptr,
-        .current_size = headerSpan.size_bytes(),
+        .current_size = headers.size_bytes(),
         .length = std::size(headers),
         .item_size = sizeof(aws_event_stream_header_value_pair),
         .data = std::data(headers),
