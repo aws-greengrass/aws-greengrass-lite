@@ -3,15 +3,20 @@
 
 #include "topic_level_iterator.hpp"
 
+#include <stdexcept>
+#include <string>
+
+template<class Alloc>
 class TopicFilter {
 public:
+    using value_type = std::basic_string<char, std::char_traits<char>, Alloc>;
     using const_iterator = TopicLevelIterator;
 
     explicit TopicFilter(std::string_view str) : _value{str} {
         validateFilter();
     }
 
-    explicit TopicFilter(std::string &&str) : _value{std::move(str)} {
+    explicit TopicFilter(value_type &&str) : _value{std::move(str)} {
         validateFilter();
     }
 
@@ -21,35 +26,36 @@ public:
     TopicFilter &operator=(TopicFilter &&) noexcept = default;
     ~TopicFilter() noexcept = default;
 
-    explicit operator const std::string &() const noexcept {
+    explicit operator const value_type &() const noexcept {
         return _value;
     }
 
-    friend bool operator==(const TopicFilter &a, const TopicFilter &b) noexcept {
+    template<class OtherAlloc>
+    friend bool operator==(const TopicFilter &a, const TopicFilter<OtherAlloc> &b) noexcept {
         return a._value == b._value;
     }
 
     [[nodiscard]] bool match(std::string_view topic) const {
         TopicLevelIterator topicIter{topic};
-        bool hash = false;
+        bool wildcard = false;
         auto [filterTail, topicTail] = std::mismatch(
             begin(),
             end(),
             topicIter.begin(),
             topicIter.end(),
-            [&hash](std::string_view filterLevel, std::string_view topicLevel) {
+            [&wildcard](std::string_view filterLevel, std::string_view topicLevel) {
                 if(filterLevel == "#") {
-                    hash = true;
-                    return true;
+                    wildcard = true;
+                    return false;
                 }
                 return (filterLevel == "+") || (filterLevel == topicLevel);
             });
-        return hash || ((filterTail == end()) && (topicTail == topicIter.end()));
+        return wildcard || ((filterTail == end()) && (topicTail == topicIter.end()));
     }
 
     struct Hash {
         size_t operator()(const TopicFilter &filter) const noexcept {
-            return std::hash<std::string>{}(filter._value);
+            return std::hash<std::string_view>{}(filter._value);
         }
     };
 
@@ -61,12 +67,12 @@ public:
         return TopicLevelIterator(_value).end();
     }
 
-    [[nodiscard]] const std::string &get() const noexcept {
+    [[nodiscard]] const value_type &get() const noexcept {
         return _value;
     }
 
 private:
-    std::string _value;
+    value_type _value;
 
     void validateFilter() const {
         if(_value.empty()) {
