@@ -151,7 +151,7 @@ namespace util {
         }
 
         template<class Traits>
-        explicit constexpr Span(std::basic_string_view<std::remove_const_t<value_type>, Traits> sv)
+        explicit constexpr Span(std::basic_string_view<element_type, Traits> sv)
             : _ptr{std::data(sv)}, _len{std::size(sv)} {
         }
 
@@ -162,6 +162,11 @@ namespace util {
 
         template<typename Alloc>
         explicit constexpr Span(std::vector<value_type, Alloc> &vec)
+            : _ptr{std::data(vec)}, _len{std::size(vec)} {
+        }
+
+        template<typename Alloc>
+        explicit constexpr Span(const std::vector<element_type, Alloc> &vec)
             : _ptr{std::data(vec)}, _len{std::size(vec)} {
         }
 
@@ -232,6 +237,21 @@ namespace util {
             return last(size() - idx);
         }
     };
+
+    // The standard uses std::byte which is clearer, but these are used
+    // to send/receive byte arrays from C functions
+    template<typename DataT, typename SizeT>
+    util::Span<const char, SizeT> as_bytes(util::Span<DataT, SizeT> s) {
+        // NOLINTNEXTLINE(*-reinterpret-cast)
+        return {reinterpret_cast<const char *>(s.data()), s.size_bytes()};
+    }
+
+    template<typename DataT, typename SizeT>
+    std::enable_if_t<!std::is_const_v<DataT>, util::Span<char, SizeT>> as_writeable_bytes(
+        util::Span<DataT, SizeT> s) {
+        // NOLINTNEXTLINE(*-reinterpret-cast)
+        return {reinterpret_cast<char *>(s.data()), s.size_bytes()};
+    }
 
     //
     // Base class for all "by-reference-only" objects
