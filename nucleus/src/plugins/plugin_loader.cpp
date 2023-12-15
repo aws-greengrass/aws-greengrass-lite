@@ -163,8 +163,8 @@ namespace plugins {
         data->put(NAME, plugin.getName());
         return data;
     }
-    void PluginLoader::setKernel(const std::shared_ptr<lifecycle::Kernel> &kernel) {
-        _kernel = kernel;
+    void PluginLoader::setPaths(const std::shared_ptr<util::NucleusPaths> &paths) {
+        _paths = paths;
     }
 
     void AbstractPlugin::invoke(
@@ -207,7 +207,6 @@ namespace plugins {
                     .event("lifecycle-unhandled")
                     .kv("name", getName())
                     .kv("phase", phase)
-                    .cause(lastError.value())
                     .log();
             }
         }
@@ -240,9 +239,8 @@ namespace plugins {
         auto configTopics = serviceTopics->lookupTopics({loader.CONFIGURATION});
         auto loggingTopics = configTopics->lookupTopics({loader.LOGGING});
         auto &logManager = context().logManager();
-        auto paths = loader.kernel().getPaths();
         // TODO: Register a config watcher to monitor for logging config changes
-        logging::LogConfigUpdate logConfigUpdate{logManager, loggingTopics, paths};
+        logging::LogConfigUpdate logConfigUpdate{logManager, loggingTopics, loader.getPaths()};
         logManager.reconfigure(_moduleName, logConfigUpdate);
     }
 

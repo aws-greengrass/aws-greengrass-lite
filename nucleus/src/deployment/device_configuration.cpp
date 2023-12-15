@@ -12,7 +12,9 @@ namespace deployment {
     DeviceConfiguration::DeviceConfiguration(
         const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel)
         : _context(context), _kernel(kernel), configs(context) {
+    }
 
+    void DeviceConfiguration::initialize() {
         handleLoggingConfig();
         getComponentStoreMaxSizeBytes().dflt(configs.COMPONENT_STORE_MAX_SIZE_BYTES);
         getDeploymentPollingFrequencySeconds().dflt(configs.DEPLOYMENT_POLLING_FREQUENCY_SECONDS);
@@ -30,10 +32,12 @@ namespace deployment {
                 {configs.SERVICES_NAMESPACE_KEY,
                  getNucleusComponentName(),
                  configs.CONFIGURATION_CONFIG_KEY})
-            ->addWatcher(watcher, config::WhatHappened::childChanged);
+            ->addWatcher(
+                watcher, config::WhatHappened::childChanged | config::WhatHappened::initialized);
         _kernel.getConfig()
             .lookupTopics({configs.SYSTEM_NAMESPACE_KEY})
-            ->addWatcher(watcher, config::WhatHappened::childChanged);
+            ->addWatcher(
+                watcher, config::WhatHappened::childChanged | config::WhatHappened::initialized);
     }
 
     std::string DeviceConfiguration::getNucleusComponentName() {
@@ -113,7 +117,8 @@ namespace deployment {
     void DeviceConfiguration::handleLoggingConfig() {
         auto loggingTopics = getLoggingConfigurationTopics();
         loggingTopics->addWatcher(
-            std::make_shared<LoggingConfigWatcher>(baseRef()), config::WhatHappened::childChanged);
+            std::make_shared<LoggingConfigWatcher>(baseRef()),
+            config::WhatHappened::childChanged | config::WhatHappened::initialized);
     }
 
     void DeviceConfiguration::handleLoggingConfigurationChanges(
@@ -460,4 +465,12 @@ namespace deployment {
     std::shared_ptr<config::Topics> DeviceConfiguration::getHttpClientOptions() {
         return getTopics(configs.HTTP_CLIENT);
     }
+
+    std::shared_ptr<DeviceConfiguration> DeviceConfiguration::create(
+        const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel) {
+        auto config = std::make_shared<DeviceConfiguration>(context, kernel);
+        config->initialize();
+        return config;
+    }
+
 } // namespace deployment

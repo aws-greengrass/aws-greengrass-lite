@@ -72,7 +72,17 @@ namespace deployment {
             const std::shared_ptr<config::Topics> &topics,
             data::Symbol key,
             config::WhatHappened changeType) override {
-            //
+
+            std::shared_ptr<DeviceConfiguration> config{_config};
+            if(config) {
+                config->handleLoggingConfigurationChanges(topics, key, changeType);
+            }
+        }
+        void initialized(
+            const std::shared_ptr<config::Topics> &topics,
+            data::Symbol key,
+            config::WhatHappened changeType) override {
+
             std::shared_ptr<DeviceConfiguration> config{_config};
             if(config) {
                 config->handleLoggingConfigurationChanges(topics, key, changeType);

@@ -1,4 +1,5 @@
 #include "log_manager.hpp"
+#include "data/shared_buffer.hpp"
 #include "logging/log_queue.hpp"
 #include "scope/context_full.hpp"
 #include <util.hpp>
@@ -21,7 +22,6 @@ namespace logging {
 
     void LogManager::logEvent(
         std::string_view contextName, const std::shared_ptr<data::StructModelBase> &entry) {
-        std::ignore = contextName;
         if(!contextName.empty()) {
             entry->put(MODULE_KEY, contextName);
         }

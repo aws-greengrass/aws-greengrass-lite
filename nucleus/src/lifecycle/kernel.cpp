@@ -54,7 +54,7 @@ namespace lifecycle {
             overrideConfigLocation(commandLine, overrideConfigFile);
         }
         initConfigAndTlog(commandLine);
-        updateDeviceConfiguration(commandLine);
+        initDeviceConfiguration(commandLine);
         initializeNucleusFromRecipe();
     }
 
@@ -147,9 +147,9 @@ namespace lifecycle {
         _tlog->flushImmediately().withAutoTruncate().append().withWatcher();
     }
 
-    void Kernel::updateDeviceConfiguration(CommandLine &commandLine) {
-        _deviceConfiguration =
-            std::make_shared<deployment::DeviceConfiguration>(_context.lock(), *this);
+    void Kernel::initDeviceConfiguration(CommandLine &commandLine) {
+        _deviceConfiguration = deployment::DeviceConfiguration::create(_context.lock(), *this);
+        // std::make_shared<deployment::DeviceConfiguration>();
         if(!commandLine.getAwsRegion().empty()) {
             _deviceConfiguration->setAwsRegion(commandLine.getAwsRegion());
         }
@@ -311,7 +311,7 @@ namespace lifecycle {
         //
 
         auto &loader = context().pluginLoader();
-        loader.setKernel(baseRef());
+        loader.setPaths(getPaths());
         loader.setDeviceConfiguration(_deviceConfiguration);
         loader.discoverPlugins(getPaths()->pluginPath());
 

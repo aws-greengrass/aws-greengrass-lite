@@ -71,7 +71,7 @@ namespace logging {
             Level::Error};
 
     public:
-        LogManagerBase() noexcept = default;
+        LogManagerBase() = default;
         LogManagerBase(const LogManagerBase &) noexcept = delete;
         LogManagerBase(LogManagerBase &&) noexcept = delete;
         LogManagerBase &operator=(const LogManagerBase &) noexcept = delete;

@@ -85,7 +85,7 @@ namespace data {
         }
 
         [[nodiscard]] bool isScalar() const {
-            return !isObject();
+            return !isObject() && !isNull();
         }
 
         [[nodiscard]] bool isNull() const {

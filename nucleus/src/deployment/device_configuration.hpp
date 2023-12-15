@@ -152,6 +152,8 @@ namespace deployment {
             return *_context.lock();
         }
 
+        void initialize();
+
     public:
         const DeviceConfigConsts configs;
         static constexpr uint64_t COMPONENT_STORE_MAX_SIZE_DEFAULT_BYTES = 10'000'000'000L;
@@ -249,5 +251,7 @@ namespace deployment {
         std::shared_ptr<config::Topics> getHttpClientOptions();
         void onAnyChange(const std::shared_ptr<config::Watcher> &watcher);
         void invalidateCachedResult();
+        static std::shared_ptr<DeviceConfiguration> create(
+            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel);
     };
 } // namespace deployment

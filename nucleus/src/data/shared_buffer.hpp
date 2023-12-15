@@ -37,15 +37,15 @@ namespace data {
         void write(std::ostream &stream) const;
     };
 
-    inline static std::ostream &operator<<(std::ostream &os, const SharedBuffer &buffer) {
-        buffer.write(os);
-        return os;
-    }
-
-    inline static std::ostream &operator<<(
-        std::ostream &os, const std::shared_ptr<SharedBuffer> &buffer) {
-        buffer->write(os);
-        return os;
-    }
-
 } // namespace data
+
+inline static std::ostream &operator<<(std::ostream &os, const data::SharedBuffer &buffer) {
+    buffer.write(os);
+    return os;
+}
+
+inline static std::ostream &operator<<(
+    std::ostream &os, const std::shared_ptr<data::SharedBuffer> &buffer) {
+    buffer->write(os);
+    return os;
+}
