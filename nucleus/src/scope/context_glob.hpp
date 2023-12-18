@@ -21,6 +21,8 @@ namespace scope {
               _lpcTopics(context), _loader(context),
               _logManager(std::make_shared<logging::LogManager>(context)) {
         }
+        ~LazyContext();
+        void terminate();
 
     private:
         config::Manager _configManager;

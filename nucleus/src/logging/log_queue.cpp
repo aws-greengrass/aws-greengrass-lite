@@ -10,10 +10,10 @@ namespace logging {
 
         std::unique_lock guard{_mutex};
         if(_terminate.load()) {
-            return; // if terminated, drop everything
+            return; // if terminating, drop everything
         }
         _entries.emplace_back(state, entry);
-        if(!_thread.joinable()) {
+        if(!_running.exchange(true)) {
             _thread = std::thread(&LogQueue::publishThread, this);
         }
         _wake.notify_all();
@@ -24,9 +24,11 @@ namespace logging {
     }
 
     void LogQueue::stop() {
-        _terminate = true;
+        std::unique_lock guard{_mutex};
+        _terminate = true; // happens before _wake and _running check
         _wake.notify_all();
-        if(_thread.joinable()) {
+        if(_running.exchange(false)) {
+            guard.unlock();
             _thread.join();
         }
     }
@@ -54,10 +56,13 @@ namespace logging {
     std::optional<LogQueue::QueueEntry> LogQueue::pickupEntry() {
         std::unique_lock guard{_mutex};
         while(_entries.empty() && !_terminate) {
+            guard.unlock();
             syncOutputs();
             _drained.notify_all();
+            guard.lock();
             _wake.wait(guard);
         }
+        // lock held
         if(_entries.empty()) {
             return {}; // terminated and empty
         }
@@ -95,7 +100,7 @@ namespace logging {
     }
 
     void LogQueue::syncOutputs() {
-        // needsSync only used in this thread
+        // Single threaded, lock free, needsSync only used in this thread
         auto context = _context.lock();
         if(context) {
             for(auto &name : _needsSync) {
@@ -109,6 +114,6 @@ namespace logging {
     }
 
     LogQueue::~LogQueue() {
-        stop();
+        assert(!_running.load());
     }
 } // namespace logging

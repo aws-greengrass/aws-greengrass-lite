@@ -1,6 +1,9 @@
 #include "context.hpp"
+#include "config/publish_queue.hpp"
+#include "logging/log_queue.hpp"
 #include "scope/context_full.hpp"
 #include "scope/context_glob.hpp"
+
 #include <cpp_api.hpp>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
@@ -47,14 +50,20 @@ namespace scope {
 
     LocalizedContext::LocalizedContext(const std::shared_ptr<Context> &context)
         : LocalizedContext() {
+        assert(context.use_count() == 1);
         _temp->changeContext(context);
+        _applyTerminate = true; // TODO: Temp Workaround - there is a count leak going on
     }
 
     LocalizedContext::~LocalizedContext() {
+        std::shared_ptr<Context> context = _temp->context();
         if(_saved) {
             _saved->set();
         } else {
             scope::PerThreadContext::reset();
+        }
+        if(_applyTerminate) {
+            context->terminate();
         }
     }
 
@@ -123,6 +132,16 @@ namespace scope {
     }
     logging::LogManager &Context::logManager() {
         return *lazy()._logManager;
+    }
+    Context::~Context() {
+        terminate();
+    }
+
+    void Context::terminate() {
+        if(_lazyContext) {
+            _lazyContext->terminate();
+        }
+        _lazyContext.reset();
     }
 
     std::shared_ptr<Context> PerThreadContext::context() {
@@ -341,6 +360,16 @@ namespace scope {
 
     data::Symbol SharedContextMapper::apply(data::Symbol::Partial partial) const {
         return context().symbols().apply(partial);
+    }
+
+    LazyContext::~LazyContext() {
+        terminate();
+    }
+
+    void LazyContext::terminate() {
+        _taskManager.shutdownAndWait();
+        _configManager.publishQueue().stop();
+        _logManager->publishQueue()->stop();
     }
 
 } // namespace scope

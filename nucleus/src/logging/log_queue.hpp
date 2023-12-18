@@ -35,6 +35,7 @@ namespace logging {
         std::list<QueueEntry> _entries;
         std::condition_variable _wake;
         std::condition_variable _drained;
+        std::atomic_bool _running{false};
         std::atomic_bool _terminate{false};
         std::atomic_bool _watching{false};
         std::function<bool(const QueueEntry &entry)> _watch;

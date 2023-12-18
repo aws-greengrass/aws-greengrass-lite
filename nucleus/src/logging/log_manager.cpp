@@ -85,6 +85,11 @@ namespace logging {
         : _context(context), _queue(std::make_shared<LogQueue>(context)) {
     }
 
+    LogManager::~LogManager() {
+        _queue->stop();
+        _queue.reset();
+    }
+
     std::shared_ptr<LogState> LogManager::getState(std::string_view contextName) const {
         std::shared_lock guard{_mutex};
         if(!contextName.empty()) {

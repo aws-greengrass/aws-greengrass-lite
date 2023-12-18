@@ -268,6 +268,7 @@ namespace scope {
     class LocalizedContext {
         std::shared_ptr<PerThreadContext> _saved;
         std::shared_ptr<PerThreadContext> _temp;
+        bool _applyTerminate{false};
 
     public:
         LocalizedContext();
@@ -297,7 +298,8 @@ namespace scope {
         Context(Context &&) = delete;
         Context &operator=(const Context &) = delete;
         Context &operator=(Context &&) = delete;
-        ~Context() = default;
+        virtual ~Context();
+        void terminate();
 
         static Context &get() {
             return *getPtr();

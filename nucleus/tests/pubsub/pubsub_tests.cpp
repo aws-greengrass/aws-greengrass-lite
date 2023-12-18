@@ -112,6 +112,8 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             auto newTask{std::make_shared<tasks::Task>(context)};
             context->lpcTopics().initializePubSubCall(
                 newTask, subs1, topic, callArgData, {}, tasks::ExpireTime::fromNow(10s));
+            // For purpose of this test, run all callbacks on test thread
+            newTask->setDefaultThread(scope::thread().getThreadTaskData());
             context->taskManager().queueTask(newTask);
             bool didComplete = newTask->waitForCompletion(expireTime);
             auto returnedData = newTask->getData();
@@ -143,6 +145,8 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             auto newTask{std::make_shared<tasks::Task>(context)};
             context->lpcTopics().initializePubSubCall(
                 newTask, subs1, {}, callArgData, {}, tasks::ExpireTime::fromNow(10s));
+            // For purpose of this test, run all callbacks on test thread
+            newTask->setDefaultThread(scope::thread().getThreadTaskData());
             context->taskManager().queueTask(newTask);
             bool didComplete = newTask->waitForCompletion(expireTime);
             auto returnedData = newTask->getData();

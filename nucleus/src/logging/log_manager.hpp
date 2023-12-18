@@ -169,6 +169,7 @@ namespace logging {
 
     public:
         explicit LogManager(const std::shared_ptr<scope::Context> &context);
+        ~LogManager() override;
         scope::Context &context() const {
             return *_context.lock();
         }
