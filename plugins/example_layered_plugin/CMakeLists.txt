@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.22)
 project(example_layered_plugin)
 
 add_library(example_layered_plugin MODULE main.cpp)

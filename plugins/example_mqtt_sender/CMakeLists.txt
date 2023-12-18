@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.22)
 project(example_mqtt_sender)
 
 add_library(example_mqtt_sender_obj OBJECT src/example_mqtt_sender.cpp

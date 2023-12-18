@@ -6,7 +6,7 @@
 uint32_t ggapiRegisterPlugin(
     uint32_t moduleHandleInt, uint32_t componentNameInt, uint32_t callback) noexcept {
     return ggapi::trapErrorReturn<size_t>([moduleHandleInt, componentNameInt, callback]() {
-        scope::Context &context = scope::Context::get();
+        auto &context = scope::context();
         // Name of a new plugin component
         auto componentName = context.symbolFromInt(componentNameInt);
         auto parentModule{context.objFromInt<plugins::AbstractPlugin>(moduleHandleInt)};
@@ -21,5 +21,18 @@ uint32_t ggapiRegisterPlugin(
         }
         auto anchor = root->anchor(delegate);
         return anchor.getHandle().asInt();
+    });
+}
+
+/**
+ * Change module context in the call - used by parent modules for delegate modules
+ * @return previous handle
+ */
+uint32_t ggapiChangeModule(uint32_t moduleHandleInt) noexcept {
+    return ggapi::trapErrorReturn<size_t>([moduleHandleInt]() {
+        auto &context = scope::context();
+        auto targetModule{context.objFromInt<plugins::AbstractPlugin>(moduleHandleInt)};
+        auto prev = scope::thread().setEffectiveModule(targetModule);
+        return prev->getSelf().asInt();
     });
 }

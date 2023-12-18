@@ -94,6 +94,7 @@ namespace ggapi {
         Plugin(Plugin &&) noexcept = delete;
         Plugin &operator=(const Plugin &) = delete;
         Plugin &operator=(Plugin &&) noexcept = delete;
+        // TODO: make this noexcept
         virtual ~Plugin() = default;
 
         bool lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {

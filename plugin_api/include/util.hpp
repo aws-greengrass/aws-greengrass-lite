@@ -1,12 +1,16 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <type_traits>
+#include <vector>
 
 namespace util {
     inline bool startsWith(std::string_view target, std::string_view prefix) {
@@ -52,6 +56,15 @@ namespace util {
         }
     }
 
+    inline int upperChar(int c) {
+        // important: ignore Locale to ensure portability
+        if(c >= 'a' && c <= 'z') {
+            return c - 'z' + 'A';
+        } else {
+            return c;
+        }
+    }
+
     inline std::string lower(std::string_view source) {
         std::string target;
         target.resize(source.size());
@@ -59,61 +72,164 @@ namespace util {
         return target;
     }
 
+    inline std::string upper(std::string_view source) {
+        std::string target;
+        target.resize(source.size());
+        std::transform(source.begin(), source.end(), target.begin(), upperChar);
+        return target;
+    }
+
+    template<class It>
+    static constexpr bool is_random_access_iterator = std::is_base_of_v<
+        std::random_access_iterator_tag,
+        typename std::iterator_traits<It>::iterator_category>;
+
+    template<typename InputIt, typename OutputIt>
+    auto bounded_copy(InputIt s_first, InputIt s_last, OutputIt d_first, OutputIt d_last) noexcept {
+        if constexpr(is_random_access_iterator<InputIt> && is_random_access_iterator<OutputIt>) {
+            return std::copy_n(s_first, std::min(d_last - d_first, s_last - s_first), d_first)
+                   - d_first;
+        } else {
+            std::ptrdiff_t i = 0;
+            while(s_first != s_last && d_first != d_last) {
+                *d_first++ = *s_first++;
+                ++i;
+            }
+            return i;
+        }
+    }
+
+    template<class T>
+    using type_identity = T;
+
     //
     // Used for views into memory buffers with safe copies (C++20 has span, C++17 does not)
     //
     template<typename DataT, typename SizeT = std::size_t>
     class Span {
-        DataT *_ptr;
-        SizeT _len;
+    public:
+        using value_type = DataT;
+        using element_type = std::remove_cv_t<value_type>;
+        using pointer = value_type *;
+        using const_pointer = const value_type *;
+        using reference = value_type &;
+        using size_type = SizeT;
+        using difference_type = std::ptrdiff_t;
+        using iterator = pointer;
+        using const_iterator = const_pointer;
+
+    private:
+        pointer _ptr{nullptr};
+        size_type _len{0};
+
+        constexpr void bounds_check(size_type i) const {
+            if(i >= size()) {
+                throw std::out_of_range("Span idx too big");
+            }
+            if constexpr(std::is_signed_v<size_type>) {
+                if(i < size_type{0}) {
+                    throw std::out_of_range("Span negative idx");
+                }
+            }
+        }
 
     public:
-        using DataType = DataT;
-        using SizeType = SizeT;
-
-        Span(DataT *ptr, SizeT len) noexcept : _ptr(ptr), _len(len) {
+        constexpr Span() noexcept = default;
+        constexpr Span(pointer ptr, size_type len) noexcept : _ptr(ptr), _len(len) {
         }
 
-        DataT &operator[](SizeT i) noexcept {
-            return *_ptr[i];
+        template<size_t N>
+        // NOLINTNEXTLINE (*-c-arrays)
+        constexpr Span(type_identity<value_type> (&e)[N]) noexcept
+            : _ptr(std::data(e)), _len{std::size(e)} {
         }
 
-        const DataT &operator[](SizeT i) const noexcept {
-            return *_ptr[i];
+        template<size_t N>
+        // NOLINTNEXTLINE (*-explicit-constructor)
+        constexpr Span(std::array<value_type, N> &arr) noexcept
+            : _ptr{std::data(arr)}, _len{std::size(arr)} {
         }
 
-        [[nodiscard]] SizeT size() const noexcept {
+        template<class Traits>
+        explicit constexpr Span(std::basic_string_view<std::remove_const_t<value_type>, Traits> sv)
+            : _ptr{std::data(sv)}, _len{std::size(sv)} {
+        }
+
+        template<class Traits, class Alloc>
+        explicit constexpr Span(std::basic_string<value_type, Traits, Alloc> &str)
+            : _ptr{str.data()}, _len{std::size(str)} {
+        }
+
+        template<typename Alloc>
+        explicit constexpr Span(std::vector<value_type, Alloc> &vec)
+            : _ptr{std::data(vec)}, _len{std::size(vec)} {
+        }
+
+        constexpr reference operator[](size_type i) const noexcept {
+            return _ptr[i];
+        }
+
+        constexpr reference at(size_type i) const {
+            bounds_check(i);
+            return operator[](i);
+        }
+
+        [[nodiscard]] constexpr size_type size() const noexcept {
             return _len;
         }
 
-        DataT *begin() noexcept {
+        [[nodiscard]] constexpr bool empty() const noexcept {
+            return size() == size_type{0};
+        }
+
+        [[nodiscard]] constexpr size_type size_bytes() const noexcept {
+            return size() * sizeof(element_type);
+        }
+
+        constexpr pointer data() const noexcept {
             return _ptr;
         }
 
-        DataT *end() noexcept {
-            return _ptr + _len;
+        constexpr iterator begin() const noexcept {
+            return data();
+        }
+
+        constexpr iterator end() const noexcept {
+            return data() + size();
+        }
+
+        constexpr const_iterator cbegin() const noexcept {
+            return begin();
+        }
+
+        constexpr const_iterator cend() const noexcept {
+            return end();
         }
 
         template<typename OutputIt>
-        SizeT copyTo(OutputIt d_first, OutputIt d_last) {
-            DataT *s = begin();
-            DataT *s_last = end();
-            OutputIt d = d_first;
-            for(; s != s_last && d != d_last; ++s, ++d) {
-                *d = *s;
-            }
-            return s - begin();
+        difference_type copyTo(OutputIt d_first, OutputIt d_last) const noexcept {
+            return bounded_copy(cbegin(), cend(), d_first, d_last);
         }
 
         template<typename InputIt>
-        SizeT copyFrom(InputIt s_first, InputIt s_last) {
-            DataT *d = begin();
-            DataT *d_last = end();
-            InputIt s = s_first;
-            for(; s != s_last && d != d_last; ++s, ++d) {
-                *d = *s;
-            }
-            return d - begin();
+        difference_type copyFrom(InputIt s_first, InputIt s_last) const noexcept {
+            return bounded_copy(s_first, s_last, begin(), end());
+        }
+
+        constexpr Span first(size_type n) const noexcept {
+            return {data(), n};
+        }
+
+        constexpr Span last(size_type n) const noexcept {
+            return {end() - n, n};
+        }
+
+        constexpr Span subspan(size_type idx, size_type n) const noexcept {
+            return {data() + idx, std::min(n, size() - idx)};
+        }
+
+        constexpr Span subspan(size_type idx) const noexcept {
+            return last(size() - idx);
         }
     };
 
@@ -123,12 +239,12 @@ namespace util {
     template<typename T>
     class RefObject : public std::enable_shared_from_this<T> {
     public:
-        ~RefObject() = default;
-        RefObject();
+        ~RefObject() noexcept = default;
+        RefObject() noexcept;
         RefObject(const RefObject &) = delete;
         RefObject(RefObject &&) noexcept = default;
         RefObject &operator=(const RefObject &) = delete;
-        RefObject &operator=(RefObject &&) noexcept = delete;
+        RefObject &operator=(RefObject &&) = delete;
 
         std::shared_ptr<const T> baseRef() const {
             return std::enable_shared_from_this<T>::shared_from_this();
@@ -149,7 +265,7 @@ namespace util {
     };
 
     template<typename T>
-    RefObject<T>::RefObject() {
+    RefObject<T>::RefObject() noexcept {
         static_assert(std::is_base_of_v<RefObject, T>);
     }
 

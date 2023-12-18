@@ -3,6 +3,7 @@
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
+#include <string>
 
 namespace lifecycle {
     class SysProperties {

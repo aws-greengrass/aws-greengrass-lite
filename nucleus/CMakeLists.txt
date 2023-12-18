@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.22)
 project(nucleus-core)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -152,13 +152,15 @@ target_link_libraries(nucleus-lib PUBLIC gg_plugin_api Threads::Threads
 add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
 
+set_target_properties(greengrass-lite PROPERTIES BUILD_RPATH_USE_ORIGIN ON)
+
 if(UNIX AND NOT APPLE)
   set_target_properties(greengrass-lite PROPERTIES INSTALL_RPATH
                                                    "\$ORIGIN/../lib")
 endif()
 
 install(TARGETS greengrass-lite DESTINATION bin)
-install(TARGETS nucleus-core DESTINATION bin)
+install(TARGETS nucleus-core DESTINATION lib)
 
 #
 # Build unit tests

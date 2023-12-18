@@ -82,7 +82,7 @@ uint32_t ggapiCallAsync(uint32_t callStruct, uint32_t callbackHandle, uint32_t d
     return ggapi::trapErrorReturn<uint32_t>([callStruct, callbackHandle, delay]() {
         auto &context = scope::context();
         if(!callbackHandle) {
-            throw errors::InvalidCallbackError();
+            throw errors::CallbackError("Invalid callback handle");
         }
         auto callback = context.objFromInt<tasks::Callback>(callbackHandle);
         auto callDataStruct = context.objFromInt<data::StructModelBase>(callStruct);
@@ -107,11 +107,12 @@ uint32_t ggapiRegisterCallback(
     uintptr_t callbackCtx,
     uint32_t callbackType) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([callbackFunction, callbackCtx, callbackType]() {
-        auto &context = scope::Context::get();
+        auto &context = scope::context();
+        auto module = scope::thread().getEffectiveModule();
         auto typeSymbol = context.symbolFromInt(callbackType);
         std::shared_ptr<tasks::RegisteredCallback> callback =
             std::make_shared<tasks::RegisteredCallback>(
-                context.baseRef(), typeSymbol, callbackFunction, callbackCtx);
+                context.baseRef(), module, typeSymbol, callbackFunction, callbackCtx);
         return scope::NucleusCallScopeContext::anchor(callback).asIntHandle();
     });
 }

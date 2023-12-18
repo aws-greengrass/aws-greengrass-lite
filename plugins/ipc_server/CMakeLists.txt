@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
-project(iot_broker)
+project(ipc_server)
 
 include(FetchContent)
 include(../../utils/fetchContentFromDeps.cmake)
 
-fetchcontentfromdeps(device-sdk-cpp)
+fetchContentFromDeps(device-sdk-cpp)
 
 FetchContent_GetProperties(device-sdk-cpp)
 if(NOT device-sdk-cpp_POPULATED)
@@ -13,8 +13,7 @@ if(NOT device-sdk-cpp_POPULATED)
                    EXCLUDE_FROM_ALL)
 endif()
 
-add_library(iot_broker MODULE main.cpp src/iot_broker.cpp src/iot_broker.hpp)
-target_include_directories(iot_broker PRIVATE src)
-target_link_libraries(iot_broker PRIVATE nucleus-core aws-crt-cpp)
+add_library(ipc_server MODULE main.cpp ServerBootstrap.cpp)
+target_link_libraries(ipc_server PRIVATE nucleus-core aws-crt-cpp)
 
-install(TARGETS iot_broker DESTINATION plugins)
+install(TARGETS ipc_server DESTINATION plugins)

@@ -1,6 +1,7 @@
 #include "shared_struct.hpp"
 #include "safe_handle.hpp"
 #include "scope/context_full.hpp"
+#include <shared_mutex>
 
 namespace data {
 
@@ -60,6 +61,11 @@ namespace data {
     uint32_t SharedStruct::size() const {
         std::shared_lock guard{_mutex};
         return _elements.size();
+    }
+
+    bool SharedStruct::empty() const {
+        std::shared_lock guard{_mutex};
+        return _elements.empty();
     }
 
     StructElement SharedStruct::getImpl(Symbol symbol) const {

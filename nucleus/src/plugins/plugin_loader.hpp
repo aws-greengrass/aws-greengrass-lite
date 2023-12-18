@@ -10,6 +10,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <utility>
 
 #if defined(USE_DLFCN)
 #include <dlfcn.h>
@@ -17,8 +18,16 @@
 #include <windows.h>
 #endif
 
+namespace config {
+    class Topics;
+}
+
 namespace deployment {
     class DeviceConfiguration;
+}
+
+namespace lifecycle {
+    class Kernel;
 }
 
 namespace tasks {
@@ -51,6 +60,8 @@ namespace plugins {
 
         void lifecycle(data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data);
 
+        void configure(PluginLoader &loader);
+
         virtual bool isActive() noexcept {
             return true;
         }
@@ -75,13 +86,21 @@ namespace plugins {
         PluginLoader &loader();
     };
 
-    //
-    // Delegate plugins are managed by a parent (typically native) plugins
-    //
+    /**
+     * Delegate plugins are managed by a parent (typically native) plugins. The delegate can
+     * also be used to provide handles for testing.
+     */
     class DelegatePlugin : public AbstractPlugin {
+        //
+        // TODO: Resolve a dependency dilemma
+        // References Parent->root->Delegate - so Parent has ref-count on delegate
+        // therefore _parent below is weak (back) reference
+        // However it's possible parent goes away. We need to ensure that if parent goes
+        // away, all delegates go away too.
+        //
     private:
         mutable std::shared_mutex _mutex;
-        std::shared_ptr<AbstractPlugin> _parent; // delegate keeps parent in memory
+        std::weak_ptr<AbstractPlugin> _parent;
         std::shared_ptr<tasks::Callback> _callback;
 
     public:
@@ -97,6 +116,10 @@ namespace plugins {
             const data::ObjHandle &pluginRoot,
             const data::Symbol &phase,
             const data::ObjHandle &data) override;
+
+        std::shared_ptr<AbstractPlugin> getParent() {
+            return _parent.lock();
+        }
     };
 
     //
@@ -141,6 +164,7 @@ namespace plugins {
     class PluginLoader {
     private:
         std::weak_ptr<scope::Context> _context;
+        std::weak_ptr<lifecycle::Kernel> _kernel;
         std::shared_ptr<data::TrackingRoot> _root;
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfig;
 
@@ -188,23 +212,29 @@ namespace plugins {
 
         data::SymbolInit SERVICES{"services"};
         data::SymbolInit SYSTEM{"system"};
+        data::SymbolInit CONFIGURATION{"configuration"};
+        data::SymbolInit LOGGING{"logging"};
 
         explicit PluginLoader(const std::shared_ptr<scope::Context> &context)
             : _context(context), _root(std::make_shared<data::TrackingRoot>(context)) {
             data::SymbolInit::init(
                 context,
-                {&BOOTSTRAP,
-                 &BIND,
-                 &DISCOVER,
-                 &START,
-                 &RUN,
-                 &TERMINATE,
-                 &CONFIG_ROOT,
-                 &CONFIG,
-                 &NUCLEUS_CONFIG,
-                 &NAME,
-                 &SERVICES,
-                 &SYSTEM});
+                {
+                    &BOOTSTRAP,
+                    &BIND,
+                    &DISCOVER,
+                    &START,
+                    &RUN,
+                    &TERMINATE,
+                    &CONFIG_ROOT,
+                    &CONFIG,
+                    &NUCLEUS_CONFIG,
+                    &NAME,
+                    &SERVICES,
+                    &SYSTEM,
+                    &CONFIGURATION,
+                    &LOGGING,
+                });
         }
 
         scope::Context &context() const {
@@ -215,6 +245,7 @@ namespace plugins {
             return _root;
         }
 
+        std::shared_ptr<config::Topics> getServiceTopics(AbstractPlugin &plugin) const;
         std::shared_ptr<data::StructModelBase> buildParams(
             plugins::AbstractPlugin &plugin, bool partial = false) const;
 
@@ -231,5 +262,27 @@ namespace plugins {
             const std::shared_ptr<deployment::DeviceConfiguration> &deviceConfig) {
             _deviceConfig = deviceConfig;
         }
+        void setKernel(const std::shared_ptr<lifecycle::Kernel> &kernel);
+        lifecycle::Kernel &kernel() {
+            return *_kernel.lock();
+        }
     };
+
+    /**
+     * Ensures thread data contains information about current/context module, and performs RII
+     * cleanup
+     */
+    class CurrentModuleScope {
+    private:
+        std::pair<std::shared_ptr<AbstractPlugin>, std::shared_ptr<AbstractPlugin>> _old;
+
+    public:
+        explicit CurrentModuleScope(const std::shared_ptr<AbstractPlugin> &activeModule);
+        CurrentModuleScope(const CurrentModuleScope &) = delete;
+        CurrentModuleScope(CurrentModuleScope &&) = delete;
+        CurrentModuleScope &operator=(const CurrentModuleScope &) = delete;
+        CurrentModuleScope &operator=(CurrentModuleScope &&) = delete;
+        ~CurrentModuleScope();
+    };
+
 } // namespace plugins

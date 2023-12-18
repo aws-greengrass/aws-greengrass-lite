@@ -10,8 +10,8 @@
 namespace lifecycle {
     //
     // GG-Interop:
-    // GG-Java tightly couples Kernel and KernelLifecycle, this class combines functionality from
-    // both. Also, some functionality from KernelCommandLine is moved here.
+    // GG-Java tightly couples Kernel and KernelLifecycle, this class combines functionality
+    // from both. Also, some functionality from KernelCommandLine is moved here.
     //
 
     Kernel::Kernel(const std::shared_ptr<scope::Context> &context) : _context(context) {
