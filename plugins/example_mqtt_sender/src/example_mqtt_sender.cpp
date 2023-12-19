@@ -4,12 +4,8 @@ static const Keys keys;
 
 ggapi::Struct ExampleMqttSender::mqttListener(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
 
-    // TODO: Extend api to perform struct deep copy to outlive the listener
-    _subscribeMessage.put(keys.topicName, args.get<std::string>(keys.topicName));
-    _subscribeMessage.put(keys.payload, args.get<std::string>(keys.payload));
-
-    std::string topic{_subscribeMessage.get<std::string>(keys.topicName)};
-    std::string payload{_subscribeMessage.get<std::string>(keys.payload)};
+    std::string topic{args.get<std::string>(keys.topicName)};
+    std::string payload{args.get<std::string>(keys.payload)};
 
     std::cout << "[example-mqtt-sender] Publish received on topic " << topic << ": " << payload
               << std::endl;
@@ -62,7 +58,7 @@ void ExampleMqttSender::threadFn() {
         request.put(keys.payload, "Hello world!");
 
         std::cerr << "[example-mqtt-sender] Sending..." << std::endl;
-        _publishMessage.store(ggapi::Task::sendToTopic(keys.publishToIoTCoreTopic, request));
+        std::ignore = ggapi::Task::sendToTopic(keys.publishToIoTCoreTopic, request);
         std::cerr << "[example-mqtt-sender] Sending complete." << std::endl;
 
         using namespace std::chrono_literals;

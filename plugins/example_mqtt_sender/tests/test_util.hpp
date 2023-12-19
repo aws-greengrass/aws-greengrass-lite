@@ -36,14 +36,6 @@ public:
     bool stopLifecycle() {
         return executePhase("terminate");
     }
-
-    ggapi::Struct getPublishMessage() {
-        return _publishMessage.load();
-    }
-
-    ggapi::Struct getSubscribeMessage() {
-        return _subscribeMessage;
-    }
 };
 
 class PubSubCallback {

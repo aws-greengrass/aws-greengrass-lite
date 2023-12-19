@@ -18,10 +18,6 @@ class ExampleMqttSender : public ggapi::Plugin {
     std::thread _asyncThread;
     ggapi::Struct mqttListener(ggapi::Task task, ggapi::Symbol, ggapi::Struct args);
 
-protected:
-    std::atomic<ggapi::Struct> _publishMessage{};
-    ggapi::Struct _subscribeMessage{ggapi::Struct::create()};
-
 public:
     bool onStart(ggapi::Struct data) override;
     bool onRun(ggapi::Struct data) override;

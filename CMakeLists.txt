@@ -32,6 +32,9 @@ include(Catch)
 target_compile_features(Catch2 PRIVATE cxx_std_17)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
+fetchContentFromDeps(trompeloeil)
+FetchContent_MakeAvailable(trompeloeil)
+
 if(UNIX)
   add_compile_options(-fvisibility=hidden)
 endif()
