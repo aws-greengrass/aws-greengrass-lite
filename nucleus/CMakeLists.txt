@@ -43,6 +43,7 @@ add_library(
   src/api/plugins.cpp
   src/api/pubsub.cpp
   src/api/tasks.cpp
+  src/api/channel.cpp
   src/config/config_manager.cpp
   src/config/config_manager.hpp
   src/config/config_nodes.hpp
@@ -64,6 +65,8 @@ add_library(
   src/data/handle_table.cpp
   src/data/handle_table.hpp
   src/data/safe_handle.hpp
+  src/channel/channel.cpp
+  src/channel/channel.hpp
   src/data/shared_buffer.cpp
   src/data/shared_buffer.hpp
   src/data/shared_list.cpp

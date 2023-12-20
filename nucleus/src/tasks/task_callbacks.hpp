@@ -72,6 +72,28 @@ namespace tasks {
         const void *data() const override;
     };
 
+    class ChannelListenCallbackData : public CallbackPackedData {
+        ::ChannelListenCallbackData _packed{};
+
+        static data::Symbol channelListenCallbackType();
+
+    public:
+        explicit ChannelListenCallbackData(const std::shared_ptr<data::StructModelBase> &data);
+        uint32_t size() const override;
+        const void *data() const override;
+    };
+
+    class ChannelCloseCallbackData : public CallbackPackedData {
+        ::ChannelCloseCallbackData _packed{};
+
+        static data::Symbol channelCloseCallbackType();
+
+    public:
+        explicit ChannelCloseCallbackData();
+        uint32_t size() const override;
+        const void *data() const override;
+    };
+
     class Callback : public data::TrackedObject {
 
     public:
@@ -88,6 +110,9 @@ namespace tasks {
             const data::Symbol &phase,
             const data::ObjHandle &dataHandle);
         virtual void invokeTaskCallback(const std::shared_ptr<data::StructModelBase> &data);
+        virtual void invokeChannelListenCallback(
+            const std::shared_ptr<data::StructModelBase> &data);
+        virtual void invokeChannelCloseCallback();
     };
 
     class RegisteredCallback : public Callback {
@@ -135,6 +160,9 @@ namespace tasks {
             const data::Symbol &phase,
             const data::ObjHandle &dataHandle) override;
         void invokeTaskCallback(const std::shared_ptr<data::StructModelBase> &data) override;
+        void invokeChannelListenCallback(
+            const std::shared_ptr<data::StructModelBase> &data) override;
+        void invokeChannelCloseCallback() override;
     };
 
 } // namespace tasks
