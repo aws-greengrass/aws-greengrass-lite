@@ -1,5 +1,6 @@
 #include "HeaderValue.hpp"
 
+#include <limits>
 #include <optional>
 #include <plugin.hpp>
 
@@ -125,6 +126,10 @@ public:
                                                 : ggapi::Struct::create().toJson();
 
         auto serviceModel = response.get<std::string>(keys.serviceModelType);
+        if(serviceModel.size() > std::numeric_limits<uint16_t>::max()) {
+            // TODO: Error handling
+            serviceModel.resize(std::numeric_limits<uint16_t>::max());
+        }
 
         const auto sender = [self = std::move(self)](auto *args) {
             return aws_event_stream_rpc_server_continuation_send_message(
@@ -135,6 +140,10 @@ public:
         auto contentType = response.hasKey(keys.contentType)
                                ? response.get<std::string>(keys.contentType)
                                : "application/json"s;
+        if(contentType.size() > std::numeric_limits<uint16_t>::max()) {
+            // TODO: Error handling
+            contentType.resize(std::numeric_limits<uint16_t>::max());
+        }
 
         std::array headers{
             makeHeader(Headers::ServiceModelType, Headervaluetypes::stringbuffer{serviceModel}),
