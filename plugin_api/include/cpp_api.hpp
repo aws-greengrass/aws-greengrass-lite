@@ -1025,12 +1025,12 @@ namespace ggapi {
         }
 
         template<typename DataT, typename SizeT>
-        uint32_t get(int32_t idx, util::Span<DataT, SizeT> span) {
+        uint32_t get(int32_t idx, util::Span<DataT, SizeT> span) const {
             return get(idx, util::as_writeable_bytes(span)) / sizeof(DataT);
         }
 
         template<typename SizeT>
-        uint32_t get(int32_t idx, util::Span<char, SizeT> bytes) {
+        uint32_t get(int32_t idx, util::Span<char, SizeT> bytes) const {
             if(bytes.size() > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("length out of range");
             }
@@ -1042,21 +1042,21 @@ namespace ggapi {
         }
 
         template<typename T, class Alloc>
-        size_t get(int32_t idx, std::vector<T, Alloc> &vec) {
+        size_t get(int32_t idx, std::vector<T, Alloc> &vec) const {
             size_t actual = get(idx, util::as_writeable_bytes(util::Span{vec})) / sizeof(T);
             vec.resize(actual);
             return actual;
         }
 
         template<typename CharT, class Traits, class Alloc>
-        size_t get(int32_t idx, std::basic_string<CharT, Traits, Alloc> &str) {
+        size_t get(int32_t idx, std::basic_string<CharT, Traits, Alloc> &str) const {
             size_t actual = get(idx, util::as_writeable_bytes(util::Span{str})) / sizeof(CharT);
             str.resize(actual);
             return actual;
         }
 
         template<typename T>
-        T get(int32_t idx, size_t max) {
+        T get(int32_t idx, size_t max) const {
             if(max > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("max length out of range");
             }
