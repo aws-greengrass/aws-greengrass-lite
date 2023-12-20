@@ -187,12 +187,10 @@ void IotBroker::initMqtt() {
         builder->WithPublishReceivedCallback(
             [this](const Aws::Crt::Mqtt5::PublishReceivedEventData &eventData) {
                 if(eventData.publishPacket) {
-
-                    std::string topic{eventData.publishPacket->getTopic()};
-                    std::string_view payload{
-                        // NOLINTNEXTLINE(*-reinterpret-cast)
-                        reinterpret_cast<char *>(eventData.publishPacket->getPayload().ptr),
-                        eventData.publishPacket->getPayload().len};
+                    auto payloadBytes =
+                        Aws::Crt::ByteCursorToStringView(eventData.publishPacket->getPayload());
+                    std::string_view payload{payloadBytes.data(), payloadBytes.size()};
+                    const auto &topic{eventData.publishPacket->getTopic()};
 
                     std::cerr << "[mqtt-plugin] Publish received on topic " << topic << ": "
                               << payload << std::endl;

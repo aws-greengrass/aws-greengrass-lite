@@ -157,7 +157,7 @@ namespace util {
 
         template<class Traits, class Alloc>
         explicit constexpr Span(std::basic_string<value_type, Traits, Alloc> &str)
-            : _ptr{str.data()}, _len{std::size(str)} {
+            : _ptr{std::data(str)}, _len{static_cast<SizeT>(std::size(str))} {
         }
 
         template<typename Alloc>

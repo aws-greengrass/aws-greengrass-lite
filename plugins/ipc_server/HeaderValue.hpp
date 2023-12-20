@@ -18,8 +18,8 @@
 
 namespace Headervaluetypes {
     using timestamp = std::chrono::duration<uint64_t, std::milli>;
-    using bytebuffer = util::Span<uint8_t>;
-    using stringbuffer = util::Span<char>;
+    using bytebuffer = util::Span<uint8_t, uint16_t>;
+    using stringbuffer = util::Span<char, uint16_t>;
 } // namespace Headervaluetypes
 
 using HeaderValue = std::variant<
@@ -50,9 +50,9 @@ To from_network_bytes(const uint8_t (&buffer)[N]) noexcept {
         return to;
     } else {
         // convert from network byte order
-        // NOLINTNEXTLINE(*-reinterpret-cast)
-        auto *punned = reinterpret_cast<uint8_t *>(&to);
-        std::reverse_copy(std::begin(buffer), std::next(std::begin(buffer), sizeof(To)), punned);
+        auto bufferBytes = util::Span{std::data(buffer), sizeof(To)};
+        auto toBytes = util::as_writeable_bytes(util::Span{&to, 1});
+        std::reverse_copy(bufferBytes.begin(), bufferBytes.end(), toBytes.begin());
     }
     return to;
 }
@@ -66,16 +66,13 @@ void to_network_bytes(uint8_t (&buffer)[N], const From &from) noexcept {
         std::memcpy(std::data(buffer), &from, sizeof(From));
     } else {
         // convert to network byte order
-        // NOLINTNEXTLINE(*-reinterpret-cast)
-        auto *punned = reinterpret_cast<const uint8_t *>(&from);
-        std::reverse_copy(punned, std::next(punned, sizeof(From)), std::begin(buffer));
+        auto fromBytes = util::as_bytes(util::Span{&from, 1});
+        std::reverse_copy(fromBytes.begin(), fromBytes.end(), std::begin(buffer));
     }
 }
 
 // NOLINTBEGIN(*-union-access)
 static HeaderValue getValue(const aws_event_stream_header_value_pair &header) noexcept {
-    auto *staticData = std::data(header.header_value.static_val);
-    auto *variableData = header.header_value.variable_len_val;
     switch(header.header_value_type) {
         case AWS_EVENT_STREAM_HEADER_BOOL_TRUE:
             return true;
@@ -90,11 +87,10 @@ static HeaderValue getValue(const aws_event_stream_header_value_pair &header) no
         case AWS_EVENT_STREAM_HEADER_INT64:
             return from_network_bytes<int64_t>(header.header_value.static_val);
         case AWS_EVENT_STREAM_HEADER_BYTE_BUF:
-            return Headervaluetypes::bytebuffer{variableData, header.header_value_len};
+            return util::Span{header.header_value.variable_len_val, header.header_value_len};
         case AWS_EVENT_STREAM_HEADER_STRING:
-            return Headervaluetypes::stringbuffer{// NOLINTNEXTLINE(*-reinterpret-cast)
-                                                  reinterpret_cast<char *>(variableData),
-                                                  header.header_value_len};
+            return util::as_writeable_bytes(
+                util::Span{header.header_value.variable_len_val, header.header_value_len});
         case AWS_EVENT_STREAM_HEADER_TIMESTAMP:
             return Headervaluetypes::timestamp{
                 from_network_bytes<uint64_t>(header.header_value.static_val)};
@@ -181,8 +177,8 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
             } else if constexpr(
                 std::is_same_v<Headervaluetypes::stringbuffer, T>
                 || std::is_same_v<Headervaluetypes::bytebuffer, T>) {
-                // NOLINTNEXTLINE(*-reinterpret-cast)
-                os.write(reinterpret_cast<const char *>(val.begin()), val.size());
+                auto bytes = util::as_bytes(val);
+                os.write(bytes.data(), bytes.size());
             } else if constexpr(std::is_same_v<T, aws_uuid>) {
                 auto flags = os.flags();
                 os.flags(std::ios::hex | std::ios::uppercase);
