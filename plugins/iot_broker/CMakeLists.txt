@@ -13,8 +13,8 @@ if(NOT device-sdk-cpp_POPULATED)
                    EXCLUDE_FROM_ALL)
 endif()
 
-add_library(iot_broker MODULE main.cpp src/iot_broker.cpp src/iot_broker.hpp
-                              src/topic_filter.hpp src/topic_level_iterator.hpp)
-target_link_libraries(iot_broker PRIVATE nucleus-core aws-crt-cpp)
+add_library(iot_broker MODULE main.cpp src/iot_broker.cpp src/iot_broker.hpp)
+target_link_libraries(iot_broker PRIVATE nucleus-core aws-crt-cpp
+                                         shared_resources)
 
 install(TARGETS iot_broker DESTINATION plugins)

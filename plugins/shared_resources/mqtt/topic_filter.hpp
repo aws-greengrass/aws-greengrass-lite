@@ -1,12 +1,10 @@
-
 #pragma once
 
 #include "topic_level_iterator.hpp"
-
 #include <stdexcept>
 #include <string>
 
-template<class Alloc>
+template<class Alloc = std::allocator<char>>
 class TopicFilter {
 public:
     using value_type = std::basic_string<char, std::char_traits<char>, Alloc>;

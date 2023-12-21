@@ -1,8 +1,8 @@
 #include "iot_broker.hpp"
-#include "cpp_api.hpp"
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
+#include <cpp_api.hpp>
 #include <mutex>
 #include <variant>
 

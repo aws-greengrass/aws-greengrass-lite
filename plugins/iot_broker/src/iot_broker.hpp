@@ -1,21 +1,19 @@
 #pragma once
 
+#include <aws/crt/Api.h>
+#include <aws/crt/Types.h>
+#include <aws/crt/mqtt/Mqtt5Packets.h>
+#include <aws/iot/Mqtt5Client.h>
+#include <cpp_api.hpp>
 #include <iostream>
 #include <memory>
+#include <mqtt/topic_filter.hpp>
+#include <plugin.hpp>
 #include <shared_mutex>
 #include <stdexcept>
 #include <string_view>
 #include <thread>
 #include <unordered_map>
-
-#include <aws/crt/Api.h>
-#include <aws/crt/Types.h>
-#include <aws/crt/mqtt/Mqtt5Packets.h>
-#include <aws/iot/Mqtt5Client.h>
-
-#include "cpp_api.hpp"
-#include "topic_filter.hpp"
-#include <plugin.hpp>
 
 class mqttBuilderException : public ggapi::GgApiError {
     [[nodiscard]] const char *what() const noexcept override {
