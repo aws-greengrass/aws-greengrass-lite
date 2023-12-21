@@ -33,6 +33,6 @@ uint32_t ggapiChangeModule(uint32_t moduleHandleInt) noexcept {
         auto &context = scope::context();
         auto targetModule{context.objFromInt<plugins::AbstractPlugin>(moduleHandleInt)};
         auto prev = scope::thread().setEffectiveModule(targetModule);
-        return prev->getSelf().asInt();
+        return scope::NucleusCallScopeContext::intHandle(prev);
     });
 }

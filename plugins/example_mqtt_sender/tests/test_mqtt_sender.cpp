@@ -30,8 +30,8 @@ SCENARIO("Example Mqtt Sender plugin characteristics", "[pubsub]") {
             REQUIRE(!sender.executePhase(BIND));
             REQUIRE(!sender.executePhase(DISCOVER));
             REQUIRE(sender.executePhase(START));
-            // TODO: Fix causing race
-            //        REQUIRE(sender.executePhase(RUN));
+//             TODO: Fix causing race
+            REQUIRE(sender.executePhase(RUN));
             REQUIRE(sender.executePhase(TERMINATE));
         }
     }
