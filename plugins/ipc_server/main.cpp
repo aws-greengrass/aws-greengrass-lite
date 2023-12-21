@@ -19,14 +19,13 @@ private:
     Keys() = default;
 
 public:
-    ggapi::Symbol lpcResponseTopic{"lpcResponseTopic"};
-
     ggapi::Symbol terminate{"terminate"};
     ggapi::Symbol contentType{"contentType"};
     ggapi::Symbol serviceModelType{"serviceModelType"};
     ggapi::Symbol shape{"shape"};
     ggapi::Symbol accepted{"accepted"};
     ggapi::Symbol errorCode{"errorCode"};
+    ggapi::Symbol channel{"channel"};
 
     static const Keys &get() {
         static Keys keys;
@@ -75,6 +74,44 @@ static std::ostream &operator<<(
 // Class Definitions
 //
 
+class IpcServer final : public ggapi::Plugin {
+private:
+    using MutexType = std::shared_mutex;
+    template<template<class> class Lock>
+    static constexpr bool is_lockable = std::is_constructible_v<Lock<MutexType>, MutexType &>;
+
+public:
+    bool onBootstrap(ggapi::Struct data) override;
+    bool onBind(ggapi::Struct data) override;
+    bool onStart(ggapi::Struct data) override;
+    bool onTerminate(ggapi::Struct data) override;
+    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
+
+    static IpcServer &get() {
+        static IpcServer instance{};
+        return instance;
+    }
+
+    template<template<class> class Lock = std::unique_lock>
+    std::enable_if_t<is_lockable<Lock>, Lock<MutexType>> lock() & {
+        return Lock{mutex};
+    }
+
+private:
+    MutexType mutex;
+    Aws::Crt::Io::EventLoopGroup eventLoop{1};
+    Aws::Crt::Io::SocketOptions socketOpts = []() -> auto {
+        using namespace Aws::Crt::Io;
+        SocketOptions opts{};
+        opts.SetSocketDomain(SocketDomain::Local);
+        opts.SetSocketType(SocketType::Stream);
+        return opts;
+    }();
+    static constexpr uint16_t port = 54345;
+    Aws::Crt::Io::ServerBootstrap bootstrap{eventLoop};
+    aws_event_stream_rpc_server_listener *listener{};
+};
+
 class ServerContinuation {
 public:
     using Token = aws_event_stream_rpc_server_continuation_token;
@@ -82,11 +119,19 @@ public:
 private:
     Token *token;
     std::string operation;
+    ggapi::Channel channel{};
     using ContinutationHandle = std::shared_ptr<ServerContinuation> *;
 
 public:
     explicit ServerContinuation(Token *token, std::string operation)
         : token{token}, operation{std::move(operation)} {
+    }
+
+    ~ServerContinuation() noexcept {
+        if(channel) {
+            channel.close();
+            channel.release();
+        }
     }
 
     Token *GetUnderlyingHandle() {
@@ -102,10 +147,7 @@ public:
     }
 
     static ggapi::Struct onTopicResponse(
-        const std::weak_ptr<ServerContinuation> &weakSelf,
-        const ggapi::Task &,
-        ggapi::StringOrd,
-        ggapi::Struct response) {
+        const std::weak_ptr<ServerContinuation> &weakSelf, ggapi::Struct response) {
         // TODO: unsubscribe
         auto self = weakSelf.lock();
         if(!self) {
@@ -177,19 +219,20 @@ public:
         auto scope = ggapi::CallScope{};
         // NOLINTNEXTLINE
         auto continuation = *static_cast<ContinutationHandle>(user_data);
-        auto subscription = scope.subscribeToTopic(
-            {},
-            ggapi::TopicCallback::of(
-                &ServerContinuation::onTopicResponse, std::weak_ptr{continuation}));
-        json.put("lpcResponseTopic", subscription);
         auto response = Task::sendToTopic(continuation->lpcTopic(), json);
         if(response.empty()) {
             std::cerr << "[IPC] LPC appears unhandled\n";
             // TODO: send error response
         } else {
             response.put(keys.serviceModelType, continuation->ipcServiceModel());
-            std::ignore = subscription.call(response);
-            // TODO: keep track of subscription for unsubscribe on disconnect...
+            ServerContinuation::onTopicResponse(continuation, response);
+            if(response.hasKey(keys.channel)) {
+                auto channel =
+                    IpcServer::get().getScope().anchor(response.get<ggapi::Channel>(keys.channel));
+                continuation->channel = channel;
+                channel.addListenCallback(ggapi::ChannelListenCallback::of(
+                    &ServerContinuation::onTopicResponse, std::weak_ptr{continuation}));
+            }
         }
     }
 
@@ -338,44 +381,6 @@ public:
 
         return AWS_OP_SUCCESS;
     }
-};
-
-class IpcServer final : public ggapi::Plugin {
-private:
-    using MutexType = std::shared_mutex;
-    template<template<class> class Lock>
-    static constexpr bool is_lockable = std::is_constructible_v<Lock<MutexType>, MutexType &>;
-
-public:
-    bool onBootstrap(ggapi::Struct data) override;
-    bool onBind(ggapi::Struct data) override;
-    bool onStart(ggapi::Struct data) override;
-    bool onTerminate(ggapi::Struct data) override;
-    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
-
-    static IpcServer &get() {
-        static IpcServer instance{};
-        return instance;
-    }
-
-    template<template<class> class Lock = std::unique_lock>
-    std::enable_if_t<is_lockable<Lock>, Lock<MutexType>> lock() & {
-        return Lock{mutex};
-    }
-
-private:
-    MutexType mutex;
-    Aws::Crt::Io::EventLoopGroup eventLoop{1};
-    Aws::Crt::Io::SocketOptions socketOpts = []() -> auto {
-        using namespace Aws::Crt::Io;
-        SocketOptions opts{};
-        opts.SetSocketDomain(SocketDomain::Local);
-        opts.SetSocketType(SocketType::Stream);
-        return opts;
-    }();
-    static constexpr uint16_t port = 54345;
-    Aws::Crt::Io::ServerBootstrap bootstrap{eventLoop};
-    aws_event_stream_rpc_server_listener *listener{};
 };
 
 // Initializes global CRT API

@@ -8,11 +8,10 @@ struct Keys {
     ggapi::StringOrd publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
     ggapi::StringOrd subscribeToIoTCoreTopic{"aws.greengrass.SubscribeToIoTCore"};
     ggapi::StringOrd topicName{"topicName"};
-    ggapi::StringOrd topicFilter{"topicFilter"};
     ggapi::StringOrd qos{"qos"};
     ggapi::StringOrd payload{"payload"};
     ggapi::StringOrd mqttPing{"mqttPing"};
-    ggapi::StringOrd lpcResponseTopic{"lpcResponseTopic"};
+    ggapi::StringOrd channel{"channel"};
 };
 
 class MqttSender : public ggapi::Plugin {
@@ -32,14 +31,12 @@ static const Keys keys;
 
 void threadFn();
 
-ggapi::Struct mqttListener(ggapi::Task task, ggapi::StringOrd, ggapi::Struct args) {
+void mqttListener(ggapi::Struct args) {
     std::string topic{args.get<std::string>(keys.topicName)};
     std::string payload{args.get<std::string>(keys.payload)};
 
     std::cout << "[example-mqtt-sender] Publish recieved on topic " << topic << ": " << payload
               << std::endl;
-
-    return ggapi::Struct::create();
 }
 
 extern "C" [[maybe_unused]] bool greengrass_lifecycle(
@@ -59,17 +56,18 @@ static std::ostream &operator<<(std::ostream &os, const ggapi::Buffer &buffer) {
 }
 
 bool MqttSender::onStart(ggapi::Struct data) {
-    std::ignore = getScope().subscribeToTopic(keys.mqttPing, mqttListener);
     return true;
 }
 
 bool MqttSender::onRun(ggapi::Struct data) {
     auto request{ggapi::Struct::create()};
-    request.put(keys.topicFilter, "ping/#");
+    request.put(keys.topicName, "ping/#");
     request.put(keys.qos, 1);
     // TODO: Use anonymous listener handle
-    request.put(keys.lpcResponseTopic, keys.mqttPing);
-    std::ignore = ggapi::Task::sendToTopic(keys.subscribeToIoTCoreTopic, request);
+    auto result = ggapi::Task::sendToTopic(keys.subscribeToIoTCoreTopic, request);
+    auto channel = getScope().anchor(result.get<ggapi::Channel>(keys.channel));
+    channel.addListenCallback(mqttListener);
+    channel.addCloseCallback([channel]() { channel.release(); });
 
     std::thread asyncThread{threadFn};
     asyncThread.detach();

@@ -1,7 +1,10 @@
 #include "iot_broker.hpp"
+#include "cpp_api.hpp"
+#include <algorithm>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <variant>
 
 ggapi::Struct IotBroker::ipcPublishHandler(
     ggapi::Task task, ggapi::Symbol symbol, ggapi::Struct args) {
@@ -64,23 +67,23 @@ static bool blockingSubscribe(
 }
 
 ggapi::Struct IotBroker::ipcSubscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
-    TopicFilter topicFilter{args.get<Aws::Crt::String>(keys.topicName)};
-    auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
-    auto responseTopic{args.get<ggapi::Subscription>(keys.lpcResponseTopic)};
+    auto ret = commonSubscribeHandler(args, [](ggapi::Struct packet) {
+        auto payload = packet.get<std::string>(keys.payload);
+        packet.put(
+            keys.payload,
+            Aws::Crt::Base64Encode(Aws::Crt::Vector<uint8_t>{payload.begin(), payload.end()}));
+        return ggapi::Struct::create()
+            .put(keys.shape, ggapi::Struct::create().put(keys.message, packet))
+            .put(keys.serviceModelType, "aws.greengrass#IoTCoreMessage");
+    });
 
-    std::cerr << "[mqtt-plugin] IPC Subscribing to " << topicFilter.get() << std::endl;
-
-    auto subscribe = std::make_shared<Aws::Crt::Mqtt5::SubscribePacket>();
-    subscribe->WithSubscription(Aws::Crt::Mqtt5::Subscription{topicFilter.get(), qos});
-
-    if(!blockingSubscribe(*_client, std::move(subscribe))) {
-        std::cerr << "[mqtt-plugin] IPC Subscribe failed" << std::endl;
-        return ggapi::Struct::create().put(keys.errorCode, 1);
-    } else {
-        std::unique_lock lock(_subscriptionMutex);
-        _ipcSubscriptions.emplace(std::move(topicFilter), getScope().anchor(responseTopic));
-        return ggapi::Struct::create().put(keys.shape, ggapi::Struct::create());
+    if(std::holds_alternative<ggapi::Channel>(ret)) {
+        return ggapi::Struct::create()
+            .put(keys.shape, ggapi::Struct::create())
+            .put(keys.channel, std::get<ggapi::Channel>(ret));
     }
+
+    return ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret));
 }
 
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
@@ -137,10 +140,10 @@ ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struc
     return response;
 }
 
-ggapi::Struct IotBroker::subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
-    TopicFilter topicFilter{args.get<Aws::Crt::String>(keys.topicFilter)};
+std::variant<ggapi::Channel, uint32_t> IotBroker::commonSubscribeHandler(
+    ggapi::Struct args, PacketHandler handler) {
+    TopicFilter topicFilter{args.get<Aws::Crt::String>(keys.topicName)};
     auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
-    ggapi::Symbol responseTopic{args.get<std::string>(keys.lpcResponseTopic)};
 
     std::cerr << "[mqtt-plugin] Subscribing to " << topicFilter.get() << std::endl;
 
@@ -149,12 +152,33 @@ ggapi::Struct IotBroker::subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Str
 
     if(!blockingSubscribe(*_client, std::move(subscribe))) {
         std::cerr << "[mqtt-plugin] Subscribe failed" << std::endl;
+        return uint32_t{1};
     } else {
         std::unique_lock lock(_subscriptionMutex);
-        _subscriptions.emplace(std::move(topicFilter), responseTopic);
+        auto channel = getScope().anchor(ggapi::Channel::create());
+        _subscriptions.emplace_back(std::move(topicFilter), channel, std::move(handler));
+        channel.addCloseCallback([this, channel]() {
+            std::unique_lock lock(_subscriptionMutex);
+            auto iter =
+                std::find_if(_subscriptions.begin(), _subscriptions.end(), [channel](auto &&sub) {
+                    return std::get<1>(sub) == channel;
+                });
+            std::iter_swap(iter, std::prev(_subscriptions.end()));
+            _subscriptions.pop_back();
+            channel.release();
+        });
+        return channel;
+    }
+}
+
+ggapi::Struct IotBroker::subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
+    auto ret = commonSubscribeHandler(args, [](ggapi::Struct packet) { return packet; });
+
+    if(std::holds_alternative<ggapi::Channel>(ret)) {
+        return ggapi::Struct::create().put(keys.channel, std::get<ggapi::Channel>(ret));
     }
 
-    return ggapi::Struct::create();
+    return ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret));
 }
 
 void IotBroker::initMqtt() {
@@ -189,35 +213,22 @@ void IotBroker::initMqtt() {
                 if(eventData.publishPacket) {
                     auto payloadBytes =
                         Aws::Crt::ByteCursorToStringView(eventData.publishPacket->getPayload());
+                    // TODO: Make this a span
                     std::string_view payload{payloadBytes.data(), payloadBytes.size()};
                     const auto &topic{eventData.publishPacket->getTopic()};
 
                     std::cerr << "[mqtt-plugin] Publish received on topic " << topic << ": "
                               << payload << std::endl;
 
-                    auto response{ggapi::Struct::create()};
-                    response.put(keys.topicName, topic);
-                    response.put(keys.payload, payload);
+                    std::shared_lock lock(_subscriptionMutex);
+                    for(const auto &[filter, channel, packetHandler] : _subscriptions) {
+                        if(filter.match(topic)) {
+                            auto response{ggapi::Struct::create()};
+                            response.put(keys.topicName, topic);
+                            response.put(keys.payload, payload);
 
-                    auto ipcResponse =
-                        ggapi::Struct::create()
-                            .put(keys.shape, ggapi::Struct::create().put(keys.message, response))
-                            .put("serviceModelType", "aws.greengrass#IoTCoreMessage");
-                    {
-                        std::shared_lock lock(_subscriptionMutex);
-                        for(const auto &[key, value] : _subscriptions) {
-                            if(key.match(topic)) {
-                                std::ignore = ggapi::Task::sendToTopic(value, response);
-                            }
-                        }
-                        response.put(
-                            keys.payload,
-                            Aws::Crt::Base64Encode(
-                                Aws::Crt::Vector<uint8_t>{payload.begin(), payload.end()}));
-                        for(const auto &[key, subscription] : _ipcSubscriptions) {
-                            if(key.match(topic)) {
-                                std::ignore = subscription.call(ipcResponse);
-                            }
+                            auto finalResp = packetHandler(response);
+                            channel.write(finalResp);
                         }
                     }
                 }

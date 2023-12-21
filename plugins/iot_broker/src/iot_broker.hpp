@@ -13,6 +13,7 @@
 #include <aws/crt/mqtt/Mqtt5Packets.h>
 #include <aws/iot/Mqtt5Client.h>
 
+#include "cpp_api.hpp"
 #include "topic_filter.hpp"
 #include <plugin.hpp>
 
@@ -34,6 +35,8 @@ class mqttClienFailedToStart : public ggapi::GgApiError {
     }
 };
 
+using PacketHandler = std::function<ggapi::Struct(ggapi::Struct packet)>;
+
 class IotBroker : public ggapi::Plugin {
     struct Keys {
         ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
@@ -42,13 +45,13 @@ class IotBroker : public ggapi::Plugin {
         ggapi::Symbol ipcSubscribeToIoTCoreTopic{"IPC::aws.greengrass#SubscribeToIoTCore"};
         ggapi::Symbol requestDeviceProvisionTopic{"aws.greengrass.RequestDeviceProvision"};
         ggapi::Symbol topicName{"topicName"};
-        ggapi::Symbol topicFilter{"topicFilter"};
         ggapi::Symbol qos{"qos"};
         ggapi::Symbol payload{"payload"};
-        ggapi::Symbol lpcResponseTopic{"lpcResponseTopic"};
         ggapi::Symbol message{"message"};
         ggapi::Symbol shape{"shape"};
         ggapi::Symbol errorCode{"errorCode"};
+        ggapi::Symbol channel{"channel"};
+        ggapi::Symbol serviceModelType{"serviceModelType"};
     };
 
     struct ThingInfo {
@@ -87,12 +90,13 @@ private:
     ggapi::Struct subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
 
     ggapi::Struct ipcSubscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
+    std::variant<ggapi::Channel, uint32_t> commonSubscribeHandler(
+        ggapi::Struct args, PacketHandler handler);
 
     void initMqtt();
 
     using Key = TopicFilter<Aws::Crt::StlAllocator<char>>;
-    std::unordered_multimap<Key, ggapi::Symbol, Key::Hash> _subscriptions;
-    std::unordered_multimap<Key, ggapi::Subscription, Key::Hash> _ipcSubscriptions;
+    std::vector<std::tuple<Key, ggapi::Channel, PacketHandler>> _subscriptions;
     std::shared_mutex _subscriptionMutex;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
 };
