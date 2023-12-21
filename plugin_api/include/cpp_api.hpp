@@ -720,11 +720,11 @@ namespace ggapi {
             return Channel(::ggapiCreateChannel());
         }
 
-        void write(ObjHandle v) {
+        void write(ObjHandle v) const {
             ::ggapiChannelWrite(_handle, v.getHandleId());
         }
 
-        void close() {
+        void close() const {
             ::ggapiChannelClose(_handle);
         }
 
