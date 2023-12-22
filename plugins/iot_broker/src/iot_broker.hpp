@@ -50,6 +50,7 @@ class IotBroker : public ggapi::Plugin {
         ggapi::Symbol errorCode{"errorCode"};
         ggapi::Symbol channel{"channel"};
         ggapi::Symbol serviceModelType{"serviceModelType"};
+        ggapi::Symbol terminate{"terminate"};
     };
 
     struct ThingInfo {

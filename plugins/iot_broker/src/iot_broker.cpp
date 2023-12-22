@@ -15,8 +15,7 @@ ggapi::Struct IotBroker::ipcPublishHandler(
         args.put(keys.payload, std::string{decoded.begin(), decoded.end()});
     }
     auto response = publishHandler(task, symbol, args);
-    ggapi::Buffer a;
-    return ggapi::Struct::create().put(keys.shape, response);
+    return ggapi::Struct::create().put(keys.shape, response).put(keys.terminate, true);
 }
 
 static bool blockingSubscribe(
