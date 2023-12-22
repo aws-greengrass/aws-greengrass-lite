@@ -20,8 +20,8 @@ The `plugin_api` directory has the interface plugins should build against.
 
 | Feature                                 | Supported | Schedule | Plugin that provides support |
 | :-------------------------------------- | :-------: | :------: | :--------------------------- |
-| SubscribeToTopic                        |     x     |   now    | nucleus                      |
-| PublishToTopic                          |     x     |   now    | nucleus                      |
+| SubscribeToTopic                        |     x     |   now    | local_broker                 |
+| PublishToTopic                          |     x     |   now    | local_broker                 |
 | PublishToIoTCore                        |     x     |   now    | iot_broker                   |
 | SubscribeToIoTCore                      |     x     |   now    | iot_broker                   |
 | UpdateState                             |           |   soon   |                              |
