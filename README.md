@@ -68,14 +68,26 @@ currently install is performed by the compile from source steps below.
 A working installation will require a config file and a thing certificate
 package.
 
-Create First go to AWS IoT Core and create a thing. Put the c
+First go to AWS IoT Core and create a thing.
+
+Copy the sample config in `./setup/nucleus_config.yml`.
+
+Configure the following in your config file
+
+- privateKeyPath: Path to private key for the Thing
+- certificateFilePath: Path to Thing certificate
+- thingName: Name of the Thing
+- rootpath: Absolute path to the run directory created above
+- awsRegion: The AWS region with the Thing
+- iotCredEndpoint: The IoT Core endpoint
+- iotDataEndpoint: The IoT Core endpoint
 
 ### Running Greengrass Lite
 
 For these examples greengrass is installed in the ~/gglite_testing folder. This
 can be changed to suit your system. The settings shown will process the
 config.yaml and populate the config folder with pre-processed versions. If you
-change config.yaml you will need to either delete the preprocessed files or
+change config.yaml you will need to delete the preprocessed files.
 
 ```bash
 ~/gglite_testing/bin/greengrass-lite -r ~/gglite_testing --init-config ~/gglite_testing/config/config.yaml
