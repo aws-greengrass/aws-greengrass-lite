@@ -20,11 +20,16 @@ def pytest_addoption(parser):
 
 
 if __name__ == "__main__":
-    args = parser.parse_args()
-    config = os.path.abspath(args.config_file)
-    pytest_args = ["-s", "-v", "--config-file", config]
-    ts = datetime.now().isoformat().replace(":", ".")
+    args, uargs = parser.parse_known_args()
+    pytest_args = [
+        "-s", "-v", "--config-file",
+        os.path.abspath(args.config_file)
+    ]
+    if uargs:
+        for arg in uargs:
+            pytest_args.append(arg)
     if args.report:
+        ts = datetime.now().isoformat().replace(":", ".")
         pytest_args += (
             "--json-report --json-report-indent=2 "
             f"--json-report-file=./gglite_report_{ts}.json").split()

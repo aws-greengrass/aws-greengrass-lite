@@ -1,10 +1,8 @@
 import threading
 import time
-from typing import override
 from unittest import mock
 
 import pytest
-from awsiot.eventstreamrpc import StreamResponseHandler
 from awsiot.greengrasscoreipc.model import (
     MessageContext,
     SubscriptionResponseMessage,
@@ -13,6 +11,8 @@ from awsiot.greengrasscoreipc.model import (
     MQTTMessage,
     IoTCoreMessage,
 )
+
+from utils import StreamHandler
 
 TIMEOUT = 10
 
@@ -63,22 +63,6 @@ def test_iot_core_publish(ipc_client, mqtt_client, get_data: tuple[str, str,
 #
 # Greengrass Lite Subscribe
 #
-class StreamHandler(StreamResponseHandler):
-
-    @override
-    def on_stream_event(
-        event: IoTCoreMessage | SubscriptionResponseMessage, ) -> None:
-        pass
-
-    @override
-    def on_stream_error(error: Exception) -> bool:
-        pass
-
-    @override
-    def on_stream_closed() -> None:
-        pass
-
-
 @pytest.mark.usefixtures("publish_to_local_topic")
 @pytest.mark.parametrize("get_data", [("my/topic", r"Hello World!"),
                                       ("my/#", r"Hello World!")])
@@ -162,18 +146,18 @@ def test_local_subscribe_and_publish(ipc_client):
     # subscribe to a local topic
     stream_handler = StreamHandler()
     event = threading.Event()
-    stream_handler.on_stream_event = mock.MagicMock(return_value=None,
-                                                    side_effect=event.set())
-    stream_handler.on_stream_error = mock.MagicMock(return_value=True)
-    stream_handler.on_stream_closed = mock.MagicMock(return_value=None)
+    stream_handler.on_stream_event = mock.Mock(return_value=None,
+                                               side_effect=event.set())
+    stream_handler.on_stream_error = mock.Mock(return_value=True)
+    stream_handler.on_stream_closed = mock.Mock(return_value=None)
     sub_response, operation = ipc_client.subscribe_to_topic_async(
         topic=topic, stream_handler=stream_handler)
     assert sub_response.result(timeout=TIMEOUT) is not None
     print(f"Subscribed to a local topic {topic}")
 
     # publish to a local topic
-    binary_meesage = BinaryMessage(message=bytes(payload, "utf-8"))
-    publish_message = PublishMessage(binary_message=binary_meesage)
+    binary_message = BinaryMessage(message=bytes(payload, "utf-8"))
+    publish_message = PublishMessage(binary_message=binary_message)
     pub_response = ipc_client.publish_to_topic_async(
         topic=topic, publish_message=publish_message)
     assert pub_response.result(timeout=TIMEOUT) is not None
@@ -192,8 +176,8 @@ def test_iot_core_subscribe_and_publish(ipc_client):
     topic: str = "my/topic"
     qos: str = "1"
     payload: str = r"Hello World!"
-    expected_respone = IoTCoreMessage()
-    expected_respone.message = MQTTMessage(topic_name=topic, payload=payload)
+    expected_response = IoTCoreMessage(
+        message=MQTTMessage(topic_name=topic, payload=payload))
 
     # mock the stream handler
     stream_handler = StreamHandler()
@@ -219,7 +203,7 @@ def test_iot_core_subscribe_and_publish(ipc_client):
     # callback called with expected response
     event.wait(timeout=TIMEOUT)
     time.sleep(0.1)
-    stream_handler.on_stream_event.assert_called_with(expected_respone)
+    stream_handler.on_stream_event.assert_called_with(expected_response)
 
     # close the stream
     operation.close()

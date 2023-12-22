@@ -24,12 +24,22 @@ def config_data(request):
 
 
 @pytest.fixture(scope="session", autouse=True)
-def ipc_client(config_data):
-    os.environ[
-        "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"] = config_data[
-            "socket_path"]
-    os.environ["AWS_REGION"] = config_data["region"]
-    os.environ["SVCUID"] = config_data["svcuid"]
+def set_env(config_data):
+    os.environ["AWS_REGION"] = config_data["region"] or "us-west-2"
+    if not config_data["svcuid"]:
+        raise ValueError("svcuid is required")
+    else:
+        os.environ["SVCUID"] = config_data["svcuid"]
+    if not os.path.exists(config_data["socket_path"]):
+        raise ValueError("socket_path is missing or do not exist")
+    else:
+        os.environ[
+            "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"] = config_data[
+                "socket_path"]
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ipc_client(set_env):
     client = GreengrassCoreIPCClientV2()
     yield client
     client.close()

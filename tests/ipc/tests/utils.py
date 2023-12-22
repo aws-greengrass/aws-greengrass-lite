@@ -1,5 +1,8 @@
 import threading
+from typing import override
+
 import paho.mqtt.client as mqtt
+from awsiot.eventstreamrpc import Shape, StreamResponseHandler
 
 
 class MqttClient:
@@ -45,6 +48,7 @@ class MqttClient:
         print("Successfully disconnected mqtt client")
 
     def _wait(self, timeout: int):
+        print("Waiting for the response from server...")
         self.__event.wait(timeout=timeout)
         if not self.__event.is_set():
             print("Request timed out!")
@@ -59,7 +63,7 @@ class MqttClient:
         def on_subscribe(client, userdata, mid, rcs, props):
             nonlocal success
             for reason in rcs:
-                if reason.value != 0 and reason.value != 1 and reason.value != 2:
+                if reason.value not in [0, 1, 2]:
                     success = False
                     print(f"MQTT Subnack: {reason}")
                     break
@@ -86,4 +90,19 @@ class MqttClient:
         return message
 
     def publish_to_topic(self):
+        pass
+
+
+class StreamHandler(StreamResponseHandler):
+
+    @override
+    def on_stream_event(self, event: Shape) -> None:
+        pass
+
+    @override
+    def on_stream_error(self, error: Exception) -> bool:
+        pass
+
+    @override
+    def on_stream_closed(self) -> None:
         pass
