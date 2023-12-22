@@ -3,7 +3,6 @@ socket_path: "/path/to/socket"
 svcuid: "my-id"
 
 # Aws credentials
-region: "us-west-2"
 root_ca_path: "/path/to/AmazonRootCA1.pem"
 key_path: "/path/to/my-private.pem.key"
 cert_path: "/path/to/my-certificate.pem.crt"

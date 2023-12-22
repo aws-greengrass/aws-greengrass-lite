@@ -25,7 +25,6 @@ def config_data(request):
 
 @pytest.fixture(scope="session", autouse=True)
 def set_env(config_data):
-    os.environ["AWS_REGION"] = config_data["region"] or "us-west-2"
     if not config_data["svcuid"]:
         raise ValueError("svcuid is required")
     else:
