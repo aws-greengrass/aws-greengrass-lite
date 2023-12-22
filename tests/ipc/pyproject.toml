@@ -23,17 +23,6 @@ pyright = "^1.1.341"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
-# [tool.pytest.ini_options]
-# adopts = [
-#     "--strict-markets",
-#     "--strict-config",
-#     "-ra"
-# ]
-# testpaths = "tests"
-# markers = [
-
-# ]
-
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
 exclude = [

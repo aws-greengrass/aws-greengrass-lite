@@ -65,29 +65,6 @@ def get_data(request):
 
 
 @pytest.fixture(scope="function")
-def publish_to_local_topic(ipc_client):
-    event = threading.Event()
-
-    def publish_to_topic():
-        topic = "my/topic"
-        message = "Hello World!"
-        while not event.is_set():
-            binary_message = BinaryMessage(message=bytes(message, "utf-8"))
-            publish_message = PublishMessage(binary_message=binary_message)
-            response = ipc_client.publish_to_topic_async(
-                topic=topic, publish_message=publish_message)
-            res = response.result(3)
-            assert res is not None
-
-    # create a thread for publishing
-    publish_thread = threading.Thread(target=publish_to_topic)
-    publish_thread.start()
-    yield
-    event.set()
-    publish_thread.join()
-
-
-@pytest.fixture(scope="function")
 def publish_to_iot_topic():
     event = threading.Event()
 
