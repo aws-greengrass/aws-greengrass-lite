@@ -106,7 +106,14 @@ make -C build -j4 install
 
 ## Dependencies
 
-None at this time.
+The following dependencies are required to build Nucleus and all of the included
+plugins
+
+- Linux kernel >=5.15
+- CMake >=3.22
+- make >=4.2.1
+- glibc >=2.31
+- GCC >=9.4.0
 
 ## Security
 
