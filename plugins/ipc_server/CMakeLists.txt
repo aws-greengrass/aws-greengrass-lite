@@ -15,5 +15,10 @@ endif()
 
 add_library(ipc_server MODULE main.cpp ServerBootstrap.cpp)
 target_link_libraries(ipc_server PRIVATE nucleus-core aws-crt-cpp)
+if(UNIX AND NOT APPLE)
+  target_link_options(
+    ipc_server PRIVATE
+    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
+endif()
 
 install(TARGETS ipc_server DESTINATION plugins)

@@ -88,11 +88,25 @@ cmake -B build
 make -C build -j4
 ```
 
+### Compiling Greengrass Lite for minimal footprint
+
+The "-DUSE_OPENSSL" assumes openssl-devel installed on build machine and openssl
+installed on target machine.
+
+Build type "MinSizeRel" enables multiple size reduction options. Note that in
+current build, shared plugins that link to DeviceSDK are still pulling in unused
+code - this will be addressed.
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel
+make -C build -j4
+```
+
 #### Installing in a user location
 
 ```bash
 cmake -B build -DCMAKE_INSTALL_PREFIX=~/gglite_testing
-make -C build -j4 install
+make -C build -j4 install/strip
 ```
 
 #### Installing in the system location
@@ -101,7 +115,7 @@ The default location on linux is /usr/bin
 
 ```bash
 cmake -B build
-make -C build -j4 install
+make -C build -j4 install/strip
 ```
 
 ## Dependencies
