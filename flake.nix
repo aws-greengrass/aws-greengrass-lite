@@ -5,14 +5,20 @@
       default = { stdenv, lib, fetchgit, cmake, ninja }:
         let
           inherit (builtins) fromJSON readFile;
-          deps = lib.mapAttrs (_: v: fetchgit (v // { fetchSubmodules = true; }))
+          inherit (lib) any elem fileset mapAttrs;
+          deps = mapAttrs (_: v: fetchgit (v // { fetchSubmodules = true; }))
             (fromJSON (readFile ./dependencies.json));
         in
         stdenv.mkDerivation {
           pname = "gglite";
           version = "0.0.1";
-          src = lib.sourceFilesBySuffices ./.
-            [ "cpp" "hpp" "c" "h" "CMakeLists.txt" "cmake" "json" ];
+          src = fileset.toSource {
+            root = ./.;
+            fileset = fileset.fileFilter
+              (file: elem file.name [ "CMakeLists.txt" "version.script" ] ||
+                any file.hasExt [ "cpp" "hpp" "c" "h" "cmake" "json" ])
+              ./.;
+          };
           strictDeps = true;
           nativeBuildInputs = [ cmake ninja ];
           cmakeBuildType = "Debug";
