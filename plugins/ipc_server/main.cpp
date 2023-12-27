@@ -1,5 +1,7 @@
 #include "HeaderValue.hpp"
 
+#include <forward_list>
+#include <limits>
 #include <optional>
 #include <plugin.hpp>
 
@@ -13,19 +15,20 @@
 
 #include <filesystem>
 
+class Listener;
+
 struct Keys {
 private:
     Keys() = default;
 
 public:
-    ggapi::Symbol lpcResponseTopic{"lpcResponseTopic"};
-
     ggapi::Symbol terminate{"terminate"};
     ggapi::Symbol contentType{"contentType"};
     ggapi::Symbol serviceModelType{"serviceModelType"};
     ggapi::Symbol shape{"shape"};
     ggapi::Symbol accepted{"accepted"};
     ggapi::Symbol errorCode{"errorCode"};
+    ggapi::Symbol channel{"channel"};
 
     static const Keys &get() {
         static Keys keys;
@@ -40,10 +43,10 @@ static void onListenerDestroy(
 // Messaging
 //
 
-template<class SendFn, size_t N>
+template<class SendFn>
 static int sendMessage(
     SendFn fn,
-    std::array<aws_event_stream_header_value_pair, N> &headers,
+    util::Span<aws_event_stream_header_value_pair> headers,
     ggapi::Buffer payload,
     aws_event_stream_rpc_message_type message_type,
     uint32_t flags = 0);
@@ -74,37 +77,70 @@ static std::ostream &operator<<(
 // Class Definitions
 //
 
+class IpcServer final : public ggapi::Plugin {
+private:
+    using MutexType = std::shared_mutex;
+    template<template<class> class Lock>
+    static constexpr bool is_lockable = std::is_constructible_v<Lock<MutexType>, MutexType &>;
+
+public:
+    bool onBootstrap(ggapi::Struct data) override;
+    bool onBind(ggapi::Struct data) override;
+    bool onStart(ggapi::Struct data) override;
+    bool onTerminate(ggapi::Struct data) override;
+    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
+
+    static IpcServer &get() {
+        static IpcServer instance{};
+        return instance;
+    }
+
+    template<template<class> class Lock = std::unique_lock>
+    std::enable_if_t<is_lockable<Lock>, Lock<MutexType>> lock() & {
+        return Lock{mutex};
+    }
+
+private:
+    MutexType mutex;
+    std::shared_ptr<Listener> _listener;
+};
+
 class ServerContinuation {
 public:
     using Token = aws_event_stream_rpc_server_continuation_token;
 
 private:
-    Token *token;
-    std::string operation;
+    Token *_token;
+    std::string _operation;
+    ggapi::Channel _channel{};
     using ContinutationHandle = std::shared_ptr<ServerContinuation> *;
 
 public:
     explicit ServerContinuation(Token *token, std::string operation)
-        : token{token}, operation{std::move(operation)} {
+        : _token{token}, _operation{std::move(operation)} {
+    }
+
+    ~ServerContinuation() noexcept {
+        if(_channel) {
+            _channel.close();
+            _channel.release();
+        }
     }
 
     Token *GetUnderlyingHandle() {
-        return token;
+        return _token;
     }
 
     [[nodiscard]] std::string lpcTopic() const {
-        return "IPC::" + operation;
+        return "IPC::" + _operation;
     }
 
     [[nodiscard]] std::string ipcServiceModel() const {
-        return operation + "Response";
+        return _operation + "Response";
     }
 
     static ggapi::Struct onTopicResponse(
-        const std::weak_ptr<ServerContinuation> &weakSelf,
-        const ggapi::Task &,
-        ggapi::StringOrd,
-        ggapi::Struct response) {
+        const std::weak_ptr<ServerContinuation> &weakSelf, ggapi::Struct response) {
         // TODO: unsubscribe
         auto self = weakSelf.lock();
         if(!self) {
@@ -125,6 +161,10 @@ public:
                                                 : ggapi::Struct::create().toJson();
 
         auto serviceModel = response.get<std::string>(keys.serviceModelType);
+        if(serviceModel.size() > std::numeric_limits<uint16_t>::max()) {
+            // TODO: Error handling
+            serviceModel.resize(std::numeric_limits<uint16_t>::max());
+        }
 
         const auto sender = [self = std::move(self)](auto *args) {
             return aws_event_stream_rpc_server_continuation_send_message(
@@ -134,12 +174,28 @@ public:
         using namespace std::string_literals;
         auto contentType = response.hasKey(keys.contentType)
                                ? response.get<std::string>(keys.contentType)
-                               : "application/json"s;
+                               : ContentType::JSON;
+        if(contentType.size() > std::numeric_limits<uint16_t>::max()) {
+            // TODO: Error handling
+            contentType.resize(std::numeric_limits<uint16_t>::max());
+        }
 
         std::array headers{
-            makeHeader(Headers::ServiceModelType, stringbuffer{serviceModel}),
-            makeHeader(Headers::ContentType, stringbuffer(contentType))};
-        sendMessage(sender, headers, json, messageType, flags);
+            makeHeader(Headers::ServiceModelType, Headervaluetypes::stringbuffer{serviceModel}),
+            makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(contentType))};
+        int result = sendMessage(sender, headers, json, messageType, flags);
+        if(result != AWS_OP_SUCCESS) {
+            ggapi::Buffer payload =
+                ggapi::Buffer::create().put(0, std::string_view{"InternalServerError"});
+            std::array errorHeaders{makeHeader(
+                Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::Text))};
+            sendMessage(
+                sender,
+                headers,
+                payload,
+                AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_APPLICATION_ERROR,
+                AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_TERMINATE_STREAM);
+        }
         return ggapi::Struct::create();
     }
 
@@ -168,19 +224,34 @@ public:
         auto scope = ggapi::CallScope{};
         // NOLINTNEXTLINE
         auto continuation = *static_cast<ContinutationHandle>(user_data);
-        auto subscription = scope.subscribeToTopic(
-            {},
-            ggapi::TopicCallback::of(
-                &ServerContinuation::onTopicResponse, std::weak_ptr{continuation}));
-        json.put("lpcResponseTopic", subscription);
         auto response = Task::sendToTopic(continuation->lpcTopic(), json);
         if(response.empty()) {
             std::cerr << "[IPC] LPC appears unhandled\n";
-            // TODO: send error response
+            const auto sender = [continuation](auto *args) {
+                return aws_event_stream_rpc_server_continuation_send_message(
+                    continuation->GetUnderlyingHandle(), args, onMessageFlush, nullptr);
+            };
+            std::string message = R"({ "error": "LPC unhandled", "message": ")"
+                                  "LPC unhandled.\" }";
+            ggapi::Buffer payload = ggapi::Buffer::create().put(0, std::string_view{message});
+            std::array headers{makeHeader(
+                Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
+            sendMessage(
+                sender,
+                headers,
+                payload,
+                AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_APPLICATION_ERROR,
+                AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_TERMINATE_STREAM);
         } else {
             response.put(keys.serviceModelType, continuation->ipcServiceModel());
-            std::ignore = subscription.call(response);
-            // TODO: keep track of subscription for unsubscribe on disconnect...
+            ServerContinuation::onTopicResponse(continuation, response);
+            if(response.hasKey(keys.channel)) {
+                auto channel =
+                    IpcServer::get().getScope().anchor(response.get<ggapi::Channel>(keys.channel));
+                continuation->_channel = channel;
+                channel.addListenCallback(ggapi::ChannelListenCallback::of(
+                    &ServerContinuation::onTopicResponse, std::weak_ptr{continuation}));
+            }
         }
     }
 
@@ -188,70 +259,118 @@ public:
         aws_event_stream_rpc_server_continuation_token *token, void *user_data) noexcept {
         // NOLINTNEXTLINE
         auto continuation = static_cast<ContinutationHandle>(user_data);
-        std::cerr << "Stream ending for " << (*continuation)->operation;
+        std::cerr << "Stream ending for " << (*continuation)->_operation;
         // NOLINTNEXTLINE
         delete continuation;
     }
 };
 
-class ServerConnection {
+class Listener {
 public:
     using Connection = aws_event_stream_rpc_server_connection;
 
 private:
-    std::mutex stateMutex;
-    Connection *underlyingConnection;
+    std::recursive_mutex stateMutex;
+    std::forward_list<Connection *> underlyingConnection;
+    Aws::Crt::Allocator *_allocator;
+    Aws::Crt::Io::EventLoopGroup _eventLoop{1};
+    Aws::Crt::Io::SocketOptions _socketOpts = []() -> auto {
+        using namespace Aws::Crt::Io;
+        SocketOptions opts{};
+        opts.SetSocketDomain(SocketDomain::Local);
+        opts.SetSocketType(SocketType::Stream);
+        return opts;
+    }();
+    Aws::Crt::Io::ServerBootstrap _bootstrap{_eventLoop};
+    aws_event_stream_rpc_server_listener *listener{};
+    static constexpr uint16_t port = 54345;
 
 public:
-    ServerConnection(const ServerConnection &) = delete;
-    ServerConnection(ServerConnection &&) = delete;
-    ServerConnection &operator=(const ServerConnection &) = delete;
-    ServerConnection &operator=(ServerConnection &&) = delete;
-    explicit ServerConnection(Connection *connection) : underlyingConnection{connection} {
+    Listener(const Listener &) = delete;
+    Listener(Listener &&) = delete;
+    Listener &operator=(const Listener &) = delete;
+    Listener &operator=(Listener &&) = delete;
+    explicit Listener(Aws::Crt::Allocator *allocator = Aws::Crt::g_allocator)
+        : _allocator(allocator), _eventLoop(1, allocator), _bootstrap(_eventLoop, allocator) {
     }
 
-    ~ServerConnection() noexcept {
+    ~Listener() noexcept {
         Close();
+    }
+
+    void Connect() {
+        // TODO: This should be refactored again into a new class
+        static constexpr std::string_view socket_path = "/tmp/gglite-ipc.socket";
+
+        if(std::filesystem::exists(socket_path)) {
+            std::filesystem::remove(socket_path);
+        }
+
+        aws_event_stream_rpc_server_listener_options listenerOptions = {
+            .host_name = socket_path.data(),
+            .port = port,
+            .socket_options = &_socketOpts.GetImpl(),
+            .bootstrap = _bootstrap.GetUnderlyingHandle(),
+            .on_new_connection = onNewServerConnection,
+            .on_connection_shutdown = onServerConnectionShutdown,
+            .on_destroy_callback = onListenerDestroy,
+            .user_data = static_cast<void *>(this),
+        };
+
+        if(listener =
+               aws_event_stream_rpc_server_new_listener(Aws::Crt::ApiAllocator(), &listenerOptions);
+           !listener) {
+            int error_code = aws_last_error();
+            throw std::runtime_error{"Failed to create RPC server: " + std::to_string(error_code)};
+        }
+    }
+
+    void Disconnect() {
+        aws_event_stream_rpc_server_listener_release(std::exchange(listener, nullptr));
     }
 
     void Close(int shutdownCode = AWS_ERROR_SUCCESS) noexcept {
         std::unique_lock guard{stateMutex};
-        if(!underlyingConnection) {
-            return;
-        }
-        if(aws_event_stream_rpc_server_connection_is_open(underlyingConnection)) {
-            aws_event_stream_rpc_server_connection_close(
-                std::exchange(underlyingConnection, nullptr), shutdownCode);
-        }
+        aws_event_stream_rpc_server_listener_release(listener);
     }
 
-    [[nodiscard]] bool isOpen() const noexcept {
-        return underlyingConnection != nullptr
-               && aws_event_stream_rpc_server_connection_is_open(underlyingConnection);
-    }
-
-    Connection *GetUnderlyingHandle() {
-        return underlyingConnection;
-    }
-
-    int sendConnectionResponse() {
+    int sendConnectionResponse(Connection *conn) {
         return sendMessage(
-            [this](auto *args) {
+            [this, conn](auto *args) {
                 return aws_event_stream_rpc_server_connection_send_protocol_message(
-                    underlyingConnection, args, onMessageFlush, nullptr);
+                    conn, args, onMessageFlush, nullptr);
             },
             AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT_ACK,
             AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_CONNECTION_ACCEPTED);
     }
 
-    int sendPingResponse() {
+    int sendPingResponse(Connection *conn) {
         return sendMessage(
-            [this](auto *args) {
+            [this, conn](auto *args) {
                 return aws_event_stream_rpc_server_connection_send_protocol_message(
-                    underlyingConnection, args, onMessageFlush, nullptr);
+                    conn, args, onMessageFlush, nullptr);
             },
             AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_PING_RESPONSE,
             0);
+    }
+
+    int sendErrorResponse(
+        Connection *conn,
+        std::string_view message,
+        aws_event_stream_rpc_message_type error_type,
+        uint32_t flags) {
+        ggapi::Buffer payload = ggapi::Buffer::create().put(0, message);
+        std::array headers{
+            makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
+        return sendMessage(
+            [this, conn](auto *args) {
+                return aws_event_stream_rpc_server_connection_send_protocol_message(
+                    conn, args, onMessageFlush, nullptr);
+            },
+            headers,
+            payload,
+            error_type,
+            flags);
     }
 
     static int onNewServerConnection(
@@ -259,48 +378,69 @@ public:
         int error_code,
         aws_event_stream_rpc_connection_options *connection_options,
         void *user_data) noexcept {
-        std::ignore = user_data;
 
-        // NOLINTNEXTLINE
-        auto serverConnection = new ServerConnection{connection};
-        *connection_options = {
-            onIncomingStream,
-            onProtocolMessage,
-            // NOLINTNEXTLINE
-            static_cast<void *>(serverConnection)};
+        auto *thisConnection = static_cast<Listener *>(user_data);
 
-        std::cerr << "[IPC] incoming connection\n";
-        return AWS_OP_SUCCESS;
+        const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
+        if(error_code) {
+            aws_event_stream_rpc_server_connection_release(connection);
+            return AWS_OP_ERR;
+        } else {
+            thisConnection->underlyingConnection.push_front(connection);
+
+            *connection_options = {
+                onIncomingStream,
+                onProtocolMessage,
+                // NOLINTNEXTLINE
+                user_data};
+
+            std::cerr << "[IPC] incoming connection\n";
+            return AWS_OP_SUCCESS;
+        }
     }
 
     static void onServerConnectionShutdown(
         aws_event_stream_rpc_server_connection *connection,
         int error_code,
         void *user_data) noexcept {
+        (void) connection;
+        auto *thisConnection = static_cast<Listener *>(user_data);
+        const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
+
+        thisConnection->underlyingConnection.remove(connection);
         std::cerr << "[IPC] connection closed with " << connection << " with error code "
                   << error_code << '\n';
-        // NOLINTNEXTLINE
-        delete static_cast<ServerConnection *>(user_data);
     }
 
     static void onProtocolMessage(
         aws_event_stream_rpc_server_connection *connection,
         const aws_event_stream_rpc_message_args *message_args,
         void *user_data) noexcept {
+        auto *thisConnection = static_cast<Listener *>(user_data);
+        const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
 
         std::cerr << "Received protocol message: " << *message_args << '\n';
 
-        // NOLINTNEXTLINE
-        auto serverConnection = static_cast<ServerConnection *>(user_data);
         switch(message_args->message_type) {
             case AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT:
-                serverConnection->sendConnectionResponse();
+                thisConnection->sendConnectionResponse(connection);
                 return;
             case AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_PING:
-                serverConnection->sendPingResponse();
+                thisConnection->sendPingResponse(connection);
+                return;
+            case AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_PING_RESPONSE:
+                // GG-Java Interop
                 return;
             default:
                 std::cerr << "Unhandled message type " << message_args->message_type << '\n';
+                std::string messageValue = std::to_string(
+                    static_cast<std::underlying_type_t<aws_event_stream_rpc_message_type>>(
+                        message_args->message_type));
+                std::string bufMessage =
+                    R"({ "error": "Unrecognized Message Type", "message": " message type value: )"
+                    + messageValue + " is not recognized as a valid request path.\" }";
+                thisConnection->sendErrorResponse(
+                    connection, bufMessage, AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_INTERNAL_ERROR, 0);
                 break;
         }
     }
@@ -311,15 +451,15 @@ public:
         aws_byte_cursor operation_name,
         aws_event_stream_rpc_server_stream_continuation_options *continuation_options,
         void *user_data) noexcept {
-        auto operation = [operation_name]() -> std::string {
+        auto operationName = [operation_name]() -> std::string {
             auto sv = Aws::Crt::ByteCursorToStringView(operation_name);
             return {sv.data(), sv.size()};
         }();
 
-        std::cerr << "[IPC] Request for " << operation << " Received\n";
+        std::cerr << "[IPC] Request for " << operationName << " Received\n";
 
-        auto continuation =
-            new std::shared_ptr{std::make_shared<ServerContinuation>(token, std::move(operation))};
+        auto *continuation = new std::shared_ptr{
+            std::make_shared<ServerContinuation>(token, std::move(operationName))};
 
         *continuation_options = {
             .on_continuation = ServerContinuation::onContinuation,
@@ -329,44 +469,6 @@ public:
 
         return AWS_OP_SUCCESS;
     }
-};
-
-class IpcServer final : public ggapi::Plugin {
-private:
-    using MutexType = std::shared_mutex;
-    template<template<class> class Lock>
-    static constexpr bool is_lockable = std::is_constructible_v<Lock<MutexType>, MutexType &>;
-
-public:
-    bool onBootstrap(ggapi::Struct data) override;
-    bool onBind(ggapi::Struct data) override;
-    bool onStart(ggapi::Struct data) override;
-    bool onTerminate(ggapi::Struct data) override;
-    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
-
-    static IpcServer &get() {
-        static IpcServer instance{};
-        return instance;
-    }
-
-    template<template<class> class Lock = std::unique_lock>
-    std::enable_if_t<is_lockable<Lock>, Lock<MutexType>> lock() & {
-        return Lock{mutex};
-    }
-
-private:
-    MutexType mutex;
-    Aws::Crt::Io::EventLoopGroup eventLoop{1};
-    Aws::Crt::Io::SocketOptions socketOpts = []() -> auto {
-        using namespace Aws::Crt::Io;
-        SocketOptions opts{};
-        opts.SetSocketDomain(SocketDomain::Local);
-        opts.SetSocketType(SocketType::Stream);
-        return opts;
-    }();
-    static constexpr uint16_t port = 54345;
-    Aws::Crt::Io::ServerBootstrap bootstrap{eventLoop};
-    aws_event_stream_rpc_server_listener *listener{};
 };
 
 // Initializes global CRT API
@@ -388,35 +490,17 @@ bool IpcServer::onBootstrap(ggapi::Struct structData) {
 }
 
 bool IpcServer::onStart(ggapi::Struct data) {
-    static constexpr std::string_view socket_path = "/tmp/gglite-ipc.socket";
-
-    if(std::filesystem::exists(socket_path)) {
-        std::filesystem::remove(socket_path);
+    _listener = std::make_shared<Listener>();
+    try {
+        _listener->Connect();
+    } catch(std::runtime_error &e) {
+        throw ggapi::GgApiError(e.what());
     }
-
-    aws_event_stream_rpc_server_listener_options listenerOptions = {
-        .host_name = socket_path.data(),
-        .port = port,
-        .socket_options = &socketOpts.GetImpl(),
-        .bootstrap = bootstrap.GetUnderlyingHandle(),
-        .on_new_connection = ServerConnection::onNewServerConnection,
-        .on_connection_shutdown = ServerConnection::onServerConnectionShutdown,
-        .on_destroy_callback = onListenerDestroy,
-        .user_data = nullptr,
-    };
-
-    if(listener =
-           aws_event_stream_rpc_server_new_listener(Aws::Crt::ApiAllocator(), &listenerOptions);
-       !listener) {
-        int error_code = aws_last_error();
-        throw std::runtime_error("Failed to create RPC server: " + std::to_string(error_code));
-    }
-
     return true;
 }
 
 bool IpcServer::onTerminate(ggapi::Struct structData) {
-    aws_event_stream_rpc_server_listener_release(std::exchange(listener, nullptr));
+    _listener->Disconnect();
     return true;
 }
 
@@ -445,17 +529,16 @@ static int sendMessage(SendFn fn, aws_event_stream_rpc_message_type message_type
     return fn(&args);
 }
 
-template<class SendFn, size_t N>
+template<class SendFn>
 static int sendMessage(
     SendFn fn,
-    std::array<aws_event_stream_header_value_pair, N> &headers,
+    util::Span<aws_event_stream_header_value_pair> headers,
     ggapi::Buffer payload,
     aws_event_stream_rpc_message_type message_type,
     uint32_t flags) {
-    util::Span headerSpan{headers};
     aws_array_list headers_list{
         .alloc = nullptr,
-        .current_size = headerSpan.size_bytes(),
+        .current_size = headers.size_bytes(),
         .length = std::size(headers),
         .item_size = sizeof(aws_event_stream_header_value_pair),
         .data = std::data(headers),

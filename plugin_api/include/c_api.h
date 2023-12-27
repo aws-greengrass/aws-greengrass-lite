@@ -39,6 +39,14 @@ struct TaskCallbackData {
     uint32_t dataStruct;
 };
 
+struct ChannelListenCallbackData {
+    uint32_t dataStruct;
+};
+
+struct ChannelCloseCallbackData {
+    uint8_t _dummy;
+};
+
 typedef uint32_t (*ggapiGenericCallback)(
     uintptr_t callbackContext,
     uint32_t callbackType,
@@ -58,11 +66,13 @@ IMPEXP size_t ggapiGetSymbolStringLen(uint32_t symbolInt) NOEXCEPT;
 IMPEXP uint32_t ggapiCreateStruct() NOEXCEPT;
 IMPEXP uint32_t ggapiCreateList() NOEXCEPT;
 IMPEXP uint32_t ggapiCreateBuffer() NOEXCEPT;
+IMPEXP uint32_t ggapiCreateChannel() NOEXCEPT;
 IMPEXP bool ggapiIsContainer(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsScalar(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsStruct(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsList(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsBuffer(uint32_t handle) NOEXCEPT;
+IMPEXP bool ggapiIsChannel(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsTask(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsSubscription(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsScope(uint32_t handle) NOEXCEPT;
@@ -160,5 +170,9 @@ IMPEXP uint32_t ggapiRegisterPlugin(
 IMPEXP uint32_t ggapiChangeModule(uint32_t moduleHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterCallback(
     ggapiGenericCallback callbackFunction, uintptr_t callbackCtx, uint32_t callbackType) NOEXCEPT;
+IMPEXP uint32_t ggapiChannelOnClose(uint32_t channel, uint32_t callbackHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiChannelListen(uint32_t channel, uint32_t callbackHandle) NOEXCEPT;
+IMPEXP uint32_t ggapiChannelWrite(uint32_t channel, uint32_t callStruct) NOEXCEPT;
+IMPEXP uint32_t ggapiChannelClose(uint32_t channel) NOEXCEPT;
 
 #endif // GG_PLUGIN_API

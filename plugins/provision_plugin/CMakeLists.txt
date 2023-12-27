@@ -16,4 +16,10 @@ add_library(provision_plugin MODULE include/provision_plugin.hpp main.cpp
 target_include_directories(provision_plugin PRIVATE include)
 target_link_libraries(provision_plugin PRIVATE nucleus-core aws-crt-cpp
                                                IotIdentity-cpp)
+if(UNIX AND NOT APPLE)
+  target_link_options(
+    provision_plugin PRIVATE
+    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
+endif()
+
 install(TARGETS provision_plugin DESTINATION plugins)

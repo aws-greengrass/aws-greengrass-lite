@@ -118,6 +118,43 @@ namespace tasks {
         return &_packed;
     }
 
+    data::Symbol ChannelListenCallbackData::channelListenCallbackType() {
+        static data::Symbol task = scope::context().intern("channelListen");
+        return task;
+    }
+
+    ChannelListenCallbackData::ChannelListenCallbackData(
+        const std::shared_ptr<data::StructModelBase> &data)
+        : CallbackPackedData(channelListenCallbackType()) {
+
+        _packed.dataStruct = scope::NucleusCallScopeContext::intHandle(data);
+    }
+
+    uint32_t ChannelListenCallbackData::size() const {
+        return sizeof(_packed);
+    }
+
+    const void *ChannelListenCallbackData::data() const {
+        return &_packed;
+    }
+
+    data::Symbol ChannelCloseCallbackData::channelCloseCallbackType() {
+        static data::Symbol task = scope::context().intern("channelClose");
+        return task;
+    }
+
+    ChannelCloseCallbackData::ChannelCloseCallbackData()
+        : CallbackPackedData(channelCloseCallbackType()) {
+    }
+
+    uint32_t ChannelCloseCallbackData::size() const {
+        return sizeof(_packed);
+    }
+
+    const void *ChannelCloseCallbackData::data() const {
+        return &_packed;
+    }
+
     std::shared_ptr<data::StructModelBase> RegisteredCallback::invokeTopicCallback(
         const std::shared_ptr<tasks::Task> &task,
         const data::Symbol &topic,
@@ -170,5 +207,34 @@ namespace tasks {
     }
     void Callback::invokeTaskCallback(const std::shared_ptr<data::StructModelBase> &data) {
         throw std::runtime_error("Mismatched callback");
+    }
+
+    void Callback::invokeChannelListenCallback(const std::shared_ptr<data::StructModelBase> &data) {
+        throw std::runtime_error("Mismatched callback");
+    }
+    void Callback::invokeChannelCloseCallback() {
+        throw std::runtime_error("Mismatched callback");
+    }
+
+    void RegisteredCallback::invokeChannelListenCallback(
+        const std::shared_ptr<data::StructModelBase> &data) {
+
+        if(_callbackType != context().intern("channelListen")) {
+            throw std::runtime_error("Mismatched callback");
+        }
+
+        scope::StackScope scope{};
+        tasks::ChannelListenCallbackData packed{data};
+        invoke(packed);
+    }
+    void RegisteredCallback::invokeChannelCloseCallback() {
+
+        if(_callbackType != context().intern("channelClose")) {
+            throw std::runtime_error("Mismatched callback");
+        }
+
+        scope::StackScope scope{};
+        tasks::ChannelCloseCallbackData packed{};
+        invoke(packed);
     }
 } // namespace tasks

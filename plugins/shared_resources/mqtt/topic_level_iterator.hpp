@@ -1,4 +1,6 @@
 #pragma once
+
+#include <stdexcept>
 #include <string_view>
 
 struct TopicLevelIterator {

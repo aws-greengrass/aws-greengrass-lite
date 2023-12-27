@@ -16,9 +16,11 @@
 #include <cstdint>
 #include <cstring>
 
-using timestamp = std::chrono::duration<uint32_t, std::milli>;
-using bytebuffer = util::Span<uint8_t>;
-using stringbuffer = util::Span<char>;
+namespace Headervaluetypes {
+    using timestamp = std::chrono::duration<uint64_t, std::milli>;
+    using bytebuffer = util::Span<uint8_t, uint16_t>;
+    using stringbuffer = util::Span<char, uint16_t>;
+} // namespace Headervaluetypes
 
 using HeaderValue = std::variant<
     bool,
@@ -26,14 +28,14 @@ using HeaderValue = std::variant<
     int16_t,
     int32_t,
     int64_t,
-    bytebuffer,
-    stringbuffer,
-    timestamp,
+    Headervaluetypes::bytebuffer,
+    Headervaluetypes::stringbuffer,
+    Headervaluetypes::timestamp,
     aws_uuid>;
 
 template<typename T>
-constexpr bool is_static_value = std::is_arithmetic_v<T> || std::is_same_v<timestamp, T>
-                                 || std::is_same_v<aws_uuid, T> || std::is_same_v<T, bool>;
+constexpr bool is_variable_length_value = std::is_same_v<T, Headervaluetypes::bytebuffer>
+                                          || std::is_same_v<T, Headervaluetypes::stringbuffer>;
 
 template<typename To, size_t N>
 // NOLINTNEXTLINE(*-c-arrays)
@@ -48,9 +50,9 @@ To from_network_bytes(const uint8_t (&buffer)[N]) noexcept {
         return to;
     } else {
         // convert from network byte order
-        // NOLINTNEXTLINE(*-reinterpret-cast)
-        auto *punned = reinterpret_cast<uint8_t *>(&to);
-        std::reverse_copy(std::begin(buffer), std::next(std::begin(buffer), sizeof(To)), punned);
+        auto bufferBytes = util::Span{std::data(buffer), sizeof(To)};
+        auto toBytes = util::as_writeable_bytes(util::Span{&to, 1});
+        std::reverse_copy(bufferBytes.begin(), bufferBytes.end(), toBytes.begin());
     }
     return to;
 }
@@ -64,16 +66,13 @@ void to_network_bytes(uint8_t (&buffer)[N], const From &from) noexcept {
         std::memcpy(std::data(buffer), &from, sizeof(From));
     } else {
         // convert to network byte order
-        // NOLINTNEXTLINE(*-reinterpret-cast)
-        auto *punned = reinterpret_cast<const uint8_t *>(&from);
-        std::reverse_copy(punned, std::next(punned, sizeof(From)), std::begin(buffer));
+        auto fromBytes = util::as_bytes(util::Span{&from, 1});
+        std::reverse_copy(fromBytes.begin(), fromBytes.end(), std::begin(buffer));
     }
 }
 
 // NOLINTBEGIN(*-union-access)
 static HeaderValue getValue(const aws_event_stream_header_value_pair &header) noexcept {
-    auto *staticData = std::data(header.header_value.static_val);
-    auto *variableData = header.header_value.variable_len_val;
     switch(header.header_value_type) {
         case AWS_EVENT_STREAM_HEADER_BOOL_TRUE:
             return true;
@@ -88,13 +87,13 @@ static HeaderValue getValue(const aws_event_stream_header_value_pair &header) no
         case AWS_EVENT_STREAM_HEADER_INT64:
             return from_network_bytes<int64_t>(header.header_value.static_val);
         case AWS_EVENT_STREAM_HEADER_BYTE_BUF:
-            return bytebuffer{variableData, header.header_value_len};
+            return util::Span{header.header_value.variable_len_val, header.header_value_len};
         case AWS_EVENT_STREAM_HEADER_STRING:
-            return stringbuffer{// NOLINTNEXTLINE(*-reinterpret-cast)
-                                reinterpret_cast<char *>(variableData),
-                                header.header_value_len};
+            return util::as_writeable_bytes(
+                util::Span{header.header_value.variable_len_val, header.header_value_len});
         case AWS_EVENT_STREAM_HEADER_TIMESTAMP:
-            return timestamp{from_network_bytes<uint32_t>(header.header_value.static_val)};
+            return Headervaluetypes::timestamp{
+                from_network_bytes<uint64_t>(header.header_value.static_val)};
         case AWS_EVENT_STREAM_HEADER_UUID: {
             return from_network_bytes<aws_uuid>(header.header_value.static_val);
         }
@@ -116,11 +115,11 @@ static inline aws_event_stream_header_value_type getType(const HeaderValue &vari
                 return AWS_EVENT_STREAM_HEADER_INT32;
             } else if constexpr(std::is_same_v<int64_t, T>) {
                 return AWS_EVENT_STREAM_HEADER_INT64;
-            } else if constexpr(std::is_same_v<bytebuffer, T>) {
+            } else if constexpr(std::is_same_v<Headervaluetypes::bytebuffer, T>) {
                 return AWS_EVENT_STREAM_HEADER_BYTE_BUF;
-            } else if constexpr(std::is_same_v<stringbuffer, T>) {
+            } else if constexpr(std::is_same_v<Headervaluetypes::stringbuffer, T>) {
                 return AWS_EVENT_STREAM_HEADER_STRING;
-            } else if constexpr(std::is_same_v<timestamp, T>) {
+            } else if constexpr(std::is_same_v<Headervaluetypes::timestamp, T>) {
                 return AWS_EVENT_STREAM_HEADER_TIMESTAMP;
             } else if constexpr(std::is_same_v<aws_uuid, T>) {
                 return AWS_EVENT_STREAM_HEADER_UUID;
@@ -136,13 +135,13 @@ makeHeader(std::string_view name, const T &val) noexcept {
 
     args.header_name_len = name.copy(std::data(args.header_name), std::size(args.header_name));
 
-    if constexpr(is_static_value<T>) {
-        to_network_bytes(args.header_value.static_val, val);
-        args.header_value_len = sizeof(val);
-    } else { // span or string view
+    if constexpr(is_variable_length_value<T>) {
         // NOLINTNEXTLINE(*-reinterpret-cast)
         args.header_value.variable_len_val = reinterpret_cast<uint8_t *>(std::data(val));
         args.header_value_len = std::size(val);
+    } else { // static-sized types
+        to_network_bytes(args.header_value.static_val, val);
+        args.header_value_len = sizeof(val);
     }
 
     args.header_value_type = getType(val);
@@ -152,7 +151,7 @@ makeHeader(std::string_view name, const T &val) noexcept {
 
 // NOLINTEND(*-union-access)
 
-static auto parseHeader(const aws_event_stream_header_value_pair &pair) {
+inline auto parseHeader(const aws_event_stream_header_value_pair &pair) {
     return std::make_pair(
         std::string_view{std::data(pair.header_name), pair.header_name_len}, getValue(pair));
 }
@@ -173,11 +172,13 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
                 os.flags(std::ios::boolalpha);
                 os << static_cast<bool>(val);
                 os.flags(flags);
-            } else if constexpr(std::is_same_v<timestamp, T>) {
+            } else if constexpr(std::is_same_v<Headervaluetypes::timestamp, T>) {
                 os << val.count() << "ms";
-            } else if constexpr(std::is_same_v<stringbuffer, T> || std::is_same_v<bytebuffer, T>) {
-                // NOLINTNEXTLINE(*-reinterpret-cast)
-                os.write(reinterpret_cast<const char *>(val.begin()), val.size());
+            } else if constexpr(
+                std::is_same_v<Headervaluetypes::stringbuffer, T>
+                || std::is_same_v<Headervaluetypes::bytebuffer, T>) {
+                auto bytes = util::as_bytes(val);
+                os.write(bytes.data(), bytes.size());
             } else if constexpr(std::is_same_v<T, aws_uuid>) {
                 auto flags = os.flags();
                 os.flags(std::ios::hex | std::ios::uppercase);
@@ -193,6 +194,12 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
 
 namespace Headers {
     using namespace std::string_view_literals;
-    static constexpr auto ContentType = ":content-type"sv;
-    static constexpr auto ServiceModelType = "service-model-type"sv;
-}; // namespace Headers
+    inline constexpr auto VERSION_HEADER = ":version"sv;
+    inline constexpr auto ContentType = ":content-type"sv;
+    inline constexpr auto ServiceModelType = "service-model-type"sv;
+} // namespace Headers
+
+namespace ContentType {
+    static std::string JSON = "application/json";
+    static std::string Text = "text/plain";
+} // namespace ContentType

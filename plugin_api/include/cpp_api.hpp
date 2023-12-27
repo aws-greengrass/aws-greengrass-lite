@@ -3,6 +3,7 @@
 #include "buffer_stream.hpp"
 #include "util.hpp"
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -40,6 +41,8 @@ namespace ggapi {
     class TopicCallback;
     class TaskCallback;
     class LifecycleCallback;
+    class ChannelListenCallback;
+    class ChannelCloseCallback;
     class CallbackManager;
     class GgApiError;
 
@@ -56,14 +59,22 @@ namespace ggapi {
     void callApi(const std::function<void()> &fn);
 
     // Helper functions for consistent string copy pattern
-    inline std::string stringFillHelper(
-        size_t strLen, const std::function<size_t(char *, size_t)> &stringFillFn) {
+    template<
+        class Traits = std::char_traits<char>,
+        class Alloc = std::allocator<char>,
+        class StringFillFn>
+    std::basic_string<char, Traits, Alloc> stringFillHelper(
+        size_t strLen, StringFillFn stringFillFn) {
+        static_assert(std::is_invocable_v<StringFillFn, char *, size_t>);
+        static_assert(
+            std::is_convertible_v<std::invoke_result_t<StringFillFn, char *, size_t>, size_t>);
         if(strLen == 0) {
             return {};
         }
-        std::vector<char> buffer(strLen + 1);
-        size_t finalLen = stringFillFn(buffer.data(), buffer.size());
-        return {buffer.data(), finalLen};
+        std::basic_string<char, Traits, Alloc> str(strLen, '\0');
+        size_t finalLen = stringFillFn(str.data(), str.size());
+        str.resize(finalLen);
+        return str;
     }
 
     /**
@@ -238,6 +249,10 @@ namespace ggapi {
 
         [[nodiscard]] bool isScalar() const {
             return ::ggapiIsScalar(getHandleId());
+        }
+
+        [[nodiscard]] bool isChannel() const {
+            return ::ggapiIsChannel(getHandleId());
         }
     };
 
@@ -519,24 +534,24 @@ namespace ggapi {
             std::variant<bool, uint64_t, double, std::string_view, ObjHandle, Symbol>;
 
     protected:
-        template<typename FT, typename VT>
-        static decltype(auto) visitArg(FT &&fn, VT x) {
-            if constexpr(std::is_same_v<bool, VT>) {
+        template<typename Visitor, typename T>
+        static auto visitArg(Visitor &&fn, const T &x) {
+            if constexpr(std::is_same_v<bool, T>) {
                 return fn(x);
-            } else if constexpr(std::is_integral_v<VT>) {
+            } else if constexpr(std::is_integral_v<T>) {
                 return fn(static_cast<uint64_t>(x));
-            } else if constexpr(std::is_floating_point_v<VT>) {
+            } else if constexpr(std::is_floating_point_v<T>) {
                 return fn(static_cast<double>(x));
-            } else if constexpr(std::is_base_of_v<Symbol, VT>) {
+            } else if constexpr(std::is_base_of_v<Symbol, T>) {
                 return fn(static_cast<Symbol>(x));
-            } else if constexpr(std::is_base_of_v<ObjHandle, VT>) {
+            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                 return fn(static_cast<ObjHandle>(x));
-            } else if constexpr(std ::is_assignable_v<std::string_view, VT>) {
+            } else if constexpr(std ::is_assignable_v<std::string_view, T>) {
                 return fn(static_cast<std::string_view>(x));
-            } else if constexpr(std ::is_assignable_v<ArgValueBase, VT>) {
-                return std::visit(fn, static_cast<ArgValueBase>(x));
+            } else if constexpr(std ::is_assignable_v<ArgValueBase, T>) {
+                return std::visit(std::forward<Visitor>(fn), static_cast<ArgValueBase>(x));
             } else {
-                static_assert(VT::usingUnsupportedType, "Unsupported type");
+                static_assert(T::usingUnsupportedType, "Unsupported type");
             }
         }
 
@@ -688,6 +703,48 @@ namespace ggapi {
     };
 
     /**
+     * Channels are streams of data.
+     */
+    class Channel : public ObjHandle {
+        void check() {
+            if(getHandleId() != 0 && !isChannel()) {
+                throw std::runtime_error("Subscription handle expected");
+            }
+        }
+
+    public:
+        constexpr Channel() noexcept = default;
+
+        explicit Channel(const ObjHandle &other) : ObjHandle{other} {
+            check();
+        }
+
+        explicit Channel(uint32_t handle) : ObjHandle{handle} {
+            check();
+        }
+
+        static Channel create() {
+            return Channel(::ggapiCreateChannel());
+        }
+
+        void write(ObjHandle v) const {
+            ::ggapiChannelWrite(_handle, v.getHandleId());
+        }
+
+        void close() const {
+            ::ggapiChannelClose(_handle);
+        }
+
+        inline void addListenCallback(ChannelListenCallback callback);
+        template<typename Callback, typename... Args>
+        inline void addListenCallback(const Callback callback, Args &&...args);
+
+        inline void addCloseCallback(ChannelCloseCallback callback);
+        template<typename Callback, typename... Args>
+        inline void addCloseCallback(const Callback callback, Args &&...args);
+    };
+
+    /**
      * Structures are containers with associative keys.
      */
     class Struct : public Container {
@@ -778,11 +835,12 @@ namespace ggapi {
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
                 size_t len = callApiReturn<size_t>(
                     [*this, key]() { return ::ggapiStructGetStringLen(_handle, key.asInt()); });
-                return stringFillHelper(len, [*this, key](auto buf, auto bufLen) {
-                    return callApiReturn<size_t>([*this, key, &buf, bufLen]() {
-                        return ::ggapiStructGetString(_handle, key.asInt(), buf, bufLen);
+                return stringFillHelper<typename T::traits_type, typename T::allocator_type>(
+                    len, [*this, key](auto buf, auto bufLen) {
+                        return callApiReturn<size_t>([*this, key, &buf, bufLen]() {
+                            return ::ggapiStructGetString(_handle, key.asInt(), buf, bufLen);
+                        });
                     });
-                });
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
@@ -969,97 +1027,96 @@ namespace ggapi {
 
         template<typename DataT, typename SizeT>
         Buffer &put(int32_t idx, util::Span<DataT, SizeT> span) {
-            if(span.size_bytes() > std::numeric_limits<uint32_t>::max()) {
+            return put(idx, util::as_bytes(span));
+        }
+
+        template<typename SizeT>
+        Buffer &put(int32_t idx, util::Span<const char, SizeT> bytes) {
+            if(bytes.size() > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("length out of range");
             }
             required();
-            callApi([*this, idx, span]() {
-                ::ggapiBufferPut(
-                    _handle,
-                    idx,
-                    // NOLINTNEXTLINE(*-type-reinterpret-cast)
-                    reinterpret_cast<const char *>(span.data()),
-                    span.size_bytes());
+            callApi([*this, idx, bytes]() {
+                ::ggapiBufferPut(_handle, idx, bytes.data(), bytes.size());
             });
             return *this;
         }
 
         template<typename T, class Alloc>
         Buffer &put(int32_t idx, const std::vector<T, Alloc> &vec) {
-            return put(idx, util::Span{vec});
+            return put(idx, util::as_bytes(util::Span{vec}));
         }
 
         template<typename CharT, class Traits>
         Buffer &put(int32_t idx, std::basic_string_view<CharT, Traits> sv) {
-            return put(idx, util::Span<const CharT>{sv});
+            return put(idx, util::as_bytes(util::Span<const CharT>{sv}));
         }
 
         template<typename DataT, typename SizeT>
         Buffer &insert(int32_t idx, util::Span<DataT, SizeT> span) {
-            if(span.size_bytes() > std::numeric_limits<uint32_t>::max()) {
+            return insert(idx, util::as_bytes(span));
+        }
+
+        template<typename SizeT>
+        Buffer &insert(int32_t idx, util::Span<const char, SizeT> bytes) {
+            if(bytes.size() > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("length out of range");
             }
             required();
-            callApi([*this, idx, span]() {
-                ::ggapiBufferInsert(
-                    _handle,
-                    idx,
-                    // NOLINTNEXTLINE(*-type-reinterpret-cast)
-                    reinterpret_cast<const char *>(span.data()),
-                    span.size_bytes());
+            callApi([*this, idx, bytes]() {
+                ::ggapiBufferInsert(_handle, idx, bytes.data(), bytes.size());
             });
             return *this;
         }
 
         template<typename T, class Alloc>
         Buffer &insert(int32_t idx, const std::vector<T, Alloc> &vec) {
-            return insert(idx, util::Span{vec});
+            return insert(idx, util::as_bytes(util::Span{vec}));
         }
 
         template<typename CharT, class Traits>
         Buffer &insert(int32_t idx, const std::basic_string_view<CharT, Traits> sv) {
-            return insert(idx, util::Span<const CharT>{sv});
+            return insert(idx, util::as_bytes(util::Span{sv}));
         }
 
         template<typename DataT, typename SizeT>
-        uint32_t get(int32_t idx, util::Span<DataT, SizeT> span) {
-            if(span.size_bytes() > std::numeric_limits<uint32_t>::max()) {
+        uint32_t get(int32_t idx, util::Span<DataT, SizeT> span) const {
+            return get(idx, util::as_writeable_bytes(span)) / sizeof(DataT);
+        }
+
+        template<typename SizeT>
+        uint32_t get(int32_t idx, util::Span<char, SizeT> bytes) const {
+            if(bytes.size() > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("length out of range");
             }
 
             required();
-            return callApiReturn<uint32_t>([this, idx, span]() -> size_t {
-                return ::ggapiBufferGet(
-                           _handle,
-                           idx,
-                           // NOLINTNEXTLINE(*-reinterpret-cast)
-                           reinterpret_cast<char *>(span.data()),
-                           span.size_bytes())
-                       / sizeof(DataT);
+            return callApiReturn<uint32_t>([this, idx, bytes]() -> uint32_t {
+                return ::ggapiBufferGet(_handle, idx, bytes.data(), bytes.size());
             });
         }
 
         template<typename T, class Alloc>
-        size_t get(int32_t idx, std::vector<T, Alloc> &vec) {
-            size_t actual = get(idx, util::Span{vec});
+        size_t get(int32_t idx, std::vector<T, Alloc> &vec) const {
+            size_t actual = get(idx, util::as_writeable_bytes(util::Span{vec})) / sizeof(T);
             vec.resize(actual);
             return actual;
         }
 
         template<typename CharT, class Traits, class Alloc>
-        size_t get(int32_t idx, std::basic_string<CharT, Traits, Alloc> &str) {
-            size_t actual = get(idx, util::Span{str});
+        size_t get(int32_t idx, std::basic_string<CharT, Traits, Alloc> &str) const {
+            size_t actual = get(idx, util::as_writeable_bytes(util::Span{str})) / sizeof(CharT);
             str.resize(actual);
             return actual;
         }
 
         template<typename T>
-        T get(int32_t idx, size_t max) {
+        T get(int32_t idx, size_t max) const {
             if(max > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("max length out of range");
             }
             T buffer;
-            buffer.resize(max);
+            buffer.resize(std::min<size_t>(size(), max));
             get(idx, buffer);
             return buffer;
         }
@@ -1445,6 +1502,123 @@ namespace ggapi {
         }
     };
 
+    /**
+     * Abstract channel listen callback
+     */
+    class ChannelListenCallback : public ObjHandle {
+
+        /**
+         * Templated dispatch allows for capturing multiple arguments to pass to a callback
+         * routine. Note that this enables the same callback approach as std::invoke and std::thread
+         * where a typical use is (callbackMethod, this) but acceptable also to do something like
+         * (callbackMethod, this, extraArg1, extraArg2).
+         * @tparam Callable Lambda, function pointer, method, etc.
+         * @tparam Args Prefix arguments, particularly optional This
+         */
+        template<typename Callable, typename... Args>
+        class ChannelListenDispatch : public CallbackManager::CallbackDispatch {
+
+            const Callable _callable;
+            const std::tuple<Args...> _args;
+
+        public:
+            explicit ChannelListenDispatch(Callable callable, Args &&...args)
+                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+                static_assert(std::is_invocable_v<Callable, Args..., Struct>);
+            }
+            [[nodiscard]] Symbol type() const override {
+                return {"channelListen"};
+            }
+            [[nodiscard]] CallbackManager::Delegate prepare(
+                uint32_t callbackType, uint32_t size, const void *data) const override {
+                assertCallbackType(Symbol(callbackType));
+                auto &cb = checkedStruct<ChannelListenCallbackData>(size, data);
+                auto callable = _callable;
+                auto dataStruct = Struct(cb.dataStruct);
+                auto args = std::tuple_cat(_args, std::tuple{dataStruct});
+                return [callable, args]() {
+                    std::apply(callable, args);
+                    return static_cast<uint32_t>(true);
+                };
+            }
+        };
+
+    public:
+        constexpr ChannelListenCallback() noexcept = default;
+
+        explicit ChannelListenCallback(const ObjHandle &other) : ObjHandle{other} {
+        }
+
+        /**
+         * Create reference to a channel listen callback.
+         */
+        template<typename Callable, typename... Args>
+        static ChannelListenCallback of(const Callable &callable, Args &&...args) {
+            auto dispatch = std::make_unique<ChannelListenDispatch<Callable, Args...>>(
+                callable, std::forward<Args>(args)...);
+            return CallbackManager::self().registerWithNucleus<ChannelListenCallback>(
+                std::move(dispatch));
+        }
+    };
+
+    /**
+     * Abstract channel close callback
+     */
+    class ChannelCloseCallback : public ObjHandle {
+
+        /**
+         * Templated dispatch allows for capturing multiple arguments to pass to a callback
+         * routine. Note that this enables the same callback approach as std::invoke and std::thread
+         * where a typical use is (callbackMethod, this) but acceptable also to do something like
+         * (callbackMethod, this, extraArg1, extraArg2).
+         * @tparam Callable Lambda, function pointer, method, etc.
+         * @tparam Args Prefix arguments, particularly optional This
+         */
+        template<typename Callable, typename... Args>
+        class ChannelCloseDispatch : public CallbackManager::CallbackDispatch {
+
+            const Callable _callable;
+            const std::tuple<Args...> _args;
+
+        public:
+            explicit ChannelCloseDispatch(Callable callable, Args &&...args)
+                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+                static_assert(std::is_invocable_v<Callable, Args...>);
+            }
+            [[nodiscard]] Symbol type() const override {
+                return {"channelClose"};
+            }
+            [[nodiscard]] CallbackManager::Delegate prepare(
+                uint32_t callbackType, uint32_t size, const void *data) const override {
+                assertCallbackType(Symbol(callbackType));
+                auto &cb = checkedStruct<ChannelCloseCallbackData>(size, data);
+                auto callable = _callable;
+                auto args = _args;
+                return [callable, args]() {
+                    std::apply(callable, args);
+                    return static_cast<uint32_t>(true);
+                };
+            }
+        };
+
+    public:
+        constexpr ChannelCloseCallback() noexcept = default;
+
+        explicit ChannelCloseCallback(const ObjHandle &other) : ObjHandle{other} {
+        }
+
+        /**
+         * Create reference to a channel close callback.
+         */
+        template<typename Callable, typename... Args>
+        static ChannelCloseCallback of(const Callable &callable, Args &&...args) {
+            auto dispatch = std::make_unique<ChannelCloseDispatch<Callable, Args...>>(
+                callable, std::forward<Args>(args)...);
+            return CallbackManager::self().registerWithNucleus<ChannelCloseCallback>(
+                std::move(dispatch));
+        }
+    };
+
     inline Subscription Scope::subscribeToTopic(Symbol topic, TopicCallback callback) {
         required();
         return callApiReturnHandle<Subscription>([*this, topic, callback]() {
@@ -1454,6 +1628,28 @@ namespace ggapi {
 
     inline Subscription Scope::subscribeToTopic(Symbol topic, const TopicCallbackLambda &callback) {
         return subscribeToTopic(topic, TopicCallback::of(callback));
+    }
+
+    inline void Channel::addListenCallback(ChannelListenCallback callback) {
+        required();
+        callApi(
+            [*this, callback]() { ::ggapiChannelListen(getHandleId(), callback.getHandleId()); });
+    }
+
+    template<typename Callback, typename... Args>
+    inline void Channel::addListenCallback(const Callback callback, Args &&...args) {
+        addListenCallback(ChannelListenCallback::of(callback, std::forward<Args>(args)...));
+    }
+
+    inline void Channel::addCloseCallback(ChannelCloseCallback callback) {
+        required();
+        callApi(
+            [*this, callback]() { ::ggapiChannelOnClose(getHandleId(), callback.getHandleId()); });
+    }
+
+    template<typename Callback, typename... Args>
+    inline void Channel::addCloseCallback(const Callback callback, Args &&...args) {
+        addCloseCallback(ChannelCloseCallback::of(callback, std::forward<Args>(args)...));
     }
 
     inline Task Task::sendToTopicAsync(
