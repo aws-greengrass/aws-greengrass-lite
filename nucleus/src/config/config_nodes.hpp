@@ -2,6 +2,7 @@
 
 #include "config/config_manager.hpp"
 #include "data/symbol_value_map.hpp"
+#include "scope/context.hpp"
 
 namespace scope {
     class Context;
@@ -134,7 +135,7 @@ namespace config {
         using BadCastError = errors::InvalidConfigTopicsError;
 
         explicit Topics(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             const std::shared_ptr<Topics> &parent,
             const data::Symbol &key,
             const Timestamp &modtime);
@@ -216,13 +217,13 @@ namespace config {
     // Topic essentially is the leaf equivalent of Topics, decorated with additional
     // information needed for behavior as a ConfigNode
     //
-    class Topic : public TopicElement, public ConfigNode {
+    class Topic : public TopicElement, public scope::UsesContext, public ConfigNode {
     protected:
-        std::weak_ptr<scope::Context> _context;
+        scope::WeakContext _context;
         std::shared_ptr<Topics> _parent;
 
-        scope::Context &context() {
-            return *_context.lock();
+        scope::UsingContext context() const noexcept {
+            return {_context};
         }
 
     public:
@@ -241,7 +242,7 @@ namespace config {
         }
 
         explicit Topic(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             const std::shared_ptr<Topics> &parent,
             const TopicElement &value)
             : _context{context}, _parent{parent}, TopicElement{value} {

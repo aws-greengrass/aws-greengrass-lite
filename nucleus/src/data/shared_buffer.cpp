@@ -103,7 +103,7 @@ namespace data {
 
         util::MemoryReader memReader(_buffer.data(), _buffer.size());
         util::BufferInStreamBase<util::MemoryReader> istream(memReader);
-        conv::JsonReader reader(_context.lock());
+        conv::JsonReader reader(context());
         data::StructElement value;
         reader.push(std::make_unique<conv::JsonElementResponder>(reader, value));
         rapidjson::ParseResult result = reader.readStream(istream);
@@ -114,7 +114,7 @@ namespace data {
             throw errors::JsonParseError();
         }
         guard.unlock();
-        return data::Boxed::box(_context.lock(), value);
+        return data::Boxed::box(context(), value);
     }
 
     void SharedBuffer::write(std::ostream &stream) const {

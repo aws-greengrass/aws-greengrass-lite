@@ -1,5 +1,6 @@
 #pragma once
 #include "data/struct_model.hpp"
+#include "scope/context.hpp"
 #include <atomic>
 #include <list>
 
@@ -9,8 +10,7 @@ namespace tasks {
     class TaskThread;
     class TaskPoolWorker;
 
-    class TaskManager {
-        std::weak_ptr<scope::Context> _context;
+    class TaskManager : protected scope::UsesContext {
         // Root of all active tasks, an active task is assumed to eventually terminate
         std::shared_ptr<data::TrackingRoot> _root;
         // A set of worker threads that are currently busy, assumed small
@@ -44,8 +44,8 @@ namespace tasks {
         mutable std::mutex _mutex;
 
     public:
-        explicit TaskManager(const std::shared_ptr<scope::Context> &context)
-            : _context(context), _root(std::make_shared<data::TrackingRoot>(context)) {
+        explicit TaskManager(const scope::UsingContext &context)
+            : scope::UsesContext(context), _root(std::make_shared<data::TrackingRoot>(context)) {
         }
 
         TaskManager(const TaskManager &) = delete;

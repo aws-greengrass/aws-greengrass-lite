@@ -34,7 +34,7 @@ namespace logging {
     }
 
     void LogQueue::publishThread() {
-        scope::Context::thread().changeContext(_context.lock());
+        scope::thread()->changeContext(context());
         for(;;) {
             auto entry = pickupEntry();
             if(entry.has_value()) {
@@ -101,10 +101,11 @@ namespace logging {
 
     void LogQueue::syncOutputs() {
         // Single threaded, lock free, needsSync only used in this thread
-        auto context = _context.lock();
-        if(context) {
+        auto ctx = context();
+        if(ctx) {
+            auto &logMgr = ctx->logManager();
             for(auto &name : _needsSync) {
-                auto state = context->logManager().getState(name);
+                auto state = logMgr.getState(name);
                 if(state) {
                     state->syncOutput();
                 }

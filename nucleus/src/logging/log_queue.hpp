@@ -2,6 +2,7 @@
 #include "data/handle_table.hpp"
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
+#include "scope/context.hpp"
 #include <atomic>
 #include <condition_variable>
 #include <functional>
@@ -11,10 +12,6 @@
 #include <thread>
 #include <unordered_set>
 
-namespace scope {
-    class Context;
-}
-
 namespace logging {
     class LogState;
 
@@ -23,14 +20,13 @@ namespace logging {
      * all log entries are strictly serialized when pushed to this queue
      */
     // NOLINTNEXTLINE(*-special-member-functions)
-    class LogQueue {
+    class LogQueue : private scope::UsesContext {
     public:
         using QueueEntry =
             std::pair<std::shared_ptr<LogState>, std::shared_ptr<data::StructModelBase>>;
 
     private:
         mutable std::mutex _mutex;
-        std::weak_ptr<scope::Context> _context;
         std::thread _thread;
         std::list<QueueEntry> _entries;
         std::condition_variable _wake;
@@ -42,7 +38,7 @@ namespace logging {
         std::unordered_set<std::string> _needsSync;
 
     public:
-        explicit LogQueue(const std::shared_ptr<scope::Context> &context) : _context(context) {
+        explicit LogQueue(const scope::UsingContext &context) : scope::UsesContext(context) {
         }
         ~LogQueue();
         void publish(

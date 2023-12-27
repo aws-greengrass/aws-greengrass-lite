@@ -10,10 +10,10 @@ namespace tasks {
 
     CurrentTaskScope::CurrentTaskScope(const std::shared_ptr<Task> &activeTask)
         : _activeTask(activeTask) {
-        _oldTask = scope::Context::thread().setActiveTask(_activeTask);
+        _oldTask = scope::thread()->setActiveTask(_activeTask);
     }
     CurrentTaskScope::~CurrentTaskScope() {
-        scope::Context::thread().setActiveTask(_oldTask);
+        scope::thread()->setActiveTask(_oldTask);
     }
 
     void Task::addSubtask(std::unique_ptr<SubTask> subTask) {
@@ -321,6 +321,14 @@ namespace tasks {
             cancelTask();
         }
     }
+    scope::FixedPtr<TaskManager> Task::getTaskManager() {
+        auto ctx = context();
+        if(ctx) {
+            return scope::FixedPtr<TaskManager>::of(&ctx->taskManager());
+        } else {
+            return {};
+        }
+    }
 
     void SubTask::setAffinity(const std::shared_ptr<TaskThread> &affinity) {
         _threadAffinity = affinity;
@@ -339,7 +347,7 @@ namespace tasks {
     std::shared_ptr<data::StructModelBase> SimpleSubTask::runInThread(
         const std::shared_ptr<tasks::Task> &task,
         const std::shared_ptr<data::StructModelBase> &data) {
-        assert(scope::thread().getActiveTask() == task); // sanity
+        assert(scope::thread()->getActiveTask() == task); // sanity
         assert(task->getSelf()); // sanity
         _callback->invokeTaskCallback(data);
         return {};

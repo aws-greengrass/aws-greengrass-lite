@@ -37,8 +37,7 @@ namespace lifecycle {
             config::WhatHappened changeType) override;
     };
 
-    class Kernel {
-        std::weak_ptr<scope::Context> _context;
+    class Kernel : private scope::UsesContext {
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
         std::shared_ptr<RootPathWatcher> _rootPathWatcher;
         tasks::FixedTaskThreadScope _mainThread;
@@ -48,12 +47,8 @@ namespace lifecycle {
         std::unique_ptr<KernelAlternatives> _kernelAlts{nullptr};
         std::atomic_int _exitCode{0};
 
-        [[nodiscard]] scope::Context &context() const {
-            return *_context.lock();
-        }
-
     public:
-        explicit Kernel(const std::shared_ptr<scope::Context> &context);
+        explicit Kernel(const scope::UsingContext &context);
         Kernel(const Kernel &) = delete;
         Kernel(Kernel &&) = delete;
         Kernel &operator=(const Kernel &) = delete;

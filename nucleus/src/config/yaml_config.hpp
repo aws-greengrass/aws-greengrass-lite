@@ -1,5 +1,6 @@
 #pragma once
 #include "conv/yaml_conv.hpp"
+#include "scope/context.hpp"
 
 namespace config {
     class YamlConfigReader : public conv::YamlReaderBase {
@@ -8,7 +9,7 @@ namespace config {
 
     public:
         explicit YamlConfigReader(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             const std::shared_ptr<config::Topics> &target,
             const config::Timestamp &timestamp)
             : YamlReaderBase(context), _target{target}, _timestamp(timestamp) {
@@ -36,15 +37,15 @@ namespace config {
 
     struct YamlConfigHelper {
         static void serialize(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             YAML::Emitter &emitter,
             const std::shared_ptr<config::Topics> &value);
         static void write(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             util::CommitableFile &path,
             const std::shared_ptr<config::Topics> &node);
         static void write(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             std::ofstream &stream,
             const std::shared_ptr<config::Topics> &node);
     };

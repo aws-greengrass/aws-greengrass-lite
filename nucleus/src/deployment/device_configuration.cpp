@@ -10,8 +10,8 @@ const auto LOG = // NOLINT(cert-err58-cpp)
 namespace deployment {
 
     DeviceConfiguration::DeviceConfiguration(
-        const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel)
-        : _context(context), _kernel(kernel), configs(context) {
+        const scope::UsingContext &context, lifecycle::Kernel &kernel)
+        : scope::UsesContext(context), _kernel(kernel), configs(context) {
     }
 
     void DeviceConfiguration::initialize() {
@@ -132,8 +132,8 @@ namespace deployment {
             .kv("logging-change-key", key)
             .log();
         // Change configuration
-        auto &context = scope::context();
-        auto &logManager = context.logManager();
+        auto context = scope::context();
+        auto &logManager = context->logManager();
         auto paths = _kernel.getPaths();
         logging::LogConfigUpdate logConfigUpdate{logManager, topics, paths};
         logManager.reconfigure("", logConfigUpdate);
@@ -467,7 +467,7 @@ namespace deployment {
     }
 
     std::shared_ptr<DeviceConfiguration> DeviceConfiguration::create(
-        const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel) {
+        const scope::UsingContext &context, lifecycle::Kernel &kernel) {
         auto config = std::make_shared<DeviceConfiguration>(context, kernel);
         config->initialize();
         return config;

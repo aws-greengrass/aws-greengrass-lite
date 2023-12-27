@@ -1,6 +1,7 @@
 #pragma once
 #include "data/safe_handle.hpp"
 #include "errors/errors.hpp"
+#include "scope/context.hpp"
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -11,10 +12,6 @@
 #include <unordered_map>
 #include <util.hpp>
 #include <vector>
-
-namespace scope {
-    class Context;
-}
 
 namespace data {
 
@@ -50,12 +47,7 @@ namespace data {
     // The object lives as long as there is one or more handles, or if there is
     // one or more std::shared_ptr<> reference to the object
     //
-    class TrackedObject : public util::RefObject<TrackedObject> {
-    protected:
-        std::weak_ptr<scope::Context> _context;
-        scope::Context &context() const {
-            return *_context.lock();
-        }
+    class TrackedObject : public util::RefObject<TrackedObject>, protected scope::UsesContext {
 
     public:
         using BadCastError = std::bad_cast;
@@ -66,7 +58,7 @@ namespace data {
         TrackedObject &operator=(TrackedObject &&) noexcept = delete;
         virtual ~TrackedObject() = default;
 
-        explicit TrackedObject(const std::shared_ptr<scope::Context> &context) : _context(context) {
+        explicit TrackedObject(const scope::UsingContext &context) : UsesContext(context) {
         }
 
         virtual void beforeRemove(const ObjectAnchor &anchor) {
@@ -164,23 +156,19 @@ namespace data {
     //
     // Class for managing object roots. A container for all anchors.
     //
-    class TrackingRoot : public util::RefObject<TrackingRoot> {
+    class TrackingRoot : public util::RefObject<TrackingRoot>, protected scope::UsesContext {
         friend class HandleTable;
 
     protected:
-        std::weak_ptr<scope::Context> _context;
         std::map<ObjHandle::Partial, std::shared_ptr<TrackedObject>, ObjHandle::Partial::CompLess>
             _roots;
         mutable std::shared_mutex _mutex;
         void removeRootHelper(const ObjectAnchor &anchor);
         ObjectAnchor createRootHelper(const ObjectAnchor &anchor);
         std::vector<ObjectAnchor> getRootsHelper(const std::weak_ptr<TrackingRoot> &assumedOwner);
-        scope::Context &context() {
-            return *_context.lock();
-        }
 
     public:
-        explicit TrackingRoot(const std::shared_ptr<scope::Context> &context) : _context(context) {
+        explicit TrackingRoot(const scope::UsingContext &context) : scope::UsesContext(context) {
         }
 
         TrackingRoot(const TrackingRoot &) = delete;
@@ -207,7 +195,7 @@ namespace data {
     public:
         using BadCastError = errors::InvalidScopeError;
 
-        explicit TrackingScope(const std::shared_ptr<scope::Context> &context);
+        explicit TrackingScope(const scope::UsingContext &context);
 
         TrackingScope(const TrackingScope &) = delete;
         TrackingScope(TrackingScope &&) noexcept = delete;

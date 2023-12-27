@@ -2,6 +2,7 @@
 
 #include "config/config_manager.hpp"
 #include "conv/json_conv.hpp"
+#include "scope/context.hpp"
 
 namespace config {
 
@@ -49,12 +50,10 @@ namespace config {
         data::StructElement value{};
 
         void serialize(
-            const std::shared_ptr<scope::Context> &context,
-            rapidjson::Writer<rapidjson::StringBuffer> &writer);
-        bool deserialize(const std::shared_ptr<scope::Context> &context, std::ifstream &stream);
+            const scope::UsingContext &context, rapidjson::Writer<rapidjson::StringBuffer> &writer);
+        bool deserialize(const scope::UsingContext &context, std::ifstream &stream);
 
-        static TlogLine readRecord(
-            const std::shared_ptr<scope::Context> &context, std::ifstream &stream);
+        static TlogLine readRecord(const scope::UsingContext &context, std::ifstream &stream);
         static WhatHappened decodeWhatHappened(std::string_view whatHappenedString);
     };
 

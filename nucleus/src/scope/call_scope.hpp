@@ -1,6 +1,6 @@
 #pragma once
 #include "data/tracked_object.hpp"
-#include "scope/context.hpp"
+#include "scope/context_impl.hpp"
 #include <memory>
 
 namespace scope {

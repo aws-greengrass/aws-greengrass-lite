@@ -1,18 +1,16 @@
 #pragma once
 #include "config/config_manager.hpp"
+#include "scope/context.hpp"
 #include "util/commitable_file.hpp"
 #include <fstream>
 #include <yaml-cpp/yaml.h>
 
 namespace conv {
 
-    class YamlReaderBase {
-
-        std::shared_ptr<scope::Context> _context;
+    class YamlReaderBase : private scope::UsesContext {
 
     public:
-        explicit YamlReaderBase(const std::shared_ptr<scope::Context> &context)
-            : _context{context} {
+        explicit YamlReaderBase(const scope::UsingContext &context) : scope::UsesContext{context} {
         }
         virtual ~YamlReaderBase() = default;
 
@@ -30,8 +28,7 @@ namespace conv {
 
     public:
         explicit YamlReader(
-            const std::shared_ptr<scope::Context> &context,
-            const std::shared_ptr<data::SharedStruct> &target)
+            const scope::UsingContext &context, const std::shared_ptr<data::SharedStruct> &target)
             : YamlReaderBase(context), _target{target} {
         }
 
@@ -40,7 +37,7 @@ namespace conv {
 
     struct YamlHelper {
         static void serialize(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             YAML::Emitter &emitter,
             const data::StructElement &value);
     };

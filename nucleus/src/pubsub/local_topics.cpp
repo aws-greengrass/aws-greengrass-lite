@@ -13,7 +13,7 @@ namespace pubsub {
     }
 
     Listener::Listener(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         data::Symbol topicOrd,
         Listeners *listeners,
         const std::shared_ptr<tasks::Callback> &callback)
@@ -21,8 +21,8 @@ namespace pubsub {
           _callback(callback) {
     }
 
-    Listeners::Listeners(const std::shared_ptr<scope::Context> &context, data::Symbol topic)
-        : _context(context), _topic(topic) {
+    Listeners::Listeners(const scope::UsingContext &context, data::Symbol topic)
+        : scope::UsesContext(context), _topic(topic) {
     }
 
     void Listeners::cleanup() {
@@ -35,7 +35,8 @@ namespace pubsub {
                 });
         }
         // lock must be released before this step
-        if(_listeners.empty() && !_context.expired()) {
+        auto ctx = context();
+        if(_listeners.empty() && ctx) {
             manager().cleanup();
         }
     }
@@ -52,7 +53,7 @@ namespace pubsub {
     std::shared_ptr<Listener> Listeners::addNewListener(
         const std::shared_ptr<tasks::Callback> &callback) {
         std::shared_ptr<Listener> listener{
-            std::make_shared<Listener>(_context.lock(), _topic, this, callback)};
+            std::make_shared<Listener>(context(), _topic, this, callback)};
         std::unique_lock guard{managerMutex()};
         _listeners.push_back(listener);
         return listener;
@@ -79,7 +80,7 @@ namespace pubsub {
             // rare edge case
             return i->second;
         }
-        listeners = std::make_shared<Listeners>(_context.lock(), topicName);
+        listeners = std::make_shared<Listeners>(context(), topicName);
         _topics.emplace(topicName, listeners);
         return listeners;
     }
@@ -154,7 +155,8 @@ namespace pubsub {
     }
 
     std::unique_ptr<tasks::SubTask> Listener::toSubTask(const data::Symbol &topic) {
-        std::shared_lock guard{context().lpcTopics().managerMutex()};
+        auto ctx = context();
+        std::shared_lock guard{ctx->lpcTopics().managerMutex()};
         std::unique_ptr<tasks::SubTask> subTask{std::make_unique<TopicSubTask>(topic, _callback)};
         return subTask;
     }
@@ -162,8 +164,9 @@ namespace pubsub {
     std::shared_ptr<data::StructModelBase> Listener::runInTaskThread(
         const std::shared_ptr<tasks::Task> &task,
         const std::shared_ptr<data::StructModelBase> &dataIn) {
+
         assert(task->getSelf());
-        assert(scope::thread().getActiveTask() == task);
+        assert(scope::thread()->getActiveTask() == task);
         return _callback->invokeTopicCallback(task, _topic, dataIn);
     }
 

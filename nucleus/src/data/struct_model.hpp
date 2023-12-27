@@ -246,8 +246,7 @@ namespace data {
     public:
         using BadCastError = errors::InvalidContainerError;
 
-        explicit ContainerModelBase(const std::shared_ptr<scope::Context> &context)
-            : TrackedObject(context) {
+        explicit ContainerModelBase(const scope::UsingContext &context) : TrackedObject(context) {
         }
 
         //
@@ -279,8 +278,7 @@ namespace data {
         void rootsCheck(const ContainerModelBase *target) const override;
 
     public:
-        explicit Boxed(const std::shared_ptr<scope::Context> &context)
-            : ContainerModelBase(context) {
+        explicit Boxed(const scope::UsingContext &context) : ContainerModelBase(context) {
         }
 
         void put(const StructElement &element);
@@ -288,7 +286,7 @@ namespace data {
         uint32_t size() const override;
 
         static std::shared_ptr<ContainerModelBase> box(
-            const std::shared_ptr<scope::Context> &context, const StructElement &element);
+            const scope::UsingContext &context, const StructElement &element);
         static StructElement unbox(const std::shared_ptr<TrackedObject> value);
     };
 
@@ -303,8 +301,7 @@ namespace data {
         virtual StructElement getImpl(Symbol handle) const = 0;
 
     public:
-        explicit StructModelBase(const std::shared_ptr<scope::Context> &context)
-            : ContainerModelBase(context) {
+        explicit StructModelBase(const scope::UsingContext &context) : ContainerModelBase(context) {
         }
 
         void put(Symbol handle, const StructElement &element);
@@ -323,8 +320,7 @@ namespace data {
     //
     class ListModelBase : public ContainerModelBase {
     public:
-        explicit ListModelBase(const std::shared_ptr<scope::Context> &context)
-            : ContainerModelBase(context) {
+        explicit ListModelBase(const scope::UsingContext &context) : ContainerModelBase(context) {
         }
 
         virtual void put(int32_t idx, const StructElement &element) = 0;

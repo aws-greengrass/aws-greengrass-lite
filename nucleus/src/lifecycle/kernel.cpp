@@ -17,9 +17,9 @@ namespace lifecycle {
     // from both. Also, some functionality from KernelCommandLine is moved here.
     //
 
-    Kernel::Kernel(const std::shared_ptr<scope::Context> &context) : _context(context) {
+    Kernel::Kernel(const scope::UsingContext &context) : scope::UsesContext(context) {
         _nucleusPaths = std::make_shared<util::NucleusPaths>();
-        data::SymbolInit::init(_context.lock(), {&SERVICES_TOPIC_KEY});
+        data::SymbolInit::init(context, {&SERVICES_TOPIC_KEY});
     }
 
     //
@@ -31,7 +31,7 @@ namespace lifecycle {
         getConfig().publishQueue().start();
         _rootPathWatcher = std::make_shared<RootPathWatcher>(*this);
         context()
-            .configManager()
+            ->configManager()
             .lookup({"system", "rootpath"})
             .dflt(getPaths()->rootPath().generic_string())
             .addWatcher(_rootPathWatcher, config::WhatHappened::changed);
@@ -101,7 +101,7 @@ namespace lifecycle {
             // tlog content is validated - torn writes also handled here
             bool transactionTlogValid =
                 handleIncompleteTlogTruncation(transactionLogPath)
-                && config::TlogReader::handleTlogTornWrite(_context.lock(), transactionLogPath);
+                && config::TlogReader::handleTlogTornWrite(context(), transactionLogPath);
 
             if(transactionTlogValid) {
                 // if config.tlog is valid, use it
@@ -141,14 +141,14 @@ namespace lifecycle {
         writeEffectiveConfig();
 
         // hook tlog to config so that changes over time are persisted to the tlog
-        _tlog = std::make_unique<config::TlogWriter>(
-            _context.lock(), getConfig().root(), transactionLogPath);
+        _tlog =
+            std::make_unique<config::TlogWriter>(context(), getConfig().root(), transactionLogPath);
         // TODO: per KernelLifecycle.initConfigAndTlog(), configure auto truncate from config
         _tlog->flushImmediately().withAutoTruncate().append().withWatcher();
     }
 
     void Kernel::initDeviceConfiguration(CommandLine &commandLine) {
-        _deviceConfiguration = deployment::DeviceConfiguration::create(_context.lock(), *this);
+        _deviceConfiguration = deployment::DeviceConfiguration::create(context(), *this);
         // std::make_shared<deployment::DeviceConfiguration>();
         if(!commandLine.getAwsRegion().empty()) {
             _deviceConfiguration->setAwsRegion(commandLine.getAwsRegion());
@@ -226,7 +226,7 @@ namespace lifecycle {
             bootstrapTlogFile,
             util::CommitableFile::getBackupFile(bootstrapTlogFile)};
         for(const auto &backupPath : paths) {
-            if(config::TlogReader::handleTlogTornWrite(_context.lock(), backupPath)) {
+            if(config::TlogReader::handleTlogTornWrite(context(), backupPath)) {
                 LOG.atWarn("boot")
                     .kv("configFile", tlogFile.generic_string())
                     .kv("backupFile", backupPath.generic_string())
@@ -242,7 +242,7 @@ namespace lifecycle {
     }
 
     void Kernel::writeEffectiveConfigAsTransactionLog(const std::filesystem::path &tlogFile) {
-        config::TlogWriter(_context.lock(), getConfig().root(), tlogFile).dump();
+        config::TlogWriter(context(), getConfig().root(), tlogFile).dump();
     }
 
     void Kernel::writeEffectiveConfig() {
@@ -254,12 +254,12 @@ namespace lifecycle {
 
     void Kernel::writeEffectiveConfig(const std::filesystem::path &configFile) {
         util::CommitableFile commitable(configFile);
-        config::YamlConfigHelper::write(_context.lock(), commitable, getConfig().root());
+        config::YamlConfigHelper::write(context(), commitable, getConfig().root());
     }
 
     int Kernel::launch() {
         if(!_mainThread) {
-            _mainThread.claim(std::make_shared<tasks::FixedTimerTaskThread>(_context.lock()));
+            _mainThread.claim(std::make_shared<tasks::FixedTimerTaskThread>(context()));
         }
         data::Symbol deploymentSymbol =
             deployment::DeploymentConsts::STAGE_MAP.rlookup(_deploymentStageAtLaunch)
@@ -310,7 +310,7 @@ namespace lifecycle {
         // management is implemented.
         //
 
-        auto &loader = context().pluginLoader();
+        auto &loader = context()->pluginLoader();
         loader.setPaths(getPaths());
         loader.setDeviceConfiguration(_deviceConfiguration);
         loader.discoverPlugins(getPaths()->pluginPath());
@@ -331,7 +331,7 @@ namespace lifecycle {
             plugin.lifecycle(loader.TERMINATE, data);
         });
         getConfig().publishQueue().stop();
-        context().logManager().publishQueue()->stop();
+        context()->logManager().publishQueue()->stop();
     }
 
     std::shared_ptr<config::Topics> Kernel::findServiceTopic(const std::string_view &serviceName) {
@@ -385,7 +385,7 @@ namespace lifecycle {
         writeEffectiveConfig();
     }
     config::Manager &Kernel::getConfig() {
-        return context().configManager();
+        return context()->configManager();
     }
 
 } // namespace lifecycle

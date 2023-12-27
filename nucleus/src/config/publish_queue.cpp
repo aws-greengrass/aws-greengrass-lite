@@ -26,7 +26,7 @@ namespace config {
     }
 
     void PublishQueue::publishThread() {
-        scope::Context::thread().changeContext(_context.lock());
+        scope::thread()->changeContext(context());
         for(;;) {
             std::optional<PublishAction> action = pickupAction();
             if(action.has_value()) {

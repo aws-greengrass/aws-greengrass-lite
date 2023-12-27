@@ -5,8 +5,7 @@
 namespace config {
 
     void TlogLine::serialize(
-        const std::shared_ptr<scope::Context> &context,
-        rapidjson::Writer<rapidjson::StringBuffer> &writer) {
+        const scope::UsingContext &context, rapidjson::Writer<rapidjson::StringBuffer> &writer) {
         writer.StartObject();
 
         writer.Key(TS);
@@ -71,15 +70,13 @@ namespace config {
         return WhatHappened::never;
     }
 
-    TlogLine TlogLine::readRecord(
-        const std::shared_ptr<scope::Context> &context, std::ifstream &stream) {
+    TlogLine TlogLine::readRecord(const scope::UsingContext &context, std::ifstream &stream) {
         TlogLine tlogLine;
         tlogLine.deserialize(context, stream);
         return tlogLine;
     }
 
-    bool TlogLine::deserialize(
-        const std::shared_ptr<scope::Context> &context, std::ifstream &stream) {
+    bool TlogLine::deserialize(const scope::UsingContext &context, std::ifstream &stream) {
         conv::JsonReader reader(context);
         reader.push(std::make_unique<TlogLineResponder>(reader, *this, false));
         rapidjson::ParseResult result = reader.read(stream);

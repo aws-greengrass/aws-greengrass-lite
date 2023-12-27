@@ -11,7 +11,8 @@ SCENARIO("Basic use of logging", "[logging]") {
         const auto LOG = // NOLINT(cert-err58-cpp)
             ggapi::Logger::of("Logging");
 
-        auto &logManager = scope::context().logManager();
+        auto ctx = scope::context();
+        auto &logManager = ctx->logManager();
         logging::LogQueue::QueueEntry lastEntry;
         logManager.publishQueue()->setWatch([&lastEntry](auto entry) {
             lastEntry = entry;

@@ -97,8 +97,7 @@ namespace tasks {
     class Callback : public data::TrackedObject {
 
     public:
-        explicit Callback(const std::shared_ptr<scope::Context> &context)
-            : data::TrackedObject(context) {
+        explicit Callback(const scope::UsingContext &context) : data::TrackedObject(context) {
         }
 
         virtual std::shared_ptr<data::StructModelBase> invokeTopicCallback(
@@ -137,7 +136,7 @@ namespace tasks {
 
     public:
         explicit RegisteredCallback(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             const std::shared_ptr<plugins::AbstractPlugin> &module,
             data::Symbol callbackType,
             ::ggapiGenericCallback callback,

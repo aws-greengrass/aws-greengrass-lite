@@ -22,10 +22,6 @@ namespace data {
     class StructModelBase;
 }
 
-namespace scope {
-    class Context;
-}
-
 namespace pubsub {
     class Listeners;
     class PubSubManager;
@@ -64,7 +60,7 @@ namespace pubsub {
         Listener &operator=(Listener &&) noexcept = delete;
         ~Listener() override;
         explicit Listener(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             data::Symbol topicOrd,
             Listeners *listeners,
             const std::shared_ptr<tasks::Callback> &callback);
@@ -78,24 +74,19 @@ namespace pubsub {
     // All listeners that currently exist
     // No wildcards supported
     //
-    class Listeners : public util::RefObject<Listeners> {
+    class Listeners : public util::RefObject<Listeners>, protected scope::UsesContext {
     private:
-        std::weak_ptr<scope::Context> _context;
         data::Symbol _topic;
         std::vector<std::weak_ptr<Listener>> _listeners;
-
-        scope::Context &context() const {
-            return *_context.lock();
-        }
         PubSubManager &manager() const {
-            return context().lpcTopics();
+            return context()->lpcTopics();
         }
 
     protected:
         std::shared_mutex &managerMutex();
 
     public:
-        Listeners(const std::shared_ptr<scope::Context> &context, data::Symbol topic);
+        Listeners(const scope::UsingContext &context, data::Symbol topic);
         void cleanup();
 
         bool isEmpty() {
@@ -109,16 +100,11 @@ namespace pubsub {
     //
     // Manages all PubSub behavior
     //
-    class PubSubManager {
+    class PubSubManager : private scope::UsesContext {
     private:
-        std::weak_ptr<scope::Context> _context;
         scope::SharedContextMapper _symbolMapper;
         data::SymbolValueMap<std::shared_ptr<Listeners>> _topics{_symbolMapper};
         mutable std::shared_mutex _mutex;
-
-        scope::Context &context() const {
-            return *_context.lock();
-        }
 
         std::shared_mutex &managerMutex() {
             return _mutex;
@@ -129,8 +115,8 @@ namespace pubsub {
         friend class Listener;
 
     public:
-        explicit PubSubManager(const std::shared_ptr<scope::Context> &context)
-            : _context(context), _symbolMapper(context) {
+        explicit PubSubManager(const scope::UsingContext &context)
+            : scope::UsesContext(context), _symbolMapper(context) {
         }
 
         void cleanup();

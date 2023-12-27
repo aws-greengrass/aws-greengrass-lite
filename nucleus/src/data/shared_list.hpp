@@ -17,8 +17,7 @@ namespace data {
     public:
         using BadCastError = errors::InvalidListError;
 
-        explicit SharedList(const std::shared_ptr<scope::Context> &context)
-            : ListModelBase{context} {
+        explicit SharedList(const scope::UsingContext &context) : ListModelBase{context} {
         }
 
         void put(int32_t idx, const StructElement &element) override;

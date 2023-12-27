@@ -81,8 +81,8 @@ namespace logging {
         return state->getLevel();
     }
 
-    LogManager::LogManager(const std::shared_ptr<scope::Context> &context)
-        : _context(context), _queue(std::make_shared<LogQueue>(context)) {
+    LogManager::LogManager(const scope::UsingContext &context)
+        : scope::UsesContext(context), _queue(std::make_shared<LogQueue>(context)) {
     }
 
     LogManager::~LogManager() {
@@ -130,15 +130,15 @@ namespace logging {
     }
 
     data::Symbol NucleusLoggingTraits::intern(std::string_view sv) {
-        return scope::context().intern(sv);
+        return scope::context()->intern(sv);
     }
 
     std::shared_ptr<LogManagerBase<NucleusLoggingTraits>> NucleusLoggingTraits::getManager() {
-        return scope::context().logManager().baseRef();
+        return scope::context()->logManager().baseRef();
     }
 
     NucleusLoggingTraits::StructType NucleusLoggingTraits::newStruct() {
-        return std::make_shared<data::SharedStruct>(scope::context().baseRef());
+        return std::make_shared<data::SharedStruct>(scope::context());
     }
 
     std::optional<std::string> LogConfigUpdate::getString(const data::Symbol &key) const {

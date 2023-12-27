@@ -21,7 +21,7 @@ namespace data {
     public:
         using BadCastError = errors::InvalidStructError;
 
-        explicit SharedStruct(const std::shared_ptr<scope::Context> &context)
+        explicit SharedStruct(const scope::UsingContext &context)
             : StructModelBase(context), _symbolMapper(context) {
         }
 

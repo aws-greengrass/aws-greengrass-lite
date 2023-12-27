@@ -14,13 +14,13 @@ class ListenerStub : public tasks::Callback {
 
 public:
     ListenerStub(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         const std::string_view &flagName,
         const std::shared_ptr<data::StructModelBase> &returnData)
         : tasks::Callback(context), _flagName(flagName), _returnData{returnData} {
     }
 
-    ListenerStub(const std::shared_ptr<scope::Context> &context, const std::string_view &flagName)
+    ListenerStub(const scope::UsingContext &context, const std::string_view &flagName)
         : tasks::Callback(context), _flagName(flagName) {
     }
 
@@ -113,7 +113,7 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             context->lpcTopics().initializePubSubCall(
                 newTask, subs1, topic, callArgData, {}, tasks::ExpireTime::fromNow(10s));
             // For purpose of this test, run all callbacks on test thread
-            newTask->setDefaultThread(scope::thread().getThreadTaskData());
+            newTask->setDefaultThread(scope::thread()->getThreadTaskData());
             context->taskManager().queueTask(newTask);
             bool didComplete = newTask->waitForCompletion(expireTime);
             auto returnedData = newTask->getData();
@@ -146,7 +146,7 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             context->lpcTopics().initializePubSubCall(
                 newTask, subs1, {}, callArgData, {}, tasks::ExpireTime::fromNow(10s));
             // For purpose of this test, run all callbacks on test thread
-            newTask->setDefaultThread(scope::thread().getThreadTaskData());
+            newTask->setDefaultThread(scope::thread()->getThreadTaskData());
             context->taskManager().queueTask(newTask);
             bool didComplete = newTask->waitForCompletion(expireTime);
             auto returnedData = newTask->getData();
