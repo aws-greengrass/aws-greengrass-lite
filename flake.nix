@@ -21,7 +21,7 @@
           };
           strictDeps = true;
           nativeBuildInputs = [ cmake ninja ];
-          cmakeBuildType = "Debug";
+          hardeningDisable = [ "all" ];
           cmakeFlags = lib.mapAttrsToList
             (n: v: "-DFETCHCONTENT_SOURCE_DIR_${lib.toUpper n}=${v}")
             deps;
@@ -44,7 +44,10 @@
         git-secrets
         (python3.withPackages (ps: with ps; [ yapf python-lsp-server ]))
       ];
-      env.CMAKE_EXPORT_COMPILE_COMMANDS = "1";
+      env = {
+        CMAKE_EXPORT_COMPILE_COMMANDS = "1";
+        NIX_HARDENING_ENABLE = "";
+      };
     };
 
     checks.cmake-lint = pkgs: ''
