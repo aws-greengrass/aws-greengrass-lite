@@ -1,6 +1,8 @@
 {
   inputs.flakelight.url = "github:nix-community/flakelight";
-  outputs = { flakelight, ... }: flakelight ./. {
+  outputs = { flakelight, ... }: flakelight ./. ({ lib, ... }: {
+    systems = lib.systems.flakeExposed;
+
     packages = rec {
       default = { stdenv, lib, fetchgit, cmake, ninja }:
         let
@@ -62,5 +64,5 @@
         "cmake-format -c ${./.cmake-format.yml} -i";
       "*.py" = "yapf -i";
     };
-  };
+  });
 }
