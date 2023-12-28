@@ -2,7 +2,7 @@
 
 static const Keys keys;
 
-ggapi::Struct ExampleMqttSender::mqttListener(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
+ggapi::Struct mqttListener(ggapi::Struct args) {
 
     std::string topic{args.get<std::string>(keys.topicName)};
     std::string payload{args.get<std::string>(keys.payload)};
@@ -14,43 +14,46 @@ ggapi::Struct ExampleMqttSender::mqttListener(ggapi::Task, ggapi::Symbol, ggapi:
     return response;
 }
 
-void ExampleMqttSender::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
+void MqttSender::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
     ggapi::Symbol phaseOrd{phase};
     std::cerr << "[example-mqtt-sender] Running lifecycle phase " << phaseOrd.toString()
               << std::endl;
 }
 
-bool ExampleMqttSender::onStart(ggapi::Struct data) {
-    std::ignore = getScope().subscribeToTopic(
-        keys.mqttPing, ggapi::TopicCallback::of(&ExampleMqttSender::mqttListener, this));
+bool MqttSender::onStart(ggapi::Struct data) {
     return true;
 }
 
-bool ExampleMqttSender::onRun(ggapi::Struct data) {
-    // publish to a topic on an async thread
-    _asyncThread = std::thread{&ExampleMqttSender::threadFn, this};
-
+bool MqttSender::onRun(ggapi::Struct data) {
     // subscribe to a topic
     auto request{ggapi::Struct::create()};
-    request.put(keys.topicFilter, "ping/#");
+    request.put(keys.topicName, "ping/#");
     request.put(keys.qos, 1);
+
     // TODO: Use anonymous listener handle
-    request.put(keys.lpcResponseTopic, keys.mqttPing);
-    std::ignore = ggapi::Task::sendToTopic(keys.subscribeToIoTCoreTopic, request);
+    auto result = ggapi::Task::sendToTopic(keys.subscribeToIoTCoreTopic, request);
+    if (!result.empty()) {
+        auto channel = getScope().anchor(result.get<ggapi::Channel>(keys.channel));
+        channel.addListenCallback(mqttListener);
+        channel.addCloseCallback([channel]() { channel.release(); });
+    }
+    // publish to a topic on an async thread
+    _asyncThread = std::thread{&MqttSender::threadFn, this};
     return true;
 }
 
-bool ExampleMqttSender::onTerminate(ggapi::Struct data) {
+bool MqttSender::onTerminate(ggapi::Struct data) {
     std::cerr << "[example-mqtt-sender] Stopping publish thread..." << std::endl;
-    _running.store(false);
+    _isRunning.store(false);
     _asyncThread.join();
     return true;
 }
 
-void ExampleMqttSender::threadFn() {
+void MqttSender::threadFn() {
     std::cerr << "[example-mqtt-sender] Started publish thread" << std::endl;
-
-    while(_running.load()) {
+    _isRunning = true;
+    _cv.notify_all();
+    while(_isRunning.load()) {
         ggapi::CallScope iterScope; // localize all structures
         auto request{ggapi::Struct::create()};
         request.put(keys.topicName, "hello");

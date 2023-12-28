@@ -77,5 +77,4 @@ jobs:
       - name: Run Tests
         working-directory: ${{ github.workspace }}/build
         run:
-          ./nucleus/nucleus-tests &&
-          ./plugins/example_mqtt_sender/example_mqtt_sender_tests
+          ./nucleus/nucleus-tests

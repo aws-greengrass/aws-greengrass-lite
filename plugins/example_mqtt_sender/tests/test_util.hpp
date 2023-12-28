@@ -1,8 +1,6 @@
 #pragma once
 #include "example_mqtt_sender.hpp"
 
-using namespace std::chrono_literals;
-
 static const Keys keys;
 
 constexpr std::string_view BOOTSTRAP = "bootstrap";
@@ -12,12 +10,12 @@ constexpr std::string_view START = "start";
 constexpr std::string_view RUN = "run";
 constexpr std::string_view TERMINATE = "terminate";
 
-class TestExampleMqttSender : public ExampleMqttSender {
+class TestMqttSender : public MqttSender {
     ggapi::ModuleScope _moduleScope;
 
 public:
-    explicit TestExampleMqttSender(ggapi::ModuleScope moduleScope)
-        : ExampleMqttSender(), _moduleScope(moduleScope) {
+    explicit TestMqttSender(ggapi::ModuleScope moduleScope)
+        : MqttSender(), _moduleScope(moduleScope) {
     }
 
     bool executePhase(std::string_view phase) {
@@ -35,6 +33,13 @@ public:
 
     bool stopLifecycle() {
         return executePhase("terminate");
+    }
+
+    void wait() {
+        std::unique_lock<std::mutex> lock(_mtx);
+        _cv.wait(lock, [this]{return _isRunning.load();});
+        using namespace std::chrono_literals;
+        std::this_thread::sleep_for(0.5s);
     }
 };
 
