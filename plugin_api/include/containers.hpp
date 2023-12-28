@@ -229,7 +229,7 @@ namespace ggapi {
         }
 
         static Struct create() {
-            return Struct(::ggapiCreateStruct());
+            return callHandleApiThrowError<Struct>(::ggapiCreateStruct);
         }
 
         [[nodiscard]] Struct clone() const {
@@ -362,7 +362,7 @@ namespace ggapi {
         }
 
         static List create() {
-            return List(::ggapiCreateList());
+            return callHandleApiThrowError<List>(::ggapiCreateList);
         }
 
         template<typename T>
@@ -451,7 +451,7 @@ namespace ggapi {
         }
 
         static Buffer create() {
-            return Buffer(::ggapiCreateBuffer());
+            return callHandleApiThrowError<Buffer>(::ggapiCreateBuffer);
         }
 
         /**

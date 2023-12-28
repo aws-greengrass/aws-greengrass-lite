@@ -1,3 +1,4 @@
+#include "api_error_trap.hpp"
 #include "data/shared_buffer.hpp"
 #include "data/shared_list.hpp"
 #include "data/shared_struct.hpp"
@@ -7,7 +8,12 @@
 
 using namespace data;
 
-uint32_t ggapiGetSymbol(const char *bytes, size_t len) noexcept {
+/**
+ * Retrieve symbol from a string. This function is guaranteed to succeed or terminate the process.
+ * Expected reasons for termination are: 1/ Bad pointer (which will result in corrupted symbols), or
+ * 2/ Out of memory Termination is the right thing as it allows a watchdog to restart the process.
+ */
+ggapiSymbol ggapiGetSymbol(const char *bytes, size_t len) noexcept {
     try {
         return scope::context()->intern(std::string_view{bytes, len}).asInt();
     } catch(...) {
@@ -16,44 +22,63 @@ uint32_t ggapiGetSymbol(const char *bytes, size_t len) noexcept {
     }
 }
 
-size_t ggapiGetSymbolString(uint32_t symbolInt, char *bytes, size_t len) noexcept {
-    return ggapi::trapErrorReturn<size_t>([symbolInt, bytes, len]() {
+/**
+ * Extract a string from symbol. Buffer is NOT zero-terminated, following C++ semantics. Caller is
+ * responsible for zero-terminating buffer if desired.
+ *
+ * @param symbolInt Integer ID of symbol
+ * @param bytes  Buffer to fill
+ * @param len    Length of buffer
+ * @param pFilled Number of bytes into buffer (size of validity)
+ * @param pLength Required length of buffer
+ * @return 0 on success. Non-zero on error other than buffer too small.
+ */
+ggapiErrorKind ggapiGetSymbolString(
+    ggapiSymbol symbolInt,
+    ggapiByteBuffer bytes,
+    ggapiMaxLen len,
+    ggapiDataLen *pFilled,
+    ggapiDataLen *pLength) noexcept {
+    return apiImpl::catchErrorToKind([symbolInt, bytes, len, pFilled, pLength]() {
         Symbol symbol = scope::context()->symbolFromInt(symbolInt);
         std::string s{symbol.toString()};
-        if(s.length() > len) {
-            throw std::runtime_error("Destination buffer is too small");
+        std::string::size_type fillLen = s.length();
+        *pFilled = 0; // ensures value meaningful in case of exception
+        *pLength = s.length();
+        if(fillLen > len) {
+            fillLen = len;
         }
         util::Span span(bytes, len);
-        return span.copyFrom(s.begin(), s.end());
+        *pFilled = span.copyFrom(s.begin(), s.end());
     });
 }
 
-size_t ggapiGetSymbolStringLen(uint32_t symbolInt) noexcept {
-    return ggapi::trapErrorReturn<size_t>([symbolInt]() {
+ggapiErrorKind ggapiGetSymbolStringLen(ggapiSymbol symbolInt, ggapiDataLen *pLength) noexcept {
+    return apiImpl::catchErrorToKind([symbolInt, pLength]() {
         Symbol symbol = scope::context()->symbolFromInt(symbolInt);
         std::string s{symbol.toString()};
-        return s.length();
+        *pLength = s.length();
     });
 }
 
-uint32_t ggapiCreateStruct() noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([]() {
+ggapiErrorKind ggapiCreateStruct(ggapiObjHandle *pHandle) noexcept {
+    return apiImpl::catchErrorToKind([pHandle]() {
         auto anchor = scope::NucleusCallScopeContext::make<SharedStruct>();
-        return anchor.asIntHandle();
+        *pHandle = anchor.asIntHandle();
     });
 }
 
-uint32_t ggapiCreateList() noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([]() {
+ggapiErrorKind ggapiCreateList(ggapiObjHandle *pHandle) noexcept {
+    return apiImpl::catchErrorToKind([pHandle]() {
         auto anchor = scope::NucleusCallScopeContext::make<SharedList>();
-        return anchor.asIntHandle();
+        *pHandle = anchor.asIntHandle();
     });
 }
 
-uint32_t ggapiCreateBuffer() noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([]() {
+ggapiErrorKind ggapiCreateBuffer(ggapiObjHandle *pHandle) noexcept {
+    return apiImpl::catchErrorToKind([pHandle]() {
         auto anchor = scope::NucleusCallScopeContext::make<SharedBuffer>();
-        return anchor.asIntHandle();
+        *pHandle = anchor.asIntHandle();
     });
 }
 

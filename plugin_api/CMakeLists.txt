@@ -19,6 +19,7 @@ add_library(
   include/plugin.hpp
   include/scopes.hpp
   include/tasks_subscriptions.hpp
-  include/util.hpp)
+  include/util.hpp
+  include/error_tmpl.hpp)
 
 target_include_directories(gg_plugin_api INTERFACE include)

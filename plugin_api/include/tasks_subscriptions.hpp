@@ -188,17 +188,17 @@ namespace ggapi {
                 return {"topic"};
             }
             [[nodiscard]] CallbackManager::Delegate prepare(
-                uint32_t callbackType, uint32_t size, const void *data) const override {
-                assertCallbackType(Symbol(callbackType));
-                auto &cb = checkedStruct<TopicCallbackData>(size, data);
+                Symbol callbackType, ggapiDataLen size, void *data) const override {
+                assertCallbackType(callbackType);
+                auto &cb = checkedStruct<ggapiTopicCallbackData>(size, data);
                 auto callable = _callable; // capture copy
                 auto task = Task(cb.taskHandle);
                 auto topic = Symbol(cb.topicSymbol);
                 auto dataStruct = Struct(cb.dataStruct);
                 auto args = std::tuple_cat(_args, std::tuple{task, topic, dataStruct});
-                return [callable, args]() {
+                return [callable, args, &cb]() {
                     Struct s = std::apply(callable, args);
-                    return s.getHandleId();
+                    cb.retDataStruct = s.getHandleId();
                 };
             }
         };
@@ -248,16 +248,13 @@ namespace ggapi {
                 return {"task"};
             }
             [[nodiscard]] CallbackManager::Delegate prepare(
-                uint32_t callbackType, uint32_t size, const void *data) const override {
+                Symbol callbackType, ggapiDataLen size, void *data) const override {
                 assertCallbackType(Symbol(callbackType));
-                auto &cb = checkedStruct<TaskCallbackData>(size, data);
+                auto &cb = checkedStruct<ggapiTaskCallbackData>(size, data);
                 auto callable = _callable;
                 auto dataStruct = Struct(cb.dataStruct);
                 auto args = std::tuple_cat(_args, std::tuple{dataStruct});
-                return [callable, args]() {
-                    std::apply(callable, args);
-                    return static_cast<uint32_t>(true);
-                };
+                return [callable, args]() { std::apply(callable, args); };
             }
         };
 

@@ -30,7 +30,7 @@ namespace ggapi {
         }
 
         static Channel create() {
-            return Channel(::ggapiCreateChannel());
+            return callHandleApiThrowError<Channel>(::ggapiCreateChannel);
         }
 
         void write(ObjHandle v) const {
@@ -78,16 +78,13 @@ namespace ggapi {
                 return {"channelListen"};
             }
             [[nodiscard]] CallbackManager::Delegate prepare(
-                uint32_t callbackType, uint32_t size, const void *data) const override {
+                Symbol callbackType, ggapiDataLen size, void *data) const override {
                 assertCallbackType(Symbol(callbackType));
-                auto &cb = checkedStruct<ChannelListenCallbackData>(size, data);
+                auto &cb = checkedStruct<ggapiChannelListenCallbackData>(size, data);
                 auto callable = _callable;
                 auto dataStruct = Struct(cb.dataStruct);
                 auto args = std::tuple_cat(_args, std::tuple{dataStruct});
-                return [callable, args]() {
-                    std::apply(callable, args);
-                    return static_cast<uint32_t>(true);
-                };
+                return [callable, args]() { std::apply(callable, args); };
             }
         };
 
@@ -137,15 +134,12 @@ namespace ggapi {
                 return {"channelClose"};
             }
             [[nodiscard]] CallbackManager::Delegate prepare(
-                uint32_t callbackType, uint32_t size, const void *data) const override {
+                Symbol callbackType, ggapiDataLen size, void *data) const override {
                 assertCallbackType(Symbol(callbackType));
-                std::ignore = checkedStruct<ChannelCloseCallbackData>(size, data);
+                std::ignore = checkedStruct<ggapiChannelCloseCallbackData>(size, data);
                 auto callable = _callable;
                 auto args = _args;
-                return [callable, args]() {
-                    std::apply(callable, args);
-                    return static_cast<uint32_t>(true);
-                };
+                return [callable, args]() { std::apply(callable, args); };
             }
         };
 

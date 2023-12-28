@@ -1,3 +1,4 @@
+#include "api_error_trap.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task.hpp"
@@ -101,17 +102,20 @@ uint32_t ggapiCallAsync(uint32_t callStruct, uint32_t callbackHandle, uint32_t d
     });
 }
 
-uint32_t ggapiRegisterCallback(
+ggapiErrorKind ggapiRegisterCallback(
     ::ggapiGenericCallback callbackFunction,
-    uintptr_t callbackCtx,
-    uint32_t callbackType) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([callbackFunction, callbackCtx, callbackType]() {
-        auto context = scope::context();
-        auto module = scope::thread()->getEffectiveModule();
-        auto typeSymbol = context->symbolFromInt(callbackType);
-        std::shared_ptr<tasks::RegisteredCallback> callback =
-            std::make_shared<tasks::RegisteredCallback>(
-                context, module, typeSymbol, callbackFunction, callbackCtx);
-        return scope::NucleusCallScopeContext::anchor(callback).asIntHandle();
-    });
+    ggapiContext callbackCtx,
+    ggapiSymbol callbackType,
+    ggapiObjHandle *pCallbackHandle) noexcept {
+
+    return apiImpl::catchErrorToKind(
+        [callbackFunction, callbackCtx, callbackType, pCallbackHandle]() {
+            auto context = scope::context();
+            auto module = scope::thread()->getEffectiveModule();
+            auto typeSymbol = context->symbolFromInt(callbackType);
+            std::shared_ptr<tasks::RegisteredCallback> callback =
+                std::make_shared<tasks::RegisteredCallback>(
+                    context, module, typeSymbol, callbackFunction, callbackCtx);
+            *pCallbackHandle = scope::NucleusCallScopeContext::anchor(callback).asIntHandle();
+        });
 }

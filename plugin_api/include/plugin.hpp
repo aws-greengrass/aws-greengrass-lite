@@ -97,11 +97,15 @@ namespace ggapi {
         // TODO: make this noexcept
         virtual ~Plugin() = default;
 
-        bool lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
+        ggapiErrorKind lifecycle(
+            ggapiObjHandle moduleHandle,
+            ggapiSymbol phase,
+            ggapiObjHandle data,
+            bool *pHandled) noexcept {
             // No exceptions may cross API boundary
             // Return true if handled.
-            return trapErrorReturn<bool>([this, moduleHandle, phase, data]() {
-                return lifecycle(ModuleScope{moduleHandle}, Symbol{phase}, Struct{data});
+            return ggapi::catchErrorToKind([this, moduleHandle, phase, data, pHandled]() {
+                *pHandled = lifecycle(ModuleScope{moduleHandle}, Symbol{phase}, Struct{data});
             });
         }
 

@@ -23,50 +23,80 @@
 #define IMPEXP IMPORT
 #endif
 
-struct TopicCallbackData {
-    uint32_t taskHandle;
-    uint32_t topicSymbol;
-    uint32_t dataStruct;
+typedef uint32_t ggapiErrorKind; // Symbol representing kind of error, 0 = success
+typedef uint32_t ggapiObjHandle; // Generic Handle to an object, 0 = unset
+typedef uint32_t ggapiSymbol; // Generic Symbol, 0 = unset
+typedef char *ggapiByteBuffer; // Uninitialized buffer to be filled with data
+typedef const char *ggapiCountedString; // Pointer to a string, string is not null terminated
+typedef size_t ggapiMaxLen; // Length of a buffer that can be filled
+typedef size_t ggapiDataLen; // Length of valid data in a buffer / string length
+typedef uintptr_t ggapiContext; // Round-trip data never interpreted by Nucleus
+
+//
+// When changing/reviewing callback structures:
+// Fields may be appended, must never be removed
+// Deprecated fields must be nulled (0)
+// sizeof(struct) denotes version. That is, if
+// a structure adds a new field, it is implicitly bigger,
+// and implicitly a new version
+//
+
+struct ggapiTopicCallbackData {
+    ggapiObjHandle taskHandle;
+    ggapiSymbol topicSymbol;
+    ggapiObjHandle dataStruct;
+    ggapiObjHandle retDataStruct; // Out
 };
 
-struct LifecycleCallbackData {
-    uint32_t moduleHandle;
-    uint32_t phaseSymbol;
-    uint32_t dataStruct;
+struct ggapiLifecycleCallbackData {
+    ggapiObjHandle moduleHandle;
+    ggapiSymbol phaseSymbol;
+    ggapiObjHandle dataStruct;
+    uint32_t retWasHandled; // Out, holds non-zero if handled, 0 if not (forced 32-bit aligned)
 };
 
-struct TaskCallbackData {
-    uint32_t dataStruct;
+struct ggapiTaskCallbackData {
+    ggapiObjHandle dataStruct;
 };
 
-struct ChannelListenCallbackData {
-    uint32_t dataStruct;
+struct ggapiChannelListenCallbackData {
+    ggapiObjHandle dataStruct;
 };
 
-struct ChannelCloseCallbackData {
+struct ggapiChannelCloseCallbackData {
     uint8_t _dummy;
 };
 
-typedef uint32_t (*ggapiGenericCallback)(
-    uintptr_t callbackContext,
-    uint32_t callbackType,
-    uint32_t callbackDataSize,
-    const void *callbackData) NOEXCEPT;
+typedef ggapiErrorKind (*ggapiGenericCallback)(
+    ggapiContext callbackContext,
+    ggapiSymbol callbackType,
+    ggapiDataLen callbackDataSize,
+    void *callbackData) NOEXCEPT;
 
-[[maybe_unused]] EXPORT bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t data) NOEXCEPT;
+[[maybe_unused]] EXPORT ggapiErrorKind greengrass_lifecycle(
+    ggapiObjHandle moduleHandle,
+    ggapiSymbol phase,
+    ggapiObjHandle data,
+    bool *pWasHandled) NOEXCEPT;
 
-IMPEXP void ggapiSetError(uint32_t kind, const char *what, size_t len) NOEXCEPT;
-IMPEXP uint32_t ggapiGetErrorKind() NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiSetError(ggapiErrorKind kind, ggapiCountedString what, ggapiDataLen len) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiGetErrorKind() NOEXCEPT;
 IMPEXP const char *ggapiGetErrorWhat() NOEXCEPT;
+IMPEXP ggapiSymbol ggapiGetSymbol(ggapiCountedString bytes, ggapiDataLen len) NOEXCEPT;
 
-IMPEXP uint32_t ggapiGetSymbol(const char *bytes, size_t len) NOEXCEPT;
-IMPEXP size_t ggapiGetSymbolString(uint32_t symbolInt, char *bytes, size_t len) NOEXCEPT;
-IMPEXP size_t ggapiGetSymbolStringLen(uint32_t symbolInt) NOEXCEPT;
-IMPEXP uint32_t ggapiCreateStruct() NOEXCEPT;
-IMPEXP uint32_t ggapiCreateList() NOEXCEPT;
-IMPEXP uint32_t ggapiCreateBuffer() NOEXCEPT;
-IMPEXP uint32_t ggapiCreateChannel() NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiGetSymbolString(
+    ggapiSymbol symbolInt,
+    ggapiByteBuffer bytes,
+    ggapiMaxLen len,
+    ggapiDataLen *pFilled,
+    ggapiDataLen *pLength) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiGetSymbolStringLen(ggapiSymbol symbolInt, ggapiDataLen *pLength) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiCreateStruct(ggapiObjHandle *pHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiCreateList(ggapiObjHandle *pHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiCreateBuffer(ggapiObjHandle *pHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiCreateChannel(ggapiObjHandle *pHandle) NOEXCEPT;
 IMPEXP bool ggapiIsContainer(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsScalar(uint32_t handle) NOEXCEPT;
 IMPEXP bool ggapiIsStruct(uint32_t handle) NOEXCEPT;
@@ -168,8 +198,11 @@ IMPEXP bool ggapiCancelTask(uint32_t asyncTask) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterPlugin(
     uint32_t moduleHandle, uint32_t componentName, uint32_t callbackHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiChangeModule(uint32_t moduleHandle) NOEXCEPT;
-IMPEXP uint32_t ggapiRegisterCallback(
-    ggapiGenericCallback callbackFunction, uintptr_t callbackCtx, uint32_t callbackType) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiRegisterCallback(
+    ggapiGenericCallback callbackFunction,
+    ggapiContext callbackCtx,
+    ggapiSymbol callbackType,
+    ggapiObjHandle *pCallbackHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiChannelOnClose(uint32_t channel, uint32_t callbackHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiChannelListen(uint32_t channel, uint32_t callbackHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiChannelWrite(uint32_t channel, uint32_t callStruct) NOEXCEPT;

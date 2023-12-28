@@ -22,7 +22,7 @@ namespace tasks {
         }
     }
 
-    uint32_t RegisteredCallback::invoke(const CallbackPackedData &packed) {
+    void RegisteredCallback::invoke(CallbackPackedData &packed) {
 
         auto module = getModule();
         plugins::CurrentModuleScope moduleScope(module);
@@ -31,20 +31,9 @@ namespace tasks {
         // Assume a scope was allocated prior to this call
 
         errors::ThreadErrorContainer::get().clear();
-        auto resIntHandle =
+        auto errorKind =
             _callback(_callbackCtx, packed.type().asInt(), packed.size(), packed.data());
-        if(resIntHandle == 0) {
-            errors::ThreadErrorContainer::get().throwIfError();
-        }
-        return resIntHandle;
-    }
-
-    bool RegisteredCallback::asBool(uint32_t retVal) {
-        return retVal != 0;
-    }
-
-    std::shared_ptr<data::StructModelBase> RegisteredCallback::asStruct(uint32_t retVal) {
-        return context()->objFromInt<data::StructModelBase>(retVal);
+        errors::Error::throwThreadError(errorKind);
     }
 
     RegisteredCallback::~RegisteredCallback() {
@@ -74,8 +63,16 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *TopicCallbackData::data() const {
+    void *TopicCallbackData::data() {
         return &_packed;
+    }
+
+    std::shared_ptr<data::StructModelBase> TopicCallbackData::retVal() const {
+        if(_packed.retDataStruct != 0) {
+            return scope::context()->objFromInt<data::StructModelBase>(_packed.retDataStruct);
+        } else {
+            return {};
+        }
     }
 
     data::Symbol LifecycleCallbackData::lifecycleType() {
@@ -98,8 +95,12 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *LifecycleCallbackData::data() const {
+    void *LifecycleCallbackData::data() {
         return &_packed;
+    }
+
+    bool LifecycleCallbackData::retVal() const {
+        return _packed.retWasHandled != 0; // Normalize true value
     }
 
     data::Symbol TaskCallbackData::taskType() {
@@ -117,7 +118,7 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *TaskCallbackData::data() const {
+    void *TaskCallbackData::data() {
         return &_packed;
     }
 
@@ -137,7 +138,7 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *ChannelListenCallbackData::data() const {
+    void *ChannelListenCallbackData::data() {
         return &_packed;
     }
 
@@ -154,7 +155,7 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *ChannelCloseCallbackData::data() const {
+    void *ChannelCloseCallbackData::data() {
         return &_packed;
     }
 
@@ -169,7 +170,8 @@ namespace tasks {
 
         scope::StackScope scope{};
         tasks::TopicCallbackData packed{task, topic, data};
-        return asStruct(invoke(packed));
+        invoke(packed);
+        return packed.retVal();
     }
 
     bool RegisteredCallback::invokeLifecycleCallback(
@@ -183,7 +185,8 @@ namespace tasks {
 
         scope::StackScope scope{};
         tasks::LifecycleCallbackData packed{pluginHandle, phase, dataHandle};
-        return asBool(invoke(packed));
+        invoke(packed);
+        return packed.retVal();
     }
     void RegisteredCallback::invokeTaskCallback(
         const std::shared_ptr<data::StructModelBase> &data) {

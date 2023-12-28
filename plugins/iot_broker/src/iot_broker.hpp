@@ -15,21 +15,24 @@
 #include <thread>
 #include <unordered_map>
 
-class mqttBuilderException : public ggapi::GgApiError {
-    [[nodiscard]] const char *what() const noexcept override {
-        return "MQTT Failed setup MQTT client builder";
+class MqttBuilderException : public ggapi::GgApiError {
+public:
+    MqttBuilderException()
+        : ggapi::GgApiError("MqttBuilderException", "MQTT Failed setup MQTT client builder") {
     }
 };
 
-class mqttClientException : public ggapi::GgApiError {
-    [[nodiscard]] const char *what() const noexcept override {
-        return "MQTT failed to initialize the client";
+class MqttClientException : public ggapi::GgApiError {
+public:
+    MqttClientException()
+        : ggapi::GgApiError("MqttClientException", "MQTT failed to initialize the client") {
     }
 };
 
-class mqttClienFailedToStart : public ggapi::GgApiError {
-    [[nodiscard]] const char *what() const noexcept override {
-        return "MQTT client failed to start";
+class MqttClientFailedToStart : public ggapi::GgApiError {
+public:
+    MqttClientFailedToStart()
+        : ggapi::GgApiError("MqttClienFailedToStart", "MQTT client failed to start") {
     }
 };
 
