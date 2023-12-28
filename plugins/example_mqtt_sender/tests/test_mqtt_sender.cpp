@@ -22,17 +22,19 @@ SCENARIO("Example Mqtt Sender plugin characteristics", "[pubsub]") {
     }
 
     GIVEN("Complete lifecycle") {
-        auto moduleScope = ggapi::ModuleScope::registerGlobalPlugin(
-            "module", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
-        TestMqttSender sender = TestMqttSender(moduleScope);
-        THEN("All phases are executed") {
-            //             TODO: Fix causing race
-            //            REQUIRE(!sender.executePhase(BOOTSTRAP));
-            //            REQUIRE(!sender.executePhase(BIND));
-            //            REQUIRE(!sender.executePhase(DISCOVER));
-            //            REQUIRE(sender.executePhase(START));
-            //            REQUIRE(sender.executePhase(RUN));
-            //            REQUIRE(sender.executePhase(TERMINATE));
-        }
+        //             TODO: Fix causing race
+        //        auto moduleScope = ggapi::ModuleScope::registerGlobalPlugin(
+        //            "module", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false;
+        //            });
+        //        TestMqttSender sender = TestMqttSender(moduleScope);
+        //        THEN("All phases are executed") {
+
+        //            REQUIRE(!sender.executePhase(BOOTSTRAP));
+        //            REQUIRE(!sender.executePhase(BIND));
+        //            REQUIRE(!sender.executePhase(DISCOVER));
+        //            REQUIRE(sender.executePhase(START));
+        //            REQUIRE(sender.executePhase(RUN));
+        //            REQUIRE(sender.executePhase(TERMINATE));
+        //        }
     }
 }
