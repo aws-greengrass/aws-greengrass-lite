@@ -5,6 +5,9 @@
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.tasks.RegisteredCallback");
+
 namespace tasks {
 
     std::shared_ptr<plugins::AbstractPlugin> RegisteredCallback::getModule() const {
@@ -41,7 +44,7 @@ namespace tasks {
     }
 
     std::shared_ptr<data::StructModelBase> RegisteredCallback::asStruct(uint32_t retVal) {
-        return context().objFromInt<data::StructModelBase>(retVal);
+        return context()->objFromInt<data::StructModelBase>(retVal);
     }
 
     RegisteredCallback::~RegisteredCallback() {
@@ -52,7 +55,7 @@ namespace tasks {
     }
 
     data::Symbol TopicCallbackData::topicType() {
-        static data::Symbol topic = scope::context().intern("topic");
+        static data::Symbol topic = scope::context()->intern("topic");
         return topic;
     }
 
@@ -76,7 +79,7 @@ namespace tasks {
     }
 
     data::Symbol LifecycleCallbackData::lifecycleType() {
-        static data::Symbol topic = scope::context().intern("lifecycle");
+        static data::Symbol topic = scope::context()->intern("lifecycle");
         return topic;
     }
 
@@ -100,7 +103,7 @@ namespace tasks {
     }
 
     data::Symbol TaskCallbackData::taskType() {
-        static data::Symbol task = scope::context().intern("task");
+        static data::Symbol task = scope::context()->intern("task");
         return task;
     }
 
@@ -119,7 +122,7 @@ namespace tasks {
     }
 
     data::Symbol ChannelListenCallbackData::channelListenCallbackType() {
-        static data::Symbol task = scope::context().intern("channelListen");
+        static data::Symbol task = scope::context()->intern("channelListen");
         return task;
     }
 
@@ -139,7 +142,7 @@ namespace tasks {
     }
 
     data::Symbol ChannelCloseCallbackData::channelCloseCallbackType() {
-        static data::Symbol task = scope::context().intern("channelClose");
+        static data::Symbol task = scope::context()->intern("channelClose");
         return task;
     }
 
@@ -160,7 +163,7 @@ namespace tasks {
         const data::Symbol &topic,
         const std::shared_ptr<data::StructModelBase> &data) {
 
-        if(_callbackType != context().intern("topic")) {
+        if(_callbackType != context()->intern("topic")) {
             throw std::runtime_error("Mismatched callback");
         }
 
@@ -174,7 +177,7 @@ namespace tasks {
         const data::Symbol &phase,
         const data::ObjHandle &dataHandle) {
 
-        if(_callbackType != context().intern("lifecycle")) {
+        if(_callbackType != context()->intern("lifecycle")) {
             throw std::runtime_error("Mismatched callback");
         }
 
@@ -185,7 +188,7 @@ namespace tasks {
     void RegisteredCallback::invokeTaskCallback(
         const std::shared_ptr<data::StructModelBase> &data) {
 
-        if(_callbackType != context().intern("task")) {
+        if(_callbackType != context()->intern("task")) {
             throw std::runtime_error("Mismatched callback");
         }
 
@@ -219,7 +222,7 @@ namespace tasks {
     void RegisteredCallback::invokeChannelListenCallback(
         const std::shared_ptr<data::StructModelBase> &data) {
 
-        if(_callbackType != context().intern("channelListen")) {
+        if(_callbackType != context()->intern("channelListen")) {
             throw std::runtime_error("Mismatched callback");
         }
 
@@ -229,7 +232,7 @@ namespace tasks {
     }
     void RegisteredCallback::invokeChannelCloseCallback() {
 
-        if(_callbackType != context().intern("channelClose")) {
+        if(_callbackType != context()->intern("channelClose")) {
             throw std::runtime_error("Mismatched callback");
         }
 

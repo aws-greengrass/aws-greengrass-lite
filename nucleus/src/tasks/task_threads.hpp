@@ -19,22 +19,17 @@ namespace tasks {
      * Base of all task threads strategies. This can be overridden to change behavior of a thread,
      * for example if it's a worker thread, or if it handles deferred tasks.
      */
-    class TaskThread : public util::RefObject<TaskThread> {
+    class TaskThread : public util::RefObject<TaskThread>, protected scope::UsesContext {
 
     protected:
-        std::weak_ptr<scope::Context> _context;
         std::weak_ptr<scope::PerThreadContext> _threadContext;
         std::list<std::shared_ptr<Task>> _tasks;
         std::mutex _mutex;
         std::condition_variable _wake;
-        bool _shutdown{false};
-
-        [[nodiscard]] scope::Context &context() const {
-            return *_context.lock();
-        }
+        std::atomic_bool _shutdown{false};
 
     public:
-        explicit TaskThread(const std::shared_ptr<scope::Context> &context);
+        explicit TaskThread(const scope::UsingContext &context);
         TaskThread(const TaskThread &) = delete;
         TaskThread(TaskThread &&) = delete;
         TaskThread &operator=(const TaskThread &) = delete;
@@ -83,11 +78,12 @@ namespace tasks {
     class TaskPoolWorker : public TaskThread {
     private:
         std::thread _thread;
+        std::atomic_bool _running{false};
 
         void joinImpl();
 
     public:
-        explicit TaskPoolWorker(const std::shared_ptr<scope::Context> &context);
+        explicit TaskPoolWorker(const scope::UsingContext &context);
         TaskPoolWorker(const TaskPoolWorker &) = delete;
         TaskPoolWorker(TaskPoolWorker &&) = delete;
         TaskPoolWorker &operator=(const TaskPoolWorker &) = delete;
@@ -104,8 +100,7 @@ namespace tasks {
         }
 
         void runner();
-        static std::shared_ptr<TaskPoolWorker> create(
-            const std::shared_ptr<scope::Context> &context);
+        static std::shared_ptr<TaskPoolWorker> create(const scope::UsingContext &context);
     };
 
     /**
@@ -118,8 +113,7 @@ namespace tasks {
         bool _singleThreadMode{false};
 
     public:
-        explicit FixedTaskThread(const std::shared_ptr<scope::Context> &context)
-            : TaskThread(context) {
+        explicit FixedTaskThread(const scope::UsingContext &context) : TaskThread(context) {
         }
         void setSingleThreadMode(bool f) override {
             _singleThreadMode = f;
@@ -134,7 +128,7 @@ namespace tasks {
     //
     class FixedTimerTaskThread : public FixedTaskThread {
     public:
-        explicit FixedTimerTaskThread(const std::shared_ptr<scope::Context> &context)
+        explicit FixedTimerTaskThread(const scope::UsingContext &context)
             : FixedTaskThread(context) {
         }
 

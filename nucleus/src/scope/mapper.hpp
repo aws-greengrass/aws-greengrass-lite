@@ -1,11 +1,8 @@
 #pragma once
 #include "data/string_table.hpp"
-
-namespace data {}
+#include "scope/context.hpp"
 
 namespace scope {
-    class Context;
-
     struct SymbolMapper {
         SymbolMapper() = default;
         SymbolMapper(const SymbolMapper &) = default;
@@ -17,13 +14,11 @@ namespace scope {
         [[nodiscard]] virtual data::Symbol apply(data::Symbol::Partial) const = 0;
     };
 
-    class SharedContextMapper : public SymbolMapper {
-        std::weak_ptr<Context> _context;
+    class SharedContextMapper : public SymbolMapper, public scope::UsesContext {
 
     public:
-        explicit SharedContextMapper(const std::shared_ptr<Context> &context) : _context(context) {
+        explicit SharedContextMapper(const UsingContext &context) : scope::UsesContext(context) {
         }
-        [[nodiscard]] Context &context() const;
         [[nodiscard]] data::Symbol::Partial partial(const data::Symbol &symbol) const override;
         [[nodiscard]] data::Symbol apply(data::Symbol::Partial partial) const override;
     };

@@ -24,8 +24,7 @@ namespace data {
     public:
         using BadCastError = errors::InvalidBufferError;
 
-        explicit SharedBuffer(const std::shared_ptr<scope::Context> &context)
-            : ContainerModelBase{context} {
+        explicit SharedBuffer(const scope::UsingContext &context) : ContainerModelBase{context} {
         }
 
         void put(int32_t idx, ConstMemoryView bytes);
@@ -34,5 +33,18 @@ namespace data {
         void resize(uint32_t newSize);
         uint32_t get(int idx, MemoryView bytes) const;
         std::shared_ptr<ContainerModelBase> parseJson();
+        void write(std::ostream &stream) const;
     };
+
 } // namespace data
+
+inline static std::ostream &operator<<(std::ostream &os, const data::SharedBuffer &buffer) {
+    buffer.write(os);
+    return os;
+}
+
+inline static std::ostream &operator<<(
+    std::ostream &os, const std::shared_ptr<data::SharedBuffer> &buffer) {
+    buffer->write(os);
+    return os;
+}

@@ -34,7 +34,7 @@ void ggapiSetError(uint32_t kind, const char *what, size_t len) noexcept {
             errors::ThreadErrorContainer::get().clear();
             return;
         }
-        auto kindAsSymbol = scope::context().symbolFromInt(kind);
+        auto kindAsSymbol = scope::context()->symbolFromInt(kind);
         std::string whatString;
         if(what == nullptr || len == 0) {
             whatString = DEFAULT_ERROR_WHAT;

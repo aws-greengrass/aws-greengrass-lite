@@ -7,18 +7,18 @@ namespace data {
         if(!obj) {
             return {};
         }
-        return context().handles().create(ObjectAnchor{obj, baseRef()});
+        return context()->handles().create(ObjectAnchor{obj, baseRef()});
     }
 
     ObjectAnchor TrackingRoot::createRootHelper(const data::ObjectAnchor &anchor) {
         // assume handleTable may be locked on entry, beware of recursive locks
         std::unique_lock guard{_mutex};
-        _roots.emplace(context().handles().partial(anchor.getHandle()), anchor.getBase());
+        _roots.emplace(context()->handles().partial(anchor.getHandle()), anchor.getBase());
         return anchor;
     }
 
     void TrackingRoot::remove(const data::ObjectAnchor &anchor) {
-        context().handles().remove(anchor);
+        context()->handles().remove(anchor);
     }
 
     void ObjectAnchor::release() {
@@ -35,14 +35,14 @@ namespace data {
     void TrackingRoot::removeRootHelper(const data::ObjectAnchor &anchor) {
         // always called from HandleTable
         // assume handleTable could be locked on entry, beware of recursive locks
-        auto p = context().handles().partial(anchor);
+        auto p = context()->handles().partial(anchor);
         std::unique_lock guard{_mutex};
         _roots.erase(p);
     }
 
     std::vector<ObjectAnchor> TrackingRoot::getRootsHelper(
         const std::weak_ptr<TrackingRoot> &assumedOwner) {
-        auto ctx = _context.lock();
+        auto ctx = context();
         if(!ctx) {
             return {}; // context shutting down, short circuit
         }
@@ -56,7 +56,8 @@ namespace data {
     }
 
     TrackingRoot::~TrackingRoot() {
-        if(_context.expired()) {
+        auto ctx = context();
+        if(!ctx) {
             return; // cleanup not required if context destroyed
         }
         for(const auto &i : getRootsHelper({})) {
@@ -68,7 +69,7 @@ namespace data {
         _root.reset();
     }
 
-    TrackingScope::TrackingScope(const std::shared_ptr<scope::Context> &context)
+    TrackingScope::TrackingScope(const scope::UsingContext &context)
         : TrackedObject(context), _root(std::make_shared<TrackingRoot>(context)) {
     }
 

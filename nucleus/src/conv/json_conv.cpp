@@ -8,8 +8,7 @@
 namespace conv {
 
     std::shared_ptr<data::SharedBuffer> JsonHelper::serializeToBuffer(
-        const std::shared_ptr<scope::Context> &context,
-        const std::shared_ptr<data::TrackedObject> &obj) {
+        const scope::UsingContext &context, const std::shared_ptr<data::TrackedObject> &obj) {
 
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -21,7 +20,7 @@ namespace conv {
 
     // NOLINTNEXTLINE(*-no-recursion)
     void JsonHelper::serialize(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
         const data::StructElement &value) {
         std::visit(
@@ -29,49 +28,45 @@ namespace conv {
     }
 
     void JsonHelper::serialize(
-        const std::shared_ptr<scope::Context> &,
+        const scope::UsingContext &,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
         std::monostate) {
         writer.Null();
     }
 
     void JsonHelper::serialize(
-        const std::shared_ptr<scope::Context> &,
-        rapidjson::Writer<rapidjson::StringBuffer> &writer,
-        bool b) {
+        const scope::UsingContext &, rapidjson::Writer<rapidjson::StringBuffer> &writer, bool b) {
         writer.Bool(b);
     }
 
     void JsonHelper::serialize(
-        const std::shared_ptr<scope::Context> &,
+        const scope::UsingContext &,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
         uint64_t i) {
         writer.Uint64(i);
     }
 
     void JsonHelper::serialize(
-        const std::shared_ptr<scope::Context> &,
-        rapidjson::Writer<rapidjson::StringBuffer> &writer,
-        double d) {
+        const scope::UsingContext &, rapidjson::Writer<rapidjson::StringBuffer> &writer, double d) {
         writer.Double(d);
     }
 
     void JsonHelper::serialize(
-        const std::shared_ptr<scope::Context> &,
+        const scope::UsingContext &,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
         const std::string &str) {
         writer.String(str.c_str());
     }
 
     void JsonHelper::serialize(
-        const std::shared_ptr<scope::Context> &,
+        const scope::UsingContext &,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
         const data::Symbol &sym) {
         writer.String(sym.toString().c_str());
     }
 
     void JsonHelper::serialize(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
         const std::shared_ptr<data::TrackedObject> &obj) {
         std::shared_ptr<data::ListModelBase> asList =
@@ -145,7 +140,7 @@ namespace conv {
             return true;
         } else if(_state == JsonState::ExpectValue) {
             std::shared_ptr<data::SharedStruct> target(
-                std::make_shared<data::SharedStruct>(_reader.refContext()));
+                std::make_shared<data::SharedStruct>(_reader.context()));
             _reader.push(std::make_unique<JsonSharedStructResponder>(_reader, target, true));
             return true;
         } else {
@@ -165,7 +160,7 @@ namespace conv {
     bool JsonStructResponder::parseStartArray() {
         if(_state == JsonState::ExpectValue) {
             std::shared_ptr<data::SharedList> target(
-                std::make_shared<data::SharedList>(_reader.refContext()));
+                std::make_shared<data::SharedList>(_reader.context()));
             _reader.push(std::make_unique<JsonSharedListResponder>(_reader, target, true));
             return true;
         } else {
@@ -184,7 +179,7 @@ namespace conv {
     bool JsonArrayResponder::parseStartObject() {
         if(_state == JsonState::ExpectValue) {
             std::shared_ptr<data::SharedStruct> target(
-                std::make_shared<data::SharedStruct>(_reader.refContext()));
+                std::make_shared<data::SharedStruct>(_reader.context()));
             _reader.push(std::make_unique<JsonSharedStructResponder>(_reader, target, true));
             return true;
         } else {
@@ -202,7 +197,7 @@ namespace conv {
             return true;
         } else if(_state == JsonState::ExpectValue) {
             std::shared_ptr<data::SharedList> target(
-                std::make_shared<data::SharedList>(_reader.refContext()));
+                std::make_shared<data::SharedList>(_reader.context()));
             _reader.push(std::make_unique<JsonSharedListResponder>(_reader, target, true));
             return true;
         } else {
@@ -247,12 +242,12 @@ namespace conv {
         return _reader.pop(value);
     }
     bool JsonElementResponder::parseStartObject() {
-        auto target = std::make_shared<data::SharedStruct>(_reader.refContext());
+        auto target = std::make_shared<data::SharedStruct>(_reader.context());
         _reader.push(std::make_unique<JsonSharedStructResponder>(_reader, target, true));
         return true;
     }
     bool JsonElementResponder::parseStartArray() {
-        auto target = std::make_shared<data::SharedList>(_reader.refContext());
+        auto target = std::make_shared<data::SharedList>(_reader.context());
         _reader.push(std::make_unique<JsonSharedListResponder>(_reader, target, true));
         return true;
     }

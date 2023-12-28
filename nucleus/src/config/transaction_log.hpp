@@ -2,6 +2,7 @@
 
 #include "config_manager.hpp"
 #include "conv/json_conv.hpp"
+#include "scope/context.hpp"
 #include "util/commitable_file.hpp"
 #include <atomic>
 #include <filesystem>
@@ -23,10 +24,10 @@ namespace config {
 
     public:
         static bool handleTlogTornWrite(
-            const std::shared_ptr<scope::Context> &context, const std::filesystem::path &tlogFile);
+            const scope::UsingContext &context, const std::filesystem::path &tlogFile);
 
         static void mergeTlogInto(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             const std::shared_ptr<Topics> &root,
             std::ifstream &stream,
             bool forceTimestamp,
@@ -34,7 +35,7 @@ namespace config {
             ConfigurationMode configurationMode = ConfigurationMode::WITH_VALUES);
 
         static void mergeTlogInto(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             const std::shared_ptr<Topics> &root,
             const std::filesystem::path &path,
             bool forceTimestamp,
@@ -71,11 +72,10 @@ namespace config {
     //
     // Transaction log writer / maintainer
     //
-    class TlogWriter {
+    class TlogWriter : private scope::UsesContext {
         static constexpr auto TRUNCATE_TLOG_EVENT{"truncate-tlog"};
         static constexpr long DEFAULT_MAX_TLOG_ENTRIES{15'000};
 
-        std::weak_ptr<scope::Context> _context;
         mutable std::mutex _mutex;
         util::CommitableFile _tlogFile;
         std::shared_ptr<Topics> _root;
@@ -87,15 +87,11 @@ namespace config {
         uint32_t _maxEntries{DEFAULT_MAX_TLOG_ENTRIES};
         uint32_t _retryCount{0};
 
-        [[nodiscard]] scope::Context &context() const {
-            return *_context.lock();
-        }
-
         void writeAll(const std::shared_ptr<Topics> &node);
 
     public:
         TlogWriter(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             const std::shared_ptr<Topics> &root,
             const std::filesystem::path &outputPath);
         TlogWriter(const TlogWriter &) = delete;

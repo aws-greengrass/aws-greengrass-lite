@@ -9,15 +9,15 @@ extern "C" {
 // NOLINTNEXTLINE(*-avoid-c-arrays)
 int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
     try {
-        scope::Context &context = scope::Context::get();
+        auto context = scope::context();
         if(envp != nullptr) {
-            context.sysProperties().parseEnv(envp);
+            context->sysProperties().parseEnv(envp);
         }
-        lifecycle::Kernel kernel{context.baseRef()};
+        lifecycle::Kernel kernel{context};
         // limited scope
         {
-            lifecycle::CommandLine commandLine{context.baseRef(), kernel};
-            commandLine.parseEnv(context.sysProperties());
+            lifecycle::CommandLine commandLine{context, kernel};
+            commandLine.parseEnv(context->sysProperties());
             if(argc > 0 && argv != nullptr) {
                 commandLine.parseArgs(argc, argv);
             }

@@ -2,6 +2,7 @@
 #include "data/handle_table.hpp"
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
+#include "scope/context.hpp"
 #include <atomic>
 #include <cpp_api.hpp>
 #include <filesystem>
@@ -26,12 +27,12 @@ namespace deployment {
     class DeviceConfiguration;
 }
 
-namespace lifecycle {
-    class Kernel;
-}
-
 namespace tasks {
     class Callback;
+}
+
+namespace util {
+    class NucleusPaths;
 }
 
 namespace plugins {
@@ -48,8 +49,7 @@ namespace plugins {
     public:
         using BadCastError = errors::InvalidModuleError;
 
-        explicit AbstractPlugin(
-            const std::shared_ptr<scope::Context> &context, const std::string_view &name)
+        explicit AbstractPlugin(const scope::UsingContext &context, const std::string_view &name)
             : TrackingScope(context), _moduleName(name) {
         }
 
@@ -105,7 +105,7 @@ namespace plugins {
 
     public:
         explicit DelegatePlugin(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             std::string_view name,
             const std::shared_ptr<AbstractPlugin> &parent,
             const std::shared_ptr<tasks::Callback> &callback)
@@ -141,7 +141,7 @@ namespace plugins {
         std::atomic<lifecycleFn_t> _lifecycleFn{nullptr};
 
     public:
-        explicit NativePlugin(const std::shared_ptr<scope::Context> &context, std::string_view name)
+        explicit NativePlugin(const scope::UsingContext &context, std::string_view name)
             : AbstractPlugin(context, name) {
         }
 
@@ -161,10 +161,9 @@ namespace plugins {
     /**
      * Loader is responsible for handling all plugins
      */
-    class PluginLoader {
+    class PluginLoader : protected scope::UsesContext {
     private:
-        std::weak_ptr<scope::Context> _context;
-        std::weak_ptr<lifecycle::Kernel> _kernel;
+        std::shared_ptr<util::NucleusPaths> _paths;
         std::shared_ptr<data::TrackingRoot> _root;
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfig;
 
@@ -215,8 +214,8 @@ namespace plugins {
         data::SymbolInit CONFIGURATION{"configuration"};
         data::SymbolInit LOGGING{"logging"};
 
-        explicit PluginLoader(const std::shared_ptr<scope::Context> &context)
-            : _context(context), _root(std::make_shared<data::TrackingRoot>(context)) {
+        explicit PluginLoader(const scope::UsingContext &context)
+            : scope::UsesContext(context), _root(std::make_shared<data::TrackingRoot>(context)) {
             data::SymbolInit::init(
                 context,
                 {
@@ -235,10 +234,6 @@ namespace plugins {
                     &CONFIGURATION,
                     &LOGGING,
                 });
-        }
-
-        scope::Context &context() const {
-            return *_context.lock();
         }
 
         std::shared_ptr<data::TrackingRoot> root() const {
@@ -262,9 +257,9 @@ namespace plugins {
             const std::shared_ptr<deployment::DeviceConfiguration> &deviceConfig) {
             _deviceConfig = deviceConfig;
         }
-        void setKernel(const std::shared_ptr<lifecycle::Kernel> &kernel);
-        lifecycle::Kernel &kernel() {
-            return *_kernel.lock();
+        void setPaths(const std::shared_ptr<util::NucleusPaths> &paths);
+        std::shared_ptr<util::NucleusPaths> getPaths() {
+            return _paths;
         }
     };
 

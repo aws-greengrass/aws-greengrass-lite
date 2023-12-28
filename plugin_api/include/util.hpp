@@ -490,9 +490,24 @@ namespace util {
             }
         }
 
+        template<typename Func, EType Vfirst, EType... Vrest>
+        constexpr static void _visitNoRet(const EType &v, Func &&func) {
+            if(v == Vfirst) {
+                std::invoke(std::forward<Func>(func), enumConst<Vfirst>);
+            } else {
+                _visitNoRet<Func, Vrest...>(v, std::forward<Func>(func));
+            }
+        }
+
         template<typename Ret, typename Func>
+        // NOLINTNEXTLINE(*-missing-std-forward)
         constexpr static std::optional<Ret> _visit(const EType &, Func &&) {
             return {};
+        }
+
+        template<typename Func>
+        // NOLINTNEXTLINE(*-missing-std-forward)
+        constexpr static void _visitNoRet(const EType &, Func &&) {
         }
 
     public:
@@ -513,6 +528,11 @@ namespace util {
         template<typename Ret, typename Func>
         static std::optional<Ret> visit(const BaseType &v, Func &&func) {
             return _visit<Ret, Func, EVals...>(v, std::forward<Func>(func));
+        }
+
+        template<typename Func>
+        static void visitNoRet(const BaseType &v, Func &&func) {
+            return _visitNoRet<Func, EVals...>(v, std::forward<Func>(func));
         }
     };
 } // namespace util

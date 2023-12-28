@@ -174,5 +174,8 @@ IMPEXP uint32_t ggapiChannelOnClose(uint32_t channel, uint32_t callbackHandle) N
 IMPEXP uint32_t ggapiChannelListen(uint32_t channel, uint32_t callbackHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiChannelWrite(uint32_t channel, uint32_t callStruct) NOEXCEPT;
 IMPEXP uint32_t ggapiChannelClose(uint32_t channel) NOEXCEPT;
+IMPEXP uint32_t ggapiGetLogLevel(uint64_t *counter, uint32_t cachedLevel) NOEXCEPT;
+IMPEXP bool ggapiSetLogLevel(uint32_t level) NOEXCEPT;
+IMPEXP bool ggapiLogEvent(uint32_t dataHandle) NOEXCEPT;
 
 #endif // GG_PLUGIN_API

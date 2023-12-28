@@ -1,5 +1,6 @@
 #pragma once
 #include "kernel.hpp"
+#include "lifecycle/sys_properties.hpp"
 #include "scope/context.hpp"
 #include <optional>
 
@@ -7,9 +8,8 @@ namespace lifecycle {
 
     class Kernel;
 
-    class CommandLine {
+    class CommandLine : public scope::UsesContext {
     private:
-        std::weak_ptr<scope::Context> _context;
         lifecycle::Kernel &_kernel;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
 
@@ -19,17 +19,12 @@ namespace lifecycle {
         std::string _envStageFromCmdLine;
         std::string _defaultUserFromCmdLine;
 
-        [[nodiscard]] scope::Context &context() const {
-            return *_context.lock();
-        }
-
         static std::string nextArg(
             const std::vector<std::string> &args, std::vector<std::string>::const_iterator &iter);
 
     public:
-        explicit CommandLine(
-            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel)
-            : _context(context), _kernel(kernel) {
+        explicit CommandLine(const scope::UsingContext &context, lifecycle::Kernel &kernel)
+            : scope::UsesContext(context), _kernel(kernel) {
         }
 
         void parseEnv(SysProperties &sysProperties);

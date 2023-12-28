@@ -5,7 +5,8 @@
 namespace data {
     void ContainerModelBase::checkedPut(
         const StructElement &element, const std::function<void(const StructElement &)> &putAction) {
-        std::unique_lock cycleGuard{context().cycleCheckMutex(), std::defer_lock};
+        auto ctx = context();
+        std::unique_lock cycleGuard{ctx->cycleCheckMutex(), std::defer_lock};
 
         if(element.isContainer()) {
             std::shared_ptr<data::ContainerModelBase> otherContainer = element.getContainer();
@@ -28,11 +29,11 @@ namespace data {
     }
 
     std::shared_ptr<data::SharedBuffer> ContainerModelBase::toJson() {
-        return conv::JsonHelper::serializeToBuffer(_context.lock(), baseRef());
+        return conv::JsonHelper::serializeToBuffer(context(), baseRef());
     }
 
     void StructModelBase::put(std::string_view sv, const StructElement &element) {
-        Symbol handle = context().symbols().intern(sv);
+        Symbol handle = context()->symbols().intern(sv);
         putImpl(handle, element);
     }
 
@@ -41,7 +42,7 @@ namespace data {
     }
 
     bool StructModelBase::hasKey(const std::string_view sv) const {
-        Symbol handle = context().symbols().intern(sv);
+        Symbol handle = context()->symbols().intern(sv);
         return hasKeyImpl(handle);
     }
 
@@ -50,7 +51,7 @@ namespace data {
     }
 
     StructElement StructModelBase::get(std::string_view sv) const {
-        Symbol handle = context().symbols().intern(sv);
+        Symbol handle = context()->symbols().intern(sv);
         return getImpl(handle);
     }
 
@@ -88,7 +89,7 @@ namespace data {
     }
 
     std::shared_ptr<data::ContainerModelBase> Boxed::box(
-        const std::shared_ptr<scope::Context> &context, const StructElement &element) {
+        const scope::UsingContext &context, const StructElement &element) {
         if(element.isContainer() || element.isNull()) {
             return element.getContainer();
         }
@@ -103,7 +104,7 @@ namespace data {
     }
 
     std::shared_ptr<ContainerModelBase> StructElement::getBoxed() const {
-        return Boxed::box(scope::context().baseRef(), *this);
+        return Boxed::box(scope::context(), *this);
     }
 
     std::shared_ptr<TrackedObject> StructElement::getObject() const {

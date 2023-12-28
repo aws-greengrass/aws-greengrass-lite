@@ -6,16 +6,13 @@
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
 #include "data/string_table.hpp"
+#include "scope/context.hpp"
 #include "tasks/expire_time.hpp"
 #include "watcher.hpp"
 #include <atomic>
 #include <filesystem>
 #include <optional>
 #include <utility>
-
-namespace scope {
-    class Context;
-}
 
 namespace config {
     class Timestamp;
@@ -24,18 +21,13 @@ namespace config {
     class Topic;
     class Topics;
 
-    class Manager {
+    class Manager : private scope::UsesContext {
     private:
-        std::weak_ptr<scope::Context> _context;
         std::shared_ptr<Topics> _root;
         PublishQueue _publishQueue;
 
-        scope::Context &context() const {
-            return *_context.lock();
-        }
-
     public:
-        explicit Manager(const std::shared_ptr<scope::Context> &context);
+        explicit Manager(const scope::UsingContext &context);
 
         std::shared_ptr<Topics> root() {
             return _root;

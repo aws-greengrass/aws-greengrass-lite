@@ -51,7 +51,7 @@ namespace errors {
         void throwIfError();
 
         /**
-         * Retrieve the ThreadErrorContainer singleton.
+         * Retrieve the ThreadErrorContainer self.
          */
         static ThreadErrorContainer &get() {
             static thread_local ThreadErrorContainer container;

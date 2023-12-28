@@ -20,11 +20,13 @@ namespace config {
         _terminate = true;
         _wake.notify_all();
         // Queue will drain before joining
-        _thread.join();
+        if(_thread.joinable()) {
+            _thread.join();
+        }
     }
 
     void PublishQueue::publishThread() {
-        scope::Context::thread().changeContext(_context.lock());
+        scope::thread()->changeContext(context());
         for(;;) {
             std::optional<PublishAction> action = pickupAction();
             if(action.has_value()) {

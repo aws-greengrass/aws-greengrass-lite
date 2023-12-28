@@ -18,23 +18,21 @@ namespace tasks {
     void TaskThread::bindThreadContext() {
         auto tc = scope::PerThreadContext::get();
         _threadContext = tc;
-        tc->changeContext(_context.lock());
+        tc->changeContext(context());
         tc->setThreadTaskData(baseRef());
     }
 
     std::shared_ptr<TaskThread> TaskThread::getThreadContext() {
-        return scope::Context::thread().getThreadTaskData();
+        return scope::thread()->getThreadTaskData();
     }
 
-    TaskThread::TaskThread(const std::shared_ptr<scope::Context> &context) : _context(context) {
+    TaskThread::TaskThread(const scope::UsingContext &context) : scope::UsesContext(context) {
     }
 
-    TaskPoolWorker::TaskPoolWorker(const std::shared_ptr<scope::Context> &context)
-        : TaskThread(context) {
+    TaskPoolWorker::TaskPoolWorker(const scope::UsingContext &context) : TaskThread(context) {
     }
 
-    std::shared_ptr<TaskPoolWorker> TaskPoolWorker::create(
-        const std::shared_ptr<scope::Context> &context) {
+    std::shared_ptr<TaskPoolWorker> TaskPoolWorker::create(const scope::UsingContext &context) {
 
         std::shared_ptr<TaskPoolWorker> worker{std::make_shared<TaskPoolWorker>(context)};
         worker->start();
@@ -43,7 +41,10 @@ namespace tasks {
 
     void TaskPoolWorker::start() {
         // Do not call in constructor, see notes in runner()
-        _thread = std::thread(&TaskPoolWorker::runner, this);
+        if(!_running.exchange(true)) {
+            // Max one start
+            _thread = std::thread(&TaskPoolWorker::runner, this);
+        }
     }
 
     void TaskPoolWorker::runner() {
@@ -59,9 +60,12 @@ namespace tasks {
     }
 
     void TaskPoolWorker::joinImpl() {
-        shutdown();
+        std::unique_lock guard{_mutex};
+        _shutdown = true;
         _wake.notify_one();
-        if(_thread.joinable()) {
+        if(_running.exchange(false)) {
+            guard.unlock();
+            // Max one join
             _thread.join();
         }
     }
@@ -109,20 +113,28 @@ namespace tasks {
     }
 
     std::shared_ptr<Task> TaskThread::pickupPoolTask(const std::shared_ptr<Task> &blockingTask) {
-        std::shared_ptr<scope::Context> context = _context.lock();
-        if(!context || isShutdown()) {
+        if(isShutdown()) {
+            return {}; // Bail quickly if we already know we're in shutdown
+        }
+        // TODO: On some versions of GCC the Context destructor is called here, not sure why...
+        auto ctx = context();
+        if(!ctx || isShutdown()) {
             return {};
         }
-        auto &pool = context->taskManager();
+        auto &pool = ctx->taskManager();
         return pool.acquireTaskWhenStealing(blockingTask);
     }
 
     std::shared_ptr<Task> TaskThread::pickupPoolTask() {
-        std::shared_ptr<scope::Context> context = _context.lock();
-        if(!context || isShutdown()) {
+        if(isShutdown()) {
+            return {}; // Bail quickly if we already know we're in shutdown
+        }
+        // TODO: On some versions of GCC the Context destructor is called here, not sure why...
+        auto ctx = context();
+        if(!ctx || isShutdown()) {
             return {};
         }
-        auto &pool = context->taskManager();
+        auto &pool = ctx->taskManager();
         return pool.acquireTaskForWorker(this);
     }
 
@@ -170,11 +182,11 @@ namespace tasks {
     }
 
     ExpireTime FixedTimerTaskThread::taskStealingHook(ExpireTime time) {
-        std::shared_ptr<scope::Context> context = _context.lock();
-        if(!context || isShutdown()) {
+        auto ctx = context();
+        if(!ctx || isShutdown()) {
             return time;
         }
-        auto &taskManager = context->taskManager();
+        auto &taskManager = ctx->taskManager();
         ExpireTime nextDeferredTime = taskManager.pollNextDeferredTask(this);
         if(nextDeferredTime == ExpireTime::infinite() || time < nextDeferredTime) {
             return time;
@@ -222,8 +234,7 @@ namespace tasks {
     }
 
     bool TaskThread::isShutdown() {
-        std::unique_lock guard(_mutex);
-        return _shutdown;
+        return _shutdown.load();
     }
 
     std::shared_ptr<Task> FixedTaskThreadScope::getTask() const {

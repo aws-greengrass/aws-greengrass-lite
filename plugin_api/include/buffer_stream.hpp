@@ -1,6 +1,7 @@
 #pragma once
 #include "util.hpp"
 
+#include <cstdint>
 #include <ios>
 #include <iostream>
 #include <limits>

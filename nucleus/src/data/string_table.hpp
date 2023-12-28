@@ -14,7 +14,7 @@
 #include <vector>
 
 namespace scope {
-    class Context;
+    class UsingContext;
 }
 
 namespace data {
@@ -202,8 +202,8 @@ namespace data {
         std::string_view _string;
         mutable Symbol _symbol{};
         mutable std::once_flag _onceFlag;
-        void init(const std::shared_ptr<scope::Context> &context) const;
-        void initOnce(const std::shared_ptr<scope::Context> &context) const;
+        void init(const scope::UsingContext &context) const;
+        void initOnce(const scope::UsingContext &context) const;
         void initOnce() const;
 
     public:
@@ -242,8 +242,7 @@ namespace data {
         }
 
         static void init(
-            const std::shared_ptr<scope::Context> &context,
-            std::initializer_list<const SymbolInit *> list);
+            const scope::UsingContext &context, std::initializer_list<const SymbolInit *> list);
     };
 
     inline std::string operator+(const Symbol &x, const std::string &y) {
@@ -269,5 +268,21 @@ namespace data {
     inline std::string operator+(const SymbolInit &x, const SymbolInit &y) {
         return x.toString() + y.toString();
     }
+
+    /**
+     * Helper for use-cases where symbol is required, but string can
+     * be provided instead
+     */
+    class Symbolish : public Symbol {
+
+    public:
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        Symbolish(std::string_view constString);
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        Symbolish(const char *constString);
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        constexpr Symbolish(const Symbol &symbol) noexcept : Symbol(symbol) {
+        }
+    };
 
 } // namespace data

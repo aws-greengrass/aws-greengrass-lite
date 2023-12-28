@@ -4,23 +4,27 @@
 
 namespace data {
 
-    void data::SymbolInit::init(const std::shared_ptr<scope::Context> &context) const {
+    Symbolish::Symbolish(std::string_view str) : Symbol(scope::context()->intern(str)) {
+    }
+    Symbolish::Symbolish(const char *str) : Symbol(scope::context()->intern(str)) {
+    }
+
+    void data::SymbolInit::init(const scope::UsingContext &context) const {
         // 'const' is a hack to make this work with initializer_list below
         // actually it does behave as a const, so it's not that big of a hack
         _symbol = context->symbols().intern(_string);
     }
 
-    void data::SymbolInit::initOnce(const std::shared_ptr<scope::Context> &context) const {
+    void data::SymbolInit::initOnce(const scope::UsingContext &context) const {
         std::call_once(_onceFlag, [this, context]() { init(context); });
     }
 
     void data::SymbolInit::initOnce() const {
-        std::call_once(_onceFlag, [this]() { init(scope::context().baseRef()); });
+        std::call_once(_onceFlag, [this]() { init(scope::context()); });
     }
 
     void SymbolInit::init(
-        const std::shared_ptr<scope::Context> &context,
-        std::initializer_list<const SymbolInit *> list) {
+        const scope::UsingContext &context, std::initializer_list<const SymbolInit *> list) {
         for(auto i : list) {
             i->initOnce(context);
         }

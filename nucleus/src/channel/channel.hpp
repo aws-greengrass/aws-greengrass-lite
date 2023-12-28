@@ -30,7 +30,7 @@ namespace channel {
         void channelWorker();
 
     public:
-        explicit Channel(const std::shared_ptr<scope::Context> &context) : TrackedObject{context} {
+        explicit Channel(const scope::UsingContext &context) : TrackedObject{context} {
         }
 
         ~Channel() noexcept override;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include <util.hpp>
 
 #include <aws/common/byte_order.h>
@@ -15,6 +16,23 @@
 
 #include <cstdint>
 #include <cstring>
+
+namespace traits {
+    namespace doNotUse {
+        struct _reservedType {};
+    } // namespace doNotUse
+
+    template<class... T>
+    struct always_false : std::false_type {};
+
+    // a static_assert which always fails is ill-formed in C++17
+    // in C++23, static_assert(false) in an uninstantiated context is OK
+    template<>
+    struct always_false<doNotUse::_reservedType> : std::true_type {};
+
+    template<class... T>
+    static constexpr bool always_false_v = always_false<T...>::value;
+} // namespace traits
 
 namespace Headervaluetypes {
     using timestamp = std::chrono::duration<uint64_t, std::milli>;
@@ -72,7 +90,8 @@ void to_network_bytes(uint8_t (&buffer)[N], const From &from) noexcept {
 }
 
 // NOLINTBEGIN(*-union-access)
-static HeaderValue getValue(const aws_event_stream_header_value_pair &header) noexcept {
+inline std::optional<HeaderValue> getValue(
+    const aws_event_stream_header_value_pair &header) noexcept {
     switch(header.header_value_type) {
         case AWS_EVENT_STREAM_HEADER_BOOL_TRUE:
             return true;
@@ -97,10 +116,12 @@ static HeaderValue getValue(const aws_event_stream_header_value_pair &header) no
         case AWS_EVENT_STREAM_HEADER_UUID: {
             return from_network_bytes<aws_uuid>(header.header_value.static_val);
         }
+        default:
+            return std::nullopt;
     }
 }
 
-static inline aws_event_stream_header_value_type getType(const HeaderValue &variant) {
+static inline aws_event_stream_header_value_type getType(const HeaderValue &variant) noexcept {
     return std::visit(
         [](auto &&value) -> aws_event_stream_header_value_type {
             using T = std::decay_t<decltype(value)>;
@@ -123,6 +144,8 @@ static inline aws_event_stream_header_value_type getType(const HeaderValue &vari
                 return AWS_EVENT_STREAM_HEADER_TIMESTAMP;
             } else if constexpr(std::is_same_v<aws_uuid, T>) {
                 return AWS_EVENT_STREAM_HEADER_UUID;
+            } else {
+                static_assert(traits::always_false_v<T>, "Please implement");
             }
         },
         variant);
@@ -186,6 +209,8 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
                     os << v;
                 }
                 os.flags(flags);
+            } else {
+                static_assert(traits::always_false_v<T>, "Please implement");
             }
             return os;
         },

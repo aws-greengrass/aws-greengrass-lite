@@ -1,7 +1,12 @@
-#include "context.hpp"
+#include "config/publish_queue.hpp"
+#include "logging/log_queue.hpp"
 #include "scope/context_full.hpp"
 #include "scope/context_glob.hpp"
+
 #include <cpp_api.hpp>
+
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.scope.Context");
 
 namespace scope {
 
@@ -44,14 +49,20 @@ namespace scope {
 
     LocalizedContext::LocalizedContext(const std::shared_ptr<Context> &context)
         : LocalizedContext() {
+        assert(context.use_count() == 1);
         _temp->changeContext(context);
+        _applyTerminate = true; // TODO: Temp Workaround - there is a count leak going on
     }
 
     LocalizedContext::~LocalizedContext() {
+        std::shared_ptr<Context> context = _temp->context();
         if(_saved) {
             _saved->set();
         } else {
             scope::PerThreadContext::reset();
+        }
+        if(_applyTerminate) {
+            context->terminate();
         }
     }
 
@@ -70,9 +81,15 @@ namespace scope {
     }
 
     std::shared_ptr<Context> Context::create() {
-        std::shared_ptr<Context> impl{std::make_shared<Context>()};
-        impl->_glob = std::make_unique<ContextGlob>(impl);
-        return impl;
+        return std::make_shared<Context>();
+    }
+
+    void Context::lazyInit() {
+        std::shared_ptr<Context> self = baseRef();
+        if(!self) {
+            throw std::logic_error{"Init cycle: lazy() was called before Context() was created"};
+        }
+        _lazyContext = std::make_unique<LazyContext>(self);
     }
 
     std::shared_ptr<Context> Context::getDefaultContext() {
@@ -80,7 +97,7 @@ namespace scope {
         return deflt;
     }
 
-    std::shared_ptr<Context> Context::getPtr() {
+    std::shared_ptr<Context> Context::get() {
         std::shared_ptr<PerThreadContext> threadContext = PerThreadContext::get();
         if(threadContext) {
             return threadContext->context();
@@ -101,16 +118,29 @@ namespace scope {
         return symbols().intern(str);
     }
     config::Manager &Context::configManager() {
-        return _glob->_configManager;
+        return lazy()._configManager;
     }
     tasks::TaskManager &Context::taskManager() {
-        return _glob->_taskManager;
+        return lazy()._taskManager;
     }
     pubsub::PubSubManager &Context::lpcTopics() {
-        return _glob->_lpcTopics;
+        return lazy()._lpcTopics;
     }
     plugins::PluginLoader &Context::pluginLoader() {
-        return _glob->_loader;
+        return lazy()._loader;
+    }
+    logging::LogManager &Context::logManager() {
+        return *lazy()._logManager;
+    }
+    Context::~Context() {
+        terminate();
+    }
+
+    void Context::terminate() {
+        if(_lazyContext) {
+            _lazyContext->terminate();
+        }
+        _lazyContext.reset();
     }
 
     std::shared_ptr<Context> PerThreadContext::context() {
@@ -305,27 +335,35 @@ namespace scope {
                 return prevMod;
             }
         }
-        throw errors::ModuleError{"Not permitted to change context to specified module"};
+        LOG.atError()
+            .event("changeModule")
+            .logAndThrow(
+                errors::ModuleError{"Not permitted to change context to specified module"});
     }
 
     NucleusCallScopeContext::~NucleusCallScopeContext() {
         errors::ThreadErrorContainer::get().reset();
     }
 
-    Context &SharedContextMapper::context() const {
-        std::shared_ptr<Context> context = _context.lock();
-        if(!context) {
-            throw std::runtime_error("Using Context after it is deleted");
-        }
-        return *context;
-    }
-
     data::Symbol::Partial SharedContextMapper::partial(const data::Symbol &symbol) const {
-        return context().symbols().partial(symbol);
+        return context()->symbols().partial(symbol);
     }
 
     data::Symbol SharedContextMapper::apply(data::Symbol::Partial partial) const {
-        return context().symbols().apply(partial);
+        return context()->symbols().apply(partial);
+    }
+
+    LazyContext::~LazyContext() {
+        terminate();
+    }
+
+    void LazyContext::terminate() {
+        _taskManager.shutdownAndWait();
+        _configManager.publishQueue().stop();
+        _logManager->publishQueue()->stop();
+    }
+
+    UsingContext::UsingContext() noexcept : _context(context()) {
     }
 
 } // namespace scope
