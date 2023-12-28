@@ -1,4 +1,5 @@
 #pragma once
+
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -17,13 +18,22 @@
  */
 namespace logging {
 
-    enum class Level { None, Trace, Debug, Info, Warn, Error };
-    enum class Format { Text, Json };
-    enum class OutputType { File, Console };
+    enum class Level {
+        None, Trace, Debug, Info, Warn, Error
+    };
+    enum class Format {
+        Text, Json
+    };
+    enum class OutputType {
+        File, Console
+    };
+
     template<typename Traits>
     class LogManagerBase;
+
     template<typename Traits>
     class LoggerBase;
+
     template<typename Traits>
     class Event;
 
@@ -59,23 +69,28 @@ namespace logging {
         const SymbolType MODULE_KEY{Traits::intern("component")};
 
         const util::LookupTable<SymbolType, Level, 5> LEVEL_MAP{
-            TRACE_LEVEL,
-            Level::Trace,
-            DEBUG_LEVEL,
-            Level::Debug,
-            INFO_LEVEL,
-            Level::Info,
-            WARN_LEVEL,
-            Level::Warn,
-            ERROR_LEVEL,
-            Level::Error};
+                TRACE_LEVEL,
+                Level::Trace,
+                DEBUG_LEVEL,
+                Level::Debug,
+                INFO_LEVEL,
+                Level::Info,
+                WARN_LEVEL,
+                Level::Warn,
+                ERROR_LEVEL,
+                Level::Error};
 
     public:
         LogManagerBase() = default;
+
         LogManagerBase(const LogManagerBase &) noexcept = delete;
+
         LogManagerBase(LogManagerBase &&) noexcept = delete;
+
         LogManagerBase &operator=(const LogManagerBase &) noexcept = delete;
+
         LogManagerBase &operator=(LogManagerBase &&) noexcept = delete;
+
         virtual ~LogManagerBase() noexcept = default;
 
         SymbolType toSymbol(Level level) const {
@@ -94,7 +109,7 @@ namespace logging {
         virtual Level getLevel(uint64_t &counter, Level priorLevel) const {
             auto levelSymbol = toSymbol(priorLevel);
             auto newSymbol = Traits::getLevel(counter, levelSymbol);
-            if(newSymbol == levelSymbol) {
+            if (newSymbol == levelSymbol) {
                 return priorLevel;
             } else {
                 return toLevel(newSymbol);
@@ -111,6 +126,7 @@ namespace logging {
     namespace detail {
         template<typename Traits>
         class LoggerImpl;
+
         template<typename Traits>
         class EventImplBase;
 
@@ -135,20 +151,27 @@ namespace logging {
 
         public:
             LoggerImpl(const LoggerImpl &other)
-                : _manager(other._manager), _loggerName(other._loggerName),
-                  _context(other._context.clone()) {
+                    : _manager(other._manager), _loggerName(other._loggerName),
+                      _context(other._context.clone()) {
             }
+
             LoggerImpl(LoggerImpl &&) = delete;
+
             LoggerImpl &operator=(const LoggerImpl &) = delete;
+
             LoggerImpl &operator=(LoggerImpl &&) = delete;
+
             ~LoggerImpl() noexcept = default;
+
             LoggerImpl(
-                const std::shared_ptr<LogManagerBase<Traits>> &manager, SymbolArgType loggerName)
-                : _manager(manager), _loggerName(loggerName) {
+                    const std::shared_ptr<LogManagerBase<Traits>> &manager, SymbolArgType loggerName)
+                    : _manager(manager), _loggerName(loggerName) {
             }
+
             void addKV(SymbolArgType key, const ArgValue &val) {
                 Traits::putStruct(_context, key, val);
             }
+
             [[nodiscard]] StructType cloneContext() const {
                 return Traits::cloneStruct(_context);
             }
@@ -170,7 +193,7 @@ namespace logging {
                 uint64_t counter = _counter;
                 Level cachedLevel = _cachedLevel;
                 Level newLevel = _manager->getLevel(counter, cachedLevel);
-                if(counter != _counter) {
+                if (counter != _counter) {
                     // Race condition - _counter could increment before/after setting level
                     // If that happens, we'll essentially set counter to older value, which
                     // causes us to discard _cachedLevel - so ok
@@ -181,11 +204,11 @@ namespace logging {
             }
 
             [[nodiscard]] bool isEnabled(Level level) const {
-                if(level == Level::None) {
+                if (level == Level::None) {
                     return false;
                 }
                 Level current = getLevel();
-                if(current == Level::None) {
+                if (current == Level::None) {
                     return false;
                 } else {
                     return current <= level;
@@ -212,18 +235,29 @@ namespace logging {
             using ErrorType = typename Traits::ErrorType;
 
             EventImplBase() noexcept = default;
+
             EventImplBase(const EventImplBase &) noexcept = default;
+
             EventImplBase(EventImplBase &&) noexcept = default;
+
             EventImplBase &operator=(const EventImplBase &) noexcept = default;
+
             EventImplBase &operator=(EventImplBase &&) noexcept = default;
+
             virtual ~EventImplBase() noexcept = default;
 
             virtual void setCause(const ErrorType &) = 0;
+
             virtual void setEvent(SymbolArgType) = 0;
+
             virtual void setMessage(const ArgValue &) = 0;
+
             virtual void setLazyMessage(const std::function<const ArgValue &()> &) = 0;
+
             virtual void addKV(SymbolArgType, const ArgValue &) = 0;
+
             virtual void addLazyKV(SymbolArgType, const std::function<const ArgValue &()> &) = 0;
+
             virtual void commit() = 0;
         };
 
@@ -238,21 +272,28 @@ namespace logging {
 
             void setCause(const ErrorType &) override {
             }
+
             void setEvent(SymbolArgType) override {
             }
+
             void setMessage(const ArgValue &) override {
             }
+
             void setLazyMessage(const std::function<const ArgValue &()> &) override {
             }
+
             void addKV(SymbolArgType, const ArgValue &) override {
             }
+
             void addLazyKV(SymbolArgType, const std::function<const ArgValue &()> &) override {
             }
+
             void commit() override {
             }
+
             inline static std::shared_ptr<EventImplBase<Traits>> self() {
                 const static std::shared_ptr<EventImplBase<Traits>> singleton{
-                    std::make_shared<EventNoopImpl>()};
+                        std::make_shared<EventNoopImpl>()};
                 return singleton;
             }
         };
@@ -277,62 +318,69 @@ namespace logging {
             StructType _data{Traits::newStruct()};
             Level _level;
             const std::chrono::system_clock::time_point _timestamp =
-                std::chrono::system_clock::now();
+                    std::chrono::system_clock::now();
 
         public:
             EventActiveImpl(
-                const std::shared_ptr<LogManagerBase<Traits>> &manager,
-                const std::shared_ptr<LoggerImpl<Traits>> &logger,
-                Level level)
-                : _manager(manager), _logger(logger), _context(logger->cloneContext()),
-                  _level(level) {
+                    const std::shared_ptr<LogManagerBase<Traits>> &manager,
+                    const std::shared_ptr<LoggerImpl<Traits>> &logger,
+                    Level level)
+                    : _manager(manager), _logger(logger), _context(logger->cloneContext()),
+                      _level(level) {
                 Traits::putStruct(_data, _manager->CONTEXTS_KEY, _context);
             }
+
             void setCause(const ErrorType &error) override {
                 StructType cause{Traits::newStruct()};
                 SymbolType kind = error.kind();
                 std::string what;
-                if(error.what() != nullptr) {
+                if (error.what() != nullptr) {
                     what = error.what();
                 }
                 Traits::putStruct(cause, _manager->CAUSE_KIND_KEY, kind);
                 Traits::putStruct(cause, _manager->CAUSE_MESSAGE_KEY, what);
-                Traits::putStruct(cause, _manager->CAUSE_KEY, cause);
+                Traits::putStruct(_data, _manager->CAUSE_KEY, cause);
                 setMessage(what);
             }
+
             void setEvent(SymbolArgType eventType) override {
                 Traits::putStruct(_data, _manager->EVENT_KEY, eventType);
             }
+
             void setMessage(const ArgValue &message) override {
                 Traits::putStruct(_data, _manager->MESSAGE_KEY, message);
             }
+
             void setLazyMessage(const std::function<const ArgValue &()> &func) override {
                 setMessage(func());
             }
+
             void addKV(SymbolArgType key, const ArgValue &value) override {
                 Traits::putStruct(_context, key, value);
             }
+
             void addLazyKV(
-                SymbolArgType key, const std::function<const ArgValue &()> &func) override {
+                    SymbolArgType key, const std::function<const ArgValue &()> &func) override {
                 addKV(key, func());
             }
+
             void commit() override {
                 Traits::putStruct(_data, _manager->LEVEL_KEY, _manager->toSymbol(_level));
                 Traits::putStruct(
-                    _data,
-                    _manager->TIMESTAMP_KEY,
-                    std::chrono::duration_cast<std::chrono::milliseconds>(
-                        _timestamp.time_since_epoch())
-                        .count());
+                        _data,
+                        _manager->TIMESTAMP_KEY,
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                                _timestamp.time_since_epoch())
+                                .count());
                 _logger->commit(_data);
             }
         };
 
         template<typename Traits>
         [[nodiscard]] std::shared_ptr<EventImplBase<Traits>> LoggerImpl<Traits>::atLevel(
-            Level level) {
+                Level level) {
             auto self = LoggerImpl<Traits>::baseRef();
-            if(isEnabled(level)) {
+            if (isEnabled(level)) {
                 return std::make_unique<EventActiveImpl<Traits>>(_manager, self, level);
             } else {
                 return EventNoopImpl<Traits>::self();
@@ -367,10 +415,12 @@ namespace logging {
             _impl->setCause(cause);
             return *this;
         }
+
         Event &cause(const std::exception &cause) {
             _impl->setCause(ErrorType::of(cause));
             return *this;
         }
+
         /**
          * Log an event type - this is expected to be a 'constant' symbol
          */
@@ -378,6 +428,7 @@ namespace logging {
             _impl->setEvent(eventType);
             return *this;
         }
+
         /**
          * Add context information to event
          */
@@ -385,6 +436,7 @@ namespace logging {
             _impl->addKV(key, value);
             return *this;
         }
+
         /**
          * Add context information to event with lazy evaluation as a lambda
          */
@@ -392,6 +444,7 @@ namespace logging {
             _impl->addLazyKV(key, fn);
             return *this;
         }
+
         /**
          * Commit the log entry and throw exception
          */
@@ -400,18 +453,21 @@ namespace logging {
             _impl->commit();
             throw err;
         }
+
         /**
          * Commit the log entry and throw exception with translation
          */
         [[noreturn]] void logAndThrow(const std::exception &err) {
             logAndThrow(ErrorType::of(err));
         }
+
         /**
          * Commit the log entry with no/existing message
          */
         void log() {
             _impl->commit();
         }
+
         /**
          * Commit the log entry with a message
          */
@@ -419,6 +475,7 @@ namespace logging {
             _impl->setMessage(value);
             _impl->commit();
         }
+
         /**
          * Commit the log entry with a lazy-evaluation message
          */
@@ -439,6 +496,7 @@ namespace logging {
         using SymbolType = typename Traits::SymbolType;
         using SymbolArgType = typename Traits::SymbolArgType;
         using ArgValue = typename Traits::ArgType;
+
         explicit LoggerBase(const std::shared_ptr<detail::LoggerImpl<Traits>> &impl) : _impl(impl) {
         }
 
@@ -478,54 +536,63 @@ namespace logging {
         [[nodiscard]] Event<Traits> atTrace() const {
             return atLevel(Level::Trace);
         }
+
         /**
          * Builder for a trace-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atTrace(SymbolArgType eventType) const {
             return atTrace().event(eventType);
         }
+
         /**
          * Builder for a debug-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atDebug() const {
             return atLevel(Level::Debug);
         }
+
         /**
          * Builder for a debug-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atDebug(SymbolArgType eventType) const {
             return atDebug().event(eventType);
         }
+
         /**
          * Builder for an info-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atInfo() const {
             return atLevel(Level::Info);
         }
+
         /**
          * Builder for an info-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atInfo(SymbolArgType eventType) const {
             return atInfo().event(eventType);
         }
+
         /**
          * Builder for an warn-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atWarn() const {
             return atLevel(Level::Warn);
         }
+
         /**
          * Builder for an warn-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atWarn(SymbolArgType eventType) const {
             return atWarn().event(eventType);
         }
+
         /**
          * Builder for an error-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atError() const {
             return atLevel(Level::Error);
         }
+
         /**
          * Builder for an error-level event. If not logging, the returned Event is a no-op.
          */
@@ -540,24 +607,30 @@ namespace logging {
         [[nodiscard]] bool isTraceEnabled() const {
             return isEnabled(Level::Trace);
         }
+
         [[nodiscard]] bool isDebugEnabled() const {
             return isEnabled(Level::Debug);
         }
+
         [[nodiscard]] bool isInfoEnabled() const {
             return isEnabled(Level::Info);
         }
+
         [[nodiscard]] bool isWarnEnabled() const {
             return isEnabled(Level::Warn);
         }
+
         [[nodiscard]] bool isErrorEnabled() const {
             return isEnabled(Level::Error);
         }
+
         /**
          * Change level for this specific name
          */
         void setLevel(Level level) {
             return _impl->setLevel(level);
         }
+
         /**
          * Copy this instance for purpose of applying additional key/value pairs
          */
@@ -581,7 +654,7 @@ namespace logging {
     template<typename Traits>
     LoggerBase<Traits> LogManagerBase<Traits>::getLogger(SymbolArgType loggerName) noexcept {
         auto impl{std::make_shared<detail::LoggerImpl<Traits>>(
-            LogManagerBase<Traits>::baseRef(), loggerName)};
+                LogManagerBase<Traits>::baseRef(), loggerName)};
         return LoggerBase(impl);
     }
 } // namespace logging

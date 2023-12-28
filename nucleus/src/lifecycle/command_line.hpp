@@ -10,8 +10,6 @@ namespace lifecycle {
 
     class CommandLine {
     private:
-        std::list<argument *> argumentList;
-
         std::weak_ptr<scope::Context> _context;
         lifecycle::Kernel &_kernel;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
@@ -25,9 +23,7 @@ namespace lifecycle {
         [[nodiscard]] scope::Context &context() const {
             return *_context.lock();
         }
-
-        static std::string nextArg(
-            const std::vector<std::string> &args, std::vector<std::string>::const_iterator &iter);
+        std::list<std::unique_ptr<argument>> argumentList;
 
     public:
         explicit CommandLine(
