@@ -26,12 +26,12 @@ namespace deployment {
     class DeviceConfiguration;
 }
 
-namespace lifecycle {
-    class Kernel;
-}
-
 namespace tasks {
     class Callback;
+}
+
+namespace util {
+    class NucleusPaths;
 }
 
 namespace plugins {
@@ -164,7 +164,7 @@ namespace plugins {
     class PluginLoader {
     private:
         std::weak_ptr<scope::Context> _context;
-        std::weak_ptr<lifecycle::Kernel> _kernel;
+        std::shared_ptr<util::NucleusPaths> _paths;
         std::shared_ptr<data::TrackingRoot> _root;
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfig;
 
@@ -258,9 +258,9 @@ namespace plugins {
             const std::shared_ptr<deployment::DeviceConfiguration> &deviceConfig) {
             _deviceConfig = deviceConfig;
         }
-        void setKernel(const std::shared_ptr<lifecycle::Kernel> &kernel);
-        lifecycle::Kernel &kernel() {
-            return *_kernel.lock();
+        void setPaths(const std::shared_ptr<util::NucleusPaths> &paths);
+        std::shared_ptr<util::NucleusPaths> getPaths() {
+            return _paths;
         }
     };
 

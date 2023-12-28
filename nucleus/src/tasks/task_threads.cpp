@@ -43,7 +43,10 @@ namespace tasks {
 
     void TaskPoolWorker::start() {
         // Do not call in constructor, see notes in runner()
-        _thread = std::thread(&TaskPoolWorker::runner, this);
+        if(!_running.exchange(true)) {
+            // Max one start
+            _thread = std::thread(&TaskPoolWorker::runner, this);
+        }
     }
 
     void TaskPoolWorker::runner() {
@@ -59,9 +62,12 @@ namespace tasks {
     }
 
     void TaskPoolWorker::joinImpl() {
-        shutdown();
+        std::unique_lock guard{_mutex};
+        _shutdown = true;
         _wake.notify_one();
-        if(_thread.joinable()) {
+        if(_running.exchange(false)) {
+            guard.unlock();
+            // Max one join
             _thread.join();
         }
     }
@@ -109,6 +115,10 @@ namespace tasks {
     }
 
     std::shared_ptr<Task> TaskThread::pickupPoolTask(const std::shared_ptr<Task> &blockingTask) {
+        if(isShutdown()) {
+            return {}; // Bail quickly if we already know we're in shutdown
+        }
+        // TODO: On some versions of GCC the Context destructor is called here, not sure why...
         std::shared_ptr<scope::Context> context = _context.lock();
         if(!context || isShutdown()) {
             return {};
@@ -118,6 +128,10 @@ namespace tasks {
     }
 
     std::shared_ptr<Task> TaskThread::pickupPoolTask() {
+        if(isShutdown()) {
+            return {}; // Bail quickly if we already know we're in shutdown
+        }
+        // TODO: On some versions of GCC the Context destructor is called here, not sure why...
         std::shared_ptr<scope::Context> context = _context.lock();
         if(!context || isShutdown()) {
             return {};
@@ -222,8 +236,7 @@ namespace tasks {
     }
 
     bool TaskThread::isShutdown() {
-        std::unique_lock guard(_mutex);
-        return _shutdown;
+        return _shutdown.load();
     }
 
     std::shared_ptr<Task> FixedTaskThreadScope::getTask() const {

@@ -7,8 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-# set(CMAKE_CXX_FLAGS_RELEASE "-Os") #-- for size
-# set(CMAKE_CXX_FLAGS_RELEASE "-O3") #-- for speed
+
 if(NOT ${MSVC})
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -O0")
 endif()
@@ -18,6 +17,32 @@ endif()
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined")
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=null")
 #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
+
+if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
+  # Building for minimized footprint
+  # Turn on additional footprint optimizations
+  # (CMake already does -Os)
+
+  # Interprocedural optimization
+  cmake_policy(SET CMP0069 NEW)
+  set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+  # Dead code elimination - limited support
+  # Note, UNIX+APPLE for, e.g., Clang on Apple
+  # UNIX+WIN32 for gcc/glang + mingw on Windows
+  if(UNIX
+     AND NOT APPLE
+     AND NOT WIN32)
+    add_compile_options(-ffunction-sections -fdata-sections)
+    add_link_options("LINKER:--gc-sections,-Map=link.map")
+  endif()
+endif()
+# For all built shared-objects, request that exports are explicitly defined
+# Note, this isn't necessarily enough - see also version-script option
+if(UNIX)
+  add_compile_options(-fvisibility=hidden)
+endif()
 
 # Dependencies
 find_package(Threads REQUIRED)
@@ -30,9 +55,6 @@ fetchContentFromDeps(Catch2)
 FetchContent_MakeAvailable(Catch2)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
-if(UNIX)
-  add_compile_options(-fvisibility=hidden)
-endif()
 if(MSVC)
   if(MSVC_VERSION LESS 1910)
     message(SEND_ERROR "Microsoft Visual Studio 2019 with support for C++17 \

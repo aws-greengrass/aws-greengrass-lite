@@ -27,7 +27,7 @@ namespace tasks {
         std::list<std::shared_ptr<Task>> _tasks;
         std::mutex _mutex;
         std::condition_variable _wake;
-        bool _shutdown{false};
+        std::atomic_bool _shutdown{false};
 
         [[nodiscard]] scope::Context &context() const {
             return *_context.lock();
@@ -83,6 +83,7 @@ namespace tasks {
     class TaskPoolWorker : public TaskThread {
     private:
         std::thread _thread;
+        std::atomic_bool _running{false};
 
         void joinImpl();
 

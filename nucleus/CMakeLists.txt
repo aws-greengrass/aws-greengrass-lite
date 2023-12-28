@@ -39,6 +39,7 @@ add_library(
   include/nucleus_core.h
   src/api/data.cpp
   src/api/error.cpp
+  src/api/logging.cpp
   src/api/main.cpp
   src/api/plugins.cpp
   src/api/pubsub.cpp
@@ -81,6 +82,7 @@ add_library(
   src/data/tracked_object.cpp
   src/data/tracked_object.hpp
   src/data/value_type.hpp
+  src/deployment/config_watchers.hpp
   src/deployment/deployment_model.cpp
   src/deployment/deployment_model.hpp
   src/deployment/device_configuration.cpp
@@ -97,6 +99,10 @@ add_library(
   src/lifecycle/kernel_alternatives.hpp
   src/lifecycle/sys_properties.cpp
   src/lifecycle/sys_properties.hpp
+  src/logging/log_manager.cpp
+  src/logging/log_manager.hpp
+  src/logging/log_queue.cpp
+  src/logging/log_queue.hpp
   src/plugins/plugin_loader.cpp
   src/plugins/plugin_loader.hpp
   src/pubsub/local_topics.cpp
@@ -178,6 +184,7 @@ add_executable(
   tests/api/enum_tests.cpp
   tests/api/json_tests.cpp
   tests/api/list_tests.cpp
+  tests/api/logging_tests.cpp
   tests/api/pubsub_tests.cpp
   tests/api/struct_tests.cpp
   tests/api/task_tests.cpp

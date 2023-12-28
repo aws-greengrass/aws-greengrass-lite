@@ -1,7 +1,6 @@
 #include "plugin_loader.hpp"
 #include "deployment/device_configuration.hpp"
 #include "errors/error_base.hpp"
-#include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
@@ -12,6 +11,9 @@ namespace fs = std::filesystem;
 #define STRINGIFY(x) #x
 #define STRINGIFY2(x) STRINGIFY(x)
 #define NATIVE_SUFFIX STRINGIFY2(PLATFORM_SHLIB_SUFFIX)
+
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.plugins");
 
 namespace plugins {
 
@@ -143,6 +145,10 @@ namespace plugins {
         return context().pluginLoader();
     }
 
+    std::shared_ptr<config::Topics> PluginLoader::getServiceTopics(AbstractPlugin &plugin) const {
+        return context().configManager().lookupTopics({SERVICES, plugin.getName()});
+    }
+
     std::shared_ptr<data::StructModelBase> PluginLoader::buildParams(
         AbstractPlugin &plugin, bool partial) const {
         std::string nucleusName = _deviceConfig->getNucleusComponentName();
@@ -152,10 +158,13 @@ namespace plugins {
         if(!partial) {
             data->put(
                 NUCLEUS_CONFIG, context().configManager().lookupTopics({SERVICES, nucleusName}));
-            data->put(CONFIG, context().configManager().lookupTopics({SERVICES, plugin.getName()}));
+            data->put(CONFIG, getServiceTopics(plugin));
         }
         data->put(NAME, plugin.getName());
         return data;
+    }
+    void PluginLoader::setPaths(const std::shared_ptr<util::NucleusPaths> &paths) {
+        _paths = paths;
     }
 
     void AbstractPlugin::invoke(
@@ -172,23 +181,33 @@ namespace plugins {
     void AbstractPlugin::lifecycle(
         data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data) {
 
+        LOG.atInfo().event("lifecycle").kv("name", getName()).kv("phase", phase).log();
         errors::ThreadErrorContainer::get().clear();
-        // TODO: convert to logging
-        std::cerr << "Plugin \"" << getName() << "\" lifecycle phase: " << phase.toString()
-                  << std::endl;
         scope::StackScope scope{};
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 
         data::ObjHandle dataHandle = scope.getCallScope()->root()->anchor(data).getHandle();
-        if(!callNativeLifecycle(getSelf(), phase, dataHandle)) {
+        if(callNativeLifecycle(getSelf(), phase, dataHandle)) {
+            LOG.atDebug()
+                .event("lifecycle-completed")
+                .kv("name", getName())
+                .kv("phase", phase)
+                .log();
+        } else {
             std::optional<errors::Error> lastError{errors::ThreadErrorContainer::get().getError()};
             if(lastError.has_value()) {
-                std::cerr << "Plugin \"" << getName()
-                          << "\" lifecycle error during phase: " << phase.toString() << " - "
-                          << lastError.value().what() << std::endl;
+                LOG.atError()
+                    .event("lifecycle-error")
+                    .kv("name", getName())
+                    .kv("phase", phase)
+                    .cause(lastError.value())
+                    .log();
             } else {
-                std::cerr << "Plugin \"" << getName()
-                          << "\" lifecycle unhandled phase: " << phase.toString() << std::endl;
+                LOG.atInfo()
+                    .event("lifecycle-unhandled")
+                    .kv("name", getName())
+                    .kv("phase", phase)
+                    .log();
             }
         }
     }
@@ -204,6 +223,7 @@ namespace plugins {
             // Allow name to be changed
             _moduleName = el.getString();
         }
+        configure(loader);
         // Update data, module name is now known
         // TODO: This path is only when recipe is unknown
         data = loader.buildParams(*this, false);
@@ -212,6 +232,16 @@ namespace plugins {
         config->put("dependencies", std::make_shared<data::SharedList>(_context.lock()));
         // Now allow plugin to bind to service part of the config tree
         lifecycle(loader.BIND, data);
+    }
+
+    void AbstractPlugin::configure(PluginLoader &loader) {
+        auto serviceTopics = loader.getServiceTopics(*this);
+        auto configTopics = serviceTopics->lookupTopics({loader.CONFIGURATION});
+        auto loggingTopics = configTopics->lookupTopics({loader.LOGGING});
+        auto &logManager = context().logManager();
+        // TODO: Register a config watcher to monitor for logging config changes
+        logging::LogConfigUpdate logConfigUpdate{logManager, loggingTopics, loader.getPaths()};
+        logManager.reconfigure(_moduleName, logConfigUpdate);
     }
 
     CurrentModuleScope::CurrentModuleScope(const std::shared_ptr<AbstractPlugin> &activeModule) {

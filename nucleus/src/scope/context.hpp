@@ -20,6 +20,10 @@ namespace errors {
     class Error;
 }
 
+namespace logging {
+    class LogManager;
+}
+
 namespace plugins {
     class PluginLoader;
     class AbstractPlugin;
@@ -35,7 +39,7 @@ namespace tasks {
 
 namespace scope {
     class Context;
-    class ContextGlob;
+    class LazyContext;
     class ThreadContextContainer;
     class PerThreadContext;
     class NucleusCallScopeContext;
@@ -264,6 +268,7 @@ namespace scope {
     class LocalizedContext {
         std::shared_ptr<PerThreadContext> _saved;
         std::shared_ptr<PerThreadContext> _temp;
+        bool _applyTerminate{false};
 
     public:
         LocalizedContext();
@@ -293,7 +298,8 @@ namespace scope {
         Context(Context &&) = delete;
         Context &operator=(const Context &) = delete;
         Context &operator=(Context &&) = delete;
-        ~Context() = default;
+        virtual ~Context();
+        void terminate();
 
         static Context &get() {
             return *getPtr();
@@ -316,6 +322,7 @@ namespace scope {
         tasks::TaskManager &taskManager();
         pubsub::PubSubManager &lpcTopics();
         plugins::PluginLoader &pluginLoader();
+        logging::LogManager &logManager();
         std::mutex &cycleCheckMutex() {
             return _cycleCheckMutex;
         }
@@ -336,7 +343,14 @@ namespace scope {
         data::SymbolTable _stringTable;
         lifecycle::SysProperties _sysProperties;
         std::mutex _cycleCheckMutex;
-        std::unique_ptr<ContextGlob> _glob;
+        std::unique_ptr<LazyContext> _lazyContext;
+        std::once_flag _lazyInitFlag;
+
+        LazyContext &lazy() {
+            std::call_once(_lazyInitFlag, &Context::lazyInit, this);
+            return *_lazyContext;
+        }
+        void lazyInit();
     };
 
     template<typename T>

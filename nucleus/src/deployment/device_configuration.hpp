@@ -1,6 +1,5 @@
 #pragma once
 #include "config/config_manager.hpp"
-#include "config/validator.hpp"
 #include "data/string_table.hpp"
 #include "errors/error_base.hpp"
 #include "lifecycle/kernel.hpp"
@@ -17,10 +16,9 @@ namespace lifecycle {
     class CommandLine;
 } // namespace lifecycle
 
-namespace config {
-    class Topics;
-    class Validator;
-} // namespace config
+namespace logging {
+    class LogConfigUpdate;
+}
 
 namespace deployment {
     struct DeviceConfigConsts {
@@ -56,6 +54,7 @@ namespace deployment {
             "deploymentPollingFrequencySeconds"};
         data::SymbolInit NUCLEUS_CONFIG_LOGGING_TOPICS{"logging"};
         data::SymbolInit TELEMETRY_CONFIG_LOGGING_TOPICS{"telemetry"};
+        data::SymbolInit CONFIGURATION_CONFIG_KEY{"configuration"};
 
         data::SymbolInit S3_ENDPOINT_TYPE{"s3EndpointType"};
         //        data::StringOrdInit S3_ENDPOINT_PROP_NAME =
@@ -114,6 +113,7 @@ namespace deployment {
                     &DEPLOYMENT_POLLING_FREQUENCY_SECONDS,
                     &NUCLEUS_CONFIG_LOGGING_TOPICS,
                     &TELEMETRY_CONFIG_LOGGING_TOPICS,
+                    &CONFIGURATION_CONFIG_KEY,
                     &S3_ENDPOINT_TYPE,
                     // &S3_ENDPOINT_PROP_NAME
                     &DEVICE_NETWORK_PROXY_NAMESPACE,
@@ -140,18 +140,19 @@ namespace deployment {
         }
     };
 
-    class DeviceConfiguration {
+    class DeviceConfiguration : public util::RefObject<DeviceConfiguration> {
         mutable std::shared_mutex _mutex;
         std::weak_ptr<scope::Context> _context;
         lifecycle::Kernel &_kernel;
         std::string _nucleusComponentNameCache;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
         std::atomic_bool _deviceConfigValidationCachedResult{false};
-        std::shared_ptr<config::Topics> _loggingTopics;
 
         scope::Context &context() const {
             return *_context.lock();
         }
+
+        void initialize();
 
     public:
         const DeviceConfigConsts configs;
@@ -187,8 +188,9 @@ namespace deployment {
             const std::filesystem::path &, const std::filesystem::path &);
         void handleLoggingConfig();
         void handleLoggingConfigurationChanges(
-            config::WhatHappened, const std::shared_ptr<config::ConfigNode> &);
-        //        void reconfigureLogging(LogConfigUpdate);
+            const std::shared_ptr<config::Topics> &topics,
+            data::Symbol key,
+            config::WhatHappened changeType);
         std::optional<std::string> getComponentType(const std::string &);
         //        std::shared_ptr<config::Validator> &getDeTildeValidator(lifecycle::CommandLine
         //        &commandLine); std::shared_ptr<config::Validator>
@@ -247,5 +249,9 @@ namespace deployment {
         // LogConfigUpdate fromPojo(std::unordered_map<std::string, >);
         // KeyManager[] getDeviceIdentityKeyManagers();
         std::shared_ptr<config::Topics> getHttpClientOptions();
+        void onAnyChange(const std::shared_ptr<config::Watcher> &watcher);
+        void invalidateCachedResult();
+        static std::shared_ptr<DeviceConfiguration> create(
+            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel);
     };
 } // namespace deployment

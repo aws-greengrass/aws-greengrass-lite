@@ -2,10 +2,13 @@
 #include "command_line.hpp"
 #include "config/yaml_config.hpp"
 #include "deployment/device_configuration.hpp"
+#include "logging/log_queue.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
 #include <filesystem>
-#include <iostream>
+
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.lifecycle.Kernel");
 
 namespace lifecycle {
     //
@@ -51,7 +54,7 @@ namespace lifecycle {
             overrideConfigLocation(commandLine, overrideConfigFile);
         }
         initConfigAndTlog(commandLine);
-        updateDeviceConfiguration(commandLine);
+        initDeviceConfiguration(commandLine);
         initializeNucleusFromRecipe();
     }
 
@@ -65,8 +68,11 @@ namespace lifecycle {
             throw std::invalid_argument("Config file expected to be specified");
         }
         if(!commandLine.getProvidedConfigPath().empty()) {
-            // TODO: logging, warn user of override
-            std::cerr << "Ignoring specified configuration file in favor of override\n";
+            LOG.atWarn("boot")
+                .kv("configFileInput", commandLine.getProvidedConfigPath().generic_string())
+                .kv("configOverride", configFile.generic_string())
+                .log("Detected ongoing deployment. Ignore the config file from input and use "
+                     "config file override");
         }
         commandLine.setProvidedConfigPath(configFile);
     }
@@ -141,9 +147,9 @@ namespace lifecycle {
         _tlog->flushImmediately().withAutoTruncate().append().withWatcher();
     }
 
-    void Kernel::updateDeviceConfiguration(CommandLine &commandLine) {
-        _deviceConfiguration =
-            std::make_shared<deployment::DeviceConfiguration>(_context.lock(), *this);
+    void Kernel::initDeviceConfiguration(CommandLine &commandLine) {
+        _deviceConfiguration = deployment::DeviceConfiguration::create(_context.lock(), *this);
+        // std::make_shared<deployment::DeviceConfiguration>();
         if(!commandLine.getAwsRegion().empty()) {
             _deviceConfiguration->setAwsRegion(commandLine.getAwsRegion());
         }
@@ -178,17 +184,21 @@ namespace lifecycle {
         if(std::filesystem::exists(oldTlogPath)) {
             // Don't need to validate the content of old tlog here, since the existence of old
             // tlog itself signals that the content in config.tlog at the moment is unusable
-            // TODO: Log warning
-            std::cerr << "Config tlog truncation was interrupted by last nucleus shutdown and "
-                         "an old version of config.tlog exists. Undoing the effect of incomplete "
-                         "truncation by moving "
-                      << oldTlogPath << " back to " << tlogFile << "\n";
+            LOG.atWarn("boot")
+                .kv("configFile", tlogFile.generic_string())
+                .kv("backupConfigFile", oldTlogPath.generic_string())
+                .log(
+                    "Config tlog truncation was interrupted by last nucleus shutdown and an old "
+                    "version of config.tlog exists. Undoing the effect of incomplete truncation by "
+                    "restoring backup config");
             try {
                 std::filesystem::rename(oldTlogPath, tlogFile);
             } catch(std::filesystem::filesystem_error &e) {
-                // TODO: Log
-                std::cerr << "An IO error occurred while moving the old tlog file. "
-                             "Will attempt to load from backup configs\n";
+                LOG.atWarn("boot")
+                    .kv("configFile", tlogFile.generic_string())
+                    .kv("backupConfigFile", oldTlogPath.generic_string())
+                    .log("An IO error occurred while moving the old tlog file. Will attempt to "
+                         "load from backup configs");
                 return false;
             }
         }
@@ -201,8 +211,10 @@ namespace lifecycle {
             }
         } catch(std::filesystem::filesystem_error &e) {
             // no reason to rethrow as it does not impact this code path
-            // TODO: Log - Failed to delete {}
-            std::cerr << "Failed to delete " << newTlogPath << "\n";
+            LOG.atWarn("boot")
+                .kv("configFile", newTlogPath.generic_string())
+                .cause(e)
+                .log("Failed to delete partial config file");
         }
         return true;
     }
@@ -215,13 +227,18 @@ namespace lifecycle {
             util::CommitableFile::getBackupFile(bootstrapTlogFile)};
         for(const auto &backupPath : paths) {
             if(config::TlogReader::handleTlogTornWrite(_context.lock(), backupPath)) {
-                // TODO: log
-                std::cerr << "Transaction log " << tlogFile
-                          << " is invalid, attempting to load from " << backupPath << std::endl;
+                LOG.atWarn("boot")
+                    .kv("configFile", tlogFile.generic_string())
+                    .kv("backupFile", backupPath.generic_string())
+                    .log("Transaction log is invalid, attempting to load from backup");
                 getConfig().read(backupPath);
                 return;
             }
         }
+        LOG.atWarn("boot")
+            .kv("configFile", tlogFile.generic_string())
+            .log("Transaction log is invalid and no usable backup exists. Either an initial "
+                 "Nucleus setup is ongoing or all config tlogs were corrupted");
     }
 
     void Kernel::writeEffectiveConfigAsTransactionLog(const std::filesystem::path &tlogFile) {
@@ -244,20 +261,32 @@ namespace lifecycle {
         if(!_mainThread) {
             _mainThread.claim(std::make_shared<tasks::FixedTimerTaskThread>(_context.lock()));
         }
+        data::Symbol deploymentSymbol =
+            deployment::DeploymentConsts::STAGE_MAP.rlookup(_deploymentStageAtLaunch)
+                .value_or(data::Symbol{});
 
         switch(_deploymentStageAtLaunch) {
             case deployment::DeploymentStage::DEFAULT:
+                LOG.atInfo("boot").kv("deploymentStage", deploymentSymbol).log("Normal boot");
                 launchLifecycle();
                 break;
             case deployment::DeploymentStage::BOOTSTRAP:
+                LOG.atInfo("boot").kv("deploymentStage", deploymentSymbol).log("Resume deployment");
                 launchBootstrap();
+                break;
+            case deployment::DeploymentStage::ROLLBACK_BOOTSTRAP:
+                LOG.atInfo("boot").kv("deploymentStage", deploymentSymbol).log("Resume deployment");
+                launchRollbackBootstrap();
                 break;
             case deployment::DeploymentStage::KERNEL_ACTIVATION:
             case deployment::DeploymentStage::KERNEL_ROLLBACK:
+                LOG.atInfo("boot").kv("deploymentStage", deploymentSymbol).log("Resume deployment");
                 launchKernelDeployment();
                 break;
             default:
-                throw std::runtime_error("Provided deployment stage at launch is not understood");
+                LOG.atError("deploymentStage")
+                    .logAndThrow(
+                        errors::BootError("Provided deployment stage at launch is not understood"));
         }
         _mainThread.release();
         return _exitCode;
@@ -265,6 +294,10 @@ namespace lifecycle {
 
     void Kernel::launchBootstrap() {
         throw std::runtime_error("TODO: launchBootstrap()");
+    }
+
+    void Kernel::launchRollbackBootstrap() {
+        throw std::runtime_error("TODO: launchRollbackBootstrap()");
     }
 
     void Kernel::launchKernelDeployment() {
@@ -278,6 +311,7 @@ namespace lifecycle {
         //
 
         auto &loader = context().pluginLoader();
+        loader.setPaths(getPaths());
         loader.setDeviceConfiguration(_deviceConfiguration);
         loader.discoverPlugins(getPaths()->pluginPath());
 
@@ -297,6 +331,7 @@ namespace lifecycle {
             plugin.lifecycle(loader.TERMINATE, data);
         });
         getConfig().publishQueue().stop();
+        context().logManager().publishQueue()->stop();
     }
 
     std::shared_ptr<config::Topics> Kernel::findServiceTopic(const std::string_view &serviceName) {
@@ -343,9 +378,9 @@ namespace lifecycle {
 
     void Kernel::softShutdown(std::chrono::seconds timeoutSeconds) {
         getConfig().publishQueue().drainQueue();
-        std::cerr << "Starting soft shutdown" << std::endl;
+        LOG.atDebug("system-shutdown").log("Starting soft shutdown");
         stopAllServices(timeoutSeconds);
-        std::cerr << "Closing transaction log" << std::endl;
+        LOG.atDebug("system-shutdown").log("Closing transaciton log");
         _tlog->commit();
         writeEffectiveConfig();
     }

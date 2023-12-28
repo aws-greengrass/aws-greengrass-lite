@@ -117,4 +117,9 @@ namespace data {
         return data::Boxed::box(_context.lock(), value);
     }
 
+    void SharedBuffer::write(std::ostream &stream) const {
+        std::shared_lock guard{_mutex};
+        stream.write(_buffer.data(), _buffer.size()); // NOLINT(*-narrowing-conversions)
+    }
+
 } // namespace data

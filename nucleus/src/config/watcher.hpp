@@ -34,8 +34,7 @@ namespace config {
             static_cast<uint32_t>(left) & static_cast<uint32_t>(right));
     }
 
-    class Watcher {
-    public:
+    struct Watcher {
         Watcher() = default;
         Watcher(const Watcher &) = delete;
         Watcher(Watcher &&) = delete;

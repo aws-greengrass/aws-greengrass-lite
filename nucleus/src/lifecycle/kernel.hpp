@@ -37,7 +37,7 @@ namespace lifecycle {
             config::WhatHappened changeType) override;
     };
 
-    class Kernel : public util::RefObject<Kernel> {
+    class Kernel {
         std::weak_ptr<scope::Context> _context;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
         std::shared_ptr<RootPathWatcher> _rootPathWatcher;
@@ -54,6 +54,11 @@ namespace lifecycle {
 
     public:
         explicit Kernel(const std::shared_ptr<scope::Context> &context);
+        Kernel(const Kernel &) = delete;
+        Kernel(Kernel &&) = delete;
+        Kernel &operator=(const Kernel &) = delete;
+        Kernel &operator=(Kernel &&) = delete;
+        ~Kernel() = default;
 
         static constexpr auto SERVICE_TYPE_TOPIC_KEY{"componentType"};
         static constexpr auto SERVICE_TYPE_TO_CLASS_MAP_KEY{"componentTypeToClassMap"};
@@ -73,10 +78,11 @@ namespace lifecycle {
         static void overrideConfigLocation(
             CommandLine &commandLine, const std::filesystem::path &configFile);
         void initConfigAndTlog(CommandLine &commandLine);
-        void updateDeviceConfiguration(CommandLine &commandLine);
+        void initDeviceConfiguration(CommandLine &commandLine);
         void initializeNucleusFromRecipe();
         void setupProxy();
         void launchBootstrap();
+        void launchRollbackBootstrap();
         void launchLifecycle();
         void launchKernelDeployment();
         static bool handleIncompleteTlogTruncation(const std::filesystem::path &tlogFile);

@@ -5,6 +5,9 @@
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.tasks.RegisteredCallback");
+
 namespace tasks {
 
     std::shared_ptr<plugins::AbstractPlugin> RegisteredCallback::getModule() const {

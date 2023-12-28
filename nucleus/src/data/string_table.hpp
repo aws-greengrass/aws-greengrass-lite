@@ -270,4 +270,20 @@ namespace data {
         return x.toString() + y.toString();
     }
 
+    /**
+     * Helper for use-cases where symbol is required, but string can
+     * be provided instead
+     */
+    class Symbolish : public Symbol {
+
+    public:
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        Symbolish(std::string_view constString);
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        Symbolish(const char *constString);
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        constexpr Symbolish(const Symbol &symbol) noexcept : Symbol(symbol) {
+        }
+    };
+
 } // namespace data

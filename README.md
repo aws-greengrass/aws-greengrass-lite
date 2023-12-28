@@ -20,8 +20,8 @@ The `plugin_api` directory has the interface plugins should build against.
 
 | Feature                                 | Supported | Schedule | Plugin that provides support |
 | :-------------------------------------- | :-------: | :------: | :--------------------------- |
-| SubscribeToTopic                        |     x     |   now    | nucleus                      |
-| PublishToTopic                          |     x     |   now    | nucleus                      |
+| SubscribeToTopic                        |     x     |   now    | local_broker                 |
+| PublishToTopic                          |     x     |   now    | local_broker                 |
 | PublishToIoTCore                        |     x     |   now    | iot_broker                   |
 | SubscribeToIoTCore                      |     x     |   now    | iot_broker                   |
 | UpdateState                             |           |   soon   |                              |
@@ -68,14 +68,26 @@ currently install is performed by the compile from source steps below.
 A working installation will require a config file and a thing certificate
 package.
 
-Create First go to AWS IoT Core and create a thing. Put the c
+First go to AWS IoT Core and create a thing.
+
+Copy the sample config in `./setup/nucleus_config.yml`.
+
+Configure the following in your config file
+
+- privateKeyPath: Path to private key for the Thing
+- certificateFilePath: Path to Thing certificate
+- thingName: Name of the Thing
+- rootpath: Absolute path to the run directory created above
+- awsRegion: The AWS region with the Thing
+- iotCredEndpoint: The IoT Core endpoint
+- iotDataEndpoint: The IoT Core endpoint
 
 ### Running Greengrass Lite
 
 For these examples greengrass is installed in the ~/gglite_testing folder. This
 can be changed to suit your system. The settings shown will process the
 config.yaml and populate the config folder with pre-processed versions. If you
-change config.yaml you will need to either delete the preprocessed files or
+change config.yaml you will need to delete the preprocessed files.
 
 ```bash
 ~/gglite_testing/bin/greengrass-lite -r ~/gglite_testing --init-config ~/gglite_testing/config/config.yaml
@@ -88,11 +100,25 @@ cmake -B build
 make -C build -j4
 ```
 
+### Compiling Greengrass Lite for minimal footprint
+
+The "-DUSE_OPENSSL" assumes openssl-devel installed on build machine and openssl
+installed on target machine.
+
+Build type "MinSizeRel" enables multiple size reduction options. Note that in
+current build, shared plugins that link to DeviceSDK are still pulling in unused
+code - this will be addressed.
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel
+make -C build -j4
+```
+
 #### Installing in a user location
 
 ```bash
 cmake -B build -DCMAKE_INSTALL_PREFIX=~/gglite_testing
-make -C build -j4 install
+make -C build -j4 install/strip
 ```
 
 #### Installing in the system location
@@ -101,12 +127,19 @@ The default location on linux is /usr/bin
 
 ```bash
 cmake -B build
-make -C build -j4 install
+make -C build -j4 install/strip
 ```
 
 ## Dependencies
 
-None at this time.
+The following dependencies are required to build Nucleus and all of the included
+plugins
+
+- Linux kernel >=5.15
+- CMake >=3.22
+- make >=4.2.1
+- glibc >=2.31
+- GCC >=9.4.0
 
 ## Security
 

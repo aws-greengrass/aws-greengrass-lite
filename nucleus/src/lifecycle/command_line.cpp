@@ -5,6 +5,9 @@
 #include <util.hpp>
 namespace fs = std::filesystem;
 
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.lifecycle.CommandLine");
+
 namespace lifecycle {
     //
     // GG-Interop:
@@ -124,14 +127,17 @@ namespace lifecycle {
                 _defaultUserFromCmdLine = arg;
                 continue;
             }
-            throw std::runtime_error(std::string("Unrecognized command: ") + op);
+            LOG.atError()
+                .event("parse-args-error")
+                .logAndThrow(
+                    errors::CommandLineArgumentError{std::string("Unrecognized command: ") + op});
         }
         // GG-Interop:
         // GG-Java will pull root out of initial config if it exists and root is not defined
         // otherwise it will assume "~/.greengrass"
         // however in GG-Lite, root should always be defined by this line.
         if(_kernel.getPaths()->rootPath().empty()) {
-            throw std::runtime_error("No root path");
+            LOG.atError().event("system-boot-error").logAndThrow(errors::BootError{"No root path"});
         }
     }
 
