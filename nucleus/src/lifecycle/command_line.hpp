@@ -1,7 +1,8 @@
 #pragma once
+#include "command_line_arguments.hpp"
 #include "kernel.hpp"
 #include "scope/context.hpp"
-#include <optional>
+#include <list>
 
 namespace lifecycle {
 
@@ -9,6 +10,8 @@ namespace lifecycle {
 
     class CommandLine {
     private:
+        std::list<argument *> argumentList;
+
         std::weak_ptr<scope::Context> _context;
         lifecycle::Kernel &_kernel;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
@@ -28,9 +31,7 @@ namespace lifecycle {
 
     public:
         explicit CommandLine(
-            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel)
-            : _context(context), _kernel(kernel) {
-        }
+            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel);
 
         void parseEnv(SysProperties &sysProperties);
         void parseHome(SysProperties &sysProperties);
@@ -62,4 +63,5 @@ namespace lifecycle {
             _providedConfigPath = path;
         }
     };
+
 } // namespace lifecycle

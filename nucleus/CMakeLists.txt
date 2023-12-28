@@ -19,13 +19,15 @@ include(../utils/fetchContentFromDeps.cmake)
 fetchContentFromDeps(yaml-cpp rapidjson)
 
 FetchContent_GetProperties(yaml-cpp)
+
 if(NOT yaml-cpp_POPULATED)
   FetchContent_Populate(yaml-cpp)
   add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR}
-                   EXCLUDE_FROM_ALL)
+    EXCLUDE_FROM_ALL)
 endif()
 
 FetchContent_GetProperties(rapidjson)
+
 if(NOT rapidjson_POPULATED)
   FetchContent_Populate(rapidjson)
 endif()
@@ -93,6 +95,7 @@ add_library(
   src/errors/errors.hpp
   src/lifecycle/command_line.cpp
   src/lifecycle/command_line.hpp
+  src/lifecycle/command_line_arguments.hpp
   src/lifecycle/kernel.cpp
   src/lifecycle/kernel.hpp
   src/lifecycle/kernel_alternatives.cpp
@@ -159,7 +162,7 @@ target_include_directories(
 #
 add_library(nucleus-lib STATIC $<TARGET_OBJECTS:nucleus-obj>)
 target_link_libraries(nucleus-lib PUBLIC gg_plugin_api Threads::Threads
-                                         ${CMAKE_DL_LIBS} yaml-cpp)
+  ${CMAKE_DL_LIBS} yaml-cpp)
 
 add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
@@ -168,10 +171,10 @@ set_target_properties(greengrass-lite PROPERTIES BUILD_RPATH_USE_ORIGIN ON)
 
 if(APPLE)
   set_target_properties(greengrass-lite PROPERTIES INSTALL_RPATH
-                                                   "@loader_path/../lib")
+    "@loader_path/../lib")
 elseif(UNIX)
   set_target_properties(greengrass-lite PROPERTIES INSTALL_RPATH
-                                                   "\$ORIGIN/../lib")
+    "\$ORIGIN/../lib")
 endif()
 
 install(TARGETS greengrass-lite DESTINATION bin)
@@ -203,7 +206,7 @@ add_executable(
   tests/test_tools.hpp)
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
-                           PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
+  PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
 include(Catch)
 catch_discover_tests(nucleus-tests)
 

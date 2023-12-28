@@ -3,6 +3,7 @@
 #include "scope/context_full.hpp"
 #include <optional>
 #include <util.hpp>
+
 namespace fs = std::filesystem;
 
 const auto LOG = // NOLINT(cert-err58-cpp)
@@ -93,45 +94,24 @@ namespace lifecycle {
     }
 
     void CommandLine::parseArgs(const std::vector<std::string> &args) {
-        std::shared_ptr<util::NucleusPaths> paths = _kernel.getPaths();
-        for(auto i = args.begin(); i != args.end();) {
-            std::string op = nextArg(args, i);
-            // TODO: GG-Java ignores case
-            if(op == "--config" || op == "-i") {
-                std::string arg = nextArg(args, i);
-                _providedConfigPath = paths->deTilde(arg);
-                continue;
+        //        std::shared_ptr<util::NucleusPaths> paths = _kernel.getPaths();
+
+        for(int i = 0; i < args.size(); i++) {
+            bool handled = false;
+            for(auto j = argumentList.begin(); j != argumentList.end(); j++) {
+                if((*j)->process(i, args)) {
+                    handled = true;
+                    break;
+                }
             }
-            if(op == "--init-config" || op == "-init") {
-                std::string arg = nextArg(args, i);
-                _providedInitialConfigPath = paths->deTilde(arg);
-                continue;
+            if(!handled) {
+                LOG.atError()
+                    .event("parse-args-error")
+                    .logAndThrow(errors::CommandLineArgumentError{
+                        std::string("Unrecognized command: ") + args[i]});
             }
-            if(op == "--root" || op == "-r") {
-                std::string arg = nextArg(args, i);
-                _kernel.getPaths()->setRootPath(paths->deTilde(arg), false);
-                continue;
-            }
-            if(op == "--aws-region" || op == "-ar") {
-                std::string arg = nextArg(args, i);
-                _awsRegionFromCmdLine = arg;
-                continue;
-            }
-            if(op == "--env-stage" || op == "-es") {
-                std::string arg = nextArg(args, i);
-                _envStageFromCmdLine = arg;
-                continue;
-            }
-            if(op == "--component-default-user" || op == "-u") {
-                std::string arg = nextArg(args, i);
-                _defaultUserFromCmdLine = arg;
-                continue;
-            }
-            LOG.atError()
-                .event("parse-args-error")
-                .logAndThrow(
-                    errors::CommandLineArgumentError{std::string("Unrecognized command: ") + op});
         }
+
         // GG-Interop:
         // GG-Java will pull root out of initial config if it exists and root is not defined
         // otherwise it will assume "~/.greengrass"
@@ -139,6 +119,57 @@ namespace lifecycle {
         if(_kernel.getPaths()->rootPath().empty()) {
             LOG.atError().event("system-boot-error").logAndThrow(errors::BootError{"No root path"});
         }
+    }
+
+    CommandLine::CommandLine(
+        const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel)
+        : _context(context), _kernel(kernel) {
+        std::make_unique<argumentValue<std::string>>(
+            "i",
+            "config",
+            "configuration Path",
+            [this](std::string arg) { _providedConfigPath = _kernel.getPaths()->deTilde(arg); })
+            ->addToList(argumentList);
+
+        std::make_unique<argumentValue<std::string>>(
+            "init",
+            "init-config",
+            "initial configuration path",
+            [this](std::string arg) {
+                _providedInitialConfigPath = _kernel.getPaths()->deTilde(arg);
+            })
+            ->addToList(argumentList);
+
+        std::make_unique<argumentValue<std::string>>(
+            "r",
+            "root",
+            "the root path selection",
+            [this](std::string arg) {
+                auto paths = _kernel.getPaths();
+                paths->setRootPath(paths->deTilde(arg));
+            })
+            ->addToList(argumentList);
+
+        std::make_unique<argumentValue<std::string>>(
+            "ar",
+            "aws-region",
+            "AWS Region",
+            [this](std::string arg) { _awsRegionFromCmdLine = arg; })
+            ->addToList(argumentList);
+
+        std::make_unique<argumentValue<std::string>>(
+            "es",
+            "env-stage",
+            "Environment Stage Selection",
+            [this](std::string arg) { _envStageFromCmdLine = arg; })
+            ->addToList(argumentList);
+
+        std::make_unique<argumentValue<std::string>>(
+            "u",
+            "component-default-user",
+            "Component Default User",
+            [this](std::string arg) { _defaultUserFromCmdLine = arg; })
+            ->addToList(argumentList);
     }
 
 } // namespace lifecycle
