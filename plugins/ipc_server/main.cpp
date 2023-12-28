@@ -67,7 +67,13 @@ static std::ostream &operator<<(
     using namespace std::string_view_literals;
     for(auto &&item : util::Span{message_args.headers, message_args.headers_count}) {
         auto &&[name, value] = parseHeader(item);
-        os << name << '=' << value << '\n';
+        os << name << '=';
+        if(value) {
+            os << *value;
+        } else {
+            os << "unsupported header_value_type: " << item.header_value_type;
+        }
+        os << '\n';
     }
     auto sv = Aws::Crt::ByteCursorToStringView(aws_byte_cursor_from_buf(message_args.payload));
     return os.write(sv.data(), static_cast<std::streamsize>(sv.size()));
