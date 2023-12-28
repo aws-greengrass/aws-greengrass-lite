@@ -32,7 +32,7 @@ bool MqttSender::onRun(ggapi::Struct data) {
 
     // TODO: Use anonymous listener handle
     auto result = ggapi::Task::sendToTopic(keys.subscribeToIoTCoreTopic, request);
-    if (!result.empty()) {
+    if(!result.empty()) {
         auto channel = getScope().anchor(result.get<ggapi::Channel>(keys.channel));
         channel.addListenCallback(mqttListener);
         channel.addCloseCallback([channel]() { channel.release(); });
@@ -44,16 +44,16 @@ bool MqttSender::onRun(ggapi::Struct data) {
 
 bool MqttSender::onTerminate(ggapi::Struct data) {
     std::cerr << "[example-mqtt-sender] Stopping publish thread..." << std::endl;
-    _isRunning.store(false);
+    _running = false;
     _asyncThread.join();
     return true;
 }
 
 void MqttSender::threadFn() {
     std::cerr << "[example-mqtt-sender] Started publish thread" << std::endl;
-    _isRunning = true;
-    _cv.notify_all();
-    while(_isRunning.load()) {
+    _running = true;
+    _cv.notify_one();
+    while(_running.load()) {
         ggapi::CallScope iterScope; // localize all structures
         auto request{ggapi::Struct::create()};
         request.put(keys.topicName, "hello");

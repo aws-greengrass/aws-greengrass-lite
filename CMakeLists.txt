@@ -78,3 +78,5 @@ endif()
 add_subdirectory(plugin_api)
 add_subdirectory(nucleus)
 add_subdirectory(plugins)
+
+add_test(NAME nucleus COMMAND nucleus-tests)

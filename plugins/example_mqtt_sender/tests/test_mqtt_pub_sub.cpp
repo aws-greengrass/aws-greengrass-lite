@@ -70,7 +70,8 @@ SCENARIO("Example Mqtt Sender pub/sub", "[pubsub]") {
                 expected.put(keys.qos, 1);
                 expected.put(keys.payload, "Hello world!");
                 THEN("The listener's publish handler is called") {
-                    REQUIRE_CALL(mockListener, publishHandler(mock::_, mock::_, pubStructMatcher(expected)))
+                    REQUIRE_CALL(
+                        mockListener, publishHandler(mock::_, mock::_, pubStructMatcher(expected)))
                         .RETURN(ggapi::Struct::create().put("status", true))
                         .TIMES(AT_LEAST(1));
 
@@ -104,15 +105,20 @@ SCENARIO("Example Mqtt Sender pub/sub", "[pubsub]") {
                     ggapi::TopicCallback::of(&MockListener::subscribeHandler, mockListener));
 
                 THEN("The listener's publish and subscribe handlers are called") {
-                    REQUIRE_CALL(mockListener, publishHandler(mock::_, mock::_, pubStructMatcher(pubExpected)))
+                    REQUIRE_CALL(
+                        mockListener,
+                        publishHandler(mock::_, mock::_, pubStructMatcher(pubExpected)))
                         .RETURN(ggapi::Struct::create().put("status", true))
                         .TIMES(AT_LEAST(1));
 
-                    REQUIRE_CALL(mockListener, subscribeHandler(mock::_, mock::_, subStructMatcher(subExpected)))
+                    REQUIRE_CALL(
+                        mockListener,
+                        subscribeHandler(mock::_, mock::_, subStructMatcher(subExpected)))
                         .SIDE_EFFECT(auto message = ggapi::Struct::create();
                                      message.put(keys.topicName, topicName1);
                                      message.put(keys.payload, payload1);
-                                     std::ignore = ggapi::Task::sendToTopic(keys.mqttPing, message);)
+                                     std::ignore =
+                                         ggapi::Task::sendToTopic(keys.mqttPing, message);)
                         .RETURN(ggapi::Struct::create().put(keys.channel, ggapi::Channel::create()))
                         .TIMES(AT_LEAST(1));
 

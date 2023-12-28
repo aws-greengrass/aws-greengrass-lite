@@ -37,7 +37,7 @@ public:
 
     void wait() {
         std::unique_lock<std::mutex> lock(_mtx);
-        _cv.wait(lock, [this]{return _isRunning.load();});
+        _cv.wait(lock, [this] { return _running.load(); });
         using namespace std::chrono_literals;
         std::this_thread::sleep_for(0.5s);
     }

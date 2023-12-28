@@ -1,4 +1,5 @@
 #include "plugin.hpp"
+#include <condition_variable>
 #include <thread>
 
 struct Keys {
@@ -16,9 +17,10 @@ class MqttSender : public ggapi::Plugin {
     std::thread _asyncThread;
 
 protected:
-    std::atomic_bool _isRunning{false};
+    std::atomic_bool _running{false};
     std::mutex _mtx;
     std::condition_variable _cv;
+
 public:
     bool onStart(ggapi::Struct data) override;
     bool onRun(ggapi::Struct data) override;
