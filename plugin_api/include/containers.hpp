@@ -292,6 +292,24 @@ namespace ggapi {
         }
 
         template<typename T>
+        [[nodiscard]] T getOr(Symbol key) const {
+            required();
+            return hasKey(key) ? get<T>(key) : T();
+        }
+
+        template<typename T>
+        [[nodiscard]] T getOr(Symbol key, T defaultVal) const {
+            required();
+            return hasKey(key) ? get<T>(key) : defaultVal;
+        }
+
+        template<typename T, typename F>
+        [[nodiscard]] T getOr(Symbol key, F getDefault) const {
+            required();
+            return hasKey(key) ? get<T>(key) : getDefault();
+        }
+
+        template<typename T>
         T getValue(const std::initializer_list<std::string_view> &keys) const {
             ggapi::Struct childStruct = *this;
             auto it = keys.begin();

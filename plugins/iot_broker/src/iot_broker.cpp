@@ -10,7 +10,7 @@ ggapi::Struct IotBroker::ipcPublishHandler(
     ggapi::Task task, ggapi::Symbol symbol, ggapi::Struct args) {
     // TODO: pretty sure we can detect whether to perform this base64decode
     // from the json document. It's either bytes (base64) or plaintext
-    {
+    if(args.hasKey(keys.payload)) {
         auto decoded = Aws::Crt::Base64Decode(args.get<Aws::Crt::String>(keys.payload));
         args.put(keys.payload, std::string{decoded.begin(), decoded.end()});
     }
@@ -88,7 +88,7 @@ ggapi::Struct IotBroker::ipcSubscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
     auto topic{args.get<Aws::Crt::String>(keys.topicName)};
     auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
-    auto payload{args.get<Aws::Crt::String>(keys.payload)};
+    auto payload{args.getOr<Aws::Crt::String>(keys.payload)};
 
     std::atomic_bool success = false;
 
