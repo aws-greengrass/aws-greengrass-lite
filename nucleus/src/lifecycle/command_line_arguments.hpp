@@ -14,35 +14,47 @@ namespace lifecycle {
         argument &operator=(const argument &rhs) = delete;
 
     protected:
-        bool _inUse;
         const std::string _flag;
         const std::string _name;
         const std::string _description;
 
-        argument(const std::string &flag, const std::string &name, const std::string &description)
-                : _inUse(false), _flag(flag), _name(name), _description(description) {
+        argument(const std::string_view flag, const std::string_view name, const std::string_view description)
+                : _flag(flag), _name(name),
+                  _description(description) {
         }
 
     public:
         virtual ~argument() = default;
 
-        const std::string &getFlag() const {
-            return _flag;
-        }
-
-        const std::string &getName() const {
-            return _name;
-        }
-
-        const std::string &getDescription() const {
-            return _description;
-        }
-
-        bool isUsed() {
-            return _inUse;
+        const std::string getHelp() const {
+            std::string helpString;
+            helpString = "-" + _flag + "\t" + "--" + _name + " : " + _description;
+            return helpString;
         }
 
         virtual bool process(std::vector<std::string>::const_iterator &i) = 0;
+    };
+
+    class argumentFlag : public argument {
+    private:
+        std::function<void(void)> _handler;;
+    public:
+        argumentFlag(
+                const std::string_view flag,
+                const std::string_view name,
+                const std::string_view description,
+                const std::function<void(void)> handler
+        ) : argument(flag, name, description), _handler(handler) {};
+
+        bool process(std::vector<std::string>::const_iterator &i) override {
+            std::string a = *i;
+            std::transform(a.begin(), a.end(), a.begin(), ::tolower);
+            if (a == "-" + _flag || a == "--" + _name) {
+                _handler();
+                return true;
+            }
+            return false;
+        }
     };
 
     template<class T>
@@ -55,20 +67,10 @@ namespace lifecycle {
         std::function<void(T)> _handler;
     public:
         argumentValue(
-                const std::string &flag,
-                const std::string &name,
-                const std::string &description,
-                std::function<void(T)> handler);;
-
-        static void createInstance(
-                std::list<std::unique_ptr<argument>> &argumentList,
-                const std::string &flag,
-                const std::string &name,
-                const std::string &description,
-                std::function<void(T)> handler) {
-            auto ptr = std::make_unique<argumentValue<T>>(flag, name, description, handler);
-            argumentList.emplace_back(std::move(ptr));
-        }
+                const std::string_view flag,
+                const std::string_view name,
+                const std::string_view description,
+                const std::function<void(T)> handler) : argument(flag, name, description), _handler(handler) {};
 
         /** process the i'th string in args and determine if this is a match
          return true if it is a match and false if it is not a match */
@@ -79,7 +81,6 @@ namespace lifecycle {
                 try {
                     i++;
                     _extractValue(*i);
-                    _inUse = true;
                     _handler(_value);
                     return true;
                 } catch (const std::invalid_argument &e) {
@@ -95,11 +96,6 @@ namespace lifecycle {
             return _value;
         };
     };
-
-    template<class T>
-    argumentValue<T>::argumentValue(const std::string &flag, const std::string &name, const std::string &description,
-                                    std::function<void(T)> handler)
-            : argument(flag, name, description), _handler(handler) {}
 
     template<>
     inline void argumentValue<std::string>::_extractValue(const std::string &val) {

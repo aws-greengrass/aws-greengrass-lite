@@ -114,49 +114,7 @@ namespace lifecycle {
             const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel)
             : _context(context), _kernel(kernel) {
 
-        argumentValue<std::string>::createInstance(argumentList,
-                                                   "i",
-                                                   "config",
-                                                   "configuration Path",
-                                                   [this](std::string arg) {
-                                                       _providedConfigPath = _kernel.getPaths()->deTilde(arg);
-                                                   });
 
-        argumentValue<std::string>::createInstance(argumentList,
-                                                   "init",
-                                                   "init-config",
-                                                   "initial configuration path",
-                                                   [this](std::string arg) {
-                                                       _providedInitialConfigPath = _kernel.getPaths()->deTilde(arg);
-                                                   });
-
-
-        argumentValue<std::string>::createInstance(argumentList,
-                                                   "r",
-                                                   "root",
-                                                   "the root path selection",
-                                                   [this](std::string arg) {
-                                                       auto paths = _kernel.getPaths();
-                                                       paths->setRootPath(paths->deTilde(arg));
-                                                   });
-
-        argumentValue<std::string>::createInstance(argumentList,
-                                                   "ar",
-                                                   "aws-region",
-                                                   "AWS Region",
-                                                   [this](std::string arg) { _awsRegionFromCmdLine = arg; });
-
-        argumentValue<std::string>::createInstance(argumentList,
-                                                   "es",
-                                                   "env-stage",
-                                                   "Environment Stage Selection",
-                                                   [this](std::string arg) { _envStageFromCmdLine = arg; });
-
-        argumentValue<std::string>::createInstance(argumentList,
-                                                   "u",
-                                                   "component-default-user",
-                                                   "Component Default User",
-                                                   [this](std::string arg) { _defaultUserFromCmdLine = arg; });
     }
 
 } // namespace lifecycle
