@@ -221,6 +221,14 @@ namespace util {
             return bounded_copy(s_first, s_last, begin(), end());
         }
 
+        inline constexpr reference front() const noexcept {
+            return *data();
+        }
+
+        inline constexpr reference back() const noexcept {
+            return *std::prev(end());
+        }
+
         constexpr Span first(size_type n) const noexcept {
             return {data(), n};
         }

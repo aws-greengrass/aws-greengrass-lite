@@ -1,8 +1,9 @@
 #include "command_line.hpp"
 #include "kernel.hpp"
 #include "scope/context_full.hpp"
+#include <algorithm>
 #include <optional>
-#include <util.hpp>
+#include <stdexcept>
 namespace fs = std::filesystem;
 
 const auto LOG = // NOLINT(cert-err58-cpp)
@@ -16,22 +17,15 @@ namespace lifecycle {
     // of which is combined into this single helper class to improve maintainability.
     //
 
-    // NOLINTBEGIN(*-avoid-c-arrays)
-    // NOLINTBEGIN(*-pointer-arithmetic)
-    void CommandLine::parseArgs(int argc, char *argv[]) {
-        std::vector<std::string> args;
-        args.reserve(argc - 1);
-        if(argv[0]) {
-            parseProgramName(argv[0]);
-        } else {
-            throw std::runtime_error("Handle nullptr");
+    void CommandLine::parseRawProgramNameAndArgs(util::Span<char *> args) {
+        if(args.empty()) {
+            throw std::invalid_argument("No program name given");
         }
-        for(int i = 1; i < argc; i++) {
-            args.emplace_back(argv[i]);
+        if(std::find(args.begin(), args.end(), nullptr) != args.end()) {
+            throw std::invalid_argument("Null pointer in arguments");
         }
-        parseArgs(args);
-        // NOLINTEND(*-pointer-arithmetic)
-        // NOLINTEND(*-avoid-c-arrays)
+        parseProgramName(args.front());
+        parseArgs({std::next(args.begin()), args.end()});
     }
 
     void CommandLine::parseProgramName(std::string_view progName) {
@@ -56,9 +50,7 @@ namespace lifecycle {
         if(iter == args.end()) {
             throw std::runtime_error("Expecting argument");
         }
-        std::string v = *iter;
-        ++iter;
-        return v;
+        return *iter++;
     }
 
     void CommandLine::parseHome(lifecycle::SysProperties &env) {

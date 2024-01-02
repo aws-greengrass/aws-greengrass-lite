@@ -3,6 +3,7 @@
 #include "lifecycle/sys_properties.hpp"
 #include "scope/context.hpp"
 #include <optional>
+#include <util.hpp>
 
 namespace lifecycle {
 
@@ -27,9 +28,9 @@ namespace lifecycle {
             : scope::UsesContext(context), _kernel(kernel) {
         }
 
-        void parseEnv(SysProperties &sysProperties);
-        void parseHome(SysProperties &sysProperties);
-        void parseArgs(int argc, char *argv[]); // NOLINT(*-avoid-c-arrays)
+        void parseEnv(SysProperties &env);
+        void parseHome(SysProperties &env);
+        void parseRawProgramNameAndArgs(util::Span<char *>);
         void parseArgs(const std::vector<std::string> &args);
         void parseProgramName(std::string_view progName);
 
