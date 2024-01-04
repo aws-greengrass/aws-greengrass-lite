@@ -181,12 +181,6 @@ ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struc
         publish->WithPayloadFormatIndicator(*payloadFormat);
     }
 
-    // std::string contentType;
-    // if (args.hasKey(keys.contentType)){
-    //     contentType = args.get<std::string>(keys.contentType);
-    //     publish->WithContentType(contentType);
-    // }
-
     std::atomic_bool success = false;
 
     std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topicName << std::endl;

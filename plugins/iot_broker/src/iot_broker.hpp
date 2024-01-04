@@ -68,7 +68,6 @@ class IotBroker : public ggapi::Plugin {
         ggapi::Symbol correlationData{"correlationData"};
         ggapi::Symbol responseTopic{"responseTopic"};
         ggapi::Symbol payloadFormat{"payloadFormat"};
-        ggapi::Symbol contentType{"contentType"};
         ggapi::Symbol message{"message"};
         ggapi::Symbol shape{"shape"};
         ggapi::Symbol errorCode{"errorCode"};
