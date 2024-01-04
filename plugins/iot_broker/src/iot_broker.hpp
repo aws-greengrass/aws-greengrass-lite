@@ -14,6 +14,7 @@
 #include <string_view>
 #include <thread>
 #include <unordered_map>
+#include <list>
 
 class MqttBuilderException : public ggapi::GgApiError {
 public:
@@ -39,6 +40,16 @@ public:
 using PacketHandler = std::function<ggapi::Struct(ggapi::Struct packet)>;
 
 class IotBroker : public ggapi::Plugin {
+    public:
+    //enum class PayloadFormat { BYTES, UTF8};
+    // Mapping of symbols to enums
+    inline static const util::LookupTable PayloadFormat_MAP{
+        0,
+        aws_mqtt5_payload_format_indicator::AWS_MQTT5_PFI_BYTES,
+        1,
+        aws_mqtt5_payload_format_indicator::AWS_MQTT5_PFI_UTF8};
+
+    private:
     struct Keys {
         ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
         ggapi::Symbol ipcPublishToIoTCoreTopic{"IPC::aws.greengrass#PublishToIoTCore"};
@@ -48,6 +59,16 @@ class IotBroker : public ggapi::Plugin {
         ggapi::Symbol topicName{"topicName"};
         ggapi::Symbol qos{"qos"};
         ggapi::Symbol payload{"payload"};
+        ggapi::Symbol retain{"retain"};
+        ggapi::Symbol userProperties{"userProperties"};
+        ggapi::Symbol member{"member"};
+        ggapi::Symbol key{"key"};
+        ggapi::Symbol value{"value"};
+        ggapi::Symbol messageExpiryIntervalSeconds{"messageExpiryIntervalSeconds"};
+        ggapi::Symbol correlationData{"correlationData"};
+        ggapi::Symbol responseTopic{"responseTopic"};
+        ggapi::Symbol payloadFormat{"payloadFormat"};
+        ggapi::Symbol contentType{"contentType"};
         ggapi::Symbol message{"message"};
         ggapi::Symbol shape{"shape"};
         ggapi::Symbol errorCode{"errorCode"};
@@ -93,6 +114,7 @@ private:
     ggapi::Struct ipcSubscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
     std::variant<ggapi::Channel, uint32_t> commonSubscribeHandler(
         ggapi::Struct args, PacketHandler handler);
+    //static PayloadFormat payloadFormatParser(ggapi::Struct args);
 
     void initMqtt();
 

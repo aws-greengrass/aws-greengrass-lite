@@ -85,14 +85,111 @@ ggapi::Struct IotBroker::ipcSubscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::
     return ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret));
 }
 
+ggapi::Buffer bufferBlobParser(ggapi::Container payload){
+    ggapi::Buffer payloadBuffer;
+    if (!payload){
+        return {};
+    }
+    if(payload.isBuffer()) {
+        payloadBuffer = ggapi::Buffer{payload};
+    } else if(payload.isScalar()) {
+        auto payloadAsString(payload.unbox<std::string>());
+        payloadBuffer = ggapi::Buffer::create();
+        payloadBuffer.insert(0, util::Span{payloadAsString});
+    } else if(payload.isStruct()) {
+        payloadBuffer = payload.toJson();
+    }
+    else{
+        throw std::runtime_error("Invalid Payload");
+    }
+
+    return payloadBuffer;
+}
+
+// Aws::PayloadFormatIndicator IotBroker::payloadFormatParser(ggapi::Struct args)
+// {
+//     auto tempInt{args.get<std::uint64_t>(keys.payloadFormat)};
+//     auto payloadFormat = PayloadFormat_MAP.lookup(tempInt);
+    
+//     if (!payloadFormat.has_value()){
+//         throw std::runtime_error("Invalid Payload Format");
+//     }
+//     return *payloadFormat;
+// }
+
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
-    auto topic{args.get<Aws::Crt::String>(keys.topicName)};
+    Aws::Crt::String topicName{args.get<Aws::Crt::String>(keys.topicName)};
     auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
-    auto payload{args.get<Aws::Crt::String>(keys.payload)};
+    
+        
+    //(optional)PAYLOAD AS A BLOB BUFFER/STRING/STRUCTURE
+    ggapi::Buffer payloadBuffer;
+    if (args.hasKey(keys.payload)){
+        payloadBuffer =  bufferBlobParser(args.get<ggapi::Container>(keys.payload));
+    }
+
+    auto payload = payloadBuffer.get<Aws::Crt::String>(0, payloadBuffer.size());
+
+    auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
+        topicName, ByteCursorFromString(payload), qos);
+
+    //(optional)retain
+    if(args.hasKey(keys.retain)) {
+        publish->WithRetain(args.get<bool>(keys.retain));
+    }
+
+    ggapi::List userProperties;
+    if (args.hasKey(keys.userProperties)){
+        userProperties = args.get<ggapi::Struct>(keys.userProperties).get<ggapi::List>(keys.member);
+        
+        Aws::Crt::Vector<Aws::Crt::Mqtt5::UserProperty> userPropertiesVector;
+        for(std::uint32_t i = 0; i != userProperties.size(); ++i)
+        {
+            ggapi::Struct property = userProperties.get<ggapi::Struct>(i);
+            userPropertiesVector.emplace_back(property.get<Aws::Crt::String>(keys.key), property.get<Aws::Crt::String>(keys.value));
+        }
+        publish->WithUserProperties(userPropertiesVector);
+    }
+
+    if (args.hasKey(keys.messageExpiryIntervalSeconds)){
+        publish->WithMessageExpiryIntervalSec(args.get<uint32_t>(keys.messageExpiryIntervalSeconds));
+    }
+
+    Aws::Crt::String copyCorrelation;
+    if(args.hasKey(keys.correlationData)) {
+        auto correlationData = bufferBlobParser(args.get<ggapi::Container>(keys.correlationData));
+        copyCorrelation = correlationData.get<Aws::Crt::String>(0, correlationData.size());
+        publish->WithCorrelationData(ByteCursorFromString(copyCorrelation));
+    }
+
+    Aws::Crt::String copyResponseTopic;
+    if(args.hasKey(keys.responseTopic)) {
+        copyResponseTopic = args.get<Aws::Crt::String>(keys.responseTopic);
+        publish->WithResponseTopic(ByteCursorFromString(copyResponseTopic));
+    }
+
+    //(optional) PayLoadFormat as PayloadFormat
+    std::optional<Aws::Crt::Mqtt5::PayloadFormatIndicator> payloadFormat;
+
+    if (args.hasKey(keys.payloadFormat)){
+        auto tempInt{args.get<std::uint64_t>(keys.payloadFormat)};
+        payloadFormat = PayloadFormat_MAP.lookup(tempInt);
+        
+        if (!payloadFormat.has_value()){
+            throw std::runtime_error("Invalid Payload Format");
+        }
+        publish->WithPayloadFormatIndicator(*payloadFormat);
+    }
+
+    // std::string contentType;
+    // if (args.hasKey(keys.contentType)){
+    //     contentType = args.get<std::string>(keys.contentType);
+    //     publish->WithContentType(contentType);
+    // }
 
     std::atomic_bool success = false;
 
-    std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topic << std::endl;
+    std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topicName << std::endl;
 
     std::condition_variable barrier{};
     std::mutex mutex{};
@@ -122,9 +219,6 @@ ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struc
 
             barrier.notify_one();
         };
-
-    auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
-        std::move(topic), ByteCursorFromString(payload), qos);
 
     auto response = ggapi::Struct::create();
 
