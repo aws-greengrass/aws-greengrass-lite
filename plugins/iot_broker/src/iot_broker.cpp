@@ -106,17 +106,6 @@ ggapi::Buffer bufferBlobParser(ggapi::Container payload){
     return payloadBuffer;
 }
 
-// Aws::PayloadFormatIndicator IotBroker::payloadFormatParser(ggapi::Struct args)
-// {
-//     auto tempInt{args.get<std::uint64_t>(keys.payloadFormat)};
-//     auto payloadFormat = PayloadFormat_MAP.lookup(tempInt);
-    
-//     if (!payloadFormat.has_value()){
-//         throw std::runtime_error("Invalid Payload Format");
-//     }
-//     return *payloadFormat;
-// }
-
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
     Aws::Crt::String topicName{args.get<Aws::Crt::String>(keys.topicName)};
     auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
