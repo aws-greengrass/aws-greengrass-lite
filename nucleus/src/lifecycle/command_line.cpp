@@ -116,11 +116,7 @@ namespace lifecycle {
             }
             if(op == "--component-default-user" || op == "-u") {
                 std::string arg = nextArg(args, i);
-                if(arg.empty()) {
-                    _defaultUserFromCmdLine = DEFAULT_POSIX_USER;
-                } else {
-                    _defaultUserFromCmdLine = arg;
-                }
+                _defaultUserFromCmdLine = arg;
                 continue;
             }
             LOG.atError()
