@@ -225,6 +225,6 @@ namespace Headers {
 } // namespace Headers
 
 namespace ContentType {
-    static std::string JSON = "application/json";
-    static std::string Text = "text/plain";
+    static inline std::string JSON = "application/json";
+    static inline std::string Text = "text/plain";
 } // namespace ContentType

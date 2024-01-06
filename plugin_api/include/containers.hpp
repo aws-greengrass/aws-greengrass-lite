@@ -566,6 +566,11 @@ namespace ggapi {
             return buffer;
         }
 
+        void write(std::ostream &os) const {
+            auto buffer = get<std::vector<char>>(0, size());
+            os.write(buffer.data(), buffer.size()); // NOLINT(*-narrowing-conversions)
+        }
+
         Buffer &resize(uint32_t newSize) {
             required();
             callApi([*this, newSize]() { ::ggapiBufferResize(_handle, newSize); });

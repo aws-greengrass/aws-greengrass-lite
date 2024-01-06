@@ -1,7 +1,9 @@
 #pragma once
 #include "platform.hpp"
+
+#if __unix__ || __APPLE__
 #include <pwd.h>
-#include <stdlib.h>
+#endif
 #include <unistd.h>
 
 struct UnixUser {
@@ -9,62 +11,62 @@ struct UnixUser {
     std::string principalName;
     std::string principalIdentifier;
 
-    bool isSuperUser() {
+    [[nodiscard]] bool isSuperUser() const {
         return std::stoi(principalIdentifier) == 0;
     }
 };
 
 class UnixPlatform : public Platform {
 public:
-    void createUser(std::string user) override {
-        std::ignore = runCmd("useradd -r -m " + user);
+    void createUser(const std::string &username) override {
+        std::ignore = runCmd("useradd -r -m " + username);
     }
-    void createGroup(std::string group) override {
+    void createGroup(const std::string &group) override {
         std::ignore = runCmd("groupadd -r " + group);
     }
-    void addUserToGroup(std::string user, std::string group) override {
-        std::ignore = runCmd("usermod -a -G " + group + " " + user);
+    void addUserToGroup(const std::string &username, const std::string &group) override {
+        std::ignore = runCmd("usermod -a -G " + group + " " + username);
     }
 
-    bool userExists(std::string user) const {
-        auto res = runCmd("id -u " + user);
+    [[nodiscard]] bool userExists(const std::string &username) const {
+        auto res = runCmd("id -u " + username);
         return res.returnCode == 0;
     }
 
-    UnixUser lookupCurrentUser() {
+    [[nodiscard]] UnixUser lookupCurrentUser() const {
         auto uid = geteuid();
         auto pw = getpwuid(uid);
         return lookupUser(pw->pw_name);
     }
 
-    UnixUser lookupUser(std::string user) const {
-        UnixUser attribs;
+    [[nodiscard]] UnixUser lookupUser(const std::string &username) const {
+        UnixUser user;
         bool isNumeric =
-            std::find_if(user.begin(), user.end(), [](auto c) { return !std::isdigit(c); })
-            == user.end();
+            std::find_if(username.begin(), username.end(), [](auto c) { return !std::isdigit(c); })
+            == username.end();
         if(isNumeric) {
-            attribs.principalIdentifier = user;
+            user.principalIdentifier = username;
         }
-        attribs.principalName = user;
+        user.principalName = username;
 
         // check if user exists
-        if(userExists(user)) {
+        if(userExists(username)) {
             // get user group id
-            auto res = runCmd("id -g " + user);
+            auto res = runCmd("id -g " + username);
             if(!res.returnCode) {
                 res.output.pop_back();
-                attribs.primaryGid = std::stoi(res.output);
+                user.primaryGid = std::stoi(res.output);
                 if(isNumeric) {
-                    attribs.principalName = res.output;
+                    user.principalName = res.output;
                 } else {
-                    attribs.principalIdentifier = res.output;
+                    user.principalIdentifier = res.output;
                 }
             } else {
                 throw std::runtime_error("User is not associated with any group");
             }
         } else {
-            throw std::runtime_error("User do not exist: " + user);
+            throw std::runtime_error("User do not exist: " + username);
         }
-        return attribs;
+        return user;
     }
 };

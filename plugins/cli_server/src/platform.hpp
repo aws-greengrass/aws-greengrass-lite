@@ -1,22 +1,42 @@
 #pragma once
-#include <stdlib.h>
 #include <string>
+#ifdef _WIN32
+#include <windows.h>
+template<typename... Args>
+static inline auto popen(Args &&...args) -> decltype(_popen(std::forward<Args>(args)...)) {
+    return _popen(std::forward<Args>(args)...);
+}
+template<typename... Args>
+static inline auto pclose(Args &&...args) -> decltype(_pclose(std::forward<Args>(args)...)) {
+    return _pclose(std::forward<Args>(args)...);
+}
+#else
+#include <cstdlib>
+#endif
 
-struct CommandResult {
+struct CmdResult {
     std::string output;
     int returnCode;
 
-    CommandResult(std::string out, int code) : output(std::move(out)), returnCode(std::move(code)) {
+    CmdResult(std::string out, int code) : output(std::move(out)), returnCode(code) {
     }
 };
 
 class Platform {
 public:
-    virtual CommandResult runCmd(std::string cmd) const {
+    Platform() noexcept = default;
+    Platform(const Platform &) = delete;
+    Platform(Platform &&) noexcept = delete;
+    Platform &operator=(const Platform &) = delete;
+    Platform &operator=(Platform &&) noexcept = delete;
+
+    virtual ~Platform() noexcept = default;
+    [[nodiscard]] virtual CmdResult runCmd(const std::string &cmd) const {
         FILE *pipe = popen(cmd.c_str(), "r");
         if(!pipe) {
-            std::runtime_error("Failed to start process!");
+            throw std::runtime_error("Failed to start process!");
         }
+        // NOLINTNEXTLINE (*-c-arrays)
         char buffer[1024];
         std::string out;
         while(!feof(pipe)) {
@@ -24,10 +44,11 @@ public:
                 out += buffer;
             }
         }
-        auto returnCode = WEXITSTATUS(pclose(pipe));
-        return CommandResult(out, returnCode);
+        auto status = pclose(pipe);
+        auto returnCode = WEXITSTATUS(status);
+        return {out, returnCode};
     }
-    virtual void createUser(std::string) = 0;
-    virtual void createGroup(std::string) = 0;
-    virtual void addUserToGroup(std::string, std::string) = 0;
+    virtual void createUser(const std::string &) = 0;
+    virtual void createGroup(const std::string &) = 0;
+    virtual void addUserToGroup(const std::string &, const std::string &) = 0;
 };
