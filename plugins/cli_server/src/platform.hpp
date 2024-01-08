@@ -23,8 +23,10 @@ struct CmdResult {
 };
 
 class Platform {
-public:
+protected:
     Platform() noexcept = default;
+
+public:
     Platform(const Platform &) = delete;
     Platform(Platform &&) noexcept = delete;
     Platform &operator=(const Platform &) = delete;
