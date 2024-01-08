@@ -36,7 +36,8 @@ public:
     [[nodiscard]] UnixUser lookupCurrentUser() const {
         auto uid = geteuid();
         auto pw = getpwuid(uid);
-        return lookupUser(pw->pw_name);
+        auto gid = getegid();
+        return {gid, pw->pw_name, std::to_string(uid)};
     }
 
     [[nodiscard]] UnixUser lookupUser(const std::string &username) const {
