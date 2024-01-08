@@ -1,18 +1,6 @@
 #pragma once
-#include <string>
-#ifdef _WIN32
-#include <windows.h>
-template<typename... Args>
-static inline auto popen(Args &&...args) -> decltype(_popen(std::forward<Args>(args)...)) {
-    return _popen(std::forward<Args>(args)...);
-}
-template<typename... Args>
-static inline auto pclose(Args &&...args) -> decltype(_pclose(std::forward<Args>(args)...)) {
-    return _pclose(std::forward<Args>(args)...);
-}
-#else
 #include <cstdlib>
-#endif
+#include <string>
 
 struct CmdResult {
     std::string output;

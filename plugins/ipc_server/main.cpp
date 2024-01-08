@@ -487,7 +487,7 @@ extern "C" [[maybe_unused]] bool greengrass_lifecycle(
 }
 
 void IpcServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
-    std::cerr << "[mqtt-plugin] Running lifecycle phase " << phase.toString() << std::endl;
+    std::cerr << "[ipc-server] Running lifecycle phase " << phase.toString() << std::endl;
 }
 
 bool IpcServer::onBootstrap(ggapi::Struct structData) {
