@@ -1,8 +1,8 @@
 ---
 system:
-  privateKeyPath: "..."
-  certificateFilePath: "..."
-  rootCaPath: "..."
+  privateKeyPath: "/home/parallels/Documents/cert/ggtest/06e30fcd74acc4c143d69676439f57a40f4adcbd6d8abaf890e21f851650b734-private.pem.key"
+  certificateFilePath: "/home/parallels/Documents/cert/ggtest/06e30fcd74acc4c143d69676439f57a40f4adcbd6d8abaf890e21f851650b734-certificate.pem.crt"
+  rootCaPath: "/home/parallels/Documents/cert/ggtest/AmazonRootCA1.pem"
   rootpath: "."
   thingName: "GGC-test"
 services:
@@ -18,7 +18,7 @@ services:
       greengrassDataPlanePort: "8443"
       httpClient: {}
       iotCredEndpoint: "..."
-      iotDataEndpoint: "..."
+      iotDataEndpoint: "a3w4eclq1cog1t-ats.iot.us-west-2.amazonaws.com"
       iotRoleAlias: "GreengrassV2TokenExchangeRoleAlias"
       logging:
         level: "DEBUG"

@@ -18,6 +18,23 @@ struct UnixUser {
 
 class UnixPlatform : public Platform {
 public:
+    [[nodiscard]] CmdResult runCmd(const std::string &cmd) const override {
+        FILE *pipe = popen(cmd.c_str(), "r");
+        if(!pipe) {
+            throw std::runtime_error("Failed to start process!");
+        }
+        // NOLINTNEXTLINE (*-c-arrays)
+        char buffer[1024];
+        std::string out;
+        while(!feof(pipe)) {
+            if(fgets(buffer, sizeof(buffer), pipe)) {
+                out += buffer;
+            }
+        }
+        auto status = pclose(pipe);
+        auto returnCode = WEXITSTATUS(status);
+        return {out, returnCode};
+    }
     void createUser(const std::string &username) override {
         std::ignore = runCmd("useradd -r -m " + username);
     }

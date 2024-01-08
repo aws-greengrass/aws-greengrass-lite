@@ -491,7 +491,7 @@ void IpcServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
 }
 
 bool IpcServer::onBootstrap(ggapi::Struct structData) {
-    structData.put("name", "aws.greengrass.ipc_server");
+    structData.put(NAME, "aws.greengrass.ipc_server");
     return true;
 }
 

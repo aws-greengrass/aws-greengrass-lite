@@ -33,23 +33,7 @@ public:
     Platform &operator=(Platform &&) noexcept = delete;
 
     virtual ~Platform() noexcept = default;
-    [[nodiscard]] virtual CmdResult runCmd(const std::string &cmd) const {
-        FILE *pipe = popen(cmd.c_str(), "r");
-        if(!pipe) {
-            throw std::runtime_error("Failed to start process!");
-        }
-        // NOLINTNEXTLINE (*-c-arrays)
-        char buffer[1024];
-        std::string out;
-        while(!feof(pipe)) {
-            if(fgets(buffer, sizeof(buffer), pipe)) {
-                out += buffer;
-            }
-        }
-        auto status = pclose(pipe);
-        auto returnCode = WEXITSTATUS(status);
-        return {out, returnCode};
-    }
+    [[nodiscard]] virtual CmdResult runCmd(const std::string &cmd) const = 0;
     virtual void createUser(const std::string &) = 0;
     virtual void createGroup(const std::string &) = 0;
     virtual void addUserToGroup(const std::string &, const std::string &) = 0;
