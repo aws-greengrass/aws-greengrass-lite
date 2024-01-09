@@ -1,4 +1,5 @@
 #include "plugin_loader.hpp"
+#include "data/shared_list.hpp"
 #include "deployment/device_configuration.hpp"
 #include "errors/error_base.hpp"
 #include "scope/context_full.hpp"

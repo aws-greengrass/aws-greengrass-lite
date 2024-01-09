@@ -1,6 +1,7 @@
 #pragma once
 #include "config/config_manager.hpp"
 #include "deployment/device_configuration.hpp"
+#include "lifecycle/kernel.hpp"
 
 //
 // TODO: Follow the templated capture model used on Plugin side

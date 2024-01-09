@@ -57,17 +57,23 @@ namespace ggapi {
             return _asInt != other._asInt;
         }
 
+        constexpr explicit operator bool() const noexcept {
+            return _asInt != 0;
+        }
+
+        constexpr bool operator!() const noexcept {
+            return _asInt == 0;
+        }
+
         [[nodiscard]] constexpr uint32_t asInt() const noexcept {
             return _asInt;
         }
 
         [[nodiscard]] std::string toString() const {
-            auto len =
-                callApiReturn<size_t>([*this]() { return ::ggapiGetSymbolStringLen(_asInt); });
-            return stringFillHelper(len, [*this](auto buf, auto bufLen) {
-                return callApiReturn<size_t>([*this, &buf, bufLen]() {
-                    return ::ggapiGetSymbolString(_asInt, buf, bufLen);
-                });
+            ggapiMaxLen len = 0;
+            callApiThrowError(::ggapiGetSymbolStringLen, _asInt, &len);
+            return stringFillHelper(len, [*this](auto buf, auto bufLen, auto fillLen, auto reqLen) {
+                callApiThrowError(::ggapiGetSymbolString, _asInt, buf, bufLen, fillLen, reqLen);
             });
         }
     };

@@ -481,9 +481,9 @@ public:
 // TODO: What happens when multiple plugins use the CRT?
 static const Aws::Crt::ApiHandle apiHandle{};
 
-extern "C" [[maybe_unused]] bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t dataHandle) noexcept {
-    return IpcServer::get().lifecycle(moduleHandle, phase, dataHandle);
+extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(
+    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data, bool *pHandled) noexcept {
+    return IpcServer::get().lifecycle(moduleHandle, phase, data, pHandled);
 }
 
 void IpcServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {

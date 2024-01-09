@@ -1,13 +1,10 @@
 #include "channel/channel.hpp"
+#include "api_error_trap.hpp"
 #include "data/struct_model.hpp"
-#include "errors/error_base.hpp"
 #include "scope/context_full.hpp"
-#include "tasks/expire_time.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
-#include "tasks/task_threads.hpp"
 #include <cpp_api.hpp>
-#include <cstdint>
 
 bool ggapiIsChannel(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
@@ -16,10 +13,10 @@ bool ggapiIsChannel(uint32_t handle) noexcept {
     });
 }
 
-uint32_t ggapiCreateChannel() noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([]() {
+ggapiErrorKind ggapiCreateChannel(ggapiObjHandle *pHandle) noexcept {
+    return apiImpl::catchErrorToKind([pHandle]() {
         auto anchor = scope::NucleusCallScopeContext::make<channel::Channel>();
-        return anchor.asIntHandle();
+        *pHandle = anchor.asIntHandle();
     });
 }
 

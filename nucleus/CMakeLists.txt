@@ -34,6 +34,7 @@ endif()
 add_library(
   nucleus-obj OBJECT
   include/nucleus_core.h
+  src/api/api_error_trap.hpp
   src/api/data.cpp
   src/api/error.cpp
   src/api/logging.cpp

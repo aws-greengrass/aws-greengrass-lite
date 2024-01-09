@@ -164,17 +164,18 @@ namespace ggapi {
                 return {"lifecycle"};
             }
             [[nodiscard]] CallbackManager::Delegate prepare(
-                uint32_t callbackType, uint32_t size, const void *data) const override {
+                Symbol callbackType, ggapiDataLen size, void *data) const override {
+
                 assertCallbackType(Symbol(callbackType));
-                auto &cb = checkedStruct<LifecycleCallbackData>(size, data);
+                auto &cb = checkedStruct<ggapiLifecycleCallbackData>(size, data);
                 auto target = _callable;
                 auto module = ModuleScope(cb.moduleHandle);
                 auto phase = Symbol(cb.phaseSymbol);
                 auto dataStruct = Struct(cb.dataStruct);
                 auto args = std::tuple_cat(_args, std::tuple{module, phase, dataStruct});
-                return [target, args]() {
+                return [target, args, &cb]() {
                     bool f = std::apply(target, args);
-                    return static_cast<uint32_t>(f);
+                    cb.retWasHandled = f ? 1 : 0;
                 };
             }
         };

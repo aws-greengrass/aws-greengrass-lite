@@ -1,93 +1,29 @@
 #pragma once
 
 #include "api_forwards.hpp"
+#include "error_tmpl.hpp"
 #include "handles.hpp"
 #include <optional>
 #include <stdexcept>
 
 namespace ggapi {
 
-    /**
-     * Exceptions in Plugins should derive from GgApiError to pass through to Nucleus.
-     */
-    class GgApiError : public std::runtime_error {
-        Symbol _kind;
-
-        template<typename Error>
-        static Symbol typeKind() {
-            static_assert(std::is_base_of_v<std::exception, Error>);
-            return typeid(Error).name();
-        }
-
-    public:
-        GgApiError(const GgApiError &) noexcept = default;
-        GgApiError(GgApiError &&) noexcept = default;
-        GgApiError &operator=(const GgApiError &) noexcept = default;
-        GgApiError &operator=(GgApiError &&) noexcept = default;
-        ~GgApiError() override = default;
-
-        explicit GgApiError(
-            Symbol kind = typeKind<GgApiError>(),
-            const std::string &what = "Unspecified Error") noexcept
-            : _kind(kind), std::runtime_error(what) {
-        }
-
-        template<typename E>
-        static GgApiError of(const E &error) {
-            static_assert(std::is_base_of_v<std::exception, E>);
-            return GgApiError(typeKind<E>(), error.what());
-        }
-
-        [[nodiscard]] constexpr Symbol kind() const {
-            return _kind;
-        }
-
-        void toThreadLastError() {
-            toThreadLastError(_kind, what());
-        }
-
-        static void toThreadLastError(Symbol kind, std::string_view what) {
-            ::ggapiSetError(kind.asInt(), what.data(), what.length());
-        }
-
-        static void clearThreadLastError() {
-            ::ggapiSetError(0, nullptr, 0);
-        }
-
-        static std::optional<GgApiError> fromThreadLastError(bool clear = false) {
-            auto lastErrorKind = ::ggapiGetErrorKind();
-            if(lastErrorKind != 0) {
-                Symbol sym(lastErrorKind);
-                std::string copy{::ggapiGetErrorWhat()}; // before clear
-                if(clear) {
-                    clearThreadLastError();
-                }
-                return GgApiError(sym, copy);
-            } else {
-                return {};
+    namespace traits {
+        struct ErrorTraits {
+            using SymbolType = ggapi::Symbol;
+            static SymbolType translateKind(SymbolType symKind) noexcept {
+                return symKind;
             }
-        }
-
-        static bool hasThreadLastError() {
-            return ::ggapiGetErrorKind() != 0;
-        }
-
-        static void throwIfThreadHasError() {
-            // Wrap in fast check
-            if(hasThreadLastError()) {
-                // Slower path
-                auto lastError = fromThreadLastError(true);
-                if(lastError.has_value()) {
-                    throw GgApiError(lastError.value());
-                }
+            static SymbolType translateKind(ggapiErrorKind intKind) noexcept {
+                return SymbolType(intKind);
             }
-        }
-    };
+            static SymbolType translateKind(const std::string &strKind) noexcept {
+                return {strKind};
+            }
+        };
+    } // namespace traits
 
-    template<>
-    inline GgApiError GgApiError::of<GgApiError>(const GgApiError &error) {
-        return error;
-    }
+    using GgApiError = util::ErrorBase<traits::ErrorTraits>;
 
     //
     // Exceptions do not cross module borders - translate an exception into a thread error
@@ -102,9 +38,9 @@ namespace ggapi {
                 return fn();
             }
         } catch(std::exception &e) {
-            GgApiError::of(e).toThreadLastError();
+            std::ignore = GgApiError::of(e).toThreadLastError();
         } catch(...) {
-            GgApiError().toThreadLastError();
+            std::ignore = GgApiError::unspecified().toThreadLastError();
         }
         if constexpr(std::is_void_v<T>) {
             return;
@@ -137,8 +73,36 @@ namespace ggapi {
         return T(callApiReturn<uint32_t>(fn));
     }
 
-    inline Symbol callApiReturnOrd(const std::function<uint32_t()> &fn) {
-        return Symbol(callApiReturn<uint32_t>(fn));
+    template<typename Func, typename... Args>
+    ggapiErrorKind catchErrorToKind(Func &&f, Args &&...args) noexcept {
+
+        try {
+            std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
+            return 0;
+        } catch(GgApiError &err) {
+            return err.toThreadLastError();
+        } catch(std::exception &err) {
+            return GgApiError::of<std::exception>(err).toThreadLastError();
+        } catch(...) {
+            return GgApiError::unspecified().toThreadLastError();
+        }
+    }
+
+    template<typename Func, typename... Args>
+    void callApiThrowError(Func &&f, Args &&...args) {
+
+        ggapiErrorKind errKind = std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
+        GgApiError::throwThreadError(errKind);
+    }
+
+    template<typename Handle, typename Func, typename... Args>
+    Handle callHandleApiThrowError(Func &&f, Args &&...args) {
+
+        ggapiObjHandle retHandle = 0;
+        ggapiErrorKind errKind =
+            std::invoke(std::forward<Func>(f), std::forward<Args>(args)..., &retHandle);
+        GgApiError::throwThreadError(errKind);
+        return Handle(retHandle);
     }
 
 } // namespace ggapi

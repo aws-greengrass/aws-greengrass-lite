@@ -16,7 +16,7 @@ namespace ggapi {
     class CallbackManager {
 
     public:
-        using Delegate = std::function<uint32_t()>;
+        using Delegate = std::function<void()>;
 
         /**
          * Base class for dispatch classes. Subclasses need to implement prepare to construct
@@ -33,7 +33,7 @@ namespace ggapi {
              * @return Delegate lambda ready for calling
              */
             [[nodiscard]] virtual Delegate prepare(
-                uint32_t callbackType, uint32_t size, const void *data) const = 0;
+                Symbol callbackType, ggapiDataLen size, void *data) const = 0;
             /**
              * Expected callback type for validation
              */
@@ -63,10 +63,10 @@ namespace ggapi {
              * @tparam T Expected structure type
              * @param size Size of structure reported by Nucleus
              * @param data Anonymous pointer to structure
-             * @return Structure after trivial validation
+             * @return Mutable structure after trivial validation
              */
             template<typename T>
-            static const T &checkedStruct(uint32_t size, const void *data) {
+            static T &checkedStruct(uint32_t size, void *data) {
                 if(data == nullptr) {
                     throw std::runtime_error("Null pointer provided to callback");
                 }
@@ -76,7 +76,7 @@ namespace ggapi {
                 }
                 // Note, larger structure is ok - expectation is that new fields are added to end
                 // NOLINTNEXTLINE(*-pro-type-reinterpret-cast)
-                return *reinterpret_cast<const T *>(data);
+                return *reinterpret_cast<T *>(data);
             }
         };
 
@@ -92,22 +92,21 @@ namespace ggapi {
          * @param callbackType Callback type, indicating what structure was passed
          * @param callbackDataSize Size of structure for validation
          * @param callbackData Pointer to structure based on previous fields
-         * @return Interpretation of return value depends on callbackType
          */
-        static uint32_t _callback(
-            uintptr_t callbackContext,
-            uint32_t callbackType,
-            uint32_t callbackDataSize,
-            const void *callbackData) noexcept {
+        static ggapiErrorKind _callback(
+            ggapiContext callbackContext,
+            ggapiSymbol callbackType,
+            ggapiDataLen callbackDataSize,
+            void *callbackData) noexcept {
 
             return self().callback(callbackContext, callbackType, callbackDataSize, callbackData);
         }
 
-        uint32_t callback(
-            uintptr_t callbackContext,
-            uint32_t callbackType,
-            uint32_t callbackDataSize,
-            const void *callbackData) {
+        ggapiErrorKind callback(
+            ggapiContext callbackContext,
+            ggapiSymbol callbackType,
+            ggapiDataLen callbackDataSize,
+            void *callbackData) noexcept {
 
             if(callbackType == 0) {
                 // Nucleus indicates callback is no longer required
@@ -115,28 +114,33 @@ namespace ggapi {
                 _callbacks.erase(callbackContext);
                 return 0;
             } else {
-                // An actual call
+                // Prepare the call
                 std::shared_lock guard{_mutex};
                 // We could enable a fast "unsafe" option that just casts the callbackContext
                 // to a pointer. For now, this acts as a robust double-check.
                 const auto &cb = _callbacks.at(callbackContext);
                 // Pre-process callback while lock is held
-                auto delegate = cb->prepare(callbackType, callbackDataSize, callbackData);
+                auto delegate = cb->prepare(Symbol(callbackType), callbackDataSize, callbackData);
                 guard.unlock();
                 // Actual call
-                return trapErrorReturn<uint32_t>(delegate);
+                return catchErrorToKind(delegate);
             }
         }
 
         ObjHandle wrapHelper(std::unique_ptr<CallbackDispatch> cb) {
             // NOLINTNEXTLINE(*-pro-type-reinterpret-cast)
             auto idx = reinterpret_cast<uintptr_t>(cb.get());
-            Symbol type = cb->type();
+            auto type = cb->type();
             std::unique_lock guard{_mutex};
             _callbacks.emplace(idx, std::move(cb));
-            return callApiReturnHandle<ObjHandle>([idx, type]() {
-                return ::ggapiRegisterCallback(&CallbackManager::_callback, idx, type.asInt());
-            });
+            ggapiObjHandle callbackHandle = 0;
+            callApiThrowError(
+                ::ggapiRegisterCallback,
+                &CallbackManager::_callback,
+                idx,
+                type.asInt(),
+                &callbackHandle);
+            return ObjHandle(callbackHandle);
         }
 
     public:

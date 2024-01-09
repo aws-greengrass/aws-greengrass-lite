@@ -38,13 +38,9 @@ public:
     }
 };
 
-// This could sit in the stub, but in this use-case, is needed outside of the stub
-
-//
-// Recommended stub
-//
-bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
-    return LayeredPlugin::get().lifecycle(moduleHandle, phase, data);
+extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(
+    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data, bool *pHandled) noexcept {
+    return LayeredPlugin::get().lifecycle(moduleHandle, phase, data, pHandled);
 }
 
 bool DelegatePlugin::onStart(ggapi::Struct data) {

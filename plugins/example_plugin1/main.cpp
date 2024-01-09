@@ -38,6 +38,7 @@ void ExamplePlugin::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
     std::cout << "Running lifecycle plugins 1... " << ggapi::Symbol{phase}.toString() << std::endl;
 }
 
-bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
-    return ExamplePlugin::get().lifecycle(moduleHandle, phase, data);
+extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(
+    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data, bool *pHandled) noexcept {
+    return ExamplePlugin::get().lifecycle(moduleHandle, phase, data, pHandled);
 }

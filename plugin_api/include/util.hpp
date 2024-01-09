@@ -543,4 +543,23 @@ namespace util {
             return _visitNoRet<Func, EVals...>(v, std::forward<Func>(func));
         }
     };
+
+    namespace traits {
+        namespace detail {
+            struct _reservedType {};
+        } // namespace detail
+
+        template<class... T>
+        struct always_false : std::false_type {};
+
+        // a static_assert which always fails is ill-formed in C++17
+        // in C++23, static_assert(false) in an uninstantiated context is OK
+        // Supports construct static_assert(traits::always_false_v);
+        template<>
+        struct always_false<detail::_reservedType> : std::true_type {};
+
+        template<class... T>
+        static constexpr bool always_false_v = always_false<T...>::value;
+    } // namespace traits
+
 } // namespace util

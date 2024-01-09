@@ -19,10 +19,6 @@ namespace config {
     class Manager;
 }
 
-namespace errors {
-    class Error;
-}
-
 namespace logging {
     class LogManager;
 }

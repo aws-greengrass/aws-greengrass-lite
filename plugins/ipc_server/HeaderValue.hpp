@@ -17,23 +17,6 @@
 #include <cstdint>
 #include <cstring>
 
-namespace traits {
-    namespace doNotUse {
-        struct _reservedType {};
-    } // namespace doNotUse
-
-    template<class... T>
-    struct always_false : std::false_type {};
-
-    // a static_assert which always fails is ill-formed in C++17
-    // in C++23, static_assert(false) in an uninstantiated context is OK
-    template<>
-    struct always_false<doNotUse::_reservedType> : std::true_type {};
-
-    template<class... T>
-    static constexpr bool always_false_v = always_false<T...>::value;
-} // namespace traits
-
 namespace Headervaluetypes {
     using timestamp = std::chrono::duration<uint64_t, std::milli>;
     using bytebuffer = util::Span<uint8_t, uint16_t>;
@@ -145,7 +128,7 @@ static inline aws_event_stream_header_value_type getType(const HeaderValue &vari
             } else if constexpr(std::is_same_v<aws_uuid, T>) {
                 return AWS_EVENT_STREAM_HEADER_UUID;
             } else {
-                static_assert(traits::always_false_v<T>, "Please implement");
+                static_assert(util::traits::always_false_v<T>, "Please implement");
             }
         },
         variant);
@@ -210,7 +193,7 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
                 }
                 os.flags(flags);
             } else {
-                static_assert(traits::always_false_v<T>, "Please implement");
+                static_assert(util::traits::always_false_v<T>, "Please implement");
             }
             return os;
         },
