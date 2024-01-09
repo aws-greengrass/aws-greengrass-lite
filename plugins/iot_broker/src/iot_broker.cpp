@@ -6,6 +6,9 @@
 #include <mutex>
 #include <variant>
 
+const auto LOG = // NOLINT(cert-err58-cpp)
+    ggapi::Logger::of("Iot_broker");
+
 ggapi::Struct IotBroker::ipcPublishHandler(
     ggapi::Task task, ggapi::Symbol symbol, ggapi::Struct args) {
     // TODO: pretty sure we can detect whether to perform this base64decode
@@ -85,39 +88,36 @@ ggapi::Struct IotBroker::ipcSubscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::
     return ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret));
 }
 
-ggapi::Buffer bufferBlobParser(ggapi::Container payload){
-    ggapi::Buffer payloadBuffer;
-    if (!payload){
-        return {};
-    }
-    if(payload.isBuffer()) {
-        payloadBuffer = ggapi::Buffer{payload};
-    } else if(payload.isScalar()) {
-        auto payloadAsString(payload.unbox<std::string>());
-        payloadBuffer = ggapi::Buffer::create();
-        payloadBuffer.insert(0, util::Span{payloadAsString});
-    } else if(payload.isStruct()) {
-        payloadBuffer = payload.toJson();
-    }
-    else{
-        throw std::runtime_error("Invalid Payload");
+Aws::Crt::String containerToStringParser(ggapi::Container input) {
+    Aws::Crt::String inputAsString;
+
+    if(input.isBuffer()) {
+        auto inputBuffer = ggapi::Buffer{input};
+        inputAsString = inputBuffer.get<std::string>(0, inputBuffer.size());
+    } else if(input.isScalar()) {
+        inputAsString = input.unbox<std::string>();
+
+    } else if(input.isStruct()) {
+        auto inputBuffer = input.toJson();
+        inputAsString = inputBuffer.get<std::string>(0, inputBuffer.size());
+
+    } else {
+        throw ggapi::GgApiError("Invalid Payload");
     }
 
-    return payloadBuffer;
+    return inputAsString;
 }
 
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
-    Aws::Crt::String topicName{args.get<Aws::Crt::String>(keys.topicName)};
+    auto topicName{args.get<Aws::Crt::String>(keys.topicName)};
     auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
-    
-        
+    //LOG.atInfo.event("log-event").kv("key", "value").log("message");
     //(optional)PAYLOAD AS A BLOB BUFFER/STRING/STRUCTURE
-    ggapi::Buffer payloadBuffer;
-    if (args.hasKey(keys.payload)){
-        payloadBuffer =  bufferBlobParser(args.get<ggapi::Container>(keys.payload));
+    Aws::Crt::String payload;
+    ggapi::Buffer correlationDataBuffer;
+    if(args.hasKey(keys.payload)) {
+        payload = containerToStringParser(args.get<ggapi::Container>(keys.payload));
     }
-
-    auto payload = payloadBuffer.get<Aws::Crt::String>(0, payloadBuffer.size());
 
     auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
         topicName, ByteCursorFromString(payload), qos);
@@ -127,44 +127,47 @@ ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struc
         publish->WithRetain(args.get<bool>(keys.retain));
     }
 
+    //(optional) userProperties
+    /*
+    User Properties with userdefined Key and Value
+    */
     ggapi::List userProperties;
-    if (args.hasKey(keys.userProperties)){
+    if(args.hasKey(keys.userProperties)) {
         userProperties = args.get<ggapi::Struct>(keys.userProperties).get<ggapi::List>(keys.member);
-        
+
         Aws::Crt::Vector<Aws::Crt::Mqtt5::UserProperty> userPropertiesVector;
-        for(std::uint32_t i = 0; i != userProperties.size(); ++i)
-        {
-            ggapi::Struct property = userProperties.get<ggapi::Struct>(i);
-            userPropertiesVector.emplace_back(property.get<Aws::Crt::String>(keys.key), property.get<Aws::Crt::String>(keys.value));
-        }
+        userProperties.for_each<ggapi::Struct>([&userPropertiesVector](ggapi::Struct property) {
+            userPropertiesVector.emplace_back(
+                property.get<Aws::Crt::String>(keys.key),
+                property.get<Aws::Crt::String>(keys.value));
+        });
         publish->WithUserProperties(userPropertiesVector);
     }
 
-    if (args.hasKey(keys.messageExpiryIntervalSeconds)){
-        publish->WithMessageExpiryIntervalSec(args.get<uint32_t>(keys.messageExpiryIntervalSeconds));
+    if(args.hasKey(keys.messageExpiryIntervalSeconds)) {
+        publish->WithMessageExpiryIntervalSec(
+            args.get<uint32_t>(keys.messageExpiryIntervalSeconds));
     }
 
-    Aws::Crt::String copyCorrelation;
     if(args.hasKey(keys.correlationData)) {
-        auto correlationData = bufferBlobParser(args.get<ggapi::Container>(keys.correlationData));
-        copyCorrelation = correlationData.get<Aws::Crt::String>(0, correlationData.size());
-        publish->WithCorrelationData(ByteCursorFromString(copyCorrelation));
+        auto correlationData =
+            containerToStringParser(args.get<ggapi::Container>(keys.correlationData));
+        publish->WithCorrelationData(ByteCursorFromString(correlationData));
     }
 
-    Aws::Crt::String copyResponseTopic;
     if(args.hasKey(keys.responseTopic)) {
-        copyResponseTopic = args.get<Aws::Crt::String>(keys.responseTopic);
+        auto copyResponseTopic = args.get<Aws::Crt::String>(keys.responseTopic);
         publish->WithResponseTopic(ByteCursorFromString(copyResponseTopic));
     }
 
     //(optional) PayLoadFormat as PayloadFormat
     std::optional<Aws::Crt::Mqtt5::PayloadFormatIndicator> payloadFormat;
 
-    if (args.hasKey(keys.payloadFormat)){
-        auto tempInt{args.get<std::uint64_t>(keys.payloadFormat)};
-        payloadFormat = PayloadFormat_MAP.lookup(tempInt);
-        
-        if (!payloadFormat.has_value()){
+    if(args.hasKey(keys.payloadFormat)) {
+        auto payloadFormatAsInt{args.get<std::uint64_t>(keys.payloadFormat)};
+        payloadFormat = PAYLOAD_FORMAT_MAP.lookup(payloadFormatAsInt);
+
+        if(!payloadFormat.has_value()) {
             throw std::runtime_error("Invalid Payload Format");
         }
         publish->WithPayloadFormatIndicator(*payloadFormat);

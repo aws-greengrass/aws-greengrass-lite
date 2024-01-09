@@ -393,6 +393,16 @@ namespace ggapi {
             return *this;
         }
 
+        template<class T, class Function>
+        Function for_each(Function fn) {
+            required();
+            auto _size = size();
+            for(uint32_t i = 0; i < _size; ++i) {
+                fn(get<T>(i));
+            }
+            return fn;
+        }
+
         template<typename T>
         [[nodiscard]] T get(int32_t idx) {
             required();

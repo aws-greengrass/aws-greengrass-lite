@@ -43,7 +43,7 @@ class IotBroker : public ggapi::Plugin {
     public:
     //enum class PayloadFormat { BYTES, UTF8};
     // Mapping of symbols to enums
-    inline static const util::LookupTable PayloadFormat_MAP{
+    inline static const util::LookupTable PAYLOAD_FORMAT_MAP{
         0,
         aws_mqtt5_payload_format_indicator::AWS_MQTT5_PFI_BYTES,
         1,
