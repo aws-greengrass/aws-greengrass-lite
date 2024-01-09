@@ -4,25 +4,28 @@
 #include <optional>
 #include <shared_mutex>
 #include <string>
+#include <string_view>
+#include <util.hpp>
 
 namespace lifecycle {
+    using namespace std::string_view_literals;
     class SysProperties {
     private:
         mutable std::shared_mutex _mutex;
-        std::map<std::string, std::string> _cache;
+        std::map<std::string, std::string, std::less<>> _cache;
 
     public:
-        static constexpr auto HOME = {"HOME"};
+        static constexpr auto HOME = {"HOME"sv};
 
         SysProperties() = default;
 
-        void parseEnv(char *envp[]); // NOLINT(*-avoid-c-arrays)
+        void parseEnv(util::Span<char *> envs);
 
         std::optional<std::string> get(std::string_view name) const;
 
-        void put(const std::string &name, const std::string &value);
+        void put(std::string name, std::string value);
 
-        void put(std::string_view name, std::string_view value) {
+        inline void put(std::string_view name, std::string_view value) {
             put(std::string(name), std::string(value));
         }
 
