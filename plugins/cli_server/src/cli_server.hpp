@@ -5,14 +5,6 @@
 #include <random>
 #include <unordered_map>
 
-#if defined(__unix__)
-#include "unix_platform.hpp"
-#elif defined(_WIN32)
-#include "windows_platform.hpp"
-#elif defined(__APPLE__)
-#include "darwin_platform.hpp"
-#endif
-
 struct Keys {
     ggapi::Symbol serviceName{"aws.greengrass.Cli"};
 };
@@ -21,18 +13,14 @@ class CliServer final : public ggapi::Plugin {
     static constexpr std::string_view IPC_SOCKET_PATH = "/tmp/gglite-ipc.socket";
     static constexpr std::string_view CLI_AUTH_TOKEN = "cli_auth_token";
     static constexpr std::string_view DOMAIN_SOCKET_PATH = "domain_socket_path";
-    static const inline std::string USER_CLIENT_ID_PREFIX = "user-";
-    static const inline std::string GROUP_CLIENT_ID_PREFIX = "group-";
-    static const inline std::string GG_CLI_CLIENT_ID_PREFIX = "greengrass-cli#";
-    static const inline std::string POLICY_NAME_PREFIX = "aws.greengrass.Cli:pubsub:";
+    static const inline std::string CLI_IPC_INFO_FILE_PATH = "info.json";
     // TODO: Should come from nucleus kernel?
-    static constexpr std::string_view CLI_IPC_INFO_PATH_NAME{"cli_ipc_info"};
+    static constexpr std::string_view CLI_IPC_INFO_PATH{"cli_ipc_info"};
 
     std::unordered_map<std::string, std::string> _clientIdToAuthToken;
 
     static std::string generateCliToken();
 
-    template<typename T, typename std::enable_if_t<std::is_base_of_v<Platform, T>, bool> = true>
     void generateCliIpcInfo(const std::filesystem::path &);
 
 public:

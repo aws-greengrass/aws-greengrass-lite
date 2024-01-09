@@ -7,7 +7,7 @@ static constexpr int SEED = 123;
 
 void CliServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
     ggapi::Symbol phaseOrd{phase};
-    std::cerr << "[cli] Running lifecycle phase " << phaseOrd.toString() << std::endl;
+    std::cerr << "[cli-server] Running lifecycle phase " << phaseOrd.toString() << std::endl;
 }
 
 bool CliServer::onBootstrap(ggapi::Struct data) {
@@ -31,26 +31,21 @@ std::string CliServer::generateCliToken() {
     return result;
 }
 
-template<typename T, typename std::enable_if_t<std::is_base_of_v<Platform, T>, bool>>
 void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) {
-    auto platform = T();
     // TODO: Revoke outdated tokens
     // clean up outdated tokens
     for(const auto &entry : std::filesystem::directory_iterator(ipcCliInfoPath)) {
         std::filesystem::remove_all(entry.path());
     }
 
-    auto clientId = USER_CLIENT_ID_PREFIX + platform.lookupCurrentUser().principalIdentifier;
+    auto clientId = CLI_IPC_INFO_FILE_PATH;
     if(_clientIdToAuthToken.find(clientId) != _clientIdToAuthToken.end()) {
         // duplicate entry
         return;
     }
 
-    // TODO: authorize pub/sub for cli (update config)
-    std::string_view serviceName = GG_CLI_CLIENT_ID_PREFIX + clientId;
-
     // generate token
-    std::string cliAuthToken = generateCliToken();
+    auto cliAuthToken = generateCliToken();
 
     _clientIdToAuthToken.insert({clientId, cliAuthToken});
 
@@ -77,11 +72,7 @@ bool CliServer::onRun(ggapi::Struct data) {
     // GG-Interop: Load from the system instead of service
     auto system = data.getValue<ggapi::Struct>({"system"});
     std::filesystem::path rootPath = system.getValue<std::string>({"rootpath"});
-#ifdef __unix__
-    generateCliIpcInfo<UnixPlatform>(rootPath / CLI_IPC_INFO_PATH_NAME);
-#else
-    std::cerr << "Unsupported OS";
-#endif
+    generateCliIpcInfo(rootPath / CLI_IPC_INFO_PATH);
     return true;
 }
 
