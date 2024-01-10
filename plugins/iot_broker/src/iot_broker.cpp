@@ -5,6 +5,7 @@
 #include <cpp_api.hpp>
 #include <mutex>
 #include <variant>
+#include <logging.hpp>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
     ggapi::Logger::of("Iot_broker");
@@ -368,6 +369,7 @@ bool IotBroker::onBind(ggapi::Struct data) {
 
 bool IotBroker::onStart(ggapi::Struct data) {
     bool returnValue = false;
+    LOG.atInfo().log("Test I was here");
     std::cout << "[mqtt-plugin] starting\n";
     try {
         auto nucleus = _nucleus.load();
