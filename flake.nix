@@ -31,6 +31,13 @@
 
       gglite-clang = { callPackage, clangStdenv }:
         callPackage default { stdenv = clangStdenv; };
+
+      gglite-cross-aarch64 = { inputs, outputs, system, runCommand }:
+        (import inputs.nixpkgs {
+          inherit system;
+          crossSystem.config = "aarch64-unknown-linux-gnu";
+          overlays = [ outputs.overlays.default ];
+        }).gglite;
     };
 
     devShell = {
