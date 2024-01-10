@@ -61,7 +61,7 @@
     formatters = {
       "*.c | *.h | *.cpp | *.hpp" = "clang-format -i";
       "*.cmake | *CMakeLists.txt" =
-        "cmake-format -c ${./.cmake-format.yml} -i";
+        "cmake-format -c ${./.}/.cmake-format.yml -i";
       "*.py" = "yapf -i";
     };
   });
