@@ -1,9 +1,9 @@
 #include "cli_server.hpp"
+
+#include <algorithm>
 #include <fstream>
 
 static const Keys keys;
-
-static constexpr int SEED = 123;
 
 void CliServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
     ggapi::Symbol phaseOrd{phase};
@@ -19,18 +19,6 @@ bool CliServer::onStart(ggapi::Struct data) {
     return true;
 }
 
-std::string CliServer::generateCliToken() {
-    // TODO: authentication handler from IPC to generate token
-    static constexpr size_t TOKEN_LENGTH = 16;
-    std::string_view chars = "0123456789"
-                             "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    thread_local std::mt19937 rng(SEED);
-    auto dist = std::uniform_int_distribution{{}, chars.size() - 1};
-    auto result = std::string(TOKEN_LENGTH, '\0');
-    std::generate_n(result.begin(), TOKEN_LENGTH, [&]() { return chars[dist(rng)]; });
-    return result;
-}
-
 void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) {
     // TODO: Revoke outdated tokens
     // clean up outdated tokens
@@ -44,18 +32,21 @@ void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) 
         return;
     }
 
-    // generate token
-    auto cliAuthToken = generateCliToken();
+    // get ipc info
+    auto result = ggapi::Task::sendToTopic(keys.topicName, ggapi::Struct::create());
+
+    auto socketPath = result.get<std::string>(keys.socketPath);
+    auto cliAuthToken = result.get<std::string>(keys.cliAuthToken);
 
     _clientIdToAuthToken.insert({clientId, cliAuthToken});
 
     ggapi::Struct ipcInfo = ggapi::Struct::create();
-    ipcInfo.put(CLI_AUTH_TOKEN, cliAuthToken);
+    ipcInfo.put(keys.cliAuthToken, cliAuthToken);
     ipcInfo.put(
-        DOMAIN_SOCKET_PATH,
-        IPC_SOCKET_PATH); // TODO: override socket path from recipe or nucleus config
+        keys.socketPath,
+        socketPath); // TODO: override socket path from recipe or nucleus config
 
-    // write to path
+    // write to the path
     auto filePath = ipcCliInfoPath / clientId;
     std::ofstream ofstream(filePath);
     ggapi::Buffer buffer = ipcInfo.toJson();

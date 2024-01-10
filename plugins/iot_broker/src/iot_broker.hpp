@@ -32,7 +32,7 @@ public:
 class MqttClientFailedToStart : public ggapi::GgApiError {
 public:
     MqttClientFailedToStart()
-        : ggapi::GgApiError("MqttClienFailedToStart", "MQTT client failed to start") {
+        : ggapi::GgApiError("MqttClientFailedToStart", "MQTT client failed to start") {
     }
 };
 
