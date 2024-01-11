@@ -12,26 +12,26 @@ namespace lifecycle {
     class argument {
     private:
     protected:
-        const std::string _flag;
-        const std::string _name;
+        const std::string _option;
+        const std::string _longOption;
         const std::string _description;
 
         [[nodiscard]] bool isMatch(const std::string &argString) const {
             bool returnValue = false;
-            std::string a;
-            std::transform(argString.begin(), argString.end(), a.begin(), ::tolower);
-            if(a == _flag || a == _name) {
+            std::string a = argString;
+            std::transform(a.begin(), a.end(), a.begin(), ::tolower);
+            if(a == _option || a == _longOption) {
                 returnValue = true;
             }
             return returnValue;
         }
 
         argument(
-            const std::string_view flag,
-            const std::string_view name,
+            const std::string_view option,
+            const std::string_view longOption,
             const std::string_view description)
-            : _flag(std::string("-") + std::string(flag)),
-              _name(std::string("--") + std::string(name)), _description(description) {
+            : _option(std::string("-") + std::string(option)),
+              _longOption(std::string("--") + std::string(longOption)), _description(description) {
         }
 
     public:
@@ -42,10 +42,10 @@ namespace lifecycle {
         argument(const argument &) = delete;
         argument &operator=(argument &&) = delete;
 
-        [[nodiscard]] std::string getHelp() const {
-            std::string helpString;
-            helpString = _flag + "\t" + _name + " : " + _description;
-            return helpString;
+        [[nodiscard]] std::string getDescription() const {
+            std::string descriptionString;
+            descriptionString = _option + "\t" + _longOption + " : " + _description;
+            return descriptionString;
         }
 
         virtual bool process(std::vector<std::string>::const_iterator &i) const = 0;
@@ -97,7 +97,7 @@ namespace lifecycle {
                     _handler(_extractValue(*i));
                     return true;
                 } catch(const std::invalid_argument &e) {
-                    std::cout << "invalid argument for " << _name << std::endl;
+                    std::cout << "invalid argument for " << _longOption << std::endl;
                 } catch(...) {
                     std::cout << "unexpected exception" << std::endl;
                 }

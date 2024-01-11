@@ -23,7 +23,7 @@ int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
             }
             kernel.preLaunch(commandLine);
         }
-        // Never returns unless signalled
+        // Never returns unless signaled
         return kernel.launch();
     } catch(...) {
         // TODO: log errors

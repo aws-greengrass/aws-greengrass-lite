@@ -26,73 +26,63 @@ namespace lifecycle {
         }
 
         template<typename V, typename... T>
-        constexpr auto array_of(T &&... t)
-        -> std::array<V, sizeof...(T)> {
+        constexpr auto array_of(T &&...t) -> std::array<V, sizeof...(T)> {
             return {{std::forward<T>(t)...}};
         }
 
         std::array<std::unique_ptr<argument>, 7> argumentList{
-                std::unique_ptr<argument>(
-                        std::make_unique<argumentFlag>(
-                                "h",
-                                "help",
-                                "Print this usage information",
-                                [this]() {
-                                    for (const auto &a: argumentList) {
-                                        std::cout << a->getHelp() << std::endl;
-                                    }
-                                    std::exit(0);
-                                })),
-                std::unique_ptr<argument>(
-                        std::make_unique<argumentValue<std::string>>(
-                                "i",
-                                "config",
-                                "configuration Path",
-                                [this](std::string arg) {
-                                    _providedConfigPath = _kernel.getPaths()->deTilde(
-                                            arg);
-                                })),
-                std::unique_ptr<argument>(
-                        std::make_unique<argumentValue<std::string>>(
-                                "init",
-                                "init-config",
-                                "initial configuration path",
-                                [this](std::string arg) {
-                                    _providedInitialConfigPath = _kernel.getPaths()->deTilde(
-                                            arg);
-                                })),
-                std::unique_ptr<argument>(
-                        std::make_unique<argumentValue<std::string>>(
-                                "r",
-                                "root",
-                                "the root path selection",
-                                [this](std::string arg) {
-                                    auto paths = _kernel.getPaths();
-                                    paths->setRootPath(paths->deTilde(arg));
-                                })),
-                std::unique_ptr<argument>(
-                        std::make_unique<argumentValue<std::string>>(
-                                "ar",
-                                "aws-region",
-                                "AWS Region",
-                                [this](std::string arg) { _awsRegionFromCmdLine = arg; })),
-                std::unique_ptr<argument>(
-                        std::make_unique<argumentValue<std::string>>(
-                                "es",
-                                "env-stage",
-                                "Environment Stage Selection",
-                                [this](std::string arg) { _envStageFromCmdLine = arg; })),
-                std::unique_ptr<argument>(
-                        std::make_unique<argumentValue<std::string>>(
-                                "u",
-                                "component-default-user",
-                                "Component Default User",
-                                [this](std::string arg) { _defaultUserFromCmdLine = arg; })),
+            std::unique_ptr<argument>(std::make_unique<argumentFlag>(
+                "h",
+                "help",
+                "Print this usage information",
+                [this]() {
+                    for(const auto &a : argumentList) {
+                        std::cout << a->getDescription() << std::endl;
+                    }
+                    std::exit(0);
+                })),
+            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                "i",
+                "config",
+                "configuration Path",
+                [this](std::string arg) {
+                    _providedConfigPath = _kernel.getPaths()->deTilde(arg);
+                })),
+            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                "init",
+                "init-config",
+                "initial configuration path",
+                [this](std::string arg) {
+                    _providedInitialConfigPath = _kernel.getPaths()->deTilde(arg);
+                })),
+            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                "r",
+                "root",
+                "the root path selection",
+                [this](std::string arg) {
+                    auto paths = _kernel.getPaths();
+                    paths->setRootPath(paths->deTilde(arg));
+                })),
+            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                "ar",
+                "aws-region",
+                "AWS Region",
+                [this](std::string arg) { _awsRegionFromCmdLine = arg; })),
+            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                "es",
+                "env-stage",
+                "Environment Stage Selection",
+                [this](std::string arg) { _envStageFromCmdLine = arg; })),
+            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                "u",
+                "component-default-user",
+                "Component Default User",
+                [this](std::string arg) { _defaultUserFromCmdLine = arg; })),
         };
 
     public:
         explicit CommandLine(
-                const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel);
+            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel);
 
         void parseEnv(SysProperties &sysProperties);
 
