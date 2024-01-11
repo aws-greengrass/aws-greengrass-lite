@@ -5,6 +5,7 @@
 #include <list>
 
 namespace tasks {
+    class Callback;
     class ExpireTime;
     class Task;
     class TaskThread;
@@ -55,6 +56,14 @@ namespace tasks {
         ~TaskManager();
 
         void queueTask(const std::shared_ptr<Task> &task);
+        template<typename Function, typename... Args>
+        std::shared_ptr<tasks::Task> defer(
+            const std::shared_ptr<data::StructModelBase> &data,
+            const tasks::ExpireTime &when,
+            Function &&func,
+            Args &&...args);
+        template<typename Function, typename... Args>
+        std::shared_ptr<tasks::Task> callAsync(Function &&func, Args &&...args);
         void resumeTask(const std::shared_ptr<Task> &task);
         ExpireTime pollNextDeferredTask(TaskThread *worker);
         void shutdownAndWait();

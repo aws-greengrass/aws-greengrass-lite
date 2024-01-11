@@ -1,4 +1,5 @@
 #pragma once
+#include "channel/channel_base.hpp"
 #include "scope/context.hpp"
 #include <atomic>
 #include <condition_variable>
@@ -14,26 +15,35 @@ namespace config {
 
     using PublishAction = std::function<void()>;
 
+    namespace traits {
+        struct PublishQueueStub {};
+        struct PublishQueueTraits {
+            using DataType = PublishAction;
+            using ListenCallbackType = PublishQueueStub;
+            using CloseCallbackType = PublishQueueStub;
+            using IdleCallbackType = PublishQueueStub;
+            static void invokeListenCallback(const ListenCallbackType &, const DataType &action) {
+                action();
+            }
+            static void invokeCloseCallback(const CloseCallbackType &) {
+            }
+            static void onIdle(const IdleCallbackType &) {
+            }
+        };
+    } // namespace traits
+
     //
-    // Publish Queue is a dedicated thread to handle configuration change publishes, in particular,
-    // all config actions are strictly serialized when pushed to this queue
+    // Publish Queue is a dedicated channel to manage sequence of items to be published
     //
-    class PublishQueue : protected scope::UsesContext {
-        mutable std::mutex _mutex;
-        std::thread _thread;
-        std::list<PublishAction> _actions;
-        std::condition_variable _wake;
-        std::condition_variable _drained;
-        std::atomic_bool _terminate{false};
+    class PublishQueue : public util::RefObject<PublishQueue>, protected scope::UsesContext {
+        std::shared_ptr<channel::ChannelBase<traits::PublishQueueTraits>> _channel;
 
     public:
-        explicit PublishQueue(const scope::UsingContext &context) : scope::UsesContext(context) {
-        }
+        explicit PublishQueue(const scope::UsingContext &context);
         void publish(PublishAction action);
         void start();
         void stop();
-        void publishThread();
-        std::optional<PublishAction> pickupAction();
-        bool drainQueue();
+        void drainQueue();
     };
+
 } // namespace config

@@ -1,65 +1,65 @@
-#include "channel.hpp"
-#include "cpp_api.hpp"
-#include "data/shared_buffer.hpp"
-#include "tasks/task_callbacks.hpp"
-#include <iostream>
-#include <mutex>
+#include "channel_base.hpp"
+#include "scope/context_full.hpp"
 
 namespace channel {
-    Channel::~Channel() noexcept {
-        _terminate = true;
-        _wait.notify_one();
-        if(_worker.joinable()) {
-            _worker.join();
-        }
-    }
+    void ChannelBaseCore::channelWork(
+        const std::shared_ptr<channel::ChannelBaseCore> &keepInMemory,
+        const std::shared_ptr<data::StructModelBase> &) {
 
-    void Channel::channelWorker() {
-        for(;;) {
-            std::unique_lock _lock(_mutex);
-            _wait.wait(_lock, [this]() { return !_inFlight.empty() || _terminate || _closed; });
-            if(_terminate) {
-                return;
+        // We pass in this parameter to keep a ref-count to channel until this task completes
+        std::ignore = keepInMemory;
+
+        std::unique_lock lock(_mutex);
+        while(canProcessWork(lock)) {
+            doReceiveWork(lock);
+            // There may still be work to do
+            if(!isEmpty(lock)) {
+                continue;
             }
-            while(!_inFlight.empty()) {
-                auto data = std::move(_inFlight.front());
-                _inFlight.pop();
-                _lock.unlock();
-                _listener->invokeChannelListenCallback(data);
-                _lock.lock();
+            doIdle(lock);
+            // More work may have been injected if/when we released lock during idle callback
+            if(!isEmpty(lock)) {
+                continue;
             }
-            if(_closed) {
-                for(const auto &c : _onClose) {
-                    c->invokeChannelCloseCallback();
-                }
-                return;
-            }
-        };
-    }
-
-    void Channel::write(const std::shared_ptr<data::StructModelBase> &value) {
-        std::unique_lock _lock(_mutex);
-        if(!_closed) {
-            _inFlight.push(value);
-            _wait.notify_one();
+            doCloseWork(lock);
+            // More work may have been injected if/when we released lock during close work
         }
+        assert(lock.owns_lock());
+        // TODO: missing RII behavior
+        _pendingTask.reset();
     }
 
-    void Channel::close() {
-        _closed = true;
-        _wait.notify_one();
+    bool ChannelBaseCore::doIdle(std::unique_lock<std::mutex> &lock) const {
+        assert(lock.owns_lock());
+        lock.unlock();
     }
 
-    void Channel::setListenCallback(const std::shared_ptr<tasks::Callback> &callback) {
-        std::unique_lock _lock(_mutex);
-        _listener = callback;
-        if(!_workerStarted.exchange(true)) {
-            _worker = std::thread(&Channel::channelWorker, this);
+    void ChannelBaseCore::queueWork(std::unique_lock<std::mutex> &lock) {
+        assert(lock.owns_lock());
+        if(!_pendingTask) {
+            return; // Task already queued or in progress
         }
+        if(!canProcessWork(lock)) {
+            return; // Cannot process work yet
+        }
+        auto ctx = context();
+        _pendingTask = ctx->taskManager().callAsync(
+            &ChannelBaseCore::channelWork, this, ref<ChannelBaseCore>());
     }
 
-    void Channel::setCloseCallback(const std::shared_ptr<tasks::Callback> &callback) {
-        std::unique_lock _lock(_mutex);
-        _onClose.push_back(callback);
+    bool ChannelBaseCore::drain() {
+        std::unique_lock lock(_mutex);
+        queueWork(lock);
+        auto task = _pendingTask;
+        if(!task) {
+            return isEmpty(lock);
+        }
+        // If we are here, pending task will not have entered its critical section, therefore
+        // we know we can drain everything that was pending up until this point by simply waiting
+        // for the pending task to complete
+        lock.unlock();
+        task->waitForCompletion(tasks::ExpireTime::infinite());
+        return true;
     }
+
 } // namespace channel

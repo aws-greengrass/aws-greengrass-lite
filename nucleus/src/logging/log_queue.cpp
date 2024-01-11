@@ -117,4 +117,16 @@ namespace logging {
     LogQueue::~LogQueue() {
         assert(!_running.load());
     }
+    void LogQueueCallbacks::processEntry(const LogQueueEntry &entry) {
+        auto ptr = _ptr.lock();
+        if(ptr) {
+            ptr->processEntry(entry);
+        }
+    }
+    void LogQueueCallbacks::onIdle() const {
+        auto ptr = _ptr.lock();
+        if(ptr) {
+            ptr->syncOutputs();
+        }
+    }
 } // namespace logging

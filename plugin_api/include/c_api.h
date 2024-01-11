@@ -60,7 +60,7 @@ struct ggapiTaskCallbackData {
 };
 
 struct ggapiChannelListenCallbackData {
-    ggapiObjHandle dataStruct;
+    ggapiObjHandle obj;
 };
 
 struct ggapiChannelCloseCallbackData {

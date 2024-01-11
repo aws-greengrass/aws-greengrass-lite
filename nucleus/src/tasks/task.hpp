@@ -154,7 +154,7 @@ namespace tasks {
         ~CurrentTaskScope();
     };
 
-    class SubTask : public util::RefObject<SubTask> {
+    class SubTask {
     protected:
         std::shared_ptr<TaskThread> _threadAffinity;
 

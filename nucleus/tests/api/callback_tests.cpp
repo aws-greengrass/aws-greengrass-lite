@@ -94,7 +94,7 @@ TEST_CASE("Verify callback structure contracts", "[callable]") {
         INFO("ggapiChannelListenCallbackData");
         // Note, any new fields must be added to end
         // No fields may be removed, types cannot be changed
-        assertStructureUnchanged(d, field<ggapiObjHandle>(d.dataStruct));
+        assertStructureUnchanged(d, field<ggapiObjHandle>(d.obj));
     }
     SECTION("ggapiChannelCloseCallbackData does not break backward compatibility") {
         ggapiChannelCloseCallbackData d;

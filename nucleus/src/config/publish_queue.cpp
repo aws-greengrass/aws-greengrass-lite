@@ -1,61 +1,33 @@
 #include "publish_queue.hpp"
+#include "channel/channel_callbacks.hpp"
 #include "scope/context_full.hpp"
 
 namespace config {
 
     void PublishQueue::publish(config::PublishAction action) {
-        std::unique_lock guard{_mutex};
-        _actions.emplace_back(std::move(action));
-        _wake.notify_all();
+        if(!_channel->isListening()) {
+            start();
+        }
+        _channel->write(action);
     }
 
     void PublishQueue::start() {
-        std::unique_lock guard{_mutex};
-        // GG-Interop: GG-Java runs thread at high priority
-        // TODO: match GG-Java
-        _thread = std::thread(&PublishQueue::publishThread, this);
+        traits::PublishQueueStub stub{};
+        _channel->setListenCallback(stub);
+        _channel->setCloseCallback(stub);
     }
 
     void PublishQueue::stop() {
-        _terminate = true;
-        _wake.notify_all();
-        // Queue will drain before joining
-        if(_thread.joinable()) {
-            _thread.join();
-        }
+        _channel->close();
+        _channel->drain();
     }
 
-    void PublishQueue::publishThread() {
-        scope::thread()->changeContext(context());
-        for(;;) {
-            std::optional<PublishAction> action = pickupAction();
-            if(action.has_value()) {
-                action.value()();
-            } else {
-                break; // queue is empty and terminated
-            }
-        }
+    void PublishQueue::drainQueue() {
+        _channel->drain();
     }
 
-    bool PublishQueue::drainQueue() {
-        std::unique_lock guard{_mutex};
-        while(!_actions.empty()) {
-            _drained.wait(guard);
-        }
-        return _actions.empty();
-    }
-
-    std::optional<PublishAction> PublishQueue::pickupAction() {
-        std::unique_lock guard{_mutex};
-        while(_actions.empty() && !_terminate) {
-            _drained.notify_all();
-            _wake.wait(guard);
-        }
-        if(_actions.empty()) {
-            return {}; // terminated and empty
-        }
-        PublishAction action = std::move(_actions.front());
-        _actions.pop_front();
-        return action;
+    PublishQueue::PublishQueue(const scope::UsingContext &context)
+        : scope::UsesContext(context),
+          _channel(std::make_shared<channel::ChannelBase<traits::PublishQueueTraits>>(context)) {
     }
 } // namespace config

@@ -43,11 +43,11 @@ namespace ggapi {
 
         inline void addListenCallback(ChannelListenCallback callback);
         template<typename Callback, typename... Args>
-        inline void addListenCallback(const Callback callback, Args &&...args);
+        inline void addListenCallback(const Callback &callback, Args &&...args);
 
         inline void addCloseCallback(ChannelCloseCallback callback);
         template<typename Callback, typename... Args>
-        inline void addCloseCallback(const Callback callback, Args &&...args);
+        inline void addCloseCallback(const Callback &callback, Args &&...args);
     };
 
     /**
@@ -60,10 +60,11 @@ namespace ggapi {
          * routine. Note that this enables the same callback approach as std::invoke and std::thread
          * where a typical use is (callbackMethod, this) but acceptable also to do something like
          * (callbackMethod, this, extraArg1, extraArg2).
+         * @tparam ObjType Type of object being returned in channel (typically Struct)
          * @tparam Callable Lambda, function pointer, method, etc.
          * @tparam Args Prefix arguments, particularly optional This
          */
-        template<typename Callable, typename... Args>
+        template<typename ObjType, typename Callable, typename... Args>
         class ChannelListenDispatch : public CallbackManager::CallbackDispatch {
 
             const Callable _callable;
@@ -72,7 +73,7 @@ namespace ggapi {
         public:
             explicit ChannelListenDispatch(Callable callable, Args &&...args)
                 : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
-                static_assert(std::is_invocable_v<Callable, Args..., Struct>);
+                static_assert(std::is_invocable_v<Callable, Args..., ObjType>);
             }
             [[nodiscard]] Symbol type() const override {
                 return {"channelListen"};
@@ -82,8 +83,8 @@ namespace ggapi {
                 assertCallbackType(Symbol(callbackType));
                 auto &cb = checkedStruct<ggapiChannelListenCallbackData>(size, data);
                 auto callable = _callable;
-                auto dataStruct = Struct(cb.dataStruct);
-                auto args = std::tuple_cat(_args, std::tuple{dataStruct});
+                auto dataObj = ObjType(cb.obj);
+                auto args = std::tuple_cat(_args, std::tuple{dataObj});
                 return [callable, args]() { std::apply(callable, args); };
             }
         };
@@ -95,14 +96,22 @@ namespace ggapi {
         }
 
         /**
-         * Create reference to a channel listen callback.
+         * Create reference to a channel listen callback, allows multiple object types
          */
-        template<typename Callable, typename... Args>
-        static ChannelListenCallback of(const Callable &callable, Args &&...args) {
-            auto dispatch = std::make_unique<ChannelListenDispatch<Callable, Args...>>(
+        template<typename ObjType, typename Callable, typename... Args>
+        static ChannelListenCallback ofType(const Callable &callable, Args &&...args) {
+            auto dispatch = std::make_unique<ChannelListenDispatch<ObjType, Callable, Args...>>(
                 callable, std::forward<Args>(args)...);
             return CallbackManager::self().registerWithNucleus<ChannelListenCallback>(
                 std::move(dispatch));
+        }
+
+        /**
+         * Create reference to a channel listen callback, assumes Struct data in channel
+         */
+        template<typename Callable, typename... Args>
+        static ChannelListenCallback of(const Callable &callable, Args &&...args) {
+            return ofType<Struct, Callable, Args...>(callable, std::forward<Args>(args)...);
         }
     };
 
@@ -168,7 +177,7 @@ namespace ggapi {
     }
 
     template<typename Callback, typename... Args>
-    inline void Channel::addListenCallback(const Callback callback, Args &&...args) {
+    inline void Channel::addListenCallback(const Callback &callback, Args &&...args) {
         addListenCallback(ChannelListenCallback::of(callback, std::forward<Args>(args)...));
     }
 
@@ -179,7 +188,7 @@ namespace ggapi {
     }
 
     template<typename Callback, typename... Args>
-    inline void Channel::addCloseCallback(const Callback callback, Args &&...args) {
+    inline void Channel::addCloseCallback(const Callback &callback, Args &&...args) {
         addCloseCallback(ChannelCloseCallback::of(callback, std::forward<Args>(args)...));
     }
 

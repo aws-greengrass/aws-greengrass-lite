@@ -128,10 +128,10 @@ namespace tasks {
     }
 
     ChannelListenCallbackData::ChannelListenCallbackData(
-        const std::shared_ptr<data::StructModelBase> &data)
+        const std::shared_ptr<data::TrackedObject> &data)
         : CallbackPackedData(channelListenCallbackType()) {
 
-        _packed.dataStruct = scope::NucleusCallScopeContext::intHandle(data);
+        _packed.obj = scope::NucleusCallScopeContext::intHandle(data);
     }
 
     uint32_t ChannelListenCallbackData::size() const {
@@ -188,6 +188,7 @@ namespace tasks {
         invoke(packed);
         return packed.retVal();
     }
+
     void RegisteredCallback::invokeTaskCallback(
         const std::shared_ptr<data::StructModelBase> &data) {
 
@@ -199,40 +200,45 @@ namespace tasks {
         tasks::TaskCallbackData packed{data};
         invoke(packed);
     }
+
     std::shared_ptr<data::StructModelBase> Callback::invokeTopicCallback(
         const std::shared_ptr<tasks::Task> &task,
         const data::Symbol &topic,
         const std::shared_ptr<data::StructModelBase> &data) {
         throw std::runtime_error("Mismatched callback");
     }
+
     bool Callback::invokeLifecycleCallback(
         const data::ObjHandle &pluginHandle,
         const data::Symbol &phase,
         const data::ObjHandle &dataHandle) {
         throw std::runtime_error("Mismatched callback");
     }
+
     void Callback::invokeTaskCallback(const std::shared_ptr<data::StructModelBase> &data) {
         throw std::runtime_error("Mismatched callback");
     }
 
-    void Callback::invokeChannelListenCallback(const std::shared_ptr<data::StructModelBase> &data) {
+    void Callback::invokeChannelListenCallback(const std::shared_ptr<data::TrackedObject> &obj) {
         throw std::runtime_error("Mismatched callback");
     }
+
     void Callback::invokeChannelCloseCallback() {
         throw std::runtime_error("Mismatched callback");
     }
 
     void RegisteredCallback::invokeChannelListenCallback(
-        const std::shared_ptr<data::StructModelBase> &data) {
+        const std::shared_ptr<data::TrackedObject> &obj) {
 
         if(_callbackType != context()->intern("channelListen")) {
             throw std::runtime_error("Mismatched callback");
         }
 
         scope::StackScope scope{};
-        tasks::ChannelListenCallbackData packed{data};
+        tasks::ChannelListenCallbackData packed{obj};
         invoke(packed);
     }
+
     void RegisteredCallback::invokeChannelCloseCallback() {
 
         if(_callbackType != context()->intern("channelClose")) {

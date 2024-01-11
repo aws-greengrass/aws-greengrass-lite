@@ -544,6 +544,32 @@ namespace util {
         }
     };
 
+    template<typename Lock>
+    class Unlock {
+        Lock &_lock;
+        bool _wasLocked;
+
+    public:
+        Unlock(Lock &lock) noexcept : _lock(lock) {
+            _wasLocked = _lock.owns_lock();
+            if(_wasLocked) {
+                _lock.unlock();
+            }
+        }
+        void revert() noexcept {
+            if(_wasLocked) {
+                _lock.lock();
+            }
+        }
+        ~Unlock() {
+            revert();
+        }
+        Unlock(const Unlock &) = delete;
+        Unlock(Unlock &&) = delete;
+        Unlock &operator=(const Unlock &) = delete;
+        Unlock &operator=(Unlock &&) = delete;
+    };
+
     // traits::always_false
     namespace traits {
         namespace detail {
