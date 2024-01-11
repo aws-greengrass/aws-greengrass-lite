@@ -43,6 +43,8 @@ add_library(
   src/api/pubsub.cpp
   src/api/tasks.cpp
   src/api/channel.cpp
+  src/channel/channel.cpp
+  src/channel/channel.hpp
   src/config/config_manager.cpp
   src/config/config_manager.hpp
   src/config/config_nodes.hpp
@@ -60,12 +62,11 @@ add_library(
   src/conv/json_conv.hpp
   src/conv/yaml_conv.cpp
   src/conv/yaml_conv.hpp
+  src/data/data_model.hpp
   src/data/data_util.hpp
   src/data/handle_table.cpp
   src/data/handle_table.hpp
   src/data/safe_handle.hpp
-  src/channel/channel.cpp
-  src/channel/channel.hpp
   src/data/shared_buffer.cpp
   src/data/shared_buffer.hpp
   src/data/shared_list.cpp
@@ -81,6 +82,7 @@ add_library(
   src/data/tracked_object.hpp
   src/data/value_type.hpp
   src/deployment/config_watchers.hpp
+  src/deployment/deployment_doc.hpp
   src/deployment/deployment_model.cpp
   src/deployment/deployment_model.hpp
   src/deployment/device_configuration.cpp

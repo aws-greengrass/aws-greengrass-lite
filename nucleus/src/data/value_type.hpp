@@ -1,4 +1,5 @@
 #pragma once
+#include <util.hpp>
 #include <variant>
 
 namespace data {
@@ -46,7 +47,13 @@ namespace data {
 
         template<typename T>
         static ValueTypeBase convert(const T &x) {
-            if constexpr(std::is_same_v<bool, T>) {
+            if constexpr(util::traits::isOptional<T>) {
+                if(x.has_value()) {
+                    return convert(x.value());
+                } else {
+                    return {};
+                }
+            } else if constexpr(std::is_same_v<bool, T>) {
                 return ValueTypeBase(x);
             } else if constexpr(std::is_integral_v<T>) {
                 return static_cast<uint64_t>(x);

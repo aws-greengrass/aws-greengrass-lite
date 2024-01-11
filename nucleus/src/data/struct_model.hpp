@@ -58,6 +58,10 @@ namespace data {
 
         [[nodiscard]] virtual bool empty() const {
             // Note, we don't do implicit operators for this to avoid confusion with bool
+            return isNull();
+        }
+
+        [[nodiscard]] bool isNull() const {
             return _value.index() == NONE;
         }
 
@@ -86,10 +90,6 @@ namespace data {
 
         [[nodiscard]] bool isScalar() const {
             return !isObject() && !isNull();
-        }
-
-        [[nodiscard]] bool isNull() const {
-            return _value.index() == NONE;
         }
 
         [[nodiscard]] static bool getBool(std::string_view str) {
@@ -235,6 +235,31 @@ namespace data {
 
         explicit operator std::string() const {
             return getString();
+        }
+
+        /**
+         * Typed getter
+         */
+        template<typename T>
+        T getAs() const {
+            if constexpr(util::traits::isOptional<T>) {
+                if(isNull()) {
+                    return {};
+                } else {
+                    return getAs<util::traits::OptionalBaseType<T>>();
+                }
+            }
+            if constexpr(std::is_same_v<bool, T>) {
+                return getBool();
+            } else if constexpr(std::is_integral_v<T>) {
+                return static_cast<T>(getInt());
+            } else if constexpr(std::is_floating_point_v<T>) {
+                return static_cast<T>(getDouble());
+            } else if constexpr(std::is_assignable_v<std::shared_ptr<const TrackedObject>, T>) {
+                return castObject<T>();
+            } else {
+                return getString();
+            }
         }
     };
 
