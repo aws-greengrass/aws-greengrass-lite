@@ -544,6 +544,7 @@ namespace util {
         }
     };
 
+    // traits::always_false
     namespace traits {
         namespace detail {
             struct _reservedType {};
@@ -560,6 +561,23 @@ namespace util {
 
         template<class... T>
         static constexpr bool always_false_v = always_false<T...>::value;
+    } // namespace traits
+
+    // traits::isOptional<std::optional<XYZ>> = true
+    namespace traits {
+        template<typename T>
+        using OptionalBaseType = std::invoke_result<decltype(std::declval<T>().value())>;
+        template<typename, typename = void>
+        struct IsOptional : std::false_type {};
+        template<typename T>
+        struct IsOptional<
+            T,
+            std::void_t<
+                decltype(std::declval<T>().has_value()),
+                OptionalBaseType<T>,
+                std::enable_if_t<std::is_default_constructible_v<T>>>> : std::true_type {};
+        template<typename T>
+        static constexpr bool isOptional = IsOptional<T>::value;
     } // namespace traits
 
 } // namespace util
