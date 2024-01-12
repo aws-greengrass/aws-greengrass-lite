@@ -24,7 +24,7 @@ namespace data {
     }
 
     std::shared_ptr<ListModelBase> SharedList::copy() const {
-        std::shared_ptr<SharedList> newCopy{std::make_shared<SharedList>(_context.lock())};
+        std::shared_ptr<SharedList> newCopy{std::make_shared<SharedList>(context())};
         std::shared_lock guard{_mutex}; // for source
         newCopy->_elements = _elements; // shallow copy
         return newCopy;

@@ -4,7 +4,7 @@ https://docs.aws.amazon.com/iot/latest/developerguide/provision-wo-cert.html
 
 ## Parameters
 
-This plugin takes following parameters from config file
+This plugin takes the following parameters from config file
 
 ```yaml
 ---

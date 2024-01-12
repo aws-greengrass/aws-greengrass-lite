@@ -187,7 +187,7 @@ void IotBroker::initMqtt() {
                 _thingInfo.dataEndpoint, _thingInfo.certPath.c_str(), _thingInfo.keyPath.c_str())};
 
         if(!builder)
-            throw mqttBuilderException();
+            throw MqttBuilderException();
 
         {
             auto connectOptions = std::make_shared<Aws::Crt::Mqtt5::ConnectPacket>();
@@ -236,9 +236,9 @@ void IotBroker::initMqtt() {
         _client = builder->Build();
     }
     if(!_client)
-        throw mqttClientException();
+        throw MqttClientException();
     if(!_client->Start())
-        throw mqttClienFailedToStart();
+        throw MqttClientFailedToStart();
 }
 
 const IotBroker::Keys IotBroker::keys{};
@@ -254,7 +254,6 @@ void IotBroker::afterLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
 }
 
 // Initializes global CRT API
-// TODO: What happens when multiple plugins use the CRT?
 static Aws::Crt::ApiHandle apiHandle{};
 
 bool IotBroker::onBootstrap(ggapi::Struct structData) {

@@ -22,7 +22,7 @@ namespace tasks {
         }
     }
 
-    uint32_t RegisteredCallback::invoke(const CallbackPackedData &packed) {
+    void RegisteredCallback::invoke(CallbackPackedData &packed) {
 
         auto module = getModule();
         plugins::CurrentModuleScope moduleScope(module);
@@ -31,20 +31,9 @@ namespace tasks {
         // Assume a scope was allocated prior to this call
 
         errors::ThreadErrorContainer::get().clear();
-        auto resIntHandle =
+        auto errorKind =
             _callback(_callbackCtx, packed.type().asInt(), packed.size(), packed.data());
-        if(resIntHandle == 0) {
-            errors::ThreadErrorContainer::get().throwIfError();
-        }
-        return resIntHandle;
-    }
-
-    bool RegisteredCallback::asBool(uint32_t retVal) {
-        return retVal != 0;
-    }
-
-    std::shared_ptr<data::StructModelBase> RegisteredCallback::asStruct(uint32_t retVal) {
-        return context().objFromInt<data::StructModelBase>(retVal);
+        errors::Error::throwThreadError(errorKind);
     }
 
     RegisteredCallback::~RegisteredCallback() {
@@ -55,7 +44,7 @@ namespace tasks {
     }
 
     data::Symbol TopicCallbackData::topicType() {
-        static data::Symbol topic = scope::context().intern("topic");
+        static data::Symbol topic = scope::context()->intern("topic");
         return topic;
     }
 
@@ -74,12 +63,20 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *TopicCallbackData::data() const {
+    void *TopicCallbackData::data() {
         return &_packed;
     }
 
+    std::shared_ptr<data::StructModelBase> TopicCallbackData::retVal() const {
+        if(_packed.retDataStruct != 0) {
+            return scope::context()->objFromInt<data::StructModelBase>(_packed.retDataStruct);
+        } else {
+            return {};
+        }
+    }
+
     data::Symbol LifecycleCallbackData::lifecycleType() {
-        static data::Symbol topic = scope::context().intern("lifecycle");
+        static data::Symbol topic = scope::context()->intern("lifecycle");
         return topic;
     }
 
@@ -98,12 +95,16 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *LifecycleCallbackData::data() const {
+    void *LifecycleCallbackData::data() {
         return &_packed;
     }
 
+    bool LifecycleCallbackData::retVal() const {
+        return _packed.retWasHandled != 0; // Normalize true value
+    }
+
     data::Symbol TaskCallbackData::taskType() {
-        static data::Symbol task = scope::context().intern("task");
+        static data::Symbol task = scope::context()->intern("task");
         return task;
     }
 
@@ -117,12 +118,12 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *TaskCallbackData::data() const {
+    void *TaskCallbackData::data() {
         return &_packed;
     }
 
     data::Symbol ChannelListenCallbackData::channelListenCallbackType() {
-        static data::Symbol task = scope::context().intern("channelListen");
+        static data::Symbol task = scope::context()->intern("channelListen");
         return task;
     }
 
@@ -137,12 +138,12 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *ChannelListenCallbackData::data() const {
+    void *ChannelListenCallbackData::data() {
         return &_packed;
     }
 
     data::Symbol ChannelCloseCallbackData::channelCloseCallbackType() {
-        static data::Symbol task = scope::context().intern("channelClose");
+        static data::Symbol task = scope::context()->intern("channelClose");
         return task;
     }
 
@@ -154,7 +155,7 @@ namespace tasks {
         return sizeof(_packed);
     }
 
-    const void *ChannelCloseCallbackData::data() const {
+    void *ChannelCloseCallbackData::data() {
         return &_packed;
     }
 
@@ -163,13 +164,14 @@ namespace tasks {
         const data::Symbol &topic,
         const std::shared_ptr<data::StructModelBase> &data) {
 
-        if(_callbackType != context().intern("topic")) {
+        if(_callbackType != context()->intern("topic")) {
             throw std::runtime_error("Mismatched callback");
         }
 
         scope::StackScope scope{};
         tasks::TopicCallbackData packed{task, topic, data};
-        return asStruct(invoke(packed));
+        invoke(packed);
+        return packed.retVal();
     }
 
     bool RegisteredCallback::invokeLifecycleCallback(
@@ -177,18 +179,19 @@ namespace tasks {
         const data::Symbol &phase,
         const data::ObjHandle &dataHandle) {
 
-        if(_callbackType != context().intern("lifecycle")) {
+        if(_callbackType != context()->intern("lifecycle")) {
             throw std::runtime_error("Mismatched callback");
         }
 
         scope::StackScope scope{};
         tasks::LifecycleCallbackData packed{pluginHandle, phase, dataHandle};
-        return asBool(invoke(packed));
+        invoke(packed);
+        return packed.retVal();
     }
     void RegisteredCallback::invokeTaskCallback(
         const std::shared_ptr<data::StructModelBase> &data) {
 
-        if(_callbackType != context().intern("task")) {
+        if(_callbackType != context()->intern("task")) {
             throw std::runtime_error("Mismatched callback");
         }
 
@@ -222,7 +225,7 @@ namespace tasks {
     void RegisteredCallback::invokeChannelListenCallback(
         const std::shared_ptr<data::StructModelBase> &data) {
 
-        if(_callbackType != context().intern("channelListen")) {
+        if(_callbackType != context()->intern("channelListen")) {
             throw std::runtime_error("Mismatched callback");
         }
 
@@ -232,7 +235,7 @@ namespace tasks {
     }
     void RegisteredCallback::invokeChannelCloseCallback() {
 
-        if(_callbackType != context().intern("channelClose")) {
+        if(_callbackType != context()->intern("channelClose")) {
             throw std::runtime_error("Mismatched callback");
         }
 

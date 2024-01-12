@@ -128,10 +128,9 @@ namespace logging {
         void syncOutput();
     };
 
-    class LogManager : public LogManagerBase<NucleusLoggingTraits> {
+    class LogManager : public LogManagerBase<NucleusLoggingTraits>, protected scope::UsesContext {
         using Traits = NucleusLoggingTraits;
         mutable std::shared_mutex _mutex;
-        std::weak_ptr<scope::Context> _context;
         std::shared_ptr<LogQueue> _queue;
         std::map<std::string, std::shared_ptr<LogState>> _state;
         std::shared_ptr<LogState> _defaultState{std::make_shared<LogState>("")};
@@ -168,11 +167,8 @@ namespace logging {
         };
 
     public:
-        explicit LogManager(const std::shared_ptr<scope::Context> &context);
+        explicit LogManager(const scope::UsingContext &context);
         ~LogManager() override;
-        scope::Context &context() const {
-            return *_context.lock();
-        }
         static std::string getModuleName(const std::shared_ptr<plugins::AbstractPlugin> &module);
         std::shared_ptr<LogState> getState(std::string_view contextName) const;
         std::shared_ptr<LogState> createState(std::string_view contextName);

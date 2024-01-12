@@ -2,7 +2,6 @@
 #include "config/config_manager.hpp"
 #include "data/string_table.hpp"
 #include "errors/error_base.hpp"
-#include "lifecycle/kernel.hpp"
 #include "util/nucleus_paths.hpp"
 #include <atomic>
 
@@ -82,7 +81,7 @@ namespace deployment {
         constexpr static std::string_view AMAZON_DOMAIN_SEQUENCE{".amazonaws."};
         constexpr static std::string_view FALLBACK_VERSION{"0.0.0"};
 
-        explicit DeviceConfigConsts(const std::shared_ptr<scope::Context> &context) {
+        explicit DeviceConfigConsts(const scope::UsingContext &context) {
             data::SymbolInit::init(
                 context,
                 {
@@ -136,21 +135,16 @@ namespace deployment {
 
     public:
         explicit DeviceConfigurationException(const std::string &msg) noexcept
-            : Error("DeviceConfigurationException", msg) {
+            : errors::Error("DeviceConfigurationException", msg) {
         }
     };
 
-    class DeviceConfiguration : public util::RefObject<DeviceConfiguration> {
+    class DeviceConfiguration : public util::RefObject<DeviceConfiguration>, scope::UsesContext {
         mutable std::shared_mutex _mutex;
-        std::weak_ptr<scope::Context> _context;
         lifecycle::Kernel &_kernel;
         std::string _nucleusComponentNameCache;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
         std::atomic_bool _deviceConfigValidationCachedResult{false};
-
-        scope::Context &context() const {
-            return *_context.lock();
-        }
 
         void initialize();
 
@@ -160,8 +154,7 @@ namespace deployment {
         static constexpr long DEPLOYMENT_POLLING_FREQUENCY_DEFAULT_SECONDS = 15L;
         static constexpr uint64_t GG_DATA_PLANE_PORT_DEFAULT = 8443;
 
-        DeviceConfiguration(
-            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel);
+        DeviceConfiguration(const scope::UsingContext &context, lifecycle::Kernel &kernel);
         DeviceConfiguration(const DeviceConfiguration &) = delete;
         DeviceConfiguration &operator=(const DeviceConfiguration &) = delete;
         DeviceConfiguration(DeviceConfiguration &&) noexcept = delete;
@@ -252,6 +245,6 @@ namespace deployment {
         void onAnyChange(const std::shared_ptr<config::Watcher> &watcher);
         void invalidateCachedResult();
         static std::shared_ptr<DeviceConfiguration> create(
-            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel);
+            const scope::UsingContext &context, lifecycle::Kernel &kernel);
     };
 } // namespace deployment

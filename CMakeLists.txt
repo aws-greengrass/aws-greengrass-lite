@@ -53,8 +53,16 @@ include(CTest)
 
 fetchContentFromDeps(Catch2)
 FetchContent_MakeAvailable(Catch2)
+include(Catch)
+target_compile_features(Catch2 PRIVATE cxx_std_17)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 
+fetchContentFromDeps(trompeloeil)
+FetchContent_MakeAvailable(trompeloeil)
+
+if(UNIX)
+  add_compile_options(-fvisibility=hidden)
+endif()
 if(MSVC)
   if(MSVC_VERSION LESS 1910)
     message(SEND_ERROR "Microsoft Visual Studio 2019 with support for C++17 \
@@ -70,3 +78,5 @@ endif()
 add_subdirectory(plugin_api)
 add_subdirectory(nucleus)
 add_subdirectory(plugins)
+
+add_test(NAME nucleus COMMAND nucleus-tests)

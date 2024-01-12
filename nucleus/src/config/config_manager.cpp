@@ -35,7 +35,7 @@ namespace config {
     }
 
     Topics::Topics(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         const std::shared_ptr<Topics> &parent,
         const data::Symbol &key,
         const Timestamp &modtime)
@@ -178,7 +178,7 @@ namespace config {
         const std::shared_ptr<Topics> parent{_parent};
         std::shared_lock guard{_mutex}; // for source
         std::shared_ptr<Topics> newCopy{
-            std::make_shared<Topics>(_context.lock(), parent, _nameOrd, _modtime)};
+            std::make_shared<Topics>(context(), parent, _nameOrd, _modtime)};
         for(const auto &i : _children.get()) {
             newCopy->put(_children.apply(i.first), i.second);
         }
@@ -215,7 +215,7 @@ namespace config {
         std::shared_lock guard{_mutex};
         keys.reserve(_children.size());
         for(const auto &_element : _children) {
-            keys.emplace_back(context().symbols().apply(_element.first));
+            keys.emplace_back(context()->symbols().apply(_element.first));
         }
         return keys;
     }
@@ -249,7 +249,7 @@ namespace config {
         TopicElement leaf = createChild(nameOrd, [this, &timestamp, nameOrd](auto ord) {
             std::shared_ptr<Topics> parent{ref<Topics>()};
             std::shared_ptr<Topics> nested{
-                std::make_shared<Topics>(_context.lock(), parent, nameOrd, timestamp)};
+                std::make_shared<Topics>(context(), parent, nameOrd, timestamp)};
             // Note: Time on TopicElement is ignored for interior children - this is intentional
             return TopicElement(ord, Timestamp::never(), data::ValueType(nested));
         });
@@ -258,7 +258,7 @@ namespace config {
 
     std::shared_ptr<Topics> Topics::createInteriorChild(
         std::string_view name, const Timestamp &timestamp) {
-        data::Symbol handle = context().symbols().intern(name);
+        data::Symbol handle = context()->symbols().intern(name);
         return createInteriorChild(handle, timestamp);
     }
 
@@ -343,7 +343,7 @@ namespace config {
     }
 
     std::shared_ptr<Topics> Topics::findInteriorChild(std::string_view name) {
-        data::Symbol handle = context().symbols().intern(name);
+        data::Symbol handle = context()->symbols().intern(name);
         return findInteriorChild(handle);
     }
 
@@ -364,7 +364,7 @@ namespace config {
         std::shared_lock guard{_mutex};
         for(const auto &i : _children) {
             if(!i.second.isType<Topics>()) {
-                leafs.emplace_back(_context.lock(), self, i.second);
+                leafs.emplace_back(context(), self, i.second);
             }
         }
         return leafs;
@@ -373,11 +373,11 @@ namespace config {
     Topic Topics::createTopic(data::Symbol nameOrd, const Timestamp &timestamp) {
         TopicElement el = createChild(
             nameOrd, [&](auto ord) { return TopicElement(ord, timestamp, data::ValueType{}); });
-        return Topic(_context.lock(), ref<Topics>(), el);
+        return Topic(context(), ref<Topics>(), el);
     }
 
     Topic Topics::createTopic(std::string_view name, const Timestamp &timestamp) {
-        data::Symbol handle = context().symbols().intern(name);
+        data::Symbol handle = context()->symbols().intern(name);
         return createTopic(handle, timestamp);
     }
 
@@ -386,14 +386,14 @@ namespace config {
         std::shared_lock guard{_mutex};
         auto i = _children.find(key);
         if(i != _children.end()) {
-            return Topic(_context.lock(), ref<Topics>(), i->second);
+            return Topic(context(), ref<Topics>(), i->second);
         } else {
-            return Topic(_context.lock(), nullptr, {});
+            return Topic(context(), nullptr, {});
         }
     }
 
     Topic Topics::getTopic(std::string_view name) {
-        data::Symbol handle = context().symbols().intern(name);
+        data::Symbol handle = context()->symbols().intern(name);
         return getTopic(handle);
     }
 
@@ -417,7 +417,7 @@ namespace config {
             if(i->second.isType<Topics>()) {
                 return i->second.castObject<Topics>();
             } else {
-                return std::make_shared<Topic>(_context.lock(), ref<Topics>(), i->second);
+                return std::make_shared<Topic>(context(), ref<Topics>(), i->second);
             }
         } else {
             return {};
@@ -425,7 +425,7 @@ namespace config {
     }
 
     std::shared_ptr<ConfigNode> Topics::getNode(std::string_view name) {
-        data::Symbol handle = context().symbols().intern(name);
+        data::Symbol handle = context()->symbols().intern(name);
         return getNode(handle);
     }
 
@@ -549,7 +549,7 @@ namespace config {
     }
 
     void Topics::publish(const PublishAction &action) {
-        context().configManager().publishQueue().publish(action);
+        context()->configManager().publishQueue().publish(action);
     }
 
     TopicElement::TopicElement(const Topic &topic)
@@ -653,10 +653,10 @@ namespace config {
         auto timestamp = Timestamp::ofFile(std::filesystem::last_write_time(path));
 
         if(ext == ".yaml" || ext == ".yml") {
-            YamlConfigReader reader{_context.lock(), _root, timestamp};
+            YamlConfigReader reader{context(), _root, timestamp};
             reader.read(path);
         } else if(ext == ".tlog" || ext == ".tlog~") {
-            TlogReader::mergeTlogInto(_context.lock(), _root, path, false);
+            TlogReader::mergeTlogInto(context(), _root, path, false);
         } else if(ext == ".json") {
             throw std::runtime_error("Json config type not yet implemented");
         } else {
@@ -664,8 +664,8 @@ namespace config {
         }
         return *this;
     }
-    Manager::Manager(const std::shared_ptr<scope::Context> &context)
-        : _context{context},
+    Manager::Manager(const scope::UsingContext &context)
+        : scope::UsesContext(context),
           _root{std::make_shared<Topics>(context, nullptr, data::Symbol{}, Timestamp::never())},
           _publishQueue(context) {
     }

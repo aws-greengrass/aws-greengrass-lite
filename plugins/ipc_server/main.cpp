@@ -67,7 +67,13 @@ static std::ostream &operator<<(
     using namespace std::string_view_literals;
     for(auto &&item : util::Span{message_args.headers, message_args.headers_count}) {
         auto &&[name, value] = parseHeader(item);
-        os << name << '=' << value << '\n';
+        os << name << '=';
+        if(value) {
+            os << *value;
+        } else {
+            os << "unsupported header_value_type: " << item.header_value_type;
+        }
+        os << '\n';
     }
     auto sv = Aws::Crt::ByteCursorToStringView(aws_byte_cursor_from_buf(message_args.payload));
     return os.write(sv.data(), static_cast<std::streamsize>(sv.size()));
@@ -475,9 +481,9 @@ public:
 // TODO: What happens when multiple plugins use the CRT?
 static const Aws::Crt::ApiHandle apiHandle{};
 
-extern "C" [[maybe_unused]] bool greengrass_lifecycle(
-    uint32_t moduleHandle, uint32_t phase, uint32_t dataHandle) noexcept {
-    return IpcServer::get().lifecycle(moduleHandle, phase, dataHandle);
+extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(
+    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data, bool *pHandled) noexcept {
+    return IpcServer::get().lifecycle(moduleHandle, phase, data, pHandled);
 }
 
 void IpcServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {

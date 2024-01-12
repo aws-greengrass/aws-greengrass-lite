@@ -24,8 +24,7 @@ namespace data {
     public:
         using BadCastError = errors::InvalidBufferError;
 
-        explicit SharedBuffer(const std::shared_ptr<scope::Context> &context)
-            : ContainerModelBase{context} {
+        explicit SharedBuffer(const scope::UsingContext &context) : ContainerModelBase{context} {
         }
 
         void put(int32_t idx, ConstMemoryView bytes);

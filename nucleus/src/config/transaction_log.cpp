@@ -6,10 +6,10 @@
 
 namespace config {
     TlogWriter::TlogWriter(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         const std::shared_ptr<Topics> &root,
         const std::filesystem::path &outputPath)
-        : _context(context), _root(root), _tlogFile(outputPath) {
+        : scope::UsesContext(context), _root(root), _tlogFile(outputPath) {
     }
 
     TlogWriter &TlogWriter::dump() {
@@ -128,7 +128,7 @@ namespace config {
 
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        tlogline.serialize(_context.lock(), writer);
+        tlogline.serialize(context(), writer);
 
         std::unique_lock guard{_mutex};
         if(!_tlogFile.is_open()) {
@@ -165,7 +165,7 @@ namespace config {
     }
 
     bool TlogReader::handleTlogTornWrite(
-        const std::shared_ptr<scope::Context> &context, const std::filesystem::path &tlogFile) {
+        const scope::UsingContext &context, const std::filesystem::path &tlogFile) {
         uintmax_t fileSize = 0;
         uintmax_t lastValid = 0;
         try {
@@ -256,7 +256,7 @@ namespace config {
     }
 
     void TlogReader::mergeTlogInto(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         const std::shared_ptr<Topics> &root,
         std::ifstream &stream,
         bool forceTimestamp,
@@ -298,7 +298,7 @@ namespace config {
     }
 
     void TlogReader::mergeTlogInto(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         const std::shared_ptr<Topics> &root,
         const std::filesystem::path &path,
         bool forceTimestamp,

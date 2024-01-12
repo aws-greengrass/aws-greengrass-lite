@@ -7,7 +7,7 @@ SCENARIO("String ordinals are consistent", "[ordinal]") {
     GIVEN("A string table") {
         scope::LocalizedContext forTesting{scope::Context::create()};
 
-        auto &symbols = scope::Context::get().symbols();
+        auto &symbols = scope::context()->symbols();
         WHEN("An ordinal is not assigned") {
             data::Symbol ord;
             THEN("Ordinal reports as null") {

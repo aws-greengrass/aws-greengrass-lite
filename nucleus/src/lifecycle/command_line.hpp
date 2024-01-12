@@ -2,16 +2,18 @@
 
 #include "command_line_arguments.hpp"
 #include "kernel.hpp"
+#include "lifecycle/sys_properties.hpp"
 #include "scope/context.hpp"
 #include <list>
+#include <optional>
+#include <util.hpp>
 
 namespace lifecycle {
 
     class Kernel;
 
-    class CommandLine {
+    class CommandLine : public scope::UsesContext {
     private:
-        std::weak_ptr<scope::Context> _context;
         lifecycle::Kernel &_kernel;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
 
@@ -20,10 +22,6 @@ namespace lifecycle {
         std::string _awsRegionFromCmdLine;
         std::string _envStageFromCmdLine;
         std::string _defaultUserFromCmdLine;
-
-        [[nodiscard]] scope::Context &context() const {
-            return *_context.lock();
-        }
 
         template<typename V, typename... T>
         constexpr auto array_of(T &&...t) -> std::array<V, sizeof...(T)> {
@@ -81,14 +79,13 @@ namespace lifecycle {
         };
 
     public:
-        explicit CommandLine(
-            const std::shared_ptr<scope::Context> &context, lifecycle::Kernel &kernel);
+        explicit CommandLine(const scope::UsingContext &context, lifecycle::Kernel &kernel)
+            : scope::UsesContext(context), _kernel(kernel) {
+        }
 
-        void parseEnv(SysProperties &sysProperties);
-
-        void parseHome(SysProperties &sysProperties);
-
-        void parseArgs(int argc, char *argv[]); // NOLINT(*-avoid-c-arrays)
+        void parseEnv(SysProperties &env);
+        void parseHome(SysProperties &env);
+        void parseRawProgramNameAndArgs(util::Span<char *>);
         void parseArgs(const std::vector<std::string> &args);
 
         void parseProgramName(std::string_view progName);

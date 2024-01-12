@@ -1,4 +1,3 @@
-#include "context.hpp"
 #include "config/publish_queue.hpp"
 #include "logging/log_queue.hpp"
 #include "scope/context_full.hpp"
@@ -98,7 +97,7 @@ namespace scope {
         return deflt;
     }
 
-    std::shared_ptr<Context> Context::getPtr() {
+    std::shared_ptr<Context> Context::get() {
         std::shared_ptr<PerThreadContext> threadContext = PerThreadContext::get();
         if(threadContext) {
             return threadContext->context();
@@ -346,20 +345,12 @@ namespace scope {
         errors::ThreadErrorContainer::get().reset();
     }
 
-    Context &SharedContextMapper::context() const {
-        std::shared_ptr<Context> context = _context.lock();
-        if(!context) {
-            throw std::runtime_error("Using Context after it is deleted");
-        }
-        return *context;
-    }
-
     data::Symbol::Partial SharedContextMapper::partial(const data::Symbol &symbol) const {
-        return context().symbols().partial(symbol);
+        return context()->symbols().partial(symbol);
     }
 
     data::Symbol SharedContextMapper::apply(data::Symbol::Partial partial) const {
-        return context().symbols().apply(partial);
+        return context()->symbols().apply(partial);
     }
 
     LazyContext::~LazyContext() {
@@ -370,6 +361,9 @@ namespace scope {
         _taskManager.shutdownAndWait();
         _configManager.publishQueue().stop();
         _logManager->publishQueue()->stop();
+    }
+
+    UsingContext::UsingContext() noexcept : _context(context()) {
     }
 
 } // namespace scope

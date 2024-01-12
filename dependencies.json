@@ -6,17 +6,22 @@
   },
   "yaml-cpp": {
     "url": "https://github.com/jbeder/yaml-cpp.git",
-    "rev": "f7320141120f720aecc4c32be25586e7da9eb978",
+    "rev": "0.8.0",
     "hash": "sha256-J87oS6Az1/vNdyXu3L7KmUGWzU0IAkGrGMUUha+xDXI="
   },
   "rapidjson": {
     "url": "https://github.com/Tencent/rapidjson.git",
-    "rev": "f54b0e47a08782a6131cc3d60f94d038fa6e0a51",
+    "rev": "v1.1.0",
     "hash": "sha256-mFM1Etpf+qF/G0t91eXD8FQXwSQKyQbJq8gUA0jsm4Q="
   },
   "device-sdk-cpp": {
     "url": "https://github.com/aws/aws-iot-device-sdk-cpp-v2.git",
     "rev": "v1.30.3",
     "hash": "sha256-0PCy4fIzZybL0eVegqQQqG61IDikk190NuKSO4D7+zM="
+  },
+  "trompeloeil": {
+    "url": "https://github.com/rollbear/trompeloeil.git",
+    "rev": "v46",
+    "hash": "sha256-x/Chzho6RTfyOb/Is7bAM8KrvipEqQ/+a6pVCuTG108="
   }
 }

@@ -27,14 +27,14 @@ namespace tasks {
         CallbackPackedData &operator=(CallbackPackedData &&) = default;
         virtual ~CallbackPackedData() = default;
         virtual uint32_t size() const = 0;
-        virtual const void *data() const = 0;
+        virtual void *data() = 0;
         data::Symbol type() const {
             return _type;
         }
     };
 
     class TopicCallbackData : public CallbackPackedData {
-        ::TopicCallbackData _packed{};
+        ::ggapiTopicCallbackData _packed{};
 
         static data::Symbol topicType();
 
@@ -44,11 +44,12 @@ namespace tasks {
             const data::Symbol &topic,
             const std::shared_ptr<data::StructModelBase> &data);
         uint32_t size() const override;
-        const void *data() const override;
+        void *data() override;
+        std::shared_ptr<data::StructModelBase> retVal() const;
     };
 
     class LifecycleCallbackData : public CallbackPackedData {
-        ::LifecycleCallbackData _packed{};
+        ::ggapiLifecycleCallbackData _packed{};
 
         static data::Symbol lifecycleType();
 
@@ -58,47 +59,47 @@ namespace tasks {
             const data::Symbol &phase,
             const data::ObjHandle &dataHandle);
         uint32_t size() const override;
-        const void *data() const override;
+        void *data() override;
+        bool retVal() const;
     };
 
     class TaskCallbackData : public CallbackPackedData {
-        ::TaskCallbackData _packed{};
+        ::ggapiTaskCallbackData _packed{};
 
         static data::Symbol taskType();
 
     public:
         explicit TaskCallbackData(const std::shared_ptr<data::StructModelBase> &data);
         uint32_t size() const override;
-        const void *data() const override;
+        void *data() override;
     };
 
     class ChannelListenCallbackData : public CallbackPackedData {
-        ::ChannelListenCallbackData _packed{};
+        ::ggapiChannelListenCallbackData _packed{};
 
         static data::Symbol channelListenCallbackType();
 
     public:
         explicit ChannelListenCallbackData(const std::shared_ptr<data::StructModelBase> &data);
         uint32_t size() const override;
-        const void *data() const override;
+        void *data() override;
     };
 
     class ChannelCloseCallbackData : public CallbackPackedData {
-        ::ChannelCloseCallbackData _packed{};
+        ::ggapiChannelCloseCallbackData _packed{};
 
         static data::Symbol channelCloseCallbackType();
 
     public:
         explicit ChannelCloseCallbackData();
         uint32_t size() const override;
-        const void *data() const override;
+        void *data() override;
     };
 
     class Callback : public data::TrackedObject {
 
     public:
-        explicit Callback(const std::shared_ptr<scope::Context> &context)
-            : data::TrackedObject(context) {
+        explicit Callback(const scope::UsingContext &context) : data::TrackedObject(context) {
         }
 
         virtual std::shared_ptr<data::StructModelBase> invokeTopicCallback(
@@ -131,13 +132,13 @@ namespace tasks {
                 return {};
             }
         }
-        uint32_t invoke(const CallbackPackedData &packed);
+        void invoke(CallbackPackedData &packed);
         std::shared_ptr<data::StructModelBase> asStruct(uint32_t retVal);
         static bool asBool(uint32_t retVal);
 
     public:
         explicit RegisteredCallback(
-            const std::shared_ptr<scope::Context> &context,
+            const scope::UsingContext &context,
             const std::shared_ptr<plugins::AbstractPlugin> &module,
             data::Symbol callbackType,
             ::ggapiGenericCallback callback,

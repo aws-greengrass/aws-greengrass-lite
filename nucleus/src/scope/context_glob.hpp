@@ -9,15 +9,15 @@ namespace scope {
      * achieved by going through lazy() helper function, which can only be called once context has
      * been initialized.
      */
-    class LazyContext {
+    class LazyContext : private UsesContext {
         friend class Context;
 
     private:
-        std::weak_ptr<Context> _context;
+        WeakContext _context;
 
     public:
-        explicit LazyContext(const std::shared_ptr<Context> &context)
-            : _context(context), _configManager(context), _taskManager(context),
+        explicit LazyContext(const UsingContext &context)
+            : UsesContext(context), _configManager(context), _taskManager(context),
               _lpcTopics(context), _loader(context),
               _logManager(std::make_shared<logging::LogManager>(context)) {
         }

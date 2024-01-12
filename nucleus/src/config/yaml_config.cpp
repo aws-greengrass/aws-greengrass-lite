@@ -56,7 +56,7 @@ namespace config {
     }
 
     void YamlConfigHelper::write(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         util::CommitableFile &path,
         const std::shared_ptr<config::Topics> &node) {
         path.begin(std::ios_base::out | std::ios_base::trunc);
@@ -67,7 +67,7 @@ namespace config {
     }
 
     void YamlConfigHelper::write(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         std::ofstream &stream,
         const std::shared_ptr<config::Topics> &node) {
         YAML::Emitter out;
@@ -80,7 +80,7 @@ namespace config {
 
     // NOLINTNEXTLINE(*-no-recursion)
     void YamlConfigHelper::serialize(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         YAML::Emitter &emitter,
         const std::shared_ptr<config::Topics> &node) {
         emitter << YAML::BeginMap;

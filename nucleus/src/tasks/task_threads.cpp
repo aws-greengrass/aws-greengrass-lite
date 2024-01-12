@@ -18,23 +18,21 @@ namespace tasks {
     void TaskThread::bindThreadContext() {
         auto tc = scope::PerThreadContext::get();
         _threadContext = tc;
-        tc->changeContext(_context.lock());
+        tc->changeContext(context());
         tc->setThreadTaskData(baseRef());
     }
 
     std::shared_ptr<TaskThread> TaskThread::getThreadContext() {
-        return scope::Context::thread().getThreadTaskData();
+        return scope::thread()->getThreadTaskData();
     }
 
-    TaskThread::TaskThread(const std::shared_ptr<scope::Context> &context) : _context(context) {
+    TaskThread::TaskThread(const scope::UsingContext &context) : scope::UsesContext(context) {
     }
 
-    TaskPoolWorker::TaskPoolWorker(const std::shared_ptr<scope::Context> &context)
-        : TaskThread(context) {
+    TaskPoolWorker::TaskPoolWorker(const scope::UsingContext &context) : TaskThread(context) {
     }
 
-    std::shared_ptr<TaskPoolWorker> TaskPoolWorker::create(
-        const std::shared_ptr<scope::Context> &context) {
+    std::shared_ptr<TaskPoolWorker> TaskPoolWorker::create(const scope::UsingContext &context) {
 
         std::shared_ptr<TaskPoolWorker> worker{std::make_shared<TaskPoolWorker>(context)};
         worker->start();
@@ -119,11 +117,11 @@ namespace tasks {
             return {}; // Bail quickly if we already know we're in shutdown
         }
         // TODO: On some versions of GCC the Context destructor is called here, not sure why...
-        std::shared_ptr<scope::Context> context = _context.lock();
-        if(!context || isShutdown()) {
+        auto ctx = context();
+        if(!ctx || isShutdown()) {
             return {};
         }
-        auto &pool = context->taskManager();
+        auto &pool = ctx->taskManager();
         return pool.acquireTaskWhenStealing(blockingTask);
     }
 
@@ -132,11 +130,11 @@ namespace tasks {
             return {}; // Bail quickly if we already know we're in shutdown
         }
         // TODO: On some versions of GCC the Context destructor is called here, not sure why...
-        std::shared_ptr<scope::Context> context = _context.lock();
-        if(!context || isShutdown()) {
+        auto ctx = context();
+        if(!ctx || isShutdown()) {
             return {};
         }
-        auto &pool = context->taskManager();
+        auto &pool = ctx->taskManager();
         return pool.acquireTaskForWorker(this);
     }
 
@@ -184,11 +182,11 @@ namespace tasks {
     }
 
     ExpireTime FixedTimerTaskThread::taskStealingHook(ExpireTime time) {
-        std::shared_ptr<scope::Context> context = _context.lock();
-        if(!context || isShutdown()) {
+        auto ctx = context();
+        if(!ctx || isShutdown()) {
             return time;
         }
-        auto &taskManager = context->taskManager();
+        auto &taskManager = ctx->taskManager();
         ExpireTime nextDeferredTime = taskManager.pollNextDeferredTask(this);
         if(nextDeferredTime == ExpireTime::infinite() || time < nextDeferredTime) {
             return time;

@@ -124,6 +124,7 @@ void LocalBroker::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
     std::cerr << "[local-broker] Running lifecycle phase " << phase.toString() << std::endl;
 }
 
-bool greengrass_lifecycle(uint32_t moduleHandle, uint32_t phase, uint32_t data) noexcept {
-    return LocalBroker::get().lifecycle(moduleHandle, phase, data);
+extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(
+    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data, bool *pHandled) noexcept {
+    return LocalBroker::get().lifecycle(moduleHandle, phase, data, pHandled);
 }

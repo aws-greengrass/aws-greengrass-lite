@@ -2,6 +2,16 @@
 #include "error_base.hpp"
 
 namespace errors {
+
+    class InvalidContextError : public Error {
+    public:
+        explicit InvalidContextError(
+            const std::string &what =
+                "Environment Context cannot be determined - possibly released") noexcept
+            : Error("InvalidContextError", what) {
+        }
+    };
+
     class NullHandleError : public Error {
     public:
         explicit NullHandleError(const std::string &what = "Null Handle specified") noexcept

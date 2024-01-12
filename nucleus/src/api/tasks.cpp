@@ -1,18 +1,18 @@
+#include "api_error_trap.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
-#include "tasks/task_threads.hpp"
 #include <cpp_api.hpp>
 
 uint32_t ggapiGetCurrentTask() noexcept {
     return ggapi::trapErrorReturn<uint32_t>(
-        []() { return scope::Context::thread().getActiveTask()->getSelf().asInt(); });
+        []() { return scope::thread()->getActiveTask()->getSelf().asInt(); });
 }
 
 bool ggapiIsTask(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
-        auto ss{scope::context().objFromInt(handle)};
+        auto ss{scope::context()->objFromInt(handle)};
         return std::dynamic_pointer_cast<tasks::Task>(ss) != nullptr;
     });
 }
@@ -23,9 +23,9 @@ bool ggapiIsTask(uint32_t handle) noexcept {
 //
 uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([asyncTask, timeout]() {
-        auto &context = scope::context();
+        auto context = scope::context();
         std::shared_ptr<tasks::Task> asyncTaskObj{
-            context.handleFromInt(asyncTask).toObject<tasks::Task>()};
+            context->handleFromInt(asyncTask).toObject<tasks::Task>()};
         tasks::ExpireTime expireTime = tasks::ExpireTime::infinite(); // negative values
         if(timeout >= 0) {
             expireTime = tasks::ExpireTime::fromNowMillis(timeout);
@@ -44,9 +44,9 @@ uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept
 //
 bool ggapiSleep(uint32_t duration) noexcept {
     return ggapi::trapErrorReturn<bool>([duration]() {
-        auto &tc = scope::thread();
+        auto tc = scope::thread();
         tasks::ExpireTime expireTime = tasks::ExpireTime::fromNowMillis(duration);
-        tc.getThreadTaskData()->sleep(expireTime);
+        tc->getThreadTaskData()->sleep(expireTime);
         return true;
     });
 }
@@ -58,7 +58,7 @@ bool ggapiSleep(uint32_t duration) noexcept {
 //
 bool ggapiCancelTask(uint32_t asyncTask) noexcept {
     return ggapi::trapErrorReturn<bool>([asyncTask]() {
-        scope::context().objFromInt<tasks::Task>(asyncTask)->cancelTask();
+        scope::context()->objFromInt<tasks::Task>(asyncTask)->cancelTask();
         return true;
     });
 }
@@ -70,7 +70,7 @@ bool ggapiCancelTask(uint32_t asyncTask) noexcept {
 bool ggapiSetSingleThread(bool enable) noexcept {
     return ggapi::trapErrorReturn<bool>([enable]() {
         // Applies to current thread
-        scope::thread().getThreadTaskData()->setSingleThreadMode(enable);
+        scope::thread()->getThreadTaskData()->setSingleThreadMode(enable);
         return true;
     });
 }
@@ -80,39 +80,42 @@ bool ggapiSetSingleThread(bool enable) noexcept {
  */
 uint32_t ggapiCallAsync(uint32_t callStruct, uint32_t callbackHandle, uint32_t delay) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([callStruct, callbackHandle, delay]() {
-        auto &context = scope::context();
+        auto context = scope::context();
         if(!callbackHandle) {
             throw errors::CallbackError("Invalid callback handle");
         }
-        auto callback = context.objFromInt<tasks::Callback>(callbackHandle);
-        auto callDataStruct = context.objFromInt<data::StructModelBase>(callStruct);
+        auto callback = context->objFromInt<tasks::Callback>(callbackHandle);
+        auto callDataStruct = context->objFromInt<data::StructModelBase>(callStruct);
         auto subTask = std::make_unique<tasks::SimpleSubTask>(callback);
-        auto taskObj = std::make_shared<tasks::Task>(context.baseRef());
+        auto taskObj = std::make_shared<tasks::Task>(context);
         tasks::ExpireTime startTime = tasks::ExpireTime::fromNowMillis(delay);
         taskObj->addSubtask(std::move(subTask));
         taskObj->setData(callDataStruct);
         taskObj->setStartTime(startTime);
-        auto threadTaskData = scope::thread().getThreadTaskData();
+        auto threadTaskData = scope::thread()->getThreadTaskData();
         if(threadTaskData->isSingleThreadMode()) {
             // If single thread mode, then specify preferred thread for callbacks
             taskObj->setDefaultThread(threadTaskData);
         }
-        context.taskManager().queueTask(taskObj);
+        context->taskManager().queueTask(taskObj);
         return taskObj->getSelf().asInt();
     });
 }
 
-uint32_t ggapiRegisterCallback(
+ggapiErrorKind ggapiRegisterCallback(
     ::ggapiGenericCallback callbackFunction,
-    uintptr_t callbackCtx,
-    uint32_t callbackType) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([callbackFunction, callbackCtx, callbackType]() {
-        auto &context = scope::context();
-        auto module = scope::thread().getEffectiveModule();
-        auto typeSymbol = context.symbolFromInt(callbackType);
-        std::shared_ptr<tasks::RegisteredCallback> callback =
-            std::make_shared<tasks::RegisteredCallback>(
-                context.baseRef(), module, typeSymbol, callbackFunction, callbackCtx);
-        return scope::NucleusCallScopeContext::anchor(callback).asIntHandle();
-    });
+    ggapiContext callbackCtx,
+    ggapiSymbol callbackType,
+    ggapiObjHandle *pCallbackHandle) noexcept {
+
+    return apiImpl::catchErrorToKind(
+        [callbackFunction, callbackCtx, callbackType, pCallbackHandle]() {
+            auto context = scope::context();
+            auto module = scope::thread()->getEffectiveModule();
+            auto typeSymbol = context->symbolFromInt(callbackType);
+            std::shared_ptr<tasks::RegisteredCallback> callback =
+                std::make_shared<tasks::RegisteredCallback>(
+                    context, module, typeSymbol, callbackFunction, callbackCtx);
+            *pCallbackHandle = scope::NucleusCallScopeContext::anchor(callback).asIntHandle();
+        });
 }

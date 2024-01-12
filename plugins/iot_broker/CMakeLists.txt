@@ -16,6 +16,7 @@ endif()
 add_library(iot_broker MODULE main.cpp src/iot_broker.cpp src/iot_broker.hpp)
 target_link_libraries(iot_broker PRIVATE nucleus-core aws-crt-cpp
                                          shared_resources)
+target_include_directories(iot_broker PRIVATE src)
 if(UNIX AND NOT APPLE)
   target_link_options(
     iot_broker PRIVATE

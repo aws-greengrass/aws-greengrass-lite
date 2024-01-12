@@ -53,7 +53,7 @@ SCENARIO("Task management", "[tasks]") {
         auto task{std::make_shared<tasks::Task>(context)};
         auto taskInitData{std::make_shared<data::SharedStruct>(context)};
         task->setData(taskInitData);
-        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
+        task->setDefaultThread(scope::thread()->getThreadTaskData()); // don't use workers
         taskManager.queueTask(task);
         // note, for this test, no worker allocated
 
@@ -80,7 +80,7 @@ SCENARIO("Task management", "[tasks]") {
         auto taskCompData{std::make_shared<data::SharedStruct>(context)};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
-        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
+        task->setDefaultThread(scope::thread()->getThreadTaskData()); // don't use workers
         task->setCompletion(std::move(finalize));
         taskManager.queueTask(task);
         // note, for this test, no worker allocated
@@ -113,7 +113,7 @@ SCENARIO("Task management", "[tasks]") {
         auto subTask1{std::make_unique<SubTaskStub>("subTask1")};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
-        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
+        task->setDefaultThread(scope::thread()->getThreadTaskData()); // don't use workers
         task->addSubtask(std::move(subTask1));
         task->setCompletion(std::move(finalize));
         taskManager.queueTask(task);
@@ -153,7 +153,7 @@ SCENARIO("Task management", "[tasks]") {
         auto subTask3{std::make_unique<SubTaskStub>("subTask3", taskRetData)};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
-        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
+        task->setDefaultThread(scope::thread()->getThreadTaskData()); // don't use workers
         task->addSubtask(std::move(subTask1));
         task->addSubtask(std::move(subTask2));
         task->addSubtask(std::move(subTask3));
@@ -197,7 +197,7 @@ SCENARIO("Task management", "[tasks]") {
         auto subTask3{std::make_unique<SubTaskStub>("subTask3", taskRetData3)};
         auto finalize{std::make_unique<SubTaskStub>("comp", taskCompData)};
         task->setData(taskInitData);
-        task->setDefaultThread(scope::thread().getThreadTaskData()); // don't use workers
+        task->setDefaultThread(scope::thread()->getThreadTaskData()); // don't use workers
         task->addSubtask(std::move(subTask1));
         task->addSubtask(std::move(subTask2));
         task->addSubtask(std::move(subTask3));

@@ -40,7 +40,7 @@ namespace conv {
 
     // NOLINTNEXTLINE(*-no-recursion)
     data::ValueType YamlReaderBase::rawSequenceValue(YAML::Node &node) {
-        std::shared_ptr<data::SharedList> newList{std::make_shared<data::SharedList>(_context)};
+        std::shared_ptr<data::SharedList> newList{std::make_shared<data::SharedList>(context())};
         int idx = 0;
         for(auto i : node) {
             newList->put(idx++, data::StructElement(rawValue(i)));
@@ -50,7 +50,7 @@ namespace conv {
 
     // NOLINTNEXTLINE(*-no-recursion)
     data::ValueType YamlReaderBase::rawMapValue(YAML::Node &node) {
-        std::shared_ptr<data::SharedStruct> newMap{std::make_shared<data::SharedStruct>(_context)};
+        std::shared_ptr<data::SharedStruct> newMap{std::make_shared<data::SharedStruct>(context())};
         for(auto i : node) {
             auto key = i.first.as<std::string>();
             newMap->put(key, data::StructElement(rawValue(node)));
@@ -60,7 +60,7 @@ namespace conv {
 
     // NOLINTNEXTLINE(*-no-recursion)
     void YamlHelper::serialize(
-        const std::shared_ptr<scope::Context> &context,
+        const scope::UsingContext &context,
         YAML::Emitter &emitter,
         const data::StructElement &value) {
         switch(value.getType()) {

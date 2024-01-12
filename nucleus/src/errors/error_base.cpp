@@ -1,37 +1,33 @@
 #include "errors/error_base.hpp"
 #include "scope/context_full.hpp"
+#include <api_errors.hpp>
 
 namespace errors {
-    uint32_t ThreadErrorContainer::fetchKindAsInt() {
-        return scope::thread().getThreadErrorDetail().kind().asInt();
-    }
-
-    data::Symbol ThreadErrorContainer::getCachedKind() const {
-        if(hasError()) {
-            return scope::context().symbolFromInt(_kindSymbolId);
-        } else {
-            return {};
-        }
+    ggapiErrorKind ThreadErrorContainer::fetchKindAsInt() {
+        return scope::thread()->getThreadErrorDetail().kind().asInt();
     }
 
     const char *ThreadErrorContainer::getCachedWhat() const {
         if(hasError()) {
-            return scope::thread().getThreadErrorDetail().what();
+            return scope::thread()->getThreadErrorDetail().what();
         } else {
             return nullptr;
         }
     }
     std::optional<Error> ThreadErrorContainer::getError() const {
         if(hasError()) {
-            return scope::thread().getThreadErrorDetail();
+            return scope::thread()->getThreadErrorDetail();
         } else {
             return {};
         }
     }
-    void ThreadErrorContainer::setError(const Error &error) {
-        scope::thread().setThreadErrorDetail(error);
-        _kindSymbolId = error.kind().asInt();
+    ggapiErrorKind ThreadErrorContainer::setError(const Error &error) {
+        scope::thread()->setThreadErrorDetail(error);
+        ggapiErrorKind id = error.kind().asInt();
+        _kindSymbolId = id;
+        return id;
     }
+
     void ThreadErrorContainer::reset() noexcept {
         // Defer caching until first access - most of the time
         // calls will alternate between UNKNOWN and NO_ERROR
@@ -41,29 +37,24 @@ namespace errors {
         if(_kindSymbolId == KIND_NO_ERROR) {
             return;
         }
-        scope::thread().setThreadErrorDetail(Error(data::Symbol{}, ""));
+        scope::thread()->setThreadErrorDetail(Error(data::Symbol{}, ""));
         _kindSymbolId = KIND_NO_ERROR;
     }
-    void ThreadErrorContainer::throwIfError() {
-        // Wrap in fast check
-        if(hasError()) {
-            // Slower path
-            auto lastError = getError();
-            clear();
-            if(lastError.has_value()) {
-                throw Error(lastError.value());
-            }
-        }
-    }
 
-    data::Symbol Error::kind(std::string_view kind) {
-        return scope::context().symbols().intern(kind);
+    traits::ErrorTraits::SymbolType traits::ErrorTraits::translateKind(
+        std::string_view strKind) noexcept {
+        return scope::context()->symbols().intern(strKind);
     }
-
-    template<>
-    Error Error::of<ggapi::GgApiError>(const ggapi::GgApiError &error) {
-        data::Symbol s = scope::context().symbolFromInt(error.kind().asInt());
-        return Error(s, std::string(error.what()));
+    traits::ErrorTraits::SymbolType traits::ErrorTraits::translateKind(
+        traits::ErrorTraits::SymbolType symKind) noexcept {
+        return symKind;
     }
-
+    traits::ErrorTraits::SymbolType traits::ErrorTraits::translateKind(
+        ggapiErrorKind intKind) noexcept {
+        return scope::context()->symbolFromInt(intKind);
+    }
+    traits::ErrorTraits::SymbolType traits::ErrorTraits::translateKind(
+        ggapi::Symbol symKind) noexcept {
+        return translateKind(symKind.asInt());
+    }
 } // namespace errors

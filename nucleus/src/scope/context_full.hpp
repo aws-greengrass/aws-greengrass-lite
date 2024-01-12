@@ -6,6 +6,17 @@
 #include "plugins/plugin_loader.hpp"
 #include "pubsub/local_topics.hpp"
 #include "scope/call_scope.hpp"
-#include "scope/context.hpp"
+#include "scope/context_impl.hpp"
 #include "tasks/task_manager.hpp"
 #include "tasks/task_threads.hpp"
+
+namespace scope {
+    inline ContextRef context() {
+        return Context::get();
+    }
+
+    inline PerThreadContextRef thread() {
+        return PerThreadContext::get();
+    }
+
+} // namespace scope

@@ -4,8 +4,10 @@
 #include <filesystem>
 #include <mutex>
 #include <shared_mutex>
+#include <string_view>
 
 namespace util {
+    using namespace std::string_view_literals;
     //
     // GG-Java has these in Util, but probably should be somewhere else
     //
@@ -21,31 +23,31 @@ namespace util {
         std::filesystem::path _kernelAltsPath;
         std::filesystem::path _cliIpcInfoPath;
         std::filesystem::path _binPath;
-        static constexpr auto HOME_DIR_PREFIX{"~/"};
-        static constexpr auto ROOT_DIR_PREFIX{"~root/"};
-        static constexpr auto CONFIG_DIR_PREFIX{"~config/"};
-        static constexpr auto PACKAGE_DIR_PREFIX{"~packages/"};
+        static constexpr auto HOME_DIR_PREFIX{"~/"sv};
+        static constexpr auto ROOT_DIR_PREFIX{"~root/"sv};
+        static constexpr auto CONFIG_DIR_PREFIX{"~config/"sv};
+        static constexpr auto PACKAGE_DIR_PREFIX{"~packages/"sv};
 
     public:
-        static constexpr auto PLUGINS_DIRECTORY{"plugins"};
-        static constexpr auto ARTIFACT_DIRECTORY{"artifacts"};
-        static constexpr auto RECIPE_DIRECTORY{"recipes"};
-        static constexpr auto DEFAULT_LOGS_DIRECTORY{"logs"};
-        static constexpr auto ARTIFACTS_DECOMPRESSED_DIRECTORY{"artifacts-unarchived"};
-        static constexpr auto CONFIG_PATH_NAME{"config"};
-        static constexpr auto WORK_PATH_NAME{"work"};
-        static constexpr auto PACKAGES_PATH_NAME{"packages"};
-        static constexpr auto ALTS_PATH_NAME{"alts"};
-        static constexpr auto DEPLOYMENTS_PATH_NAME{"deployments"};
-        static constexpr auto CLI_IPC_INFO_PATH_NAME{"cli_ipc_info"};
-        static constexpr auto BIN_PATH_NAME{"bin"};
-        static constexpr auto CURRENT_DIR{"current"};
-        static constexpr auto OLD_DIR{"old"};
-        static constexpr auto NEW_DIR{"new"};
-        static constexpr auto BROKEN_DIR{"broken"};
-        static constexpr auto INITIAL_SETUP_DIR{"init"};
-        static constexpr auto KERNEL_LIB_DIR{"lib"};
-        static constexpr auto LOADER_PID_FILE{"loader.pid"};
+        static constexpr auto PLUGINS_DIRECTORY{"plugins"sv};
+        static constexpr auto ARTIFACT_DIRECTORY{"artifacts"sv};
+        static constexpr auto RECIPE_DIRECTORY{"recipes"sv};
+        static constexpr auto DEFAULT_LOGS_DIRECTORY{"logs"sv};
+        static constexpr auto ARTIFACTS_DECOMPRESSED_DIRECTORY{"artifacts-unarchived"sv};
+        static constexpr auto CONFIG_PATH_NAME{"config"sv};
+        static constexpr auto WORK_PATH_NAME{"work"sv};
+        static constexpr auto PACKAGES_PATH_NAME{"packages"sv};
+        static constexpr auto ALTS_PATH_NAME{"alts"sv};
+        static constexpr auto DEPLOYMENTS_PATH_NAME{"deployments"sv};
+        static constexpr auto CLI_IPC_INFO_PATH_NAME{"cli_ipc_info"sv};
+        static constexpr auto BIN_PATH_NAME{"bin"sv};
+        static constexpr auto CURRENT_DIR{"current"sv};
+        static constexpr auto OLD_DIR{"old"sv};
+        static constexpr auto NEW_DIR{"new"sv};
+        static constexpr auto BROKEN_DIR{"broken"sv};
+        static constexpr auto INITIAL_SETUP_DIR{"init"sv};
+        static constexpr auto KERNEL_LIB_DIR{"lib"sv};
+        static constexpr auto LOADER_PID_FILE{"loader.pid"sv};
 
         static void createPath(const std::filesystem::path &path);
 

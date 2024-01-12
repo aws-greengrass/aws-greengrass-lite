@@ -33,14 +33,7 @@ namespace tasks {
         void signalBlockedThreads(bool isLocked);
         bool queueTaskInterlockedTrySetRunning();
 
-        scope::FixedPtr<TaskManager> getTaskManager() {
-            std::shared_ptr<scope::Context> ctx = _context.lock();
-            if(ctx) {
-                return scope::FixedPtr<TaskManager>::of(&ctx->taskManager());
-            } else {
-                return {};
-            }
-        }
+        scope::FixedPtr<TaskManager> getTaskManager();
 
     private:
         mutable std::shared_mutex _mutex;
@@ -55,8 +48,7 @@ namespace tasks {
         Status _lastStatus{Pending};
 
     public:
-        explicit Task(const std::shared_ptr<scope::Context> &context)
-            : data::TrackedObject(context) {
+        explicit Task(const scope::UsingContext &context) : data::TrackedObject(context) {
         }
 
         void setSelf(data::ObjHandle self) {

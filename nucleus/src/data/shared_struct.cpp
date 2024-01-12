@@ -28,7 +28,7 @@ namespace data {
     }
 
     std::shared_ptr<StructModelBase> SharedStruct::copy() const {
-        std::shared_ptr<SharedStruct> newCopy{std::make_shared<SharedStruct>(_context.lock())};
+        std::shared_ptr<SharedStruct> newCopy{std::make_shared<SharedStruct>(context())};
         std::shared_lock guard{_mutex}; // for source
         newCopy->_elements = _elements; // shallow copy
         return newCopy;
@@ -52,8 +52,10 @@ namespace data {
         std::vector<data::Symbol> keys;
         std::shared_lock guard{_mutex};
         keys.reserve(_elements.size());
+        auto ctx = context();
+        auto &syms = ctx->symbols();
         for(const auto &_element : _elements) {
-            keys.emplace_back(context().symbols().apply(_element.first));
+            keys.emplace_back(syms.apply(_element.first));
         }
         return keys;
     }
