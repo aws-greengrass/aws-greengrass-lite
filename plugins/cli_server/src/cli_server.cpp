@@ -15,6 +15,13 @@ bool CliServer::onBootstrap(ggapi::Struct data) {
     return true;
 }
 
+bool CliServer::onBind(ggapi::Struct data) {
+    _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
+    _config = getScope().anchor(data.getValue<ggapi::Struct>({"config"}));
+    _configRoot = getScope().anchor(data.getValue<ggapi::Struct>({"configRoot"}));
+    return true;
+}
+
 bool CliServer::onStart(ggapi::Struct data) {
     return true;
 }
@@ -60,8 +67,8 @@ void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) 
 }
 
 bool CliServer::onRun(ggapi::Struct data) {
-    // GG-Interop: Load from the system instead of service
-    auto system = data.getValue<ggapi::Struct>({"system"});
+    // GG-Interop: Extract rootpath from system config
+    auto system = _system.load();
     std::filesystem::path rootPath = system.getValue<std::string>({"rootpath"});
     generateCliIpcInfo(rootPath / CLI_IPC_INFO_PATH);
     return true;

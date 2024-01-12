@@ -96,10 +96,15 @@ private:
     using MutexType = std::shared_mutex;
     template<template<class> class Lock>
     static constexpr bool is_lockable = std::is_constructible_v<Lock<MutexType>, MutexType &>;
-    static constexpr std::string_view SOCKET_PATH = "/tmp/gglite-ipc.socket";
+    // TODO: This needs to come from host-environment plugin
+    static constexpr std::string_view SOCKET_NAME = "gglite-ipc.socket";
 
-    static ggapi::Struct cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
+    ggapi::Struct cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
     static std::string generateIpcToken();
+
+    std::atomic<ggapi::Struct> _system;
+    std::atomic<ggapi::Struct> _config;
+    std::atomic<ggapi::Struct> _configRoot;
 
 public:
     bool onBootstrap(ggapi::Struct data) override;
@@ -503,10 +508,14 @@ bool IpcServer::onBootstrap(ggapi::Struct structData) {
 }
 
 bool IpcServer::onStart(ggapi::Struct data) {
-    std::ignore = getScope().subscribeToTopic(keys.topicName, IpcServer::cliHandler);
+    std::ignore = getScope().subscribeToTopic(
+        keys.topicName, ggapi::TopicCallback::of(&IpcServer::cliHandler, this));
+    auto system = _system.load();
+    std::filesystem::path rootPath = system.getValue<std::string>({"rootPath"});
+    auto socketPath = rootPath / SOCKET_NAME;
     _listener = std::make_shared<Listener>();
     try {
-        _listener->Connect(SOCKET_PATH);
+        _listener->Connect(socketPath.string());
     } catch(std::runtime_error &e) {
         throw ggapi::GgApiError(e.what());
     }
@@ -526,8 +535,13 @@ std::string IpcServer::generateIpcToken() {
 }
 
 ggapi::Struct IpcServer::cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) {
+    auto system = _system.load();
+    std::filesystem::path rootPath =
+        std::filesystem::canonical(system.getValue<std::string>({"rootPath"}));
+    auto socketPath = rootPath / SOCKET_NAME;
+
     auto resp = ggapi::Struct::create();
-    resp.put(keys.socketPath, SOCKET_PATH);
+    resp.put(keys.socketPath, socketPath.string());
     resp.put(keys.cliAuthToken, generateIpcToken());
     return resp;
 }
@@ -538,6 +552,9 @@ bool IpcServer::onTerminate(ggapi::Struct structData) {
 }
 
 bool IpcServer::onBind(ggapi::Struct data) {
+    _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
+    _config = getScope().anchor(data.getValue<ggapi::Struct>({"config"}));
+    _configRoot = getScope().anchor(data.getValue<ggapi::Struct>({"configRoot"}));
     return true;
 }
 
