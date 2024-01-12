@@ -7,6 +7,7 @@
 #include <list>
 #include <optional>
 #include <util.hpp>
+#include <utility>
 
 namespace lifecycle {
 
@@ -28,8 +29,17 @@ namespace lifecycle {
             return {{std::forward<T>(t)...}};
         }
 
-        std::array<std::unique_ptr<argument>, 7> argumentList{
-            std::unique_ptr<argument>(std::make_unique<argumentFlag>(
+        template<class V, class... T>
+        std::unique_ptr<argument> makeEntry(T &&...t) {
+            auto ptr = std::unique_ptr<argument>(std::make_unique<V>(std::forward<T>(t)...));
+            return ptr;
+        };
+
+        // HELP: I can't use auto unless argumentList is static and I want to remove the 7
+        // I can't make argumentList static because the functors need the this pointer
+        // We could pass this as an argument but then all the parameters need accessors or be public
+        std::array<std::unique_ptr<argument>, 7> argumentList = array_of<std::unique_ptr<argument>>(
+            makeEntry<argumentFlag>(
                 "h",
                 "help",
                 "Print this usage information",
@@ -37,46 +47,45 @@ namespace lifecycle {
                     for(const auto &a : argumentList) {
                         std::cout << a->getDescription() << std::endl;
                     }
-                    std::exit(0);
-                })),
-            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                    std::terminate();
+                }),
+            makeEntry<argumentValue<std::string>>(
                 "i",
                 "config",
                 "configuration Path",
-                [this](std::string arg) {
+                [this](const std::string &arg) {
                     _providedConfigPath = _kernel.getPaths()->deTilde(arg);
-                })),
-            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                }),
+            makeEntry<argumentValue<std::string>>(
                 "init",
                 "init-config",
                 "initial configuration path",
-                [this](std::string arg) {
+                [this](const std::string &arg) {
                     _providedInitialConfigPath = _kernel.getPaths()->deTilde(arg);
-                })),
-            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                }),
+            makeEntry<argumentValue<std::string>>(
                 "r",
                 "root",
                 "the root path selection",
-                [this](std::string arg) {
+                [this](const std::string &arg) {
                     auto paths = _kernel.getPaths();
                     paths->setRootPath(paths->deTilde(arg));
-                })),
-            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                }),
+            makeEntry<argumentValue<std::string>>(
                 "ar",
                 "aws-region",
                 "AWS Region",
-                [this](std::string arg) { _awsRegionFromCmdLine = arg; })),
-            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                [this](const std::string &arg) { _awsRegionFromCmdLine = arg; }),
+            makeEntry<argumentValue<std::string>>(
                 "es",
                 "env-stage",
                 "Environment Stage Selection",
-                [this](std::string arg) { _envStageFromCmdLine = arg; })),
-            std::unique_ptr<argument>(std::make_unique<argumentValue<std::string>>(
+                [this](const std::string &arg) { _envStageFromCmdLine = arg; }),
+            makeEntry<argumentValue<std::string>>(
                 "u",
                 "component-default-user",
                 "Component Default User",
-                [this](std::string arg) { _defaultUserFromCmdLine = arg; })),
-        };
+                [this](const std::string &arg) { _defaultUserFromCmdLine = arg; }));
 
     public:
         explicit CommandLine(const scope::UsingContext &context, lifecycle::Kernel &kernel)
