@@ -48,25 +48,23 @@ namespace lifecycle {
             return descriptionString;
         }
 
-        virtual bool process(std::vector<std::string>::const_iterator &i) const = 0;
+        virtual bool process(void *, std::vector<std::string>::const_iterator &i) const = 0;
     };
 
     class argumentFlag : public argument {
     private:
-        std::function<void(void)> _handler;
-        ;
+        typedef std::function<void(void *)> handlerType;
+        handlerType _handler;
 
     public:
-        argumentFlag(
-            const std::string_view flag,
-            const std::string_view name,
-            const std::string_view description,
-            const std::function<void(void)> &handler)
-            : argument(flag, name, description), _handler(handler){};
+        template<typename... A>
+        argumentFlag(const handlerType &handler, A &&...a)
+            : _handler(handler), argument(std::forward<A>(a)...){};
 
-        bool process(std::vector<std::string>::const_iterator &i) const override {
+        bool process(
+            void *handlerParent, std::vector<std::string>::const_iterator &i) const override {
             if(isMatch(*i)) {
-                _handler();
+                _handler(handlerParent);
                 return true;
             }
             return false;
@@ -78,23 +76,22 @@ namespace lifecycle {
     protected:
         T _extractValue(const std::string &val) const;
 
-        std::function<void(T)> _handler;
+        typedef std::function<void(void *, T)> handlerType;
+        handlerType _handler;
 
     public:
-        argumentValue(
-            const std::string_view flag,
-            const std::string_view name,
-            const std::string_view description,
-            const std::function<void(T)> handler)
-            : argument(flag, name, description), _handler(handler){};
+        template<typename... A>
+        argumentValue(const handlerType &handler, A &&...a)
+            : _handler(handler), argument(std::forward<A>(a)...){};
 
         /** process the i'th string in args and determine if this is a match
          return true if it is a match and false if it is not a match */
-        bool process(std::vector<std::string>::const_iterator &i) const override {
+        bool process(
+            void *handlerParent, std::vector<std::string>::const_iterator &i) const override {
             if(isMatch(*i)) {
                 try {
                     i++;
-                    _handler(_extractValue(*i));
+                    _handler(handlerParent, _extractValue(*i));
                     return true;
                 } catch(const std::invalid_argument &e) {
                     std::cout << "invalid argument for " << _longOption << std::endl;

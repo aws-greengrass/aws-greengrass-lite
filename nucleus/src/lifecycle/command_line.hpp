@@ -14,7 +14,7 @@ namespace lifecycle {
     class Kernel;
 
     class CommandLine : public scope::UsesContext {
-    private:
+    public:
         lifecycle::Kernel &_kernel;
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
 
@@ -23,14 +23,9 @@ namespace lifecycle {
         std::string _awsRegionFromCmdLine;
         std::string _envStageFromCmdLine;
         std::string _defaultUserFromCmdLine;
-
-        template<typename V, typename... T>
-        constexpr auto array_of(T &&...t) -> std::array<V, sizeof...(T)> {
-            return {{std::forward<T>(t)...}};
-        }
-
+        
         template<class V, class... T>
-        std::unique_ptr<argument> makeEntry(T &&...t) {
+        static std::unique_ptr<argument> makeEntry(T &&...t) {
             auto ptr = std::unique_ptr<argument>(std::make_unique<V>(std::forward<T>(t)...));
             return ptr;
         };
@@ -38,56 +33,7 @@ namespace lifecycle {
         // HELP: I can't use auto unless argumentList is static and I want to remove the 7
         // I can't make argumentList static because the functors need the this pointer
         // We could pass this as an argument but then all the parameters need accessors or be public
-        std::array<std::unique_ptr<argument>, 7> argumentList = array_of<std::unique_ptr<argument>>(
-            makeEntry<argumentFlag>(
-                "h",
-                "help",
-                "Print this usage information",
-                [this]() {
-                    for(const auto &a : argumentList) {
-                        std::cout << a->getDescription() << std::endl;
-                    }
-                    std::terminate();
-                }),
-            makeEntry<argumentValue<std::string>>(
-                "i",
-                "config",
-                "configuration Path",
-                [this](const std::string &arg) {
-                    _providedConfigPath = _kernel.getPaths()->deTilde(arg);
-                }),
-            makeEntry<argumentValue<std::string>>(
-                "init",
-                "init-config",
-                "initial configuration path",
-                [this](const std::string &arg) {
-                    _providedInitialConfigPath = _kernel.getPaths()->deTilde(arg);
-                }),
-            makeEntry<argumentValue<std::string>>(
-                "r",
-                "root",
-                "the root path selection",
-                [this](const std::string &arg) {
-                    auto paths = _kernel.getPaths();
-                    paths->setRootPath(paths->deTilde(arg));
-                }),
-            makeEntry<argumentValue<std::string>>(
-                "ar",
-                "aws-region",
-                "AWS Region",
-                [this](const std::string &arg) { _awsRegionFromCmdLine = arg; }),
-            makeEntry<argumentValue<std::string>>(
-                "es",
-                "env-stage",
-                "Environment Stage Selection",
-                [this](const std::string &arg) { _envStageFromCmdLine = arg; }),
-            makeEntry<argumentValue<std::string>>(
-                "u",
-                "component-default-user",
-                "Component Default User",
-                [this](const std::string &arg) { _defaultUserFromCmdLine = arg; }));
 
-    public:
         explicit CommandLine(const scope::UsingContext &context, lifecycle::Kernel &kernel)
             : scope::UsesContext(context), _kernel(kernel) {
         }
@@ -98,6 +44,10 @@ namespace lifecycle {
         void parseArgs(const std::vector<std::string> &args);
 
         void parseProgramName(std::string_view progName);
+
+        static const std::unique_ptr<argument> argumentList[];
+
+        void helpPrinter();
 
         std::string getAwsRegion() {
             return _awsRegionFromCmdLine;

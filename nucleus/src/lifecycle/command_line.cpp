@@ -18,7 +18,64 @@ namespace lifecycle {
     // are then passed to Kernel, which then delegates further commands to KernelCommandLine - all
     // of which is combined into this single helper class to improve maintainability.
     //
-
+    const std::unique_ptr<argument> CommandLine::argumentList[] = {
+        makeEntry<argumentFlag>(
+            [](void *parent) {
+                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
+                _this_->helpPrinter();
+            },
+            "h",
+            "help",
+            "Print this usage information"),
+        makeEntry<argumentValue<std::string>>(
+            [](void *parent, const std::string &arg) {
+                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
+                _this_->_providedConfigPath = _this_->_kernel.getPaths()->deTilde(arg);
+            },
+            "i",
+            "config",
+            "configuration Path"),
+        makeEntry<argumentValue<std::string>>(
+            [](void *parent, const std::string &arg) {
+                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
+                _this_->_providedInitialConfigPath = _this_->_kernel.getPaths()->deTilde(arg);
+            },
+            "init",
+            "init-config",
+            "initial configuration path"),
+        makeEntry<argumentValue<std::string>>(
+            [](void *parent, const std::string &arg) {
+                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
+                auto paths = _this_->_kernel.getPaths();
+                paths->setRootPath(paths->deTilde(arg));
+            },
+            "r",
+            "root",
+            "the root path selection"),
+        makeEntry<argumentValue<std::string>>(
+            [](void *parent, const std::string &arg) {
+                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
+                _this_->_awsRegionFromCmdLine = arg;
+            },
+            "ar",
+            "aws-region",
+            "AWS Region"),
+        makeEntry<argumentValue<std::string>>(
+            [](void *parent, const std::string &arg) {
+                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
+                _this_->_envStageFromCmdLine = arg;
+            },
+            "es",
+            "env-stage",
+            "Environment Stage Selection"),
+        makeEntry<argumentValue<std::string>>(
+            [](void *parent, const std::string &arg) {
+                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
+                _this_->_defaultUserFromCmdLine = arg;
+            },
+            "u",
+            "component-default-user",
+            "Component Default User")};
     void CommandLine::parseRawProgramNameAndArgs(util::Span<char *> args) {
         if(args.empty()) {
             throw std::invalid_argument("No program name given");
@@ -78,12 +135,18 @@ namespace lifecycle {
         parseHome(env);
     }
 
-    void CommandLine::parseArgs(const std::vector<std::string> &args) {
+    void CommandLine::helpPrinter() {
+        for(auto &a : argumentList) {
+            std::cout << a->getDescription() << std::endl;
+        }
+        std::terminate();
+    }
 
+    void CommandLine::parseArgs(const std::vector<std::string> &args) {
         for(auto i = args.begin(); i != args.end(); i++) {
             bool handled = false;
             for(const auto &j : argumentList) {
-                if(j->process(i)) {
+                if(j->process(this, i)) {
                     handled = true;
                     break;
                 }
