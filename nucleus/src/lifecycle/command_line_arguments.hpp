@@ -1,100 +1,132 @@
 #pragma once
 
-#include <algorithm>
-#include <filesystem>
+#include "argument_iterator.hpp"
+#include "util.hpp"
+
+#include <exception>
 #include <iostream>
-#include <iterator>
-#include <list>
-#include <optional>
+#include <stdexcept>
 #include <string>
+#include <string_view>
+#include <type_traits>
 
 namespace lifecycle {
-    class argument {
-    private:
-    protected:
-        const std::string _option;
-        const std::string _longOption;
-        const std::string _description;
+    class CommandLine;
 
-        [[nodiscard]] bool isMatch(const std::string &argString) const {
-            bool returnValue = false;
-            std::string a = argString;
-            std::transform(a.begin(), a.end(), a.begin(), ::tolower);
-            if(a == _option || a == _longOption) {
-                returnValue = true;
-            }
-            return returnValue;
+    // Lint reasoning: arguments are not referred to by-reference to base class.
+    // Arguments must be trivially-destructible to be stored at-compile-time in a tuple
+    // NOLINTNEXTLINE(*-virtual-class-destructor)
+    class Argument {
+    private:
+        std::string_view _option;
+        std::string_view _longOption;
+        std::string_view _description;
+
+    protected:
+        [[nodiscard]] constexpr std::string_view option() const noexcept {
+            return _option;
         }
 
-        argument(
-            const std::string_view option,
-            const std::string_view longOption,
-            const std::string_view description)
-            : _option(std::string("-") + std::string(option)),
-              _longOption(std::string("--") + std::string(longOption)), _description(description) {
+        [[nodiscard]] constexpr std::string_view longOption() const noexcept {
+            return _option;
+        }
+
+        [[nodiscard]] constexpr std::string_view description() const noexcept {
+            return _option;
+        }
+
+        [[nodiscard]] bool isMatch(std::string_view argString) const {
+            if(util::startsWith(argString, "--")) {
+                return util::lower(argString.substr(2)) == _longOption;
+            } else if(util::startsWith(argString, "-")) {
+                return util::lower(argString.substr(1)) == _option;
+            }
+            return false;
+        }
+
+        constexpr Argument(
+            std::string_view option,
+            std::string_view longOption,
+            std::string_view description) noexcept
+            : _option(option), _longOption(longOption), _description(description) {
         }
 
     public:
-        virtual ~argument() = default;
-
-        argument(argument &&) = delete;
-        argument &operator=(const argument &rhs) = delete;
-        argument(const argument &) = delete;
-        argument &operator=(argument &&) = delete;
-
-        [[nodiscard]] std::string getDescription() const {
-            std::string descriptionString;
-            descriptionString = _option + "\t" + _longOption + " : " + _description;
-            return descriptionString;
+        template<class... Arguments>
+        static void printHelp(Arguments &&...args) {
+            (args.printDescription(), ...);
         }
 
-        virtual bool process(void *, std::vector<std::string>::const_iterator &i) const = 0;
+        template<class... Arguments>
+        [[nodiscard]] static bool processArg(
+            CommandLine &cli, ArgumentIterator &argi, Arguments &&...args) {
+            // tests each argument parser in the parameter pack against the current argument.
+            // Terminates and returns true on the first match.
+            return (args.process(cli, argi) || ...);
+        }
+
+        void printDescription() const {
+            std::cout << '-' << _option << "\t--" << _longOption << " : " << _description << '\n';
+        }
+
+        virtual bool process(CommandLine &, ArgumentIterator &i) const = 0;
     };
 
-    class argumentFlag : public argument {
+    template<class HandlerFn>
+    class ArgumentFlag final : public Argument {
     private:
-        typedef std::function<void(void *)> handlerType;
-        handlerType _handler;
+        HandlerFn _handler;
 
     public:
         template<typename... A>
-        argumentFlag(const handlerType &handler, A &&...a)
-            : _handler(handler), argument(std::forward<A>(a)...){};
+        explicit constexpr ArgumentFlag(HandlerFn &&handler, A &&...a) noexcept(
+            std::is_nothrow_move_assignable_v<HandlerFn>)
+            : _handler(std::move(handler)), Argument(std::forward<A>(a)...){};
 
-        bool process(
-            void *handlerParent, std::vector<std::string>::const_iterator &i) const override {
+        bool process(CommandLine &cli, ArgumentIterator &i) const override {
             if(isMatch(*i)) {
-                _handler(handlerParent);
+                _handler(cli);
                 return true;
             }
             return false;
         }
     };
 
-    template<class T>
-    class argumentValue : public argument {
+    template<class T, class HandlerFn>
+    class ArgumentValue final : public Argument {
     protected:
-        T _extractValue(const std::string &val) const;
+        [[nodiscard]] T extractValue(const std::string &val) const {
+            if constexpr(std::is_same_v<T, int>) {
+                return std::stoi(val);
+            } else if constexpr(std::is_same_v<T, std::string>) {
+                return val;
+            } else if constexpr(std::is_same_v<T, std::string_view>) {
+                return std::string_view{val};
+            } else {
+                static_assert(util::traits::always_false_v<T>, "Extraction not implemented");
+            }
+        }
 
-        typedef std::function<void(void *, T)> handlerType;
-        handlerType _handler;
+        HandlerFn _handler;
 
     public:
         template<typename... A>
-        argumentValue(const handlerType &handler, A &&...a)
-            : _handler(handler), argument(std::forward<A>(a)...){};
+        explicit constexpr ArgumentValue(HandlerFn &&handler, A &&...a) noexcept(
+            std::is_nothrow_move_constructible_v<HandlerFn>)
+            : _handler(std::move(handler)), Argument(std::forward<A>(a)...){};
 
         /** process the i'th string in args and determine if this is a match
          return true if it is a match and false if it is not a match */
-        bool process(
-            void *handlerParent, std::vector<std::string>::const_iterator &i) const override {
+        bool process(CommandLine &cli, ArgumentIterator &i) const override {
             if(isMatch(*i)) {
                 try {
-                    i++;
-                    _handler(handlerParent, _extractValue(*i));
+                    ++i;
+                    _handler(cli, extractValue(*i));
                     return true;
                 } catch(const std::invalid_argument &e) {
-                    std::cout << "invalid argument for " << _longOption << std::endl;
+                    std::cout << "invalid argument for " << longOption() << std::endl;
+                } catch(const std::out_of_range &e) {
+                    std::cout << "missing argument for " << longOption() << std::endl;
                 } catch(...) {
                     std::cout << "unexpected exception" << std::endl;
                 }
@@ -103,15 +135,13 @@ namespace lifecycle {
         };
     };
 
-    template<>
-    inline std::string argumentValue<std::string>::_extractValue(const std::string &val) const {
-        if(val.empty())
-            throw(std::invalid_argument("Missing a parameter"));
-        return val;
+    template<class HandlerFn, class... A>
+    constexpr auto makeArgumentFlag(HandlerFn &&fn, A &&...a) noexcept {
+        return ArgumentFlag<HandlerFn>{std::forward<HandlerFn>(fn), std::forward<A>(a)...};
     }
 
-    template<>
-    inline int argumentValue<int>::_extractValue(const std::string &val) const {
-        return std::stoi(val);
+    template<class T, class HandlerFn, class... A>
+    constexpr auto makeArgumentValue(HandlerFn &&fn, A &&...a) noexcept {
+        return ArgumentValue<T, HandlerFn>{std::forward<HandlerFn>(fn), std::forward<A>(a)...};
     }
 }; // namespace lifecycle

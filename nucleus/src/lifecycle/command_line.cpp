@@ -1,11 +1,14 @@
 #include "command_line.hpp"
+
+#include "argument_iterator.hpp"
 #include "kernel.hpp"
-#include "scope/context_full.hpp"
-#include <algorithm>
-#include <optional>
+#include <scope/context_full.hpp>
 #include <util.hpp>
 
-#include <stdexcept>
+#include <algorithm>
+#include <optional>
+#include <tuple>
+
 namespace fs = std::filesystem;
 
 const auto LOG = // NOLINT(cert-err58-cpp)
@@ -18,64 +21,50 @@ namespace lifecycle {
     // are then passed to Kernel, which then delegates further commands to KernelCommandLine - all
     // of which is combined into this single helper class to improve maintainability.
     //
-    const std::unique_ptr<argument> CommandLine::argumentList[] = {
-        makeEntry<argumentFlag>(
-            [](void *parent) {
-                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
-                _this_->helpPrinter();
-            },
+    static inline constexpr std::tuple argumentList{
+        makeArgumentFlag(
+            [](CommandLine &) { CommandLine::helpPrinter(); },
             "h",
             "help",
             "Print this usage information"),
-        makeEntry<argumentValue<std::string>>(
-            [](void *parent, const std::string &arg) {
-                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
-                _this_->_providedConfigPath = _this_->_kernel.getPaths()->deTilde(arg);
+        makeArgumentValue<std::string_view>(
+            [](CommandLine &cli, std::string_view arg) {
+                cli.setProvidedConfigPath(cli.getKernel().getPaths()->deTilde(arg));
             },
             "i",
             "config",
             "configuration Path"),
-        makeEntry<argumentValue<std::string>>(
-            [](void *parent, const std::string &arg) {
-                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
-                _this_->_providedInitialConfigPath = _this_->_kernel.getPaths()->deTilde(arg);
+        makeArgumentValue<std::string_view>(
+            [](CommandLine &cli, std::string_view arg) {
+                cli.setProvidedInitialConfigPath(cli.getKernel().getPaths()->deTilde(arg));
             },
             "init",
             "init-config",
             "initial configuration path"),
-        makeEntry<argumentValue<std::string>>(
-            [](void *parent, const std::string &arg) {
-                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
-                auto paths = _this_->_kernel.getPaths();
+        makeArgumentValue<std::string_view>(
+            [](CommandLine &cli, std::string_view arg) {
+                auto paths = cli.getKernel().getPaths();
                 paths->setRootPath(paths->deTilde(arg));
             },
             "r",
             "root",
             "the root path selection"),
-        makeEntry<argumentValue<std::string>>(
-            [](void *parent, const std::string &arg) {
-                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
-                _this_->_awsRegionFromCmdLine = arg;
-            },
+        makeArgumentValue<std::string>(
+            [](CommandLine &cli, std::string arg) { cli.setAwsRegion(std::move(arg)); },
             "ar",
             "aws-region",
-            "AWS Region"),
-        makeEntry<argumentValue<std::string>>(
-            [](void *parent, const std::string &arg) {
-                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
-                _this_->_envStageFromCmdLine = arg;
-            },
+            "AWS Region (e.g. us-east-1)"),
+        makeArgumentValue<std::string>(
+            [](CommandLine &cli, std::string arg) { cli.setEnvStage(std::move(arg)); },
             "es",
             "env-stage",
             "Environment Stage Selection"),
-        makeEntry<argumentValue<std::string>>(
-            [](void *parent, const std::string &arg) {
-                CommandLine *_this_ = reinterpret_cast<CommandLine *>(parent);
-                _this_->_defaultUserFromCmdLine = arg;
-            },
+        makeArgumentValue<std::string>(
+            [](CommandLine &cli, std::string arg) { cli.setDefaultUser(std::move(arg)); },
             "u",
             "component-default-user",
             "Component Default User")};
+
     void CommandLine::parseRawProgramNameAndArgs(util::Span<char *> args) {
         if(args.empty()) {
             throw std::invalid_argument("No program name given");
@@ -136,22 +125,15 @@ namespace lifecycle {
     }
 
     void CommandLine::helpPrinter() {
-        for(auto &a : argumentList) {
-            std::cout << a->getDescription() << std::endl;
-        }
-        std::terminate();
+        std::apply([](auto &&...args) { Argument::printHelp(args...); }, argumentList);
+        std::quick_exit(0);
     }
 
     void CommandLine::parseArgs(const std::vector<std::string> &args) {
         for(auto i = args.begin(); i != args.end(); i++) {
-            bool handled = false;
-            for(const auto &j : argumentList) {
-                if(j->process(this, i)) {
-                    handled = true;
-                    break;
-                }
-            }
-            if(!handled) {
+            if(!std::apply(
+                   [](auto &&...args) { return Argument::processArg(args...); },
+                   std::tuple_cat(std::pair{*this, ArgumentIterator{args, i}}, argumentList))) {
                 LOG.atError()
                     .event("parse-args-error")
                     .logAndThrow(errors::CommandLineArgumentError{
