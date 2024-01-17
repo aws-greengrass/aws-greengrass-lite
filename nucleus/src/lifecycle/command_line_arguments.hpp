@@ -18,6 +18,8 @@ namespace lifecycle {
     // NOLINTNEXTLINE(*-virtual-class-destructor)
     class Argument {
     private:
+        constexpr static const std::string_view _optionMarker = "-";
+        constexpr static const std::string_view _longOptionMarker = "--";
         std::string_view _option;
         std::string_view _longOption;
         std::string_view _description;
@@ -36,9 +38,9 @@ namespace lifecycle {
         }
 
         [[nodiscard]] bool isMatch(std::string_view argString) const {
-            if(util::startsWith(argString, "--")) {
+            if(util::startsWith(argString, _longOptionMarker)) {
                 return util::lower(argString.substr(2)) == _longOption;
-            } else if(util::startsWith(argString, "-")) {
+            } else if(util::startsWith(argString, _optionMarker)) {
                 return util::lower(argString.substr(1)) == _option;
             }
             return false;
@@ -66,7 +68,8 @@ namespace lifecycle {
         }
 
         void printDescription() const {
-            std::cout << '-' << _option << "\t--" << _longOption << " : " << _description << '\n';
+            std::cout << _optionMarker << _option << "\t" << _longOptionMarker << _longOption
+                      << " : " << _description << '\n';
         }
 
         virtual bool process(CommandLine &, ArgumentIterator &i) const = 0;
