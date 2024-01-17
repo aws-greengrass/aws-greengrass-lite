@@ -127,7 +127,7 @@ namespace lifecycle {
 
     void CommandLine::helpPrinter() {
         std::apply([](auto &&...args) { Argument::printHelp(args...); }, argumentList);
-        std::quick_exit(0);
+        std::terminate();
     }
 
     void CommandLine::parseArgs(const std::vector<std::string> &args) {
