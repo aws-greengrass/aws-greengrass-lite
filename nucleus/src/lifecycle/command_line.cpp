@@ -6,6 +6,7 @@
 #include "util.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <optional>
 #include <tuple>
 
