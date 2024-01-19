@@ -3,9 +3,9 @@
 #include <atomic>
 #include <condition_variable>
 #include <cpp_api.hpp>
+#include <logging.hpp>
 #include <mutex>
 #include <variant>
-#include <logging.hpp>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
     ggapi::Logger::of("Iot_broker");
