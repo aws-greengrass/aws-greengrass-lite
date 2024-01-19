@@ -16,6 +16,7 @@ add_compile_definitions(PLATFORM_SHLIB_SUFFIX=${CMAKE_SHARED_MODULE_SUFFIX})
 fetchContentFromDeps(yaml-cpp rapidjson)
 
 FetchContent_GetProperties(yaml-cpp)
+
 if(NOT yaml-cpp_POPULATED)
   FetchContent_Populate(yaml-cpp)
   add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR}
@@ -23,6 +24,7 @@ if(NOT yaml-cpp_POPULATED)
 endif()
 
 FetchContent_GetProperties(rapidjson)
+
 if(NOT rapidjson_POPULATED)
   FetchContent_Populate(rapidjson)
 endif()
@@ -91,6 +93,7 @@ add_library(
   src/errors/errors.hpp
   src/lifecycle/command_line.cpp
   src/lifecycle/command_line.hpp
+  src/lifecycle/command_line_arguments.hpp
   src/lifecycle/kernel.cpp
   src/lifecycle/kernel.hpp
   src/lifecycle/kernel_alternatives.cpp
