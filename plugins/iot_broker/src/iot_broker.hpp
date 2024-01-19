@@ -6,6 +6,7 @@
 #include <aws/iot/Mqtt5Client.h>
 #include <cpp_api.hpp>
 #include <iostream>
+#include <list>
 #include <memory>
 #include <mqtt/topic_filter.hpp>
 #include <plugin.hpp>
@@ -14,7 +15,6 @@
 #include <string_view>
 #include <thread>
 #include <unordered_map>
-#include <list>
 
 class MqttBuilderException : public ggapi::GgApiError {
 public:
@@ -40,16 +40,16 @@ public:
 using PacketHandler = std::function<ggapi::Struct(ggapi::Struct packet)>;
 
 class IotBroker : public ggapi::Plugin {
-    public:
-    //enum class PayloadFormat { BYTES, UTF8};
-    // Mapping of symbols to enums
+public:
+    // enum class PayloadFormat { BYTES, UTF8};
+    //  Mapping of symbols to enums
     inline static const util::LookupTable PAYLOAD_FORMAT_MAP{
         0,
         aws_mqtt5_payload_format_indicator::AWS_MQTT5_PFI_BYTES,
         1,
         aws_mqtt5_payload_format_indicator::AWS_MQTT5_PFI_UTF8};
 
-    private:
+private:
     struct Keys {
         ggapi::Symbol publishToIoTCoreTopic{"aws.greengrass.PublishToIoTCore"};
         ggapi::Symbol ipcPublishToIoTCoreTopic{"IPC::aws.greengrass#PublishToIoTCore"};
@@ -113,7 +113,6 @@ private:
     ggapi::Struct ipcSubscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
     std::variant<ggapi::Channel, uint32_t> commonSubscribeHandler(
         ggapi::Struct args, PacketHandler handler);
-    //static PayloadFormat payloadFormatParser(ggapi::Struct args);
 
     void initMqtt();
 
