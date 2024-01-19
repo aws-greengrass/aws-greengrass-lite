@@ -89,39 +89,42 @@ ggapi::Struct IotBroker::ipcSubscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::
     return ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret));
 }
 
-Aws::Crt::String containerToStringParser(ggapi::Container input) {
-    Aws::Crt::String inputAsString;
+std::vector<uint8_t> containerToByteArray(ggapi::Container input) {
+    std::vector<uint8_t> inputAsVector;
 
     if(input.isBuffer()) {
         auto inputBuffer = ggapi::Buffer{input};
-        inputAsString = inputBuffer.get<std::string>(0, inputBuffer.size());
+        inputAsVector = inputBuffer.get<std::vector<uint8_t>>(0, inputBuffer.size());
     } else if(input.isScalar()) {
-        inputAsString = input.unbox<std::string>();
-
+        auto inputString = input.unbox<std::string>();
+        inputAsVector = std::vector<uint8_t>{inputString.begin(), inputString.end()};
     } else if(input.isStruct()) {
         auto inputBuffer = input.toJson();
-        inputAsString = inputBuffer.get<std::string>(0, inputBuffer.size());
-
+        inputAsVector = inputBuffer.get<std::vector<uint8_t>>(0, inputBuffer.size());
     } else {
         throw ggapi::GgApiError("Invalid Payload");
     }
 
-    return inputAsString;
+    return inputAsVector;
+}
+
+Aws::Crt::ByteCursor byteCursorFromByteArray(std::vector<uint8_t> &input) {
+    return {.ptr = input.data(), .len = input.size()};
 }
 
 ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args) {
     auto topicName{args.get<Aws::Crt::String>(keys.topicName)};
     auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
-    //LOG.atInfo.event("log-event").kv("key", "value").log("message");
+
     //(optional)PAYLOAD AS A BLOB BUFFER/STRING/STRUCTURE
-    Aws::Crt::String payload;
+    std::vector<uint8_t> payload;
     ggapi::Buffer correlationDataBuffer;
     if(args.hasKey(keys.payload)) {
-        payload = containerToStringParser(args.get<ggapi::Container>(keys.payload));
+        payload = containerToByteArray(args.get<ggapi::Container>(keys.payload));
     }
 
     auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
-        topicName, ByteCursorFromString(payload), qos);
+        topicName, byteCursorFromByteArray(payload), qos);
 
     //(optional)retain
     if(args.hasKey(keys.retain)) {
@@ -131,11 +134,18 @@ ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struc
     //(optional) userProperties
     /*
     User Properties with userdefined Key and Value
+    JSON format expectation:
+    user_properies {
+        [
+            members:{
+                "key": "value",
+            }
+        ]
+    }
     */
     ggapi::List userProperties;
     if(args.hasKey(keys.userProperties)) {
         userProperties = args.get<ggapi::Struct>(keys.userProperties).get<ggapi::List>(keys.member);
-
         Aws::Crt::Vector<Aws::Crt::Mqtt5::UserProperty> userPropertiesVector;
         userProperties.for_each<ggapi::Struct>([&userPropertiesVector](ggapi::Struct property) {
             userPropertiesVector.emplace_back(
@@ -152,8 +162,8 @@ ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struc
 
     if(args.hasKey(keys.correlationData)) {
         auto correlationData =
-            containerToStringParser(args.get<ggapi::Container>(keys.correlationData));
-        publish->WithCorrelationData(ByteCursorFromString(correlationData));
+            containerToByteArray(args.get<ggapi::Container>(keys.correlationData));
+        publish->WithCorrelationData(byteCursorFromByteArray(correlationData));
     }
 
     if(args.hasKey(keys.responseTopic)) {
@@ -162,9 +172,8 @@ ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struc
     }
 
     //(optional) PayLoadFormat as PayloadFormat
-    std::optional<Aws::Crt::Mqtt5::PayloadFormatIndicator> payloadFormat;
-
     if(args.hasKey(keys.payloadFormat)) {
+        std::optional<Aws::Crt::Mqtt5::PayloadFormatIndicator> payloadFormat;
         auto payloadFormatAsInt{args.get<std::uint64_t>(keys.payloadFormat)};
         payloadFormat = PAYLOAD_FORMAT_MAP.lookup(payloadFormatAsInt);
 
@@ -176,7 +185,8 @@ ggapi::Struct IotBroker::publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struc
 
     std::atomic_bool success = false;
 
-    std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topicName << std::endl;
+    std::string payloadAsString{payload.begin(), payload.end()};
+    std::cerr << "[mqtt-plugin] Sending " << payloadAsString << " to " << topicName << std::endl;
 
     std::condition_variable barrier{};
     std::mutex mutex{};
