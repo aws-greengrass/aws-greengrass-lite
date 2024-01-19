@@ -1,13 +1,11 @@
 #pragma once
 
-#include <plugin.hpp>
 #include <util.hpp>
 
 #include <aws/common/byte_order.h>
 #include <aws/common/uuid.h>
 #include <aws/crt/Types.h>
 #include <aws/event-stream/event_stream.h>
-#include <aws/event-stream/event_stream_rpc_server.h>
 
 #include <chrono>
 #include <ios>
@@ -126,44 +124,6 @@ makeHeader(std::string_view name, const T &val) noexcept {
     return args;
 }
 
-//
-// Operator Overloads
-//
-
-inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
-    return std::visit(
-        [&os](auto &&val) -> std::ostream & {
-            using T = std::decay_t<decltype(val)>;
-            if constexpr(std::is_arithmetic_v<T> || std::is_same_v<std::string_view, T>) {
-                os << val;
-            } else if constexpr(
-                std::is_same_v<std::true_type, T> || std::is_same_v<std::false_type, T>) {
-                auto flags = os.flags();
-                os.flags(std::ios::boolalpha);
-                os << static_cast<bool>(val);
-                os.flags(flags);
-            } else if constexpr(std::is_same_v<Headervaluetypes::timestamp, T>) {
-                os << val.count() << "ms";
-            } else if constexpr(
-                std::is_same_v<Headervaluetypes::stringbuffer, T>
-                || std::is_same_v<Headervaluetypes::bytebuffer, T>) {
-                auto bytes = util::as_bytes(val);
-                os.write(bytes.data(), bytes.size());
-            } else if constexpr(std::is_same_v<T, aws_uuid>) {
-                auto flags = os.flags();
-                os.flags(std::ios::hex | std::ios::uppercase);
-                for(auto &&v : val.uuid_data) {
-                    os << v;
-                }
-                os.flags(flags);
-            } else {
-                static_assert(util::traits::always_false_v<T>, "Please implement");
-            }
-            return os;
-        },
-        v);
-}
-
 // NOLINTBEGIN(*-union-access)
 inline std::optional<HeaderValue> getValue(
     const aws_event_stream_header_value_pair &header) noexcept {
@@ -200,6 +160,43 @@ inline std::optional<HeaderValue> getValue(
 inline auto parseHeader(const aws_event_stream_header_value_pair &pair) {
     return std::make_pair(
         std::string_view{std::data(pair.header_name), pair.header_name_len}, getValue(pair));
+}
+
+//
+// Operator Overloads
+//
+inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
+    return std::visit(
+        [&os](auto &&val) -> std::ostream & {
+            using T = std::decay_t<decltype(val)>;
+            if constexpr(std::is_arithmetic_v<T> || std::is_same_v<std::string_view, T>) {
+                os << val;
+            } else if constexpr(
+                std::is_same_v<std::true_type, T> || std::is_same_v<std::false_type, T>) {
+                auto flags = os.flags();
+                os.flags(std::ios::boolalpha);
+                os << static_cast<bool>(val);
+                os.flags(flags);
+            } else if constexpr(std::is_same_v<Headervaluetypes::timestamp, T>) {
+                os << val.count() << "ms";
+            } else if constexpr(
+                std::is_same_v<Headervaluetypes::stringbuffer, T>
+                || std::is_same_v<Headervaluetypes::bytebuffer, T>) {
+                auto bytes = util::as_bytes(val);
+                os.write(bytes.data(), bytes.size());
+            } else if constexpr(std::is_same_v<T, aws_uuid>) {
+                auto flags = os.flags();
+                os.flags(std::ios::hex | std::ios::uppercase);
+                for(auto &&v : val.uuid_data) {
+                    os << v;
+                }
+                os.flags(flags);
+            } else {
+                static_assert(util::traits::always_false_v<T>, "Please implement");
+            }
+            return os;
+        },
+        v);
 }
 
 static std::ostream &operator<<(

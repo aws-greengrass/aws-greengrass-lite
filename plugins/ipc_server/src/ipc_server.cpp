@@ -21,7 +21,7 @@ bool IpcServer::onStart(ggapi::Struct data) {
     auto system = _system.load();
     std::filesystem::path rootPath = system.getValue<std::string>({"rootPath"});
     auto socketPath = rootPath / SOCKET_NAME;
-    _listener = std::make_shared<Listener>();
+    _listener = std::make_shared<ServerListener>();
     try {
         _listener->Connect(socketPath.string());
     } catch(std::runtime_error &e) {

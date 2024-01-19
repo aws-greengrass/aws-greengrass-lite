@@ -1,15 +1,11 @@
 #pragma once
 
-#include <forward_list>
-#include <limits>
-#include <optional>
-#include <plugin.hpp>
-#include <random>
-
 #include <aws/crt/Api.h>
+#include <random>
 
 #include "cpp_api.hpp"
 #include "server_listener.hpp"
+#include <plugin.hpp>
 
 struct Keys {
 private:
@@ -69,5 +65,5 @@ public:
 
 private:
     MutexType mutex;
-    std::shared_ptr<Listener> _listener;
+    std::shared_ptr<ServerListener> _listener;
 };
