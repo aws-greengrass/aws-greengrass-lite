@@ -1,15 +1,39 @@
 #pragma once
 
-
 #include <forward_list>
 #include <limits>
 #include <optional>
 #include <plugin.hpp>
 #include <random>
 
+#include <aws/crt/Api.h>
+
 #include "cpp_api.hpp"
 #include "server_listener.hpp"
-#include <aws/crt/Api.h>
+
+struct Keys {
+private:
+    Keys() = default;
+
+public:
+    ggapi::Symbol terminate{"terminate"};
+    ggapi::Symbol contentType{"contentType"};
+    ggapi::Symbol serviceModelType{"serviceModelType"};
+    ggapi::Symbol shape{"shape"};
+    ggapi::Symbol accepted{"accepted"};
+    ggapi::Symbol errorCode{"errorCode"};
+    ggapi::Symbol channel{"channel"};
+    ggapi::Symbol socketPath{"domain_socket_path"};
+    ggapi::Symbol cliAuthToken{"cli_auth_token"};
+    ggapi::Symbol topicName{"aws.greengrass.RequestIpcInfo"};
+
+    static const Keys &get() {
+        static Keys keys;
+        return keys;
+    }
+};
+
+static const auto &keys = Keys::get();
 
 class IpcServer final : public ggapi::Plugin {
 private:

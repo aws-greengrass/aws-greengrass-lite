@@ -1,18 +1,18 @@
 #pragma once
 
-#include <optional>
-#include <util.hpp>
 #include <plugin.hpp>
-#include <aws/crt/Types.h>
-#include <aws/event-stream/event_stream_rpc_server.h>
+#include <util.hpp>
 
 #include <aws/common/byte_order.h>
 #include <aws/common/uuid.h>
+#include <aws/crt/Types.h>
 #include <aws/event-stream/event_stream.h>
+#include <aws/event-stream/event_stream_rpc_server.h>
 
 #include <chrono>
 #include <ios>
 #include <iostream>
+#include <optional>
 #include <string_view>
 #include <type_traits>
 #include <variant>

@@ -1,28 +1,10 @@
 #pragma once
-#include "HeaderValue.hpp"
 #include "server_bootstrap.hpp"
 #include "server_continuation.hpp"
 #include <aws/crt/io/EventLoopGroup.h>
 #include <aws/crt/io/SocketOptions.h>
 
 #include <filesystem>
-
-//static void onListenerDestroy(
-//    aws_event_stream_rpc_server_listener *server, void *user_data) noexcept;
-
-//template<class SendFn>
-//static int sendMessage(
-//    SendFn fn,
-//    util::Span<aws_event_stream_header_value_pair> headers,
-//    ggapi::Buffer payload,
-//    aws_event_stream_rpc_message_type message_type,
-//    uint32_t flags = 0);
-//
-//template<class SendFn>
-//static int sendMessage(
-//    SendFn fn, aws_event_stream_rpc_message_type message_type, uint32_t flags = 0);
-//
-//static void onMessageFlush(int error_code, void *user_data) noexcept;
 
 static void onListenerDestroy(
     aws_event_stream_rpc_server_listener *server, void *user_data) noexcept {

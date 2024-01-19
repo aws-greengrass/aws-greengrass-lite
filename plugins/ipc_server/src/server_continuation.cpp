@@ -1,4 +1,5 @@
 #include "server_continuation.hpp"
+#include "ipc_server.hpp"
 
 ggapi::Struct ServerContinuation::onTopicResponse(
     const std::weak_ptr<ServerContinuation> &weakSelf, ggapi::Struct response) {
@@ -46,8 +47,8 @@ ggapi::Struct ServerContinuation::onTopicResponse(
     if(result != AWS_OP_SUCCESS) {
         ggapi::Buffer payload =
             ggapi::Buffer::create().put(0, std::string_view{"InternalServerError"});
-        std::array errorHeaders{makeHeader(
-            Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::Text))};
+        std::array errorHeaders{
+            makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::Text))};
         sendMessage(
             sender,
             headers,
@@ -74,8 +75,7 @@ void ServerContinuation::onContinuation(
     auto json = [message_args] {
         auto jsonHandle =
             Buffer::create()
-                .insert(
-                    -1, util::Span{message_args->payload->buffer, message_args->payload->len})
+                .insert(-1, util::Span{message_args->payload->buffer, message_args->payload->len})
                 .fromJson();
         return jsonHandle.getHandleId() ? jsonHandle.unbox<Struct>() : Struct::create();
     }();
@@ -92,8 +92,8 @@ void ServerContinuation::onContinuation(
         std::string message = R"({ "error": "LPC unhandled", "message": ")"
                               "LPC unhandled.\" }";
         ggapi::Buffer payload = ggapi::Buffer::create().put(0, std::string_view{message});
-        std::array headers{makeHeader(
-            Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
+        std::array headers{
+            makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
         sendMessage(
             sender,
             headers,
