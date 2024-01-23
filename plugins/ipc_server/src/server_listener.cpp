@@ -119,6 +119,8 @@ void ServerListener::onProtocolMessage(
 
     std::cerr << "Received protocol message: " << *message_args << '\n';
 
+    // TODO:  Authentication handler based on auth token
+
     switch(message_args->message_type) {
         case AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT:
             thisConnection->sendConnectionResponse(connection);

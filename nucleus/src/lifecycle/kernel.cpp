@@ -19,6 +19,7 @@ namespace lifecycle {
 
     Kernel::Kernel(const scope::UsingContext &context) : scope::UsesContext(context) {
         _nucleusPaths = std::make_shared<util::NucleusPaths>();
+        _deploymentManager = std::make_unique<deployment::DeploymentManager>(scope::context());
         data::SymbolInit::init(context, {&SERVICES_TOPIC_KEY});
     }
 
@@ -265,6 +266,8 @@ namespace lifecycle {
             deployment::DeploymentConsts::STAGE_MAP.rlookup(_deploymentStageAtLaunch)
                 .value_or(data::Symbol{});
 
+        _deploymentManager->start();
+
         switch(_deploymentStageAtLaunch) {
             case deployment::DeploymentStage::DEFAULT:
                 LOG.atInfo("boot").kv("deploymentStage", deploymentSymbol).log("Normal boot");
@@ -331,6 +334,7 @@ namespace lifecycle {
             plugin.lifecycle(loader.TERMINATE, data);
         });
         getConfig().publishQueue().stop();
+        _deploymentManager->stop();
         context()->logManager().publishQueue()->stop();
     }
 
@@ -378,6 +382,7 @@ namespace lifecycle {
 
     void Kernel::softShutdown(std::chrono::seconds timeoutSeconds) {
         getConfig().publishQueue().drainQueue();
+        _deploymentManager->clearQueue();
         LOG.atDebug("system-shutdown").log("Starting soft shutdown");
         stopAllServices(timeoutSeconds);
         LOG.atDebug("system-shutdown").log("Closing transaciton log");

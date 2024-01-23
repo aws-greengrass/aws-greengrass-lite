@@ -1,8 +1,8 @@
 #pragma once
 
 #include <aws/crt/Api.h>
-#include <random>
 
+#include "authentication_handler.hpp"
 #include "cpp_api.hpp"
 #include "server_listener.hpp"
 #include <plugin.hpp>
@@ -22,7 +22,7 @@ public:
     ggapi::Symbol socketPath{"domain_socket_path"};
     ggapi::Symbol cliAuthToken{"cli_auth_token"};
     ggapi::Symbol topicName{"aws.greengrass.RequestIpcInfo"};
-
+    ggapi::Symbol serviceName{"serviceName"};
     static const Keys &get() {
         static Keys keys;
         return keys;
@@ -40,13 +40,15 @@ private:
     static constexpr std::string_view SOCKET_NAME = "gglite-ipc.socket";
 
     ggapi::Struct cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
-    static std::string generateIpcToken();
 
     std::atomic<ggapi::Struct> _system;
     std::atomic<ggapi::Struct> _config;
     std::atomic<ggapi::Struct> _configRoot;
 
+    std::unique_ptr<AuthenticationHandler> _authHandler;
+
 public:
+    IpcServer() noexcept;
     bool onBootstrap(ggapi::Struct data) override;
     bool onBind(ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;

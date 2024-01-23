@@ -1,10 +1,12 @@
 #include <ipc_server.hpp>
 
-static constexpr int SEED = 123;
-
 // Initializes global CRT API
 // TODO: What happens when multiple plugins use the CRT?
 static const Aws::Crt::ApiHandle apiHandle{};
+
+IpcServer::IpcServer() noexcept {
+    _authHandler = std::make_unique<AuthenticationHandler>();
+}
 
 void IpcServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
     std::cerr << "[ipc-server] Running lifecycle phase " << phase.toString() << std::endl;
@@ -30,19 +32,8 @@ bool IpcServer::onStart(ggapi::Struct data) {
     return true;
 }
 
-std::string IpcServer::generateIpcToken() {
-    // SECURITY-TODO: Make random generation secure
-    static constexpr size_t TOKEN_LENGTH = 16;
-    std::string_view chars = "0123456789"
-                             "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    thread_local std::mt19937 rng{SEED};
-    auto dist = std::uniform_int_distribution{{}, chars.size() - 1};
-    auto result = std::string(TOKEN_LENGTH, '\0');
-    std::generate_n(result.begin(), TOKEN_LENGTH, [&]() { return chars[dist(rng)]; });
-    return result;
-}
-
-ggapi::Struct IpcServer::cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) {
+ggapi::Struct IpcServer::cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct req) {
+    auto serviceName = req.getValue<std::string>({keys.serviceName});
     auto system = _system.load();
     std::filesystem::path rootPath =
         std::filesystem::canonical(system.getValue<std::string>({"rootPath"}));
@@ -50,7 +41,7 @@ ggapi::Struct IpcServer::cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) {
 
     auto resp = ggapi::Struct::create();
     resp.put(keys.socketPath, socketPath.string());
-    resp.put(keys.cliAuthToken, generateIpcToken());
+    resp.put(keys.cliAuthToken, _authHandler->generateAuthToken(std::move(serviceName)));
     return resp;
 }
 

@@ -4,7 +4,10 @@
 #include <util.hpp>
 
 namespace deployment {
-
+    inline static const data::SymbolInit CREATE_DEPLOYMENT_TOPIC_NAME{
+        "aws.greengrass.deployment.Offer"};
+    inline static const data::SymbolInit CANCEL_DEPLOYMENT_TOPIC_NAME{
+        "aws.greengrass.deployment.Cancel"};
     enum class DeploymentType : uint32_t { IOT_JOBS, LOCAL, SHADOW };
 
     enum class DeploymentStage : uint32_t {
@@ -55,5 +58,35 @@ namespace deployment {
             ROLLBACK_BOOTSTRAP_SYM,
             DeploymentStage::ROLLBACK_BOOTSTRAP,
         };
+    };
+    struct DeploymentPackageConfig {
+        std::string packageName;
+        bool rootComponent;
+        std::string resolvedVersion;
+        //        ConfigUpdateOperation configUpdateOperation;
+        //        RunWith runWith;
+    };
+    struct DeploymentDocument {
+        std::string deploymentId;
+        std::string configurationArn;
+        std::vector<DeploymentPackageConfig> deploymentPackageConfig;
+        std::vector<std::string> requiredCapabilities;
+        std::string groupName;
+        std::string onBehalfOf;
+        std::string parentGroupName;
+        long long int timestamp; // TODO: timepoint
+        //        FailureHandlingPolicy failureHandlingPolicy;
+        //        ComponentUpdatePolicy componentUpdatePolicy;
+        //        DeploymentConfigValidationPolicy deploymentConfigValidationPolicy;
+    };
+
+    struct Deployment {
+        DeploymentDocument deploymentDocument;
+        //        std::string deploymentDocument;
+        DeploymentType deploymentType;
+        std::string id;
+        bool isCancelled;
+        DeploymentStage deploymentStage;
+        std::string stageDetails;
     };
 } // namespace deployment

@@ -130,7 +130,11 @@ add_library(
   src/util/nucleus_paths.cpp
   src/util/nucleus_paths.hpp
   src/util/permissions.cpp
-  src/util/permissions.hpp)
+  src/util/permissions.hpp
+  src/deployment/recipe_loader.hpp
+  src/deployment/deployment_manager.cpp
+  src/deployment/deployment_manager.hpp
+  src/data/shared_queue.hpp)
 target_link_libraries(
   nucleus-obj
   PUBLIC gg_plugin_api

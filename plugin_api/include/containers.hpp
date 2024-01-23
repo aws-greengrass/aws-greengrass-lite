@@ -291,8 +291,8 @@ namespace ggapi {
             }
         }
 
-        template<typename T>
-        T getValue(const std::initializer_list<std::string_view> &keys) const {
+        template<typename T, typename V>
+        T getValue(const std::initializer_list<V> &keys) const {
             ggapi::Struct childStruct = *this;
             auto it = keys.begin();
             for(; it != std::prev(keys.end()); it++) {
@@ -556,7 +556,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T get(int32_t idx, size_t max) const {
+        [[nodiscard]] T get(int32_t idx, size_t max) const {
             if(max > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("max length out of range");
             }

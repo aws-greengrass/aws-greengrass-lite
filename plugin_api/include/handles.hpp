@@ -193,3 +193,12 @@ namespace ggapi {
     };
 
 } // namespace ggapi
+
+namespace std {
+    template<>
+    struct hash<ggapi::Symbol> {
+        std::size_t operator()(const ggapi::Symbol &k) const {
+            return hash<uint32_t>()(k.asInt());
+        }
+    };
+} // namespace std

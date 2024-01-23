@@ -1,6 +1,7 @@
 #pragma once
 #include "config/transaction_log.hpp"
 #include "config/watcher.hpp"
+#include "deployment/deployment_manager.hpp"
 #include "deployment/deployment_model.hpp"
 #include "deployment/device_configuration.hpp"
 #include "lifecycle/kernel_alternatives.hpp"
@@ -13,7 +14,8 @@
 
 namespace deployment {
     class DeviceConfiguration;
-}
+    class DeploymentManager;
+} // namespace deployment
 
 namespace lifecycle {
     class CommandLine;
@@ -45,6 +47,7 @@ namespace lifecycle {
         deployment::DeploymentStage _deploymentStageAtLaunch{deployment::DeploymentStage::DEFAULT};
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfiguration{nullptr};
         std::unique_ptr<KernelAlternatives> _kernelAlts{nullptr};
+        std::unique_ptr<deployment::DeploymentManager> _deploymentManager{nullptr};
         std::atomic_int _exitCode{0};
 
     public:

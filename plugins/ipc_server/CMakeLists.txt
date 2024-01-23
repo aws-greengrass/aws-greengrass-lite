@@ -16,6 +16,10 @@ endif()
 add_library(
   ipc_server MODULE
   main.cpp
+  src/authentication_handler.cpp
+  src/authentication_handler.cpp
+  src/authentication_handler.hpp
+  src/authentication_handler.hpp
   src/ipc_server.cpp
   src/ipc_server.hpp
   src/server_bootstrap.cpp
