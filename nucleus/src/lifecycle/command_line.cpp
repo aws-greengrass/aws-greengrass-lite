@@ -134,7 +134,8 @@ namespace lifecycle {
         for(auto i = args.begin(); i != args.end(); i++) {
             if(!std::apply(
                    [](auto &&...args) { return Argument::processArg(args...); },
-                   std::tuple_cat(std::pair{*this, ArgumentIterator{args, i}}, argumentList))) {
+                   std::tuple_cat(
+                       std::pair{std::ref(*this), ArgumentIterator{args, i}}, argumentList))) {
                 LOG.atError()
                     .event("parse-args-error")
                     .logAndThrow(errors::CommandLineArgumentError{
