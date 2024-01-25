@@ -47,7 +47,7 @@ bool CloudDownloader::download() {
 
     // Change URL to download the zip file from
     const char *url = nullptr;
-    //Temp check
+    // Temp check
     if(url == nullptr) {
         std::cerr << "URL is null" << std::endl;
         return false;
