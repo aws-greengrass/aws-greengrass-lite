@@ -23,5 +23,10 @@
     "url": "https://github.com/rollbear/trompeloeil.git",
     "rev": "v46",
     "hash": "sha256-x/Chzho6RTfyOb/Is7bAM8KrvipEqQ/+a6pVCuTG108="
+  },
+  "curl": {
+    "url": "https://github.com/curl/curl.git",
+    "rev": "curl-8_5_0",
+    "hash": "sha256-LyUtbu4EqdcXpDmIVZdtxXzSJF5QCY5TsttAD9z0Xu4="
   }
 }
