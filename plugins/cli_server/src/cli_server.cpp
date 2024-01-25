@@ -99,9 +99,13 @@ ggapi::Struct CliServer::createLocalDeploymentHandler(
     auto deploymentDocument = request;
     auto requestId = _randomUUID();
     deploymentDocument.put(deploymentKeys.requestId, requestId);
+    auto deploymentJson = deploymentDocument.toJson();
+    auto deploymentVec = deploymentJson.get<std::vector<uint8_t>>(0, deploymentJson.size());
+    auto deploymentString = std::string{deploymentVec.begin(), deploymentVec.end()};
+
     auto deployment = ggapi::Struct::create();
     deployment.put(deploymentKeys.deploymentDocumentobj, 0);
-    deployment.put(deploymentKeys.deploymentDocument, deploymentDocument.toJson());
+    deployment.put(deploymentKeys.deploymentDocument, deploymentString);
     deployment.put(deploymentKeys.deploymentType, "LOCAL");
     deployment.put(deploymentKeys.id, requestId);
     deployment.put(deploymentKeys.isCancelled, false);

@@ -19,7 +19,8 @@ namespace lifecycle {
 
     Kernel::Kernel(const scope::UsingContext &context) : scope::UsesContext(context) {
         _nucleusPaths = std::make_shared<util::NucleusPaths>();
-        _deploymentManager = std::make_unique<deployment::DeploymentManager>(scope::context());
+        _deploymentManager =
+            std::make_unique<deployment::DeploymentManager>(scope::context(), *this);
         data::SymbolInit::init(context, {&SERVICES_TOPIC_KEY});
     }
 

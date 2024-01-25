@@ -8,7 +8,13 @@ namespace deployment {
         "aws.greengrass.deployment.Offer"};
     inline static const data::SymbolInit CANCEL_DEPLOYMENT_TOPIC_NAME{
         "aws.greengrass.deployment.Cancel"};
+
     enum class DeploymentType : uint32_t { IOT_JOBS, LOCAL, SHADOW };
+
+    inline static const std::unordered_map<std::string, DeploymentType> DeploymentTypeMap{
+        {"IOT_JOBS", DeploymentType::IOT_JOBS},
+        {"LOCAL", DeploymentType::LOCAL},
+        {"SHADOW", DeploymentType::SHADOW}};
 
     enum class DeploymentStage : uint32_t {
         /**
@@ -40,6 +46,15 @@ namespace deployment {
          */
         ROLLBACK_BOOTSTRAP
     };
+
+    inline static const std::unordered_map<std::string, DeploymentStage> DeploymentStageMap{
+        {"DEFAULT", DeploymentStage::DEFAULT},
+        {"BOOTSTRAP", DeploymentStage::BOOTSTRAP},
+        {"KERNEL_ACTIVATION", DeploymentStage::KERNEL_ACTIVATION},
+        {"KERNEL_ROLLBACK", DeploymentStage::KERNEL_ROLLBACK},
+        {"ROLLBACK_BOOTSTRAP", DeploymentStage::ROLLBACK_BOOTSTRAP},
+    };
+
     struct DeploymentConsts {
         inline static const data::SymbolInit DEFAULT_SYM{"DEFAULT"};
         inline static const data::SymbolInit BOOTSTRAP_SYM{"BOOTSTRAP"};
@@ -67,7 +82,12 @@ namespace deployment {
         //        RunWith runWith;
     };
     struct DeploymentDocument {
-        std::string deploymentId;
+        std::string requestId;
+        std::string requestTimestamp;
+        std::string componentsToMerge;
+        std::string componentsToRemove;
+        std::string recipeDirectoryPath;
+        std::string artifactsDirectoryPath;
         std::string configurationArn;
         std::vector<DeploymentPackageConfig> deploymentPackageConfig;
         std::vector<std::string> requiredCapabilities;
@@ -81,12 +101,32 @@ namespace deployment {
     };
 
     struct Deployment {
+        // deploymentDocumentobj
         DeploymentDocument deploymentDocument;
-        //        std::string deploymentDocument;
         DeploymentType deploymentType;
         std::string id;
         bool isCancelled;
         DeploymentStage deploymentStage;
         std::string stageDetails;
+    };
+
+    struct Command {
+        bool requiresPrivilege;
+        std::string script;
+    };
+
+    struct ComponentConfiguration {
+        std::string message;
+    };
+
+    struct Recipe {
+        std::string formatVersion;
+        std::string componentName;
+        std::string componentVersion;
+        std::string description;
+        std::string publisher;
+        ComponentConfiguration configuration;
+        Command runCommand;
+        Command installCommand;
     };
 } // namespace deployment
