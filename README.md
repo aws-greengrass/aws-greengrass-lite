@@ -28,7 +28,7 @@ The `plugin_api` directory has the interface plugins should build against.
 | SubscribeToComponentUpdates             |           |   soon   |                              |
 | DeferComponentUpdate                    |           |   soon   |                              |
 | GetConfiguration                        |           |   soon   |                              |
-| UdateConfiguration                      |           |   soon   |                              |
+| UpdateConfiguration                     |           |   soon   |                              |
 | SubscribeToConfigurationUpdate          |           |   soon   |                              |
 | SubscribeToValidateConfigurationUpdates |           |   soon   |                              |
 | SendConfigurationValidityReport         |           |   soon   |                              |
@@ -37,7 +37,7 @@ The `plugin_api` directory has the interface plugins should build against.
 | GetComponentDetails                     |           |  future  |                              |
 | RestartComponent                        |           |  future  |                              |
 | StopComponent                           |           |  future  |                              |
-| CreateLocalDeployment                   |           |  future  |                              |
+| CreateLocalDeployment                   |     x     |   now    | native-plugin                |
 | CancelLocalDeployment                   |           |  future  |                              |
 | GetLocalDeploymentStatus                |           |  future  |                              |
 | ListLocalDeployments                    |           |  future  |                              |
@@ -91,6 +91,22 @@ change config.yaml you will need to delete the preprocessed files.
 
 ```bash
 ~/gglite_testing/bin/greengrass-lite -r ~/gglite_testing --init-config ~/gglite_testing/config/config.yaml
+```
+
+### Deployments
+
+Follow the instructions
+[here](https://docs.aws.amazon.com/greengrass/v2/developerguide/create-first-component.html)
+to create a sample component.
+
+#### CreateDeployment
+
+To create a deployment use the
+[Greengrass CLI](https://github.com/aws-greengrass/aws-greengrass-cli) component
+and run
+
+```bash
+./greengrass-cli --ggcRootPath=~/gglite_testing deployment create --recipeDir /path/to/recipes --artifactDir /path/to/artifacts --merge "<component-name>=<version>"
 ```
 
 ### Compiling Greengrass Lite
