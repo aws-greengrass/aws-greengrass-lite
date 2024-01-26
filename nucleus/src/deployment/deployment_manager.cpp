@@ -43,7 +43,6 @@ namespace deployment {
     }
 
     void DeploymentManager::listen() {
-        using namespace std::chrono_literals;
         scope::thread()->changeContext(context());
         while(!_terminate) {
             if(!_deploymentQueue->empty()) {
@@ -60,47 +59,53 @@ namespace deployment {
                         // TODO: Perform kernel update
                         if(deploymentType == DeploymentType::SHADOW) {
                             // TODO: Not implemented
-                            throw DeploymentException("Not implemented");
+                            LOG.atInfo("deployment")
+                                .kv(DEPLOYMENT_ID_LOG_KEY, nextDeployment.id)
+                                .log("Unsupported deployment type");
                         } else if(deploymentType == DeploymentType::IOT_JOBS) {
-                            throw DeploymentException("Not implemented");
+                            // TODO: Not implemented
+                            LOG.atInfo("deployment")
+                                .kv(DEPLOYMENT_ID_LOG_KEY, nextDeployment.id)
+                                .log("Unsupported deployment type");
                         }
                     }
                 }
+                runDeploymentTask();
                 _deploymentQueue->pop();
             }
-            std::this_thread::sleep_for(2s);
+            std::this_thread::sleep_for(POLLING_FREQUENCY);
         }
     }
 
     void DeploymentManager::createNewDeployment(const Deployment &deployment) {
         const auto deploymentId = deployment.id;
-        const auto deploymentType = deployment.deploymentType;
+        auto deploymentType = deployment.deploymentType;
         // TODO: Greengrass deployment id
-        LOG.atInfo("deploy")
+        LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
-            .kv("DeploymentType", "DEFAULT")
+            .kv("DeploymentType", "LOCAL")
             .log("Received deployment in the queue");
 
         if(deploymentType == DeploymentType::LOCAL) {
             try {
                 loadRecipesAndArtifacts(deployment);
-                LOG.atInfo("deploy")
-                    .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
-                    .log("Started deployment execution");
             } catch(std::runtime_error &e) {
-                throw DeploymentException(
-                    "Unable to load recipes and/or artifacts :" + std::string{e.what()});
+                LOG.atError("deployment")
+                    .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
+                    .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
+                    .kv("DeploymentType", "LOCAL")
+                    .log(e.what());
             }
         }
     }
 
     void DeploymentManager::cancelDeployment(const std::string &deploymentId) {
-        LOG.atInfo("deploy")
+        LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
-            .kv("DeploymentType", "DEFAULT")
             .log("Canceling given deployment");
+        // TODO: Kill the process doing the deployment
     }
 
     void DeploymentManager::loadRecipesAndArtifacts(const Deployment &deployment) {
@@ -111,7 +116,7 @@ namespace deployment {
         }
         if(!deploymentDocument.artifactsDirectoryPath.empty()) {
             auto artifactsDir = deploymentDocument.artifactsDirectoryPath;
-            copyArtifactsAndRun(artifactsDir);
+            copyArtifacts(artifactsDir);
         }
     }
 
@@ -136,11 +141,10 @@ namespace deployment {
     }
 
     Recipe DeploymentManager::loadRecipeFile(const std::filesystem::path &recipeFile) {
-        // parse recipe
         std::string ext = util::lower(recipeFile.extension().generic_string());
         if(ext == ".yaml" || ext == ".yml") {
-            deployment::YamlReader yamlReader;
-            auto recipeStruct = yamlReader.read(recipeFile);
+            // TODO: Do rest of the recipe
+            auto recipeStruct = _recipeLoader.read(recipeFile);
             Recipe recipe;
             recipe.componentVersion = recipeStruct.get<std::string>("ComponentVersion");
             recipe.formatVersion = recipeStruct.get<std::string>("RecipeFormatVersion");
@@ -184,45 +188,71 @@ namespace deployment {
         }
     }
 
-    void DeploymentManager::copyArtifactsAndRun(std::string_view artifactsDir) {
+    void DeploymentManager::copyArtifacts(std::string_view artifactsDir) {
         Recipe recipe = _componentStore->next();
-        auto saveArtifactsPath = _kernel.getPaths()->componentStorePath() / "artifacts"
-                                 / recipe.componentName / recipe.componentVersion;
-        if(!std::filesystem::exists(saveArtifactsPath)) {
-            std::filesystem::create_directories(saveArtifactsPath);
+        auto saveArtifactPath = _kernel.getPaths()->componentStorePath() / "artifacts"
+                                / recipe.componentName / recipe.componentVersion;
+        if(!std::filesystem::exists(saveArtifactPath)) {
+            std::filesystem::create_directories(saveArtifactPath);
         }
-        auto artifactsPath =
+        auto artifactPath =
             std::filesystem::path{artifactsDir} / recipe.componentName / recipe.componentVersion;
         std::filesystem::copy(
-            artifactsPath,
-            saveArtifactsPath,
+            artifactPath,
+            saveArtifactPath,
             std::filesystem::copy_options::recursive
                 | std::filesystem::copy_options::overwrite_existing);
+    }
 
-        // TODO: Run process command
-        if(!recipe.installCommand.script.empty()) {
-            auto requiresPrivilege = recipe.installCommand.requiresPrivilege;
+    void DeploymentManager::runDeploymentTask() {
+        // TODO: More streamlined deployment
+        auto currentDeployment = _deploymentQueue->next();
+        auto currentRecipe = _componentStore->next();
+        auto artifactPath = _kernel.getPaths()->componentStorePath() / "artifacts"
+                            / currentRecipe.componentName / currentRecipe.componentVersion;
+        LOG.atInfo("deployment")
+            .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+            .kv("DeploymentType", "LOCAL")
+            .log("Starting deployment execution");
+        if(!currentRecipe.installCommand.script.empty()) {
+            auto requiresPrivilege = currentRecipe.installCommand.requiresPrivilege;
             auto installCommand = std::regex_replace(
-                recipe.installCommand.script,
-                std::regex("\\{artifacts:path\\}"),
-                saveArtifactsPath.string());
-            ggapi::Struct request;
+                currentRecipe.installCommand.script,
+                std::regex(R"(\{artifacts:path\})"),
+                artifactPath.string());
+            installCommand = std::regex_replace(
+                installCommand,
+                std::regex(R"(\{configuration:\/Message\})"),
+                currentRecipe.configuration.message);
+            auto request = ggapi::Struct::create();
             request.put("requiresPrivilege", requiresPrivilege);
             request.put("script", installCommand);
-            request.put("workDir", saveArtifactsPath.string());
+            request.put("workDir", artifactPath.string());
             ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, request);
         }
-        if(!recipe.runCommand.script.empty()) {
-            auto requiresPrivilege = recipe.runCommand.requiresPrivilege;
+        if(!currentRecipe.runCommand.script.empty()) {
+            auto requiresPrivilege = currentRecipe.runCommand.requiresPrivilege;
             auto runCommand = std::regex_replace(
-                recipe.runCommand.script,
-                std::regex("\\{artifacts:path\\}"),
-                saveArtifactsPath.string());
-            ggapi::Struct request;
+                currentRecipe.runCommand.script,
+                std::regex(R"(\{artifacts:path\})"),
+                artifactPath.string());
+            runCommand = std::regex_replace(
+                runCommand,
+                std::regex(R"(\{configuration:\/Message\})"),
+                currentRecipe.configuration.message);
+            auto request = ggapi::Struct::create();
             request.put("requiresPrivilege", requiresPrivilege);
             request.put("script", runCommand);
-            request.put("workDir", saveArtifactsPath.string());
+            request.put("workDir", artifactPath.string());
             ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, request);
+            if(response.get<bool>("status")) {
+                LOG.atInfo("deployment")
+                    .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+                    .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+                    .kv("DeploymentType", "LOCAL")
+                    .log("Successfully deployed the component!");
+            }
         }
     }
 
@@ -231,7 +261,7 @@ namespace deployment {
         std::unique_lock guard{_mutex};
         Deployment deployment;
         try {
-            // TODO: Do rest
+            // TODO: Do rest of the deployment
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
             auto jsonToStruct = [](auto json) {
                 auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();
@@ -262,12 +292,12 @@ namespace deployment {
         } else {
             auto deploymentPresent = _deploymentQueue->get(deployment.id);
             if(checkValidReplacement(deploymentPresent, deployment)) {
-                LOG.atInfo("deploy")
+                LOG.atInfo("deployment")
                     .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)
                     .kv(DISCARDED_DEPLOYMENT_ID_LOG_KEY, deploymentPresent.id)
                     .log("Replacing existing deployment");
             } else {
-                LOG.atInfo("deploy")
+                LOG.atInfo("deployment")
                     .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)
                     .log("Deployment ignored because of duplicate");
                 returnStatus = false;
@@ -292,7 +322,7 @@ namespace deployment {
     }
 
     bool DeploymentManager::checkValidReplacement(
-        const Deployment &presentDeployment, const Deployment &offerDeployment) {
+        const Deployment &presentDeployment, const Deployment &offerDeployment) noexcept {
         if(presentDeployment.deploymentStage == DeploymentStage::DEFAULT) {
             return false;
         }

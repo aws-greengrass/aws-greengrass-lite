@@ -31,6 +31,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#ifdef __APPLE__
+#include <crt_externs.h>
+#define environ (*_NSGetEnviron())
+#endif
+
 namespace ipc {
 
     class FileDescriptor {
@@ -219,7 +224,7 @@ namespace ipc {
         // args and environment must each be a null-terminated array of pointers
         // Packed as follows: [ command | argv | nullptr | token | socket | envp | nullptr ]
         std::vector<char *> combinedArgvEnvp(
-            1 + (_args.size() + 1) + 2 + (environment.size() + 1), nullptr);
+            1 + (_args.size() + 1) + 2 + (environment.size()), nullptr);
         combinedArgvEnvp.front() = _command.data();
         auto envi = std::transform(
             _args.begin(), _args.end(), std::next(combinedArgvEnvp.begin()), [](std::string &s) {
@@ -227,11 +232,15 @@ namespace ipc {
             });
         // skip over the first null-terminator; this marks the start of the envp array
         ++envi;
+        auto sizeEnvBegin = envi - combinedArgvEnvp.begin();
         *envi++ = token.data();
         *envi++ = socket.data();
         std::transform(
             environment.begin(), environment.end(), envi, [](std::string &s) { return s.data(); });
-
+        for(auto env = environ; *env != nullptr; env++) {
+            combinedArgvEnvp.push_back(*env);
+        }
+        combinedArgvEnvp.push_back(nullptr);
         // prepare to capture child process output
         Pipe outPipe{};
         Pipe errPipe{};
@@ -252,7 +261,7 @@ namespace ipc {
 
             // child, runs process
             case 0: {
-                // At this point, child should be extremely careful which APIs they call;
+                // At this point, child shuld be extremely careful which APIs they call;
                 // async-signal-safe to be safest
 
                 // pipe program output to parent process
@@ -264,10 +273,11 @@ namespace ipc {
                 setUserInfo(user);
 
                 char **argv = combinedArgvEnvp.data();
-                char **envp = &*envi;
-                std::ignore = execve(_command.c_str(), argv, envp);
+                char **envp = &combinedArgvEnvp[sizeEnvBegin];
+                environ = envp;
+                std::ignore = execvp(_command.c_str(), argv);
                 // only reachable if exec fails
-                perror("execvpe");
+                perror("execvp");
                 // SECURITY-TODO: log permissions error
                 if(errno == EPERM || errno == EACCES) {
                 }
