@@ -19,12 +19,12 @@ endif()
 FetchContent_GetProperties(curl)
 if(NOT curl_POPULATED)
   FetchContent_Populate(curl)
-  add_subdirectory(${curl_SOURCE_DIR} ${curl_BINARY_DIR}
-                   EXCLUDE_FROM_ALL)
+  add_subdirectory(${curl_SOURCE_DIR} ${curl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
 add_library(Cloud_downloader MODULE main.cpp)
-target_link_libraries(Cloud_downloader PRIVATE nucleus-core aws-crt-cpp shared_resources libcurl)
+target_link_libraries(Cloud_downloader PRIVATE nucleus-core aws-crt-cpp
+                                               shared_resources libcurl)
 if(UNIX AND NOT APPLE)
   target_link_options(
     Cloud_downloader PRIVATE
