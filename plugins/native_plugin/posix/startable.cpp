@@ -6,6 +6,7 @@
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <fcntl.h>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -14,15 +15,13 @@
 #include <string_view>
 #include <system_error>
 #include <thread>
+#include <unistd.h>
 #include <utility>
 #include <vector>
 
-#include <fcntl.h>
-#include <pwd.h>
-#include <unistd.h>
-
 #if defined(__APPLE__) || defined(__unix__)
 #include <grp.h>
+#include <pwd.h>
 #endif
 #ifdef __APPLE__
 #include <crt_externs.h>
