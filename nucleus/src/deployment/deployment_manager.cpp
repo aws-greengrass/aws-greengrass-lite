@@ -206,6 +206,11 @@ namespace deployment {
                 recipe.installCommand.script,
                 std::regex("\\{artifacts:path\\}"),
                 saveArtifactsPath.string());
+            ggapi::Struct request;
+            request.put("requiresPrivilege", requiresPrivilege);
+            request.put("script", installCommand);
+            request.put("workDir", saveArtifactsPath.string());
+            ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, request);
         }
         if(!recipe.runCommand.script.empty()) {
             auto requiresPrivilege = recipe.runCommand.requiresPrivilege;
@@ -213,7 +218,11 @@ namespace deployment {
                 recipe.runCommand.script,
                 std::regex("\\{artifacts:path\\}"),
                 saveArtifactsPath.string());
-            std::cout << runCommand;
+            ggapi::Struct request;
+            request.put("requiresPrivilege", requiresPrivilege);
+            request.put("script", runCommand);
+            request.put("workDir", saveArtifactsPath.string());
+            ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, request);
         }
     }
 

@@ -165,6 +165,8 @@ namespace deployment {
         static constexpr std::string_view DEPLOYMENT_ID_LOG_KEY = "DeploymentId";
         static constexpr std::string_view DISCARDED_DEPLOYMENT_ID_LOG_KEY = "DiscardedDeploymentId";
         static constexpr std::string_view GG_DEPLOYMENT_ID_LOG_KEY_NAME = "GreengrassDeploymentId";
+        inline static const ggapi::Symbol EXECUTE_PROCESS_TOPIC{
+            "aws.greengrass.Native.StartProcess"};
         mutable std::mutex _mutex;
         std::thread _thread;
         std::condition_variable _wake;
