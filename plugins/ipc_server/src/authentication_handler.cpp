@@ -1,4 +1,5 @@
 #include "authentication_handler.hpp"
+#include <algorithm>
 
 static constexpr int SEED = 123;
 

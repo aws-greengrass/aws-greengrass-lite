@@ -2,18 +2,13 @@
 #include "../startable.hpp"
 #include "util.hpp"
 
-#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cstdio>
 #include <cstdlib>
-#include <exception>
-#include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <memory>
 #include <optional>
-#include <pthread.h>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -22,15 +17,13 @@
 #include <utility>
 #include <vector>
 
-#include "logging.hpp"
 #include <fcntl.h>
-#include <grp.h>
 #include <pwd.h>
-#include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/wait.h>
 #include <unistd.h>
 
+#if defined(__APPLE__) || defined(__unix__)
+#include <grp.h>
+#endif
 #ifdef __APPLE__
 #include <crt_externs.h>
 #define environ (*_NSGetEnviron())

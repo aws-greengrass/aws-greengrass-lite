@@ -1,6 +1,7 @@
 #include "deployment_manager.hpp"
 #include "logging/log_queue.hpp"
 #include <filesystem>
+#include <fstream>
 #include <regex>
 #include <util.hpp>
 
@@ -89,6 +90,10 @@ namespace deployment {
 
         if(deploymentType == DeploymentType::LOCAL) {
             try {
+                auto requiredCapabilities = deployment.deploymentDocument.requiredCapabilities;
+                if(!requiredCapabilities.empty()) {
+                    // TODO: check if required capabilities are supported
+                }
                 loadRecipesAndArtifacts(deployment);
             } catch(std::runtime_error &e) {
                 LOG.atError("deployment")
@@ -205,7 +210,9 @@ namespace deployment {
     }
 
     void DeploymentManager::runDeploymentTask() {
-        // TODO: More streamlined deployment
+        // TODO: More streamlined deployment task
+        // TODO: Get non-target group to root packages group
+        // TODO: Component manager - resolve version, prepare packages, ...
         auto currentDeployment = _deploymentQueue->next();
         auto currentRecipe = _componentStore->next();
         auto artifactPath = _kernel.getPaths()->componentStorePath() / "artifacts"
@@ -214,7 +221,7 @@ namespace deployment {
             .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
             .kv("DeploymentType", "LOCAL")
-            .log("Starting deployment execution");
+            .log("Starting deployment task");
         if(!currentRecipe.installCommand.script.empty()) {
             auto requiresPrivilege = currentRecipe.installCommand.requiresPrivilege;
             auto installCommand = std::regex_replace(
@@ -282,7 +289,12 @@ namespace deployment {
             deployment.deploymentType =
                 DeploymentTypeMap.at(deploymentStruct.get<std::string>("deploymentType"));
         } catch(std::exception &e) {
-            throw DeploymentException("Invalid deployment request " + std::string{e.what()});
+            LOG.atError("deployment")
+                .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)
+                .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deployment.id)
+                .kv("DeploymentType", "LOCAL")
+                .log("Invalid deployment request");
+            return ggapi::Struct::create().put("status", false);
         }
         bool returnStatus = true;
 
@@ -303,6 +315,17 @@ namespace deployment {
                 returnStatus = false;
             }
         }
+
+        // save deployment metadata to file
+        auto deploymentPath = _kernel.getPaths()->deploymentPath();
+        std::filesystem::create_directory(deploymentPath / deployment.id);
+        std::ofstream ofstream(
+            deploymentPath / deployment.id / "deployment_metadata.json", std::ios::trunc);
+        ggapi::Buffer buffer = deploymentStruct.toJson();
+        buffer.write(ofstream); // TODO: Use util::commitable
+        ofstream.flush();
+        ofstream.close();
+
         return ggapi::Struct::create().put("status", returnStatus);
     }
 
