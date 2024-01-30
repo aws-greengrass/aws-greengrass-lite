@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(Cloud_downloader)
+project(cloud_downloader)
 
 include(FetchContent)
 include(../../utils/fetchContentFromDeps.cmake)
@@ -13,8 +13,8 @@ if(NOT device-sdk-cpp_POPULATED)
                    EXCLUDE_FROM_ALL)
 endif()
 
-add_library(Cloud_downloader MODULE main.cpp)
-target_link_libraries(Cloud_downloader PRIVATE nucleus-core aws-crt-cpp
+add_library(cloud_downloader MODULE main.cpp)
+target_link_libraries(cloud_downloader PRIVATE nucleus-core aws-crt-cpp
                                                shared_resources)
 
-install(TARGETS Cloud_downloader DESTINATION plugins)
+install(TARGETS cloud_downloader DESTINATION plugins)
