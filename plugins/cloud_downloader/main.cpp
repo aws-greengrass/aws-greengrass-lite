@@ -29,7 +29,7 @@ public:
 };
 
 ggapi::Struct CloudDownloader::download(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
-    //TODO: Add more Topics support
+    // TODO: Add more Topics support
     auto uriAsString = callData.get<std::string>("uri");
     auto localPath = callData.get<std::string>("localPath");
 

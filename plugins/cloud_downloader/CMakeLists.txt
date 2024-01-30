@@ -15,6 +15,6 @@ endif()
 
 add_library(Cloud_downloader MODULE main.cpp)
 target_link_libraries(Cloud_downloader PRIVATE nucleus-core aws-crt-cpp
-                                               shared_resources )
+                                               shared_resources)
 
 install(TARGETS Cloud_downloader DESTINATION plugins)
