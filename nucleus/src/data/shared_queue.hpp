@@ -24,24 +24,24 @@ namespace data {
             }
         }
 
-        [[nodiscard]] V get(const K &key) noexcept {
+        [[nodiscard]] const V &get(const K &key) const noexcept {
             std::unique_lock guard{_mutex};
             auto &it = _hashMap.at(key);
             return it->second;
         }
 
-        [[nodiscard]] V &next() noexcept {
+        [[nodiscard]] const V &next() const noexcept {
             std::unique_lock guard{_mutex};
             auto &kv = _pairList.front();
             return kv.second;
         }
 
-        [[nodiscard]] bool exists(const K &key) noexcept {
+        [[nodiscard]] bool exists(const K &key) const noexcept {
             std::unique_lock guard{_mutex};
             return _hashMap.find(key) != _hashMap.cend();
         }
 
-        [[nodiscard]] bool empty() noexcept {
+        [[nodiscard]] bool empty() const noexcept {
             std::unique_lock guard{_mutex};
             return _pairList.empty();
         }

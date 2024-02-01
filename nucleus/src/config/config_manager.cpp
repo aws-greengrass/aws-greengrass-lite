@@ -220,6 +220,18 @@ namespace config {
         return keys;
     }
 
+    std::shared_ptr<data::ListModelBase> Topics::getKeysAsList() const {
+        auto keys{std::make_shared<data::SharedList>(context())};
+        std::shared_lock guard{_mutex};
+        keys->reserve(_children.size());
+        auto ctx = context();
+        auto &syms = ctx->symbols();
+        for(const auto &_element : _children) {
+            keys->push(syms.apply(_element.first));
+        }
+        return keys;
+    }
+
     uint32_t Topics::size() const {
         std::shared_lock guard{_mutex};
         return _children.size();

@@ -84,6 +84,10 @@ namespace data {
             return isType<ContainerModelBase>();
         }
 
+        [[nodiscard]] bool isStruct() const {
+            return isType<StructModelBase>();
+        }
+
         [[nodiscard]] bool isScalar() const {
             return !isObject() && !isNull();
         }
@@ -307,6 +311,7 @@ namespace data {
         void put(Symbol handle, const StructElement &element);
         void put(std::string_view sv, const StructElement &element);
         virtual std::vector<data::Symbol> getKeys() const = 0;
+        virtual std::shared_ptr<ListModelBase> getKeysAsList() const = 0;
         bool hasKey(Symbol handle) const;
         bool hasKey(std::string_view sv) const;
         StructElement get(Symbol handle) const;

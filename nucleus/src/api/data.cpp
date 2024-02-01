@@ -477,6 +477,14 @@ bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) noexcept {
     });
 }
 
+uint32_t ggapiStructKeys(uint32_t structHandle) noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([structHandle]() {
+        auto context = scope::context();
+        auto ss{context->objFromInt<StructModelBase>(structHandle)};
+        return scope::NucleusCallScopeContext::intHandle(ss->getKeysAsList());
+    });
+}
+
 uint32_t ggapiGetSize(uint32_t containerHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([containerHandle]() {
         auto context = scope::context();
@@ -493,6 +501,15 @@ bool ggapiIsEmpty(uint32_t containerHandle) noexcept {
         auto context = scope::context();
         auto ss{context->objFromInt<ContainerModelBase>(containerHandle)};
         return ss->empty();
+    });
+}
+
+bool ggapiStructIsStruct(uint32_t structHandle, uint32_t keyInt) noexcept {
+    return ggapi::trapErrorReturn<bool>([structHandle, keyInt]() {
+        auto context = scope::context();
+        auto ss{context->objFromInt<StructModelBase>(structHandle)};
+        Symbol key = context->symbolFromInt(keyInt);
+        return ss->get(key).isStruct();
     });
 }
 

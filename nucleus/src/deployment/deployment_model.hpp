@@ -1,6 +1,7 @@
 #pragma once
 #include "data/string_table.hpp"
 #include <cstdint>
+#include <forward_list>
 #include <util.hpp>
 
 namespace deployment {
@@ -108,25 +109,5 @@ namespace deployment {
         bool isCancelled;
         DeploymentStage deploymentStage;
         std::string stageDetails;
-    };
-
-    struct Command {
-        bool requiresPrivilege;
-        std::string script;
-    };
-
-    struct ComponentConfiguration {
-        std::string message;
-    };
-
-    struct Recipe {
-        std::string formatVersion;
-        std::string componentName;
-        std::string componentVersion;
-        std::string description;
-        std::string publisher;
-        ComponentConfiguration configuration;
-        Command runCommand;
-        Command installCommand;
     };
 } // namespace deployment

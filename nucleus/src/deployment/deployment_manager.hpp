@@ -1,7 +1,6 @@
 #pragma once
-#include "deployment_model.hpp"
-
 #include "data/shared_queue.hpp"
+#include "deployment_model.hpp"
 #include "lifecycle/kernel.hpp"
 #include "plugin.hpp"
 #include "recipe_loader.hpp"
@@ -56,6 +55,7 @@ namespace deployment {
         void clearQueue();
         void createNewDeployment(const Deployment &);
         void cancelDeployment(const std::string &);
+        void resolveDependencies(DeploymentDocument);
         void loadRecipesAndArtifacts(const Deployment &);
         void copyAndLoadRecipes(std::string_view);
         Recipe loadRecipeFile(const std::filesystem::path &);

@@ -60,6 +60,18 @@ namespace data {
         return keys;
     }
 
+    std::shared_ptr<ListModelBase> SharedStruct::getKeysAsList() const {
+        auto keys{std::make_shared<SharedList>(context())};
+        std::shared_lock guard{_mutex};
+        keys->reserve(_elements.size());
+        auto ctx = context();
+        auto &syms = ctx->symbols();
+        for(const auto &_element : _elements) {
+            keys->push(syms.apply(_element.first));
+        }
+        return keys;
+    }
+
     uint32_t SharedStruct::size() const {
         std::shared_lock guard{_mutex};
         return _elements.size();

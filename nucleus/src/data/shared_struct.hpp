@@ -1,5 +1,7 @@
 #pragma once
+
 #include "scope/mapper.hpp"
+#include "shared_list.hpp"
 #include "struct_model.hpp"
 #include "symbol_value_map.hpp"
 
@@ -30,6 +32,7 @@ namespace data {
         void putImpl(Symbol symbol, const StructElement &element) override;
         bool hasKeyImpl(Symbol symbol) const override;
         std::vector<data::Symbol> getKeys() const override;
+        std::shared_ptr<ListModelBase> getKeysAsList() const override;
         StructElement getImpl(Symbol symbol) const override;
         std::shared_ptr<StructModelBase> copy() const override;
     };

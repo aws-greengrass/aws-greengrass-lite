@@ -82,6 +82,9 @@ namespace deployment {
         const auto deploymentId = deployment.id;
         auto deploymentType = deployment.deploymentType;
         // TODO: Greengrass deployment id
+        // TODO: persist and publish deployment status
+        // TODO: Get non-target group to root packages group
+        // TODO: Component manager - resolve version, prepare packages, ...
         LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
@@ -113,6 +116,9 @@ namespace deployment {
         // TODO: Kill the process doing the deployment
     }
 
+    void DeploymentManager::resolveDependencies(deployment::DeploymentDocument) {
+    }
+
     void DeploymentManager::loadRecipesAndArtifacts(const Deployment &deployment) {
         auto &deploymentDocument = deployment.deploymentDocument;
         if(!deploymentDocument.recipeDirectoryPath.empty()) {
@@ -132,7 +138,7 @@ namespace deployment {
                 saveRecipeFile(recipe);
                 auto semVer = recipe.componentName + "-v" + recipe.componentVersion;
                 const std::hash<std::string> hasher;
-                auto hashValue = hasher(semVer);
+                auto hashValue = hasher(semVer); // TODO: Digest hashing algorithm
                 _componentStore->push({semVer, recipe});
                 auto saveRecipeName =
                     std::to_string(hashValue) + "@" + recipe.componentVersion + ".recipe.yml";
@@ -148,40 +154,12 @@ namespace deployment {
     Recipe DeploymentManager::loadRecipeFile(const std::filesystem::path &recipeFile) {
         std::string ext = util::lower(recipeFile.extension().generic_string());
         if(ext == ".yaml" || ext == ".yml") {
-            // TODO: Do rest of the recipe
-            auto recipeStruct = _recipeLoader.read(recipeFile);
-            Recipe recipe;
-            recipe.componentVersion = recipeStruct.get<std::string>("ComponentVersion");
-            recipe.formatVersion = recipeStruct.get<std::string>("RecipeFormatVersion");
-            recipe.componentName = recipeStruct.get<std::string>("ComponentName");
-            recipe.description = recipeStruct.get<std::string>("ComponentDescription");
-            recipe.publisher = recipeStruct.get<std::string>("ComponentPublisher");
-            if(recipeStruct.hasKey("ComponentConfiguration")) {
-                recipe.configuration.message =
-                    recipeStruct.getValue<ggapi::Struct>({"ComponentConfiguration"})
-                        .getValue<ggapi::Struct>({"DefaultConfiguration"})
-                        .get<std::string>("Message");
-            }
-            auto linuxPlatform = recipeStruct.getValue<ggapi::Struct>({"Manifests"})
-                                     .getValue<ggapi::Struct>({"0"})
-                                     .getValue<ggapi::Struct>({"Lifecycle"});
-            if(linuxPlatform.hasKey("install")) {
-                recipe.installCommand.requiresPrivilege =
-                    linuxPlatform.getValue<bool>({"install", "RequiresPrivilege"});
-                recipe.installCommand.script =
-                    linuxPlatform.getValue<std::string>({"install", "Script"});
-                if(linuxPlatform.hasKey("Run")) {
-                    recipe.runCommand.requiresPrivilege =
-                        linuxPlatform.getValue<bool>({"Run", "RequiresPrivilege"});
-                    recipe.runCommand.script =
-                        linuxPlatform.getValue<std::string>({"Run", "Script"});
-                }
-            } else if(linuxPlatform.hasKey("run")) {
-                recipe.runCommand.script = linuxPlatform.getValue<std::string>({"run"});
-            }
-            return recipe;
+            // TODO: Do rest of the recipe and dependency resolution
+            return _recipeLoader.read(recipeFile);
         } else {
-            throw DeploymentException("Unsupported recipe file type");
+            LOG.atError("deployment")
+                .kv("DeploymentType", "LOCAL")
+                .logAndThrow(std::runtime_error("Unsupported recipe file type"));
         }
     }
 
@@ -211,8 +189,6 @@ namespace deployment {
 
     void DeploymentManager::runDeploymentTask() {
         // TODO: More streamlined deployment task
-        // TODO: Get non-target group to root packages group
-        // TODO: Component manager - resolve version, prepare packages, ...
         auto currentDeployment = _deploymentQueue->next();
         auto currentRecipe = _componentStore->next();
         auto artifactPath = _kernel.getPaths()->componentStorePath() / "artifacts"
@@ -222,45 +198,50 @@ namespace deployment {
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
             .kv("DeploymentType", "LOCAL")
             .log("Starting deployment task");
-        if(!currentRecipe.installCommand.script.empty()) {
-            auto requiresPrivilege = currentRecipe.installCommand.requiresPrivilege;
-            auto installCommand = std::regex_replace(
-                currentRecipe.installCommand.script,
-                std::regex(R"(\{artifacts:path\})"),
-                artifactPath.string());
-            installCommand = std::regex_replace(
-                installCommand,
-                std::regex(R"(\{configuration:\/Message\})"),
-                currentRecipe.configuration.message);
-            auto request = ggapi::Struct::create();
-            request.put("requiresPrivilege", requiresPrivilege);
-            request.put("script", installCommand);
-            request.put("workDir", artifactPath.string());
-            ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, request);
-        }
-        if(!currentRecipe.runCommand.script.empty()) {
-            auto requiresPrivilege = currentRecipe.runCommand.requiresPrivilege;
-            auto runCommand = std::regex_replace(
-                currentRecipe.runCommand.script,
-                std::regex(R"(\{artifacts:path\})"),
-                artifactPath.string());
-            runCommand = std::regex_replace(
-                runCommand,
-                std::regex(R"(\{configuration:\/Message\})"),
-                currentRecipe.configuration.message);
-            auto request = ggapi::Struct::create();
-            request.put("requiresPrivilege", requiresPrivilege);
-            request.put("script", runCommand);
-            request.put("workDir", artifactPath.string());
-            ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, request);
-            if(response.get<bool>("status")) {
-                LOG.atInfo("deployment")
-                    .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
-                    .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
-                    .kv("DeploymentType", "LOCAL")
-                    .log("Successfully deployed the component!");
+
+        // TODO: Support other platforms
+        auto it = std::find_if(
+            currentRecipe.manifests.begin(), currentRecipe.manifests.end(), [](auto &manifest) {
+                return manifest.platform.os == "linux";
+            });
+        if(it != currentRecipe.manifests.end()) {
+            for(const auto &[stage, command] : it->lifecycle) {
+                auto script = std::regex_replace(
+                    command.script, std::regex(R"(\{artifacts:path\})"), artifactPath.string());
+                if(currentRecipe.configuration.defaultConfiguration.hasKey("message")) {
+                    script = std::regex_replace(
+                        script,
+                        std::regex(R"(\"\{configuration:\/Message\}\")"),
+                        currentRecipe.configuration.defaultConfiguration.get<std::string>(
+                            "message"));
+                }
+
+                auto request = ggapi::Struct::create();
+                request.put("requiresPrivilege", command.requiresPrivilege);
+                request.put("script", script);
+                request.put("workDir", artifactPath.string());
+                ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, request);
+                if(response.get<bool>("status")) {
+                    LOG.atInfo("deployment")
+                        .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+                        .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+                        .kv("DeploymentType", "LOCAL")
+                        .log("Executed " + stage + " of the lifecycle");
+                }
             }
+        } else {
+            LOG.atInfo("deployment")
+                .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+                .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+                .kv("DeploymentType", "LOCAL")
+                .log("Platform not supported!");
         }
+
+        LOG.atInfo("deployment")
+            .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+            .kv("DeploymentType", "LOCAL")
+            .log("Successfully deployed the component!");
     }
 
     ggapi::Struct DeploymentManager::createDeploymentHandler(
@@ -269,6 +250,7 @@ namespace deployment {
         Deployment deployment;
         try {
             // TODO: Do rest of the deployment
+            // TODO: validate deployment
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
             auto jsonToStruct = [](auto json) {
                 auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();

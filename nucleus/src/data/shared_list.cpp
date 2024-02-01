@@ -51,6 +51,17 @@ namespace data {
         });
     }
 
+    void SharedList::push(const StructElement &element) {
+        checkedPut(element, [this](auto &el) {
+            std::unique_lock guard{_mutex};
+            if(_elements.size() >= MAX_LIST_SIZE) {
+                throw std::out_of_range("List too large");
+            } else {
+                _elements.push_back(el);
+            }
+        });
+    }
+
     void SharedList::insert(int32_t idx, const StructElement &element) {
         checkedPut(element, [this, idx](auto &el) {
             std::unique_lock guard{_mutex};
