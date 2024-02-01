@@ -156,7 +156,7 @@ ggapi::Struct CloudDownloader::download(ggapi::Task, ggapi::Symbol, ggapi::Struc
         .log();
     std::cout << "[Cloud_Downloader] Downloaded file " << localPath << std::endl;
 
-    //TODO: Follow the spec for Response
+    // TODO: Follow the spec for Response
     ggapi::Struct response = ggapi::Struct::create();
     response.put("Download Complete", uriAsString);
     return response;

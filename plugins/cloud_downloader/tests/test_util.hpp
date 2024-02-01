@@ -31,7 +31,7 @@ public:
     }
 };
 
-class cloudPubCallback{
+class cloudPubCallback {
 public:
     virtual ~cloudPubCallback() = default;
     virtual void sendToTopic() = 0;
