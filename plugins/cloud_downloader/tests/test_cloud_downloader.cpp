@@ -24,7 +24,7 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
 
             THEN("Test if the file is created at the localPath") {
                 REQUIRE(std::filesystem::exists(localPath));
-                // TODO: Add a test to check the fiel contents
+                // TODO: Add a test to check the file contents
             }
         }
 
