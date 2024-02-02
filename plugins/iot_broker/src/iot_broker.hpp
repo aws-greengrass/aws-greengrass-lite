@@ -84,6 +84,9 @@ public:
         return instance;
     }
 
+    // TES
+    bool tesOnStart(ggapi::Struct data);
+
 private:
     static const Keys keys;
     ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
@@ -100,4 +103,7 @@ private:
     std::vector<std::tuple<Key, ggapi::Channel, PacketHandler>> _subscriptions;
     std::shared_mutex _subscriptionMutex;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
+
+    // TES
+    std::string _iotroleAlias;
 };
