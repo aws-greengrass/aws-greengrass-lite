@@ -38,4 +38,11 @@ To deploy the component run
 ```
 
 You can find an example recipe
-[here](recipes/com.example.SampleComponent-1.0.0.yaml).
+[here](recipes/com.example.SampleComponent-1.0.0.yaml). Note that the message in
+the recipe can be configured.
+
+```yaml
+ComponentConfiguration:
+  DefaultConfiguration:
+    Message: <your-message>
+```
