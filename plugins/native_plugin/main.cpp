@@ -2,14 +2,13 @@
 #include "plugin.hpp"
 
 #include <exception>
-#include <filesystem>
 #include <iostream>
 #include <sstream>
 
 #include "startable.hpp"
 
 struct Keys {
-    ggapi::Symbol serviceName{"aws.greengrass.Native"};
+    ggapi::Symbol serviceName{"serviceName"};
     ggapi::Symbol startProcessTopic{"aws.greengrass.Native.StartProcess"};
 };
 
@@ -21,6 +20,7 @@ const auto LOG = // NOLINT(cert-err58-cpp)
 class NativePlugin : public ggapi::Plugin {
     std::atomic<ggapi::Struct> _system;
     std::atomic<ggapi::Struct> _nucleus;
+    static constexpr auto SERVICE_NAME = "aws.greengrass.Native";
 
 public:
     void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
@@ -87,16 +87,13 @@ bool NativePlugin::onStart(ggapi::Struct data) {
 }
 
 bool NativePlugin::onRun(ggapi::Struct data) {
-    //    try {
-    //        ipc::Startable{}.WithCommand("ls").WithArguments({"-l", "../"}).Start();
-    //    } catch(const std::exception &e) {
-    //        LOG.atError().event("process-start-error").log(e.what());
-    //    }
+    auto request = ggapi::Struct::create();
+    request.put(keys.serviceName, SERVICE_NAME);
     return true;
 }
 
 bool NativePlugin::onBootstrap(ggapi::Struct structData) {
-    structData.put(NAME, keys.serviceName);
+    structData.put(NAME, SERVICE_NAME);
     return true;
 }
 
