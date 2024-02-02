@@ -9,6 +9,7 @@
     git
     git-secrets
     (python3.withPackages (ps: with ps; [ yapf python-lsp-server ]))
+    temurin-jre-bin-17
   ] ++ (lib.optionals (!pkgs.stdenv.isDarwin) [
     gdb
   ]));
