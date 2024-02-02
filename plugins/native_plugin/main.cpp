@@ -8,8 +8,11 @@
 #include "startable.hpp"
 
 struct Keys {
+    ggapi::Symbol infoTopicName{"aws.greengrass.RequestIpcInfo"};
     ggapi::Symbol serviceName{"serviceName"};
     ggapi::Symbol startProcessTopic{"aws.greengrass.Native.StartProcess"};
+    ggapi::Symbol socketPath{"domain_socket_path"};
+    ggapi::Symbol cliAuthToken{"cli_auth_token"};
 };
 
 static const Keys keys;
@@ -20,6 +23,8 @@ const auto LOG = // NOLINT(cert-err58-cpp)
 class NativePlugin : public ggapi::Plugin {
     std::atomic<ggapi::Struct> _system;
     std::atomic<ggapi::Struct> _nucleus;
+    std::string _authToken;
+    std::string _socketPath;
     static constexpr auto SERVICE_NAME = "aws.greengrass.Native";
 
 public:
@@ -56,7 +61,10 @@ ggapi::Struct NativePlugin::testListener(ggapi::Task, ggapi::Symbol, ggapi::Stru
         std::string frontCommand = arguments.front();
         arguments.erase(arguments.begin());
         try {
-            ipc::Startable{}.WithCommand(frontCommand).WithArguments(arguments).Start();
+            ipc::Startable(_authToken, _socketPath)
+                .WithCommand(frontCommand)
+                .WithArguments(arguments)
+                .Start();
         } catch(const std::exception &e) {
             LOG.atError().event("process-start-error").log(e.what());
         }
@@ -89,6 +97,9 @@ bool NativePlugin::onStart(ggapi::Struct data) {
 bool NativePlugin::onRun(ggapi::Struct data) {
     auto request = ggapi::Struct::create();
     request.put(keys.serviceName, SERVICE_NAME);
+    auto result = ggapi::Task::sendToTopic(keys.infoTopicName, request);
+    _socketPath = result.get<std::string>(keys.socketPath);
+    _authToken = result.get<std::string>(keys.cliAuthToken);
     return true;
 }
 
