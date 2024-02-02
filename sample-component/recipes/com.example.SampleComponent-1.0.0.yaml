@@ -1,0 +1,12 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: com.example.SampleComponent
+ComponentVersion: "1.0.0"
+ComponentDescription: A sample Greengrass Lite component.
+ComponentPublisher: Amazon
+Manifests:
+  - Platform:
+      os: linux
+    Lifecycle:
+      run: |
+        {artifacts:path}/sample-component
