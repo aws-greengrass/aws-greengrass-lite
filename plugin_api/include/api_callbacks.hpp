@@ -7,6 +7,29 @@
 #include <shared_mutex>
 
 namespace ggapi {
+    class CallbackManager;
+
+    // Needs extern "C" as that makes static functions use C linkage, and callback is passed to
+    // ggapiRegisterCallback which uses C linkage. CallbackManager can't be marked extern C as it
+    // has templates and other static function members.
+    extern "C" class CallbackManagerCCallback {
+        friend CallbackManager;
+
+        /**
+         * Round-trip point of entry that was passed to Nucleus for Nucleus to use when performing
+         * a callback.
+         *
+         * @param callbackContext Round-trip context, large enough to hold a pointer
+         * @param callbackType Callback type, indicating what structure was passed
+         * @param callbackDataSize Size of structure for validation
+         * @param callbackData Pointer to structure based on previous fields
+         */
+        static ggapiErrorKind callback(
+            ggapiContext callbackContext,
+            ggapiSymbol callbackType,
+            ggapiDataLen callbackDataSize,
+            void *callbackData) noexcept;
+    };
 
     /**
      * Factory to serve out callback handles allowing rich C++ style callbacks while maintaining
@@ -14,6 +37,7 @@ namespace ggapi {
      * with caution. Better to use a callback function and callback parameters (see std::thread).
      */
     class CallbackManager {
+        friend CallbackManagerCCallback;
 
     public:
         using Delegate = std::function<void()>;
@@ -84,24 +108,6 @@ namespace ggapi {
         std::shared_mutex _mutex;
         std::map<uintptr_t, std::unique_ptr<const CallbackDispatch>> _callbacks;
 
-        /**
-         * Round-trip point of entry that was passed to Nucleus for Nucleus to use when performing
-         * a callback.
-         *
-         * @param callbackContext Round-trip context, large enough to hold a pointer
-         * @param callbackType Callback type, indicating what structure was passed
-         * @param callbackDataSize Size of structure for validation
-         * @param callbackData Pointer to structure based on previous fields
-         */
-        static ggapiErrorKind _callback(
-            ggapiContext callbackContext,
-            ggapiSymbol callbackType,
-            ggapiDataLen callbackDataSize,
-            void *callbackData) noexcept {
-
-            return self().callback(callbackContext, callbackType, callbackDataSize, callbackData);
-        }
-
         ggapiErrorKind callback(
             ggapiContext callbackContext,
             ggapiSymbol callbackType,
@@ -136,7 +142,7 @@ namespace ggapi {
             ggapiObjHandle callbackHandle = 0;
             callApiThrowError(
                 ::ggapiRegisterCallback,
-                &CallbackManager::_callback,
+                &CallbackManagerCCallback::callback,
                 idx,
                 type.asInt(),
                 &callbackHandle);
@@ -168,4 +174,13 @@ namespace ggapi {
         }
     };
 
+    extern "C" inline ggapiErrorKind CallbackManagerCCallback::callback(
+        ggapiContext callbackContext,
+        ggapiSymbol callbackType,
+        ggapiDataLen callbackDataSize,
+        void *callbackData) noexcept {
+
+        return CallbackManager::self().callback(
+            callbackContext, callbackType, callbackDataSize, callbackData);
+    }
 } // namespace ggapi
