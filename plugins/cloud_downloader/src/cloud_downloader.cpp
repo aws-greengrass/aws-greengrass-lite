@@ -178,8 +178,6 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
     CloudDownloader self;
     self.downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);
 
-    std::cout << "Content: " << downloadContent.str() << std::endl;
-
     LOG.atInfo().event("Downlaod Status").log("Sucesssfully Fetched Token...");
     std::cout << "[Cloud_Downloader] Sucesssfully Fetched Token... " << std::endl;
 
