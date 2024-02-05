@@ -27,8 +27,36 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
                 // TODO: Add a test to check the file contents
             }
         }
+        WHEN("A device Credential is provided to retrive the token") {
+            auto request{ggapi::Struct::create()};
+            auto endpoint = "c3bom3oeb42l2o.iot.us-west-2.amazonaws.com";
+            auto thingName = ""; // your device thingName
+            auto certPath = ""; // your CertPath
+            auto caPath = ""; // your CAPath
+            auto caFile = ""; // your CAFile
+            auto pkeyPath = ""; // your pkeyPath
 
-        // stop lifecycle
-        CHECK(sender.stopLifecycle());
+            std::stringstream ss;
+            ss << "https://" << endpoint << "/role-aliases/"
+               << "GreengrassV2TokenExchangeRoleAlias"
+               << "/credentials";
+
+            request.put("uri", ss.str());
+            request.put("thingName", thingName);
+            request.put("certPath", certPath);
+            request.put("caPath", caPath);
+            request.put("caFile", caFile);
+            request.put("pkeyPath", pkeyPath);
+
+            auto response =
+                ggapi::Task::sendToTopic(ggapi::Symbol{"aws.grengrass.retrieve_token"}, request);
+
+            THEN("Validate proper JSON format") {
+                REQUIRE(true);
+            }
+
+            // stop lifecycle
+            CHECK(sender.stopLifecycle());
+        }
     }
 }

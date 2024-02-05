@@ -1,22 +1,18 @@
 
 #include "cloud_downloader.hpp"
 
-ggapi::Struct CloudDownloader::download(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
-    // TODO: Add more Topics support
-    auto uriAsString = callData.get<std::string>("uri");
-    auto localPath = callData.get<std::string>("localPath");
+/*
+A common client helper function to make the request to a url using the aws's library
+*/
+void CloudDownloader::downloadClient(
+    Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions,
+    std::string uriAsString,
+    Aws::Crt::Http::HttpRequest &request,
+    Aws::Crt::Http::HttpRequestOptions requestOptions,
+    Aws::Crt::Allocator *allocator) {
 
-    struct aws_allocator *allocator = aws_default_allocator();
     Aws::Crt::ApiHandle apiHandle(allocator);
     Aws::Crt::ByteCursor urlCursor = Aws::Crt::ByteCursorFromCString(uriAsString.c_str());
-    Aws::Crt::Io::TlsContextOptions tlsCtxOptions =
-        Aws::Crt::Io::TlsContextOptions::InitDefaultClient();
-    Aws::Crt::Io::TlsContext tlsContext(tlsCtxOptions, Aws::Crt::Io::TlsMode::CLIENT, allocator);
-    if(!tlsContext) {
-        throw std::runtime_error("Failed to create TLS context");
-    }
-
-    Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions = tlsContext.NewConnectionOptions();
 
     Aws::Crt::Io::Uri uri(urlCursor, allocator);
 
@@ -94,16 +90,7 @@ ggapi::Struct CloudDownloader::download(ggapi::Task, ggapi::Symbol, ggapi::Struc
         throw std::runtime_error("Failed to establish sucessful connection");
     }
 
-    std::ofstream downloadedFile(localPath.c_str(), std::ios_base::binary);
-
-    if(!downloadedFile) {
-        LOG.atError().log("Failed to create file");
-        throw std::runtime_error("Failed to create file");
-    }
-
     int responseCode = 0;
-    Aws::Crt::Http::HttpRequest request;
-    Aws::Crt::Http::HttpRequestOptions requestOptions;
     requestOptions.request = &request;
 
     bool streamCompleted = false;
@@ -121,10 +108,6 @@ ggapi::Struct CloudDownloader::download(ggapi::Task, ggapi::Symbol, ggapi::Struc
                                            const Aws::Crt::Http::HttpHeader *,
                                            std::size_t) {
         responseCode = stream.GetResponseStatusCode();
-    };
-    requestOptions.onIncomingBody = [&](Aws::Crt::Http::HttpStream &,
-                                        const Aws::Crt::ByteCursor &data) {
-        downloadedFile.write((const char *) data.ptr, data.len);
     };
 
     request.SetMethod(Aws::Crt::ByteCursorFromCString("GET"));
@@ -146,25 +129,122 @@ ggapi::Struct CloudDownloader::download(ggapi::Task, ggapi::Symbol, ggapi::Struc
     connection->Close();
     semaphore.wait(semaphoreULock, [&]() { return connectionShutdown; });
 
+    LOG.atInfo().event("Downlaod Status").kv("response_code", responseCode).log();
+}
+
+/*
+Generic Http/Https downloader that provides a in memory response for the results from the `url`.
+Uses provided device IOT credintials to make the query to the `url`
+*/
+ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
+    auto uriAsString = callData.get<std::string>("uri");
+    auto thingName = callData.get<std::string>("thingName");
+    auto certPath = callData.get<std::string>("certPath");
+    auto caPath = callData.get<std::string>("caPath");
+    auto caFile = callData.get<std::string>("caFile");
+    auto pkeyPath = callData.get<std::string>("pkeyPath");
+
+    std::shared_ptr<Aws::Crt::Http::HttpClientConnection> connection;
+    struct aws_allocator *allocator = aws_default_allocator();
+
+    // Setup Connection TLS
+    Aws::Crt::Io::TlsContextOptions tlsCtxOptions =
+        Aws::Crt::Io::TlsContextOptions::InitClientWithMtls(
+            certPath.c_str(), pkeyPath.c_str(), allocator);
+    tlsCtxOptions.OverrideDefaultTrustStore(caPath.c_str(), caFile.c_str());
+    Aws::Crt::Io::TlsContext tlsContext(tlsCtxOptions, Aws::Crt::Io::TlsMode::CLIENT, allocator);
+    if(!tlsContext) {
+        throw std::runtime_error("Failed to create TLS context");
+    }
+    Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions = tlsContext.NewConnectionOptions();
+
+    // Setup Connection Request
+    Aws::Crt::Http::HttpRequest request;
+    std::stringstream downloadContent;
+
+    // Add thingName as header
+    Aws::Crt::Http::HttpHeader header;
+    header.name = Aws::Crt::ByteCursorFromCString("x-amzn-iot-thingname");
+    header.value = Aws::Crt::ByteCursorFromCString(thingName.c_str()); // Add thingname here
+    request.AddHeader(header);
+
+    // Callback on sucess request stream response
+    Aws::Crt::Http::HttpRequestOptions requestOptions;
+    requestOptions.onIncomingBody = [&](Aws::Crt::Http::HttpStream &,
+                                        const Aws::Crt::ByteCursor &data) {
+        downloadContent.write((const char *) data.ptr, data.len);
+    };
+
+    CloudDownloader self;
+    self.downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);
+
+    std::cout << "Content: " << downloadContent.str() << std::endl;
+
+    LOG.atInfo().event("Downlaod Status").log("Sucesssfully Fetched Token...");
+    std::cout << "[Cloud_Downloader] Sucesssfully Fetched Token... " << std::endl;
+
+    ggapi::Struct response = ggapi::Struct::create();
+    response.put("Response", downloadContent.str());
+    return response;
+}
+
+/*
+Generic Http/Https downloader that downlaods to the provided `localPath`
+*/
+ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
+    // TODO: Add more Topics support
+    auto uriAsString = callData.get<std::string>("uri");
+    auto localPath = callData.get<std::string>("localPath");
+
+    std::shared_ptr<Aws::Crt::Http::HttpClientConnection> connection;
+    struct aws_allocator *allocator = aws_default_allocator();
+
+    // Setup Connection TLS
+    Aws::Crt::Io::TlsContextOptions tlsCtxOptions =
+        Aws::Crt::Io::TlsContextOptions::InitDefaultClient();
+    Aws::Crt::Io::TlsContext tlsContext(tlsCtxOptions, Aws::Crt::Io::TlsMode::CLIENT, allocator);
+    if(!tlsContext) {
+        throw std::runtime_error("Failed to create TLS context");
+    }
+    Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions = tlsContext.NewConnectionOptions();
+
+    // Setup Connection Request
+    Aws::Crt::Http::HttpRequest request;
+    std::ofstream downloadedFile(localPath.c_str(), std::ios_base::binary);
+    if(!downloadedFile) {
+        LOG.atError().log("Failed to create file");
+        throw std::runtime_error("Failed to create file");
+    }
+
+    // Callback on sucess request stream response
+    Aws::Crt::Http::HttpRequestOptions requestOptions;
+    requestOptions.onIncomingBody = [&](Aws::Crt::Http::HttpStream &,
+                                        const Aws::Crt::ByteCursor &data) {
+        downloadedFile.write((const char *) data.ptr, data.len);
+    };
+
+    CloudDownloader self;
+    self.downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);
+
     downloadedFile.flush();
     downloadedFile.close();
 
-    LOG.atInfo()
-        .event("Downloaded file")
-        .kv("file_name", localPath)
-        .kv("response_code", responseCode)
-        .log();
+    LOG.atInfo().event("Downloaded Status").kv("file_name", localPath).log();
     std::cout << "[Cloud_Downloader] Downloaded file " << localPath << std::endl;
 
     // TODO: Follow the spec for Response
     ggapi::Struct response = ggapi::Struct::create();
-    response.put("Download Complete", uriAsString);
+    response.put("Response", "Download Complete");
     return response;
 }
 
 bool CloudDownloader::onStart(ggapi::Struct data) {
+    std::ignore = getScope().subscribeToTopic(
+        ggapi::Symbol{"aws.grengrass.retrieve_artifact"}, genericDownload);
+
     std::ignore =
-        getScope().subscribeToTopic(ggapi::Symbol{"aws.grengrass.retrieve_artifact"}, download);
+        getScope().subscribeToTopic(ggapi::Symbol{"aws.grengrass.retrieve_token"}, fetchToken);
+
     return true;
 }
 

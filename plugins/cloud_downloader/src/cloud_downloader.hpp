@@ -14,7 +14,16 @@ const auto LOG = ggapi::Logger::of("Cloud_downloader");
 
 class CloudDownloader : public ggapi::Plugin {
 private:
-    static ggapi::Struct download(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
+    void downloadClient(
+        Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions,
+        std::string uriAsString,
+        Aws::Crt::Http::HttpRequest &request,
+        Aws::Crt::Http::HttpRequestOptions requestOptions,
+        Aws::Crt::Allocator *allocator);
+
+    static ggapi::Struct fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
+
+    static ggapi::Struct genericDownload(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
 
 public:
     void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
