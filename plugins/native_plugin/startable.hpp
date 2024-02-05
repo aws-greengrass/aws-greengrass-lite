@@ -11,16 +11,22 @@
 namespace ipc {
     // class for configuring and running an executable shell command
     class Startable {
+        std::string _socketPath;
+        std::string _authToken;
         std::string _command;
         std::vector<std::string> _args;
         std::unordered_map<std::string, std::optional<std::string>> _envs;
         std::optional<std::string> _user;
         std::optional<std::string> _group;
 
-        // If true, process spawned may outlive Nucleus
+        // If true, the process spawned may outlive Nucleus
         bool _isDetached{true};
 
     public:
+        Startable(std::string authToken, std::string socketPath)
+            : _authToken(std::move(authToken)), _socketPath(std::move(socketPath)) {
+        }
+
         template<class String>
         std::enable_if_t<std::is_convertible_v<String, std::string>, Startable &> WithCommand(
             String &&command) noexcept {

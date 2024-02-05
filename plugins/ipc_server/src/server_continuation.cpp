@@ -117,7 +117,7 @@ void ServerContinuation::onContinuationClose(
     aws_event_stream_rpc_server_continuation_token *token, void *user_data) noexcept {
     // NOLINTNEXTLINE
     auto continuation = static_cast<ContinutationHandle>(user_data);
-    std::cerr << "Stream ending for " << (*continuation)->_operation;
+    std::cerr << "Stream ending for " << (*continuation)->_operation << std::endl;
     // NOLINTNEXTLINE
     delete continuation;
 }

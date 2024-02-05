@@ -208,10 +208,8 @@ namespace ipc {
         }
 
         // Add SVCUID and IPC socket path
-        // TODO: Get token and path from IPC plugin
-        std::string token = "SVCUID=67TPFT1C5SNVYZ4T";
-        std::string socket =
-            "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT=/tmp/gglite-ipc.socket";
+        std::string token = "SVCUID=" + _authToken;
+        std::string socket = "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT=" + _socketPath;
         auto environment = GetEnvironment();
         // args and environment must each be a null-terminated array of pointers
         // Packed as follows: [ command | argv | nullptr | token | socket | envp | nullptr ]
