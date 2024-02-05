@@ -1,7 +1,6 @@
 #include "config/config_manager.hpp"
 #include "config/config_nodes.hpp"
 #include "config/yaml_config.hpp"
-#include "scope/context_full.hpp"
 #include "transaction_log.hpp"
 #include <util.hpp>
 #include <utility>
