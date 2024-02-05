@@ -12,10 +12,17 @@ namespace deployment {
 
     enum class DeploymentType : uint32_t { IOT_JOBS, LOCAL, SHADOW };
 
-    inline static const std::unordered_map<std::string, DeploymentType> DeploymentTypeMap{
-        {"IOT_JOBS", DeploymentType::IOT_JOBS},
-        {"LOCAL", DeploymentType::LOCAL},
-        {"SHADOW", DeploymentType::SHADOW}};
+    static constexpr std::string_view IOT_JOBS{"IOT_JOBS"};
+    static constexpr std::string_view LOCAL{"LOCAL"};
+    static constexpr std::string_view SHADOW{"SHADOW"};
+
+    inline static const util::LookupTable<std::string_view, DeploymentType, 3> DeploymentTypeMap{
+        IOT_JOBS,
+        DeploymentType::IOT_JOBS,
+        LOCAL,
+        DeploymentType::LOCAL,
+        SHADOW,
+        DeploymentType::SHADOW};
 
     enum class DeploymentStage : uint32_t {
         /**
@@ -48,12 +55,17 @@ namespace deployment {
         ROLLBACK_BOOTSTRAP
     };
 
-    inline static const std::unordered_map<std::string, DeploymentStage> DeploymentStageMap{
-        {"DEFAULT", DeploymentStage::DEFAULT},
-        {"BOOTSTRAP", DeploymentStage::BOOTSTRAP},
-        {"KERNEL_ACTIVATION", DeploymentStage::KERNEL_ACTIVATION},
-        {"KERNEL_ROLLBACK", DeploymentStage::KERNEL_ROLLBACK},
-        {"ROLLBACK_BOOTSTRAP", DeploymentStage::ROLLBACK_BOOTSTRAP},
+    inline static const util::LookupTable<std::string_view, DeploymentStage, 5> DeploymentStageMap{
+        "DEFAULT",
+        DeploymentStage::DEFAULT,
+        "BOOTSTRAP",
+        DeploymentStage::BOOTSTRAP,
+        "KERNEL_ACTIVATION",
+        DeploymentStage::KERNEL_ACTIVATION,
+        "KERNEL_ROLLBACK",
+        DeploymentStage::KERNEL_ROLLBACK,
+        "ROLLBACK_BOOTSTRAP",
+        DeploymentStage::ROLLBACK_BOOTSTRAP,
     };
 
     struct DeploymentConsts {

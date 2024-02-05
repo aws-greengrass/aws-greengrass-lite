@@ -21,9 +21,14 @@ namespace deployment {
 
     enum class DependencyType : uint32_t { HARD, SOFT };
 
-    inline static const std::unordered_map<std::string, DependencyType> DependencyTypeMap{
-        {"HARD", DependencyType::HARD},
-        {"SOFT", DependencyType::SOFT},
+    static constexpr std::string_view HARD{"HARD"};
+    static constexpr std::string_view SOFT{"SOFT"};
+
+    inline static const util::LookupTable<std::string_view, DependencyType, 2> DependencyTypeMap{
+        HARD,
+        DependencyType::HARD,
+        SOFT,
+        DependencyType::SOFT,
     };
 
     struct DependencyProperties {
@@ -62,17 +67,29 @@ namespace deployment {
         std::forward_list<std::tuple<std::string, Command>> lifecycle;
     };
 
-    // TODO: Refactor into different namespace
     class RecipeLoader {
     public:
         RecipeLoader() = default;
-        Recipe read(const std::filesystem::path &path) {
-            std::ifstream stream{path};
+        static Recipe read(const std::filesystem::path &file) {
+            std::ifstream stream{file};
             stream.exceptions(std::ios::failbit | std::ios::badbit);
             if(!stream.is_open()) {
                 throw std::runtime_error("Unable to read config file");
             }
-            auto recipeStruct = read(stream);
+            std::string ext = util::lower(file.extension().generic_string());
+            ggapi::Struct recipeStruct;
+
+            if(ext == ".yaml" || ext == ".yml") {
+                // TODO: Do rest of the recipe and dependency resolution
+                auto buf = ggapi::Buffer::create().read(stream);
+                recipeStruct = ggapi::Struct{buf.fromYaml()};
+            } else if(ext == ".json") {
+                auto buf = ggapi::Buffer::create();
+                recipeStruct = ggapi::Struct{buf.fromJson()};
+            } else {
+                throw std::runtime_error("Unsupported recipe file type");
+            }
+
             Recipe recipe;
             recipe.formatVersion = recipeStruct.get<std::string>("recipeformatversion");
             recipe.componentName = recipeStruct.get<std::string>("componentname");
@@ -92,7 +109,8 @@ namespace deployment {
                     dependencyProps.versionRequirement =
                         depStruct.get<std::string>("versionrequirement");
                     dependencyProps.dependencyType =
-                        DependencyTypeMap.at(depStruct.get<std::string>("dependencytype"));
+                        DependencyTypeMap.lookup(depStruct.get<std::string>("dependencytype"))
+                            .value_or(DependencyType::HARD);
                     recipe.componentDependencies.insert({key, dependencyProps});
                 }
             }
@@ -104,8 +122,8 @@ namespace deployment {
             for(auto i = 0; i < manifests.size(); i++) {
                 auto platformManifest = manifests.get<ggapi::Struct>(i);
                 PlatformManifest manifest;
-                manifest.platform.os = platformManifest.getValue<std::string>({"platform", "os"});
-                auto lifecycle = platformManifest.getValue<ggapi::Struct>({"lifecycle"});
+                manifest.platform.os = platformManifest.getValue<std::string>({"Platform", "os"});
+                auto lifecycle = platformManifest.getValue<ggapi::Struct>({"Lifecycle"});
                 if(lifecycle.hasKey("install")) {
                     Command installCommand;
                     if(lifecycle.get<ggapi::Struct>("install").hasKey("requiresprivilege")) {
@@ -132,134 +150,6 @@ namespace deployment {
                 recipe.manifests.push_back(manifest);
             }
             return recipe;
-        }
-        ggapi::Struct read(std::istream &stream) {
-            YAML::Node root = YAML::Load(stream);
-            return begin(root);
-        }
-        ggapi::Struct begin(YAML::Node &node) {
-            auto rootStruct = ggapi::Struct::create();
-            inplaceMap(rootStruct, node);
-            return rootStruct;
-        }
-
-        // NOLINTNEXTLINE(*-no-recursion)
-        ValueType rawValue(YAML::Node &node) {
-            switch(node.Type()) {
-                case YAML::NodeType::Map:
-                    return rawMapValue(node);
-                case YAML::NodeType::Sequence:
-                    return rawSequenceValue(node);
-                case YAML::NodeType::Scalar:
-                    return node.as<std::string>();
-                default:
-                    break;
-            }
-            return {};
-        }
-
-        // NOLINTNEXTLINE(*-no-recursion)
-        ggapi::List rawSequenceValue(YAML::Node &node) {
-            auto child = ggapi::List::create();
-            int idx = 0;
-            for(auto i : node) {
-                std::visit(
-                    [&idx, &child](auto &&arg) {
-                        using T = std::decay_t<decltype(arg)>;
-                        if constexpr(std::is_same_v<T, bool>) {
-                            child.put(idx++, arg);
-                        }
-                        if constexpr(std::is_same_v<T, uint64_t>) {
-                            child.put(idx++, arg);
-                        }
-                        if constexpr(std::is_same_v<T, double>) {
-                            child.put(idx++, arg);
-                        }
-                        if constexpr(std::is_same_v<T, std::string>) {
-                            child.put(idx++, arg);
-                        }
-                        if constexpr(std::is_same_v<T, ggapi::Struct>) {
-                            child.put(idx++, arg);
-                        }
-                        if constexpr(std::is_same_v<T, ggapi::List>) {
-                            child.put(idx++, arg);
-                        }
-                    },
-                    rawValue(i));
-            }
-            return child;
-        }
-
-        // NOLINTNEXTLINE(*-no-recursion)
-        ggapi::Struct rawMapValue(YAML::Node &node) {
-            auto data = ggapi::Struct::create();
-            for(auto i : node) {
-                auto key = util::lower(i.first.as<std::string>());
-                inplaceTopicValue(data, key, rawValue(i.second));
-            }
-            return data;
-        }
-
-        // NOLINTNEXTLINE(*-no-recursion)
-        void inplaceMap(ggapi::Struct &data, YAML::Node &node) {
-            if(!node.IsMap()) {
-                throw std::runtime_error("Expecting a map or sequence");
-            }
-            for(auto i : node) {
-                auto key = util::lower(i.first.as<std::string>());
-                inplaceValue(data, key, i.second);
-            }
-        }
-
-        // NOLINTNEXTLINE(*-no-recursion)
-        void inplaceValue(ggapi::Struct &data, const std::string &key, YAML::Node &node) {
-            switch(node.Type()) {
-                case YAML::NodeType::Map:
-                    nestedMapValue(data, key, node);
-                    break;
-                case YAML::NodeType::Sequence:
-                case YAML::NodeType::Scalar:
-                case YAML::NodeType::Null:
-                    inplaceTopicValue(data, key, rawValue(node));
-                    break;
-                default:
-                    // ignore anything else
-                    break;
-            }
-        }
-
-        // NOLINTNEXTLINE(*-no-recursion)
-        void inplaceTopicValue(ggapi::Struct &data, const std::string &key, const ValueType &vt) {
-            std::visit(
-                [key, &data](auto &&arg) {
-                    using T = std::decay_t<decltype(arg)>;
-                    if constexpr(std::is_same_v<T, bool>) {
-                        data.put(key, arg);
-                    }
-                    if constexpr(std::is_same_v<T, uint64_t>) {
-                        data.put(key, arg);
-                    }
-                    if constexpr(std::is_same_v<T, double>) {
-                        data.put(key, arg);
-                    }
-                    if constexpr(std::is_same_v<T, std::string>) {
-                        data.put(key, arg);
-                    }
-                    if constexpr(std::is_same_v<T, ggapi::Struct>) {
-                        data.put(key, arg);
-                    }
-                    if constexpr(std::is_same_v<T, ggapi::List>) {
-                        data.put(key, arg);
-                    }
-                },
-                vt);
-        }
-
-        // NOLINTNEXTLINE(*-no-recursion)
-        void nestedMapValue(ggapi::Struct &data, const std::string &key, YAML::Node &node) {
-            auto child = ggapi::Struct::create();
-            data.put(key, child);
-            inplaceMap(child, node);
         }
     };
 } // namespace deployment

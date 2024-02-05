@@ -152,15 +152,7 @@ namespace deployment {
     }
 
     Recipe DeploymentManager::loadRecipeFile(const std::filesystem::path &recipeFile) {
-        std::string ext = util::lower(recipeFile.extension().generic_string());
-        if(ext == ".yaml" || ext == ".yml") {
-            // TODO: Do rest of the recipe and dependency resolution
-            return _recipeLoader.read(recipeFile);
-        } else {
-            LOG.atError("deployment")
-                .kv("DeploymentType", "LOCAL")
-                .logAndThrow(std::runtime_error("Unsupported recipe file type"));
-        }
+        return _recipeLoader.read(recipeFile);
     }
 
     void DeploymentManager::saveRecipeFile(const deployment::Recipe &recipe) {
@@ -211,7 +203,7 @@ namespace deployment {
                 if(currentRecipe.configuration.defaultConfiguration.hasKey("message")) {
                     script = std::regex_replace(
                         script,
-                        std::regex(R"(\"\{configuration:\/Message\}\")"),
+                        std::regex(R"(\{configuration:\/Message\})"),
                         currentRecipe.configuration.defaultConfiguration.get<std::string>(
                             "message"));
                 }
@@ -254,8 +246,7 @@ namespace deployment {
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
             auto jsonToStruct = [](auto json) {
                 auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();
-                return container.getHandleId() ? container.template unbox<ggapi::Struct>()
-                                               : throw std::runtime_error("");
+                return ggapi::Struct{container};
             };
             auto deploymentDocument = jsonToStruct(deploymentDocumentJson);
 
@@ -267,9 +258,11 @@ namespace deployment {
                 deploymentDocument.get<std::string>("recipeDirectoryPath");
             deployment.isCancelled = deploymentStruct.get<bool>("isCancelled");
             deployment.deploymentStage =
-                DeploymentStageMap.at(deploymentStruct.get<std::string>("deploymentStage"));
+                DeploymentStageMap.lookup(deploymentStruct.get<std::string>("deploymentStage"))
+                    .value_or(DeploymentStage::DEFAULT);
             deployment.deploymentType =
-                DeploymentTypeMap.at(deploymentStruct.get<std::string>("deploymentType"));
+                DeploymentTypeMap.lookup(deploymentStruct.get<std::string>("deploymentType"))
+                    .value();
         } catch(std::exception &e) {
             LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)

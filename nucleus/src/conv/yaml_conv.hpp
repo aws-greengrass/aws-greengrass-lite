@@ -1,6 +1,6 @@
 #pragma once
 #include "config/config_manager.hpp"
-#include "scope/context.hpp"
+#include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
 #include <fstream>
 #include <yaml-cpp/yaml.h>
@@ -32,10 +32,20 @@ namespace conv {
             : YamlReaderBase(context), _target{target} {
         }
 
-        void begin(YAML::Node &node);
+        void begin(YAML::Node &node) override;
+
+        void inplaceMap(std::shared_ptr<data::SharedStruct> &data, YAML::Node &node);
+
+        void inplaceValue(
+            std::shared_ptr<data::SharedStruct> &data, const std::string &key, YAML::Node &node);
+
+        void nestedMapValue(
+            std::shared_ptr<data::SharedStruct> &data, const std::string &key, YAML::Node &node);
     };
 
     struct YamlHelper {
+        static std::shared_ptr<data::SharedBuffer> serializeToBuffer(
+            const scope::UsingContext &context, const std::shared_ptr<data::TrackedObject> &obj);
         static void serialize(
             const scope::UsingContext &context,
             YAML::Emitter &emitter,

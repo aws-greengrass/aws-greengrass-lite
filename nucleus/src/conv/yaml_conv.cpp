@@ -1,4 +1,5 @@
 #include "yaml_conv.hpp"
+#include "data/shared_buffer.hpp"
 #include "data/shared_list.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
@@ -40,7 +41,7 @@ namespace conv {
 
     // NOLINTNEXTLINE(*-no-recursion)
     data::ValueType YamlReaderBase::rawSequenceValue(YAML::Node &node) {
-        std::shared_ptr<data::SharedList> newList{std::make_shared<data::SharedList>(context())};
+        auto newList{std::make_shared<data::SharedList>(context())};
         int idx = 0;
         for(auto i : node) {
             newList->put(idx++, data::StructElement(rawValue(i)));
@@ -50,12 +51,62 @@ namespace conv {
 
     // NOLINTNEXTLINE(*-no-recursion)
     data::ValueType YamlReaderBase::rawMapValue(YAML::Node &node) {
-        std::shared_ptr<data::SharedStruct> newMap{std::make_shared<data::SharedStruct>(context())};
+        auto newMap{std::make_shared<data::SharedStruct>(context())};
         for(auto i : node) {
             auto key = i.first.as<std::string>();
-            newMap->put(key, data::StructElement(rawValue(node)));
+            newMap->put(key, data::StructElement(rawValue(i.second)));
         }
         return newMap;
+    }
+
+    void YamlReader::begin(YAML::Node &node) {
+        inplaceMap(_target, node);
+    }
+
+    // NOLINTNEXTLINE(*-no-recursion)
+    void YamlReader::inplaceMap(std::shared_ptr<data::SharedStruct> &data, YAML::Node &node) {
+        if(!node.IsMap()) {
+            throw std::runtime_error("Expecting a map or sequence");
+        }
+        for(auto i : node) {
+            auto key = util::lower(i.first.as<std::string>());
+            inplaceValue(data, key, i.second);
+        }
+    }
+
+    // NOLINTNEXTLINE(*-no-recursion)
+    void YamlReader::inplaceValue(
+        std::shared_ptr<data::SharedStruct> &data, const std::string &key, YAML::Node &node) {
+        switch(node.Type()) {
+            case YAML::NodeType::Map:
+                nestedMapValue(data, key, node);
+                break;
+            case YAML::NodeType::Sequence:
+            case YAML::NodeType::Scalar:
+            case YAML::NodeType::Null:
+                data->put(key, rawValue(node));
+                break;
+            default:
+                // ignore anything else
+                break;
+        }
+    }
+
+    // NOLINTNEXTLINE(*-no-recursion)
+    void YamlReader::nestedMapValue(
+        std::shared_ptr<data::SharedStruct> &data, const std::string &key, YAML::Node &node) {
+        auto child = std::make_shared<data::SharedStruct>(scope::context());
+        data->put(key, child);
+        inplaceMap(child, node);
+    }
+
+    std::shared_ptr<data::SharedBuffer> YamlHelper::serializeToBuffer(
+        const scope::UsingContext &context, const std::shared_ptr<data::TrackedObject> &obj) {
+        YAML::Emitter emitter;
+        serialize(context, emitter, obj);
+        auto buffer = std::make_shared<data::SharedBuffer>(context);
+        buffer->put(0, data::ConstMemoryView(emitter.c_str(), emitter.size()));
+        return buffer;
     }
 
     // NOLINTNEXTLINE(*-no-recursion)

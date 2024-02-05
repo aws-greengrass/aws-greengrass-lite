@@ -24,7 +24,7 @@ namespace config {
         }
         std::string str = key.toString();
         // a folded string strictly acts on the ascii range and not on international
-        // characters this keeps it predictable and handles the problems with GG
+        // characters, this keeps it predictable and handles the problems with GG
         // configs
         std::string lowered = util::lower(str);
         if(str == lowered) {

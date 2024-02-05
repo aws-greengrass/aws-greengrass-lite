@@ -269,6 +269,7 @@ namespace data {
             const StructElement &element,
             const std::function<void(const StructElement &)> &putAction);
         virtual std::shared_ptr<data::SharedBuffer> toJson();
+        virtual std::shared_ptr<data::SharedBuffer> toYaml();
     };
 
     /**

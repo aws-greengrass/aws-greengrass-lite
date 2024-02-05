@@ -575,6 +575,11 @@ namespace ggapi {
             return buffer;
         }
 
+        Buffer read(std::istream &is) {
+            std::string ss(std::istreambuf_iterator<char>(is), {});
+            return put(0, util::Span{ss.data(), ss.size()});
+        }
+
         void write(std::ostream &os) const {
             auto buffer = get<std::vector<char>>(0, size());
             os.write(buffer.data(), buffer.size()); // NOLINT(*-narrowing-conversions)
