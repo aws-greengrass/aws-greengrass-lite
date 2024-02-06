@@ -14,22 +14,11 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
         moduleScope.setActive();
         CHECK(sender.startLifecycle());
 
-        WHEN("The publish packet is prepared and published with url") {
-            auto request{ggapi::Struct::create()};
-            auto localPath = "./http_test_doc.txt";
-            request.put("uri", "https://aws-crt-test-stuff.s3.amazonaws.com/http_test_doc.txt");
-            request.put("localPath", localPath);
-            auto response =
-                ggapi::Task::sendToTopic(ggapi::Symbol{"aws.grengrass.retrieve_artifact"}, request);
-
-            THEN("Test if the file is created at the localPath") {
-                REQUIRE(std::filesystem::exists(localPath));
-                // TODO: Add a test to check the file contents
-            }
-        }
         WHEN("A device Credential is provided to retrive the token") {
+
             auto request{ggapi::Struct::create()};
-            auto endpoint = "c3bom3oeb42l2o.iot.us-west-2.amazonaws.com";
+            
+            auto endpoint = "";// your cred endpoint here
             auto thingName = ""; // your device thingName
             auto certPath = ""; // your CertPath
             auto caPath = ""; // your CAPath
@@ -49,10 +38,35 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
             request.put("pkeyPath", pkeyPath);
 
             auto response =
-                ggapi::Task::sendToTopic(ggapi::Symbol{"aws.grengrass.retrieve_token"}, request);
+                ggapi::Task::sendToTopic(ggapi::Symbol{"aws.grengrass.fetch_TES_from_cloud"}, request);
 
             THEN("Validate proper JSON format") {
-                REQUIRE(true);
+                auto responseAsString = response.get<std::string>("Response");
+
+                auto jsonHandle = ggapi::Buffer::create()
+                                      .put(0, std::string_view(responseAsString.c_str()))
+                                      .fromJson();
+
+                auto jsonStruct = ggapi::Struct{jsonHandle};
+                REQUIRE(jsonStruct.hasKey("credentials"));
+                auto innerStruct = jsonStruct.get<ggapi::Struct>("credentials");
+                REQUIRE(innerStruct.hasKey("accessKeyId"));
+                REQUIRE(innerStruct.hasKey("secretAccessKey"));
+                REQUIRE(innerStruct.hasKey("sessionToken"));
+            }
+
+            WHEN("The publish packet is prepared and published with url") {
+                auto request{ggapi::Struct::create()};
+                auto localPath = "./http_test_doc.txt";
+                request.put("uri", "https://aws-crt-test-stuff.s3.amazonaws.com/http_test_doc.txt");
+                request.put("localPath", localPath);
+                auto response = ggapi::Task::sendToTopic(
+                    ggapi::Symbol{"aws.grengrass.retrieve_artifact"}, request);
+
+                THEN("Test if the file is created at the localPath") {
+                    REQUIRE(std::filesystem::exists(localPath));
+                    // TODO: Add a test to check the file contents
+                }
             }
 
             // stop lifecycle
