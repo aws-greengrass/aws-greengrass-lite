@@ -265,9 +265,11 @@ static int sendMessage(
     return fn(&args);
 }
 
+extern "C" {
 static void onMessageFlush(int error_code, void *user_data) noexcept {
     std::ignore = user_data;
     std::ignore = error_code;
+}
 }
 
 namespace Headers {
