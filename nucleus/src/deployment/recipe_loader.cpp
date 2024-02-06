@@ -198,7 +198,7 @@ namespace deployment {
                 }
             }
         } else {
-            command.script = data.getValue<std::string>({"run"});
+            command.script = data.getValue<std::string>({stepName});
         }
 
         manifest.lifecycle.emplace_front(stepName, command);
