@@ -8,11 +8,17 @@
 #include "server_bootstrap.hpp"
 #include "server_continuation.hpp"
 
+extern "C" {
 static void onListenerDestroy(
     aws_event_stream_rpc_server_listener *server, void *user_data) noexcept {
 }
+}
+
+class ServerListenerCCallbacks;
 
 class ServerListener {
+    friend ServerListenerCCallbacks;
+
 public:
     using Connection = aws_event_stream_rpc_server_connection;
 
@@ -60,7 +66,10 @@ public:
         std::string_view message,
         aws_event_stream_rpc_message_type error_type,
         uint32_t flags);
+};
 
+class ServerListenerCCallbacks {
+public:
     static int onNewServerConnection(
         aws_event_stream_rpc_server_connection *connection,
         int error_code,

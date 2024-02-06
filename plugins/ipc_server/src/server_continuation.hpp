@@ -4,7 +4,11 @@
 
 #include "HeaderValue.hpp"
 
+class ServerContinuationCCallbacks;
+
 class ServerContinuation {
+    friend ServerContinuationCCallbacks;
+
 public:
     using Token = aws_event_stream_rpc_server_continuation_token;
 
@@ -12,7 +16,6 @@ private:
     Token *_token;
     std::string _operation;
     ggapi::Channel _channel{};
-    using ContinutationHandle = std::shared_ptr<ServerContinuation> *;
 
 public:
     explicit ServerContinuation(Token *token, std::string operation)
@@ -40,7 +43,12 @@ public:
 
     static ggapi::Struct onTopicResponse(
         const std::weak_ptr<ServerContinuation> &weakSelf, ggapi::Struct response);
+};
 
+extern "C" class ServerContinuationCCallbacks {
+    using ContinutationHandle = std::shared_ptr<ServerContinuation> *;
+
+public:
     static void onContinuation(
         aws_event_stream_rpc_server_continuation_token *token,
         const aws_event_stream_rpc_message_args *message_args,

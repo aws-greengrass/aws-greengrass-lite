@@ -59,7 +59,7 @@ ggapi::Struct ServerContinuation::onTopicResponse(
     return ggapi::Struct::create();
 }
 
-void ServerContinuation::onContinuation(
+extern "C" void ServerContinuationCCallbacks::onContinuation(
     aws_event_stream_rpc_server_continuation_token *token,
     const aws_event_stream_rpc_message_args *message_args,
     void *user_data) noexcept {
@@ -113,7 +113,7 @@ void ServerContinuation::onContinuation(
     }
 }
 
-void ServerContinuation::onContinuationClose(
+extern "C" void ServerContinuationCCallbacks::onContinuationClose(
     aws_event_stream_rpc_server_continuation_token *token, void *user_data) noexcept {
     // NOLINTNEXTLINE
     auto continuation = static_cast<ContinutationHandle>(user_data);

@@ -11,8 +11,8 @@ void ServerListener::Connect(std::string_view socket_path) {
         .port = port,
         .socket_options = &_socketOpts.GetImpl(),
         .bootstrap = _bootstrap.GetUnderlyingHandle(),
-        .on_new_connection = onNewServerConnection,
-        .on_connection_shutdown = onServerConnectionShutdown,
+        .on_new_connection = ServerListenerCCallbacks::onNewServerConnection,
+        .on_connection_shutdown = ServerListenerCCallbacks::onServerConnectionShutdown,
         .on_destroy_callback = onListenerDestroy,
         .user_data = static_cast<void *>(this),
     };
@@ -73,7 +73,8 @@ int ServerListener::sendErrorResponse(
         flags);
 }
 
-int ServerListener::onNewServerConnection(
+extern "C" {
+int ServerListenerCCallbacks::onNewServerConnection(
     aws_event_stream_rpc_server_connection *connection,
     int error_code,
     aws_event_stream_rpc_connection_options *connection_options,
@@ -99,7 +100,7 @@ int ServerListener::onNewServerConnection(
     }
 }
 
-void ServerListener::onServerConnectionShutdown(
+void ServerListenerCCallbacks::onServerConnectionShutdown(
     aws_event_stream_rpc_server_connection *connection, int error_code, void *user_data) noexcept {
     (void) connection;
     auto *thisConnection = static_cast<ServerListener *>(user_data);
@@ -110,7 +111,7 @@ void ServerListener::onServerConnectionShutdown(
               << '\n';
 }
 
-void ServerListener::onProtocolMessage(
+void ServerListenerCCallbacks::onProtocolMessage(
     aws_event_stream_rpc_server_connection *connection,
     const aws_event_stream_rpc_message_args *message_args,
     void *user_data) noexcept {
@@ -145,7 +146,7 @@ void ServerListener::onProtocolMessage(
     }
 }
 
-int ServerListener::onIncomingStream(
+int ServerListenerCCallbacks::onIncomingStream(
     aws_event_stream_rpc_server_connection *connection,
     aws_event_stream_rpc_server_continuation_token *token,
     aws_byte_cursor operation_name,
@@ -162,10 +163,11 @@ int ServerListener::onIncomingStream(
         new std::shared_ptr{std::make_shared<ServerContinuation>(token, std::move(operationName))};
 
     *continuation_options = {
-        .on_continuation = ServerContinuation::onContinuation,
-        .on_continuation_closed = ServerContinuation::onContinuationClose,
+        .on_continuation = ServerContinuationCCallbacks::onContinuation,
+        .on_continuation_closed = ServerContinuationCCallbacks::onContinuationClose,
         // NOLINTNEXTLINE
         .user_data = static_cast<void *>(continuation)};
 
     return AWS_OP_SUCCESS;
+}
 }
