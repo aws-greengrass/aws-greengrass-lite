@@ -17,8 +17,8 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
         WHEN("A device Credential is provided to retrive the token") {
 
             auto request{ggapi::Struct::create()};
-            
-            auto endpoint = "";// your cred endpoint here
+
+            auto endpoint = ""; // your cred endpoint here
             auto thingName = ""; // your device thingName
             auto certPath = ""; // your CertPath
             auto caPath = ""; // your CAPath
@@ -37,8 +37,8 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
             request.put("caFile", caFile);
             request.put("pkeyPath", pkeyPath);
 
-            auto response =
-                ggapi::Task::sendToTopic(ggapi::Symbol{"aws.grengrass.fetch_TES_from_cloud"}, request);
+            auto response = ggapi::Task::sendToTopic(
+                ggapi::Symbol{"aws.grengrass.fetch_TES_from_cloud"}, request);
 
             THEN("Validate proper JSON format") {
                 auto responseAsString = response.get<std::string>("Response");
