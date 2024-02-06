@@ -1,6 +1,9 @@
 
 #include "cloud_downloader.hpp"
 
+const int TIME_OUT_MS = 5000;
+const int PORT_NUM = 443;
+
 /*
 A common client helper function to make the request to a url using the aws's library
 */
@@ -20,20 +23,20 @@ void CloudDownloader::downloadClient(
     tlsConnectionOptions.SetServerName(hostName);
 
     Aws::Crt::Io::SocketOptions socketOptions;
-    socketOptions.SetConnectTimeoutMs(5000);
+    socketOptions.SetConnectTimeoutMs(TIME_OUT_MS);
 
     Aws::Crt::Io::EventLoopGroup eventLoopGroup(0, allocator);
-    if(!eventLoopGroup) {
+    if(eventLoopGroup.LastError() != AWS_ERROR_SUCCESS) {
         LOG.atError().log("Failed to create event loop group");
         throw std::runtime_error("Failed to create event loop group");
     }
     Aws::Crt::Io::DefaultHostResolver defaultHostResolver(eventLoopGroup, 8, 30, allocator);
-    if(!defaultHostResolver) {
+    if(defaultHostResolver.LastError() != AWS_ERROR_SUCCESS) {
         LOG.atError().log("Failed to create default host resolver");
         throw std::runtime_error("Failed to create default host resolver");
     }
     Aws::Crt::Io::ClientBootstrap clientBootstrap(eventLoopGroup, defaultHostResolver, allocator);
-    if(!clientBootstrap) {
+    if(clientBootstrap.LastError() != AWS_ERROR_SUCCESS) {
         LOG.atError().log("Failed to create client bootstrap");
         throw std::runtime_error("Failed to create client bootstrap");
     }
@@ -75,7 +78,7 @@ void CloudDownloader::downloadClient(
     httpClientConnectionOptions.SocketOptions = socketOptions;
     httpClientConnectionOptions.TlsOptions = tlsConnectionOptions;
     httpClientConnectionOptions.HostName = std::string((const char *) hostName.ptr, hostName.len);
-    httpClientConnectionOptions.Port = 443;
+    httpClientConnectionOptions.Port = PORT_NUM;
 
     std::unique_lock<std::mutex> semaphoreULock(semaphoreLock);
     if(!Aws::Crt::Http::HttpClientConnection::CreateConnection(
@@ -152,8 +155,9 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
         Aws::Crt::Io::TlsContextOptions::InitClientWithMtls(
             certPath.c_str(), pkeyPath.c_str(), allocator);
     tlsCtxOptions.OverrideDefaultTrustStore(caPath.c_str(), caFile.c_str());
+
     Aws::Crt::Io::TlsContext tlsContext(tlsCtxOptions, Aws::Crt::Io::TlsMode::CLIENT, allocator);
-    if(!tlsContext) {
+    if(tlsContext.GetInitializationError() != AWS_ERROR_SUCCESS) {
         throw std::runtime_error("Failed to create TLS context");
     }
     Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions = tlsContext.NewConnectionOptions();
@@ -201,7 +205,7 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
     Aws::Crt::Io::TlsContextOptions tlsCtxOptions =
         Aws::Crt::Io::TlsContextOptions::InitDefaultClient();
     Aws::Crt::Io::TlsContext tlsContext(tlsCtxOptions, Aws::Crt::Io::TlsMode::CLIENT, allocator);
-    if(!tlsContext) {
+    if(tlsContext.GetInitializationError() != AWS_ERROR_SUCCESS) {
         throw std::runtime_error("Failed to create TLS context");
     }
     Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions = tlsContext.NewConnectionOptions();
@@ -240,13 +244,14 @@ bool CloudDownloader::onStart(ggapi::Struct data) {
     std::ignore = getScope().subscribeToTopic(
         ggapi::Symbol{"aws.grengrass.retrieve_artifact"}, genericDownload);
 
-    std::ignore =
-        getScope().subscribeToTopic(ggapi::Symbol{"aws.grengrass.retrieve_token"}, fetchToken);
+    std::ignore = getScope().subscribeToTopic(
+        ggapi::Symbol{"aws.grengrass.fetch_TES_from_cloud"}, fetchToken);
 
     return true;
 }
 
 bool CloudDownloader::onRun(ggapi::Struct data) {
+
     return true;
 }
 
