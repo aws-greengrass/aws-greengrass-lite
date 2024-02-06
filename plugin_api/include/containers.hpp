@@ -277,7 +277,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        [[nodiscard]] T get(int32_t idx) {
+        [[nodiscard]] T get(int32_t idx) const {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(

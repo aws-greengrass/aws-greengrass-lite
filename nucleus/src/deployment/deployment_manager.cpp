@@ -183,6 +183,14 @@ namespace deployment {
         // TODO: More streamlined deployment task
         auto currentDeployment = _deploymentQueue->next();
         auto currentRecipe = _componentStore->next();
+        if(util::startsWith(currentRecipe.componentName, "aws.greengrass")) {
+            LOG.atError("deployment")
+                .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+                .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+                .kv("DeploymentType", "LOCAL")
+                .log("Given component name has conflict with plugins");
+            return;
+        }
         auto artifactPath = _kernel.getPaths()->componentStorePath() / "artifacts"
                             / currentRecipe.componentName / currentRecipe.componentVersion;
         LOG.atInfo("deployment")
@@ -194,7 +202,7 @@ namespace deployment {
         // TODO: Support other platforms
         auto it = std::find_if(
             currentRecipe.manifests.begin(), currentRecipe.manifests.end(), [](auto &manifest) {
-                return manifest.platform.os == "linux";
+                return manifest.platform.os == OS::LINUX;
             });
         if(it != currentRecipe.manifests.end()) {
             for(const auto &[stage, command] : it->lifecycle) {
@@ -219,10 +227,12 @@ namespace deployment {
                         .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
                         .kv("DeploymentType", "LOCAL")
                         .log("Executed " + stage + " of the lifecycle");
+                } else {
+                    return;
                 }
             }
         } else {
-            LOG.atInfo("deployment")
+            LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
                 .kv("DeploymentType", "LOCAL")
@@ -268,7 +278,7 @@ namespace deployment {
                 .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)
                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deployment.id)
                 .kv("DeploymentType", "LOCAL")
-                .log("Invalid deployment request");
+                .log("Invalid deployment request. Please check you recipe.");
             return ggapi::Struct::create().put("status", false);
         }
         bool returnStatus = true;

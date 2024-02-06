@@ -2,21 +2,92 @@
 #include "deployment_model.hpp"
 #include "plugin.hpp"
 #include "util.hpp"
-#include <yaml-cpp/yaml.h>
+#include <filesystem>
 
 namespace deployment {
-    using ValueType = std::variant<bool, uint64_t, double, std::string, ggapi::List, ggapi::Struct>;
+    enum class OS { ALL, WINDOWS, LINUX, DARWIN, MACOS, UNKNOWN };
 
-    struct ComponentArtifact {
-        std::string digest;
-        std::string algorithm;
-        std::string unarchive;
-        std::string permission;
+    static constexpr std::string_view ALL{"all"};
+    static constexpr std::string_view WINDOWS{"windows"};
+    static constexpr std::string_view LINUX{"linux"};
+    static constexpr std::string_view DARWIN{"darwin"};
+    static constexpr std::string_view MACOS{"macos"};
+    static constexpr std::string_view UNKNOWN{"unknown"};
+
+    inline static const util::LookupTable<std::string_view, OS, 6> OSMap{
+        ALL,
+        OS::ALL,
+        WINDOWS,
+        OS::WINDOWS,
+        LINUX,
+        OS::LINUX,
+        DARWIN,
+        OS::DARWIN,
+        MACOS,
+        OS::MACOS,
+        UNKNOWN,
+        OS::UNKNOWN,
     };
 
-    struct Command {
-        bool requiresPrivilege = false;
-        std::string script;
+    enum class Architecture { ALL, AMD64, ARM, AARCH64, x86, UNKNOWN };
+
+    static constexpr std::string_view AMD64{"amd64"};
+    static constexpr std::string_view ARM{"arm"};
+    static constexpr std::string_view AARCH64{"aarch64"};
+    static constexpr std::string_view x86{"x86"};
+
+    inline static const util::LookupTable<std::string_view, Architecture, 5> ArchitectureMap{
+        ALL,
+        Architecture::ALL,
+        AMD64,
+        Architecture::AMD64,
+        ARM,
+        Architecture::ARM,
+        AARCH64,
+        Architecture::AARCH64,
+        x86,
+        Architecture::x86};
+
+    enum class Unarchive {
+        NONE,
+        ZIP,
+    };
+
+    static constexpr std::string_view NONE{"NONE"};
+    static constexpr std::string_view ZIP{"ZIP"};
+
+    inline static const util::LookupTable<std::string_view, Unarchive, 2> UnarchiveMap{
+        NONE, Unarchive::NONE, ZIP, Unarchive::ZIP};
+
+    enum class PermissionType {
+        NONE,
+        OWNER,
+        ALL,
+    };
+
+    static constexpr std::string_view OWNER{"OWNER"};
+
+    inline static const util::LookupTable<std::string_view, PermissionType, 3> PermissionMap{
+        NONE, PermissionType::NONE, OWNER, PermissionType::OWNER, ALL, PermissionType::ALL};
+
+    struct Permission {
+        PermissionType read = PermissionType::OWNER;
+        PermissionType execute = PermissionType::NONE;
+    };
+
+    enum class ComponentType {
+        GENERIC,
+        LAMBDA,
+        PLUGIN,
+        NUCLEUS,
+    };
+
+    struct ComponentArtifact {
+        std::string uri;
+        std::string digest;
+        std::string algorithm;
+        Unarchive unarchive;
+        Permission permission;
     };
 
     enum class DependencyType : uint32_t { HARD, SOFT };
@@ -33,7 +104,7 @@ namespace deployment {
 
     struct DependencyProperties {
         std::string versionRequirement;
-        DependencyType dependencyType{};
+        DependencyType dependencyType = DependencyType::HARD;
     };
 
     struct ComponentConfiguration {
@@ -41,8 +112,16 @@ namespace deployment {
     };
 
     struct Platform {
-        std::string os;
-        std::string architecture;
+        OS os;
+        Architecture architecture;
+    };
+
+    struct Command {
+        bool requiresPrivilege = false;
+        std::string skipIf;
+        std::string script;
+        int timeout;
+        std::unordered_map<std::string, std::string> envs;
     };
 
     struct PlatformManifest {
@@ -51,105 +130,44 @@ namespace deployment {
         std::forward_list<std::tuple<std::string, Command>> lifecycle;
         std::vector<ComponentArtifact> artifacts;
         std::vector<std::string> selections;
+        std::unordered_map<std::string, std::string> envs;
     };
 
     struct Recipe {
         std::string formatVersion;
         std::string componentName;
         std::string componentVersion;
-        std::string componentType;
+        ComponentType componentType = ComponentType::GENERIC;
         std::string componentDescription;
         std::string componentPublisher;
         std::string componentSource;
         ComponentConfiguration configuration;
+        std::vector<ComponentArtifact> artifacts;
         std::unordered_map<std::string, DependencyProperties> componentDependencies;
         std::vector<PlatformManifest> manifests;
         std::forward_list<std::tuple<std::string, Command>> lifecycle;
+
+        void setFormatVersion(std::string_view version) {
+            formatVersion = version;
+        }
+
+        [[nodiscard]] std::string getFormatVersion() const {
+            return formatVersion;
+        }
     };
 
     class RecipeLoader {
+        void loadMetadata(const ggapi::Struct &data, Recipe &recipe);
+        void loadConfiguration(const ggapi::Struct &data, Recipe &recipe);
+        void loadDependencies(const ggapi::Struct &data, Recipe &recipe);
+        void loadManifests(const ggapi::Struct &data, Recipe &recipe);
+        void loadLifecycle(const ggapi::Struct &data, PlatformManifest &manifest);
+        void loadArtifact(const ggapi::Struct &data, PlatformManifest &recipe);
+        void loadCommand(
+            std::string_view stepName, const ggapi::Struct &data, PlatformManifest &manifest);
+
     public:
         RecipeLoader() = default;
-        static Recipe read(const std::filesystem::path &file) {
-            std::ifstream stream{file};
-            stream.exceptions(std::ios::failbit | std::ios::badbit);
-            if(!stream.is_open()) {
-                throw std::runtime_error("Unable to read config file");
-            }
-            std::string ext = util::lower(file.extension().generic_string());
-            ggapi::Struct recipeStruct;
-
-            if(ext == ".yaml" || ext == ".yml") {
-                // TODO: Do rest of the recipe and dependency resolution
-                auto buf = ggapi::Buffer::create().read(stream);
-                recipeStruct = ggapi::Struct{buf.fromYaml()};
-            } else if(ext == ".json") {
-                auto buf = ggapi::Buffer::create();
-                recipeStruct = ggapi::Struct{buf.fromJson()};
-            } else {
-                throw std::runtime_error("Unsupported recipe file type");
-            }
-
-            Recipe recipe;
-            recipe.formatVersion = recipeStruct.get<std::string>("recipeformatversion");
-            recipe.componentName = recipeStruct.get<std::string>("componentname");
-            recipe.componentVersion = recipeStruct.get<std::string>("componentversion");
-            recipe.componentType = "GENERIC";
-            recipe.componentDescription = recipeStruct.get<std::string>("componentdescription");
-            if(recipeStruct.hasKey("componentpublisher")) {
-                recipe.componentPublisher = recipeStruct.get<std::string>("componentpublisher");
-            }
-            if(recipeStruct.hasKey("componentdependencies")) {
-                auto componentDependencies =
-                    recipeStruct.get<ggapi::Struct>("componentdependencies");
-                for(int i = 0; i < componentDependencies.keys().size(); i++) {
-                    const auto key = componentDependencies.keys().get<std::string>(i);
-                    const auto depStruct = componentDependencies.getValue<ggapi::Struct>({key});
-                    DependencyProperties dependencyProps;
-                    dependencyProps.versionRequirement =
-                        depStruct.get<std::string>("versionrequirement");
-                    dependencyProps.dependencyType =
-                        DependencyTypeMap.lookup(depStruct.get<std::string>("dependencytype"))
-                            .value_or(DependencyType::HARD);
-                    recipe.componentDependencies.insert({key, dependencyProps});
-                }
-            }
-            if(recipeStruct.hasKey("componentconfiguration")) {
-                recipe.configuration.defaultConfiguration = recipeStruct.getValue<ggapi::Struct>(
-                    {"componentconfiguration", "defaultconfiguration"});
-            }
-            auto manifests = recipeStruct.getValue<ggapi::List>({"manifests"});
-            for(auto i = 0; i < manifests.size(); i++) {
-                auto platformManifest = manifests.get<ggapi::Struct>(i);
-                PlatformManifest manifest;
-                manifest.platform.os = platformManifest.getValue<std::string>({"Platform", "os"});
-                auto lifecycle = platformManifest.getValue<ggapi::Struct>({"Lifecycle"});
-                if(lifecycle.hasKey("install")) {
-                    Command installCommand;
-                    if(lifecycle.get<ggapi::Struct>("install").hasKey("requiresprivilege")) {
-                        installCommand.requiresPrivilege =
-                            lifecycle.getValue<bool>({"install", "requiresprivilege"});
-                    }
-                    installCommand.script = lifecycle.getValue<std::string>({"install", "script"});
-                    manifest.lifecycle.emplace_front("install", installCommand);
-                }
-                if(lifecycle.hasKey("run")) {
-                    Command runCommand;
-                    if(lifecycle.isStruct("run")) {
-                        if(lifecycle.get<ggapi::Struct>("run").hasKey("requiresprivilege")) {
-                            runCommand.requiresPrivilege =
-                                lifecycle.getValue<bool>({"run", "requiresprivilege"});
-                        }
-                        runCommand.script = lifecycle.getValue<std::string>({"run", "script"});
-                        manifest.lifecycle.emplace_front("run", runCommand);
-                    } else {
-                        runCommand.script = lifecycle.getValue<std::string>({"run"});
-                        manifest.lifecycle.emplace_front("run", runCommand);
-                    }
-                }
-                recipe.manifests.push_back(manifest);
-            }
-            return recipe;
-        }
+        Recipe read(const std::filesystem::path &file);
     };
 } // namespace deployment
