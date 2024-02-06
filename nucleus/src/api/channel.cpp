@@ -34,6 +34,9 @@ uint32_t ggapiChannelClose(uint32_t channel) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([channel]() {
         auto context = scope::context();
         auto channelObj = context->objFromInt<channel::Channel>(channel);
+        if(!channelObj) {
+            return false;
+        }
         channelObj->close();
         return true;
     });
