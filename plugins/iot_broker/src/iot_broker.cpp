@@ -337,7 +337,8 @@ bool IotBroker::onStart(ggapi::Struct data) {
 }
 
 bool IotBroker::onRun(ggapi::Struct data) {
-    return false;
+    tesOnRun();
+    return true;
 }
 
 bool IotBroker::onTerminate(ggapi::Struct structData) {

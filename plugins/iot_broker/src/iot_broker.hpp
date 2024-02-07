@@ -69,6 +69,10 @@ class IotBroker : public ggapi::Plugin {
     std::atomic<ggapi::Struct> _nucleus;
     std::atomic<ggapi::Struct> _system;
 
+    // TES
+    std::string _iotRoleAlias;
+    std::string _savedToken;
+
 public:
     bool onBootstrap(ggapi::Struct data) override;
     bool onBind(ggapi::Struct data) override;
@@ -86,6 +90,8 @@ public:
 
     // TES
     bool tesOnStart(ggapi::Struct data);
+    bool tesOnRun(void);
+    ggapi::Struct retriveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
 
 private:
     static const Keys keys;
@@ -103,7 +109,4 @@ private:
     std::vector<std::tuple<Key, ggapi::Channel, PacketHandler>> _subscriptions;
     std::shared_mutex _subscriptionMutex;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
-
-    // TES
-    std::string _iotroleAlias;
 };

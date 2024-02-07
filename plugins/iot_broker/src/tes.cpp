@@ -1,5 +1,11 @@
 #include "iot_broker.hpp"
 
+ggapi::Struct IotBroker::retriveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
+    ggapi::Struct response = ggapi::Struct::create();
+    response.put("Response", _savedToken.c_str());
+    return response;
+}
+
 bool IotBroker::tesOnStart(ggapi::Struct data) {
     // Read the Device credintails
     // Make a http Requst to
@@ -14,7 +20,7 @@ bool IotBroker::tesOnStart(ggapi::Struct data) {
             system.getValue<std::string>({"certificateFilePath"}); // InitClientWithMtls
         _thingInfo.keyPath = system.getValue<std::string>({"privateKeyPath"}); // InitClientWithMtls
         _thingInfo.thingName = system.getValue<Aws::Crt::String>({"thingName"}); // Header
-        _iotroleAlias = nucleus.getValue<std::string>({"configuration", "iotRoleAlias"}); // URI
+        _iotRoleAlias = nucleus.getValue<std::string>({"configuration", "iotRoleAlias"}); // URI
 
         // TODO: Note, reference of the module name will be done by Nucleus, this is temporary.
         _thingInfo.credEndpoint =
@@ -27,15 +33,31 @@ bool IotBroker::tesOnStart(ggapi::Struct data) {
         std::cerr << "[TES] Error: " << e.what() << std::endl;
     }
 
-    // TODO: Pass all the above Values to the LPC on the topic .TesFetchToken
-    // The Response will be a json with token
-    // Sample SingleLine JSON:
-    // {    "credentials":{"accessKeyId":"TestKeyId","secretAccessKey":"TestSecrectKey",
-    //      "sessionToken":"SampleTokenIQoJb3JpZ2luX2VjEIf//////////wEaCXVzLXdlc3QtMiJHMEUCIAGBvpv5bia9gcPfEGpo8BP/msQvGS8OoOEnZbh8Vop+AiEA1vSCuwi
-    //                      AwxvRht3IYFQ7PS9y1u3EWJ4Yl1nuGkmroloqvgMIUBABGgw3NTQyODE5MTU0NzEiDBfDzPksj2L7U0g99CqbA0mymgMKcXmZrh7f1ENrZF
-    //                      jqWAX5matoq7vmvtNwezT4V6IAFjSPzhS0d1wUFeQeWDnIk97kq8CWhSKbxjQxHZwGb+PjhNi28RtHP0COyfuxpHj7JbmpkrkzgZRz8LaLz
-    //                      IFNzvXc5/cEdeWiBWstqcFZbj9xFEEm6xyVGWjLVxlViiKG6c10p0qZ5UCZ/50afBUYlhyhmVvtTXE1SVA9lUzRyzIcw2ztVsQ==",
-    //      "expiration":"2024-02-01T23:46:23Z"}}
+    auto request{ggapi::Struct::create()};
+    std::stringstream ss;
+    ss << "https://" << _thingInfo.credEndpoint << "/role-aliases/" << _iotRoleAlias
+       << "/credentials";
+
+    request.put("uri", ss.str());
+    request.put("thingName", _thingInfo.thingName.c_str());
+    request.put("certPath", _thingInfo.certPath.c_str());
+    size_t found = _thingInfo.rootCaPath.find_last_of("/");
+    std::string caDirPath = _thingInfo.rootCaPath.substr(0, found);
+    request.put("caPath", caDirPath.c_str());
+    request.put("caFile", _thingInfo.rootCaPath.c_str());
+    request.put("pkeyPath", _thingInfo.keyPath.c_str());
+
+    auto response =
+        ggapi::Task::sendToTopic(ggapi::Symbol{"aws.grengrass.fetch_TES_from_cloud"}, request);
+
+    _savedToken = response.get<std::string>("Response");
 
     return returnValue;
+}
+
+bool IotBroker::tesOnRun(void) {
+    std::ignore = getScope().subscribeToTopic(
+        ggapi::Symbol{"aws.grengrass.requestTES"},
+        ggapi::TopicCallback::of(&IotBroker::retriveToken, this));
+    return true;
 }
