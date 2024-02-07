@@ -242,10 +242,10 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
 
 bool CloudDownloader::onStart(ggapi::Struct data) {
     std::ignore = getScope().subscribeToTopic(
-        ggapi::Symbol{"aws.grengrass.retrieve_artifact"}, genericDownload);
+        ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, genericDownload);
 
     std::ignore = getScope().subscribeToTopic(
-        ggapi::Symbol{"aws.grengrass.fetch_TES_from_cloud"}, fetchToken);
+        ggapi::Symbol{"aws.greengrass.fetch_TES_from_cloud"}, fetchToken);
 
     return true;
 }

@@ -38,7 +38,7 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
             request.put("pkeyPath", pkeyPath);
 
             auto response = ggapi::Task::sendToTopic(
-                ggapi::Symbol{"aws.grengrass.fetch_TES_from_cloud"}, request);
+                ggapi::Symbol{"aws.greengrass.fetch_TES_from_cloud"}, request);
 
             THEN("Validate proper JSON format") {
                 auto responseAsString = response.get<std::string>("Response");
@@ -61,7 +61,7 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
                 request.put("uri", "https://aws-crt-test-stuff.s3.amazonaws.com/http_test_doc.txt");
                 request.put("localPath", localPath);
                 auto response = ggapi::Task::sendToTopic(
-                    ggapi::Symbol{"aws.grengrass.retrieve_artifact"}, request);
+                    ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, request);
 
                 THEN("Test if the file is created at the localPath") {
                     REQUIRE(std::filesystem::exists(localPath));
