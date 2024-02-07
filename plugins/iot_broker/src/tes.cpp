@@ -7,8 +7,7 @@ ggapi::Struct IotBroker::retriveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct 
 }
 
 bool IotBroker::tesOnStart(ggapi::Struct data) {
-    // Read the Device credintails
-    // Make a http Requst to
+    // Read the Device credentials
     auto returnValue = false;
     try {
         auto system = _system.load();
