@@ -36,7 +36,7 @@ jobs:
           retention-days: 5
 
   clang-tidy:
-    timeout-minutes: 60
+    timeout-minutes: 15
     name: Check Clang-tidy
     runs-on: ubuntu-22.04
     defaults:
