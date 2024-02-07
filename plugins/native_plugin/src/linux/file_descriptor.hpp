@@ -46,14 +46,17 @@ public:
     // Close the current file descriptor and take ownership of a new one
     void reset(int newfd) noexcept;
 
-    // Duplicates the current file descriptor onto an existing one
+    // Duplicates the current file descriptor onto an existing one (calls dup2)
     void duplicate(int fd) const;
+
+    // Consumes all current readable output into a string
+    [[nodiscard]] std::string readAll() const;
 
     [[nodiscard]] constexpr int get() const noexcept {
         return _fd;
     }
 
-    ssize_t write(util::Span<const char> buffer) noexcept;
+    [[nodiscard]] ssize_t write(util::Span<const char> buffer) const noexcept;
 
-    ssize_t read(util::Span<char> buffer) noexcept;
+    [[nodiscard]] ssize_t read(util::Span<char> buffer) const noexcept;
 };

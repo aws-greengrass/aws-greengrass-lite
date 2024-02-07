@@ -1,107 +1,17 @@
 #pragma once
 #include <chrono>
-#include <cpp_api.hpp>
+#include <iostream>
 #include <util.hpp>
 
+#include "abstract_process.hpp"
+#include "env.hpp"
+
 #include <filesystem>
-#include <list>
-#include <memory>
-#include <optional>
-#include <string>
-#include <string_view>
-
-#include "component_info.hpp"
 
 namespace ipc {
-    // implementation-defined process information
-    template<class ProcessImpl>
-    class AbstractProcess {
-        friend class ProcessManager;
-        friend ProcessImpl;
-
-    private:
-        ProcessImpl _impl;
-
-    public:
-        explicit AbstractProcess(ProcessImpl &&impl) noexcept : _impl(std::move(impl)) {
-        }
-        AbstractProcess(const AbstractProcess &) = delete;
-        AbstractProcess(AbstractProcess &&) noexcept = default;
-        AbstractProcess &operator=(AbstractProcess const &) = delete;
-        AbstractProcess &operator=(AbstractProcess &&) noexcept = default;
-        ~AbstractProcess() noexcept = default;
-
-        [[nodiscard]] std::string_view getIdentifier() const noexcept {
-            return _impl.getIdentifier();
-        }
-
-        // implementation-defined process termination function.
-        // Implementations should attempt to signal-and-wait to close gracefully.
-        // Otherwise, the process must be terminated immediately after a timeout, if non-zero
-        void close(std::chrono::seconds timeout) {
-            _impl.close(timeout);
-        }
-
-        int runToCompletion() {
-            return _impl.waitFor(std::chrono::seconds{0});
-        }
-
-        [[nodiscard]] bool isRunning() const {
-            return _impl.isRunning();
-        }
-    };
-
-} // namespace ipc
-
-#if defined(__unix__)
-#include "linux/process.hpp"
-namespace ipc {
-    using Process = AbstractProcess<LinuxProcess>;
-}
-#else
-#error "Unsupported platform"
-#endif
-
-namespace ipc {
-
-    // // tracks processes executed by this plugin
-    // class ProcessManagerImpl;
-    // class ProcessManager {
-    //     std::map<std::string, Process, std::less<>> processes;
-    //     std::unique_ptr<ProcessManagerImpl> impl;
-
-    //     std::shared_mutex m;
-
-    // public:
-    //     ProcessManager();
-
-    //     // Processes output for each registered process
-    //     // Effectively, blocks indefinitely; so, call from a separate thread
-    //     // Implementation-defined, but must be thread-safe
-    //     void ProcessOutput();
-
-    //     void Register(Process &&p) {
-    //         std::string key{p.getIdentifier()};
-    //         std::unique_lock guard{m};
-    //         processes.emplace(std::move(key), std::move(p));
-    //     }
-
-    //     std::optional<Process> Unregister(std::string_view identifier) {
-    //         std::unique_lock guard{m};
-    //         if(auto found = processes.find(identifier); found != processes.end()) {
-    //             return std::move(processes.extract(found).mapped());
-    //         } else {
-    //             return {};
-    //         }
-    //     }
-    // };
 
     // class for configuring and running an executable/shell command
     class Startable {
-        friend class ProcessManager;
-
-        static constexpr std::string_view PATH_ENVVAR = "PATH";
-
         friend class ComponentManager;
         std::string _command;
         std::vector<std::string> _args;
@@ -109,73 +19,70 @@ namespace ipc {
         std::optional<std::string> _user;
         std::optional<std::string> _group;
         std::optional<std::filesystem::path> _workingDir;
-        ggapi::Channel _out;
-        ggapi::Channel _err;
+        std::optional<OutputCallback> _outHandler;
+        std::optional<OutputCallback> _errHandler;
+        std::optional<CompletionCallback> _completeHandler;
+        std::optional<std::chrono::steady_clock::time_point> _timeout;
 
         // OS-specific start function
         // Starts execution the command with the arguments and environment provided
-        Process start(std::string_view command, util::Span<char *> argv, util::Span<char *> envp);
+        std::unique_ptr<Process> start(
+            std::string_view command, util::Span<char *> argv, util::Span<char *> envp) const;
 
     public:
-        Process start() {
+        std::unique_ptr<Process> start() const {
             if(_command.empty()) {
                 throw std::invalid_argument("No command provided");
             }
 
-            // Add SVCUID and IPC socket path
-            // TODO: Get token and path from IPC plugin
-            std::string token = "SVCUID=67TPFT1C5SNVYZ4T";
-            std::string socket =
-                "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT=/tmp/gglite-ipc.socket";
-            auto environment = GetEnvironment();
+            auto args = std::vector(1 + _args.size(), std::string{});
+            args.front() = _command;
+            std::copy(_args.begin(), _args.end(), std::next(args.begin()));
+
+            auto environment = getEnvironment();
+
             // args and environment must each be a null-terminated array of pointers
-            // Packed as follows: [ command | argv | nullptr | token | socket | envp | nullptr ]
-            std::vector<char *> combinedArgvEnvp(
-                1 + (_args.size() + 1) + 2 + (environment.size()), nullptr);
-            combinedArgvEnvp.front() = _command.data();
-            auto iter = std::transform(
-                _args.begin(),
-                _args.end(),
-                std::next(combinedArgvEnvp.begin()),
-                [](std::string &s) { return s.data(); });
-            // skip over the first null-terminator; this marks the start of the envp array
-            ++iter;
-            auto argvSize = iter - combinedArgvEnvp.begin();
+            // Packed as follows: [ argv | nullptr | envp | nullptr ]
+            std::vector<char *> combinedArgvEnvp;
+            combinedArgvEnvp.reserve(2 + _args.size() + environment.size());
 
-            *iter++ = token.data();
-            *iter++ = socket.data();
-            std::transform(environment.begin(), environment.end(), iter, [](std::string &s) {
-                return s.data();
-            });
-            // TODO: include path variables
-            combinedArgvEnvp.push_back(nullptr);
+            const auto addRange = [&combinedArgvEnvp](auto &&container) -> size_t {
+                auto offset = combinedArgvEnvp.size();
+                std::transform(
+                    container.begin(),
+                    container.end(),
+                    std::back_inserter(combinedArgvEnvp),
+                    [](auto &s) -> char * { return s.data(); });
+                combinedArgvEnvp.push_back(nullptr);
+                return offset;
+            };
 
-            auto envpSize = combinedArgvEnvp.size() - argvSize;
-
+            auto argv = addRange(args);
+            auto envp = addRange(environment);
             return start(
                 _command,
-                util::Span{combinedArgvEnvp}.first(argvSize),
-                util::Span{combinedArgvEnvp}.last(envpSize));
+                util::Span{combinedArgvEnvp}.subspan(argv, args.size() + 1),
+                util::Span{combinedArgvEnvp}.subspan(envp));
         }
 
-        template<class String>
-        std::enable_if_t<std::is_convertible_v<String, std::string>, Startable &> WithCommand(
-            String &&command) noexcept {
-            _command = std::string{std::forward<String>(command)};
+        template<class StringLike>
+        std::enable_if_t<std::is_convertible_v<StringLike, std::string>, Startable &> withCommand(
+            StringLike &&command) noexcept(std::is_same_v<std::string, StringLike>) {
+            _command = std::string{std::forward<StringLike>(command)};
             return *this;
         }
 
-        Startable &WithArguments(std::vector<std::string> arguments) noexcept {
+        Startable &withArguments(std::vector<std::string> arguments) noexcept {
             _args = std::move(arguments);
             return *this;
         }
 
-        Startable &AddArgument(std::string arg) {
+        Startable &addArgument(std::string arg) {
             _args.emplace_back(std::move(arg));
             return *this;
         }
 
-        std::vector<std::string> GetEnvironment() const {
+        std::vector<std::string> getEnvironment() const {
             std::vector<std::string> flattened(_envs.size());
             std::transform(_envs.begin(), _envs.end(), flattened.begin(), [](auto &&pair) {
                 if(pair.second.has_value()) {
@@ -187,13 +94,13 @@ namespace ipc {
             return flattened;
         }
 
-        Startable &WithEnvironment(
+        Startable &withEnvironment(
             std::unordered_map<std::string, std::optional<std::string>> environment) noexcept {
             _envs = std::move(environment);
             return *this;
         }
 
-        Startable &AddEnvironment(
+        Startable &addEnvironment(
             std::string environment, std::optional<std::string> value = std::nullopt) {
             _envs.insert_or_assign(std::move(environment), std::move(value));
             return *this;
@@ -209,18 +116,23 @@ namespace ipc {
             return *this;
         }
 
-        Startable &WithWorkingDirectory(std::filesystem::path dir) noexcept {
+        Startable &withWorkingDirectory(std::filesystem::path dir) noexcept {
             _workingDir = std::move(dir);
             return *this;
         }
 
-        Startable &WithOutput(ggapi::Channel out) {
-            _out = out;
+        Startable &withOutput(OutputCallback out) noexcept {
+            _outHandler = std::move(out);
             return *this;
         }
 
-        Startable &WithError(ggapi::Channel error) {
-            _err = error;
+        Startable &withError(OutputCallback error) noexcept {
+            _errHandler = std::move(error);
+            return *this;
+        }
+
+        Startable &withCompletion(CompletionCallback complete) noexcept {
+            _completeHandler = std::move(complete);
             return *this;
         }
     };

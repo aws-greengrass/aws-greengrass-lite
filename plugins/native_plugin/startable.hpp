@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <filesystem>
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -9,6 +10,7 @@
 #include <vector>
 
 namespace ipc {
+    using ProcessCompleteCallback = std::function<void(int)>;
     // class for configuring and running an executable shell command
     class Startable {
         std::string _socketPath;
@@ -20,10 +22,10 @@ namespace ipc {
         std::optional<std::string> _group;
 
         // If true, the process spawned may outlive Nucleus
-        bool _isDetached{true};
+        bool _isDetached{};
 
     public:
-        Startable(std::string authToken, std::string socketPath)
+        Startable(std::string authToken, std::string socketPath) noexcept
             : _authToken(std::move(authToken)), _socketPath(std::move(socketPath)) {
         }
 
@@ -76,11 +78,6 @@ namespace ipc {
         Startable &RunWith(std::string username, std::string group) noexcept {
             _user = std::move(username);
             _group = std::move(group);
-            return *this;
-        }
-
-        Startable &AsGroupedProcess() noexcept {
-            _isDetached = false;
             return *this;
         }
 
