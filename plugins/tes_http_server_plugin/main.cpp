@@ -2,7 +2,6 @@
 #include <stdio.h>
 
 #include "src/tes_http_server.hpp"
-#include <aws/crt/Api.h>
 #include <plugin.hpp>
 
 class TesHttpServerPlugin : public ggapi::Plugin {

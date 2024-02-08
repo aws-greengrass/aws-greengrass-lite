@@ -249,13 +249,7 @@ bool CloudDownloader::onDiscover(ggapi::Struct data) {
     return true;
 }
 
-bool CloudDownloader::onStart(ggapi::Struct data) {
-
-    return true;
-}
-
 bool CloudDownloader::onRun(ggapi::Struct data) {
-
     return true;
 }
 

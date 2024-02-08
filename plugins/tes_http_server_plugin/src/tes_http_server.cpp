@@ -8,6 +8,9 @@ aws_http_message *response;
 aws_http_server *_server;
 aws_event_loop_group *e_group;
 aws_server_bootstrap *server_bootstrap;
+
+const auto LOG = ggapi::Logger::of("TesHttpServerPlugin");
+
 const char *get_tes_credentials() {
     // TODO: Request parameter should contain the authZ token set in the header
     // Fetch credentials from TES Plugin
@@ -19,7 +22,7 @@ const char *get_tes_credentials() {
     return tes_credentials.c_str();
 }
 
-int _on_request_done(struct aws_http_stream *stream, void *user_data) {
+extern "C" int onRequestDone(struct aws_http_stream *stream, void *user_data) {
     const char *tes_credentials = get_tes_credentials();
     response = aws_http_message_new_response(_allocator);
     aws_http_message_set_response_status(response, 200);
@@ -49,7 +52,7 @@ int _on_request_done(struct aws_http_stream *stream, void *user_data) {
     return AWS_OP_SUCCESS;
 }
 
-int _on_request_headers_done(
+extern "C" int onRequestHeadersDone(
     struct aws_http_stream *stream, enum aws_http_header_block header_block, void *user_data) {
 
     (void) header_block;
@@ -79,7 +82,7 @@ int _on_request_headers_done(
     return AWS_OP_SUCCESS;
 }
 
-int _on_request_header(
+extern "C" int onIncomingRequestHeaders(
     struct aws_http_stream *stream,
     enum aws_http_header_block header_block,
     const struct aws_http_header *header_array,
@@ -95,32 +98,33 @@ int _on_request_header(
     return AWS_OP_SUCCESS;
 }
 
-static void _on_complete(struct aws_http_stream *stream, int error_code, void *user_data) {
+extern "C" void onRequestComplete(struct aws_http_stream *stream, int error_code, void *user_data) {
     (void) stream;
     // TODO: Destroy response message
     aws_http_message_destroy(response);
 }
 
-struct aws_http_stream *_on_incoming_request(
+extern "C" struct aws_http_stream *onIncomingRequest(
     struct aws_http_connection *connection, void *user_data) {
     all_headers = aws_http_headers_new(_allocator);
 
     struct aws_http_request_handler_options options = AWS_HTTP_REQUEST_HANDLER_OPTIONS_INIT;
     options.user_data = user_data;
     options.server_connection = connection;
-    options.on_request_headers = _on_request_header;
-    options.on_request_header_block_done = _on_request_headers_done;
-    options.on_complete = _on_complete;
-    options.on_request_done = _on_request_done;
+    options.on_request_headers = onIncomingRequestHeaders;
+    options.on_request_header_block_done = onRequestHeadersDone;
+    options.on_complete = onRequestComplete;
+    options.on_request_done = onRequestDone;
     req_han = aws_http_stream_new_server_request_handler(&options);
     return req_han;
 }
 
-void _on_shutdown(aws_http_connection *connection, int error_code, void *connection_user_data) {
+extern "C" void onConnectionShutdown(
+    aws_http_connection *connection, int error_code, void *connection_user_data) {
     // TODO: Clear the request handler if applicable
 }
 
-void _on_server_connection_setup(
+extern "C" void onIncomingConnection(
     struct aws_http_server *server,
     struct aws_http_connection *connection,
     int error_code,
@@ -132,8 +136,8 @@ void _on_server_connection_setup(
     }
     struct aws_http_server_connection_options options = AWS_HTTP_SERVER_CONNECTION_OPTIONS_INIT;
     options.connection_user_data = user_data;
-    options.on_incoming_request = _on_incoming_request;
-    options.on_shutdown = _on_shutdown;
+    options.on_incoming_request = onIncomingRequest;
+    options.on_shutdown = onConnectionShutdown;
     int err = aws_http_connection_configure_server(connection, &options);
     if(err) {
         LOG.atWarn().log("Service is not configured properly with connection callback");
@@ -152,7 +156,8 @@ void TesHttpServer::start_server() {
     server_bootstrap = aws_server_bootstrap_new(_allocator, e_group);
     // TODO: Revisit this to check if there a way to get the randomly assigned port number. For now,
     // use 8080.
-    aws_socket_endpoint _socketEndpoint{.address = "127.0.0.1", .port = 8080};
+
+    aws_socket_endpoint _socketEndpoint{"127.0.0.1", 8080};
     aws_socket_options _socketOptions{
         .type = AWS_SOCKET_STREAM,
         .connect_timeout_ms = 3000,
@@ -162,7 +167,7 @@ void TesHttpServer::start_server() {
     _serverOptions.socket_options = &_socketOptions;
     _serverOptions.allocator = _allocator;
     _serverOptions.bootstrap = server_bootstrap;
-    _serverOptions.on_incoming_connection = _on_server_connection_setup;
+    _serverOptions.on_incoming_connection = onIncomingConnection;
 
     _server = aws_http_server_new(&_serverOptions);
 

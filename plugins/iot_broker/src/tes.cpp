@@ -16,14 +16,14 @@ ggapi::Struct IotBroker::retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct
         responseStruct.put("Token", innerStruct.get<std::string>("sessionToken"));
         responseStruct.put("Expiration", innerStruct.get<std::string>("expiration"));
     } else {
-        responseStruct.put("Response", "{}");
+        std::cerr << "Unable to fetch TES credentials" << std::endl;
+        responseStruct.put("Error", jsonStruct);
     }
 
     // Create json response string
     auto responseBuffer = responseStruct.toJson();
     auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
     auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
-
     response.put("Response", responseJsonAsString);
     return response;
 }

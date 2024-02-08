@@ -28,8 +28,6 @@ private:
 public:
     bool onDiscover(ggapi::Struct data) override;
     void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
-    bool onStart(ggapi::Struct data) override;
-
     bool onRun(ggapi::Struct data) override;
     bool onTerminate(ggapi::Struct data) override;
 
