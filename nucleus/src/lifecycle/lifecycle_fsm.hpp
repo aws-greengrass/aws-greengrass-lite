@@ -1,155 +1,203 @@
-//
-//  fsm_functional.hpp
-//  fsm
-//
-//  based upon https://www.vishalchovatiya.com/state-design-pattern-in-modern-cpp/
-//
-
 #pragma once
 
-#include <iostream>
-#include <variant>
-#include <optional>
+#include <algorithm>
 #include <array>
 #include <chrono>
-#include <algorithm>
+#include <iostream>
+#include <optional>
+#include <variant>
 
 #include "scripting.hpp"
 
 /* events */
-/* 
+/*
  * the events work with guards to correctly transition between the states
  * the events are partitioned to simplify the guard behavior
  */
-struct eventInitialize{};   /** Used to move from the iniitial state to NEW.  Probably can become Skip */
-struct eventUpdate{};       /** Used by the states to indicate a change in the requests */
-struct eventSkip{};         /** Used by some states to skip to the next happy-path state in the sequence */
-struct eventScriptEvent{};  /** Used to indicate a script behavior needs to be run */
-struct eventFlagChange{};   /** Used to indicate that a flag change has occured */
+struct eventInitialize {
+}; /** Used to move from the iniitial state to NEW.  Probably can become Skip */
+struct eventUpdate {}; /** Used by the states to indicate a change in the requests */
+struct eventSkip {}; /** Used by some states to skip to the next happy-path state in the sequence */
+struct eventScriptEvent {}; /** Used to indicate a script behavior needs to be run */
+struct eventFlagChange {}; /** Used to indicate that a flag change has occured */
 
-using Event = std::variant< eventInitialize, eventUpdate, eventSkip, eventScriptEvent, eventFlagChange>;
+using Event =
+    std::variant<eventInitialize, eventUpdate, eventSkip, eventScriptEvent, eventFlagChange>;
 
 struct component_data;
 
-constexpr int MAXERRORS=3;
+constexpr int MAXERRORS = 3;
 
-struct errorRate{
-    errorRate(){
+struct errorRate {
+    errorRate() {
         clearErrors();
     }
-    typedef std::array<std::chrono::steady_clock::time_point,MAXERRORS> history_t;
+    typedef std::array<std::chrono::steady_clock::time_point, MAXERRORS> history_t;
     using clock = std::chrono::steady_clock;
-    
-    void newError(){
-        std::rotate(_history.begin(), _history.begin()+1, _history.end()); // rotate to the left
+
+    void newError() {
+        std::rotate(_history.begin(), _history.begin() + 1, _history.end()); // rotate to the left
         _history.back() = clock::now();
     }
-    
-    bool isBroken(){
-        if( _history.front() == clock::time_point() ){
+
+    bool isBroken() {
+        if(_history.front() == clock::time_point()) {
             return false;
         }
         auto age = _history.back() - _history.front();
         using namespace std::chrono_literals;
         return age < 1h;
     }
-    
-    constexpr void clearErrors(){
-        _history.fill( clock::time_point() );
+
+    constexpr void clearErrors() {
+        _history.fill(clock::time_point());
     }
+
 private:
     history_t _history;
 };
 
-struct state_data{
-    state_data(std::optional<scriptRunner> installer=std::nullopt,std::optional<scriptRunner> starter = std::nullopt, std::optional<scriptRunner> runner=std::nullopt, std::optional<scriptRunner> stopper=std::nullopt):
-        installScript(std::move(installer)), startScript(std::move(starter)),
-    runScript(std::move(runner)), shutdownScript(std::move(stopper)), start(false), restart(false), reinstall(false), stop(false){};
+struct state_data {
+    state_data(
+        std::optional<scriptRunner> installer = std::nullopt,
+        std::optional<scriptRunner> starter = std::nullopt,
+        std::optional<scriptRunner> runner = std::nullopt,
+        std::optional<scriptRunner> stopper = std::nullopt)
+        : installScript(std::move(installer)), startScript(std::move(starter)),
+          runScript(std::move(runner)), shutdownScript(std::move(stopper)), start(false),
+          restart(false), reinstall(false), stop(false){};
     bool start;
     bool restart;
     bool reinstall;
     bool stop;
-    
+
     std::optional<scriptRunner> installScript;
     std::optional<scriptRunner> startScript;
     std::optional<scriptRunner> runScript;
     std::optional<scriptRunner> shutdownScript;
-    
+
     void killAll() {
-        if( installScript ){ installScript->kill(); }
-        if( startScript ){ startScript->kill(); }
-        if( runScript ){ runScript->kill(); }
-        if( shutdownScript ){ shutdownScript->kill(); }
+        if(installScript) {
+            installScript->kill();
+        }
+        if(startScript) {
+            startScript->kill();
+        }
+        if(runScript) {
+            runScript->kill();
+        }
+        if(shutdownScript) {
+            shutdownScript->kill();
+        }
     }
-    
+
     errorRate installErrors;
     errorRate startErrors;
     errorRate runErrors;
     errorRate stopErrors;
 };
 
-using state_data_v = std::variant< state_data >;
+using state_data_v = std::variant<state_data>;
 
 /* states */
-struct state_base{
-    virtual void operator()(component_data &, state_data &)=0;
-    virtual std::string_view getName()=0;
+struct state_base {
+    virtual void operator()(component_data &, state_data &) = 0;
+    virtual std::string_view getName() = 0;
 };
 
-struct Initial:state_base {
+struct Initial : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Initial"; }
+    std::string_view getName() {
+        return "Initial";
+    }
 };
-struct New:state_base {
+struct New : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "New"; }
+    std::string_view getName() {
+        return "New";
+    }
 };
-struct Installing:state_base {
+struct Installing : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Installing"; }
+    std::string_view getName() {
+        return "Installing";
+    }
 };
-struct Installed:state_base {
+struct Installed : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Installed"; }
+    std::string_view getName() {
+        return "Installed";
+    }
 };
-struct Broken:state_base {
+struct Broken : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Broken"; }
+    std::string_view getName() {
+        return "Broken";
+    }
 };
-struct Starting:state_base {
+struct Starting : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Starting"; }
+    std::string_view getName() {
+        return "Starting";
+    }
 };
-struct Running:state_base {
+struct Running : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Running"; }
+    std::string_view getName() {
+        return "Running";
+    }
 };
-struct Stopping:state_base {
+struct Stopping : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Stopping"; }
+    std::string_view getName() {
+        return "Stopping";
+    }
 };
-struct Finished:state_base {
+struct Finished : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Finished"; }
+    std::string_view getName() {
+        return "Finished";
+    }
 };
-struct StoppingWError: state_base {
+struct StoppingWError : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Stopping w/ Error"; }
+    std::string_view getName() {
+        return "Stopping w/ Error";
+    }
 };
-struct KillWStopError: state_base {
+struct KillWStopError : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Kill w/ Stop Error"; }
+    std::string_view getName() {
+        return "Kill w/ Stop Error";
+    }
 };
-struct KillWRunError: state_base {
+struct KillWRunError : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Kill w/ Run Error"; }
+    std::string_view getName() {
+        return "Kill w/ Run Error";
+    }
 };
-struct Kill: state_base {
+struct Kill : state_base {
     void operator()(component_data &, state_data &);
-    std::string_view getName(){ return "Kill"; }
+    std::string_view getName() {
+        return "Kill";
+    }
 };
 
-using State = std::variant< Initial, New, Installing, Installed, Broken, Starting, Running, Stopping, Finished, StoppingWError, KillWStopError, KillWRunError, Kill >;
+using State = std::variant<
+    Initial,
+    New,
+    Installing,
+    Installed,
+    Broken,
+    Starting,
+    Running,
+    Stopping,
+    Finished,
+    StoppingWError,
+    KillWStopError,
+    KillWRunError,
+    Kill>;
 
 /* transitions */
 struct Transitions {
@@ -160,9 +208,9 @@ struct Transitions {
     }
 
     std::optional<State> operator()(New &, const eventUpdate &e, state_data &s) {
-        if( s.start || s.restart || s.reinstall ){
+        if(s.start || s.restart || s.reinstall) {
             std::cout << "New ->";
-            if( s.installScript ){
+            if(s.installScript) {
                 std::cout << "Installing" << std::endl;
                 return Installing();
             } else {
@@ -173,20 +221,20 @@ struct Transitions {
             return {};
         }
     }
-    
-    std::optional<State> operator()(Installing &, const eventSkip &e, state_data &s){
+
+    std::optional<State> operator()(Installing &, const eventSkip &e, state_data &s) {
         std::cout << "Installing -> Installed (skip)" << std::endl;
         return Installed();
     }
-    
-    std::optional<State> operator()(Installing &, const eventScriptEvent &e, state_data &s){
+
+    std::optional<State> operator()(Installing &, const eventScriptEvent &e, state_data &s) {
         std::cout << "Installing -> ";
-        if( s.installScript->isOK() ){
+        if(s.installScript->isOK()) {
             std::cout << "Installed" << std::endl;
             return Installed();
         } else {
             s.installErrors.newError();
-            if( s.installErrors.isBroken() ){
+            if(s.installErrors.isBroken()) {
                 std::cout << "Broken" << std::endl;
                 return Broken();
             } else {
@@ -195,35 +243,35 @@ struct Transitions {
             }
         }
     }
-    
-    std::optional<State> operator()(Installed &, const eventUpdate &e, state_data &s){
+
+    std::optional<State> operator()(Installed &, const eventUpdate &e, state_data &s) {
         std::cout << "Installed -> Starting" << std::endl;
         return Starting();
     }
-    
-    std::optional<State> operator()(Starting &, const eventUpdate &e, state_data &s){
+
+    std::optional<State> operator()(Starting &, const eventUpdate &e, state_data &s) {
         std::cout << "Starting -> Running" << std::endl;
         return Running();
     }
 
-    std::optional<State> operator()(Starting &, const eventSkip &e, state_data &s){
+    std::optional<State> operator()(Starting &, const eventSkip &e, state_data &s) {
         std::cout << "Starting -> Running" << std::endl;
         return Running();
     }
 
-    std::optional<State> operator()(Running &, const eventUpdate &e, state_data &s){
+    std::optional<State> operator()(Running &, const eventUpdate &e, state_data &s) {
         std::cout << "Running -> Stopping" << std::endl;
         return Stopping();
     }
 
-    std::optional<State> operator()(Stopping &, const eventSkip &e, state_data &s){
+    std::optional<State> operator()(Stopping &, const eventSkip &e, state_data &s) {
         std::cout << "Stopping -> Finished (skip)" << std::endl;
         return Finished();
     }
 
-    std::optional<State> operator()(Stopping &, const eventScriptEvent &e, state_data &s){
+    std::optional<State> operator()(Stopping &, const eventScriptEvent &e, state_data &s) {
         std::cout << "Stopping -> ";
-        if( s.shutdownScript->isOK() ){
+        if(s.shutdownScript->isOK()) {
             std::cout << "KILL" << std::endl;
             return Kill();
         } else {
@@ -232,15 +280,15 @@ struct Transitions {
             return KillWStopError();
         }
     }
-    
-    std::optional<State> operator()(Kill &, const eventSkip &e, state_data &s){
+
+    std::optional<State> operator()(Kill &, const eventSkip &e, state_data &s) {
         std::cout << "Kill -> Finished";
         return Finished();
     }
 
-    std::optional<State> operator()(KillWStopError &, const eventSkip &e, state_data &s){
+    std::optional<State> operator()(KillWStopError &, const eventSkip &e, state_data &s) {
         std::cout << "Kill w/ Stop Error ";
-        if( s.stopErrors.isBroken() ){
+        if(s.stopErrors.isBroken()) {
             std::cout << "Broken" << std::endl;
             return Broken();
         } else {
@@ -249,9 +297,9 @@ struct Transitions {
         }
     }
 
-    std::optional<State> operator()(KillWRunError &, const eventSkip &e, state_data &s){
+    std::optional<State> operator()(KillWRunError &, const eventSkip &e, state_data &s) {
         std::cout << "Kill w/ Run Error -> ";
-        if( s.stopErrors.isBroken() ){
+        if(s.stopErrors.isBroken()) {
             std::cout << "Broken" << std::endl;
             return Broken();
         } else {
@@ -259,74 +307,78 @@ struct Transitions {
             return Finished();
         }
     }
-    
-    std::optional<State> operator()(Finished &, const eventUpdate &e, state_data &s){
-        if( s.restart || s.reinstall )
-        {
+
+    std::optional<State> operator()(Finished &, const eventUpdate &e, state_data &s) {
+        if(s.restart || s.reinstall) {
             std::cout << "Finished -> Installed" << std::endl;
             return Installed();
         } else {
             return {};
         }
     }
-    
-    std::optional<State> operator()(StoppingWError&, const eventSkip &e, state_data &s){
+
+    std::optional<State> operator()(StoppingWError &, const eventSkip &e, state_data &s) {
         std::cout << "Stopping w/ Error -> Kill w/ Run Error" << std::endl;
         return KillWRunError{};
     }
 
-    std::optional<State> operator()(StoppingWError&, const eventScriptEvent &e, state_data &s){
+    std::optional<State> operator()(StoppingWError &, const eventScriptEvent &e, state_data &s) {
         std::cout << "Stopping w/ Error -> Kill w/ Run Error" << std::endl;
         return KillWRunError{};
     }
 
     // Default do-nothing
-    template <typename State_t, typename Event_t>
-    std::optional<State> operator()(State_t &, const Event_t &, state_data &s) const{
+    template<typename State_t, typename Event_t>
+    std::optional<State> operator()(State_t &, const Event_t &, state_data &s) const {
         std::cout << "Unknown" << std::endl;
         return {};
     }
 };
 
-
-template <typename StateVariant, typename EventVariant, typename Transitions>
+template<typename StateVariant, typename EventVariant, typename Transitions>
 struct lifecycle {
-    
-    lifecycle(component_data &data):componentData(data){ dispatch( eventInitialize{} ); };
-    
+
+    lifecycle(component_data &data) : componentData(data) {
+        dispatch(eventInitialize{});
+    };
+
     StateVariant m_curr_state;
-    
-    void dispatch(const EventVariant &Event){
-        std::optional<StateVariant> new_state = std::visit(Transitions{}, m_curr_state, Event, stateData);
-        if( new_state )
-        {
+
+    void dispatch(const EventVariant &Event) {
+        std::optional<StateVariant> new_state =
+            std::visit(Transitions{}, m_curr_state, Event, stateData);
+        if(new_state) {
             m_curr_state = *std::move(new_state);
-            std::visit([this](auto&& newState) {
-                newState(componentData, std::get<state_data>(stateData) );
-            }, m_curr_state );
+            std::visit(
+                [this](auto &&newState) {
+                    newState(componentData, std::get<state_data>(stateData));
+                },
+                m_curr_state);
         }
     }
-    
+
     /* TODO: probably do not need runEvents */
-    template <typename... Events>
-    void runEvents(Events... e){ (dispatch(e), ...); }
-    
-    void setStop(){
+    template<typename... Events>
+    void runEvents(Events... e) {
+        (dispatch(e), ...);
+    }
+
+    void setStop() {
         std::get<state_data>(stateData).stop = true;
         dispatch(eventUpdate{});
     }
-    
-    void setStart(){
+
+    void setStart() {
         std::get<state_data>(stateData).start = true;
         dispatch(eventUpdate{});
     }
-    
-    void setRestart(){
+
+    void setRestart() {
         std::get<state_data>(stateData).restart = true;
         dispatch(eventUpdate{});
     }
-    
-    void setReinstall(){
+
+    void setReinstall() {
         std::get<state_data>(stateData).reinstall = true;
         dispatch(eventUpdate{});
     }
@@ -337,39 +389,56 @@ private:
 };
 
 struct component_data {
-    component_data(std::string_view name, std::function<void(void)> skipSender, std::function<void(void)> updateSender):_name(name),_skipper(skipSender),_updater(updateSender){};
-    void skip(){ _skipper();}
-    void update(){ _updater(); }
-    std::string_view getName(){ return _name; }
+    component_data(
+        std::string_view name,
+        std::function<void(void)> skipSender,
+        std::function<void(void)> updateSender)
+        : _name(name), _skipper(skipSender), _updater(updateSender){};
+    void skip() {
+        _skipper();
+    }
+    void update() {
+        _updater();
+    }
+    std::string_view getName() {
+        return _name;
+    }
+
 private:
     std::string _name;
     std::function<void(void)> _skipper;
     std::function<void(void)> _updater;
 };
 
-struct component{
-    component(std::string_view name):_fsm(theData),theData(name,[this](){sendSkipEvent();},[this](){sendUpdateEvent();}){};
-        
-    void requestStart(){
+struct component {
+    component(std::string_view name)
+        : _fsm(theData),
+          theData(
+              name, [this]() { sendSkipEvent(); }, [this]() { sendUpdateEvent(); }){};
+
+    void requestStart() {
         _fsm.setStart();
     }
-    
-    void requestStop(){
+
+    void requestStop() {
         _fsm.setStop();
     }
-    
-    void requestRestart(){
+
+    void requestRestart() {
         _fsm.setRestart();
     }
-    
-    void requestReinstall(){
+
+    void requestReinstall() {
         _fsm.setReinstall();
     }
-        
+
 private:
-    void sendSkipEvent(){ _fsm.dispatch(eventSkip{}); }
-    void sendUpdateEvent(){ _fsm.dispatch(eventUpdate{}); }
+    void sendSkipEvent() {
+        _fsm.dispatch(eventSkip{});
+    }
+    void sendUpdateEvent() {
+        _fsm.dispatch(eventUpdate{});
+    }
     component_data theData;
     lifecycle<State, Event, Transitions> _fsm;
-
 };
