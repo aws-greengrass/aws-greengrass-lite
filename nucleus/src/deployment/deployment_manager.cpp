@@ -183,14 +183,16 @@ namespace deployment {
         // TODO: More streamlined deployment task
         auto currentDeployment = _deploymentQueue->next();
         auto currentRecipe = _componentStore->next();
-        if(util::startsWith(currentRecipe.componentName, "aws.greengrass")) {
-            LOG.atError("deployment")
+
+        // component name is not recommended to start with "aws.greengrass"
+        if(util::startsWith(currentRecipe.getComponentName(), "aws.greengrass")) {
+            LOG.atWarn("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
                 .kv("DeploymentType", "LOCAL")
-                .log("Given component name has conflict with plugins");
-            return;
+                .log("Given component name has conflict with plugin names");
         }
+
         auto artifactPath = _kernel.getPaths()->componentStorePath() / "artifacts"
                             / currentRecipe.componentName / currentRecipe.componentVersion;
         LOG.atInfo("deployment")
@@ -200,35 +202,95 @@ namespace deployment {
             .log("Starting deployment task");
 
         // TODO: Support other platforms
-        auto it = std::find_if(
-            currentRecipe.manifests.begin(), currentRecipe.manifests.end(), [](auto &manifest) {
-                return manifest.platform.os == OS::LINUX;
-            });
-        if(it != currentRecipe.manifests.end()) {
-            for(const auto &[stage, command] : it->lifecycle) {
+        auto manifests = currentRecipe.getManifests();
+        auto it = std::find_if(manifests.begin(), manifests.end(), [](auto &manifest) {
+            return manifest.platform.os == OS::LINUX;
+        });
+        // Only run if linux platform is supported
+        // TODO: and the nucleus type is lite?
+        if(it != manifests.end()) {
+            auto getEnvironment = [](auto &environment) {
+                if(environment.empty()) {
+                    return ggapi::List::create();
+                }
+                auto envList = ggapi::List::create();
+                int idx = 0;
+                for(auto &envs : environment) {
+                    envList.put(idx, ggapi::Struct::create().put(envs.first, envs.second));
+                    idx++;
+                }
+                return envList;
+            };
+
+            // set the lifecycle environment variables
+            if(!it->lifecycle.environment.empty()) {
+                auto envList = getEnvironment(it->lifecycle.environment);
+                ggapi::Struct request = ggapi::Struct::create();
+                request.put("setenv", envList);
+                std::ignore = ggapi::Task::sendToTopic(SET_ENVIRONMENT_TOPIC, request);
+            }
+
+            // execute each lifecycle phase
+            for(const auto &[stage, command] : it->lifecycle.steps) {
+                if(!command.skipIf.empty()) {
+                    const auto skipIf = util::splitWith(command.skipIf, ' ');
+                    if(!skipIf.empty()) {
+                        // skip the step if the executable exists on path
+                        if(skipIf[0] == on_path_prefix) {
+                            const auto &executable = skipIf[1];
+                            auto envList = ggapi::List::create();
+                            envList.put(0, executable);
+                            auto request = ggapi::Struct::create();
+                            request.put("getenv", envList);
+                            auto response =
+                                ggapi::Task::sendToTopic(GET_ENVIRONMENT_TOPIC, request);
+                            if(response.get<bool>("status")) {
+                                return;
+                            }
+                        }
+                        // skip the step if the file exists
+                        else if(skipIf[0] == exists_prefix) {
+                            if(std::filesystem::exists(skipIf[1])) {
+                                return;
+                            }
+                        }
+                    }
+                }
+
+                // create a deployment task request
+                auto envList = getEnvironment(command.environment);
                 auto script = std::regex_replace(
                     command.script, std::regex(R"(\{artifacts:path\})"), artifactPath.string());
-                if(currentRecipe.configuration.defaultConfiguration.hasKey("message")) {
+                if(currentRecipe.getComponentConfiguration().defaultConfiguration.hasKey(
+                       "message")) {
                     script = std::regex_replace(
                         script,
                         std::regex(R"(\{configuration:\/Message\})"),
-                        currentRecipe.configuration.defaultConfiguration.get<std::string>(
-                            "message"));
+                        currentRecipe.getComponentConfiguration()
+                            .defaultConfiguration.get<std::string>("message"));
                 }
 
                 auto request = ggapi::Struct::create();
                 request.put("requiresPrivilege", command.requiresPrivilege);
                 request.put("script", script);
-                request.put("workDir", artifactPath.string());
+                request.put("setenv", envList);
+                request.put("timeout", command.timeout);
+
+                // deploy the component
                 ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, request);
                 if(response.get<bool>("status")) {
                     LOG.atInfo("deployment")
                         .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
                         .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
                         .kv("DeploymentType", "LOCAL")
-                        .log("Executed " + stage + " of the lifecycle");
+                        .log("Executed " + stage + " step of the lifecycle");
                 } else {
-                    return;
+                    LOG.atError("deployment")
+                        .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+                        .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+                        .kv("DeploymentType", "LOCAL")
+                        .log("Failed to execute " + stage + " step of the lifecycle");
+                    return; // if any of the lifecycle step fails, stop the deployment
                 }
             }
         } else {
@@ -239,6 +301,7 @@ namespace deployment {
                 .log("Platform not supported!");
         }
 
+        // gets here only if all lifecycle steps are executed successfully
         LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)

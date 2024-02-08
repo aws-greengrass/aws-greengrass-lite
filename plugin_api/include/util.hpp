@@ -6,6 +6,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -45,6 +46,16 @@ namespace util {
         } else {
             return target;
         }
+    }
+
+    inline std::vector<std::string> splitWith(std::string target, const char token) {
+        std::istringstream ss(target);
+        std::string item;
+        std::vector<std::string> result;
+        while(std::getline(ss, item, token)) {
+            result.push_back(item);
+        }
+        return result;
     }
 
     inline int lowerChar(int c) {

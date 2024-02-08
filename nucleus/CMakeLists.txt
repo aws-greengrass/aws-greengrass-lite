@@ -74,6 +74,7 @@ add_library(
   src/data/shared_list.hpp
   src/data/shared_struct.cpp
   src/data/shared_struct.hpp
+  src/data/shared_queue.hpp
   src/data/string_table.cpp
   src/data/string_table.hpp
   src/data/struct_model.cpp
@@ -83,10 +84,14 @@ add_library(
   src/data/tracked_object.hpp
   src/data/value_type.hpp
   src/deployment/config_watchers.hpp
+  src/deployment/deployment_manager.cpp
+  src/deployment/deployment_manager.hpp
   src/deployment/deployment_model.cpp
   src/deployment/deployment_model.hpp
   src/deployment/device_configuration.cpp
   src/deployment/device_configuration.hpp
+  src/deployment/recipe_loader.hpp
+  src/deployment/recipe_loader.cpp
   src/errors/api_errors.hpp
   src/errors/error_base.cpp
   src/errors/error_base.hpp
@@ -130,11 +135,7 @@ add_library(
   src/util/nucleus_paths.cpp
   src/util/nucleus_paths.hpp
   src/util/permissions.cpp
-  src/util/permissions.hpp
-  src/deployment/recipe_loader.hpp
-  src/deployment/deployment_manager.cpp
-  src/deployment/deployment_manager.hpp
-  src/data/shared_queue.hpp)
+  src/util/permissions.hpp)
 target_link_libraries(
   nucleus-obj
   PUBLIC gg_plugin_api
@@ -198,6 +199,8 @@ add_executable(
   tests/api/task_tests.cpp
   tests/data/obfuscator_test.cpp
   tests/data/symbol_tests.cpp
+  #  tests/deployment/deployment_tests.cpp
+  #  tests/deployment/recipe_tests.cpp
   tests/errors/errors_test.cpp
   tests/lifecycle/kernel_tests.cpp
   tests/pubsub/pubsub_tests.cpp

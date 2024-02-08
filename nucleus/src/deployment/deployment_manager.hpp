@@ -39,6 +39,10 @@ namespace deployment {
         static constexpr auto POLLING_FREQUENCY = 2s;
         inline static const ggapi::Symbol EXECUTE_PROCESS_TOPIC{
             "aws.greengrass.Native.StartProcess"};
+        inline static const ggapi::Symbol SET_ENVIRONMENT_TOPIC{
+            "aws.greengrass.Native.SetEnvironment"};
+        inline static const ggapi::Symbol GET_ENVIRONMENT_TOPIC{
+            "aws.greengrass.Native.GetEnvironment"};
         mutable std::mutex _mutex;
         std::thread _thread;
         std::condition_variable _wake;

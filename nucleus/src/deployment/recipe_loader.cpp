@@ -34,6 +34,13 @@ namespace deployment {
             loadDependencies(recipeStruct.get<ggapi::Struct>("componentdependencies"), recipe);
         }
 
+        // Component Type
+        if(recipeStruct.hasKey("componenttype")) {
+            recipe.componentType =
+                ComponentTypeMap.lookup(recipeStruct.get<std::string>("componenttype"))
+                    .value_or(ComponentType::GENERIC);
+        }
+
         // Configuration
         if(recipeStruct.hasKey("componentconfiguration")) {
             loadConfiguration(recipeStruct.get<ggapi::Struct>("componentconfiguration"), recipe);
@@ -47,7 +54,9 @@ namespace deployment {
         }
 
         // Global Lifecycle
-        if(recipeStruct.hasKey("lifecycle") && recipe.manifests.empty()) {
+        if(recipeStruct.hasKey("lifecycle")) {
+            auto lifecycle = recipeStruct.get<ggapi::Struct>("lifecycle");
+            loadGlobalLifecycle(lifecycle, recipe);
         }
         return recipe;
     }
@@ -73,9 +82,11 @@ namespace deployment {
             const auto depStruct = data.getValue<ggapi::Struct>({key});
             DependencyProperties dependencyProps;
             dependencyProps.versionRequirement = depStruct.get<std::string>("versionrequirement");
-            dependencyProps.dependencyType =
-                DependencyTypeMap.lookup(depStruct.get<std::string>("dependencytype"))
-                    .value_or(DependencyType::HARD);
+            if(depStruct.hasKey("dependencytype")) {
+                dependencyProps.dependencyType =
+                    DependencyTypeMap.lookup(depStruct.get<std::string>("dependencytype"))
+                        .value_or(DependencyType::HARD);
+            }
             recipe.componentDependencies.insert({key, dependencyProps});
         }
     }
@@ -95,6 +106,11 @@ namespace deployment {
                 manifest.platform.os =
                     OSMap.lookup(platform.getValue<std::string>({"os"})).value_or(OS::UNKNOWN);
             }
+            if(platform.hasKey("nucleus")) {
+                manifest.platform.nucleusType =
+                    NucleusMap.lookup(platform.getValue<std::string>({"nucleus"}))
+                        .value_or(NucleusType::UNKNOWN);
+            }
             if(platform.hasKey("architecture")) {
                 manifest.platform.architecture =
                     ArchitectureMap.lookup(platform.getValue<std::string>({"architecture"}))
@@ -103,11 +119,19 @@ namespace deployment {
         }
 
         // lifecycle
-        auto lifecycle = data.getValue<ggapi::Struct>({"lifecycle"});
-        loadLifecycle(lifecycle, manifest);
+        if(data.hasKey("lifecycle")) {
+            auto lifecycle = data.getValue<ggapi::Struct>({"lifecycle"});
+            manifest.lifecycle = loadLifecycle(lifecycle);
+        }
 
         // selections
-        // TODO: selection list
+        if(data.hasKey("selections")) {
+            auto selections = data.getValue<ggapi::List>({"selections"});
+            for(auto i = 0; i < selections.size(); i++) {
+                auto selection = selections.get<std::string>(i);
+                manifest.selections.emplace_back(std::move(selection));
+            }
+        }
 
         // artifacts
         if(data.hasKey("artifacts")) {
@@ -118,7 +142,7 @@ namespace deployment {
             }
         }
 
-        recipe.manifests.push_back(manifest);
+        recipe.manifests.emplace_back(manifest);
     }
 
     void RecipeLoader::loadArtifact(const ggapi::Struct &data, PlatformManifest &manifest) {
@@ -146,37 +170,39 @@ namespace deployment {
                         .value_or(PermissionType::NONE);
             }
         }
-        manifest.artifacts.push_back(artifact);
+        manifest.artifacts.emplace_back(std::move(artifact));
     }
 
-    void RecipeLoader::loadLifecycle(const ggapi::Struct &data, PlatformManifest &manifest) {
+    void RecipeLoader::loadGlobalLifecycle(const ggapi::Struct &data, deployment::Recipe &recipe) {
+        // TODO: Bottom-level selection keys
+        auto selections = data.keys();
+        for(auto i = 0; i < selections.size(); i++) {
+            auto selection = selections.get<std::string>(i);
+            recipe.lifecycle.insert({selection, loadLifecycle(data)});
+        }
+    }
+
+    Lifecycle RecipeLoader::loadLifecycle(const ggapi::Struct &data) {
+        Lifecycle lifecycle;
         if(data.hasKey("setenv")) {
             auto envs = data.get<ggapi::Struct>("setenv");
             auto vars = envs.keys();
             for(auto idx = 0; idx < vars.size(); idx++) {
                 auto varName = vars.get<std::string>(idx);
-                manifest.envs.insert({varName, envs.get<std::string>(varName)});
+                lifecycle.environment.insert({varName, envs.get<std::string>(varName)});
             }
         }
-        if(data.hasKey("install")) {
-            loadCommand("install", data, manifest);
-        }
-        if(data.hasKey("run")) {
-            loadCommand("run", data, manifest);
-        }
-        if(data.hasKey("startup")) {
-            loadCommand("startup", data, manifest);
-        }
-        if(data.hasKey("shutdown")) {
-            loadCommand("shutdown", data, manifest);
-        }
-        if(data.hasKey("recover")) {
-            loadCommand("recover", data, manifest);
+
+        for(const auto &stepName : {"install", "run", "startup", "shutdown", "recover"}) {
+            if(data.hasKey(stepName)) {
+                lifecycle.steps.emplace_front(stepName, loadCommand(stepName, data));
+            }
         }
         // TODO: Bootstrap lifecycle
+        return lifecycle;
     }
-    void RecipeLoader::loadCommand(
-        std::string_view stepName, const ggapi::Struct &data, PlatformManifest &manifest) {
+
+    Command RecipeLoader::loadCommand(std::string_view stepName, const ggapi::Struct &data) {
         Command command;
         if(data.isStruct(stepName)) {
             command.script = data.getValue<std::string>({"script"});
@@ -194,13 +220,13 @@ namespace deployment {
                 auto vars = envs.keys();
                 for(auto idx = 0; idx < vars.size(); idx++) {
                     auto varName = vars.get<std::string>(idx);
-                    command.envs.insert({varName, envs.get<std::string>(varName)});
+                    command.environment.insert({varName, envs.get<std::string>(varName)});
                 }
             }
         } else {
             command.script = data.getValue<std::string>({stepName});
         }
 
-        manifest.lifecycle.emplace_front(stepName, command);
+        return command;
     }
 } // namespace deployment
