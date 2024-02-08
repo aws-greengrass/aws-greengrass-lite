@@ -21,11 +21,16 @@ bool IpcServer::onStart(ggapi::Struct data) {
     std::ignore = getScope().subscribeToTopic(
         keys.topicName, ggapi::TopicCallback::of(&IpcServer::cliHandler, this));
     auto system = _system.load();
-    std::filesystem::path rootPath = system.getValue<std::string>({"rootPath"});
-    auto socketPath = rootPath / SOCKET_NAME;
+    if(system.hasKey("ipcSocketPath")) {
+        _socketPath = system.get<std::string>("ipcSocketPath");
+    } else {
+        std::filesystem::path rootPath =
+            std::filesystem::canonical(system.getValue<std::string>({"rootPath"}));
+        _socketPath = rootPath / SOCKET_NAME;
+    }
     _listener = std::make_shared<ServerListener>();
     try {
-        _listener->Connect(socketPath.string());
+        _listener->Connect(_socketPath);
     } catch(std::runtime_error &e) {
         throw ggapi::GgApiError(e.what());
     }
@@ -34,14 +39,10 @@ bool IpcServer::onStart(ggapi::Struct data) {
 
 ggapi::Struct IpcServer::cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct req) {
     auto serviceName = req.getValue<std::string>({keys.serviceName});
-    auto system = _system.load();
-    std::filesystem::path rootPath =
-        std::filesystem::canonical(system.getValue<std::string>({"rootPath"}));
-    auto socketPath = rootPath / SOCKET_NAME;
 
     auto resp = ggapi::Struct::create();
-    resp.put(keys.socketPath, socketPath.string());
-    resp.put(keys.cliAuthToken, _authHandler->generateAuthToken(std::move(serviceName)));
+    resp.put(keys.socketPath, _socketPath);
+    resp.put(keys.cliAuthToken, _authHandler->generateAuthToken(serviceName));
     return resp;
 }
 

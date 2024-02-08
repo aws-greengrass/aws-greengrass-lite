@@ -45,6 +45,8 @@ private:
     std::atomic<ggapi::Struct> _config;
     std::atomic<ggapi::Struct> _configRoot;
 
+    std::string _socketPath;
+
     std::unique_ptr<AuthenticationHandler> _authHandler;
 
 public:
