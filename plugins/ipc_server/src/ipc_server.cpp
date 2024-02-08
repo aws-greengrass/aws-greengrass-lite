@@ -24,9 +24,9 @@ bool IpcServer::onStart(ggapi::Struct data) {
     if(system.hasKey("ipcSocketPath")) {
         _socketPath = system.get<std::string>("ipcSocketPath");
     } else {
-        std::filesystem::path rootPath =
-            std::filesystem::canonical(system.getValue<std::string>({"rootPath"}));
-        _socketPath = rootPath / SOCKET_NAME;
+        std::filesystem::path filePath =
+            std::filesystem::canonical(system.getValue<std::string>({"rootPath"})) / SOCKET_NAME;
+        _socketPath = filePath.string();
     }
     _listener = std::make_shared<ServerListener>();
     try {
