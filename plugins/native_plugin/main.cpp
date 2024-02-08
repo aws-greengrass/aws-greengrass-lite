@@ -45,7 +45,6 @@ public:
 ggapi::Struct NativePlugin::testListener(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
     auto requiresPrivilege = callData.get<bool>("requiresPrivilege");
     auto script = callData.get<std::string>("script");
-    auto workDir = callData.get<std::string>("workDir");
     if(!requiresPrivilege) {
         // SECURITY-TODO: Retrieve Change user
     }
