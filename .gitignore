@@ -1,7 +1,7 @@
 .idea/
-**/cmake-build-*/
-**/build/
-**/.cache/
+cmake-build-*/
+build/
+.cache/
 result
 result-*
 .cppcheck/

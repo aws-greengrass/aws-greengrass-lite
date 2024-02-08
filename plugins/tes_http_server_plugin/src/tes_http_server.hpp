@@ -4,21 +4,20 @@
 #include <iostream>
 
 #include <aws/common/logging.h>
+#include <aws/http/private/request_response_impl.h>
 #include <aws/http/request_response.h>
 #include <aws/http/server.h>
 #include <aws/io/channel_bootstrap.h>
 #include <aws/io/event_loop.h>
 #include <aws/io/logging.h>
 #include <aws/io/socket.h>
-#include <plugin.hpp>
 #include <aws/io/stream.h>
-#include <aws/http/private/request_response_impl.h>
+#include <plugin.hpp>
 
 const auto LOG = ggapi::Logger::of("TesHttpServerPlugin");
 
 class TesHttpServer {
 private:
-
     void setup_server();
     void destroy_server();
 

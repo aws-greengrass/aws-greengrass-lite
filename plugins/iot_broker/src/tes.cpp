@@ -1,30 +1,30 @@
 #include "iot_broker.hpp"
-#include <rapidjson/document.h>
-#include "rapidjson/writer.h"
-#include "rapidjson/stringbuffer.h"
 
 ggapi::Struct IotBroker::retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
     ggapi::Struct response = ggapi::Struct::create();
-    const char* json_string = _savedToken.c_str();
-    // Parse JSON response
+    const char *json_string = _savedToken.c_str();
     // TODO: Verify if keys exist before retrieving
+    auto jsonHandle =
+        ggapi::Buffer::create().put(0, std::string_view(_savedToken.c_str())).fromJson();
+    auto responseStruct = ggapi::Struct::create();
+    auto jsonStruct = ggapi::Struct{jsonHandle};
 
-    rapidjson::Document document;
-    document.Parse(json_string);
+    if(jsonStruct.hasKey("credentials")) {
+        auto innerStruct = jsonStruct.get<ggapi::Struct>("credentials");
+        responseStruct.put("AccessKeyId", innerStruct.get<std::string>("accessKeyId"));
+        responseStruct.put("SecretAccessKey", innerStruct.get<std::string>("secretAccessKey"));
+        responseStruct.put("Token", innerStruct.get<std::string>("sessionToken"));
+        responseStruct.put("Expiration", innerStruct.get<std::string>("expiration"));
+    } else {
+        responseStruct.put("Response", "{}");
+    }
 
-    rapidjson::Document new_doc;
-    new_doc.SetObject();
-    auto creds = document["credentials"].GetObject();
-    new_doc.AddMember("AccessKeyId", creds["accessKeyId"], new_doc.GetAllocator());
-    new_doc.AddMember("SecretAccessKey", creds["secretAccessKey"], new_doc.GetAllocator());
-    new_doc.AddMember("Token", creds["sessionToken"], new_doc.GetAllocator());
-    new_doc.AddMember("Expiration", creds["expiration"], new_doc.GetAllocator());
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    new_doc.Accept(writer);
+    // Create json response string
+    auto responseBuffer = responseStruct.toJson();
+    auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
+    auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
 
-    // Send response object
-    response.put("Response", buffer.GetString());
+    response.put("Response", responseJsonAsString);
     return response;
 }
 
@@ -77,8 +77,9 @@ bool IotBroker::tesOnStart(ggapi::Struct data) {
 }
 
 bool IotBroker::tesOnRun(void) {
-std::ignore = getScope().subscribeToTopic(
+    std::ignore = getScope().subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.requestTES"},
         ggapi::TopicCallback::of(&IotBroker::retrieveToken, this));
+
     return true;
 }

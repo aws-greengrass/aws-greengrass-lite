@@ -182,8 +182,8 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
     CloudDownloader self;
     self.downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);
 
-    LOG.atInfo().event("Downlaod Status").log("Sucesssfully Fetched Token...");
-    std::cout << "[Cloud_Downloader] Sucesssfully Fetched Token... " << std::endl;
+    LOG.atInfo().event("Download Status").log("Successfully fetched Token...");
+    std::cout << "[Cloud_Downloader] Successfully fetched Token... " << std::endl;
 
     ggapi::Struct response = ggapi::Struct::create();
     response.put("Response", downloadContent.str());
@@ -240,12 +240,16 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
     return response;
 }
 
-bool CloudDownloader::onStart(ggapi::Struct data) {
+bool CloudDownloader::onDiscover(ggapi::Struct data) {
     std::ignore = getScope().subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, genericDownload);
 
     std::ignore = getScope().subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.fetch_TES_from_cloud"}, fetchToken);
+    return true;
+}
+
+bool CloudDownloader::onStart(ggapi::Struct data) {
 
     return true;
 }
