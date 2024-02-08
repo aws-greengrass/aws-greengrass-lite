@@ -91,7 +91,7 @@ public:
     // TES
     bool tesOnStart(ggapi::Struct data);
     bool tesOnRun(void);
-    ggapi::Struct retriveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
+    ggapi::Struct retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
 
 private:
     static const Keys keys;

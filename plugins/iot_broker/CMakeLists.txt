@@ -13,11 +13,18 @@ if(NOT device-sdk-cpp_POPULATED)
                    EXCLUDE_FROM_ALL)
 endif()
 
+fetchcontentfromdeps(rapidjson)
+
+FetchContent_GetProperties(rapidjson)
+if(NOT rapidjson_POPULATED)
+  FetchContent_Populate(rapidjson)
+endif()
+
 add_library(iot_broker MODULE main.cpp src/iot_broker.cpp src/iot_broker.hpp
                               src/tes.cpp)
 target_link_libraries(iot_broker PRIVATE nucleus-core aws-crt-cpp
                                          shared_resources)
-target_include_directories(iot_broker PRIVATE src)
+target_include_directories(iot_broker PRIVATE src ${rapidjson_SOURCE_DIR}/include)
 if(UNIX AND NOT APPLE)
   target_link_options(
     iot_broker PRIVATE
