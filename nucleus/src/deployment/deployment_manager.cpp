@@ -152,7 +152,11 @@ namespace deployment {
     }
 
     Recipe DeploymentManager::loadRecipeFile(const std::filesystem::path &recipeFile) {
-        return _recipeLoader.read(recipeFile);
+        try {
+            return _recipeLoader.read(recipeFile);
+        } catch(std::exception &e) {
+            LOG.atWarn("deployment").kv("DeploymentType", "LOCAL").logAndThrow(e);
+        }
     }
 
     void DeploymentManager::saveRecipeFile(const deployment::Recipe &recipe) {
