@@ -1,7 +1,5 @@
-#include <iostream>
-#include <stdio.h>
-
 #include "src/tes_http_server.hpp"
+#include <iostream>
 #include <plugin.hpp>
 
 class TesHttpServerPlugin : public ggapi::Plugin {
@@ -40,12 +38,12 @@ bool TesHttpServerPlugin::onRun(ggapi::Struct data) {
           std::cerr << "[he-plugin] probably did not initialize the logging: " << e.what()
                     << std::endl;
     */
-    _local_server.start_server();
+    TesHttpServer::startServer();
     return true;
 }
 
 bool TesHttpServerPlugin::onTerminate(ggapi::Struct data) {
-    _local_server.stop_server();
+    TesHttpServer::stopServer();
     return true;
 }
 
