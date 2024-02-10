@@ -11,7 +11,7 @@ aws_server_bootstrap *server_bootstrap;
 
 const auto LOG = ggapi::Logger::of("TesHttpServerPlugin");
 
-const char *get_tes_credentials() {
+std::string get_tes_credentials() {
     // TODO: Request parameter should contain the authZ token set in the header
     // Fetch credentials from TES Plugin
     auto tes_lpc_request{ggapi::Struct::create()};
@@ -19,14 +19,14 @@ const char *get_tes_credentials() {
     auto tes_lpc_response =
         ggapi::Task::sendToTopic(ggapi::Symbol{"aws.greengrass.requestTES"}, tes_lpc_request);
     auto tes_credentials = tes_lpc_response.get<std::string>({"Response"});
-    return tes_credentials.c_str();
+    return tes_credentials;
 }
 
 extern "C" int onRequestDone(struct aws_http_stream *stream, void *user_data) {
-    const char *tes_credentials = get_tes_credentials();
+    auto tes_credentials = get_tes_credentials();
     response = aws_http_message_new_response(_allocator);
     aws_http_message_set_response_status(response, 200);
-    struct aws_byte_cursor body_src = aws_byte_cursor_from_c_str(tes_credentials);
+    struct aws_byte_cursor body_src = aws_byte_cursor_from_c_str(tes_credentials.c_str());
 
     struct aws_input_stream *response_body =
         aws_input_stream_new_from_cursor(aws_default_allocator(), &body_src);
@@ -157,7 +157,7 @@ void TesHttpServer::start_server() {
     // TODO: Revisit this to check if there a way to get the randomly assigned port number. For now,
     // use 8080.
 
-    aws_socket_endpoint _socketEndpoint{"127.0.0.1", 8080};
+    aws_socket_endpoint _socketEndpoint{"127.0.0.1", 4080};
     aws_socket_options _socketOptions{
         .type = AWS_SOCKET_STREAM,
         .connect_timeout_ms = 3000,
