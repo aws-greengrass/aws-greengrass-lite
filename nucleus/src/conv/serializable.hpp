@@ -5,9 +5,8 @@
 namespace conv {
 
     class Archive {
-        bool _ignoreKeyCase = false;
-
     protected:
+        bool _ignoreKeyCase = false;
         std::unordered_map<std::string, data::StructElement> _kv;
 
     public:
@@ -31,7 +30,7 @@ namespace conv {
             }
         }
 
-        [[nodiscard]] bool compareKeys( std::string key, std::string name) {
+        [[nodiscard]] inline bool compareKeys( std::string key, std::string name) {
             if(_ignoreKeyCase) {
                 key = util::lower(key);
                 name = util::lower(name);
