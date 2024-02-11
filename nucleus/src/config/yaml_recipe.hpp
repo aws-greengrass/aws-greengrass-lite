@@ -1,4 +1,5 @@
 #pragma once
+#include "scope/context_full.hpp"
 #include "data/shared_queue.hpp"
 #include "conv/serializable.hpp"
 #include "conv/yaml_conv.hpp"
@@ -11,6 +12,8 @@ namespace config {
 
     template<template<typename...> class Ref, typename... Args>
     struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
+
+    using IteratorType = YAML::const_iterator;
 
     class Iterator {
 
@@ -59,49 +62,93 @@ namespace config {
     };
 
     class YamlRecipeReader: public conv::Archive {
-        std::vector<Iterator> _stack;
+        std::vector<IteratorType> _stack;
 
     public:
         explicit YamlRecipeReader(const scope::UsingContext &context) {
         }
 
-        template <class ... Types>
-        inline YamlRecipeReader& operator()( Types && ... args )
+        template <typename T>
+        inline YamlRecipeReader& operator()( T && arg )
         {
-            process( std::forward<Types>( args )... );
+            process( std::forward<T>( arg ));
             return *this;
         }
+
+        template<typename T>
+        inline YamlRecipeReader& operator()(const std::string&key, T&&arg) {
+            process( key, std::forward<T>( arg ));
+            return *this;
+        }
+
+//        template <class ... Types>
+//        inline YamlRecipeReader& operator()( Types && ... args )
+//        {
+//            process( std::forward<Types>( args )... );
+//            return *this;
+//        }
 
         void read(std::ifstream &stream) {
             YAML::Node node = YAML::Load(stream);
             return inplaceMap(node);
         }
 
+        YAML::Node find(std::string name) {
+            for(auto& it: _stack) {
+                auto key = it->first.as<std::string>();
+                if(compareKeys(key, name)) {
+                    return it->second;
+                }
+            }
+            return YAML::Node();
+        }
+
+        IteratorType value(std::string name) {
+            for(auto& it: _stack) {
+                auto key = it->first.as<std::string>();
+                if(compareKeys(key, name)) {
+                    return it->second.begin();
+                }
+            }
+            return YAML::Node().begin();
+        }
+
         // NOLINTNEXTLINE(*-no-recursion)
-        void inplaceMap(YAML::Node &node) {
-            if(!node.IsMap()) {
+        void inplaceMap(const YAML::Node &node) {
+            if(!(node.IsMap() || node.IsSequence())) {
                 throw std::runtime_error("Expecting a map or sequence");
             }
-            _stack.emplace_back(node.begin(), node.end());
+            for(auto it = node.begin(); it != node.end(); it++) {
+                _stack.emplace_back(it);
+            }
+        }
+
+        template<typename T>
+        inline void process(const std::string& key, T &head) {
+            if constexpr(std::is_base_of_v<conv::Serializable, T>) {
+                inplaceMap(find(key));
+                apply(*this, head);
+                _stack.pop_back();
+            }
+            else if constexpr(is_specialization<T, std::vector>::value) {
+                load(key, head);
+            }
+            else {
+                load(key, head);
+            }
         }
 
         template<typename T>
         inline void process(T &head) {
-            if constexpr(std::is_base_of_v<conv::Serializable, T>) {
-                start();
-                apply(*this, head);
-                end();
-            }
-            else {
-                apply(head);
-            }
+            process(std::forward<T>(head));
+
         }
 
-        template<typename T, typename... O>
-        inline void process(T &&head, O &&...tail ) {
-            process(std::forward<T>(head));
-            process(std::forward<O>(tail)...);
-        }
+//        template<typename T, typename... O>
+//        inline void process(T &&head, O &&...tail ) {
+//            process(std::forward<T>(head));
+//            process(std::forward<O>(tail)...);
+//        }
 
         template<typename ArchiveType, typename T>
 //        template<typename T, typename = std::enable_if_t<std::is_base_of_v<conv::Serializable, T>>>
@@ -110,16 +157,16 @@ namespace config {
         }
 
         template<typename T>
-        void save(std::string_view key, T&data) {
-//            if (exists(key)) {
-//
-//            }
+        void load(T & head) {
+            apply(*this, head);
         }
 
-//        template<typename T, typename std::enable_if_t<!std::is_base_of_v<conv::Serializable, std::remove_reference_t<T>>>::value>
+
+
         template<typename T>
-        void apply(T &data) {
-            auto& node = _stack.back().value();
+        //        template<typename T, typename std::enable_if_t<!std::is_base_of_v<conv::Serializable, std::remove_reference_t<T>>>::value>
+        void load(const std::string &key, T&data) {
+            auto node = find(key);
             if (node.IsScalar()) {
                 if constexpr(std::is_same_v<T, bool>) {
                     data = node.as<bool>();
@@ -134,18 +181,18 @@ namespace config {
                     data = node.as<std::string>();
                 }
             }
-            ++_stack.back();
         }
 
         template<typename T, typename = std::enable_if_t<std::is_base_of_v<conv::Serializable, T>>>
-        void load(std::vector<T> & head) {
+        void load(const std::string &key, std::vector<T> & head) {
+            head.resize(find(key).size());
            for(auto && v : head) {
-               *this(v);
+                (*this)(key, v);
            }
         }
 
         template<typename T, typename = std::enable_if_t<std::is_base_of_v<conv::Serializable, T>>>
-        void load(std::unordered_map<std::string, T> & head) {
+        void load(const std::string &key, std::unordered_map<std::string, T> & head) {
             // TODO:
         }
 

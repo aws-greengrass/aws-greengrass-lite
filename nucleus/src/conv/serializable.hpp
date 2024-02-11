@@ -31,17 +31,12 @@ namespace conv {
             }
         }
 
-        [[nodiscard]] bool find(const std::string &name) {
-            std::string key;
+        [[nodiscard]] bool compareKeys( std::string key, std::string name) {
             if(_ignoreKeyCase) {
-                key = util::lower(name);
-            } else {
-                key = name;
+                key = util::lower(key);
+                name = util::lower(name);
             }
-            if(_kv.find(key) != _kv.cend()) {
-                return true;
-            }
-            return false;
+            return key == name;
         }
 
         //
