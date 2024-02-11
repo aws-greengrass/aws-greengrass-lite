@@ -1,4 +1,6 @@
 #include "recipe_loader.hpp"
+#include "config/yaml_recipe.hpp"
+//#include "config/json_recipe.hpp"
 #include <fstream>
 
 namespace deployment {
@@ -25,6 +27,10 @@ namespace deployment {
         }
 
         Recipe recipe;
+
+        config::YamlRecipeReader yamlRecipeReader(scope::context());
+//        yamlRecipeReader.read(file);
+//        yamlRecipeReader(recipe);
 
         // Metadata
         loadMetadata(recipeStruct, recipe);

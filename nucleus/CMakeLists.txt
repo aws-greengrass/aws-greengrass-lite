@@ -135,7 +135,13 @@ add_library(
   src/util/nucleus_paths.cpp
   src/util/nucleus_paths.hpp
   src/util/permissions.cpp
-  src/util/permissions.hpp)
+  src/util/permissions.hpp
+  src/conv/serializable.hpp
+  src/deployment/recipe_model.hpp
+  src/conv/yaml_serializer.cpp
+  src/conv/yaml_serializer.hpp
+  src/config/yaml_recipe.cpp)
+
 target_link_libraries(
   nucleus-obj
   PUBLIC gg_plugin_api
@@ -208,7 +214,8 @@ add_executable(
   tests/scope/scope_tests.cpp
   tests/tasks/task_tests.cpp
   tests/test_ggroot.hpp
-  tests/test_tools.hpp)
+  tests/test_tools.hpp
+  tests/deployment/recipe_tests.cpp)
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
                            PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
