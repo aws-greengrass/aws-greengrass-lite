@@ -58,6 +58,8 @@ namespace conv {
     };
 
     class Serializable {
+    protected:
+        bool _ignoreKeyCase = false;
     public:
         Serializable() = default;
         virtual ~Serializable() = default;
@@ -65,5 +67,9 @@ namespace conv {
         Serializable(Serializable &&) = default;
         Serializable &operator=(const Serializable &other) = default;
         Serializable &operator=(Serializable &&) = default;
+
+        void setIgnoreKeyCase(bool ignoreCase = true) {
+            _ignoreKeyCase = ignoreCase;
+        }
     };
 } // namespace conv

@@ -22,10 +22,15 @@ namespace config {
         size_t _itIndex{0};
         IteratorType _begin;
         IteratorType _end;
+        IteratorType _current;
 
     public:
         virtual ~Iterator() = default;
-        explicit Iterator(const IteratorType& begin, const IteratorType &end): _begin(begin), _end(end), _itSize(std::distance(begin, end)) {
+        Iterator(const Iterator &other) = delete;
+        Iterator(Iterator &&) = default;
+        Iterator &operator=(const Iterator &other) = default;
+        Iterator &operator=(Iterator &&) = default;
+        explicit Iterator(const IteratorType& begin, const IteratorType &end): _begin(begin), _current(begin), _end(end), _itSize(std::distance(begin, end)) {
 
         }
 
@@ -38,11 +43,25 @@ namespace config {
             return *this;
         }
 
+        void traverse() {
+            if (_itIndex >= size()) {
+                throw std::runtime_error("");
+            }
+            size_t idx = _itIndex;
+            _current = _begin;
+            while (idx > 0) {
+                _current++;
+                idx--;
+            }
+        }
+
         void setIgnoreKeyCase(bool ignoreCase = true) {
             _ignoreKeyCase = ignoreCase;
         }
 
         virtual YAML::Node find(const std::string &name) = 0;
+
+        [[nodiscard]] virtual std::string name() = 0;
 
         [[nodiscard]] inline bool compareKeys( std::string key, std::string name) const {
             if(_ignoreKeyCase) {
@@ -50,21 +69,6 @@ namespace config {
                 name = util::lower(name);
             }
             return key == name;
-        }
-
-        [[nodiscard]] const char * name() const
-        {
-            size_t idx = _itIndex;
-            auto it = _begin;
-            while (idx--) {
-                it++;
-            }
-            if(it->Type() == YAML::NodeType::Null) {
-                return it->Scalar().c_str();
-            }
-            else {
-                return nullptr;
-            }
         }
 
     };
@@ -77,6 +81,7 @@ namespace config {
         }
 
         YAML::Node find(const std::string &name) override {
+            // do not care about index
             for(auto it = _begin; it != _end; it++) {
                 auto key = it->first.as<std::string>();
                 if(compareKeys(key, name)) {
@@ -84,6 +89,12 @@ namespace config {
                 }
             }
             return {};
+        }
+
+        [[nodiscard]] std::string name() override
+        {
+            traverse();
+            return _current->first.as<std::string>();
         }
     };
 
@@ -95,32 +106,31 @@ namespace config {
         }
 
         YAML::Node find(const std::string &name) override {
-            auto it = _begin;
-            auto idx = _itIndex;
-            if (_itIndex >= size()) {
-                throw std::runtime_error("");
-            }
-            while (idx > 0 && it != _end) {
-                it++;
-                idx--;
-            }
-            _itIndex++;
-            auto node = *it;
-            for(it = node.begin(); it != node.end(); it++) {
-                auto key = it->first.as<std::string>();
+            traverse();
+            auto node = *_current;
+            for(_current = node.begin(); _current != node.end(); _current++) {
+                auto key = _current->first.as<std::string>();
                 if(compareKeys(key, name)) {
-                    return it->second;
+                    return _current->second;
                 }
             }
             return {};
         }
+
+        [[nodiscard]] std::string name() override
+        {
+            traverse();
+            auto node = *_current;
+            return node.as<std::string>();
+        }
     };
 
-    class YamlRecipeReader: public conv::Archive {
+    // TODO: Remove archive inheritance?
+    class YamlRecipeReader: public conv::Archive, private scope::UsesContext {
         std::vector<std::unique_ptr<Iterator>> _stack;
 
     public:
-        explicit YamlRecipeReader(const scope::UsingContext &context) {
+        explicit YamlRecipeReader(const scope::UsingContext &context): scope::UsesContext{context} {
         }
 
         template <typename T>
@@ -136,12 +146,31 @@ namespace config {
             return *this;
         }
 
+        template<typename T>
+        inline YamlRecipeReader& operator()(std::pair<std::string, T>&arg) {
+            arg.first = _stack.back()->name();
+            inplaceMap(_stack.back()->find(arg.first));
+            apply(*this, arg.second);
+            _stack.pop_back();
+            ++(*_stack.back());
+            return *this;
+        }
+
 //        template <class ... Types>
 //        inline YamlRecipeReader& operator()( Types && ... args )
 //        {
 //            process( std::forward<Types>( args )... );
 //            return *this;
 //        }
+
+        void read(const std::filesystem::path &path) {
+            std::ifstream stream{path};
+            stream.exceptions(std::ios::failbit | std::ios::badbit);
+            if(!stream.is_open()) {
+                throw std::runtime_error("Unable to read config file");
+            }
+            read(stream);
+        }
 
         void read(std::ifstream &stream) {
             YAML::Node node = YAML::Load(stream);
@@ -162,26 +191,32 @@ namespace config {
         }
 
         template<typename T>
+        inline void process(T &head) {
+            load(head);
+        }
+
+        template<typename T>
         inline void process(const std::string& key, T &head) {
             if constexpr(std::is_base_of_v<conv::Serializable, T>) {
-                inplaceMap(_stack.back()->find(key));
+                start(key);
                 apply(*this, head);
-                _stack.pop_back();
+                end();
             }
             else if constexpr(is_specialization<T, std::vector>::value) {
-                inplaceMap(_stack.back()->find(key));
+                start(key);
                 load(key, head);
-                _stack.pop_back();
+                end();
+            }
+            else if constexpr(is_specialization<T, std::unordered_map>::value) {
+                start(key);
+                load(head);
+                end();
             }
             else {
                 load(key, head);
             }
         }
 
-        template<typename T>
-        inline void process(T &head) {
-            load(head);
-        }
 
 //        template<typename T, typename... O>
 //        inline void process(T &&head, O &&...tail ) {
@@ -197,6 +232,7 @@ namespace config {
 
         template<typename T>
         void load(T & head) {
+            static_assert(std::is_base_of_v<conv::Serializable, T>);
             apply(*this, head);
         }
 
@@ -209,14 +245,24 @@ namespace config {
         }
 
         template<typename T, typename = std::enable_if_t<std::is_base_of_v<conv::Serializable, T>>>
-        void load(const std::string &key, std::unordered_map<std::string, T> & head) {
-            // TODO:
+        void load(std::unordered_map<std::string, T> & head) {
+            head.clear();
+
+            auto hint = head.begin();
+            for(auto i = 0; i < _stack.back()->size(); i++) {
+                std::string key{};
+                T value{};
+                auto kv = std::make_pair(key, value);
+                (*this)(kv);
+                head.emplace_hint(hint, kv);
+            }
         }
 
         template<typename T>
-        //        template<typename T, typename std::enable_if_t<!std::is_base_of_v<conv::Serializable, std::remove_reference_t<T>>>::value>
+        //        template<typename T, typename std::enable_if_t<!std::is_base_of_v<conv::Serializable, std::decay_t<T>>>::value>
         void load(const std::string &key, T&data) {
             auto node = _stack.back()->find(key);
+            // if not scalar then ignore
             if (node.IsScalar()) {
                 if constexpr(std::is_same_v<T, bool>) {
                     data = node.as<bool>();
@@ -234,12 +280,13 @@ namespace config {
         }
 
 
-        void start() {
-
+        void start(const std::string &key) {
+            inplaceMap(_stack.back()->find(key));
         }
 
         void end() {
-
+            _stack.pop_back();
+            ++(*_stack.back());
         }
 
         // NOLINTNEXTLINE(*-no-recursion)
