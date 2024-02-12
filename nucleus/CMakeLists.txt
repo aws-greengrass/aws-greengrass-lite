@@ -58,6 +58,8 @@ add_library(
   src/config/watcher.hpp
   src/config/yaml_config.cpp
   src/config/yaml_config.hpp
+  src/config/yaml_recipe.cpp
+  src/config/yaml_recipe.hpp
   src/conv/json_conv.cpp
   src/conv/json_conv.hpp
   src/conv/yaml_conv.cpp
@@ -139,8 +141,7 @@ add_library(
   src/conv/serializable.hpp
   src/deployment/recipe_model.hpp
   src/conv/yaml_serializer.cpp
-  src/conv/yaml_serializer.hpp
-  src/config/yaml_recipe.cpp)
+  src/conv/yaml_serializer.hpp)
 
 target_link_libraries(
   nucleus-obj
@@ -205,8 +206,7 @@ add_executable(
   tests/api/task_tests.cpp
   tests/data/obfuscator_test.cpp
   tests/data/symbol_tests.cpp
-  #  tests/deployment/deployment_tests.cpp
-  #  tests/deployment/recipe_tests.cpp
+  tests/deployment/recipe_tests.cpp
   tests/errors/errors_test.cpp
   tests/lifecycle/kernel_tests.cpp
   tests/pubsub/pubsub_tests.cpp
@@ -214,8 +214,7 @@ add_executable(
   tests/scope/scope_tests.cpp
   tests/tasks/task_tests.cpp
   tests/test_ggroot.hpp
-  tests/test_tools.hpp
-  tests/deployment/recipe_tests.cpp)
+  tests/test_tools.hpp)
 target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
 target_include_directories(nucleus-tests
                            PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
@@ -223,6 +222,7 @@ catch_discover_tests(nucleus-tests)
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
   if(UNIX)
+    file(COPY tests/samples DESTINATION .)
     target_compile_options(nucleus-tests PRIVATE --coverage)
     target_link_options(nucleus-tests PUBLIC --coverage)
     add_custom_command(
