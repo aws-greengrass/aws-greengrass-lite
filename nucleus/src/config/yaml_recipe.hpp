@@ -1,6 +1,6 @@
 #pragma once
-#include "conv/serializable.hpp"
 #include "conv/yaml_conv.hpp"
+#include "data/serializable.hpp"
 #include "scope/context_full.hpp"
 #include "util.hpp"
 
@@ -180,7 +180,6 @@ namespace config {
                 return {}; // optional sequence
             }
             traverse();
-            // TODO:
             return _current;
         }
 
@@ -210,15 +209,13 @@ namespace config {
 
         [[nodiscard]] YAML::Node value() override {
             if(_itIndex >= size()) {
-                return {}; // optional map
+                return {}; // optional sequence
             }
             traverse();
-            // TODO:
             return *_current;
         }
     };
 
-    // TODO: Remove archive inheritance?
     class YamlRecipeReader : public conv::Archive, private scope::UsesContext {
         std::vector<std::unique_ptr<Iterator>> _stack;
 
@@ -270,13 +267,6 @@ namespace config {
             ++(*_stack.back());
             return *this;
         }
-
-        //        template <class ... Types>
-        //        inline YamlRecipeReader& operator()( Types && ... args )
-        //        {
-        //            process( std::forward<Types>( args )... );
-        //            return *this;
-        //        }
 
         void read(const std::filesystem::path &path) {
             std::ifstream stream{path};
@@ -352,12 +342,6 @@ namespace config {
             }
         }
 
-        //        template<typename T, typename... O>
-        //        inline void process(T &&head, O &&...tail ) {
-        //            process(std::forward<T>(head));
-        //            process(std::forward<O>(tail)...);
-        //        }
-
         template<typename ArchiveType, typename T>
         void apply(ArchiveType &ar, T &head) {
             head.serialize(ar);
@@ -409,8 +393,6 @@ namespace config {
         }
 
         template<typename T>
-        //        template<typename T, typename
-        //        std::enable_if_t<!std::is_base_of_v<conv::Serializable, std::decay_t<T>>>::value>
         void load(const std::string &key, T &data) {
             auto node = _stack.back()->find(key);
             // if not scalar then ignore

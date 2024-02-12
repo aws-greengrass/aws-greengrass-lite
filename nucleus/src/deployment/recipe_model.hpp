@@ -1,6 +1,6 @@
 #pragma once
 #include "config/yaml_recipe.hpp"
-#include "conv/serializable.hpp"
+#include "data/serializable.hpp"
 #include "data/shared_struct.hpp"
 
 namespace deployment {
@@ -66,8 +66,6 @@ namespace deployment {
         "NONE", PermissionType::NONE, "OWNER", PermissionType::OWNER, "ALL", PermissionType::ALL};
 
     struct Permission : conv::Serializable {
-        //        PermissionType read = PermissionType::OWNER;
-        //        PermissionType execute = PermissionType::NONE;
         std::string read;
         std::string execute;
 
@@ -101,7 +99,6 @@ namespace deployment {
         std::string uri;
         std::string digest;
         std::string algorithm;
-        //        Unarchive unarchive;
         std::string unarchive;
         Permission permission;
 
@@ -116,10 +113,6 @@ namespace deployment {
         [[nodiscard]] std::string getAlgorithm() const {
             return algorithm;
         }
-
-        //        [[nodiscard]] Unarchive getUnArchive() const {
-        //            return unarchive;
-        //        }
 
         [[nodiscard]] Permission getPermission() const {
             return permission;
@@ -171,16 +164,11 @@ namespace deployment {
 
     struct DependencyProperties : conv::Serializable {
         std::string versionRequirement;
-        //        DependencyType dependencyType = DependencyType::HARD;
         std::string dependencyType;
 
         [[nodiscard]] std::string getVersionRequirement() {
             return versionRequirement;
         }
-
-        //        [[nodiscard]] DependencyType getDependencyType() {
-        //            return dependencyType;
-        //        }
 
         template<typename ArchiveType>
         void serialize(ArchiveType &archive) {
@@ -203,9 +191,6 @@ namespace deployment {
     struct Platform : conv::Serializable {
         std::string os;
         std::string architecture;
-        //        OS os;
-        //        Architecture architecture;
-        //        NucleusType nucleusType;
         std::string nucleusType;
 
         template<typename ArchiveType>
@@ -215,58 +200,7 @@ namespace deployment {
             archive("architecture", architecture);
             archive("nucleus", nucleusType);
         }
-
-        //        [[nodiscard]] OS getOS() const {
-        //            return os;
-        //        }
-        //
-        //        [[nodiscard]] Architecture getArchitecture() {
-        //            return architecture;
-        //        }
-
-        //        [[nodiscard]] NucleusType getNucleusType() {
-        //            return nucleusType;
-        //        }
     };
-
-    //    struct Command {
-    //        bool requiresPrivilege = false;
-    //        std::string skipIf;
-    //        std::string script;
-    //        int timeout = 15;
-    //        std::unordered_map<std::string, std::string> environment;
-    //
-    //        [[nodiscard]] bool getRequiresPrivilege() const {
-    //            return requiresPrivilege;
-    //        }
-    //
-    //        [[nodiscard]] std::string getSkipIf() const {
-    //            return skipIf;
-    //        }
-    //
-    //        [[nodiscard]] std::string getScript() const {
-    //            return script;
-    //        }
-    //
-    //        [[nodiscard]] int getTimeout() const {
-    //            return timeout;
-    //        }
-    //
-    //        [[nodiscard]] std::unordered_map<std::string, std::string> getEnvironment() {
-    //            return environment;
-    //        }
-    //    };
-
-    //    using lifecycleStep = std::pair<std::string, Command>;
-    //
-    //    struct Lifecycle {
-    //        std::unordered_map<std::string, std::string> environment;
-    //        std::forward_list<lifecycleStep> steps;
-    //
-    //        std::unordered_map<std::string, std::string> getEnvironment() {
-    //            return environment;
-    //        }
-    //    };
 
     struct PlatformManifest : conv::Serializable {
         std::string name;
@@ -281,7 +215,6 @@ namespace deployment {
             archive("Name", name);
             archive("Platform", platform);
             archive("Lifecycle", lifecycle);
-            //            archive("Selections", selections);
             archive("Artifacts", artifacts);
         }
     };
@@ -290,7 +223,6 @@ namespace deployment {
         std::string formatVersion;
         std::string componentName;
         std::string componentVersion;
-        //        ComponentType componentType = ComponentType::GENERIC;
         std::string componentDescription;
         std::string componentPublisher;
         ComponentConfiguration configuration;
@@ -329,10 +261,6 @@ namespace deployment {
             return componentVersion;
         }
 
-        //        [[nodiscard]] ComponentType getComponentType() const {
-        //            return componentType;
-        //        }
-
         [[nodiscard]] std::string getComponentDescription() const {
             return componentDescription;
         }
@@ -349,10 +277,6 @@ namespace deployment {
             return configuration;
         }
 
-        //        [[nodiscard]] std::vector<ComponentArtifact> getArtifacts() const {
-        //            return artifacts;
-        //        }
-
         [[nodiscard]] std::unordered_map<std::string, DependencyProperties>
         getComponentDependencies() const {
             return componentDependencies;
@@ -361,9 +285,5 @@ namespace deployment {
         [[nodiscard]] std::vector<PlatformManifest> getManifests() const {
             return manifests;
         }
-
-        //        [[nodiscard]] std::unordered_map<std::string, Lifecycle> getLifecycle() const {
-        //            return lifecycle;
-        //        };
     };
 } // namespace deployment

@@ -62,15 +62,13 @@ add_library(
   src/config/yaml_recipe.hpp
   src/conv/json_conv.cpp
   src/conv/json_conv.hpp
-  src/conv/serializable.hpp
   src/conv/yaml_conv.cpp
   src/conv/yaml_conv.hpp
-  src/conv/yaml_serializer.cpp
-  src/conv/yaml_serializer.hpp
   src/data/data_util.hpp
   src/data/handle_table.cpp
   src/data/handle_table.hpp
   src/data/safe_handle.hpp
+  src/data/serializable.hpp
   src/channel/channel.cpp
   src/channel/channel.hpp
   src/data/shared_buffer.cpp
@@ -221,8 +219,8 @@ target_include_directories(nucleus-tests
 catch_discover_tests(nucleus-tests)
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
+  file(COPY tests/samples DESTINATION ${CMAKE_BINARY_DIR})
   if(UNIX)
-    file(COPY tests/samples DESTINATION .)
     target_compile_options(nucleus-tests PRIVATE --coverage)
     target_link_options(nucleus-tests PUBLIC --coverage)
     add_custom_command(
