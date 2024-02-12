@@ -34,17 +34,15 @@ public:
     bool stopLifecycle() {
         return executePhase("terminate");
     }
-
-    void wait() {
-        std::unique_lock<std::mutex> lock(_mtx);
-        _cv.wait(lock, [this] { return _running.load(); });
-        using namespace std::chrono_literals;
-        std::this_thread::sleep_for(0.5s);
-    }
 };
 
 class PubSubCallback {
 public:
+    constexpr PubSubCallback() noexcept = default;
+    constexpr PubSubCallback(const PubSubCallback &) noexcept = default;
+    PubSubCallback(PubSubCallback &&) = delete;
+    PubSubCallback &operator=(const PubSubCallback &) noexcept = default;
+    PubSubCallback &operator=(PubSubCallback &&) = delete;
     virtual ~PubSubCallback() = default;
     virtual ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) = 0;
     virtual ggapi::Struct subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) = 0;

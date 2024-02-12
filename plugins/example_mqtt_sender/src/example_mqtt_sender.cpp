@@ -38,21 +38,23 @@ bool MqttSender::onRun(ggapi::Struct data) {
         channel.addCloseCallback([channel]() { channel.release(); });
     }
     // publish to a topic on an async thread
+    _running.store(true);
     _asyncThread = std::thread{&MqttSender::threadFn, this};
+    std::unique_lock guard{_mtx};
+    _cv.wait(guard);
     return true;
 }
 
 bool MqttSender::onTerminate(ggapi::Struct data) {
     std::cerr << "[example-mqtt-sender] Stopping publish thread..." << std::endl;
-    _running = false;
-    _asyncThread.join();
+    if(_running.exchange(false) && _asyncThread.joinable()) {
+        _asyncThread.join();
+    }
     return true;
 }
 
 void MqttSender::threadFn() {
     std::cerr << "[example-mqtt-sender] Started publish thread" << std::endl;
-    _running = true;
-    _cv.notify_one();
     while(_running.load()) {
         ggapi::CallScope iterScope; // localize all structures
         auto request{ggapi::Struct::create()};
@@ -63,6 +65,7 @@ void MqttSender::threadFn() {
         std::cerr << "[example-mqtt-sender] Sending..." << std::endl;
         std::ignore = ggapi::Task::sendToTopic(keys.publishToIoTCoreTopic, request);
         std::cerr << "[example-mqtt-sender] Sending complete." << std::endl;
+        _cv.notify_all();
 
         using namespace std::chrono_literals;
 

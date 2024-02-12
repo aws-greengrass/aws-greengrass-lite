@@ -69,6 +69,7 @@ SCENARIO("Example Mqtt Sender pub/sub", "[pubsub]") {
                 expected.put(keys.topicName, "hello");
                 expected.put(keys.qos, 1);
                 expected.put(keys.payload, "Hello world!");
+
                 THEN("The listener's publish handler is called") {
                     REQUIRE_CALL(
                         mockListener, publishHandler(mock::_, mock::_, pubStructMatcher(expected)))
@@ -77,9 +78,6 @@ SCENARIO("Example Mqtt Sender pub/sub", "[pubsub]") {
 
                     // start the lifecycle
                     CHECK(sender.startLifecycle());
-
-                    // wait for the lifecycle to start
-                    sender.wait();
                 }
             }
 
@@ -124,9 +122,6 @@ SCENARIO("Example Mqtt Sender pub/sub", "[pubsub]") {
 
                     // start the lifecycle
                     CHECK(sender.startLifecycle());
-
-                    // wait for the lifecycle to start
-                    sender.wait();
                 }
             }
 
