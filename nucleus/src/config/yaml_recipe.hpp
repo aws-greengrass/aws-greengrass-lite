@@ -1,10 +1,7 @@
 #pragma once
 #include "scope/context_full.hpp"
-#include "data/shared_queue.hpp"
 #include "conv/serializable.hpp"
 #include "conv/yaml_conv.hpp"
-#include "conv/yaml_serializer.hpp"
-#include "deployment/recipe_model.hpp"
 
 namespace config {
     template<typename Test, template<typename...> class Ref>
@@ -14,6 +11,24 @@ namespace config {
     struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
 
     using IteratorType = YAML::const_iterator;
+
+    class Object final: public data::StructElement {
+    public:
+        Object(const Object &) = default;
+        Object(Object &&) = default;
+        Object &operator=(const Object &el) = default;
+        Object &operator=(Object &&el) noexcept = default;
+        ~Object() = default;
+
+        Object(): data::StructElement() {
+        }
+
+        template<typename T>
+        // NOLINTNEXTLINE(*-explicit-constructor)
+        Object(const T &v) : data::StructElement(v) {
+        }
+
+    };
 
     class Iterator {
         size_t _itSize;
@@ -216,19 +231,22 @@ namespace config {
             return *this;
         }
 
-        template<typename T>
-        inline YamlRecipeReader& operator()(std::pair<std::string, std::shared_ptr<T>>&arg) {
+        inline YamlRecipeReader& operator()(std::pair<std::string, Object> &arg) {
             arg.first = _stack.back()->name();
             if (_ignoreKeyCase) {
                 arg.first = util::lower(arg.first);
             }
             inplaceMap(_stack.back()->find(arg.first));
-            if (!arg.second) {
-                arg.second = std::make_shared<T>(scope::context());
-            }
-            auto reader = conv::YamlReader(scope::context(), arg.second);
             auto node = _stack.back()->value();
-            reader.begin(node);
+            if (node.IsScalar()) {
+                arg.second = node.as<std::string>();
+            }
+            else {
+                auto data = std::make_shared<data::SharedStruct>(scope::context());
+                auto reader = conv::YamlReader(scope::context(), data);
+                reader.begin(node);
+                arg.second = data;
+            }
             ++(*_stack.back());
             return *this;
         }
