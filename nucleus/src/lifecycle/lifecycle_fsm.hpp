@@ -363,6 +363,10 @@ struct lifecycle {
         (dispatch(e), ...);
     }
 
+    void scriptEvent() {
+        dispatch(eventScriptEvent{});
+    }
+
     void setStop() {
         std::get<state_data>(stateData).stop = true;
         dispatch(eventUpdate{});
@@ -430,6 +434,10 @@ struct component {
 
     void requestReinstall() {
         _fsm.setReinstall();
+    }
+
+    void scriptEvent() {
+        _fsm.scriptEvent();
     }
 
 private:
