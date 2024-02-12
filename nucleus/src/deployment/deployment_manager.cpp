@@ -223,7 +223,10 @@ namespace deployment {
                 auto envList = ggapi::List::create();
                 int idx = 0;
                 for(auto &name : environment->getKeys()) {
-                    envList.put(idx, ggapi::Struct::create().put(name.toString(), environment->get(name).getString()));
+                    envList.put(
+                        idx,
+                        ggapi::Struct::create().put(
+                            name.toString(), environment->get(name).getString()));
                     idx++;
                 }
                 return envList;
@@ -234,7 +237,8 @@ namespace deployment {
 
             // set global env
             if(it->lifecycle.find("SetEnv") != it->lifecycle.end()) {
-                auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(it->lifecycle.at("SetEnv").getStruct());
+                auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
+                    it->lifecycle.at("SetEnv").getStruct());
                 auto envList = getEnvironment(envStruct);
                 ggapi::Struct request = ggapi::Struct::create();
                 request.put("SetEnv", envList);
@@ -243,13 +247,16 @@ namespace deployment {
             }
 
             // TODO: Lifecycle management
-            for(std::string stepName: {"install", "run", "startup", "shutdown", "recover", "bootstrap"}) {
+            for(std::string stepName :
+                {"install", "run", "startup", "shutdown", "recover", "bootstrap"}) {
                 if(it->lifecycle.find(stepName) != it->lifecycle.end()) {
                     auto step = it->lifecycle.at(stepName);
-                    if (step.isContainer()) {
-                        std::shared_ptr<data::SharedStruct> command = std::dynamic_pointer_cast<data::SharedStruct>(step.getStruct());
+                    if(step.isContainer()) {
+                        std::shared_ptr<data::SharedStruct> command =
+                            std::dynamic_pointer_cast<data::SharedStruct>(step.getStruct());
 
-                        if  (command->hasKey("SkipIf") && !command->get("SkipIf").getString().empty()) {
+                        if(command->hasKey("SkipIf")
+                           && !command->get("SkipIf").getString().empty()) {
                             auto skipIf = util::splitWith(command->get("skipif").getString(), ' ');
                             if(!skipIf.empty()) {
                                 // skip the step if the executable exists on path
@@ -275,18 +282,24 @@ namespace deployment {
                         }
 
                         // env
-                        if (command->hasKey("SetEnv") && !command->get("SetEnv").getString().empty()) {
-                           auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(command->get("SetEnv").getStruct());
+                        if(command->hasKey("SetEnv")
+                           && !command->get("SetEnv").getString().empty()) {
+                            auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
+                                command->get("SetEnv").getStruct());
                             auto envList = getEnvironment(envStruct);
                             deploymentRequest.put("SetEnv", envList);
                         }
 
                         // script
-                        if (command->hasKey("Script") && !command->get("Script").getString().empty()) {
+                        if(command->hasKey("Script")
+                           && !command->get("Script").getString().empty()) {
                             auto script = std::regex_replace(
-                                command->get("script").getString(), std::regex(R"(\{artifacts:path\})"), artifactPath.string());
-                            auto defaultConfig = currentRecipe.getComponentConfiguration().defaultConfiguration;
-                            for (auto key: defaultConfig->getKeys()) {
+                                command->get("script").getString(),
+                                std::regex(R"(\{artifacts:path\})"),
+                                artifactPath.string());
+                            auto defaultConfig =
+                                currentRecipe.getComponentConfiguration().defaultConfiguration;
+                            for(auto key : defaultConfig->getKeys()) {
                                 script = std::regex_replace(
                                     script,
                                     std::regex(R"(\{configuration:\/)" + key + R"(\})"),
@@ -296,19 +309,21 @@ namespace deployment {
                         }
 
                         // privilege
-                        if (command->hasKey("RequiresPrivilege")) {
-                            deploymentRequest.put("RequiresPrivilege", command->get("RequiresPrivilege").getBool());
+                        if(command->hasKey("RequiresPrivilege")) {
+                            deploymentRequest.put(
+                                "RequiresPrivilege", command->get("RequiresPrivilege").getBool());
                         }
 
                         // timeout
-                        if (command->hasKey("Timeout")) {
+                        if(command->hasKey("Timeout")) {
                             deploymentRequest.put("Timeout", command->get("Timeout").getInt());
                         }
-                    }
-                    else {
+                    } else {
                         auto script = std::regex_replace(
-                            step.getString(), std::regex(R"(\{artifacts:path\})"), artifactPath.string());
-                        for (auto key: defaultConfig->getKeys()) {
+                            step.getString(),
+                            std::regex(R"(\{artifacts:path\})"),
+                            artifactPath.string());
+                        for(auto key : defaultConfig->getKeys()) {
                             script = std::regex_replace(
                                 script,
                                 std::regex(R"(\{configuration:\/)" + key + R"(\})"),
@@ -321,7 +336,8 @@ namespace deployment {
                         deploymentRequest.put("SetEnv", ggapi::List::create());
                     }
 
-                    ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, deploymentRequest);
+                    ggapi::Struct response =
+                        ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, deploymentRequest);
                     if(response.get<bool>("status")) {
                         LOG.atInfo("deployment")
                             .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)

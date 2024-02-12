@@ -30,7 +30,7 @@ namespace conv {
             }
         }
 
-        [[nodiscard]] inline bool compareKeys( std::string key, std::string name) {
+        [[nodiscard]] inline bool compareKeys(std::string key, std::string name) {
             if(_ignoreKeyCase) {
                 key = util::lower(key);
                 name = util::lower(name);
@@ -60,6 +60,7 @@ namespace conv {
     class Serializable {
     protected:
         bool _ignoreKeyCase = false;
+
     public:
         Serializable() = default;
         virtual ~Serializable() = default;

@@ -18,7 +18,7 @@ namespace util {
     struct is_specialization : std::false_type {};
 
     template<template<typename...> class Ref, typename... Args>
-    struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
+    struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
 
     inline bool startsWith(std::string_view target, std::string_view prefix) {
         // prefix that target string starts with prefix string

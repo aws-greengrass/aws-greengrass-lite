@@ -62,8 +62,11 @@ add_library(
   src/config/yaml_recipe.hpp
   src/conv/json_conv.cpp
   src/conv/json_conv.hpp
+  src/conv/serializable.hpp
   src/conv/yaml_conv.cpp
   src/conv/yaml_conv.hpp
+  src/conv/yaml_serializer.cpp
+  src/conv/yaml_serializer.hpp
   src/data/data_util.hpp
   src/data/handle_table.cpp
   src/data/handle_table.hpp
@@ -92,6 +95,7 @@ add_library(
   src/deployment/deployment_model.hpp
   src/deployment/device_configuration.cpp
   src/deployment/device_configuration.hpp
+  src/deployment/recipe_model.hpp
   src/deployment/recipe_loader.hpp
   src/deployment/recipe_loader.cpp
   src/errors/api_errors.hpp
@@ -137,11 +141,7 @@ add_library(
   src/util/nucleus_paths.cpp
   src/util/nucleus_paths.hpp
   src/util/permissions.cpp
-  src/util/permissions.hpp
-  src/conv/serializable.hpp
-  src/deployment/recipe_model.hpp
-  src/conv/yaml_serializer.cpp
-  src/conv/yaml_serializer.hpp)
+  src/util/permissions.hpp)
 
 target_link_libraries(
   nucleus-obj
