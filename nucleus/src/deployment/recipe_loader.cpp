@@ -6,14 +6,8 @@
 namespace deployment {
 
     Recipe RecipeLoader::read(const std::filesystem::path &file) {
-        std::ifstream stream{file};
-        stream.exceptions(std::ios::failbit | std::ios::badbit);
-        if(!stream.is_open()) {
-            throw std::runtime_error("Unable to read config file");
-        }
 
         Recipe recipe;
-
         std::string ext = util::lower(file.extension().generic_string());
         // TODO: Json support
         if(ext == ".yaml" || ext == ".yml") {

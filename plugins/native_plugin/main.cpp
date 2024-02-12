@@ -43,8 +43,8 @@ public:
 };
 
 ggapi::Struct NativePlugin::testListener(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
-    auto requiresPrivilege = callData.get<bool>("requiresPrivilege");
-    auto script = callData.get<std::string>("script");
+    auto requiresPrivilege = callData.get<bool>("RequiresPrivilege");
+    auto script = callData.get<std::string>("Script");
     if(!requiresPrivilege) {
         // SECURITY-TODO: Retrieve Change user
     }
