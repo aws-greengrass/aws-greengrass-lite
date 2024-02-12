@@ -49,10 +49,8 @@ void Starting::operator()(component_data &l, state_data &s) {
 void Running::operator()(component_data &l, state_data &s) {
     std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
     if(s.runScript) {
-        if(s.runScript->isRunning() == false) {
-            if(s.runScript->willRun()) {
-                s.runScript->start();
-            }
+        if(s.runScript->willRun()) {
+            s.runScript->start();
         }
     }
 }

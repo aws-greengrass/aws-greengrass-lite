@@ -11,10 +11,3 @@ bool scriptRunner::start() {
 
 void scriptRunner::kill() {
 }
-
-bool scriptRunner::isOK() {
-    return true;
-}
-bool scriptRunner::isRunning() {
-    return false;
-}

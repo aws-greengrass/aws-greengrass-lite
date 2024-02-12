@@ -338,7 +338,14 @@ struct Transitions {
 template<typename StateVariant, typename EventVariant, typename Transitions>
 struct lifecycle {
 
-    lifecycle(component_data &data) : componentData(data) {
+    lifecycle(
+        component_data &data,
+        scriptRunner &installerRunner,
+        scriptRunner &startupRunner,
+        scriptRunner &runRunner,
+        scriptRunner &shutdownRunner)
+        : componentData(data),
+          stateData(installerRunner, startupRunner, runRunner, shutdownRunner) {
         dispatch(eventInitialize{});
     };
 
@@ -415,8 +422,13 @@ private:
 };
 
 struct component {
-    component(std::string_view name)
-        : _fsm(theData),
+    component(
+        std::string_view name,
+        scriptRunner &installRunner,
+        scriptRunner &startupRunner,
+        scriptRunner &runRunner,
+        scriptRunner &shutdwonRunner)
+        : _fsm(theData, installRunner, startupRunner, runRunner, shutdownRunner),
           theData(
               name, [this]() { sendSkipEvent(); }, [this]() { sendUpdateEvent(); }){};
 
