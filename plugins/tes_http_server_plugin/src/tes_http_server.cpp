@@ -31,7 +31,8 @@ ggapi::Struct getTesCredentialsStruct() {
     return tes_lpc_response;
 }
 
-extern "C" int onRequestDone(struct aws_http_stream *stream, void *user_data) {
+extern "C" {
+static int onRequestDone(struct aws_http_stream *stream, void *user_data) {
     (void) stream;
     auto *requestParams = static_cast<RequestHandlerParams *>(user_data);
     const ggapi::Struct tes_credentials_struct = getTesCredentialsStruct();
@@ -79,7 +80,7 @@ extern "C" int onRequestDone(struct aws_http_stream *stream, void *user_data) {
     return AWS_OP_SUCCESS;
 }
 
-extern "C" int onRequestHeadersDone(
+static int onRequestHeadersDone(
     struct aws_http_stream *stream, enum aws_http_header_block header_block, void *user_data) {
 
     auto *requestParams = static_cast<RequestHandlerParams *>(user_data);
@@ -107,8 +108,7 @@ extern "C" int onRequestHeadersDone(
     }
     return AWS_OP_SUCCESS;
 }
-
-extern "C" int onIncomingRequestHeaders(
+static int onIncomingRequestHeaders(
     struct aws_http_stream *stream,
     enum aws_http_header_block header_block,
     const struct aws_http_header *header_array,
@@ -123,8 +123,7 @@ extern "C" int onIncomingRequestHeaders(
     }
     return AWS_OP_SUCCESS;
 }
-
-extern "C" void onRequestComplete(struct aws_http_stream *stream, int error_code, void *user_data) {
+static void onRequestComplete(struct aws_http_stream *stream, int error_code, void *user_data) {
     (void) stream;
     if(error_code) {
         LOG.atError().log("An error occurred while handling the request");
@@ -132,8 +131,7 @@ extern "C" void onRequestComplete(struct aws_http_stream *stream, int error_code
     auto *requestParams = static_cast<RequestHandlerParams *>(user_data);
     aws_http_message_destroy(requestParams->response);
 }
-
-extern "C" struct aws_http_stream *onIncomingRequest(
+static struct aws_http_stream *onIncomingRequest(
     struct aws_http_connection *connection, void *user_data) {
     auto *requestParams = static_cast<RequestHandlerParams *>(user_data);
     requestParams->request_headers = aws_http_headers_new(serverParams.allocator);
@@ -149,14 +147,14 @@ extern "C" struct aws_http_stream *onIncomingRequest(
     return requestParams->request_handler;
 }
 
-extern "C" void onConnectionShutdown(
+static void onConnectionShutdown(
     aws_http_connection *connection, int error_code, void *connection_user_data) {
     (void) error_code;
     (void) connection_user_data;
     aws_http_connection_release(connection);
 }
 
-extern "C" void onIncomingConnection(
+static void onIncomingConnection(
     struct aws_http_server *server,
     struct aws_http_connection *connection,
     int error_code,
@@ -179,7 +177,7 @@ extern "C" void onIncomingConnection(
     }
 }
 
-extern "C" void TesHttpServer::startServer() {
+void TesHttpServer::startServer() {
     serverParams.allocator = aws_default_allocator();
     aws_http_library_init(serverParams.allocator);
 
@@ -214,6 +212,7 @@ extern "C" void TesHttpServer::startServer() {
     } else {
         LOG.atError().log("Could not start the HTTP server");
     }
+}
 }
 
 void TesHttpServer::stopServer() {
