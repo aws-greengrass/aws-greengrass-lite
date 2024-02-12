@@ -201,96 +201,137 @@ namespace deployment {
             .kv("DeploymentType", "LOCAL")
             .log("Starting deployment task");
 
+        // get the default config
+        auto defaultConfig = currentRecipe.getComponentConfiguration().defaultConfiguration;
+
         // TODO: Support other platforms
         auto manifests = currentRecipe.getManifests();
         auto it = std::find_if(manifests.begin(), manifests.end(), [](auto &manifest) {
-            return manifest.platform.os == OS::LINUX;
+            return manifest.platform.os == "linux";
         });
         // Only run if linux platform is supported
         // TODO: and the nucleus type is lite?
         if(it != manifests.end()) {
             auto getEnvironment = [](auto &environment) {
-                if(environment.empty()) {
+                if(environment->empty()) {
                     return ggapi::List::create();
                 }
                 auto envList = ggapi::List::create();
                 int idx = 0;
-                for(auto &envs : environment) {
-                    envList.put(idx, ggapi::Struct::create().put(envs.first, envs.second));
+                for(auto &name : environment->getKeys()) {
+                    envList.put(idx, ggapi::Struct::create().put(name.toString(), environment->get(name).getString()));
                     idx++;
                 }
                 return envList;
             };
 
-            // set the lifecycle environment variables
-            if(!it->lifecycle.environment.empty()) {
-                auto envList = getEnvironment(it->lifecycle.environment);
+            // execute each lifecycle phase
+            auto deploymentRequest = ggapi::Struct::create();
+
+            // set global env
+            if(it->lifecycle.find("SetEnv") != it->lifecycle.end()) {
+                auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(it->lifecycle.at("SetEnv").getStruct());
+                auto envList = getEnvironment(envStruct);
                 ggapi::Struct request = ggapi::Struct::create();
-                request.put("setenv", envList);
+                request.put("SetEnv", envList);
                 std::ignore = ggapi::Task::sendToTopic(SET_ENVIRONMENT_TOPIC, request);
+                return;
             }
 
-            // execute each lifecycle phase
-            for(const auto &[stage, command] : it->lifecycle.steps) {
-                if(!command.skipIf.empty()) {
-                    const auto skipIf = util::splitWith(command.skipIf, ' ');
-                    if(!skipIf.empty()) {
-                        // skip the step if the executable exists on path
-                        if(skipIf[0] == on_path_prefix) {
-                            const auto &executable = skipIf[1];
-                            auto envList = ggapi::List::create();
-                            envList.put(0, executable);
-                            auto request = ggapi::Struct::create();
-                            request.put("getenv", envList);
-                            auto response =
-                                ggapi::Task::sendToTopic(GET_ENVIRONMENT_TOPIC, request);
-                            if(response.get<bool>("status")) {
-                                return;
+            // TODO: Lifecycle management
+            for(std::string stepName: {"install", "run", "startup", "shutdown", "recover", "bootstrap"}) {
+                if(it->lifecycle.find(stepName) != it->lifecycle.end()) {
+                    auto step = it->lifecycle.at(stepName);
+                    if (step.isContainer()) {
+                        std::shared_ptr<data::SharedStruct> command = std::dynamic_pointer_cast<data::SharedStruct>(step.getStruct());
+
+                        if  (command->hasKey("SkipIf") && !command->get("SkipIf").getString().empty()) {
+                            auto skipIf = util::splitWith(command->get("skipif").getString(), ' ');
+                            if(!skipIf.empty()) {
+                                // skip the step if the executable exists on path
+                                if(skipIf[0] == on_path_prefix) {
+                                    const auto &executable = skipIf[1];
+                                    auto envList = ggapi::List::create();
+                                    envList.put(0, executable);
+                                    auto request = ggapi::Struct::create();
+                                    request.put("getenv", envList);
+                                    auto response =
+                                        ggapi::Task::sendToTopic(GET_ENVIRONMENT_TOPIC, request);
+                                    if(response.get<bool>("status")) {
+                                        return;
+                                    }
+                                }
+                                // skip the step if the file exists
+                                else if(skipIf[0] == exists_prefix) {
+                                    if(std::filesystem::exists(skipIf[1])) {
+                                        return;
+                                    }
+                                }
                             }
                         }
-                        // skip the step if the file exists
-                        else if(skipIf[0] == exists_prefix) {
-                            if(std::filesystem::exists(skipIf[1])) {
-                                return;
+
+                        // env
+                        if (command->hasKey("SetEnv") && !command->get("SetEnv").getString().empty()) {
+                           auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(command->get("SetEnv").getStruct());
+                            auto envList = getEnvironment(envStruct);
+                            deploymentRequest.put("SetEnv", envList);
+                        }
+
+                        // script
+                        if (command->hasKey("Script") && !command->get("Script").getString().empty()) {
+                            auto script = std::regex_replace(
+                                command->get("script").getString(), std::regex(R"(\{artifacts:path\})"), artifactPath.string());
+                            auto defaultConfig = currentRecipe.getComponentConfiguration().defaultConfiguration;
+                            for (auto key: defaultConfig->getKeys()) {
+                                script = std::regex_replace(
+                                    script,
+                                    std::regex(R"(\{configuration:\/)" + key + R"(\})"),
+                                    defaultConfig->get(key).getString());
                             }
+                            deploymentRequest.put("Script", script);
+                        }
+
+                        // privilege
+                        if (command->hasKey("RequiresPrivilege")) {
+                            deploymentRequest.put("RequiresPrivilege", command->get("RequiresPrivilege").getBool());
+                        }
+
+                        // timeout
+                        if (command->hasKey("Timeout")) {
+                            deploymentRequest.put("Timeout", command->get("Timeout").getInt());
                         }
                     }
-                }
+                    else {
+                        auto script = std::regex_replace(
+                            step.getString(), std::regex(R"(\{artifacts:path\})"), artifactPath.string());
+                        for (auto key: defaultConfig->getKeys()) {
+                            script = std::regex_replace(
+                                script,
+                                std::regex(R"(\{configuration:\/)" + key + R"(\})"),
+                                defaultConfig->get(key).getString());
+                        }
 
-                // create a deployment task request
-                auto envList = getEnvironment(command.environment);
-                auto script = std::regex_replace(
-                    command.script, std::regex(R"(\{artifacts:path\})"), artifactPath.string());
-                if(currentRecipe.getComponentConfiguration().defaultConfiguration.hasKey(
-                       "message")) {
-                    script = std::regex_replace(
-                        script,
-                        std::regex(R"(\{configuration:\/Message\})"),
-                        currentRecipe.getComponentConfiguration()
-                            .defaultConfiguration.get<std::string>("message"));
-                }
+                        deploymentRequest.put("Script", script);
+                        deploymentRequest.put("Timeout", 120); // defaults
+                        deploymentRequest.put("RequiresPrivilege", false);
+                        deploymentRequest.put("SetEnv", ggapi::List::create());
+                    }
 
-                auto request = ggapi::Struct::create();
-                request.put("requiresPrivilege", command.requiresPrivilege);
-                request.put("script", script);
-                request.put("setenv", envList);
-                request.put("timeout", command.timeout);
-
-                // deploy the component
-                ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, request);
-                if(response.get<bool>("status")) {
-                    LOG.atInfo("deployment")
-                        .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
-                        .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
-                        .kv("DeploymentType", "LOCAL")
-                        .log("Executed " + stage + " step of the lifecycle");
-                } else {
-                    LOG.atError("deployment")
-                        .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
-                        .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
-                        .kv("DeploymentType", "LOCAL")
-                        .log("Failed to execute " + stage + " step of the lifecycle");
-                    return; // if any of the lifecycle step fails, stop the deployment
+                    ggapi::Struct response = ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, deploymentRequest);
+                    if(response.get<bool>("status")) {
+                        LOG.atInfo("deployment")
+                            .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+                            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+                            .kv("DeploymentType", "LOCAL")
+                            .log("Executed " + stepName + " step of the lifecycle");
+                    } else {
+                        LOG.atError("deployment")
+                            .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+                            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+                            .kv("DeploymentType", "LOCAL")
+                            .log("Failed to execute " + stepName + " step of the lifecycle");
+                        return; // if any of the lifecycle step fails, stop the deployment
+                    }
                 }
             }
         } else {
@@ -314,7 +355,6 @@ namespace deployment {
         std::unique_lock guard{_mutex};
         Deployment deployment;
         try {
-            // TODO: Do rest of the deployment
             // TODO: validate deployment
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
             auto jsonToStruct = [](auto json) {

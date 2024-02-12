@@ -196,6 +196,10 @@ namespace data {
             return castObject<ContainerModelBase>();
         }
 
+        [[nodiscard]] std::shared_ptr<StructModelBase> getStruct() const {
+            return castObject<StructModelBase>();
+        }
+
         template<typename T>
         [[nodiscard]] bool isType() const {
             static_assert(std::is_base_of_v<TrackedObject, T>);

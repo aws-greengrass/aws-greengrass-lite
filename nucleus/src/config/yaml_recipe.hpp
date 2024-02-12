@@ -2,23 +2,50 @@
 #include "scope/context_full.hpp"
 #include "conv/serializable.hpp"
 #include "conv/yaml_conv.hpp"
+#include "util.hpp"
 
 namespace config {
-    template<typename Test, template<typename...> class Ref>
-    struct is_specialization : std::false_type {};
-
-    template<template<typename...> class Ref, typename... Args>
-    struct is_specialization<Ref<Args...>, Ref>: std::true_type {};
-
     using IteratorType = YAML::const_iterator;
 
+    template<class T>
+    struct Field {
+        bool _ignoreCase = false;
+        std::string _key;
+        T _value;
+    public:
+        Field(T& value): _value(value) {
+
+        }
+
+        [[nodiscard]] std::string getKey() const {
+            return _key;
+        }
+
+        T getDefaultValue() const {
+            return T();
+        }
+
+        template<typename E = T>
+        typename std::enable_if_t<std::is_enum_v<E>>
+        fromString(const std::string &val) {
+
+        }
+
+        T getValue() const {
+            return _value;
+        }
+
+
+    };
+
+    // For now, essentially a rename
     class Object final: public data::StructElement {
     public:
         Object(const Object &) = default;
         Object(Object &&) = default;
         Object &operator=(const Object &el) = default;
         Object &operator=(Object &&el) noexcept = default;
-        ~Object() = default;
+        ~Object() final = default;
 
         Object(): data::StructElement() {
         }
@@ -304,14 +331,14 @@ namespace config {
                 end();
             };
 
-            if constexpr(is_specialization<T, std::vector>::value) {
+            if constexpr(util::is_specialization<T, std::vector>::value) {
                 auto exists = start(key);
                 if (exists) {
                     load(key, head);
                     end();
                 }
             }
-            else if constexpr(is_specialization<T, std::unordered_map>::value) {
+            else if constexpr(util::is_specialization<T, std::unordered_map>::value) {
                 auto exists = start(key);
                 if (exists) {
                     load(head);
@@ -345,7 +372,6 @@ namespace config {
 //        }
 
         template<typename ArchiveType, typename T>
-//        template<typename T, typename = std::enable_if_t<std::is_base_of_v<conv::Serializable, T>>>
         void apply(ArchiveType &ar, T &head) {
             head.serialize(ar);
         }
@@ -361,17 +387,9 @@ namespace config {
                 head = std::make_shared<T>(scope::context());
             }
             for(auto i = 0; i < _stack.back()->size(); i++) {
-                auto key = _stack.back()->name();
                 auto node = _stack.back()->value();
-                if (node.IsScalar()) {
-                    head->put(key, node.as<std::string>());
-                }
-                else {
-                    auto data = std::make_shared<data::SharedStruct>(scope::context());
-                    auto reader = conv::YamlReader(scope::context(), data);
-                    reader.begin(node);
-                    head->put(key, data);
-                }
+                auto reader = conv::YamlReader(scope::context(), head);
+                reader.begin(node);
                 ++(*_stack.back());
             }
         }
@@ -435,73 +453,20 @@ namespace config {
         }
 
         // NOLINTNEXTLINE(*-no-recursion)
+        template<typename T>
         data::ValueType rawValue(YAML::Node &node) {
-            switch(node.Type()) {
-                case YAML::NodeType::Map:
-                    return rawMapValue(node);
-                case YAML::NodeType::Sequence:
-                    return rawSequenceValue(node);
-                case YAML::NodeType::Scalar:
-                    return node.as<std::string>();
-                default:
-                    break;
+            if constexpr(std::is_same_v<T, bool>) {
+                return node.as<bool>();
             }
-            return {};
-        }
-
-        // NOLINTNEXTLINE(*-no-recursion)
-        data::ValueType rawSequenceValue(YAML::Node &node) {
-            auto newList{std::make_shared<data::SharedList>(scope::context())};
-            int idx = 0;
-            for(auto i : node) {
-                newList->put(idx++, data::StructElement(rawValue(i)));
+            if constexpr(std::is_integral_v<T>) {
+                return node.as<int>();
             }
-            return newList;
-        }
-
-        // NOLINTNEXTLINE(*-no-recursion)
-        data::ValueType rawMapValue(YAML::Node &node) {
-            auto newMap{std::make_shared<data::SharedStruct>(scope::context())};
-            for(auto i : node) {
-                auto key = util::lower(i.first.as<std::string>());
-                newMap->put(key, data::StructElement(rawValue(i.second)));
+            if constexpr(std::is_floating_point_v<T>) {
+                return node.as<double>();
             }
-            return newMap;
-        }
-
-        void inplaceMap(std::shared_ptr<data::SharedStruct> &data, YAML::Node &node) {
-            if(!node.IsMap()) {
-                throw std::runtime_error("Expecting a map or sequence");
-            }
-            for(auto i : node) {
-                auto key = util::lower(i.first.as<std::string>());
-                inplaceValue(data, key, i.second);
+            else {
+                return node.as<std::string>();
             }
         }
-
-        void inplaceValue(
-            std::shared_ptr<data::SharedStruct> &data, const std::string &key, YAML::Node &node) {
-            switch(node.Type()) {
-                case YAML::NodeType::Map:
-                    nestedMapValue(data, key, node);
-                    break;
-                case YAML::NodeType::Sequence:
-                case YAML::NodeType::Scalar:
-                case YAML::NodeType::Null:
-                    data->put(key, rawValue(node));
-                    break;
-                default:
-                    // ignore anything else
-                    break;
-            }
-        }
-
-        void inplaceTopicValue(
-            std::shared_ptr<data::SharedStruct> &data,
-            const std::string &key,
-            const data::ValueType &vt);
-
-        void nestedMapValue(
-            std::shared_ptr<data::SharedStruct> &data, const std::string &key, YAML::Node &node);
     };
 } // namespace config

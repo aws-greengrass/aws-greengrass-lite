@@ -53,7 +53,7 @@ namespace conv {
     data::ValueType YamlReaderBase::rawMapValue(YAML::Node &node) {
         auto newMap{std::make_shared<data::SharedStruct>(context())};
         for(auto i : node) {
-            auto key = util::lower(i.first.as<std::string>());
+            auto key = i.first.as<std::string>();
             newMap->put(key, data::StructElement(rawValue(i.second)));
         }
         return newMap;
@@ -69,7 +69,7 @@ namespace conv {
             throw std::runtime_error("Expecting a map or sequence");
         }
         for(auto i : node) {
-            auto key = util::lower(i.first.as<std::string>());
+            auto key = i.first.as<std::string>();
             inplaceValue(data, key, i.second);
         }
     }

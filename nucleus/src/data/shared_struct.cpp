@@ -1,3 +1,4 @@
+#include "string_table.hpp"
 #include "shared_struct.hpp"
 #include "safe_handle.hpp"
 #include "scope/context_full.hpp"
