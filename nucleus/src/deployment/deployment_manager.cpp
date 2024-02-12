@@ -330,6 +330,7 @@ namespace deployment {
                                 defaultConfig->get(key).getString());
                         }
 
+                        // TODO: run doesn't have timeout
                         deploymentRequest.put("Script", script);
                         deploymentRequest.put("Timeout", 120); // defaults
                         deploymentRequest.put("RequiresPrivilege", false);

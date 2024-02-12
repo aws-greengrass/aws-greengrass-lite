@@ -137,7 +137,6 @@ IMPEXP size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t keyInt) NO
 IMPEXP size_t
 ggapiStructGetString(uint32_t structHandle, uint32_t symInt, char *buffer, size_t buflen) NOEXCEPT;
 IMPEXP uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
-IMPEXP bool ggapiStructIsStruct(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
 IMPEXP uint32_t ggapiStructClone(uint32_t structHandle) NOEXCEPT;
 IMPEXP bool ggapiListPutBool(uint32_t listHandle, int32_t idx, bool value) NOEXCEPT;
 IMPEXP bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) NOEXCEPT;

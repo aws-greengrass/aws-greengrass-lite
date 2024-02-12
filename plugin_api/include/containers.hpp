@@ -387,8 +387,9 @@ namespace ggapi {
         }
 
         [[nodiscard]] bool isStruct(Symbol key) const {
-            return callApiReturn<bool>(
-                [*this, key]() { return ::ggapiStructIsStruct(_handle, key.asInt()); });
+            return callApiReturn<bool>([*this, key]() {
+                return ::ggapiIsStruct(::ggapiStructGetHandle(_handle, key.asInt()));
+            });
         }
 
         template<typename T>
