@@ -26,14 +26,19 @@ ggapi::Struct NativePlugin::startProcessListener(
 
     using namespace std::string_literals;
 
+    std::string container_uri = "http://localhost:8090/2016-11-01/credentialprovider/";
+
     auto &startable =
         ipc::Startable{}
             .withCommand(_shell)
-            .withEnvironment(
-                {{std::string{ipc::PATH_ENVVAR}, ipc::getEnviron(ipc::PATH_ENVVAR)},
-                 // TODO: auth token per Component
-                 {"SVCUID"s, _authToken},
-                 {"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"s, _socketPath}})
+            .withEnvironment({
+                {std::string{ipc::PATH_ENVVAR}, ipc::getEnviron(ipc::PATH_ENVVAR)},
+                // TODO: auth token per Component
+                {"SVCUID"s, _authToken},
+                {"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"s, _socketPath},
+                {"AWS_CONTAINER_CREDENTIALS_FULL_URI"s, container_uri},
+                {"AWS_CONTAINER_AUTHORIZATION_TOKEN"s, _authToken},
+            })
             // TODO: Windows "run raw script" switch
             .withArguments({"-c", std::move(script)})
             // TODO: allow output to pass back to caller if subscription is specified
