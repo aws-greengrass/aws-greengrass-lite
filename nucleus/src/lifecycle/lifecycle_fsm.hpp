@@ -18,11 +18,11 @@ struct eventInitialize {
 }; /** Used to move from the iniitial state to NEW.  Probably can become Skip */
 struct eventUpdate {}; /** Used by the states to indicate a change in the requests */
 struct eventSkip {}; /** Used by some states to skip to the next happy-path state in the sequence */
-struct eventScriptEvent {}; /** Used to indicate a script behavior needs to be run */
-struct eventFlagChange {}; /** Used to indicate that a flag change has occured */
+struct eventScriptEventError {}; /** Used to indicate a script has completed with an error */
+struct eventScriptEventOK {}; /** Used to indicate a script has completed with no error */
 
-using Event =
-    std::variant<eventInitialize, eventUpdate, eventSkip, eventScriptEvent, eventFlagChange>;
+using Event = std::
+    variant<eventInitialize, eventUpdate, eventSkip, eventScriptEventError, eventScriptEventOK>;
 
 struct component_data;
 
@@ -227,20 +227,20 @@ struct Transitions {
         return Installed();
     }
 
-    std::optional<State> operator()(Installing &, const eventScriptEvent &e, state_data &s) {
+    std::optional<State> operator()(Installing &, const eventScriptEventOK &e, state_data &s) {
+        std::cout << "Installing -> Installed" << std::endl;
+        return Installed();
+    }
+
+    std::optional<State> operator()(Installing &, const eventScriptEventError &e, state_data &s) {
         std::cout << "Installing -> ";
-        if(s.installScript->isOK()) {
-            std::cout << "Installed" << std::endl;
-            return Installed();
+        s.installErrors.newError();
+        if(s.installErrors.isBroken()) {
+            std::cout << "Broken" << std::endl;
+            return Broken();
         } else {
-            s.installErrors.newError();
-            if(s.installErrors.isBroken()) {
-                std::cout << "Broken" << std::endl;
-                return Broken();
-            } else {
-                std::cout << "Installing" << std::endl;
-                return Installing();
-            }
+            std::cout << "Installing" << std::endl;
+            return Installing();
         }
     }
 
@@ -269,16 +269,15 @@ struct Transitions {
         return Finished();
     }
 
-    std::optional<State> operator()(Stopping &, const eventScriptEvent &e, state_data &s) {
-        std::cout << "Stopping -> ";
-        if(s.shutdownScript->isOK()) {
-            std::cout << "KILL" << std::endl;
-            return Kill();
-        } else {
-            std::cout << "KILL w/ Error" << std::endl;
-            s.stopErrors.newError();
-            return KillWStopError();
-        }
+    std::optional<State> operator()(Stopping &, const eventScriptEventOK &e, state_data &s) {
+        std::cout << "Stopping -> KILL" << std::endl;
+        return Kill();
+    }
+
+    std::optional<State> operator()(Stopping &, const eventScriptEventError &e, state_data &s) {
+        std::cout << "Stopping -> KILL w/ Error" << std::endl;
+        s.stopErrors.newError();
+        return KillWStopError();
     }
 
     std::optional<State> operator()(Kill &, const eventSkip &e, state_data &s) {
@@ -322,7 +321,13 @@ struct Transitions {
         return KillWRunError{};
     }
 
-    std::optional<State> operator()(StoppingWError &, const eventScriptEvent &e, state_data &s) {
+    std::optional<State> operator()(StoppingWError &, const eventScriptEventOK &e, state_data &s) {
+        std::cout << "Stopping w/ Error -> Kill w/ Run Error" << std::endl;
+        return KillWRunError{};
+    }
+
+    std::optional<State> operator()(
+        StoppingWError &, const eventScriptEventError &e, state_data &s) {
         std::cout << "Stopping w/ Error -> Kill w/ Run Error" << std::endl;
         return KillWRunError{};
     }
@@ -370,8 +375,12 @@ struct lifecycle {
         (dispatch(e), ...);
     }
 
-    void scriptEvent() {
-        dispatch(eventScriptEvent{});
+    void scriptEvent(bool ok) {
+        if(ok) {
+            dispatch(eventScriptEventOK{});
+        } else {
+            dispatch(eventScriptEventError{});
+        }
     }
 
     void setStop() {
@@ -448,8 +457,8 @@ struct component {
         _fsm.setReinstall();
     }
 
-    void scriptEvent() {
-        _fsm.scriptEvent();
+    void scriptEvent(bool ok) {
+        _fsm.scriptEvent(ok);
     }
 
 private:
