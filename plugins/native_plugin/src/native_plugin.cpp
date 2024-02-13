@@ -54,7 +54,7 @@ ggapi::Struct NativePlugin::startProcessListener(
     if(callData.hasKey("onComplete")) {
         auto subscription = callData.get<ggapi::Subscription>("onComplete");
         startable.withCompletion([callback = getScope().anchor(subscription)](int returnCode) {
-            std::ignore = callback.call(ggapi::Struct{}.put("returnCode", returnCode));
+            std::ignore = callback.call(ggapi::Struct::create().put("returnCode", returnCode));
         });
     }
     if(!requiresPrivilege && _user.has_value()) {
@@ -71,7 +71,7 @@ ggapi::Struct NativePlugin::startProcessListener(
         getLogger().atError().event("process-start-error").log(e.what());
     }
 
-    ggapi::Struct response;
+    auto response = ggapi::Struct::create();
     response.put("status", proc != nullptr);
     if(proc) {
         auto processId = _manager.registerProcess(std::move(proc));
