@@ -92,7 +92,12 @@ bool NativePlugin::onStart(ggapi::Struct data) {
     auto &&runWithDefault =
         nucleusConfig.getValue<ggapi::Struct>({"configuration", "runWithDefault"});
 
-    _shell = runWithDefault.get<std::string>("posixShell");
+    if(runWithDefault.hasKey("posixShell")) {
+        _shell = runWithDefault.get<std::string>("posixShell");
+    } else {
+        // TODO: support library should determine a better default
+        _shell = "/bin/sh";
+    }
     auto userGroup = runWithDefault.get<std::string>("posixUser");
     if(!userGroup.empty()) {
         auto it = userGroup.find(':');
