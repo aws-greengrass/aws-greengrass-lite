@@ -1,5 +1,6 @@
 
 #include "cloud_downloader.hpp"
+#include "aws/crt/Allocator.h"
 
 const int TIME_OUT_MS = 5000;
 const int PORT_NUM = 443;
@@ -241,6 +242,7 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
 }
 
 bool CloudDownloader::onDiscover(ggapi::Struct data) {
+    aws_io_library_init(Aws::Crt::DefaultAllocator());
     std::ignore = getScope().subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, genericDownload);
 
