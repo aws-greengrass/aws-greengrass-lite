@@ -504,15 +504,6 @@ bool ggapiIsEmpty(uint32_t containerHandle) noexcept {
     });
 }
 
-bool ggapiStructIsStruct(uint32_t structHandle, uint32_t keyInt) noexcept {
-    return ggapi::trapErrorReturn<bool>([structHandle, keyInt]() {
-        auto context = scope::context();
-        auto ss{context->objFromInt<StructModelBase>(structHandle)};
-        Symbol key = context->symbolFromInt(keyInt);
-        return ss->get(key).isStruct();
-    });
-}
-
 uint32_t ggapiStructClone(uint32_t structHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([structHandle]() {
         auto context = scope::context();

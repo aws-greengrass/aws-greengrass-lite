@@ -232,9 +232,6 @@ namespace deployment {
                 return envList;
             };
 
-            // execute each lifecycle phase
-            auto deploymentRequest = ggapi::Struct::create();
-
             // set global env
             if(it->lifecycle.find("SetEnv") != it->lifecycle.end()) {
                 auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
@@ -246,6 +243,9 @@ namespace deployment {
                 return;
             }
 
+            // execute each lifecycle phase
+            auto deploymentRequest = ggapi::Struct::create();
+
             // TODO: Lifecycle management
             for(std::string stepName :
                 {"install", "run", "startup", "shutdown", "recover", "bootstrap"}) {
@@ -255,6 +255,7 @@ namespace deployment {
                         std::shared_ptr<data::SharedStruct> command =
                             std::dynamic_pointer_cast<data::SharedStruct>(step.getStruct());
 
+                        // skipif
                         if(command->hasKey("SkipIf")
                            && !command->get("SkipIf").getString().empty()) {
                             auto skipIf = util::splitWith(command->get("skipif").getString(), ' ');
@@ -297,8 +298,6 @@ namespace deployment {
                                 command->get("script").getString(),
                                 std::regex(R"(\{artifacts:path\})"),
                                 artifactPath.string());
-                            auto defaultConfig =
-                                currentRecipe.getComponentConfiguration().defaultConfiguration;
                             for(auto key : defaultConfig->getKeys()) {
                                 script = std::regex_replace(
                                     script,
