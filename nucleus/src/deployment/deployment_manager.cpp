@@ -299,10 +299,13 @@ namespace deployment {
                                 std::regex(R"(\{artifacts:path\})"),
                                 artifactPath.string());
                             for(auto key : defaultConfig->getKeys()) {
-                                script = std::regex_replace(
-                                    script,
-                                    std::regex(R"(\{configuration:\/)" + key + R"(\})"),
-                                    defaultConfig->get(key).getString());
+                                auto value = defaultConfig->get(key);
+                                if(value.isScalar()) {
+                                    script = std::regex_replace(
+                                        script,
+                                        std::regex(R"(\{configuration:\/)" + key + R"(\})"),
+                                        value.getString());
+                                }
                             }
                             deploymentRequest.put("Script", script);
                         }
@@ -323,10 +326,13 @@ namespace deployment {
                             std::regex(R"(\{artifacts:path\})"),
                             artifactPath.string());
                         for(auto key : defaultConfig->getKeys()) {
-                            script = std::regex_replace(
-                                script,
-                                std::regex(R"(\{configuration:\/)" + key + R"(\})"),
-                                defaultConfig->get(key).getString());
+                            auto value = defaultConfig->get(key);
+                            if(value.isScalar()) {
+                                script = std::regex_replace(
+                                    script,
+                                    std::regex(R"(\{configuration:\/)" + key + R"(\})"),
+                                    value.getString());
+                            }
                         }
 
                         // TODO: run doesn't have timeout
