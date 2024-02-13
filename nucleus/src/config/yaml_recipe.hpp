@@ -317,7 +317,6 @@ namespace config {
                 auto exists = start(key);
                 if(exists) {
                     load(key, head);
-                    end();
                 }
             } else if constexpr(util::is_specialization<T, std::unordered_map>::value) {
                 auto exists = start(key);
@@ -367,8 +366,9 @@ namespace config {
             }
         }
 
-        template<typename T, typename = std::enable_if_t<std::is_base_of_v<conv::Serializable, T>>>
-        void load(const std::string &key, std::vector<T> &head) {
+        template<typename T>
+        std::enable_if_t<std::is_base_of_v<conv::Serializable, T>> load(
+            const std::string &key, std::vector<T> &head) {
             head.resize(_stack.back()->size());
             for(auto &&v : head) {
                 inplaceMap(_stack.back()->value());
@@ -376,6 +376,19 @@ namespace config {
                 _stack.pop_back();
                 ++(*_stack.back());
             }
+            end();
+        }
+
+        template<typename T>
+        std::enable_if_t<!std::is_base_of_v<conv::Serializable, T>> load(
+            const std::string &key, std::vector<T> &head) {
+            head.resize(_stack.back()->size());
+            for(auto &v : head) {
+                auto node = _stack.back()->value();
+                rawValue(node, v);
+                ++(*_stack.back());
+            }
+            _stack.pop_back();
         }
 
         template<typename T>
@@ -395,19 +408,9 @@ namespace config {
         template<typename T>
         void load(const std::string &key, T &data) {
             auto node = _stack.back()->find(key);
-            // if not scalar then ignore
+            // if not scalar then ignore (optional)
             if(node.IsScalar()) {
-                if constexpr(std::is_same_v<T, bool>) {
-                    data = node.as<bool>();
-                }
-                if constexpr(std::is_integral_v<T>) {
-                    data = node.as<int>();
-                }
-                if constexpr(std::is_floating_point_v<T>) {
-                    data = node.as<double>();
-                } else {
-                    data = node.as<std::string>();
-                }
+                rawValue(node, data);
             }
         }
 
@@ -422,17 +425,17 @@ namespace config {
 
         // NOLINTNEXTLINE(*-no-recursion)
         template<typename T>
-        data::ValueType rawValue(YAML::Node &node) {
+        void rawValue(YAML::Node &node, T &data) {
             if constexpr(std::is_same_v<T, bool>) {
-                return node.as<bool>();
+                data = node.as<bool>();
             }
             if constexpr(std::is_integral_v<T>) {
-                return node.as<int>();
+                data = node.as<int>();
             }
             if constexpr(std::is_floating_point_v<T>) {
-                return node.as<double>();
+                data = node.as<double>();
             } else {
-                return node.as<std::string>();
+                data = node.as<std::string>();
             }
         }
     };

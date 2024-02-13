@@ -17,7 +17,9 @@ Manifests:
       os: linux
       architecture: amd64
     Lifecycle:
-      Run: "echo World!"
+      Run: |
+        apt-get update
+        apt-get install python3.7
       install: "echo Hello"
   - Platform:
       os: windows

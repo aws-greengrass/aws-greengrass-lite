@@ -215,6 +215,7 @@ namespace deployment {
             archive("Name", name);
             archive("Platform", platform);
             archive("Lifecycle", lifecycle);
+            archive("Selections", selections);
             archive("Artifacts", artifacts);
         }
     };
@@ -229,7 +230,6 @@ namespace deployment {
         std::unordered_map<std::string, DependencyProperties> componentDependencies;
         std::string componentType;
         std::string componentSource;
-        //        std::vector<ComponentArtifact> artifacts;
         std::vector<PlatformManifest> manifests;
         std::unordered_map<std::string, config::Object> lifecycle;
 

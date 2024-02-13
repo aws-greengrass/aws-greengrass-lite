@@ -66,7 +66,7 @@ namespace conv {
     // NOLINTNEXTLINE(*-no-recursion)
     void YamlReader::inplaceMap(std::shared_ptr<data::SharedStruct> &data, YAML::Node &node) {
         if(!node.IsMap()) {
-            throw std::runtime_error("Expecting a map or sequence");
+            throw std::runtime_error("Expecting a map");
         }
         for(auto i : node) {
             auto key = i.first.as<std::string>();
