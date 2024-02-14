@@ -1,11 +1,11 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
-#include <chrono>
 #include <iostream>
 #include <optional>
 #include <variant>
+
+#include <error_rate.hpp>
 
 #include "scripting.hpp"
 
@@ -24,40 +24,10 @@ struct eventScriptEventOK {}; /** Used to indicate a script has completed with n
 using Event = std::
     variant<eventInitialize, eventUpdate, eventSkip, eventScriptEventError, eventScriptEventOK>;
 
-struct component_data;
+class component_data;
 
-constexpr int MAXERRORS = 3;
-
-struct errorRate {
-    errorRate() {
-        clearErrors();
-    }
-    typedef std::array<std::chrono::steady_clock::time_point, MAXERRORS> history_t;
-    using clock = std::chrono::steady_clock;
-
-    void newError() {
-        std::rotate(_history.begin(), _history.begin() + 1, _history.end()); // rotate to the left
-        _history.back() = clock::now();
-    }
-
-    bool isBroken() {
-        if(_history.front() == clock::time_point()) {
-            return false;
-        }
-        auto age = _history.back() - _history.front();
-        using namespace std::chrono_literals;
-        return age < 1h;
-    }
-
-    constexpr void clearErrors() {
-        _history.fill(clock::time_point());
-    }
-
-private:
-    history_t _history;
-};
-
-struct state_data {
+class state_data {
+public:
     state_data(
         std::optional<scriptRunner> installer = std::nullopt,
         std::optional<scriptRunner> starter = std::nullopt,
@@ -66,6 +36,7 @@ struct state_data {
         : installScript(std::move(installer)), startScript(std::move(starter)),
           runScript(std::move(runner)), shutdownScript(std::move(stopper)), start(false),
           restart(false), reinstall(false), stop(false){};
+
     bool start;
     bool restart;
     bool reinstall;
@@ -135,7 +106,13 @@ struct Broken : state_base {
         return "Broken";
     }
 };
-struct Starting : state_base {
+struct Startup : state_base { /* Startup will try to execute the startup script */
+    void operator()(component_data &, state_data &);
+    std::string_view getName() {
+        return "Starting";
+    }
+};
+struct StartingRun : state_base { /* starting run will try to execute the run script */
     void operator()(component_data &, state_data &);
     std::string_view getName() {
         return "Starting";
@@ -245,18 +222,55 @@ struct Transitions {
     }
 
     std::optional<State> operator()(Installed &, const eventUpdate &e, state_data &s) {
-        std::cout << "Installed -> Starting" << std::endl;
-        return Starting();
+        std::cout << "Installed -> ";
+        if(s.stop) {
+            std::cout << "Finished" << std::endl;
+            return Finished();
+        } else {
+            if(dependencies_are_good()) {
+                std::cout << "Startup" << std::endl;
+                return Startup();
+            } else {
+                std::cout << "Installed" << std::endl;
+                return {};
+            }
+        }
+    }
+    std::optional<State> operator()(Startup &, const eventSkip &, state_data &s) {
+        std::cout << "Installed -> Starting Run" << std::endl;
+        return StartingRun();
     }
 
-    std::optional<State> operator()(Starting &, const eventUpdate &e, state_data &s) {
-        std::cout << "Starting -> Running" << std::endl;
+    std::optional<State> operator()(Startup &, const eventScriptEventError &e, state_data &s) {
+        std::cout << "Starting -> Error -> ";
+        s.startErrors.newError();
+        if(s.startErrors.isBroken()) {
+            std::cout << "Broken" << std::endl;
+            return Broken();
+        } else {
+            std::cout << "Installed" << std::endl;
+            return Installed();
+        }
+    }
+
+    std::optional<State> operator()(Startup &, const eventScriptEventOK &e, state_data &s) {
+        std::cout << "Startup -> Running" << std::endl;
         return Running();
     }
 
-    std::optional<State> operator()(Starting &, const eventSkip &e, state_data &s) {
-        std::cout << "Starting -> Running" << std::endl;
+    std::optional<State> operator()(Startup &, const eventSkip &e, state_data &s) {
+        std::cout << "Startup -> Starting Running" << std::endl;
+        return StartingRun();
+    }
+
+    std::optional<State> operator()(StartingRun &, const eventUpdate &e, state_data &s) {
+        std::cout << "Starting Run -> Running" << std::endl;
         return Running();
+    }
+
+    std::optional<State> operator()(StartingRun &, const eventSkip &e, state_data &s) {
+        std::cout << "Starting Run -> Finished" << std::endl;
+        return Finished();
     }
 
     std::optional<State> operator()(Running &, const eventUpdate &e, state_data &s) {
@@ -341,8 +355,8 @@ struct Transitions {
 };
 
 template<typename StateVariant, typename EventVariant, typename Transitions>
-struct lifecycle {
-
+class lifecycle {
+public:
     lifecycle(
         component_data &data,
         scriptRunner &installerRunner,
@@ -367,12 +381,6 @@ struct lifecycle {
                 },
                 m_curr_state);
         }
-    }
-
-    /* TODO: probably do not need runEvents */
-    template<typename... Events>
-    void runEvents(Events... e) {
-        (dispatch(e), ...);
     }
 
     void scriptEvent(bool ok) {
@@ -408,12 +416,26 @@ private:
     state_data_v stateData;
 };
 
-struct component_data {
+using componentLifecycle = lifecycle<SAtate, Event, Transitions>;
+
+class component_data {
+public:
     component_data(
         std::string_view name,
         std::function<void(void)> skipSender,
-        std::function<void(void)> updateSender)
-        : _name(name), _skipper(skipSender), _updater(updateSender){};
+        std::function<void(void)> updateSender,
+        std::function<void(void)> alertNew,
+        std::function<void(void)> alertInstalled,
+        std::function<void(void)> alertRunning,
+        std::function<void(void)> alertStopping,
+        std::function<void(void)> alertError,
+        std::function<void(void)> alertBroken,
+        std::function<void(void)> alertFinished)
+        : _name(name), _skipper(skipSender), _updater(updateSender), _alertNew(alertNew),
+          _alertInstalled(alertInstalled), _alertRunning(alertRunning),
+          _alertStopping(alertStopping), _alertError(alertError), _alertBroken(alertBroken),
+          _alertFinished(alertFinished){};
+
     void skip() {
         _skipper();
     }
@@ -424,50 +446,39 @@ struct component_data {
         return _name;
     }
 
+    inline void alertNEW() {
+        _alertNew();
+    }
+    inline void alertINSTALLED() {
+        _alertInstalled();
+    }
+    inline void alertRUNNING() {
+        _alertRunning();
+    }
+    inline void alertSTOPPING() {
+        _alertStopping();
+    }
+    inline void alertERROR() {
+        _alertError();
+    }
+    inline void alertBROKEN() {
+        _alertBroken();
+    }
+    inline void alertFINISHED() {
+        _alertFinished();
+    }
+
 private:
     std::string _name;
     std::function<void(void)> _skipper;
     std::function<void(void)> _updater;
-};
 
-struct component {
-    component(
-        std::string_view name,
-        scriptRunner &installRunner,
-        scriptRunner &startupRunner,
-        scriptRunner &runRunner,
-        scriptRunner &shutdwonRunner)
-        : _fsm(theData, installRunner, startupRunner, runRunner, shutdownRunner),
-          theData(
-              name, [this]() { sendSkipEvent(); }, [this]() { sendUpdateEvent(); }){};
-
-    void requestStart() {
-        _fsm.setStart();
-    }
-
-    void requestStop() {
-        _fsm.setStop();
-    }
-
-    void requestRestart() {
-        _fsm.setRestart();
-    }
-
-    void requestReinstall() {
-        _fsm.setReinstall();
-    }
-
-    void scriptEvent(bool ok) {
-        _fsm.scriptEvent(ok);
-    }
-
-private:
-    void sendSkipEvent() {
-        _fsm.dispatch(eventSkip{});
-    }
-    void sendUpdateEvent() {
-        _fsm.dispatch(eventUpdate{});
-    }
-    component_data theData;
-    lifecycle<State, Event, Transitions> _fsm;
+    /* alerts to inform the system that we are in a state */
+    std::function<void(void)> _alertNew;
+    std::function<void(void)> _alertInstalled;
+    std::function<void(void)> _alertRunning;
+    std::function<void(void)> _alertStopping;
+    std::function<void(void)> _alertError;
+    std::function<void(void)> _alertBroken;
+    std::function<void(void)> _alertFinished;
 };

@@ -11,6 +11,7 @@ void Initial::operator()(component_data &l, state_data &s) {
 
 void New::operator()(component_data &l, state_data &s) {
     std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+    l.alertNEW();
     s.stop = false;
     l.update(); /* allow continuation if !stop */
 }
@@ -27,17 +28,19 @@ void Installing::operator()(component_data &l, state_data &s) {
 
 void Installed::operator()(component_data &l, state_data &s) {
     std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+    l.alertINSTALLED();
     s.reinstall = false;
     l.update(); /* allow continuation if !reinstall */
 }
 
 void Broken::operator()(component_data &l, state_data &s) {
     std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+    l.alertBROKEN();
     s.stop = false;
     l.update(); /* allow continuation if !stop */
 }
 
-void Starting::operator()(component_data &l, state_data &s) {
+void Startup::operator()(component_data &l, state_data &s) {
     std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
     if(s.startScript->willRun()) {
         s.startScript->start();
@@ -46,8 +49,19 @@ void Starting::operator()(component_data &l, state_data &s) {
     }
 }
 
+void StartingRun::operator()(component_data &l, state_data &s) {
+    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+    if(s.runScript->willRun()) {
+        s.runScript->start();
+        l.update(); /* move on to the running state */
+    } else {
+        l.skip(); /* skip to the Finished state */
+    }
+}
+
 void Running::operator()(component_data &l, state_data &s) {
     std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+    l.alertRUNNING();
     if(s.runScript) {
         if(s.runScript->willRun()) {
             s.runScript->start();
@@ -57,6 +71,7 @@ void Running::operator()(component_data &l, state_data &s) {
 
 void Stopping::operator()(component_data &l, state_data &s) {
     std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+    l.alertSTOPPING();
     if(s.shutdownScript) {
         if(s.shutdownScript->willRun()) {
             s.shutdownScript->start();
@@ -70,6 +85,7 @@ void Stopping::operator()(component_data &l, state_data &s) {
 
 void StoppingWError::operator()(component_data &l, state_data &s) {
     std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+    l.alertERROR();
     if(s.shutdownScript) {
         if(s.shutdownScript->willRun()) {
             s.shutdownScript->start();
@@ -83,6 +99,7 @@ void StoppingWError::operator()(component_data &l, state_data &s) {
 
 void Finished::operator()(component_data &l, state_data &s) {
     std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+    l.alertFINISHED();
     s.stop = false;
 }
 
