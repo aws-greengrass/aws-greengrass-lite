@@ -241,29 +241,21 @@ namespace deployment {
         if(it != manifests.end() || PLATFORM_NAME != "linux") {
             auto getEnvironment = [](auto &environment) {
                 if(environment->empty()) {
-                    return ggapi::List::create();
+                    return ggapi::Struct::create();
                 }
-                auto envList = ggapi::List::create();
-                int idx = 0;
+                auto envStruct = ggapi::Struct::create();
                 for(auto &name : environment->getKeys()) {
-                    envList.put(
-                        idx,
-                        ggapi::Struct::create().put(
-                            name.toString(), environment->get(name).getString()));
-                    idx++;
+                    envStruct.put(name.toString(), environment->get(name).getString());
                 }
-                return envList;
+                return envStruct;
             };
 
             // set global env
+            ggapi::Struct globalEnv;
             if(it->lifecycle.find("SetEnv") != it->lifecycle.end()) {
                 auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
                     it->lifecycle.at("SetEnv").getStruct());
-                auto envList = getEnvironment(envStruct);
-                ggapi::Struct request = ggapi::Struct::create();
-                request.put("SetEnv", envList);
-                std::ignore = ggapi::Task::sendToTopic(SET_ENVIRONMENT_TOPIC, request);
-                return;
+                globalEnv = getEnvironment(envStruct);
             }
 
             // execute each lifecycle phase
@@ -310,8 +302,16 @@ namespace deployment {
                            && !command->get("SetEnv").getString().empty()) {
                             auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
                                 command->get("SetEnv").getStruct());
-                            auto envList = getEnvironment(envStruct);
-                            deploymentRequest.put("SetEnv", envList);
+                            auto env = getEnvironment(envStruct);
+                            // override with global env
+                            if(globalEnv) {
+                                auto eVars = globalEnv.keys();
+                                for(auto i = 0; i < eVars.size(); i++) {
+                                    auto key = eVars.get<std::string>(i);
+                                    env.put(key, globalEnv.get<std::string>(key));
+                                }
+                            }
+                            deploymentRequest.put("SetEnv", env);
                         }
 
                         // script
