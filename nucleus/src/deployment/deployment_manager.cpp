@@ -281,7 +281,7 @@ namespace deployment {
                                     auto envList = ggapi::List::create();
                                     envList.put(0, executable);
                                     auto request = ggapi::Struct::create();
-                                    request.put("getenv", envList);
+                                    request.put("GetEnv", envList);
                                     auto response =
                                         ggapi::Task::sendToTopic(GET_ENVIRONMENT_TOPIC, request);
                                     if(response.get<bool>("status")) {
