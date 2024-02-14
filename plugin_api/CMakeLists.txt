@@ -20,6 +20,7 @@ add_library(
   include/scopes.hpp
   include/tasks_subscriptions.hpp
   include/util.hpp
-  include/error_tmpl.hpp)
+  include/error_tmpl.hpp
+  include/atomic_shared.hpp)
 
 target_include_directories(gg_plugin_api INTERFACE include)

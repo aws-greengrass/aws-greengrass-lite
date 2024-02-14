@@ -75,9 +75,9 @@ namespace scope {
         }
 
     private:
-        std::weak_ptr<PerThreadContext> _threadContext;
-        std::shared_ptr<CallScope> _callScope;
-        std::shared_ptr<data::TrackingRoot> _scopeRoot;
+        const std::weak_ptr<PerThreadContext> _threadContext;
+        util::SafeSharedPtr<CallScope> _callScope;
+        util::SafeSharedPtr<data::TrackingRoot> _scopeRoot;
     };
 
     /**

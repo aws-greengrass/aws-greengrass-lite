@@ -10,6 +10,8 @@ namespace scope {
         const std::shared_ptr<scope::CallScope> &priorScope) {
         auto newScope{std::make_shared<CallScope>(context, owningContext, priorScope)};
         auto selfAnchor = root->anchor(newScope);
+        // TODO: Once set, 'self' doesn't change until destruction
+        // Need to have a way of enforcing this
         newScope->setSelf(selfAnchor.getHandle());
         return newScope;
     }
