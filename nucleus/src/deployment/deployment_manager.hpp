@@ -61,7 +61,7 @@ namespace deployment {
         void cancelDeployment(const std::string &);
         void resolveDependencies(DeploymentDocument);
         void loadRecipesAndArtifacts(const Deployment &);
-        void copyAndLoadRecipes(std::string_view);
+        void copyAndLoadRecipes(const std::filesystem::path &);
         Recipe loadRecipeFile(const std::filesystem::path &);
         void saveRecipeFile(const Recipe &);
         void copyArtifacts(std::string_view);

@@ -28,7 +28,7 @@ ggapi::Struct NativePlugin::startProcessListener(
 
     std::string container_uri = "http://localhost:8090/2016-11-01/credentialprovider/";
 
-    auto &startable =
+    auto startable =
         ipc::Startable{}
             .withCommand(_shell)
             .withEnvironment({

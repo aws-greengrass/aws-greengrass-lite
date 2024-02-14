@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <regex>
+#include <system_error>
 #include <util.hpp>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
@@ -131,8 +132,17 @@ namespace deployment {
         }
     }
 
-    void DeploymentManager::copyAndLoadRecipes(std::string_view recipeDir) {
-        for(const auto &entry : std::filesystem::directory_iterator(recipeDir)) {
+    void DeploymentManager::copyAndLoadRecipes(const std::filesystem::path &recipeDir) {
+        std::error_code ec{};
+        auto iter = std::filesystem::directory_iterator(recipeDir, ec);
+        if(ec != std::error_code{}) {
+            LOG.atError()
+                .event("recipe-load-failure")
+                .kv("message", ec.message())
+                .logAndThrow(std::filesystem::filesystem_error{ec.message(), recipeDir, ec});
+        }
+
+        for(const auto &entry : iter) {
             if(!entry.is_directory()) {
                 Recipe recipe = loadRecipeFile(entry);
                 saveRecipeFile(recipe);
