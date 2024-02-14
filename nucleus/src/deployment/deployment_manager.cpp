@@ -11,6 +11,17 @@
 const auto LOG = // NOLINT(cert-err58-cpp)
     logging::Logger::of("com.aws.greengrass.lifecycle.Deployment");
 
+// TODO: Refactor into different scope
+#if defined(__linux__)
+static constexpr std::string_view PLATFORM_NAME = "linux";
+#elif defined(_WIN32)
+static constexpr std::string_view = "windows";
+#elif defined(__APPLE__)
+static constexpr std::string_view = "darwin";
+#else
+static constexpr std::string_view = "unknown";
+#endif
+
 namespace deployment {
     DeploymentManager::DeploymentManager(
         const scope::UsingContext &context, lifecycle::Kernel &kernel)
@@ -227,7 +238,7 @@ namespace deployment {
         });
         // Only run if linux platform is supported
         // TODO: and the nucleus type is lite?
-        if(it != manifests.end()) {
+        if(it != manifests.end() || PLATFORM_NAME != "linux") {
             auto getEnvironment = [](auto &environment) {
                 if(environment->empty()) {
                     return ggapi::List::create();
