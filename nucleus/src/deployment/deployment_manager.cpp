@@ -335,13 +335,15 @@ namespace deployment {
                             step.getString(),
                             std::regex(R"(\{artifacts:path\})"),
                             artifactPath.string());
-                        for(auto key : defaultConfig->getKeys()) {
-                            auto value = defaultConfig->get(key);
-                            if(value.isScalar()) {
-                                script = std::regex_replace(
-                                    script,
-                                    std::regex(R"(\{configuration:\/)" + key + R"(\})"),
-                                    value.getString());
+                        if(defaultConfig) {
+                            for(auto key : defaultConfig->getKeys()) {
+                                auto value = defaultConfig->get(key);
+                                if(value.isScalar()) {
+                                    script = std::regex_replace(
+                                        script,
+                                        std::regex(R"(\{configuration:\/)" + key + R"(\})"),
+                                        value.getString());
+                                }
                             }
                         }
 
