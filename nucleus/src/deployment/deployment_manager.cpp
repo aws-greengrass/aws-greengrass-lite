@@ -310,13 +310,15 @@ namespace deployment {
                                 command->get("script").getString(),
                                 std::regex(R"(\{artifacts:path\})"),
                                 artifactPath.string());
-                            for(auto key : defaultConfig->getKeys()) {
-                                auto value = defaultConfig->get(key);
-                                if(value.isScalar()) {
-                                    script = std::regex_replace(
-                                        script,
-                                        std::regex(R"(\{configuration:\/)" + key + R"(\})"),
-                                        value.getString());
+                            if(defaultConfig && !defaultConfig->empty()) {
+                                for(auto key : defaultConfig->getKeys()) {
+                                    auto value = defaultConfig->get(key);
+                                    if(value.isScalar()) {
+                                        script = std::regex_replace(
+                                            script,
+                                            std::regex(R"(\{configuration:\/)" + key + R"(\})"),
+                                            value.getString());
+                                    }
                                 }
                             }
                             deploymentRequest.put("Script", script);
@@ -337,7 +339,7 @@ namespace deployment {
                             step.getString(),
                             std::regex(R"(\{artifacts:path\})"),
                             artifactPath.string());
-                        if(defaultConfig) {
+                        if(defaultConfig && !defaultConfig->empty()) {
                             for(auto key : defaultConfig->getKeys()) {
                                 auto value = defaultConfig->get(key);
                                 if(value.isScalar()) {
