@@ -11,8 +11,8 @@ namespace scope {
      */
     class CallScope : public data::TrackingScope {
         data::ObjHandle _self;
-        std::weak_ptr<scope::NucleusCallScopeContext> _owningContext;
-        std::weak_ptr<scope::CallScope> _priorScope;
+        const std::weak_ptr<scope::NucleusCallScopeContext> _owningContext;
+        const std::weak_ptr<scope::CallScope> _priorScope;
         mutable std::shared_mutex _mutex;
 
         void setSelf(const data::ObjHandle &handle) {

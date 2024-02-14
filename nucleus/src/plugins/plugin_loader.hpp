@@ -100,8 +100,8 @@ namespace plugins {
         //
     private:
         mutable std::shared_mutex _mutex;
-        std::weak_ptr<AbstractPlugin> _parent;
-        std::shared_ptr<tasks::Callback> _callback;
+        const std::weak_ptr<AbstractPlugin> _parent;
+        const std::shared_ptr<tasks::Callback> _callback;
 
     public:
         explicit DelegatePlugin(
