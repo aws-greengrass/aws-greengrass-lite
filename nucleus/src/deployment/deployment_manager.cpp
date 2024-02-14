@@ -1,5 +1,7 @@
 #include "deployment_manager.hpp"
+#include "lifecycle/kernel.hpp"
 #include "logging/log_queue.hpp"
+#include "scope/context_full.hpp"
 #include <filesystem>
 #include <fstream>
 #include <regex>

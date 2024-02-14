@@ -54,7 +54,7 @@ namespace util {
         }
     }
 
-    inline std::vector<std::string> splitWith(std::string target, const char token) {
+    inline std::vector<std::string> splitWith(const std::string &target, const char token) {
         std::istringstream ss(target);
         std::string item;
         std::vector<std::string> result;

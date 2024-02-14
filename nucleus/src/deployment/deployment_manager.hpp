@@ -1,10 +1,9 @@
 #pragma once
 #include "data/shared_queue.hpp"
 #include "deployment_model.hpp"
-#include "lifecycle/kernel.hpp"
 #include "plugin.hpp"
 #include "recipe_loader.hpp"
-#include "scope/context_full.hpp"
+#include "scope/context.hpp"
 
 #include <condition_variable>
 
