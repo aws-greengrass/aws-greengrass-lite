@@ -8,10 +8,23 @@ set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-if((CMAKE_CXX_COMPILER_ID STREQUAL "GNU") OR (CMAKE_CXX_COMPILER_ID STREQUAL
-                                              "Clang"))
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=null")
+# Debugger options
+if(NOT APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -Og")
+endif()
+if(NOT APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3")
+endif()
+if(APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3")
+endif()
+if(APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -glldb")
+endif()
+
+# Safety
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=null")
 endif()
 
 # Uncomment to enable sanitizers - thread & address cannot be combined
