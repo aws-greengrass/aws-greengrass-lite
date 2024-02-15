@@ -209,6 +209,7 @@ namespace deployment {
     }
 
     void DeploymentManager::runDeploymentTask() {
+        using Environment = std::unordered_map<std::string, std::optional<std::string>>;
         // TODO: More streamlined deployment task
         auto currentDeployment = _deploymentQueue->next();
         auto currentRecipe = _componentStore->next();
@@ -250,19 +251,16 @@ namespace deployment {
                 .log("Platform not supported!");
             return;
         }
-        auto getEnvironment = [](auto &environment) {
-            if(environment->empty()) {
-                return ggapi::Struct::create();
-            }
-            auto envStruct = ggapi::Struct::create();
+        auto getEnvironment = [](auto &environment) -> Environment {
+            Environment env{};
             for(auto &name : environment->getKeys()) {
-                envStruct.put(name.toString(), environment->get(name).getString());
+                env.emplace(name.toString(), environment->get(name).getString());
             }
-            return envStruct;
+            return env;
         };
 
         // set global env
-        ggapi::Struct globalEnv;
+        Environment globalEnv;
         if(it->lifecycle.find("SetEnv") != it->lifecycle.end()) {
             auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
                 it->lifecycle.at("SetEnv").getStruct());
@@ -276,57 +274,106 @@ namespace deployment {
         for(std::string stepName :
             {"install", "run", "startup", "shutdown", "recover", "bootstrap"}) {
             if(it->lifecycle.find(stepName) != it->lifecycle.end()) {
+                using namespace std::chrono_literals;
                 auto step = it->lifecycle.at(stepName);
-                if(step.isContainer()) {
-                    std::shared_ptr<data::SharedStruct> command =
-                        std::dynamic_pointer_cast<data::SharedStruct>(step.getStruct());
 
-                    // skipif
-                    if(command->hasKey("SkipIf") && !command->get("SkipIf").getString().empty()) {
-                        auto skipIf = util::splitWith(command->get("skipif").getString(), ' ');
-                        if(!skipIf.empty()) {
-                            // skip the step if the executable exists on path
-                            if(skipIf[0] == on_path_prefix) {
-                                const auto &executable = skipIf[1];
-                                auto envList = ggapi::List::create();
-                                envList.put(0, executable);
-                                auto request = ggapi::Struct::create();
-                                request.put("GetEnv", envList);
-                                auto response =
-                                    ggapi::Task::sendToTopic(GET_ENVIRONMENT_TOPIC, request);
-                                if(response.get<bool>("status")) {
-                                    return;
-                                }
+                auto commandStruct =
+                    step.isContainer()
+                        ? std::dynamic_pointer_cast<data::SharedStruct>(step.getStruct())
+                        : nullptr;
+
+                // skipif
+                if(commandStruct && commandStruct->hasKey("SkipIf")
+                   && !commandStruct->get("SkipIf").getString().empty()) {
+                    auto skipIf = util::splitWith(commandStruct->get("skipif").getString(), ' ');
+                    if(!skipIf.empty()) {
+                        // skip the step if the executable exists on path
+                        if(skipIf[0] == on_path_prefix) {
+                            const auto &executable = skipIf[1];
+                            auto envList = ggapi::List::create();
+                            envList.put(0, executable);
+                            auto request = ggapi::Struct::create();
+                            request.put("GetEnv", envList);
+                            auto response =
+                                ggapi::Task::sendToTopic(GET_ENVIRONMENT_TOPIC, request);
+                            if(response.get<bool>("status")) {
+                                return;
                             }
-                            // skip the step if the file exists
-                            else if(skipIf[0] == exists_prefix) {
-                                if(std::filesystem::exists(skipIf[1])) {
-                                    return;
-                                }
+                        }
+                        // skip the step if the file exists
+                        else if(skipIf[0] == exists_prefix) {
+                            if(std::filesystem::exists(skipIf[1])) {
+                                return;
                             }
                         }
                     }
+                }
 
-                    // env
-                    if(command->hasKey("SetEnv") && !command->get("SetEnv").getString().empty()) {
-                        auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
-                            command->get("SetEnv").getStruct());
-                        auto env = getEnvironment(envStruct);
-                        // override with global env
-                        if(globalEnv) {
-                            auto eVars = globalEnv.keys();
-                            for(auto i = 0; i < eVars.size(); i++) {
-                                auto key = eVars.get<std::string>(i);
-                                env.put(key, globalEnv.get<std::string>(key));
+                auto pid = std::invoke([&]() -> ipc::ProcessId {
+                    if(commandStruct) {
+                        // TODO: This needs a cleanup
+
+                        auto getSetEnv =
+                            [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
+                            if(commandStruct->hasKey("SetEnv")
+                               && !commandStruct->get("SetEnv").getString().empty()) {
+                                auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
+                                    commandStruct->get("SetEnv").getStruct());
+
+                                auto env = getEnvironment(envStruct);
+                                // override with global env
+                                for(auto &[k, v] : globalEnv) {
+                                    env.emplace(k, v);
+                                }
+                                return env;
                             }
-                        }
-                        deploymentRequest.put("SetEnv", env);
-                    }
+                            return {};
+                        };
 
-                    // script
-                    if(command->hasKey("Script") && !command->get("Script").getString().empty()) {
+                        // script
+                        auto getScript = [&]() -> std::string {
+                            auto script = std::regex_replace(
+                                commandStruct->get("script").getString(),
+                                std::regex(R"(\{artifacts:path\})"),
+                                artifactPath.string());
+
+                            if(defaultConfig && !defaultConfig->empty()) {
+                                for(auto key : defaultConfig->getKeys()) {
+                                    auto value = defaultConfig->get(key);
+                                    if(value.isScalar()) {
+                                        script = std::regex_replace(
+                                            script,
+                                            std::regex(R"(\{configuration:\/)" + key + R"(\})"),
+                                            value.getString());
+                                    }
+                                }
+                            }
+
+                            return script;
+                        };
+
+                        // privilege
+                        if(commandStruct->hasKey("RequiresPrivilege")) {
+                            deploymentRequest.put(
+                                "RequiresPrivilege",
+                                commandStruct->get("RequiresPrivilege").getBool());
+                        }
+
+                        // timeout
+                        if(commandStruct->hasKey("Timeout")) {
+                            deploymentRequest.put(
+                                "Timeout", commandStruct->get("Timeout").getInt());
+                        }
+
+                        return _kernel.startProcess(
+                            getScript(),
+                            std::chrono::seconds{commandStruct->get("Timeout").getInt()},
+                            commandStruct->get("RequiresPrivilege").getBool(),
+                            getSetEnv(),
+                            currentRecipe.componentName);
+                    } else {
                         auto script = std::regex_replace(
-                            command->get("script").getString(),
+                            step.getString(),
                             std::regex(R"(\{artifacts:path\})"),
                             artifactPath.string());
                         if(defaultConfig && !defaultConfig->empty()) {
@@ -340,46 +387,14 @@ namespace deployment {
                                 }
                             }
                         }
-                        deploymentRequest.put("Script", script);
-                    }
 
-                    // privilege
-                    if(command->hasKey("RequiresPrivilege")) {
-                        deploymentRequest.put(
-                            "RequiresPrivilege", command->get("RequiresPrivilege").getBool());
+                        // TODO: run doesn't have timeout
+                        return _kernel.startProcess(
+                            std::move(script), 120s, false, {}, currentRecipe.componentName);
                     }
+                });
 
-                    // timeout
-                    if(command->hasKey("Timeout")) {
-                        deploymentRequest.put("Timeout", command->get("Timeout").getInt());
-                    }
-                } else {
-                    auto script = std::regex_replace(
-                        step.getString(),
-                        std::regex(R"(\{artifacts:path\})"),
-                        artifactPath.string());
-                    if(defaultConfig && !defaultConfig->empty()) {
-                        for(auto key : defaultConfig->getKeys()) {
-                            auto value = defaultConfig->get(key);
-                            if(value.isScalar()) {
-                                script = std::regex_replace(
-                                    script,
-                                    std::regex(R"(\{configuration:\/)" + key + R"(\})"),
-                                    value.getString());
-                            }
-                        }
-                    }
-
-                    // TODO: run doesn't have timeout
-                    deploymentRequest.put("Script", script);
-                    deploymentRequest.put("Timeout", 120); // defaults
-                    deploymentRequest.put("RequiresPrivilege", false);
-                    deploymentRequest.put("SetEnv", ggapi::List::create());
-                }
-
-                ggapi::Struct response =
-                    ggapi::Task::sendToTopic(EXECUTE_PROCESS_TOPIC, deploymentRequest);
-                if(response.get<bool>("status")) {
+                if(pid) {
                     LOG.atInfo("deployment")
                         .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
                         .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)

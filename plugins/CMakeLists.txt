@@ -7,7 +7,6 @@ add_subdirectory(iot_broker)
 add_subdirectory(ipc_server)
 add_subdirectory(local_broker)
 add_subdirectory(cli_server)
-add_subdirectory(native_plugin)
 add_subdirectory(cloud_downloader)
 add_subdirectory(tes_http_server_plugin)
 

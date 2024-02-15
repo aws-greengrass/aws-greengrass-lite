@@ -5,6 +5,7 @@
 namespace ipc {
     struct ProcessId {
         std::int64_t id;
+        explicit operator bool() const noexcept;
     };
     class AbstractProcessManager {
     public:

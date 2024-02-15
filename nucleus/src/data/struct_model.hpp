@@ -5,6 +5,7 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <stdexcept>
 #include <util.hpp>
 #include <vector>
 
@@ -158,6 +159,7 @@ namespace data {
 
         [[nodiscard]] std::string getString() const {
             switch(_value.index()) {
+                // TODO: We shouldn't have implicit type conversion
                 case BOOL:
                     return std::get<bool>(_value) ? "true" : "false";
                 case INT:
@@ -170,7 +172,8 @@ namespace data {
                     return rawGetSymbol().toString();
                 default:
                     std::cerr << "Unsupported index: " << _value.index() << std::endl;
-                    return {"bad conversion"};
+                    // ggapi::Struct type cannot be converted to a string.
+                    throw std::bad_cast{};
             }
         }
 

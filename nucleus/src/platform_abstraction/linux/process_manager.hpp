@@ -1,10 +1,10 @@
 #pragma once
 
-#include "abstract_process.hpp"
-#include "abstract_process_manager.hpp"
+#include "platform_abstraction/abstract_process.hpp"
+#include "platform_abstraction/abstract_process_manager.hpp"
 
-#include "linux/file_descriptor.hpp"
-#include "linux/process.hpp"
+#include "file_descriptor.hpp"
+#include "process.hpp"
 
 #include <atomic>
 #include <condition_variable>

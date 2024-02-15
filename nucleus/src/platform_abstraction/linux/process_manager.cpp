@@ -1,26 +1,23 @@
 #include "process_manager.hpp"
-#include "linux/file_descriptor.hpp"
-#include "linux/process.hpp"
-
-#include <util.hpp>
-
+#include "file_descriptor.hpp"
+#include "process.hpp"
 #include <algorithm>
 #include <chrono>
+#include <csignal>
 #include <exception>
 #include <iomanip>
 #include <iostream>
 #include <iterator>
 #include <mutex>
-#include <system_error>
-#include <thread>
-#include <type_traits>
-#include <variant>
-
-#include <csignal>
 #include <stdexcept>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
+#include <system_error>
+#include <thread>
+#include <type_traits>
 #include <unistd.h>
+#include <util.hpp>
+#include <variant>
 
 namespace ipc {
 
@@ -57,6 +54,10 @@ namespace ipc {
             return epoll_ctl(epfd.get(), EPOLL_CTL_DEL, fd.get(), &e);
         }
     } // namespace
+
+    ProcessId::operator bool() const noexcept {
+        return id >= 0;
+    }
 
     FileDescriptor LinuxProcessManager::createEvent() {
         FileDescriptor event{eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK)};

@@ -5,6 +5,7 @@
 #include "deployment/deployment_model.hpp"
 #include "deployment/device_configuration.hpp"
 #include "lifecycle/kernel_alternatives.hpp"
+#include "platform_abstraction/linux/process_manager.hpp"
 #include "scope/context.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task_threads.hpp"
@@ -49,6 +50,7 @@ namespace lifecycle {
         std::unique_ptr<KernelAlternatives> _kernelAlts{nullptr};
         std::unique_ptr<deployment::DeploymentManager> _deploymentManager{nullptr};
         std::atomic_int _exitCode{0};
+        std::unique_ptr<ipc::ProcessManager> _processManager{};
 
     public:
         explicit Kernel(const scope::UsingContext &context);
@@ -78,6 +80,7 @@ namespace lifecycle {
         void initConfigAndTlog(CommandLine &commandLine);
         void initDeviceConfiguration(CommandLine &commandLine);
         void initializeNucleusFromRecipe();
+        void initializeProcessManager(CommandLine &commandLine);
         void setupProxy();
         void launchBootstrap();
         void launchRollbackBootstrap();
@@ -108,5 +111,13 @@ namespace lifecycle {
         void setExitCode(int exitCode) {
             _exitCode.store(exitCode);
         }
+
+        ipc::ProcessId startProcess(
+            std::string script,
+            std::chrono::seconds timeout,
+            bool requiresPrivilege,
+            std::unordered_map<std::string, std::optional<std::string>> env,
+            std::string note,
+            std::optional<ipc::CompletionCallback> onComplete = {});
     };
 } // namespace lifecycle

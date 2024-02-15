@@ -119,6 +119,25 @@ add_library(
   src/pubsub/local_topics.hpp
   src/scope/context.cpp
   src/scope/context.hpp
+  src/platform_abstraction/abstract_process.hpp
+  src/platform_abstraction/abstract_process_manager.hpp
+  src/platform_abstraction/env.hpp
+  src/platform_abstraction/startable.hpp
+  src/platform_abstraction/linux/error.hpp
+  src/platform_abstraction/linux/file_descriptor.cpp
+  src/platform_abstraction/linux/file_descriptor.hpp
+  src/platform_abstraction/linux/permissions.cpp
+  src/platform_abstraction/linux/permissions.hpp
+  src/platform_abstraction/linux/pipe.cpp
+  src/platform_abstraction/linux/pipe.hpp
+  src/platform_abstraction/linux/process.cpp
+  src/platform_abstraction/linux/process.hpp
+  src/platform_abstraction/linux/process_manager.cpp
+  src/platform_abstraction/linux/process_manager.hpp
+  src/platform_abstraction/linux/rlimits.cpp
+  src/platform_abstraction/linux/rlimits.hpp
+  src/platform_abstraction/linux/startable.cpp
+  src/platform_abstraction/linux/syscall.hpp
   src/scope/context_full.hpp
   src/scope/context_glob.hpp
   src/scope/fixed_pointer.hpp
