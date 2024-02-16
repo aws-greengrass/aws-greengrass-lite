@@ -100,6 +100,10 @@ namespace ipc {
                     // Most likely: out of file descriptors
                     throw std::system_error(std::error_code{EMFILE, std::generic_category()});
                 }
+
+                outPipe.input().close();
+                errPipe.input().close();
+
                 auto process = std::make_unique<Process>();
                 process->setPidFd(std::move(pidfd))
                     .setOut(std::move(outPipe.output()))
