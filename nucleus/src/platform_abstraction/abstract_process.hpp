@@ -59,5 +59,5 @@ namespace ipc {
 #if defined(__linux__)
 #include "linux/process.hpp"
 #else
-#error "Unsupported platform"
+#include "stub/process.hpp"
 #endif

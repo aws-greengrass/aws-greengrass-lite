@@ -4,7 +4,7 @@
 #include "deployment/device_configuration.hpp"
 #include "logging/log_queue.hpp"
 #include "platform_abstraction/abstract_process.hpp"
-#include "platform_abstraction/linux/process_manager.hpp"
+#include "platform_abstraction/abstract_process_manager.hpp"
 #include "platform_abstraction/startable.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"

@@ -24,5 +24,5 @@ namespace ipc {
 #if defined(__linux__)
 #include "linux/process_manager.hpp"
 #else
-#error "Unsupported platform"
+#include "stub/process_manager.hpp"
 #endif

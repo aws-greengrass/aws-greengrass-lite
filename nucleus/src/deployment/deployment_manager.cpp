@@ -22,8 +22,6 @@ static constexpr std::string_view PLATFORM_NAME = "darwin";
 static constexpr std::string_view PLATFORM_NAME = "unknown";
 #endif
 
-static_assert(PLATFORM_NAME == "linux", "Platform not supported");
-
 namespace deployment {
     DeploymentManager::DeploymentManager(
         const scope::UsingContext &context, lifecycle::Kernel &kernel)
@@ -241,7 +239,6 @@ namespace deployment {
             return manifest.platform.os.empty() || manifest.platform.os == PLATFORM_NAME
                    || manifest.platform.os == "*";
         });
-        // Only run if linux platform is supported
         // TODO: and the nucleus type is lite?
         if(it == manifests.end()) {
             LOG.atError("deployment")
