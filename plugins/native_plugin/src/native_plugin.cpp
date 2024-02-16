@@ -38,6 +38,7 @@ ggapi::Struct NativePlugin::startProcessListener(
                 {"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"s, _socketPath},
                 {"AWS_CONTAINER_CREDENTIALS_FULL_URI"s, container_uri},
                 {"AWS_CONTAINER_AUTHORIZATION_TOKEN"s, _authToken},
+                {"AWS_IOT_THING_NAME"s, _thingName},
             })
             // TODO: Windows "run raw script" switch
             .withArguments({"-c", std::move(script)})
@@ -120,6 +121,9 @@ bool NativePlugin::onRun(ggapi::Struct data) {
     auto result = ggapi::Task::sendToTopic(keys.infoTopicName, request);
     _socketPath = result.get<std::string>(keys.socketPath);
     _authToken = result.get<std::string>(keys.cliAuthToken);
+
+    _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
+    _thingName = _system.get<std::string>(keys.thingName);
     return true;
 }
 

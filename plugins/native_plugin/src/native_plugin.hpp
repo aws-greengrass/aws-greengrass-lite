@@ -10,6 +10,7 @@ struct Keys {
     ggapi::Symbol startProcessTopic{"aws.greengrass.Native.StartProcess"};
     ggapi::Symbol socketPath{"domain_socket_path"};
     ggapi::Symbol cliAuthToken{"cli_auth_token"};
+    ggapi::Symbol thingName{"thingName"};
 };
 
 inline const Keys keys;
@@ -22,6 +23,7 @@ class NativePlugin : public ggapi::Plugin {
     std::atomic<ggapi::Struct> _nucleus;
     std::string _authToken;
     std::string _socketPath;
+    std::string _thingName;
     static constexpr auto SERVICE_NAME = "aws.greengrass.Native";
 
     ipc::ProcessManager _manager;
