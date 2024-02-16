@@ -107,8 +107,14 @@ void ServerListenerCCallbacks::onServerConnectionShutdown(
     const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
 
     thisConnection->underlyingConnection.remove(connection);
-    std::cerr << "[IPC] connection closed with " << connection << " with error code " << error_code
-              << '\n';
+
+    if(error_code == 1051) {
+        std::cerr << "[IPC] connection closed with " << connection << " successfully ("
+                  << error_code << ")" << std::endl;
+    } else {
+        std::cerr << "[IPC] connection closed with " << connection << " with error code "
+                  << error_code << std::endl;
+    }
 }
 
 void ServerListenerCCallbacks::onProtocolMessage(
