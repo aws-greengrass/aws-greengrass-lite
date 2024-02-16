@@ -68,6 +68,9 @@ namespace ipc {
                 // create a session so all decendants are reaped when SIGKILL/SIGTERM is received
                 std::ignore = setsid();
 
+                // close stdin
+                FileDescriptor{STDIN_FILENO}.close();
+
                 // pipe program output to parent process
                 outPipe.input().duplicate(STDOUT_FILENO);
                 errPipe.input().duplicate(STDERR_FILENO);
