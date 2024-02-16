@@ -5,6 +5,7 @@
 
 #include <csignal>
 #include <cstdint>
+#include <linux/sched.h>
 #include <linux/wait.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
@@ -47,4 +48,8 @@ inline int pidfd_send_signal(int pidfd, int sig, siginfo_t *info, unsigned int f
 // non-standard; calls waitid(3) with P_PIDFD
 inline int pidfd_wait(id_t pidfd, siginfo_t *info, unsigned int flags) noexcept {
     return details::invokeSyscall(SYS_waitid, P_PIDFD, pidfd, info, flags, 0);
+}
+
+inline int sys_clone3(clone_args *info) noexcept {
+    return details::invokeSyscall(SYS_clone3, info, sizeof(clone_args));
 }

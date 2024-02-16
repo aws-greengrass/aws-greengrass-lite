@@ -39,10 +39,22 @@ namespace ipc {
         }
 
         // Note: all memory allocation for the child process must be performed before forking
-        auto pid = fork();
+
+        int pidfdOut;
+
+        clone_args clargs{
+            .flags = CLONE_PIDFD,
+            // NOLINTNEXTLINE(*-pro-type-reinterpret-cast) Linux API compatibility
+            .pidfd = reinterpret_cast<__aligned_u64>(&pidfdOut),
+            .exit_signal = SIGCHLD,
+        };
+
+        auto pid = sys_clone3(&clargs);
+
         switch(pid) {
             // parent, on error
             case -1:
+                perror("clone3");
                 throw std::system_error(errno, std::generic_category());
 
             // child, runs process
@@ -83,13 +95,10 @@ namespace ipc {
 
             // parent process, PID is child process
             default: {
-                FileDescriptor pidfd{pidfd_open(pid, 0)};
-                // Most likely: out of file descriptors
+                FileDescriptor pidfd{pidfdOut};
                 if(!pidfd) {
-                    perror("pidfd_open");
-                    auto err = std::error_code{errno, std::generic_category()};
-                    std::ignore = kill(pid, SIGKILL);
-                    throw std::system_error(err);
+                    // Most likely: out of file descriptors
+                    throw std::system_error(std::error_code{EMFILE, std::generic_category()});
                 }
                 auto process = std::make_unique<Process>();
                 process->setPidFd(std::move(pidfd))
