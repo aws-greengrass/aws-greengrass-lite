@@ -2,7 +2,7 @@
 #include "scope/context_full.hpp"
 #include <cpp_api.hpp>
 
-uint32_t ggapiGetLogLevel(uint64_t *counter, uint32_t level) noexcept {
+extern "C" uint32_t ggapiGetLogLevel(uint64_t *counter, uint32_t level) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([counter, level]() {
         auto context = scope::context();
         auto module = scope::thread()->getEffectiveModule();
@@ -12,7 +12,7 @@ uint32_t ggapiGetLogLevel(uint64_t *counter, uint32_t level) noexcept {
     });
 }
 
-bool ggapiSetLogLevel(uint32_t level) noexcept {
+extern "C" bool ggapiSetLogLevel(uint32_t level) noexcept {
     return ggapi::trapErrorReturn<bool>([level]() {
         auto context = scope::context();
         auto module = scope::thread()->getEffectiveModule();
@@ -22,7 +22,7 @@ bool ggapiSetLogLevel(uint32_t level) noexcept {
     });
 }
 
-bool ggapiLogEvent(uint32_t dataHandle) noexcept {
+extern "C" bool ggapiLogEvent(uint32_t dataHandle) noexcept {
     return ggapi::trapErrorReturn<bool>([dataHandle]() {
         auto context = scope::context();
         auto module = scope::thread()->getEffectiveModule();

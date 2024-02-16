@@ -5,12 +5,12 @@
 #include "tasks/task_callbacks.hpp"
 #include <cpp_api.hpp>
 
-uint32_t ggapiGetCurrentTask() noexcept {
+extern "C" uint32_t ggapiGetCurrentTask() noexcept {
     return ggapi::trapErrorReturn<uint32_t>(
         []() { return scope::thread()->getActiveTask()->getSelf().asInt(); });
 }
 
-bool ggapiIsTask(uint32_t handle) noexcept {
+extern "C" bool ggapiIsTask(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto ss{scope::context()->objFromInt(handle)};
         return std::dynamic_pointer_cast<tasks::Task>(ss) != nullptr;
@@ -21,7 +21,7 @@ bool ggapiIsTask(uint32_t handle) noexcept {
 // Cause the current thread to block waiting on the provided task, either until it has
 // completed, or cancelled (including time-out).
 //
-uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept {
+extern "C" uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([asyncTask, timeout]() {
         auto context = scope::context();
         std::shared_ptr<tasks::Task> asyncTaskObj{
@@ -42,7 +42,7 @@ uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) noexcept
 // Cause the current thread to block for determined length of time, while allowing thread to be
 // used to steal tasks.
 //
-bool ggapiSleep(uint32_t duration) noexcept {
+extern "C" bool ggapiSleep(uint32_t duration) noexcept {
     return ggapi::trapErrorReturn<bool>([duration]() {
         auto tc = scope::thread();
         tasks::ExpireTime expireTime = tasks::ExpireTime::fromNowMillis(duration);
@@ -56,7 +56,7 @@ bool ggapiSleep(uint32_t duration) noexcept {
 // the sub-task will be completed first. Consider this function to cancel any and all
 // 'ggapiWaitForTaskCompleted' operations on the given task.
 //
-bool ggapiCancelTask(uint32_t asyncTask) noexcept {
+extern "C" bool ggapiCancelTask(uint32_t asyncTask) noexcept {
     return ggapi::trapErrorReturn<bool>([asyncTask]() {
         scope::context()->objFromInt<tasks::Task>(asyncTask)->cancelTask();
         return true;
@@ -67,7 +67,7 @@ bool ggapiCancelTask(uint32_t asyncTask) noexcept {
  * Annotate the thread to mark it as "single thread" mode - this causes affinities to be
  * automatically assigned to callbacks.
  */
-bool ggapiSetSingleThread(bool enable) noexcept {
+extern "C" bool ggapiSetSingleThread(bool enable) noexcept {
     return ggapi::trapErrorReturn<bool>([enable]() {
         // Applies to current thread
         scope::thread()->getThreadTaskData()->setSingleThreadMode(enable);
@@ -78,7 +78,8 @@ bool ggapiSetSingleThread(bool enable) noexcept {
 /**
  * Create a task to call the provided callback at a future point in time.
  */
-uint32_t ggapiCallAsync(uint32_t callStruct, uint32_t callbackHandle, uint32_t delay) noexcept {
+extern "C" uint32_t ggapiCallAsync(
+    uint32_t callStruct, uint32_t callbackHandle, uint32_t delay) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([callStruct, callbackHandle, delay]() {
         auto context = scope::context();
         if(!callbackHandle) {
@@ -102,7 +103,7 @@ uint32_t ggapiCallAsync(uint32_t callStruct, uint32_t callbackHandle, uint32_t d
     });
 }
 
-ggapiErrorKind ggapiRegisterCallback(
+extern "C" ggapiErrorKind ggapiRegisterCallback(
     ::ggapiGenericCallback callbackFunction,
     ggapiContext callbackCtx,
     ggapiSymbol callbackType,

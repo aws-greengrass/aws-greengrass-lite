@@ -7,14 +7,14 @@
 #include "tasks/task_threads.hpp"
 #include <cpp_api.hpp>
 
-bool ggapiIsSubscription(uint32_t handle) noexcept {
+extern "C" bool ggapiIsSubscription(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto ss{scope::context()->objFromInt(handle)};
         return std::dynamic_pointer_cast<pubsub::Listener>(ss) != nullptr;
     });
 }
 
-uint32_t ggapiSubscribeToTopic(
+extern "C" uint32_t ggapiSubscribeToTopic(
     uint32_t anchorHandle, uint32_t topic, uint32_t rxCallback) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([anchorHandle, topic, rxCallback]() {
         auto context = scope::context();
@@ -77,7 +77,8 @@ static inline data::ObjHandle pubSubQueueAsyncCommon(const std::shared_ptr<tasks
     return taskObj->getSelf();
 }
 
-uint32_t ggapiSendToTopic(uint32_t topic, uint32_t callStruct, int32_t timeout) noexcept {
+extern "C" uint32_t ggapiSendToTopic(
+    uint32_t topic, uint32_t callStruct, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([topic, callStruct, timeout]() {
         auto context = scope::context();
         std::shared_ptr<tasks::Task> taskObj = pubSubCreateCommon(
@@ -86,7 +87,7 @@ uint32_t ggapiSendToTopic(uint32_t topic, uint32_t callStruct, int32_t timeout) 
     });
 }
 
-uint32_t ggapiSendToListener(
+extern "C" uint32_t ggapiSendToListener(
     uint32_t listenerHandle, uint32_t callStruct, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listenerHandle, callStruct, timeout]() {
         auto context = scope::context();
@@ -100,7 +101,7 @@ uint32_t ggapiSendToListener(
     });
 }
 
-uint32_t ggapiSendToTopicAsync(
+extern "C" uint32_t ggapiSendToTopicAsync(
     uint32_t topic, uint32_t callStruct, uint32_t respCallback, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([topic, callStruct, respCallback, timeout]() {
         auto context = scope::context();
@@ -120,7 +121,7 @@ uint32_t ggapiSendToTopicAsync(
     });
 }
 
-uint32_t ggapiSendToListenerAsync(
+extern "C" uint32_t ggapiSendToListenerAsync(
     uint32_t listenerHandle, uint32_t callStruct, uint32_t respCallback, int32_t timeout) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listenerHandle, callStruct, respCallback, timeout]() {
         auto context = scope::context();

@@ -33,7 +33,7 @@
  *
  * @return last error kind (a symbol)
  */
-ggapiErrorKind ggapiGetErrorKind() noexcept {
+extern "C" ggapiErrorKind ggapiGetErrorKind() noexcept {
     return errors::ThreadErrorContainer::get().getKindAsInt();
 }
 
@@ -43,7 +43,7 @@ ggapiErrorKind ggapiGetErrorKind() noexcept {
  *
  * @return last error text, or nullptr if no error
  */
-const char *ggapiGetErrorWhat() noexcept {
+extern "C" const char *ggapiGetErrorWhat() noexcept {
     return errors::ThreadErrorContainer::get().getCachedWhat();
 }
 
@@ -52,7 +52,7 @@ const char *ggapiGetErrorWhat() noexcept {
  *
  * @return last error text, or nullptr if no error
  */
-ggapiErrorKind ggapiSetError(
+extern "C" ggapiErrorKind ggapiSetError(
     ggapiErrorKind kind, ggapiCountedString what, ggapiDataLen len) noexcept {
     static const auto DEFAULT_ERROR_WHAT = "Unspecified Error";
     try {

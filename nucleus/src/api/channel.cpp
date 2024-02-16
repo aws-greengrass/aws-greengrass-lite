@@ -6,21 +6,21 @@
 #include "tasks/task_callbacks.hpp"
 #include <cpp_api.hpp>
 
-bool ggapiIsChannel(uint32_t handle) noexcept {
+extern "C" bool ggapiIsChannel(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto ss{scope::context()->objFromInt(handle)};
         return std::dynamic_pointer_cast<channel::Channel>(ss) != nullptr;
     });
 }
 
-ggapiErrorKind ggapiCreateChannel(ggapiObjHandle *pHandle) noexcept {
+extern "C" ggapiErrorKind ggapiCreateChannel(ggapiObjHandle *pHandle) noexcept {
     return apiImpl::catchErrorToKind([pHandle]() {
         auto anchor = scope::NucleusCallScopeContext::make<channel::Channel>();
         *pHandle = anchor.asIntHandle();
     });
 }
 
-uint32_t ggapiChannelWrite(uint32_t channel, uint32_t callStruct) noexcept {
+extern "C" uint32_t ggapiChannelWrite(uint32_t channel, uint32_t callStruct) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([channel, callStruct]() {
         auto context = scope::context();
         auto channelObj = context->objFromInt<channel::Channel>(channel);
@@ -30,7 +30,7 @@ uint32_t ggapiChannelWrite(uint32_t channel, uint32_t callStruct) noexcept {
     });
 }
 
-uint32_t ggapiChannelClose(uint32_t channel) noexcept {
+extern "C" uint32_t ggapiChannelClose(uint32_t channel) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([channel]() {
         auto context = scope::context();
         auto channelObj = context->objFromInt<channel::Channel>(channel);
@@ -42,7 +42,7 @@ uint32_t ggapiChannelClose(uint32_t channel) noexcept {
     });
 }
 
-uint32_t ggapiChannelListen(uint32_t channel, uint32_t callbackHandle) noexcept {
+extern "C" uint32_t ggapiChannelListen(uint32_t channel, uint32_t callbackHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([channel, callbackHandle]() {
         auto context = scope::context();
         if(!callbackHandle) {
@@ -55,7 +55,7 @@ uint32_t ggapiChannelListen(uint32_t channel, uint32_t callbackHandle) noexcept 
     });
 }
 
-uint32_t ggapiChannelOnClose(uint32_t channel, uint32_t callbackHandle) noexcept {
+extern "C" uint32_t ggapiChannelOnClose(uint32_t channel, uint32_t callbackHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([channel, callbackHandle]() {
         auto context = scope::context();
         if(!callbackHandle) {

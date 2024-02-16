@@ -7,7 +7,7 @@ extern "C" {
 }
 
 // NOLINTNEXTLINE(*-avoid-c-arrays)
-int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
+extern "C" int ggapiMainThread(int argc, char *argv[], char *envp[]) noexcept {
     try {
         auto context = scope::context();
         if(envp != nullptr) {

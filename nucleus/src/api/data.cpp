@@ -13,7 +13,7 @@ using namespace data;
  * Expected reasons for termination are: 1/ Bad pointer (which will result in corrupted symbols), or
  * 2/ Out of memory Termination is the right thing as it allows a watchdog to restart the process.
  */
-ggapiSymbol ggapiGetSymbol(const char *bytes, size_t len) noexcept {
+extern "C" ggapiSymbol ggapiGetSymbol(const char *bytes, size_t len) noexcept {
     try {
         return scope::context()->intern(std::string_view{bytes, len}).asInt();
     } catch(...) {
@@ -33,7 +33,7 @@ ggapiSymbol ggapiGetSymbol(const char *bytes, size_t len) noexcept {
  * @param pLength Required length of buffer
  * @return 0 on success. Non-zero on error other than buffer too small.
  */
-ggapiErrorKind ggapiGetSymbolString(
+extern "C" ggapiErrorKind ggapiGetSymbolString(
     ggapiSymbol symbolInt,
     ggapiByteBuffer bytes,
     ggapiMaxLen len,
@@ -53,7 +53,8 @@ ggapiErrorKind ggapiGetSymbolString(
     });
 }
 
-ggapiErrorKind ggapiGetSymbolStringLen(ggapiSymbol symbolInt, ggapiDataLen *pLength) noexcept {
+extern "C" ggapiErrorKind ggapiGetSymbolStringLen(
+    ggapiSymbol symbolInt, ggapiDataLen *pLength) noexcept {
     return apiImpl::catchErrorToKind([symbolInt, pLength]() {
         Symbol symbol = scope::context()->symbolFromInt(symbolInt);
         std::string s{symbol.toString()};
@@ -61,28 +62,28 @@ ggapiErrorKind ggapiGetSymbolStringLen(ggapiSymbol symbolInt, ggapiDataLen *pLen
     });
 }
 
-ggapiErrorKind ggapiCreateStruct(ggapiObjHandle *pHandle) noexcept {
+extern "C" ggapiErrorKind ggapiCreateStruct(ggapiObjHandle *pHandle) noexcept {
     return apiImpl::catchErrorToKind([pHandle]() {
         auto anchor = scope::NucleusCallScopeContext::make<SharedStruct>();
         *pHandle = anchor.asIntHandle();
     });
 }
 
-ggapiErrorKind ggapiCreateList(ggapiObjHandle *pHandle) noexcept {
+extern "C" ggapiErrorKind ggapiCreateList(ggapiObjHandle *pHandle) noexcept {
     return apiImpl::catchErrorToKind([pHandle]() {
         auto anchor = scope::NucleusCallScopeContext::make<SharedList>();
         *pHandle = anchor.asIntHandle();
     });
 }
 
-ggapiErrorKind ggapiCreateBuffer(ggapiObjHandle *pHandle) noexcept {
+extern "C" ggapiErrorKind ggapiCreateBuffer(ggapiObjHandle *pHandle) noexcept {
     return apiImpl::catchErrorToKind([pHandle]() {
         auto anchor = scope::NucleusCallScopeContext::make<SharedBuffer>();
         *pHandle = anchor.asIntHandle();
     });
 }
 
-bool ggapiIsScalar(uint32_t handle) noexcept {
+extern "C" bool ggapiIsScalar(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto ss{scope::context()->objFromInt(handle)};
         auto boxed = std::dynamic_pointer_cast<Boxed>(ss);
@@ -93,42 +94,42 @@ bool ggapiIsScalar(uint32_t handle) noexcept {
     });
 }
 
-bool ggapiIsContainer(uint32_t handle) noexcept {
+extern "C" bool ggapiIsContainer(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto ss{scope::context()->objFromInt(handle)};
         return std::dynamic_pointer_cast<ContainerModelBase>(ss) != nullptr;
     });
 }
 
-bool ggapiIsStruct(uint32_t handle) noexcept {
+extern "C" bool ggapiIsStruct(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto ss{scope::context()->objFromInt(handle)};
         return std::dynamic_pointer_cast<StructModelBase>(ss) != nullptr;
     });
 }
 
-bool ggapiIsList(uint32_t handle) noexcept {
+extern "C" bool ggapiIsList(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto ss{scope::context()->objFromInt(handle)};
         return std::dynamic_pointer_cast<ListModelBase>(ss) != nullptr;
     });
 }
 
-bool ggapiIsBuffer(uint32_t handle) noexcept {
+extern "C" bool ggapiIsBuffer(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto ss{scope::context()->objFromInt(handle)};
         return std::dynamic_pointer_cast<SharedBuffer>(ss) != nullptr;
     });
 }
 
-bool ggapiIsScope(uint32_t handle) noexcept {
+extern "C" bool ggapiIsScope(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto ss{scope::context()->objFromInt(handle)};
         return std::dynamic_pointer_cast<TrackingScope>(ss) != nullptr;
     });
 }
 
-bool ggapiIsSameObject(uint32_t handle1, uint32_t handle2) noexcept {
+extern "C" bool ggapiIsSameObject(uint32_t handle1, uint32_t handle2) noexcept {
     // Two different handles can refer to same object
     return ggapi::trapErrorReturn<bool>([handle1, handle2]() {
         auto context = scope::context();
@@ -138,7 +139,7 @@ bool ggapiIsSameObject(uint32_t handle1, uint32_t handle2) noexcept {
     });
 }
 
-uint32_t ggapiBoxBool(bool value) noexcept {
+extern "C" uint32_t ggapiBoxBool(bool value) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([value]() {
         auto context = scope::context();
         auto boxed = data::Boxed::box(context, value);
@@ -146,7 +147,7 @@ uint32_t ggapiBoxBool(bool value) noexcept {
     });
 }
 
-uint32_t ggapiBoxInt64(uint64_t value) noexcept {
+extern "C" uint32_t ggapiBoxInt64(uint64_t value) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([value]() {
         auto context = scope::context();
         auto boxed = data::Boxed::box(context, value);
@@ -154,7 +155,7 @@ uint32_t ggapiBoxInt64(uint64_t value) noexcept {
     });
 }
 
-uint32_t ggapiBoxFloat64(double value) noexcept {
+extern "C" uint32_t ggapiBoxFloat64(double value) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([value]() {
         auto context = scope::context();
         auto boxed = data::Boxed::box(context, value);
@@ -162,7 +163,7 @@ uint32_t ggapiBoxFloat64(double value) noexcept {
     });
 }
 
-uint32_t ggapiBoxString(const char *bytes, size_t len) noexcept {
+extern "C" uint32_t ggapiBoxString(const char *bytes, size_t len) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([bytes, len]() {
         auto context = scope::context();
         auto boxed = data::Boxed::box(context, std::string_view(bytes, len));
@@ -170,7 +171,7 @@ uint32_t ggapiBoxString(const char *bytes, size_t len) noexcept {
     });
 }
 
-uint32_t ggapiBoxSymbol(uint32_t symValInt) noexcept {
+extern "C" uint32_t ggapiBoxSymbol(uint32_t symValInt) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([symValInt]() {
         auto context = scope::context();
         auto value = context->symbolFromInt(symValInt);
@@ -179,7 +180,7 @@ uint32_t ggapiBoxSymbol(uint32_t symValInt) noexcept {
     });
 }
 
-uint32_t ggapiBoxHandle(uint32_t handle) noexcept {
+extern "C" uint32_t ggapiBoxHandle(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([handle]() {
         auto context = scope::context();
         auto value = context->objFromInt(handle);
@@ -188,7 +189,7 @@ uint32_t ggapiBoxHandle(uint32_t handle) noexcept {
     });
 }
 
-bool ggapiUnboxBool(uint32_t handle) noexcept {
+extern "C" bool ggapiUnboxBool(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<bool>([handle]() {
         auto context = scope::context();
         auto obj = context->objFromInt<Boxed>(handle);
@@ -196,7 +197,7 @@ bool ggapiUnboxBool(uint32_t handle) noexcept {
     });
 }
 
-uint64_t ggapiUnboxInt64(uint32_t handle) noexcept {
+extern "C" uint64_t ggapiUnboxInt64(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<uint64_t>([handle]() {
         auto context = scope::context();
         auto obj = context->objFromInt<Boxed>(handle);
@@ -204,7 +205,7 @@ uint64_t ggapiUnboxInt64(uint32_t handle) noexcept {
     });
 }
 
-double ggapiUnboxFloat64(uint32_t handle) noexcept {
+extern "C" double ggapiUnboxFloat64(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<double>([handle]() {
         auto context = scope::context();
         auto obj = context->objFromInt<Boxed>(handle);
@@ -212,7 +213,7 @@ double ggapiUnboxFloat64(uint32_t handle) noexcept {
     });
 }
 
-size_t ggapiUnboxStringLen(uint32_t handle) noexcept {
+extern "C" size_t ggapiUnboxStringLen(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<size_t>([handle]() {
         auto context = scope::context();
         auto obj = context->objFromInt<Boxed>(handle);
@@ -220,7 +221,7 @@ size_t ggapiUnboxStringLen(uint32_t handle) noexcept {
     });
 }
 
-size_t ggapiUnboxString(uint32_t handle, char *buffer, size_t buflen) noexcept {
+extern "C" size_t ggapiUnboxString(uint32_t handle, char *buffer, size_t buflen) noexcept {
     util::Span span(buffer, buflen);
     return ggapi::trapErrorReturn<size_t>([handle, span]() {
         auto context = scope::context();
@@ -229,7 +230,7 @@ size_t ggapiUnboxString(uint32_t handle, char *buffer, size_t buflen) noexcept {
     });
 }
 
-uint32_t ggapiUnboxHandle(uint32_t handle) noexcept {
+extern "C" uint32_t ggapiUnboxHandle(uint32_t handle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([handle]() {
         auto context = scope::context();
         auto obj = context->objFromInt(handle);
@@ -243,7 +244,7 @@ uint32_t ggapiUnboxHandle(uint32_t handle) noexcept {
     });
 }
 
-bool ggapiStructPutBool(uint32_t structHandle, uint32_t keyInt, bool value) noexcept {
+extern "C" bool ggapiStructPutBool(uint32_t structHandle, uint32_t keyInt, bool value) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, keyInt, value]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -254,7 +255,7 @@ bool ggapiStructPutBool(uint32_t structHandle, uint32_t keyInt, bool value) noex
     });
 }
 
-bool ggapiListPutBool(uint32_t listHandle, int32_t idx, bool value) noexcept {
+extern "C" bool ggapiListPutBool(uint32_t listHandle, int32_t idx, bool value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -264,7 +265,7 @@ bool ggapiListPutBool(uint32_t listHandle, int32_t idx, bool value) noexcept {
     });
 }
 
-bool ggapiListInsertBool(uint32_t listHandle, int32_t idx, bool value) noexcept {
+extern "C" bool ggapiListInsertBool(uint32_t listHandle, int32_t idx, bool value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -274,7 +275,8 @@ bool ggapiListInsertBool(uint32_t listHandle, int32_t idx, bool value) noexcept 
     });
 }
 
-bool ggapiStructPutInt64(uint32_t structHandle, uint32_t keyInt, uint64_t value) noexcept {
+extern "C" bool ggapiStructPutInt64(
+    uint32_t structHandle, uint32_t keyInt, uint64_t value) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, keyInt, value]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -285,7 +287,7 @@ bool ggapiStructPutInt64(uint32_t structHandle, uint32_t keyInt, uint64_t value)
     });
 }
 
-bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) noexcept {
+extern "C" bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -295,7 +297,7 @@ bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) noexcep
     });
 }
 
-bool ggapiListInsertInt64(uint32_t listHandle, int32_t idx, uint64_t value) noexcept {
+extern "C" bool ggapiListInsertInt64(uint32_t listHandle, int32_t idx, uint64_t value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -305,7 +307,8 @@ bool ggapiListInsertInt64(uint32_t listHandle, int32_t idx, uint64_t value) noex
     });
 }
 
-bool ggapiStructPutFloat64(uint32_t structHandle, uint32_t keyInt, double value) noexcept {
+extern "C" bool ggapiStructPutFloat64(
+    uint32_t structHandle, uint32_t keyInt, double value) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, keyInt, value]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -316,7 +319,7 @@ bool ggapiStructPutFloat64(uint32_t structHandle, uint32_t keyInt, double value)
     });
 }
 
-bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) noexcept {
+extern "C" bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -326,7 +329,7 @@ bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) noexcep
     });
 }
 
-bool ggapiListInsertFloat64(uint32_t listHandle, int32_t idx, double value) noexcept {
+extern "C" bool ggapiListInsertFloat64(uint32_t listHandle, int32_t idx, double value) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, value]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -347,7 +350,7 @@ static StructElement optimizeString(const scope::UsingContext &context, std::str
     }
 }
 
-bool ggapiStructPutString(
+extern "C" bool ggapiStructPutString(
     uint32_t structHandle, uint32_t keyInt, const char *bytes, size_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, keyInt, bytes, len]() {
         auto context = scope::context();
@@ -359,7 +362,8 @@ bool ggapiStructPutString(
     });
 }
 
-bool ggapiListPutString(uint32_t listHandle, int32_t idx, const char *bytes, size_t len) noexcept {
+extern "C" bool ggapiListPutString(
+    uint32_t listHandle, int32_t idx, const char *bytes, size_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -369,7 +373,7 @@ bool ggapiListPutString(uint32_t listHandle, int32_t idx, const char *bytes, siz
     });
 }
 
-bool ggapiListInsertString(
+extern "C" bool ggapiListInsertString(
     uint32_t listHandle, int32_t idx, const char *bytes, size_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, bytes, len]() {
         auto context = scope::context();
@@ -380,7 +384,8 @@ bool ggapiListInsertString(
     });
 }
 
-bool ggapiStructPutSymbol(uint32_t listHandle, uint32_t symInt, uint32_t symValInt) noexcept {
+extern "C" bool ggapiStructPutSymbol(
+    uint32_t listHandle, uint32_t symInt, uint32_t symValInt) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, symInt, symValInt]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(listHandle)};
@@ -392,7 +397,7 @@ bool ggapiStructPutSymbol(uint32_t listHandle, uint32_t symInt, uint32_t symValI
     });
 }
 
-bool ggapiListPutSymbol(uint32_t listHandle, int32_t idx, uint32_t symValInt) noexcept {
+extern "C" bool ggapiListPutSymbol(uint32_t listHandle, int32_t idx, uint32_t symValInt) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, symValInt]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -403,7 +408,7 @@ bool ggapiListPutSymbol(uint32_t listHandle, int32_t idx, uint32_t symValInt) no
     });
 }
 
-bool ggapiListInsertSymbol(uint32_t listHandle, int32_t idx, uint32_t symVal) noexcept {
+extern "C" bool ggapiListInsertSymbol(uint32_t listHandle, int32_t idx, uint32_t symVal) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, symVal]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -414,7 +419,8 @@ bool ggapiListInsertSymbol(uint32_t listHandle, int32_t idx, uint32_t symVal) no
     });
 }
 
-bool ggapiStructPutHandle(uint32_t structHandle, uint32_t keyInt, uint32_t nestedHandle) noexcept {
+extern "C" bool ggapiStructPutHandle(
+    uint32_t structHandle, uint32_t keyInt, uint32_t nestedHandle) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, keyInt, nestedHandle]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -426,7 +432,8 @@ bool ggapiStructPutHandle(uint32_t structHandle, uint32_t keyInt, uint32_t neste
     });
 }
 
-bool ggapiListPutHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) noexcept {
+extern "C" bool ggapiListPutHandle(
+    uint32_t listHandle, int32_t idx, uint32_t nestedHandle) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, nestedHandle]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -437,7 +444,8 @@ bool ggapiListPutHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle)
     });
 }
 
-bool ggapiListInsertHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHandle) noexcept {
+extern "C" bool ggapiListInsertHandle(
+    uint32_t listHandle, int32_t idx, uint32_t nestedHandle) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx, nestedHandle]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -448,7 +456,8 @@ bool ggapiListInsertHandle(uint32_t listHandle, int32_t idx, uint32_t nestedHand
     });
 }
 
-bool ggapiBufferPut(uint32_t bufHandle, int32_t idx, const char *bytes, uint32_t len) noexcept {
+extern "C" bool ggapiBufferPut(
+    uint32_t bufHandle, int32_t idx, const char *bytes, uint32_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([bufHandle, idx, bytes, len]() {
         auto context = scope::context();
         auto ss{context->objFromInt<SharedBuffer>(bufHandle)};
@@ -458,7 +467,8 @@ bool ggapiBufferPut(uint32_t bufHandle, int32_t idx, const char *bytes, uint32_t
     });
 }
 
-bool ggapiBufferInsert(uint32_t bufHandle, int32_t idx, const char *bytes, uint32_t len) noexcept {
+extern "C" bool ggapiBufferInsert(
+    uint32_t bufHandle, int32_t idx, const char *bytes, uint32_t len) noexcept {
     return ggapi::trapErrorReturn<bool>([bufHandle, idx, bytes, len]() {
         auto context = scope::context();
         auto ss{context->objFromInt<SharedBuffer>(bufHandle)};
@@ -468,7 +478,7 @@ bool ggapiBufferInsert(uint32_t bufHandle, int32_t idx, const char *bytes, uint3
     });
 }
 
-bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) noexcept {
+extern "C" bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, keyInt]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -477,7 +487,7 @@ bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) noexcept {
     });
 }
 
-uint32_t ggapiStructKeys(uint32_t structHandle) noexcept {
+extern "C" uint32_t ggapiStructKeys(uint32_t structHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([structHandle]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -485,7 +495,7 @@ uint32_t ggapiStructKeys(uint32_t structHandle) noexcept {
     });
 }
 
-uint32_t ggapiGetSize(uint32_t containerHandle) noexcept {
+extern "C" uint32_t ggapiGetSize(uint32_t containerHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([containerHandle]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ContainerModelBase>(containerHandle)};
@@ -493,7 +503,7 @@ uint32_t ggapiGetSize(uint32_t containerHandle) noexcept {
     });
 }
 
-bool ggapiIsEmpty(uint32_t containerHandle) noexcept {
+extern "C" bool ggapiIsEmpty(uint32_t containerHandle) noexcept {
     return ggapi::trapErrorReturn<bool>([containerHandle]() {
         if(!containerHandle) {
             return true;
@@ -504,7 +514,7 @@ bool ggapiIsEmpty(uint32_t containerHandle) noexcept {
     });
 }
 
-uint32_t ggapiStructClone(uint32_t structHandle) noexcept {
+extern "C" uint32_t ggapiStructClone(uint32_t structHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([structHandle]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -513,7 +523,7 @@ uint32_t ggapiStructClone(uint32_t structHandle) noexcept {
     });
 }
 
-bool ggapiStructGetBool(uint32_t structHandle, uint32_t keyInt) noexcept {
+extern "C" bool ggapiStructGetBool(uint32_t structHandle, uint32_t keyInt) noexcept {
     return ggapi::trapErrorReturn<bool>([structHandle, keyInt]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -522,7 +532,7 @@ bool ggapiStructGetBool(uint32_t structHandle, uint32_t keyInt) noexcept {
     });
 }
 
-bool ggapiListGetBool(uint32_t listHandle, int32_t idx) noexcept {
+extern "C" bool ggapiListGetBool(uint32_t listHandle, int32_t idx) noexcept {
     return ggapi::trapErrorReturn<bool>([listHandle, idx]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -530,7 +540,7 @@ bool ggapiListGetBool(uint32_t listHandle, int32_t idx) noexcept {
     });
 }
 
-uint64_t ggapiStructGetInt64(uint32_t structHandle, uint32_t keyInt) noexcept {
+extern "C" uint64_t ggapiStructGetInt64(uint32_t structHandle, uint32_t keyInt) noexcept {
     return ggapi::trapErrorReturn<uint64_t>([structHandle, keyInt]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -539,7 +549,7 @@ uint64_t ggapiStructGetInt64(uint32_t structHandle, uint32_t keyInt) noexcept {
     });
 }
 
-uint64_t ggapiListGetInt64(uint32_t listHandle, int32_t idx) noexcept {
+extern "C" uint64_t ggapiListGetInt64(uint32_t listHandle, int32_t idx) noexcept {
     return ggapi::trapErrorReturn<uint64_t>([listHandle, idx]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -547,7 +557,7 @@ uint64_t ggapiListGetInt64(uint32_t listHandle, int32_t idx) noexcept {
     });
 }
 
-double ggapiStructGetFloat64(uint32_t structHandle, uint32_t keyInt) noexcept {
+extern "C" double ggapiStructGetFloat64(uint32_t structHandle, uint32_t keyInt) noexcept {
     return ggapi::trapErrorReturn<double>([structHandle, keyInt]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -556,7 +566,7 @@ double ggapiStructGetFloat64(uint32_t structHandle, uint32_t keyInt) noexcept {
     });
 }
 
-double ggapiListGetFloat64(uint32_t listHandle, int32_t idx) noexcept {
+extern "C" double ggapiListGetFloat64(uint32_t listHandle, int32_t idx) noexcept {
     return ggapi::trapErrorReturn<double>([listHandle, idx]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -564,7 +574,7 @@ double ggapiListGetFloat64(uint32_t listHandle, int32_t idx) noexcept {
     });
 }
 
-uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t keyInt) noexcept {
+extern "C" uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t keyInt) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([structHandle, keyInt]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -574,7 +584,7 @@ uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t keyInt) noexcept {
     });
 }
 
-uint32_t ggapiListGetHandle(uint32_t listHandle, int32_t idx) noexcept {
+extern "C" uint32_t ggapiListGetHandle(uint32_t listHandle, int32_t idx) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([listHandle, idx]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -583,7 +593,7 @@ uint32_t ggapiListGetHandle(uint32_t listHandle, int32_t idx) noexcept {
     });
 }
 
-size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t keyInt) noexcept {
+extern "C" size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t keyInt) noexcept {
     return ggapi::trapErrorReturn<size_t>([structHandle, keyInt]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
@@ -592,7 +602,7 @@ size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t keyInt) noexcept 
     });
 }
 
-size_t ggapiStructGetString(
+extern "C" size_t ggapiStructGetString(
     uint32_t structHandle, uint32_t keyInt, char *buffer, size_t buflen) noexcept {
     util::Span span(buffer, buflen);
     return ggapi::trapErrorReturn<size_t>([structHandle, keyInt, span]() {
@@ -603,7 +613,7 @@ size_t ggapiStructGetString(
     });
 }
 
-size_t ggapiListGetStringLen(uint32_t listHandle, int32_t idx) noexcept {
+extern "C" size_t ggapiListGetStringLen(uint32_t listHandle, int32_t idx) noexcept {
     return ggapi::trapErrorReturn<size_t>([listHandle, idx]() {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
@@ -611,7 +621,8 @@ size_t ggapiListGetStringLen(uint32_t listHandle, int32_t idx) noexcept {
     });
 }
 
-size_t ggapiListGetString(uint32_t listHandle, int32_t idx, char *buffer, size_t buflen) noexcept {
+extern "C" size_t ggapiListGetString(
+    uint32_t listHandle, int32_t idx, char *buffer, size_t buflen) noexcept {
     util::Span span(buffer, buflen);
     return ggapi::trapErrorReturn<size_t>([listHandle, idx, span]() {
         auto context = scope::context();
@@ -620,7 +631,8 @@ size_t ggapiListGetString(uint32_t listHandle, int32_t idx, char *buffer, size_t
     });
 }
 
-uint32_t ggapiBufferGet(uint32_t bufHandle, int32_t idx, char *bytes, uint32_t len) noexcept {
+extern "C" uint32_t ggapiBufferGet(
+    uint32_t bufHandle, int32_t idx, char *bytes, uint32_t len) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([bufHandle, idx, bytes, len]() {
         auto context = scope::context();
         auto ss{context->objFromInt<SharedBuffer>(bufHandle)};
@@ -629,7 +641,7 @@ uint32_t ggapiBufferGet(uint32_t bufHandle, int32_t idx, char *bytes, uint32_t l
     });
 }
 
-uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) noexcept {
+extern "C" uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([anchorHandle, objectHandle]() {
         auto context = scope::context();
         auto ss{context->handleFromInt(objectHandle)};
@@ -644,7 +656,7 @@ uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) noexcep
     });
 }
 
-bool ggapiReleaseHandle(uint32_t objectHandle) noexcept {
+extern "C" bool ggapiReleaseHandle(uint32_t objectHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([objectHandle]() {
         if(objectHandle) {
             ObjectAnchor anchored{scope::context()->handleFromInt(objectHandle).toAnchor()};
@@ -654,7 +666,7 @@ bool ggapiReleaseHandle(uint32_t objectHandle) noexcept {
     });
 }
 
-uint32_t ggapiCreateCallScope() noexcept {
+extern "C" uint32_t ggapiCreateCallScope() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() {
         auto threadContext = scope::thread();
         auto scope{threadContext->newCallScope()};
@@ -663,7 +675,7 @@ uint32_t ggapiCreateCallScope() noexcept {
     });
 }
 
-uint32_t ggapiGetCurrentCallScope() noexcept {
+extern "C" uint32_t ggapiGetCurrentCallScope() noexcept {
     return ggapi::trapErrorReturn<uint32_t>([]() {
         auto threadContext = scope::thread();
         auto scope{threadContext->getCallScope()};
@@ -671,7 +683,7 @@ uint32_t ggapiGetCurrentCallScope() noexcept {
     });
 }
 
-uint32_t ggapiToJson(uint32_t objectHandle) noexcept {
+extern "C" uint32_t ggapiToJson(uint32_t objectHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([objectHandle]() {
         auto context = scope::context();
         auto container = context->objFromInt<data::ContainerModelBase>(objectHandle);
@@ -680,7 +692,7 @@ uint32_t ggapiToJson(uint32_t objectHandle) noexcept {
     });
 }
 
-uint32_t ggapiFromJson(uint32_t bufferHandle) noexcept {
+extern "C" uint32_t ggapiFromJson(uint32_t bufferHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([bufferHandle]() {
         // impl
         auto context = scope::context();
@@ -690,7 +702,7 @@ uint32_t ggapiFromJson(uint32_t bufferHandle) noexcept {
     });
 }
 
-uint32_t ggapiToYaml(uint32_t objectHandle) noexcept {
+extern "C" uint32_t ggapiToYaml(uint32_t objectHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([objectHandle]() {
         auto context = scope::context();
         auto container = context->objFromInt<data::ContainerModelBase>(objectHandle);
@@ -699,7 +711,7 @@ uint32_t ggapiToYaml(uint32_t objectHandle) noexcept {
     });
 }
 
-uint32_t ggapiFromYaml(uint32_t bufferHandle) noexcept {
+extern "C" uint32_t ggapiFromYaml(uint32_t bufferHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([bufferHandle]() {
         auto context = scope::context();
         auto buffer = context->objFromInt<data::SharedBuffer>(bufferHandle);
