@@ -43,26 +43,40 @@ jobs:
       run:
         shell: nix develop -c bash -exo pipefail {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
         run: cmake $cmakeFlags -B build
 
+      - name: Get file list
+        id: get-file-list
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.sha }}
+          set +e
+          export CHANGED_FILES=$(git diff --name-only \
+           ${{ github.event.pull_request.base.sha }} | grep "\.[ch]pp$")
+          set -e
+          echo CHANGED_FILES=$CHANGED_FILES >> $GITHUB_OUTPUT
+
       - name: Check Clang-tidy
         id: clang-tidy-check
+        if: ${{ steps.get-file-list.outputs.CHANGED_FILES != ''}}
         run: |
           clang-tidy -p ./build --warnings-as-errors='*' \
             -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
-            $(fd -t f -e cpp)
+            ${{ steps.get-file-list.outputs.CHANGED_FILES }}
 
       - name: Generate / Show Patch
         if: ${{ failure() && steps.clang-tidy-check.outcome == 'failure' }}
         run: |
           clang-tidy -p ./build --fix --fix-errors --quiet \
             -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
-            $(fd -t f -e cpp)
+            ${{ steps.get-file-list.outputs.CHANGED_FILES }}
           git diff >> clang-tidy.patch
           git diff --color=always
 
