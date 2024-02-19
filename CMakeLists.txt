@@ -23,8 +23,8 @@ if(APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
 endif()
 
 # Safety
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=null")
+if(NOT WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -fsanitize=null")
 endif()
 
 # Uncomment to enable sanitizers - thread & address cannot be combined
