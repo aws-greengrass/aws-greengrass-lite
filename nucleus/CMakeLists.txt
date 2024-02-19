@@ -16,6 +16,7 @@ add_compile_definitions(PLATFORM_SHLIB_SUFFIX=${CMAKE_SHARED_MODULE_SUFFIX})
 fetchContentFromDeps(yaml-cpp rapidjson)
 
 FetchContent_GetProperties(yaml-cpp)
+
 if(NOT yaml-cpp_POPULATED)
   FetchContent_Populate(yaml-cpp)
   add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR}
@@ -23,6 +24,7 @@ if(NOT yaml-cpp_POPULATED)
 endif()
 
 FetchContent_GetProperties(rapidjson)
+
 if(NOT rapidjson_POPULATED)
   FetchContent_Populate(rapidjson)
 endif()
@@ -56,6 +58,8 @@ add_library(
   src/config/watcher.hpp
   src/config/yaml_config.cpp
   src/config/yaml_config.hpp
+  src/config/yaml_recipe.cpp
+  src/config/yaml_recipe.hpp
   src/conv/json_conv.cpp
   src/conv/json_conv.hpp
   src/conv/yaml_conv.cpp
@@ -64,6 +68,7 @@ add_library(
   src/data/handle_table.cpp
   src/data/handle_table.hpp
   src/data/safe_handle.hpp
+  src/data/serializable.hpp
   src/channel/channel.cpp
   src/channel/channel.hpp
   src/data/shared_buffer.cpp
@@ -72,6 +77,7 @@ add_library(
   src/data/shared_list.hpp
   src/data/shared_struct.cpp
   src/data/shared_struct.hpp
+  src/data/shared_queue.hpp
   src/data/string_table.cpp
   src/data/string_table.hpp
   src/data/struct_model.cpp
@@ -81,16 +87,22 @@ add_library(
   src/data/tracked_object.hpp
   src/data/value_type.hpp
   src/deployment/config_watchers.hpp
+  src/deployment/deployment_manager.cpp
+  src/deployment/deployment_manager.hpp
   src/deployment/deployment_model.cpp
   src/deployment/deployment_model.hpp
   src/deployment/device_configuration.cpp
   src/deployment/device_configuration.hpp
+  src/deployment/recipe_model.hpp
+  src/deployment/recipe_loader.hpp
+  src/deployment/recipe_loader.cpp
   src/errors/api_errors.hpp
   src/errors/error_base.cpp
   src/errors/error_base.hpp
   src/errors/errors.hpp
   src/lifecycle/command_line.cpp
   src/lifecycle/command_line.hpp
+  src/lifecycle/command_line_arguments.hpp
   src/lifecycle/kernel.cpp
   src/lifecycle/kernel.hpp
   src/lifecycle/kernel_alternatives.cpp
@@ -107,6 +119,10 @@ add_library(
   src/pubsub/local_topics.hpp
   src/scope/context.cpp
   src/scope/context.hpp
+  src/platform_abstraction/abstract_process.hpp
+  src/platform_abstraction/abstract_process_manager.hpp
+  src/platform_abstraction/env.hpp
+  src/platform_abstraction/startable.hpp
   src/scope/context_full.hpp
   src/scope/context_glob.hpp
   src/scope/fixed_pointer.hpp
@@ -128,6 +144,35 @@ add_library(
   src/util/nucleus_paths.hpp
   src/util/permissions.cpp
   src/util/permissions.hpp)
+
+if(UNIX
+   AND NOT APPLE
+   AND NOT WIN32)
+  target_sources(
+    nucleus-obj
+    PRIVATE src/platform_abstraction/linux/error.hpp
+            src/platform_abstraction/linux/file_descriptor.cpp
+            src/platform_abstraction/linux/file_descriptor.hpp
+            src/platform_abstraction/linux/permissions.cpp
+            src/platform_abstraction/linux/permissions.hpp
+            src/platform_abstraction/linux/pipe.cpp
+            src/platform_abstraction/linux/pipe.hpp
+            src/platform_abstraction/linux/process.cpp
+            src/platform_abstraction/linux/process.hpp
+            src/platform_abstraction/linux/process_manager.cpp
+            src/platform_abstraction/linux/process_manager.hpp
+            src/platform_abstraction/linux/rlimits.cpp
+            src/platform_abstraction/linux/rlimits.hpp
+            src/platform_abstraction/linux/startable.cpp
+            src/platform_abstraction/linux/syscall.hpp)
+else()
+  target_sources(
+    nucleus-obj
+    PRIVATE src/platform_abstraction/stub/startable.cpp
+            src/platform_abstraction/stub/process_manager.hpp
+            src/platform_abstraction/stub/process.hpp)
+endif()
+
 target_link_libraries(
   nucleus-obj
   PUBLIC gg_plugin_api
@@ -191,6 +236,7 @@ add_executable(
   tests/api/task_tests.cpp
   tests/data/obfuscator_test.cpp
   tests/data/symbol_tests.cpp
+  tests/deployment/recipe_tests.cpp
   tests/errors/errors_test.cpp
   tests/lifecycle/kernel_tests.cpp
   tests/pubsub/pubsub_tests.cpp
@@ -205,6 +251,7 @@ target_include_directories(nucleus-tests
 catch_discover_tests(nucleus-tests)
 
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
+  file(COPY tests/samples DESTINATION ${CMAKE_BINARY_DIR})
   if(UNIX)
     target_compile_options(nucleus-tests PRIVATE --coverage)
     target_link_options(nucleus-tests PUBLIC --coverage)

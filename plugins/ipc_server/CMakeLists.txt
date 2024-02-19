@@ -13,8 +13,22 @@ if(NOT device-sdk-cpp_POPULATED)
                    EXCLUDE_FROM_ALL)
 endif()
 
-add_library(ipc_server MODULE main.cpp ServerBootstrap.cpp)
+add_library(
+  ipc_server MODULE
+  main.cpp
+  src/authentication_handler.cpp
+  src/authentication_handler.cpp
+  src/authentication_handler.hpp
+  src/authentication_handler.hpp
+  src/ipc_server.cpp
+  src/ipc_server.hpp
+  src/server_bootstrap.cpp
+  src/server_continuation.cpp
+  src/server_continuation.hpp
+  src/server_listener.cpp
+  src/server_listener.hpp)
 target_link_libraries(ipc_server PRIVATE nucleus-core aws-crt-cpp)
+target_include_directories(ipc_server PRIVATE src)
 if(UNIX AND NOT APPLE)
   target_link_options(
     ipc_server PRIVATE

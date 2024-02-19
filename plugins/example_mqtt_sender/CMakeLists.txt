@@ -12,7 +12,9 @@ add_library(example_mqtt_sender MODULE $<TARGET_OBJECTS:example_mqtt_sender_obj>
                                        main.cpp)
 target_link_libraries(example_mqtt_sender PRIVATE nucleus-core)
 target_include_directories(example_mqtt_sender PRIVATE src)
-install(TARGETS example_mqtt_sender DESTINATION plugins)
+
+# Uncomment this to install this sample plugin
+#install(TARGETS example_mqtt_sender DESTINATION plugins)
 
 add_library(example_mqtt_sender_lib STATIC
             $<TARGET_OBJECTS:example_mqtt_sender_obj>)

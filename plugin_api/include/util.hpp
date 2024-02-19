@@ -6,6 +6,7 @@
 #include <iterator>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -13,6 +14,12 @@
 #include <vector>
 
 namespace util {
+    template<typename Test, template<typename...> class Ref>
+    struct is_specialization : std::false_type {};
+
+    template<template<typename...> class Ref, typename... Args>
+    struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
+
     inline bool startsWith(std::string_view target, std::string_view prefix) {
         // prefix that target string starts with prefix string
         if(prefix.length() > target.length()) {
@@ -45,6 +52,16 @@ namespace util {
         } else {
             return target;
         }
+    }
+
+    inline std::vector<std::string> splitWith(const std::string &target, const char token) {
+        std::istringstream ss(target);
+        std::string item;
+        std::vector<std::string> result;
+        while(std::getline(ss, item, token)) {
+            result.push_back(item);
+        }
+        return result;
     }
 
     inline int lowerChar(int c) {

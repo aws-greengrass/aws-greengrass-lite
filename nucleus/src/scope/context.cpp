@@ -130,7 +130,9 @@ namespace scope {
         return lazy()._loader;
     }
     logging::LogManager &Context::logManager() {
-        return *lazy()._logManager;
+        // TODO: normally this would not be safe, however we know logManager() will survive until
+        // context is destroyed. Even so, clean this up at some point
+        return *lazy()._logManager.load();
     }
     Context::~Context() {
         terminate();
@@ -360,7 +362,7 @@ namespace scope {
     void LazyContext::terminate() {
         _taskManager.shutdownAndWait();
         _configManager.publishQueue().stop();
-        _logManager->publishQueue()->stop();
+        _logManager.load()->publishQueue()->stop();
     }
 
     UsingContext::UsingContext() noexcept : _context(context()) {

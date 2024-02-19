@@ -32,7 +32,7 @@ public:
 class MqttClientFailedToStart : public ggapi::GgApiError {
 public:
     MqttClientFailedToStart()
-        : ggapi::GgApiError("MqttClienFailedToStart", "MQTT client failed to start") {
+        : ggapi::GgApiError("MqttClientFailedToStart", "MQTT client failed to start") {
     }
 };
 
@@ -69,6 +69,10 @@ class IotBroker : public ggapi::Plugin {
     std::atomic<ggapi::Struct> _nucleus;
     std::atomic<ggapi::Struct> _system;
 
+    // TES
+    std::string _iotRoleAlias;
+    std::string _savedToken;
+
 public:
     bool onBootstrap(ggapi::Struct data) override;
     bool onBind(ggapi::Struct data) override;
@@ -83,6 +87,11 @@ public:
         static IotBroker instance{};
         return instance;
     }
+
+    // TES
+    bool tesOnStart(ggapi::Struct data);
+    bool tesOnRun(void);
+    ggapi::Struct retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
 
 private:
     static const Keys keys;

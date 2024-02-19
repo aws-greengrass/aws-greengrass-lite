@@ -28,7 +28,7 @@ The `plugin_api` directory has the interface plugins should build against.
 | SubscribeToComponentUpdates             |           |   soon   |                              |
 | DeferComponentUpdate                    |           |   soon   |                              |
 | GetConfiguration                        |           |   soon   |                              |
-| UdateConfiguration                      |           |   soon   |                              |
+| UpdateConfiguration                     |           |   soon   |                              |
 | SubscribeToConfigurationUpdate          |           |   soon   |                              |
 | SubscribeToValidateConfigurationUpdates |           |   soon   |                              |
 | SendConfigurationValidityReport         |           |   soon   |                              |
@@ -37,7 +37,7 @@ The `plugin_api` directory has the interface plugins should build against.
 | GetComponentDetails                     |           |  future  |                              |
 | RestartComponent                        |           |  future  |                              |
 | StopComponent                           |           |  future  |                              |
-| CreateLocalDeployment                   |           |  future  |                              |
+| CreateLocalDeployment                   |     x     |   now    | native_plugin                |
 | CancelLocalDeployment                   |           |  future  |                              |
 | GetLocalDeploymentStatus                |           |  future  |                              |
 | ListLocalDeployments                    |           |  future  |                              |
@@ -61,7 +61,7 @@ The `plugin_api` directory has the interface plugins should build against.
 
 ### Installing Greengrass Lite binary
 
-currently install is performed by the compile from source steps below.
+Currently, install is performed by the compile from source steps below.
 
 ### Configuring Greengrass Lite
 
@@ -84,13 +84,29 @@ Configure the following in your config file
 
 ### Running Greengrass Lite
 
-For these examples greengrass is installed in the ~/gglite_testing folder. This
+For these examples, greengrass is installed in the ~/gglite_testing folder. This
 can be changed to suit your system. The settings shown will process the
 config.yaml and populate the config folder with pre-processed versions. If you
 change config.yaml you will need to delete the preprocessed files.
 
 ```bash
 ~/gglite_testing/bin/greengrass-lite -r ~/gglite_testing --init-config ~/gglite_testing/config/config.yaml
+```
+
+### Deployments
+
+Follow the instructions
+[here](https://docs.aws.amazon.com/greengrass/v2/developerguide/create-first-component.html)
+to create a sample component.
+
+#### CreateLocalDeployment
+
+To create a deployment, use the
+[Greengrass CLI](https://github.com/aws-greengrass/aws-greengrass-cli) component
+and run
+
+```bash
+./greengrass-cli --ggcRootPath=~/gglite_testing deployment create --recipeDir /path/to/recipes --artifactDir /path/to/artifacts --merge "<component-name>=<version>"
 ```
 
 ### Compiling Greengrass Lite
@@ -132,7 +148,7 @@ make -C build -j4 install/strip
 
 ## Dependencies
 
-The following dependencies are required to build Nucleus and all of the included
+The following dependencies are required to build Nucleus and all the included
 plugins
 
 - Linux kernel >=5.15

@@ -20,6 +20,11 @@ namespace data {
         explicit SharedList(const scope::UsingContext &context) : ListModelBase{context} {
         }
 
+        void reserve(size_t size) {
+            _elements.reserve(size);
+        }
+
+        void push(const StructElement &element);
         void put(int32_t idx, const StructElement &element) override;
         void insert(int32_t idx, const StructElement &element) override;
         uint32_t size() const override;

@@ -1,5 +1,6 @@
 #pragma once
 #include "errors/errors.hpp"
+#include <atomic_shared.hpp>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -10,7 +11,6 @@ namespace scope {
     class ThreadContextContainer;
     class PerThreadContext;
     class NucleusCallScopeContext;
-    class CallScope;
 
     using ContextRef = std::shared_ptr<Context>;
     using WeakContext = std::weak_ptr<Context>;

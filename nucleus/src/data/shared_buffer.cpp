@@ -1,5 +1,6 @@
 #include "shared_buffer.hpp"
 #include "conv/json_conv.hpp"
+#include "conv/yaml_conv.hpp"
 #include <buffer_stream.hpp>
 #include <sstream>
 
@@ -115,6 +116,19 @@ namespace data {
         }
         guard.unlock();
         return data::Boxed::box(context(), value);
+    }
+
+    std::shared_ptr<ContainerModelBase> SharedBuffer::parseYaml() {
+        // Prevent modification of buffer during conversion - saves double-buffering
+        std::shared_lock guard{_mutex};
+
+        util::MemoryReader memReader(_buffer.data(), _buffer.size());
+        util::BufferInStreamBase<util::MemoryReader> istream(memReader);
+        auto target = std::make_shared<data::SharedStruct>(context());
+        conv::YamlReader reader(context(), target);
+        reader.read(istream);
+        guard.unlock();
+        return data::Boxed::box(context(), target);
     }
 
     void SharedBuffer::write(std::ostream &stream) const {

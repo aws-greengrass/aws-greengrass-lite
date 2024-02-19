@@ -28,8 +28,8 @@ namespace pubsub {
 
     class TopicSubTask : public tasks::SubTask {
     private:
-        data::Symbol _topic;
-        std::shared_ptr<tasks::Callback> _callback;
+        const data::Symbol _topic;
+        const std::shared_ptr<tasks::Callback> _callback;
 
     public:
         explicit TopicSubTask(
@@ -47,9 +47,9 @@ namespace pubsub {
     //
     class Listener : public data::TrackedObject {
     private:
-        data::Symbol _topic;
-        std::weak_ptr<Listeners> _parent;
-        std::shared_ptr<tasks::Callback> _callback;
+        const data::Symbol _topic;
+        const std::weak_ptr<Listeners> _parent;
+        const std::shared_ptr<tasks::Callback> _callback;
 
     public:
         using BadCastError = errors::InvalidSubscriberError;
@@ -77,7 +77,7 @@ namespace pubsub {
     class Listeners : public util::RefObject<Listeners>, protected scope::UsesContext {
     private:
         data::Symbol _topic;
-        std::vector<std::weak_ptr<Listener>> _listeners;
+        std::vector<std::weak_ptr<Listener>> _listeners; // Protected by mutex
         PubSubManager &manager() const {
             return context()->lpcTopics();
         }

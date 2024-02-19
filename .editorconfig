@@ -12,7 +12,7 @@ max_line_length = 80
 [*.{cpp,hpp,c,h}]
 max_line_length = 100
 
-[{*.{nix,yml,json,cmake},CMakeLists.txt}]
+[{*.{nix,yml,yaml,json,cmake},CMakeLists.txt}]
 indent_size = 2
 
 [*.md]

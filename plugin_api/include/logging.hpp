@@ -1,4 +1,5 @@
 #pragma once
+
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -20,10 +21,13 @@ namespace logging {
     enum class Level { None, Trace, Debug, Info, Warn, Error };
     enum class Format { Text, Json };
     enum class OutputType { File, Console };
+
     template<typename Traits>
     class LogManagerBase;
+
     template<typename Traits>
     class LoggerBase;
+
     template<typename Traits>
     class Event;
 
@@ -72,10 +76,15 @@ namespace logging {
 
     public:
         LogManagerBase() = default;
+
         LogManagerBase(const LogManagerBase &) noexcept = delete;
+
         LogManagerBase(LogManagerBase &&) noexcept = delete;
+
         LogManagerBase &operator=(const LogManagerBase &) noexcept = delete;
+
         LogManagerBase &operator=(LogManagerBase &&) noexcept = delete;
+
         virtual ~LogManagerBase() noexcept = default;
 
         SymbolType toSymbol(Level level) const {
@@ -111,6 +120,7 @@ namespace logging {
     namespace detail {
         template<typename Traits>
         class LoggerImpl;
+
         template<typename Traits>
         class EventImplBase;
 
@@ -138,17 +148,24 @@ namespace logging {
                 : _manager(other._manager), _loggerName(other._loggerName),
                   _context(other._context.clone()) {
             }
+
             LoggerImpl(LoggerImpl &&) = delete;
+
             LoggerImpl &operator=(const LoggerImpl &) = delete;
+
             LoggerImpl &operator=(LoggerImpl &&) = delete;
+
             ~LoggerImpl() noexcept = default;
+
             LoggerImpl(
                 const std::shared_ptr<LogManagerBase<Traits>> &manager, SymbolArgType loggerName)
                 : _manager(manager), _loggerName(loggerName) {
             }
+
             void addKV(SymbolArgType key, const ArgValue &val) {
                 Traits::putStruct(_context, key, val);
             }
+
             [[nodiscard]] StructType cloneContext() const {
                 return Traits::cloneStruct(_context);
             }
@@ -212,18 +229,29 @@ namespace logging {
             using ErrorType = typename Traits::ErrorType;
 
             EventImplBase() noexcept = default;
+
             EventImplBase(const EventImplBase &) noexcept = default;
+
             EventImplBase(EventImplBase &&) noexcept = default;
+
             EventImplBase &operator=(const EventImplBase &) noexcept = default;
+
             EventImplBase &operator=(EventImplBase &&) noexcept = default;
+
             virtual ~EventImplBase() noexcept = default;
 
             virtual void setCause(const ErrorType &) = 0;
+
             virtual void setEvent(SymbolArgType) = 0;
+
             virtual void setMessage(const ArgValue &) = 0;
+
             virtual void setLazyMessage(const std::function<const ArgValue &()> &) = 0;
+
             virtual void addKV(SymbolArgType, const ArgValue &) = 0;
+
             virtual void addLazyKV(SymbolArgType, const std::function<const ArgValue &()> &) = 0;
+
             virtual void commit() = 0;
         };
 
@@ -238,18 +266,25 @@ namespace logging {
 
             void setCause(const ErrorType &) override {
             }
+
             void setEvent(SymbolArgType) override {
             }
+
             void setMessage(const ArgValue &) override {
             }
+
             void setLazyMessage(const std::function<const ArgValue &()> &) override {
             }
+
             void addKV(SymbolArgType, const ArgValue &) override {
             }
+
             void addLazyKV(SymbolArgType, const std::function<const ArgValue &()> &) override {
             }
+
             void commit() override {
             }
+
             inline static std::shared_ptr<EventImplBase<Traits>> self() {
                 const static std::shared_ptr<EventImplBase<Traits>> singleton{
                     std::make_shared<EventNoopImpl>()};
@@ -288,6 +323,7 @@ namespace logging {
                   _level(level) {
                 Traits::putStruct(_data, _manager->CONTEXTS_KEY, _context);
             }
+
             void setCause(const ErrorType &error) override {
                 StructType cause{Traits::newStruct()};
                 SymbolType kind = error.kind();
@@ -297,25 +333,31 @@ namespace logging {
                 }
                 Traits::putStruct(cause, _manager->CAUSE_KIND_KEY, kind);
                 Traits::putStruct(cause, _manager->CAUSE_MESSAGE_KEY, what);
-                Traits::putStruct(cause, _manager->CAUSE_KEY, cause);
+                Traits::putStruct(_data, _manager->CAUSE_KEY, cause);
                 setMessage(what);
             }
+
             void setEvent(SymbolArgType eventType) override {
                 Traits::putStruct(_data, _manager->EVENT_KEY, eventType);
             }
+
             void setMessage(const ArgValue &message) override {
                 Traits::putStruct(_data, _manager->MESSAGE_KEY, message);
             }
+
             void setLazyMessage(const std::function<const ArgValue &()> &func) override {
                 setMessage(func());
             }
+
             void addKV(SymbolArgType key, const ArgValue &value) override {
                 Traits::putStruct(_context, key, value);
             }
+
             void addLazyKV(
                 SymbolArgType key, const std::function<const ArgValue &()> &func) override {
                 addKV(key, func());
             }
+
             void commit() override {
                 Traits::putStruct(_data, _manager->LEVEL_KEY, _manager->toSymbol(_level));
                 Traits::putStruct(
@@ -367,10 +409,12 @@ namespace logging {
             _impl->setCause(cause);
             return *this;
         }
+
         Event &cause(const std::exception &cause) {
             _impl->setCause(ErrorType::of(cause));
             return *this;
         }
+
         /**
          * Log an event type - this is expected to be a 'constant' symbol
          */
@@ -378,6 +422,7 @@ namespace logging {
             _impl->setEvent(eventType);
             return *this;
         }
+
         /**
          * Add context information to event
          */
@@ -385,6 +430,7 @@ namespace logging {
             _impl->addKV(key, value);
             return *this;
         }
+
         /**
          * Add context information to event with lazy evaluation as a lambda
          */
@@ -392,6 +438,7 @@ namespace logging {
             _impl->addLazyKV(key, fn);
             return *this;
         }
+
         /**
          * Commit the log entry and throw exception
          */
@@ -400,18 +447,21 @@ namespace logging {
             _impl->commit();
             throw err;
         }
+
         /**
          * Commit the log entry and throw exception with translation
          */
         [[noreturn]] void logAndThrow(const std::exception &err) {
             logAndThrow(ErrorType::of(err));
         }
+
         /**
          * Commit the log entry with no/existing message
          */
         void log() {
             _impl->commit();
         }
+
         /**
          * Commit the log entry with a message
          */
@@ -419,6 +469,7 @@ namespace logging {
             _impl->setMessage(value);
             _impl->commit();
         }
+
         /**
          * Commit the log entry with a lazy-evaluation message
          */
@@ -439,6 +490,7 @@ namespace logging {
         using SymbolType = typename Traits::SymbolType;
         using SymbolArgType = typename Traits::SymbolArgType;
         using ArgValue = typename Traits::ArgType;
+
         explicit LoggerBase(const std::shared_ptr<detail::LoggerImpl<Traits>> &impl) : _impl(impl) {
         }
 
@@ -478,54 +530,63 @@ namespace logging {
         [[nodiscard]] Event<Traits> atTrace() const {
             return atLevel(Level::Trace);
         }
+
         /**
          * Builder for a trace-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atTrace(SymbolArgType eventType) const {
             return atTrace().event(eventType);
         }
+
         /**
          * Builder for a debug-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atDebug() const {
             return atLevel(Level::Debug);
         }
+
         /**
          * Builder for a debug-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atDebug(SymbolArgType eventType) const {
             return atDebug().event(eventType);
         }
+
         /**
          * Builder for an info-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atInfo() const {
             return atLevel(Level::Info);
         }
+
         /**
          * Builder for an info-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atInfo(SymbolArgType eventType) const {
             return atInfo().event(eventType);
         }
+
         /**
          * Builder for an warn-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atWarn() const {
             return atLevel(Level::Warn);
         }
+
         /**
          * Builder for an warn-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atWarn(SymbolArgType eventType) const {
             return atWarn().event(eventType);
         }
+
         /**
          * Builder for an error-level event. If not logging, the returned Event is a no-op.
          */
         [[nodiscard]] Event<Traits> atError() const {
             return atLevel(Level::Error);
         }
+
         /**
          * Builder for an error-level event. If not logging, the returned Event is a no-op.
          */
@@ -540,24 +601,30 @@ namespace logging {
         [[nodiscard]] bool isTraceEnabled() const {
             return isEnabled(Level::Trace);
         }
+
         [[nodiscard]] bool isDebugEnabled() const {
             return isEnabled(Level::Debug);
         }
+
         [[nodiscard]] bool isInfoEnabled() const {
             return isEnabled(Level::Info);
         }
+
         [[nodiscard]] bool isWarnEnabled() const {
             return isEnabled(Level::Warn);
         }
+
         [[nodiscard]] bool isErrorEnabled() const {
             return isEnabled(Level::Error);
         }
+
         /**
          * Change level for this specific name
          */
         void setLevel(Level level) {
             return _impl->setLevel(level);
         }
+
         /**
          * Copy this instance for purpose of applying additional key/value pairs
          */

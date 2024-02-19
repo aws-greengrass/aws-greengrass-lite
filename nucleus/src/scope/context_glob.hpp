@@ -29,7 +29,7 @@ namespace scope {
         tasks::TaskManager _taskManager;
         pubsub::PubSubManager _lpcTopics;
         plugins::PluginLoader _loader;
-        std::shared_ptr<logging::LogManager> _logManager;
+        util::SafeSharedPtr<logging::LogManager> _logManager;
     };
 
 } // namespace scope

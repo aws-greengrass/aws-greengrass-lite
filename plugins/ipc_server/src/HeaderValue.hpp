@@ -1,15 +1,16 @@
 #pragma once
 
-#include <optional>
 #include <util.hpp>
 
 #include <aws/common/byte_order.h>
 #include <aws/common/uuid.h>
+#include <aws/crt/Types.h>
 #include <aws/event-stream/event_stream.h>
 
 #include <chrono>
 #include <ios>
 #include <iostream>
+#include <optional>
 #include <string_view>
 #include <type_traits>
 #include <variant>
@@ -72,38 +73,6 @@ void to_network_bytes(uint8_t (&buffer)[N], const From &from) noexcept {
     }
 }
 
-// NOLINTBEGIN(*-union-access)
-inline std::optional<HeaderValue> getValue(
-    const aws_event_stream_header_value_pair &header) noexcept {
-    switch(header.header_value_type) {
-        case AWS_EVENT_STREAM_HEADER_BOOL_TRUE:
-            return true;
-        case AWS_EVENT_STREAM_HEADER_BOOL_FALSE:
-            return false;
-        case AWS_EVENT_STREAM_HEADER_BYTE:
-            return from_network_bytes<uint8_t>(header.header_value.static_val);
-        case AWS_EVENT_STREAM_HEADER_INT16:
-            return from_network_bytes<int16_t>(header.header_value.static_val);
-        case AWS_EVENT_STREAM_HEADER_INT32:
-            return from_network_bytes<int32_t>(header.header_value.static_val);
-        case AWS_EVENT_STREAM_HEADER_INT64:
-            return from_network_bytes<int64_t>(header.header_value.static_val);
-        case AWS_EVENT_STREAM_HEADER_BYTE_BUF:
-            return util::Span{header.header_value.variable_len_val, header.header_value_len};
-        case AWS_EVENT_STREAM_HEADER_STRING:
-            return util::as_writeable_bytes(
-                util::Span{header.header_value.variable_len_val, header.header_value_len});
-        case AWS_EVENT_STREAM_HEADER_TIMESTAMP:
-            return Headervaluetypes::timestamp{
-                from_network_bytes<uint64_t>(header.header_value.static_val)};
-        case AWS_EVENT_STREAM_HEADER_UUID: {
-            return from_network_bytes<aws_uuid>(header.header_value.static_val);
-        }
-        default:
-            return std::nullopt;
-    }
-}
-
 static inline aws_event_stream_header_value_type getType(const HeaderValue &variant) noexcept {
     return std::visit(
         [](auto &&value) -> aws_event_stream_header_value_type {
@@ -155,8 +124,39 @@ makeHeader(std::string_view name, const T &val) noexcept {
     return args;
 }
 
-// NOLINTEND(*-union-access)
+// NOLINTBEGIN(*-union-access)
+inline std::optional<HeaderValue> getValue(
+    const aws_event_stream_header_value_pair &header) noexcept {
+    switch(header.header_value_type) {
+        case AWS_EVENT_STREAM_HEADER_BOOL_TRUE:
+            return true;
+        case AWS_EVENT_STREAM_HEADER_BOOL_FALSE:
+            return false;
+        case AWS_EVENT_STREAM_HEADER_BYTE:
+            return from_network_bytes<uint8_t>(header.header_value.static_val);
+        case AWS_EVENT_STREAM_HEADER_INT16:
+            return from_network_bytes<int16_t>(header.header_value.static_val);
+        case AWS_EVENT_STREAM_HEADER_INT32:
+            return from_network_bytes<int32_t>(header.header_value.static_val);
+        case AWS_EVENT_STREAM_HEADER_INT64:
+            return from_network_bytes<int64_t>(header.header_value.static_val);
+        case AWS_EVENT_STREAM_HEADER_BYTE_BUF:
+            return util::Span{header.header_value.variable_len_val, header.header_value_len};
+        case AWS_EVENT_STREAM_HEADER_STRING:
+            return util::as_writeable_bytes(
+                util::Span{header.header_value.variable_len_val, header.header_value_len});
+        case AWS_EVENT_STREAM_HEADER_TIMESTAMP:
+            return Headervaluetypes::timestamp{
+                from_network_bytes<uint64_t>(header.header_value.static_val)};
+        case AWS_EVENT_STREAM_HEADER_UUID: {
+            return from_network_bytes<aws_uuid>(header.header_value.static_val);
+        }
+        default:
+            return std::nullopt;
+    }
+}
 
+// NOLINTEND(*-union-access)
 inline auto parseHeader(const aws_event_stream_header_value_pair &pair) {
     return std::make_pair(
         std::string_view{std::data(pair.header_name), pair.header_name_len}, getValue(pair));
@@ -165,7 +165,6 @@ inline auto parseHeader(const aws_event_stream_header_value_pair &pair) {
 //
 // Operator Overloads
 //
-
 inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
     return std::visit(
         [&os](auto &&val) -> std::ostream & {
@@ -200,6 +199,79 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
         v);
 }
 
+static std::ostream &operator<<(
+    std::ostream &os, const aws_event_stream_rpc_message_args &message_args) {
+    // print all headers and the payload
+    using namespace std::string_view_literals;
+    for(auto &&item : util::Span{message_args.headers, message_args.headers_count}) {
+        auto &&[name, value] = parseHeader(item);
+        os << name << '=';
+        if(value) {
+            os << *value;
+        } else {
+            os << "unsupported header_value_type: " << item.header_value_type;
+        }
+        os << '\n';
+    }
+    auto sv = Aws::Crt::ByteCursorToStringView(aws_byte_cursor_from_buf(message_args.payload));
+    return os.write(sv.data(), static_cast<std::streamsize>(sv.size()));
+}
+
+template<class SendFn>
+static int sendMessage(SendFn fn, aws_event_stream_rpc_message_type message_type, uint32_t flags) {
+    auto payload = Aws::Crt::ByteBufFromEmptyArray(nullptr, 0);
+
+    aws_event_stream_rpc_message_args args = {
+        .headers = nullptr,
+        .headers_count = 0,
+        .payload = &payload,
+        .message_type = message_type,
+        .message_flags = flags,
+    };
+
+    std::cerr << "Sending message:\n" << args << '\n';
+
+    return fn(&args);
+}
+
+template<class SendFn>
+static int sendMessage(
+    SendFn fn,
+    util::Span<aws_event_stream_header_value_pair> headers,
+    ggapi::Buffer payload,
+    aws_event_stream_rpc_message_type message_type,
+    uint32_t flags) {
+    aws_array_list headers_list{
+        .alloc = nullptr,
+        .current_size = headers.size_bytes(),
+        .length = std::size(headers),
+        .item_size = sizeof(aws_event_stream_header_value_pair),
+        .data = std::data(headers),
+    };
+
+    auto payloadVec = payload.get<Aws::Crt::Vector<uint8_t>>(
+        0, std::min(payload.size(), uint32_t{AWS_EVENT_STREAM_MAX_MESSAGE_SIZE}));
+    auto payloadBytes = Aws::Crt::ByteBufFromArray(payloadVec.data(), payloadVec.size());
+
+    aws_event_stream_rpc_message_args args = {
+        .headers = std::data(headers),
+        .headers_count = std::size(headers),
+        .payload = &payloadBytes,
+        .message_type = message_type,
+        .message_flags = flags,
+    };
+    std::cerr << "Sending message:\n" << args << '\n';
+
+    return fn(&args);
+}
+
+extern "C" {
+static void onMessageFlush(int error_code, void *user_data) noexcept {
+    std::ignore = user_data;
+    std::ignore = error_code;
+}
+}
+
 namespace Headers {
     using namespace std::string_view_literals;
     inline constexpr auto VERSION_HEADER = ":version"sv;
@@ -208,6 +280,6 @@ namespace Headers {
 } // namespace Headers
 
 namespace ContentType {
-    static std::string JSON = "application/json";
-    static std::string Text = "text/plain";
+    static inline std::string JSON = "application/json";
+    static inline std::string Text = "text/plain";
 } // namespace ContentType

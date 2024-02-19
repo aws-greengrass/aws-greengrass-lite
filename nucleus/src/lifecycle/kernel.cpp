@@ -3,9 +3,14 @@
 #include "config/yaml_config.hpp"
 #include "deployment/device_configuration.hpp"
 #include "logging/log_queue.hpp"
+#include "platform_abstraction/abstract_process.hpp"
+#include "platform_abstraction/abstract_process_manager.hpp"
+#include "platform_abstraction/startable.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
 #include <filesystem>
+#include <memory>
+#include <optional>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
     logging::Logger::of("com.aws.greengrass.lifecycle.Kernel");
@@ -19,6 +24,8 @@ namespace lifecycle {
 
     Kernel::Kernel(const scope::UsingContext &context) : scope::UsesContext(context) {
         _nucleusPaths = std::make_shared<util::NucleusPaths>();
+        _deploymentManager =
+            std::make_unique<deployment::DeploymentManager>(scope::context(), *this);
         data::SymbolInit::init(context, {&SERVICES_TOPIC_KEY});
     }
 
@@ -56,6 +63,7 @@ namespace lifecycle {
         initConfigAndTlog(commandLine);
         initDeviceConfiguration(commandLine);
         initializeNucleusFromRecipe();
+        initializeProcessManager(commandLine);
     }
 
     //
@@ -172,6 +180,10 @@ namespace lifecycle {
         // TODO: missing code
     }
 
+    void Kernel::initializeProcessManager(CommandLine &commandLine) {
+        _processManager = std::make_unique<ipc::ProcessManager>();
+    }
+
     void Kernel::setupProxy() {
         // TODO: missing code
     }
@@ -265,6 +277,8 @@ namespace lifecycle {
             deployment::DeploymentConsts::STAGE_MAP.rlookup(_deploymentStageAtLaunch)
                 .value_or(data::Symbol{});
 
+        _deploymentManager->start();
+
         switch(_deploymentStageAtLaunch) {
             case deployment::DeploymentStage::DEFAULT:
                 LOG.atInfo("boot").kv("deploymentStage", deploymentSymbol).log("Normal boot");
@@ -331,6 +345,7 @@ namespace lifecycle {
             plugin.lifecycle(loader.TERMINATE, data);
         });
         getConfig().publishQueue().stop();
+        _deploymentManager->stop();
         context()->logManager().publishQueue()->stop();
     }
 
@@ -378,9 +393,10 @@ namespace lifecycle {
 
     void Kernel::softShutdown(std::chrono::seconds timeoutSeconds) {
         getConfig().publishQueue().drainQueue();
+        _deploymentManager->clearQueue();
         LOG.atDebug("system-shutdown").log("Starting soft shutdown");
         stopAllServices(timeoutSeconds);
-        LOG.atDebug("system-shutdown").log("Closing transaciton log");
+        LOG.atDebug("system-shutdown").log("Closing transaction log");
         _tlog->commit();
         writeEffectiveConfig();
     }
@@ -388,4 +404,105 @@ namespace lifecycle {
         return context()->configManager();
     }
 
+    ipc::ProcessId Kernel::startProcess(
+        std::string script,
+        std::chrono::seconds timeout,
+        bool requiresPrivilege,
+        std::unordered_map<std::string, std::optional<std::string>> env,
+        std::string note,
+        std::optional<ipc::CompletionCallback> onComplete) {
+        using namespace std::string_literals;
+
+        auto shell = [this]() -> std::string {
+            try {
+                return _deviceConfiguration->getRunWithDefaultPosixShell().getString();
+            } catch(const std::bad_cast &) {
+                return "bash"s;
+            }
+        }();
+
+        auto [user, group] =
+            [this]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
+            auto cfg = _deviceConfiguration->getRunWithDefaultPosixUser();
+            if(!cfg) {
+                return {};
+            }
+            auto str = cfg.getString();
+            auto it = str.find(':');
+            if(it == std::string::npos) {
+                return {str, std::nullopt};
+            }
+            return {str.substr(0, it), str.substr(it + 1)};
+        }();
+
+        std::string container_uri = "http://localhost:8090/2016-11-01/credentialprovider/";
+
+        auto [socketPath, authToken] =
+            [this, note]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
+            auto request = ggapi::Struct::create();
+            // TODO: is note correct here?
+            request.put("serviceName", note);
+            auto result = ggapi::Task::sendToTopic("aws.greengrass.RequestIpcInfo", request);
+            if(!result) {
+                return {};
+            };
+
+            auto socketPath =
+                result.hasKey("domain_socket_path")
+                    ? std::make_optional(result.get<std::string>("domain_socket_path"))
+                    : std::nullopt;
+            auto authToken = result.hasKey("cli_auth_token")
+                                 ? std::make_optional(result.get<std::string>("cli_auth_token"))
+                                 : std::nullopt;
+            return {socketPath, authToken};
+        }();
+
+        env.merge(decltype(env){
+            // TODO: Should entire nucleus env be copied?
+            {std::string{ipc::PATH_ENVVAR}, ipc::getEnviron(ipc::PATH_ENVVAR)},
+            // TODO: auth token per Component
+            {"SVCUID"s, authToken},
+            {"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"s, socketPath},
+            {"AWS_CONTAINER_CREDENTIALS_FULL_URI"s, container_uri},
+            {"AWS_CONTAINER_AUTHORIZATION_TOKEN"s, authToken},
+        });
+
+        auto startable =
+            ipc::Startable{}
+                .withCommand(shell)
+                .withEnvironment(env)
+                // TODO: Windows "run raw script" switch
+                .withArguments({"-c", std::move(script)})
+                // TODO: allow output to pass back to caller if subscription is specified
+                .withOutput([note](util::Span<const char> buffer) {
+                    std::cout << '[' << note << "]: ";
+                    std::cout.write(buffer.data(), static_cast<std::streamsize>(buffer.size()))
+                        << '\n';
+                })
+                .withError([note](util::Span<const char> buffer) {
+                    std::cerr << '[' << note << "]: ";
+                    std::cerr.write(buffer.data(), static_cast<std::streamsize>(buffer.size()))
+                        << '\n';
+                });
+
+        if(onComplete) {
+            startable.withCompletion(onComplete.value());
+        }
+
+        if(!requiresPrivilege && user) {
+            startable.asUser(*user);
+            if(group) {
+                startable.asGroup(*group);
+            }
+        }
+
+        return _processManager->registerProcess([startable]() -> std::unique_ptr<ipc::Process> {
+            try {
+                return startable.start();
+            } catch(const std::exception &e) {
+                LOG.atError().event("process-start-error").log(e.what());
+                return {};
+            }
+        }());
+    }
 } // namespace lifecycle

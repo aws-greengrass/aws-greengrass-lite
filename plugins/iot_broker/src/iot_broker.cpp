@@ -330,11 +330,15 @@ bool IotBroker::onStart(ggapi::Struct data) {
     } catch(const std::exception &e) {
         std::cerr << "[mqtt-plugin] Error: " << e.what() << std::endl;
     }
+
+    // Fetch the inital token from TES
+    tesOnStart(data);
     return returnValue;
 }
 
 bool IotBroker::onRun(ggapi::Struct data) {
-    return false;
+    tesOnRun();
+    return true;
 }
 
 bool IotBroker::onTerminate(ggapi::Struct structData) {

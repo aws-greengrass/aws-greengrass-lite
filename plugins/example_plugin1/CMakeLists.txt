@@ -4,4 +4,5 @@ project(example_plugin1)
 add_library(example_plugin1 MODULE main.cpp)
 target_link_libraries(example_plugin1 PRIVATE nucleus-core)
 
-install(TARGETS example_plugin1 DESTINATION plugins)
+# Uncomment this to install this sample plugin
+#install(TARGETS example_plugin1 DESTINATION plugins)

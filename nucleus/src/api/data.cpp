@@ -477,6 +477,14 @@ bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) noexcept {
     });
 }
 
+uint32_t ggapiStructKeys(uint32_t structHandle) noexcept {
+    return ggapi::trapErrorReturn<uint32_t>([structHandle]() {
+        auto context = scope::context();
+        auto ss{context->objFromInt<StructModelBase>(structHandle)};
+        return scope::NucleusCallScopeContext::intHandle(ss->getKeysAsList());
+    });
+}
+
 uint32_t ggapiGetSize(uint32_t containerHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([containerHandle]() {
         auto context = scope::context();
@@ -683,19 +691,19 @@ uint32_t ggapiFromJson(uint32_t bufferHandle) noexcept {
 }
 
 uint32_t ggapiToYaml(uint32_t objectHandle) noexcept {
-    // TODO: Implement like ggapiToJson
     return ggapi::trapErrorReturn<uint32_t>([objectHandle]() {
-        std::ignore = objectHandle;
-        throw std::runtime_error("ggapiToYaml Not implemented");
-        return 0;
+        auto context = scope::context();
+        auto container = context->objFromInt<data::ContainerModelBase>(objectHandle);
+        auto buffer = container->toYaml();
+        return scope::NucleusCallScopeContext::intHandle(buffer);
     });
 }
 
 uint32_t ggapiFromYaml(uint32_t bufferHandle) noexcept {
-    // TODO: Implement like ggapiFromJson
     return ggapi::trapErrorReturn<uint32_t>([bufferHandle]() {
-        std::ignore = bufferHandle;
-        throw std::runtime_error("ggapiToYaml Not implemented");
-        return 0;
+        auto context = scope::context();
+        auto buffer = context->objFromInt<data::SharedBuffer>(bufferHandle);
+        auto container = buffer->parseYaml();
+        return scope::NucleusCallScopeContext::intHandle(container);
     });
 }
