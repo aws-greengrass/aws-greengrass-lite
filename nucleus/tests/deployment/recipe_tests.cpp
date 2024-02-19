@@ -1,14 +1,15 @@
 #include "deployment/recipe_loader.hpp"
-#include "scope/context_full.hpp"
+#include "test_tools.hpp"
 #include <catch2/catch_all.hpp>
 
 using Catch::Matchers::Equals;
 
 SCENARIO("Recipe Reader", "[deployment]") {
+    auto samples = test::samples();
     GIVEN("An instance of recipe reader") {
         auto yaml_reader = deployment::RecipeLoader();
         WHEN("Reading a hello world recipe") {
-            auto recipe = yaml_reader.read("samples/hello_recipe.yml");
+            auto recipe = yaml_reader.read(samples / "hello_recipe.yml");
             THEN("The recipe is read") {
                 REQUIRE_THAT(recipe.formatVersion, Equals("2020-01-25"));
                 REQUIRE_THAT(recipe.componentName, Equals("com.example.HelloWorld"));
@@ -60,7 +61,7 @@ SCENARIO("Recipe Reader", "[deployment]") {
             }
         }
         WHEN("Reading a recipe with dependencies") {
-            auto recipe = yaml_reader.read("samples/sample1.yaml");
+            auto recipe = yaml_reader.read(samples / "sample1.yaml");
             THEN("The recipe is read") {
                 REQUIRE_THAT(recipe.formatVersion, Equals("2020-01-25"));
                 REQUIRE_THAT(recipe.componentName, Equals("com.example.HelloWorld"));
@@ -119,7 +120,7 @@ SCENARIO("Recipe Reader", "[deployment]") {
             }
         }
         WHEN("Reading a recipe with artifacts") {
-            auto recipe = yaml_reader.read("samples/plugin_recipe.yaml");
+            auto recipe = yaml_reader.read(samples / "plugin_recipe.yaml");
             THEN("The recipe is read") {
                 REQUIRE_THAT(recipe.getFormatVersion(), Equals("2020-01-25"));
                 REQUIRE_THAT(recipe.getComponentName(), Equals("aws.greengrass.some-plugin"));
@@ -165,7 +166,7 @@ SCENARIO("Recipe Reader", "[deployment]") {
         }
 
         WHEN("Reading a recipe with selections") {
-            auto recipe = yaml_reader.read("samples/selection_recipe.yml");
+            auto recipe = yaml_reader.read(samples / "selection_recipe.yml");
             THEN("The recipe is read") {
                 REQUIRE_THAT(recipe.formatVersion, Equals("2020-01-25"));
                 REQUIRE_THAT(recipe.componentName, Equals("com.example.HelloWorld"));

@@ -4,6 +4,20 @@
 #include <random>
 
 namespace test {
+
+    //
+    // Access samples directory
+    //
+    inline std::filesystem::path samples() {
+        std::array<std::filesystem::path, 2> alts = {"samples", "../samples"};
+        for(const auto &alt : alts) {
+            if(std::filesystem::exists(alt)) {
+                return std::filesystem::absolute(alt);
+            }
+        }
+        throw std::runtime_error("Cannot find samples directory");
+    }
+
     //
     // Generate temporary directory for testing
     //
@@ -58,4 +72,5 @@ namespace test {
             remove();
         }
     };
+
 } // namespace test
