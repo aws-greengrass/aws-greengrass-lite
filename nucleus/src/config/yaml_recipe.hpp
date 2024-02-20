@@ -270,10 +270,10 @@ namespace config {
 
         void read(const std::filesystem::path &path) {
             std::ifstream stream{path};
-            stream.exceptions(std::ios::failbit | std::ios::badbit);
             if(!stream.is_open()) {
                 throw std::runtime_error("Unable to read config file");
             }
+            stream.exceptions(std::ios::failbit | std::ios::badbit);
             read(stream);
         }
 
