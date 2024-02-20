@@ -3,7 +3,7 @@ name: Test
 on:
   push:
     branches:
-      - newQemuTrail
+      - main
   workflow_dispatch:
   pull_request:
       branches: ["main"]
@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   build:
-    timeout-minutes: 150
+    timeout-minutes: 100
     strategy:
       fail-fast: false
       matrix:
