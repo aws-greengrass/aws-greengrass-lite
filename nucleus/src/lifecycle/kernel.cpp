@@ -464,8 +464,7 @@ namespace lifecycle {
                     "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"s, std::move(socketPath))
                 .addEnvironment("AWS_CONTAINER_CREDENTIALS_FULL_URI"s, std::move(container_uri))
                 .addEnvironment("AWS_CONTAINER_AUTHORIZATION_TOKEN"s, std::move(authToken))
-                .withCommand(shell)
-                .withEnvironment(env)
+                .addEnvironment("AWS_IOT_THING_NAME"s, getThingName())
                 // TODO: Windows "run raw script" switch
                 .withArguments({"-c", std::move(script)})
                 // TODO: allow output to pass back to caller if subscription is specified
@@ -509,7 +508,7 @@ namespace lifecycle {
             }();
             if(user) {
                 startable.asUser(std::move(user).value());
-            if(group) {
+                if(group) {
                     startable.asGroup(std::move(group).value());
                 }
             }
