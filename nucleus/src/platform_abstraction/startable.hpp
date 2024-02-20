@@ -1,6 +1,8 @@
 #pragma once
 #include <chrono>
 #include <iostream>
+#include <optional>
+#include <unordered_map>
 #include <util.hpp>
 
 #include "abstract_process.hpp"
@@ -9,13 +11,14 @@
 #include <filesystem>
 
 namespace ipc {
+    using EnvironmentMap = std::unordered_map<std::string, std::optional<std::string>>;
 
     // class for configuring and running an executable/shell command
     class Startable {
         friend class ComponentManager;
         std::string _command;
         std::vector<std::string> _args;
-        std::unordered_map<std::string, std::optional<std::string>> _envs;
+        EnvironmentMap _envs;
         std::optional<std::string> _user;
         std::optional<std::string> _group;
         std::optional<std::filesystem::path> _workingDir;
@@ -94,15 +97,20 @@ namespace ipc {
             return flattened;
         }
 
-        Startable &withEnvironment(
-            std::unordered_map<std::string, std::optional<std::string>> environment) noexcept {
+        Startable &withEnvironment(EnvironmentMap &&environment) noexcept {
             _envs = std::move(environment);
             return *this;
         }
 
-        Startable &addEnvironment(
-            std::string environment, std::optional<std::string> value = std::nullopt) {
-            _envs.insert_or_assign(std::move(environment), std::move(value));
+        Startable &withEnvironment(const EnvironmentMap &environment) {
+            _envs = environment;
+            return *this;
+        }
+
+        template<class StringLike>
+        Startable &addEnvironment(StringLike &&key, EnvironmentMap::mapped_type value) {
+            _envs.insert_or_assign(
+                static_cast<std::string>(std::forward<StringLike>(key)), std::move(value));
             return *this;
         }
 
