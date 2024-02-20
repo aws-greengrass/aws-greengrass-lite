@@ -24,7 +24,7 @@ endif()
 
 # Safety
 if(NOT WIN32 AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -fsanitize=null")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=null")
 endif()
 
 # Uncomment to enable sanitizers - thread & address cannot be combined
