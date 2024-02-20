@@ -10,6 +10,9 @@ let
   inherit (lib) any elem fileset mapAttrs;
   deps = mapAttrs (_: v: fetchgit (v // { fetchSubmodules = true; }))
     (fromJSON (readFile (src + "/dependencies.json")));
+  fetchcontentFlags = lib.mapAttrsToList
+    (n: v: "-DFETCHCONTENT_SOURCE_DIR_${lib.toUpper n}=${v}")
+    deps;
 in
 stdenv.mkDerivation {
   pname = "gglite";
@@ -24,7 +27,6 @@ stdenv.mkDerivation {
   strictDeps = true;
   nativeBuildInputs = [ cmake ninja ];
   hardeningDisable = [ "all" ];
-  cmakeFlags = lib.mapAttrsToList
-    (n: v: "-DFETCHCONTENT_SOURCE_DIR_${lib.toUpper n}=${v}")
-    deps;
+  cmakeFlags = fetchcontentFlags;
+  passthru = { inherit fetchcontentFlags; };
 }
