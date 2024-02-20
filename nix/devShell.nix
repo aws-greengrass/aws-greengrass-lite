@@ -1,6 +1,6 @@
-{ lib, ... }: {
-  inputsFrom = pkgs: [ pkgs.default ];
-  packages = pkgs: with pkgs; ([
+{ lib, pkgs, ... }: {
+  inputsFrom = [ pkgs.default ];
+  packages = with pkgs; ([
     coreutils
     clang-tools_16
     cppcheck
