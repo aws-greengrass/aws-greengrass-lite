@@ -19,26 +19,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - os: windows-latest
-          #   c_compiler: msvc
-          #   cpp_compiler: msvc
-          #   build_type: Debug
-          # - os: windows-latest
-          #   c_compiler: gcc
-          #   cpp_compiler: g++
-          #   build_type: Debug
-          # - os: ubuntu-20.04
-          #   c_compiler: gcc
-          #   cpp_compiler: g++
-          #   build_type: Debug
-          # - os: ubuntu-20.04
-          #   c_compiler: clang
-          #   cpp_compiler: clang++
-          #   build_type: Debug
-          # - os: macos-latest
-          #   c_compiler: clang
-          #   cpp_compiler: clang++
-          #   build_type: Debug
+          - os: windows-latest
+            c_compiler: msvc
+            cpp_compiler: msvc
+            build_type: Debug
+          - os: windows-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+            build_type: Debug
+          - os: ubuntu-20.04
+            c_compiler: gcc
+            cpp_compiler: g++
+            build_type: Debug
+          - os: ubuntu-20.04
+            c_compiler: clang
+            cpp_compiler: clang++
+            build_type: Debug
+          - os: macos-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+            build_type: Debug
           - os: ubuntu-20.04
             setup: QEMU
             c_compiler: gcc
@@ -49,7 +49,7 @@ jobs:
       - name: Clone the repo
         uses: actions/checkout@v4
       
-      - name: Set up QEMU
+      - name: Build and Run on ARM [QEMU]
         if: ${{ matrix.os == 'ubuntu-20.04' && matrix.setup == 'QEMU' }}
         uses: pguyot/arm-runner-action@v2
         with:
@@ -69,15 +69,9 @@ jobs:
             cd /aws-greengrass-lite/build
             ctest -R nucleus --output-on-failure
 
-      - name: Download curl
-        if: ${{matrix.os == 'ubuntu-20.04'}}
-        run: |
-          sudo apt update 
-          sudo apt-get install libcurl4-openssl-dev
-
       - name: Configure CMake
         shell: bash
-        if: ${{ matrix.os == 'windows-latest' && matrix.cpp_compiler == 'g++' }}
+        if: ${{ matrix.os == 'windows-latest' && matrix.cpp_compiler == 'g++' && matrix.setup != 'QEMU'}}
         run: |
           cmake -B build -S . -G "MinGW Makefiles" \
             -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
@@ -87,7 +81,7 @@ jobs:
       - name: Configure CMake
         shell: bash
         if:
-          ${{ matrix.os == 'windows-latest' && matrix.cpp_compiler == 'msvc' }}
+          ${{ matrix.os == 'windows-latest' && matrix.cpp_compiler == 'msvc' && matrix.setup != 'QEMU'}}
         run: |
           cmake -B build -S . -G "Visual Studio 17 2022" \
             -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
@@ -96,7 +90,7 @@ jobs:
 
       - name: Configure CMake
         shell: bash
-        if: ${{ matrix.os != 'windows-latest' }}
+        if: ${{ matrix.os != 'windows-latest' && matrix.setup != 'QEMU'}}
         run: |
           cmake -B build -S . \
             -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
@@ -104,10 +98,12 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
 
       - name: Build
+        if: ${{ matrix.setup != 'QEMU'}}
         run:
           cmake --build ${{ github.workspace }}/build --config ${{
           matrix.build_type }}
 
       - name: Run Tests
+        if: ${{ matrix.setup != 'QEMU'}}
         working-directory: ${{ github.workspace }}/build
         run: ctest -R nucleus --output-on-failure
