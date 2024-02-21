@@ -225,7 +225,7 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
     Aws::Crt::Http::HttpRequestOptions requestOptions;
     requestOptions.onIncomingBody = [&](Aws::Crt::Http::HttpStream &,
                                         const Aws::Crt::ByteCursor &data) {
-        downloadedFile.write((const char *) data.ptr, static_cast<long>(data.len) );
+        downloadedFile.write((const char *) data.ptr, static_cast<long>(data.len));
     };
 
     downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);

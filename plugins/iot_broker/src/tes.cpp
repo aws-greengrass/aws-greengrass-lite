@@ -4,8 +4,7 @@ ggapi::Struct IotBroker::retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct
     ggapi::Struct response = ggapi::Struct::create();
     const char *json_string = _savedToken.c_str();
     // TODO: Verify if keys exist before retrieving [Cache]
-    auto jsonHandle =
-        ggapi::Buffer::create().put(0, std::string_view{_savedToken}).fromJson();
+    auto jsonHandle = ggapi::Buffer::create().put(0, std::string_view{_savedToken}).fromJson();
     auto responseStruct = ggapi::Struct::create();
     auto jsonStruct = ggapi::Struct{jsonHandle};
 
@@ -23,7 +22,7 @@ ggapi::Struct IotBroker::retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct
         return response;
     }
 
-    std::cerr << "[TES] Unable to fetch TES credentials \n ERROR: " << _savedToken << std::endl;
+    std::cerr << "[TES] Unable to fetch TES credentials. ERROR: " << _savedToken << std::endl;
     auto responseBuffer = jsonStruct.toJson();
     auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
     auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
