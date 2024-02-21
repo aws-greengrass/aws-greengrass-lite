@@ -90,7 +90,8 @@ public:
 
     // TES
     bool tesOnStart(ggapi::Struct data);
-    bool tesOnRun(void);
+    bool tesOnRun();
+    void tesRefresh();
     ggapi::Struct retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
 
 private:

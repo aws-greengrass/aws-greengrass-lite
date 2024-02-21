@@ -55,6 +55,7 @@ void CloudDownloader::downloadClient(
             int errorCode) {
             std::lock_guard<std::mutex> lockGuard(semaphoreLock);
             if(!errorCode) {
+                LOG.atInfo().log("Sucess on establishing connection.");
                 connection = newConnection;
                 errorOccured = false;
             } else {
@@ -159,6 +160,7 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
 
     Aws::Crt::Io::TlsContext tlsContext(tlsCtxOptions, Aws::Crt::Io::TlsMode::CLIENT, allocator);
     if(tlsContext.GetInitializationError() != AWS_ERROR_SUCCESS) {
+        LOG.atError().log("Failed to create TLS context");
         throw std::runtime_error("Failed to create TLS context");
     }
     Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions = tlsContext.NewConnectionOptions();
@@ -180,11 +182,10 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
         downloadContent.write((const char *) data.ptr, data.len);
     };
 
-    CloudDownloader self;
-    self.downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);
+    downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);
 
-    LOG.atInfo().event("Download Status").log("Successfully fetched Token...");
-    std::cout << "[Cloud_Downloader] Successfully fetched Token... " << std::endl;
+    LOG.atInfo().event("Download Status").log("Completed Http Request");
+    std::cout << "[Cloud_Downloader] Completed Http Request " << std::endl;
 
     ggapi::Struct response = ggapi::Struct::create();
     response.put("Response", downloadContent.str());
@@ -207,6 +208,7 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
         Aws::Crt::Io::TlsContextOptions::InitDefaultClient();
     Aws::Crt::Io::TlsContext tlsContext(tlsCtxOptions, Aws::Crt::Io::TlsMode::CLIENT, allocator);
     if(tlsContext.GetInitializationError() != AWS_ERROR_SUCCESS) {
+        LOG.atError().log("Failed to create TLS context");
         throw std::runtime_error("Failed to create TLS context");
     }
     Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions = tlsContext.NewConnectionOptions();
@@ -223,11 +225,10 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
     Aws::Crt::Http::HttpRequestOptions requestOptions;
     requestOptions.onIncomingBody = [&](Aws::Crt::Http::HttpStream &,
                                         const Aws::Crt::ByteCursor &data) {
-        downloadedFile.write((const char *) data.ptr, data.len);
+        downloadedFile.write((const char *) data.ptr, static_cast<long>(data.len) );
     };
 
-    CloudDownloader self;
-    self.downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);
+    downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);
 
     downloadedFile.flush();
     downloadedFile.close();

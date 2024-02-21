@@ -14,7 +14,7 @@ const auto LOG = ggapi::Logger::of("Cloud_downloader");
 
 class CloudDownloader : public ggapi::Plugin {
 private:
-    void downloadClient(
+    static void downloadClient(
         Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions,
         std::string uriAsString,
         Aws::Crt::Http::HttpRequest &request,
