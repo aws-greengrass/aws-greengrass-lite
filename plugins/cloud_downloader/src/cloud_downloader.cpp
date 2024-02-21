@@ -55,7 +55,7 @@ void CloudDownloader::downloadClient(
             int errorCode) {
             std::lock_guard<std::mutex> lockGuard(semaphoreLock);
             if(!errorCode) {
-                LOG.atInfo().log("Successful on establishing connection.");
+                LOG.atDebug().log("Successful on establishing connection.");
                 connection = newConnection;
                 errorOccured = false;
             } else {
@@ -247,8 +247,8 @@ bool CloudDownloader::onDiscover(ggapi::Struct data) {
     std::ignore = getScope().subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, genericDownload);
 
-    std::ignore = getScope().subscribeToTopic(
-        ggapi::Symbol{"aws.greengrass.fetch_TES_from_cloud"}, fetchToken);
+    std::ignore =
+        getScope().subscribeToTopic(ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, fetchToken);
     return true;
 }
 

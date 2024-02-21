@@ -38,7 +38,7 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
             request.put("pkeyPath", pkeyPath);
 
             auto response = ggapi::Task::sendToTopic(
-                ggapi::Symbol{"aws.greengrass.fetch_TES_from_cloud"}, request);
+                ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, request);
 
             THEN("Validate proper JSON format") {
                 auto responseAsString = response.get<std::string>("Response");
