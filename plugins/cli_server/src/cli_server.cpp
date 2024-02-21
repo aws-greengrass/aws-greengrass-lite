@@ -5,6 +5,8 @@
 
 static const Keys keys;
 
+static const DeploymentKeys deploymentKeys;
+
 void CliServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
     ggapi::Symbol phaseOrd{phase};
     std::cerr << "[cli-server] Running lifecycle phase " << phaseOrd.toString() << std::endl;
@@ -23,6 +25,18 @@ bool CliServer::onBind(ggapi::Struct data) {
 }
 
 bool CliServer::onStart(ggapi::Struct data) {
+    std::ignore = getScope().subscribeToTopic(
+        keys.createLocalDeployment,
+        ggapi::TopicCallback::of(&CliServer::createLocalDeploymentHandler, this));
+    std::ignore = getScope().subscribeToTopic(
+        keys.cancelLocalDeployment,
+        ggapi::TopicCallback::of(&CliServer::cancelLocalDeploymentHandler, this));
+    std::ignore = getScope().subscribeToTopic(
+        keys.getLocalDeploymentStatus,
+        ggapi::TopicCallback::of(&CliServer::getLocalDeploymentStatusHandler, this));
+    std::ignore = getScope().subscribeToTopic(
+        keys.listLocalDeployments,
+        ggapi::TopicCallback::of(&CliServer::listLocalDeploymentsHandler, this));
     return true;
 }
 
@@ -34,13 +48,15 @@ void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) 
     }
 
     auto clientId = CLI_IPC_INFO_FILE_PATH;
-    if(_clientIdToAuthToken.find(clientId) != _clientIdToAuthToken.end()) {
+    if(_clientIdToAuthToken.find(clientId) != _clientIdToAuthToken.cend()) {
         // duplicate entry
         return;
     }
 
     // get ipc info
-    auto result = ggapi::Task::sendToTopic(keys.topicName, ggapi::Struct::create());
+    auto request = ggapi::Struct::create();
+    request.put(keys.serviceName, SERVICE_NAME);
+    auto result = ggapi::Task::sendToTopic(keys.infoTopicName, request);
 
     auto socketPath = result.get<std::string>(keys.socketPath);
     auto cliAuthToken = result.get<std::string>(keys.cliAuthToken);
@@ -76,4 +92,62 @@ bool CliServer::onRun(ggapi::Struct data) {
 
 bool CliServer::onTerminate(ggapi::Struct data) {
     return true;
+}
+
+ggapi::Struct CliServer::createLocalDeploymentHandler(
+    ggapi::Task, ggapi::Symbol, ggapi::Struct request) {
+    auto deploymentDocument = request;
+    auto requestId = _randomUUID();
+    deploymentDocument.put(deploymentKeys.requestId, requestId);
+    auto deploymentJson = deploymentDocument.toJson();
+    auto deploymentVec = deploymentJson.get<std::vector<uint8_t>>(0, deploymentJson.size());
+    auto deploymentString = std::string{deploymentVec.begin(), deploymentVec.end()};
+
+    auto deployment = ggapi::Struct::create();
+    deployment.put(deploymentKeys.deploymentDocumentobj, 0);
+    deployment.put(deploymentKeys.deploymentDocument, deploymentString);
+    deployment.put(deploymentKeys.deploymentType, "LOCAL");
+    deployment.put(deploymentKeys.id, requestId);
+    deployment.put(deploymentKeys.isCancelled, false);
+    deployment.put(deploymentKeys.deploymentStage, "DEFAULT");
+    deployment.put(deploymentKeys.stageDetails, 0);
+    deployment.put(deploymentKeys.errorStack, 0);
+    deployment.put(deploymentKeys.errorTypes, 0);
+
+    auto channel = getScope().anchor(ggapi::Channel::create());
+    _subscriptions.emplace_back(requestId, channel, [](ggapi::Struct req) { return req; });
+    channel.addCloseCallback([this, channel]() {
+        std::unique_lock lock(_subscriptionMutex);
+        auto it = std::find_if(_subscriptions.begin(), _subscriptions.end(), [channel](auto sub) {
+            return std::get<1>(sub) == channel;
+        });
+        std::iter_swap(it, std::prev(_subscriptions.end()));
+        _subscriptions.pop_back();
+        channel.release();
+    });
+    auto result = ggapi::Task::sendToTopic(keys.createDeploymentTopicName, deployment);
+    if(result.getValue<bool>({"status"})) {
+        auto message = ggapi::Struct::create();
+        message.put("deploymentId", requestId);
+        return ggapi::Struct::create().put(keys.channel, channel).put(keys.shape, message);
+    } else {
+        return ggapi::Struct::create().put(keys.errorCode, 1);
+    }
+}
+
+ggapi::Struct CliServer::cancelLocalDeploymentHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) {
+    // TODO: Not implemented
+    auto result = ggapi::Task::sendToTopic(keys.cancelDeploymentTopicName, ggapi::Struct::create());
+    return ggapi::Struct::create();
+}
+
+ggapi::Struct CliServer::getLocalDeploymentStatusHandler(
+    ggapi::Task, ggapi::Symbol, ggapi::Struct) {
+    // TODO: Not implemented
+    return ggapi::Struct::create();
+}
+
+ggapi::Struct CliServer::listLocalDeploymentsHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) {
+    // TODO: Not implemented
+    return ggapi::Struct::create();
 }

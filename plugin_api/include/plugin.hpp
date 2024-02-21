@@ -145,6 +145,8 @@ namespace ggapi {
             return _config;
         }
 
+    protected:
+        /** the lifecycle override interface should never be directly called so it is protected */
         /**
          * (Deprecated) Hook to allow any pre-processing before lifecycle step
          */

@@ -35,7 +35,7 @@ class SymbolTable(object):
 
     def __init__(self, table):
         if table is None:
-            table = gdb.parse_and_eval('&scope::context().symbols()')
+            table = gdb.parse_and_eval('&scope::context().get()->symbols()')
         if table.type.code != gdb.TYPE_CODE_PTR:
             table = table.address
         self._table = table
@@ -102,7 +102,7 @@ class HandleTable(object):
 
     def __init__(self, table):
         if table is None:
-            table = gdb.parse_and_eval('scope::context().handles()')
+            table = gdb.parse_and_eval('&scope::context().get()->handles()')
         if table.type.code != gdb.TYPE_CODE_PTR:
             table = table.address
         self._table = table
@@ -390,13 +390,13 @@ class Symbols(gdb.Command):
         args = arg.split()
         if len(args) == 0:
             table = DataSymbolTablePrinter(
-                gdb.parse_and_eval('scope::context().symbols()'))
+                gdb.parse_and_eval('&scope::context().get()->symbols()'))
             for k in table.children():
                 print(k[0], k[1])
             return None
         else:
             table = SymbolTable(
-                gdb.parse_and_eval('scope::context().symbols()'))
+                gdb.parse_and_eval('&scope::context().get()->symbols()'))
             id = int(args[0])
             print(str(table.pretty_from_partial(table.partial_of_id(id))))
             return None

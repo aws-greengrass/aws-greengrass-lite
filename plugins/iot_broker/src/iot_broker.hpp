@@ -89,6 +89,10 @@ private:
     std::atomic<ggapi::Struct> _nucleus;
     std::atomic<ggapi::Struct> _system;
 
+    // TES
+    std::string _iotRoleAlias;
+    std::string _savedToken;
+
 public:
     bool onBootstrap(ggapi::Struct data) override;
     bool onBind(ggapi::Struct data) override;
@@ -103,6 +107,11 @@ public:
         static IotBroker instance{};
         return instance;
     }
+
+    // TES
+    bool tesOnStart(ggapi::Struct data);
+    bool tesOnRun(void);
+    ggapi::Struct retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
 
 private:
     static const Keys keys;

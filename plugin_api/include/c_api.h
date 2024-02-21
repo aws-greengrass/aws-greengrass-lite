@@ -129,6 +129,7 @@ IMPEXP bool ggapiStructPutSymbol(uint32_t listHandle, uint32_t symInt, uint32_t 
 IMPEXP bool ggapiStructPutHandle(
     uint32_t structHandle, uint32_t symInt, uint32_t nestedHandle) NOEXCEPT;
 IMPEXP bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
+IMPEXP uint32_t ggapiStructKeys(uint32_t structHandle) NOEXCEPT;
 IMPEXP bool ggapiStructGetBool(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
 IMPEXP uint64_t ggapiStructGetInt64(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
 IMPEXP double ggapiStructGetFloat64(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;

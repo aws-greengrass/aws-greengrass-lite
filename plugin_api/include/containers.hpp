@@ -186,123 +186,6 @@ namespace ggapi {
     };
 
     /**
-     * Structures are containers with associative keys.
-     */
-    class Struct : public Container {
-        void check() {
-            if(getHandleId() != 0 && !isStruct()) {
-                throw std::runtime_error("Structure handle expected");
-            }
-        }
-        void putImpl(Symbol key, bool v) {
-            callApi([*this, key, v]() { ::ggapiStructPutBool(_handle, key.asInt(), v); });
-        }
-        void putImpl(Symbol key, uint64_t v) {
-            callApi([*this, key, v]() { ::ggapiStructPutInt64(_handle, key.asInt(), v); });
-        }
-        void putImpl(Symbol key, double v) {
-            callApi([*this, key, v]() { ::ggapiStructPutFloat64(_handle, key.asInt(), v); });
-        }
-        void putImpl(Symbol key, Symbol v) {
-            callApi([*this, key, v]() { ::ggapiStructPutSymbol(_handle, key.asInt(), v.asInt()); });
-        }
-        void putImpl(Symbol key, std::string_view v) {
-            callApi([*this, key, v]() {
-                ::ggapiStructPutString(_handle, key.asInt(), v.data(), v.length());
-            });
-        }
-        void putImpl(Symbol key, ObjHandle v) {
-            callApi([*this, key, v]() {
-                ::ggapiStructPutHandle(_handle, key.asInt(), v.getHandleId());
-            });
-        }
-
-    public:
-        constexpr Struct() noexcept = default;
-
-        explicit Struct(const ObjHandle &other) : Container{other} {
-            check();
-        }
-
-        explicit Struct(uint32_t handle) : Container{handle} {
-            check();
-        }
-
-        static Struct create() {
-            return callHandleApiThrowError<Struct>(::ggapiCreateStruct);
-        }
-
-        [[nodiscard]] Struct clone() const {
-            return callApiReturnHandle<Struct>([*this]() { return ::ggapiStructClone(_handle); });
-        }
-
-        template<typename T>
-        Struct &put(Symbol key, T v) {
-            required();
-            visitArg([this, key](auto &&v) { this->putImpl(key, v); }, v);
-            return *this;
-        }
-
-        Struct &put(const KeyValue &kv) {
-            return put(kv.first, kv.second);
-        }
-
-        Struct &put(std::initializer_list<KeyValue> list) {
-            for(const auto &i : list) {
-                put(i);
-            }
-            return *this;
-        }
-
-        [[nodiscard]] bool hasKey(Symbol key) const {
-            required();
-            return callApiReturn<bool>(
-                [*this, key]() { return ::ggapiStructHasKey(_handle, key.asInt()); });
-        }
-
-        template<typename T>
-        [[nodiscard]] T get(Symbol key) const {
-            required();
-            if constexpr(std::is_same_v<bool, T>) {
-                return callApiReturn<bool>(
-                    [*this, key]() { return ::ggapiStructGetBool(_handle, key.asInt()); });
-            } else if constexpr(std::is_integral_v<T>) {
-                auto intv = callApiReturn<uint64_t>(
-                    [*this, key]() { return ::ggapiStructGetInt64(_handle, key.asInt()); });
-                return static_cast<T>(intv);
-            } else if constexpr(std::is_floating_point_v<T>) {
-                auto floatv = callApiReturn<double>(
-                    [*this, key]() { return ::ggapiStructGetFloat64(_handle, key.asInt()); });
-                return static_cast<T>(floatv);
-            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                return callApiReturnHandle<T>(
-                    [*this, key]() { return ::ggapiStructGetHandle(_handle, key.asInt()); });
-            } else if constexpr(std ::is_assignable_v<std::string, T>) {
-                size_t len = callApiReturn<size_t>(
-                    [*this, key]() { return ::ggapiStructGetStringLen(_handle, key.asInt()); });
-                return stringFillHelper<typename T::traits_type, typename T::allocator_type>(
-                    len, [*this, key](auto buf, auto bufLen) {
-                        return callApiReturn<size_t>([*this, key, &buf, bufLen]() {
-                            return ::ggapiStructGetString(_handle, key.asInt(), buf, bufLen);
-                        });
-                    });
-            } else {
-                static_assert(T::usingUnsupportedType, "Unsupported type");
-            }
-        }
-
-        template<typename T>
-        T getValue(const std::initializer_list<std::string_view> &keys) const {
-            ggapi::Struct childStruct = *this;
-            auto it = keys.begin();
-            for(; it != std::prev(keys.end()); it++) {
-                childStruct = childStruct.get<ggapi::Struct>(*it);
-            }
-            return childStruct.get<T>(*it);
-        }
-    };
-
-    /**
      * Lists are containers with index-based keys
      */
     class List : public Container {
@@ -404,7 +287,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        [[nodiscard]] T get(int32_t idx) {
+        [[nodiscard]] T get(int32_t idx) const {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(
@@ -431,6 +314,133 @@ namespace ggapi {
             } else {
                 static_assert(T::usingUnsupportedType, "Unsupported type");
             }
+        }
+    };
+
+    /**
+     * Structures are containers with associative keys.
+     */
+    class Struct : public Container {
+        void check() {
+            if(getHandleId() != 0 && !Container::isStruct()) {
+                throw std::runtime_error("Structure handle expected");
+            }
+        }
+        void putImpl(Symbol key, bool v) {
+            callApi([*this, key, v]() { ::ggapiStructPutBool(_handle, key.asInt(), v); });
+        }
+        void putImpl(Symbol key, uint64_t v) {
+            callApi([*this, key, v]() { ::ggapiStructPutInt64(_handle, key.asInt(), v); });
+        }
+        void putImpl(Symbol key, double v) {
+            callApi([*this, key, v]() { ::ggapiStructPutFloat64(_handle, key.asInt(), v); });
+        }
+        void putImpl(Symbol key, Symbol v) {
+            callApi([*this, key, v]() { ::ggapiStructPutSymbol(_handle, key.asInt(), v.asInt()); });
+        }
+        void putImpl(Symbol key, std::string_view v) {
+            callApi([*this, key, v]() {
+                ::ggapiStructPutString(_handle, key.asInt(), v.data(), v.length());
+            });
+        }
+        void putImpl(Symbol key, ObjHandle v) {
+            callApi([*this, key, v]() {
+                ::ggapiStructPutHandle(_handle, key.asInt(), v.getHandleId());
+            });
+        }
+
+    public:
+        constexpr Struct() noexcept = default;
+
+        explicit Struct(const ObjHandle &other) : Container{other} {
+            check();
+        }
+
+        explicit Struct(uint32_t handle) : Container{handle} {
+            check();
+        }
+
+        static Struct create() {
+            return callHandleApiThrowError<Struct>(::ggapiCreateStruct);
+        }
+
+        [[nodiscard]] Struct clone() const {
+            return callApiReturnHandle<Struct>([*this]() { return ::ggapiStructClone(_handle); });
+        }
+
+        template<typename T>
+        Struct &put(Symbol key, T v) {
+            required();
+            visitArg([this, key](auto &&v) { this->putImpl(key, v); }, v);
+            return *this;
+        }
+
+        Struct &put(const KeyValue &kv) {
+            return put(kv.first, kv.second);
+        }
+
+        Struct &put(std::initializer_list<KeyValue> list) {
+            for(const auto &i : list) {
+                put(i);
+            }
+            return *this;
+        }
+
+        [[nodiscard]] List keys() const {
+            return callApiReturnHandle<List>([*this]() { return ::ggapiStructKeys(_handle); });
+        }
+
+        [[nodiscard]] bool hasKey(Symbol key) const {
+            required();
+            return callApiReturn<bool>(
+                [*this, key]() { return ::ggapiStructHasKey(_handle, key.asInt()); });
+        }
+
+        [[nodiscard]] bool isStruct(Symbol key) const {
+            return callApiReturn<bool>([*this, key]() {
+                return ::ggapiIsStruct(::ggapiStructGetHandle(_handle, key.asInt()));
+            });
+        }
+
+        template<typename T>
+        [[nodiscard]] T get(Symbol key) const {
+            required();
+            if constexpr(std::is_same_v<bool, T>) {
+                return callApiReturn<bool>(
+                    [*this, key]() { return ::ggapiStructGetBool(_handle, key.asInt()); });
+            } else if constexpr(std::is_integral_v<T>) {
+                auto intv = callApiReturn<uint64_t>(
+                    [*this, key]() { return ::ggapiStructGetInt64(_handle, key.asInt()); });
+                return static_cast<T>(intv);
+            } else if constexpr(std::is_floating_point_v<T>) {
+                auto floatv = callApiReturn<double>(
+                    [*this, key]() { return ::ggapiStructGetFloat64(_handle, key.asInt()); });
+                return static_cast<T>(floatv);
+            } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
+                return callApiReturnHandle<T>(
+                    [*this, key]() { return ::ggapiStructGetHandle(_handle, key.asInt()); });
+            } else if constexpr(std ::is_assignable_v<std::string, T>) {
+                size_t len = callApiReturn<size_t>(
+                    [*this, key]() { return ::ggapiStructGetStringLen(_handle, key.asInt()); });
+                return stringFillHelper<typename T::traits_type, typename T::allocator_type>(
+                    len, [*this, key](auto buf, auto bufLen) {
+                        return callApiReturn<size_t>([*this, key, &buf, bufLen]() {
+                            return ::ggapiStructGetString(_handle, key.asInt(), buf, bufLen);
+                        });
+                    });
+            } else {
+                static_assert(T::usingUnsupportedType, "Unsupported type");
+            }
+        }
+
+        template<typename T, typename V>
+        T getValue(const std::initializer_list<V> &keys) const {
+            ggapi::Struct childStruct = *this;
+            auto it = keys.begin();
+            for(; it != std::prev(keys.end()); it++) {
+                childStruct = childStruct.get<ggapi::Struct>(*it);
+            }
+            return childStruct.get<T>(*it);
         }
     };
 
@@ -566,7 +576,7 @@ namespace ggapi {
         }
 
         template<typename T>
-        T get(int32_t idx, size_t max) const {
+        [[nodiscard]] T get(int32_t idx, size_t max) const {
             if(max > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("max length out of range");
             }
@@ -574,6 +584,11 @@ namespace ggapi {
             buffer.resize(std::min<size_t>(size(), max));
             get(idx, buffer);
             return buffer;
+        }
+
+        Buffer read(std::istream &is) {
+            std::string ss(std::istreambuf_iterator<char>(is), {});
+            return put(0, util::Span{ss.data(), ss.size()});
         }
 
         void write(std::ostream &os) const {

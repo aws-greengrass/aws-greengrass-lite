@@ -41,6 +41,9 @@ namespace util {
     }
 
     void NucleusPaths::initPaths(std::string_view rootPathString) {
+        if(!exists(rootPathString)) {
+            std::filesystem::create_directories(resolveRelative(rootPathString));
+        }
         std::filesystem::path rootPath = resolve(rootPathString);
         setRootPath(rootPath);
         createPluginPath();
@@ -55,6 +58,10 @@ namespace util {
         setBinPath(rootPath / BIN_PATH_NAME);
 
         // TODO: re-initialize deployment manager
+    }
+
+    bool NucleusPaths::exists(std::string_view path) {
+        return std::filesystem::exists(std::filesystem::weakly_canonical(resolveRelative(path)));
     }
 
     std::filesystem::path NucleusPaths::resolve(

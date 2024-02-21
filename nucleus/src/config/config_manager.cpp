@@ -1,7 +1,6 @@
 #include "config/config_manager.hpp"
 #include "config/config_nodes.hpp"
 #include "config/yaml_config.hpp"
-#include "scope/context_full.hpp"
 #include "transaction_log.hpp"
 #include <util.hpp>
 #include <utility>
@@ -24,7 +23,7 @@ namespace config {
         }
         std::string str = key.toString();
         // a folded string strictly acts on the ascii range and not on international
-        // characters this keeps it predictable and handles the problems with GG
+        // characters, this keeps it predictable and handles the problems with GG
         // configs
         std::string lowered = util::lower(str);
         if(str == lowered) {
@@ -216,6 +215,18 @@ namespace config {
         keys.reserve(_children.size());
         for(const auto &_element : _children) {
             keys.emplace_back(context()->symbols().apply(_element.first));
+        }
+        return keys;
+    }
+
+    std::shared_ptr<data::ListModelBase> Topics::getKeysAsList() const {
+        auto keys{std::make_shared<data::SharedList>(context())};
+        std::shared_lock guard{_mutex};
+        keys->reserve(_children.size());
+        auto ctx = context();
+        auto &syms = ctx->symbols();
+        for(const auto &_element : _children) {
+            keys->push(syms.apply(_element.first));
         }
         return keys;
     }

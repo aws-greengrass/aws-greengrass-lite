@@ -1,0 +1,29 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: com.example.HelloWorld
+ComponentVersion: "1.0.0"
+ComponentDescription: My first AWS IoT Greengrass component.
+ComponentPublisher: Amazon
+ComponentConfiguration:
+  DefaultConfiguration:
+    Message: world
+Manifests:
+  - Platform:
+      os: linux
+    Lifecycle:
+      run: |
+        python3 -u {artifacts:path}/hello_world.py "{configuration:/Message}"
+    Selections:
+      - key1
+      - key2
+Lifecycle:
+  key1:
+    install:
+      Skipif: either onpath executable or exists file
+      Script: command1
+  key2:
+    install:
+      Script: command2
+  all:
+    install:
+      Script: command3

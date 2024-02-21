@@ -1,6 +1,7 @@
 #include "shared_struct.hpp"
 #include "safe_handle.hpp"
 #include "scope/context_full.hpp"
+#include "string_table.hpp"
 #include <shared_mutex>
 
 namespace data {
@@ -56,6 +57,18 @@ namespace data {
         auto &syms = ctx->symbols();
         for(const auto &_element : _elements) {
             keys.emplace_back(syms.apply(_element.first));
+        }
+        return keys;
+    }
+
+    std::shared_ptr<ListModelBase> SharedStruct::getKeysAsList() const {
+        auto keys{std::make_shared<SharedList>(context())};
+        std::shared_lock guard{_mutex};
+        keys->reserve(_elements.size());
+        auto ctx = context();
+        auto &syms = ctx->symbols();
+        for(const auto &_element : _elements) {
+            keys->push(syms.apply(_element.first));
         }
         return keys;
     }

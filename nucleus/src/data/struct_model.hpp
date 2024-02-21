@@ -5,6 +5,7 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <stdexcept>
 #include <util.hpp>
 #include <vector>
 
@@ -84,6 +85,10 @@ namespace data {
             return isType<ContainerModelBase>();
         }
 
+        [[nodiscard]] bool isStruct() const {
+            return isType<StructModelBase>();
+        }
+
         [[nodiscard]] bool isScalar() const {
             return !isObject() && !isNull();
         }
@@ -154,6 +159,7 @@ namespace data {
 
         [[nodiscard]] std::string getString() const {
             switch(_value.index()) {
+                // TODO: We shouldn't have implicit type conversion
                 case BOOL:
                     return std::get<bool>(_value) ? "true" : "false";
                 case INT:
@@ -166,7 +172,8 @@ namespace data {
                     return rawGetSymbol().toString();
                 default:
                     std::cerr << "Unsupported index: " << _value.index() << std::endl;
-                    return {"bad conversion"};
+                    // ggapi::Struct type cannot be converted to a string.
+                    throw std::bad_cast{};
             }
         }
 
@@ -190,6 +197,10 @@ namespace data {
 
         [[nodiscard]] std::shared_ptr<ContainerModelBase> getContainer() const {
             return castObject<ContainerModelBase>();
+        }
+
+        [[nodiscard]] std::shared_ptr<StructModelBase> getStruct() const {
+            return castObject<StructModelBase>();
         }
 
         template<typename T>
@@ -265,6 +276,7 @@ namespace data {
             const StructElement &element,
             const std::function<void(const StructElement &)> &putAction);
         virtual std::shared_ptr<data::SharedBuffer> toJson();
+        virtual std::shared_ptr<data::SharedBuffer> toYaml();
     };
 
     /**
@@ -307,6 +319,7 @@ namespace data {
         void put(Symbol handle, const StructElement &element);
         void put(std::string_view sv, const StructElement &element);
         virtual std::vector<data::Symbol> getKeys() const = 0;
+        virtual std::shared_ptr<ListModelBase> getKeysAsList() const = 0;
         bool hasKey(Symbol handle) const;
         bool hasKey(std::string_view sv) const;
         StructElement get(Symbol handle) const;

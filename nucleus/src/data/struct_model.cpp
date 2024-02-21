@@ -1,5 +1,6 @@
 #include "struct_model.hpp"
 #include "conv/json_conv.hpp"
+#include "conv/yaml_conv.hpp"
 #include "scope/context_full.hpp"
 
 namespace data {
@@ -30,6 +31,10 @@ namespace data {
 
     std::shared_ptr<data::SharedBuffer> ContainerModelBase::toJson() {
         return conv::JsonHelper::serializeToBuffer(context(), baseRef());
+    }
+
+    std::shared_ptr<data::SharedBuffer> ContainerModelBase::toYaml() {
+        return conv::YamlHelper::serializeToBuffer(context(), baseRef());
     }
 
     void StructModelBase::put(std::string_view sv, const StructElement &element) {

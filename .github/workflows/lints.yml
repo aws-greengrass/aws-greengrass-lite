@@ -7,10 +7,14 @@ on:
 
 jobs:
   format-check:
+    timeout-minutes: 60
     name: Check Formatting
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
@@ -35,32 +39,47 @@ jobs:
           retention-days: 5
 
   clang-tidy:
+    timeout-minutes: 15
     name: Check Clang-tidy
     runs-on: ubuntu-22.04
     defaults:
       run:
         shell: nix develop -c bash -exo pipefail {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
         run: cmake $cmakeFlags -B build
 
+      - name: Get file list
+        id: get-file-list
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.sha }}
+          set +e
+          export CHANGED_FILES=$(git diff --name-only \
+           ${{ github.event.pull_request.base.sha }} | grep "\.[ch]pp$")
+          set -e
+          echo CHANGED_FILES=$CHANGED_FILES >> $GITHUB_OUTPUT
+
       - name: Check Clang-tidy
         id: clang-tidy-check
+        if: ${{ steps.get-file-list.outputs.CHANGED_FILES != ''}}
         run: |
           clang-tidy -p ./build --warnings-as-errors='*' \
             -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
-            $(fd -t f -e cpp)
+            ${{ steps.get-file-list.outputs.CHANGED_FILES }}
 
       - name: Generate / Show Patch
         if: ${{ failure() && steps.clang-tidy-check.outcome == 'failure' }}
         run: |
           clang-tidy -p ./build --fix --fix-errors --quiet \
             -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
-            $(fd -t f -e cpp)
+            ${{ steps.get-file-list.outputs.CHANGED_FILES }}
           git diff >> clang-tidy.patch
           git diff --color=always
 
@@ -73,13 +92,17 @@ jobs:
           retention-days: 5
 
   cppcheck:
+    timeout-minutes: 60
     name: Check cppcheck
     runs-on: ubuntu-22.04
     defaults:
       run:
         shell: nix develop -c bash -exo pipefail {0}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
@@ -114,10 +137,14 @@ jobs:
           retention-days: 5
 
   editorconfig:
+    timeout-minutes: 60
     name: Check editorconfig-checker
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
@@ -125,10 +152,14 @@ jobs:
         run: nix build -L --log-lines 0 .#checks.x86_64-linux.editorconfig
 
   cmake-lint:
+    timeout-minutes: 60
     name: Check CMake
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
@@ -136,9 +167,13 @@ jobs:
         run: nix build -L --log-lines 0 .#checks.x86_64-linux.cmake-lint
 
   git-secrets:
+    timeout-minutes: 60
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
@@ -149,9 +184,13 @@ jobs:
           git-secrets --scan
 
   check-dependency-hashes:
+    timeout-minutes: 60
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 

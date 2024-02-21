@@ -17,8 +17,10 @@ namespace util {
         template<typename, typename = void>
         struct ClassProvidesKind : std::false_type {};
         template<typename T>
-        struct ClassProvidesKind<T, std::void_t<decltype(T::kind), typename T::KindType>>
-            : std::false_type {};
+        struct ClassProvidesKind<
+            T,
+            std::void_t<decltype(std::declval<T>().kind()), typename T::KindType>>
+            : std::true_type {};
         template<typename T>
         static constexpr bool classProvidesKind = ClassProvidesKind<T>::value;
     } // namespace traits
@@ -34,7 +36,7 @@ namespace util {
         using KindType = typename Traits::SymbolType;
 
     private:
-        inline static const auto DEFAULT_ERROR_TEXT = "Unspecified Error"s;
+        inline static const auto DEFAULT_ERROR_TEXT = "Unspecified Error"s; // NOLINT(*-err58-cpp)
         KindType _kind;
 
         template<typename Error>

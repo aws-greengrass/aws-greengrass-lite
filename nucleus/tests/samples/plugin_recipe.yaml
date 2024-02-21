@@ -1,0 +1,28 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: aws.greengrass.some-plugin
+ComponentDescription: Just a plugin
+ComponentPublisher: Me
+ComponentVersion: "1.1.0"
+ComponentType: aws.greengrass.plugin
+Manifests:
+  - Platform:
+      os: all
+      nucleus: java
+    Artifacts:
+      - URI: s3://mock-bucket/java/plugin.jar
+      - URI: s3://mock-bucket/shared/bundle.zip
+  - Platform:
+      os: linux
+      nucleus: lite
+      architecture: aarch64
+    Artifacts:
+      - URI: s3://mock-bucket/aarch64/plugin.so
+      - URI: s3://mock-bucket/shared/bundle.zip
+  - Platform:
+      os: linux
+      nucleus: lite
+      architecture: amd64
+    Artifacts:
+      - URI: s3://mock-bucket/amd64/plugin.so
+      - URI: s3://mock-bucket/shared/bundle.zip

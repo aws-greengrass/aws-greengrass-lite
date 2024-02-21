@@ -158,6 +158,7 @@ namespace config {
         data::StructElement getImpl(data::Symbol handle) const override;
         bool hasKeyImpl(data::Symbol handle) const override;
         [[nodiscard]] std::vector<data::Symbol> getKeys() const override;
+        [[nodiscard]] std::shared_ptr<data::ListModelBase> getKeysAsList() const override;
         uint32_t size() const override;
         bool empty() const override;
         std::shared_ptr<data::StructModelBase> copy() const override;
