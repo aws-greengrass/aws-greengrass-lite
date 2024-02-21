@@ -356,7 +356,7 @@ class DynamicStructPrinter:
                 case 6:  # OBJECT
                     obj = self._struct.eval(
                         'get($arg).getObject().get()').cast(
-                        gdb.lookup_type('data::TrackedObject*'))
+                            gdb.lookup_type('data::TrackedObject*'))
                     val = obj.cast(obj.dynamic_type).dereference()
                 case _:
                     val = '[Unknown]'
