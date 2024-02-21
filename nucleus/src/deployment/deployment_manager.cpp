@@ -318,7 +318,7 @@ namespace deployment {
                                     commandStruct->get("SetEnv").getStruct());
 
                                 auto env = getEnvironment(envStruct);
-                                // override with global env
+                                // merge global env
                                 for(auto &[k, v] : globalEnv) {
                                     env.emplace(k, v);
                                 }
