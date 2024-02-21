@@ -55,7 +55,7 @@ void CloudDownloader::downloadClient(
             int errorCode) {
             std::lock_guard<std::mutex> lockGuard(semaphoreLock);
             if(!errorCode) {
-                LOG.atInfo().log("Sucess on establishing connection.");
+                LOG.atInfo().log("Successful on establishing connection.");
                 connection = newConnection;
                 errorOccured = false;
             } else {
@@ -91,8 +91,8 @@ void CloudDownloader::downloadClient(
     semaphore.wait(semaphoreULock, [&]() { return connection || connectionShutdown; });
 
     if(errorOccured || connectionShutdown || !connection) {
-        LOG.atError().log("Failed to establish sucessful connection");
-        throw std::runtime_error("Failed to establish sucessful connection");
+        LOG.atError().log("Failed to establish successful connection");
+        throw std::runtime_error("Failed to establish successful connection");
     }
 
     int responseCode = 0;
@@ -175,7 +175,7 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
     header.value = Aws::Crt::ByteCursorFromCString(thingName.c_str()); // Add thingname here
     request.AddHeader(header);
 
-    // Callback on sucess request stream response
+    // Callback on success request stream response
     Aws::Crt::Http::HttpRequestOptions requestOptions;
     requestOptions.onIncomingBody = [&](Aws::Crt::Http::HttpStream &,
                                         const Aws::Crt::ByteCursor &data) {
@@ -221,7 +221,7 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
         throw std::runtime_error("Failed to create file");
     }
 
-    // Callback on sucess request stream response
+    // Callback on success request stream response
     Aws::Crt::Http::HttpRequestOptions requestOptions;
     requestOptions.onIncomingBody = [&](Aws::Crt::Http::HttpStream &,
                                         const Aws::Crt::ByteCursor &data) {
