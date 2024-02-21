@@ -1,13 +1,14 @@
 #include "scripting.hpp"
+#include "deployment/deployment_manager.hpp"
 
-bool scriptRunner::willRun() {
+bool ScriptRunner::willRun() {
     return false;
 }
 
-bool scriptRunner::start() {
+bool ScriptRunner::start() {
     std::cout << "script starting" << std::endl;
     return true;
 }
 
-void scriptRunner::kill() {
+void ScriptRunner::kill() {
 }

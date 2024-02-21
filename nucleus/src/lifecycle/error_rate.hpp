@@ -4,34 +4,35 @@
 #include <array>
 #include <chrono>
 
-constexpr int MAXERRORS = 3;
+inline constexpr std::size_t MAX_ERRORS = 3;
 
-class errorRate {
+class ErrorRate {
 public:
-    errorRate() {
-        clearErrors();
-    }
-    typedef std::array<std::chrono::steady_clock::time_point, MAXERRORS> history_t;
-    using clock = std::chrono::steady_clock;
+    using Clock = std::chrono::steady_clock;
+    using History = std::array<Clock::time_point, MAX_ERRORS>;
 
-    void newError() {
+    void insert() noexcept {
         std::rotate(_history.begin(), _history.begin() + 1, _history.end()); // rotate to the left
-        _history.back() = clock::now();
+        _history.back() = Clock::now();
     }
 
-    bool isBroken() {
-        if(_history.front() == clock::time_point()) {
+    [[nodiscard]] constexpr bool isBroken() const noexcept {
+        using namespace std::chrono_literals;
+        if(_history.front() == Clock::time_point{}) {
             return false;
         }
-        auto age = _history.back() - _history.front();
-        using namespace std::chrono_literals;
+        const auto age = _history.back() - _history.front();
         return age < 1h;
     }
 
-    constexpr void clearErrors() {
-        _history.fill(clock::time_point());
+    constexpr explicit operator bool() const noexcept {
+        return !isBroken();
+    }
+
+    constexpr void clear() noexcept {
+        _history.fill(Clock::time_point{});
     }
 
 private:
-    history_t _history;
+    History _history{};
 };

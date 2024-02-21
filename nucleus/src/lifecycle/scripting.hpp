@@ -1,14 +1,17 @@
 #pragma once
 
 #include "data/shared_struct.hpp"
+#include <chrono>
 #include <functional>
 #include <iostream>
 
-class scriptRunner {
+class ScriptRunner {
 public:
-    scriptRunner(
-        ggapi::Struct scriptConfig, std::function<void(bool)> eventSender, int timeout_seconds)
-        : _eventSender(eventSender), _timeout_seconds(timeout_seconds){};
+    ScriptRunner(
+        ggapi::Struct scriptConfig,
+        std::function<void(bool)> eventSender,
+        std::chrono::seconds timeout)
+        : _eventSender(std::move(eventSender)), _timeout(timeout){};
 
     bool willRun(); /* check the recipe and determine if the script is allowed to run. */
     bool start(); /* start the script running if it is allowed.  Return TRUE if the script is
@@ -17,5 +20,5 @@ public:
     void kill(); /* issue sigTERM/sigKILL to the script process to ensure it is truly dead */
 private:
     std::function<void(bool)> _eventSender;
-    int _timeout_seconds;
+    std::chrono::seconds _timeout;
 };

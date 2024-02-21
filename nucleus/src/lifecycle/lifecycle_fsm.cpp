@@ -1,57 +1,62 @@
 #include "lifecycle_fsm.hpp"
+#include <variant>
 
 /* state worker functions.  These functions are called once when a state transition occurs.
  * If the state transition is returning to the same state, the function is called again.
  * If the state transition is "unchanged" this function is not called.
  */
 
-void Initial::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+// Prints the component name and state name as-if entering state
+static void printStateEntry(std::string_view stateName, std::string_view componentName) noexcept {
+    std::cout << componentName << ": " << stateName << " Entry\n";
 }
 
-void New::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+void Initial::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
+}
+
+void New::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
     l.alertNEW();
     s.stop = false;
     l.update(); /* allow continuation if !stop */
 }
 
-void Installing::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
-
-    if(s.installScript->willRun()) {
+void Installing::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
+    if(s.installScript.has_value() && s.installScript->willRun()) {
         s.installScript->start();
     } else {
         l.skip(); /* the script will not run so jump to the next state */
     }
 }
 
-void Installed::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+void Installed::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
     l.alertINSTALLED();
     s.reinstall = false;
     l.update(); /* allow continuation if !reinstall */
 }
 
-void Broken::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+void Broken::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
     l.alertBROKEN();
     s.stop = false;
     l.update(); /* allow continuation if !stop */
 }
 
-void Startup::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
-    if(s.startScript->willRun()) {
+void Startup::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
+    if(s.startScript.has_value() && s.startScript->willRun()) {
         s.startScript->start();
     } else {
         l.skip(); /* script will not run so jump to the next state */
     }
 }
 
-void StartingRun::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
-    if(s.runScript->willRun()) {
+void StartingRun::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
+    if(s.runScript.has_value() && s.runScript->willRun()) {
         s.runScript->start();
         l.update(); /* move on to the running state */
     } else {
@@ -59,8 +64,8 @@ void StartingRun::operator()(component_data &l, state_data &s) {
     }
 }
 
-void Running::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+void Running::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
     l.alertRUNNING();
     if(s.runScript) {
         if(s.runScript->willRun()) {
@@ -69,8 +74,8 @@ void Running::operator()(component_data &l, state_data &s) {
     }
 }
 
-void Stopping::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+void Stopping::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
     l.alertSTOPPING();
     if(s.shutdownScript) {
         if(s.shutdownScript->willRun()) {
@@ -83,8 +88,8 @@ void Stopping::operator()(component_data &l, state_data &s) {
     }
 }
 
-void StoppingWError::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+void StoppingWError::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
     l.alertERROR();
     if(s.shutdownScript) {
         if(s.shutdownScript->willRun()) {
@@ -97,26 +102,26 @@ void StoppingWError::operator()(component_data &l, state_data &s) {
     }
 }
 
-void Finished::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
+void Finished::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
     l.alertFINISHED();
     s.stop = false;
 }
 
-void Kill::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
-    s.killAll();
+void Kill::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
+    s.abort();
     l.skip();
 }
 
-void KillWRunError::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
-    s.killAll();
+void KillWRunError::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
+    s.abort();
     l.skip();
 }
 
-void KillWStopError::operator()(component_data &l, state_data &s) {
-    std::cout << l.getName() << ": " << getName() << " Entry" << std::endl;
-    s.killAll();
+void KillWStopError::operator()(ComponentListener &l, StateData &s) {
+    printStateEntry(name, l.getName());
+    s.abort();
     l.skip();
 }
