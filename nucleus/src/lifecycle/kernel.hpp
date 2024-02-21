@@ -117,7 +117,7 @@ namespace lifecycle {
             std::chrono::seconds timeout,
             bool requiresPrivilege,
             std::unordered_map<std::string, std::optional<std::string>> env,
-            std::string note,
+            const std::string &note,
             std::optional<ipc::CompletionCallback> onComplete = {});
     };
 } // namespace lifecycle
