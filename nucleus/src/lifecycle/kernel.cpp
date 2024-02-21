@@ -417,10 +417,12 @@ namespace lifecycle {
             try {
                 return _deviceConfiguration->getRunWithDefaultPosixShell().getString();
             } catch(const std::bad_cast &) {
+                // TODO: move default into PAL
                 return "bash"s;
             }
         }();
 
+        // TODO: Figure out PAL interface for this
         auto [user, group] =
             [this]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
             auto cfg = _deviceConfiguration->getRunWithDefaultPosixUser();
@@ -435,6 +437,7 @@ namespace lifecycle {
             return {str.substr(0, it), str.substr(it + 1)};
         }();
 
+        // TODO: Don't hardcode TES
         std::string container_uri = "http://localhost:8090/2016-11-01/credentialprovider/";
 
         auto [socketPath, authToken] =
@@ -457,6 +460,8 @@ namespace lifecycle {
             return {socketPath, authToken};
         }();
 
+        // TODO: GG Java has custom PATH logic
+        // TODO: Set home, and other variables
         env.merge(decltype(env){
             // TODO: Should entire nucleus env be copied?
             {std::string{ipc::PATH_ENVVAR}, ipc::getEnviron(ipc::PATH_ENVVAR)},
