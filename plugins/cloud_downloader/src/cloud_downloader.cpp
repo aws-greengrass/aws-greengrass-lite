@@ -134,7 +134,7 @@ void CloudDownloader::downloadClient(
     connection->Close();
     semaphore.wait(semaphoreULock, [&]() { return connectionShutdown; });
 
-    LOG.atInfo().event("Downlaod Status").kv("response_code", responseCode).log();
+    LOG.atInfo().event("Download Status").kv("response_code", responseCode).log();
 }
 
 /*
@@ -193,7 +193,7 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
 }
 
 /*
-Generic Http/Https downloader that downlaods to the provided `localPath`
+Generic Http/Https downloader that Download to the provided `localPath`
 */
 ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
     // TODO: Add more Topics support
