@@ -90,6 +90,7 @@ void CloudDownloader::downloadClient(
     }
     semaphore.wait(semaphoreULock, [&]() { return connection || connectionShutdown; });
 
+    // TODO:: Find something better than thowing error at this state
     if(errorOccured || connectionShutdown || !connection) {
         LOG.atError().log("Failed to establish successful connection");
         throw std::runtime_error("Failed to establish successful connection");
