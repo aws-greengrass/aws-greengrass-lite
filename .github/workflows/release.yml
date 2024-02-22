@@ -1,0 +1,28 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  bundle:
+    name: Create Bundle
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Create Bundle
+        run: nix run -L --log-lines 0 .#archive
+
+      - name: Upload Bundle
+        uses: actions/upload-artifact@v3
+        with:
+          name: bundle
+          path: aws-greengrass-lite.tar.gz
+          retention-days: 5
