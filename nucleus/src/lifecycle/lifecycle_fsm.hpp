@@ -17,12 +17,26 @@
  */
 
 namespace event {
+    /** Used to move from the iniitial state to NEW.  Probably can become Skip */
     struct Initialize {
-    }; /** Used to move from the iniitial state to NEW.  Probably can become Skip */
-    struct Update {}; /** Used by the states to indicate a change in the requests */
-    struct Skip {}; /** Used by some states to skip to the next happy-path state in the sequence */
-    struct ScriptError {}; /** Used to indicate a script has completed with an error */
-    struct ScriptOk {}; /** Used to indicate a script has completed with no error */
+        static constexpr std::string_view name = "Initialize";
+    };
+    /** Used by the states to indicate a change in the requests */
+    struct Update {
+        static constexpr std::string_view name = "Update";
+    };
+    /** Used by some states to skip to the next happy-path state in the sequence */
+    struct Skip {
+        static constexpr std::string_view name = "Skip";
+    };
+    /** Used to indicate a script has completed with an error */
+    struct ScriptError {
+        static constexpr std::string_view name = "ScriptError";
+    };
+    /** Used to indicate a script has completed with no error */
+    struct ScriptOk {
+        static constexpr std::string_view name = "ScriptOk";
+    };
 
     using Event = std::variant<Initialize, Update, Skip, ScriptError, ScriptOk>;
 } // namespace event
@@ -335,46 +349,34 @@ public:
         return _name;
     }
 
-    virtual void skip() = 0;
-    virtual void update() = 0;
+    virtual void skip(){};
+    virtual void update(){};
 
     /* alerts to inform the system that we are in a state */
-    virtual void alertNEW() = 0;
-    virtual void alertINSTALLED() = 0;
-    virtual void alertRUNNING() = 0;
-    virtual void alertSTOPPING() = 0;
-    virtual void alertERROR() = 0;
-    virtual void alertBROKEN() = 0;
-    virtual void alertFINISHED() = 0;
+    virtual void alertStateChange(const State &previousState, const State &desiredState){};
+    virtual void alertStateUnchanged(const State &currentState, const event::Event &event){};
 
 private:
     std::string _name;
 };
 
-template<
-    class Listener,
-    /* requires */ std::enable_if_t<std::is_base_of_v<ComponentListener, Listener>, int> = 0>
+// template<
+//     class Listener,
+//     /* requires */ std::enable_if_t<std::is_base_of_v<ComponentListener, Listener>, int> = 0>
 class ComponentLifecycle {
 public:
-    ComponentLifecycle(
-        Listener listener,
-        ScriptRunner installerRunner,
-        ScriptRunner startupRunner,
-        ScriptRunner runRunner,
-        ScriptRunner shutdownRunner)
-        : _listener{checkPointer(std::move(listener))}, _stateData{
-                                                            std::move(installerRunner),
-                                                            std::move(startupRunner),
-                                                            std::move(runRunner),
-                                                            std::move(shutdownRunner)} {
-        dispatch(event::Initialize{});
+    ComponentLifecycle(ComponentListener &listener, StateData &&initialState) noexcept
+        : _listener{listener}, _stateData{std::move(initialState)} {
+        std::visit([this](auto &&newState) { newState(_listener, _stateData); }, _currentState);
     };
 
     void dispatch(const event::Event &event) {
         std::optional<State> newState = std::visit(Transitions{_stateData}, _currentState, event);
         if(newState.has_value()) {
-            _currentState = newState.value();
-            std::visit([this](auto &&newState) { newState(_listener, _stateData); }, _currentState);
+            _listener.alertStateChange(_currentState, newState.value());
+            overrideState(newState.value());
+        } else {
+            _listener.alertStateUnchanged(_currentState, event);
         }
     }
 
@@ -406,8 +408,14 @@ public:
         dispatch(event::Update{});
     }
 
+    // Made public for testing
+    void overrideState(State desiredState) {
+        _currentState = desiredState;
+        std::visit([this](auto &&newState) { newState(_listener, _stateData); }, _currentState);
+    }
+
 private:
     State _currentState{Initial{}};
-    Listener _listener;
+    ComponentListener &_listener;
     StateData _stateData;
 };

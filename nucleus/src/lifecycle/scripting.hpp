@@ -13,6 +13,8 @@ public:
         std::chrono::seconds timeout)
         : _eventSender(std::move(eventSender)), _timeout(timeout){};
 
+    ScriptRunner() noexcept = default;
+
     bool willRun(); /* check the recipe and determine if the script is allowed to run. */
     bool start(); /* start the script running if it is allowed.  Return TRUE if the script is
                      started and false otherwise.  When the script completes call _eventSender with

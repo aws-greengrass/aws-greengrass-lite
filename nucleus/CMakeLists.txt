@@ -103,8 +103,13 @@ add_library(
   src/lifecycle/command_line.cpp
   src/lifecycle/command_line.hpp
   src/lifecycle/command_line_arguments.hpp
+  src/lifecycle/error_rate.hpp
   src/lifecycle/kernel.cpp
   src/lifecycle/kernel.hpp
+  src/lifecycle/lifecycle_fsm.cpp
+  src/lifecycle/lifecycle_fsm.hpp
+  src/lifecycle/scripting.cpp
+  src/lifecycle/scripting.hpp
   src/lifecycle/kernel_alternatives.cpp
   src/lifecycle/kernel_alternatives.hpp
   src/lifecycle/sys_properties.cpp
@@ -239,13 +244,15 @@ add_executable(
   tests/deployment/recipe_tests.cpp
   tests/errors/errors_test.cpp
   tests/lifecycle/kernel_tests.cpp
+  tests/lifecycle/lifecycle_tests.cpp
   tests/pubsub/pubsub_tests.cpp
   tests/scope/context_tests.cpp
   tests/scope/scope_tests.cpp
   tests/tasks/task_tests.cpp
   tests/test_ggroot.hpp
   tests/test_tools.hpp)
-target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain)
+target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain
+                                            trompeloeil::trompeloeil)
 target_include_directories(nucleus-tests
                            PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
 catch_discover_tests(nucleus-tests)

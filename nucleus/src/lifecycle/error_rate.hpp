@@ -29,7 +29,7 @@ public:
         return !isBroken();
     }
 
-    constexpr void clear() noexcept {
+    void clear() noexcept {
         _history.fill(Clock::time_point{});
     }
 

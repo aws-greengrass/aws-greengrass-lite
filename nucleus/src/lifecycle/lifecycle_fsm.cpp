@@ -17,7 +17,6 @@ void Initial::operator()(ComponentListener &l, StateData &s) {
 
 void New::operator()(ComponentListener &l, StateData &s) {
     printStateEntry(name, l.getName());
-    l.alertNEW();
     s.stop = false;
     l.update(); /* allow continuation if !stop */
 }
@@ -33,14 +32,12 @@ void Installing::operator()(ComponentListener &l, StateData &s) {
 
 void Installed::operator()(ComponentListener &l, StateData &s) {
     printStateEntry(name, l.getName());
-    l.alertINSTALLED();
     s.reinstall = false;
     l.update(); /* allow continuation if !reinstall */
 }
 
 void Broken::operator()(ComponentListener &l, StateData &s) {
     printStateEntry(name, l.getName());
-    l.alertBROKEN();
     s.stop = false;
     l.update(); /* allow continuation if !stop */
 }
@@ -66,7 +63,6 @@ void StartingRun::operator()(ComponentListener &l, StateData &s) {
 
 void Running::operator()(ComponentListener &l, StateData &s) {
     printStateEntry(name, l.getName());
-    l.alertRUNNING();
     if(s.runScript) {
         if(s.runScript->willRun()) {
             s.runScript->start();
@@ -76,7 +72,6 @@ void Running::operator()(ComponentListener &l, StateData &s) {
 
 void Stopping::operator()(ComponentListener &l, StateData &s) {
     printStateEntry(name, l.getName());
-    l.alertSTOPPING();
     if(s.shutdownScript) {
         if(s.shutdownScript->willRun()) {
             s.shutdownScript->start();
@@ -90,7 +85,6 @@ void Stopping::operator()(ComponentListener &l, StateData &s) {
 
 void StoppingWError::operator()(ComponentListener &l, StateData &s) {
     printStateEntry(name, l.getName());
-    l.alertERROR();
     if(s.shutdownScript) {
         if(s.shutdownScript->willRun()) {
             s.shutdownScript->start();
@@ -104,7 +98,6 @@ void StoppingWError::operator()(ComponentListener &l, StateData &s) {
 
 void Finished::operator()(ComponentListener &l, StateData &s) {
     printStateEntry(name, l.getName());
-    l.alertFINISHED();
     s.stop = false;
 }
 
