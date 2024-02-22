@@ -225,6 +225,14 @@ struct Transitions {
         return StartingRun();
     }
 
+    std::optional<State> operator()(Broken &, const event::Update &e) const {
+        if(s.stop) {
+            std::cout << "Broken -> New\n";
+            return New{};
+        }
+        return {};
+    }
+
     std::optional<State> operator()(Startup &, const event::ScriptError &e) const {
         std::cout << "Starting -> Error -> ";
         if(s.startErrors.insert(); s.startErrors.isBroken()) {
@@ -390,22 +398,25 @@ public:
 
     void setStop() {
         _stateData.stop = true;
-        dispatch(event::Update{});
     }
 
     void setStart() {
         _stateData.start = true;
-        dispatch(event::Update{});
     }
 
     void setRestart() {
         _stateData.restart = true;
-        dispatch(event::Update{});
     }
 
     void setReinstall() {
         _stateData.reinstall = true;
-        dispatch(event::Update{});
+    }
+
+    void clearFlags() noexcept {
+        _stateData.reinstall = false;
+        _stateData.stop = false;
+        _stateData.start = false;
+        _stateData.restart = false;
     }
 
     // Made public for testing
