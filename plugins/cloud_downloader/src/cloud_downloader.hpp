@@ -16,7 +16,7 @@ class CloudDownloader : public ggapi::Plugin {
 private:
     static void downloadClient(
         Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions,
-        std::string uriAsString,
+        const std::string &uriAsString,
         Aws::Crt::Http::HttpRequest &request,
         Aws::Crt::Http::HttpRequestOptions requestOptions,
         Aws::Crt::Allocator *allocator);

@@ -1,21 +1,26 @@
 
 #include "cloud_downloader.hpp"
 #include "aws/crt/Allocator.h"
+#include <string>
+#include <string_view>
 
-const int TIME_OUT_MS = 5000;
-const int PORT_NUM = 443;
+constexpr static int TIME_OUT_MS = 5000;
+constexpr static int PORT_NUM = 443;
+const static std::string THING_NAME_HEADER = "x-amzn-iot-thingname";
+
+// Always initialize this only once otherwise the compiler throws "allocator" error
+static Aws::Crt::ApiHandle apiHandle{};
 
 /*
 A common client helper function to make the request to a url using the aws's library
 */
 void CloudDownloader::downloadClient(
     Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions,
-    std::string uriAsString,
+    const std::string &uriAsString,
     Aws::Crt::Http::HttpRequest &request,
     Aws::Crt::Http::HttpRequestOptions requestOptions,
     Aws::Crt::Allocator *allocator) {
 
-    Aws::Crt::ApiHandle apiHandle(allocator);
     Aws::Crt::ByteCursor urlCursor = Aws::Crt::ByteCursorFromCString(uriAsString.c_str());
 
     Aws::Crt::Io::Uri uri(urlCursor, allocator);
@@ -44,10 +49,10 @@ void CloudDownloader::downloadClient(
     clientBootstrap.EnableBlockingShutdown();
 
     std::shared_ptr<Aws::Crt::Http::HttpClientConnection> connection(nullptr);
-    bool errorOccured = true;
+    bool errorOccurred = true;
     bool connectionShutdown = false;
 
-    std::condition_variable semaphore;
+    std::condition_variable conditionalVar;
     std::mutex semaphoreLock;
 
     auto onConnectionSetup =
@@ -57,20 +62,20 @@ void CloudDownloader::downloadClient(
             if(!errorCode) {
                 LOG.atDebug().log("Successful on establishing connection.");
                 connection = newConnection;
-                errorOccured = false;
+                errorOccurred = false;
             } else {
                 connectionShutdown = true;
             }
-            semaphore.notify_one();
+            conditionalVar.notify_one();
         };
 
     auto onConnectionShutdown = [&](Aws::Crt::Http::HttpClientConnection &, int errorCode) {
         std::lock_guard<std::mutex> lockGuard(semaphoreLock);
         connectionShutdown = true;
         if(errorCode) {
-            errorOccured = true;
+            errorOccurred = true;
         }
-        semaphore.notify_one();
+        conditionalVar.notify_one();
     };
 
     Aws::Crt::Http::HttpClientConnectionOptions httpClientConnectionOptions;
@@ -88,10 +93,10 @@ void CloudDownloader::downloadClient(
         LOG.atError().log("Failed to create connection");
         throw std::runtime_error("Failed to create connection");
     }
-    semaphore.wait(semaphoreULock, [&]() { return connection || connectionShutdown; });
+    conditionalVar.wait(semaphoreULock, [&]() { return connection || connectionShutdown; });
 
-    // TODO:: Find something better than thowing error at this state
-    if(errorOccured || connectionShutdown || !connection) {
+    // TODO:: Find something better than throwing error at this state
+    if(errorOccurred || connectionShutdown || !connection) {
         LOG.atError().log("Failed to establish successful connection");
         throw std::runtime_error("Failed to establish successful connection");
     }
@@ -104,9 +109,9 @@ void CloudDownloader::downloadClient(
         std::lock_guard<std::mutex> lockGuard(semaphoreLock);
         streamCompleted = true;
         if(errorCode) {
-            errorOccured = true;
+            errorOccurred = true;
         }
-        semaphore.notify_one();
+        conditionalVar.notify_one();
     };
     requestOptions.onIncomingHeadersBlockDone = nullptr;
     requestOptions.onIncomingHeaders = [&](Aws::Crt::Http::HttpStream &stream,
@@ -130,17 +135,17 @@ void CloudDownloader::downloadClient(
         throw std::runtime_error("Failed to activate stream and download the file..");
     }
 
-    semaphore.wait(semaphoreULock, [&]() { return streamCompleted; });
+    conditionalVar.wait(semaphoreULock, [&]() { return streamCompleted; });
 
     connection->Close();
-    semaphore.wait(semaphoreULock, [&]() { return connectionShutdown; });
+    conditionalVar.wait(semaphoreULock, [&]() { return connectionShutdown; });
 
     LOG.atInfo().event("Download Status").kv("response_code", responseCode).log();
 }
 
 /*
 Generic Http/Https downloader that provides a in memory response for the results from the `url`.
-Uses provided device IOT credintials to make the query to the `url`
+Uses provided device IOT credential to make the query to the `url`
 */
 ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
     auto uriAsString = callData.get<std::string>("uri");
@@ -150,8 +155,10 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
     auto caFile = callData.get<std::string>("caFile");
     auto pkeyPath = callData.get<std::string>("pkeyPath");
 
+    auto allocator = Aws::Crt::DefaultAllocator();
+    aws_io_library_init(allocator);
+
     std::shared_ptr<Aws::Crt::Http::HttpClientConnection> connection;
-    struct aws_allocator *allocator = aws_default_allocator();
 
     // Setup Connection TLS
     Aws::Crt::Io::TlsContextOptions tlsCtxOptions =
@@ -172,7 +179,7 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
 
     // Add thingName as header
     Aws::Crt::Http::HttpHeader header;
-    header.name = Aws::Crt::ByteCursorFromCString("x-amzn-iot-thingname");
+    header.name = Aws::Crt::ByteCursorFromCString(THING_NAME_HEADER.c_str());
     header.value = Aws::Crt::ByteCursorFromCString(thingName.c_str()); // Add thingname here
     request.AddHeader(header);
 
@@ -201,8 +208,10 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
     auto uriAsString = callData.get<std::string>("uri");
     auto localPath = callData.get<std::string>("localPath");
 
+    auto allocator = Aws::Crt::DefaultAllocator();
+    aws_io_library_init(allocator);
+
     std::shared_ptr<Aws::Crt::Http::HttpClientConnection> connection;
-    struct aws_allocator *allocator = aws_default_allocator();
 
     // Setup Connection TLS
     Aws::Crt::Io::TlsContextOptions tlsCtxOptions =
@@ -244,7 +253,6 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
 }
 
 bool CloudDownloader::onDiscover(ggapi::Struct data) {
-    aws_io_library_init(Aws::Crt::DefaultAllocator());
     std::ignore = getScope().subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, genericDownload);
 
