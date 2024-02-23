@@ -5,7 +5,7 @@
 
 ### Known bug
 
-- We now only support a debian linux environment for the project
+- The gglite binaries will only correctly run in a linux environment for now
 - The local http server may not shut down properly and you might face the
   `mutex error` for that you need to find the process using the port. In linux
   environment you can use:
