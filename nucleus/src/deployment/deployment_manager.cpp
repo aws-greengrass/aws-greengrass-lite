@@ -67,7 +67,6 @@ namespace deployment {
                 } else {
                     auto deploymentType = nextDeployment.deploymentType;
                     auto deploymentStage = nextDeployment.deploymentStage;
-
                     if(deploymentStage == DeploymentStage::DEFAULT) {
                         createNewDeployment(nextDeployment);
                     } else {
@@ -97,8 +96,7 @@ namespace deployment {
         auto deploymentType = deployment.deploymentType;
         // TODO: Greengrass deployment id
         // TODO: persist and publish deployment status
-        // TODO: Get non-target group to root packages group
-        // TODO: Component manager - resolve version, prepare packages, ...
+        // TODO: Create deployment task?
         LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
@@ -107,7 +105,7 @@ namespace deployment {
 
         if(deploymentType == DeploymentType::LOCAL) {
             try {
-                auto requiredCapabilities = deployment.deploymentDocument.requiredCapabilities;
+                auto requiredCapabilities = deployment.deploymentDocumentObj.requiredCapabilities;
                 if(!requiredCapabilities.empty()) {
                     // TODO: check if required capabilities are supported
                 }
@@ -130,11 +128,8 @@ namespace deployment {
         // TODO: Kill the process doing the deployment
     }
 
-    void DeploymentManager::resolveDependencies(deployment::DeploymentDocument) {
-    }
-
     void DeploymentManager::loadRecipesAndArtifacts(const Deployment &deployment) {
-        auto &deploymentDocument = deployment.deploymentDocument;
+        auto &deploymentDocument = deployment.deploymentDocumentObj;
         if(!deploymentDocument.recipeDirectoryPath.empty()) {
             auto recipeDir = deploymentDocument.recipeDirectoryPath;
             copyAndLoadRecipes(recipeDir);
@@ -211,6 +206,8 @@ namespace deployment {
         // TODO: More streamlined deployment task
         auto currentDeployment = _deploymentQueue->next();
         auto currentRecipe = _componentStore->next();
+        // TODO: Get non-target group to root packages group
+        // TODO: Component manager - resolve version, prepare packages, ...
 
         // component name is not recommended to start with "aws.greengrass"
         if(util::startsWith(currentRecipe.getComponentName(), "aws.greengrass")) {
@@ -291,11 +288,7 @@ namespace deployment {
                             envList.put(0, executable);
                             auto request = ggapi::Struct::create();
                             request.put("GetEnv", envList);
-                            auto response =
-                                ggapi::Task::sendToTopic(GET_ENVIRONMENT_TOPIC, request);
-                            if(response.get<bool>("status")) {
-                                return;
-                            }
+                            // TODO: Skipif
                         }
                         // skip the step if the file exists
                         else if(skipIf[0] == exists_prefix) {
@@ -427,14 +420,13 @@ namespace deployment {
                 auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();
                 return ggapi::Struct{container};
             };
-            auto deploymentDocument = jsonToStruct(deploymentDocumentJson);
+
+            deployment::DeploymentDocument deploymentDocument;
+            config::JsonDeserializer jsonReader(scope::context());
+            jsonReader.read(deploymentDocumentJson);
+            jsonReader(deployment.deploymentDocumentObj);
 
             deployment.id = deploymentStruct.get<std::string>("id");
-            deployment.deploymentDocument.requestId = deployment.id;
-            deployment.deploymentDocument.artifactsDirectoryPath =
-                deploymentDocument.get<std::string>("artifactsDirectoryPath");
-            deployment.deploymentDocument.recipeDirectoryPath =
-                deploymentDocument.get<std::string>("recipeDirectoryPath");
             deployment.isCancelled = deploymentStruct.get<bool>("isCancelled");
             deployment.deploymentStage =
                 DeploymentStageMap.lookup(deploymentStruct.get<std::string>("deploymentStage"))

@@ -36,11 +36,7 @@ namespace deployment {
         static constexpr std::string_view DISCARDED_DEPLOYMENT_ID_LOG_KEY = "DiscardedDeploymentId";
         static constexpr std::string_view GG_DEPLOYMENT_ID_LOG_KEY_NAME = "GreengrassDeploymentId";
         static constexpr auto POLLING_FREQUENCY = 2s;
-        inline static const ggapi::Symbol EXECUTE_PROCESS_TOPIC{
-            "aws.greengrass.Native.StartProcess"};
-        inline static const ggapi::Symbol GET_ENVIRONMENT_TOPIC{
-            "aws.greengrass.Native.GetEnvironment"};
-        mutable std::mutex _mutex;
+        std::mutex _mutex;
         std::thread _thread;
         std::condition_variable _wake;
         std::atomic_bool _terminate{false};

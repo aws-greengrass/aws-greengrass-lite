@@ -1,5 +1,6 @@
 #pragma once
 #include "data/string_table.hpp"
+#include <config/json_deserializer.hpp>
 #include <cstdint>
 #include <forward_list>
 #include <util.hpp>
@@ -87,18 +88,88 @@ namespace deployment {
             DeploymentStage::ROLLBACK_BOOTSTRAP,
         };
     };
+
+    enum class FailureHandlingPolicy : uint32_t { ROLLBACK, DO_NOTHING };
+
+    inline static const util::LookupTable<std::string_view, FailureHandlingPolicy, 2>
+        FailureHandlingPolicyMap{
+            "ROLLBACK",
+            FailureHandlingPolicy::ROLLBACK,
+            "DO_NOTHING",
+            FailureHandlingPolicy::DO_NOTHING,
+        };
+
+    enum class DeploymentComponentUpdatePolicyAction : uint32_t {
+        NOTIFY_COMPONENTS,
+        SKIP_NOTIFY_COMPONENTS,
+        UNKNOWN_TO_SDK_VERSION
+    };
+
+    inline static const util::
+        LookupTable<std::string_view, DeploymentComponentUpdatePolicyAction, 3>
+            DeploymentComponentUpdatePolicyActionMap{
+                "NOTIFY_COMPONENTS",
+                DeploymentComponentUpdatePolicyAction::NOTIFY_COMPONENTS,
+                "SKIP_NOTIFY_COMPONENTS",
+                DeploymentComponentUpdatePolicyAction::SKIP_NOTIFY_COMPONENTS,
+                "null",
+                DeploymentComponentUpdatePolicyAction::UNKNOWN_TO_SDK_VERSION,
+            };
+
+    struct ComponentUpdatePolicy : public conv::Serializable {
+        int timeout = 60;
+        std::string action;
+
+        void serialize(config::JsonDeserializer &archive) {
+            archive("timeout", timeout);
+            archive("action", action);
+        }
+    };
+
+    template<typename T>
+    struct SdkField {
+        std::string memberName;
+        std::string locationName;
+        std::string unmarshallLocationName;
+        // TODO: rest of the fields
+    };
+
+    struct DeploymentConfigValidationPolicy {
+        SdkField<int> timeout_in_seconds;
+        std::vector<SdkField<int>> sdkFields;
+        long long int serialVersionUID = 1;
+        int timeoutInSeconds;
+    };
+
+    struct SystemResourceLimits {
+        long long int memory;
+        double cpus;
+    };
+
+    struct RunWith {
+        std::string posixUser;
+        std::string windowsUser;
+        SystemResourceLimits systemResourceLimits;
+    };
+
+    enum class ConfigUpdateOperation : uint32_t {
+        MERGE,
+        RESET,
+    };
+
     struct DeploymentPackageConfig {
         std::string packageName;
         bool rootComponent;
         std::string resolvedVersion;
-        //        ConfigUpdateOperation configUpdateOperation;
-        //        RunWith runWith;
+        std::string configUpdateOperation;
+        RunWith runWith;
     };
-    struct DeploymentDocument {
-        std::string requestId;
-        std::string requestTimestamp;
-        std::string componentsToMerge;
-        std::string componentsToRemove;
+
+    struct DeploymentDocument : public conv::Serializable {
+        std::string deploymentId;
+        long long int timestamp;
+        std::unordered_map<std::string, std::string> componentsToMerge;
+        std::unordered_map<std::string, std::string> componentsToRemove;
         std::string recipeDirectoryPath;
         std::string artifactsDirectoryPath;
         std::string configurationArn;
@@ -107,19 +178,52 @@ namespace deployment {
         std::string groupName;
         std::string onBehalfOf;
         std::string parentGroupName;
-        long long int timestamp; // TODO: timepoint
-        //        FailureHandlingPolicy failureHandlingPolicy;
-        //        ComponentUpdatePolicy componentUpdatePolicy;
-        //        DeploymentConfigValidationPolicy deploymentConfigValidationPolicy;
+        std::string failureHandlingPolicy;
+        ComponentUpdatePolicy componentUpdatePolicy;
+        DeploymentConfigValidationPolicy deploymentConfigValidationPolicy;
+
+        void serialize(config::JsonDeserializer &archive) {
+            // TODO: Do rest
+            archive("requestId", deploymentId);
+            archive("requestTimestamp", timestamp);
+            archive("componentsToMerge", componentsToMerge);
+            archive("componentsToRemove", componentsToRemove);
+            archive("groupName", groupName);
+            archive("parentGroupName", parentGroupName);
+            archive("onBehalfof", onBehalfOf);
+            archive("configurationArn", configurationArn);
+            archive("requiredCapabilities", requiredCapabilities);
+            archive("recipeDirectoryPath", recipeDirectoryPath);
+            archive("artifactsDirectoryPath", artifactsDirectoryPath);
+            archive("failureHandlingPolicy", failureHandlingPolicy);
+            archive("componentUpdatePolicy", componentUpdatePolicy);
+        }
     };
 
     struct Deployment {
-        // deploymentDocumentobj
-        DeploymentDocument deploymentDocument;
+        // GG-Java: Need both document object and string
+        DeploymentDocument deploymentDocumentObj;
+        std::string deploymentDocument;
         DeploymentType deploymentType;
         std::string id;
         bool isCancelled;
         DeploymentStage deploymentStage;
         std::string stageDetails;
+        std::vector<std::string> errorStack;
+        std::vector<std::string> errorTypes;
+    };
+
+    enum class DeploymentStatus {
+        SUCCESSFUL,
+        FAILED_NO_STATE_CHANGE,
+        FAILED_ROLLBACK_NOT_REQUESTED,
+        FAILED_ROLLBACK_COMPLETE,
+        FAILED_UNABLE_TO_ROLLBACK,
+        REJECTED
+    };
+
+    struct DeploymentResult {
+        DeploymentStatus deploymentStatus;
+        // DeploymentException deploymentException;
     };
 } // namespace deployment
