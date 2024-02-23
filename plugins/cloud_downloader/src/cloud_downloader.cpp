@@ -8,8 +8,7 @@ constexpr static int TIME_OUT_MS = 5000;
 constexpr static int PORT_NUM = 443;
 const static std::string THING_NAME_HEADER = "x-amzn-iot-thingname";
 
-// Always initialize this only once otherwise the compiler throws "allocator" error
-static Aws::Crt::ApiHandle apiHandle{};
+//TODO: apiHandle is being pulled from iot_broker as a shared global. Fix in future.
 
 /*
 A common client helper function to make the request to a url using the aws's library
