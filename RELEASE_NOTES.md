@@ -5,6 +5,7 @@
 
 ### Known bug
 
+- For support of TES you must also include the iot_broker plugin.
 - The gglite binaries will only correctly run in a linux environment for now
 - The local http server may not shut down properly and you might face the
   `mutex error` for that you need to find the process using the port. In linux
