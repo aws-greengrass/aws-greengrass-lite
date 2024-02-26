@@ -8,33 +8,6 @@
 namespace config {
     using IteratorType = YAML::const_iterator;
 
-    template<class T>
-    struct Field {
-        bool _ignoreCase = false;
-        std::string _key;
-        T _value;
-
-    public:
-        Field(T &value) : _value(value) {
-        }
-
-        [[nodiscard]] std::string getKey() const {
-            return _key;
-        }
-
-        T getDefaultValue() const {
-            return T();
-        }
-
-        template<typename E = T>
-        typename std::enable_if_t<std::is_enum_v<E>> fromString(const std::string &val) {
-        }
-
-        T getValue() const {
-            return _value;
-        }
-    };
-
     class YamlDeserializer : private scope::UsesContext {
         class Iterator {
             size_t _itSize;
@@ -53,7 +26,7 @@ namespace config {
             Iterator &operator=(const Iterator &other) = default;
             Iterator &operator=(Iterator &&) = default;
             explicit Iterator(IteratorType begin, IteratorType end)
-                : _begin(begin), _current(begin), _end(end), _itSize(std::distance(begin, end)) {
+                : _begin(std::move(begin)), _current(_begin), _end(std::move(end)), _itSize(std::distance(begin, end)) {
             }
 
             [[nodiscard]] size_t size() const {
@@ -70,10 +43,10 @@ namespace config {
 
             void operator++() {
                 _itIndex++;
-                ;
             }
 
             void traverse() {
+                // yaml-cpp library does not have an index operator
                 if(_itIndex >= size()) {
                     throw std::runtime_error("No more items in the container"); // no more items
                 }
@@ -109,7 +82,7 @@ namespace config {
         class MapIterator : public Iterator {
 
         public:
-            explicit MapIterator(IteratorType begin, IteratorType end) : Iterator(begin, end) {
+            explicit MapIterator(IteratorType begin, IteratorType end) : Iterator(std::move(begin), std::move(end)) {
             }
 
             IteratorType next() override {
@@ -153,7 +126,7 @@ namespace config {
             std::vector<IteratorType> _stack;
 
         public:
-            explicit SequenceIterator(IteratorType begin, IteratorType end) : Iterator(begin, end) {
+            explicit SequenceIterator(IteratorType begin, IteratorType end) : Iterator(std::move(begin), std::move(end)) {
             }
 
             IteratorType next() override {
@@ -220,10 +193,17 @@ namespace config {
         template<typename T>
         inline YamlDeserializer &operator()(std::pair<std::string, T> &arg) {
             arg.first = _stack.back()->name();
-            arg.first = util::lower(arg.first);
             inplaceMap(_stack.back()->find(arg.first));
             process(arg.second);
             _stack.pop_back();
+            ++(*_stack.back());
+            return *this;
+        }
+
+        template<typename T, std::enable_if_t<!std::is_base_of_v<conv::Serializable, T>> = 0>
+        inline YamlDeserializer &operator()(std::pair<std::string, T> &arg) {
+            arg.first = _stack.back()->name();
+            process(arg.second);
             ++(*_stack.back());
             return *this;
         }
@@ -283,13 +263,7 @@ namespace config {
 
         template<typename T>
         inline void process(const std::string &key, T &head) {
-
-            auto dispatchFn = [this, &key](auto fn, auto &...args) {
-                start(key);
-                this->*fn(args...);
-                end();
-            };
-
+            // TODO: overload instead
             if constexpr(util::is_specialization<T, std::vector>::value) {
                 auto exists = start(key);
                 if(exists) {

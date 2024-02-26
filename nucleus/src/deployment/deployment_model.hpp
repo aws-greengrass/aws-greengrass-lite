@@ -183,11 +183,11 @@ namespace deployment {
         DeploymentConfigValidationPolicy deploymentConfigValidationPolicy;
 
         void serialize(config::JsonDeserializer &archive) {
-            // TODO: Do rest
+            // TODO: Do rest and check names from cli
             archive("requestId", deploymentId);
             archive("requestTimestamp", timestamp);
-            archive("componentsToMerge", componentsToMerge);
-            archive("componentsToRemove", componentsToRemove);
+            archive("rootComponentVersionsToAdd", componentsToMerge);
+            archive("rootComponentsToRemove", componentsToRemove);
             archive("groupName", groupName);
             archive("parentGroupName", parentGroupName);
             archive("onBehalfof", onBehalfOf);

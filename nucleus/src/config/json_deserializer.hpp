@@ -119,7 +119,7 @@ namespace config {
             return *this;
         }
 
-        template<typename T, std::enable_if_t<std::is_base_of_v<conv::Serializable, T>>>
+        template<typename T, typename = std::enable_if_t<std::is_base_of_v<conv::Serializable, T>>>
         inline JsonDeserializer &operator()(std::pair<std::string, T> &arg) {
             arg.first = _stack.back().name();
             arg.first = util::lower(arg.first);
@@ -140,25 +140,21 @@ namespace config {
             return *this;
         }
 
-        // inline JsonDeserializer &operator()(std::pair<std::string, data::Object> &arg) {
-        //     arg.first = _stack.back().name();
-        //     if(_ignoreKeyCase) {
-        //         arg.first = util::lower(arg.first);
-        //     }
-        //     inplaceMap(_stack.back().find(arg.first));
-        //     const auto node = _stack.back().value();
-        //     if(node.IsNull()) {
-        //         arg.second = node.GetString();
-        //     } else {
-        //         rapidjson::Reader reader;
-        //         auto data = std::make_shared<data::SharedStruct>(scope::context());
-        //         auto jsonReader = conv::JsonReader(scope::context());
-        //         jsonReader.push(std::make_unique<conv::JsonSharedStructResponder>(jsonReader,
-        //         data, true)); auto result = reader.Parse arg.second = data;
-        //     }
-        //     ++(*_stack.back());
-        //     return *this;
-        // }
+        inline JsonDeserializer &operator()(std::pair<std::string, data::Object> &arg) {
+            arg.first = _stack.back().name();
+            arg.first = util::lower(arg.first);
+            if(_stack.back().find(arg.first)) {
+                inplaceMap();
+            }
+            if(_stack.back().value().IsNull()) {
+                arg.second = _stack.back().value().GetString();
+            } else {
+                // TODO: Not implemented
+                throw std::runtime_error("Not implemented");
+            }
+            ++(_stack.back());
+            return *this;
+        }
 
         void read(const std::filesystem::path &path) {
             std::ifstream stream{path};
@@ -176,14 +172,13 @@ namespace config {
             rootDoc.ParseStream(istream);
 
             if(!(rootDoc.IsArray() || rootDoc.IsObject())) {
-                throw std::runtime_error("Wrong");
+                throw std::runtime_error("Invalid json format. Expecting a map or array");
             }
             if(rootDoc.IsArray()) {
                 _stack.emplace_back(rootDoc.Begin(), rootDoc.End());
             } else {
                 _stack.emplace_back(rootDoc.MemberBegin(), rootDoc.MemberEnd());
             }
-            // _stack.back()->setIgnoreKeyCase(_ignoreKeyCase);
         }
 
         void read(const std::string &jsonString) {
@@ -194,14 +189,13 @@ namespace config {
             rootDoc.ParseStream(sstream);
 
             if(!(rootDoc.IsArray() || rootDoc.IsObject())) {
-                throw std::runtime_error("Wrong");
+                throw std::runtime_error("Invalid json format. Expecting a map or array");
             }
             if(rootDoc.IsArray()) {
                 _stack.emplace_back(rootDoc.Begin(), rootDoc.End());
             } else {
                 _stack.emplace_back(rootDoc.MemberBegin(), rootDoc.MemberEnd());
             }
-            // _stack.back()->setIgnoreKeyCase(_ignoreKeyCase);
         }
 
         bool inplaceMap() {
@@ -214,7 +208,6 @@ namespace config {
                 _stack.emplace_back(
                     _stack.back().value().MemberBegin(), _stack.back().value().MemberEnd());
             }
-            // _stack.back()->setIgnoreKeyCase(_ignoreKeyCase);
             return true;
         }
 
@@ -229,13 +222,7 @@ namespace config {
 
         template<typename T>
         inline void process(const std::string &key, T &head) {
-
-            auto dispatchFn = [this, &key](auto fn, auto &...args) {
-                start(key);
-                this->*fn(args...);
-                end();
-            };
-
+            // TODO: overload instead
             if constexpr(util::is_specialization<T, std::vector>::value) {
                 auto exists = start(key);
                 if(exists) {
@@ -274,20 +261,13 @@ namespace config {
             apply(*this, head);
         }
 
-        // template<
-        //     typename T,
-        //     typename = std::enable_if_t<std::is_base_of_v<data::StructModelBase, T>>>
-        // void load(std::shared_ptr<T> &head) {
-        //     if(!head) {
-        //         head = std::make_shared<T>(scope::context());
-        //     }
-        //     for(auto i = 0; i < _stack.back().size(); i++) {
-        //         auto node = _stack.back().value();
-        //         auto reader = conv::YamlReader(scope::context(), head);
-        //         reader.begin(node);
-        //         ++(*_stack.back());
-        //     }
-        // }
+        template<
+            typename T,
+            typename = std::enable_if_t<std::is_base_of_v<data::StructModelBase, T>>>
+        void load(std::shared_ptr<T> &head) {
+            // TODO: Not implemented
+            throw std::runtime_error("Not implemented");
+        }
 
         template<typename T>
         std::enable_if_t<std::is_base_of_v<conv::Serializable, T>> load(
@@ -336,8 +316,7 @@ namespace config {
 
         bool start(const std::string &key) {
             if(_stack.back().find(key)) {
-                inplaceMap();
-                return true;
+                return inplaceMap();
             }
             return false;
         }
