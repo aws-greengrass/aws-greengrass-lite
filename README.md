@@ -148,14 +148,18 @@ make -C build -j4 install/strip
 
 ## Dependencies
 
-The following dependencies are required to build Nucleus and all the included
-plugins
+Building Nucleus and the included plugins was tested with:
 
-- Linux kernel >=5.15
-- CMake >=3.22
-- make >=4.2.1
-- glibc >=2.31
-- GCC >=9.4.0
+- CMake: 3.22
+- make: 4.2.1
+- GCC: 9.4.0
+
+The following runtime dependencies are needed:
+
+- OpenSSL
+- Linux kernel (tested with 5.15)
+- libc (tested with glibc 2.31)
+- compiler support libraries (libgcc_s.so for GCC)
 
 ## Security
 
