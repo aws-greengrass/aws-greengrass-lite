@@ -1,12 +1,10 @@
-#include "plugin.hpp"
 #include "test_util.hpp"
 #include <catch2/catch_all.hpp>
 
 #include <filesystem>
-#include <iostream>
 
-SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
-    GIVEN("Inititate the plugin") {
+SCENARIO("Example download from a url sent over LPC", "[cloudDownloader]") {
+    GIVEN("Initiate the plugin") {
         // start the lifecycle
         auto moduleScope = ggapi::ModuleScope::registerGlobalPlugin(
             "plugin", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
@@ -14,7 +12,7 @@ SCENARIO("Example dowload from a url sent over LPC", "[cloudDownder]") {
         moduleScope.setActive();
         CHECK(sender.startLifecycle());
 
-        WHEN("A device Credential is provided to retrive the token") {
+        WHEN("A device Credential is provided to retrieve the token") {
 
             auto request{ggapi::Struct::create()};
 

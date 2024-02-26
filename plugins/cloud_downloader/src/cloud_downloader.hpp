@@ -4,10 +4,7 @@
 #include <aws/crt/http/HttpRequestResponse.h>
 #include <aws/crt/io/Uri.h>
 
-#include <fstream>
-#include <iostream>
 #include <logging.hpp>
-#include <mutex>
 #include <plugin.hpp>
 
 const auto LOG = ggapi::Logger::of("Cloud_downloader");

@@ -2,11 +2,13 @@
 #include "cloud_downloader.hpp"
 #include "aws/crt/Allocator.h"
 #include <string>
-#include <string_view>
+#include <fstream>
+#include <iostream>
+#include <mutex>
 
 constexpr static int TIME_OUT_MS = 5000;
 constexpr static int PORT_NUM = 443;
-const static std::string THING_NAME_HEADER = "x-amzn-iot-thingname";
+const char* const THING_NAME_HEADER = "x-amzn-iot-thingname";
 
 // TODO: apiHandle is being pulled from iot_broker as a shared global. Fix in future.
 
@@ -178,7 +180,7 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
 
     // Add thingName as header
     Aws::Crt::Http::HttpHeader header;
-    header.name = Aws::Crt::ByteCursorFromCString(THING_NAME_HEADER.c_str());
+    header.name = Aws::Crt::ByteCursorFromCString(THING_NAME_HEADER);
     header.value = Aws::Crt::ByteCursorFromCString(thingName.c_str()); // Add thingname here
     request.AddHeader(header);
 
