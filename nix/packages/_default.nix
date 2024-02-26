@@ -3,6 +3,7 @@
 , fetchgit
 , cmake
 , ninja
+, openssl
 , src
 }:
 let
@@ -26,6 +27,7 @@ stdenv.mkDerivation {
   };
   strictDeps = true;
   nativeBuildInputs = [ cmake ninja ];
+  buildInputs = [ openssl ];
   hardeningDisable = [ "all" ];
   cmakeFlags = fetchcontentFlags;
   passthru = { inherit fetchcontentFlags; };
