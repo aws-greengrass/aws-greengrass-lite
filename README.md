@@ -59,9 +59,54 @@ The `plugin_api` directory has the interface plugins should build against.
 > todo: This getting started section is in flux as the greengrass lite project
 > matures.
 
-### Installing Greengrass Lite binary
+## Dependencies
 
-Currently, install is performed by the compile from source steps below.
+Building Nucleus and the included plugins was tested with:
+
+- CMake: 3.22
+- make: 4.2.1
+- GCC: 9.4.0
+
+The following runtime dependencies are needed:
+
+- OpenSSL (tested with 3.0.13)
+- Linux kernel (tested with 5.15)
+- libc (tested with glibc 2.31)
+- compiler support libraries (libgcc_s.so for GCC)
+
+### Compiling Greengrass Lite
+
+```bash
+cmake -B build
+make -C build -j4
+```
+
+### Compiling Greengrass Lite for minimal footprint
+
+Build type "MinSizeRel" enables multiple size reduction options. Note that in
+current build, shared plugins that link to DeviceSDK are still pulling in unused
+code - this will be addressed.
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel
+make -C build -j4
+```
+
+#### Installing in a user location
+
+```bash
+cmake -B build -DCMAKE_INSTALL_PREFIX=~/gglite_testing
+make -C build -j4 install/strip
+```
+
+#### Installing in the system location
+
+The default location on linux is directories under `/usr/`
+
+```bash
+cmake -B build
+make -C build -j4 install/strip
+```
 
 ### Configuring Greengrass Lite
 
@@ -84,13 +129,14 @@ Configure the following in your config file
 
 ### Running Greengrass Lite
 
-For these examples, greengrass is installed in the ~/gglite_testing folder. This
-can be changed to suit your system. The settings shown will process the
+For these examples, greengrass is installed in the `~/gglite_testing` folder.
+This can be changed to suit your system. The settings shown will process the
 config.yaml and populate the config folder with pre-processed versions. If you
 change config.yaml you will need to delete the preprocessed files.
 
 ```bash
-~/gglite_testing/bin/greengrass-lite -r ~/gglite_testing --init-config ~/gglite_testing/config/config.yaml
+cd ~/gglite_testing
+./bin/greengrass-lite -r . --init-config ./config/config.yaml
 ```
 
 ### Deployments
@@ -106,60 +152,8 @@ To create a deployment, use the
 and run
 
 ```bash
-./greengrass-cli --ggcRootPath=~/gglite_testing deployment create --recipeDir /path/to/recipes --artifactDir /path/to/artifacts --merge "<component-name>=<version>"
+./greengrass-cli --ggcRootPath=~/gglite_testing deployment create --recipeDir ./path/to/recipes --artifactDir ./path/to/artifacts --merge "<component-name>=<version>"
 ```
-
-### Compiling Greengrass Lite
-
-```bash
-cmake -B build
-make -C build -j4
-```
-
-### Compiling Greengrass Lite for minimal footprint
-
-The "-DUSE_OPENSSL" assumes openssl-devel installed on build machine and openssl
-installed on target machine.
-
-Build type "MinSizeRel" enables multiple size reduction options. Note that in
-current build, shared plugins that link to DeviceSDK are still pulling in unused
-code - this will be addressed.
-
-```bash
-cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel
-make -C build -j4
-```
-
-#### Installing in a user location
-
-```bash
-cmake -B build -DCMAKE_INSTALL_PREFIX=~/gglite_testing
-make -C build -j4 install/strip
-```
-
-#### Installing in the system location
-
-The default location on linux is /usr/bin
-
-```bash
-cmake -B build
-make -C build -j4 install/strip
-```
-
-## Dependencies
-
-Building Nucleus and the included plugins was tested with:
-
-- CMake: 3.22
-- make: 4.2.1
-- GCC: 9.4.0
-
-The following runtime dependencies are needed:
-
-- OpenSSL
-- Linux kernel (tested with 5.15)
-- libc (tested with glibc 2.31)
-- compiler support libraries (libgcc_s.so for GCC)
 
 ## Security
 
