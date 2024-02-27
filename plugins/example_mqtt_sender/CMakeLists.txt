@@ -9,7 +9,7 @@ set_property(TARGET example_mqtt_sender_obj PROPERTY POSITION_INDEPENDENT_CODE
                                                      1)
 
 add_library(example_mqtt_sender MODULE $<TARGET_OBJECTS:example_mqtt_sender_obj>
-                                       main.cpp)
+                                       src/main.cpp)
 target_link_libraries(example_mqtt_sender PRIVATE nucleus-core)
 target_include_directories(example_mqtt_sender PRIVATE src)
 

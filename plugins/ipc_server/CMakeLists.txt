@@ -7,13 +7,13 @@ fetchContentAddCmake(device-sdk-cpp)
 
 add_library(
   ipc_server MODULE
-  main.cpp
   src/authentication_handler.cpp
   src/authentication_handler.cpp
   src/authentication_handler.hpp
   src/authentication_handler.hpp
   src/ipc_server.cpp
   src/ipc_server.hpp
+  src/main.cpp
   src/server_bootstrap.cpp
   src/server_continuation.cpp
   src/server_continuation.hpp
