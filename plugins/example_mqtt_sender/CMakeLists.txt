@@ -27,8 +27,7 @@ if(LINUX)
     "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 endif()
 
-# Uncomment this to install this sample plugin
-#install(TARGETS example_mqtt_sender DESTINATION plugins)
+install(TARGETS example_mqtt_sender DESTINATION plugins)
 
 # Tests
 
