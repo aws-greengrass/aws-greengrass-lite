@@ -12,4 +12,11 @@ target_include_directories(
   tes_http_server_plugin
   PUBLIC include
   PRIVATE src)
+
+if(UNIX AND NOT APPLE)
+  target_link_options(
+    tes_http_server_plugin PRIVATE
+    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
+endif()
+
 install(TARGETS tes_http_server_plugin DESTINATION plugins)

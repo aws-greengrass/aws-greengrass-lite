@@ -20,6 +20,12 @@ target_link_libraries(
 target_include_directories(cloud_downloader PRIVATE src)
 install(TARGETS cloud_downloader DESTINATION plugins)
 
+if(UNIX AND NOT APPLE)
+  target_link_options(
+    cloud_downloader PRIVATE
+    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
+endif()
+
 ##Build for Testing
 add_library(cloud_downloader_lib STATIC)
 target_link_libraries(
