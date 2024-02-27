@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.22)
 project(local_broker)
 
+add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
+
 add_library(local_broker MODULE src/main.cpp)
+
 target_link_libraries(local_broker PRIVATE gg_plugin_api shared_resources)
 
 if(LINUX)

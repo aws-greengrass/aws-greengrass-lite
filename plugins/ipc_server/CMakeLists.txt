@@ -3,6 +3,8 @@ project(ipc_server)
 
 include(../../utils/fetchContentFromDeps.cmake)
 
+add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
+
 fetchContentAddCmake(device-sdk-cpp)
 
 add_library(

@@ -3,6 +3,8 @@ project(iot_broker)
 
 include(../../utils/fetchContentFromDeps.cmake)
 
+add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
+
 fetchContentAddCmake(device-sdk-cpp)
 
 add_library(iot_broker MODULE src/iot_broker.cpp src/iot_broker.hpp

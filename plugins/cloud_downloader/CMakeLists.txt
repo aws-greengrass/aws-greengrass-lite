@@ -3,6 +3,8 @@ project(cloud_downloader)
 
 include(../../utils/fetchContentFromDeps.cmake)
 
+add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
+
 fetchContentAddCmake(device-sdk-cpp)
 
 add_library(cloud_downloader_obj OBJECT src/cloud_downloader.cpp

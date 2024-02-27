@@ -3,6 +3,8 @@ project(nucleus-core)
 
 set(CMAKE_CXX_STANDARD 17)
 
+add_subdirectory(../plugin_api plugin_api EXCLUDE_FROM_ALL)
+
 find_package(Threads REQUIRED)
 
 add_compile_definitions(EXPORT_API)
