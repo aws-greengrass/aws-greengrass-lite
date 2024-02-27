@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(local_broker)
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
+add_subdirectory(../shared_resources shared_resources EXCLUDE_FROM_ALL)
 
 add_library(local_broker MODULE src/main.cpp)
 

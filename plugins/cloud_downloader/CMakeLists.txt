@@ -9,16 +9,15 @@ fetchContentAddCmake(device-sdk-cpp)
 
 add_library(cloud_downloader_obj OBJECT src/cloud_downloader.cpp
                                         src/cloud_downloader.hpp)
-target_link_libraries(cloud_downloader_obj PRIVATE gg_plugin_api aws-crt-cpp
-                                                   shared_resources)
+target_link_libraries(cloud_downloader_obj PRIVATE gg_plugin_api aws-crt-cpp)
+
 target_include_directories(cloud_downloader_obj PUBLIC src)
 set_property(TARGET cloud_downloader_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 ##Build for shared
 add_library(cloud_downloader MODULE src/main.cpp)
-target_link_libraries(
-  cloud_downloader PRIVATE cloud_downloader_obj gg_plugin_api aws-crt-cpp
-                           shared_resources)
+target_link_libraries(cloud_downloader PRIVATE cloud_downloader_obj
+                                               gg_plugin_api aws-crt-cpp)
 target_include_directories(cloud_downloader PRIVATE src)
 install(TARGETS cloud_downloader DESTINATION plugins)
 
@@ -38,9 +37,8 @@ if(BUILD_TESTING)
   include(Catch)
 
   add_library(cloud_downloader_lib STATIC)
-  target_link_libraries(
-    cloud_downloader_lib PUBLIC cloud_downloader_obj nucleus-lib aws-crt-cpp
-                                shared_resources)
+  target_link_libraries(cloud_downloader_lib PUBLIC cloud_downloader_obj
+                                                    nucleus-lib aws-crt-cpp)
   target_include_directories(cloud_downloader_lib PUBLIC src)
 
   add_executable(
