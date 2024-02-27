@@ -7,18 +7,21 @@ add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 fetchContentAddCmake(device-sdk-cpp)
 
+# Object library shared between plugin and tests
+
 add_library(cloud_downloader_obj OBJECT src/cloud_downloader.cpp
                                         src/cloud_downloader.hpp)
-target_link_libraries(cloud_downloader_obj PRIVATE gg_plugin_api aws-crt-cpp)
 
 target_include_directories(cloud_downloader_obj PUBLIC src)
+target_link_libraries(cloud_downloader_obj PUBLIC gg_plugin_api aws-crt-cpp)
+
 set_property(TARGET cloud_downloader_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
-##Build for shared
+# Plugin
+
 add_library(cloud_downloader MODULE src/main.cpp)
-target_link_libraries(cloud_downloader PRIVATE cloud_downloader_obj
-                                               gg_plugin_api aws-crt-cpp)
-target_include_directories(cloud_downloader PRIVATE src)
+target_link_libraries(cloud_downloader PRIVATE cloud_downloader_obj)
+
 install(TARGETS cloud_downloader DESTINATION plugins)
 
 if(LINUX)
@@ -27,7 +30,8 @@ if(LINUX)
     "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 endif()
 
-##Build for Testing
+# Tests
+
 if(BUILD_TESTING)
   include(CTest)
 
@@ -36,17 +40,16 @@ if(BUILD_TESTING)
   list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
   include(Catch)
 
-  add_library(cloud_downloader_lib STATIC)
-  target_link_libraries(cloud_downloader_lib PUBLIC cloud_downloader_obj
-                                                    nucleus-lib aws-crt-cpp)
-  target_include_directories(cloud_downloader_lib PUBLIC src)
-
   add_executable(
     cloud_downloader_tests tests/test_cloud_downloader.cpp
                            tests/test_cloud_downloader.cpp tests/test_util.hpp)
-  target_link_libraries(
-    cloud_downloader_tests PUBLIC cloud_downloader_lib Catch2::Catch2WithMain
-                                  trompeloeil::trompeloeil)
+
   target_include_directories(cloud_downloader_tests PRIVATE tests)
+  target_link_libraries(
+    cloud_downloader_tests PRIVATE cloud_downloader_obj Catch2::Catch2WithMain
+                                   trompeloeil::trompeloeil)
+
   catch_discover_tests(cloud_downloader_tests)
+
+  add_test(NAME cloud_downloader COMMAND cloud_downloader_tests)
 endif()

@@ -5,17 +5,21 @@ include(../../common.cmake)
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
+# Object library shared between plugin and tests
+
 add_library(example_mqtt_sender_obj OBJECT src/example_mqtt_sender.cpp
                                            src/example_mqtt_sender.hpp)
-target_link_libraries(example_mqtt_sender_obj PRIVATE gg_plugin_api)
+
 target_include_directories(example_mqtt_sender_obj PUBLIC src)
+target_link_libraries(example_mqtt_sender_obj PUBLIC gg_plugin_api)
+
 set_property(TARGET example_mqtt_sender_obj PROPERTY POSITION_INDEPENDENT_CODE
                                                      1)
 
+# Plugin
+
 add_library(example_mqtt_sender MODULE src/main.cpp)
-target_link_libraries(example_mqtt_sender PRIVATE example_mqtt_sender_obj
-                                                  gg_plugin_api)
-target_include_directories(example_mqtt_sender PRIVATE src)
+target_link_libraries(example_mqtt_sender PRIVATE example_mqtt_sender_obj)
 
 if(LINUX)
   target_link_options(
@@ -26,6 +30,8 @@ endif()
 # Uncomment this to install this sample plugin
 #install(TARGETS example_mqtt_sender DESTINATION plugins)
 
+# Tests
+
 if(BUILD_TESTING)
   include(CTest)
 
@@ -34,18 +40,17 @@ if(BUILD_TESTING)
   list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
   include(Catch)
 
-  add_library(example_mqtt_sender_lib STATIC)
-  target_link_libraries(example_mqtt_sender_lib PUBLIC example_mqtt_sender_obj
-                                                       nucleus-lib)
-  target_include_directories(example_mqtt_sender_lib PUBLIC src)
-
   add_executable(
     example_mqtt_sender_tests tests/test_mqtt_pub_sub.cpp
                               tests/test_mqtt_sender.cpp tests/test_util.hpp)
+
+  target_include_directories(example_mqtt_sender_tests PRIVATE tests)
   target_link_libraries(
     example_mqtt_sender_tests
-    PUBLIC example_mqtt_sender_lib Catch2::Catch2WithMain
-           trompeloeil::trompeloeil)
-  target_include_directories(example_mqtt_sender_tests PRIVATE tests)
+    PRIVATE example_mqtt_sender_obj Catch2::Catch2WithMain
+            trompeloeil::trompeloeil)
+
   catch_discover_tests(example_mqtt_sender_tests)
+
+  add_test(NAME example_mqtt_sender COMMAND example_mqtt_sender_tests)
 endif()

@@ -21,10 +21,8 @@ endif()
 
 add_compile_definitions(PLATFORM_SHLIB_SUFFIX=${CMAKE_SHARED_MODULE_SUFFIX})
 
-#
-# Build the set of objects used for both static library and shared object
-# library
-#
+# Object library for shared lib and tests
+
 add_library(
   nucleus-obj OBJECT
   include/nucleus_core.h
@@ -168,37 +166,24 @@ else()
             src/platform_abstraction/stub/process.hpp)
 endif()
 
-target_link_libraries(
-  nucleus-obj
-  PUBLIC gg_plugin_api_min
-  PRIVATE Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
-target_include_directories(
-  nucleus-obj
-  PUBLIC include
-  PRIVATE src ${rapidjson_SOURCE_DIR}/include)
+target_link_libraries(nucleus-obj PUBLIC gg_plugin_api_min Threads::Threads
+                                         ${CMAKE_DL_LIBS} yaml-cpp)
+target_include_directories(nucleus-obj PUBLIC include src
+                                              ${rapidjson_SOURCE_DIR}/include)
+
 set_property(TARGET nucleus-obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
-#
-# Builds the shared-object "nucleus-core"
-#
+# Build shared library
+
 add_library(nucleus-core SHARED)
 target_link_libraries(
   nucleus-core
   PUBLIC gg_plugin_api_min
-  PRIVATE nucleus-obj Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
+  PRIVATE nucleus-obj)
 
-target_include_directories(
-  nucleus-core
-  PUBLIC include
-  PRIVATE src ${rapidjson_SOURCE_DIR}/include)
+target_include_directories(nucleus-core PUBLIC include)
 
-#
-# Build a static library for use by tests and also for single-binary use-cases
-#
-add_library(nucleus-lib STATIC)
-target_link_libraries(
-  nucleus-lib PUBLIC nucleus-obj gg_plugin_api_min Threads::Threads
-                     ${CMAKE_DL_LIBS} yaml-cpp)
+# Build executable
 
 add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
@@ -216,9 +201,8 @@ endif()
 install(TARGETS greengrass-lite DESTINATION bin)
 install(TARGETS nucleus-core DESTINATION lib)
 
-#
-# Build unit tests
-#
+# Tests
+
 if(BUILD_TESTING)
   include(CTest)
 
@@ -250,14 +234,16 @@ if(BUILD_TESTING)
     tests/tasks/task_tests.cpp
     tests/test_ggroot.hpp
     tests/test_tools.hpp)
+
   target_link_libraries(
-    nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain
+    nucleus-tests PRIVATE nucleus-obj Catch2::Catch2WithMain
                           trompeloeil::trompeloeil)
-  target_include_directories(nucleus-tests
-                             PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
+  target_include_directories(nucleus-tests PRIVATE tests)
+
   catch_discover_tests(nucleus-tests)
 
   file(COPY tests/samples DESTINATION ${CMAKE_BINARY_DIR})
+
   if(UNIX)
     target_compile_options(nucleus-tests PRIVATE --coverage)
     target_link_options(nucleus-tests PUBLIC --coverage)
