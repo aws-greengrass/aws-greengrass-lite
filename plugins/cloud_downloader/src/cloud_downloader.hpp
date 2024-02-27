@@ -22,9 +22,6 @@ private:
 
     static ggapi::Struct genericDownload(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
 
-    const static int _maxHosts = 8;
-    const static int _maxTTL = 30;
-
 public:
     bool onDiscover(ggapi::Struct data) override;
     void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;

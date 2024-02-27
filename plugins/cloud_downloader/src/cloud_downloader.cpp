@@ -37,7 +37,7 @@ void CloudDownloader::downloadClient(
         LOG.atError().log("Failed to create event loop group");
         throw std::runtime_error("Failed to create event loop group");
     }
-    Aws::Crt::Io::DefaultHostResolver defaultHostResolver(eventLoopGroup, _maxHosts, _maxTTL, allocator);
+    Aws::Crt::Io::DefaultHostResolver defaultHostResolver(eventLoopGroup, 8, 30, allocator);
     if(defaultHostResolver.LastError() != AWS_ERROR_SUCCESS) {
         LOG.atError().log("Failed to create default host resolver");
         throw std::runtime_error("Failed to create default host resolver");
