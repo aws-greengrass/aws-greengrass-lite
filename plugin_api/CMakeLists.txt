@@ -29,4 +29,5 @@ target_include_directories(gg_plugin_api_min INTERFACE include)
 add_library(gg_plugin_api INTERFACE)
 target_link_libraries(gg_plugin_api INTERFACE gg_plugin_api_min)
 
+add_subdirectory(../nucleus nucleus EXCLUDE_FROM_ALL)
 target_link_libraries(gg_plugin_api INTERFACE nucleus-core)
