@@ -8,17 +8,17 @@ target_include_directories(example_mqtt_sender_obj PUBLIC src)
 set_property(TARGET example_mqtt_sender_obj PROPERTY POSITION_INDEPENDENT_CODE
                                                      1)
 
-add_library(example_mqtt_sender MODULE $<TARGET_OBJECTS:example_mqtt_sender_obj>
-                                       src/main.cpp)
-target_link_libraries(example_mqtt_sender PRIVATE gg_plugin_api)
+add_library(example_mqtt_sender MODULE src/main.cpp)
+target_link_libraries(example_mqtt_sender PRIVATE example_mqtt_sender_obj
+                                                  gg_plugin_api)
 target_include_directories(example_mqtt_sender PRIVATE src)
 
 # Uncomment this to install this sample plugin
 #install(TARGETS example_mqtt_sender DESTINATION plugins)
 
-add_library(example_mqtt_sender_lib STATIC
-            $<TARGET_OBJECTS:example_mqtt_sender_obj>)
-target_link_libraries(example_mqtt_sender_lib PUBLIC nucleus-lib)
+add_library(example_mqtt_sender_lib STATIC)
+target_link_libraries(example_mqtt_sender_lib PUBLIC example_mqtt_sender_obj
+                                                     nucleus-lib)
 target_include_directories(example_mqtt_sender_lib PUBLIC src)
 
 if(UNIX)

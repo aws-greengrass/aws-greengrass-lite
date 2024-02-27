@@ -13,17 +13,18 @@ target_include_directories(cloud_downloader_obj PUBLIC src)
 set_property(TARGET cloud_downloader_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 ##Build for shared
-add_library(cloud_downloader MODULE $<TARGET_OBJECTS:cloud_downloader_obj>
-                                    src/main.cpp)
-target_link_libraries(cloud_downloader PRIVATE gg_plugin_api aws-crt-cpp
-                                               shared_resources)
+add_library(cloud_downloader MODULE src/main.cpp)
+target_link_libraries(
+  cloud_downloader PRIVATE cloud_downloader_obj gg_plugin_api aws-crt-cpp
+                           shared_resources)
 target_include_directories(cloud_downloader PRIVATE src)
 install(TARGETS cloud_downloader DESTINATION plugins)
 
 ##Build for Testing
-add_library(cloud_downloader_lib STATIC $<TARGET_OBJECTS:cloud_downloader_obj>)
-target_link_libraries(cloud_downloader_lib PUBLIC nucleus-lib aws-crt-cpp
-                                                  shared_resources)
+add_library(cloud_downloader_lib STATIC)
+target_link_libraries(
+  cloud_downloader_lib PUBLIC cloud_downloader_obj nucleus-lib aws-crt-cpp
+                              shared_resources)
 target_include_directories(cloud_downloader_lib PUBLIC src)
 
 if(UNIX)
