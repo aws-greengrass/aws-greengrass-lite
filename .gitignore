@@ -1,6 +1,7 @@
 .idea/
 cmake-build-*/
 build/
+install/
 .cache/
 result
 result-*
