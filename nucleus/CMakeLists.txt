@@ -214,36 +214,39 @@ install(TARGETS nucleus-core DESTINATION lib)
 #
 # Build unit tests
 #
-add_executable(
-  nucleus-tests
-  tests/api/buffer_tests.cpp
-  tests/api/callback_tests.cpp
-  tests/api/enum_tests.cpp
-  tests/api/json_tests.cpp
-  tests/api/list_tests.cpp
-  tests/api/logging_tests.cpp
-  tests/api/pubsub_tests.cpp
-  tests/api/struct_tests.cpp
-  tests/api/task_tests.cpp
-  tests/data/obfuscator_test.cpp
-  tests/data/symbol_tests.cpp
-  tests/deployment/recipe_tests.cpp
-  tests/errors/errors_test.cpp
-  tests/lifecycle/kernel_tests.cpp
-  tests/lifecycle/lifecycle_tests.cpp
-  tests/pubsub/pubsub_tests.cpp
-  tests/scope/context_tests.cpp
-  tests/scope/scope_tests.cpp
-  tests/tasks/task_tests.cpp
-  tests/test_ggroot.hpp
-  tests/test_tools.hpp)
-target_link_libraries(nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain
-                                            trompeloeil::trompeloeil)
-target_include_directories(nucleus-tests
-                           PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
-catch_discover_tests(nucleus-tests)
+if(BUILD_TESTING)
+  include(CTest)
 
-if(CMAKE_BUILD_TYPE STREQUAL Debug)
+  add_executable(
+    nucleus-tests
+    tests/api/buffer_tests.cpp
+    tests/api/callback_tests.cpp
+    tests/api/enum_tests.cpp
+    tests/api/json_tests.cpp
+    tests/api/list_tests.cpp
+    tests/api/logging_tests.cpp
+    tests/api/pubsub_tests.cpp
+    tests/api/struct_tests.cpp
+    tests/api/task_tests.cpp
+    tests/data/obfuscator_test.cpp
+    tests/data/symbol_tests.cpp
+    tests/deployment/recipe_tests.cpp
+    tests/errors/errors_test.cpp
+    tests/lifecycle/kernel_tests.cpp
+    tests/lifecycle/lifecycle_tests.cpp
+    tests/pubsub/pubsub_tests.cpp
+    tests/scope/context_tests.cpp
+    tests/scope/scope_tests.cpp
+    tests/tasks/task_tests.cpp
+    tests/test_ggroot.hpp
+    tests/test_tools.hpp)
+  target_link_libraries(
+    nucleus-tests PRIVATE nucleus-lib Catch2::Catch2WithMain
+                          trompeloeil::trompeloeil)
+  target_include_directories(nucleus-tests
+                             PRIVATE src tests ${rapidjson_SOURCE_DIR}/include)
+  catch_discover_tests(nucleus-tests)
+
   file(COPY tests/samples DESTINATION ${CMAKE_BINARY_DIR})
   if(UNIX)
     target_compile_options(nucleus-tests PRIVATE --coverage)

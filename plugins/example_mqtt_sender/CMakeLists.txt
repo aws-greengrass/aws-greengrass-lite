@@ -22,12 +22,14 @@ endif()
 # Uncomment this to install this sample plugin
 #install(TARGETS example_mqtt_sender DESTINATION plugins)
 
-add_library(example_mqtt_sender_lib STATIC)
-target_link_libraries(example_mqtt_sender_lib PUBLIC example_mqtt_sender_obj
-                                                     nucleus-lib)
-target_include_directories(example_mqtt_sender_lib PUBLIC src)
+if(BUILD_TESTING)
+  include(CTest)
 
-if(UNIX)
+  add_library(example_mqtt_sender_lib STATIC)
+  target_link_libraries(example_mqtt_sender_lib PUBLIC example_mqtt_sender_obj
+                                                       nucleus-lib)
+  target_include_directories(example_mqtt_sender_lib PUBLIC src)
+
   add_executable(
     example_mqtt_sender_tests tests/test_mqtt_pub_sub.cpp
                               tests/test_mqtt_sender.cpp tests/test_util.hpp)

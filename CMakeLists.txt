@@ -6,8 +6,6 @@ include(./common.cmake)
 # Dependencies
 find_package(Threads REQUIRED)
 
-include(CTest)
-
 fetchContentAddCmake(Catch2 trompeloeil)
 
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)

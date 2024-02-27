@@ -27,13 +27,15 @@ if(LINUX)
 endif()
 
 ##Build for Testing
-add_library(cloud_downloader_lib STATIC)
-target_link_libraries(
-  cloud_downloader_lib PUBLIC cloud_downloader_obj nucleus-lib aws-crt-cpp
-                              shared_resources)
-target_include_directories(cloud_downloader_lib PUBLIC src)
+if(BUILD_TESTING)
+  include(CTest)
 
-if(UNIX)
+  add_library(cloud_downloader_lib STATIC)
+  target_link_libraries(
+    cloud_downloader_lib PUBLIC cloud_downloader_obj nucleus-lib aws-crt-cpp
+                                shared_resources)
+  target_include_directories(cloud_downloader_lib PUBLIC src)
+
   add_executable(
     cloud_downloader_tests tests/test_cloud_downloader.cpp
                            tests/test_cloud_downloader.cpp tests/test_util.hpp)
