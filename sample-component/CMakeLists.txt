@@ -9,17 +9,10 @@ set(COMPONENT_NAME com.example.SampleComponent)
 set(COMPONENT_VERSION 1.0.0)
 
 set(FETCHCONTENT_QUIET FALSE)
-include(FetchContent)
+
 include(../utils/fetchContentFromDeps.cmake)
 
-fetchcontentfromdeps(device-sdk-cpp)
-
-FetchContent_GetProperties(device-sdk-cpp)
-if(NOT device-sdk-cpp_POPULATED)
-  FetchContent_Populate(device-sdk-cpp)
-  add_subdirectory(${device-sdk-cpp_SOURCE_DIR} ${device-sdk-cpp_BINARY_DIR}
-                   EXCLUDE_FROM_ALL)
-endif()
+fetchContentAddCmake(device-sdk-cpp)
 
 add_executable(sample-component main.cpp)
 

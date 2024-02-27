@@ -6,3 +6,4 @@ markup:
 lint:
   disabled_codes:
     - "C0307"
+    - "C0103"

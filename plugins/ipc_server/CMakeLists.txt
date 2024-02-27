@@ -1,17 +1,9 @@
 cmake_minimum_required(VERSION 3.22)
 project(ipc_server)
 
-include(FetchContent)
 include(../../utils/fetchContentFromDeps.cmake)
 
-fetchContentFromDeps(device-sdk-cpp)
-
-FetchContent_GetProperties(device-sdk-cpp)
-if(NOT device-sdk-cpp_POPULATED)
-  FetchContent_Populate(device-sdk-cpp)
-  add_subdirectory(${device-sdk-cpp_SOURCE_DIR} ${device-sdk-cpp_BINARY_DIR}
-                   EXCLUDE_FROM_ALL)
-endif()
+fetchContentAddCmake(device-sdk-cpp)
 
 add_library(
   ipc_server MODULE

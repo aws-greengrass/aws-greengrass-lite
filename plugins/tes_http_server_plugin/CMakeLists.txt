@@ -1,15 +1,9 @@
 cmake_minimum_required(VERSION 3.22)
 project(tes_http_server_plugin)
 
-include(FetchContent)
 include(../../utils/fetchContentFromDeps.cmake)
 
-FetchContent_GetProperties(device-sdk-cpp)
-if(NOT device-sdk-cpp_POPULATED)
-  FetchContent_Populate(device-sdk-cpp)
-  add_subdirectory(${device-sdk-cpp_SOURCE_DIR} ${device-sdk-cpp_BINARY_DIR}
-                   EXCLUDE_FROM_ALL)
-endif()
+fetchContentAddCmake(device-sdk-cpp)
 
 add_library(tes_http_server_plugin MODULE main.cpp src/tes_http_server.cpp
                                           src/tes_http_server.hpp)

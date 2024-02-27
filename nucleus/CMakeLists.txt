@@ -13,21 +13,8 @@ endif()
 
 add_compile_definitions(PLATFORM_SHLIB_SUFFIX=${CMAKE_SHARED_MODULE_SUFFIX})
 
-fetchContentFromDeps(yaml-cpp rapidjson)
-
-FetchContent_GetProperties(yaml-cpp)
-
-if(NOT yaml-cpp_POPULATED)
-  FetchContent_Populate(yaml-cpp)
-  add_subdirectory(${yaml-cpp_SOURCE_DIR} ${yaml-cpp_BINARY_DIR}
-                   EXCLUDE_FROM_ALL)
-endif()
-
-FetchContent_GetProperties(rapidjson)
-
-if(NOT rapidjson_POPULATED)
-  FetchContent_Populate(rapidjson)
-endif()
+fetchContentAddCmake(yaml-cpp)
+fetchContentAdd(rapidjson)
 
 #
 # Build the set of objects used for both static library and shared object
