@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(example_plugin1)
 
+include(../../common.cmake)
+
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 add_library(example_plugin1 MODULE src/main.cpp)

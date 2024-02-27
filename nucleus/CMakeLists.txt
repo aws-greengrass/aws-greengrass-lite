@@ -2,11 +2,14 @@ include_guard(GLOBAL)
 cmake_minimum_required(VERSION 3.22)
 project(nucleus-core)
 
-set(CMAKE_CXX_STANDARD 17)
+include(../common.cmake)
 
 add_subdirectory(../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 find_package(Threads REQUIRED)
+
+fetchContentAddCmake(yaml-cpp)
+fetchContentAdd(rapidjson)
 
 add_compile_definitions(EXPORT_API)
 
@@ -17,9 +20,6 @@ elseif(WIN32)
 endif()
 
 add_compile_definitions(PLATFORM_SHLIB_SUFFIX=${CMAKE_SHARED_MODULE_SUFFIX})
-
-fetchContentAddCmake(yaml-cpp)
-fetchContentAdd(rapidjson)
 
 #
 # Build the set of objects used for both static library and shared object

@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(example_mqtt_sender)
 
+include(../../common.cmake)
+
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 add_library(example_mqtt_sender_obj OBJECT src/example_mqtt_sender.cpp

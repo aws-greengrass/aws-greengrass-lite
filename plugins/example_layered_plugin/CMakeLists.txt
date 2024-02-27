@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(example_layered_plugin)
 
+include(../../common.cmake)
+
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 add_library(example_layered_plugin MODULE src/main.cpp)

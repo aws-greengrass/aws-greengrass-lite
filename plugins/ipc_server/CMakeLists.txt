@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(ipc_server)
 
-include(../../utils/fetchContentFromDeps.cmake)
+include(../../common.cmake)
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
