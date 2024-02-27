@@ -4,6 +4,20 @@ include_guard()
 
 include(${CMAKE_CURRENT_LIST_DIR}/utils/fetchContentFromDeps.cmake)
 
+# Defs
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  set(LINUX TRUE)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(GCC TRUE)
+endif()
+
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  set(CLANG TRUE)
+endif()
+
 # Misc
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -32,11 +46,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
   # Dead code elimination - limited support
-  # Note, UNIX+APPLE for, e.g., Clang on Apple
-  # UNIX+WIN32 for gcc/glang + mingw on Windows
-  if(UNIX
-     AND NOT APPLE
-     AND NOT WIN32)
+  if(LINUX)
     add_compile_options(-ffunction-sections -fdata-sections)
     add_link_options("LINKER:--gc-sections,-Map=link.map")
   endif()
@@ -55,17 +65,18 @@ endif()
 
 # Debugger options
 
-if(NOT APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3 -Og")
-endif()
-if(NOT APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+if(LINUX)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3")
+  if(GCC)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Og")
+  endif()
 endif()
-if(APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"))
+
+if(APPLE)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3")
-endif()
-if(APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3 -glldb")
+  if(CLANG)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -glldb")
+  endif()
 endif()
 
 # Sanitizers

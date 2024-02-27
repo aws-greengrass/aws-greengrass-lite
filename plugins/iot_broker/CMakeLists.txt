@@ -10,7 +10,7 @@ add_library(iot_broker MODULE src/iot_broker.cpp src/iot_broker.hpp
 target_link_libraries(iot_broker PRIVATE gg_plugin_api aws-crt-cpp
                                          shared_resources)
 target_include_directories(iot_broker PRIVATE src)
-if(UNIX AND NOT APPLE)
+if(LINUX)
   target_link_options(
     iot_broker PRIVATE
     "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")

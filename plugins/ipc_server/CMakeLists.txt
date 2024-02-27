@@ -21,7 +21,7 @@ add_library(
   src/server_listener.hpp)
 target_link_libraries(ipc_server PRIVATE gg_plugin_api aws-crt-cpp)
 target_include_directories(ipc_server PRIVATE src)
-if(UNIX AND NOT APPLE)
+if(LINUX)
   target_link_options(
     ipc_server PRIVATE
     "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")

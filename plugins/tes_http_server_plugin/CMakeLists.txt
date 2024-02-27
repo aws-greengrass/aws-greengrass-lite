@@ -13,7 +13,7 @@ target_include_directories(
   PUBLIC include
   PRIVATE src)
 
-if(UNIX AND NOT APPLE)
+if(LINUX)
   target_link_options(
     tes_http_server_plugin PRIVATE
     "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")

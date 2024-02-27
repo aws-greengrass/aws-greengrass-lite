@@ -10,7 +10,7 @@ add_library(provision_plugin MODULE src/main.cpp src/provision_plugin.cpp
 target_include_directories(provision_plugin PRIVATE src)
 target_link_libraries(provision_plugin PRIVATE gg_plugin_api aws-crt-cpp
                                                IotIdentity-cpp)
-if(UNIX AND NOT APPLE)
+if(LINUX)
   target_link_options(
     provision_plugin PRIVATE
     "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")

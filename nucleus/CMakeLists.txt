@@ -137,9 +137,7 @@ add_library(
   src/util/permissions.cpp
   src/util/permissions.hpp)
 
-if(UNIX
-   AND NOT APPLE
-   AND NOT WIN32)
+if(LINUX)
   target_sources(
     nucleus-obj
     PRIVATE src/platform_abstraction/linux/error.hpp
