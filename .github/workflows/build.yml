@@ -130,7 +130,7 @@ jobs:
         if: ${{ matrix.setup != 'QEMU'}}
         run:
           cmake --build ${{ github.workspace }}/build --config ${{
-          matrix.build_type }}
+          matrix.build_type }} -j4
 
       - name: Run Tests
         if: ${{ matrix.setup != 'QEMU'}}
