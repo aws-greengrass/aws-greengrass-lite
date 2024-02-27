@@ -22,6 +22,9 @@ endif()
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Default to not building tests
+option(BUILD_TESTING "" OFF)
+
 # Compiler options
 
 set(CMAKE_CXX_STANDARD 17)

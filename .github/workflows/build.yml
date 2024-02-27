@@ -60,7 +60,8 @@ jobs:
             cmake -B build -S . \
               -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
               -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-              -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
+              -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+              -DBUILD_TESTING=1
             cmake --build /aws-greengrass-lite/build --config ${{matrix.build_type }} --target nucleus-tests -j4
             cd /aws-greengrass-lite/build
             ctest -R nucleus --output-on-failure
@@ -103,7 +104,8 @@ jobs:
           cmake -B build -S . -G "MinGW Makefiles" \
             -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
             -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-            -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+            -DBUILD_TESTING=1
 
       - name: Configure CMake
         shell: bash
@@ -114,7 +116,8 @@ jobs:
           cmake -B build -S . -G "Visual Studio 17 2022" \
             -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
             -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-            -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+            -DBUILD_TESTING=1
 
       - name: Configure CMake
         shell: bash
@@ -123,7 +126,8 @@ jobs:
           cmake -B build -S . \
             -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
             -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-            -DCMAKE_BUILD_TYPE=${{matrix.build_type}}
+            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+            -DBUILD_TESTING=1
 
       - name: Build
         if: ${{ matrix.setup != 'QEMU'}}
