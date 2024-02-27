@@ -30,6 +30,11 @@ endif()
 if(BUILD_TESTING)
   include(CTest)
 
+  fetchContentAddCmake(Catch2 trompeloeil)
+
+  list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+  include(Catch)
+
   add_library(cloud_downloader_lib STATIC)
   target_link_libraries(
     cloud_downloader_lib PUBLIC cloud_downloader_obj nucleus-lib aws-crt-cpp

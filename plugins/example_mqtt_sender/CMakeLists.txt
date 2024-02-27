@@ -25,6 +25,11 @@ endif()
 if(BUILD_TESTING)
   include(CTest)
 
+  fetchContentAddCmake(Catch2 trompeloeil)
+
+  list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+  include(Catch)
+
   add_library(example_mqtt_sender_lib STATIC)
   target_link_libraries(example_mqtt_sender_lib PUBLIC example_mqtt_sender_obj
                                                        nucleus-lib)

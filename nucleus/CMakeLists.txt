@@ -217,6 +217,11 @@ install(TARGETS nucleus-core DESTINATION lib)
 if(BUILD_TESTING)
   include(CTest)
 
+  fetchContentAddCmake(Catch2 trompeloeil)
+
+  list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+  include(Catch)
+
   add_executable(
     nucleus-tests
     tests/api/buffer_tests.cpp
@@ -268,4 +273,6 @@ if(BUILD_TESTING)
       DEPENDS nucleus-tests
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
   endif()
+
+  add_test(NAME nucleus COMMAND nucleus-tests)
 endif()
