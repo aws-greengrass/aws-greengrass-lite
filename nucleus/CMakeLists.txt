@@ -3,6 +3,8 @@ project(nucleus-core)
 
 set(CMAKE_CXX_STANDARD 17)
 
+find_package(Threads REQUIRED)
+
 add_compile_definitions(EXPORT_API)
 
 if(UNIX)
