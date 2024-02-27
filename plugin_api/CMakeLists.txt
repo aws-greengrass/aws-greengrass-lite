@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 project(gg_plugin_api)
 
 add_library(
-  gg_plugin_api
+  gg_plugin_api_min
   INTERFACE
   include/api_callbacks.hpp
   include/api_errors.hpp
@@ -23,4 +23,9 @@ add_library(
   include/error_tmpl.hpp
   include/atomic_shared.hpp)
 
-target_include_directories(gg_plugin_api INTERFACE include)
+target_include_directories(gg_plugin_api_min INTERFACE include)
+
+add_library(gg_plugin_api INTERFACE)
+target_link_libraries(gg_plugin_api INTERFACE gg_plugin_api_min)
+
+target_link_libraries(gg_plugin_api INTERFACE nucleus-core)

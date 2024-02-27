@@ -10,7 +10,7 @@ set_property(TARGET example_mqtt_sender_obj PROPERTY POSITION_INDEPENDENT_CODE
 
 add_library(example_mqtt_sender MODULE $<TARGET_OBJECTS:example_mqtt_sender_obj>
                                        src/main.cpp)
-target_link_libraries(example_mqtt_sender PRIVATE nucleus-core)
+target_link_libraries(example_mqtt_sender PRIVATE gg_plugin_api)
 target_include_directories(example_mqtt_sender PRIVATE src)
 
 # Uncomment this to install this sample plugin

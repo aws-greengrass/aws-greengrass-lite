@@ -19,7 +19,7 @@ add_library(
   src/server_continuation.hpp
   src/server_listener.cpp
   src/server_listener.hpp)
-target_link_libraries(ipc_server PRIVATE nucleus-core aws-crt-cpp)
+target_link_libraries(ipc_server PRIVATE gg_plugin_api aws-crt-cpp)
 target_include_directories(ipc_server PRIVATE src)
 if(UNIX AND NOT APPLE)
   target_link_options(

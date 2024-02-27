@@ -167,7 +167,7 @@ endif()
 
 target_link_libraries(
   nucleus-obj
-  PUBLIC gg_plugin_api
+  PUBLIC gg_plugin_api_min
   PRIVATE Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
 target_include_directories(
   nucleus-obj
@@ -181,7 +181,7 @@ set_property(TARGET nucleus-obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 add_library(nucleus-core SHARED $<TARGET_OBJECTS:nucleus-obj>)
 target_link_libraries(
   nucleus-core
-  PUBLIC gg_plugin_api
+  PUBLIC gg_plugin_api_min
   PRIVATE Threads::Threads ${CMAKE_DL_LIBS} yaml-cpp)
 
 target_include_directories(
@@ -193,7 +193,7 @@ target_include_directories(
 # Build a static library for use by tests and also for single-binary use-cases
 #
 add_library(nucleus-lib STATIC $<TARGET_OBJECTS:nucleus-obj>)
-target_link_libraries(nucleus-lib PUBLIC gg_plugin_api Threads::Threads
+target_link_libraries(nucleus-lib PUBLIC gg_plugin_api_min Threads::Threads
                                          ${CMAKE_DL_LIBS} yaml-cpp)
 
 add_executable(greengrass-lite stub/main.c)

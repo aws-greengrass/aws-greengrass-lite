@@ -3,7 +3,7 @@ project(cli_server)
 
 add_library(cli_server MODULE src/cli_server.cpp src/cli_server.hpp
                               src/main.cpp)
-target_link_libraries(cli_server PRIVATE nucleus-core)
+target_link_libraries(cli_server PRIVATE gg_plugin_api)
 target_include_directories(cli_server PRIVATE src)
 if(UNIX AND NOT APPLE)
   target_link_options(
