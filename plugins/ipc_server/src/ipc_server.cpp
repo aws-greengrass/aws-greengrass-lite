@@ -1,4 +1,4 @@
-#include <ipc_server.hpp>
+#include "ipc_server.hpp"
 
 // Initializes global CRT API
 // TODO: What happens when multiple plugins use the CRT?

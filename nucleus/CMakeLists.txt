@@ -21,7 +21,7 @@ endif()
 
 add_compile_definitions(PLATFORM_SHLIB_SUFFIX=${CMAKE_SHARED_MODULE_SUFFIX})
 
-# Object library for shared lib and tests
+# Object library shared between shared lib and tests
 
 add_library(
   nucleus-obj OBJECT
@@ -173,7 +173,7 @@ target_include_directories(nucleus-obj PUBLIC include src
 
 set_property(TARGET nucleus-obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
-# Build shared library
+# Shared library
 
 add_library(nucleus-core SHARED)
 target_link_libraries(
@@ -183,7 +183,7 @@ target_link_libraries(
 
 target_include_directories(nucleus-core PUBLIC include)
 
-# Build executable
+# Executable
 
 add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)

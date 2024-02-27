@@ -1,5 +1,5 @@
-#include "plugin.hpp"
 #include <condition_variable>
+#include <plugin.hpp>
 #include <thread>
 
 struct Keys {

@@ -7,8 +7,9 @@ add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 add_library(cli_server MODULE src/cli_server.cpp src/cli_server.hpp
                               src/main.cpp)
+
 target_link_libraries(cli_server PRIVATE gg_plugin_api)
-target_include_directories(cli_server PRIVATE src)
+
 if(LINUX)
   target_link_options(
     cli_server PRIVATE
