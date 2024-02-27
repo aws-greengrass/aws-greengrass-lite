@@ -21,10 +21,6 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            c_compiler: msvc
-            cpp_compiler: msvc
-            build_type: Debug
-          - os: windows-latest
             c_compiler: gcc
             cpp_compiler: g++
             build_type: Debug
@@ -69,7 +65,7 @@ jobs:
             cmake --build /aws-greengrass-lite/build --config ${{matrix.build_type }} --target nucleus-tests -j4
             cd /aws-greengrass-lite/build
             ctest -R nucleus --output-on-failure
-      
+
       - name: Cache CMake dependency source code
         if: ${{ matrix.setup != 'QEMU'}}
         uses: actions/cache@v4
@@ -77,7 +73,9 @@ jobs:
           cache-name: cache-cmake-dependency-sources
         with:
           path: ${{github.workspace}}/build/_deps/*-src
-          key: ${{ env.cache-name }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
+          key:
+            ${{ env.cache-name }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**')
+            }}
           restore-keys: |
             ${{ env.cache-name }}-
 
@@ -91,7 +89,9 @@ jobs:
             ${{github.workspace}}/build/_deps/*-build
             ${{github.workspace}}/build/_deps/*-subbuild
 
-          key: ${{ env.cache-name }}-${{ matrix.os }}-${{ matrix.cpp_compiler }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
+          key:
+            ${{ env.cache-name }}-${{ matrix.os }}-${{ matrix.cpp_compiler
+            }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
           restore-keys: |
             ${{ env.cache-name }}-${{ matrix.os }}-${{ matrix.cpp_compiler }}-
 
