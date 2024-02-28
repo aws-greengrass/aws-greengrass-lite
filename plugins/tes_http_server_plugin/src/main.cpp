@@ -6,11 +6,10 @@ class TesHttpServerPlugin : public ggapi::Plugin {
     TesHttpServer _local_server = TesHttpServer::get();
 
 public:
-    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
+    bool onInitialize(ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;
-
-    bool onRun(ggapi::Struct data) override;
-    bool onTerminate(ggapi::Struct data) override;
+    bool onStop(ggapi::Struct data) override;
+    bool onError_stop(ggapi::Struct data) override;
 
     static TesHttpServerPlugin &get() {
         static TesHttpServerPlugin instance{};
@@ -18,24 +17,34 @@ public:
     }
 };
 
-bool TesHttpServerPlugin::onStart(ggapi::Struct data) {
+bool TesHttpServerPlugin::onInitialize(ggapi::Struct data) {
     return true;
 }
 
 // TODO: Must verify if TES is running before starting up the HTTP server.
-bool TesHttpServerPlugin::onRun(ggapi::Struct data) {
+bool TesHttpServerPlugin::onStart(ggapi::Struct data) {
+    // Uncomment this to enable SDK Logging
+
+    /* static std::once_flag loggingInitialized;
+      try {
+         std::call_once(loggingInitialized, []() {
+              apiHandle.InitializeLogging(Aws::Crt::LogLevel::Debug, stderr);
+          });
+      } catch(const std::exception &e) {
+          std::cerr << "[he-plugin] probably did not initialize the logging: " << e.what()
+                    << std::endl;
+    */
     TesHttpServer::startServer();
     return true;
 }
 
-bool TesHttpServerPlugin::onTerminate(ggapi::Struct data) {
+bool TesHttpServerPlugin::onStop(ggapi::Struct data) {
     TesHttpServer::stopServer();
     return true;
 }
 
-void TesHttpServerPlugin::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
-    std::cout << "Running beforeLifecycle of TesHttpServerPlugin" << ggapi::Symbol{phase}.toString()
-              << std::endl;
+bool TesHttpServerPlugin::onError_stop(ggapi::Struct data) {
+    return true;
 }
 
 extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(

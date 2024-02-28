@@ -4,12 +4,11 @@ IpcServer::IpcServer() noexcept {
     _authHandler = std::make_unique<AuthenticationHandler>();
 }
 
-void IpcServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
-    std::cerr << "[ipc-server] Running lifecycle phase " << phase.toString() << std::endl;
-}
-
-bool IpcServer::onBootstrap(ggapi::Struct structData) {
-    structData.put(NAME, "aws.greengrass.ipc_server");
+bool IpcServer::onInitialize(ggapi::Struct data) {
+    data.put(NAME, "aws.greengrass.ipc_server");
+    _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
+    _config = getScope().anchor(data.getValue<ggapi::Struct>({"config"}));
+    _configRoot = getScope().anchor(data.getValue<ggapi::Struct>({"configRoot"}));
     return true;
 }
 
@@ -42,14 +41,11 @@ ggapi::Struct IpcServer::cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct re
     return resp;
 }
 
-bool IpcServer::onTerminate(ggapi::Struct structData) {
+bool IpcServer::onStop(ggapi::Struct structData) {
     _listener->Disconnect();
     return true;
 }
 
-bool IpcServer::onBind(ggapi::Struct data) {
-    _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
-    _config = getScope().anchor(data.getValue<ggapi::Struct>({"config"}));
-    _configRoot = getScope().anchor(data.getValue<ggapi::Struct>({"configRoot"}));
+bool IpcServer::onError_stop(ggapi::Struct data) {
     return true;
 }
