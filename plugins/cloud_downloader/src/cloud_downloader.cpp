@@ -10,7 +10,8 @@ constexpr static int TIME_OUT_MS = 5000;
 constexpr static int PORT_NUM = 443;
 const char* const THING_NAME_HEADER = "x-amzn-iot-thingname";
 
-// TODO: apiHandle is being pulled from iot_broker as a shared global. Fix in future.
+// TODO: apiHandle needs to be declared only once, version.script prevents it in linux
+// but does not work on mac
 static Aws::Crt::ApiHandle apiHandle{};
 
 /*
