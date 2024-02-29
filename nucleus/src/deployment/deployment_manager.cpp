@@ -59,6 +59,8 @@ namespace deployment {
 
     void DeploymentManager::listen() {
         scope::thread()->changeContext(context());
+        std::unique_lock guard(_mutex);
+        _wake.wait(guard, [this]() { return !_deploymentQueue->empty() || _terminate; });
         while(!_terminate) {
             if(!_deploymentQueue->empty()) {
                 auto nextDeployment = _deploymentQueue->next();
@@ -416,10 +418,6 @@ namespace deployment {
         try {
             // TODO: validate deployment
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
-            auto jsonToStruct = [](auto json) {
-                auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();
-                return ggapi::Struct{container};
-            };
 
             deployment::DeploymentDocument deploymentDocument;
             config::JsonDeserializer jsonReader(scope::context());
