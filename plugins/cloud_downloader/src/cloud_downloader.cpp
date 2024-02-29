@@ -11,6 +11,7 @@ constexpr static int PORT_NUM = 443;
 const char* const THING_NAME_HEADER = "x-amzn-iot-thingname";
 
 // TODO: apiHandle is being pulled from iot_broker as a shared global. Fix in future.
+static Aws::Crt::ApiHandle apiHandle{};
 
 /*
 A common client helper function to make the request to a url using the aws's library
