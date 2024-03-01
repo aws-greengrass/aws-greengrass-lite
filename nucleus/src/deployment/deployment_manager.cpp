@@ -442,6 +442,8 @@ namespace deployment {
             deployment.deploymentType =
                 DeploymentTypeMap.lookup(deploymentStruct.get<std::string>("deploymentType"))
                     .value();
+            deployment.deploymentDocument.requestTimestamp = deploymentStruct.get<std::string>("requestTimestamp");
+
         } catch(std::exception &e) {
             LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)

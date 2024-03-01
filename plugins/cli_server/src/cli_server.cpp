@@ -113,6 +113,7 @@ ggapi::Struct CliServer::createLocalDeploymentHandler(
     deployment.put(deploymentKeys.stageDetails, 0);
     deployment.put(deploymentKeys.errorStack, 0);
     deployment.put(deploymentKeys.errorTypes, 0);
+    deployment.put(deploymentKeys.requestTimestamp, static_cast<long>(std::time(0)));
 
     auto channel = getScope().anchor(ggapi::Channel::create());
     _subscriptions.emplace_back(requestId, channel, [](ggapi::Struct req) { return req; });
