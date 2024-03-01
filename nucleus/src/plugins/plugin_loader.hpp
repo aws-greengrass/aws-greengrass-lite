@@ -44,7 +44,6 @@ namespace plugins {
     class AbstractPlugin : public data::TrackingScope {
     protected:
         std::string _moduleName;
-        data::ObjHandle _self;
 
     public:
         using BadCastError = errors::InvalidModuleError;
@@ -54,9 +53,9 @@ namespace plugins {
         }
 
         virtual bool callNativeLifecycle(
-            const data::ObjHandle &pluginRoot,
+            const std::shared_ptr<AbstractPlugin> &module,
             const data::Symbol &phase,
-            const data::ObjHandle &data) = 0;
+            const std::shared_ptr<data::StructModelBase> &data) = 0;
 
         void lifecycle(data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data);
 
@@ -68,14 +67,6 @@ namespace plugins {
 
         [[nodiscard]] std::string getName() {
             return _moduleName;
-        }
-
-        data::ObjHandle getSelf() {
-            return _self;
-        }
-
-        void setSelf(const data::ObjHandle &self) {
-            _self = self;
         }
 
         void invoke(
@@ -113,9 +104,9 @@ namespace plugins {
         }
 
         bool callNativeLifecycle(
-            const data::ObjHandle &pluginRoot,
+            const std::shared_ptr<AbstractPlugin> &module,
             const data::Symbol &phase,
-            const data::ObjHandle &data) override;
+            const std::shared_ptr<data::StructModelBase> &data) override;
 
         std::shared_ptr<AbstractPlugin> getParent() {
             return _parent.lock();
@@ -152,9 +143,9 @@ namespace plugins {
         ~NativePlugin() override;
         void load(const std::filesystem::path &path);
         bool callNativeLifecycle(
-            const data::ObjHandle &pluginHandle,
+            const std::shared_ptr<AbstractPlugin> &module,
             const data::Symbol &phase,
-            const data::ObjHandle &dataHandle) override;
+            const std::shared_ptr<data::StructModelBase> &data) override;
         bool isActive() noexcept override;
     };
 
@@ -164,7 +155,8 @@ namespace plugins {
     class PluginLoader : protected scope::UsesContext {
     private:
         std::shared_ptr<util::NucleusPaths> _paths;
-        std::shared_ptr<data::TrackingRoot> _root;
+        data::RootHandle _root;
+        std::vector<std::shared_ptr<AbstractPlugin>> _all;
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfig;
 
     public:
@@ -215,7 +207,7 @@ namespace plugins {
         data::SymbolInit LOGGING{"logging"};
 
         explicit PluginLoader(const scope::UsingContext &context)
-            : scope::UsesContext(context), _root(std::make_shared<data::TrackingRoot>(context)) {
+            : scope::UsesContext(context), _root(context.newRootHandle()) {
             data::SymbolInit::init(
                 context,
                 {
@@ -236,7 +228,7 @@ namespace plugins {
                 });
         }
 
-        std::shared_ptr<data::TrackingRoot> root() const {
+        data::RootHandle &root() {
             return _root;
         }
 

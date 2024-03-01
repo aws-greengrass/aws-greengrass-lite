@@ -1,10 +1,12 @@
 #include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
+#include <temp_module.hpp>
 
 // NOLINTBEGIN
 SCENARIO("Shared list API", "[list]") {
-    scope::LocalizedContext forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{};
+    util::TempModule testModule("list-test");
 
     GIVEN("A list") {
         auto list = ggapi::List::create();

@@ -21,43 +21,47 @@ namespace ggapi {
             Phase::RUN,
             Phase::TERMINATE>;
 
+    protected:
+        mutable std::shared_mutex _mutex;
+
     private:
-        std::atomic<ModuleScope> _moduleScope{ModuleScope{}};
+        ModuleScope _moduleScope{ModuleScope{}};
+        Struct _config{};
         std::atomic<Phase> _phase{Phase::UNKNOWN};
-        std::atomic<Struct> _config{};
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::BOOTSTRAP> &, Struct data) {
-            return onBootstrap(data);
+            return onBootstrap(std::move(data));
         }
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::BIND> &, Struct data) {
             internalBind(data);
-            return onBind(data);
+            return onBind(std::move(data));
         }
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::DISCOVER> &, Struct data) {
-            return onDiscover(data);
+            return onDiscover(std::move(data));
         }
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::START> &, Struct data) {
-            return onStart(data);
+            return onStart(std::move(data));
         }
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::RUN> &, Struct data) {
-            return onRun(data);
+            return onRun(std::move(data));
         }
 
         bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::TERMINATE> &, Struct data) {
-            return onTerminate(data);
+            return onTerminate(std::move(data));
         }
 
         // NOLINTNEXTLINE(*-convert-member-functions-to-static)
-        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::UNKNOWN> &, Struct) {
+        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::UNKNOWN> &, const Struct &) {
             return false;
         }
 
-        void internalBind(Struct data) {
-            _config = getScope().anchor(data.get<ggapi::Struct>(CONFIG));
+        void internalBind(const Struct &data) {
+            std::unique_lock guard{_mutex};
+            _config = data.get<ggapi::Struct>(CONFIG);
         }
         // Lifecycle constants
         inline static const Symbol BOOTSTRAP_SYM{"bootstrap"};
@@ -105,14 +109,20 @@ namespace ggapi {
             // No exceptions may cross API boundary
             // Return true if handled.
             return ggapi::catchErrorToKind([this, moduleHandle, phase, data, pHandled]() {
-                *pHandled = lifecycle(ModuleScope{moduleHandle}, Symbol{phase}, Struct{data});
+                *pHandled = lifecycle(
+                    ObjHandle::of<ModuleScope>(moduleHandle),
+                    Symbol{phase},
+                    ObjHandle::of<Struct>(data));
             });
         }
 
-        bool lifecycle(ModuleScope moduleScope, Symbol phase, Struct data) {
+        bool lifecycle(const ModuleScope &moduleScope, Symbol phase, Struct data) {
+            std::unique_lock guard{_mutex};
             _moduleScope = moduleScope;
             auto mappedPhase = PHASE_MAP.lookup(phase).value_or(Phase::UNKNOWN);
             _phase = mappedPhase;
+            guard.unlock();
+
             beforeLifecycle(phase, data); // TODO: Deprecate
             beforeLifecycle(mappedPhase, data);
             bool handled = PhaseEnum::visit<bool>(mappedPhase, [this, data](auto p) {
@@ -128,7 +138,8 @@ namespace ggapi {
          * scope.
          */
         [[nodiscard]] ModuleScope getScope() const {
-            return _moduleScope.load();
+            std::shared_lock guard{_mutex};
+            return _moduleScope;
         }
 
         /**
@@ -142,6 +153,7 @@ namespace ggapi {
          * Retrieve config space unique to the given plugin
          */
         [[nodiscard]] Struct getConfig() const {
+            std::shared_lock guard{_mutex};
             return _config;
         }
 
@@ -150,24 +162,28 @@ namespace ggapi {
         /**
          * (Deprecated) Hook to allow any pre-processing before lifecycle step
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual void beforeLifecycle(Symbol phase, Struct data) {
         }
 
         /**
          * Hook to allow any pre-processing before lifecycle step
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual void beforeLifecycle(Phase phase, Struct data) {
         }
 
         /**
          * (Deprecated) Hook to allow any post-processing after lifecycle step
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual void afterLifecycle(Symbol phase, Struct data) {
         }
 
         /**
          * Hook to allow any post-processing after lifecycle step
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual void afterLifecycle(Phase phase, Struct data) {
         }
 
@@ -176,6 +192,7 @@ namespace ggapi {
          * will set the component name during this cycle.
          * TODO: This may change
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual bool onBootstrap(Struct data) {
             std::cout << "Default onBootstrap\n";
             return false;
@@ -185,6 +202,7 @@ namespace ggapi {
          * For plugins, after recipe has been read, but before any other
          * lifecycle stages. Use this cycle for any data binding.
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual bool onBind(Struct data) {
             std::cout << "Default onBind\n";
             return false;
@@ -195,6 +213,7 @@ namespace ggapi {
          * plugins. Return true if handled.
          * TODO: This may change
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual bool onDiscover(Struct data) {
             std::cout << "Default onDiscover\n";
             return false;
@@ -203,6 +222,7 @@ namespace ggapi {
         /**
          * Plugin is about to move into an active state. Return true if handled.
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual bool onStart(Struct data) {
             std::cout << "Default onStart\n";
             return false;
@@ -211,6 +231,7 @@ namespace ggapi {
         /**
          * Plugin has transitioned into an active state. Return true if handled.
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual bool onRun(Struct data) {
             std::cout << "Default onRun\n";
             return false;
@@ -219,6 +240,7 @@ namespace ggapi {
         /**
          * Plugin is being terminated - use for cleanup. Return true if handled.
          */
+        // NOLINTNEXTLINE(*-unnecessary-value-param) Fix for this can break overrides
         virtual bool onTerminate(Struct data) {
             std::cout << "Default onTerminate\n";
             return false;

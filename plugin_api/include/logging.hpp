@@ -5,6 +5,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <util.hpp>
 
 /**
@@ -141,12 +142,24 @@ namespace logging {
             const SymbolType _loggerName;
             mutable std::atomic_uint64_t _counter{0};
             mutable std::atomic<Level> _cachedLevel{Level::None};
-            StructType _context{Traits::newStruct()};
+            // Note, context cannot be allocated in static section. Logging is usually declared in
+            // static section. Solution is to create context only when needed.
+            mutable std::shared_mutex _mutex;
+            mutable StructType _context;
+
+            [[nodiscard]] StructType maybeCloneContext() const {
+                std::shared_lock guard{_mutex};
+                if(_context) {
+                    return Traits::cloneStruct(_context);
+                } else {
+                    return {};
+                }
+            }
 
         public:
             LoggerImpl(const LoggerImpl &other)
                 : _manager(other._manager), _loggerName(other._loggerName),
-                  _context(other._context.clone()) {
+                  _context(maybeCloneContext()) {
             }
 
             LoggerImpl(LoggerImpl &&) = delete;
@@ -163,11 +176,27 @@ namespace logging {
             }
 
             void addKV(SymbolArgType key, const ArgValue &val) {
+                std::shared_lock useGuard{_mutex};
+                if(!_context) {
+                    // Create shared context on demand
+                    useGuard.unlock();
+                    std::unique_lock createGuard{_mutex};
+                    if(!_context) {
+                        _context = Traits::newStruct();
+                    }
+                    createGuard.unlock();
+                    useGuard.lock();
+                }
                 Traits::putStruct(_context, key, val);
             }
 
             [[nodiscard]] StructType cloneContext() const {
-                return Traits::cloneStruct(_context);
+                auto cloned = maybeCloneContext();
+                if(cloned) {
+                    return cloned;
+                } else {
+                    return Traits::newStruct();
+                }
             }
 
             void commit(StructArgType entry) {

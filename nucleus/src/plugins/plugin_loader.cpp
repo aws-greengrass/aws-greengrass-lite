@@ -70,27 +70,29 @@ namespace plugins {
     }
 
     bool NativePlugin::callNativeLifecycle(
-        const data::ObjHandle &pluginHandle,
+        const std::shared_ptr<AbstractPlugin> &module,
         const data::Symbol &phase,
-        const data::ObjHandle &dataHandle) {
+        const std::shared_ptr<data::StructModelBase> &data) {
 
         lifecycleFn_t lifecycleFn = _lifecycleFn.load();
         if(lifecycleFn != nullptr) {
-            return lifecycleFn(pluginHandle.asInt(), phase.asInt(), dataHandle.asInt());
+            scope::TempRoot tempRoot;
+            return lifecycleFn(scope::asIntHandle(module), phase.asInt(), scope::asIntHandle(data));
         }
         return true; // no error
     }
 
     bool DelegatePlugin::callNativeLifecycle(
-        const data::ObjHandle &pluginHandle,
+        const std::shared_ptr<AbstractPlugin> &module,
         const data::Symbol &phase,
-        const data::ObjHandle &dataHandle) {
+        const std::shared_ptr<data::StructModelBase> &data) {
 
         auto callback = _callback;
         if(callback) {
-            return callback->invokeLifecycleCallback(pluginHandle, phase, dataHandle);
+            return callback->invokeLifecycleCallback(module, phase, data);
+        } else {
+            return false; // no callback, so caller should act as if event unhandled
         }
-        return true;
     }
 
     void PluginLoader::discoverPlugins(const std::filesystem::path &pluginDir) {
@@ -125,10 +127,7 @@ namespace plugins {
             std::make_shared<NativePlugin>(context(), serviceName)};
         std::cout << "Loading native plugin from " << path << std::endl;
         plugin->load(path);
-        // add the plugins to a collection by "anchoring"
-        // which solves a number of interesting problems
-        auto anchor = _root->anchor(plugin);
-        plugin->setSelf(anchor.getHandle());
+        _all.emplace_back(plugin);
         plugin->initialize(*this);
     }
 
@@ -136,9 +135,8 @@ namespace plugins {
         const std::function<void(AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)>
             &fn) const {
 
-        for(const auto &i : _root->getRoots()) {
-            std::shared_ptr<AbstractPlugin> plugin{i.getObject<AbstractPlugin>()};
-            plugin->invoke(fn);
+        for(const auto &i : _all) {
+            i->invoke(fn);
         }
     }
 
@@ -184,11 +182,9 @@ namespace plugins {
 
         LOG.atInfo().event("lifecycle").kv("name", getName()).kv("phase", phase).log();
         errors::ThreadErrorContainer::get().clear();
-        scope::StackScope scope{};
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 
-        data::ObjHandle dataHandle = scope.getCallScope()->root()->anchor(data).getHandle();
-        if(callNativeLifecycle(getSelf(), phase, dataHandle)) {
+        if(callNativeLifecycle(ref<AbstractPlugin>(), phase, data)) {
             LOG.atDebug()
                 .event("lifecycle-completed")
                 .kv("name", getName())

@@ -220,18 +220,13 @@ namespace config {
     //
     class Topic : public TopicElement, public scope::UsesContext, public ConfigNode {
     protected:
-        scope::WeakContext _context;
         std::shared_ptr<Topics> _parent;
-
-        scope::UsingContext context() const noexcept {
-            return {_context};
-        }
 
     public:
         Topic(const Topic &el) = default;
         Topic(Topic &&el) = default;
-        Topic &operator=(const Topic &other) = default;
-        Topic &operator=(Topic &&other) = default;
+        Topic &operator=(const Topic &other) = delete;
+        Topic &operator=(Topic &&other) = delete;
         ~Topic() override = default;
 
         explicit operator bool() const {
@@ -246,7 +241,7 @@ namespace config {
             const scope::UsingContext &context,
             const std::shared_ptr<Topics> &parent,
             const TopicElement &value)
-            : _context{context}, _parent{parent}, TopicElement{value} {
+            : UsesContext{context}, _parent{parent}, TopicElement{value} {
         }
 
         [[nodiscard]] data::Symbol getNameOrd() const override {

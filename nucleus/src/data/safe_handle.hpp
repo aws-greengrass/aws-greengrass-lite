@@ -9,9 +9,9 @@ namespace scope {
 namespace data {
     class ObjectAnchor;
 
-    //
-    // Templated class for partial handles (no table reference)
-    //
+    /**
+     * Templated class for partial handles (no table reference)
+     */
     class PartialHandle {
     private:
         uint32_t _asInt;
@@ -75,9 +75,9 @@ namespace data {
         }
     };
 
-    //
-    // Templated class for full (resolvable) handles
-    //
+    /**
+     * Templated class for full (resolvable) handles
+     */
     template<typename TableType>
     class Handle {
     public:
@@ -117,6 +117,12 @@ namespace data {
 
         [[nodiscard]] bool isNull() const noexcept {
             return _partial.isNull();
+        }
+
+        [[nodiscard]] Partial detach() noexcept {
+            auto p = _partial;
+            _partial = {};
+            return p;
         }
 
         explicit operator bool() const noexcept {

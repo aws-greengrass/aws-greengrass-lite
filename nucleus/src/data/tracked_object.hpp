@@ -17,13 +17,40 @@ namespace data {
 
     class HandleTable;
     class TrackedObject;
-    class TrackingRoot;
     class TrackingScope;
 
-    //
-    // Handles for objects only
-    //
+    /**
+     * Handles for object roots. Note that RootHandles are singletons (like std::unique_ptr). When
+     * the handle object is destroyed, all linked object handles are destroyed with it.
+     */
+    class RootHandle : public Handle<HandleTable> {
+
+    private:
+        bool release() noexcept;
+
+    public:
+        RootHandle() noexcept = default;
+        RootHandle(const RootHandle &) noexcept = delete;
+        RootHandle(RootHandle &&) noexcept = default;
+        RootHandle &operator=(const RootHandle &) noexcept = delete;
+        RootHandle &operator=(RootHandle &&) noexcept = default;
+        ~RootHandle() noexcept {
+            release();
+        }
+
+        constexpr RootHandle(scope::FixedPtr<HandleTable> table, Partial h) noexcept
+            : Handle(table, h) {
+        }
+    };
+
+    /**
+     * Handles for objects.
+     */
     class ObjHandle : public Handle<HandleTable> {
+    private:
+        // Reduces code duplication of toObject() and simplifies header
+        std::shared_ptr<TrackedObject> toObjectHelper() const;
+
     public:
         constexpr ObjHandle() noexcept = default;
         constexpr ObjHandle(const ObjHandle &) noexcept = default;
@@ -36,174 +63,70 @@ namespace data {
             : Handle(table, h) {
         }
 
-        ObjectAnchor toAnchor() const;
-
         template<typename T = data::TrackedObject>
         std::shared_ptr<T> toObject() const;
+
+        bool release() noexcept;
     };
 
-    //
-    // Base class for all objects that can be tracked with one or more handles
-    // The object lives as long as there is one or more handles, or if there is
-    // one or more std::shared_ptr<> reference to the object
-    //
+    /**
+     * Base class for all objects that can be tracked with object handles. A TrackedObject must
+     * always be used as std::shared_ptr. The object lives as long as there is at least one
+     * reference, where each object handle contributes a reference in addition to Nucleus
+     * references.
+     */
     class TrackedObject : public util::RefObject<TrackedObject>, protected scope::UsesContext {
 
     public:
+        // Used by toObject() template to throw the correct exception
         using BadCastError = std::bad_cast;
 
         TrackedObject(const TrackedObject &) = delete;
         TrackedObject(TrackedObject &&) noexcept = default;
         TrackedObject &operator=(const TrackedObject &) = delete;
         TrackedObject &operator=(TrackedObject &&) noexcept = delete;
-        virtual ~TrackedObject() = default;
+        virtual ~TrackedObject() noexcept = default;
 
         explicit TrackedObject(const scope::UsingContext &context) : UsesContext(context) {
         }
 
-        virtual void beforeRemove(const ObjectAnchor &anchor) {
-            // Allow special cleanup when specified handle is removed
+        virtual void close() {
+            // meaning of close depends on object - by default it's a no-op
+            // TODO: Should it be a no-op or exception?
         }
     };
 
-    //
-    // Copy-by-value class to track an association between a handle and a tracked
-    // object ObjectAnchor is inherently not thread safe - but can be made thread
-    // safe in containment
-    //
-    class ObjectAnchor {
-    private:
-        ObjHandle _handle{};
-        std::shared_ptr<TrackedObject> _object; // multiple anchors to one object
-        std::weak_ptr<TrackingRoot> _root; // root object owns handle scope
-
-    public:
-        explicit ObjectAnchor(
-            const std::shared_ptr<TrackedObject> &obj, const std::weak_ptr<TrackingRoot> &root)
-            : _object{obj}, _root(root) {
-        }
-
-        ObjectAnchor() = default;
-        ObjectAnchor(const ObjectAnchor &) = default;
-        ObjectAnchor(ObjectAnchor &&) noexcept = default;
-        ObjectAnchor &operator=(const ObjectAnchor &) = default;
-        ObjectAnchor &operator=(ObjectAnchor &&) = default;
-        virtual ~ObjectAnchor() = default;
-
-        explicit operator bool() const {
-            return static_cast<bool>(_object);
-        }
-
-        template<typename T = data::TrackedObject>
-        [[nodiscard]] std::shared_ptr<T> getObject() const {
-            if(*this) {
-                try {
-                    return _object->ref<T>();
-                } catch(std::bad_cast &) {
-                    throw typename T::BadCastError();
-                }
-            } else {
-                return {};
-            }
-        }
-
-        [[nodiscard]] std::shared_ptr<TrackedObject> getBase() const {
-            if(*this) {
-                return _object->ref<TrackedObject>();
-            } else {
-                return {};
-            }
-        }
-
-        [[nodiscard]] std::shared_ptr<TrackingRoot> getRoot() const {
-            if(*this) {
-                return _root.lock();
-            } else {
-                return {};
-            }
-        }
-
-        [[nodiscard]] ObjHandle getHandle() const {
-            return _handle;
-        }
-
-        [[nodiscard]] ObjectAnchor withNewRoot(const std::shared_ptr<TrackingRoot> &root) const {
-            return ObjectAnchor(_object, root);
-        }
-
-        [[nodiscard]] ObjectAnchor withHandle(ObjHandle handle) const {
-            ObjectAnchor copy{*this};
-            copy._handle = handle;
-            return copy;
-        }
-
-        [[nodiscard]] uint32_t asIntHandle() const {
-            return getHandle().asInt();
-        }
-
-        void release();
-    };
-
+    /**
+     * Checked cast from handle to object of given type.
+     * @tparam T New Type of object
+     * @return Object with given type
+     */
     template<typename T>
     std::shared_ptr<T> ObjHandle::toObject() const {
-        if(*this) {
-            return toAnchor().getObject<T>();
-        } else {
+        static_assert(std::is_base_of_v<TrackedObject, T>);
+        if(isNull()) {
             return {};
         }
+        std::shared_ptr<T> ref = std::dynamic_pointer_cast<T>(toObjectHelper());
+        if(!ref) {
+            throw typename T::BadCastError();
+        }
+        return ref;
     }
 
-    //
-    // Class for managing object roots. A container for all anchors.
-    //
-    class TrackingRoot : public util::RefObject<TrackingRoot>, protected scope::UsesContext {
-        friend class HandleTable;
-
-    protected:
-        std::map<ObjHandle::Partial, std::shared_ptr<TrackedObject>, ObjHandle::Partial::CompLess>
-            _roots;
-        mutable std::shared_mutex _mutex;
-        void removeRootHelper(const ObjectAnchor &anchor);
-        ObjectAnchor createRootHelper(const ObjectAnchor &anchor);
-        std::vector<ObjectAnchor> getRootsHelper(const std::weak_ptr<TrackingRoot> &assumedOwner);
-
-    public:
-        explicit TrackingRoot(const scope::UsingContext &context) : scope::UsesContext(context) {
-        }
-
-        TrackingRoot(const TrackingRoot &) = delete;
-        TrackingRoot(TrackingRoot &&) noexcept = delete;
-        TrackingRoot &operator=(const TrackingRoot &) = delete;
-        TrackingRoot &operator=(TrackingRoot &&) noexcept = delete;
-        ~TrackingRoot();
-        ObjectAnchor anchor(const std::shared_ptr<TrackedObject> &obj);
-        void remove(const ObjectAnchor &anchor);
-
-        std::vector<ObjectAnchor> getRoots() {
-            return getRootsHelper(baseRef());
-        }
-    };
-
-    //
-    // Tracking scope is the base class for handles that manage scope - namely modules
-    // and call scope
-    //
+    /**
+     * Tracking scope is the base class for handles that manage scope - namely modules
+     */
     class TrackingScope : public TrackedObject {
     protected:
-        std::shared_ptr<TrackingRoot> _root;
+        RootHandle _root;
 
     public:
         using BadCastError = errors::InvalidScopeError;
 
         explicit TrackingScope(const scope::UsingContext &context);
 
-        TrackingScope(const TrackingScope &) = delete;
-        TrackingScope(TrackingScope &&) noexcept = delete;
-        TrackingScope &operator=(const TrackingScope &) = delete;
-        TrackingScope &operator=(TrackingScope &&) noexcept = delete;
-        ~TrackingScope() override;
-
-        std::shared_ptr<TrackingRoot> root() const {
+        RootHandle &root() {
             return _root;
         }
     };
