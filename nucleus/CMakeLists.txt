@@ -113,6 +113,8 @@ add_library(
   src/plugins/plugin_loader.hpp
   src/pubsub/local_topics.cpp
   src/pubsub/local_topics.hpp
+  src/pubsub/promise.cpp
+  src/pubsub/promise.hpp
   src/scope/context.cpp
   src/scope/context.hpp
   src/platform_abstraction/abstract_process.hpp
@@ -122,11 +124,8 @@ add_library(
   src/scope/context_full.hpp
   src/scope/context_glob.hpp
   src/scope/fixed_pointer.hpp
-  src/scope/call_scope.cpp
-  src/scope/call_scope.hpp
   src/scope/mapper.hpp
   src/tasks/expire_time.hpp
-  src/tasks/task.cpp
   src/tasks/task.hpp
   src/tasks/task_callbacks.cpp
   src/tasks/task_callbacks.hpp
@@ -223,6 +222,7 @@ if(BUILD_TESTING)
     tests/api/pubsub_tests.cpp
     tests/api/struct_tests.cpp
     tests/api/task_tests.cpp
+    tests/data/handle_tests.cpp
     tests/data/obfuscator_test.cpp
     tests/data/symbol_tests.cpp
     tests/deployment/deploy_tests.cpp
@@ -232,7 +232,6 @@ if(BUILD_TESTING)
     tests/lifecycle/lifecycle_tests.cpp
     tests/pubsub/pubsub_tests.cpp
     tests/scope/context_tests.cpp
-    tests/scope/scope_tests.cpp
     tests/tasks/task_tests.cpp
     tests/test_ggroot.hpp
     tests/test_tools.hpp)
