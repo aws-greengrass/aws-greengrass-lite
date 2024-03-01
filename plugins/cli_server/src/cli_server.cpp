@@ -164,17 +164,8 @@ ggapi::Struct CliServer::listDeploymentsHandler(ggapi::Task, ggapi::Symbol, ggap
     deployment.put(deploymentKeys.errorStack, 0);
     deployment.put(deploymentKeys.errorTypes, 0);
 
+    // TODO: Remove channel
     auto channel = getScope().anchor(ggapi::Channel::create());
-    _subscriptions.emplace_back(requestId, channel, [](ggapi::Struct req) { return req; });
-    channel.addCloseCallback([this, channel]() {
-        std::unique_lock lock(_subscriptionMutex);
-        auto it = std::find_if(_subscriptions.begin(), _subscriptions.end(), [channel](auto sub) {
-            return std::get<1>(sub) == channel;
-        });
-        std::iter_swap(it, std::prev(_subscriptions.end()));
-        _subscriptions.pop_back();
-        channel.release();
-    });
     auto result = ggapi::Task::sendToTopic(keys.createDeploymentTopicName, deployment);
     if(result.getValue<bool>({"status"})) {
         auto message = ggapi::Struct::create();

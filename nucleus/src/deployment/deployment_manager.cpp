@@ -58,6 +58,7 @@ namespace deployment {
     }
 
     void DeploymentManager::listen() {
+        // TODO: Use component store
         scope::thread()->changeContext(context());
         std::unique_lock guard(_mutex);
         _wake.wait(guard, [this]() { return !_deploymentQueue->empty() || _terminate; });
@@ -419,7 +420,6 @@ namespace deployment {
             // TODO: validate deployment
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
 
-            deployment::DeploymentDocument deploymentDocument;
             config::JsonDeserializer jsonReader(scope::context());
             jsonReader.read(deploymentDocumentJson);
             jsonReader(deployment.deploymentDocumentObj);
@@ -445,6 +445,7 @@ namespace deployment {
         // TODO: Shadow deployments use a special queue id
         if(!_deploymentQueue->exists(deployment.id)) {
             _deploymentQueue->push({deployment.id, deployment});
+            _wake.notify_one();
         } else {
             auto deploymentPresent = _deploymentQueue->get(deployment.id);
             if(checkValidReplacement(deploymentPresent, deployment)) {

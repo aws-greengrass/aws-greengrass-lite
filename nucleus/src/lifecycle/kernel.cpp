@@ -414,11 +414,10 @@ namespace lifecycle {
         using namespace std::string_literals;
 
         auto getShell = [this]() -> std::string {
-            try {
+            if(_deviceConfiguration->getRunWithDefaultPosixShell().isScalar()) {
                 return _deviceConfiguration->getRunWithDefaultPosixShell().getString();
-            } catch(const std::bad_cast &e) {
-                LOG.atDebug("missing-config-option")
-                    .cause(e)
+            } else {
+                LOG.atWarn("missing-config-option")
                     .kv("message", "posixShell not configured. Defaulting to bash.")
                     .log();
                 return "bash"s;

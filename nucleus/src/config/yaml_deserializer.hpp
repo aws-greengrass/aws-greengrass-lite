@@ -123,7 +123,6 @@ namespace config {
         };
 
         class SequenceIterator : public Iterator {
-            std::vector<IteratorType> _stack;
 
         public:
             explicit SequenceIterator(IteratorType begin, IteratorType end) : Iterator(std::move(begin), std::move(end)) {
@@ -244,6 +243,7 @@ namespace config {
         }
 
         bool inplaceMap(const YAML::Node &node) {
+            // TODO: Persist the root node?
             if(!(node.IsMap() || node.IsSequence())) {
                 return false; // optional map or sequence
             }
