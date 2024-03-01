@@ -270,9 +270,6 @@ namespace lifecycle {
     }
 
     int Kernel::launch() {
-        if(!_mainThread) {
-            _mainThread.claim(std::make_shared<tasks::FixedTimerTaskThread>(context()));
-        }
         data::Symbol deploymentSymbol =
             deployment::DeploymentConsts::STAGE_MAP.rlookup(_deploymentStageAtLaunch)
                 .value_or(data::Symbol{});
@@ -302,8 +299,13 @@ namespace lifecycle {
                     .logAndThrow(
                         errors::BootError("Provided deployment stage at launch is not understood"));
         }
-        _mainThread.release();
-        return _exitCode;
+        try {
+            // Return code is a boxed integer
+            auto boxed = std::dynamic_pointer_cast<data::Boxed>(_mainPromise->getValue());
+            return boxed->get().getInt();
+        } catch(errors::PromiseNotFulfilledError &) {
+            return 0;
+        }
     }
 
     void Kernel::launchBootstrap() {
@@ -323,6 +325,7 @@ namespace lifecycle {
         // TODO: All of below is temporary logic - all this will be rewritten when the lifecycle
         // management is implemented.
         //
+        _mainPromise = std::make_shared<pubsub::Promise>(context());
 
         auto &loader = context()->pluginLoader();
         loader.setPaths(getPaths());
@@ -339,8 +342,9 @@ namespace lifecycle {
             plugin.lifecycle(loader.RUN, data);
         });
 
-        std::ignore = ggapiWaitForTaskCompleted(
-            ggapiGetCurrentTask(), -1); // essentially blocks until kernel signalled to terminate
+        // Block this thread until termination (TODO: improve on this somehow)
+        _mainPromise->waitUntil(tasks::ExpireTime::infinite());
+
         loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
             plugin.lifecycle(loader.TERMINATE, data);
         });
@@ -380,15 +384,15 @@ namespace lifecycle {
     }
 
     void Kernel::shutdown(std::chrono::seconds timeoutSeconds, int exitCode) {
-        setExitCode(exitCode);
-        shutdown(timeoutSeconds);
-    }
 
-    void Kernel::shutdown(std::chrono::seconds timeoutSeconds) {
         // TODO: missing code
         softShutdown(timeoutSeconds);
-        // Cancel the main task causes the main thread to terminate, causing clean shutdown
-        _mainThread.getTask()->cancelTask();
+        // Signal shutdown
+        try {
+            _mainPromise->setValue(data::Boxed::box(context(), exitCode));
+        } catch(errors::PromiseDoubleWriteError &) {
+            // ignore double-write
+        }
     }
 
     void Kernel::softShutdown(std::chrono::seconds timeoutSeconds) {
@@ -437,10 +441,15 @@ namespace lifecycle {
             auto request = ggapi::Struct::create();
             // TODO: is note correct here?
             request.put("serviceName", note);
-            auto result = ggapi::Task::sendToTopic("aws.greengrass.RequestIpcInfo", request);
-            if(!result || result.empty()) {
+            auto resultFuture =
+                ggapi::Subscription::callTopicFirst("aws.greengrass.RequestIpcInfo", request);
+            if(!resultFuture) {
                 return {};
             };
+            auto result = ggapi::Struct(resultFuture.waitAndGetValue());
+            if(!result || result.empty()) {
+                return {};
+            }
 
             auto socketPath =
                 result.hasKey("domain_socket_path")

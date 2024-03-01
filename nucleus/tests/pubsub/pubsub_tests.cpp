@@ -1,7 +1,6 @@
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task_callbacks.hpp"
-#include "tasks/task_threads.hpp"
 #include <catch2/catch_all.hpp>
 
 // NOLINTBEGIN
@@ -10,54 +9,88 @@ using namespace std::literals;
 
 class ListenerStub : public tasks::Callback {
     std::string _flagName;
-    std::shared_ptr<data::StructModelBase> _returnData;
+    std::shared_ptr<pubsub::Promise> _promise;
+    bool _autoComplete;
 
 public:
     ListenerStub(
         const scope::UsingContext &context,
         const std::string_view &flagName,
-        const std::shared_ptr<data::StructModelBase> &returnData)
-        : tasks::Callback(context), _flagName(flagName), _returnData{returnData} {
+        const std::shared_ptr<pubsub::Promise> &promise,
+        bool autoComplete)
+        : tasks::Callback(context), _flagName(flagName), _promise{promise},
+          _autoComplete{autoComplete} {
     }
 
     ListenerStub(const scope::UsingContext &context, const std::string_view &flagName)
         : tasks::Callback(context), _flagName(flagName) {
     }
 
-    std::shared_ptr<data::StructModelBase> invokeTopicCallback(
-        const std::shared_ptr<tasks::Task> &task,
+    std::shared_ptr<pubsub::Future> invokeTopicCallback(
         const data::Symbol &topicSymbol,
-        const std::shared_ptr<data::StructModelBase> &data) override {
+        const std::shared_ptr<data::ContainerModelBase> &data) override {
 
         auto topic = topicSymbol.toStringOr("(anon)"s);
         if(data) {
-            data->put(_flagName, topic);
+            auto dataStruct = data->ref<data::StructModelBase>();
+            dataStruct->put(_flagName, topic);
         }
-        if(_returnData) {
-            _returnData->put(
-                "_" + _flagName,
-                data::StructElement{std::static_pointer_cast<data::ContainerModelBase>(data)});
+        if(_promise) {
+            if(_autoComplete) {
+                _promise->setValue(data);
+            }
+            return _promise->getFuture();
+        } else {
+            return {};
         }
-        return _returnData;
+    }
+
+    void invokeAsyncCallback() override {
+
+        //        auto topic = topicSymbol.toStringOr("(anon)"s);
+        //        if(data) {
+        //            data->put(_flagName, topic);
+        //        }
+        //        if(_returnData) {
+        //            _returnData->put(
+        //                "_" + _flagName,
+        //                data::StructElement{std::static_pointer_cast<data::ContainerModelBase>(data)});
+        //        }
+        //        return _returnData;
+    }
+
+    void invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future) override {
+
+        //        auto topic = topicSymbol.toStringOr("(anon)"s);
+        //        if(data) {
+        //            data->put(_flagName, topic);
+        //        }
+        //        if(_returnData) {
+        //            _returnData->put(
+        //                "_" + _flagName,
+        //                data::StructElement{std::static_pointer_cast<data::ContainerModelBase>(data)});
+        //        }
+        //        return _returnData;
     }
 };
 
 SCENARIO("PubSub Internal Behavior", "[pubsub]") {
-    scope::LocalizedContext forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{};
     auto context = forTesting.context()->context();
 
     GIVEN("Some listeners") {
         data::Symbol topic{context->intern("topic")};
         data::Symbol topic2{context->intern("other-topic")};
-        auto callRetData{std::make_shared<data::SharedStruct>(context)};
         std::shared_ptr<pubsub::Listener> subs1{
             context->lpcTopics().subscribe({}, std::make_shared<ListenerStub>(context, "subs1"))};
+        auto promise2{std::make_shared<pubsub::Promise>(context)};
         std::shared_ptr<pubsub::Listener> subs2{context->lpcTopics().subscribe(
-            topic, std::make_shared<ListenerStub>(context, "subs2", callRetData))};
+            topic, std::make_shared<ListenerStub>(context, "subs2", promise2, true))};
         std::shared_ptr<pubsub::Listener> subs3{context->lpcTopics().subscribe(
             topic, std::make_shared<ListenerStub>(context, "subs3"))};
+        auto promise4{std::make_shared<pubsub::Promise>(context)};
         std::shared_ptr<pubsub::Listener> subs4{context->lpcTopics().subscribe(
-            topic2, std::make_shared<ListenerStub>(context, "subs4", callRetData))};
+            topic2, std::make_shared<ListenerStub>(context, "subs4", promise4, false))};
         WHEN("A query of topic listeners is made") {
             std::shared_ptr<pubsub::Listeners> listeners{context->lpcTopics().getListeners(topic)};
             THEN("The set of listeners is returned") {
@@ -106,62 +139,44 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
                 }
             }
         }
-        WHEN("Performing an LPC call with topic") {
+        WHEN("Performing an LPC callFirst with topic") {
             tasks::ExpireTime expireTime = tasks::ExpireTime::now();
             auto callArgData{std::make_shared<data::SharedStruct>(context)};
-            auto newTask{std::make_shared<tasks::Task>(context)};
-            context->lpcTopics().initializePubSubCall(
-                newTask, subs1, topic, callArgData, {}, tasks::ExpireTime::fromNow(10s));
-            // For purpose of this test, run all callbacks on test thread
-            newTask->setDefaultThread(scope::thread()->getThreadTaskData());
-            context->taskManager().queueTask(newTask);
-            bool didComplete = newTask->waitForCompletion(expireTime);
-            auto returnedData = newTask->getData();
-            THEN("LPC completed") {
-                REQUIRE(didComplete);
-            }
-            THEN("Topic listeners were visited") {
-                // inserted first... is this correct? maybe doesn't matter
-                REQUIRE(callArgData->hasKey("subs1"));
-                REQUIRE(callArgData->get("subs1").getString() == "topic");
-                // last-in-first-out
-                REQUIRE(callArgData->hasKey("subs3"));
-                REQUIRE(callArgData->get("subs3").getString() == "topic");
-                REQUIRE(callArgData->hasKey("subs2"));
-                REQUIRE(callArgData->get("subs2").getString() == "topic");
-                // never added
-                REQUIRE_FALSE(callArgData->hasKey("subs4"));
-            }
-            THEN("Expected structure was returned") {
-                REQUIRE(static_cast<bool>(returnedData));
-                REQUIRE(returnedData->hasKey("_subs2"));
-                auto paramData = returnedData->get("_subs2").castObject<data::SharedStruct>();
-                REQUIRE(paramData == callArgData);
+            auto future = context->lpcTopics().callFirst(topic, callArgData);
+            THEN("Future was returned") {
+                REQUIRE(future);
+                AND_THEN("Promise is immediately valid") {
+                    REQUIRE(future->isValid());
+                }
+                AND_THEN("Value is valid") {
+                    auto futureVal = future->getValue();
+                    REQUIRE(futureVal == callArgData);
+                }
             }
         }
-        WHEN("Performing an Anon LPC call") {
+        WHEN("Performing an LPC callFirst with deferred promise") {
             tasks::ExpireTime expireTime = tasks::ExpireTime::now();
             auto callArgData{std::make_shared<data::SharedStruct>(context)};
-            auto newTask{std::make_shared<tasks::Task>(context)};
-            context->lpcTopics().initializePubSubCall(
-                newTask, subs1, {}, callArgData, {}, tasks::ExpireTime::fromNow(10s));
-            // For purpose of this test, run all callbacks on test thread
-            newTask->setDefaultThread(scope::thread()->getThreadTaskData());
-            context->taskManager().queueTask(newTask);
-            bool didComplete = newTask->waitForCompletion(expireTime);
-            auto returnedData = newTask->getData();
-            THEN("LPC completed") {
-                REQUIRE(didComplete);
-            }
-            THEN("Topic listeners were visited") {
-                REQUIRE(callArgData->hasKey("subs1"));
-                REQUIRE(callArgData->get("subs1").getString() == "(anon)");
-                REQUIRE_FALSE(callArgData->hasKey("subs2"));
-                REQUIRE_FALSE(callArgData->hasKey("subs3"));
-                REQUIRE_FALSE(callArgData->hasKey("subs4"));
-            }
-            THEN("No value was returned") {
-                REQUIRE_FALSE(static_cast<bool>(returnedData));
+            auto future = context->lpcTopics().callFirst(topic2, callArgData);
+            THEN("Future was returned") {
+                REQUIRE(future);
+                AND_THEN("Promise is not yet valid") {
+                    REQUIRE_FALSE(future->isValid());
+                }
+                promise4->setValue(callArgData);
+                AND_WHEN("Waiting for promise") {
+                    bool isValid = future->waitUntil(tasks::ExpireTime::fromNow(1s));
+                    THEN("Wait succeeded") {
+                        REQUIRE(isValid);
+                    }
+                    THEN("Future is valid") {
+                        REQUIRE(future->isValid());
+                    }
+                    THEN("Value is valid") {
+                        auto futureVal = future->getValue();
+                        REQUIRE(futureVal == callArgData);
+                    }
+                }
             }
         }
     }
