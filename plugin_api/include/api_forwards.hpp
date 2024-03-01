@@ -17,26 +17,28 @@ namespace ggapi {
     class ChannelCloseCallback;
     class ChannelListenCallback;
     class Container;
+    class Future;
+    class FutureCallback;
+    class FutureSet;
     class LifecycleCallback;
     class List;
     class ModuleScope;
     class ObjHandle;
-    class Scope;
+    class Promise;
     class Struct;
     class Subscription;
     class Symbol;
-    class Task;
-    class TaskCallback;
     class TopicCallback;
 
-    using TopicCallbackLambda = std::function<Struct(Task, Symbol, Struct)>;
+    using TopicCallbackLambda = std::function<ObjHandle(Symbol, Container)>;
     using LifecycleCallbackLambda = std::function<bool(ModuleScope, Symbol, Struct)>;
-    using TaskCallbackLambda = std::function<void(Struct)>;
 
     template<typename Func, typename... Args>
-    uint32_t catchReturnErrorCode(Func &&f, Args &&...args) noexcept;
-    template<typename Func, typename... Args>
     void callApiThrowError(Func &&f, Args &&...args);
+    template<typename Func, typename... Args>
+    bool callBoolApiThrowError(Func &&f, Args &&...args);
+    template<typename Handle, typename Func, typename... Args>
+    Handle callHandleApiThrowError(Func &&f, Args &&...args);
 
     // All uses of these functions need to be replaced
     template<typename T>
