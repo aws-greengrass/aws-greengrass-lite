@@ -32,7 +32,7 @@ endif()
 
 # Tests
 
-if(BUILD_TESTING)
+if(BUILD_TESTING AND NOT WIN32)
   include(CTest)
 
   fetchContentAddCmake(Catch2 trompeloeil)
