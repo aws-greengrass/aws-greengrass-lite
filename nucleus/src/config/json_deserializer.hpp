@@ -23,7 +23,6 @@ namespace config {
             enum Type { Value, Member, Null } _itType{Null};
 
         public:
-            virtual ~Iterator() = default;
             Iterator(const Iterator &other) = delete;
             Iterator(Iterator &&) = default;
             Iterator &operator=(const Iterator &other) = default;
@@ -101,6 +100,7 @@ namespace config {
         };
 
         std::vector<Iterator> _stack;
+        rapidjson::Document _rootDoc;
 
     public:
         explicit JsonDeserializer(const scope::UsingContext &context)
@@ -168,16 +168,15 @@ namespace config {
             // TODO: clear stack?
             _stack.clear();
             rapidjson::IStreamWrapper istream{stream};
-            rapidjson::Document rootDoc;
-            rootDoc.ParseStream(istream);
+            _rootDoc.ParseStream(istream);
 
-            if(!(rootDoc.IsArray() || rootDoc.IsObject())) {
+            if(!(_rootDoc.IsArray() || _rootDoc.IsObject())) {
                 throw std::runtime_error("Invalid json format. Expecting a map or array");
             }
-            if(rootDoc.IsArray()) {
-                _stack.emplace_back(rootDoc.Begin(), rootDoc.End());
+            if(_rootDoc.IsArray()) {
+                _stack.emplace_back(_rootDoc.Begin(), _rootDoc.End());
             } else {
-                _stack.emplace_back(rootDoc.MemberBegin(), rootDoc.MemberEnd());
+                _stack.emplace_back(_rootDoc.MemberBegin(), _rootDoc.MemberEnd());
             }
         }
 
@@ -185,16 +184,15 @@ namespace config {
             // TODO: clear stack?
             _stack.clear();
             rapidjson::StringStream sstream{jsonString.c_str()};
-            rapidjson::Document rootDoc;
-            rootDoc.ParseStream(sstream);
+            _rootDoc.ParseStream(sstream);
 
-            if(!(rootDoc.IsArray() || rootDoc.IsObject())) {
+            if(!(_rootDoc.IsArray() || _rootDoc.IsObject())) {
                 throw std::runtime_error("Invalid json format. Expecting a map or array");
             }
-            if(rootDoc.IsArray()) {
-                _stack.emplace_back(rootDoc.Begin(), rootDoc.End());
+            if(_rootDoc.IsArray()) {
+                _stack.emplace_back(_rootDoc.Begin(), _rootDoc.End());
             } else {
-                _stack.emplace_back(rootDoc.MemberBegin(), rootDoc.MemberEnd());
+                _stack.emplace_back(_rootDoc.MemberBegin(), _rootDoc.MemberEnd());
             }
         }
 
