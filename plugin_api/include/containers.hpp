@@ -7,6 +7,7 @@
 #include <variant>
 
 namespace ggapi {
+    class Promise;
 
     /**
      * Containers are the root for Structures, Lists and Buffers.
@@ -119,15 +120,15 @@ namespace ggapi {
         explicit Container(const ObjHandle &other) : ObjHandle{other} {
         }
 
-        explicit Container(uint32_t handle) : ObjHandle{handle} {
+        explicit Container(const SharedHandle &handle) : ObjHandle{handle} {
         }
 
         [[nodiscard]] uint32_t size() const {
-            return callApiReturn<uint32_t>([*this]() { return ::ggapiGetSize(_handle); });
+            return callApiReturn<uint32_t>([*this]() { return ::ggapiGetSize(asId()); });
         }
 
         [[nodiscard]] bool empty() const {
-            return callApiReturn<bool>([*this]() { return ::ggapiIsEmpty(_handle); });
+            return callApiReturn<bool>([*this]() { return ::ggapiIsEmpty(asId()); });
         }
 
         /**
@@ -160,23 +161,23 @@ namespace ggapi {
         [[nodiscard]] T unbox() const {
             required();
             if constexpr(std::is_same_v<bool, T>) {
-                return callApiReturn<bool>([*this]() { return ::ggapiUnboxBool(_handle); });
+                return callApiReturn<bool>([*this]() { return ::ggapiUnboxBool(asId()); });
             } else if constexpr(std::is_integral_v<T>) {
                 auto intv =
-                    callApiReturn<uint64_t>([*this]() { return ::ggapiUnboxInt64(_handle); });
+                    callApiReturn<uint64_t>([*this]() { return ::ggapiUnboxInt64(asId()); });
                 return static_cast<T>(intv);
             } else if constexpr(std::is_floating_point_v<T>) {
                 auto floatv =
-                    callApiReturn<double>([*this]() { return ::ggapiUnboxFloat64(_handle); });
+                    callApiReturn<double>([*this]() { return ::ggapiUnboxFloat64(asId()); });
                 return static_cast<T>(floatv);
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
-                return callApiReturnHandle<T>([*this]() { return ::ggapiUnboxHandle(_handle); });
+                return callApiReturnHandle<T>([*this]() { return ::ggapiUnboxHandle(asId()); });
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
                 size_t len =
-                    callApiReturn<size_t>([*this]() { return ::ggapiUnboxStringLen(_handle); });
+                    callApiReturn<size_t>([*this]() { return ::ggapiUnboxStringLen(asId()); });
                 return stringFillHelper(len, [*this](auto buf, auto bufLen) {
                     return callApiReturn<size_t>([*this, &buf, bufLen]() {
-                        return ::ggapiUnboxString(_handle, buf, bufLen);
+                        return ::ggapiUnboxString(asId(), buf, bufLen);
                     });
                 });
             } else {
@@ -195,42 +196,41 @@ namespace ggapi {
             }
         }
         void putImpl(int32_t idx, bool v) {
-            callApi([*this, idx, v]() { ::ggapiListPutBool(_handle, idx, v); });
+            callApi([*this, idx, v]() { ::ggapiListPutBool(asId(), idx, v); });
         }
         void putImpl(int32_t idx, uint64_t v) {
-            callApi([*this, idx, v]() { ::ggapiListPutInt64(_handle, idx, v); });
+            callApi([*this, idx, v]() { ::ggapiListPutInt64(asId(), idx, v); });
         }
         void putImpl(int32_t idx, double v) {
-            callApi([*this, idx, v]() { ::ggapiListPutFloat64(_handle, idx, v); });
+            callApi([*this, idx, v]() { ::ggapiListPutFloat64(asId(), idx, v); });
         }
         void putImpl(int32_t idx, Symbol v) {
-            callApi([*this, idx, v]() { ::ggapiListPutSymbol(_handle, idx, v.asInt()); });
+            callApi([*this, idx, v]() { ::ggapiListPutSymbol(asId(), idx, v.asInt()); });
         }
         void putImpl(int32_t idx, std::string_view v) {
-            callApi(
-                [*this, idx, v]() { ::ggapiListPutString(_handle, idx, v.data(), v.length()); });
+            callApi([*this, idx, v]() { ::ggapiListPutString(asId(), idx, v.data(), v.length()); });
         }
         void putImpl(int32_t idx, ObjHandle v) {
-            callApi([*this, idx, v]() { ::ggapiListPutHandle(_handle, idx, v.getHandleId()); });
+            callApi([*this, idx, v]() { ::ggapiListPutHandle(asId(), idx, v.getHandleId()); });
         }
         void insertImpl(int32_t idx, bool v) {
-            callApi([*this, idx, v]() { ::ggapiListInsertBool(_handle, idx, v); });
+            callApi([*this, idx, v]() { ::ggapiListInsertBool(asId(), idx, v); });
         }
         void insertImpl(int32_t idx, uint64_t v) {
-            callApi([*this, idx, v]() { ::ggapiListInsertInt64(_handle, idx, v); });
+            callApi([*this, idx, v]() { ::ggapiListInsertInt64(asId(), idx, v); });
         }
         void insertImpl(int32_t idx, double v) {
-            callApi([*this, idx, v]() { ::ggapiListInsertFloat64(_handle, idx, v); });
+            callApi([*this, idx, v]() { ::ggapiListInsertFloat64(asId(), idx, v); });
         }
         void insertImpl(int32_t idx, Symbol v) {
-            callApi([*this, idx, v]() { ::ggapiListInsertSymbol(_handle, idx, v.asInt()); });
+            callApi([*this, idx, v]() { ::ggapiListInsertSymbol(asId(), idx, v.asInt()); });
         }
         void insertImpl(int32_t idx, std::string_view v) {
             callApi(
-                [*this, idx, v]() { ::ggapiListInsertString(_handle, idx, v.data(), v.length()); });
+                [*this, idx, v]() { ::ggapiListInsertString(asId(), idx, v.data(), v.length()); });
         }
         void insertImpl(int32_t idx, ObjHandle v) {
-            callApi([*this, idx, v]() { ::ggapiListInsertHandle(_handle, idx, v.getHandleId()); });
+            callApi([*this, idx, v]() { ::ggapiListInsertHandle(asId(), idx, v.getHandleId()); });
         }
 
     public:
@@ -240,7 +240,7 @@ namespace ggapi {
             check();
         }
 
-        explicit List(uint32_t handle) : Container{handle} {
+        explicit List(const SharedHandle &handle) : Container{handle} {
             check();
         }
 
@@ -281,24 +281,24 @@ namespace ggapi {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(
-                    [*this, idx]() { return ::ggapiListGetBool(_handle, idx); });
+                    [*this, idx]() { return ::ggapiListGetBool(asId(), idx); });
             } else if constexpr(std::is_integral_v<T>) {
                 auto intv = callApiReturn<uint64_t>(
-                    [*this, idx]() { return ::ggapiListGetInt64(_handle, idx); });
+                    [*this, idx]() { return ::ggapiListGetInt64(asId(), idx); });
                 return static_cast<T>(intv);
             } else if constexpr(std::is_floating_point_v<T>) {
                 auto floatv = callApiReturn<double>(
-                    [*this, idx]() { return ::ggapiListGetFloat64(_handle, idx); });
+                    [*this, idx]() { return ::ggapiListGetFloat64(asId(), idx); });
                 return static_cast<T>(floatv);
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                 return callApiReturnHandle<T>(
-                    [*this, idx]() { return ::ggapiListGetHandle(_handle, idx); });
+                    [*this, idx]() { return ::ggapiListGetHandle(asId(), idx); });
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
                 size_t len = callApiReturn<size_t>(
-                    [*this, idx]() { return ::ggapiListGetStringLen(_handle, idx); });
+                    [*this, idx]() { return ::ggapiListGetStringLen(asId(), idx); });
                 return stringFillHelper(len, [*this, idx](auto buf, auto bufLen) {
                     return callApiReturn<size_t>([*this, idx, &buf, bufLen]() {
-                        return ::ggapiListGetString(_handle, idx, buf, bufLen);
+                        return ::ggapiListGetString(asId(), idx, buf, bufLen);
                     });
                 });
             } else {
@@ -317,25 +317,25 @@ namespace ggapi {
             }
         }
         void putImpl(Symbol key, bool v) {
-            callApi([*this, key, v]() { ::ggapiStructPutBool(_handle, key.asInt(), v); });
+            callApi([*this, key, v]() { ::ggapiStructPutBool(asId(), key.asInt(), v); });
         }
         void putImpl(Symbol key, uint64_t v) {
-            callApi([*this, key, v]() { ::ggapiStructPutInt64(_handle, key.asInt(), v); });
+            callApi([*this, key, v]() { ::ggapiStructPutInt64(asId(), key.asInt(), v); });
         }
         void putImpl(Symbol key, double v) {
-            callApi([*this, key, v]() { ::ggapiStructPutFloat64(_handle, key.asInt(), v); });
+            callApi([*this, key, v]() { ::ggapiStructPutFloat64(asId(), key.asInt(), v); });
         }
         void putImpl(Symbol key, Symbol v) {
-            callApi([*this, key, v]() { ::ggapiStructPutSymbol(_handle, key.asInt(), v.asInt()); });
+            callApi([*this, key, v]() { ::ggapiStructPutSymbol(asId(), key.asInt(), v.asInt()); });
         }
         void putImpl(Symbol key, std::string_view v) {
             callApi([*this, key, v]() {
-                ::ggapiStructPutString(_handle, key.asInt(), v.data(), v.length());
+                ::ggapiStructPutString(asId(), key.asInt(), v.data(), v.length());
             });
         }
         void putImpl(Symbol key, ObjHandle v) {
             callApi([*this, key, v]() {
-                ::ggapiStructPutHandle(_handle, key.asInt(), v.getHandleId());
+                ::ggapiStructPutHandle(asId(), key.asInt(), v.getHandleId());
             });
         }
 
@@ -346,7 +346,7 @@ namespace ggapi {
             check();
         }
 
-        explicit Struct(uint32_t handle) : Container{handle} {
+        explicit Struct(const SharedHandle &handle) : Container{handle} {
             check();
         }
 
@@ -355,7 +355,7 @@ namespace ggapi {
         }
 
         [[nodiscard]] Struct clone() const {
-            return callApiReturnHandle<Struct>([*this]() { return ::ggapiStructClone(_handle); });
+            return callApiReturnHandle<Struct>([*this]() { return ::ggapiStructClone(asId()); });
         }
 
         template<typename T>
@@ -377,19 +377,17 @@ namespace ggapi {
         }
 
         [[nodiscard]] List keys() const {
-            return callApiReturnHandle<List>([*this]() { return ::ggapiStructKeys(_handle); });
+            return callApiReturnHandle<List>([*this]() { return ::ggapiStructKeys(asId()); });
         }
 
         [[nodiscard]] bool hasKey(Symbol key) const {
             required();
             return callApiReturn<bool>(
-                [*this, key]() { return ::ggapiStructHasKey(_handle, key.asInt()); });
+                [*this, key]() { return ::ggapiStructHasKey(asId(), key.asInt()); });
         }
 
         [[nodiscard]] bool isStruct(Symbol key) const {
-            return callApiReturn<bool>([*this, key]() {
-                return ::ggapiIsStruct(::ggapiStructGetHandle(_handle, key.asInt()));
-            });
+            return get<ObjHandle>(key).isStruct();
         }
 
         template<typename T>
@@ -397,25 +395,25 @@ namespace ggapi {
             required();
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>(
-                    [*this, key]() { return ::ggapiStructGetBool(_handle, key.asInt()); });
+                    [*this, key]() { return ::ggapiStructGetBool(asId(), key.asInt()); });
             } else if constexpr(std::is_integral_v<T>) {
                 auto intv = callApiReturn<uint64_t>(
-                    [*this, key]() { return ::ggapiStructGetInt64(_handle, key.asInt()); });
+                    [*this, key]() { return ::ggapiStructGetInt64(asId(), key.asInt()); });
                 return static_cast<T>(intv);
             } else if constexpr(std::is_floating_point_v<T>) {
                 auto floatv = callApiReturn<double>(
-                    [*this, key]() { return ::ggapiStructGetFloat64(_handle, key.asInt()); });
+                    [*this, key]() { return ::ggapiStructGetFloat64(asId(), key.asInt()); });
                 return static_cast<T>(floatv);
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                 return callApiReturnHandle<T>(
-                    [*this, key]() { return ::ggapiStructGetHandle(_handle, key.asInt()); });
+                    [*this, key]() { return ::ggapiStructGetHandle(asId(), key.asInt()); });
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
                 size_t len = callApiReturn<size_t>(
-                    [*this, key]() { return ::ggapiStructGetStringLen(_handle, key.asInt()); });
+                    [*this, key]() { return ::ggapiStructGetStringLen(asId(), key.asInt()); });
                 return stringFillHelper<typename T::traits_type, typename T::allocator_type>(
                     len, [*this, key](auto buf, auto bufLen) {
                         return callApiReturn<size_t>([*this, key, &buf, bufLen]() {
-                            return ::ggapiStructGetString(_handle, key.asInt(), buf, bufLen);
+                            return ::ggapiStructGetString(asId(), key.asInt(), buf, bufLen);
                         });
                     });
             } else {
@@ -456,7 +454,7 @@ namespace ggapi {
             check();
         }
 
-        explicit Buffer(uint32_t handle) : Container{handle} {
+        explicit Buffer(const SharedHandle &handle) : Container{handle} {
             check();
         }
 
@@ -492,7 +490,7 @@ namespace ggapi {
             }
             required();
             callApi([*this, idx, bytes]() {
-                ::ggapiBufferPut(_handle, idx, bytes.data(), bytes.size());
+                ::ggapiBufferPut(asId(), idx, bytes.data(), bytes.size());
             });
             return *this;
         }
@@ -519,7 +517,7 @@ namespace ggapi {
             }
             required();
             callApi([*this, idx, bytes]() {
-                ::ggapiBufferInsert(_handle, idx, bytes.data(), bytes.size());
+                ::ggapiBufferInsert(asId(), idx, bytes.data(), bytes.size());
             });
             return *this;
         }
@@ -547,7 +545,7 @@ namespace ggapi {
 
             required();
             return callApiReturn<uint32_t>([this, idx, bytes]() -> uint32_t {
-                return ::ggapiBufferGet(_handle, idx, bytes.data(), bytes.size());
+                return ::ggapiBufferGet(asId(), idx, bytes.data(), bytes.size());
             });
         }
 
@@ -588,7 +586,7 @@ namespace ggapi {
 
         Buffer &resize(uint32_t newSize) {
             required();
-            callApi([*this, newSize]() { ::ggapiBufferResize(_handle, newSize); });
+            callApi([*this, newSize]() { ::ggapiBufferResize(asId(), newSize); });
             return *this;
         }
 
@@ -597,7 +595,7 @@ namespace ggapi {
          */
         [[nodiscard]] Container fromJson() const {
             required();
-            return callApiReturnHandle<Container>([*this]() { return ::ggapiFromJson(_handle); });
+            return callApiReturnHandle<Container>([*this]() { return ::ggapiFromJson(asId()); });
         }
 
         /**
@@ -605,7 +603,7 @@ namespace ggapi {
          */
         [[nodiscard]] Container fromYaml() const {
             required();
-            return callApiReturnHandle<Container>([*this]() { return ::ggapiFromYaml(_handle); });
+            return callApiReturnHandle<Container>([*this]() { return ::ggapiFromYaml(asId()); });
         }
     };
 
@@ -623,12 +621,12 @@ namespace ggapi {
 
     inline Buffer Container::toJson() const {
         required();
-        return callApiReturnHandle<Buffer>([*this]() { return ::ggapiToJson(_handle); });
+        return callApiReturnHandle<Buffer>([*this]() { return ::ggapiToJson(asId()); });
     }
 
     inline Buffer Container::toYaml() const {
         required();
-        return callApiReturnHandle<Buffer>([*this]() { return ::ggapiToYaml(_handle); });
+        return callApiReturnHandle<Buffer>([*this]() { return ::ggapiToYaml(asId()); });
     }
 
 } // namespace ggapi

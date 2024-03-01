@@ -84,6 +84,7 @@ namespace util {
         }
 
         [[nodiscard]] ggapiErrorKind toThreadLastError() const {
+
             return toThreadLastError(_kind, what());
         }
 

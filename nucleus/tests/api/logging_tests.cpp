@@ -2,10 +2,14 @@
 #include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
+#include <temp_module.hpp>
 
 // NOLINTBEGIN
 
 SCENARIO("Basic use of logging", "[logging]") {
+
+    util::TempModule testModule("logging-test");
+
     GIVEN("A log context") {
 
         const auto LOG = // NOLINT(cert-err58-cpp)

@@ -20,34 +20,37 @@ namespace ggapi {
             Events::ERROR_STOP,
             Events::UNKNOWN>;
 
+    protected:
+        mutable std::shared_mutex _mutex;
+
     private:
-        std::atomic<ModuleScope> _moduleScope{ModuleScope{}};
-        std::atomic<Struct> _config{};
+        ModuleScope _moduleScope{ModuleScope{}};
+        Struct _config{};
 
         bool lifecycleDispatch(const EventEnum::ConstType<Events::INITIALIZE> &, Struct data) {
             internalBind(data);
-            return onInitialize(data);
+            return onInitialize(std::move(data));
         }
 
         bool lifecycleDispatch(const EventEnum::ConstType<Events::START> &, Struct data) {
-            return onStart(data);
+            return onStart(std::move(data));
         }
 
         bool lifecycleDispatch(const EventEnum::ConstType<Events::STOP> &, Struct data) {
-            return onStop(data);
+            return onStop(std::move(data));
         }
 
         bool lifecycleDispatch(const EventEnum::ConstType<Events::ERROR_STOP> &, Struct data) {
-            return onError_stop(data);
+            return onError_stop(std::move(data));
         }
 
-        // NOLINTNEXTLINE(*-convert-member-functions-to-static)
         bool lifecycleDispatch(const EventEnum::ConstType<Events::UNKNOWN> &, Struct) {
             return false;
         }
 
-        void internalBind(Struct data) {
-            _config = getScope().anchor(data.get<ggapi::Struct>(CONFIG));
+        void internalBind(const Struct &data) {
+            std::unique_lock guard{_mutex};
+            _config = data.get<ggapi::Struct>(CONFIG);
         }
         // Lifecycle constants
         inline static const Symbol INITIALIZE_SYM{"initialize"};
@@ -89,16 +92,11 @@ namespace ggapi {
             // No exceptions may cross API boundary
             // Return true if handled.
             return ggapi::catchErrorToKind([this, moduleHandle, event, data, pHandled]() {
-                *pHandled = lifecycle(ModuleScope{moduleHandle}, Symbol{event}, Struct{data});
+                *pHandled = lifecycle(
+                    ObjHandle::of<ModuleScope>(moduleHandle),
+                    Symbol{event},
+                    ObjHandle::of<Struct>(data));
             });
-        }
-
-        /**
-         * Retrieve scope of plugin. Using getScope().anchor() will attach data to the module
-         * scope.
-         */
-        [[nodiscard]] ModuleScope getScope() const {
-            return _moduleScope.load();
         }
 
     protected:
@@ -115,6 +113,7 @@ namespace ggapi {
          * Retrieve config space unique to the given plugin
          */
         [[nodiscard]] Struct getConfig() const {
+            std::shared_lock guard{_mutex};
             return _config;
         }
 

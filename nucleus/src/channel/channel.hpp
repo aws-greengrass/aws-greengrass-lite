@@ -36,7 +36,7 @@ namespace channel {
         ~Channel() noexcept override;
 
         void write(const std::shared_ptr<data::StructModelBase> &value);
-        void close();
+        void close() override;
         void setListenCallback(const std::shared_ptr<tasks::Callback> &callback);
         void setCloseCallback(const std::shared_ptr<tasks::Callback> &callback);
     };

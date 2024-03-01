@@ -70,11 +70,11 @@ namespace ggapi {
     template<typename T>
     inline T callApiReturnHandle(const std::function<uint32_t()> &fn) {
         static_assert(std::is_base_of_v<ObjHandle, T>);
-        return T(callApiReturn<uint32_t>(fn));
+        return ObjHandle::of<T>(callApiReturn<uint32_t>(fn));
     }
 
     template<typename Func, typename... Args>
-    ggapiErrorKind catchErrorToKind(Func &&f, Args &&...args) noexcept {
+    inline ggapiErrorKind catchErrorToKind(Func &&f, Args &&...args) noexcept {
 
         try {
             std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
@@ -89,20 +89,26 @@ namespace ggapi {
     }
 
     template<typename Func, typename... Args>
-    void callApiThrowError(Func &&f, Args &&...args) {
+    inline void callApiThrowError(Func &&f, Args &&...args) {
 
         ggapiErrorKind errKind = std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
         GgApiError::throwThreadError(errKind);
     }
 
     template<typename Handle, typename Func, typename... Args>
-    Handle callHandleApiThrowError(Func &&f, Args &&...args) {
+    inline Handle callHandleApiThrowError(Func &&f, Args &&...args) {
 
         ggapiObjHandle retHandle = 0;
-        ggapiErrorKind errKind =
-            std::invoke(std::forward<Func>(f), std::forward<Args>(args)..., &retHandle);
-        GgApiError::throwThreadError(errKind);
-        return Handle(retHandle);
+        callApiThrowError(std::forward<Func>(f), std::forward<Args>(args)..., &retHandle);
+        return ObjHandle::of<Handle>(retHandle);
+    }
+
+    template<typename Func, typename... Args>
+    inline bool callBoolApiThrowError(Func &&f, Args &&...args) {
+
+        ggapiBool retBool = 0;
+        callApiThrowError(std::forward<Func>(f), std::forward<Args>(args)..., &retBool);
+        return retBool != 0;
     }
 
 } // namespace ggapi

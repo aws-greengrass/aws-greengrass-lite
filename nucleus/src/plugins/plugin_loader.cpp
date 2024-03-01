@@ -3,7 +3,6 @@
 #include "deployment/device_configuration.hpp"
 #include "errors/error_base.hpp"
 #include "scope/context_full.hpp"
-#include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
 #include <cpp_api.hpp>
 #include <iostream>
@@ -73,32 +72,33 @@ namespace plugins {
     }
 
     bool NativePlugin::callNativeLifecycle(
-        const data::ObjHandle &pluginHandle,
-        const data::Symbol &event,
-        const data::ObjHandle &dataHandle) {
+        const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) {
 
         GgapiLifecycleFn *lifecycleFn = _lifecycleFn.load();
 
         if(lifecycleFn != nullptr) {
+            scope::TempRoot tempRoot;
             bool handled = false;
-            ggapiErrorKind error =
-                lifecycleFn(pluginHandle.asInt(), event.asInt(), dataHandle.asInt(), &handled);
+            ggapiErrorKind error = lifecycleFn(
+                scope::asIntHandle(baseRef()), event.asInt(), scope::asIntHandle(data), &handled);
             errors::Error::throwThreadError(error);
             return handled;
+        } else {
+            return false; // not handled
         }
-        return true; // no error
     }
 
     bool DelegatePlugin::callNativeLifecycle(
-        const data::ObjHandle &pluginRoot,
-        const data::Symbol &event,
-        const data::ObjHandle &dataHandle) {
+        const data::Symbol &phase, const std::shared_ptr<data::StructModelBase> &data) {
 
         auto callback = _callback;
         if(callback) {
-            return callback->invokeLifecycleCallback(pluginRoot, event, dataHandle);
+            scope::TempRoot tempRoot;
+            return callback->invokeLifecycleCallback(
+                scope::asHandle(baseRef()), phase, scope::asHandle(data));
+        } else {
+            return false; // no callback, so caller should act as if event unhandled
         }
-        return true;
     }
 
     void PluginLoader::discoverPlugins(const std::filesystem::path &pluginDir) {
@@ -133,10 +133,7 @@ namespace plugins {
             std::make_shared<NativePlugin>(context(), serviceName)};
         std::cout << "Loading native plugin from " << path << std::endl;
         plugin->load(path);
-        // add the plugins to a collection by "anchoring"
-        // which solves a number of interesting problems
-        auto anchor = _root->anchor(plugin);
-        plugin->setSelf(anchor.getHandle());
+        _all.emplace_back(plugin);
         plugin->initialize(*this);
     }
 
@@ -144,9 +141,8 @@ namespace plugins {
         const std::function<void(AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)>
             &fn) const {
 
-        for(const auto &i : _root->getRoots()) {
-            std::shared_ptr<AbstractPlugin> plugin{i.getObject<AbstractPlugin>()};
-            plugin->invoke(fn);
+        for(const auto &i : _all) {
+            i->invoke(fn);
         }
     }
 
@@ -192,12 +188,11 @@ namespace plugins {
 
         LOG.atInfo().event("lifecycle").kv("name", getName()).kv("event", event).log();
         errors::ThreadErrorContainer::get().clear();
-        scope::StackScope scope{};
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 
-        data::ObjHandle dataHandle = scope.getCallScope()->root()->anchor(data).getHandle();
         try {
-            if(callNativeLifecycle(getSelf(), event, dataHandle)) {
+            bool wasHandled = callNativeLifecycle(event, data);
+            if(wasHandled) {
                 LOG.atDebug()
                     .event("lifecycle-completed")
                     .kv("name", getName())

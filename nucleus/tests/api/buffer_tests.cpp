@@ -5,10 +5,12 @@
 #include <catch2/matchers/catch_matchers_vector.hpp>
 #include <cpp_api.hpp>
 #include <sstream>
+#include <temp_module.hpp>
 
 // NOLINTBEGIN
 SCENARIO("Buffer API", "[buffer]") {
-    scope::LocalizedContext forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{};
+    util::TempModule testModule("buffer-test");
 
     GIVEN("A buffer") {
         auto buf = ggapi::Buffer::create();
