@@ -30,15 +30,19 @@ bool MqttSender::onRun(ggapi::Struct data) {
     request.put(keys.topicName, "ping/#");
     request.put(keys.qos, 1);
 
-    // TODO: Use anonymous listener handle
-    auto result = ggapi::Task::sendToTopic(keys.subscribeToIoTCoreTopic, request);
-    if(!result.empty()) {
-        auto channel = getScope().anchor(result.get<ggapi::Channel>(keys.channel));
+    auto resultFuture = ggapi::Subscription::callTopicFirst(keys.subscribeToIoTCoreTopic, request);
+    ggapi::Struct result;
+    if(resultFuture) {
+        // TODO: Make non-blocking
+        result = ggapi::Struct(resultFuture.waitAndGetValue());
+    }
+    if(result && !result.empty()) {
+        auto channel = result.get<ggapi::Channel>(keys.channel);
         channel.addListenCallback(mqttListener);
-        channel.addCloseCallback([channel]() { channel.release(); });
+        channel.addCloseCallback([channel]() {});
     }
     // publish to a topic on an async thread
-    _asyncThread = std::thread{&MqttSender::threadFn, this};
+    _asyncThread = std::thread{&MqttSender::threadFn, this, getScope()};
     return true;
 }
 
@@ -49,20 +53,24 @@ bool MqttSender::onTerminate(ggapi::Struct data) {
     return true;
 }
 
-void MqttSender::threadFn() {
+void MqttSender::threadFn(const ggapi::ModuleScope &module) {
+    std::ignore = module.setActive();
     std::cerr << "[example-mqtt-sender] Started publish thread" << std::endl;
     _running = true;
     _cv.notify_one();
     while(_running.load()) {
-        ggapi::CallScope iterScope; // localize all structures
         auto request{ggapi::Struct::create()};
         request.put(keys.topicName, "hello");
         request.put(keys.qos, 1);
         request.put(keys.payload, "Hello world!");
 
         std::cerr << "[example-mqtt-sender] Sending..." << std::endl;
-        std::ignore = ggapi::Task::sendToTopic(keys.publishToIoTCoreTopic, request);
-        std::cerr << "[example-mqtt-sender] Sending complete." << std::endl;
+        auto sendFuture = ggapi::Subscription::callTopicFirst(keys.publishToIoTCoreTopic, request);
+        if(sendFuture) {
+            sendFuture.whenValid([](ggapi::Future) {
+                std::cerr << "[example-mqtt-sender] Sending complete." << std::endl;
+            });
+        }
 
         using namespace std::chrono_literals;
 

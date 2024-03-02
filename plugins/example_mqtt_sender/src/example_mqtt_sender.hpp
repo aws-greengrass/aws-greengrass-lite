@@ -13,7 +13,7 @@ struct Keys {
 };
 
 class MqttSender : public ggapi::Plugin {
-    void threadFn();
+    void threadFn(const ggapi::ModuleScope &);
     std::thread _asyncThread;
 
 protected:

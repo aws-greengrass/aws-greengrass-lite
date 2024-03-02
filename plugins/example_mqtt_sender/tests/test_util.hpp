@@ -46,6 +46,6 @@ public:
 class PubSubCallback {
 public:
     virtual ~PubSubCallback() = default;
-    virtual ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) = 0;
-    virtual ggapi::Struct subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) = 0;
+    virtual ggapi::ObjHandle publishHandler(ggapi::Symbol, ggapi::Container) = 0;
+    virtual ggapi::ObjHandle subscribeHandler(ggapi::Symbol, ggapi::Container) = 0;
 };

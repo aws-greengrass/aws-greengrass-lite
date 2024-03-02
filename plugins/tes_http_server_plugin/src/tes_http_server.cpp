@@ -1,5 +1,7 @@
 #include "tes_http_server.hpp"
 
+// TODO: Fix file to follow coding conventions (camelCase vs snake_case etc)
+
 const auto LOG = ggapi::Logger::of("TesHttpServerPlugin");
 const auto requestTesCredentialsTopic = "aws.greengrass.requestTES";
 const auto contentTypeHeader = "Content-Type";
@@ -26,9 +28,13 @@ ggapi::Struct getTesCredentialsStruct() {
     // Fetch credentials from TES Plugin
     auto tes_lpc_request{ggapi::Struct::create()};
     tes_lpc_request.put("test", "some-unique-token");
-    auto tes_lpc_response =
-        ggapi::Task::sendToTopic(ggapi::Symbol{requestTesCredentialsTopic}, tes_lpc_request);
-    return tes_lpc_response;
+    auto tesFuture = ggapi::Subscription::callTopicFirst(
+        ggapi::Symbol{requestTesCredentialsTopic}, tes_lpc_request);
+    if(tesFuture) {
+        return ggapi::Struct(tesFuture.waitAndGetValue());
+    } else {
+        return {};
+    }
 }
 
 extern "C" {

@@ -1,20 +1,22 @@
 #include "test_util.hpp"
 #include <catch2/catch_all.hpp>
 #include <catch2/trompeloeil.hpp>
+#include <temp_module.hpp>
 
 using Catch::Matchers::Equals;
 namespace mock = trompeloeil;
 
 class MockListener : PubSubCallback {
 public:
-    MAKE_MOCK3(publishHandler, ggapi::Struct(ggapi::Task, ggapi::Symbol, ggapi::Struct), override);
-    MAKE_MOCK3(
-        subscribeHandler, ggapi::Struct(ggapi::Task, ggapi::Symbol, ggapi::Struct), override);
+    MAKE_MOCK2(publishHandler, ggapi::ObjHandle(ggapi::Symbol, ggapi::Container), override);
+    MAKE_MOCK2(subscribeHandler, ggapi::ObjHandle(ggapi::Symbol, ggapi::Container), override);
 };
 
-inline auto pubStructMatcher(ggapi::Struct expected) {
-    return mock::make_matcher<ggapi::Struct>(
-        [](const ggapi::Struct &request, const ggapi::Struct &expected) {
+inline auto pubStructMatcher(const ggapi::Container &expectedBase) {
+    return mock::make_matcher<ggapi::Container>(
+        [](const ggapi::Container &requestBase, const ggapi::Container &expectedBase) {
+            ggapi::Struct request{requestBase};
+            ggapi::Struct expected{expectedBase};
             if(!(request.hasKey(keys.topicName) && request.hasKey(keys.qos)
                  && request.hasKey(keys.payload))) {
                 return false;
@@ -25,16 +27,18 @@ inline auto pubStructMatcher(ggapi::Struct expected) {
                    && expected.get<std::string>(keys.payload)
                           == request.get<std::string>(keys.payload);
         },
-        [](std::ostream &os, const ggapi::Struct &expected) {
+        [](std::ostream &os, const ggapi::Container &expected) {
             // TODO: Add toString method to ggapi::Struct
             os << " Not matching\n";
         },
-        expected);
+        expectedBase);
 }
 
-inline auto subStructMatcher(ggapi::Struct expected) {
-    return mock::make_matcher<ggapi::Struct>(
-        [](const ggapi::Struct &request, const ggapi::Struct &expected) {
+inline auto subStructMatcher(const ggapi::Container &expectedBase) {
+    return mock::make_matcher<ggapi::Container>(
+        [](const ggapi::Container &requestBase, const ggapi::Container &expectedBase) {
+            ggapi::Struct request{requestBase};
+            ggapi::Struct expected{expectedBase};
             if(!(request.hasKey(keys.topicName) && request.hasKey(keys.qos))) {
                 return false;
             }
@@ -42,37 +46,34 @@ inline auto subStructMatcher(ggapi::Struct expected) {
                        == request.get<std::string>(keys.topicName)
                    && expected.get<int>(keys.qos) == request.get<int>(keys.qos);
         },
-        [](std::ostream &os, const ggapi::Struct &expected) {
+        [](std::ostream &os, const ggapi::Container &expectedBase) {
             // TODO: Add toString method to ggapi::Struct
             os << " Not matching\n";
         },
-        expected);
+        expectedBase);
 }
 
 SCENARIO("Example Mqtt Sender pub/sub", "[pubsub]") {
     GIVEN("A sender plugin instance") {
-        auto moduleScope = ggapi::ModuleScope::registerGlobalPlugin(
-            "plugin", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
-        TestMqttSender sender = TestMqttSender(moduleScope);
-        moduleScope.setActive();
+        util::TempModule tempModule{"plugin"};
+        TestMqttSender sender = TestMqttSender(*tempModule);
         AND_GIVEN("A mock plugin instance listener") {
             MockListener mockListener;
-            auto testScope = ggapi::ModuleScope::registerGlobalPlugin(
-                "test", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
-            testScope.setActive();
+            util::TempModule testScope{"test"};
             WHEN("The listener subscribes to sender's topic") {
-                std::ignore = testScope.subscribeToTopic(
+                auto subs = ggapi::Subscription::subscribeToTopic(
                     keys.publishToIoTCoreTopic,
-                    ggapi::TopicCallback::of(&MockListener::publishHandler, mockListener));
+                    ggapi::TopicCallback::of(&MockListener::publishHandler, &mockListener));
 
                 auto expected = ggapi::Struct::create();
                 expected.put(keys.topicName, "hello");
                 expected.put(keys.qos, 1);
                 expected.put(keys.payload, "Hello world!");
                 THEN("The listener's publish handler is called") {
+                    auto retValue = ggapi::Struct::create().put("status", true);
                     REQUIRE_CALL(
-                        mockListener, publishHandler(mock::_, mock::_, pubStructMatcher(expected)))
-                        .RETURN(ggapi::Struct::create().put("status", true))
+                        mockListener, publishHandler(mock::_, pubStructMatcher(expected)))
+                        .RETURN(retValue)
                         .TIMES(AT_LEAST(1));
 
                     // start the lifecycle
@@ -97,29 +98,30 @@ SCENARIO("Example Mqtt Sender pub/sub", "[pubsub]") {
                 auto topicName1 = "ping/hello";
                 auto payload1 = "Hello World!";
 
-                std::ignore = testScope.subscribeToTopic(
+                auto subs1 = ggapi::Subscription::subscribeToTopic(
                     keys.publishToIoTCoreTopic,
-                    ggapi::TopicCallback::of(&MockListener::publishHandler, mockListener));
-                std::ignore = testScope.subscribeToTopic(
+                    ggapi::TopicCallback::of(&MockListener::publishHandler, &mockListener));
+                auto subs2 = ggapi::Subscription::subscribeToTopic(
                     keys.subscribeToIoTCoreTopic,
-                    ggapi::TopicCallback::of(&MockListener::subscribeHandler, mockListener));
+                    ggapi::TopicCallback::of(&MockListener::subscribeHandler, &mockListener));
 
                 THEN("The listener's publish and subscribe handlers are called") {
+                    auto retValue1 = ggapi::Struct::create().put("status", true);
                     REQUIRE_CALL(
                         mockListener,
-                        publishHandler(mock::_, mock::_, pubStructMatcher(pubExpected)))
-                        .RETURN(ggapi::Struct::create().put("status", true))
+                        publishHandler(mock::_, pubStructMatcher(pubExpected)))
+                        .RETURN(retValue1)
                         .TIMES(AT_LEAST(1));
 
+                    auto retValue2 = ggapi::Struct::create().put(keys.channel, ggapi::Channel::create());
                     REQUIRE_CALL(
                         mockListener,
-                        subscribeHandler(mock::_, mock::_, subStructMatcher(subExpected)))
+                        subscribeHandler(mock::_, subStructMatcher(subExpected)))
                         .SIDE_EFFECT(auto message = ggapi::Struct::create();
                                      message.put(keys.topicName, topicName1);
                                      message.put(keys.payload, payload1);
-                                     std::ignore =
-                                         ggapi::Task::sendToTopic(keys.mqttPing, message);)
-                        .RETURN(ggapi::Struct::create().put(keys.channel, ggapi::Channel::create()))
+                                     ggapi::Subscription::callTopicAll(keys.mqttPing, message).waitAll();)
+                        .RETURN(retValue2)
                         .TIMES(AT_LEAST(1));
 
                     // start the lifecycle
