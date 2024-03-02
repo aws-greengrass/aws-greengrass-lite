@@ -21,7 +21,7 @@ public:
     ggapi::Symbol channel{"channel"};
     ggapi::Symbol socketPath{"domain_socket_path"};
     ggapi::Symbol cliAuthToken{"cli_auth_token"};
-    ggapi::Symbol topicName{"aws.greengrass.RequestIpcInfo"};
+    ggapi::Symbol requestIpcInfoTopic{"aws.greengrass.RequestIpcInfo"};
     ggapi::Symbol serviceName{"serviceName"};
     static const Keys &get() {
         static Keys keys;
@@ -33,17 +33,14 @@ static const auto &keys = Keys::get();
 
 class IpcServer final : public ggapi::Plugin {
 private:
-    using MutexType = std::shared_mutex;
-    template<template<class> class Lock>
-    static constexpr bool is_lockable = std::is_constructible_v<Lock<MutexType>, MutexType &>;
     // TODO: This needs to come from host-environment plugin
     static constexpr std::string_view SOCKET_NAME = "gglite-ipc.socket";
 
-    ggapi::Struct cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
+    ggapi::ObjHandle cliHandler(ggapi::Symbol, const ggapi::Container &);
 
-    std::atomic<ggapi::Struct> _system;
-    std::atomic<ggapi::Struct> _config;
-    std::atomic<ggapi::Struct> _configRoot;
+    ggapi::Struct _system;
+    ggapi::Struct _config;
+    ggapi::Subscription _ipcInfoSubs;
 
     std::string _socketPath;
 
@@ -61,12 +58,6 @@ public:
         return instance;
     }
 
-    template<template<class> class Lock = std::unique_lock>
-    std::enable_if_t<is_lockable<Lock>, Lock<MutexType>> lock() & {
-        return Lock{mutex};
-    }
-
 private:
-    MutexType mutex;
     std::shared_ptr<ServerListener> _listener;
 };

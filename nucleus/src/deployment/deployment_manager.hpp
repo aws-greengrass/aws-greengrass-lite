@@ -142,6 +142,9 @@ namespace deployment {
         std::thread _thread;
         std::condition_variable _wake;
         std::atomic_bool _terminate{false};
+        ggapi::Subscription _createSubs;
+        ggapi::Subscription _cancelSubs;
+        ggapi::ModuleScope _module;
 
         lifecycle::Kernel &_kernel;
         RecipeLoader _recipeLoader;
@@ -149,7 +152,7 @@ namespace deployment {
     public:
         explicit DeploymentManager(const scope::UsingContext &, lifecycle::Kernel &kernel);
         void start();
-        void listen();
+        void listen(const ggapi::ModuleScope &module);
         void stop();
         void clearQueue();
         void createNewDeployment(const Deployment &);
@@ -161,8 +164,8 @@ namespace deployment {
         void saveRecipeFile(const Recipe &);
         void copyArtifacts(std::string_view);
         void runDeploymentTask();
-        ggapi::Struct createDeploymentHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
-        ggapi::Struct cancelDeploymentHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
+        ggapi::ObjHandle createDeploymentHandler(ggapi::Symbol, const ggapi::Container &);
+        ggapi::ObjHandle cancelDeploymentHandler(ggapi::Symbol, const ggapi::Container &);
         static bool checkValidReplacement(const Deployment &, const Deployment &) noexcept;
     };
 } // namespace deployment

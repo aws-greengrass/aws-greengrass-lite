@@ -25,7 +25,6 @@ public:
     ~ServerContinuation() noexcept {
         if(_channel) {
             _channel.close();
-            _channel.release();
         }
     }
 
@@ -42,7 +41,7 @@ public:
     }
 
     static ggapi::Struct onTopicResponse(
-        const std::weak_ptr<ServerContinuation> &weakSelf, ggapi::Struct response);
+        const std::weak_ptr<ServerContinuation> &weakSelf, const ggapi::Struct &response);
 };
 
 extern "C" class ServerContinuationCCallbacks {

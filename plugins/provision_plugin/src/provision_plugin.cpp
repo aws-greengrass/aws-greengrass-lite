@@ -11,9 +11,9 @@ const Keys ProvisionPlugin::keys{};
  * Listen on the well-known Provisioning topic, and if a request for provisioning comes in,
  * perform a By-Claim provisioning action to IoT Core.
  */
-ggapi::Struct ProvisionPlugin::brokerListener(ggapi::Task, ggapi::StringOrd, ggapi::Struct) {
+ggapi::Promise ProvisionPlugin::brokerListener(ggapi::Symbol, const ggapi::Container &) {
     setDeviceConfig();
-    return provisionDevice();
+    return ggapi::Promise::create().async(&ProvisionPlugin::provisionDevice, this);
 }
 
 /**
@@ -22,9 +22,10 @@ ggapi::Struct ProvisionPlugin::brokerListener(ggapi::Task, ggapi::StringOrd, gga
  */
 bool ProvisionPlugin::onInitialize(ggapi::Struct data) {
     data.put(NAME, keys.serviceName);
-    _subscription = getScope().subscribeToTopic(
+    std::unique_lock guard{_mutex};
+    _subscription = ggapi::Subscription::subscribeToTopic(
         keys.topicName, ggapi::TopicCallback::of(&ProvisionPlugin::brokerListener, this));
-    _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
+    _system = data.getValue<ggapi::Struct>({"system"});
     return true;
 }
 
@@ -32,7 +33,8 @@ bool ProvisionPlugin::onInitialize(ggapi::Struct data) {
  * Release subscriptions during termination.
  */
 bool ProvisionPlugin::onStop(ggapi::Struct data) {
-    _subscription.load().release();
+    std::unique_lock guard{_mutex};
+    _subscription.close();
     return true;
 }
 
@@ -40,21 +42,27 @@ bool ProvisionPlugin::onStop(ggapi::Struct data) {
  * Provision device with csr or create key and certificate with certificate authority
  * @return Response containing provisioned thing information
  */
-ggapi::Struct ProvisionPlugin::provisionDevice() {
-    if(initMqtt()) {
-        try {
-            generateCredentials();
-            ggapi::Struct response = ggapi::Struct::create();
-            response.put("thingName", _thingName);
-            response.put("keyPath", _keyPath.string());
-            response.put("certPath", _certPath.string());
-            return response;
-        } catch(const std::exception &e) {
-            std::cerr << "[provision-plugin] Error while provisioning the device\n";
-            throw e;
+void ProvisionPlugin::provisionDevice(ggapi::Promise promise) {
+    try {
+        if(initMqtt()) {
+            try {
+                generateCredentials();
+                ggapi::Struct response = ggapi::Struct::create();
+                response.put("thingName", _thingName);
+                response.put("keyPath", _keyPath.string());
+                response.put("certPath", _certPath.string());
+                promise.setValue(response);
+            } catch(const std::exception &e) {
+                std::cerr << "[provision-plugin] Error while provisioning the device\n";
+                throw e;
+            }
+        } else {
+            throw std::runtime_error("[provision-plugin] Unable to initialize the mqtt client\n");
         }
-    } else {
-        throw std::runtime_error("[provision-plugin] Unable to initialize the mqtt client\n");
+    } catch(const ggapi::GgApiError &e) {
+        promise.setError(e);
+    } catch(const std::exception &e) {
+        promise.setError(ggapi::GgApiError::of(e));
     }
 }
 
@@ -63,8 +71,9 @@ ggapi::Struct ProvisionPlugin::provisionDevice() {
  * @param deviceConfig Device configuration to be copied
  */
 void ProvisionPlugin::setDeviceConfig() {
+    std::shared_lock guard{_mutex};
     // GG-Interop: Load from the system instead of service
-    auto system = _system.load();
+    auto system = _system;
     _deviceConfig.rootPath = system.getValue<std::string>({"rootpath"});
     _deviceConfig.rootCaPath = system.getValue<std::string>({"rootCaPath"});
 

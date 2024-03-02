@@ -2,7 +2,7 @@
 #include "ipc_server.hpp"
 
 ggapi::Struct ServerContinuation::onTopicResponse(
-    const std::weak_ptr<ServerContinuation> &weakSelf, ggapi::Struct response) {
+    const std::weak_ptr<ServerContinuation> &weakSelf, const ggapi::Struct &response) {
     // TODO: unsubscribe
     auto self = weakSelf.lock();
     if(!self) {
@@ -58,9 +58,10 @@ ggapi::Struct ServerContinuation::onTopicResponse(
 }
 
 extern "C" void ServerContinuationCCallbacks::onContinuation(
-    aws_event_stream_rpc_server_continuation_token *token,
+    aws_event_stream_rpc_server_continuation_token *,
     const aws_event_stream_rpc_message_args *message_args,
     void *user_data) noexcept {
+    // TODO: This code needs to correctly handle exceptions and turn them into IPC errors
     std::cerr << "[IPC] Continuation received:\n" << *message_args << '\n';
 
     if(message_args->message_flags & AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_TERMINATE_STREAM) {
@@ -77,11 +78,14 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
                 .fromJson();
         return jsonHandle.getHandleId() ? jsonHandle.unbox<Struct>() : Struct::create();
     }();
-    auto scope = ggapi::CallScope{};
-    // NOLINTNEXTLINE
     auto continuation = *static_cast<ContinutationHandle>(user_data);
-    auto response = Task::sendToTopic(continuation->lpcTopic(), json);
-    if(response.empty()) {
+    auto responseFuture = ggapi::Subscription::callTopicFirst(continuation->lpcTopic(), json);
+    ggapi::Struct response;
+    if(responseFuture) {
+        // TODO: Take advantage of LPC Future "andThen" rather than blocking
+        response = ggapi::Struct(responseFuture.waitAndGetValue());
+    }
+    if(!response || response.empty()) {
         std::cerr << "[IPC] LPC appears unhandled\n";
         const auto sender = [continuation](auto *args) {
             return aws_event_stream_rpc_server_continuation_send_message(
@@ -102,20 +106,20 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
         response.put(keys.serviceModelType, continuation->ipcServiceModel());
         ServerContinuation::onTopicResponse(continuation, response);
         if(response.hasKey(keys.channel)) {
-            auto channel =
-                IpcServer::get().getScope().anchor(response.get<ggapi::Channel>(keys.channel));
+            auto channel = response.get<ggapi::Channel>(keys.channel);
             continuation->_channel = channel;
+            auto continuationWeak = std::weak_ptr{continuation};
             channel.addListenCallback(ggapi::ChannelListenCallback::of(
-                &ServerContinuation::onTopicResponse, std::weak_ptr{continuation}));
+                &ServerContinuation::onTopicResponse, continuationWeak));
         }
     }
 }
 
 extern "C" void ServerContinuationCCallbacks::onContinuationClose(
-    aws_event_stream_rpc_server_continuation_token *token, void *user_data) noexcept {
-    // NOLINTNEXTLINE
+    aws_event_stream_rpc_server_continuation_token *, void *user_data) noexcept {
     auto continuation = static_cast<ContinutationHandle>(user_data);
     std::cerr << "Stream ending for " << (*continuation)->_operation << std::endl;
-    // NOLINTNEXTLINE
+    // TODO: Improve in this, per memory coding standards
+    // NOLINTNEXTLINE(*-owning-memory)
     delete continuation;
 }

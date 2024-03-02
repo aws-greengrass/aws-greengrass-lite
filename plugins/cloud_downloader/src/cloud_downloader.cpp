@@ -10,9 +10,9 @@ constexpr static int TIME_OUT_MS = 5000;
 constexpr static int PORT_NUM = 443;
 const char *const THING_NAME_HEADER = "x-amzn-iot-thingname";
 
-/*
-A common client helper function to make the request to a url using the aws's library
-*/
+/**
+ * A common client helper function to make the request to a url using the aws's library
+ */
 void CloudDownloader::downloadClient(
     Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions,
     const std::string &uriAsString,
@@ -142,11 +142,17 @@ void CloudDownloader::downloadClient(
     LOG.atInfo().event("Download Status").kv("response_code", responseCode).log();
 }
 
-/*
-Generic Http/Https downloader that provides a in memory response for the results from the `url`.
-Uses provided device IOT credential to make the query to the `url`
-*/
-ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
+/**
+ * Generic Http/Https downloader that provides a in memory response for the results from the `url`.
+ * Uses provided device IOT credential to make the query to the `url`
+ */
+ggapi::Promise CloudDownloader::fetchToken(ggapi::Symbol, const ggapi::Container &callData) {
+    return ggapi::Promise::create().async(
+        &CloudDownloader::fetchTokenAsync, ggapi::Struct(callData));
+}
+
+void CloudDownloader::fetchTokenAsync(const ggapi::Struct &callData, ggapi::Promise promise) {
+
     auto uriAsString = callData.get<std::string>("uri");
     auto thingName = callData.get<std::string>("thingName");
     auto certPath = callData.get<std::string>("certPath");
@@ -196,13 +202,18 @@ ggapi::Struct CloudDownloader::fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Str
 
     ggapi::Struct response = ggapi::Struct::create();
     response.put("Response", downloadContent.str());
-    return response;
+    promise.setValue(response);
 }
 
-/*
-Generic Http/Https downloader that Download to the provided `localPath`
-*/
-ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
+/**
+ * Generic Http/Https downloader that Download to the provided `localPath`
+ */
+ggapi::Promise CloudDownloader::genericDownload(ggapi::Symbol, const ggapi::Container &callData) {
+    return ggapi::Promise::create().async(
+        &CloudDownloader::genericDownloadAsync, ggapi::Struct(callData));
+}
+
+void CloudDownloader::genericDownloadAsync(const ggapi::Struct &callData, ggapi::Promise promise) {
     // TODO: Add more Topics support
     auto uriAsString = callData.get<std::string>("uri");
     auto localPath = callData.get<std::string>("localPath");
@@ -248,14 +259,14 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
     // TODO: Follow the spec for Response
     ggapi::Struct response = ggapi::Struct::create();
     response.put("Response", "Download Complete");
-    return response;
+    promise.setValue(response);
 }
 
 bool CloudDownloader::onInitialize(ggapi::Struct data) {
-    std::ignore = getScope().subscribeToTopic(
+    _retrieveArtifactSubs = ggapi::Subscription::subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, genericDownload);
 
-    std::ignore =
-        getScope().subscribeToTopic(ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, fetchToken);
+    _fetchTesFromCloudSubs = ggapi::Subscription::subscribeToTopic(
+        ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, fetchToken);
     return true;
 }

@@ -18,9 +18,14 @@ private:
         Aws::Crt::Http::HttpRequestOptions requestOptions,
         Aws::Crt::Allocator *allocator);
 
-    static ggapi::Struct fetchToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
+    static ggapi::Promise fetchToken(ggapi::Symbol, const ggapi::Container &callData);
+    static void fetchTokenAsync(const ggapi::Struct &callData, ggapi::Promise promise);
 
-    static ggapi::Struct genericDownload(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
+    static ggapi::Promise genericDownload(ggapi::Symbol, const ggapi::Container &callData);
+    static void genericDownloadAsync(const ggapi::Struct &callData, ggapi::Promise promise);
+
+    ggapi::Subscription _retrieveArtifactSubs;
+    ggapi::Subscription _fetchTesFromCloudSubs;
 
 public:
     bool onInitialize(ggapi::Struct data) override;

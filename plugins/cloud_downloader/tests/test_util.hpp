@@ -1,6 +1,7 @@
 #pragma once
 #include "cloud_downloader.hpp"
 
+constexpr std::string_view DISCOVER = "discover";
 constexpr std::string_view START = "start";
 constexpr std::string_view RUN = "run";
 constexpr std::string_view TERMINATE = "stop";
@@ -20,7 +21,7 @@ public:
 
     bool startLifecycle() {
         // TODO: gotta be a better way to do this
-        return executePhase(START) && executePhase(RUN);
+        return executePhase(DISCOVER) && executePhase(START) && executePhase(RUN);
     }
 
     bool stopLifecycle() {

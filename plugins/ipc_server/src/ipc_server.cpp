@@ -6,16 +6,17 @@ IpcServer::IpcServer() noexcept {
 
 bool IpcServer::onInitialize(ggapi::Struct data) {
     data.put(NAME, "aws.greengrass.ipc_server");
-    _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
-    _config = getScope().anchor(data.getValue<ggapi::Struct>({"config"}));
-    _configRoot = getScope().anchor(data.getValue<ggapi::Struct>({"configRoot"}));
+    std::unique_lock guard{_mutex};
+    _system = data.getValue<ggapi::Struct>({"system"});
+    _config = data.getValue<ggapi::Struct>({"config"});
     return true;
 }
 
 bool IpcServer::onStart(ggapi::Struct data) {
-    std::ignore = getScope().subscribeToTopic(
-        keys.topicName, ggapi::TopicCallback::of(&IpcServer::cliHandler, this));
-    auto system = _system.load();
+    std::unique_lock guard{_mutex};
+    _ipcInfoSubs = ggapi::Subscription::subscribeToTopic(
+        keys.requestIpcInfoTopic, ggapi::TopicCallback::of(&IpcServer::cliHandler, this));
+    auto system = _system;
     if(system.hasKey("ipcSocketPath")) {
         _socketPath = system.get<std::string>("ipcSocketPath");
     } else {
@@ -25,6 +26,7 @@ bool IpcServer::onStart(ggapi::Struct data) {
     }
     _listener = std::make_shared<ServerListener>();
     try {
+        // TODO: Make non-blocking
         _listener->Connect(_socketPath);
     } catch(std::runtime_error &e) {
         throw ggapi::GgApiError(e.what());
@@ -32,9 +34,12 @@ bool IpcServer::onStart(ggapi::Struct data) {
     return true;
 }
 
-ggapi::Struct IpcServer::cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct req) {
+// TODO: Better name for this?
+ggapi::ObjHandle IpcServer::cliHandler(ggapi::Symbol, const ggapi::Container &reqBase) {
+    ggapi::Struct req{reqBase};
     auto serviceName = req.getValue<std::string>({keys.serviceName});
 
+    std::shared_lock guard{_mutex};
     auto resp = ggapi::Struct::create();
     resp.put(keys.socketPath, _socketPath);
     resp.put(keys.cliAuthToken, _authHandler->generateAuthToken(serviceName));
@@ -42,6 +47,7 @@ ggapi::Struct IpcServer::cliHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct re
 }
 
 bool IpcServer::onStop(ggapi::Struct structData) {
+    std::shared_lock guard{_mutex};
     _listener->Disconnect();
     return true;
 }
