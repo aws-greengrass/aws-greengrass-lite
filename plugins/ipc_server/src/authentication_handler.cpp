@@ -20,7 +20,7 @@ bool AuthenticationHandler::authenticateRequest(const std::string &authToken) co
     if(_tokenMap.find(authToken) == _tokenMap.cend()) {
         return false;
     }
-    const auto &serviceName = _tokenMap.at(authToken); 
+    const auto &serviceName = _tokenMap.at(authToken);
     if(serviceName.rfind("aws.greengrass", 0) != 0) {
         return false;
     }

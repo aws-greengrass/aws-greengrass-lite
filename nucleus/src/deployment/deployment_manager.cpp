@@ -209,7 +209,7 @@ namespace deployment {
     void DeploymentManager::runDeploymentTask() {
         using Environment = std::unordered_map<std::string, std::optional<std::string>>;
         // TODO: More streamlined deployment task
-        auto currentDeployment = _deploymentQueue->next();
+        const auto &currentDeployment = _deploymentQueue->next();
         const auto &currentRecipe = _componentStore->next();
 
         // component name is not recommended to start with "aws.greengrass"
