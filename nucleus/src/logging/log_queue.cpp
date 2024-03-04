@@ -81,7 +81,7 @@ namespace logging {
     void LogQueue::processEntry(const QueueEntry &entry) {
         if(_watching) {
             std::unique_lock guard{_mutex};
-            auto fn = _watch;
+            const auto &fn = _watch;
             guard.unlock();
             if(fn) {
                 bool resume = fn(entry);

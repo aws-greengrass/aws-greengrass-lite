@@ -47,7 +47,7 @@ void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) 
         std::filesystem::remove_all(entry.path());
     }
 
-    auto clientId = CLI_IPC_INFO_FILE_PATH;
+    const auto &clientId = CLI_IPC_INFO_FILE_PATH;
     if(_clientIdToAuthToken.find(clientId) != _clientIdToAuthToken.cend()) {
         // duplicate entry
         return;
