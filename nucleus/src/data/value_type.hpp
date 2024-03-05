@@ -18,18 +18,18 @@ namespace data {
 
     class ValueType : public ValueTypeBase {
     public:
-        ValueType() = default;
+        ValueType() noexcept = default;
         ValueType(const ValueType &) = default;
-        ValueType(ValueType &&) = default;
+        ValueType(ValueType &&) noexcept = default;
         ValueType &operator=(const ValueType &) = default;
-        ValueType &operator=(ValueType &&) = default;
-        ~ValueType() = default;
+        ValueType &operator=(ValueType &&) noexcept = default;
+        ~ValueType() noexcept = default;
 
-        ValueTypeBase &base() {
+        ValueTypeBase &base() noexcept {
             return *this;
         }
 
-        [[nodiscard]] const ValueTypeBase &base() const {
+        [[nodiscard]] const ValueTypeBase &base() const noexcept {
             return *this;
         }
 

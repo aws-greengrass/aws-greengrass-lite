@@ -5,7 +5,7 @@
 
 namespace apiImpl {
     template<typename Func, typename... Args>
-    inline uint32_t catchErrorToKind(Func &&f, Args &&...args) {
+    inline uint32_t catchErrorToKind(Func &&f, Args &&...args) noexcept {
         try {
             std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
             return 0;
@@ -20,7 +20,7 @@ namespace apiImpl {
         }
     }
 
-    inline void setBool(ggapiBool *pBool, bool test) {
+    inline void setBool(ggapiBool *pBool, bool test) noexcept {
         *pBool = test ? 1 : 0;
     }
 

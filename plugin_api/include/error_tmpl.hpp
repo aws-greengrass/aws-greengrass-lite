@@ -79,26 +79,26 @@ namespace util {
             return ErrorBase("unspecified");
         }
 
-        [[nodiscard]] constexpr KindType kind() const {
+        [[nodiscard]] constexpr KindType kind() const noexcept {
             return _kind;
         }
 
-        [[nodiscard]] ggapiErrorKind toThreadLastError() const {
+        [[nodiscard]] ggapiErrorKind toThreadLastError() const noexcept {
 
             return toThreadLastError(_kind, what());
         }
 
-        static ggapiErrorKind toThreadLastError(KindType kind, std::string_view what) {
+        static ggapiErrorKind toThreadLastError(KindType kind, std::string_view what) noexcept {
             auto errInt = kind.asInt();
             ::ggapiSetError(errInt, what.data(), what.length());
             return errInt;
         }
 
-        static void clearThreadLastError() {
+        static void clearThreadLastError() noexcept {
             ::ggapiSetError(0, nullptr, 0);
         }
 
-        [[nodiscard]] static std::string getThreadErrorMessage() {
+        [[nodiscard]] static std::string getThreadErrorMessage() noexcept {
             const char *what = ::ggapiGetErrorWhat();
             if(what) {
                 return {what};

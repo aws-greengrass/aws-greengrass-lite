@@ -81,11 +81,11 @@ namespace data {
         // Used by toObject() template to throw the correct exception
         using BadCastError = std::bad_cast;
 
-        TrackedObject(const TrackedObject &) = delete;
         TrackedObject(TrackedObject &&) noexcept = default;
+        virtual ~TrackedObject() noexcept = default;
+        TrackedObject(const TrackedObject &) = delete;
         TrackedObject &operator=(const TrackedObject &) = delete;
         TrackedObject &operator=(TrackedObject &&) noexcept = delete;
-        virtual ~TrackedObject() noexcept = default;
 
         explicit TrackedObject(const scope::UsingContext &context) : UsesContext(context) {
         }

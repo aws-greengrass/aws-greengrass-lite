@@ -8,7 +8,7 @@ namespace data {
      * @param handle Handle of object to retrieve
      * @return Shared pointer ref-copy of object
      */
-    std::shared_ptr<TrackedObject> HandleTable::tryGet(const ObjHandle &handle) const {
+    std::shared_ptr<TrackedObject> HandleTable::tryGet(const ObjHandle &handle) const noexcept {
         std::shared_lock guard{_mutex};
         ObjHandle::Partial p = partial(handle);
         auto pHandleData = _handles.lookup(indexOf(p));
@@ -150,7 +150,7 @@ namespace data {
     /**
      * Return false if partial handle is invalid.
      */
-    bool HandleTable::isObjHandleValid(const ObjHandle::Partial handle) const {
+    bool HandleTable::isObjHandleValid(const ObjHandle::Partial handle) const noexcept {
         uint32_t index = indexOf(handle);
         std::shared_lock guard{_mutex};
         return _handles.check(index);
