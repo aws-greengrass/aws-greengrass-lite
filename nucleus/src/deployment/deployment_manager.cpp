@@ -64,7 +64,7 @@ namespace deployment {
         _wake.wait(guard, [this]() { return !_deploymentQueue->empty() || _terminate; });
         while(!_terminate) {
             if(!_deploymentQueue->empty()) {
-                auto nextDeployment = _deploymentQueue->next();
+                const auto &nextDeployment = _deploymentQueue->next();
                 if(nextDeployment.isCancelled) {
                     cancelDeployment(nextDeployment.id);
                 } else {
@@ -95,7 +95,7 @@ namespace deployment {
     }
 
     void DeploymentManager::createNewDeployment(const Deployment &deployment) {
-        const auto deploymentId = deployment.id;
+        const auto &deploymentId = deployment.id;
         auto deploymentType = deployment.deploymentType;
         // TODO: Greengrass deployment id
         // TODO: persist and publish deployment status
@@ -108,7 +108,7 @@ namespace deployment {
 
         if(deploymentType == DeploymentType::LOCAL) {
             try {
-                auto requiredCapabilities = deployment.deploymentDocumentObj.requiredCapabilities;
+                const auto &requiredCapabilities = deployment.deploymentDocument.requiredCapabilities;
                 if(!requiredCapabilities.empty()) {
                     // TODO: check if required capabilities are supported
                 }
@@ -134,11 +134,11 @@ namespace deployment {
     void DeploymentManager::loadRecipesAndArtifacts(const Deployment &deployment) {
         auto &deploymentDocument = deployment.deploymentDocumentObj;
         if(!deploymentDocument.recipeDirectoryPath.empty()) {
-            auto recipeDir = deploymentDocument.recipeDirectoryPath;
+            const auto &recipeDir = deploymentDocument.recipeDirectoryPath;
             copyAndLoadRecipes(recipeDir);
         }
         if(!deploymentDocument.artifactsDirectoryPath.empty()) {
-            auto artifactsDir = deploymentDocument.artifactsDirectoryPath;
+            const auto &artifactsDir = deploymentDocument.artifactsDirectoryPath;
             copyArtifacts(artifactsDir);
         }
     }
@@ -207,10 +207,10 @@ namespace deployment {
     void DeploymentManager::runDeploymentTask() {
         using Environment = std::unordered_map<std::string, std::optional<std::string>>;
         // TODO: More streamlined deployment task
-        auto currentDeployment = _deploymentQueue->next();
-        auto currentRecipe = _componentStore->next();
         // TODO: Get non-target group to root packages group
         // TODO: Component manager - resolve version, prepare packages, ...
+        const auto &currentDeployment = _deploymentQueue->next();
+        const auto &currentRecipe = _componentStore->next();
 
         // component name is not recommended to start with "aws.greengrass"
         if(util::startsWith(currentRecipe.getComponentName(), "aws.greengrass")) {
@@ -447,7 +447,7 @@ namespace deployment {
             _deploymentQueue->push({deployment.id, deployment});
             _wake.notify_one();
         } else {
-            auto deploymentPresent = _deploymentQueue->get(deployment.id);
+            const auto &deploymentPresent = _deploymentQueue->get(deployment.id);
             if(checkValidReplacement(deploymentPresent, deployment)) {
                 LOG.atInfo("deployment")
                     .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)

@@ -27,13 +27,15 @@ namespace ipc {
         UserInfo user{};
         // uid setting only works as root or with root-like permissions
         // TODO: investigate. Probably need a root setuid daemon...
-        // or just ignore this step
+        // TODO: Remove restriction of getting user info to only root, when can alter as Non-root
+        // When Nucleus is not root, we skip gathering uid/gid for child process. Defaults to 0/0
+        // When child uid/gid is 0/0 (default), setUserInfo skips setting.
         if(getgid() == 0 && getuid() == 0) {
             if(_user.has_value()) {
                 if(_group.has_value()) {
-                    getUserInfo(*_user, *_group);
+                    user = getUserInfo(*_user, *_group);
                 } else {
-                    getUserInfo(*_user);
+                    user = getUserInfo(*_user);
                 }
             }
         }
