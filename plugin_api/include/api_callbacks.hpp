@@ -127,19 +127,19 @@ namespace ggapi {
 
             template<typename... CallArgs>
             [[nodiscard]] CallbackManager::Delegate prepareWithArgs(CallArgs... callArgs) const {
-                auto callable = _callable;
                 auto args = std::tuple_cat(_args, std::tuple{std::move(callArgs)...});
-                return [callable, args]() { std::apply(std::move(callable), std::move(args)); };
+                return [callable = _callable, args = std::move(args)]() {
+                    std::apply(std::move(callable), std::move(args));
+                };
             }
 
             template<typename Ret, typename... CallArgs>
             [[nodiscard]] CallbackManager::Delegate prepareWithArgsRet(
                 std::function<void(Ret)> post, CallArgs... callArgs) const {
-                auto callable = _callable;
                 auto args = std::tuple_cat(_args, std::tuple{std::move(callArgs)...});
-                return [callable, args, post]() {
+                return [callable = _callable, args = std::move(args), post]() {
                     Ret r = std::apply(std::move(callable), std::move(args));
-                    post(r);
+                    post(std::move(r));
                 };
             }
 
