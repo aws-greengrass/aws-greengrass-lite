@@ -352,31 +352,32 @@ namespace data {
         handleImpl::IndexList<handleImpl::RootEntry> _roots;
         handleImpl::IndexList<handleImpl::HandleEntry> _handles;
 
-        [[nodiscard]] ObjHandle applyUnchecked(ObjHandle::Partial h) const {
+        [[nodiscard]] ObjHandle applyUnchecked(ObjHandle::Partial h) const noexcept {
             return {_table, h};
         }
 
-        [[nodiscard]] RootHandle applyUncheckedRoot(RootHandle::Partial h) const {
+        [[nodiscard]] RootHandle applyUncheckedRoot(RootHandle::Partial h) const noexcept {
             return {_table, h};
         }
 
-        static uint32_t indexOf(PartialHandle h) {
+        static uint32_t indexOf(PartialHandle h) noexcept {
             return data::IdObfuscator::deobfuscate(h.asInt());
         }
 
-        static PartialHandle handleOf(uint32_t idx) {
+        static PartialHandle handleOf(uint32_t idx) noexcept {
             return PartialHandle{data::IdObfuscator::obfuscate(idx)};
         }
 
     public:
         HandleTable() = default;
+        ~HandleTable() noexcept = default;
         HandleTable(const HandleTable &) = delete;
-        HandleTable(HandleTable &&) noexcept = delete;
-        ~HandleTable() = default;
+        HandleTable(HandleTable &&) = delete;
         HandleTable &operator=(const HandleTable &) = delete;
         HandleTable &operator=(HandleTable &&) noexcept = delete;
+
         ObjHandle apply(ObjHandle::Partial h) const;
-        std::shared_ptr<TrackedObject> tryGet(const ObjHandle &handle) const;
+        std::shared_ptr<TrackedObject> tryGet(const ObjHandle &handle) const noexcept;
         std::shared_ptr<TrackedObject> get(const ObjHandle &handle) const;
 
         ObjHandle create(const std::shared_ptr<TrackedObject> &obj, const RootHandle &root);
@@ -385,7 +386,7 @@ namespace data {
         RootHandle createRoot();
         bool releaseRoot(RootHandle &handle) noexcept;
 
-        bool isObjHandleValid(ObjHandle::Partial handle) const;
+        bool isObjHandleValid(ObjHandle::Partial handle) const noexcept;
 
         void check(ObjHandle::Partial handle) const;
 
@@ -408,7 +409,7 @@ namespace data {
          * @param handle Handle of object
          * @return partial handle
          */
-        ObjHandle::Partial partial(const ObjHandle &handle) const {
+        ObjHandle::Partial partial(const ObjHandle &handle) const noexcept {
             if(handle) {
                 assert(this == &handle.table());
                 return handle.partial();
