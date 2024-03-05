@@ -50,7 +50,7 @@ namespace util {
         ErrorBase(ErrorBase &&) noexcept = default;
         ErrorBase &operator=(const ErrorBase &) noexcept = default;
         ErrorBase &operator=(ErrorBase &&) noexcept = default;
-        ~ErrorBase() override = default;
+        ~ErrorBase() noexcept override = default;
 
         explicit ErrorBase(KindType kind, const std::string &what = DEFAULT_ERROR_TEXT) noexcept
             : _kind(kind), std::runtime_error(what) {
