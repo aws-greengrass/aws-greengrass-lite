@@ -108,7 +108,7 @@ namespace deployment {
 
         if(deploymentType == DeploymentType::LOCAL) {
             try {
-                const auto &requiredCapabilities = deployment.deploymentDocument.requiredCapabilities;
+                const auto &requiredCapabilities = deployment.deploymentDocumentObj.requiredCapabilities;
                 if(!requiredCapabilities.empty()) {
                     // TODO: check if required capabilities are supported
                 }
