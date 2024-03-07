@@ -3,6 +3,11 @@ project(iot_broker)
 
 include(../../common.cmake)
 
+if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
+  message(
+    SEND_ERROR "Building plugins individually is not supported on Mac/Windows.")
+endif()
+
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 add_subdirectory(../shared_resources shared_resources EXCLUDE_FROM_ALL)
 
