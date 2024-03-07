@@ -40,6 +40,8 @@ if(BUILD_TESTING AND NOT WIN32)
   list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
   include(Catch)
 
+  add_subdirectory(../../nucleus nucleus EXCLUDE_FROM_ALL)
+
   add_executable(
     cloud_downloader_tests tests/test_cloud_downloader.cpp
                            tests/test_cloud_downloader.cpp tests/test_util.hpp)
@@ -47,7 +49,7 @@ if(BUILD_TESTING AND NOT WIN32)
   target_include_directories(cloud_downloader_tests PRIVATE tests)
   target_link_libraries(
     cloud_downloader_tests PRIVATE cloud_downloader_obj Catch2::Catch2WithMain
-                                   trompeloeil::trompeloeil)
+                                   trompeloeil::trompeloeil nucleus-core)
 
   catch_discover_tests(cloud_downloader_tests)
 
