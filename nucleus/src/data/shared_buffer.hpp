@@ -35,6 +35,7 @@ namespace data {
         std::shared_ptr<ContainerModelBase> parseJson();
         std::shared_ptr<ContainerModelBase> parseYaml();
         void write(std::ostream &stream) const;
+        void visit(Archive &archive) override;
     };
 
 } // namespace data

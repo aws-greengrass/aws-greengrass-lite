@@ -1,4 +1,5 @@
 #pragma once
+#include "data/string_table.hpp"
 #include <variant>
 
 namespace data {

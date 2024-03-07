@@ -32,4 +32,8 @@ namespace data {
         std::shared_ptr<ListModelBase> copy() const override;
     };
 
+    template<>
+    ListModelBase *Archive::initSharedPtr(std::shared_ptr<ListModelBase> &ptr);
+    template<>
+    SharedList *Archive::initSharedPtr(std::shared_ptr<SharedList> &ptr);
 } // namespace data

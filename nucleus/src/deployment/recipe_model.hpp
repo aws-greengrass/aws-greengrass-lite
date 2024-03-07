@@ -1,6 +1,4 @@
 #pragma once
-#include "config/yaml_deserializer.hpp"
-#include "data/object_model.hpp"
 #include "data/serializable.hpp"
 #include "data/shared_struct.hpp"
 
@@ -66,11 +64,12 @@ namespace deployment {
     inline static const util::LookupTable<std::string_view, PermissionType, 3> PermissionMap{
         "NONE", PermissionType::NONE, "OWNER", PermissionType::OWNER, "ALL", PermissionType::ALL};
 
-    struct Permission : conv::Serializable {
+    struct Permission : data::Serializable {
         std::string read;
         std::string execute;
 
-        void serialize(config::YamlDeserializer &archive) {
+        void visit(data::Archive &archive) override {
+            archive.setIgnoreCase();
             archive("Read", read);
             archive("Execute", execute);
         }
@@ -94,7 +93,7 @@ namespace deployment {
         ComponentType::NUCLEUS,
     };
 
-    struct ComponentArtifact : conv::Serializable {
+    struct ComponentArtifact : data::Serializable {
         std::string uri;
         std::string digest;
         std::string algorithm;
@@ -117,7 +116,8 @@ namespace deployment {
             return permission;
         }
 
-        void serialize(config::YamlDeserializer &archive) {
+        void visit(data::Archive &archive) override {
+            archive.setIgnoreCase();
             archive("URI", uri);
             archive("Unarchive", unarchive);
             archive("Permission", permission);
@@ -159,7 +159,7 @@ namespace deployment {
         LifecycleStep::RECOVER,
     };
 
-    struct DependencyProperties : conv::Serializable {
+    struct DependencyProperties : data::Serializable {
         std::string versionRequirement;
         std::string dependencyType;
 
@@ -167,40 +167,45 @@ namespace deployment {
             return versionRequirement;
         }
 
-        void serialize(config::YamlDeserializer &archive) {
+        void visit(data::Archive &archive) override {
+            archive.setIgnoreCase();
             archive("VersionRequirement", versionRequirement);
             archive("DependencyType", dependencyType);
         }
     };
 
-    struct ComponentConfiguration : conv::Serializable {
+    struct ComponentConfiguration : data::Serializable {
         std::shared_ptr<data::SharedStruct> defaultConfiguration;
 
-        void serialize(config::YamlDeserializer &archive) {
-            archive(defaultConfiguration);
+        void visit(data::Archive &archive) override {
+            archive.setIgnoreCase();
+            archive("DefaultConfiguration", defaultConfiguration);
         }
     };
 
-    struct Platform : conv::Serializable {
+    struct Platform : data::Serializable {
+        // TODO: this should be a simple string:string map
         std::string os;
         std::string architecture;
         std::string nucleusType;
 
-        void serialize(config::YamlDeserializer &archive) {
+        void visit(data::Archive &archive) override {
+            archive.setIgnoreCase();
             archive("os", os);
             archive("architecture", architecture);
             archive("nucleus", nucleusType);
         }
     };
 
-    struct PlatformManifest : conv::Serializable {
+    struct PlatformManifest : data::Serializable {
         std::string name;
         Platform platform;
-        std::unordered_map<std::string, data::Object> lifecycle;
+        std::shared_ptr<data::SharedStruct> lifecycle;
         std::vector<std::string> selections;
         std::vector<ComponentArtifact> artifacts;
 
-        void serialize(config::YamlDeserializer &archive) {
+        void visit(data::Archive &archive) override {
+            archive.setIgnoreCase();
             archive("Name", name);
             archive("Platform", platform);
             archive("Lifecycle", lifecycle);
@@ -209,7 +214,7 @@ namespace deployment {
         }
     };
 
-    struct Recipe : public conv::Serializable {
+    struct Recipe : public data::Serializable {
         std::string formatVersion;
         std::string componentName;
         std::string componentVersion;
@@ -217,12 +222,13 @@ namespace deployment {
         std::string componentPublisher;
         ComponentConfiguration configuration;
         std::unordered_map<std::string, DependencyProperties> componentDependencies;
-        std::string componentType;
+        std::optional<std::string> componentType;
         std::string componentSource;
         std::vector<PlatformManifest> manifests;
-        std::unordered_map<std::string, data::Object> lifecycle;
+        std::shared_ptr<data::SharedStruct> lifecycle;
 
-        void serialize(config::YamlDeserializer &archive) {
+        void visit(data::Archive &archive) override {
+            archive.setIgnoreCase();
             archive("RecipeFormatVersion", formatVersion);
             archive("ComponentName", componentName);
             archive("ComponentVersion", componentVersion);

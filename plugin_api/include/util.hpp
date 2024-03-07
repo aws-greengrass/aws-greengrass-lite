@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <functional>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <sstream>
@@ -19,6 +20,21 @@ namespace util {
 
     template<template<typename...> class Ref, typename... Args>
     struct is_specialization<Ref<Args...>, Ref> : std::true_type {};
+
+    template<typename D, typename S>
+    inline D safeBound(const S value, const D min, const D max) {
+        return static_cast<D>(std::max(std::min(value, static_cast<S>(max)), static_cast<S>(min)));
+    }
+
+    template<typename D, typename S>
+    inline D safeBound(const S value) {
+        return safeBound<D, S>(value, std::numeric_limits<D>::min(), std::numeric_limits<D>::max());
+    }
+
+    template<typename D, typename S>
+    inline D safeBoundPositive(const S value) {
+        return safeBound<D, S>(value, 0, std::numeric_limits<D>::max());
+    }
 
     inline bool startsWith(std::string_view target, std::string_view prefix) {
         // prefix that target string starts with prefix string
@@ -595,6 +611,23 @@ namespace util {
                 std::enable_if_t<std::is_default_constructible_v<T>>>> : std::true_type {};
         template<typename T>
         static constexpr bool isOptional = IsOptional<T>::value;
+    } // namespace traits
+
+    // traits::isListLike<std::vector<XYZ>> = true
+    namespace traits {
+        template<typename, typename = void>
+        struct IsListLike : std::false_type {};
+        template<typename T>
+        struct IsListLike<
+            T,
+            std::void_t<
+                decltype(std::declval<T>().begin()),
+                decltype(std::declval<T>().end()),
+                decltype(std::declval<T>().clear()),
+                decltype(std::declval<T>().pop_back()),
+                typename T::value_type>> : std::true_type {};
+        template<typename T>
+        static constexpr bool isListLike = IsListLike<T>::value;
     } // namespace traits
 
 } // namespace util

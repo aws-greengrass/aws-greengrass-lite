@@ -1,6 +1,6 @@
 #pragma once
+#include "data/serializable.hpp"
 #include "data/string_table.hpp"
-#include <config/json_deserializer.hpp>
 #include <cstdint>
 #include <forward_list>
 #include <util.hpp>
@@ -116,11 +116,12 @@ namespace deployment {
                 DeploymentComponentUpdatePolicyAction::UNKNOWN_TO_SDK_VERSION,
             };
 
-    struct ComponentUpdatePolicy : public conv::Serializable {
+    struct ComponentUpdatePolicy : public data::Serializable {
         int timeout = 60;
         std::string action;
 
-        void serialize(config::JsonDeserializer &archive) {
+        void visit(data::Archive &archive) override {
+            archive.setIgnoreCase();
             archive("timeout", timeout);
             archive("action", action);
         }
@@ -165,9 +166,9 @@ namespace deployment {
         RunWith runWith;
     };
 
-    struct DeploymentDocument : public conv::Serializable {
+    struct DeploymentDocument : public data::Serializable {
         std::string deploymentId;
-        long long int timestamp;
+        uint64_t timestamp;
         std::unordered_map<std::string, std::string> componentsToMerge;
         std::unordered_map<std::string, std::string> componentsToRemove;
         std::string recipeDirectoryPath;
@@ -182,8 +183,9 @@ namespace deployment {
         ComponentUpdatePolicy componentUpdatePolicy;
         DeploymentConfigValidationPolicy deploymentConfigValidationPolicy;
 
-        void serialize(config::JsonDeserializer &archive) {
+        void visit(data::Archive &archive) override {
             // TODO: Do rest and check names from cli
+            archive.setIgnoreCase();
             archive("requestId", deploymentId);
             archive("requestTimestamp", timestamp);
             archive("rootComponentVersionsToAdd", componentsToMerge);

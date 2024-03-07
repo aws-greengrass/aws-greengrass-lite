@@ -136,4 +136,8 @@ namespace data {
         stream.write(_buffer.data(), _buffer.size()); // NOLINT(*-narrowing-conversions)
     }
 
+    void SharedBuffer::visit(Archive &archive) {
+        throw std::runtime_error("Attempting to serialize/deserialize a buffer");
+    }
+
 } // namespace data

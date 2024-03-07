@@ -233,6 +233,7 @@ namespace deployment {
         auto defaultConfig = currentRecipe.getComponentConfiguration().defaultConfiguration;
 
         // TODO: Support other platforms
+        // TODO: This needs to be a generic map compare
         auto manifests = currentRecipe.getManifests();
 
         auto it = std::find_if(manifests.begin(), manifests.end(), [](const auto &manifest) {
@@ -248,45 +249,40 @@ namespace deployment {
                 .log("Platform not supported!");
             return;
         }
-        auto getEnvironment = [](auto &environment) -> Environment {
-            Environment env{};
-            for(auto &name : environment->getKeys()) {
-                env.emplace(name.toString(), environment->get(name).getString());
-            }
-            return env;
-        };
+
+        LifecycleSection lifecycle;
+        data::Archive::readFromStruct(it->lifecycle, lifecycle);
 
         // set global env
         Environment globalEnv;
-        if(it->lifecycle.find("SetEnv") != it->lifecycle.end()) {
-            auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
-                it->lifecycle.at("SetEnv").getStruct());
-            globalEnv = getEnvironment(envStruct);
+        if(lifecycle.envMap.has_value()) {
+            globalEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
         }
 
-        // execute each lifecycle phase
-        auto deploymentRequest = ggapi::Struct::create();
 
         // TODO: Lifecycle management
-        for(std::string stepName :
-            {"install", "run", "startup", "shutdown", "recover", "bootstrap"}) {
-            if(it->lifecycle.find(stepName) != it->lifecycle.end()) {
+        std::array<std::pair<std::optional<ScriptSection> *, std::string_view>, 4> sections = {
+            std::pair(&lifecycle.install, "install"),
+            std::pair(&lifecycle.run, "run"),
+            std::pair(&lifecycle.startup, "startup"),
+            std::pair(&lifecycle.shutdown, "shutdown") /*, "recover", "bootstrap" */};
+        for(auto &section : sections) {
+            if(section.first->has_value()) {
                 using namespace std::chrono_literals;
-                auto step = it->lifecycle.at(stepName);
+                auto &step = section.first->value();
+                std::string stepName{section.second};
 
-                auto commandStruct =
-                    step.isContainer()
-                        ? std::dynamic_pointer_cast<data::SharedStruct>(step.getStruct())
-                        : nullptr;
+                // execute each lifecycle phase
+                auto deploymentRequest = ggapi::Struct::create();
 
-                // skipif
-                if(commandStruct && commandStruct->hasKey("SkipIf")
-                   && !commandStruct->get("SkipIf").getString().empty()) {
-                    auto skipIf = util::splitWith(commandStruct->get("skipif").getString(), ' ');
+                if(step.skipIf.has_value()) {
+                    auto skipIf = util::splitWith(step.skipIf.value(), ' ');
                     if(!skipIf.empty()) {
+                        std::string cmd = util::lower(skipIf[0]);
                         // skip the step if the executable exists on path
-                        if(skipIf[0] == on_path_prefix) {
+                        if(cmd == on_path_prefix) {
                             const auto &executable = skipIf[1];
+                            // TODO: This seems so odd here? - code does nothing
                             auto envList = ggapi::List::create();
                             envList.put(0, executable);
                             auto request = ggapi::Struct::create();
@@ -294,81 +290,36 @@ namespace deployment {
                             // TODO: Skipif
                         }
                         // skip the step if the file exists
-                        else if(skipIf[0] == exists_prefix) {
+                        else if(cmd == exists_prefix) {
                             if(std::filesystem::exists(skipIf[1])) {
                                 return;
                             }
                         }
+                        // TODO: what if sub-command not recognized?
                     }
                 }
 
                 auto pid = std::invoke([&]() -> ipc::ProcessId {
-                    if(commandStruct) {
-                        // TODO: This needs a cleanup
+                    // TODO: This needs a cleanup
 
-                        auto getSetEnv =
-                            [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
-                            if(commandStruct->hasKey("SetEnv")
-                               && !commandStruct->get("SetEnv").getString().empty()) {
-                                auto envStruct = std::dynamic_pointer_cast<data::SharedStruct>(
-                                    commandStruct->get("SetEnv").getStruct());
-
-                                auto env = getEnvironment(envStruct);
-                                // override with global env
-                                for(auto &[k, v] : globalEnv) {
-                                    env.emplace(k, v);
-                                }
-                                return env;
-                            }
-                            return {};
-                        };
-
-                        // script
-                        auto getScript = [&]() -> std::string {
-                            auto script = std::regex_replace(
-                                commandStruct->get("script").getString(),
-                                std::regex(R"(\{artifacts:path\})"),
-                                artifactPath.string());
-
-                            if(defaultConfig && !defaultConfig->empty()) {
-                                for(auto key : defaultConfig->getKeys()) {
-                                    auto value = defaultConfig->get(key);
-                                    if(value.isScalar()) {
-                                        script = std::regex_replace(
-                                            script,
-                                            std::regex(R"(\{configuration:\/)" + key + R"(\})"),
-                                            value.getString());
-                                    }
-                                }
-                            }
-
-                            return script;
-                        };
-
-                        // privilege
-                        if(commandStruct->hasKey("RequiresPrivilege")) {
-                            deploymentRequest.put(
-                                "RequiresPrivilege",
-                                commandStruct->get("RequiresPrivilege").getBool());
+                    auto getSetEnv =
+                        [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
+                        Environment localEnv;
+                        if(lifecycle.envMap.has_value()) {
+                            localEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
                         }
+                        // Append global entries where local entries do not exist
+                        localEnv.insert(globalEnv.begin(), globalEnv.end());
+                        return localEnv;
+                    };
 
-                        // timeout
-                        if(commandStruct->hasKey("Timeout")) {
-                            deploymentRequest.put(
-                                "Timeout", commandStruct->get("Timeout").getInt());
-                        }
-
-                        return _kernel.startProcess(
-                            getScript(),
-                            std::chrono::seconds{commandStruct->get("Timeout").getInt()},
-                            commandStruct->get("RequiresPrivilege").getBool(),
-                            getSetEnv(),
-                            currentRecipe.componentName);
-                    } else {
+                    // script
+                    auto getScript = [&]() -> std::string {
                         auto script = std::regex_replace(
-                            step.getString(),
+                            step.script,
                             std::regex(R"(\{artifacts:path\})"),
                             artifactPath.string());
+
                         if(defaultConfig && !defaultConfig->empty()) {
                             for(auto key : defaultConfig->getKeys()) {
                                 auto value = defaultConfig->get(key);
@@ -381,10 +332,30 @@ namespace deployment {
                             }
                         }
 
-                        // TODO: run doesn't have timeout
-                        return _kernel.startProcess(
-                            std::move(script), 120s, false, {}, currentRecipe.componentName);
+                        return script;
+                    };
+
+                    bool requirePrivilege = false;
+                    std::chrono::seconds timeout{120};
+
+                    // privilege
+                    if(step.requiresPrivilege.has_value() && step.requiresPrivilege.value()) {
+                        requirePrivilege = true;
+                        deploymentRequest.put("RequiresPrivilege", requirePrivilege);
                     }
+
+                    // timeout
+                    if(step.timeout.has_value()) {
+                        deploymentRequest.put("Timeout", step.timeout.value());
+                        timeout = std::chrono::seconds{step.timeout.value()};
+                    }
+
+                    return _kernel.startProcess(
+                        getScript(),
+                        timeout,
+                        requirePrivilege,
+                        getSetEnv(),
+                        currentRecipe.componentName);
                 });
 
                 if(pid) {
@@ -418,17 +389,17 @@ namespace deployment {
         Deployment deployment;
         try {
             // TODO: validate deployment
+            // TODO: Document is intended to be a Struct (loaded document), not a file
+            // Need to change to readFromStruct()
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
-
-            config::JsonDeserializer jsonReader(scope::context());
-            jsonReader.read(deploymentDocumentJson);
-            jsonReader(deployment.deploymentDocumentObj);
+            data::Archive::readFromFile(deploymentDocumentJson, deployment.deploymentDocumentObj);
 
             deployment.id = deploymentStruct.get<std::string>("id");
             deployment.isCancelled = deploymentStruct.get<bool>("isCancelled");
             deployment.deploymentStage =
                 DeploymentStageMap.lookup(deploymentStruct.get<std::string>("deploymentStage"))
                     .value_or(DeploymentStage::DEFAULT);
+            // TODO: This needs to be checked (optional access)
             deployment.deploymentType =
                 DeploymentTypeMap.lookup(deploymentStruct.get<std::string>("deploymentType"))
                     .value();

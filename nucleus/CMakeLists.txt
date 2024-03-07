@@ -35,11 +35,12 @@ add_library(
   src/api/pubsub.cpp
   src/api/tasks.cpp
   src/api/channel.cpp
+  src/channel/channel.cpp
+  src/channel/channel.hpp
   src/config/config_manager.cpp
   src/config/config_manager.hpp
   src/config/config_nodes.hpp
   src/config/config_timestamp.hpp
-  src/config/json_deserializer.hpp
   src/config/publish_queue.cpp
   src/config/publish_queue.hpp
   src/config/tlog_json.cpp
@@ -49,7 +50,6 @@ add_library(
   src/config/watcher.hpp
   src/config/yaml_config.cpp
   src/config/yaml_config.hpp
-  src/config/yaml_deserializer.hpp
   src/conv/json_conv.cpp
   src/conv/json_conv.hpp
   src/conv/yaml_conv.cpp
@@ -57,11 +57,9 @@ add_library(
   src/data/data_util.hpp
   src/data/handle_table.cpp
   src/data/handle_table.hpp
-  src/data/object_model.hpp
   src/data/safe_handle.hpp
+  src/data/serializable.cpp
   src/data/serializable.hpp
-  src/channel/channel.cpp
-  src/channel/channel.hpp
   src/data/shared_buffer.cpp
   src/data/shared_buffer.hpp
   src/data/shared_list.cpp

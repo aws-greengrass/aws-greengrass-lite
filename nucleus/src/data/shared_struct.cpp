@@ -92,4 +92,39 @@ namespace data {
             return i->second;
         }
     }
+
+    Symbol SharedStruct::foldKey(const Symbolish &key, bool ignoreCase) const {
+        if(!ignoreCase) {
+            return key;
+        }
+        auto ctx = context();
+        auto &syms = ctx->symbols();
+        std::shared_lock guard{_mutex};
+        if(_elements.find(key) != _elements.end()) {
+            return key;
+        }
+        std::string keyLower = util::lower(key.toString());
+        for(const auto &k : _elements) {
+            auto symComp = syms.apply(k.first);
+            auto keyComp = util::lower(symComp.toString());
+            if(keyLower == keyComp) {
+                return symComp;
+            }
+        }
+        return key;
+    }
+
+    template<>
+    StructModelBase *Archive::initSharedPtr(std::shared_ptr<StructModelBase> &ptr) {
+        auto newPtr = std::make_shared<SharedStruct>(scope::context());
+        ptr = newPtr;
+        return newPtr.get();
+    }
+    template<>
+    SharedStruct *Archive::initSharedPtr(std::shared_ptr<SharedStruct> &ptr) {
+        auto newPtr = std::make_shared<SharedStruct>(scope::context());
+        ptr = newPtr;
+        return newPtr.get();
+    }
+
 } // namespace data

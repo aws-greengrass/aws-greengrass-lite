@@ -563,6 +563,10 @@ namespace config {
         context()->configManager().publishQueue().publish(action);
     }
 
+    data::Symbol Topics::foldKey(const data::Symbolish &key, bool ignoreCase) const {
+        return key; // Case is already ignored
+    }
+
     TopicElement::TopicElement(const Topic &topic)
         : TopicElement(topic.getNameOrd(), topic.getModTime(), topic._value) {
     }

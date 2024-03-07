@@ -1,5 +1,6 @@
 #pragma once
 #include "data/handle_table.hpp"
+#include "data/serializable.hpp"
 #include "data/string_table.hpp"
 #include "data/value_type.hpp"
 #include <map>
@@ -14,15 +15,17 @@ namespace scope {
 }
 
 namespace data {
+    class Archive;
     class ContainerModelBase;
     class StructModelBase;
     class ListModelBase;
     class SharedBuffer;
 
-    //
-    // Data storage element with implicit type conversion
-    //
-    class StructElement : public ValueTypes {
+    /**
+     * Data storage element with implicit type conversion. Implicit type conversion is necessary is
+     * we deserialize from various formats that will often represent all types as strings.
+     */
+    class StructElement : public ValueTypes, public Serializable {
         friend class StructModelBase;
 
     protected:
@@ -55,12 +58,14 @@ namespace data {
         StructElement(StructElement &&) = default;
         StructElement &operator=(const StructElement &el) = default;
         StructElement &operator=(StructElement &&el) noexcept = default;
-        virtual ~StructElement() = default;
+        ~StructElement() noexcept override = default;
 
         [[nodiscard]] virtual bool empty() const {
             // Note, we don't do implicit operators for this to avoid confusion with bool
             return _value.index() == NONE;
         }
+
+        void visit(Archive &archive) override;
 
         ValueType get() const {
             return _value;
@@ -89,6 +94,10 @@ namespace data {
             return isType<StructModelBase>();
         }
 
+        [[nodiscard]] bool isList() const {
+            return isType<ListModelBase>();
+        }
+
         [[nodiscard]] bool isScalar() const {
             return !isObject() && !isNull();
         }
@@ -107,6 +116,8 @@ namespace data {
 
         [[nodiscard]] bool getBool() const {
             switch(_value.index()) {
+                case NONE:
+                    return false;
                 case BOOL:
                     return std::get<bool>(_value);
                 case INT:
@@ -125,6 +136,8 @@ namespace data {
 
         [[nodiscard]] uint64_t getInt() const {
             switch(_value.index()) {
+                case NONE:
+                    return 0;
                 case BOOL:
                     return std::get<bool>(_value) ? 1 : 0;
                 case INT:
@@ -142,6 +155,8 @@ namespace data {
 
         [[nodiscard]] double getDouble() const {
             switch(_value.index()) {
+                case NONE:
+                    return std::numeric_limits<double>::quiet_NaN();
                 case BOOL:
                     return std::get<bool>(_value) ? 1.0 : 0.0;
                 case INT:
@@ -159,7 +174,8 @@ namespace data {
 
         [[nodiscard]] std::string getString() const {
             switch(_value.index()) {
-                // TODO: We shouldn't have implicit type conversion
+                case NONE:
+                    return {};
                 case BOOL:
                     return std::get<bool>(_value) ? "true" : "false";
                 case INT:
@@ -253,7 +269,7 @@ namespace data {
     // Base class for classes that behave like a container - lists, structures and
     // buffers
     //
-    class ContainerModelBase : public TrackedObject {
+    class ContainerModelBase : public TrackedObject, public Serializable {
     public:
         using BadCastError = errors::InvalidContainerError;
 
@@ -296,6 +312,7 @@ namespace data {
         void put(const StructElement &element);
         StructElement get() const;
         uint32_t size() const override;
+        void visit(Archive &archive) override;
 
         static std::shared_ptr<ContainerModelBase> box(
             const scope::UsingContext &context, const StructElement &element);
@@ -324,7 +341,9 @@ namespace data {
         bool hasKey(std::string_view sv) const;
         StructElement get(Symbol handle) const;
         StructElement get(std::string_view sv) const;
+        void visit(Archive &archive) override;
         virtual std::shared_ptr<StructModelBase> copy() const = 0;
+        [[nodiscard]] virtual Symbol foldKey(const Symbolish &key, bool ignoreCase) const = 0;
     };
 
     //
@@ -340,6 +359,120 @@ namespace data {
         virtual void insert(int32_t idx, const StructElement &element) = 0;
         virtual StructElement get(int idx) const = 0;
         virtual std::shared_ptr<ListModelBase> copy() const = 0;
+        void visit(Archive &archive) override;
+    };
+
+    struct StructAllocator {
+        StructAllocator() = default;
+        StructAllocator(const StructAllocator &other) = default;
+        StructAllocator(StructAllocator &&) = default;
+        StructAllocator &operator=(const StructAllocator &other) = default;
+        StructAllocator &operator=(StructAllocator &&) = default;
+        virtual ~StructAllocator() = default;
+        virtual std::shared_ptr<StructModelBase> makeStruct();
+    };
+
+    class StructArchiver : public AbstractArchiver {
+        std::shared_ptr<StructModelBase> _model;
+        std::shared_ptr<StructAllocator> _alloc;
+
+    public:
+        explicit StructArchiver(
+            const std::shared_ptr<StructModelBase> &model,
+            const std::shared_ptr<StructAllocator> &alloc = std::make_shared<StructAllocator>())
+            : _model(model), _alloc(alloc) {
+        }
+        [[nodiscard]] bool canVisit() const override {
+            return false;
+        }
+        [[nodiscard]] bool hasValue() const override {
+            return true;
+        }
+        std::shared_ptr<ArchiveAdapter> key(const Symbol &symbol) override;
+        [[nodiscard]] std::vector<Symbol> keys() const override;
+        void visit(ValueType &vt) override;
+    };
+
+    class StructKeyArchiver : public AbstractArchiver {
+        std::shared_ptr<StructModelBase> _model;
+        std::shared_ptr<StructAllocator> _alloc;
+        Symbol _key;
+
+    public:
+        explicit StructKeyArchiver(
+            const std::shared_ptr<StructModelBase> &model,
+            const std::shared_ptr<StructAllocator> &alloc,
+            const Symbol &key)
+            : _model(model), _alloc(alloc), _key(key) {
+        }
+        [[nodiscard]] bool canVisit() const override {
+            return true;
+        }
+        [[nodiscard]] bool hasValue() const override;
+        std::shared_ptr<ArchiveAdapter> key(const Symbol &symbol) override;
+        std::shared_ptr<ArchiveAdapter> list() override;
+        [[nodiscard]] bool isList() const noexcept override;
+        [[nodiscard]] std::vector<Symbol> keys() const override;
+        void visit(ValueType &vt) override;
+    };
+
+    class ElementDearchiver : public AbstractDearchiver {
+        data::StructElement _element;
+
+    public:
+        explicit ElementDearchiver(data::StructElement element) : _element(std::move(element)) {
+        }
+        [[nodiscard]] bool canVisit() const override {
+            return true;
+        }
+
+    protected:
+        StructElement read() const override {
+            return _element;
+        }
+    };
+
+    /**
+     * List archiver follows a slightly different pattern than struct in auto-appending
+     */
+    class ListArchiver : public AbstractArchiver {
+        std::shared_ptr<ListModelBase> _list;
+        int32_t _index{0};
+
+    public:
+        explicit ListArchiver(const std::shared_ptr<ListModelBase> &list) : _list(list) {
+        }
+        [[nodiscard]] bool canVisit() const override {
+            return true;
+        }
+        void visit(ValueType &vt) override;
+        std::shared_ptr<ArchiveAdapter> list() override;
+        [[nodiscard]] bool isList() const noexcept override {
+            return false;
+        }
+        [[nodiscard]] bool hasValue() const noexcept override {
+            return true;
+        }
+        bool advance() noexcept override;
+    };
+
+    /**
+     * List dearchiver follows a slightly different pattern than struct in auto-advancing
+     */
+    class ListDearchiver : public AbstractDearchiver {
+        std::shared_ptr<ListModelBase> _list;
+        int32_t _index{0};
+        int32_t _size;
+
+    public:
+        explicit ListDearchiver(const std::shared_ptr<ListModelBase> &list)
+            : _list(list), _size(util::safeBoundPositive<int32_t>(list->size())) {
+        }
+        [[nodiscard]] bool canVisit() const override;
+        bool advance() noexcept override;
+
+    protected:
+        StructElement read() const override;
     };
 
 } // namespace data

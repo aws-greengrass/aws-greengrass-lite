@@ -212,6 +212,7 @@ namespace config {
             const data::ValueType &, std::initializer_list<std::string> path);
         std::shared_ptr<Topics> findTopics(std::initializer_list<std::string> path);
         void removeChild(ConfigNode &node);
+        data::Symbol foldKey(const data::Symbolish &key, bool ignoreCase) const override;
     };
 
     //

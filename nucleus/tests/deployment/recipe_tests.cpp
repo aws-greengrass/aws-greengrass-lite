@@ -1,8 +1,11 @@
+#include "deployment/deployment_manager.hpp"
 #include "deployment/recipe_loader.hpp"
 #include "test_tools.hpp"
 #include <catch2/catch_all.hpp>
 
 using Catch::Matchers::Equals;
+
+// NOLINTBEGIN
 
 SCENARIO("Recipe Reader", "[deployment]") {
     auto samples = test::samples();
@@ -24,40 +27,55 @@ SCENARIO("Recipe Reader", "[deployment]") {
                     Equals("world"));
 
                 REQUIRE(recipe.manifests.size() == 3);
+                deployment::PlatformManifest linuxManifest = recipe.manifests[0];
+                deployment::PlatformManifest darwinManifest = recipe.manifests[1];
+                deployment::PlatformManifest windowsManifest = recipe.manifests[2];
 
-                REQUIRE(recipe.manifests[0].platform.os == "linux");
-                REQUIRE(!recipe.manifests[0].lifecycle.empty());
-                REQUIRE(recipe.manifests[0].lifecycle.size() == 1);
-                REQUIRE(
-                    recipe.manifests[0].lifecycle.find("run")
-                    != recipe.manifests[0].lifecycle.end());
-                REQUIRE(recipe.manifests[0].lifecycle.at("run").isScalar());
+                AND_THEN("The manifests contain the right platform keys") {
+                    REQUIRE(linuxManifest.platform.os == "linux");
+                    REQUIRE(darwinManifest.platform.os == "darwin");
+                    REQUIRE(windowsManifest.platform.os == "windows");
+                }
+                AND_WHEN("Linux lifecycle is parsed") {
+                    deployment::LifecycleSection linuxLifecycle;
+                    REQUIRE_FALSE(linuxManifest.lifecycle->empty());
+                    data::Archive::readFromStruct(linuxManifest.lifecycle, linuxLifecycle);
+                    THEN("The lifecycle section was parsed correctly") {
+                        REQUIRE(linuxLifecycle.run.has_value());
+                        REQUIRE_FALSE(linuxLifecycle.run->script.empty());
+                        REQUIRE(
+                            linuxLifecycle.run->script
+                            == "python3 -u {artifacts:path}/hello_world.py "
+                               "\"{configuration:/Message}\"\n");
+                    }
+                }
 
-                REQUIRE(
-                    recipe.manifests[0].lifecycle.at("run").getString()
-                    == "python3 -u {artifacts:path}/hello_world.py \"{configuration:/Message}\"\n");
-
-                REQUIRE(recipe.manifests[1].platform.os == "darwin");
-                REQUIRE(!recipe.manifests[1].lifecycle.empty());
-                REQUIRE(recipe.manifests[1].lifecycle.size() == 1);
-                REQUIRE(
-                    recipe.manifests[1].lifecycle.find("run")
-                    != recipe.manifests[1].lifecycle.end());
-                REQUIRE(recipe.manifests[1].lifecycle.at("run").isScalar());
-                REQUIRE(
-                    recipe.manifests[1].lifecycle.at("run").getString()
-                    == "python3 -u {artifacts:path}/hello_world.py \"{configuration:/Message}\"\n");
-
-                REQUIRE(recipe.manifests[2].platform.os == "windows");
-                REQUIRE(!recipe.manifests[2].lifecycle.empty());
-                REQUIRE(recipe.manifests[2].lifecycle.size() == 1);
-                REQUIRE(
-                    recipe.manifests[2].lifecycle.find("run")
-                    != recipe.manifests[2].lifecycle.end());
-                REQUIRE(recipe.manifests[2].lifecycle.at("run").isScalar());
-                REQUIRE(
-                    recipe.manifests[2].lifecycle.at("run").getString()
-                    == "py -3 -u {artifacts:path}/hello_world.py \"{configuration:/Message}\"\n");
+                AND_WHEN("Darwin lifecycle is parsed") {
+                    deployment::LifecycleSection darwinLifecycle;
+                    REQUIRE_FALSE(darwinManifest.lifecycle->empty());
+                    data::Archive::readFromStruct(darwinManifest.lifecycle, darwinLifecycle);
+                    THEN("The lifecycle section was parsed correctly") {
+                        REQUIRE(darwinLifecycle.run.has_value());
+                        REQUIRE_FALSE(darwinLifecycle.run->script.empty());
+                        REQUIRE(
+                            darwinLifecycle.run->script
+                            == "python3 -u {artifacts:path}/hello_world.py "
+                               "\"{configuration:/Message}\"\n");
+                    }
+                }
+                AND_WHEN("Windows lifecycle is parsed") {
+                    deployment::LifecycleSection windowsLifecycle;
+                    REQUIRE_FALSE(windowsManifest.lifecycle->empty());
+                    data::Archive::readFromStruct(windowsManifest.lifecycle, windowsLifecycle);
+                    THEN("The lifecycle section was parsed correctly") {
+                        REQUIRE(windowsLifecycle.run.has_value());
+                        REQUIRE_FALSE(windowsLifecycle.run->script.empty());
+                        REQUIRE(
+                            windowsLifecycle.run->script
+                            == "py -3 -u {artifacts:path}/hello_world.py "
+                               "\"{configuration:/Message}\"\n");
+                    }
+                }
             }
         }
         WHEN("Reading a recipe with dependencies") {
@@ -71,26 +89,22 @@ SCENARIO("Recipe Reader", "[deployment]") {
 
                 REQUIRE(recipe.manifests[0].platform.os == "linux");
                 REQUIRE(recipe.manifests[0].platform.architecture == "amd64");
-
-                REQUIRE(!recipe.manifests[0].lifecycle.empty());
-                REQUIRE(recipe.manifests[0].lifecycle.size() == 2);
-                REQUIRE(
-                    recipe.manifests[0].lifecycle.find("install")
-                    != recipe.manifests[0].lifecycle.end());
-                REQUIRE(recipe.manifests[0].lifecycle.at("install").isScalar());
-                REQUIRE_THAT(
-                    recipe.manifests[0].lifecycle.at("install").getString(), Equals("echo Hello"));
-
-                REQUIRE(
-                    recipe.manifests[0].lifecycle.find("run")
-                    != recipe.manifests[0].lifecycle.end());
-                REQUIRE(recipe.manifests[0].lifecycle.at("run").isScalar());
-                REQUIRE_THAT(
-                    recipe.manifests[0].lifecycle.at("run").getString(),
-                    Equals("apt-get update\napt-get install python3.7\n"));
-
                 REQUIRE(recipe.manifests[1].platform.os == "windows");
                 REQUIRE(recipe.manifests[1].platform.architecture == "amd64");
+
+                AND_WHEN("Linux lifecycle is parsed") {
+                    deployment::LifecycleSection linuxLifecycle;
+                    REQUIRE_FALSE(recipe.manifests[0].lifecycle->empty());
+                    data::Archive::readFromStruct(recipe.manifests[0].lifecycle, linuxLifecycle);
+                    THEN("The lifecycle section was parsed correctly") {
+                        REQUIRE(linuxLifecycle.install.has_value());
+                        REQUIRE(linuxLifecycle.run.has_value());
+                        REQUIRE_THAT(linuxLifecycle.install->script, Equals("echo Hello"));
+                        REQUIRE_THAT(
+                            linuxLifecycle.run->script,
+                            Equals("apt-get update\napt-get install python3.7\n"));
+                    }
+                }
 
                 REQUIRE(recipe.componentDependencies.size() == 2);
                 REQUIRE(
@@ -183,17 +197,6 @@ SCENARIO("Recipe Reader", "[deployment]") {
                 REQUIRE(recipe.manifests.size() == 1);
 
                 REQUIRE(recipe.manifests[0].platform.os == "linux");
-
-                REQUIRE(!recipe.manifests[0].lifecycle.empty());
-                REQUIRE(recipe.manifests[0].lifecycle.size() == 1);
-                REQUIRE(
-                    recipe.manifests[0].lifecycle.find("run")
-                    != recipe.manifests[0].lifecycle.end());
-                REQUIRE(recipe.manifests[0].lifecycle.at("run").isScalar());
-                REQUIRE(
-                    recipe.manifests[0].lifecycle.at("run").getString()
-                    == "python3 -u {artifacts:path}/hello_world.py \"{configuration:/Message}\"\n");
-
                 REQUIRE(recipe.manifests[0].selections.size() == 2);
                 REQUIRE_THAT(recipe.manifests[0].selections[0], Equals("key1"));
                 REQUIRE_THAT(recipe.manifests[0].selections[1], Equals("key2"));
@@ -201,3 +204,5 @@ SCENARIO("Recipe Reader", "[deployment]") {
         }
     }
 }
+
+// NOLINTEND

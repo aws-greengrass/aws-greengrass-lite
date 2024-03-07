@@ -122,4 +122,158 @@ namespace data {
                 return getBoxed();
         }
     }
+
+    void StructElement::visit(Archive &archive) {
+        archive(_value);
+    }
+
+    void Boxed::visit(Archive &archive) {
+        std::unique_lock guard{_mutex};
+        archive(_value);
+    }
+
+    std::shared_ptr<StructModelBase> StructAllocator::makeStruct() {
+        return std::make_shared<SharedStruct>(scope::context());
+    }
+
+    std::shared_ptr<ArchiveAdapter> StructArchiver::key(const Symbol &symbol) {
+        return std::make_shared<StructKeyArchiver>(
+            _model, _alloc, _model->foldKey(symbol, isIgnoreCase()));
+    }
+
+    void StructArchiver::visit(ValueType &vt) {
+        throw std::runtime_error("Unsupported visit");
+    }
+
+    std::vector<Symbol> StructArchiver::keys() const {
+        return _model->getKeys();
+    }
+
+    std::shared_ptr<ArchiveAdapter> StructKeyArchiver::key(const Symbol &symbol) {
+        auto e = _model->get(_key);
+        std::shared_ptr<StructModelBase> refStruct;
+        if(e.isNull()) {
+            refStruct = _alloc->makeStruct();
+            _model->put(_key, refStruct);
+        } else if(e.isStruct()) {
+            refStruct = e.castObject<StructModelBase>();
+        }
+        if(refStruct) {
+            return std::make_shared<StructKeyArchiver>(
+                refStruct, _alloc, refStruct->foldKey(symbol, isIgnoreCase()));
+        } else {
+            throw std::runtime_error("Key type mismatch");
+        }
+    }
+
+    std::vector<Symbol> StructKeyArchiver::keys() const {
+        auto e = _model->get(_key);
+        if(e.isStruct()) {
+            return e.castObject<StructModelBase>()->getKeys();
+        } else {
+            return {};
+        }
+    }
+
+    std::shared_ptr<ArchiveAdapter> StructKeyArchiver::list() {
+        auto e = _model->get(_key);
+        std::shared_ptr<ListModelBase> refList;
+        if(e.isNull()) {
+            refList = std::make_shared<SharedList>(scope::context());
+            _model->put(_key, refList);
+        } else if(e.isList()) {
+            refList = e.castObject<ListModelBase>();
+        }
+        if(refList) {
+            return std::make_shared<ListArchiver>(refList);
+        } else {
+            throw std::runtime_error("List type mismatch");
+        }
+    }
+
+    bool StructKeyArchiver::isList() const noexcept {
+        auto e = _model->get(_key);
+        return e.isList();
+    }
+
+    bool StructKeyArchiver::hasValue() const {
+        auto e = _model->get(_key);
+        return !e.isNull();
+    }
+
+    void StructKeyArchiver::visit(ValueType &vt) {
+        _model->put(_key, vt);
+    }
+
+    void StructModelBase::visit(Archive &archive) {
+        if(archive.isArchiving()) {
+            // Dearchive self into archive
+            Archive self = Archive(std::make_shared<ElementDearchiver>(ref<StructModelBase>()));
+            archive(self);
+        } else {
+            // Dearchive into self which is put into archive mode
+            Archive self = Archive(std::make_shared<StructArchiver>(ref<StructModelBase>()));
+            archive(self);
+        }
+    }
+
+    void ListModelBase::visit(Archive &archive) {
+        if(archive.isArchiving()) {
+            Archive self = Archive(std::make_shared<ListDearchiver>(ref<ListModelBase>()));
+            auto target = archive->list();
+            while(self->canVisit()) {
+                ValueType v;
+                self->visit(v);
+                target->visit(v);
+                self->advance();
+                target->advance();
+            }
+        } else {
+            Archive self = Archive(std::make_shared<ListArchiver>(ref<ListModelBase>()));
+            auto source = archive->list();
+            while(source->canVisit()) {
+                ValueType v;
+                source->visit(v);
+                self->visit(v);
+                source->advance();
+                self->advance();
+            }
+        }
+    }
+
+    void ListArchiver::visit(data::ValueType &vt) {
+        _list->put(_index, vt);
+    }
+
+    std::shared_ptr<ArchiveAdapter> ListArchiver::list() {
+        auto entry = std::make_shared<SharedList>(scope::context());
+        _list->put(_index, entry);
+        return std::make_shared<ListArchiver>(entry);
+    }
+
+    bool ListArchiver::advance() noexcept {
+        ++_index;
+        return true;
+    }
+
+    bool ListDearchiver::canVisit() const {
+        return _index < _size;
+    }
+
+    bool ListDearchiver::advance() noexcept {
+        if(canVisit()) {
+            ++_index;
+            return canVisit();
+        }
+        return false;
+    }
+
+    StructElement ListDearchiver::read() const {
+        if(_index < _size) {
+            return _list->get(_index);
+        } else {
+            return {};
+        }
+    }
+
 } // namespace data
