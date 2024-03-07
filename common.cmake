@@ -39,6 +39,10 @@ if(UNIX)
   add_compile_options(-fvisibility=hidden)
 endif()
 
+if(LINUX)
+  add_link_options("LINKER:-z,relro,-z,now")
+endif()
+
 if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
   # Building for minimized footprint
   # Turn on additional footprint optimizations
