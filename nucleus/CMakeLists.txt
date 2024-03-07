@@ -189,15 +189,7 @@ target_include_directories(nucleus-core PUBLIC include)
 add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
 
-set_target_properties(greengrass-lite PROPERTIES BUILD_RPATH_USE_ORIGIN ON)
-
-if(APPLE)
-  set_target_properties(greengrass-lite PROPERTIES INSTALL_RPATH
-                                                   "@loader_path/../lib")
-elseif(UNIX)
-  set_target_properties(greengrass-lite PROPERTIES INSTALL_RPATH
-                                                   "\$ORIGIN/../lib")
-endif()
+configureRPATH(greengrass-lite)
 
 install(TARGETS greengrass-lite DESTINATION bin)
 install(TARGETS nucleus-core DESTINATION lib)

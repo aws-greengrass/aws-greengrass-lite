@@ -1,9 +1,5 @@
 #include "ipc_server.hpp"
 
-// Initializes global CRT API
-// TODO: What happens when multiple plugins use the CRT?
-static const Aws::Crt::ApiHandle apiHandle{};
-
 IpcServer::IpcServer() noexcept {
     _authHandler = std::make_unique<AuthenticationHandler>();
 }

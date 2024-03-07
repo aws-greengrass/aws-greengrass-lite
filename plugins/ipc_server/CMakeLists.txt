@@ -5,7 +5,7 @@ include(../../common.cmake)
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
-fetchContentAddCmake(device-sdk-cpp)
+add_subdirectory(../device-sdk/ device-sdk EXCLUDE_FROM_ALL)
 
 add_library(
   ipc_server MODULE
@@ -22,7 +22,9 @@ add_library(
   src/server_listener.cpp
   src/server_listener.hpp)
 
-target_link_libraries(ipc_server PRIVATE gg_plugin_api aws-crt-cpp)
+target_link_libraries(ipc_server PRIVATE gg_plugin_api device-sdk)
+
+configureRPATH(ipc_server)
 
 if(LINUX)
   target_link_options(

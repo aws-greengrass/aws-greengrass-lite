@@ -5,8 +5,6 @@
 
 using namespace std::chrono_literals;
 
-// Global initialization of the API
-static const Aws::Crt::ApiHandle apiHandle{};
 const Keys ProvisionPlugin::keys{};
 
 /**

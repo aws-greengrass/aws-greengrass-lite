@@ -1,18 +1,14 @@
 
 #include "cloud_downloader.hpp"
 #include "aws/crt/Allocator.h"
-#include <string>
 #include <fstream>
 #include <iostream>
 #include <mutex>
+#include <string>
 
 constexpr static int TIME_OUT_MS = 5000;
 constexpr static int PORT_NUM = 443;
 const char* const THING_NAME_HEADER = "x-amzn-iot-thingname";
-
-// TODO: apiHandle needs to be declared only once, version.script prevents it in linux
-// but does not work on mac
-static Aws::Crt::ApiHandle apiHandle{};
 
 /*
 A common client helper function to make the request to a url using the aws's library
