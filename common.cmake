@@ -40,6 +40,7 @@ if(UNIX)
 endif()
 
 if(LINUX)
+  add_link_options("LINKER:-z,noexecstack")
   add_link_options("LINKER:-z,relro,-z,now")
 endif()
 
