@@ -58,7 +58,10 @@ namespace deployment {
     }
 
     void DeploymentManager::listen() {
+        // TODO: Use component store
         scope::thread()->changeContext(context());
+        std::unique_lock guard(_mutex);
+        _wake.wait(guard, [this]() { return !_deploymentQueue->empty() || _terminate; });
         while(!_terminate) {
             if(!_deploymentQueue->empty()) {
                 const auto &nextDeployment = _deploymentQueue->next();
@@ -67,7 +70,6 @@ namespace deployment {
                 } else {
                     auto deploymentType = nextDeployment.deploymentType;
                     auto deploymentStage = nextDeployment.deploymentStage;
-
                     if(deploymentStage == DeploymentStage::DEFAULT) {
                         createNewDeployment(nextDeployment);
                     } else {
@@ -97,8 +99,7 @@ namespace deployment {
         auto deploymentType = deployment.deploymentType;
         // TODO: Greengrass deployment id
         // TODO: persist and publish deployment status
-        // TODO: Get non-target group to root packages group
-        // TODO: Component manager - resolve version, prepare packages, ...
+        // TODO: Create deployment task?
         LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
@@ -107,7 +108,7 @@ namespace deployment {
 
         if(deploymentType == DeploymentType::LOCAL) {
             try {
-                const auto &requiredCapabilities = deployment.deploymentDocument.requiredCapabilities;
+                const auto &requiredCapabilities = deployment.deploymentDocumentObj.requiredCapabilities;
                 if(!requiredCapabilities.empty()) {
                     // TODO: check if required capabilities are supported
                 }
@@ -130,11 +131,8 @@ namespace deployment {
         // TODO: Kill the process doing the deployment
     }
 
-    void DeploymentManager::resolveDependencies(deployment::DeploymentDocument) {
-    }
-
     void DeploymentManager::loadRecipesAndArtifacts(const Deployment &deployment) {
-        auto &deploymentDocument = deployment.deploymentDocument;
+        auto &deploymentDocument = deployment.deploymentDocumentObj;
         if(!deploymentDocument.recipeDirectoryPath.empty()) {
             const auto &recipeDir = deploymentDocument.recipeDirectoryPath;
             copyAndLoadRecipes(recipeDir);
@@ -209,6 +207,8 @@ namespace deployment {
     void DeploymentManager::runDeploymentTask() {
         using Environment = std::unordered_map<std::string, std::optional<std::string>>;
         // TODO: More streamlined deployment task
+        // TODO: Get non-target group to root packages group
+        // TODO: Component manager - resolve version, prepare packages, ...
         const auto &currentDeployment = _deploymentQueue->next();
         const auto &currentRecipe = _componentStore->next();
 
@@ -291,11 +291,7 @@ namespace deployment {
                             envList.put(0, executable);
                             auto request = ggapi::Struct::create();
                             request.put("GetEnv", envList);
-                            auto response =
-                                ggapi::Task::sendToTopic(GET_ENVIRONMENT_TOPIC, request);
-                            if(response.get<bool>("status")) {
-                                return;
-                            }
+                            // TODO: Skipif
                         }
                         // skip the step if the file exists
                         else if(skipIf[0] == exists_prefix) {
@@ -423,18 +419,12 @@ namespace deployment {
         try {
             // TODO: validate deployment
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
-            auto jsonToStruct = [](auto json) {
-                auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();
-                return ggapi::Struct{container};
-            };
-            auto deploymentDocument = jsonToStruct(deploymentDocumentJson);
+
+            config::JsonDeserializer jsonReader(scope::context());
+            jsonReader.read(deploymentDocumentJson);
+            jsonReader(deployment.deploymentDocumentObj);
 
             deployment.id = deploymentStruct.get<std::string>("id");
-            deployment.deploymentDocument.requestId = deployment.id;
-            deployment.deploymentDocument.artifactsDirectoryPath =
-                deploymentDocument.get<std::string>("artifactsDirectoryPath");
-            deployment.deploymentDocument.recipeDirectoryPath =
-                deploymentDocument.get<std::string>("recipeDirectoryPath");
             deployment.isCancelled = deploymentStruct.get<bool>("isCancelled");
             deployment.deploymentStage =
                 DeploymentStageMap.lookup(deploymentStruct.get<std::string>("deploymentStage"))
@@ -455,6 +445,7 @@ namespace deployment {
         // TODO: Shadow deployments use a special queue id
         if(!_deploymentQueue->exists(deployment.id)) {
             _deploymentQueue->push({deployment.id, deployment});
+            _wake.notify_one();
         } else {
             const auto &deploymentPresent = _deploymentQueue->get(deployment.id);
             if(checkValidReplacement(deploymentPresent, deployment)) {

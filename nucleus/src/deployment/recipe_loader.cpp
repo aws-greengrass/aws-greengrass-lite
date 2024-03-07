@@ -1,5 +1,5 @@
 #include "recipe_loader.hpp"
-#include "config/yaml_recipe.hpp"
+#include "config/yaml_deserializer.hpp"
 
 namespace deployment {
 
@@ -9,7 +9,7 @@ namespace deployment {
         std::string ext = util::lower(file.extension().generic_string());
         // TODO: Json support
         if(ext == ".yaml" || ext == ".yml") {
-            config::YamlRecipeReader yamlRecipeReader(scope::context());
+            config::YamlDeserializer yamlRecipeReader(scope::context());
             yamlRecipeReader.read(file);
             yamlRecipeReader(recipe);
         } else if(ext == ".json") {

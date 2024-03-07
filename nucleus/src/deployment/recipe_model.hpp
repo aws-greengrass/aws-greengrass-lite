@@ -1,5 +1,6 @@
 #pragma once
-#include "config/yaml_recipe.hpp"
+#include "config/yaml_deserializer.hpp"
+#include "data/object_model.hpp"
 #include "data/serializable.hpp"
 #include "data/shared_struct.hpp"
 
@@ -69,9 +70,7 @@ namespace deployment {
         std::string read;
         std::string execute;
 
-        template<typename ArchiveType>
-        void serialize(ArchiveType &archive) {
-            archive.setIgnoreKeyCase();
+        void serialize(config::YamlDeserializer &archive) {
             archive("Read", read);
             archive("Execute", execute);
         }
@@ -118,9 +117,7 @@ namespace deployment {
             return permission;
         }
 
-        template<typename ArchiveType>
-        void serialize(ArchiveType &archive) {
-            archive.setIgnoreKeyCase();
+        void serialize(config::YamlDeserializer &archive) {
             archive("URI", uri);
             archive("Unarchive", unarchive);
             archive("Permission", permission);
@@ -170,9 +167,7 @@ namespace deployment {
             return versionRequirement;
         }
 
-        template<typename ArchiveType>
-        void serialize(ArchiveType &archive) {
-            archive.setIgnoreKeyCase();
+        void serialize(config::YamlDeserializer &archive) {
             archive("VersionRequirement", versionRequirement);
             archive("DependencyType", dependencyType);
         }
@@ -181,9 +176,7 @@ namespace deployment {
     struct ComponentConfiguration : conv::Serializable {
         std::shared_ptr<data::SharedStruct> defaultConfiguration;
 
-        template<typename ArchiveType>
-        void serialize(ArchiveType &archive) {
-            archive.setIgnoreKeyCase();
+        void serialize(config::YamlDeserializer &archive) {
             archive(defaultConfiguration);
         }
     };
@@ -193,9 +186,7 @@ namespace deployment {
         std::string architecture;
         std::string nucleusType;
 
-        template<typename ArchiveType>
-        void serialize(ArchiveType &archive) {
-            archive.setIgnoreKeyCase();
+        void serialize(config::YamlDeserializer &archive) {
             archive("os", os);
             archive("architecture", architecture);
             archive("nucleus", nucleusType);
@@ -205,13 +196,11 @@ namespace deployment {
     struct PlatformManifest : conv::Serializable {
         std::string name;
         Platform platform;
-        std::unordered_map<std::string, config::Object> lifecycle;
+        std::unordered_map<std::string, data::Object> lifecycle;
         std::vector<std::string> selections;
         std::vector<ComponentArtifact> artifacts;
 
-        template<typename ArchiveType>
-        void serialize(ArchiveType &archive) {
-            archive.setIgnoreKeyCase();
+        void serialize(config::YamlDeserializer &archive) {
             archive("Name", name);
             archive("Platform", platform);
             archive("Lifecycle", lifecycle);
@@ -231,11 +220,9 @@ namespace deployment {
         std::string componentType;
         std::string componentSource;
         std::vector<PlatformManifest> manifests;
-        std::unordered_map<std::string, config::Object> lifecycle;
+        std::unordered_map<std::string, data::Object> lifecycle;
 
-        template<typename ArchiveType>
-        void serialize(ArchiveType &archive) {
-            archive.setIgnoreKeyCase();
+        void serialize(config::YamlDeserializer &archive) {
             archive("RecipeFormatVersion", formatVersion);
             archive("ComponentName", componentName);
             archive("ComponentVersion", componentVersion);

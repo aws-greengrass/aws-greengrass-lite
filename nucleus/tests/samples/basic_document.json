@@ -1,0 +1,19 @@
+{
+  "requestId": "cf295b56-9c4c-4fd3-a36b-0bf76e5d7e7c",
+  "requestTimestamp": 1708496331538,
+  "rootComponentVersionsToAdd": {
+    "com.example.HelloWorld": "1.0.0"
+  },
+  "rootComponentsToRemove": {
+    "com.example.HelloWorld": "0.1.0"
+  },
+  "groupName": "TestGroup",
+  "requiredCapabilities": ["a", "b", "c"],
+  "configurationArn": "arn:123456:configuration:thinggroup/TestGroup:44",
+  "componentNameToConfig": null,
+  "configurationUpdate": null,
+  "componentToRunWithInfo": null,
+  "recipeDirectoryPath": "/path/to/recipes",
+  "artifactsDirectoryPath": "/path/to/artifacts",
+  "failureHandlingPolicy": "DO_NOTHING"
+}

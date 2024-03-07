@@ -94,24 +94,24 @@ SCENARIO("Recipe Reader", "[deployment]") {
 
                 REQUIRE(recipe.componentDependencies.size() == 2);
                 REQUIRE(
-                    recipe.componentDependencies.find("aws.greengrass.tokenexchangeservice")
+                    recipe.componentDependencies.find("aws.greengrass.TokenExchangeService")
                     != recipe.componentDependencies.end());
                 REQUIRE(
-                    recipe.componentDependencies.find("aws.greengrass.s3service")
+                    recipe.componentDependencies.find("aws.greengrass.S3Service")
                     != recipe.componentDependencies.end());
                 REQUIRE_THAT(
-                    recipe.componentDependencies.at("aws.greengrass.tokenexchangeservice")
+                    recipe.componentDependencies.at("aws.greengrass.TokenExchangeService")
                         .versionRequirement,
                     Equals("^2.0.0"));
                 REQUIRE_THAT(
-                    recipe.componentDependencies.at("aws.greengrass.tokenexchangeservice")
+                    recipe.componentDependencies.at("aws.greengrass.TokenExchangeService")
                         .dependencyType,
                     Equals("HARD"));
                 REQUIRE_THAT(
-                    recipe.componentDependencies.at("aws.greengrass.s3service").versionRequirement,
+                    recipe.componentDependencies.at("aws.greengrass.S3Service").versionRequirement,
                     Equals("^3.0.0"));
                 REQUIRE_THAT(
-                    recipe.componentDependencies.at("aws.greengrass.s3service").dependencyType,
+                    recipe.componentDependencies.at("aws.greengrass.S3Service").dependencyType,
                     Equals("SOFT"));
                 REQUIRE(recipe.configuration.defaultConfiguration->hasKey("Message"));
                 REQUIRE_THAT(

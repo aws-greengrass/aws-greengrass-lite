@@ -13,6 +13,7 @@ struct Keys {
     ggapi::Symbol cancelLocalDeployment{"IPC::aws.greengrass#CancelLocalDeployment"};
     ggapi::Symbol getLocalDeploymentStatus{"IPC::aws.greengrass#GetLocalDeploymentStatus"};
     ggapi::Symbol listLocalDeployments{"IPC::aws.greengrass#ListLocalDeployments"};
+    ggapi::Symbol listDeployments{"IPC::aws.greengrass#ListDeployments"};
     ggapi::Symbol serviceName{"serviceName"};
     ggapi::Symbol socketPath{"domain_socket_path"};
     ggapi::Symbol cliAuthToken{"cli_auth_token"};
@@ -89,6 +90,7 @@ class CliServer final : public ggapi::Plugin {
     ggapi::Struct cancelLocalDeploymentHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
     ggapi::Struct getLocalDeploymentStatusHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
     ggapi::Struct listLocalDeploymentsHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
+    ggapi::Struct listDeploymentsHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
 
     std::vector<std::tuple<ggapi::Symbol, ggapi::Channel, DeploymentHandler>> _subscriptions;
     std::shared_mutex _subscriptionMutex;
