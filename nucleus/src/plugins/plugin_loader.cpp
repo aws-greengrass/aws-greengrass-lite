@@ -5,6 +5,7 @@
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
+#include <cpp_api.hpp>
 #include <iostream>
 
 namespace fs = std::filesystem;
@@ -47,7 +48,8 @@ namespace plugins {
                 std::string("Cannot load shared object: ") + filePath + std::string(" ") + error);
         }
         // NOLINTNEXTLINE(*-reinterpret-cast)
-        _lifecycleFn.store(reinterpret_cast<lifecycleFn_t>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
+        _lifecycleFn.store(
+            reinterpret_cast<GgapiLifecycleFn *>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
 #elif defined(USE_WINDLL)
         nativeHandle_t handle =
             ::LoadLibraryEx(filePath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
@@ -61,7 +63,8 @@ namespace plugins {
         }
         _lifecycleFn.store(
             // NOLINTNEXTLINE(*-reinterpret-cast)
-            reinterpret_cast<lifecycleFn_t>(::GetProcAddress(_handle.load(), NATIVE_ENTRY_NAME)));
+            reinterpret_cast<GgapiLifecycleFn *>(
+                ::GetProcAddress(_handle.load(), NATIVE_ENTRY_NAME)));
 #endif
     }
 
@@ -74,9 +77,14 @@ namespace plugins {
         const data::Symbol &phase,
         const data::ObjHandle &dataHandle) {
 
-        lifecycleFn_t lifecycleFn = _lifecycleFn.load();
+        GgapiLifecycleFn *lifecycleFn = _lifecycleFn.load();
+
         if(lifecycleFn != nullptr) {
-            return lifecycleFn(pluginHandle.asInt(), phase.asInt(), dataHandle.asInt());
+            bool handled = false;
+            ggapiErrorKind error =
+                lifecycleFn(pluginHandle.asInt(), phase.asInt(), dataHandle.asInt(), &handled);
+            errors::Error::throwThreadError(error);
+            return handled;
         }
         return true; // no error
     }
@@ -188,20 +196,13 @@ namespace plugins {
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 
         data::ObjHandle dataHandle = scope.getCallScope()->root()->anchor(data).getHandle();
-        if(callNativeLifecycle(getSelf(), phase, dataHandle)) {
-            LOG.atDebug()
-                .event("lifecycle-completed")
-                .kv("name", getName())
-                .kv("phase", phase)
-                .log();
-        } else {
-            std::optional<errors::Error> lastError{errors::ThreadErrorContainer::get().getError()};
-            if(lastError.has_value()) {
-                LOG.atError()
-                    .event("lifecycle-error")
+        try {
+            bool wasHandled = callNativeLifecycle(getSelf(), phase, dataHandle);
+            if(wasHandled) {
+                LOG.atDebug()
+                    .event("lifecycle-completed")
                     .kv("name", getName())
                     .kv("phase", phase)
-                    .cause(lastError.value())
                     .log();
             } else {
                 LOG.atInfo()
@@ -209,7 +210,15 @@ namespace plugins {
                     .kv("name", getName())
                     .kv("phase", phase)
                     .log();
+                // TODO: Add default behavior for unhandled callback
             }
+        } catch(const errors::Error &lastError) {
+            LOG.atError()
+                .event("lifecycle-error")
+                .kv("name", getName())
+                .kv("phase", phase)
+                .cause(lastError)
+                .log();
         }
     }
 
