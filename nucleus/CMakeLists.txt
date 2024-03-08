@@ -170,8 +170,6 @@ target_link_libraries(nucleus-obj PUBLIC gg_plugin_api_min Threads::Threads
 target_include_directories(nucleus-obj PUBLIC include src
                                               ${rapidjson_SOURCE_DIR}/include)
 
-set_property(TARGET nucleus-obj PROPERTY POSITION_INDEPENDENT_CODE 1)
-
 # Shared library
 
 add_library(nucleus-core SHARED)
