@@ -1,3 +1,12 @@
+## 2024-03-07
+
+- Fix conflicts with aws-device-sdk-cpp-v2 api handles
+- Add dependency on openssl
+- Plugins can be built as individual projects in linux
+- Tests are now not built unless `-DBUILD_TESTING=1` is set
+- Examples are not built unless `-DBUILD_EXAMPLES=1` is set
+- aws-device-sdk-cpp-v2 is now shared between plugins
+
 ## 2024-02-22
 
 - We have now added support for fetching thingName from environment variable.
