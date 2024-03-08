@@ -17,5 +17,6 @@
   env = {
     CMAKE_EXPORT_COMPILE_COMMANDS = "1";
     NIX_HARDENING_ENABLE = "";
+    FETCHCONTENT_FLAGS = toString pkgs.default.fetchcontentFlags;
   };
 }
