@@ -10,7 +10,7 @@ endif()
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
-fetchContentAddCmake(device-sdk-cpp)
+add_subdirectory(../device-sdk/ device-sdk EXCLUDE_FROM_ALL)
 
 # Object library shared between plugin and tests
 
@@ -18,7 +18,7 @@ add_library(cloud_downloader_obj OBJECT src/cloud_downloader.cpp
                                         src/cloud_downloader.hpp)
 
 target_include_directories(cloud_downloader_obj PUBLIC src)
-target_link_libraries(cloud_downloader_obj PUBLIC gg_plugin_api aws-crt-cpp)
+target_link_libraries(cloud_downloader_obj PUBLIC gg_plugin_api device-sdk)
 
 set_property(TARGET cloud_downloader_obj PROPERTY POSITION_INDEPENDENT_CODE 1)
 
