@@ -1,5 +1,7 @@
 set(PLUGIN_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR})
 
+add_subdirectory(device-sdk)
+
 add_subdirectory(provision_plugin)
 add_subdirectory(iot_broker)
 add_subdirectory(ipc_server)

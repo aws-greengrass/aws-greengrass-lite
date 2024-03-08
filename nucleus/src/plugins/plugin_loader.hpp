@@ -132,13 +132,11 @@ namespace plugins {
     private:
 #if defined(USE_DLFCN)
         typedef void *nativeHandle_t;
-        typedef bool (*lifecycleFn_t)(uint32_t moduleHandle, uint32_t phase, uint32_t data);
 #elif defined(USE_WINDLL)
         typedef HINSTANCE nativeHandle_t;
-        typedef bool(WINAPI *lifecycleFn_t)(uint32_t globalHandle, uint32_t phase, uint32_t data);
 #endif
         std::atomic<nativeHandle_t> _handle{nullptr};
-        std::atomic<lifecycleFn_t> _lifecycleFn{nullptr};
+        std::atomic<GgapiLifecycleFn *> _lifecycleFn{nullptr};
 
     public:
         explicit NativePlugin(const scope::UsingContext &context, std::string_view name)

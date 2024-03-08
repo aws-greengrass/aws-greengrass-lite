@@ -253,24 +253,9 @@ void IotBroker::afterLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
     std::cerr << "[mqtt-plugin] Finished lifecycle phase " << phase.toString() << std::endl;
 }
 
-// Initializes global CRT API
-static Aws::Crt::ApiHandle apiHandle{};
-
 bool IotBroker::onBootstrap(ggapi::Struct structData) {
     structData.put("name", "aws.greengrass.iot_broker");
     std::cout << "[mqtt-plugin] bootstrapping\n";
-
-    // activate the logging.  Probably not going to stay here so don't worry if you see it fail to
-    // initialze
-    static std::once_flag loggingInitialized;
-    try {
-        std::call_once(loggingInitialized, []() {
-            apiHandle.InitializeLogging(Aws::Crt::LogLevel::Info, stderr);
-        });
-    } catch(const std::exception &e) {
-        std::cerr << "[mqtt-plugin] probably did not initialize the logging: " << e.what()
-                  << std::endl;
-    }
 
     return true;
 }

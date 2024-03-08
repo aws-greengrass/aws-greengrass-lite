@@ -3,6 +3,7 @@ include_guard()
 # Utils
 
 include(${CMAKE_CURRENT_LIST_DIR}/utils/fetchContentFromDeps.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/utils/rpath.cmake)
 
 # Defs
 
@@ -38,6 +39,11 @@ if(UNIX)
   add_compile_options(-fvisibility=hidden)
 endif()
 
+if(LINUX)
+  add_link_options("LINKER:-z,noexecstack")
+  add_link_options("LINKER:-z,relro,-z,now")
+endif()
+
 if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
   # Building for minimized footprint
   # Turn on additional footprint optimizations
@@ -63,34 +69,40 @@ std::variant is required")
   if(MSVC_TOOLSET_VERSION LESS 141)
     message(SEND_ERROR "MSVC Toolset v141 is required for std::variant support")
   endif()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+  add_compile_options("/EHsc")
 endif()
 
 # Debugger options
 
 if(LINUX)
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3")
+  add_compile_options("$<$<CONFIG:DEBUG>:-ggdb3>")
   if(GCC)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Og")
+    add_compile_options("$<$<CONFIG:DEBUG>:-Og>")
   endif()
 endif()
 
 if(APPLE)
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g3")
+  add_compile_options("$<$<CONFIG:DEBUG>:-g3>")
   if(CLANG)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -glldb")
+    add_compile_options("$<$<CONFIG:DEBUG>:-glldb>")
   endif()
 endif()
 
 # Sanitizers
 
+# Enable a sanitizer
+macro(enable_debug_sanitizer name)
+  add_compile_options("$<$<CONFIG:DEBUG>:-fsanitize=${name}>")
+  add_link_options("$<$<CONFIG:DEBUG>:-fsanitize=${name}>")
+endmacro()
+
 if(NOT WIN32)
   if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=null")
+    enable_debug_sanitizer(null)
   endif()
 
-  #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=undefined")
+  #enable_debug_sanitizer(undefined)
   # Thread and address sanitizer are mutually exclusive
-  #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
-  #set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
+  #enable_debug_sanitizer(address)
+  #enable_debug_sanitizer(thread)
 endif()

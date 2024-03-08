@@ -3,6 +3,11 @@ project(cli_server)
 
 include(../../common.cmake)
 
+if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
+  message(
+    SEND_ERROR "Building plugins individually is not supported on Mac/Windows.")
+endif()
+
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 add_library(cli_server MODULE src/cli_server.cpp src/cli_server.hpp

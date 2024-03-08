@@ -73,11 +73,13 @@ typedef ggapiErrorKind (*ggapiGenericCallback)(
     ggapiDataLen callbackDataSize,
     void *callbackData) NOEXCEPT;
 
-[[maybe_unused]] EXPORT ggapiErrorKind greengrass_lifecycle(
+typedef ggapiErrorKind GgapiLifecycleFn(
     ggapiObjHandle moduleHandle,
     ggapiSymbol phase,
     ggapiObjHandle data,
     bool *pWasHandled) NOEXCEPT;
+
+[[maybe_unused]] EXPORT GgapiLifecycleFn greengrass_lifecycle;
 
 IMPEXP ggapiErrorKind
 ggapiSetError(ggapiErrorKind kind, ggapiCountedString what, ggapiDataLen len) NOEXCEPT;
