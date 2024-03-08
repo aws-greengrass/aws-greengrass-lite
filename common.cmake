@@ -75,16 +75,16 @@ endif()
 # Debugger options
 
 if(LINUX)
-  add_compile_options("$<$<CONFIG:DEBUG>:-ggdb3>")
+  add_compile_options($<$<CONFIG:Debug>:-ggdb3>)
   if(GCC)
-    add_compile_options("$<$<CONFIG:DEBUG>:-Og>")
+    add_compile_options($<$<CONFIG:Debug>:-Og>)
   endif()
 endif()
 
 if(APPLE)
-  add_compile_options("$<$<CONFIG:DEBUG>:-g3>")
+  add_compile_options($<$<CONFIG:Debug>:-g3>)
   if(CLANG)
-    add_compile_options("$<$<CONFIG:DEBUG>:-glldb>")
+    add_compile_options($<$<CONFIG:Debug>:-glldb>)
   endif()
 endif()
 
@@ -92,8 +92,8 @@ endif()
 
 # Enable a sanitizer
 macro(enable_debug_sanitizer name)
-  add_compile_options("$<$<CONFIG:DEBUG>:-fsanitize=${name}>")
-  add_link_options("$<$<CONFIG:DEBUG>:-fsanitize=${name}>")
+  add_compile_options($<$<CONFIG:Debug>:-fsanitize=${name}>)
+  add_link_options($<$<CONFIG:Debug>:-fsanitize=${name}>)
 endmacro()
 
 if(NOT WIN32)
