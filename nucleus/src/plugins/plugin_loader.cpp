@@ -6,6 +6,7 @@
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
 #include <iostream>
+#include <cpp_api.hpp>
 
 namespace fs = std::filesystem;
 
@@ -47,7 +48,7 @@ namespace plugins {
                 std::string("Cannot load shared object: ") + filePath + std::string(" ") + error);
         }
         // NOLINTNEXTLINE(*-reinterpret-cast)
-        _lifecycleFn.store(reinterpret_cast<lifecycleFn_t>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
+        _lifecycleFn.store(reinterpret_cast<GgapiLifecycleFn*>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
 #elif defined(USE_WINDLL)
         nativeHandle_t handle =
             ::LoadLibraryEx(filePath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
@@ -73,13 +74,15 @@ namespace plugins {
         const std::shared_ptr<AbstractPlugin> &module,
         const data::Symbol &phase,
         const std::shared_ptr<data::StructModelBase> &data) {
+        
 
-        lifecycleFn_t lifecycleFn = _lifecycleFn.load();
+        GgapiLifecycleFn* lifecycleFn = _lifecycleFn.load();
         if(lifecycleFn != nullptr) {
+            bool ret = false;
             scope::TempRoot tempRoot;
-            return lifecycleFn(scope::asIntHandle(module), phase.asInt(), scope::asIntHandle(data));
+            return lifecycleFn(scope::asIntHandle(module), phase.asInt(), scope::asIntHandle(data), &ret );
         }
-        return true; // no error
+        return false; // no error
     }
 
     bool DelegatePlugin::callNativeLifecycle(
