@@ -13,9 +13,6 @@ add_library(example_mqtt_sender_obj OBJECT src/example_mqtt_sender.cpp
 target_include_directories(example_mqtt_sender_obj PUBLIC src)
 target_link_libraries(example_mqtt_sender_obj PUBLIC gg_plugin_api)
 
-set_property(TARGET example_mqtt_sender_obj PROPERTY POSITION_INDEPENDENT_CODE
-                                                     1)
-
 # Plugin
 
 add_library(example_mqtt_sender MODULE src/main.cpp)

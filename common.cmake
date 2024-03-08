@@ -39,6 +39,8 @@ if(UNIX)
   add_compile_options(-fvisibility=hidden)
 endif()
 
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 if(LINUX)
   add_link_options("LINKER:-z,noexecstack")
   add_link_options("LINKER:-z,relro,-z,now")
