@@ -110,11 +110,10 @@ macro(enable_debug_sanitizer name)
 endmacro()
 
 if(NOT WIN32)
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    enable_debug_sanitizer(null)
+  if(GCC)
+    enable_debug_sanitizer(undefined)
   endif()
 
-  #enable_debug_sanitizer(undefined)
   # Thread and address sanitizer are mutually exclusive
   #enable_debug_sanitizer(address)
   #enable_debug_sanitizer(thread)
