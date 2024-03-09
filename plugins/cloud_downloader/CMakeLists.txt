@@ -12,6 +12,8 @@ add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 add_subdirectory(../device-sdk/ device-sdk EXCLUDE_FROM_ALL)
 
+enable_warnings()
+
 # Object library shared between plugin and tests
 
 add_library(cloud_downloader_obj OBJECT src/cloud_downloader.cpp

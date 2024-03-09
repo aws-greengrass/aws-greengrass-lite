@@ -12,6 +12,8 @@ add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 add_subdirectory(../device-sdk/ device-sdk EXCLUDE_FROM_ALL)
 
+enable_warnings()
+
 add_library(provision_plugin MODULE src/main.cpp src/provision_plugin.cpp
                                     src/provision_plugin.hpp)
 

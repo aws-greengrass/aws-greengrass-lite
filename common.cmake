@@ -52,6 +52,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 
+# Sets warning flags intended for first-party compilation objects
+macro(enable_warnings)
+  add_compile_options(-Wall -Wextra -pedantic -Wundef)
+  add_compile_options($<$<COMPILE_LANGUAGE:C>:-Wmissing-prototypes>)
+endmacro()
+
+add_compile_options(-fno-common)
+
 # For all built shared-objects, request that exports are explicitly defined
 # Note, this isn't necessarily enough - see also version-script option
 if(UNIX)
