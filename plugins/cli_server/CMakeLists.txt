@@ -10,6 +10,8 @@ endif()
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
+enable_warnings()
+
 add_library(cli_server MODULE src/cli_server.cpp src/cli_server.hpp
                               src/main.cpp)
 

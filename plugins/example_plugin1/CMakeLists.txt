@@ -10,6 +10,8 @@ endif()
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
+enable_warnings()
+
 add_library(example_plugin1 MODULE src/main.cpp)
 
 target_link_libraries(example_plugin1 PRIVATE gg_plugin_api)

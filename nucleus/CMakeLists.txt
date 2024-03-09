@@ -21,6 +21,8 @@ endif()
 
 add_compile_definitions(PLATFORM_SHLIB_SUFFIX=${CMAKE_SHARED_MODULE_SUFFIX})
 
+enable_warnings()
+
 # Object library shared between shared lib and tests
 
 add_library(

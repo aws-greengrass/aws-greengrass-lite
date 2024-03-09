@@ -13,6 +13,8 @@ add_subdirectory(../shared_resources shared_resources EXCLUDE_FROM_ALL)
 
 add_subdirectory(../device-sdk/ device-sdk EXCLUDE_FROM_ALL)
 
+enable_warnings()
+
 add_library(iot_broker MODULE src/iot_broker.cpp src/iot_broker.hpp
                               src/main.cpp src/tes.cpp)
 

@@ -5,6 +5,8 @@ include(../../common.cmake)
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
+enable_warnings()
+
 # Object library shared between plugin and tests
 
 add_library(example_mqtt_sender_obj OBJECT src/example_mqtt_sender.cpp
