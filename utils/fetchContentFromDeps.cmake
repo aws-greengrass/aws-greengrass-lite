@@ -56,7 +56,7 @@ function(fetchContentAddCmake)
       set(BUILD_TESTING OFF)
 
       add_subdirectory(${${lower_name}_SOURCE_DIR} ${${lower_name}_BINARY_DIR}
-                       EXCLUDE_FROM_ALL)
+                       EXCLUDE_FROM_ALL SYSTEM)
     endif()
 
     set(${lower_name}_POPULATED
