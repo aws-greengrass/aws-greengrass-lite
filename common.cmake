@@ -19,6 +19,16 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   set(CLANG TRUE)
 endif()
 
+include(CheckLinkerFlag)
+
+# Enable a linker option if supported
+macro(try_add_link_option name option)
+  check_linker_flag(CXX "${option}" linker_has_${name})
+  if(linker_has_${name})
+    add_link_options("${option}")
+  endif()
+endmacro()
+
 # Misc
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -42,8 +52,9 @@ endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 if(LINUX)
-  add_link_options("LINKER:-z,noexecstack")
-  add_link_options("LINKER:-z,relro,-z,now")
+  add_link_options(LINKER:-z,noexecstack)
+  add_link_options(LINKER:-z,relro,-z,now)
+  try_add_link_option(enable-new-dtags LINKER:--enable-new-dtags)
 endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
