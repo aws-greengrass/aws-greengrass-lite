@@ -19,7 +19,16 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
   set(CLANG TRUE)
 endif()
 
+include(CheckCXXCompilerFlag)
 include(CheckLinkerFlag)
+
+# Enable a compiler option if supported
+macro(try_add_compile_option name option)
+  check_cxx_compiler_flag("${option}" compiler_has_${name})
+  if(compiler_has_${name})
+    add_compile_options("${option}")
+  endif()
+endmacro()
 
 # Enable a linker option if supported
 macro(try_add_link_option name option)
@@ -58,6 +67,11 @@ if(LINUX)
   try_add_link_option(enable-new-dtags LINKER:--enable-new-dtags)
 endif()
 
+# Dead code elimination
+try_add_compile_option(function-sections -ffunction-sections)
+try_add_compile_option(data-sections -fdata-sections)
+try_add_link_option(gc-sections LINKER:--gc-sections)
+
 if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
   # Building for minimized footprint
   # Turn on additional footprint optimizations
@@ -67,12 +81,6 @@ if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
   cmake_policy(SET CMP0069 NEW)
   set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-
-  # Dead code elimination - limited support
-  if(LINUX)
-    add_compile_options(-ffunction-sections -fdata-sections)
-    add_link_options(LINKER:--gc-sections)
-  endif()
 endif()
 
 if(MSVC)
