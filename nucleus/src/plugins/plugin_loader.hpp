@@ -1,5 +1,4 @@
 #pragma once
-#include "c_api.h"
 #include "data/handle_table.hpp"
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
@@ -120,11 +119,10 @@ namespace plugins {
     private:
 #if defined(USE_DLFCN)
         using NativeHandle = void *;
-        using lifecycleFn_t = GgapiLifecycleFn *;
 #elif defined(USE_WINDLL)
         using NativeHandle = HINSTANCE;
-        using lifecycleFn_t = bool(WINAPI *)(uint32_t globalHandle, uint32_t phase, uint32_t data);
 #endif
+        using lifecycleFn_t = GgapiLifecycleFn *;
         std::atomic<NativeHandle> _handle{nullptr};
         std::atomic<lifecycleFn_t> _lifecycleFn{nullptr};
 

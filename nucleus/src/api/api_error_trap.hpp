@@ -4,25 +4,19 @@
 #include <functional>
 
 namespace apiImpl {
-    //template<typename Func, typename... Args>
-    // inline uint32_t catchErrorToKind(const Func &f /* , Args &&...args */) noexcept {
-    inline uint32_t catchErrorToKind(const std::function<void()> &f) noexcept {
+    template<typename Func, typename... Args>
+    inline uint32_t catchErrorToKind(const Func &f, Args &&...args) noexcept {
         try {
-            try {
-                f();
-                // std::invoke(f /*, std::forward<Args>(args)... */);
-                return 0;
-            } catch(errors::Error &err) {
-                return err.toThreadLastError();
-            } catch(ggapi::GgApiError &err) {
-                return errors::Error::of<ggapi::GgApiError>(err).toThreadLastError();
-            } catch(std::exception &err) {
-                return errors::Error::of<std::exception>(err).toThreadLastError();
-            } catch(...) {
-                return errors::Error::unspecified().toThreadLastError();
-            }
+            std::invoke(f, std::forward<Args>(args)...);
+            return 0;
+        } catch(errors::Error &err) {
+            return err.toThreadLastError();
+        } catch(ggapi::GgApiError &err) {
+            return errors::Error::of<ggapi::GgApiError>(err).toThreadLastError();
+        } catch(std::exception &err) {
+            return errors::Error::of<std::exception>(err).toThreadLastError();
         } catch(...) {
-            return 0x12345678;
+            return errors::Error::unspecified().toThreadLastError();
         }
     }
 
