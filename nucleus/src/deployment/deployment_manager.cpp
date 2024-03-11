@@ -389,10 +389,17 @@ namespace deployment {
         Deployment deployment;
         try {
             // TODO: validate deployment
-            // TODO: Document is intended to be a Struct (loaded document), not a file
+            // TODO: Document is intended to be a Struct (loaded document), not a file / string
             // Need to change to readFromStruct()
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
-            data::Archive::readFromFile(deploymentDocumentJson, deployment.deploymentDocumentObj);
+            auto jsonToStruct = [](auto json) {
+                auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();
+                return ggapi::Struct{container};
+            };
+            auto deploymentDocumentStruct = jsonToStruct(deploymentDocumentJson);
+            auto deploymentDocument = scope::context()->objFromInt<data::StructModelBase>(deploymentDocumentStruct.getHandleId());
+
+            data::Archive::readFromStruct(deploymentDocument, deployment.deploymentDocumentObj);
 
             deployment.id = deploymentStruct.get<std::string>("id");
             deployment.isCancelled = deploymentStruct.get<bool>("isCancelled");
