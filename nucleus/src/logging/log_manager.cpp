@@ -278,7 +278,6 @@ namespace logging {
     }
 
     std::filesystem::path LogState::getLogPath(bool forRotation) const {
-        std::ignore = forRotation; // TODO: This right now completely ignores log rotation
         std::string baseName;
         if(_outputType != OutputType::File || _outputDirectory.empty()) {
             return {};
@@ -287,6 +286,11 @@ namespace logging {
             baseName = DEFAULT_LOG_BASE;
         } else {
             baseName = _contextName;
+        }
+        if (forRotation) {
+            std::ostringstream suffix;
+            suffix << "_" << _lastDateHour << "_" << _lastFileCounter;
+            baseName += suffix.str();
         }
         baseName += LOG_EXTENSION;
         return _outputDirectory / baseName;
@@ -326,6 +330,9 @@ namespace logging {
         const FormatEnum::ConstType<Format::Json> &) {
 
         auto buffer = data->toJson();
+
+        rotateLog(sizeof(buffer)); // rotate file if needed
+
         stream() << buffer << "\n"; // intentionally not endl - data not flushed immediately
     }
 
@@ -338,7 +345,51 @@ namespace logging {
 
         // For now, just dump the JSON
         auto buffer = data->toJson();
+
+        rotateLog(sizeof(buffer)); // rotate file if needed
+
         stream() << buffer << "\n";
+    }
+
+    void LogState::rotateLog(std::size_t logBytes) {
+        std::string currDateHour = dateHour();
+        if (_lastDateHour.empty()) {
+            _lastDateHour = currDateHour;
+            return;
+        }
+        bool rotateForTime = _lastDateHour != currDateHour;
+        bool rotateForSize = static_cast<int>(_stream.tellp()) + logBytes > _fileSizeKB * 1024;
+
+        if (rotateForTime || rotateForSize) {
+            // close current file
+            syncOutput();
+            _stream.close();
+
+            // rename file to formatted file name
+            auto oldName = getLogPath(false);
+            auto newName = getLogPath(true);
+            std::filesystem::rename(oldName, newName);
+
+            // create new file with default name
+            changeOutput();
+        }
+
+        if (rotateForTime) {
+            _lastDateHour = currDateHour;
+            _lastFileCounter = 0;
+        } else if (rotateForSize) {
+            _lastFileCounter++;
+        }
+
+    }
+
+    std::string LogState::dateHour() {
+        std::time_t t = std::time(0);
+        std::tm* now = std::localtime(&t);
+        std::ostringstream oss;
+        oss << std::put_time(now, "%Y_%m_%d_%H");
+        auto dateHourStr = oss.str();
+        return dateHourStr;
     }
 
 } // namespace logging
