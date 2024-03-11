@@ -47,6 +47,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 # Note, this isn't necessarily enough - see also version-script option
 if(UNIX)
   add_compile_options(-fvisibility=hidden)
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fvisibility-inlines-hidden>)
 endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
