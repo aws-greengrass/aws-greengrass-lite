@@ -80,12 +80,10 @@ namespace config {
         util::CommitableFile _tlogFile;
         std::shared_ptr<Topics> _root;
         std::shared_ptr<TlogWatcher> _watcher;
-        bool _truncateQueue{false};
         uint32_t _count{0}; // entries written so far
         bool _flushImmediately{false};
         bool _autoTruncate{false};
         uint32_t _maxEntries{DEFAULT_MAX_TLOG_ENTRIES};
-        uint32_t _retryCount{0};
 
         void writeAll(const std::shared_ptr<Topics> &node);
 

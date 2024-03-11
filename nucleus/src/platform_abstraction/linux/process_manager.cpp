@@ -79,7 +79,7 @@ namespace ipc {
 
     void LinuxProcessManager::addEvent(std::list<ProcessEvent> &eventList, ProcessEvent event) {
         eventList.emplace_front(std::move(event));
-        auto &&[events, fd] = std::visit(
+        auto [events, fd] = std::visit(
             [&](auto &&e) -> std::pair<uint32_t, FileDescriptor &> {
                 using EventT = std::remove_reference_t<decltype(e)>;
                 if constexpr(std::is_same_v<EventT, InterruptEvent>) {

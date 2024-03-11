@@ -141,7 +141,7 @@ namespace scope {
             std::unique_lock guard{_globalMutex};
             auto i = _contextMap.find(ref);
             if(i == _contextMap.end()) {
-                auto ii = _contextMap.emplace(ref, std::move(std::make_unique<Ptr>()));
+                auto ii = _contextMap.emplace(ref, std::make_unique<Ptr>());
                 if(!ii.second) {
                     throw std::runtime_error("Failed to create thread-context data");
                 }

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <tuple>
 
 static const Keys keys;
 
@@ -178,7 +179,7 @@ ggapi::Struct CliServer::listDeploymentsHandler(ggapi::Task, ggapi::Symbol, ggap
 
 ggapi::Struct CliServer::cancelLocalDeploymentHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct) {
     // TODO: Not implemented
-    auto result = ggapi::Task::sendToTopic(keys.cancelDeploymentTopicName, ggapi::Struct::create());
+    std::ignore = ggapi::Task::sendToTopic(keys.cancelDeploymentTopicName, ggapi::Struct::create());
     return ggapi::Struct::create();
 }
 

@@ -123,7 +123,7 @@ namespace config {
 
     bool TlogLineResponder::parseStartObject() {
         if(_state == conv::JsonState::ExpectStartObject
-           || _state == conv::JsonState::ExpectValue && _key == TlogLine::V) {
+           || (_state == conv::JsonState::ExpectValue && _key == TlogLine::V)) {
             return JsonStructResponder::parseStartObject();
         } else {
             return false;

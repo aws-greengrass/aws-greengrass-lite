@@ -114,7 +114,7 @@ namespace util {
         bool readMore() {
 
             flushRead();
-            int32_t pos = inAsInt();
+            uint32_t pos = inAsInt();
             uint32_t end = _buffer.size();
             if(pos >= end) {
                 return false;
@@ -311,7 +311,7 @@ namespace util {
 
     public:
         explicit BufferInStreamBase(BufferStream buffer)
-            : _stream(std::move(buffer)), std::istream(&_stream) {
+            : std::istream(&_stream), _stream(std::move(buffer)) {
         }
     };
 
@@ -321,7 +321,7 @@ namespace util {
 
     public:
         explicit BufferOutStreamBase(BufferStream buffer)
-            : _stream(std::move(buffer)), std::ostream(&_stream) {
+            : std::ostream(&_stream), _stream(std::move(buffer)) {
             _stream.pubseekoff(0, std::ios_base::end, std::ios_base::out);
         }
     };

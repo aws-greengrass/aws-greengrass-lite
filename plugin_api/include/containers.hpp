@@ -614,11 +614,11 @@ namespace ggapi {
     }
 
     inline BufferInStream Buffer::in() {
-        return BufferInStream(std::move(stream()));
+        return BufferInStream(stream());
     }
 
     inline BufferOutStream Buffer::out() {
-        return BufferOutStream(std::move(stream()));
+        return BufferOutStream(stream());
     }
 
     inline Buffer Container::toJson() const {

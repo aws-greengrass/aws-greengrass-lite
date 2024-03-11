@@ -38,8 +38,8 @@ namespace config {
         const std::shared_ptr<Topics> &parent,
         const data::Symbol &key,
         const Timestamp &modtime)
-        : data::StructModelBase(context), _symbolMapper(context), _parent(parent), _nameOrd(key),
-          _modtime(modtime) {
+        : data::StructModelBase(context), _symbolMapper(context), _nameOrd(key), _modtime(modtime),
+          _parent(parent) {
         // Note: don't lock parent, it's most likely already locked - atomic used instead
         if((parent && parent->_excludeTlog)
            || (_nameOrd && util::startsWith(getNameUnsafe(), "_"))) {
@@ -595,7 +595,7 @@ namespace config {
         // AND we don't want to decrease the timestamp AND the timestamp would not
         // increase THEN, return immediately and do nothing.
         if((currentValue == newValue
-            || !allowTimestampToDecrease && (proposedModTime < currentModTime))
+            || (!allowTimestampToDecrease && (proposedModTime < currentModTime)))
            && !timestampWouldIncrease) {
             return *this;
         }

@@ -143,7 +143,7 @@ namespace tasks {
             data::Symbol callbackType,
             ::ggapiGenericCallback callback,
             uintptr_t callbackCtx) noexcept
-            : Callback(context), _module(nullable(module)), _callbackType(callbackType),
+            : Callback(context), _callbackType(callbackType), _module(nullable(module)),
               _callback(callback), _callbackCtx(callbackCtx) {
         }
         RegisteredCallback(const RegisteredCallback &) = delete;

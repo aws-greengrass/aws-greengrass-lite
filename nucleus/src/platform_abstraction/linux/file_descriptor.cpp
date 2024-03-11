@@ -38,7 +38,7 @@ std::string FileDescriptor::readAll() const {
             throw std::system_error(errno, std::generic_category());
         }
         output.append(buffer.data(), bytesRead);
-        if(bytesRead < buffer.size()) {
+        if(static_cast<size_t>(bytesRead) < buffer.size()) {
             break;
         }
     }

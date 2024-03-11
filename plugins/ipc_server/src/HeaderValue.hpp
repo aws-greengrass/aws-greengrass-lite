@@ -221,13 +221,12 @@ template<class SendFn>
 static int sendMessage(SendFn fn, aws_event_stream_rpc_message_type message_type, uint32_t flags) {
     auto payload = Aws::Crt::ByteBufFromEmptyArray(nullptr, 0);
 
-    aws_event_stream_rpc_message_args args = {
-        .headers = nullptr,
-        .headers_count = 0,
-        .payload = &payload,
-        .message_type = message_type,
-        .message_flags = flags,
-    };
+    aws_event_stream_rpc_message_args args = {};
+    args.headers = nullptr;
+    args.headers_count = 0;
+    args.payload = &payload;
+    args.message_type = message_type;
+    args.message_flags = flags;
 
     std::cerr << "Sending message:\n" << args << '\n';
 
@@ -241,25 +240,17 @@ static int sendMessage(
     ggapi::Buffer payload,
     aws_event_stream_rpc_message_type message_type,
     uint32_t flags) {
-    aws_array_list headers_list{
-        .alloc = nullptr,
-        .current_size = headers.size_bytes(),
-        .length = std::size(headers),
-        .item_size = sizeof(aws_event_stream_header_value_pair),
-        .data = std::data(headers),
-    };
 
     auto payloadVec = payload.get<Aws::Crt::Vector<uint8_t>>(
         0, std::min(payload.size(), uint32_t{AWS_EVENT_STREAM_MAX_MESSAGE_SIZE}));
     auto payloadBytes = Aws::Crt::ByteBufFromArray(payloadVec.data(), payloadVec.size());
 
-    aws_event_stream_rpc_message_args args = {
-        .headers = std::data(headers),
-        .headers_count = std::size(headers),
-        .payload = &payloadBytes,
-        .message_type = message_type,
-        .message_flags = flags,
-    };
+    aws_event_stream_rpc_message_args args = {};
+    args.headers = std::data(headers);
+    args.headers_count = std::size(headers);
+    args.payload = &payloadBytes;
+    args.message_type = message_type;
+    args.message_flags = flags;
     std::cerr << "Sending message:\n" << args << '\n';
 
     return fn(&args);

@@ -47,8 +47,6 @@ ggapi::Struct ServerContinuation::onTopicResponse(
     if(result != AWS_OP_SUCCESS) {
         ggapi::Buffer payload =
             ggapi::Buffer::create().put(0, std::string_view{"InternalServerError"});
-        std::array errorHeaders{
-            makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::Text))};
         sendMessage(
             sender,
             headers,

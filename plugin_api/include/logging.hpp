@@ -122,7 +122,7 @@ namespace logging {
         class LoggerImpl;
 
         template<typename Traits>
-        class EventImplBase;
+        struct EventImplBase;
 
         /**
          * Interface for the Logger implementation
