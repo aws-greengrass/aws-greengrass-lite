@@ -92,19 +92,24 @@ endif()
 
 # Debugger options
 
+# Enable an option in profiles with debug info
+macro(add_debuginfo_option option)
+  add_compile_options($<$<CONFIG:Debug,RelWithDebInfo>:${option}>)
+endmacro()
+
 try_add_link_option(compress-debug LINKER:--compress-debug-sections=zlib)
 
 if(LINUX)
-  add_compile_options($<$<CONFIG:Debug>:-ggdb3>)
+  add_debuginfo_option(-ggdb3)
   if(GCC)
-    add_compile_options($<$<CONFIG:Debug>:-Og>)
+    add_debuginfo_option(-Og)
   endif()
 endif()
 
 if(APPLE)
-  add_compile_options($<$<CONFIG:Debug>:-g3>)
+  add_debuginfo_option(-g3)
   if(CLANG)
-    add_compile_options($<$<CONFIG:Debug>:-glldb>)
+    add_debuginfo_option(-glldb)
   endif()
 endif()
 
