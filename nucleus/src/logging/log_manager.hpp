@@ -88,6 +88,8 @@ namespace logging {
         OutputType _outputType{OutputType::Console}; // until file specified
         uint64_t _fileSizeKB{DEFAULT_MAX_FILE_SIZE_KB};
         uint64_t _totalLogsSizeKB{DEFAULT_MAX_FILE_SIZE_ALL_KB};
+        std::string _lastDateHour;
+        uint64_t _lastFileCounter{0};
         std::filesystem::path _outputDirectory;
         std::ofstream _stream;
         using FormatEnum = util::Enum<Format, Format::Text, Format::Json>;
@@ -126,6 +128,8 @@ namespace logging {
         void writeLog(const std::shared_ptr<data::StructModelBase> &data);
         void changeOutput();
         void syncOutput();
+        void rotateLog(std::size_t);
+        std::string dateHour();
     };
 
     class LogManager : public LogManagerBase<NucleusLoggingTraits>, protected scope::UsesContext {
