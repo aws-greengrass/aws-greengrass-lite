@@ -113,7 +113,7 @@ namespace plugins {
         }
 
         bool callNativeLifecycle(
-            const data::ObjHandle &pluginRoot,
+            const data::ObjHandle &pluginHandle,
             const data::Symbol &phase,
             const data::ObjHandle &data) override;
 
@@ -131,11 +131,11 @@ namespace plugins {
 
     private:
 #if defined(USE_DLFCN)
-        typedef void *nativeHandle_t;
+        using NativeHandle = void *;
 #elif defined(USE_WINDLL)
-        typedef HINSTANCE nativeHandle_t;
+        using NativeHandle = HINSTANCE;
 #endif
-        std::atomic<nativeHandle_t> _handle{nullptr};
+        std::atomic<NativeHandle> _handle{nullptr};
         std::atomic<GgapiLifecycleFn *> _lifecycleFn{nullptr};
 
     public:
@@ -147,7 +147,7 @@ namespace plugins {
         NativePlugin(NativePlugin &&) noexcept = delete;
         NativePlugin &operator=(const NativePlugin &) = delete;
         NativePlugin &operator=(NativePlugin &&) noexcept = delete;
-        ~NativePlugin() override;
+        ~NativePlugin() noexcept override;
         void load(const std::filesystem::path &path);
         bool callNativeLifecycle(
             const data::ObjHandle &pluginHandle,

@@ -6,66 +6,126 @@
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
 #include <cpp_api.hpp>
+#include <filesystem>
 #include <iostream>
+#include <stdexcept>
+#include <string_view>
+#include <type_traits>
 
 namespace fs = std::filesystem;
 
+// Two macro invocations are required to stringify a macro's value
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define STRINGIFY(x) #x
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define STRINGIFY2(x) STRINGIFY(x)
-#define NATIVE_SUFFIX STRINGIFY2(PLATFORM_SHLIB_SUFFIX)
+inline constexpr std::string_view NATIVE_SUFFIX = STRINGIFY2(PLATFORM_SHLIB_SUFFIX);
 
-const auto LOG = // NOLINT(cert-err58-cpp)
+static const auto LOG = // NOLINT(cert-err58-cpp)
     logging::Logger::of("com.aws.greengrass.plugins");
 
 namespace plugins {
+#if defined(USE_WINDLL)
+    struct LocalStringDeleter {
+        void operator()(LPSTR p) const noexcept {
+            // Free the Win32's string's buffer.
+            LocalFree(p);
+        }
+    };
+#endif
 
-    NativePlugin::~NativePlugin() {
-        nativeHandle_t h = _handle.load();
-        _handle.store(nullptr);
+    static std::runtime_error makePluginError(
+        std::string_view description, const std::filesystem::path &path, std::string_view message) {
+        const auto pathStr = path.string();
+        std::string what;
+        what.reserve(description.size() + pathStr.size() + message.size() + 2U);
+        what.append(description).append(pathStr).push_back(' ');
+        what.append(message);
+        return std::runtime_error{what};
+    }
+
+    static std::string getLastPluginError() {
+#if defined(USE_DLFCN)
+        // Note, dlerror() below will flag "concurrency-mt-unsafe"
+        // It is thread safe on Linux and Mac
+        // There is no safer alternative, so all we can do is suppress
+        // TODO: When implementing loader thread, make sure this is all in same thread
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        const char *error = dlerror();
+        if(!error) {
+            return {};
+        }
+        return error;
+#elif defined(USE_WINDLL)
+        // look up error message from system message table. Leave string unformatted.
+        // https://devblogs.microsoft.com/oldnewthing/20071128-00/?p=24353
+        DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
+                      | FORMAT_MESSAGE_IGNORE_INSERTS;
+        DWORD lastError = ::GetLastError();
+        LPSTR messageBuffer = nullptr;
+        DWORD size = FormatMessageA(
+            flags,
+            NULL,
+            lastError,
+            0,
+            // pointer type changes when FORMAT_MESSAGE_ALLOCATE_BUFFER is specified
+            // NOLINTNEXTLINE(*-reinterpret-cast)
+            reinterpret_cast<LPTSTR>(&messageBuffer),
+            0,
+            NULL);
+        // Take exception-safe ownership
+        using char_type = std::remove_pointer_t<LPSTR>;
+        std::unique_ptr<char_type, LocalStringDeleter> owner{messageBuffer};
+
+        // fallback
+        if(size == 0) {
+            return "Error Code " + std::to_string(lastError);
+        }
+
+        // copy message buffer from Windows string
+        return std::string{messageBuffer, size};
+#endif
+    }
+
+    NativePlugin::~NativePlugin() noexcept {
+        NativeHandle h = _handle.load();
         if(!h) {
             return;
         }
 #if defined(USE_DLFCN)
-        ::dlclose(_handle);
+        ::dlclose(h);
 #elif defined(USE_WINDLL)
-        ::FreeLibrary(_handle);
+        ::FreeLibrary(h);
 #endif
     }
 
     void NativePlugin::load(const std::filesystem::path &path) {
-        std::string filePath = path.generic_string();
 #if defined(USE_DLFCN)
-        nativeHandle_t handle = ::dlopen(filePath.c_str(), RTLD_NOW | RTLD_LOCAL);
-        _handle.store(handle);
-        if(handle == nullptr) {
-            // Note, dlerror() below will flag "concurrency-mt-unsafe"
-            // It is thread safe on Linux and Mac
-            // There is no safer alternative, so all we can do is suppress
-            // TODO: When implementing loader thread, make sure this is all in same thread
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            std::string error{dlerror()};
-            throw std::runtime_error(
-                std::string("Cannot load shared object: ") + filePath + std::string(" ") + error);
-        }
-        // NOLINTNEXTLINE(*-reinterpret-cast)
-        _lifecycleFn.store(
-            reinterpret_cast<GgapiLifecycleFn *>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
+        NativeHandle handle = ::dlopen(path.c_str(), RTLD_NOW | RTLD_LOCAL);
 #elif defined(USE_WINDLL)
-        nativeHandle_t handle =
-            ::LoadLibraryEx(filePath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
-        _handle.store(handle);
-        if(handle == nullptr) {
-            uint32_t lastError = ::GetLastError();
-            // TODO: use FormatMessage
-            throw std::runtime_error(
-                std::string("Cannot load DLL: ") + filePath + std::string(" ")
-                + std::to_string(lastError));
-        }
-        _lifecycleFn.store(
-            // NOLINTNEXTLINE(*-reinterpret-cast)
-            reinterpret_cast<GgapiLifecycleFn *>(
-                ::GetProcAddress(_handle.load(), NATIVE_ENTRY_NAME)));
+        NativeHandle handle =
+            ::LoadLibraryEx(path.string().c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
 #endif
+        if(handle == nullptr) {
+            LOG.atError().logAndThrow(
+                makePluginError("Cannot load Plugin: ", path, getLastPluginError()));
+        }
+        _handle.store(handle);
+
+#if defined(USE_DLFCN)
+        auto *lifecycleFn = ::dlsym(handle, NATIVE_ENTRY_NAME);
+#elif defined(USE_WINDLL)
+        auto *lifecycleFn = ::GetProcAddress(handle, NATIVE_ENTRY_NAME);
+#endif
+        if(lifecycleFn == nullptr) {
+            LOG.atWarn("lifecycle-unknown")
+                .cause(
+                    makePluginError("Cannot link lifecycle function: ", path, getLastPluginError()))
+                .log();
+        }
+        // Function pointer from C-APIs which type-erase their return values.
+        // NOLINTNEXTLINE(*-reinterpret-cast)
+        _lifecycleFn.store(reinterpret_cast<GgapiLifecycleFn *>(lifecycleFn));
     }
 
     bool NativePlugin::isActive() noexcept {
@@ -119,19 +179,19 @@ namespace plugins {
     }
 
     void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
-        if(entry.path().extension().compare(NATIVE_SUFFIX) == 0) {
+        if(entry.path().extension() == NATIVE_SUFFIX) {
             loadNativePlugin(entry.path());
             return;
         }
     }
 
     void PluginLoader::loadNativePlugin(const std::filesystem::path &path) {
+        LOG.atInfo().kv("path", path.string()).log("Loading native plugin");
         auto stem = path.stem().generic_string();
         auto name = util::trimStart(stem, "lib");
         std::string serviceName = std::string("local.plugins.discovered.") + std::string(name);
         std::shared_ptr<NativePlugin> plugin{
             std::make_shared<NativePlugin>(context(), serviceName)};
-        std::cout << "Loading native plugin from " << path << std::endl;
         plugin->load(path);
         // add the plugins to a collection by "anchoring"
         // which solves a number of interesting problems
