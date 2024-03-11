@@ -50,5 +50,6 @@ if(BUILD_TESTING AND NOT WIN32)
 
   catch_discover_tests(example_mqtt_sender_tests)
 
-  add_test(NAME example_mqtt_sender COMMAND example_mqtt_sender_tests)
+  add_test(NAME example_mqtt_sender
+           COMMAND ${CMAKE_BINARY_DIR}/example_mqtt_sender_tests)
 endif()
