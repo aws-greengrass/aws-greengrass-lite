@@ -70,7 +70,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
   # Dead code elimination - limited support
   if(LINUX)
     add_compile_options(-ffunction-sections -fdata-sections)
-    add_link_options("LINKER:--gc-sections,-Map=link.map")
+    add_link_options(LINKER:--gc-sections)
   endif()
 endif()
 
