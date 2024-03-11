@@ -1,4 +1,5 @@
 #pragma once
+#include "c_api.h"
 #include "data/handle_table.hpp"
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
@@ -122,13 +123,14 @@ namespace plugins {
 
     private:
 #if defined(USE_DLFCN)
-        typedef void *nativeHandle_t;
+        using NativeHandle = void *;
+        using lifecycleFn_t = GgapiLifecycleFn *;
 #elif defined(USE_WINDLL)
-        typedef HINSTANCE nativeHandle_t;
-        typedef bool(WINAPI *lifecycleFn_t)(uint32_t globalHandle, uint32_t phase, uint32_t data);
+        using NativeHandle = HINSTANCE;
+        using lifecycleFn_t = bool(WINAPI *)(uint32_t globalHandle, uint32_t phase, uint32_t data);
 #endif
-        std::atomic<nativeHandle_t> _handle{nullptr};
-        std::atomic<GgapiLifecycleFn*> _lifecycleFn{nullptr};
+        std::atomic<NativeHandle> _handle{nullptr};
+        std::atomic<lifecycleFn_t> _lifecycleFn{nullptr};
 
     public:
         explicit NativePlugin(const scope::UsingContext &context, std::string_view name)
@@ -139,7 +141,7 @@ namespace plugins {
         NativePlugin(NativePlugin &&) noexcept = delete;
         NativePlugin &operator=(const NativePlugin &) = delete;
         NativePlugin &operator=(NativePlugin &&) noexcept = delete;
-        ~NativePlugin() override;
+        ~NativePlugin() noexcept override;
         void load(const std::filesystem::path &path);
         bool callNativeLifecycle(
             const std::shared_ptr<AbstractPlugin> &module,
