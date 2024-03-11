@@ -72,12 +72,8 @@ try_add_compile_option(function-sections -ffunction-sections)
 try_add_compile_option(data-sections -fdata-sections)
 try_add_link_option(gc-sections LINKER:--gc-sections)
 
-if(CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
-  # Building for minimized footprint
-  # Turn on additional footprint optimizations
-  # (CMake already does -Os)
-
-  # Interprocedural optimization
+# LTO
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
   cmake_policy(SET CMP0069 NEW)
   set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
