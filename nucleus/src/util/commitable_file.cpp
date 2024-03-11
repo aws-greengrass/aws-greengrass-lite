@@ -7,7 +7,7 @@ namespace util {
         std::filesystem::path newPath,
         std::filesystem::path backupPath,
         std::filesystem::path targetPath)
-        : _new(std::move(newPath)), _backup(std::move(backupPath)), _target(std::move(targetPath)) {
+        : _new(std::move(newPath)), _target(std::move(targetPath)), _backup(std::move(backupPath)) {
     }
 
     CommitableFile::CommitableFile(const std::filesystem::path &path)

@@ -53,7 +53,7 @@ namespace util {
         ~ErrorBase() override = default;
 
         explicit ErrorBase(KindType kind, const std::string &what = DEFAULT_ERROR_TEXT) noexcept
-            : _kind(kind), std::runtime_error(what) {
+            : std::runtime_error(what), _kind(kind) {
         }
 
         explicit ErrorBase(

@@ -33,7 +33,7 @@ namespace config {
         ~Watching() = default;
 
         Watching(data::Symbol subKey, const std::shared_ptr<Watcher> &watcher, WhatHappened reasons)
-            : _subKey{subKey}, _watcher{watcher}, _reasons{reasons} {
+            : _subKey{subKey}, _reasons{reasons}, _watcher{watcher} {
         }
 
         Watching(const std::shared_ptr<Watcher> &watcher, WhatHappened reasons)
@@ -247,7 +247,7 @@ namespace config {
             const scope::UsingContext &context,
             const std::shared_ptr<Topics> &parent,
             const TopicElement &value)
-            : _context{context}, _parent{parent}, TopicElement{value} {
+            : TopicElement{value}, _context{context}, _parent{parent} {
         }
 
         [[nodiscard]] data::Symbol getNameOrd() const override {

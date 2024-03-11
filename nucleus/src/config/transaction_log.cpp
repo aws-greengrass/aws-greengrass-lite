@@ -9,7 +9,7 @@ namespace config {
         const scope::UsingContext &context,
         const std::shared_ptr<Topics> &root,
         const std::filesystem::path &outputPath)
-        : scope::UsesContext(context), _root(root), _tlogFile(outputPath) {
+        : scope::UsesContext(context), _tlogFile(outputPath), _root(root) {
     }
 
     TlogWriter &TlogWriter::dump() {
@@ -138,7 +138,7 @@ namespace config {
         if(_flushImmediately) {
             _tlogFile.flush();
         }
-        uint32_t currentCount = ++_count;
+        ++_count;
         // TODO: insert auto-truncate logic from ConfigurationWriter::childChanged
     }
 

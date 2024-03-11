@@ -432,8 +432,7 @@ namespace lifecycle {
         std::string container_uri = "http://localhost:8090/2016-11-01/credentialprovider/";
 
         auto [socketPath, authToken] =
-            [this,
-             note = note]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
+            [note = note]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
             auto request = ggapi::Struct::create();
             // TODO: is note correct here?
             request.put("serviceName", note);

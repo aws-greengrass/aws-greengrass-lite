@@ -9,7 +9,7 @@
 #include <thread>
 
 namespace config {
-    class Watcher;
+    struct Watcher;
     class Topics;
 
     using PublishAction = std::function<void()>;

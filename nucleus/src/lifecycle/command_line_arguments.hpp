@@ -84,7 +84,8 @@ namespace lifecycle {
         template<typename... A>
         explicit constexpr ArgumentFlag(HandlerFn &&handler, A &&...a) noexcept(
             std::is_nothrow_move_assignable_v<HandlerFn>)
-            : _handler(std::move(handler)), Argument(std::forward<A>(a)...){};
+            : Argument(std::forward<A>(a)...), _handler(std::move(handler)) {
+        }
 
         bool process(CommandLine &cli, ArgumentIterator &i) const override {
             if(isMatch(*i)) {
@@ -116,7 +117,8 @@ namespace lifecycle {
         template<typename... A>
         explicit constexpr ArgumentValue(HandlerFn &&handler, A &&...a) noexcept(
             std::is_nothrow_move_constructible_v<HandlerFn>)
-            : _handler(std::move(handler)), Argument(std::forward<A>(a)...){};
+            : Argument(std::forward<A>(a)...), _handler(std::move(handler)) {
+        }
 
         /** process the i'th string in args and determine if this is a match
          return true if it is a match and false if it is not a match */

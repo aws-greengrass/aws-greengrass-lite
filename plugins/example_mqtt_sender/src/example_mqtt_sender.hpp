@@ -31,8 +31,3 @@ public:
         return instance;
     }
 };
-
-static std::ostream &operator<<(std::ostream &os, const ggapi::Buffer &buffer) {
-    auto buf = buffer.get<std::string>(0, 1000);
-    return os << buf;
-}

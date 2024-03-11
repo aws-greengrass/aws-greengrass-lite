@@ -96,7 +96,7 @@ namespace data {
         ~Handle() noexcept = default;
 
         constexpr Handle(scope::FixedPtr<TableType> table, Partial h) noexcept
-            : _table(table), _partial(h) {
+            : _partial(h), _table(table) {
         }
 
         [[nodiscard]] uint32_t asInt() const noexcept {

@@ -6,16 +6,15 @@ void ServerListener::Connect(std::string_view socket_path) {
         std::filesystem::remove(socket_path);
     }
 
-    aws_event_stream_rpc_server_listener_options listenerOptions = {
-        .host_name = socket_path.data(),
-        .port = port,
-        .socket_options = &_socketOpts.GetImpl(),
-        .bootstrap = _bootstrap.GetUnderlyingHandle(),
-        .on_new_connection = ServerListenerCCallbacks::onNewServerConnection,
-        .on_connection_shutdown = ServerListenerCCallbacks::onServerConnectionShutdown,
-        .on_destroy_callback = onListenerDestroy,
-        .user_data = static_cast<void *>(this),
-    };
+    aws_event_stream_rpc_server_listener_options listenerOptions = {};
+    listenerOptions.host_name = socket_path.data();
+    listenerOptions.port = port;
+    listenerOptions.socket_options = &_socketOpts.GetImpl();
+    listenerOptions.bootstrap = _bootstrap.GetUnderlyingHandle();
+    listenerOptions.on_new_connection = ServerListenerCCallbacks::onNewServerConnection;
+    listenerOptions.on_connection_shutdown = ServerListenerCCallbacks::onServerConnectionShutdown;
+    listenerOptions.on_destroy_callback = onListenerDestroy;
+    listenerOptions.user_data = static_cast<void *>(this);
 
     if(listener =
            aws_event_stream_rpc_server_new_listener(Aws::Crt::ApiAllocator(), &listenerOptions);
@@ -36,7 +35,7 @@ void ServerListener::Close(int shutdownCode) noexcept {
 
 int ServerListener::sendConnectionResponse(Connection *conn) {
     return sendMessage(
-        [this, conn](auto *args) {
+        [conn](auto *args) {
             return aws_event_stream_rpc_server_connection_send_protocol_message(
                 conn, args, onMessageFlush, nullptr);
         },
@@ -46,7 +45,7 @@ int ServerListener::sendConnectionResponse(Connection *conn) {
 
 int ServerListener::sendPingResponse(Connection *conn) {
     return sendMessage(
-        [this, conn](auto *args) {
+        [conn](auto *args) {
             return aws_event_stream_rpc_server_connection_send_protocol_message(
                 conn, args, onMessageFlush, nullptr);
         },
@@ -63,7 +62,7 @@ int ServerListener::sendErrorResponse(
     std::array headers{
         makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
     return sendMessage(
-        [this, conn](auto *args) {
+        [conn](auto *args) {
             return aws_event_stream_rpc_server_connection_send_protocol_message(
                 conn, args, onMessageFlush, nullptr);
         },
@@ -168,11 +167,12 @@ int ServerListenerCCallbacks::onIncomingStream(
     auto *continuation =
         new std::shared_ptr{std::make_shared<ServerContinuation>(token, std::move(operationName))};
 
-    *continuation_options = {
-        .on_continuation = ServerContinuationCCallbacks::onContinuation,
-        .on_continuation_closed = ServerContinuationCCallbacks::onContinuationClose,
-        // NOLINTNEXTLINE
-        .user_data = static_cast<void *>(continuation)};
+    *continuation_options = {};
+    continuation_options->on_continuation = ServerContinuationCCallbacks::onContinuation;
+    continuation_options->on_continuation_closed =
+        ServerContinuationCCallbacks::onContinuationClose;
+    // NOLINTNEXTLINE
+    continuation_options->user_data = static_cast<void *>(continuation);
 
     return AWS_OP_SUCCESS;
 }

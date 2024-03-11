@@ -6,7 +6,7 @@
 
 namespace config {
 
-    class TlogLine;
+    struct TlogLine;
 
     class TlogLineResponder : public conv::JsonStructResponder {
         TlogLine &_tlogLine;

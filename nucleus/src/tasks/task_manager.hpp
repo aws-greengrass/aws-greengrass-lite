@@ -24,7 +24,7 @@ namespace tasks {
         // _delayedTasks is using multimap as an insertable ordered list,
         // TODO: is there a better std library for this?
         std::multimap<ExpireTime, std::shared_ptr<Task>> _delayedTasks;
-        int _maxWorkers{5}; // TODO, from configuration
+        uint32_t _maxWorkers{5}; // TODO, from configuration
         // Indicates that task manager is shutting down
         std::atomic_bool _shutdown{false};
 

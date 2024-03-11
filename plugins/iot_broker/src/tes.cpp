@@ -5,7 +5,6 @@ const auto LOG = ggapi::Logger::of("TES");
 ggapi::Struct IotBroker::retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
     tesRefresh();
     ggapi::Struct response = ggapi::Struct::create();
-    auto json_string = _savedToken.c_str();
     // TODO: Verify if keys exist before retrieving [Cache]
     auto jsonHandle = ggapi::Buffer::create().put(0, std::string_view{_savedToken}).fromJson();
     auto responseStruct = ggapi::Struct::create();

@@ -114,7 +114,7 @@ namespace pubsub {
         std::vector<std::shared_ptr<Listener>> callOrder;
         listeners->fillTopicListeners(callOrder);
         for(const auto &i : callOrder) {
-            task->addSubtask(std::move(i->toSubTask(topic)));
+            task->addSubtask(i->toSubTask(topic));
         }
     }
 
@@ -129,7 +129,7 @@ namespace pubsub {
             throw std::runtime_error("Data must be passed into an LPC call");
         }
         if(explicitListener) {
-            task->addSubtask(std::move(explicitListener->toSubTask(topic)));
+            task->addSubtask(explicitListener->toSubTask(topic));
         }
         if(topic) {
             insertTopicListenerSubTasks(task, topic);

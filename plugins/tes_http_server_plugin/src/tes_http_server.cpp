@@ -46,16 +46,11 @@ static int onRequestDone(struct aws_http_stream *stream, void *user_data) {
             aws_input_stream_new_from_cursor(serverParams.allocator, &body_src);
 
         std::string contentLength = std::to_string(body_src.len);
-        struct aws_http_header headers[] = {
-            {
-                .name = aws_byte_cursor_from_c_str(contentTypeHeader),
-                .value = aws_byte_cursor_from_c_str(jsonTypeHeader),
-            },
-            {
-                .name = aws_byte_cursor_from_c_str(contentLengthHeader),
-                .value = aws_byte_cursor_from_c_str(contentLength.c_str()),
-            },
-        };
+        struct aws_http_header headers[2] = {};
+        headers[0].name = aws_byte_cursor_from_c_str(contentTypeHeader);
+        headers[0].value = aws_byte_cursor_from_c_str(jsonTypeHeader);
+        headers[1].name = aws_byte_cursor_from_c_str(contentLengthHeader);
+        headers[1].value = aws_byte_cursor_from_c_str(contentLength.c_str());
 
         // Build response message
         aws_http_message_set_body_stream(requestParams->response, response_body);
@@ -191,11 +186,11 @@ void TesHttpServer::startServer() {
     // use 8080.
 
     aws_socket_endpoint _socketEndpoint{"127.0.0.1", 8090};
-    aws_socket_options _socketOptions{
-        .type = AWS_SOCKET_STREAM,
-        .connect_timeout_ms = 3000,
-        .keep_alive_timeout_sec = 10,
-        .keepalive = true};
+    aws_socket_options _socketOptions{};
+    _socketOptions.type = AWS_SOCKET_STREAM;
+    _socketOptions.connect_timeout_ms = 3000;
+    _socketOptions.keep_alive_timeout_sec = 10;
+    _socketOptions.keepalive = true;
     struct RequestHandlerParams requestParams {};
     void *pRequestHandlerParams = &requestParams;
 
