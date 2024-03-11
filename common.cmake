@@ -56,6 +56,7 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 macro(enable_warnings)
   add_compile_options(-Wall -Wextra -pedantic -Wundef)
   add_compile_options($<$<COMPILE_LANGUAGE:C>:-Wmissing-prototypes>)
+  add_compile_options(-Wno-unused-parameter)
 endmacro()
 
 add_compile_options(-fno-common)
