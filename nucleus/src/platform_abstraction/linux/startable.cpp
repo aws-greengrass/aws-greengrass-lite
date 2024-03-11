@@ -25,8 +25,8 @@ namespace ipc {
 
         // Prepare to alter user permissions
         UserInfo user{};
-        if(_user.has_value()) {
-            if(_group.has_value()) {
+        if(_user.has_value() && _user.value() != "") {
+            if(_group.has_value() && _group.value() != "") {
                 user = getUserInfo(*_user, *_group);
             } else {
                 user = getUserInfo(*_user);
