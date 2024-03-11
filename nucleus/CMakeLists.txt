@@ -255,5 +255,5 @@ if(BUILD_TESTING)
       WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
   endif()
 
-  add_test(NAME nucleus COMMAND nucleus-tests)
+  add_test(NAME nucleus COMMAND ${CMAKE_BINARY_DIR}/nucleus-tests)
 endif()
