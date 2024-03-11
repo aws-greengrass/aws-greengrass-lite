@@ -92,6 +92,8 @@ endif()
 
 # Debugger options
 
+try_add_link_option(compress-debug LINKER:--compress-debug-sections=zlib)
+
 if(LINUX)
   add_compile_options($<$<CONFIG:Debug>:-ggdb3>)
   if(GCC)
