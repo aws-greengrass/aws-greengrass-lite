@@ -197,5 +197,5 @@ jobs:
       - name: Check dependency hashes
         shell: nix develop -c bash -eo pipefail {0}
         run: |
-          ./utils/update_hashes.py
+          ./utils/scripts/update_hashes.py
           git diff --color=always --exit-code

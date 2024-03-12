@@ -18,14 +18,14 @@ stdenv.mkDerivation (self: {
     root = src;
     fileset = fileset.unions [
       (src + "/dependencies.json")
-      (src + "/utils/fetchContentFromDeps.cmake")
+      (src + "/utils/cmake/FetchContentFromDeps.cmake")
       (fileset.fileFilter
         (file: elem file.name [ "CMakeLists.txt" ] ||
-          any file.hasExt [ "cpp" "hpp" ])
-        (src + "/sample-component"))
+          any file.hasExt [ "cpp" "hpp" "yaml" ])
+        (src + "/samples/sample-component"))
     ];
   };
-  preConfigure = "cd sample-component";
+  preConfigure = "cd samples/sample-component";
   strictDeps = true;
   nativeBuildInputs = [ cmake ninja ];
   hardeningDisable = [ "all" ];

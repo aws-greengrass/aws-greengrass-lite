@@ -10,7 +10,7 @@ set(COMPONENT_VERSION 1.0.0)
 
 set(FETCHCONTENT_QUIET FALSE)
 
-include(../utils/fetchContentFromDeps.cmake)
+include(../../utils/cmake/FetchContentFromDeps.cmake)
 
 fetchContentAddCmake(device-sdk-cpp)
 

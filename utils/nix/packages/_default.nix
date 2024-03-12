@@ -20,10 +20,15 @@ stdenv.mkDerivation {
   version = "0.0.1";
   src = fileset.toSource {
     root = src;
-    fileset = fileset.fileFilter
-      (file: elem file.name [ "CMakeLists.txt" "version.script" ] ||
-        any file.hasExt [ "cpp" "hpp" "c" "h" "cmake" "json" ])
-      src;
+    fileset = fileset.unions [
+      (src + "/CMakeLists.txt")
+      (src + "/common.cmake")
+      (src + "/dependencies.json")
+      (src + "/nucleus")
+      (src + "/plugin_api")
+      (src + "/plugins")
+      (src + "/utils/cmake")
+    ];
   };
   strictDeps = true;
   nativeBuildInputs = [ cmake ninja ];
