@@ -2,8 +2,8 @@ include_guard()
 
 # Utils
 
-include(${CMAKE_CURRENT_LIST_DIR}/utils/fetchContentFromDeps.cmake)
-include(${CMAKE_CURRENT_LIST_DIR}/utils/rpath.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/utils/cmake/FetchContentFromDeps.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/utils/cmake/ConfigureRPATH.cmake)
 
 # Defs
 

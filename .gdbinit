@@ -1,1 +1,1 @@
-source gdb-extensions/greengrass-lite.py
+source utils/gdb-extensions/greengrass-lite.py

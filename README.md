@@ -115,7 +115,7 @@ package.
 
 First go to AWS IoT Core and create a thing.
 
-Copy the sample config in `./setup/nucleus_config.yml`.
+Copy the sample config in `./samples/nucleus_config.yml`.
 
 Configure the following in your config file
 
