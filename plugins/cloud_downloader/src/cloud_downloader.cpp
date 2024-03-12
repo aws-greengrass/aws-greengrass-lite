@@ -1,10 +1,12 @@
 
 #include "cloud_downloader.hpp"
+#include "api_forwards.hpp"
 #include "aws/crt/Allocator.h"
 #include <fstream>
 #include <iostream>
 #include <mutex>
 #include <string>
+#include <tuple>
 
 constexpr static int TIME_OUT_MS = 5000;
 constexpr static int PORT_NUM = 443;
@@ -55,8 +57,10 @@ void CloudDownloader::downloadClient(
     std::mutex semaphoreLock;
 
     auto onConnectionSetup =
-        [&](const std::shared_ptr<Aws::Crt::Http::HttpClientConnection> &newConnection,
+        [&, this](
+            const std::shared_ptr<Aws::Crt::Http::HttpClientConnection> &newConnection,
             int errorCode) {
+            std::ignore = getScope().setActive();
             std::lock_guard<std::mutex> lockGuard(semaphoreLock);
             if(!errorCode) {
                 LOG.atDebug().log("Successful on establishing connection.");
@@ -68,7 +72,8 @@ void CloudDownloader::downloadClient(
             conditionalVar.notify_one();
         };
 
-    auto onConnectionShutdown = [&](Aws::Crt::Http::HttpClientConnection &, int errorCode) {
+    auto onConnectionShutdown = [&,this](Aws::Crt::Http::HttpClientConnection &, int errorCode) {
+        std::ignore = getScope().setActive();
         std::lock_guard<std::mutex> lockGuard(semaphoreLock);
         connectionShutdown = true;
         if(errorCode) {
@@ -148,7 +153,7 @@ void CloudDownloader::downloadClient(
  */
 ggapi::Promise CloudDownloader::fetchToken(ggapi::Symbol, const ggapi::Container &callData) {
     return ggapi::Promise::create().async(
-        &CloudDownloader::fetchTokenAsync, ggapi::Struct(callData));
+        &CloudDownloader::fetchTokenAsync,this, ggapi::Struct(callData));
 }
 
 void CloudDownloader::fetchTokenAsync(const ggapi::Struct &callData, ggapi::Promise promise) {
@@ -195,6 +200,7 @@ void CloudDownloader::fetchTokenAsync(const ggapi::Struct &callData, ggapi::Prom
         downloadContent.write((const char *) data.ptr, data.len);
     };
 
+
     downloadClient(tlsConnectionOptions, uriAsString, request, requestOptions, allocator);
 
     LOG.atInfo().event("Download Status").log("Completed Http Request");
@@ -210,7 +216,7 @@ void CloudDownloader::fetchTokenAsync(const ggapi::Struct &callData, ggapi::Prom
  */
 ggapi::Promise CloudDownloader::genericDownload(ggapi::Symbol, const ggapi::Container &callData) {
     return ggapi::Promise::create().async(
-        &CloudDownloader::genericDownloadAsync, ggapi::Struct(callData));
+        &CloudDownloader::genericDownloadAsync,this, ggapi::Struct(callData));
 }
 
 void CloudDownloader::genericDownloadAsync(const ggapi::Struct &callData, ggapi::Promise promise) {
@@ -264,9 +270,9 @@ void CloudDownloader::genericDownloadAsync(const ggapi::Struct &callData, ggapi:
 
 bool CloudDownloader::onInitialize(ggapi::Struct data) {
     _retrieveArtifactSubs = ggapi::Subscription::subscribeToTopic(
-        ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, genericDownload);
+        ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, ggapi::TopicCallback::of(&CloudDownloader::genericDownload,this));
 
     _fetchTesFromCloudSubs = ggapi::Subscription::subscribeToTopic(
-        ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, fetchToken);
+        ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"},  ggapi::TopicCallback::of(&CloudDownloader::fetchToken, this));
     return true;
 }
