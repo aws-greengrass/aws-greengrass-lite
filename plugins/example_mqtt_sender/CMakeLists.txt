@@ -20,11 +20,8 @@ target_link_libraries(example_mqtt_sender_obj PUBLIC gg_plugin_api)
 add_library(example_mqtt_sender MODULE src/main.cpp)
 target_link_libraries(example_mqtt_sender PRIVATE example_mqtt_sender_obj)
 
-if(LINUX)
-  target_link_options(
-    example_mqtt_sender PRIVATE
-    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
-endif()
+set_version_script(example_mqtt_sender
+                   "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS example_mqtt_sender DESTINATION plugins)
 

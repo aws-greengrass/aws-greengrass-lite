@@ -29,11 +29,8 @@ target_link_libraries(cloud_downloader PRIVATE cloud_downloader_obj)
 
 configureRPATH(cloud_downloader)
 
-if(LINUX)
-  target_link_options(
-    cloud_downloader PRIVATE
-    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
-endif()
+set_version_script(cloud_downloader
+                   "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS cloud_downloader DESTINATION plugins)
 

@@ -23,10 +23,6 @@ target_link_libraries(iot_broker PRIVATE gg_plugin_api device-sdk
 
 configureRPATH(iot_broker)
 
-if(LINUX)
-  target_link_options(
-    iot_broker PRIVATE
-    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
-endif()
+set_version_script(iot_broker "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS iot_broker DESTINATION plugins)

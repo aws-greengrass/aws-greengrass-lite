@@ -16,10 +16,6 @@ add_library(example_plugin1 MODULE src/main.cpp)
 
 target_link_libraries(example_plugin1 PRIVATE gg_plugin_api)
 
-if(LINUX)
-  target_link_options(
-    example_plugin1 PRIVATE
-    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
-endif()
+set_version_script(example_plugin1 "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS example_plugin1 DESTINATION plugins)
