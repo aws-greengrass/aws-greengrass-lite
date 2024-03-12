@@ -2,6 +2,7 @@
 #include "cpp_api.hpp"
 #include "util.hpp"
 #include <atomic>
+#include <map>
 
 namespace ggapi {
 
@@ -10,49 +11,38 @@ namespace ggapi {
      */
     class Plugin {
     public:
-        enum class Phase { UNKNOWN, BOOTSTRAP, BIND, DISCOVER, START, RUN, TERMINATE };
-        using PhaseEnum = util::Enum<
-            Phase,
-            Phase::UNKNOWN,
-            Phase::BOOTSTRAP,
-            Phase::BIND,
-            Phase::DISCOVER,
-            Phase::START,
-            Phase::RUN,
-            Phase::TERMINATE>;
+        enum class Events { INITIALIZE, START, STOP, ERROR_STOP, UNKNOWN };
+        using EventEnum = util::Enum<
+            Events,
+            Events::INITIALIZE,
+            Events::START,
+            Events::STOP,
+            Events::ERROR_STOP,
+            Events::UNKNOWN>;
 
     private:
         std::atomic<ModuleScope> _moduleScope{ModuleScope{}};
-        std::atomic<Phase> _phase{Phase::UNKNOWN};
         std::atomic<Struct> _config{};
 
-        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::BOOTSTRAP> &, Struct data) {
-            return onBootstrap(data);
-        }
-
-        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::BIND> &, Struct data) {
+        bool lifecycleDispatch(const EventEnum::ConstType<Events::INITIALIZE> &, Struct data) {
             internalBind(data);
-            return onBind(data);
+            return onInitialize(data);
         }
 
-        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::DISCOVER> &, Struct data) {
-            return onDiscover(data);
-        }
-
-        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::START> &, Struct data) {
+        bool lifecycleDispatch(const EventEnum::ConstType<Events::START> &, Struct data) {
             return onStart(data);
         }
 
-        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::RUN> &, Struct data) {
-            return onRun(data);
+        bool lifecycleDispatch(const EventEnum::ConstType<Events::STOP> &, Struct data) {
+            return onStop(data);
         }
 
-        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::TERMINATE> &, Struct data) {
-            return onTerminate(data);
+        bool lifecycleDispatch(const EventEnum::ConstType<Events::ERROR_STOP> &, Struct data) {
+            return onError_stop(data);
         }
 
         // NOLINTNEXTLINE(*-convert-member-functions-to-static)
-        bool lifecycleDispatch(const PhaseEnum::ConstType<Phase::UNKNOWN> &, Struct) {
+        bool lifecycleDispatch(const EventEnum::ConstType<Events::UNKNOWN> &, Struct) {
             return false;
         }
 
@@ -60,28 +50,22 @@ namespace ggapi {
             _config = getScope().anchor(data.get<ggapi::Struct>(CONFIG));
         }
         // Lifecycle constants
-        inline static const Symbol BOOTSTRAP_SYM{"bootstrap"};
-        inline static const Symbol BIND_SYM{"bind"};
-        inline static const Symbol DISCOVER_SYM{"discover"};
+        inline static const Symbol INITIALIZE_SYM{"initialize"};
         inline static const Symbol START_SYM{"start"};
-        inline static const Symbol RUN_SYM{"run"};
-        inline static const Symbol TERMINATE_SYM{"terminate"};
+        inline static const Symbol STOP_SYM{"stop"};
+        inline static const Symbol ERROR_STOP_SYM{"error_stop"};
 
     public:
         // Mapping of symbols to enums
-        inline static const util::LookupTable PHASE_MAP{
-            BOOTSTRAP_SYM,
-            Phase::BOOTSTRAP,
-            BIND_SYM,
-            Phase::BIND,
-            DISCOVER_SYM,
-            Phase::DISCOVER,
+        inline static const util::LookupTable EVENT_MAP{
+            INITIALIZE_SYM,
+            Events::INITIALIZE,
             START_SYM,
-            Phase::START,
-            RUN_SYM,
-            Phase::RUN,
-            TERMINATE_SYM,
-            Phase::TERMINATE};
+            Events::START,
+            STOP_SYM,
+            Events::STOP,
+            ERROR_STOP_SYM,
+            Events::ERROR_STOP};
 
         // Lifecycle parameter constants
         inline static const Symbol CONFIG_ROOT{"configRoot"};
@@ -99,28 +83,14 @@ namespace ggapi {
 
         ggapiErrorKind lifecycle(
             ggapiObjHandle moduleHandle,
-            ggapiSymbol phase,
+            ggapiSymbol event,
             ggapiObjHandle data,
             bool *pHandled) noexcept {
             // No exceptions may cross API boundary
             // Return true if handled.
-            return ggapi::catchErrorToKind([this, moduleHandle, phase, data, pHandled]() {
-                *pHandled = lifecycle(ModuleScope{moduleHandle}, Symbol{phase}, Struct{data});
+            return ggapi::catchErrorToKind([this, moduleHandle, event, data, pHandled]() {
+                *pHandled = lifecycle(ModuleScope{moduleHandle}, Symbol{event}, Struct{data});
             });
-        }
-
-        bool lifecycle(ModuleScope moduleScope, Symbol phase, Struct data) {
-            _moduleScope = moduleScope;
-            auto mappedPhase = PHASE_MAP.lookup(phase).value_or(Phase::UNKNOWN);
-            _phase = mappedPhase;
-            beforeLifecycle(phase, data); // TODO: Deprecate
-            beforeLifecycle(mappedPhase, data);
-            bool handled = PhaseEnum::visit<bool>(mappedPhase, [this, data](auto p) {
-                               return this->lifecycleDispatch(p, data);
-                           }).value_or(false);
-            afterLifecycle(mappedPhase, data);
-            afterLifecycle(phase, data); // TODO: Deprecate
-            return handled;
         }
 
         /**
@@ -131,11 +101,14 @@ namespace ggapi {
             return _moduleScope.load();
         }
 
-        /**
-         * Current phase driven by lifecycle manager
-         */
-        [[nodiscard]] Phase getCurrentPhase() const {
-            return _phase.load();
+    protected:
+        bool lifecycle(ModuleScope moduleScope, Symbol event, Struct data) {
+            _moduleScope = moduleScope;
+            auto mappedEvent = EVENT_MAP.lookup(event).value_or(Events::UNKNOWN);
+            bool handled = EventEnum::visit<bool>(mappedEvent, [this, data](auto p) {
+                               return this->lifecycleDispatch(p, data);
+                           }).value_or(false);
+            return handled;
         }
 
         /**
@@ -145,63 +118,19 @@ namespace ggapi {
             return _config;
         }
 
-    protected:
-        /** the lifecycle override interface should never be directly called so it is protected */
-        /**
-         * (Deprecated) Hook to allow any pre-processing before lifecycle step
-         */
-        virtual void beforeLifecycle(Symbol phase, Struct data) {
-        }
-
-        /**
-         * Hook to allow any pre-processing before lifecycle step
-         */
-        virtual void beforeLifecycle(Phase phase, Struct data) {
-        }
-
-        /**
-         * (Deprecated) Hook to allow any post-processing after lifecycle step
-         */
-        virtual void afterLifecycle(Symbol phase, Struct data) {
-        }
-
-        /**
-         * Hook to allow any post-processing after lifecycle step
-         */
-        virtual void afterLifecycle(Phase phase, Struct data) {
-        }
-
         /**
          * For plugins discovered during bootstrap. Return true if handled. Typically a plugin
          * will set the component name during this cycle.
          * TODO: This may change
          */
-        virtual bool onBootstrap(Struct data) {
-            std::cout << "Default onBootstrap\n";
+        virtual bool onInitialize(Struct data) {
+            std::cout << "Default onInitialize\n";
             return false;
         }
 
         /**
          * For plugins, after recipe has been read, but before any other
          * lifecycle stages. Use this cycle for any data binding.
-         */
-        virtual bool onBind(Struct data) {
-            std::cout << "Default onBind\n";
-            return false;
-        }
-
-        /**
-         * For plugins discovered during bootstrap, permits discovering other
-         * plugins. Return true if handled.
-         * TODO: This may change
-         */
-        virtual bool onDiscover(Struct data) {
-            std::cout << "Default onDiscover\n";
-            return false;
-        }
-
-        /**
-         * Plugin is about to move into an active state. Return true if handled.
          */
         virtual bool onStart(Struct data) {
             std::cout << "Default onStart\n";
@@ -211,18 +140,17 @@ namespace ggapi {
         /**
          * Plugin has transitioned into an active state. Return true if handled.
          */
-        virtual bool onRun(Struct data) {
-            std::cout << "Default onRun\n";
+        virtual bool onStop(Struct data) {
+            std::cout << "Default onStop\n";
             return false;
         }
 
         /**
          * Plugin is being terminated - use for cleanup. Return true if handled.
          */
-        virtual bool onTerminate(Struct data) {
-            std::cout << "Default onTerminate\n";
+        virtual bool onError_stop(Struct data) {
+            std::cout << "Default onError_stop\n";
             return false;
         }
     };
-
 } // namespace ggapi

@@ -70,14 +70,10 @@ class IotBroker : public ggapi::Plugin {
     std::string _savedToken;
 
 public:
-    bool onBootstrap(ggapi::Struct data) override;
-    bool onBind(ggapi::Struct data) override;
-    bool onDiscover(ggapi::Struct data) override;
+    bool onInitialize(ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;
-    bool onRun(ggapi::Struct data) override;
-    bool onTerminate(ggapi::Struct data) override;
-    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
-    void afterLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
+    bool onStop(ggapi::Struct data) override;
+    bool onError_stop(ggapi::Struct data) override;
 
     static IotBroker &get() {
         static IotBroker instance{};

@@ -319,10 +319,10 @@ namespace lifecycle {
     }
 
     void Kernel::launchLifecycle() {
-        //
-        // TODO: All of below is temporary logic - all this will be rewritten when the lifecycle
-        // management is implemented.
-        //
+        /**
+         * TODO: All of below is temporary logic - all this will be rewritten when the lifecycle
+         * management is implemented.
+         */
 
         auto &loader = context()->pluginLoader();
         loader.setPaths(getPaths());
@@ -330,19 +330,13 @@ namespace lifecycle {
         loader.discoverPlugins(getPaths()->pluginPath());
 
         loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
-            plugin.lifecycle(loader.DISCOVER, data);
-        });
-        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
             plugin.lifecycle(loader.START, data);
-        });
-        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
-            plugin.lifecycle(loader.RUN, data);
         });
 
         std::ignore = ggapiWaitForTaskCompleted(
             ggapiGetCurrentTask(), -1); // essentially blocks until kernel signalled to terminate
         loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
-            plugin.lifecycle(loader.TERMINATE, data);
+            plugin.lifecycle(loader.STOP, data);
         });
         getConfig().publishQueue().stop();
         _deploymentManager->stop();

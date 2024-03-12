@@ -8,16 +8,6 @@ using namespace std::chrono_literals;
 const Keys ProvisionPlugin::keys{};
 
 /**
- *
- * @param phase
- * @param data
- */
-void ProvisionPlugin::beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) {
-    std::cout << "[provision-plugin] Running lifecycle provision plugin... "
-              << ggapi::StringOrd{phase}.toString() << std::endl;
-}
-
-/**
  * Listen on the well-known Provisioning topic, and if a request for provisioning comes in,
  * perform a By-Claim provisioning action to IoT Core.
  */
@@ -26,16 +16,12 @@ ggapi::Struct ProvisionPlugin::brokerListener(ggapi::Task, ggapi::StringOrd, gga
     return provisionDevice();
 }
 
-bool ProvisionPlugin::onBootstrap(ggapi::Struct data) {
-    data.put(NAME, keys.serviceName);
-    return true;
-}
-
 /**
  * This cycle is normally used for binding. Provisioning may be called very early on, so
  * bind the provisioning topic during this binding phase. (Atypical)
  */
-bool ProvisionPlugin::onBind(ggapi::Struct data) {
+bool ProvisionPlugin::onInitialize(ggapi::Struct data) {
+    data.put(NAME, keys.serviceName);
     _subscription = getScope().subscribeToTopic(
         keys.topicName, ggapi::TopicCallback::of(&ProvisionPlugin::brokerListener, this));
     _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
@@ -43,27 +29,9 @@ bool ProvisionPlugin::onBind(ggapi::Struct data) {
 }
 
 /**
- *
- * @param data
- * @return True if successful, false otherwise.
- */
-bool ProvisionPlugin::onStart(ggapi::Struct data) {
-    return true;
-}
-
-/**
- *
- * @param data
- * @return True if successful, false otherwise.
- */
-bool ProvisionPlugin::onRun(ggapi::Struct data) {
-    return true;
-}
-
-/**
  * Release subscriptions during termination.
  */
-bool ProvisionPlugin::onTerminate(ggapi::Struct data) {
+bool ProvisionPlugin::onStop(ggapi::Struct data) {
     _subscription.load().release();
     return true;
 }

@@ -3,7 +3,7 @@
 
 constexpr std::string_view START = "start";
 constexpr std::string_view RUN = "run";
-constexpr std::string_view TERMINATE = "terminate";
+constexpr std::string_view TERMINATE = "stop";
 
 class TestCloudDownloader : public CloudDownloader {
     ggapi::ModuleScope _moduleScope;
@@ -14,10 +14,7 @@ public:
     }
 
     bool executePhase(std::string_view phase) {
-        // TODO: Return before afterLifecycle?
-        beforeLifecycle(ggapi::Symbol{phase}, ggapi::Struct::create());
         bool status = lifecycle(_moduleScope, ggapi::Symbol{phase}, ggapi::Struct::create());
-        afterLifecycle(ggapi::Symbol{phase}, ggapi::Struct::create());
         return status;
     };
 

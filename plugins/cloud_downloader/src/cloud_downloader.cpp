@@ -8,7 +8,7 @@
 
 constexpr static int TIME_OUT_MS = 5000;
 constexpr static int PORT_NUM = 443;
-const char* const THING_NAME_HEADER = "x-amzn-iot-thingname";
+const char *const THING_NAME_HEADER = "x-amzn-iot-thingname";
 
 /*
 A common client helper function to make the request to a url using the aws's library
@@ -251,23 +251,11 @@ ggapi::Struct CloudDownloader::genericDownload(ggapi::Task, ggapi::Symbol, ggapi
     return response;
 }
 
-bool CloudDownloader::onDiscover(ggapi::Struct data) {
+bool CloudDownloader::onInitialize(ggapi::Struct data) {
     std::ignore = getScope().subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, genericDownload);
 
     std::ignore =
         getScope().subscribeToTopic(ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, fetchToken);
-    return true;
-}
-
-bool CloudDownloader::onRun(ggapi::Struct data) {
-    return true;
-}
-
-void CloudDownloader::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
-    std::cout << "[Cloud_Downloader] Running lifecycle phase " << phase.toString() << std::endl;
-}
-
-bool CloudDownloader::onTerminate(ggapi::Struct data) {
     return true;
 }

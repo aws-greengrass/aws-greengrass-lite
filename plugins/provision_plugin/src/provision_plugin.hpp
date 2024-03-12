@@ -81,12 +81,8 @@ class ProvisionPlugin : public ggapi::Plugin {
 
 public:
     ProvisionPlugin() = default;
-    void beforeLifecycle(ggapi::StringOrd phase, ggapi::Struct data) override;
-    bool onBootstrap(ggapi::Struct data) override;
-    bool onBind(ggapi::Struct data) override;
-    bool onStart(ggapi::Struct data) override;
-    bool onRun(ggapi::Struct data) override;
-    bool onTerminate(ggapi::Struct data) override;
+    bool onInitialize(ggapi::Struct data) override;
+    bool onStop(ggapi::Struct data) override;
     ggapi::Struct brokerListener(ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
     static ProvisionPlugin &get() {
         static ProvisionPlugin instance;

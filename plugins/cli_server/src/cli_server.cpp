@@ -8,17 +8,8 @@ static const Keys keys;
 
 static const DeploymentKeys deploymentKeys;
 
-void CliServer::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
-    ggapi::Symbol phaseOrd{phase};
-    std::cerr << "[cli-server] Running lifecycle phase " << phaseOrd.toString() << std::endl;
-}
-
-bool CliServer::onBootstrap(ggapi::Struct data) {
+bool CliServer::onInitialize(ggapi::Struct data) {
     data.put(NAME, keys.serviceName);
-    return true;
-}
-
-bool CliServer::onBind(ggapi::Struct data) {
     _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
     _config = getScope().anchor(data.getValue<ggapi::Struct>({"config"}));
     _configRoot = getScope().anchor(data.getValue<ggapi::Struct>({"configRoot"}));
@@ -41,6 +32,10 @@ bool CliServer::onStart(ggapi::Struct data) {
     std::ignore = getScope().subscribeToTopic(
         keys.listLocalDeployments,
         ggapi::TopicCallback::of(&CliServer::listDeploymentsHandler, this));
+    // GG-Interop: Extract rootpath from system config
+    auto system = _system.load();
+    std::filesystem::path rootPath = system.getValue<std::string>({"rootpath"});
+    generateCliIpcInfo(rootPath / CLI_IPC_INFO_PATH);
     return true;
 }
 
@@ -86,15 +81,11 @@ void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) 
         filePath, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write);
 }
 
-bool CliServer::onRun(ggapi::Struct data) {
-    // GG-Interop: Extract rootpath from system config
-    auto system = _system.load();
-    std::filesystem::path rootPath = system.getValue<std::string>({"rootpath"});
-    generateCliIpcInfo(rootPath / CLI_IPC_INFO_PATH);
+bool CliServer::onStop(ggapi::Struct data) {
     return true;
 }
 
-bool CliServer::onTerminate(ggapi::Struct data) {
+bool CliServer::onError_stop(ggapi::Struct data) {
     return true;
 }
 

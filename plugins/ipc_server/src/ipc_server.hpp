@@ -51,11 +51,10 @@ private:
 
 public:
     IpcServer() noexcept;
-    bool onBootstrap(ggapi::Struct data) override;
-    bool onBind(ggapi::Struct data) override;
+    bool onInitialize(ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;
-    bool onTerminate(ggapi::Struct data) override;
-    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
+    bool onStop(ggapi::Struct data) override;
+    bool onError_stop(ggapi::Struct data) override;
 
     static IpcServer &get() {
         static IpcServer instance{};

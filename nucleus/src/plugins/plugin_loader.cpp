@@ -47,8 +47,8 @@ namespace plugins {
             throw std::runtime_error(
                 std::string("Cannot load shared object: ") + filePath + std::string(" ") + error);
         }
-        // NOLINTNEXTLINE(*-reinterpret-cast)
         _lifecycleFn.store(
+            // NOLINTNEXTLINE(*-reinterpret-cast)
             reinterpret_cast<GgapiLifecycleFn *>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
 #elif defined(USE_WINDLL)
         nativeHandle_t handle =
@@ -74,7 +74,7 @@ namespace plugins {
 
     bool NativePlugin::callNativeLifecycle(
         const data::ObjHandle &pluginHandle,
-        const data::Symbol &phase,
+        const data::Symbol &event,
         const data::ObjHandle &dataHandle) {
 
         GgapiLifecycleFn *lifecycleFn = _lifecycleFn.load();
@@ -82,7 +82,7 @@ namespace plugins {
         if(lifecycleFn != nullptr) {
             bool handled = false;
             ggapiErrorKind error =
-                lifecycleFn(pluginHandle.asInt(), phase.asInt(), dataHandle.asInt(), &handled);
+                lifecycleFn(pluginHandle.asInt(), event.asInt(), dataHandle.asInt(), &handled);
             errors::Error::throwThreadError(error);
             return handled;
         }
@@ -90,13 +90,13 @@ namespace plugins {
     }
 
     bool DelegatePlugin::callNativeLifecycle(
-        const data::ObjHandle &pluginHandle,
-        const data::Symbol &phase,
+        const data::ObjHandle &pluginRoot,
+        const data::Symbol &event,
         const data::ObjHandle &dataHandle) {
 
         auto callback = _callback;
         if(callback) {
-            return callback->invokeLifecycleCallback(pluginHandle, phase, dataHandle);
+            return callback->invokeLifecycleCallback(pluginRoot, event, dataHandle);
         }
         return true;
     }
@@ -188,27 +188,26 @@ namespace plugins {
     }
 
     void AbstractPlugin::lifecycle(
-        data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data) {
+        data::Symbol event, const std::shared_ptr<data::StructModelBase> &data) {
 
-        LOG.atInfo().event("lifecycle").kv("name", getName()).kv("phase", phase).log();
+        LOG.atInfo().event("lifecycle").kv("name", getName()).kv("event", event).log();
         errors::ThreadErrorContainer::get().clear();
         scope::StackScope scope{};
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 
         data::ObjHandle dataHandle = scope.getCallScope()->root()->anchor(data).getHandle();
         try {
-            bool wasHandled = callNativeLifecycle(getSelf(), phase, dataHandle);
-            if(wasHandled) {
+            if(callNativeLifecycle(getSelf(), event, dataHandle)) {
                 LOG.atDebug()
                     .event("lifecycle-completed")
                     .kv("name", getName())
-                    .kv("phase", phase)
+                    .kv("event", event)
                     .log();
             } else {
                 LOG.atInfo()
                     .event("lifecycle-unhandled")
                     .kv("name", getName())
-                    .kv("phase", phase)
+                    .kv("event", event)
                     .log();
                 // TODO: Add default behavior for unhandled callback
             }
@@ -216,7 +215,7 @@ namespace plugins {
             LOG.atError()
                 .event("lifecycle-error")
                 .kv("name", getName())
-                .kv("phase", phase)
+                .kv("event", event)
                 .cause(lastError)
                 .log();
         }
@@ -227,7 +226,6 @@ namespace plugins {
             return;
         }
         auto data = loader.buildParams(*this, true);
-        lifecycle(loader.BOOTSTRAP, data);
         data::StructElement el = data->get(loader.NAME);
         if(el.isScalar()) {
             // Allow name to be changed
@@ -241,7 +239,7 @@ namespace plugins {
         config->put("version", std::string("0.0.0"));
         config->put("dependencies", std::make_shared<data::SharedList>(context()));
         // Now allow plugin to bind to service part of the config tree
-        lifecycle(loader.BIND, data);
+        lifecycle(loader.INITIALIZE, data);
     }
 
     void AbstractPlugin::configure(PluginLoader &loader) {

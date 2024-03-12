@@ -89,11 +89,9 @@ void requireNoTransitionOnEvent(
 template<class SourceT, class DesiredT, class Fn>
 void requireTransition(TestComponentListener &listener, ComponentLifecycle &lifecycle, Fn &&fn) {
     lifecycle.clearFlags();
-    {
-        ALLOW_CALL(listener, update());
-        ALLOW_CALL(listener, skip());
-        lifecycle.overrideState(SourceT{});
-    }
+    ALLOW_CALL(listener, update());
+    ALLOW_CALL(listener, skip());
+    lifecycle.overrideState(SourceT{});
     FORBID_CALL(listener, alertStateUnchanged(mock::_, mock::_));
     REQUIRE_CALL(listener, alertStateChange(matchState<SourceT>(), matchState<DesiredT>()))
         .TIMES(1);
