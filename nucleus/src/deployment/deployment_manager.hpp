@@ -89,10 +89,11 @@ namespace deployment {
             }
             if(!sec.keys().empty()) {
                 sec(section); // map/structure
+            } else {
+                // if not a map, expected to be a script
+                section.emplace();
+                sec(section.value().script);
             }
-            // if not a map, expected to be a script
-            section.emplace();
-            sec(section.value().script);
         }
 
         void helper(
