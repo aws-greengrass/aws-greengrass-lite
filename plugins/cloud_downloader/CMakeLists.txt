@@ -58,6 +58,5 @@ if(BUILD_TESTING AND NOT WIN32)
 
   catch_discover_tests(cloud_downloader_tests)
 
-  add_test(NAME cloud_downloader
-           COMMAND ${CMAKE_BINARY_DIR}/cloud_downloader_tests)
+  add_test(NAME cloud_downloader COMMAND cloud_downloader_tests)
 endif()
