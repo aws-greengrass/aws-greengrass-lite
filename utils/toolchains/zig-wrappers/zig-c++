@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+args=()
+for arg in "$@"; do
+  if [[ "$arg" == -march=armv8-a+crc ]]; then
+      args+=(-march=v8a+crc)
+  else
+      args+=("$arg")
+  fi
+done
+exec zig c++ "${args[@]}"
