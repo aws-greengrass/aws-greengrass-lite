@@ -21,10 +21,7 @@ target_link_libraries(provision_plugin PRIVATE gg_plugin_api device-sdk)
 
 configureRPATH(provision_plugin)
 
-if(LINUX)
-  target_link_options(
-    provision_plugin PRIVATE
-    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
-endif()
+set_version_script(provision_plugin
+                   "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS provision_plugin DESTINATION plugins)

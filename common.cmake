@@ -4,6 +4,7 @@ include_guard()
 
 include(${CMAKE_CURRENT_LIST_DIR}/utils/cmake/FetchContentFromDeps.cmake)
 include(${CMAKE_CURRENT_LIST_DIR}/utils/cmake/ConfigureRPATH.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/utils/cmake/VersionScript.cmake)
 
 # Defs
 

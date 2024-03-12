@@ -33,10 +33,6 @@ target_link_libraries(ipc_server PRIVATE gg_plugin_api device-sdk)
 
 configureRPATH(ipc_server)
 
-if(LINUX)
-  target_link_options(
-    ipc_server PRIVATE
-    "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
-endif()
+set_version_script(ipc_server "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS ipc_server DESTINATION plugins)
