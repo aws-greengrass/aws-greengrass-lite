@@ -510,6 +510,10 @@ namespace lifecycle {
                     startable.asGroup(std::move(group).value());
                 }
             }
+        } else {
+            // requiresPrivilege -> run as root user 
+            startable.asUser("root");
+            startable.asGroup("root");
         }
 
         return _processManager->registerProcess([startable]() -> std::unique_ptr<ipc::Process> {

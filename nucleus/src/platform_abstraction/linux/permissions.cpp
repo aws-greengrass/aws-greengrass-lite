@@ -67,12 +67,6 @@ namespace ipc {
     }
 
     void setUserInfo(UserInfo user) noexcept {
-        // Cannot set uid or gid to root
-        // So, using them as sentinel values here is OK
-        if(user.uid == 0 || user.gid == 0) {
-            return;
-        }
-
         // if either fail, aborting is safest to avoid creating
         // a privileged process
         if(setgid(user.gid) == -1) {

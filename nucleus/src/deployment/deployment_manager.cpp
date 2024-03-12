@@ -390,7 +390,6 @@ namespace deployment {
         try {
             // TODO: validate deployment
             // TODO: Document is intended to be a Struct (loaded document), not a file / string
-            // Need to change to readFromStruct()
             auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
             auto jsonToStruct = [](auto json) {
                 auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();
