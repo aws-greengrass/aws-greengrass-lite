@@ -7,8 +7,6 @@
 #include <logging.hpp>
 #include <plugin.hpp>
 
-const auto LOG = ggapi::Logger::of("Cloud_downloader");
-
 class CloudDownloader : public ggapi::Plugin {
 private:
     void downloadClient(

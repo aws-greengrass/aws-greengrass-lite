@@ -191,7 +191,6 @@ namespace ggapi {
             std::unique_lock guard{_mutex};
             // Note, we need pointer for reanchor step. We know pointer is not removed until used,
             // and pointer will not be used until after return.
-            CallbackDispatch *pDispatch = cb.get();
             _callbacks.emplace(idx, std::move(cb));
             guard.unlock(); // if call below fails, callback is immediately unregistered
             ggapiObjHandle callbackHandle = 0;

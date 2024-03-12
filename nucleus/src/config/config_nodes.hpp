@@ -242,7 +242,7 @@ namespace config {
             const scope::UsingContext &context,
             const std::shared_ptr<Topics> &parent,
             const TopicElement &value)
-            : UsesContext{context}, TopicElement{value}, _parent{parent} {
+            : TopicElement{value}, UsesContext{context}, _parent{parent} {
         }
 
         [[nodiscard]] data::Symbol getNameOrd() const override {

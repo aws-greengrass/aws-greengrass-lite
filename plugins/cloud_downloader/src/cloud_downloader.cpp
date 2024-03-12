@@ -1,12 +1,12 @@
-
 #include "cloud_downloader.hpp"
-#include "api_forwards.hpp"
 #include "aws/crt/Allocator.h"
 #include <fstream>
 #include <iostream>
 #include <mutex>
 #include <string>
-#include <tuple>
+#include <temp_module.hpp>
+
+static const auto LOG = ggapi::Logger::of("Cloud_downloader");
 
 constexpr static int TIME_OUT_MS = 5000;
 constexpr static int PORT_NUM = 443;
@@ -60,7 +60,7 @@ void CloudDownloader::downloadClient(
         [&, this](
             const std::shared_ptr<Aws::Crt::Http::HttpClientConnection> &newConnection,
             int errorCode) {
-            std::ignore = getScope().setActive();
+            util::TempModule(getScope());
             std::lock_guard<std::mutex> lockGuard(semaphoreLock);
             if(!errorCode) {
                 LOG.atDebug().log("Successful on establishing connection.");
@@ -73,7 +73,7 @@ void CloudDownloader::downloadClient(
         };
 
     auto onConnectionShutdown = [&,this](Aws::Crt::Http::HttpClientConnection &, int errorCode) {
-        std::ignore = getScope().setActive();
+        util::TempModule(getScope());
         std::lock_guard<std::mutex> lockGuard(semaphoreLock);
         connectionShutdown = true;
         if(errorCode) {
