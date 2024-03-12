@@ -505,7 +505,7 @@ namespace lifecycle {
                 }
             }
         } else {
-            // requiresPrivilege -> run as root user 
+            // requiresPrivilege -> run as root user
             startable.asUser("root");
             startable.asGroup("root");
         }
