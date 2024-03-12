@@ -27,13 +27,15 @@ target_link_libraries(cloud_downloader_obj PUBLIC gg_plugin_api device-sdk)
 add_library(cloud_downloader MODULE src/main.cpp)
 target_link_libraries(cloud_downloader PRIVATE cloud_downloader_obj)
 
-install(TARGETS cloud_downloader DESTINATION plugins)
+configureRPATH(cloud_downloader)
 
 if(LINUX)
   target_link_options(
     cloud_downloader PRIVATE
     "LINKER:--version-script=${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 endif()
+
+install(TARGETS cloud_downloader DESTINATION plugins)
 
 # Tests
 
