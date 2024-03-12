@@ -97,8 +97,9 @@ namespace plugins {
     }
 
     void NativePlugin::load(const std::filesystem::path &path) {
+        std::string filePathString = path.generic_string();
 #if defined(USE_DLFCN)
-        NativeHandle handle = ::dlopen(filePath.c_str(), RTLD_NOW | RTLD_LOCAL);
+        NativeHandle handle = ::dlopen(filePathString.c_str(), RTLD_NOW | RTLD_LOCAL);
         _handle.store(handle);
         if(handle == nullptr) {
             // Note, dlerror() below will flag "concurrency-mt-unsafe"
@@ -108,14 +109,15 @@ namespace plugins {
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             std::string error{dlerror()};
             throw std::runtime_error(
-                std::string("Cannot load shared object: ") + filePath + std::string(" ") + error);
+                std::string("Cannot load shared object: ") + filePathString + std::string(" ")
+                + error);
         }
         _lifecycleFn.store(
             // NOLINTNEXTLINE(*-reinterpret-cast)
             reinterpret_cast<GgapiLifecycleFn *>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
 #elif defined(USE_WINDLL)
         NativeHandle handle =
-            ::LoadLibraryEx(path.string().c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+            ::LoadLibraryEx(filePathString.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
         _handle.store(handle);
         if(handle == nullptr) {
             LOG.atError().logAndThrow(
@@ -165,8 +167,7 @@ namespace plugins {
         auto callback = _callback;
         if(callback) {
             scope::TempRoot tempRoot;
-            return callback->invokeLifecycleCallback(
-                scope::asHandle(baseRef()), phase, scope::asHandle(data));
+            return callback->invokeLifecycleCallback(ref<plugins::AbstractPlugin>(), phase, data);
         } else {
             return false; // no callback, so caller should act as if event unhandled
         }
