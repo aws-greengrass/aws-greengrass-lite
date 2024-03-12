@@ -55,10 +55,10 @@ namespace plugins {
 
         virtual bool callNativeLifecycle(
             const data::ObjHandle &pluginRoot,
-            const data::Symbol &phase,
-            const data::ObjHandle &data) = 0;
+            const data::Symbol &event,
+            const data::ObjHandle &dataHandle) = 0;
 
-        void lifecycle(data::Symbol phase, const std::shared_ptr<data::StructModelBase> &data);
+        void lifecycle(data::Symbol event, const std::shared_ptr<data::StructModelBase> &data);
 
         void configure(PluginLoader &loader);
 
@@ -114,8 +114,8 @@ namespace plugins {
 
         bool callNativeLifecycle(
             const data::ObjHandle &pluginRoot,
-            const data::Symbol &phase,
-            const data::ObjHandle &data) override;
+            const data::Symbol &event,
+            const data::ObjHandle &dataHandle) override;
 
         std::shared_ptr<AbstractPlugin> getParent() {
             return _parent.lock();
@@ -151,7 +151,7 @@ namespace plugins {
         void load(const std::filesystem::path &path);
         bool callNativeLifecycle(
             const data::ObjHandle &pluginHandle,
-            const data::Symbol &phase,
+            const data::Symbol &event,
             const data::ObjHandle &dataHandle) override;
         bool isActive() noexcept override;
     };
@@ -167,29 +167,23 @@ namespace plugins {
 
     public:
         /*
-         * Plugin loaded, recipe/config unknown
+         * initialize/install the plugin
          */
-        data::SymbolInit BOOTSTRAP{"bootstrap"};
-        /*
-         * Plugin loaded, recipe/config filled in
-         */
-        data::SymbolInit BIND{"bind"};
+        data::SymbolInit INITIALIZE{"initialize"};
         /**
-         * Request to discover nested plugins (may be deprecated)
-         */
-        data::SymbolInit DISCOVER{"discover"};
-        /**
-         * Plugin component enter start phase - request to get ready for run
+         * Request to START.  The plugin is expected to be running after this event
          */
         data::SymbolInit START{"start"};
         /**
-         * Plugin component enter run phase - plugin can issue traffic to other plugins
+         * Plugin component to STOP.  Shutdown any threads and free memory.  The plugin may be
+         * unloaded or restarted.
          */
-        data::SymbolInit RUN{"run"};
+        data::SymbolInit STOP{"stop"};
         /**
-         * Plugin component enter terminate phase - plugin is about to be unloaded
+         * Plugin component to ERROR_STOP.  This is like STOP but upon completion, NUCLEUS
+         * will place the plugin in the BROKEN state.
          */
-        data::SymbolInit TERMINATE{"terminate"};
+        data::SymbolInit ERROR_STOP{"error_stop"};
         /**
          * Root of configuration tree (used by special plugins only)
          */
@@ -217,12 +211,10 @@ namespace plugins {
             data::SymbolInit::init(
                 context,
                 {
-                    &BOOTSTRAP,
-                    &BIND,
-                    &DISCOVER,
+                    &INITIALIZE,
                     &START,
-                    &RUN,
-                    &TERMINATE,
+                    &STOP,
+                    &ERROR_STOP,
                     &CONFIG_ROOT,
                     &CONFIG,
                     &NUCLEUS_CONFIG,

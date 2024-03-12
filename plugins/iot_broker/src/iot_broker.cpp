@@ -245,29 +245,28 @@ const IotBroker::Keys IotBroker::keys{};
 
 /* Lifecycle function implementations */
 
-void IotBroker::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
-    std::cerr << "[mqtt-plugin] Running lifecycle phase " << phase.toString() << std::endl;
-}
+// Initializes global CRT API
+static Aws::Crt::ApiHandle apiHandle{};
 
-void IotBroker::afterLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
-    std::cerr << "[mqtt-plugin] Finished lifecycle phase " << phase.toString() << std::endl;
-}
+bool IotBroker::onInitialize(ggapi::Struct data) {
+    data.put("name", "aws.greengrass.iot_broker");
+    std::cout << "[mqtt-plugin] initializing\n";
 
-bool IotBroker::onBootstrap(ggapi::Struct structData) {
-    structData.put("name", "aws.greengrass.iot_broker");
-    std::cout << "[mqtt-plugin] bootstrapping\n";
-
-    return true;
-}
-
-bool IotBroker::onDiscover(ggapi::Struct data) {
-    return false;
-}
-
-bool IotBroker::onBind(ggapi::Struct data) {
+    // activate the logging.  Probably not going to stay here so don't worry if you see it fail to
+    // initialize
+    static std::once_flag loggingInitialized;
+    try {
+        std::call_once(loggingInitialized, []() {
+            apiHandle.InitializeLogging(Aws::Crt::LogLevel::Info, stderr);
+        });
+    } catch(const std::exception &e) {
+        std::cerr << "[mqtt-plugin] probably did not initialize the logging: " << e.what()
+                  << std::endl;
+    }
     _nucleus = getScope().anchor(data.getValue<ggapi::Struct>({"nucleus"}));
     _system = getScope().anchor(data.getValue<ggapi::Struct>({"system"}));
     std::cout << "[mqtt-plugin] binding\n";
+
     return true;
 }
 
@@ -318,16 +317,18 @@ bool IotBroker::onStart(ggapi::Struct data) {
 
     // Fetch the inital token from TES
     tesOnStart(data);
+    tesOnRun();
     return returnValue;
 }
 
-bool IotBroker::onRun(ggapi::Struct data) {
-    tesOnRun();
+bool IotBroker::onStop(ggapi::Struct structData) {
+    // TODO: Cleanly stop thread and clean up listeners
+    std::cout << "[mqtt-plugin] stopping\n";
     return true;
 }
 
-bool IotBroker::onTerminate(ggapi::Struct structData) {
-    // TODO: Cleanly stop thread and clean up listeners
-    std::cout << "[mqtt-plugin] terminating\n";
+bool IotBroker::onError_stop(ggapi::Struct data) {
+    // TODO: Cleanly stop threads and remove listenters.
+    // This plugin is going to be in the broken state when this finishes.
     return true;
 }

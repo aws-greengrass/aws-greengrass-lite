@@ -32,7 +32,6 @@ private:
     std::shared_mutex _subscriptionMutex;
 
 public:
-    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;
 
     ggapi::Struct publishToTopicHandler(
@@ -118,10 +117,6 @@ bool LocalBroker::onStart(ggapi::Struct data) {
         keys.ipcSubscribeToTopic,
         ggapi::TopicCallback::of(&LocalBroker::subscribeToTopicHandler, this));
     return true;
-}
-
-void LocalBroker::beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) {
-    std::cerr << "[local-broker] Running lifecycle phase " << phase.toString() << std::endl;
 }
 
 extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(

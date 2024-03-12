@@ -23,10 +23,7 @@ private:
     static ggapi::Struct genericDownload(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
 
 public:
-    bool onDiscover(ggapi::Struct data) override;
-    void beforeLifecycle(ggapi::Symbol phase, ggapi::Struct data) override;
-    bool onRun(ggapi::Struct data) override;
-    bool onTerminate(ggapi::Struct data) override;
+    bool onInitialize(ggapi::Struct data) override;
 
     static CloudDownloader &get() {
         static CloudDownloader instance{};
