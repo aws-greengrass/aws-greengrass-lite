@@ -187,6 +187,10 @@ namespace plugins {
          * Component name
          */
         data::SymbolInit NAME{"name"};
+        /**
+         * Module handle
+         */
+        data::SymbolInit MODULE{"module"};
 
         data::SymbolInit SERVICES{"services"};
         data::SymbolInit SYSTEM{"system"};

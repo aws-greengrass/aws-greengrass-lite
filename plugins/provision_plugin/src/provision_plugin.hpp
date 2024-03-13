@@ -59,6 +59,7 @@ struct DeviceConfig {
 };
 
 class ProvisionPlugin : public ggapi::Plugin {
+    mutable std::shared_mutex _mutex;
     // TODO - values below are shared across multiple threads and needs to be made thread safe
     struct DeviceConfig _deviceConfig;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _mqttClient;

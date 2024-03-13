@@ -57,10 +57,9 @@ void CloudDownloader::downloadClient(
     std::mutex semaphoreLock;
 
     auto onConnectionSetup =
-        [&, this](
-            const std::shared_ptr<Aws::Crt::Http::HttpClientConnection> &newConnection,
+        [&](const std::shared_ptr<Aws::Crt::Http::HttpClientConnection> &newConnection,
             int errorCode) {
-            util::TempModule(getScope());
+            util::TempModule(getModule());
             std::lock_guard<std::mutex> lockGuard(semaphoreLock);
             if(!errorCode) {
                 LOG.atDebug().log("Successful on establishing connection.");
@@ -72,8 +71,8 @@ void CloudDownloader::downloadClient(
             conditionalVar.notify_one();
         };
 
-    auto onConnectionShutdown = [&,this](Aws::Crt::Http::HttpClientConnection &, int errorCode) {
-        util::TempModule(getScope());
+    auto onConnectionShutdown = [&](Aws::Crt::Http::HttpClientConnection &, int errorCode) {
+        util::TempModule(getModule());
         std::lock_guard<std::mutex> lockGuard(semaphoreLock);
         connectionShutdown = true;
         if(errorCode) {

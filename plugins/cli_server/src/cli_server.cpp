@@ -18,7 +18,7 @@ bool CliServer::onInitialize(ggapi::Struct data) {
 }
 
 bool CliServer::onStart(ggapi::Struct data) {
-    std::unique_lock guard{_mutex};
+    std::shared_lock guard{_mutex};
     // TODO: also need to call close() onStop
     _createLocalDeploymentSubs = ggapi::Subscription::subscribeToTopic(
         keys.createLocalDeployment,

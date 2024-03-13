@@ -26,8 +26,8 @@ static constexpr std::string_view PLATFORM_NAME = "unknown";
 namespace deployment {
     DeploymentManager::DeploymentManager(
         const scope::UsingContext &context, lifecycle::Kernel &kernel)
-        : scope::UsesContext(context), _kernel(kernel),
-          _module(util::TempModule::create("DeploymentManager")) {
+        : scope::UsesContext(context), _module(util::TempModule::create("DeploymentManager")),
+          _kernel(kernel) {
         _deploymentQueue = std::make_shared<data::SharedQueue<std::string, Deployment>>(context);
         _componentStore = std::make_shared<data::SharedQueue<std::string, Recipe>>(context);
     }

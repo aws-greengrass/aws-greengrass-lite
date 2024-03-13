@@ -20,10 +20,8 @@ namespace ggapi {
             Events::ERROR_STOP,
             Events::UNKNOWN>;
 
-    protected:
-        mutable std::shared_mutex _mutex;
-
     private:
+        mutable std::shared_mutex _baseMutex; // Unique name to simplify debugging
         ModuleScope _moduleScope{ModuleScope{}};
         Struct _config{};
 
@@ -48,9 +46,19 @@ namespace ggapi {
             return false;
         }
 
+    protected:
+        // Exposed for testing by inheritance
+
         void internalBind(const Struct &data) {
-            std::unique_lock guard{_mutex};
-            _config = data.get<ggapi::Struct>(CONFIG);
+            auto moduleScope = data.get<ggapi::ModuleScope>(MODULE);
+            auto config = data.get<ggapi::Struct>(CONFIG);
+            std::unique_lock guard{_baseMutex};
+            if(moduleScope) {
+                _moduleScope = moduleScope;
+            }
+            if(config) {
+                _config = config;
+            }
         }
         // Lifecycle constants
         inline static const Symbol INITIALIZE_SYM{"initialize"};
@@ -75,6 +83,7 @@ namespace ggapi {
         inline static const Symbol CONFIG{"config"};
         inline static const Symbol NUCLEUS_CONFIG{"nucleus"};
         inline static const Symbol NAME{"name"};
+        inline static const Symbol MODULE{"module"};
 
         Plugin() noexcept = default;
         Plugin(const Plugin &) = delete;
@@ -85,23 +94,29 @@ namespace ggapi {
         virtual ~Plugin() = default;
 
         ggapiErrorKind lifecycle(
-            ggapiObjHandle moduleHandle,
+            ggapiObjHandle, // TODO: Remove
             ggapiSymbol event,
             ggapiObjHandle data,
             bool *pHandled) noexcept {
             // No exceptions may cross API boundary
             // Return true if handled.
-            return ggapi::catchErrorToKind([this, moduleHandle, event, data, pHandled]() {
+            return ggapi::catchErrorToKind([this, event, data, pHandled]() {
                 *pHandled = lifecycle(
-                    ObjHandle::of<ModuleScope>(moduleHandle),
                     Symbol{event},
                     ObjHandle::of<Struct>(data));
             });
         }
 
+        /**
+         * Retrieve the active module scope associated with plugin
+         */
+        [[nodiscard]] ModuleScope getModule() const {
+            std::shared_lock guard{_baseMutex};
+            return _moduleScope;
+        }
+
     protected:
-        bool lifecycle(ModuleScope moduleScope, Symbol event, Struct data) {
-            _moduleScope = moduleScope;
+        bool lifecycle(Symbol event, Struct data) {
             auto mappedEvent = EVENT_MAP.lookup(event).value_or(Events::UNKNOWN);
             bool handled = EventEnum::visit<bool>(mappedEvent, [this, data](auto p) {
                                return this->lifecycleDispatch(p, data);
@@ -113,7 +128,7 @@ namespace ggapi {
          * Retrieve config space unique to the given plugin
          */
         [[nodiscard]] Struct getConfig() const {
-            std::shared_lock guard{_mutex};
+            std::shared_lock guard{_baseMutex};
             return _config;
         }
 

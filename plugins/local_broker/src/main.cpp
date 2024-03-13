@@ -27,7 +27,8 @@ static const Keys keys;
 class LocalBroker : public ggapi::Plugin {
 private:
     std::vector<std::pair<TopicFilter<>, ggapi::Channel>> _subscriptions;
-    std::mutex _subscriptionMutex;
+    std::shared_mutex _mutex;
+    std::mutex _subscriptionMutex; // TODO: fold these two mutexes together?
 
     ggapi::Subscription _ipcPublishSubs;
     ggapi::Subscription _ipcSubscribeSubs;
@@ -113,6 +114,7 @@ ggapi::ObjHandle LocalBroker::subscribeToTopicHandler(
 
 bool LocalBroker::onStart(ggapi::Struct data) {
     std::unique_lock guard{_mutex};
+    // TODO: These need to be closed on onStop()
     _ipcPublishSubs = ggapi::Subscription::subscribeToTopic(
         keys.ipcPublishToTopic,
         ggapi::TopicCallback::of(&LocalBroker::publishToTopicHandler, this));

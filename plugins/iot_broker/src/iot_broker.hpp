@@ -62,6 +62,7 @@ class IotBroker : public ggapi::Plugin {
         std::string rootPath;
     } _thingInfo;
 
+    mutable std::shared_mutex _mutex;
     ggapi::Struct _nucleus;
     ggapi::Struct _system;
 
@@ -110,6 +111,6 @@ private:
 
     using Key = TopicFilter<Aws::Crt::StlAllocator<char>>;
     std::vector<std::tuple<Key, ggapi::Channel, PacketHandler>> _subscriptions;
-    std::shared_mutex _subscriptionMutex;
+    std::shared_mutex _subscriptionMutex; // TODO: fold this with _mutex?
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
 };

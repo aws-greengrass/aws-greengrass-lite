@@ -386,6 +386,8 @@ namespace ggapi {
                 [*this, key]() { return ::ggapiStructHasKey(asId(), key.asInt()); });
         }
 
+        using ObjHandle::isStruct;
+
         [[nodiscard]] bool isStruct(Symbol key) const {
             return get<ObjHandle>(key).isStruct();
         }

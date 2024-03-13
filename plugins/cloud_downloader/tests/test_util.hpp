@@ -12,10 +12,12 @@ class TestCloudDownloader : public CloudDownloader {
 public:
     explicit TestCloudDownloader(ggapi::ModuleScope moduleScope)
         : CloudDownloader(), _moduleScope(moduleScope) {
+        auto init = ggapi::Struct::create().put(ggapi::Plugin::MODULE, _moduleScope);
+        internalBind(init);
     }
 
     bool executePhase(std::string_view phase) {
-        bool status = lifecycle(_moduleScope, ggapi::Symbol{phase}, ggapi::Struct::create());
+        bool status = lifecycle(ggapi::Symbol{phase}, ggapi::Struct::create());
         return status;
     };
 

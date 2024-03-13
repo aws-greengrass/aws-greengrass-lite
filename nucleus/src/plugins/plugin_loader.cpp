@@ -152,6 +152,7 @@ namespace plugins {
         if(lifecycleFn != nullptr) {
             scope::TempRoot tempRoot;
             bool handled = false;
+            // TODO: Remove module parameter
             ggapiErrorKind error = lifecycleFn(
                 scope::asIntHandle(baseRef()), event.asInt(), scope::asIntHandle(data), &handled);
             errors::Error::throwThreadError(error);
@@ -167,6 +168,7 @@ namespace plugins {
         auto callback = _callback;
         if(callback) {
             scope::TempRoot tempRoot;
+            // TODO: Remove module parameter
             return callback->invokeLifecycleCallback(ref<plugins::AbstractPlugin>(), phase, data);
         } else {
             return false; // no callback, so caller should act as if event unhandled
@@ -230,6 +232,7 @@ namespace plugins {
         AbstractPlugin &plugin, bool partial) const {
         std::string nucleusName = _deviceConfig->getNucleusComponentName();
         auto data = std::make_shared<data::SharedStruct>(context());
+        data->put(MODULE, plugin.ref<AbstractPlugin>());
         data->put(CONFIG_ROOT, context()->configManager().root());
         data->put(SYSTEM, context()->configManager().lookupTopics({SYSTEM}));
         if(!partial) {

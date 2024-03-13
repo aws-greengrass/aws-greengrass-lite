@@ -38,6 +38,7 @@ private:
 
     ggapi::ObjHandle cliHandler(ggapi::Symbol, const ggapi::Container &);
 
+    mutable std::shared_mutex _mutex;
     ggapi::Struct _system;
     ggapi::Struct _config;
     ggapi::Subscription _ipcInfoSubs;

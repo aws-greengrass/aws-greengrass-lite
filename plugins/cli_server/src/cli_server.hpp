@@ -82,6 +82,7 @@ class CliServer final : public ggapi::Plugin {
     std::unordered_map<std::string, std::string> _clientIdToAuthToken;
     void generateCliIpcInfo(const std::filesystem::path &);
 
+    mutable std::shared_mutex _mutex;
     ggapi::Struct _system;
     ggapi::Struct _config;
     ggapi::Subscription _createLocalDeploymentSubs;

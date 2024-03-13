@@ -209,6 +209,7 @@ if(BUILD_TESTING)
     tests/api/json_tests.cpp
     tests/api/list_tests.cpp
     tests/api/logging_tests.cpp
+    tests/api/module_scope_tests.cpp
     tests/api/pubsub_tests.cpp
     tests/api/struct_tests.cpp
     tests/api/task_tests.cpp

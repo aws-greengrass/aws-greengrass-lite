@@ -23,6 +23,7 @@ public:
     using Connection = aws_event_stream_rpc_server_connection;
 
 private:
+    ggapi::ModuleScope _module;
     std::recursive_mutex stateMutex;
     std::forward_list<Connection *> underlyingConnection;
     Aws::Crt::Allocator *_allocator;
@@ -43,8 +44,10 @@ public:
     ServerListener(ServerListener &&) = delete;
     ServerListener &operator=(const ServerListener &) = delete;
     ServerListener &operator=(ServerListener &&) = delete;
-    explicit ServerListener(Aws::Crt::Allocator *allocator = Aws::Crt::g_allocator)
-        : _allocator(allocator), _eventLoop(1, allocator), _bootstrap(_eventLoop, allocator) {
+    explicit ServerListener(
+        ggapi::ModuleScope module, Aws::Crt::Allocator *allocator = Aws::Crt::g_allocator)
+        : _module(std::move(module)), _allocator(allocator), _eventLoop(1, allocator),
+          _bootstrap(_eventLoop, allocator) {
     }
 
     ~ServerListener() noexcept {
@@ -66,6 +69,10 @@ public:
         std::string_view message,
         aws_event_stream_rpc_message_type error_type,
         uint32_t flags);
+
+    [[nodiscard]] ggapi::ModuleScope module() const {
+        return _module;
+    }
 };
 
 class ServerListenerCCallbacks {

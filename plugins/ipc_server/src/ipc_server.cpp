@@ -24,7 +24,7 @@ bool IpcServer::onStart(ggapi::Struct data) {
             std::filesystem::canonical(system.getValue<std::string>({"rootPath"})) / SOCKET_NAME;
         _socketPath = filePath.string();
     }
-    _listener = std::make_shared<ServerListener>();
+    _listener = std::make_shared<ServerListener>(getModule());
     try {
         // TODO: Make non-blocking
         _listener->Connect(_socketPath);

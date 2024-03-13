@@ -1,5 +1,6 @@
 #include "server_continuation.hpp"
 #include "ipc_server.hpp"
+#include <temp_module.hpp>
 
 ggapi::Struct ServerContinuation::onTopicResponse(
     const std::weak_ptr<ServerContinuation> &weakSelf, const ggapi::Struct &response) {
@@ -61,6 +62,10 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
     aws_event_stream_rpc_server_continuation_token *,
     const aws_event_stream_rpc_message_args *message_args,
     void *user_data) noexcept {
+
+    auto continuation = *static_cast<ContinutationHandle>(user_data);
+    util::TempModule module(continuation->module());
+
     // TODO: This code needs to correctly handle exceptions and turn them into IPC errors
     std::cerr << "[IPC] Continuation received:\n" << *message_args << '\n';
 
@@ -78,7 +83,6 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
                 .fromJson();
         return jsonHandle.getHandleId() ? jsonHandle.unbox<Struct>() : Struct::create();
     }();
-    auto continuation = *static_cast<ContinutationHandle>(user_data);
     auto responseFuture = ggapi::Subscription::callTopicFirst(continuation->lpcTopic(), json);
     ggapi::Struct response;
     if(responseFuture) {
