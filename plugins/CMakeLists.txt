@@ -9,7 +9,3 @@ add_subdirectory(local_broker)
 add_subdirectory(cli_server)
 add_subdirectory(cloud_downloader)
 add_subdirectory(tes_http_server_plugin)
-
-if(BUILD_EXAMPLES)
-  add_subdirectory(example_mqtt_sender)
-endif()
