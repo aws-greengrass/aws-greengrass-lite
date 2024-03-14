@@ -29,9 +29,9 @@ namespace tasks {
         void bindThreadContext();
 
     protected:
-        bool isShutdown();
+        bool isShutdown() noexcept;
         std::shared_ptr<Task> pickupTask();
-        void stall(const ExpireTime &expireTime);
+        void stall(const ExpireTime &expireTime) noexcept;
 
     public:
         explicit TaskPoolWorker(const scope::UsingContext &context);
@@ -40,16 +40,16 @@ namespace tasks {
         TaskPoolWorker &operator=(const TaskPoolWorker &) = delete;
         TaskPoolWorker &operator=(TaskPoolWorker &&) = delete;
 
-        virtual ~TaskPoolWorker() {
+        virtual ~TaskPoolWorker() noexcept {
             join();
         }
 
         void start();
-        void shutdown();
+        void shutdown() noexcept;
         void runner();
-        virtual void runLoop();
-        void join();
-        void waken();
+        virtual void runLoop() noexcept;
+        void join() noexcept;
+        void waken() noexcept;
         static std::unique_ptr<TaskPoolWorker> create(const scope::UsingContext &context);
     };
 
@@ -57,7 +57,7 @@ namespace tasks {
     public:
         explicit TimerWorker(const scope::UsingContext &context) : TaskPoolWorker(context) {
         }
-        void runLoop() override;
+        void runLoop() noexcept override;
         static std::unique_ptr<TimerWorker> create(const scope::UsingContext &context);
     };
 

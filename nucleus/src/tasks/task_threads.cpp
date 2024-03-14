@@ -3,6 +3,9 @@
 #include "scope/context_full.hpp"
 #include "task.hpp"
 
+const auto LOG = // NOLINT(cert-err58-cpp)
+    logging::Logger::of("com.aws.greengrass.tasks.Task");
+
 namespace tasks {
 
     void TaskPoolWorker::bindThreadContext() {
@@ -43,16 +46,26 @@ namespace tasks {
         }
     }
 
-    void TaskPoolWorker::runLoop() {
+    void TaskPoolWorker::runLoop() noexcept {
         std::shared_ptr<Task> task = pickupTask();
         if(task) {
-            task->invoke();
+            try {
+                task->invoke();
+            } catch(const errors::Error &err) {
+                LOG.atError("asyncTaskError").cause(err).log("errors::Error thrown by async task");
+            } catch(const std::exception &exp) {
+                LOG.atError("asyncStdError")
+                    .cause(exp)
+                    .log("c++ exception thrown executing async task");
+            } catch(...) {
+                LOG.atError("asyncUnknownError").log("Unrecognized exception");
+            }
         } else {
             stall(ExpireTime::infinite());
         }
     }
 
-    void TimerWorker::runLoop() {
+    void TimerWorker::runLoop() noexcept {
         auto ctx = context();
         if(!ctx) {
             return;
@@ -68,7 +81,7 @@ namespace tasks {
         }
     }
 
-    void TaskPoolWorker::join() {
+    void TaskPoolWorker::join() noexcept {
         std::unique_lock guard{_mutex};
         _shutdown = true;
         _wake.notify_one();
@@ -88,13 +101,13 @@ namespace tasks {
         return pool.acquireTaskForWorker(this);
     }
 
-    void TaskPoolWorker::shutdown() {
+    void TaskPoolWorker::shutdown() noexcept {
         std::unique_lock guard(_mutex);
         _shutdown = true;
         _wake.notify_one();
     }
 
-    void TaskPoolWorker::stall(const ExpireTime &end) {
+    void TaskPoolWorker::stall(const ExpireTime &end) noexcept {
         std::unique_lock guard(_mutex);
         if(_shutdown) {
             return;
@@ -102,12 +115,12 @@ namespace tasks {
         _wake.wait_until(guard, end.toTimePoint());
     }
 
-    void TaskPoolWorker::waken() {
+    void TaskPoolWorker::waken() noexcept {
         std::unique_lock guard(_mutex);
         _wake.notify_one();
     }
 
-    bool TaskPoolWorker::isShutdown() {
+    bool TaskPoolWorker::isShutdown() noexcept {
         return _shutdown.load();
     }
 } // namespace tasks

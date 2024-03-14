@@ -43,7 +43,7 @@ bool ProvisionPlugin::onStop(ggapi::Struct data) {
  * @return Response containing provisioned thing information
  */
 void ProvisionPlugin::provisionDevice(ggapi::Promise promise) {
-    try {
+    promise.fulfill([this]() {
         if(initMqtt()) {
             try {
                 generateCredentials();
@@ -51,7 +51,7 @@ void ProvisionPlugin::provisionDevice(ggapi::Promise promise) {
                 response.put("thingName", _thingName);
                 response.put("keyPath", _keyPath.string());
                 response.put("certPath", _certPath.string());
-                promise.setValue(response);
+                return response;
             } catch(const std::exception &e) {
                 std::cerr << "[provision-plugin] Error while provisioning the device\n";
                 throw e;
@@ -59,11 +59,7 @@ void ProvisionPlugin::provisionDevice(ggapi::Promise promise) {
         } else {
             throw std::runtime_error("[provision-plugin] Unable to initialize the mqtt client\n");
         }
-    } catch(const ggapi::GgApiError &e) {
-        promise.setError(e);
-    } catch(const std::exception &e) {
-        promise.setError(ggapi::GgApiError::of(e));
-    }
+    });
 }
 
 /**

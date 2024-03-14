@@ -154,6 +154,9 @@ namespace ggapi {
         void cancel() const {
             callApiThrowError(::ggapiPromiseCancel, getHandleId());
         }
+
+        template<typename Func, typename... Args>
+        inline Container fulfill(Func &&f, Args &&...args) noexcept;
     };
 
     /**
@@ -426,8 +429,27 @@ namespace ggapi {
             return {};
         }
         Promise next = Promise::create();
+        // TODO: an exception in FutureCallback will not get propagated to next
+        // Maybe we define an AndThenCallback that will correctly handle exception?
         whenValid(FutureCallback::of(callable, std::forward<Args>(args)..., next));
         return next;
+    }
+
+    template<typename Func, typename... Args>
+    inline Container Promise::fulfill(Func &&f, Args &&...args) noexcept {
+        try {
+            static_assert(std::is_invocable_r_v<ggapi::Container, Func, Args...>);
+            Container c = std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
+            setValue(c);
+            return c;
+        } catch(const ggapi::GgApiError &err) {
+            setError(err);
+        } catch(const std::exception &exp) {
+            setError(ggapi::GgApiError::of(exp));
+        } catch(...) {
+            setError(ggapi::GgApiError("Unknown error"));
+        }
+        return {};
     }
 
 } // namespace ggapi

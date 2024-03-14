@@ -7,39 +7,40 @@ ggapi::Promise IotBroker::retrieveToken(ggapi::Symbol, const ggapi::Container &c
         &IotBroker::retrieveTokenAsync, this, ggapi::Struct(callData));
 }
 
-void IotBroker::retrieveTokenAsync(const ggapi::Struct &callData, ggapi::Promise promise) {
-    tesRefresh();
+void IotBroker::retrieveTokenAsync(const ggapi::Struct &, ggapi::Promise promise) {
+    promise.fulfill([this]() {
+        tesRefresh();
 
-    ggapi::Struct response = ggapi::Struct::create();
-    // TODO: Verify if keys exist before retrieving [Cache]
-    auto jsonHandle = ggapi::Buffer::create().put(0, std::string_view{_savedToken}).fromJson();
-    auto responseStruct = ggapi::Struct::create();
-    auto jsonStruct = ggapi::Struct{jsonHandle};
+        ggapi::Struct response = ggapi::Struct::create();
+        // TODO: Verify if keys exist before retrieving [Cache]
+        auto jsonHandle = ggapi::Buffer::create().put(0, std::string_view{_savedToken}).fromJson();
+        auto responseStruct = ggapi::Struct::create();
+        auto jsonStruct = ggapi::Struct{jsonHandle};
 
-    if(jsonStruct.hasKey("credentials")) {
-        auto innerStruct = jsonStruct.get<ggapi::Struct>("credentials");
-        responseStruct.put("AccessKeyId", innerStruct.get<std::string>("accessKeyId"));
-        responseStruct.put("SecretAccessKey", innerStruct.get<std::string>("secretAccessKey"));
-        responseStruct.put("Token", innerStruct.get<std::string>("sessionToken"));
-        responseStruct.put("Expiration", innerStruct.get<std::string>("expiration"));
-        // Create json response string
-        auto responseBuffer = responseStruct.toJson();
+        if(jsonStruct.hasKey("credentials")) {
+            auto innerStruct = jsonStruct.get<ggapi::Struct>("credentials");
+            responseStruct.put("AccessKeyId", innerStruct.get<std::string>("accessKeyId"));
+            responseStruct.put("SecretAccessKey", innerStruct.get<std::string>("secretAccessKey"));
+            responseStruct.put("Token", innerStruct.get<std::string>("sessionToken"));
+            responseStruct.put("Expiration", innerStruct.get<std::string>("expiration"));
+            // Create json response string
+            auto responseBuffer = responseStruct.toJson();
+            auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
+            auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
+            response.put("Response", responseJsonAsString);
+            return response;
+        }
+
+        LOG.atInfo().event("Unable to fetch TES credentials").kv("ERROR", _savedToken).log();
+        std::cerr << "[TES] Unable to fetch TES credentials. ERROR: " << _savedToken << std::endl;
+
+        auto responseBuffer = jsonStruct.toJson();
         auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
         auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
-        response.put("Response", responseJsonAsString);
-        promise.setValue(response);
-        return;
-    }
-
-    LOG.atInfo().event("Unable to fetch TES credentials").kv("ERROR", _savedToken).log();
-    std::cerr << "[TES] Unable to fetch TES credentials. ERROR: " << _savedToken << std::endl;
-
-    auto responseBuffer = jsonStruct.toJson();
-    auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
-    auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
-    // TODO: change to throw exception
-    response.put("Error", responseJsonAsString);
-    promise.setValue(response);
+        // TODO: change to throw exception
+        response.put("Error", responseJsonAsString);
+        return response;
+    });
 }
 
 bool IotBroker::tesOnStart(const ggapi::Struct &data) {

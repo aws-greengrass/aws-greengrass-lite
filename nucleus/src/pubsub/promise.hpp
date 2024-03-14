@@ -52,7 +52,7 @@ namespace pubsub {
         mutable std::shared_mutex _mutex;
         mutable std::condition_variable_any _fire;
         std::weak_ptr<Future> _future;
-        std::vector<std::weak_ptr<tasks::Callback>> _callbacks;
+        std::vector<std::shared_ptr<tasks::Callback>> _callbacks;
 
         template<typename T>
         void setAndFire(const T &value);

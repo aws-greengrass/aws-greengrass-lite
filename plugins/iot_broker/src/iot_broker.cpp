@@ -17,11 +17,12 @@ ggapi::Promise IotBroker::ipcPublishHandler(
         auto decoded = Aws::Crt::Base64Decode(args.get<Aws::Crt::String>(keys.payload));
         args.put(keys.payload, std::string{decoded.begin(), decoded.end()});
     }
-    auto nestedPromise = publishHandler(symbol, args);
-    return nestedPromise.andThen([](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
-        auto resp = ggapi::Struct(prevFuture.getValue());
-        nextPromise.setValue(
-            ggapi::Struct::create().put(keys.shape, resp).put(keys.terminate, true));
+    auto promise = publishHandler(symbol, args);
+    return promise.andThen([](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
+        nextPromise.fulfill([&]() {
+            auto resp = ggapi::Struct(prevFuture.getValue());
+            return ggapi::Struct::create().put(keys.shape, resp).put(keys.terminate, true);
+        });
     });
 }
 
@@ -78,89 +79,96 @@ ggapi::Promise IotBroker::ipcSubscribeHandler(ggapi::Symbol, const ggapi::Contai
     // TODO: We can probably remove async() here
     return ggapi::Promise::create().async(
         [this](const ggapi::Struct &args, ggapi::Promise promise) {
-            auto ret = commonSubscribeHandler(args, [](ggapi::Struct packet) {
-                auto payload = packet.get<std::string>(keys.payload);
-                packet.put(
-                    keys.payload,
-                    Aws::Crt::Base64Encode(
-                        Aws::Crt::Vector<uint8_t>{payload.begin(), payload.end()}));
-                return ggapi::Struct::create()
-                    .put(keys.shape, ggapi::Struct::create().put(keys.message, packet))
-                    .put(keys.serviceModelType, "aws.greengrass#IoTCoreMessage");
+            promise.fulfill([&]() {
+                auto ret = commonSubscribeHandler(args, [](ggapi::Struct packet) {
+                    auto payload = packet.get<std::string>(keys.payload);
+                    packet.put(
+                        keys.payload,
+                        Aws::Crt::Base64Encode(
+                            Aws::Crt::Vector<uint8_t>{payload.begin(), payload.end()}));
+                    return ggapi::Struct::create()
+                        .put(keys.shape, ggapi::Struct::create().put(keys.message, packet))
+                        .put(keys.serviceModelType, "aws.greengrass#IoTCoreMessage");
+                });
+
+                if(std::holds_alternative<ggapi::Channel>(ret)) {
+                    return ggapi::Struct::create()
+                        .put(keys.shape, ggapi::Struct::create())
+                        .put(keys.channel, std::get<ggapi::Channel>(ret));
+                }
+
+                // TODO: replace with setError
+                return ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret));
             });
-
-            if(std::holds_alternative<ggapi::Channel>(ret)) {
-                promise.setValue(ggapi::Struct::create()
-                                     .put(keys.shape, ggapi::Struct::create())
-                                     .put(keys.channel, std::get<ggapi::Channel>(ret)));
-                return;
-            }
-
-            // TODO: replace with setError
-            promise.setValue(ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret)));
         },
         args);
 }
 
 ggapi::Promise IotBroker::publishHandler(ggapi::Symbol, const ggapi::Container &args) {
+    // TODO: This can be done with continuations (andThen, whenValid, etc)
     return ggapi::Promise::create().async(
         &IotBroker::publishHandlerAsync, this, ggapi::Struct(args));
 }
 
 void IotBroker::publishHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise) {
+    promise
+        .fulfill(
+            [&]() {
+                auto topic{args.get<Aws::Crt::String>(keys.topicName)};
+                auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
+                auto payload{args.get<Aws::Crt::String>(keys.payload)};
 
-    auto topic{args.get<Aws::Crt::String>(keys.topicName)};
-    auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
-    auto payload{args.get<Aws::Crt::String>(keys.payload)};
+                std::atomic_bool success = false;
 
-    std::atomic_bool success = false;
+                std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topic << std::endl;
 
-    std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topic << std::endl;
+                std::condition_variable barrier{};
+                std::mutex mutex{};
 
-    std::condition_variable barrier{};
-    std::mutex mutex{};
+                auto onPublishComplete =
+                    [&barrier,
+                     &success](int, const std::shared_ptr<Aws::Crt::Mqtt5::PublishResult> &result) {
+                        success = [&result]() -> bool {
+                            if(!result->wasSuccessful()) {
+                                std::cerr << "[mqtt-plugin] Publish failed with error_code: "
+                                          << result->getErrorCode() << std::endl;
+                                return false;
+                            }
 
-    auto onPublishComplete =
-        [&barrier, &success](int, const std::shared_ptr<Aws::Crt::Mqtt5::PublishResult> &result) {
-            success = [&result]() -> bool {
-                if(!result->wasSuccessful()) {
-                    std::cerr << "[mqtt-plugin] Publish failed with error_code: "
-                              << result->getErrorCode() << std::endl;
-                    return false;
+                            if(auto puback =
+                                   std::dynamic_pointer_cast<Aws::Crt::Mqtt5::PubAckPacket>(
+                                       result->getAck())) {
+                                if(puback->getReasonCode() == 0) {
+                                    std::cerr << "[mqtt-plugin] Puback success" << std::endl;
+                                } else {
+                                    std::cerr << "[mqtt-plugin] Puback failed: "
+                                              << puback->getReasonString().value() << std::endl;
+                                    return false;
+                                }
+                            }
+
+                            return true;
+                        }();
+
+                        barrier.notify_one();
+                    };
+
+                auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
+                    std::move(topic), ByteCursorFromString(payload), qos);
+
+                auto response = ggapi::Struct::create();
+
+                if(!_client->Publish(publish, onPublishComplete)) {
+                    std::cerr << "[mqtt-plugin] Publish failed" << std::endl;
+                } else {
+                    std::unique_lock lock{mutex};
+                    barrier.wait(lock);
                 }
 
-                if(auto puback =
-                       std::dynamic_pointer_cast<Aws::Crt::Mqtt5::PubAckPacket>(result->getAck())) {
-                    if(puback->getReasonCode() == 0) {
-                        std::cerr << "[mqtt-plugin] Puback success" << std::endl;
-                    } else {
-                        std::cerr << "[mqtt-plugin] Puback failed: "
-                                  << puback->getReasonString().value() << std::endl;
-                        return false;
-                    }
-                }
-
-                return true;
-            }();
-
-            barrier.notify_one();
-        };
-
-    auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
-        std::move(topic), ByteCursorFromString(payload), qos);
-
-    auto response = ggapi::Struct::create();
-
-    if(!_client->Publish(publish, onPublishComplete)) {
-        std::cerr << "[mqtt-plugin] Publish failed" << std::endl;
-    } else {
-        std::unique_lock lock{mutex};
-        barrier.wait(lock);
-    }
-
-    // TODO - setValue on success, setError on error
-    response.put(keys.errorCode, !success);
-    promise.setValue(response);
+                // TODO - setValue on success, setError on error
+                response.put(keys.errorCode, !success);
+                return response;
+            });
 }
 
 std::variant<ggapi::Channel, uint32_t> IotBroker::commonSubscribeHandler(
@@ -200,16 +208,16 @@ ggapi::Promise IotBroker::subscribeHandler(ggapi::Symbol, const ggapi::Container
 }
 
 void IotBroker::subscribeHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise) {
+    promise.fulfill([&]() {
+        auto ret = commonSubscribeHandler(args, [](ggapi::Struct packet) { return packet; });
 
-    auto ret = commonSubscribeHandler(args, [](ggapi::Struct packet) { return packet; });
+        if(std::holds_alternative<ggapi::Channel>(ret)) {
+            return ggapi::Struct::create().put(keys.channel, std::get<ggapi::Channel>(ret));
+        }
 
-    if(std::holds_alternative<ggapi::Channel>(ret)) {
-        promise.setValue(ggapi::Struct::create().put(keys.channel, std::get<ggapi::Channel>(ret)));
-        return;
-    }
-
-    // TODO: replace with setError
-    promise.setValue(ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret)));
+        // TODO: replace with setError
+        return ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret));
+    });
 }
 
 void IotBroker::initMqtt() {

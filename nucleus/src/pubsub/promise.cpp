@@ -19,7 +19,7 @@ namespace pubsub {
 
     template<typename T>
     void Promise::setAndFire(const T &value) {
-        std::vector<std::weak_ptr<tasks::Callback>> callbacks;
+        std::vector<std::shared_ptr<tasks::Callback>> callbacks;
         std::unique_lock guard{_mutex};
         if(_value.index() != 0) {
             throw errors::PromiseDoubleWriteError();
@@ -31,9 +31,8 @@ namespace pubsub {
         auto f = getFuture();
         _fire.notify_all();
         for(auto &callback : callbacks) {
-            auto cb = callback.lock();
-            if(cb) {
-                cb->invokeFutureCallback(f);
+            if(callback) {
+                callback->invokeFutureCallback(f);
             }
         }
     }
@@ -87,11 +86,8 @@ namespace pubsub {
 
     bool Promise::waitUntil(const tasks::ExpireTime &when) const {
         std::shared_lock guard{_mutex};
-        if(_value.index() != 0) {
-            return true;
-        }
-        std::ignore = _fire.wait_for(guard, when.remaining());
-        return _value.index() != 0;
+        return _fire.wait_until(
+            guard, when.toTimePoint(), [this]() { return _value.index() != 0; });
     }
 
     FutureBase::FutureBase(const scope::UsingContext &context) : data::TrackedObject(context) {

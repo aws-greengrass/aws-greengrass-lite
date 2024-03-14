@@ -66,6 +66,8 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
     auto continuation = *static_cast<ContinutationHandle>(user_data);
     util::TempModule module(continuation->module());
 
+    // TODO: IPC calls must NOT be blocking, we're doing too much on this IPC thread
+
     // TODO: This code needs to correctly handle exceptions and turn them into IPC errors
     std::cerr << "[IPC] Continuation received:\n" << *message_args << '\n';
 
@@ -84,39 +86,48 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
         return jsonHandle.getHandleId() ? jsonHandle.unbox<Struct>() : Struct::create();
     }();
     auto responseFuture = ggapi::Subscription::callTopicFirst(continuation->lpcTopic(), json);
-    ggapi::Struct response;
-    if(responseFuture) {
-        // TODO: Take advantage of LPC Future "andThen" rather than blocking
-        response = ggapi::Struct(responseFuture.waitAndGetValue());
+    if(!responseFuture) {
+        // no future = unhandled, create a temporary promise to reuse the handler
+        auto promise = ggapi::Promise::create();
+        promise.setError(ggapi::GgApiError("Unhandled - IPC function not registered"));
+        responseFuture = promise;
     }
-    if(!response || response.empty()) {
-        std::cerr << "[IPC] LPC appears unhandled\n";
-        const auto sender = [continuation](auto *args) {
-            return aws_event_stream_rpc_server_continuation_send_message(
-                continuation->GetUnderlyingHandle(), args, onMessageFlush, nullptr);
-        };
-        std::string message = R"({ "error": "LPC unhandled", "message": ")"
-                              "LPC unhandled.\" }";
-        ggapi::Buffer payload = ggapi::Buffer::create().put(0, std::string_view{message});
-        std::array headers{
-            makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
-        sendMessage(
-            sender,
-            headers,
-            payload,
-            AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_APPLICATION_ERROR,
-            AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_TERMINATE_STREAM);
-    } else {
-        response.put(keys.serviceModelType, continuation->ipcServiceModel());
-        ServerContinuation::onTopicResponse(continuation, response);
-        if(response.hasKey(keys.channel)) {
-            auto channel = response.get<ggapi::Channel>(keys.channel);
-            continuation->_channel = channel;
-            auto continuationWeak = std::weak_ptr{continuation};
-            channel.addListenCallback(ggapi::ChannelListenCallback::of(
-                &ServerContinuation::onTopicResponse, continuationWeak));
+    responseFuture.whenValid([continuation](const ggapi::Future &completedFuture) {
+        ggapi::Struct response;
+        try {
+            response = ggapi::Struct(completedFuture.getValue());
+            if(!response) {
+                throw ggapi::GgApiError("Unhandled - empty response");
+            }
+            response.put(keys.serviceModelType, continuation->ipcServiceModel());
+            ServerContinuation::onTopicResponse(continuation, response);
+            if(response.hasKey(keys.channel)) {
+                auto channel = response.get<ggapi::Channel>(keys.channel);
+                continuation->_channel = channel;
+                auto continuationWeak = std::weak_ptr{continuation};
+                channel.addListenCallback(ggapi::ChannelListenCallback::of(
+                    &ServerContinuation::onTopicResponse, continuationWeak));
+            }
+        } catch(const ggapi::GgApiError &error) {
+            const auto sender = [continuation](auto *args) {
+                return aws_event_stream_rpc_server_continuation_send_message(
+                    continuation->GetUnderlyingHandle(), args, onMessageFlush, nullptr);
+            };
+            ggapi::Struct message = ggapi::Struct::create();
+            message
+                .put("error", "LPC error") // needs to be better error here
+                .put("message", error.what());
+            ggapi::Buffer payload = message.toJson();
+            std::array headers{makeHeader(
+                Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
+            sendMessage(
+                sender,
+                headers,
+                payload,
+                AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_APPLICATION_ERROR,
+                AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_TERMINATE_STREAM);
         }
-    }
+    });
 }
 
 extern "C" void ServerContinuationCCallbacks::onContinuationClose(

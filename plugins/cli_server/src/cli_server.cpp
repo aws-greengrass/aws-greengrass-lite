@@ -137,17 +137,18 @@ ggapi::ObjHandle CliServer::createLocalDeploymentHandler(
     }
     return resultFuture.andThen(
         [deploymentId, channel](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
+        nextPromise.fulfill([&]() {
             ggapi::Struct result{prevFuture.getValue()};
             if(result.getValue<bool>({"status"})) {
                 auto message = ggapi::Struct::create();
                 message.put("deploymentId", deploymentId);
-                nextPromise.setValue(
-                    ggapi::Struct::create().put(keys.channel, channel).put(keys.shape, message));
+                return ggapi::Struct::create().put(keys.channel, channel).put(keys.shape, message);
             } else {
                 // TODO: call setError instead
-                nextPromise.setValue(ggapi::Struct::create().put(keys.errorCode, 1));
+                return ggapi::Struct::create().put(keys.errorCode, 1);
             }
         });
+    });
 }
 
 ggapi::ObjHandle CliServer::listDeploymentsHandler(ggapi::Symbol, const ggapi::Container &request) {
@@ -178,17 +179,18 @@ ggapi::ObjHandle CliServer::listDeploymentsHandler(ggapi::Symbol, const ggapi::C
     }
     return resultFuture.andThen(
         [requestId, channel](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
+        nextPromise.fulfill([&]() {
             ggapi::Struct result{prevFuture.getValue()};
             if(result.getValue<bool>({"status"})) {
                 auto message = ggapi::Struct::create();
                 message.put("deploymentId", requestId);
-                nextPromise.setValue(
-                    ggapi::Struct::create().put(keys.channel, channel).put(keys.shape, message));
+                return ggapi::Struct::create().put(keys.channel, channel).put(keys.shape, message);
             } else {
                 // TODO: call setError instead
-                nextPromise.setValue(ggapi::Struct::create().put(keys.errorCode, 1));
+                return ggapi::Struct::create().put(keys.errorCode, 1);
             }
         });
+    });
 }
 
 ggapi::ObjHandle CliServer::cancelLocalDeploymentHandler(ggapi::Symbol, const ggapi::Container &) {
@@ -197,7 +199,7 @@ ggapi::ObjHandle CliServer::cancelLocalDeploymentHandler(ggapi::Symbol, const gg
         keys.cancelDeploymentTopicName, ggapi::Struct::create());
     return resultFuture.andThen([](ggapi::Promise nextPromise, const ggapi::Future &) {
         // ignores prev value
-        nextPromise.setValue(ggapi::Struct::create());
+        nextPromise.fulfill(ggapi::Struct::create);
     });
 }
 
