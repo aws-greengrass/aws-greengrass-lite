@@ -1,4 +1,5 @@
 #include "iot_broker.hpp"
+#include "temp_module.hpp"
 #include <algorithm>
 #include <atomic>
 #include <condition_variable>
@@ -249,6 +250,7 @@ void IotBroker::initMqtt() {
 
         builder->WithPublishReceivedCallback(
             [this](const Aws::Crt::Mqtt5::PublishReceivedEventData &eventData) {
+                util::TempModule tempModule(getModule());
                 if(eventData.publishPacket) {
                     auto payloadBytes =
                         Aws::Crt::ByteCursorToStringView(eventData.publishPacket->getPayload());
