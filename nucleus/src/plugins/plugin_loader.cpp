@@ -108,7 +108,7 @@ namespace plugins {
         // TODO: This is temporary logic until recipe logic has been written
 
         // TOFIX:: The below code ensures the plugins are loaded correctly but still does not
-        // guarantee that the plugins are ready and processed through their lifecycle in the same order 
+        // guarantee that the plugins are ready and processed through their lifecycle in the same order
         const auto pluginList = {
             "liblocal_broker.so",
             "libipc_server.so",
@@ -125,7 +125,6 @@ namespace plugins {
                 }
             }
         }
-        
     }
 
     void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
