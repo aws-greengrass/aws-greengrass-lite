@@ -422,6 +422,18 @@ namespace lifecycle {
             return _deviceConfiguration->getThingName().getString();
         };
 
+        auto getAWSRegion = [this]() -> std::string {
+            return _deviceConfiguration->getAWSRegion().getString();
+        };
+
+        auto getRootCAPath = [this]() -> std::string {
+            return _deviceConfiguration->getRootCAFilePath().getString();
+        };
+
+        auto getNucleusVersion = [this]() -> std::string {
+            return _deviceConfiguration->getNucleusVersion();
+        };
+
         // TODO: query TES plugin
         std::string container_uri = "http://localhost:8090/2016-11-01/credentialprovider/";
 
@@ -457,6 +469,10 @@ namespace lifecycle {
                 .addEnvironment("AWS_CONTAINER_CREDENTIALS_FULL_URI"s, std::move(container_uri))
                 .addEnvironment("AWS_CONTAINER_AUTHORIZATION_TOKEN"s, std::move(authToken))
                 .addEnvironment("AWS_IOT_THING_NAME"s, getThingName())
+                .addEnvironment("GG_ROOT_CA_PATH"s, getRootCAPath())
+                .addEnvironment("AWS_REGION"s, getAWSRegion())
+                .addEnvironment("AWS_DEFAULT_REGION"s, getAWSRegion())
+                .addEnvironment("GGC_VERSION"s, getNucleusVersion())
                 // TODO: Windows "run raw script" switch
                 .withArguments({"-c", std::move(script)})
                 // TODO: allow output to pass back to caller if subscription is specified
