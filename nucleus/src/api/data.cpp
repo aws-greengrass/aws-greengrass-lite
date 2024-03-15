@@ -48,7 +48,7 @@ ggapiErrorKind ggapiGetSymbolString(
         if(fillLen > len) {
             fillLen = len;
         }
-        util::Span span(bytes, len);
+        util::Span span(bytes, fillLen);
         *pFilled = span.copyFrom(s.begin(), s.end());
     });
 }
@@ -63,68 +63,65 @@ ggapiErrorKind ggapiGetSymbolStringLen(ggapiSymbol symbolInt, ggapiDataLen *pLen
 
 ggapiErrorKind ggapiCreateStruct(ggapiObjHandle *pHandle) noexcept {
     return apiImpl::catchErrorToKind([pHandle]() {
-        auto anchor = scope::NucleusCallScopeContext::make<SharedStruct>();
-        *pHandle = anchor.asIntHandle();
+        auto obj = scope::makeObject<SharedStruct>();
+        *pHandle = scope::asIntHandle(obj);
     });
 }
 
 ggapiErrorKind ggapiCreateList(ggapiObjHandle *pHandle) noexcept {
     return apiImpl::catchErrorToKind([pHandle]() {
-        auto anchor = scope::NucleusCallScopeContext::make<SharedList>();
-        *pHandle = anchor.asIntHandle();
+        auto obj = scope::makeObject<SharedList>();
+        *pHandle = scope::asIntHandle(obj);
     });
 }
 
 ggapiErrorKind ggapiCreateBuffer(ggapiObjHandle *pHandle) noexcept {
     return apiImpl::catchErrorToKind([pHandle]() {
-        auto anchor = scope::NucleusCallScopeContext::make<SharedBuffer>();
-        *pHandle = anchor.asIntHandle();
+        auto obj = scope::makeObject<SharedBuffer>();
+        *pHandle = scope::asIntHandle(obj);
     });
 }
 
-bool ggapiIsScalar(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<bool>([handle]() {
+ggapiErrorKind ggapiIsScalar(ggapiObjHandle handle, ggapiBool *pBool) noexcept {
+    return apiImpl::catchErrorToKind([handle, pBool]() {
         auto ss{scope::context()->objFromInt(handle)};
         auto boxed = std::dynamic_pointer_cast<Boxed>(ss);
-        if(boxed) {
-            return boxed->get().isScalar();
-        }
-        return false;
+        apiImpl::setBool(pBool, boxed && boxed->get().isScalar());
     });
 }
 
-bool ggapiIsContainer(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<bool>([handle]() {
+ggapiErrorKind ggapiIsContainer(ggapiObjHandle handle, ggapiBool *pBool) noexcept {
+    return apiImpl::catchErrorToKind([handle, pBool]() {
         auto ss{scope::context()->objFromInt(handle)};
-        return std::dynamic_pointer_cast<ContainerModelBase>(ss) != nullptr;
+        apiImpl::setBool(pBool, std::dynamic_pointer_cast<ContainerModelBase>(ss) != nullptr);
     });
 }
 
-bool ggapiIsStruct(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<bool>([handle]() {
+ggapiErrorKind ggapiIsStruct(ggapiObjHandle handle, ggapiBool *pBool) noexcept {
+    return apiImpl::catchErrorToKind([handle, pBool]() {
         auto ss{scope::context()->objFromInt(handle)};
-        return std::dynamic_pointer_cast<StructModelBase>(ss) != nullptr;
+        apiImpl::setBool(pBool, std::dynamic_pointer_cast<StructModelBase>(ss) != nullptr);
     });
 }
 
-bool ggapiIsList(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<bool>([handle]() {
+ggapiErrorKind ggapiIsList(ggapiObjHandle handle, ggapiBool *pBool) noexcept {
+    return apiImpl::catchErrorToKind([handle, pBool]() {
         auto ss{scope::context()->objFromInt(handle)};
-        return std::dynamic_pointer_cast<ListModelBase>(ss) != nullptr;
+        apiImpl::setBool(pBool, std::dynamic_pointer_cast<ListModelBase>(ss) != nullptr);
     });
 }
 
-bool ggapiIsBuffer(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<bool>([handle]() {
+ggapiErrorKind ggapiIsBuffer(ggapiObjHandle handle, ggapiBool *pBool) noexcept {
+    return apiImpl::catchErrorToKind([handle, pBool]() {
         auto ss{scope::context()->objFromInt(handle)};
-        return std::dynamic_pointer_cast<SharedBuffer>(ss) != nullptr;
+        apiImpl::setBool(pBool, std::dynamic_pointer_cast<SharedBuffer>(ss) != nullptr);
     });
 }
 
-bool ggapiIsScope(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<bool>([handle]() {
+ggapiErrorKind ggapiIsScope(ggapiObjHandle handle, ggapiBool *pBool) noexcept {
+    return apiImpl::catchErrorToKind([handle, pBool]() {
         auto ss{scope::context()->objFromInt(handle)};
-        return std::dynamic_pointer_cast<TrackingScope>(ss) != nullptr;
+        apiImpl::setBool(pBool, std::dynamic_pointer_cast<TrackingScope>(ss) != nullptr);
     });
 }
 
@@ -142,7 +139,7 @@ uint32_t ggapiBoxBool(bool value) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([value]() {
         auto context = scope::context();
         auto boxed = data::Boxed::box(context, value);
-        return scope::NucleusCallScopeContext::intHandle(boxed);
+        return scope::asIntHandle(boxed);
     });
 }
 
@@ -150,7 +147,7 @@ uint32_t ggapiBoxInt64(uint64_t value) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([value]() {
         auto context = scope::context();
         auto boxed = data::Boxed::box(context, value);
-        return scope::NucleusCallScopeContext::intHandle(boxed);
+        return scope::asIntHandle(boxed);
     });
 }
 
@@ -158,7 +155,7 @@ uint32_t ggapiBoxFloat64(double value) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([value]() {
         auto context = scope::context();
         auto boxed = data::Boxed::box(context, value);
-        return scope::NucleusCallScopeContext::intHandle(boxed);
+        return scope::asIntHandle(boxed);
     });
 }
 
@@ -166,7 +163,7 @@ uint32_t ggapiBoxString(const char *bytes, size_t len) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([bytes, len]() {
         auto context = scope::context();
         auto boxed = data::Boxed::box(context, std::string_view(bytes, len));
-        return scope::NucleusCallScopeContext::intHandle(boxed);
+        return scope::asIntHandle(boxed);
     });
 }
 
@@ -175,7 +172,7 @@ uint32_t ggapiBoxSymbol(uint32_t symValInt) noexcept {
         auto context = scope::context();
         auto value = context->symbolFromInt(symValInt);
         auto boxed = data::Boxed::box(context, value);
-        return scope::NucleusCallScopeContext::intHandle(boxed);
+        return scope::asIntHandle(boxed);
     });
 }
 
@@ -184,7 +181,7 @@ uint32_t ggapiBoxHandle(uint32_t handle) noexcept {
         auto context = scope::context();
         auto value = context->objFromInt(handle);
         auto boxed = data::Boxed::box(context, value);
-        return scope::NucleusCallScopeContext::intHandle(boxed);
+        return scope::asIntHandle(boxed);
     });
 }
 
@@ -239,7 +236,7 @@ uint32_t ggapiUnboxHandle(uint32_t handle) noexcept {
         } else {
             // Not an error, just localize the handle provided
         }
-        return scope::NucleusCallScopeContext::intHandle(obj);
+        return scope::asIntHandle(obj);
     });
 }
 
@@ -481,7 +478,7 @@ uint32_t ggapiStructKeys(uint32_t structHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([structHandle]() {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
-        return scope::NucleusCallScopeContext::intHandle(ss->getKeysAsList());
+        return scope::asIntHandle(ss->getKeysAsList());
     });
 }
 
@@ -509,7 +506,7 @@ uint32_t ggapiStructClone(uint32_t structHandle) noexcept {
         auto context = scope::context();
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
         auto copy = ss->copy();
-        return scope::NucleusCallScopeContext::intHandle(copy);
+        return scope::asIntHandle(copy);
     });
 }
 
@@ -570,7 +567,7 @@ uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t keyInt) noexcept {
         auto ss{context->objFromInt<StructModelBase>(structHandle)};
         Symbol key = context->symbolFromInt(keyInt);
         auto v = ss->get(key).getObject();
-        return scope::NucleusCallScopeContext::intHandle(v);
+        return scope::asIntHandle(v);
     });
 }
 
@@ -579,7 +576,7 @@ uint32_t ggapiListGetHandle(uint32_t listHandle, int32_t idx) noexcept {
         auto context = scope::context();
         auto ss{context->objFromInt<ListModelBase>(listHandle)};
         auto v = ss->get(idx).getObject();
-        return scope::NucleusCallScopeContext::intHandle(v);
+        return scope::asIntHandle(v);
     });
 }
 
@@ -629,45 +626,69 @@ uint32_t ggapiBufferGet(uint32_t bufHandle, int32_t idx, char *bytes, uint32_t l
     });
 }
 
-uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([anchorHandle, objectHandle]() {
+/**
+ * Allocate a temporary handle, needed for returning handles in callbacks.
+ * @param handleIn Handle of existing object
+ * @param pHandle New temporary handle
+ * @return error if failed
+ */
+ggapiErrorKind ggapiTempHandle(ggapiObjHandle handleIn, ggapiObjHandle *pHandle) noexcept {
+    return apiImpl::catchErrorToKind([handleIn, pHandle]() {
+        *pHandle = 0;
         auto context = scope::context();
-        auto ss{context->handleFromInt(objectHandle)};
-        auto target{context->handleFromInt(anchorHandle)};
-        if(!target) {
-            target = scope::thread()->getCallScope()->getSelf();
+        auto obj = context->objFromInt(handleIn);
+        if(!obj) {
+            return;
         }
-        return target.toObject<TrackingScope>()
-            ->root()
-            ->anchor(ss.toObject<TrackedObject>())
-            .asIntHandle();
+        auto root = scope::thread()->getTempRoot();
+        if(!root) {
+            throw std::logic_error("No temporary root allocated in thread");
+        }
+        *pHandle = context->handles().create(obj, *root).asInt();
     });
 }
 
-bool ggapiReleaseHandle(uint32_t objectHandle) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([objectHandle]() {
+/**
+ * Duplicate a handle. The duplicated handle is bound to plugin context.
+ * @param handleIn Handle of existing object
+ * @param pHandle New module-bound handle
+ * @return error if failed
+ */
+ggapiErrorKind ggapiDupHandle(ggapiObjHandle handleIn, ggapiObjHandle *pHandle) noexcept {
+    return apiImpl::catchErrorToKind([handleIn, pHandle]() {
+        *pHandle = 0;
+        auto context = scope::context();
+        auto obj = context->objFromInt(handleIn);
+        if(!obj) {
+            return;
+        }
+        *pHandle = scope::asIntHandle(obj);
+    });
+}
+
+/**
+ * Release a handle, de-ref object managed by handle.
+ * @param objectHandle Handle to release (becomes invalid after call)
+ */
+ggapiErrorKind ggapiReleaseHandle(uint32_t objectHandle) noexcept {
+    return apiImpl::catchErrorToKind([objectHandle]() {
         if(objectHandle) {
-            ObjectAnchor anchored{scope::context()->handleFromInt(objectHandle).toAnchor()};
-            anchored.release();
+            auto handle = scope::context()->handleFromInt(objectHandle);
+            handle.release();
         }
-        return true;
     });
 }
 
-uint32_t ggapiCreateCallScope() noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([]() {
-        auto threadContext = scope::thread();
-        auto scope{threadContext->newCallScope()};
-        threadContext->setCallScope(scope);
-        return scope->getSelf().asInt(); // self describing handle
-    });
-}
-
-uint32_t ggapiGetCurrentCallScope() noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([]() {
-        auto threadContext = scope::thread();
-        auto scope{threadContext->getCallScope()};
-        return scope->getSelf().asInt();
+/**
+ * Close a handle - meaning of close depends on the object
+ * @param objectHandle Handle to close (becomes invalid after call)
+ */
+ggapiErrorKind ggapiCloseHandle(uint32_t objectHandle) noexcept {
+    return apiImpl::catchErrorToKind([objectHandle]() {
+        if(objectHandle) {
+            auto obj = scope::context()->objFromInt(objectHandle);
+            obj->close();
+        }
     });
 }
 
@@ -676,7 +697,7 @@ uint32_t ggapiToJson(uint32_t objectHandle) noexcept {
         auto context = scope::context();
         auto container = context->objFromInt<data::ContainerModelBase>(objectHandle);
         auto buffer = container->toJson();
-        return scope::NucleusCallScopeContext::intHandle(buffer);
+        return scope::asIntHandle(buffer);
     });
 }
 
@@ -686,7 +707,7 @@ uint32_t ggapiFromJson(uint32_t bufferHandle) noexcept {
         auto context = scope::context();
         auto buffer = context->objFromInt<data::SharedBuffer>(bufferHandle);
         auto container = buffer->parseJson();
-        return scope::NucleusCallScopeContext::intHandle(container);
+        return scope::asIntHandle(container);
     });
 }
 
@@ -695,7 +716,7 @@ uint32_t ggapiToYaml(uint32_t objectHandle) noexcept {
         auto context = scope::context();
         auto container = context->objFromInt<data::ContainerModelBase>(objectHandle);
         auto buffer = container->toYaml();
-        return scope::NucleusCallScopeContext::intHandle(buffer);
+        return scope::asIntHandle(buffer);
     });
 }
 
@@ -704,6 +725,6 @@ uint32_t ggapiFromYaml(uint32_t bufferHandle) noexcept {
         auto context = scope::context();
         auto buffer = context->objFromInt<data::SharedBuffer>(bufferHandle);
         auto container = buffer->parseYaml();
-        return scope::NucleusCallScopeContext::intHandle(container);
+        return scope::asIntHandle(container);
     });
 }

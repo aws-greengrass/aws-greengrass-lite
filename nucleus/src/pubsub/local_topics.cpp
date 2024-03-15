@@ -5,20 +5,30 @@
 #include <shared_mutex>
 
 namespace pubsub {
-    Listener::~Listener() {
+
+    void Listener::closeImpl() noexcept {
         if(!_parent.expired()) {
             std::shared_ptr<Listeners> listeners{_parent};
-            listeners->cleanup();
+            if(listeners) {
+                listeners->cleanup();
+            }
         }
+    }
+
+    void Listener::close() {
+        closeImpl();
+    }
+
+    Listener::~Listener() noexcept {
+        closeImpl();
     }
 
     Listener::Listener(
         const scope::UsingContext &context,
         data::Symbol topicOrd,
-        Listeners *listeners,
+        const std::shared_ptr<Listeners> &listeners,
         const std::shared_ptr<tasks::Callback> &callback)
-        : data::TrackedObject(context), _topic(topicOrd), _parent(listeners->weak_from_this()),
-          _callback(callback) {
+        : data::TrackedObject(context), _topic(topicOrd), _parent(listeners), _callback(callback) {
     }
 
     Listeners::Listeners(const scope::UsingContext &context, data::Symbol topic)
@@ -44,7 +54,7 @@ namespace pubsub {
     void PubSubManager::cleanup() {
         std::unique_lock guard{managerMutex()};
         for(auto i = _topics.begin(); i != _topics.end(); ++i) {
-            if(i->second->isEmpty()) {
+            if(i->second->isEmptyMutexHeld()) {
                 _topics.erase(i);
             }
         }
@@ -52,8 +62,9 @@ namespace pubsub {
 
     std::shared_ptr<Listener> Listeners::addNewListener(
         const std::shared_ptr<tasks::Callback> &callback) {
+
         std::shared_ptr<Listener> listener{
-            std::make_shared<Listener>(context(), _topic, this, callback)};
+            std::make_shared<Listener>(context(), _topic, baseRef(), callback)};
         std::unique_lock guard{managerMutex()};
         _listeners.push_back(listener);
         return listener;
@@ -92,57 +103,48 @@ namespace pubsub {
         return listener;
     }
 
-    data::ObjectAnchor PubSubManager::subscribe(
-        data::ObjHandle scopeHandle,
-        data::Symbol topic,
-        const std::shared_ptr<tasks::Callback> &callback) {
-        auto scope = scopeHandle.toObject<data::TrackingScope>();
-        // if handle or root goes away, unsubscribe
-        return scope->root()->anchor(subscribe(topic, callback));
-    }
-
-    void PubSubManager::insertTopicListenerSubTasks(
-        std::shared_ptr<tasks::Task> &task, data::Symbol topic) {
-        if(!topic) {
-            // reserved for anonymous listeners
-            return;
-        }
-        std::shared_ptr<Listeners> listeners = tryGetListeners(topic);
-        if(listeners == nullptr || listeners->isEmpty()) {
-            return;
-        }
-        std::vector<std::shared_ptr<Listener>> callOrder;
-        listeners->fillTopicListeners(callOrder);
-        for(const auto &i : callOrder) {
-            task->addSubtask(i->toSubTask(topic));
-        }
-    }
-
-    void PubSubManager::initializePubSubCall(
-        std::shared_ptr<tasks::Task> &task,
-        const std::shared_ptr<Listener> &explicitListener,
-        data::Symbol topic,
-        const std::shared_ptr<data::StructModelBase> &dataIn,
-        std::unique_ptr<tasks::SubTask> completion,
-        tasks::ExpireTime expireTime) {
+    std::shared_ptr<Future> PubSubManager::callFirst(
+        data::Symbol topic, const std::shared_ptr<data::ContainerModelBase> &dataIn) {
         if(!dataIn) {
             throw std::runtime_error("Data must be passed into an LPC call");
         }
-        if(explicitListener) {
-            task->addSubtask(explicitListener->toSubTask(topic));
+        if(!topic) {
+            throw std::runtime_error("Topic must be passed into an LPC call");
         }
-        if(topic) {
-            insertTopicListenerSubTasks(task, topic);
+        auto listeners = getListeners(topic);
+        std::vector<std::shared_ptr<Listener>> callOrder;
+        listeners->fillTopicListeners(callOrder);
+        for(const auto &i : callOrder) {
+            auto future = i->call(dataIn);
+            if(future) {
+                return future;
+            }
         }
-        task->setData(dataIn);
-        task->setCompletion(std::move(completion));
-        task->setTimeout(expireTime);
+        return {};
+    }
+
+    std::vector<std::shared_ptr<Future>> PubSubManager::callAll(
+        data::Symbol topic, const std::shared_ptr<data::ContainerModelBase> &dataIn) {
+        if(!dataIn) {
+            throw std::runtime_error("Data must be passed into an LPC call");
+        }
+        if(!topic) {
+            throw std::runtime_error("Topic must be passed into an LPC call");
+        }
+        auto listeners = getListeners(topic);
+        std::vector<std::shared_ptr<Listener>> callOrder;
+        std::vector<std::shared_ptr<Future>> futures;
+        listeners->fillTopicListeners(callOrder);
+        for(const auto &i : callOrder) {
+            auto future = i->call(dataIn);
+            if(future) {
+                futures.emplace_back(future);
+            }
+        }
+        return futures;
     }
 
     void Listeners::fillTopicListeners(std::vector<std::shared_ptr<Listener>> &callOrder) {
-        if(isEmpty()) {
-            return;
-        }
         std::shared_lock guard{managerMutex()};
         for(auto ri = _listeners.rbegin(); ri != _listeners.rend(); ++ri) {
             if(!ri->expired()) {
@@ -150,29 +152,16 @@ namespace pubsub {
             }
         }
     }
+
     std::shared_mutex &Listeners::managerMutex() {
         return manager().managerMutex();
     }
-
-    std::unique_ptr<tasks::SubTask> Listener::toSubTask(const data::Symbol &topic) {
-        auto ctx = context();
-        std::shared_lock guard{ctx->lpcTopics().managerMutex()};
-        std::unique_ptr<tasks::SubTask> subTask{std::make_unique<TopicSubTask>(topic, _callback)};
-        return subTask;
+    PubSubManager &Listeners::manager() const {
+        return context()->lpcTopics();
     }
 
-    std::shared_ptr<data::StructModelBase> Listener::runInTaskThread(
-        const std::shared_ptr<tasks::Task> &task,
-        const std::shared_ptr<data::StructModelBase> &dataIn) {
-
-        assert(task->getSelf());
-        assert(scope::thread()->getActiveTask() == task);
-        return _callback->invokeTopicCallback(task, _topic, dataIn);
-    }
-
-    std::shared_ptr<data::StructModelBase> TopicSubTask::runInThread(
-        const std::shared_ptr<tasks::Task> &task,
-        const std::shared_ptr<data::StructModelBase> &data) {
-        return _callback->invokeTopicCallback(task, _topic, data);
+    std::shared_ptr<pubsub::Future> Listener::call(
+        const std::shared_ptr<data::ContainerModelBase> &dataIn) {
+        return _callback->invokeTopicCallback(_topic, dataIn);
     }
 } // namespace pubsub

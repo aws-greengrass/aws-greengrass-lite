@@ -27,20 +27,6 @@ namespace scope {
         return ThreadContextContainer::perThread().set({});
     }
 
-    StackScope::StackScope() {
-        auto thread = PerThreadContext::get();
-        auto newScope = std::make_shared<NucleusCallScopeContext>(thread);
-        _saved = newScope->set();
-        _temp = newScope;
-    }
-
-    void StackScope::release() {
-        if(_temp) {
-            _saved->set();
-            _temp = nullptr;
-        }
-    }
-
     LocalizedContext::LocalizedContext() {
         auto newScope = std::make_shared<PerThreadContext>();
         _saved = newScope->set();
@@ -64,20 +50,6 @@ namespace scope {
         if(_applyTerminate) {
             context->terminate();
         }
-    }
-
-    NucleusCallScopeContext::NucleusCallScopeContext(
-        const std::shared_ptr<PerThreadContext> &thread)
-        : _threadContext(thread) {
-    }
-
-    std::shared_ptr<NucleusCallScopeContext> NucleusCallScopeContext::set() {
-        auto perThread = _threadContext.lock();
-        if(!perThread) {
-            // Should never happen, possible during shutdown
-            return {};
-        }
-        return perThread->changeScope(baseRef());
     }
 
     std::shared_ptr<Context> Context::create() {
@@ -153,79 +125,11 @@ namespace scope {
         return _context;
     }
 
-    std::shared_ptr<NucleusCallScopeContext> PerThreadContext::rootScoped() {
-        // Only one per thread
-        auto active = _rootScopedContext;
-        if(!active) {
-            _rootScopedContext = active = std::make_shared<NucleusCallScopeContext>(baseRef());
-        }
-        return active;
-    }
-
     std::shared_ptr<Context> PerThreadContext::changeContext(
         // For testing
         const std::shared_ptr<Context> &newContext) {
         auto prev = context();
         _context = newContext;
-        return prev;
-    }
-
-    std::shared_ptr<NucleusCallScopeContext> PerThreadContext::changeScope(
-        const std::shared_ptr<NucleusCallScopeContext> &context) {
-        auto prev = scoped();
-        _scopedContext = context;
-        return prev;
-    }
-
-    std::shared_ptr<NucleusCallScopeContext> PerThreadContext::scoped() {
-        // Either explicit, or the per-thread scope
-        auto active = _scopedContext;
-        if(!active) {
-            _scopedContext = active = rootScoped();
-        }
-        return active;
-    }
-
-    std::shared_ptr<Context> NucleusCallScopeContext::context() {
-        auto perThread = _threadContext.lock();
-        if(!perThread) {
-            // Should never happen, possible during shutdown
-            return {};
-        }
-        return perThread->context();
-    }
-
-    std::shared_ptr<data::TrackingRoot> NucleusCallScopeContext::root() {
-        auto active = _scopeRoot;
-        if(!active) {
-            _scopeRoot = active = std::make_shared<data::TrackingRoot>(context());
-        }
-        return active;
-    }
-
-    std::shared_ptr<CallScope> NucleusCallScopeContext::getCallScope() {
-        // Thread safe - assume object per thread
-        auto active = _callScope;
-        if(!active) {
-            if(!_scopeRoot) {
-                _scopeRoot = std::make_shared<data::TrackingRoot>(context());
-            }
-            _callScope = active = CallScope::create(context(), _scopeRoot, baseRef(), {});
-            errors::ThreadErrorContainer::get().reset();
-        }
-        return active;
-    }
-
-    std::shared_ptr<CallScope> PerThreadContext::newCallScope() {
-        auto prev = getCallScope();
-        return CallScope::create(_context, prev->root(), scoped(), prev);
-    }
-
-    std::shared_ptr<CallScope> NucleusCallScopeContext::setCallScope(
-        const std::shared_ptr<CallScope> &callScope) {
-        std::shared_ptr<CallScope> prev = getCallScope();
-        _callScope = callScope;
-        errors::ThreadErrorContainer::get().reset();
         return prev;
     }
 
@@ -244,47 +148,6 @@ namespace scope {
     }
 
     /**
-     * Retrieve a per-thread object that is used for task strategy, data and affinity.
-     */
-    std::shared_ptr<tasks::TaskThread> PerThreadContext::getThreadTaskData() {
-        auto active = _threadTaskData;
-        if(!active) {
-            // Auto-assign a thread context
-            _threadTaskData = active = std::make_shared<tasks::FixedTaskThread>(context());
-        }
-        return active;
-    }
-
-    /**
-     * Change task strategy and per thread task data associated with thread.
-     */
-    std::shared_ptr<tasks::TaskThread> PerThreadContext::setThreadTaskData(
-        const std::shared_ptr<tasks::TaskThread> &threadTaskData) {
-        auto prev = _threadTaskData;
-        _threadTaskData = threadTaskData;
-        return prev;
-    }
-
-    std::shared_ptr<tasks::Task> PerThreadContext::getActiveTask() {
-        std::shared_ptr<tasks::Task> active = _activeTask;
-        if(!active) {
-            // Auto-assign a default task, anchored to local context
-            active = std::make_shared<tasks::Task>(context());
-            auto anchor = rootScoped()->root()->anchor(active);
-            active->setSelf(anchor.getHandle());
-            _activeTask = active;
-        }
-        return active;
-    }
-
-    std::shared_ptr<tasks::Task> PerThreadContext::setActiveTask(
-        const std::shared_ptr<tasks::Task> &task) {
-        auto prev = _activeTask;
-        _activeTask = task;
-        return prev;
-    }
-
-    /**
      * Used when saving/restoring module state, pair is (parent,effective), which are both
      * the same when setting, but may be different when restoring.
      */
@@ -293,6 +156,30 @@ namespace scope {
         _parentModule = modules.first;
         _effectiveModule = modules.second;
         return prev;
+    }
+
+    std::shared_ptr<data::RootHandle> PerThreadContext::getTempRoot() const noexcept {
+        return _tempRoot;
+    }
+
+    std::shared_ptr<data::RootHandle> PerThreadContext::setTempRoot(
+        const std::shared_ptr<data::RootHandle> &root) noexcept {
+        auto prev = _tempRoot;
+        _tempRoot = root;
+        return prev;
+    }
+
+    TempRoot::TempRoot()
+        : _temp(std::make_shared<data::RootHandle>(scope::context()->handles().createRoot())) {
+        _prev = thread()->setTempRoot(_temp);
+    }
+
+    TempRoot::~TempRoot() noexcept {
+        thread()->setTempRoot(_prev);
+    }
+
+    data::RootHandle &TempRoot::root() noexcept {
+        return *_temp;
     }
 
     /**
@@ -343,10 +230,6 @@ namespace scope {
                 errors::ModuleError{"Not permitted to change context to specified module"});
     }
 
-    NucleusCallScopeContext::~NucleusCallScopeContext() {
-        errors::ThreadErrorContainer::get().reset();
-    }
-
     data::Symbol::Partial SharedContextMapper::partial(const data::Symbol &symbol) const {
         return context()->symbols().partial(symbol);
     }
@@ -366,6 +249,10 @@ namespace scope {
     }
 
     UsingContext::UsingContext() noexcept : _context(context()) {
+    }
+
+    data::RootHandle UsingContext::newRootHandle() const {
+        return context()->handles().createRoot();
     }
 
 } // namespace scope

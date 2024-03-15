@@ -1,10 +1,8 @@
 #include <cpp_api.hpp>
 #include <iostream>
 #include <mqtt/topic_filter.hpp>
-#include <mqtt/topic_level_iterator.hpp>
 #include <plugin.hpp>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 struct Keys {
@@ -29,16 +27,18 @@ static const Keys keys;
 class LocalBroker : public ggapi::Plugin {
 private:
     std::vector<std::pair<TopicFilter<>, ggapi::Channel>> _subscriptions;
-    std::shared_mutex _subscriptionMutex;
+    std::shared_mutex _mutex;
+    std::mutex _subscriptionMutex; // TODO: fold these two mutexes together?
+
+    ggapi::Subscription _ipcPublishSubs;
+    ggapi::Subscription _ipcSubscribeSubs;
 
 public:
     bool onStart(ggapi::Struct data) override;
 
-    ggapi::Struct publishToTopicHandler(
-        ggapi::Task task, ggapi::Symbol topic, ggapi::Struct callData);
+    ggapi::ObjHandle publishToTopicHandler(ggapi::Symbol topic, const ggapi::Container &);
 
-    ggapi::Struct subscribeToTopicHandler(
-        ggapi::Task task, ggapi::Symbol topic, ggapi::Struct callData);
+    ggapi::ObjHandle subscribeToTopicHandler(ggapi::Symbol topic, const ggapi::Container &);
 
     static LocalBroker &get() {
         static LocalBroker instance{};
@@ -46,8 +46,10 @@ public:
     }
 };
 
-ggapi::Struct LocalBroker::publishToTopicHandler(
-    ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
+ggapi::ObjHandle LocalBroker::publishToTopicHandler(
+    ggapi::Symbol, const ggapi::Container &callDataIn) {
+
+    ggapi::Struct callData{callDataIn};
     auto topic{callData.get<std::string>(keys.topic)};
     auto message{callData.get<ggapi::Struct>(keys.publishMessage)};
 
@@ -84,11 +86,13 @@ ggapi::Struct LocalBroker::publishToTopicHandler(
         .put(keys.terminate, true);
 }
 
-ggapi::Struct LocalBroker::subscribeToTopicHandler(
-    ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
+ggapi::ObjHandle LocalBroker::subscribeToTopicHandler(
+    ggapi::Symbol, const ggapi::Container &callDataIn) {
+
+    ggapi::Struct callData{callDataIn};
     TopicFilter topic{callData.get<std::string>("topic")};
 
-    auto channel = getScope().anchor(ggapi::Channel::create());
+    auto channel = ggapi::Channel::create();
     {
         std::unique_lock lock(_subscriptionMutex);
         _subscriptions.emplace_back(std::move(topic), channel);
@@ -101,7 +105,6 @@ ggapi::Struct LocalBroker::subscribeToTopicHandler(
             });
         std::iter_swap(iter, std::prev(_subscriptions.end()));
         _subscriptions.pop_back();
-        channel.release();
     });
 
     return ggapi::Struct::create()
@@ -110,10 +113,12 @@ ggapi::Struct LocalBroker::subscribeToTopicHandler(
 }
 
 bool LocalBroker::onStart(ggapi::Struct data) {
-    std::ignore = getScope().subscribeToTopic(
+    std::unique_lock guard{_mutex};
+    // TODO: These need to be closed on onStop()
+    _ipcPublishSubs = ggapi::Subscription::subscribeToTopic(
         keys.ipcPublishToTopic,
         ggapi::TopicCallback::of(&LocalBroker::publishToTopicHandler, this));
-    std::ignore = getScope().subscribeToTopic(
+    _ipcSubscribeSubs = ggapi::Subscription::subscribeToTopic(
         keys.ipcSubscribeToTopic,
         ggapi::TopicCallback::of(&LocalBroker::subscribeToTopicHandler, this));
     return true;

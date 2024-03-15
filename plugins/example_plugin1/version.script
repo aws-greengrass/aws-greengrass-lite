@@ -1,4 +1,0 @@
-{
-  global: greengrass_lifecycle;
-  local: *;
-};

@@ -6,6 +6,7 @@
 #include <fstream>
 #include <regex>
 #include <system_error>
+#include <temp_module.hpp>
 #include <util.hpp>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
@@ -25,41 +26,42 @@ static constexpr std::string_view PLATFORM_NAME = "unknown";
 namespace deployment {
     DeploymentManager::DeploymentManager(
         const scope::UsingContext &context, lifecycle::Kernel &kernel)
-        : scope::UsesContext(context), _kernel(kernel) {
+        : scope::UsesContext(context), _module(util::TempModule::create("DeploymentManager")),
+          _kernel(kernel) {
         _deploymentQueue = std::make_shared<data::SharedQueue<std::string, Deployment>>(context);
         _componentStore = std::make_shared<data::SharedQueue<std::string, Recipe>>(context);
     }
 
     void DeploymentManager::start() {
+        util::TempModule moduleScope(_module);
         std::unique_lock guard{_mutex};
-        std::ignore = ggapiSubscribeToTopic(
-            ggapiGetCurrentCallScope(),
-            CREATE_DEPLOYMENT_TOPIC_NAME.toSymbol().asInt(),
-            ggapi::TopicCallback::of(&DeploymentManager::createDeploymentHandler, this)
-                .getHandleId());
-        std::ignore = ggapiSubscribeToTopic(
-            ggapiGetCurrentCallScope(),
-            CANCEL_DEPLOYMENT_TOPIC_NAME.toSymbol().asInt(),
-            ggapi::TopicCallback::of(&DeploymentManager::cancelDeploymentHandler, this)
-                .getHandleId());
+        _createSubs = ggapi::Subscription::subscribeToTopic(
+            ggapi::Symbol(CREATE_DEPLOYMENT_TOPIC_NAME.toSymbol().asInt()),
+            ggapi::TopicCallback::of(&DeploymentManager::createDeploymentHandler, this));
+        _cancelSubs = ggapi::Subscription::subscribeToTopic(
+            ggapi::Symbol(CANCEL_DEPLOYMENT_TOPIC_NAME.toSymbol().asInt()),
+            ggapi::TopicCallback::of(&DeploymentManager::cancelDeploymentHandler, this));
 
-        _thread = std::thread(&DeploymentManager::listen, this);
+        _thread = std::thread(&DeploymentManager::listen, this, _module);
     }
 
     void DeploymentManager::stop() {
+        util::TempModule moduleScope(_module);
         _terminate = true;
         _wake.notify_all();
         _thread.join();
     }
 
     void DeploymentManager::clearQueue() {
+        util::TempModule moduleScope(_module);
         std::unique_lock guard{_mutex};
         _deploymentQueue->clear();
     }
 
-    void DeploymentManager::listen() {
+    void DeploymentManager::listen(const ggapi::ModuleScope &module) {
         // TODO: Use component store
         scope::thread()->changeContext(context());
+        std::ignore = module.setActive();
         std::unique_lock guard(_mutex);
         _wake.wait(guard, [this]() { return !_deploymentQueue->empty() || _terminate; });
         while(!_terminate) {
@@ -383,8 +385,10 @@ namespace deployment {
             .log("Successfully deployed the component!");
     }
 
-    ggapi::Struct DeploymentManager::createDeploymentHandler(
-        ggapi::Task, ggapi::Symbol, ggapi::Struct deploymentStruct) {
+    ggapi::ObjHandle DeploymentManager::createDeploymentHandler(
+        ggapi::Symbol, const ggapi::Container &deploymentContainer) {
+
+        ggapi::Struct deploymentStruct{deploymentContainer};
         std::unique_lock guard{_mutex};
         Deployment deployment;
         try {
@@ -451,8 +455,10 @@ namespace deployment {
         return ggapi::Struct::create().put("status", returnStatus);
     }
 
-    ggapi::Struct DeploymentManager::cancelDeploymentHandler(
-        ggapi::Task, ggapi::Symbol, ggapi::Struct deployment) {
+    ggapi::ObjHandle DeploymentManager::cancelDeploymentHandler(
+        ggapi::Symbol, const ggapi::Container &deploymentContainer) {
+
+        ggapi::Struct deployment{deploymentContainer};
         std::unique_lock guard{_mutex};
         if(deployment.empty()) {
             throw DeploymentException("Invalid deployment request");

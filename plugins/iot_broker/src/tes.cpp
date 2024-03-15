@@ -2,44 +2,54 @@
 
 const auto LOG = ggapi::Logger::of("TES");
 
-ggapi::Struct IotBroker::retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData) {
-    tesRefresh();
-    ggapi::Struct response = ggapi::Struct::create();
-    // TODO: Verify if keys exist before retrieving [Cache]
-    auto jsonHandle = ggapi::Buffer::create().put(0, std::string_view{_savedToken}).fromJson();
-    auto responseStruct = ggapi::Struct::create();
-    auto jsonStruct = ggapi::Struct{jsonHandle};
-
-    if(jsonStruct.hasKey("credentials")) {
-        auto innerStruct = jsonStruct.get<ggapi::Struct>("credentials");
-        responseStruct.put("AccessKeyId", innerStruct.get<std::string>("accessKeyId"));
-        responseStruct.put("SecretAccessKey", innerStruct.get<std::string>("secretAccessKey"));
-        responseStruct.put("Token", innerStruct.get<std::string>("sessionToken"));
-        responseStruct.put("Expiration", innerStruct.get<std::string>("expiration"));
-        // Create json response string
-        auto responseBuffer = responseStruct.toJson();
-        auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
-        auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
-        response.put("Response", responseJsonAsString);
-        return response;
-    }
-
-    LOG.atInfo().event("Unable to fetch TES credentials").kv("ERROR", _savedToken).log();
-    std::cerr << "[TES] Unable to fetch TES credentials. ERROR: " << _savedToken << std::endl;
-
-    auto responseBuffer = jsonStruct.toJson();
-    auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
-    auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
-    response.put("Error", responseJsonAsString);
-    return response;
+ggapi::Promise IotBroker::retrieveToken(ggapi::Symbol, const ggapi::Container &callData) {
+    return ggapi::Promise::create().async(
+        &IotBroker::retrieveTokenAsync, this, ggapi::Struct(callData));
 }
 
-bool IotBroker::tesOnStart(ggapi::Struct data) {
+void IotBroker::retrieveTokenAsync(const ggapi::Struct &, ggapi::Promise promise) {
+    promise.fulfill([this]() {
+        tesRefresh();
+
+        ggapi::Struct response = ggapi::Struct::create();
+        // TODO: Verify if keys exist before retrieving [Cache]
+        auto jsonHandle = ggapi::Buffer::create().put(0, std::string_view{_savedToken}).fromJson();
+        auto responseStruct = ggapi::Struct::create();
+        auto jsonStruct = ggapi::Struct{jsonHandle};
+
+        if(jsonStruct.hasKey("credentials")) {
+            auto innerStruct = jsonStruct.get<ggapi::Struct>("credentials");
+            responseStruct.put("AccessKeyId", innerStruct.get<std::string>("accessKeyId"));
+            responseStruct.put("SecretAccessKey", innerStruct.get<std::string>("secretAccessKey"));
+            responseStruct.put("Token", innerStruct.get<std::string>("sessionToken"));
+            responseStruct.put("Expiration", innerStruct.get<std::string>("expiration"));
+            // Create json response string
+            auto responseBuffer = responseStruct.toJson();
+            auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
+            auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
+            response.put("Response", responseJsonAsString);
+            return response;
+        }
+
+        LOG.atInfo().event("Unable to fetch TES credentials").kv("ERROR", _savedToken).log();
+        std::cerr << "[TES] Unable to fetch TES credentials. ERROR: " << _savedToken << std::endl;
+
+        auto responseBuffer = jsonStruct.toJson();
+        auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
+        auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
+        // TODO: change to throw exception
+        response.put("Error", responseJsonAsString);
+        return response;
+    });
+}
+
+bool IotBroker::tesOnStart(const ggapi::Struct &data) {
+    std::shared_lock guard{_mutex};
     // Read the Device credentials
     auto returnValue = false;
     try {
-        auto system = _system.load();
-        auto nucleus = _nucleus.load();
+        auto system = _system;
+        auto nucleus = _nucleus;
 
         _thingInfo.rootCaPath =
             system.getValue<std::string>({"rootCaPath"}); // OverrideDefaultTrustStore
@@ -63,6 +73,7 @@ bool IotBroker::tesOnStart(ggapi::Struct data) {
             .log();
         std::cerr << "[TES] Error: " << e.what() << std::endl;
     }
+    guard.unlock();
 
     tesRefresh();
 
@@ -70,6 +81,7 @@ bool IotBroker::tesOnStart(ggapi::Struct data) {
 }
 
 // TODO:: Fix the mutex on TLSConnectionInit failure on refresh
+// TODO: This is blocking, it needs to be async
 void IotBroker::tesRefresh() {
     auto request{ggapi::Struct::create()};
     std::stringstream ss;
@@ -85,14 +97,18 @@ void IotBroker::tesRefresh() {
     request.put("caFile", _thingInfo.rootCaPath.c_str());
     request.put("pkeyPath", _thingInfo.keyPath.c_str());
 
-    auto response =
-        ggapi::Task::sendToTopic(ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, request);
+    auto future = ggapi::Subscription::callTopicFirst(
+        ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, request);
+    // TODO: Handle case when resultFuture is empty (no handlers)
+    auto response = ggapi::Struct(future.waitAndGetValue());
 
+    std::unique_lock guard{_mutex};
     _savedToken = response.get<std::string>("Response");
 }
 
 bool IotBroker::tesOnRun() {
-    std::ignore = getScope().subscribeToTopic(
+    std::unique_lock guard{_mutex};
+    _requestTestSubs = ggapi::Subscription::subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.requestTES"},
         ggapi::TopicCallback::of(&IotBroker::retrieveToken, this));
 

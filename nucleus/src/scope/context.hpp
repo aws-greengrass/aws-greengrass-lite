@@ -5,12 +5,15 @@
 #include <optional>
 #include <utility>
 
+namespace data {
+    class RootHandle;
+}
+
 namespace scope {
     class Context;
     class LazyContext;
     class ThreadContextContainer;
     class PerThreadContext;
-    class NucleusCallScopeContext;
 
     using ContextRef = std::shared_ptr<Context>;
     using WeakContext = std::weak_ptr<Context>;
@@ -67,6 +70,7 @@ namespace scope {
         operator WeakContext() const noexcept {
             return _context;
         }
+        [[nodiscard]] data::RootHandle newRootHandle() const;
     };
 
     /**
@@ -74,10 +78,9 @@ namespace scope {
      */
     class UsesContext {
     private:
-        WeakContext _context;
+        const WeakContext _context;
 
     public:
-        UsesContext() = default;
         explicit UsesContext(const UsingContext &context) noexcept : _context(context) {
         }
 

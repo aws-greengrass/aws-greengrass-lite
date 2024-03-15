@@ -13,6 +13,10 @@
 #include <filesystem>
 #include <optional>
 
+namespace pubsub {
+    class Promise;
+}
+
 namespace deployment {
     class DeviceConfiguration;
     class DeploymentManager;
@@ -43,13 +47,12 @@ namespace lifecycle {
     class Kernel : private scope::UsesContext {
         std::shared_ptr<util::NucleusPaths> _nucleusPaths;
         std::shared_ptr<RootPathWatcher> _rootPathWatcher;
-        tasks::FixedTaskThreadScope _mainThread;
+        std::shared_ptr<pubsub::Promise> _mainPromise;
         std::unique_ptr<config::TlogWriter> _tlog;
         deployment::DeploymentStage _deploymentStageAtLaunch{deployment::DeploymentStage::DEFAULT};
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfiguration{nullptr};
         std::unique_ptr<KernelAlternatives> _kernelAlts{nullptr};
         std::unique_ptr<deployment::DeploymentManager> _deploymentManager{nullptr};
-        std::atomic_int _exitCode{0};
         std::unique_ptr<ipc::ProcessManager> _processManager{};
 
     public:
@@ -107,10 +110,6 @@ namespace lifecycle {
         }
 
         config::Manager &getConfig();
-
-        void setExitCode(int exitCode) {
-            _exitCode.store(exitCode);
-        }
 
         ipc::ProcessId startProcess(
             std::string script,

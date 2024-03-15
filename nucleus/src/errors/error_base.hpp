@@ -77,7 +77,8 @@ namespace errors {
 namespace util {
 
     template<>
-    inline ggapiErrorKind ErrorBase<errors::traits::ErrorTraits>::toThreadLastError() const {
+    inline ggapiErrorKind ErrorBase<errors::traits::ErrorTraits>::toThreadLastError()
+        const noexcept {
         return errors::ThreadErrorContainer::get().setError(*this);
     }
 

@@ -1,14 +1,16 @@
 #include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
+#include <temp_module.hpp>
 
-static ggapi::Struct simpleListener(ggapi::Task, ggapi::StringOrd, ggapi::Struct) {
-    return ggapi::Struct{0};
+static ggapi::Struct simpleListener(ggapi::Symbol, const ggapi::Container &) {
+    return ggapi::Struct{};
 }
 
 // NOLINTBEGIN
 SCENARIO("Shared structure API", "[struct]") {
-    scope::LocalizedContext forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{};
+    util::TempModule testModule("struct-test");
 
     GIVEN("A structure") {
         auto s = ggapi::Struct::create();
@@ -89,8 +91,7 @@ SCENARIO("Shared structure API", "[struct]") {
             }
         }
         WHEN("A listener is added to structure") {
-            ggapi::CallScope callScope{};
-            ggapi::Subscription handle{callScope.subscribeToTopic({}, simpleListener)};
+            ggapi::Subscription handle{ggapi::Subscription::subscribeToTopic({}, simpleListener)};
             s.put("Listener", handle);
             THEN("Listener can be retrieved from structure") {
                 ggapi::Subscription other = s.get<ggapi::Subscription>("Listener");

@@ -62,8 +62,16 @@ class IotBroker : public ggapi::Plugin {
         std::string rootPath;
     } _thingInfo;
 
-    std::atomic<ggapi::Struct> _nucleus;
-    std::atomic<ggapi::Struct> _system;
+    mutable std::shared_mutex _mutex;
+    ggapi::Struct _nucleus;
+    ggapi::Struct _system;
+
+    // Subscriptions
+    ggapi::Subscription _publishSubs;
+    ggapi::Subscription _ipcPublishSubs;
+    ggapi::Subscription _subscribeSubs;
+    ggapi::Subscription _ipcSubscribeSubs;
+    ggapi::Subscription _requestTestSubs;
 
     // TES
     std::string _iotRoleAlias;
@@ -81,25 +89,28 @@ public:
     }
 
     // TES
-    bool tesOnStart(ggapi::Struct data);
+    bool tesOnStart(const ggapi::Struct &data);
     bool tesOnRun();
     void tesRefresh();
-    ggapi::Struct retrieveToken(ggapi::Task, ggapi::Symbol, ggapi::Struct callData);
+    ggapi::Promise retrieveToken(ggapi::Symbol, const ggapi::Container &callData);
+    void retrieveTokenAsync(const ggapi::Struct &callData, ggapi::Promise promise);
 
 private:
     static const Keys keys;
-    ggapi::Struct publishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
-    ggapi::Struct ipcPublishHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
-    ggapi::Struct subscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
+    ggapi::Promise publishHandler(ggapi::Symbol, const ggapi::Container &args);
+    void publishHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise);
+    ggapi::Promise ipcPublishHandler(ggapi::Symbol, const ggapi::Container &args);
+    ggapi::Promise subscribeHandler(ggapi::Symbol, const ggapi::Container &args);
+    void subscribeHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise);
+    ggapi::Promise ipcSubscribeHandler(ggapi::Symbol, const ggapi::Container &args);
 
-    ggapi::Struct ipcSubscribeHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct args);
     std::variant<ggapi::Channel, uint32_t> commonSubscribeHandler(
-        ggapi::Struct args, PacketHandler handler);
+        const ggapi::Struct &args, PacketHandler handler);
 
     void initMqtt();
 
     using Key = TopicFilter<Aws::Crt::StlAllocator<char>>;
     std::vector<std::tuple<Key, ggapi::Channel, PacketHandler>> _subscriptions;
-    std::shared_mutex _subscriptionMutex;
+    std::shared_mutex _subscriptionMutex; // TODO: fold this with _mutex?
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
 };

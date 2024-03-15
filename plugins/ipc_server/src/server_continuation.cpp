@@ -1,8 +1,9 @@
 #include "server_continuation.hpp"
 #include "ipc_server.hpp"
+#include <temp_module.hpp>
 
 ggapi::Struct ServerContinuation::onTopicResponse(
-    const std::weak_ptr<ServerContinuation> &weakSelf, ggapi::Struct response) {
+    const std::weak_ptr<ServerContinuation> &weakSelf, const ggapi::Struct &response) {
     // TODO: unsubscribe
     auto self = weakSelf.lock();
     if(!self) {
@@ -58,9 +59,16 @@ ggapi::Struct ServerContinuation::onTopicResponse(
 }
 
 extern "C" void ServerContinuationCCallbacks::onContinuation(
-    aws_event_stream_rpc_server_continuation_token *token,
+    aws_event_stream_rpc_server_continuation_token *,
     const aws_event_stream_rpc_message_args *message_args,
     void *user_data) noexcept {
+
+    auto continuation = *static_cast<ContinutationHandle>(user_data);
+    util::TempModule module(continuation->module());
+
+    // TODO: IPC calls must NOT be blocking, we're doing too much on this IPC thread
+
+    // TODO: This code needs to correctly handle exceptions and turn them into IPC errors
     std::cerr << "[IPC] Continuation received:\n" << *message_args << '\n';
 
     if(message_args->message_flags & AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_TERMINATE_STREAM) {
@@ -77,45 +85,56 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
                 .fromJson();
         return jsonHandle.getHandleId() ? jsonHandle.unbox<Struct>() : Struct::create();
     }();
-    auto scope = ggapi::CallScope{};
-    // NOLINTNEXTLINE
-    auto continuation = *static_cast<ContinutationHandle>(user_data);
-    auto response = Task::sendToTopic(continuation->lpcTopic(), json);
-    if(response.empty()) {
-        std::cerr << "[IPC] LPC appears unhandled\n";
-        const auto sender = [continuation](auto *args) {
-            return aws_event_stream_rpc_server_continuation_send_message(
-                continuation->GetUnderlyingHandle(), args, onMessageFlush, nullptr);
-        };
-        std::string message = R"({ "error": "LPC unhandled", "message": ")"
-                              "LPC unhandled.\" }";
-        ggapi::Buffer payload = ggapi::Buffer::create().put(0, std::string_view{message});
-        std::array headers{
-            makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
-        sendMessage(
-            sender,
-            headers,
-            payload,
-            AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_APPLICATION_ERROR,
-            AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_TERMINATE_STREAM);
-    } else {
-        response.put(keys.serviceModelType, continuation->ipcServiceModel());
-        ServerContinuation::onTopicResponse(continuation, response);
-        if(response.hasKey(keys.channel)) {
-            auto channel =
-                IpcServer::get().getScope().anchor(response.get<ggapi::Channel>(keys.channel));
-            continuation->_channel = channel;
-            channel.addListenCallback(ggapi::ChannelListenCallback::of(
-                &ServerContinuation::onTopicResponse, std::weak_ptr{continuation}));
-        }
+    auto responseFuture = ggapi::Subscription::callTopicFirst(continuation->lpcTopic(), json);
+    if(!responseFuture) {
+        // no future = unhandled, create a temporary promise to reuse the handler
+        auto promise = ggapi::Promise::create();
+        promise.setError(ggapi::GgApiError("Unhandled - IPC function not registered"));
+        responseFuture = promise;
     }
+    responseFuture.whenValid([continuation](const ggapi::Future &completedFuture) {
+        ggapi::Struct response;
+        try {
+            response = ggapi::Struct(completedFuture.getValue());
+            if(!response) {
+                throw ggapi::GgApiError("Unhandled - empty response");
+            }
+            response.put(keys.serviceModelType, continuation->ipcServiceModel());
+            ServerContinuation::onTopicResponse(continuation, response);
+            if(response.hasKey(keys.channel)) {
+                auto channel = response.get<ggapi::Channel>(keys.channel);
+                continuation->_channel = channel;
+                auto continuationWeak = std::weak_ptr{continuation};
+                channel.addListenCallback(ggapi::ChannelListenCallback::of(
+                    &ServerContinuation::onTopicResponse, continuationWeak));
+            }
+        } catch(const ggapi::GgApiError &error) {
+            const auto sender = [continuation](auto *args) {
+                return aws_event_stream_rpc_server_continuation_send_message(
+                    continuation->GetUnderlyingHandle(), args, onMessageFlush, nullptr);
+            };
+            ggapi::Struct message = ggapi::Struct::create();
+            message
+                .put("error", "LPC error") // needs to be better error here
+                .put("message", error.what());
+            ggapi::Buffer payload = message.toJson();
+            std::array headers{makeHeader(
+                Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
+            sendMessage(
+                sender,
+                headers,
+                payload,
+                AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_APPLICATION_ERROR,
+                AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_TERMINATE_STREAM);
+        }
+    });
 }
 
 extern "C" void ServerContinuationCCallbacks::onContinuationClose(
-    aws_event_stream_rpc_server_continuation_token *token, void *user_data) noexcept {
-    // NOLINTNEXTLINE
+    aws_event_stream_rpc_server_continuation_token *, void *user_data) noexcept {
     auto continuation = static_cast<ContinutationHandle>(user_data);
     std::cerr << "Stream ending for " << (*continuation)->_operation << std::endl;
-    // NOLINTNEXTLINE
+    // TODO: Improve in this, per memory coding standards
+    // NOLINTNEXTLINE(*-owning-memory)
     delete continuation;
 }

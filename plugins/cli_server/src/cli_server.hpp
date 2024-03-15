@@ -82,18 +82,23 @@ class CliServer final : public ggapi::Plugin {
     std::unordered_map<std::string, std::string> _clientIdToAuthToken;
     void generateCliIpcInfo(const std::filesystem::path &);
 
-    std::atomic<ggapi::Struct> _system;
-    std::atomic<ggapi::Struct> _config;
-    std::atomic<ggapi::Struct> _configRoot;
+    mutable std::shared_mutex _mutex;
+    ggapi::Struct _system;
+    ggapi::Struct _config;
+    ggapi::Subscription _createLocalDeploymentSubs;
+    ggapi::Subscription _cancelLocalDeploymentSubs;
+    ggapi::Subscription _getLocalDeploymentStatusSubs;
+    ggapi::Subscription _listLocalDeploymentsSubs;
+    ggapi::Subscription _listDeploymentsSubs;
 
-    ggapi::Struct createLocalDeploymentHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
-    ggapi::Struct cancelLocalDeploymentHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
-    ggapi::Struct getLocalDeploymentStatusHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
-    ggapi::Struct listLocalDeploymentsHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
-    ggapi::Struct listDeploymentsHandler(ggapi::Task, ggapi::Symbol, ggapi::Struct);
+    ggapi::ObjHandle createLocalDeploymentHandler(ggapi::Symbol, const ggapi::Container &);
+    ggapi::ObjHandle cancelLocalDeploymentHandler(ggapi::Symbol, const ggapi::Container &);
+    ggapi::ObjHandle getLocalDeploymentStatusHandler(ggapi::Symbol, const ggapi::Container &);
+    ggapi::ObjHandle listLocalDeploymentsHandler(ggapi::Symbol, const ggapi::Container &);
+    ggapi::ObjHandle listDeploymentsHandler(ggapi::Symbol, const ggapi::Container &);
 
     std::vector<std::tuple<ggapi::Symbol, ggapi::Channel, DeploymentHandler>> _subscriptions;
-    std::shared_mutex _subscriptionMutex;
+    std::mutex _subscriptionMutex;
 
     RandomUUID _randomUUID{};
 

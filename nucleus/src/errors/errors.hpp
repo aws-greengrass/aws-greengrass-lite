@@ -109,6 +109,44 @@ namespace errors {
         }
     };
 
+    class InvalidFutureError : public Error {
+    public:
+        explicit InvalidFutureError(const std::string &what = "Invalid Promise specified") noexcept
+            : Error("InvalidFutureError", what) {
+        }
+    };
+
+    class InvalidPromiseError : public Error {
+    public:
+        explicit InvalidPromiseError(const std::string &what = "Invalid Promise specified") noexcept
+            : Error("InvalidPromiseError", what) {
+        }
+    };
+
+    class PromiseNotFulfilledError : public Error {
+    public:
+        explicit PromiseNotFulfilledError(
+            const std::string &what = "Promise not yet fulfilled") noexcept
+            : Error("PromiseNotFulfilledError", what) {
+        }
+    };
+
+    class PromiseCancelledError : public Error {
+    public:
+        explicit PromiseCancelledError(
+            const std::string &what = "Promise has been cancelled") noexcept
+            : Error("PromiseCancelledError", what) {
+        }
+    };
+
+    class PromiseDoubleWriteError : public Error {
+    public:
+        explicit PromiseDoubleWriteError(
+            const std::string &what = "Promise has been fulfilled twice") noexcept
+            : Error("PromiseDoubleWriteError", what) {
+        }
+    };
+
     class CallbackError : public Error {
     public:
         explicit CallbackError(const std::string &what = "Callback error") noexcept

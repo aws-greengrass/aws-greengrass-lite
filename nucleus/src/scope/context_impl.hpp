@@ -32,80 +32,11 @@ namespace pubsub {
     class PubSubManager;
 }
 
-namespace tasks {
-    class TaskThread;
-}
-
 namespace scope {
     class Context;
     class LazyContext;
     class ThreadContextContainer;
     class PerThreadContext;
-    class NucleusCallScopeContext;
-    class CallScope;
-
-    /**
-     * Track a call scope managed by Nucleus - this provides call framing for handle roots
-     * that are considered more authoritative than CallScope's.
-     */
-    class NucleusCallScopeContext : public util::RefObject<NucleusCallScopeContext> {
-    public:
-        explicit NucleusCallScopeContext(const std::shared_ptr<PerThreadContext> &thread);
-        NucleusCallScopeContext(const NucleusCallScopeContext &) = delete;
-        NucleusCallScopeContext(NucleusCallScopeContext &&) = delete;
-        NucleusCallScopeContext &operator=(const NucleusCallScopeContext &) = delete;
-        NucleusCallScopeContext &operator=(NucleusCallScopeContext &&) = delete;
-        ~NucleusCallScopeContext();
-
-        std::shared_ptr<NucleusCallScopeContext> set();
-        std::shared_ptr<CallScope> getCallScope();
-        std::shared_ptr<CallScope> setCallScope(const std::shared_ptr<CallScope> &callScope);
-        std::shared_ptr<data::TrackingRoot> root();
-        std::shared_ptr<Context> context();
-
-        template<typename T>
-        static data::ObjectAnchor make();
-
-        static data::ObjectAnchor anchor(const std::shared_ptr<data::TrackedObject> &obj);
-        static data::ObjHandle handle(const std::shared_ptr<data::TrackedObject> &obj) {
-            return anchor(obj).getHandle();
-        }
-        static uint32_t intHandle(const std::shared_ptr<data::TrackedObject> &obj) {
-            return handle(obj).asInt();
-        }
-
-    private:
-        const std::weak_ptr<PerThreadContext> _threadContext;
-        util::SafeSharedPtr<CallScope> _callScope;
-        util::SafeSharedPtr<data::TrackingRoot> _scopeRoot;
-    };
-
-    /**
-     * Utility class for managing stack-local scope, on Nucleus. Similar functionality to
-     * GGAPI CallScope.
-     */
-    class StackScope {
-        std::shared_ptr<NucleusCallScopeContext> _saved;
-        std::shared_ptr<NucleusCallScopeContext> _temp;
-
-    public:
-        StackScope();
-        StackScope(const StackScope &) = default;
-        StackScope(StackScope &&) = default;
-        StackScope &operator=(const StackScope &) = default;
-        StackScope &operator=(StackScope &&) = default;
-        ~StackScope() {
-            release();
-        }
-        void release();
-
-        std::shared_ptr<CallScope> getCallScope() {
-            if(!_temp) {
-                return {};
-            }
-            return _temp->getCallScope();
-        }
-    };
 
     /**
      * Helper class to support thread local data addressing issues on some compiler/OS mixes.
@@ -225,25 +156,12 @@ namespace scope {
         static std::shared_ptr<PerThreadContext> reset();
         std::shared_ptr<Context> context();
         std::shared_ptr<Context> changeContext(const std::shared_ptr<Context> &newContext);
-        std::shared_ptr<NucleusCallScopeContext> scoped();
-        std::shared_ptr<NucleusCallScopeContext> rootScoped();
-        std::shared_ptr<NucleusCallScopeContext> changeScope(
-            const std::shared_ptr<NucleusCallScopeContext> &newScope);
-        std::shared_ptr<CallScope> newCallScope();
-        std::shared_ptr<CallScope> getCallScope() {
-            return scoped()->getCallScope();
-        }
-        std::shared_ptr<CallScope> setCallScope(const std::shared_ptr<CallScope> &callScope) {
-            return scoped()->setCallScope(callScope);
-        }
-        std::shared_ptr<tasks::Task> getActiveTask();
-        std::shared_ptr<tasks::Task> setActiveTask(const std::shared_ptr<tasks::Task> &task = {});
         const errors::Error &getThreadErrorDetail() const;
         void setThreadErrorDetail(const errors::Error &error);
-        std::shared_ptr<tasks::TaskThread> getThreadTaskData();
-        std::shared_ptr<tasks::TaskThread> setThreadTaskData(
-            const std::shared_ptr<tasks::TaskThread> &threadTaskData = {});
 
+        std::shared_ptr<data::RootHandle> setTempRoot(
+            const std::shared_ptr<data::RootHandle> &root) noexcept;
+        [[nodiscard]] std::shared_ptr<data::RootHandle> getTempRoot() const noexcept;
         ModulePair setModules(const ModulePair &modules);
         std::shared_ptr<plugins::AbstractPlugin> getEffectiveModule();
         std::shared_ptr<plugins::AbstractPlugin> setEffectiveModule(
@@ -251,18 +169,33 @@ namespace scope {
         std::shared_ptr<plugins::AbstractPlugin> getParentModule();
 
     private:
+        // Values are maintained per-thread, no locking required
         std::shared_ptr<Context> _context;
-        std::shared_ptr<NucleusCallScopeContext> _scopedContext;
-        std::shared_ptr<NucleusCallScopeContext> _rootScopedContext;
-        std::shared_ptr<tasks::TaskThread> _threadTaskData;
-        std::shared_ptr<tasks::Task> _activeTask;
+        std::shared_ptr<data::RootHandle> _tempRoot;
         std::shared_ptr<plugins::AbstractPlugin> _parentModule;
         std::shared_ptr<plugins::AbstractPlugin> _effectiveModule;
         errors::Error _threadErrorDetail{data::Symbol{}, ""}; // Modify only via ThreadErrorManager
     };
 
     /**
-     * Localized context, particularly useful for testing.
+     * Creates a temporary root on the thread that can be used with the ggapiMakeTemp call
+     */
+    class TempRoot {
+        std::shared_ptr<data::RootHandle> _prev;
+        std::shared_ptr<data::RootHandle> _temp;
+
+    public:
+        TempRoot();
+        TempRoot(const TempRoot &) = delete;
+        TempRoot(TempRoot &&) = delete;
+        TempRoot &operator=(const TempRoot &) = delete;
+        TempRoot &operator=(TempRoot &&) = delete;
+        ~TempRoot() noexcept;
+        data::RootHandle &root() noexcept;
+    };
+
+    /**
+     * Localized context, used for testing to localize testing/context information.
      */
     class LocalizedContext {
         std::shared_ptr<PerThreadContext> _saved;
@@ -343,17 +276,5 @@ namespace scope {
         }
         void lazyInit();
     };
-
-    template<typename T>
-    inline data::ObjectAnchor NucleusCallScopeContext::make() {
-        static_assert(std::is_base_of_v<data::TrackedObject, T>);
-        std::shared_ptr<data::TrackedObject> obj = std::make_shared<T>(Context::get());
-        return anchor(obj);
-    }
-
-    inline data::ObjectAnchor NucleusCallScopeContext::anchor(
-        const std::shared_ptr<data::TrackedObject> &obj) {
-        return PerThreadContext::get()->scoped()->root()->anchor(obj);
-    }
 
 } // namespace scope

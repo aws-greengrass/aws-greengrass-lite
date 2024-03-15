@@ -5,59 +5,39 @@
 #include "task_threads.hpp"
 
 namespace tasks {
+
+    TaskManager::TaskManager(const scope::UsingContext &context) : scope::UsesContext(context) {
+    }
+
     void TaskManager::queueTask(const std::shared_ptr<Task> &task) {
-        if(!task->queueTaskInterlockedTrySetRunning()) {
-            return; // Cannot start at this time
+        // no affinity, Add to backlog for a worker to pick up
+        std::unique_lock guard{_mutex};
+        if(_shutdown) {
+            return; // abort
         }
-        resumeTask(task);
+        _backlog.push_back(task);
+        guard.unlock();
+        allocateNextWorker();
     }
 
-    void TaskManager::resumeTask(const std::shared_ptr<Task> &task) {
-        // Find next thread to continue task on
-        if(task->terminatesWait()) {
-            return;
-        }
-        std::shared_ptr<TaskThread> affinity = task->getThreadAffinity();
-        if(affinity) {
-            // thread affinity - need to assign task to the specified thread
-            // e.g. event thread of a given WASM VM or sync task
-            affinity->queueTask(task);
-            affinity->waken();
-        } else {
-            // no affinity, Add to backlog for a worker to pick up
-            std::unique_lock guard{_mutex};
-            if(_shutdown) {
-                task->cancelTask();
-                return; // abort
-            }
-            _backlog.push_back(task);
-            guard.unlock();
-            allocateNextWorker();
-        }
-    }
+    void TaskManager::queueTask(const std::shared_ptr<Task> &task, const ExpireTime &when) {
+        // no affinity, Add to backlog for a worker to pick up
+        std::unique_lock guard{_mutex};
 
-    void TaskManager::scheduleFutureTaskAssumeLocked(
-        const ExpireTime &when, const std::shared_ptr<Task> &task) {
+        if(_shutdown) {
+            return; // abort
+        }
+
+        if(!_timerWorker) {
+            _timerWorker = TimerWorker::create(context());
+        }
+
         auto first = _delayedTasks.begin();
         bool needsSignal = first == _delayedTasks.end() || when < first->first;
         _delayedTasks.emplace(when, task); // insert into sorted order (duplicates ok)
-        auto thread{_timerWorkerThread.lock()};
-        if(thread && needsSignal) {
+        if(needsSignal) {
             // Wake timer thread early - its wait time is incorrect
-            thread->waken();
-        }
-    }
-
-    void TaskManager::descheduleFutureTaskAssumeLocked(
-        const ExpireTime &when, const std::shared_ptr<Task> &task) {
-        if(when == ExpireTime::unspecified()) {
-            return;
-        }
-        for(auto it = _delayedTasks.find(when); it != _delayedTasks.end(); ++it) {
-            if(it->second == task) {
-                _delayedTasks.erase(it);
-                return;
-            }
+            _timerWorker->waken();
         }
     }
 
@@ -67,48 +47,38 @@ namespace tasks {
             return false;
         }
         if(_backlog.empty()) {
-            return true; // backlog is empty (does not include thread-assigned
-                         // tasks)
+            // no work to do, no need to allocate a worker
+            return true;
         }
         if(_idleWorkers.empty()) {
-            if(_busyWorkers.size() >= _maxWorkers) {
+            // Needing to create workers, don't consider clean-up yet
+            _confirmedIdleWorkers = 0;
+            _nextDecayCheck = ExpireTime::fromNowMillis(_decayMs);
+            if(_maxWorkers > 0 && _busyWorkers.size() >= static_cast<uint64_t>(_maxWorkers)) {
                 return false; // run out of workers
             }
-            // allocate a new worker - it will be tasked with picking up next task
-            // TODO: add some kind of knowledge of workers starting
-            // code as is can cause a scramble
-            std::shared_ptr<TaskPoolWorker> worker = TaskPoolWorker::create(context());
-            _busyWorkers.push_back(worker);
-            worker->waken();
+            // allocate a new worker
+            auto worker = TaskPoolWorker::create(context());
+            auto pWorker = worker.get();
+            _busyWorkers.emplace_back(std::move(worker));
+            pWorker->waken();
             return true;
         } else {
-            std::shared_ptr<TaskPoolWorker> worker{_idleWorkers.back()};
+            auto worker = std::move(_idleWorkers.back());
             _idleWorkers.pop_back();
-            _busyWorkers.push_back(worker);
-            worker->waken();
+            if(_idleWorkers.size() < _confirmedIdleWorkers) {
+                // demand on idle pool, defer cleanup
+                _confirmedIdleWorkers = util::safeBoundPositive<int64_t>(_idleWorkers.size());
+                _nextDecayCheck = ExpireTime::fromNowMillis(_decayMs);
+            }
+            auto pWorker = worker.get();
+            _busyWorkers.emplace_back(std::move(worker));
+            pWorker->waken();
             return true;
         }
     }
 
-    std::shared_ptr<Task> TaskManager::acquireTaskWhenStealing(
-        const std::shared_ptr<Task> &priorityTask) {
-        std::unique_lock guard{_mutex};
-        if(_shutdown || _backlog.empty()) {
-            return {};
-        }
-        for(auto i = _backlog.begin(); i != _backlog.end(); ++i) {
-            if(*i == priorityTask) {
-                _backlog.erase(i);
-                return priorityTask; // claim priority task
-            }
-        }
-        // permitted to take any backlog task if blocked
-        std::shared_ptr<Task> work{_backlog.front()};
-        _backlog.pop_front();
-        return work;
-    }
-
-    std::shared_ptr<Task> TaskManager::acquireTaskForWorker(TaskThread *worker) {
+    std::shared_ptr<Task> TaskManager::acquireTaskForWorker(TaskPoolWorker *worker) {
         std::unique_lock guard{_mutex};
         if(_shutdown) {
             return {};
@@ -117,7 +87,7 @@ namespace tasks {
             // backlog is empty, need to idle this worker
             for(auto i = _busyWorkers.begin(); i != _busyWorkers.end(); ++i) {
                 if(i->get() == worker) {
-                    _idleWorkers.emplace_back(*i);
+                    _idleWorkers.emplace_back(std::move(*i));
                     _busyWorkers.erase(i);
                     break;
                 }
@@ -129,18 +99,23 @@ namespace tasks {
         return work;
     }
 
-    ExpireTime TaskManager::pollNextDeferredTask(TaskThread *worker) {
+    /**
+     * Queue all tasks who's start time has passed
+     * @return start time of next task
+     */
+    ExpireTime TaskManager::computeNextDeferredTask() {
         std::unique_lock guard{_mutex};
         if(_shutdown) {
             return ExpireTime::unspecified();
         }
-        if(worker) {
-            _timerWorkerThread = worker->ref<TaskThread>();
-        }
+        ExpireTime nextTime = _nextDecayCheck;
+
         for(auto it = _delayedTasks.begin(); it != _delayedTasks.end();
             it = _delayedTasks.begin()) {
-            ExpireTime nextTime = it->first;
+
+            nextTime = it->first; // always from top, see note below
             if(nextTime <= ExpireTime::now()) {
+                // time has expired
                 auto task = it->second;
                 _delayedTasks.erase(it);
                 guard.unlock();
@@ -150,12 +125,38 @@ namespace tasks {
                 queueTask(task);
                 guard.lock();
             } else {
-                // Next task to be executed in the future
                 return nextTime;
             }
         }
-        // No deferred tasks
         return ExpireTime::infinite();
+    }
+
+    /**
+     * If decay time has passed, release threads
+     * @return next decay timer time
+     */
+    ExpireTime TaskManager::computeIdleTaskDecay() {
+        std::unique_lock guard{_mutex};
+        if(_shutdown) {
+            return ExpireTime::unspecified();
+        }
+        auto now = ExpireTime::now();
+        if(now >= _nextDecayCheck) {
+            auto decay = _confirmedIdleWorkers;
+            decay =
+                std::max(decay, util::safeBoundPositive<uint64_t>(_idleWorkers.size())); // safety
+            auto minIdle = _minIdle;
+            // 'decay' number of workers have not been used for a while, we can shrink thread
+            // pool
+            for(; decay > minIdle; --decay) {
+                auto worker = std::move(_idleWorkers.back());
+                _idleWorkers.pop_back();
+                worker->join();
+            }
+            _confirmedIdleWorkers = util::safeBoundPositive<int64_t>(_idleWorkers.size());
+            _nextDecayCheck = ExpireTime::fromNowMillis(_decayMs);
+        }
+        return _nextDecayCheck;
     }
 
     TaskManager::~TaskManager() {
@@ -166,52 +167,27 @@ namespace tasks {
 
     void TaskManager::shutdownAndWait() {
         std::unique_lock guard{_mutex};
-        _shutdown = true;
-        guard.unlock();
-        shutdownAllWorkers(false); // non blocking
-        cancelWaitingTasks(); // opportunistic
-        shutdownAllWorkers(true); // blocking
-        cancelWaitingTasks(); // mop-up
-    }
-
-    void TaskManager::shutdownAllWorkers(bool join) {
-        std::unique_lock guard{_mutex};
-        std::vector<std::shared_ptr<TaskThread>> threads;
+        _shutdown = true; // prevent new tasks being added
+        std::vector<std::shared_ptr<TaskPoolWorker>> threads;
         for(auto &worker : _busyWorkers) {
-            threads.emplace_back(worker);
+            threads.emplace_back(std::move(worker));
         }
         for(auto &worker : _idleWorkers) {
-            threads.emplace_back(worker);
+            threads.emplace_back(std::move(worker));
         }
-        if(join) {
-            _busyWorkers.clear();
-            _idleWorkers.clear();
+        if(_timerWorker) {
+            threads.emplace_back(std::move(_timerWorker));
         }
+        _busyWorkers.clear();
+        _idleWorkers.clear();
+        _backlog.clear();
+        _delayedTasks.clear();
         guard.unlock(); // avoid deadlocks
         for(auto &thread : threads) {
             thread->shutdown();
         }
-        if(join) {
-            for(auto &thread : threads) {
-                thread->join();
-            }
-        }
-    }
-
-    void TaskManager::cancelWaitingTasks() {
-        std::unique_lock guard{_mutex};
-        std::vector<std::shared_ptr<Task>> tasks;
-        for(auto &task : _backlog) {
-            tasks.emplace_back(task);
-        }
-        for(auto &task : _delayedTasks) {
-            tasks.emplace_back(task.second);
-        }
-        _backlog.clear();
-        _delayedTasks.clear();
-        guard.unlock(); // avoid deadlocks
-        for(auto &task : tasks) {
-            task->cancelTask();
+        for(auto &thread : threads) {
+            thread->join();
         }
     }
 
