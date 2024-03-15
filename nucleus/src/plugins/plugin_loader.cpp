@@ -106,6 +106,9 @@ namespace plugins {
         // The only plugins used are those in the plugin directory, or subdirectory of
         // plugin directory
         // TODO: This is temporary logic until recipe logic has been written
+
+        // TOFIX:: The below code ensures the plugins are loaded correctly but still does not
+        // guarantee that the plugins are ready and processed through their lifecycle in the same order 
         const auto pluginList = {
             "liblocal_broker.so",
             "libipc_server.so",
@@ -114,7 +117,6 @@ namespace plugins {
             "libtes_http_server_plugin.so",
             "libiot_broker.so",
             "libcli_server.so"};
-
         for(const auto &firstExecute : pluginList) {
             for(const auto &top : fs::directory_iterator(pluginDir)) {
                 if(top.is_regular_file() && (top.path().filename().string() == firstExecute)) {
