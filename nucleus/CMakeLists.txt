@@ -84,6 +84,7 @@ add_library(
   src/deployment/deployment_model.hpp
   src/deployment/device_configuration.cpp
   src/deployment/device_configuration.cpp
+  src/deployment/model/dependency_order.hpp
   src/deployment/model/deployment_queue.cpp
   src/deployment/model/deployment_queue.hpp
   src/deployment/model/linked_map.hpp
@@ -220,6 +221,7 @@ if(BUILD_TESTING)
     tests/data/obfuscator_test.cpp
     tests/data/symbol_tests.cpp
     tests/deployment/deploy_tests.cpp
+    tests/deployment/model/dependency_order_test.cpp
     tests/deployment/model/deployment_queue_test.cpp
     tests/deployment/model/linked_map_test.cpp
     tests/deployment/recipe_tests.cpp
