@@ -60,6 +60,10 @@ namespace data {
             return _pairList.empty();
         }
 
+        [[nodiscard]] bool empty() const noexcept {
+            return isEmpty();
+        }
+
         void remove(const K &key) noexcept {
             std::unique_lock guard{_mutex};
             if(auto foundMapIter = _hashMap.find(key); foundMapIter != _hashMap.end()) {

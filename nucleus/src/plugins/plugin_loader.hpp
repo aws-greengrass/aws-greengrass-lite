@@ -11,6 +11,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <unordered_set>
 #include <utility>
 
 #if defined(USE_DLFCN)
@@ -25,7 +26,8 @@ namespace config {
 
 namespace deployment {
     class DeviceConfiguration;
-}
+    struct Recipe;
+} // namespace deployment
 
 namespace tasks {
     class Callback;
@@ -33,7 +35,7 @@ namespace tasks {
 
 namespace util {
     class NucleusPaths;
-}
+} // namespace util
 
 namespace plugins {
     class PluginLoader;
@@ -44,12 +46,13 @@ namespace plugins {
     class AbstractPlugin : public data::TrackingScope {
     protected:
         std::string _moduleName;
+        std::unordered_set<std::string> _dependencies{};
 
     public:
         using BadCastError = errors::InvalidModuleError;
 
-        explicit AbstractPlugin(const scope::UsingContext &context, const std::string_view &name)
-            : TrackingScope(context), _moduleName(name) {
+        AbstractPlugin(const scope::UsingContext &context, std::string name)
+            : TrackingScope(context), _moduleName(std::move(name)) {
         }
 
         virtual bool callNativeLifecycle(
@@ -59,12 +62,16 @@ namespace plugins {
 
         void configure(PluginLoader &loader);
 
-        virtual bool isActive() noexcept {
+        virtual bool isActive() const noexcept {
             return true;
         }
 
-        [[nodiscard]] std::string getName() {
+        [[nodiscard]] const std::string &getName() const noexcept {
             return _moduleName;
+        }
+
+        const std::unordered_set<std::string> &getDependencies() const noexcept {
+            return _dependencies;
         }
 
         void invoke(
@@ -95,16 +102,16 @@ namespace plugins {
     public:
         explicit DelegatePlugin(
             const scope::UsingContext &context,
-            std::string_view name,
+            std::string name,
             const std::shared_ptr<AbstractPlugin> &parent,
             const std::shared_ptr<tasks::Callback> &callback)
-            : AbstractPlugin(context, name), _parent{parent}, _callback{callback} {
+            : AbstractPlugin(context, std::move(name)), _parent{parent}, _callback{callback} {
         }
 
         bool callNativeLifecycle(
             const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) override;
 
-        std::shared_ptr<AbstractPlugin> getParent() {
+        std::shared_ptr<AbstractPlugin> getParent() noexcept {
             return _parent.lock();
         }
     };
@@ -127,8 +134,8 @@ namespace plugins {
         std::atomic<lifecycleFn_t> _lifecycleFn{nullptr};
 
     public:
-        explicit NativePlugin(const scope::UsingContext &context, std::string_view name)
-            : AbstractPlugin(context, name) {
+        explicit NativePlugin(const scope::UsingContext &context, std::string name)
+            : AbstractPlugin(context, std::move(name)) {
         }
 
         NativePlugin(const NativePlugin &) = delete;
@@ -139,7 +146,7 @@ namespace plugins {
         void load(const std::filesystem::path &path);
         bool callNativeLifecycle(
             const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) override;
-        bool isActive() noexcept override;
+        bool isActive() const noexcept override;
     };
 
     /**
@@ -149,7 +156,10 @@ namespace plugins {
     private:
         std::shared_ptr<util::NucleusPaths> _paths;
         data::RootHandle _root;
-        std::vector<std::shared_ptr<AbstractPlugin>> _all;
+        std::unordered_map<std::string, std::shared_ptr<AbstractPlugin>> _all;
+        std::vector<std::shared_ptr<AbstractPlugin>> _active;
+        std::vector<std::shared_ptr<AbstractPlugin>> _inactive;
+        std::vector<std::shared_ptr<AbstractPlugin>> _broken;
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfig;
 
     public:
@@ -228,11 +238,15 @@ namespace plugins {
         void discoverPlugins(const std::filesystem::path &pluginDir);
         void discoverPlugin(const std::filesystem::directory_entry &entry);
 
-        void loadNativePlugin(const std::filesystem::path &path);
+        std::shared_ptr<AbstractPlugin> loadNativePlugin(const std::filesystem::path &path);
+
+        std::optional<deployment::Recipe> loadRecipe(const AbstractPlugin &plugin) const noexcept;
 
         void forAllPlugins(const std::function<void(
                                plugins::AbstractPlugin &,
                                const std::shared_ptr<data::StructModelBase> &)> &fn) const;
+
+        std::vector<std::shared_ptr<AbstractPlugin>> processActiveList();
 
         void setDeviceConfiguration(
             const std::shared_ptr<deployment::DeviceConfiguration> &deviceConfig) {
