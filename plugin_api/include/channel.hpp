@@ -2,6 +2,7 @@
 
 #include "api_callbacks.hpp"
 #include "api_forwards.hpp"
+#include "c_api.h"
 #include "c_api.hpp"
 #include "containers.hpp"
 #include "handles.hpp"
@@ -128,7 +129,7 @@ namespace ggapi {
             [[nodiscard]] CallbackManager::Delegate prepare(
                 Symbol callbackType, ggapiDataLen size, void *data) const override {
 
-                std::ignore = this->template checkedStruct<ggapiChannelListenCallbackData>(
+                std::ignore = this->template checkedStruct<ggapiChannelCloseCallbackData>(
                     callbackType, size, data);
                 return this->prepareWithArgs();
             }
