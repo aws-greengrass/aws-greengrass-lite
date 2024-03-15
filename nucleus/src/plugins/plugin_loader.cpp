@@ -5,6 +5,7 @@
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
+#include <algorithm>
 #include <cpp_api.hpp>
 #include <iostream>
 
@@ -105,17 +106,24 @@ namespace plugins {
         // The only plugins used are those in the plugin directory, or subdirectory of
         // plugin directory
         // TODO: This is temporary logic until recipe logic has been written
-        for(const auto &top : fs::directory_iterator(pluginDir)) {
-            if(top.is_regular_file()) {
-                discoverPlugin(top);
-            } else if(top.is_directory()) {
-                for(const auto &fileEnt : fs::directory_iterator(top)) {
-                    if(fileEnt.is_regular_file()) {
-                        discoverPlugin(fileEnt);
-                    }
+        const auto pluginList = {
+            "liblocal_broker.so",
+            "libipc_server.so",
+            "libprovision_plugin.so",
+            "libcloud_downloader.so",
+            "libtes_http_server_plugin.so",
+            "libiot_broker.so",
+            "libcli_server.so"};
+
+        for(const auto &firstExecute : pluginList) {
+            for(const auto &top : fs::directory_iterator(pluginDir)) {
+                if(top.is_regular_file() && (top.path().filename().string() == firstExecute)) {
+                    discoverPlugin(top);
+                    break;
                 }
             }
         }
+        
     }
 
     void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
