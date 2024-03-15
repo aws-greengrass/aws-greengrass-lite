@@ -52,9 +52,9 @@ namespace tasks {
         }
         if(_idleWorkers.empty()) {
             // Needing to create workers, don't consider clean-up yet
-            _decayIdle = 0;
+            _confirmedIdleWorkers = 0;
             _nextDecayCheck = ExpireTime::fromNowMillis(_decayMs);
-            if(_maxWorkers > 0 && _busyWorkers.size() >= _maxWorkers) {
+            if(_maxWorkers > 0 && _busyWorkers.size() >= static_cast<uint64_t>(_maxWorkers)) {
                 return false; // run out of workers
             }
             // allocate a new worker
@@ -66,9 +66,9 @@ namespace tasks {
         } else {
             auto worker = std::move(_idleWorkers.back());
             _idleWorkers.pop_back();
-            if(_idleWorkers.size() < _decayIdle) {
+            if(_idleWorkers.size() < _confirmedIdleWorkers) {
                 // demand on idle pool, defer cleanup
-                _decayIdle = util::safeBoundPositive<int64_t>(_idleWorkers.size());
+                _confirmedIdleWorkers = util::safeBoundPositive<int64_t>(_idleWorkers.size());
                 _nextDecayCheck = ExpireTime::fromNowMillis(_decayMs);
             }
             auto pWorker = worker.get();
@@ -142,10 +142,10 @@ namespace tasks {
         }
         auto now = ExpireTime::now();
         if(now >= _nextDecayCheck) {
-            auto decay = _decayIdle;
+            auto decay = _confirmedIdleWorkers;
             decay =
-                std::max(decay, util::safeBoundPositive<int64_t>(_idleWorkers.size())); // safety
-            auto minIdle = std::max(static_cast<int64_t>(0), _minIdle);
+                std::max(decay, util::safeBoundPositive<uint64_t>(_idleWorkers.size())); // safety
+            auto minIdle = _minIdle;
             // 'decay' number of workers have not been used for a while, we can shrink thread
             // pool
             for(; decay > minIdle; --decay) {
@@ -153,7 +153,7 @@ namespace tasks {
                 _idleWorkers.pop_back();
                 worker->join();
             }
-            _decayIdle = util::safeBoundPositive<int64_t>(_idleWorkers.size());
+            _confirmedIdleWorkers = util::safeBoundPositive<int64_t>(_idleWorkers.size());
             _nextDecayCheck = ExpireTime::fromNowMillis(_decayMs);
         }
         return _nextDecayCheck;

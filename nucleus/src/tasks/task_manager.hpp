@@ -28,12 +28,15 @@ namespace tasks {
         // _delayedTasks is using multimap as an insertable ordered list,
         // TODO: is there a better std library for this?
         std::multimap<ExpireTime, std::shared_ptr<Task>> _delayedTasks;
-        int64_t _maxWorkers{-1}; // TODO, from configuration, -1 = unbounded
-        // thread decays - 'idle' number of threads have remained idle for at least 'decayMs' ms.
-        int64_t _decayMs{1000}; // TODO, from configuration
-        int64_t _decayIdle = 0;
-        int64_t _minIdle =
-            1; // TODO, from configuration - minimum number of threads to preserve from decay
+        // TODO, from configuration, -1 = unbounded (64 bit due to configuration types)
+        int64_t _maxWorkers{-1};
+        // See _confirmedIdleWorkers
+        // TODO, from configuration
+        uint64_t _decayMs{1000};
+        // TODO: read this from config
+        uint64_t _minIdle = 1;
+        // Tracked number of idle workers that have remained idle for at least 'decayMs' ms.
+        uint64_t _confirmedIdleWorkers = 0;
         // If set, indicates that task manager is shutting down
         bool _shutdown{false};
         ExpireTime _nextDecayCheck = ExpireTime::now();
