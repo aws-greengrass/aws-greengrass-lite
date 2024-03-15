@@ -1,5 +1,4 @@
 #include "task_callbacks.hpp"
-#include "data/struct_model.hpp"
 #include "errors/errors.hpp"
 #include "plugins/plugin_loader.hpp"
 #include "pubsub/promise.hpp"
@@ -24,9 +23,6 @@ namespace tasks {
     }
 
     void RegisteredCallback::invoke(CallbackPackedData &packed) {
-
-        auto module = getModule();
-        plugins::CurrentModuleScope moduleScope(module);
 
         // No mutex required as the member variables are immutable
         // Assume a scope was allocated prior to this call
@@ -156,10 +152,10 @@ namespace tasks {
     }
 
     ChannelListenCallbackData::ChannelListenCallbackData(
-        const std::shared_ptr<data::StructModelBase> &data)
+        const std::shared_ptr<data::ContainerModelBase> &data)
         : CallbackPackedData(channelListenCallbackType()) {
 
-        _packed.dataStruct = scope::asIntHandle(data);
+        _packed.data = scope::asIntHandle(data);
     }
 
     uint32_t ChannelListenCallbackData::size() const {
@@ -196,6 +192,7 @@ namespace tasks {
         }
 
         scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
         tasks::TopicCallbackData packed{topic, data};
         invoke(packed);
         return packed.retVal();
@@ -208,6 +205,7 @@ namespace tasks {
         }
 
         scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
         tasks::AsyncCallbackData packed{};
         invoke(packed);
     }
@@ -219,6 +217,7 @@ namespace tasks {
         }
 
         scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
         tasks::FutureCallbackData packed{future};
         invoke(packed);
     }
@@ -233,6 +232,7 @@ namespace tasks {
         }
 
         scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
         tasks::LifecycleCallbackData packed{module, phase, data};
         invoke(packed);
         return packed.retVal();
@@ -258,20 +258,22 @@ namespace tasks {
         throw std::runtime_error("Mismatched callback");
     }
 
-    void Callback::invokeChannelListenCallback(const std::shared_ptr<data::StructModelBase> &data) {
+    void Callback::invokeChannelListenCallback(
+        const std::shared_ptr<data::ContainerModelBase> &data) {
         throw std::runtime_error("Mismatched callback");
     }
     void Callback::invokeChannelCloseCallback() {
         throw std::runtime_error("Mismatched callback");
     }
     void RegisteredCallback::invokeChannelListenCallback(
-        const std::shared_ptr<data::StructModelBase> &data) {
+        const std::shared_ptr<data::ContainerModelBase> &data) {
 
         if(_callbackType != context()->intern("channelListen")) {
             throw std::runtime_error("Mismatched callback");
         }
 
         scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
         tasks::ChannelListenCallbackData packed{data};
         invoke(packed);
     }
@@ -282,6 +284,7 @@ namespace tasks {
         }
 
         scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
         tasks::ChannelCloseCallbackData packed{};
         invoke(packed);
     }

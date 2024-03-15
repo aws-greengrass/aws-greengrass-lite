@@ -6,7 +6,6 @@
 
 namespace data {
     class ContainerModelBase;
-    class StructModelBase;
 } // namespace data
 
 namespace plugins {
@@ -94,7 +93,7 @@ namespace tasks {
         static data::Symbol channelListenCallbackType();
 
     public:
-        explicit ChannelListenCallbackData(const std::shared_ptr<data::StructModelBase> &data);
+        explicit ChannelListenCallbackData(const std::shared_ptr<data::ContainerModelBase> &data);
         uint32_t size() const override;
         void *data() override;
     };
@@ -130,7 +129,7 @@ namespace tasks {
             const data::Symbol &phase,
             const std::shared_ptr<data::ContainerModelBase> &data);
         virtual void invokeChannelListenCallback(
-            const std::shared_ptr<data::StructModelBase> &data);
+            const std::shared_ptr<data::ContainerModelBase> &data);
         virtual void invokeChannelCloseCallback();
     };
 
@@ -178,7 +177,7 @@ namespace tasks {
             const data::Symbol &phase,
             const std::shared_ptr<data::ContainerModelBase> &data) override;
         void invokeChannelListenCallback(
-            const std::shared_ptr<data::StructModelBase> &data) override;
+            const std::shared_ptr<data::ContainerModelBase> &data) override;
         void invokeChannelCloseCallback() override;
     };
 

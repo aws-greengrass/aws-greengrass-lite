@@ -76,7 +76,8 @@ namespace ggapi {
 
                 auto &cb = this->template checkedStruct<ggapiChannelListenCallbackData>(
                     callbackType, size, data);
-                return this->prepareWithArgs(ggapi::ObjHandle::of<Struct>(cb.dataStruct));
+                // TODO: change to container
+                return this->prepareWithArgs(ggapi::ObjHandle::of<Struct>(cb.data));
             }
         };
 
