@@ -69,7 +69,6 @@ add_library(
   src/data/shared_struct.cpp
   src/data/shared_struct.hpp
   src/data/shared_queue.hpp
-  src/data/shared_linked_map.hpp
   src/data/string_table.cpp
   src/data/string_table.hpp
   src/data/struct_model.cpp
@@ -84,7 +83,10 @@ add_library(
   src/deployment/deployment_model.cpp
   src/deployment/deployment_model.hpp
   src/deployment/device_configuration.cpp
-  src/deployment/device_configuration.hpp
+  src/deployment/device_configuration.cpp
+  src/deployment/model/deployment_queue.cpp
+  src/deployment/model/deployment_queue.hpp
+  src/deployment/model/linked_map.hpp
   src/deployment/recipe_model.hpp
   src/deployment/recipe_loader.hpp
   src/deployment/recipe_loader.cpp
@@ -216,9 +218,10 @@ if(BUILD_TESTING)
     tests/api/task_tests.cpp
     tests/data/handle_tests.cpp
     tests/data/obfuscator_test.cpp
-    tests/data/shared_linked_map_test.cpp
     tests/data/symbol_tests.cpp
     tests/deployment/deploy_tests.cpp
+    tests/deployment/model/deployment_queue_test.cpp
+    tests/deployment/model/linked_map_test.cpp
     tests/deployment/recipe_tests.cpp
     tests/errors/errors_test.cpp
     tests/lifecycle/kernel_tests.cpp

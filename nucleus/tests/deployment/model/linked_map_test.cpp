@@ -1,5 +1,5 @@
 
-#include "data/shared_linked_map.hpp"
+#include "deployment/model/linked_map.hpp"
 #include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 
@@ -9,7 +9,7 @@ SCENARIO("Operations on a linked map", "[data]") {
         scope::LocalizedContext forTesting{scope::Context::create()};
 
         WHEN("Push key-value pairs to the map") {
-            auto linkedMap = data::SharedLinkedMap<std::string, std::string>(scope::context());
+            auto linkedMap = data::LinkedMap<std::string, std::string>();
             linkedMap.push({"1", "first"});
             linkedMap.push({"2", "second"});
             linkedMap.push({"2", "updatedSecondValue"});
@@ -34,7 +34,7 @@ SCENARIO("Operations on a linked map", "[data]") {
         }
 
         WHEN("Poll element from the map") {
-            auto linkedMap = data::SharedLinkedMap<std::string, std::string>(scope::context());
+            auto linkedMap = data::LinkedMap<std::string, std::string>();
             linkedMap.push({"1", "first"});
             linkedMap.push({"2", "second"});
 
@@ -46,7 +46,7 @@ SCENARIO("Operations on a linked map", "[data]") {
         }
 
         WHEN("Remove element by key from the map") {
-            auto linkedMap = data::SharedLinkedMap<std::string, std::string>(scope::context());
+            auto linkedMap = data::LinkedMap<std::string, std::string>();
             linkedMap.push({"1", "first"});
             linkedMap.push({"2", "second"});
             linkedMap.push({"3", "third"});
@@ -64,7 +64,7 @@ SCENARIO("Operations on a linked map", "[data]") {
         }
 
         WHEN("Clear all elements from the map") {
-            auto linkedMap = data::SharedLinkedMap<std::string, std::string>(scope::context());
+            auto linkedMap = data::LinkedMap<std::string, std::string>();
             linkedMap.push({"1", "first"});
             linkedMap.push({"2", "second"});
             linkedMap.push({"3", "third"});

@@ -1,20 +1,20 @@
 #pragma once
-#include "tracked_object.hpp"
+#include <unordered_map>
 #include <list>
 #include <optional>
+#include <mutex>
 #include <shared_mutex>
+#include <iostream>
 
 namespace data {
     template<class K, class V>
-    class SharedLinkedMap : public TrackedObject {
+    class LinkedMap {
         using PairList = std::list<std::pair<K, V>>;
         PairList _pairList;
         std::unordered_map<K, typename PairList::iterator> _hashMap;
         mutable std::shared_mutex _mutex;
 
     public:
-        explicit SharedLinkedMap(const scope::UsingContext &context) : TrackedObject(context) {
-        }
         // Add elements to the queue in order
         void push(const std::pair<K, V> &arg)  {
             const auto &[key, value] = arg;
@@ -25,7 +25,7 @@ namespace data {
                 auto itr = std::prev(_pairList.end());
                 _hashMap.emplace(key, itr);
             } else { // If key exists, replace the value and still maintain the order
-                auto& listItr = foundMapIter->second;
+                const auto& listItr = foundMapIter->second;
                 listItr->second = value; // replace old value in the list
             }
         }
@@ -68,7 +68,7 @@ namespace data {
             }
         }
 
-        long size() const noexcept {
+        [[nodiscard]] long size() const noexcept {
             std::shared_lock lock{_mutex};
             return _hashMap.size();
         }
