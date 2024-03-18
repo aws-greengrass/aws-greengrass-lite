@@ -1,3 +1,8 @@
-#include <aws/crt/Api.h>
+#include <shared_device_sdk.hpp>
 
-static Aws::Crt::ApiHandle apiHandle{};
+namespace util {
+    Aws::Crt::ApiHandle &getDeviceSdkApiHandle() {
+        static Aws::Crt::ApiHandle apiHandle{};
+        return apiHandle;
+    }
+} // namespace util

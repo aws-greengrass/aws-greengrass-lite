@@ -2,8 +2,7 @@
 #include <filesystem>
 #include <forward_list>
 
-#include <aws/crt/io/EventLoopGroup.h>
-#include <aws/crt/io/SocketOptions.h>
+#include <shared_device_sdk.hpp>
 
 #include "server_bootstrap.hpp"
 #include "server_continuation.hpp"

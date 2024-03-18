@@ -1,11 +1,10 @@
 #pragma once
 
-#include <aws/crt/Api.h>
-
 #include "authentication_handler.hpp"
 #include "cpp_api.hpp"
 #include "server_listener.hpp"
 #include <plugin.hpp>
+#include <shared_device_sdk.hpp>
 
 struct Keys {
 private:

@@ -1,5 +1,5 @@
 #pragma once
-#include "aws/crt/Allocator.h"
+#include <shared_device_sdk.hpp>
 
 struct aws_server_bootstrap;
 

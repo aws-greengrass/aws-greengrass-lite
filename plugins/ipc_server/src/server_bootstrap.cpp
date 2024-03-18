@@ -1,7 +1,6 @@
 #include "server_bootstrap.hpp"
 
-#include "aws/crt/Api.h"
-#include "aws/io/channel_bootstrap.h"
+#include <shared_device_sdk.hpp>
 
 namespace Aws::Crt::Io {
     ServerBootstrap::ServerBootstrap(EventLoopGroup &elGroup, Allocator *allocator) noexcept
