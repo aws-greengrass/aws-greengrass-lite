@@ -63,8 +63,8 @@ namespace deployment {
         scope::thread()->changeContext(context());
         std::ignore = module.setActive();
         std::unique_lock guard(_mutex);
-        _wake.wait(guard, [this]() { return !_deploymentQueue->empty() || _terminate; });
         while(!_terminate) {
+            _wake.wait(guard, [this]() { return !_deploymentQueue->empty(); });
             if(!_deploymentQueue->empty()) {
                 const auto &nextDeployment = _deploymentQueue->next();
                 if(nextDeployment.isCancelled) {
@@ -92,7 +92,6 @@ namespace deployment {
                 runDeploymentTask();
                 _deploymentQueue->pop();
             }
-            std::this_thread::sleep_for(POLLING_FREQUENCY);
         }
     }
 
