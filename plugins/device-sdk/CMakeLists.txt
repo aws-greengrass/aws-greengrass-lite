@@ -15,9 +15,16 @@ fetchContentAddCmake(device-sdk-cpp)
 
 add_library(device-sdk SHARED include/shared_device_sdk.hpp src/main.cpp)
 
-target_link_libraries(
-  device-sdk PRIVATE -Wl,--whole-archive aws-crt-cpp IotIdentity-cpp aws-c-http
-                     aws-c-event-stream -Wl,--no-whole-archive)
+if(APPLE)
+  target_link_libraries(
+    device-sdk PRIVATE -Wl,-all_load aws-crt-cpp IotIdentity-cpp aws-c-http
+                       aws-c-event-stream -Wl,-noall_load)
+else()
+  target_link_libraries(
+    device-sdk PRIVATE -Wl,--whole-archive aws-crt-cpp IotIdentity-cpp
+                       aws-c-http aws-c-event-stream -Wl,--no-whole-archive)
+endif()
+
 target_include_directories(
   device-sdk
   PUBLIC include
