@@ -139,6 +139,17 @@ cd ~/gglite_testing
 ./bin/greengrass-lite -r . --init-config ./config/config.yaml
 ```
 
+For developers trying to debug and contribute to the repository, you can use the
+following command instead as it will allow you to enable debug symbols for a
+trade off of a bigger footprint
+
+```bash
+$ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=./run
+$ make -C build -j8 install
+$ cd run
+$ ./bin/greengrass-lite -r . --config ./config/config.yaml
+```
+
 ### Deployments
 
 Follow the instructions
