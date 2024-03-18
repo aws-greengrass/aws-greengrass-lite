@@ -59,9 +59,9 @@ struct DeviceConfig {
 };
 
 class ProvisionPlugin : public ggapi::Plugin {
+    mutable std::shared_mutex _mutex;
     // TODO - values below are shared across multiple threads and needs to be made thread safe
     struct DeviceConfig _deviceConfig;
-    std::atomic<ggapi::Subscription> _subscription;
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _mqttClient;
     std::shared_ptr<Aws::Iotidentity::IotIdentityClient> _identityClient;
     Aws::Crt::String _token;
@@ -70,7 +70,8 @@ class ProvisionPlugin : public ggapi::Plugin {
     std::filesystem::path _certPath;
     std::filesystem::path _keyPath;
 
-    std::atomic<ggapi::Struct> _system;
+    ggapi::Subscription _subscription;
+    ggapi::Struct _system;
 
     static const Keys keys;
     static constexpr std::string_view DEVICE_CERTIFICATE_PATH_RELATIVE_TO_ROOT = "thingCert.crt";
@@ -83,7 +84,7 @@ public:
     ProvisionPlugin() = default;
     bool onInitialize(ggapi::Struct data) override;
     bool onStop(ggapi::Struct data) override;
-    ggapi::Struct brokerListener(ggapi::Task task, ggapi::StringOrd topic, ggapi::Struct callData);
+    ggapi::Promise brokerListener(ggapi::StringOrd topic, const ggapi::Container &callData);
     static ProvisionPlugin &get() {
         static ProvisionPlugin instance;
         return instance;
@@ -100,5 +101,5 @@ public:
 
     void setDeviceConfig();
 
-    ggapi::Struct provisionDevice();
+    void provisionDevice(ggapi::Promise promise);
 };

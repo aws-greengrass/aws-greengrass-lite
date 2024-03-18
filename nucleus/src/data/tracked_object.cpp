@@ -3,79 +3,30 @@
 #include "tasks/task.hpp"
 
 namespace data {
-    ObjectAnchor TrackingRoot::anchor(const std::shared_ptr<TrackedObject> &obj) {
-        if(!obj) {
-            return {};
-        }
-        return context()->handles().create(ObjectAnchor{obj, baseRef()});
-    }
-
-    ObjectAnchor TrackingRoot::createRootHelper(const data::ObjectAnchor &anchor) {
-        // assume handleTable may be locked on entry, beware of recursive locks
-        std::unique_lock guard{_mutex};
-        _roots.emplace(context()->handles().partial(anchor.getHandle()), anchor.getBase());
-        return anchor;
-    }
-
-    void TrackingRoot::remove(const data::ObjectAnchor &anchor) {
-        context()->handles().remove(anchor);
-    }
-
-    void ObjectAnchor::release() {
-        std::shared_ptr<TrackingRoot> root{_root.lock()};
-        if(root) {
-            // go via root - root has access to context()
-            root->remove(*this);
-        } else {
-            // if owner has gone away, handle will be deleted
-            // so nothing to do here
-        }
-    }
-
-    void TrackingRoot::removeRootHelper(const data::ObjectAnchor &anchor) {
-        // always called from HandleTable
-        // assume handleTable could be locked on entry, beware of recursive locks
-        auto p = context()->handles().partial(anchor);
-        std::unique_lock guard{_mutex};
-        _roots.erase(p);
-    }
-
-    std::vector<ObjectAnchor> TrackingRoot::getRootsHelper(
-        const std::weak_ptr<TrackingRoot> &assumedOwner) {
-        auto ctx = context();
-        if(!ctx) {
-            return {}; // context shutting down, short circuit
-        }
-        std::shared_lock guard{_mutex};
-        std::vector<ObjectAnchor> copy;
-        for(const auto &i : _roots) {
-            ObjectAnchor anc{i.second, assumedOwner};
-            copy.push_back(anc.withHandle(ctx->handles().apply(i.first)));
-        }
-        return copy;
-    }
-
-    TrackingRoot::~TrackingRoot() {
-        auto ctx = context();
-        if(!ctx) {
-            return; // cleanup not required if context destroyed
-        }
-        for(const auto &i : getRootsHelper({})) {
-            remove(i);
-        }
-    }
-
-    TrackingScope::~TrackingScope() {
-        _root.reset();
-    }
 
     TrackingScope::TrackingScope(const scope::UsingContext &context)
-        : TrackedObject(context), _root(std::make_shared<TrackingRoot>(context)) {
+        : TrackedObject(context), _root(context.newRootHandle()) {
     }
 
-    ObjectAnchor ObjHandle::toAnchor() const {
+    bool RootHandle::release() noexcept {
         if(*this) {
-            return table().get(partial());
+            return table().releaseRoot(*this);
+        } else {
+            return true;
+        }
+    }
+
+    bool ObjHandle::release() noexcept {
+        if(*this) {
+            return table().release(*this);
+        } else {
+            return true;
+        }
+    }
+
+    std::shared_ptr<TrackedObject> ObjHandle::toObjectHelper() const {
+        if(*this) {
+            return table().get(*this);
         } else {
             return {};
         }

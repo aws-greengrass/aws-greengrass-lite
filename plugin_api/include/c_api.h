@@ -26,6 +26,7 @@
 typedef uint32_t ggapiErrorKind; // Symbol representing kind of error, 0 = success
 typedef uint32_t ggapiObjHandle; // Generic Handle to an object, 0 = unset
 typedef uint32_t ggapiSymbol; // Generic Symbol, 0 = unset
+typedef uint32_t ggapiBool; // 0 = FALSE, non-zero = TRUE
 typedef char *ggapiByteBuffer; // Uninitialized buffer to be filled with data
 typedef const char *ggapiCountedString; // Pointer to a string, string is not null terminated
 typedef size_t ggapiMaxLen; // Length of a buffer that can be filled
@@ -39,13 +40,21 @@ typedef uintptr_t ggapiContext; // Round-trip data never interpreted by Nucleus
 // sizeof(struct) denotes version. That is, if
 // a structure adds a new field, it is implicitly bigger,
 // and implicitly a new version
+// Note, returned handles need to be "temporary"
 //
 
 struct ggapiTopicCallbackData {
-    ggapiObjHandle taskHandle;
     ggapiSymbol topicSymbol;
-    ggapiObjHandle dataStruct;
-    ggapiObjHandle retDataStruct; // Out
+    ggapiObjHandle data; // Container
+    ggapiObjHandle ret; // Return value
+};
+
+struct ggapiAsyncCallbackData {
+    uint8_t _dummy;
+};
+
+struct ggapiFutureCallbackData {
+    ggapiObjHandle futureHandle;
 };
 
 struct ggapiLifecycleCallbackData {
@@ -55,12 +64,8 @@ struct ggapiLifecycleCallbackData {
     uint32_t retWasHandled; // Out, holds non-zero if handled, 0 if not (forced 32-bit aligned)
 };
 
-struct ggapiTaskCallbackData {
-    ggapiObjHandle dataStruct;
-};
-
 struct ggapiChannelListenCallbackData {
-    ggapiObjHandle dataStruct;
+    ggapiObjHandle data;
 };
 
 struct ggapiChannelCloseCallbackData {
@@ -99,15 +104,17 @@ IMPEXP ggapiErrorKind ggapiCreateStruct(ggapiObjHandle *pHandle) NOEXCEPT;
 IMPEXP ggapiErrorKind ggapiCreateList(ggapiObjHandle *pHandle) NOEXCEPT;
 IMPEXP ggapiErrorKind ggapiCreateBuffer(ggapiObjHandle *pHandle) NOEXCEPT;
 IMPEXP ggapiErrorKind ggapiCreateChannel(ggapiObjHandle *pHandle) NOEXCEPT;
-IMPEXP bool ggapiIsContainer(uint32_t handle) NOEXCEPT;
-IMPEXP bool ggapiIsScalar(uint32_t handle) NOEXCEPT;
-IMPEXP bool ggapiIsStruct(uint32_t handle) NOEXCEPT;
-IMPEXP bool ggapiIsList(uint32_t handle) NOEXCEPT;
-IMPEXP bool ggapiIsBuffer(uint32_t handle) NOEXCEPT;
-IMPEXP bool ggapiIsChannel(uint32_t handle) NOEXCEPT;
-IMPEXP bool ggapiIsTask(uint32_t handle) NOEXCEPT;
-IMPEXP bool ggapiIsSubscription(uint32_t handle) NOEXCEPT;
-IMPEXP bool ggapiIsScope(uint32_t handle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiCreatePromise(ggapiObjHandle *pHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsContainer(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsScalar(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsStruct(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsList(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsBuffer(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsChannel(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsSubscription(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsFuture(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsPromise(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiIsScope(ggapiObjHandle handle, ggapiBool *pBool) NOEXCEPT;
 IMPEXP bool ggapiIsSameObject(uint32_t handle1, uint32_t handle2) NOEXCEPT;
 IMPEXP uint32_t ggapiBoxBool(bool value) NOEXCEPT;
 IMPEXP uint32_t ggapiBoxInt64(uint64_t value) NOEXCEPT;
@@ -170,37 +177,44 @@ ggapiBufferGet(uint32_t listHandle, int32_t idx, char *buffer, uint32_t buflen) 
 IMPEXP bool ggapiBufferResize(uint32_t structHandle, uint32_t newSize) NOEXCEPT;
 IMPEXP bool ggapiIsEmpty(uint32_t containerHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiGetSize(uint32_t containerHandle) NOEXCEPT;
-IMPEXP uint32_t ggapiAnchorHandle(uint32_t anchorHandle, uint32_t objectHandle) NOEXCEPT;
-IMPEXP bool ggapiReleaseHandle(uint32_t objectHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiTempHandle(ggapiObjHandle handleIn, ggapiObjHandle *pHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiDupHandle(ggapiObjHandle handleIn, ggapiObjHandle *pHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiReleaseHandle(uint32_t objectHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiCloseHandle(uint32_t objectHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiToJson(uint32_t containerHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiFromJson(uint32_t bufferHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiToYaml(uint32_t containerHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiFromYaml(uint32_t bufferHandle) NOEXCEPT;
-IMPEXP uint32_t ggapiCreateCallScope() NOEXCEPT;
-IMPEXP uint32_t ggapiGetCurrentCallScope() NOEXCEPT;
-IMPEXP uint32_t ggapiGetCurrentModule() NOEXCEPT;
-IMPEXP uint32_t ggapiGetCurrentTask() NOEXCEPT;
-IMPEXP uint32_t
-ggapiSubscribeToTopic(uint32_t anchorHandle, uint32_t topic, uint32_t callbackHandle) NOEXCEPT;
-IMPEXP uint32_t ggapiSendToTopic(uint32_t topic, uint32_t callStruct, int32_t timeout) NOEXCEPT;
-IMPEXP uint32_t
-ggapiSendToListener(uint32_t listenerHandle, uint32_t callStruct, int32_t timeout) NOEXCEPT;
-IMPEXP uint32_t ggapiSendToTopicAsync(
-    uint32_t topic, uint32_t callStruct, uint32_t callbackHandle, int32_t timeout) NOEXCEPT;
-IMPEXP uint32_t ggapiSendToListenerAsync(
-    uint32_t listenerHandle,
-    uint32_t callStruct,
-    uint32_t callbackHandle,
-    int32_t timeout) NOEXCEPT;
-IMPEXP uint32_t
-ggapiCallAsync(uint32_t callStruct, uint32_t callbackHandle, uint32_t delay) NOEXCEPT;
-IMPEXP bool ggapiSetSingleThread(bool enable) NOEXCEPT;
-IMPEXP uint32_t ggapiWaitForTaskCompleted(uint32_t asyncTask, int32_t timeout) NOEXCEPT;
-IMPEXP bool ggapiSleep(uint32_t timeout) NOEXCEPT;
-IMPEXP bool ggapiCancelTask(uint32_t asyncTask) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiGetCurrentModule(ggapiObjHandle *pHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiPromiseSetValue(ggapiObjHandle promiseHandle, ggapiObjHandle newValue) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiPromiseSetError(
+    ggapiObjHandle promiseHandle, ggapiSymbol errorKind, const char *str, uint32_t strlen) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiPromiseCancel(ggapiObjHandle promiseHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiFutureGetValue(ggapiObjHandle futureHandle, ggapiObjHandle *outValue) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiFutureIsValid(ggapiObjHandle futureHandle, ggapiBool *outValue) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiFutureWait(ggapiObjHandle futureHandle, int32_t timeout, ggapiBool *outValue) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiFutureFromPromise(ggapiObjHandle promiseHandle, ggapiObjHandle *outFuture) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiFutureAddCallback(ggapiObjHandle futureHandle, ggapiObjHandle callbackHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiCallAsync(ggapiObjHandle callbackHandle, uint32_t delay) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiCallDirect(ggapiObjHandle target, ggapiObjHandle data, ggapiObjHandle *outFuture) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiCallTopicFirst(ggapiSymbol topic, ggapiObjHandle data, ggapiObjHandle *outFuture) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiCallTopicAll(
+    ggapiSymbol topic, ggapiObjHandle data, ggapiObjHandle *outListOfFutures) NOEXCEPT;
+IMPEXP ggapiErrorKind ggapiSubscribeToTopic(
+    ggapiSymbol topic,
+    ggapiObjHandle callbackHandle,
+    ggapiObjHandle *pSubscription) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterPlugin(
     uint32_t moduleHandle, uint32_t componentName, uint32_t callbackHandle) NOEXCEPT;
-IMPEXP uint32_t ggapiChangeModule(uint32_t moduleHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiChangeModule(ggapiObjHandle moduleHandleIn, ggapiObjHandle *pPrevHandle) NOEXCEPT;
 IMPEXP ggapiErrorKind ggapiRegisterCallback(
     ggapiGenericCallback callbackFunction,
     ggapiContext callbackCtx,
@@ -209,7 +223,6 @@ IMPEXP ggapiErrorKind ggapiRegisterCallback(
 IMPEXP uint32_t ggapiChannelOnClose(uint32_t channel, uint32_t callbackHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiChannelListen(uint32_t channel, uint32_t callbackHandle) NOEXCEPT;
 IMPEXP uint32_t ggapiChannelWrite(uint32_t channel, uint32_t callStruct) NOEXCEPT;
-IMPEXP uint32_t ggapiChannelClose(uint32_t channel) NOEXCEPT;
 IMPEXP uint32_t ggapiGetLogLevel(uint64_t *counter, uint32_t cachedLevel) NOEXCEPT;
 IMPEXP bool ggapiSetLogLevel(uint32_t level) NOEXCEPT;
 IMPEXP bool ggapiLogEvent(uint32_t dataHandle) NOEXCEPT;

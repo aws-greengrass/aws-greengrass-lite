@@ -1,6 +1,7 @@
 #include "scope/context_full.hpp"
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
+#include <temp_module.hpp>
 
 // NOLINTBEGIN
 SCENARIO("Json conversion tests", "[json][list][struct][buffer]") {
@@ -9,7 +10,8 @@ SCENARIO("Json conversion tests", "[json][list][struct][buffer]") {
     const auto jsonLiteral = R"( "Foo" )";
     const auto invalidJson = R"( })";
     const auto emptyJson = R"( )";
-    scope::LocalizedContext forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{};
+    util::TempModule testModule("json-test");
 
     GIVEN("A buffer containing a JSON structure") {
         ggapi::Buffer buffer = ggapi::Buffer::create();

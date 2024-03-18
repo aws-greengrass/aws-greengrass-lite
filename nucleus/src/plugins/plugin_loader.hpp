@@ -44,7 +44,6 @@ namespace plugins {
     class AbstractPlugin : public data::TrackingScope {
     protected:
         std::string _moduleName;
-        data::ObjHandle _self;
 
     public:
         using BadCastError = errors::InvalidModuleError;
@@ -54,9 +53,7 @@ namespace plugins {
         }
 
         virtual bool callNativeLifecycle(
-            const data::ObjHandle &pluginRoot,
-            const data::Symbol &event,
-            const data::ObjHandle &dataHandle) = 0;
+            const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) = 0;
 
         void lifecycle(data::Symbol event, const std::shared_ptr<data::StructModelBase> &data);
 
@@ -68,14 +65,6 @@ namespace plugins {
 
         [[nodiscard]] std::string getName() {
             return _moduleName;
-        }
-
-        data::ObjHandle getSelf() {
-            return _self;
-        }
-
-        void setSelf(const data::ObjHandle &self) {
-            _self = self;
         }
 
         void invoke(
@@ -113,9 +102,7 @@ namespace plugins {
         }
 
         bool callNativeLifecycle(
-            const data::ObjHandle &pluginRoot,
-            const data::Symbol &event,
-            const data::ObjHandle &dataHandle) override;
+            const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) override;
 
         std::shared_ptr<AbstractPlugin> getParent() {
             return _parent.lock();
@@ -131,12 +118,13 @@ namespace plugins {
 
     private:
 #if defined(USE_DLFCN)
-        typedef void *nativeHandle_t;
+        using NativeHandle = void *;
 #elif defined(USE_WINDLL)
-        typedef HINSTANCE nativeHandle_t;
+        using NativeHandle = HINSTANCE;
 #endif
-        std::atomic<nativeHandle_t> _handle{nullptr};
-        std::atomic<GgapiLifecycleFn *> _lifecycleFn{nullptr};
+        using lifecycleFn_t = GgapiLifecycleFn *;
+        std::atomic<NativeHandle> _handle{nullptr};
+        std::atomic<lifecycleFn_t> _lifecycleFn{nullptr};
 
     public:
         explicit NativePlugin(const scope::UsingContext &context, std::string_view name)
@@ -147,12 +135,10 @@ namespace plugins {
         NativePlugin(NativePlugin &&) noexcept = delete;
         NativePlugin &operator=(const NativePlugin &) = delete;
         NativePlugin &operator=(NativePlugin &&) noexcept = delete;
-        ~NativePlugin() override;
+        ~NativePlugin() noexcept override;
         void load(const std::filesystem::path &path);
         bool callNativeLifecycle(
-            const data::ObjHandle &pluginHandle,
-            const data::Symbol &event,
-            const data::ObjHandle &dataHandle) override;
+            const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) override;
         bool isActive() noexcept override;
     };
 
@@ -162,7 +148,8 @@ namespace plugins {
     class PluginLoader : protected scope::UsesContext {
     private:
         std::shared_ptr<util::NucleusPaths> _paths;
-        std::shared_ptr<data::TrackingRoot> _root;
+        data::RootHandle _root;
+        std::vector<std::shared_ptr<AbstractPlugin>> _all;
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfig;
 
     public:
@@ -200,6 +187,10 @@ namespace plugins {
          * Component name
          */
         data::SymbolInit NAME{"name"};
+        /**
+         * Module handle
+         */
+        data::SymbolInit MODULE{"module"};
 
         data::SymbolInit SERVICES{"services"};
         data::SymbolInit SYSTEM{"system"};
@@ -207,7 +198,7 @@ namespace plugins {
         data::SymbolInit LOGGING{"logging"};
 
         explicit PluginLoader(const scope::UsingContext &context)
-            : scope::UsesContext(context), _root(std::make_shared<data::TrackingRoot>(context)) {
+            : scope::UsesContext(context), _root(context.newRootHandle()) {
             data::SymbolInit::init(
                 context,
                 {
@@ -226,7 +217,7 @@ namespace plugins {
                 });
         }
 
-        std::shared_ptr<data::TrackingRoot> root() const {
+        data::RootHandle &root() {
             return _root;
         }
 

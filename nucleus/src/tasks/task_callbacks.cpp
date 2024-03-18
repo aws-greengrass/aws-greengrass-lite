@@ -1,7 +1,7 @@
 #include "task_callbacks.hpp"
-#include "data/struct_model.hpp"
 #include "errors/errors.hpp"
 #include "plugins/plugin_loader.hpp"
+#include "pubsub/promise.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
 
@@ -24,9 +24,6 @@ namespace tasks {
 
     void RegisteredCallback::invoke(CallbackPackedData &packed) {
 
-        auto module = getModule();
-        plugins::CurrentModuleScope moduleScope(module);
-
         // No mutex required as the member variables are immutable
         // Assume a scope was allocated prior to this call
 
@@ -37,7 +34,6 @@ namespace tasks {
     }
 
     RegisteredCallback::~RegisteredCallback() {
-        scope::StackScope scope{};
         errors::ThreadErrorContainer::get().clear();
         // Signal callback has been released
         std::ignore = _callback(_callbackCtx, 0, 0, nullptr);
@@ -49,14 +45,12 @@ namespace tasks {
     }
 
     TopicCallbackData::TopicCallbackData(
-        const std::shared_ptr<tasks::Task> &task,
-        const data::Symbol &topic,
-        const std::shared_ptr<data::StructModelBase> &data)
+        const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data)
         : CallbackPackedData(topicType()) {
 
-        _packed.taskHandle = scope::NucleusCallScopeContext::intHandle(task);
         _packed.topicSymbol = topic.asInt();
-        _packed.dataStruct = scope::NucleusCallScopeContext::intHandle(data);
+        _packed.data = scope::asIntHandle(data);
+        _packed.ret = 0;
     }
 
     uint32_t TopicCallbackData::size() const {
@@ -67,28 +61,77 @@ namespace tasks {
         return &_packed;
     }
 
-    std::shared_ptr<data::StructModelBase> TopicCallbackData::retVal() const {
-        if(_packed.retDataStruct != 0) {
-            return scope::context()->objFromInt<data::StructModelBase>(_packed.retDataStruct);
+    std::shared_ptr<pubsub::Future> TopicCallbackData::retVal() const {
+        if(_packed.ret != 0) {
+            auto obj = scope::context()->objFromInt<data::TrackedObject>(_packed.ret);
+            auto asFuture = std::dynamic_pointer_cast<pubsub::FutureBase>(obj);
+            if(asFuture != nullptr) {
+                return asFuture->getFuture();
+            }
+            try {
+                auto asContainer = obj->ref<data::ContainerModelBase>();
+                auto promise = std::make_shared<pubsub::Promise>(scope::Context::get());
+                promise->setValue(asContainer);
+                return promise->getFuture();
+            } catch(std::bad_cast &) {
+                throw data::ContainerModelBase::BadCastError();
+            }
         } else {
             return {};
         }
     }
 
+    data::Symbol AsyncCallbackData::asyncType() {
+        static data::Symbol async = scope::context()->intern("async");
+        return async;
+    }
+
+    AsyncCallbackData::AsyncCallbackData() : CallbackPackedData(asyncType()) {
+        _packed._dummy = 0;
+    }
+
+    uint32_t AsyncCallbackData::size() const {
+        return sizeof(_packed);
+    }
+
+    void *AsyncCallbackData::data() {
+        return &_packed;
+    }
+
+    data::Symbol FutureCallbackData::futureType() {
+        static data::Symbol future = scope::context()->intern("future");
+        return future;
+    }
+
+    FutureCallbackData::FutureCallbackData(const std::shared_ptr<pubsub::Future> &future)
+        : CallbackPackedData(futureType()) {
+
+        _packed.futureHandle = scope::asIntHandle(future);
+    }
+
+    uint32_t FutureCallbackData::size() const {
+        return sizeof(_packed);
+    }
+
+    void *FutureCallbackData::data() {
+        return &_packed;
+    }
+
     data::Symbol LifecycleCallbackData::lifecycleType() {
-        static data::Symbol topic = scope::context()->intern("lifecycle");
-        return topic;
+        static data::Symbol lifecycle = scope::context()->intern("lifecycle");
+        return lifecycle;
     }
 
     LifecycleCallbackData::LifecycleCallbackData(
-        const data::ObjHandle &pluginHandle,
+        const std::shared_ptr<plugins::AbstractPlugin> &module,
         const data::Symbol &phase,
-        const data::ObjHandle &dataHandle)
+        const std::shared_ptr<data::ContainerModelBase> &data)
         : CallbackPackedData(lifecycleType()) {
 
-        _packed.moduleHandle = pluginHandle.asInt();
+        _packed.moduleHandle = scope::asIntHandle(module);
         _packed.phaseSymbol = phase.asInt();
-        _packed.dataStruct = dataHandle.asInt();
+        _packed.dataStruct = scope::asIntHandle(data);
+        _packed.retWasHandled = 0;
     }
 
     uint32_t LifecycleCallbackData::size() const {
@@ -103,35 +146,16 @@ namespace tasks {
         return _packed.retWasHandled != 0; // Normalize true value
     }
 
-    data::Symbol TaskCallbackData::taskType() {
-        static data::Symbol task = scope::context()->intern("task");
-        return task;
-    }
-
-    TaskCallbackData::TaskCallbackData(const std::shared_ptr<data::StructModelBase> &data)
-        : CallbackPackedData(taskType()) {
-
-        _packed.dataStruct = scope::NucleusCallScopeContext::intHandle(data);
-    }
-
-    uint32_t TaskCallbackData::size() const {
-        return sizeof(_packed);
-    }
-
-    void *TaskCallbackData::data() {
-        return &_packed;
-    }
-
     data::Symbol ChannelListenCallbackData::channelListenCallbackType() {
         static data::Symbol task = scope::context()->intern("channelListen");
         return task;
     }
 
     ChannelListenCallbackData::ChannelListenCallbackData(
-        const std::shared_ptr<data::StructModelBase> &data)
+        const std::shared_ptr<data::ContainerModelBase> &data)
         : CallbackPackedData(channelListenCallbackType()) {
 
-        _packed.dataStruct = scope::NucleusCallScopeContext::intHandle(data);
+        _packed.data = scope::asIntHandle(data);
     }
 
     uint32_t ChannelListenCallbackData::size() const {
@@ -149,6 +173,7 @@ namespace tasks {
 
     ChannelCloseCallbackData::ChannelCloseCallbackData()
         : CallbackPackedData(channelCloseCallbackType()) {
+        _packed._dummy = 0;
     }
 
     uint32_t ChannelCloseCallbackData::size() const {
@@ -159,77 +184,96 @@ namespace tasks {
         return &_packed;
     }
 
-    std::shared_ptr<data::StructModelBase> RegisteredCallback::invokeTopicCallback(
-        const std::shared_ptr<tasks::Task> &task,
-        const data::Symbol &topic,
-        const std::shared_ptr<data::StructModelBase> &data) {
+    std::shared_ptr<pubsub::Future> RegisteredCallback::invokeTopicCallback(
+        const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data) {
 
         if(_callbackType != context()->intern("topic")) {
             throw std::runtime_error("Mismatched callback");
         }
 
-        scope::StackScope scope{};
-        tasks::TopicCallbackData packed{task, topic, data};
+        scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
+        tasks::TopicCallbackData packed{topic, data};
         invoke(packed);
         return packed.retVal();
     }
 
+    void RegisteredCallback::invokeAsyncCallback() {
+
+        if(_callbackType != context()->intern("async")) {
+            throw std::runtime_error("Mismatched callback");
+        }
+
+        scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
+        tasks::AsyncCallbackData packed{};
+        invoke(packed);
+    }
+
+    void RegisteredCallback::invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future) {
+
+        if(_callbackType != context()->intern("future")) {
+            throw std::runtime_error("Mismatched callback");
+        }
+
+        scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
+        tasks::FutureCallbackData packed{future};
+        invoke(packed);
+    }
+
     bool RegisteredCallback::invokeLifecycleCallback(
-        const data::ObjHandle &pluginHandle,
+        const std::shared_ptr<plugins::AbstractPlugin> &module,
         const data::Symbol &phase,
-        const data::ObjHandle &dataHandle) {
+        const std::shared_ptr<data::ContainerModelBase> &data) {
 
         if(_callbackType != context()->intern("lifecycle")) {
             throw std::runtime_error("Mismatched callback");
         }
 
-        scope::StackScope scope{};
-        tasks::LifecycleCallbackData packed{pluginHandle, phase, dataHandle};
+        scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
+        tasks::LifecycleCallbackData packed{module, phase, data};
         invoke(packed);
         return packed.retVal();
     }
-    void RegisteredCallback::invokeTaskCallback(
-        const std::shared_ptr<data::StructModelBase> &data) {
 
-        if(_callbackType != context()->intern("task")) {
-            throw std::runtime_error("Mismatched callback");
-        }
-
-        scope::StackScope scope{};
-        tasks::TaskCallbackData packed{data};
-        invoke(packed);
-    }
-    std::shared_ptr<data::StructModelBase> Callback::invokeTopicCallback(
-        const std::shared_ptr<tasks::Task> &task,
-        const data::Symbol &topic,
-        const std::shared_ptr<data::StructModelBase> &data) {
+    std::shared_ptr<pubsub::Future> Callback::invokeTopicCallback(
+        const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data) {
         throw std::runtime_error("Mismatched callback");
     }
+
+    void Callback::invokeAsyncCallback() {
+        throw std::runtime_error("Mismatched callback");
+    }
+
+    void Callback::invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future) {
+        throw std::runtime_error("Mismatched callback");
+    }
+
     bool Callback::invokeLifecycleCallback(
-        const data::ObjHandle &pluginHandle,
+        const std::shared_ptr<plugins::AbstractPlugin> &module,
         const data::Symbol &phase,
-        const data::ObjHandle &dataHandle) {
-        throw std::runtime_error("Mismatched callback");
-    }
-    void Callback::invokeTaskCallback(const std::shared_ptr<data::StructModelBase> &data) {
+        const std::shared_ptr<data::ContainerModelBase> &data) {
         throw std::runtime_error("Mismatched callback");
     }
 
-    void Callback::invokeChannelListenCallback(const std::shared_ptr<data::StructModelBase> &data) {
+    void Callback::invokeChannelListenCallback(
+        const std::shared_ptr<data::ContainerModelBase> &data) {
         throw std::runtime_error("Mismatched callback");
     }
     void Callback::invokeChannelCloseCallback() {
         throw std::runtime_error("Mismatched callback");
     }
-
     void RegisteredCallback::invokeChannelListenCallback(
-        const std::shared_ptr<data::StructModelBase> &data) {
+        const std::shared_ptr<data::ContainerModelBase> &data) {
 
         if(_callbackType != context()->intern("channelListen")) {
             throw std::runtime_error("Mismatched callback");
         }
 
-        scope::StackScope scope{};
+        scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
         tasks::ChannelListenCallbackData packed{data};
         invoke(packed);
     }
@@ -239,8 +283,14 @@ namespace tasks {
             throw std::runtime_error("Mismatched callback");
         }
 
-        scope::StackScope scope{};
+        scope::TempRoot tempRoot;
+        plugins::CurrentModuleScope moduleScope(getModule());
         tasks::ChannelCloseCallbackData packed{};
         invoke(packed);
     }
+
+    void AsyncCallbackTask::invoke() {
+        _callback->invokeAsyncCallback();
+    }
+
 } // namespace tasks

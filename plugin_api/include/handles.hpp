@@ -83,112 +83,213 @@ namespace ggapi {
      */
     using StringOrd = Symbol;
 
-    //
-    // All objects are passed by handle, this class abstracts the object handles.
-    // The main categories of objects are Containers, Scopes, and Subscriptions.
-    //
-    class ObjHandle {
-    protected:
+    /**
+     * Use std::shared-ptr to take care of ref-counting. This can be performance-improved in future.
+     */
+    class HandleIndirect {
         uint32_t _handle{0};
+
+    public:
+        explicit HandleIndirect(uint32_t handleId) : _handle(handleId) {
+        }
+        HandleIndirect() = delete;
+        HandleIndirect(const HandleIndirect &) = delete;
+        HandleIndirect &operator=(const HandleIndirect &) = delete;
+        HandleIndirect(HandleIndirect &&) = delete;
+        HandleIndirect &operator=(HandleIndirect &&) = delete;
+        ~HandleIndirect() noexcept {
+            // If handle is invalid, cannot throw
+            ::ggapiReleaseHandle(_handle);
+        }
+
+        [[nodiscard]] ggapiObjHandle asId() const noexcept {
+            return _handle;
+        }
+
+        [[nodiscard]] std::shared_ptr<HandleIndirect> duplicate() const {
+            ggapiObjHandle retHandle = 0;
+            callApiThrowError(::ggapiDupHandle, _handle, &retHandle);
+            return std::make_shared<HandleIndirect>(retHandle);
+        }
+
+        [[nodiscard]] ggapiObjHandle makeTemp() const {
+            ggapiObjHandle retHandle = 0;
+            callApiThrowError(::ggapiTempHandle, _handle, &retHandle);
+            return retHandle;
+        }
+
+        static std::shared_ptr<HandleIndirect> of(ggapiObjHandle handle) {
+            if(handle) {
+                // Nucleus gives a handle for Plugin to "own", contract is that when Plugin is done
+                // with it, it must explicitly call release.
+                return std::make_shared<HandleIndirect>(handle);
+            } else {
+                return {};
+            }
+        }
+
+        static ggapiObjHandle idOf(const std::shared_ptr<HandleIndirect> &ptr) noexcept {
+            if(ptr) {
+                return ptr->asId();
+            } else {
+                return 0;
+            }
+        }
+    };
+    using SharedHandle = std::shared_ptr<HandleIndirect>;
+
+    /**
+     * All objects are passed by handle, this class abstracts the object handles.
+     * The main categories of objects are Containers, Scopes, and Subscriptions.
+     */
+    class ObjHandle {
+        SharedHandle _handle{};
+
+    protected:
         void required() const {
-            if(_handle == 0) {
+            if(!_handle) {
                 throw std::runtime_error("Handle is required");
             }
         }
 
     public:
         constexpr ObjHandle() noexcept = default;
-        constexpr ObjHandle(const ObjHandle &) noexcept = default;
-        constexpr ObjHandle(ObjHandle &&) noexcept = default;
-        constexpr ObjHandle &operator=(const ObjHandle &) noexcept = default;
-        constexpr ObjHandle &operator=(ObjHandle &&) noexcept = default;
+        ObjHandle(const ObjHandle &) noexcept = default;
+        ObjHandle(ObjHandle &&) noexcept = default;
+        ObjHandle &operator=(const ObjHandle &) noexcept = default;
+        ObjHandle &operator=(ObjHandle &&) noexcept = default;
         ~ObjHandle() noexcept = default;
 
-        explicit constexpr ObjHandle(uint32_t handle) noexcept : _handle{handle} {
+        explicit ObjHandle(const SharedHandle &handle) noexcept : _handle{handle} {
         }
 
-        constexpr bool operator==(ObjHandle other) const noexcept {
-            return _handle == other._handle;
+        /**
+         * Convert integer handle to tracked handle
+         * @tparam T type of tracked handle
+         * @param h integer handle returned by Nucleus
+         * @return tracked handle
+         */
+        template<typename T = ObjHandle>
+        [[nodiscard]] static T of(uint32_t h) {
+            static_assert(std::is_base_of_v<ObjHandle, T>);
+            SharedHandle shared = HandleIndirect::of(h);
+            return T(shared);
         }
 
-        constexpr bool operator!=(ObjHandle other) const noexcept {
-            return _handle != other._handle;
+        bool operator==(const ObjHandle &other) const noexcept {
+            return asId() == other.asId();
         }
 
-        constexpr explicit operator bool() const noexcept {
-            return _handle != 0;
+        bool operator!=(const ObjHandle &other) const noexcept {
+            return asId() != other.asId();
         }
 
-        constexpr bool operator!() const noexcept {
-            return _handle == 0;
+        explicit operator bool() const noexcept {
+            return asId() != 0;
         }
 
-        //
-        // Retrieve underlying handle ID - this is should never be used directly.
-        //
-        [[nodiscard]] constexpr uint32_t getHandleId() const noexcept {
-            return _handle;
+        bool operator!() const noexcept {
+            return asId() == 0;
         }
 
-        //
-        // Allows a handle to be released early.
-        //
-        void release() const {
-            required();
-            callApi([*this]() { ::ggapiReleaseHandle(_handle); });
+        /**
+         * Retrieve underlying Nucleus handle ID
+         */
+        [[nodiscard]] uint32_t asId() const noexcept {
+            return HandleIndirect::idOf(_handle);
         }
 
-        //
-        // Detaches underlying handle, cancelling any side effects such as auto-releasing.
-        //
-        void detach() noexcept {
-            _handle = 0;
+        /**
+         * Retrieve underlying Nucleus handle ID (older use)
+         */
+        [[nodiscard]] uint32_t getHandleId() const noexcept {
+            return asId();
         }
 
-        //
-        // Checks if this object is the same as the other even if the handles are different.
-        // May throw if either handle no longer is valid.
-        //
-        [[nodiscard]] bool isSameObject(ObjHandle other) const {
-            return *this == other || callApiReturn<bool>([*this, other]() {
-                return ::ggapiIsSameObject(_handle, other._handle);
-            });
+        /**
+         * Release reference to handle
+         */
+        void reset() {
+            _handle.reset();
         }
 
-        [[nodiscard]] bool isTask() const {
-            return ::ggapiIsTask(getHandleId());
+        /**
+         * Close - interpretation depends on type of object, by default it's an alias of reset()
+         */
+        void close() {
+            if(*this) {
+                callApiThrowError(::ggapiCloseHandle, asId());
+                reset();
+            }
+        }
+
+        /**
+         * Checks if this object is the same as the other even if the handles are different.
+         * May throw if either handle no longer is valid.
+         */
+        [[nodiscard]] bool isSameObject(const ObjHandle &other) const {
+            auto left = asId();
+            auto right = other.asId();
+            return left == right || callApiReturn<bool>([left, right]() {
+                       return ::ggapiIsSameObject(left, right);
+                   });
+        }
+
+        [[nodiscard]] bool isPromise() const {
+            return callBoolApiThrowError(::ggapiIsPromise, asId());
+        }
+
+        [[nodiscard]] bool isFuture() const {
+            return callBoolApiThrowError(::ggapiIsFuture, asId());
         }
 
         [[nodiscard]] bool isScope() const {
-            return ::ggapiIsScope(getHandleId());
+            return callBoolApiThrowError(::ggapiIsScope, asId());
         }
 
         [[nodiscard]] bool isSubscription() const {
-            return ::ggapiIsSubscription(getHandleId());
+            return callBoolApiThrowError(::ggapiIsSubscription, asId());
         }
 
         [[nodiscard]] bool isStruct() const {
-            return ::ggapiIsStruct(getHandleId());
+            return callBoolApiThrowError(::ggapiIsStruct, asId());
         }
 
         [[nodiscard]] bool isList() const {
-            return ::ggapiIsList(getHandleId());
+            return callBoolApiThrowError(::ggapiIsList, asId());
         }
 
         [[nodiscard]] bool isBuffer() const {
-            return ::ggapiIsBuffer(getHandleId());
+            return callBoolApiThrowError(::ggapiIsBuffer, asId());
         }
 
         [[nodiscard]] bool isContainer() const {
-            return ::ggapiIsContainer(getHandleId());
+            return callBoolApiThrowError(::ggapiIsContainer, asId());
         }
 
         [[nodiscard]] bool isScalar() const {
-            return ::ggapiIsScalar(getHandleId());
+            return callBoolApiThrowError(::ggapiIsScalar, asId());
         }
 
         [[nodiscard]] bool isChannel() const {
-            return ::ggapiIsChannel(getHandleId());
+            return callBoolApiThrowError(::ggapiIsChannel, asId());
+        }
+
+        template<typename T>
+        [[nodiscard]] T duplicate() const {
+            if(_handle) {
+                return T(_handle->duplicate());
+            } else {
+                return T();
+            }
+        }
+
+        [[nodiscard]] ggapiObjHandle makeTemp() const {
+            if(_handle) {
+                return _handle->makeTemp();
+            } else {
+                return 0;
+            }
         }
     };
 

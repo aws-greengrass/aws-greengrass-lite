@@ -2,6 +2,7 @@
 
 #include "api_callbacks.hpp"
 #include "api_forwards.hpp"
+#include "c_api.h"
 #include "c_api.hpp"
 #include "containers.hpp"
 #include "handles.hpp"
@@ -25,7 +26,7 @@ namespace ggapi {
             check();
         }
 
-        explicit Channel(uint32_t handle) : ObjHandle{handle} {
+        explicit Channel(const SharedHandle &handle) : ObjHandle{handle} {
             check();
         }
 
@@ -34,20 +35,16 @@ namespace ggapi {
         }
 
         void write(ObjHandle v) const {
-            ::ggapiChannelWrite(_handle, v.getHandleId());
-        }
-
-        void close() const {
-            ::ggapiChannelClose(_handle);
+            ::ggapiChannelWrite(asId(), v.getHandleId());
         }
 
         inline void addListenCallback(ChannelListenCallback callback);
         template<typename Callback, typename... Args>
-        inline void addListenCallback(const Callback callback, Args &&...args);
+        inline void addListenCallback(const Callback &callback, const Args &...args);
 
         inline void addCloseCallback(ChannelCloseCallback callback);
         template<typename Callback, typename... Args>
-        inline void addCloseCallback(const Callback callback, Args &&...args);
+        inline void addCloseCallback(const Callback &callback, const Args &...args);
     };
 
     /**
@@ -64,14 +61,12 @@ namespace ggapi {
          * @tparam Args Prefix arguments, particularly optional This
          */
         template<typename Callable, typename... Args>
-        class ChannelListenDispatch : public CallbackManager::CallbackDispatch {
-
-            const Callable _callable;
-            const std::tuple<Args...> _args;
+        class ChannelListenDispatch : public CallbackManager::CaptureDispatch<Callable, Args...> {
 
         public:
-            explicit ChannelListenDispatch(Callable callable, Args &&...args)
-                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+            explicit ChannelListenDispatch(Callable callable, Args... args)
+                : CallbackManager::CaptureDispatch<Callable, Args...>{
+                    std::move(callable), std::move(args)...} {
                 static_assert(std::is_invocable_v<Callable, Args..., Struct>);
             }
             [[nodiscard]] Symbol type() const override {
@@ -79,12 +74,11 @@ namespace ggapi {
             }
             [[nodiscard]] CallbackManager::Delegate prepare(
                 Symbol callbackType, ggapiDataLen size, void *data) const override {
-                assertCallbackType(Symbol(callbackType));
-                auto &cb = checkedStruct<ggapiChannelListenCallbackData>(size, data);
-                auto callable = _callable;
-                auto dataStruct = Struct(cb.dataStruct);
-                auto args = std::tuple_cat(_args, std::tuple{dataStruct});
-                return [callable, args]() { std::apply(callable, args); };
+
+                auto &cb = this->template checkedStruct<ggapiChannelListenCallbackData>(
+                    callbackType, size, data);
+                // TODO: change to container
+                return this->prepareWithArgs(ggapi::ObjHandle::of<Struct>(cb.data));
             }
         };
 
@@ -98,8 +92,9 @@ namespace ggapi {
          * Create reference to a channel listen callback.
          */
         template<typename Callable, typename... Args>
-        static ChannelListenCallback of(const Callable &callable, Args &&...args) {
-            auto dispatch = std::make_unique<ChannelListenDispatch<Callable, Args...>>(
+        static ChannelListenCallback of(const Callable &callable, Args &...args) {
+            auto dispatch = std::make_unique<
+                ChannelListenDispatch<std::decay_t<Callable>, std::decay_t<Args>...>>(
                 callable, std::forward<Args>(args)...);
             return CallbackManager::self().registerWithNucleus<ChannelListenCallback>(
                 std::move(dispatch));
@@ -120,14 +115,12 @@ namespace ggapi {
          * @tparam Args Prefix arguments, particularly optional This
          */
         template<typename Callable, typename... Args>
-        class ChannelCloseDispatch : public CallbackManager::CallbackDispatch {
-
-            const Callable _callable;
-            const std::tuple<Args...> _args;
+        class ChannelCloseDispatch : public CallbackManager::CaptureDispatch<Callable, Args...> {
 
         public:
-            explicit ChannelCloseDispatch(Callable callable, Args &&...args)
-                : _callable{std::move(callable)}, _args{std::forward<Args>(args)...} {
+            explicit ChannelCloseDispatch(Callable callable, Args... args)
+                : CallbackManager::CaptureDispatch<Callable, Args...>{
+                    std::move(callable), std::move(args)...} {
                 static_assert(std::is_invocable_v<Callable, Args...>);
             }
             [[nodiscard]] Symbol type() const override {
@@ -135,11 +128,10 @@ namespace ggapi {
             }
             [[nodiscard]] CallbackManager::Delegate prepare(
                 Symbol callbackType, ggapiDataLen size, void *data) const override {
-                assertCallbackType(Symbol(callbackType));
-                std::ignore = checkedStruct<ggapiChannelCloseCallbackData>(size, data);
-                auto callable = _callable;
-                auto args = _args;
-                return [callable, args]() { std::apply(callable, args); };
+
+                std::ignore = this->template checkedStruct<ggapiChannelCloseCallbackData>(
+                    callbackType, size, data);
+                return this->prepareWithArgs();
             }
         };
 
@@ -153,9 +145,10 @@ namespace ggapi {
          * Create reference to a channel close callback.
          */
         template<typename Callable, typename... Args>
-        static ChannelCloseCallback of(const Callable &callable, Args &&...args) {
-            auto dispatch = std::make_unique<ChannelCloseDispatch<Callable, Args...>>(
-                callable, std::forward<Args>(args)...);
+        static ChannelCloseCallback of(const Callable &callable, const Args &...args) {
+            auto dispatch = std::make_unique<
+                ChannelCloseDispatch<std::decay_t<Callable>, std::decay_t<Args>...>>(
+                callable, args...);
             return CallbackManager::self().registerWithNucleus<ChannelCloseCallback>(
                 std::move(dispatch));
         }
@@ -168,8 +161,8 @@ namespace ggapi {
     }
 
     template<typename Callback, typename... Args>
-    inline void Channel::addListenCallback(const Callback callback, Args &&...args) {
-        addListenCallback(ChannelListenCallback::of(callback, std::forward<Args>(args)...));
+    inline void Channel::addListenCallback(const Callback &callback, const Args &...args) {
+        addListenCallback(ChannelListenCallback::of(callback, args...));
     }
 
     inline void Channel::addCloseCallback(ChannelCloseCallback callback) {
@@ -179,8 +172,8 @@ namespace ggapi {
     }
 
     template<typename Callback, typename... Args>
-    inline void Channel::addCloseCallback(const Callback callback, Args &&...args) {
-        addCloseCallback(ChannelCloseCallback::of(callback, std::forward<Args>(args)...));
+    inline void Channel::addCloseCallback(const Callback &callback, const Args &...args) {
+        addCloseCallback(ChannelCloseCallback::of(callback, args...));
     }
 
 } // namespace ggapi

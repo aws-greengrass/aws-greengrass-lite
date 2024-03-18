@@ -1,15 +1,14 @@
 #include "test_util.hpp"
 #include <catch2/catch_all.hpp>
+#include <temp_module.hpp>
 
 #include <filesystem>
 
 SCENARIO("Example download from a url sent over LPC", "[cloudDownloader]") {
     GIVEN("Initiate the plugin") {
         // start the lifecycle
-        auto moduleScope = ggapi::ModuleScope::registerGlobalPlugin(
-            "plugin", [](ggapi::ModuleScope, ggapi::Symbol, ggapi::Struct) { return false; });
-        TestCloudDownloader sender = TestCloudDownloader(moduleScope);
-        moduleScope.setActive();
+        util::TempModule tempModule{"plugin"};
+        TestCloudDownloader sender = TestCloudDownloader(*tempModule);
         CHECK(sender.startLifecycle());
 
         WHEN("A device Credential is provided to retrieve the token") {
@@ -35,10 +34,12 @@ SCENARIO("Example download from a url sent over LPC", "[cloudDownloader]") {
             request.put("caFile", caFile);
             request.put("pkeyPath", pkeyPath);
 
-            auto response = ggapi::Task::sendToTopic(
+            auto responseFuture = ggapi::Subscription::callTopicFirst(
                 ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, request);
 
             THEN("Validate proper JSON format") {
+                REQUIRE(responseFuture);
+                auto response = ggapi::Struct{responseFuture.waitAndGetValue()};
                 auto responseAsString = response.get<std::string>("Response");
 
                 auto jsonHandle = ggapi::Buffer::create()
@@ -58,10 +59,12 @@ SCENARIO("Example download from a url sent over LPC", "[cloudDownloader]") {
                 auto localPath = "./http_test_doc.txt";
                 request.put("uri", "https://aws-crt-test-stuff.s3.amazonaws.com/http_test_doc.txt");
                 request.put("localPath", localPath);
-                auto response = ggapi::Task::sendToTopic(
+                auto responseFuture = ggapi::Subscription::callTopicFirst(
                     ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, request);
 
                 THEN("Test if the file is created at the localPath") {
+                    REQUIRE(responseFuture);
+                    responseFuture.wait();
                     REQUIRE(std::filesystem::exists(localPath));
                     // TODO: Add a test to check the file contents
                 }

@@ -90,7 +90,8 @@ namespace ggapi {
              * @return Mutable structure after trivial validation
              */
             template<typename T>
-            static T &checkedStruct(uint32_t size, void *data) {
+            T &checkedStruct(Symbol cbType, uint32_t size, void *data) const {
+                assertCallbackType(cbType);
                 if(data == nullptr) {
                     throw std::runtime_error("Null pointer provided to callback");
                 }
@@ -101,6 +102,51 @@ namespace ggapi {
                 // Note, larger structure is ok - expectation is that new fields are added to end
                 // NOLINTNEXTLINE(*-pro-type-reinterpret-cast)
                 return *reinterpret_cast<T *>(data);
+            }
+        };
+
+        /**
+         * See also std::async - Capture (by value) the callback. Any captured handles also need to
+         * be bound to this callback.
+         *
+         * Note that handles captured in the Lambda capture may be out of scope when asynchronous
+         * functions are called
+         *
+         * @tparam Callable Lambda, function pointer, method, etc
+         * @tparam Args Prefix arguments, particularly 'this' and handles
+         */
+        template<typename Callable, typename... Args>
+        class CaptureDispatch : public CallbackDispatch {
+
+            template<typename... T>
+            constexpr static bool _decayCheck = (std::is_same_v<std::decay_t<T>, T> && ...);
+
+        protected:
+            Callable _callable;
+            std::tuple<Args...> _args;
+
+            template<typename... CallArgs>
+            [[nodiscard]] CallbackManager::Delegate prepareWithArgs(CallArgs... callArgs) const {
+                auto args = std::tuple_cat(_args, std::tuple{std::move(callArgs)...});
+                return [callable = _callable, args = std::move(args)]() {
+                    std::apply(std::move(callable), std::move(args));
+                };
+            }
+
+            template<typename Ret, typename... CallArgs>
+            [[nodiscard]] CallbackManager::Delegate prepareWithArgsRet(
+                std::function<void(Ret)> post, CallArgs... callArgs) const {
+                auto args = std::tuple_cat(_args, std::tuple{std::move(callArgs)...});
+                return [callable = _callable, args = std::move(args), post]() {
+                    Ret r = std::apply(std::move(callable), std::move(args));
+                    post(std::move(r));
+                };
+            }
+
+        public:
+            explicit CaptureDispatch(Callable callable, Args... args)
+                : _callable{std::move(callable)}, _args{std::move(args)...} {
+                static_assert(_decayCheck<Callable, Args...>);
             }
         };
 
@@ -133,12 +179,20 @@ namespace ggapi {
             }
         }
 
-        ObjHandle wrapHelper(std::unique_ptr<CallbackDispatch> cb) {
+        /**
+         * Register this callback with Nucleus
+         * @param cb Callback dispatch structure
+         * @return callback handle
+         */
+        ObjHandle registerHelper(std::unique_ptr<CallbackDispatch> cb) {
             // NOLINTNEXTLINE(*-pro-type-reinterpret-cast)
             auto idx = reinterpret_cast<uintptr_t>(cb.get());
             auto type = cb->type();
             std::unique_lock guard{_mutex};
+            // Note, we need pointer for reanchor step. We know pointer is not removed until used,
+            // and pointer will not be used until after return.
             _callbacks.emplace(idx, std::move(cb));
+            guard.unlock(); // if call below fails, callback is immediately unregistered
             ggapiObjHandle callbackHandle = 0;
             callApiThrowError(
                 ::ggapiRegisterCallback,
@@ -146,7 +200,7 @@ namespace ggapi {
                 idx,
                 type.asInt(),
                 &callbackHandle);
-            return ObjHandle(callbackHandle);
+            return ObjHandle::of(callbackHandle);
         }
 
     public:
@@ -162,7 +216,7 @@ namespace ggapi {
          */
         template<typename CallbackType>
         CallbackType registerWithNucleus(std::unique_ptr<CallbackDispatch> cb) {
-            return CallbackType(wrapHelper(std::move(cb)));
+            return CallbackType(registerHelper(std::move(cb)));
         }
 
         /**

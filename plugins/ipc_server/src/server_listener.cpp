@@ -1,4 +1,5 @@
 #include "server_listener.hpp"
+#include <temp_module.hpp>
 
 void ServerListener::Connect(std::string_view socket_path) {
     // TODO: This should be refactored again into a new class
@@ -80,6 +81,7 @@ int ServerListenerCCallbacks::onNewServerConnection(
     void *user_data) noexcept {
 
     auto *thisConnection = static_cast<ServerListener *>(user_data);
+    util::TempModule tempModule{thisConnection->module()};
 
     const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
     if(error_code) {
@@ -101,8 +103,9 @@ int ServerListenerCCallbacks::onNewServerConnection(
 
 void ServerListenerCCallbacks::onServerConnectionShutdown(
     aws_event_stream_rpc_server_connection *connection, int error_code, void *user_data) noexcept {
-    (void) connection;
+
     auto *thisConnection = static_cast<ServerListener *>(user_data);
+    util::TempModule tempModule{thisConnection->module()};
     const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
 
     thisConnection->underlyingConnection.remove(connection);
@@ -121,6 +124,7 @@ void ServerListenerCCallbacks::onProtocolMessage(
     const aws_event_stream_rpc_message_args *message_args,
     void *user_data) noexcept {
     auto *thisConnection = static_cast<ServerListener *>(user_data);
+    util::TempModule tempModule{thisConnection->module()};
     const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
 
     std::cerr << "Received protocol message: " << *message_args << '\n';
@@ -152,11 +156,15 @@ void ServerListenerCCallbacks::onProtocolMessage(
 }
 
 int ServerListenerCCallbacks::onIncomingStream(
-    aws_event_stream_rpc_server_connection *connection,
+    aws_event_stream_rpc_server_connection *,
     aws_event_stream_rpc_server_continuation_token *token,
     aws_byte_cursor operation_name,
     aws_event_stream_rpc_server_stream_continuation_options *continuation_options,
     void *user_data) noexcept {
+
+    auto *thisConnection = static_cast<ServerListener *>(user_data);
+    util::TempModule tempModule{thisConnection->module()};
+
     auto operationName = [operation_name]() -> std::string {
         auto sv = Aws::Crt::ByteCursorToStringView(operation_name);
         return {sv.data(), sv.size()};
@@ -164,8 +172,8 @@ int ServerListenerCCallbacks::onIncomingStream(
 
     std::cerr << "[IPC] Request for " << operationName << " Received\n";
 
-    auto *continuation =
-        new std::shared_ptr{std::make_shared<ServerContinuation>(token, std::move(operationName))};
+    auto *continuation = new std::shared_ptr{
+        std::make_shared<ServerContinuation>(*tempModule, token, std::move(operationName))};
 
     *continuation_options = {};
     continuation_options->on_continuation = ServerContinuationCCallbacks::onContinuation;

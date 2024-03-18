@@ -2,7 +2,7 @@
 #include <catch2/catch_all.hpp>
 
 // NOLINTBEGIN
-SCENARIO("String ordinals are consistent", "[ordinal]") {
+SCENARIO("String ordinals are consistent", "[symbols]") {
 
     GIVEN("A string table") {
         scope::LocalizedContext forTesting{scope::Context::create()};

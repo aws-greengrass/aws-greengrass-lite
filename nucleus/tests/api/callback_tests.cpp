@@ -2,6 +2,7 @@
 #include "tasks/task_callbacks.hpp"
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
+#include <temp_module.hpp>
 #include <util.hpp>
 
 // NOLINTBEGIN
@@ -65,10 +66,23 @@ TEST_CASE("Verify callback structure contracts", "[callable]") {
         // No fields may be removed, types cannot be changed
         assertStructureUnchanged(
             d,
-            field<ggapiObjHandle>(d.taskHandle),
             field<ggapiSymbol>(d.topicSymbol),
-            field<ggapiObjHandle>(d.dataStruct),
-            field<ggapiObjHandle>(d.retDataStruct));
+            field<ggapiObjHandle>(d.data),
+            field<ggapiObjHandle>(d.ret));
+    }
+    SECTION("ggapiFutureCallbackData does not break backward compatibility") {
+        ggapiFutureCallbackData d;
+        INFO("ggapiFutureCallbackData");
+        // Note, any new fields must be added to end
+        // No fields may be removed, types cannot be changed
+        assertStructureUnchanged(d, field<ggapiObjHandle>(d.futureHandle));
+    }
+    SECTION("ggapiAsyncCallbackData does not break backward compatibility") {
+        ggapiAsyncCallbackData d;
+        INFO("ggapiAsyncCallbackData");
+        // Note, currently _dummy field is not used, it just ensures a structure size of 1
+        // this can be replaced with a 16-bit or 32-bit field without breaking compatibility
+        assertStructureUnchanged(d, field<uint8_t>(d._dummy));
     }
     SECTION("ggapiLifecycleCallbackData does not break backward compatibility") {
         ggapiLifecycleCallbackData d;
@@ -82,19 +96,12 @@ TEST_CASE("Verify callback structure contracts", "[callable]") {
             field<ggapiObjHandle>(d.dataStruct),
             field<uint32_t>(d.retWasHandled));
     }
-    SECTION("ggapiTaskCallbackData does not break backward compatibility") {
-        ggapiTaskCallbackData d;
-        INFO("ggapiTaskCallbackData");
-        // Note, any new fields must be added to end
-        // No fields may be removed, types cannot be changed
-        assertStructureUnchanged(d, field<ggapiObjHandle>(d.dataStruct));
-    }
     SECTION("ggapiChannelListenCallbackData does not break backward compatibility") {
         ggapiChannelListenCallbackData d;
         INFO("ggapiChannelListenCallbackData");
         // Note, any new fields must be added to end
         // No fields may be removed, types cannot be changed
-        assertStructureUnchanged(d, field<ggapiObjHandle>(d.dataStruct));
+        assertStructureUnchanged(d, field<ggapiObjHandle>(d.data));
     }
     SECTION("ggapiChannelCloseCallbackData does not break backward compatibility") {
         ggapiChannelCloseCallbackData d;
@@ -107,37 +114,38 @@ TEST_CASE("Verify callback structure contracts", "[callable]") {
 
 // Behavioral
 SCENARIO("callable", "[callable]") {
-    scope::LocalizedContext forTesting{scope::Context::create()};
+    scope::LocalizedContext forTesting{};
+    util::TempModule testModule("callable-test");
     auto context = forTesting.context()->context();
 
     GIVEN("A callback function") {
         struct Test {
             int counter = 5;
-            ggapi::Struct myCallback(ggapi::Task, ggapi::Symbol, ggapi::Struct data) {
+            ggapi::ObjHandle myCallback(ggapi::Symbol, ggapi::Container data) {
                 counter++;
                 return data;
             }
 
-            ggapi::Struct moreComplexCallback(
+            ggapi::ObjHandle moreComplexCallback(
                 const std::string &stuff,
                 int moreStuff,
-                const ggapi::Task &task,
                 ggapi::StringOrd topic,
-                ggapi::Struct data) {
+                ggapi::Container data) {
 
                 auto res = ggapi::Struct::create();
                 res.put("stuff", stuff);
                 res.put("moreStuff", moreStuff);
-                res.put("task", task); // passing in a handle
                 res.put("topic", topic); // passing in a symbol
                 res.put("data", data);
-                return res;
+                auto promise = ggapi::Promise::create();
+                promise.setValue(res);
+                return promise;
             }
         };
         Test test;
         WHEN("Creating a callback as a lambda") {
-            ggapi::TopicCallbackLambda lambda = [&test](auto task, auto topic, auto data) {
-                return test.myCallback(task, topic, data);
+            ggapi::TopicCallbackLambda lambda = [&test](auto topic, auto data) {
+                return test.myCallback(topic, data);
             };
             auto obj = ggapi::TopicCallback::of(lambda);
             THEN("A callback handle is returned") {
@@ -145,12 +153,12 @@ SCENARIO("callable", "[callable]") {
             }
             AND_WHEN("Calling the callback") {
                 auto callback = context->objFromInt<tasks::Callback>(obj.getHandleId());
-                auto task = std::make_shared<tasks::Task>(context);
                 auto topic = context->intern("test");
                 auto data = std::make_shared<data::SharedStruct>(context);
-                auto res = callback->invokeTopicCallback(task, topic, data);
+                auto res = callback->invokeTopicCallback(topic, data);
                 THEN("Return value is as expected") {
-                    REQUIRE(res == data);
+                    REQUIRE(res->isValid());
+                    REQUIRE(res->getValue() == data);
                 }
                 THEN("Callback changed state") {
                     REQUIRE(test.counter == 6);
@@ -164,12 +172,12 @@ SCENARIO("callable", "[callable]") {
             }
             AND_WHEN("Calling the callback") {
                 auto callback = context->objFromInt<tasks::Callback>(obj.getHandleId());
-                auto task = std::make_shared<tasks::Task>(context);
                 auto topic = context->intern("test");
                 auto data = std::make_shared<data::SharedStruct>(context);
-                auto res = callback->invokeTopicCallback(task, topic, data);
+                auto res = callback->invokeTopicCallback(topic, data);
                 THEN("Return value is as expected") {
-                    REQUIRE(res == data);
+                    REQUIRE(res->isValid());
+                    REQUIRE(res->getValue() == data);
                 }
                 THEN("Callback changed state") {
                     REQUIRE(test.counter == 6);
@@ -185,15 +193,33 @@ SCENARIO("callable", "[callable]") {
             }
             AND_WHEN("Calling the callback") {
                 auto callback = context->objFromInt<tasks::Callback>(obj.getHandleId());
-                auto task = std::make_shared<tasks::Task>(context);
                 auto topic = context->intern("test");
                 auto data = std::make_shared<data::SharedStruct>(context);
-                auto res = callback->invokeTopicCallback(task, topic, data);
+                auto future = callback->invokeTopicCallback(topic, data);
+                auto res = future->getValue()->ref<data::SharedStruct>();
                 THEN("Return value is as expected") {
                     REQUIRE(res->get("stuff").getString() == std::string("foo"));
                     REQUIRE(res->get("moreStuff").getInt() == 5);
                     REQUIRE(res->get("topic").getString() == std::string("test"));
                     REQUIRE(res->get("data").getObject() == data);
+                }
+            }
+        }
+
+        WHEN("Calling topic that returns data, inherent ref-counting is not lost") {
+            // This test exists because we've seen a bug where the structure handle gets released
+            // prior to being returned to the Nucleus
+            auto obj = ggapi::TopicCallback::of(
+                [](auto topic, auto data) { return ggapi::Struct::create().put("A", "B"); });
+            WHEN("Calling the callback") {
+                auto callback = context->objFromInt<tasks::Callback>(obj.getHandleId());
+                auto topic = context->intern("test");
+                auto data = std::make_shared<data::SharedStruct>(context);
+                auto res = callback->invokeTopicCallback(topic, data);
+                THEN("Return value is as expected") {
+                    REQUIRE(res->isValid());
+                    auto resStruct = res->getValue()->ref<data::SharedStruct>();
+                    REQUIRE(resStruct->get("A").getString() == "B");
                 }
             }
         }

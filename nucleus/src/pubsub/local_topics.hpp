@@ -14,8 +14,6 @@
 
 namespace tasks {
     class Callback;
-    class Task;
-    class SubTask;
 } // namespace tasks
 
 namespace data {
@@ -23,24 +21,9 @@ namespace data {
 }
 
 namespace pubsub {
+    class Future;
     class Listeners;
     class PubSubManager;
-
-    class TopicSubTask : public tasks::SubTask {
-    private:
-        const data::Symbol _topic;
-        const std::shared_ptr<tasks::Callback> _callback;
-
-    public:
-        explicit TopicSubTask(
-            const data::Symbol &topic, const std::shared_ptr<tasks::Callback> &callback)
-            : _topic(topic), _callback(callback) {
-        }
-
-        std::shared_ptr<data::StructModelBase> runInThread(
-            const std::shared_ptr<tasks::Task> &task,
-            const std::shared_ptr<data::StructModelBase> &data) override;
-    };
 
     //
     // Handler for a single topic
@@ -58,16 +41,16 @@ namespace pubsub {
         Listener(Listener &&) noexcept = delete;
         Listener &operator=(const Listener &) = delete;
         Listener &operator=(Listener &&) noexcept = delete;
-        ~Listener() override;
+        ~Listener() noexcept override;
         explicit Listener(
             const scope::UsingContext &context,
             data::Symbol topicOrd,
-            Listeners *listeners,
+            const std::shared_ptr<Listeners> &listeners,
             const std::shared_ptr<tasks::Callback> &callback);
-        std::unique_ptr<tasks::SubTask> toSubTask(const data::Symbol &topic);
-        std::shared_ptr<data::StructModelBase> runInTaskThread(
-            const std::shared_ptr<tasks::Task> &task,
-            const std::shared_ptr<data::StructModelBase> &dataIn);
+        std::shared_ptr<pubsub::Future> call(
+            const std::shared_ptr<data::ContainerModelBase> &dataIn);
+        void close() override;
+        void closeImpl() noexcept;
     };
 
     //
@@ -75,23 +58,24 @@ namespace pubsub {
     // No wildcards supported
     //
     class Listeners : public util::RefObject<Listeners>, protected scope::UsesContext {
+        friend class Listener;
+        friend class PubSubManager;
+
     private:
-        data::Symbol _topic;
+        const data::Symbol _topic;
         std::vector<std::weak_ptr<Listener>> _listeners; // Protected by mutex
-        PubSubManager &manager() const {
-            return context()->lpcTopics();
-        }
+        PubSubManager &manager() const;
 
     protected:
         std::shared_mutex &managerMutex();
 
+        bool isEmptyMutexHeld() {
+            return _listeners.empty();
+        }
+
     public:
         Listeners(const scope::UsingContext &context, data::Symbol topic);
         void cleanup();
-
-        bool isEmpty() {
-            return _listeners.empty();
-        }
 
         std::shared_ptr<Listener> addNewListener(const std::shared_ptr<tasks::Callback> &callback);
         void fillTopicListeners(std::vector<std::shared_ptr<Listener>> &callOrder);
@@ -127,19 +111,10 @@ namespace pubsub {
         // subscribe a new listener to a callback
         std::shared_ptr<Listener> subscribe(
             data::Symbol topic, const std::shared_ptr<tasks::Callback> &callback);
-        // subscribe a new listener to a callback with anchoring
-        data::ObjectAnchor subscribe(
-            data::ObjHandle scopeHandle,
-            data::Symbol topic,
-            const std::shared_ptr<tasks::Callback> &callback);
-        void insertTopicListenerSubTasks(std::shared_ptr<tasks::Task> &task, data::Symbol topic);
-        void initializePubSubCall(
-            std::shared_ptr<tasks::Task> &task,
-            const std::shared_ptr<Listener> &explicitListener,
-            data::Symbol topic,
-            const std::shared_ptr<data::StructModelBase> &dataIn,
-            std::unique_ptr<tasks::SubTask> completion,
-            tasks::ExpireTime expireTime);
+        std::shared_ptr<Future> callFirst(
+            data::Symbol topic, const std::shared_ptr<data::ContainerModelBase> &dataIn);
+        std::vector<std::shared_ptr<Future>> callAll(
+            data::Symbol topic, const std::shared_ptr<data::ContainerModelBase> &dataIn);
     };
 
 } // namespace pubsub

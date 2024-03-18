@@ -3,40 +3,104 @@
 #include "deployment/device_configuration.hpp"
 #include "errors/error_base.hpp"
 #include "scope/context_full.hpp"
-#include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
 #include <algorithm>
 #include <cpp_api.hpp>
-#include <iostream>
+#include <filesystem>
+#include <stdexcept>
+#include <string_view>
 
 namespace fs = std::filesystem;
 
+// Two macro invocations are required to stringify a macro's value
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define STRINGIFY(x) #x
+// NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
 #define STRINGIFY2(x) STRINGIFY(x)
-#define NATIVE_SUFFIX STRINGIFY2(PLATFORM_SHLIB_SUFFIX)
+inline constexpr std::string_view NATIVE_SUFFIX = STRINGIFY2(PLATFORM_SHLIB_SUFFIX);
 
-const auto LOG = // NOLINT(cert-err58-cpp)
+static const auto LOG = // NOLINT(cert-err58-cpp)
     logging::Logger::of("com.aws.greengrass.plugins");
 
 namespace plugins {
+#if defined(USE_WINDLL)
+    struct LocalStringDeleter {
+        void operator()(LPSTR p) const noexcept {
+            // Free the Win32's string's buffer.
+            LocalFree(p);
+        }
+    };
+#endif
 
-    NativePlugin::~NativePlugin() {
-        nativeHandle_t h = _handle.load();
-        _handle.store(nullptr);
+    static std::runtime_error makePluginError(
+        std::string_view description, const std::filesystem::path &path, std::string_view message) {
+        const auto pathStr = path.string();
+        std::string what;
+        what.reserve(description.size() + pathStr.size() + message.size() + 2U);
+        what.append(description).append(pathStr).push_back(' ');
+        what.append(message);
+        return std::runtime_error{what};
+    }
+
+    static std::string getLastPluginError() {
+#if defined(USE_DLFCN)
+        // Note, dlerror() below will flag "concurrency-mt-unsafe"
+        // It is thread safe on Linux and Mac
+        // There is no safer alternative, so all we can do is suppress
+        // TODO: When implementing loader thread, make sure this is all in same thread
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        const char *error = dlerror();
+        if(!error) {
+            return {};
+        }
+        return error;
+#elif defined(USE_WINDLL)
+        // look up error message from system message table. Leave string unformatted.
+        // https://devblogs.microsoft.com/oldnewthing/20071128-00/?p=24353
+        DWORD flags = FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
+                      | FORMAT_MESSAGE_IGNORE_INSERTS;
+        DWORD lastError = ::GetLastError();
+        LPSTR messageBuffer = nullptr;
+        DWORD size = FormatMessageA(
+            flags,
+            NULL,
+            lastError,
+            0,
+            // pointer type changes when FORMAT_MESSAGE_ALLOCATE_BUFFER is specified
+            // NOLINTNEXTLINE(*-reinterpret-cast)
+            reinterpret_cast<LPTSTR>(&messageBuffer),
+            0,
+            NULL);
+        // Take exception-safe ownership
+        using char_type = std::remove_pointer_t<LPSTR>;
+        std::unique_ptr<char_type, LocalStringDeleter> owner{messageBuffer};
+
+        // fallback
+        if(size == 0) {
+            return "Error Code " + std::to_string(lastError);
+        }
+
+        // copy message buffer from Windows string
+        return std::string{messageBuffer, size};
+#endif
+    }
+
+    NativePlugin::~NativePlugin() noexcept {
+        NativeHandle h = _handle.load();
         if(!h) {
             return;
         }
 #if defined(USE_DLFCN)
-        ::dlclose(_handle);
+        ::dlclose(h);
 #elif defined(USE_WINDLL)
-        ::FreeLibrary(_handle);
+        ::FreeLibrary(h);
 #endif
     }
 
     void NativePlugin::load(const std::filesystem::path &path) {
-        std::string filePath = path.generic_string();
+        std::string filePathString = path.generic_string();
 #if defined(USE_DLFCN)
-        nativeHandle_t handle = ::dlopen(filePath.c_str(), RTLD_NOW | RTLD_LOCAL);
+        NativeHandle handle = ::dlopen(filePathString.c_str(), RTLD_NOW | RTLD_LOCAL);
         _handle.store(handle);
         if(handle == nullptr) {
             // Note, dlerror() below will flag "concurrency-mt-unsafe"
@@ -46,27 +110,36 @@ namespace plugins {
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             std::string error{dlerror()};
             throw std::runtime_error(
-                std::string("Cannot load shared object: ") + filePath + std::string(" ") + error);
+                std::string("Cannot load shared object: ") + filePathString + std::string(" ")
+                + error);
         }
         _lifecycleFn.store(
             // NOLINTNEXTLINE(*-reinterpret-cast)
             reinterpret_cast<GgapiLifecycleFn *>(::dlsym(_handle, NATIVE_ENTRY_NAME)));
 #elif defined(USE_WINDLL)
-        nativeHandle_t handle =
-            ::LoadLibraryEx(filePath.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
+        NativeHandle handle =
+            ::LoadLibraryEx(filePathString.c_str(), nullptr, LOAD_WITH_ALTERED_SEARCH_PATH);
         _handle.store(handle);
         if(handle == nullptr) {
-            uint32_t lastError = ::GetLastError();
-            // TODO: use FormatMessage
-            throw std::runtime_error(
-                std::string("Cannot load DLL: ") + filePath + std::string(" ")
-                + std::to_string(lastError));
+            LOG.atError().logAndThrow(
+                makePluginError("Cannot load Plugin: ", path, getLastPluginError()));
         }
-        _lifecycleFn.store(
-            // NOLINTNEXTLINE(*-reinterpret-cast)
-            reinterpret_cast<GgapiLifecycleFn *>(
-                ::GetProcAddress(_handle.load(), NATIVE_ENTRY_NAME)));
 #endif
+
+#if defined(USE_DLFCN)
+        auto *lifecycleFn = ::dlsym(handle, NATIVE_ENTRY_NAME);
+#elif defined(USE_WINDLL)
+        auto *lifecycleFn = ::GetProcAddress(handle, NATIVE_ENTRY_NAME);
+#endif
+        if(lifecycleFn == nullptr) {
+            LOG.atWarn("lifecycle-unknown")
+                .cause(
+                    makePluginError("Cannot link lifecycle function: ", path, getLastPluginError()))
+                .log();
+        }
+        // Function pointer from C-APIs which type-erase their return values.
+        // NOLINTNEXTLINE(*-reinterpret-cast)
+        _lifecycleFn.store(reinterpret_cast<lifecycleFn_t>(lifecycleFn));
     }
 
     bool NativePlugin::isActive() noexcept {
@@ -74,32 +147,33 @@ namespace plugins {
     }
 
     bool NativePlugin::callNativeLifecycle(
-        const data::ObjHandle &pluginHandle,
-        const data::Symbol &event,
-        const data::ObjHandle &dataHandle) {
+        const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) {
 
-        GgapiLifecycleFn *lifecycleFn = _lifecycleFn.load();
-
+        auto *lifecycleFn = _lifecycleFn.load();
         if(lifecycleFn != nullptr) {
+            scope::TempRoot tempRoot;
             bool handled = false;
-            ggapiErrorKind error =
-                lifecycleFn(pluginHandle.asInt(), event.asInt(), dataHandle.asInt(), &handled);
+            // TODO: Remove module parameter
+            ggapiErrorKind error = lifecycleFn(
+                scope::asIntHandle(baseRef()), event.asInt(), scope::asIntHandle(data), &handled);
             errors::Error::throwThreadError(error);
             return handled;
+        } else {
+            return false; // not handled
         }
-        return true; // no error
     }
 
     bool DelegatePlugin::callNativeLifecycle(
-        const data::ObjHandle &pluginRoot,
-        const data::Symbol &event,
-        const data::ObjHandle &dataHandle) {
+        const data::Symbol &phase, const std::shared_ptr<data::StructModelBase> &data) {
 
         auto callback = _callback;
         if(callback) {
-            return callback->invokeLifecycleCallback(pluginRoot, event, dataHandle);
+            scope::TempRoot tempRoot;
+            // TODO: Remove module parameter
+            return callback->invokeLifecycleCallback(ref<plugins::AbstractPlugin>(), phase, data);
+        } else {
+            return false; // no callback, so caller should act as if event unhandled
         }
-        return true;
     }
 
     void PluginLoader::discoverPlugins(const std::filesystem::path &pluginDir) {
@@ -128,24 +202,21 @@ namespace plugins {
     }
 
     void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
-        if(entry.path().extension().compare(NATIVE_SUFFIX) == 0) {
+        if(entry.path().extension() == NATIVE_SUFFIX) {
             loadNativePlugin(entry.path());
             return;
         }
     }
 
     void PluginLoader::loadNativePlugin(const std::filesystem::path &path) {
+        LOG.atInfo().kv("path", path.string()).log("Loading native plugin");
         auto stem = path.stem().generic_string();
         auto name = util::trimStart(stem, "lib");
         std::string serviceName = std::string("local.plugins.discovered.") + std::string(name);
         std::shared_ptr<NativePlugin> plugin{
             std::make_shared<NativePlugin>(context(), serviceName)};
-        std::cout << "Loading native plugin from " << path << std::endl;
         plugin->load(path);
-        // add the plugins to a collection by "anchoring"
-        // which solves a number of interesting problems
-        auto anchor = _root->anchor(plugin);
-        plugin->setSelf(anchor.getHandle());
+        _all.emplace_back(plugin);
         plugin->initialize(*this);
     }
 
@@ -153,9 +224,8 @@ namespace plugins {
         const std::function<void(AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)>
             &fn) const {
 
-        for(const auto &i : _root->getRoots()) {
-            std::shared_ptr<AbstractPlugin> plugin{i.getObject<AbstractPlugin>()};
-            plugin->invoke(fn);
+        for(const auto &i : _all) {
+            i->invoke(fn);
         }
     }
 
@@ -171,6 +241,7 @@ namespace plugins {
         AbstractPlugin &plugin, bool partial) const {
         std::string nucleusName = _deviceConfig->getNucleusComponentName();
         auto data = std::make_shared<data::SharedStruct>(context());
+        data->put(MODULE, plugin.ref<AbstractPlugin>());
         data->put(CONFIG_ROOT, context()->configManager().root());
         data->put(SYSTEM, context()->configManager().lookupTopics({SYSTEM}));
         if(!partial) {
@@ -201,12 +272,11 @@ namespace plugins {
 
         LOG.atInfo().event("lifecycle").kv("name", getName()).kv("event", event).log();
         errors::ThreadErrorContainer::get().clear();
-        scope::StackScope scope{};
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 
-        data::ObjHandle dataHandle = scope.getCallScope()->root()->anchor(data).getHandle();
         try {
-            if(callNativeLifecycle(getSelf(), event, dataHandle)) {
+            bool wasHandled = callNativeLifecycle(event, data);
+            if(wasHandled) {
                 LOG.atDebug()
                     .event("lifecycle-completed")
                     .kv("name", getName())

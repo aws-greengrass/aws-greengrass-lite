@@ -5,11 +5,15 @@
 #include <utility>
 
 namespace data {
-    class StructModelBase;
-}
+    class ContainerModelBase;
+} // namespace data
 
 namespace plugins {
     class AbstractPlugin;
+}
+
+namespace pubsub {
+    class Future;
 }
 
 namespace tasks {
@@ -40,12 +44,32 @@ namespace tasks {
 
     public:
         TopicCallbackData(
-            const std::shared_ptr<tasks::Task> &task,
-            const data::Symbol &topic,
-            const std::shared_ptr<data::StructModelBase> &data);
+            const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data);
         uint32_t size() const override;
         void *data() override;
-        std::shared_ptr<data::StructModelBase> retVal() const;
+        std::shared_ptr<pubsub::Future> retVal() const;
+    };
+
+    class AsyncCallbackData : public CallbackPackedData {
+        ::ggapiAsyncCallbackData _packed{};
+
+        static data::Symbol asyncType();
+
+    public:
+        explicit AsyncCallbackData();
+        uint32_t size() const override;
+        void *data() override;
+    };
+
+    class FutureCallbackData : public CallbackPackedData {
+        ::ggapiFutureCallbackData _packed{};
+
+        static data::Symbol futureType();
+
+    public:
+        explicit FutureCallbackData(const std::shared_ptr<pubsub::Future> &future);
+        uint32_t size() const override;
+        void *data() override;
     };
 
     class LifecycleCallbackData : public CallbackPackedData {
@@ -55,23 +79,12 @@ namespace tasks {
 
     public:
         LifecycleCallbackData(
-            const data::ObjHandle &pluginHandle,
+            const std::shared_ptr<plugins::AbstractPlugin> &module,
             const data::Symbol &phase,
-            const data::ObjHandle &dataHandle);
+            const std::shared_ptr<data::ContainerModelBase> &data);
         uint32_t size() const override;
         void *data() override;
         bool retVal() const;
-    };
-
-    class TaskCallbackData : public CallbackPackedData {
-        ::ggapiTaskCallbackData _packed{};
-
-        static data::Symbol taskType();
-
-    public:
-        explicit TaskCallbackData(const std::shared_ptr<data::StructModelBase> &data);
-        uint32_t size() const override;
-        void *data() override;
     };
 
     class ChannelListenCallbackData : public CallbackPackedData {
@@ -80,7 +93,7 @@ namespace tasks {
         static data::Symbol channelListenCallbackType();
 
     public:
-        explicit ChannelListenCallbackData(const std::shared_ptr<data::StructModelBase> &data);
+        explicit ChannelListenCallbackData(const std::shared_ptr<data::ContainerModelBase> &data);
         uint32_t size() const override;
         void *data() override;
     };
@@ -96,23 +109,27 @@ namespace tasks {
         void *data() override;
     };
 
+    /**
+     * Target of a callback. The callback may have some handles anchored to it to ensure those
+     * handles are valid when the callback is called, so it is a form of tracking scope. The
+     * callback is released if/when it will no longer be used.
+     */
     class Callback : public data::TrackedObject {
 
     public:
         explicit Callback(const scope::UsingContext &context) : data::TrackedObject(context) {
         }
 
-        virtual std::shared_ptr<data::StructModelBase> invokeTopicCallback(
-            const std::shared_ptr<tasks::Task> &task,
-            const data::Symbol &topic,
-            const std::shared_ptr<data::StructModelBase> &data);
+        virtual std::shared_ptr<pubsub::Future> invokeTopicCallback(
+            const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data);
+        virtual void invokeAsyncCallback();
+        virtual void invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future);
         virtual bool invokeLifecycleCallback(
-            const data::ObjHandle &pluginHandle,
+            const std::shared_ptr<plugins::AbstractPlugin> &module,
             const data::Symbol &phase,
-            const data::ObjHandle &dataHandle);
-        virtual void invokeTaskCallback(const std::shared_ptr<data::StructModelBase> &data);
+            const std::shared_ptr<data::ContainerModelBase> &data);
         virtual void invokeChannelListenCallback(
-            const std::shared_ptr<data::StructModelBase> &data);
+            const std::shared_ptr<data::ContainerModelBase> &data);
         virtual void invokeChannelCloseCallback();
     };
 
@@ -133,8 +150,6 @@ namespace tasks {
             }
         }
         void invoke(CallbackPackedData &packed);
-        std::shared_ptr<data::StructModelBase> asStruct(uint32_t retVal);
-        static bool asBool(uint32_t retVal);
 
     public:
         explicit RegisteredCallback(
@@ -152,17 +167,17 @@ namespace tasks {
         RegisteredCallback &operator=(RegisteredCallback &&) = delete;
         ~RegisteredCallback() override;
 
-        std::shared_ptr<data::StructModelBase> invokeTopicCallback(
-            const std::shared_ptr<tasks::Task> &task,
+        std::shared_ptr<pubsub::Future> invokeTopicCallback(
             const data::Symbol &topic,
-            const std::shared_ptr<data::StructModelBase> &data) override;
+            const std::shared_ptr<data::ContainerModelBase> &data) override;
+        void invokeAsyncCallback() override;
+        void invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future) override;
         bool invokeLifecycleCallback(
-            const data::ObjHandle &pluginHandle,
+            const std::shared_ptr<plugins::AbstractPlugin> &module,
             const data::Symbol &phase,
-            const data::ObjHandle &dataHandle) override;
-        void invokeTaskCallback(const std::shared_ptr<data::StructModelBase> &data) override;
+            const std::shared_ptr<data::ContainerModelBase> &data) override;
         void invokeChannelListenCallback(
-            const std::shared_ptr<data::StructModelBase> &data) override;
+            const std::shared_ptr<data::ContainerModelBase> &data) override;
         void invokeChannelCloseCallback() override;
     };
 

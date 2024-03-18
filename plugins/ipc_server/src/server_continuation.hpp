@@ -13,19 +13,19 @@ public:
     using Token = aws_event_stream_rpc_server_continuation_token;
 
 private:
+    ggapi::ModuleScope _module;
     Token *_token;
     std::string _operation;
     ggapi::Channel _channel{};
 
 public:
-    explicit ServerContinuation(Token *token, std::string operation)
-        : _token{token}, _operation{std::move(operation)} {
+    explicit ServerContinuation(ggapi::ModuleScope module, Token *token, std::string operation)
+        : _module{std::move(module)}, _token{token}, _operation{std::move(operation)} {
     }
 
     ~ServerContinuation() noexcept {
         if(_channel) {
             _channel.close();
-            _channel.release();
         }
     }
 
@@ -41,8 +41,12 @@ public:
         return _operation + "Response";
     }
 
+    [[nodiscard]] ggapi::ModuleScope module() const {
+        return _module;
+    }
+
     static ggapi::Struct onTopicResponse(
-        const std::weak_ptr<ServerContinuation> &weakSelf, ggapi::Struct response);
+        const std::weak_ptr<ServerContinuation> &weakSelf, const ggapi::Struct &response);
 };
 
 extern "C" class ServerContinuationCCallbacks {

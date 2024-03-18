@@ -2,21 +2,20 @@
 #include "api_error_trap.hpp"
 #include "data/struct_model.hpp"
 #include "scope/context_full.hpp"
-#include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
 #include <cpp_api.hpp>
 
-bool ggapiIsChannel(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<bool>([handle]() {
+ggapiErrorKind ggapiIsChannel(ggapiObjHandle handle, ggapiBool *pBool) noexcept {
+    return apiImpl::catchErrorToKind([handle, pBool]() {
         auto ss{scope::context()->objFromInt(handle)};
-        return std::dynamic_pointer_cast<channel::Channel>(ss) != nullptr;
+        apiImpl::setBool(pBool, std::dynamic_pointer_cast<channel::Channel>(ss) != nullptr);
     });
 }
 
 ggapiErrorKind ggapiCreateChannel(ggapiObjHandle *pHandle) noexcept {
     return apiImpl::catchErrorToKind([pHandle]() {
-        auto anchor = scope::NucleusCallScopeContext::make<channel::Channel>();
-        *pHandle = anchor.asIntHandle();
+        auto obj = scope::makeObject<channel::Channel>();
+        *pHandle = scope::asIntHandle(obj);
     });
 }
 
@@ -26,18 +25,6 @@ uint32_t ggapiChannelWrite(uint32_t channel, uint32_t callStruct) noexcept {
         auto channelObj = context->objFromInt<channel::Channel>(channel);
         auto data = context->objFromInt<data::StructModelBase>(callStruct);
         channelObj->write(data);
-        return true;
-    });
-}
-
-uint32_t ggapiChannelClose(uint32_t channel) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([channel]() {
-        auto context = scope::context();
-        auto channelObj = context->objFromInt<channel::Channel>(channel);
-        if(!channelObj) {
-            return false;
-        }
-        channelObj->close();
         return true;
     });
 }

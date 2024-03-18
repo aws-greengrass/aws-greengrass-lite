@@ -17,7 +17,7 @@ namespace channel {
     //
     class Channel final : public data::TrackedObject {
     private:
-        std::queue<std::shared_ptr<data::StructModelBase>> _inFlight;
+        std::queue<std::shared_ptr<data::ContainerModelBase>> _inFlight;
         std::shared_ptr<tasks::Callback> _listener;
         std::vector<std::shared_ptr<tasks::Callback>> _onClose;
         mutable std::mutex _mutex;
@@ -35,8 +35,8 @@ namespace channel {
 
         ~Channel() noexcept override;
 
-        void write(const std::shared_ptr<data::StructModelBase> &value);
-        void close();
+        void write(const std::shared_ptr<data::ContainerModelBase> &value);
+        void close() override;
         void setListenCallback(const std::shared_ptr<tasks::Callback> &callback);
         void setCloseCallback(const std::shared_ptr<tasks::Callback> &callback);
     };
