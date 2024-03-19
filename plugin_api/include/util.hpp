@@ -207,7 +207,7 @@ namespace util {
             return _ptr[i];
         }
 
-        constexpr reference at(size_type i) const {
+        [[nodiscard]] constexpr reference at(size_type i) const {
             bounds_check(i);
             return operator[](i);
         }
@@ -224,23 +224,23 @@ namespace util {
             return size() * sizeof(element_type);
         }
 
-        constexpr pointer data() const noexcept {
+        [[nodiscard]] constexpr pointer data() const noexcept {
             return _ptr;
         }
 
-        constexpr iterator begin() const noexcept {
+        [[nodiscard]] constexpr iterator begin() const noexcept {
             return data();
         }
 
-        constexpr iterator end() const noexcept {
+        [[nodiscard]] constexpr iterator end() const noexcept {
             return data() + size();
         }
 
-        constexpr const_iterator cbegin() const noexcept {
+        [[nodiscard]] constexpr const_iterator cbegin() const noexcept {
             return begin();
         }
 
-        constexpr const_iterator cend() const noexcept {
+        [[nodiscard]] constexpr const_iterator cend() const noexcept {
             return end();
         }
 
@@ -254,27 +254,27 @@ namespace util {
             return bounded_copy(s_first, s_last, begin(), end());
         }
 
-        inline constexpr reference front() const noexcept {
+        [[nodiscard]] inline constexpr reference front() const noexcept {
             return *data();
         }
 
-        inline constexpr reference back() const noexcept {
+        [[nodiscard]] inline constexpr reference back() const noexcept {
             return *std::prev(end());
         }
 
-        constexpr Span first(size_type n) const noexcept {
+        [[nodiscard]] constexpr Span first(size_type n) const noexcept {
             return {data(), n};
         }
 
-        constexpr Span last(size_type n) const noexcept {
+        [[nodiscard]] constexpr Span last(size_type n) const noexcept {
             return {end() - n, n};
         }
 
-        constexpr Span subspan(size_type idx, size_type n) const noexcept {
+        [[nodiscard]] constexpr Span subspan(size_type idx, size_type n) const noexcept {
             return {data() + idx, std::min(n, size() - idx)};
         }
 
-        constexpr Span subspan(size_type idx) const noexcept {
+        [[nodiscard]] constexpr Span subspan(size_type idx) const noexcept {
             return last(size() - idx);
         }
     };
@@ -399,7 +399,7 @@ namespace util {
         [[nodiscard]] std::optional<VT2> lookup(const VT1 &v) const noexcept {
             auto i = indexOf(v);
             if(i.has_value()) {
-                return _second[i.value()];
+                return _second.at(i.value());
             } else {
                 return {};
             }
@@ -408,7 +408,7 @@ namespace util {
         [[nodiscard]] std::optional<VT1> rlookup(const VT2 &v) const noexcept {
             auto i = rindexOf(v);
             if(i.has_value()) {
-                return _first[i.value()];
+                return _first.at(i.value());
             } else {
                 return {};
             }
@@ -416,7 +416,7 @@ namespace util {
 
         [[nodiscard]] std::optional<uint32_t> indexOf(const VT1 &v) const noexcept {
             for(uint32_t i = 0; i < Nm; ++i) {
-                if(_first[i] == v) {
+                if(_first.at(i) == v) {
                     return i;
                 }
             }
@@ -425,7 +425,7 @@ namespace util {
 
         [[nodiscard]] std::optional<uint32_t> rindexOf(const VT2 &v) const noexcept {
             for(uint32_t i = 0; i < Nm; ++i) {
-                if(_second[i] == v) {
+                if(_second.at(i) == v) {
                     return i;
                 }
             }

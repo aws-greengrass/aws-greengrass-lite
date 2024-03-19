@@ -31,13 +31,13 @@ namespace ggapi {
             });
             return ggapi::Symbol(newLevel);
         }
-        static void logEvent(StructArgType entry) {
+        static void logEvent(const StructArgType &entry) {
             ggapi::callApi([entry]() { return ::ggapiLogEvent(entry.getHandleId()); });
         }
         static StructType newStruct() {
             return ggapi::Struct::create();
         }
-        static StructType cloneStruct(StructArgType s) {
+        static StructType cloneStruct(const StructArgType &s) {
             return s.clone();
         }
         static void putStruct(StructArgType s, SymbolArgType key, const ArgType &value) {

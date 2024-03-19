@@ -34,15 +34,15 @@ namespace ggapi {
             return callHandleApiThrowError<Channel>(::ggapiCreateChannel);
         }
 
-        void write(ObjHandle v) const {
+        void write(const ObjHandle &v) const {
             ::ggapiChannelWrite(asId(), v.getHandleId());
         }
 
-        inline void addListenCallback(ChannelListenCallback callback);
+        inline void addListenCallback(const ChannelListenCallback &callback);
         template<typename Callback, typename... Args>
         inline void addListenCallback(const Callback &callback, const Args &...args);
 
-        inline void addCloseCallback(ChannelCloseCallback callback);
+        inline void addCloseCallback(const ChannelCloseCallback &callback);
         template<typename Callback, typename... Args>
         inline void addCloseCallback(const Callback &callback, const Args &...args);
     };
@@ -154,7 +154,7 @@ namespace ggapi {
         }
     };
 
-    inline void Channel::addListenCallback(ChannelListenCallback callback) {
+    inline void Channel::addListenCallback(const ChannelListenCallback &callback) {
         required();
         callApi(
             [*this, callback]() { ::ggapiChannelListen(getHandleId(), callback.getHandleId()); });
@@ -165,7 +165,7 @@ namespace ggapi {
         addListenCallback(ChannelListenCallback::of(callback, args...));
     }
 
-    inline void Channel::addCloseCallback(ChannelCloseCallback callback) {
+    inline void Channel::addCloseCallback(const ChannelCloseCallback &callback) {
         required();
         callApi(
             [*this, callback]() { ::ggapiChannelOnClose(getHandleId(), callback.getHandleId()); });
