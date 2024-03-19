@@ -42,7 +42,8 @@ namespace ggapi {
             return onError_stop(std::move(data));
         }
 
-        bool lifecycleDispatch(const EventEnum::ConstType<Events::UNKNOWN> &, Struct) {
+        static bool lifecycleDispatch(
+            const EventEnum::ConstType<Events::UNKNOWN> &, const Struct &) {
             return false;
         }
 
@@ -137,6 +138,7 @@ namespace ggapi {
          * will set the component name during this cycle.
          * TODO: This may change
          */
+        // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
         virtual bool onInitialize(Struct data) {
             std::cout << "Default onInitialize\n";
             return false;
@@ -146,6 +148,7 @@ namespace ggapi {
          * For plugins, after recipe has been read, but before any other
          * lifecycle stages. Use this cycle for any data binding.
          */
+        // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
         virtual bool onStart(Struct data) {
             std::cout << "Default onStart\n";
             return false;
@@ -154,6 +157,7 @@ namespace ggapi {
         /**
          * Plugin has transitioned into an active state. Return true if handled.
          */
+        // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
         virtual bool onStop(Struct data) {
             std::cout << "Default onStop\n";
             return false;
@@ -162,6 +166,7 @@ namespace ggapi {
         /**
          * Plugin is being terminated - use for cleanup. Return true if handled.
          */
+        // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
         virtual bool onError_stop(Struct data) {
             std::cout << "Default onError_stop\n";
             return false;

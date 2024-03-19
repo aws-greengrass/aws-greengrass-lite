@@ -56,7 +56,7 @@ namespace ggapi {
         static Container boxImpl(Symbol v) {
             return callApiReturnHandle<Container>([v]() { return ::ggapiBoxSymbol(v.asInt()); });
         }
-        static Container boxImpl(ObjHandle v) {
+        static Container boxImpl(const ObjHandle &v) {
             return callApiReturnHandle<Container>(
                 [v]() { return ::ggapiBoxHandle(v.getHandleId()); });
         }
@@ -106,6 +106,9 @@ namespace ggapi {
                 } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                     return static_cast<ObjHandle>(x);
                 } else if constexpr(std ::is_assignable_v<std::string_view, T>) {
+                    // Normally casting and returning string_view is bad, however the passed in
+                    // string_view will be in scope for as long as this returned value is used.
+                    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,-warnings-as-errors)
                     return static_cast<std::string_view>(x);
                 } else {
                     return x;
@@ -210,7 +213,7 @@ namespace ggapi {
         void putImpl(int32_t idx, std::string_view v) {
             callApi([*this, idx, v]() { ::ggapiListPutString(asId(), idx, v.data(), v.length()); });
         }
-        void putImpl(int32_t idx, ObjHandle v) {
+        void putImpl(int32_t idx, const ObjHandle &v) {
             callApi([*this, idx, v]() { ::ggapiListPutHandle(asId(), idx, v.getHandleId()); });
         }
         void insertImpl(int32_t idx, bool v) {
@@ -229,7 +232,7 @@ namespace ggapi {
             callApi(
                 [*this, idx, v]() { ::ggapiListInsertString(asId(), idx, v.data(), v.length()); });
         }
-        void insertImpl(int32_t idx, ObjHandle v) {
+        void insertImpl(int32_t idx, const ObjHandle &v) {
             callApi([*this, idx, v]() { ::ggapiListInsertHandle(asId(), idx, v.getHandleId()); });
         }
 
@@ -333,7 +336,7 @@ namespace ggapi {
                 ::ggapiStructPutString(asId(), key.asInt(), v.data(), v.length());
             });
         }
-        void putImpl(Symbol key, ObjHandle v) {
+        void putImpl(Symbol key, const ObjHandle &v) {
             callApi([*this, key, v]() {
                 ::ggapiStructPutHandle(asId(), key.asInt(), v.getHandleId());
             });
@@ -410,7 +413,7 @@ namespace ggapi {
                 return callApiReturnHandle<T>(
                     [*this, key]() { return ::ggapiStructGetHandle(asId(), key.asInt()); });
             } else if constexpr(std ::is_assignable_v<std::string, T>) {
-                size_t len = callApiReturn<size_t>(
+                auto len = callApiReturn<size_t>(
                     [*this, key]() { return ::ggapiStructGetStringLen(asId(), key.asInt()); });
                 return stringFillHelper<typename T::traits_type, typename T::allocator_type>(
                     len, [*this, key](auto buf, auto bufLen) {
@@ -424,7 +427,7 @@ namespace ggapi {
         }
 
         template<typename T, typename V>
-        T getValue(const std::initializer_list<V> &keys) const {
+        [[nodiscard]] T getValue(const std::initializer_list<V> &keys) const {
             ggapi::Struct childStruct = *this;
             auto it = keys.begin();
             for(; it != std::prev(keys.end()); it++) {
