@@ -111,7 +111,7 @@ namespace logging {
             }
         }
 
-        virtual void logEvent(StructArgType entry) {
+        virtual void logEvent(const StructArgType &entry) {
             Traits::logEvent(entry);
         }
 
