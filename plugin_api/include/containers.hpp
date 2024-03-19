@@ -108,7 +108,7 @@ namespace ggapi {
                 } else if constexpr(std ::is_assignable_v<std::string_view, T>) {
                     // Normally casting and returning string_view is bad, however the passed in
                     // string_view will be in scope for as long as this returned value is used.
-                    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay,-warnings-as-errors)
+                    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-array-to-pointer-decay)
                     return static_cast<std::string_view>(x);
                 } else {
                     return x;
