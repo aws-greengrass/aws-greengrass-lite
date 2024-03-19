@@ -5,6 +5,7 @@ IpcServer::IpcServer() noexcept {
 }
 
 bool IpcServer::onInitialize(ggapi::Struct data) {
+    std::ignore = util::getDeviceSdkApiHandle(); // Make sure Api initialized
     data.put(NAME, "aws.greengrass.ipc_server");
     std::unique_lock guard{_mutex};
     _system = data.getValue<ggapi::Struct>({"system"});

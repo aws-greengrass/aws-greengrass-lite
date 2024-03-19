@@ -20,7 +20,9 @@ ggapi::Promise ProvisionPlugin::brokerListener(ggapi::Symbol, const ggapi::Conta
  * This cycle is normally used for binding. Provisioning may be called very early on, so
  * bind the provisioning topic during this binding phase. (Atypical)
  */
+
 bool ProvisionPlugin::onInitialize(ggapi::Struct data) {
+    std::ignore = util::getDeviceSdkApiHandle(); // Make sure Api initialized
     data.put(NAME, keys.serviceName);
     std::unique_lock guard{_mutex};
     _subscription = ggapi::Subscription::subscribeToTopic(

@@ -1,5 +1,4 @@
 #include "tes_http_server.hpp"
-#include <iostream>
 #include <plugin.hpp>
 
 class TesHttpServerPlugin : public ggapi::Plugin {
@@ -18,6 +17,7 @@ public:
 };
 
 bool TesHttpServerPlugin::onInitialize(ggapi::Struct data) {
+    std::ignore = util::getDeviceSdkApiHandle(); // Make sure Api initialized
     return true;
 }
 

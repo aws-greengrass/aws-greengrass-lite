@@ -6,13 +6,7 @@
 
 #include <plugin.hpp>
 
-#include <aws/crt/Api.h>
-#include <aws/crt/UUID.h>
-#include <aws/crt/http/HttpConnection.h>
-#include <aws/crt/http/HttpProxyStrategy.h>
-#include <aws/crt/http/HttpRequestResponse.h>
-#include <aws/crt/io/TlsOptions.h>
-#include <aws/crt/mqtt/Mqtt5Packets.h>
+#include <shared_device_sdk.hpp>
 
 #include <aws/iot/Mqtt5Client.h>
 

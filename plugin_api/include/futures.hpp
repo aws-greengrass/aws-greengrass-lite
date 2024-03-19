@@ -156,7 +156,7 @@ namespace ggapi {
         }
 
         template<typename Func, typename... Args>
-        inline Container fulfill(Func &&f, Args &&...args) noexcept;
+        inline Container fulfill(Func &&f, Args &&...args);
     };
 
     /**
@@ -184,7 +184,7 @@ namespace ggapi {
         [[nodiscard]] uint32_t ready() const {
             std::shared_lock guard{_mutex};
             return std::count_if(
-                _futures.begin(), _futures.end(), [](Future f) { return f.isValid(); });
+                _futures.begin(), _futures.end(), [](const Future &f) { return f.isValid(); });
         }
 
         /**
@@ -193,7 +193,7 @@ namespace ggapi {
         [[nodiscard]] uint32_t pending() const {
             std::shared_lock guard{_mutex};
             return std::count_if(
-                _futures.begin(), _futures.end(), [](Future f) { return !f.isValid(); });
+                _futures.begin(), _futures.end(), [](const Future &f) { return !f.isValid(); });
         }
 
         /**
@@ -211,7 +211,7 @@ namespace ggapi {
             std::vector<Future> all = futures();
             std::vector<Container> containers;
             containers.reserve(all.size());
-            for(auto i : all) {
+            for(const auto &i : all) {
                 containers.emplace_back(i.getValue());
             }
             return containers;
@@ -238,7 +238,7 @@ namespace ggapi {
             }
             auto all = futures();
             auto limit = std::chrono::steady_clock::now() + std::chrono::milliseconds{timeout};
-            return std::all_of(all.begin(), all.end(), [limit](Future f) {
+            return std::all_of(all.begin(), all.end(), [limit](const Future &f) {
                 auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
                     limit - std::chrono::steady_clock::now());
                 auto maxWait = util::safeBoundPositive<int32_t>(remaining.count());
@@ -393,11 +393,11 @@ namespace ggapi {
         std::ignore = p.wait(util::safeBoundPositive<int32_t>(duration));
     }
 
-    inline void later(uint32_t delay, AsyncCallback callback) {
+    inline void later(uint32_t delay, const AsyncCallback &callback) {
         callApiThrowError(::ggapiCallAsync, callback.getHandleId(), delay);
     }
 
-    inline void async(AsyncCallback callback) {
+    inline void async(const AsyncCallback &callback) {
         return later(0, callback);
     }
 
@@ -436,14 +436,14 @@ namespace ggapi {
     }
 
     template<typename Func, typename... Args>
-    inline Container Promise::fulfill(Func &&f, Args &&...args) noexcept {
+    inline Container Promise::fulfill(Func &&f, Args &&...args) {
         try {
             static_assert(std::is_invocable_r_v<ggapi::Container, Func, Args...>);
             Container c = std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
             setValue(c);
             return c;
         } catch(const ggapi::GgApiError &err) {
-            setError(err);
+            setError(err); // Note, setError() can throw exception if Promise invalid
         } catch(const std::exception &exp) {
             setError(ggapi::GgApiError::of(exp));
         } catch(...) {

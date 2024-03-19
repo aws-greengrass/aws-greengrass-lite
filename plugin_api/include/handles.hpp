@@ -1,5 +1,6 @@
 #pragma once
 
+#include "api_forwards.hpp"
 #include "c_api.hpp"
 #include <stdexcept>
 #include <string>
@@ -160,7 +161,7 @@ namespace ggapi {
         ObjHandle &operator=(ObjHandle &&) noexcept = default;
         ~ObjHandle() noexcept = default;
 
-        explicit ObjHandle(const SharedHandle &handle) noexcept : _handle{handle} {
+        explicit ObjHandle(SharedHandle handle) noexcept : _handle{std::move(handle)} {
         }
 
         /**
