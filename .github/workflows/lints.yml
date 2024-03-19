@@ -5,6 +5,10 @@ on:
   pull_request:
     branches: ["main"]
 
+defaults:
+  run:
+    shell: nix develop .#ci -c bash -exo pipefail {0}
+
 jobs:
   format-check:
     timeout-minutes: 60
@@ -24,7 +28,6 @@ jobs:
 
       - name: Generate / Show Patch
         if: ${{ failure() && steps.formatting-check.outcome == 'failure' }}
-        shell: nix develop -c bash -exo pipefail {0}
         run: |
           nix fmt
           git diff >> formatting.patch
@@ -42,9 +45,6 @@ jobs:
     timeout-minutes: 15
     name: Check clang-tidy
     runs-on: ubuntu-22.04
-    defaults:
-      run:
-        shell: nix develop -c bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -95,9 +95,6 @@ jobs:
     timeout-minutes: 60
     name: Check cppcheck
     runs-on: ubuntu-22.04
-    defaults:
-      run:
-        shell: nix develop -c bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -178,7 +175,6 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Run git-secrets
-        shell: nix develop -c bash -eo pipefail {0}
         run: |
           git-secrets --register-aws
           git-secrets --scan
@@ -195,7 +191,6 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check dependency hashes
-        shell: nix develop -c bash -eo pipefail {0}
         run: |
           ./utils/scripts/update_hashes.py
           git diff --color=always --exit-code
