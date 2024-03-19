@@ -193,6 +193,20 @@ namespace ipc {
             throw std::runtime_error("Logger not running");
         }
         ProcessId pid{p->getProcessFd().get()};
+
+        // TODO: Scheduled task -> close process / throw timeout error
+        auto timeoutPoint = p->getTimeout(); // time in future to timeout on
+        auto currentTimePoint = std::chrono:steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(timeoutPoint - currentTimePoint);
+        auto microseconds = duration.count();
+        auto delay = static_cast<uint32_t>(microseconds * 10);
+
+        ggApi::later(delay, []() {
+            // Process has timed out, kill and error out.
+            closeProcess(pid);
+            throw std::runtime_error("Process (pidfd= "<< pid << ") has timed out. Killing process.");
+        }, ggapi::Container{})
+
         std::list<ProcessEvent> events;
         addEvent(events, ErrorLog{std::move(p->getErr()), std::move(p->getErrorHandler())});
         addEvent(events, OutLog{std::move(p->getOut()), std::move(p->getOutputHandler())});

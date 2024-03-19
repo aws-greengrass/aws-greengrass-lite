@@ -107,7 +107,8 @@ namespace ipc {
                     .setErr(std::move(errPipe.output()))
                     .setCompletionHandler(_completeHandler.value_or([](auto &&...) {}))
                     .setErrHandler(_errHandler.value_or([](auto &&...) {}))
-                    .setOutHandler(_outHandler.value_or([](auto &&...) {}));
+                    .setOutHandler(_outHandler.value_or([](auto &&...) {}))
+                    .setTimeout(_timeout.value_or(std::chrono::steady_clock::time_point::min()));
                 return process;
             }
         }

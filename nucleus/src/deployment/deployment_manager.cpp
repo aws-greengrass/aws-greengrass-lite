@@ -338,6 +338,7 @@ namespace deployment {
                     };
 
                     bool requirePrivilege = false;
+                    // TODO: get default per step (each step has a different timeout)
                     std::chrono::seconds timeout{120};
 
                     // privilege

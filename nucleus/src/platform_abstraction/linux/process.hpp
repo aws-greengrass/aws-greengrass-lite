@@ -69,6 +69,11 @@ namespace ipc {
             return *this;
         }
 
+        LinuxProcess &setTimeout(cr::steady_clock::time_point timeout) noexcept {
+            this->timeout = std::move(timeout);
+            return *this;
+        }
+
         OutputCallback &getErrorHandler() noexcept {
             return _onErr;
         }

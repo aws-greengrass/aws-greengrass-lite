@@ -257,7 +257,7 @@ static int sendMessage(
 }
 
 extern "C" {
-static void onMessageFlush(int error_code, void *user_data) noexcept {
+[[maybe_unused]] static void onMessageFlush(int error_code, void *user_data) noexcept {
     std::ignore = user_data;
     std::ignore = error_code;
 }

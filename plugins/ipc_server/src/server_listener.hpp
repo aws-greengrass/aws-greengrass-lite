@@ -9,7 +9,7 @@
 #include "server_continuation.hpp"
 
 extern "C" {
-static void onListenerDestroy(
+[[maybe_unused]] static void onListenerDestroy(
     aws_event_stream_rpc_server_listener *server, void *user_data) noexcept {
 }
 }
