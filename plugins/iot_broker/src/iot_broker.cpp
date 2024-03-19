@@ -285,23 +285,16 @@ void IotBroker::initMqtt() {
 
 const IotBroker::Keys IotBroker::keys{};
 
-// Initializes global CRT API
-// TODO: This should be extern
-static Aws::Crt::ApiHandle apiHandle{};
-
 /* Lifecycle function implementations */
 
 bool IotBroker::onInitialize(ggapi::Struct data) {
+    std::cout << "[mqtt-plugin] initializing\n"; // TODO: Replace std::cout/cerr with logging
+    auto &apiHandle = util::getDeviceSdkApiHandle();
     data.put("name", "aws.greengrass.iot_broker");
-    std::cout << "[mqtt-plugin] initializing\n";
 
-    // activate the logging.  Probably not going to stay here so don't worry if you see it fail to
-    // initialize
-    static std::once_flag loggingInitialized;
+    // activate the logging. TODO: Consider relocating it
     try {
-        std::call_once(loggingInitialized, []() {
-            apiHandle.InitializeLogging(Aws::Crt::LogLevel::Info, stderr);
-        });
+        apiHandle.InitializeLogging(Aws::Crt::LogLevel::Info, stderr);
     } catch(const std::exception &e) {
         std::cerr << "[mqtt-plugin] probably did not initialize the logging: " << e.what()
                   << std::endl;

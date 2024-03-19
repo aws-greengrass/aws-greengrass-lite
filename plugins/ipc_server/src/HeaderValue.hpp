@@ -2,15 +2,11 @@
 
 #include <util.hpp>
 
-#include <aws/common/byte_order.h>
-#include <aws/common/uuid.h>
-#include <aws/crt/Types.h>
-#include <aws/event-stream/event_stream.h>
-
 #include <chrono>
 #include <ios>
 #include <iostream>
 #include <optional>
+#include <shared_device_sdk.hpp>
 #include <string_view>
 #include <type_traits>
 #include <variant>

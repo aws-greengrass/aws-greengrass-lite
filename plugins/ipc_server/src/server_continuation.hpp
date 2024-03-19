@@ -1,5 +1,5 @@
 #pragma once
-#include <aws/event-stream/event_stream_rpc_server.h>
+#include <shared_device_sdk.hpp>
 #include <plugin.hpp>
 
 #include "HeaderValue.hpp"

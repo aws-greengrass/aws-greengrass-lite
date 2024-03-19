@@ -1,9 +1,6 @@
 #pragma once
 
-#include <aws/crt/Api.h>
-#include <aws/crt/Types.h>
-#include <aws/crt/mqtt/Mqtt5Packets.h>
-#include <aws/iot/Mqtt5Client.h>
+#include <shared_device_sdk.hpp>
 #include <cpp_api.hpp>
 #include <logging.hpp>
 #include <memory>
