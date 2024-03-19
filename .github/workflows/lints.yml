@@ -40,7 +40,7 @@ jobs:
 
   clang-tidy:
     timeout-minutes: 15
-    name: Check Clang-tidy
+    name: Check clang-tidy
     runs-on: ubuntu-22.04
     defaults:
       run:
@@ -54,7 +54,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
-        run: cmake $FETCHCONTENT_FLAGS -B build
+        run: nix develop .#gglite-clang -c cmake $FETCHCONTENT_FLAGS -B build
 
       - name: Get file list
         id: get-file-list
