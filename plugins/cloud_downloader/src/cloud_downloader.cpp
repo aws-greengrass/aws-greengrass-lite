@@ -1,5 +1,4 @@
 #include "cloud_downloader.hpp"
-#include "aws/crt/Allocator.h"
 #include <fstream>
 #include <iostream>
 #include <mutex>
@@ -277,6 +276,8 @@ void CloudDownloader::genericDownloadAsync(const ggapi::Struct &callData, ggapi:
 }
 
 bool CloudDownloader::onInitialize(ggapi::Struct data) {
+    std::ignore = util::getDeviceSdkApiHandle(); // Make sure Api initialized
+    data.put(NAME, "aws.greengrass.cloud_downloader");
     _retrieveArtifactSubs = ggapi::Subscription::subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.retrieve_artifact"}, ggapi::TopicCallback::of(&CloudDownloader::genericDownload,this));
 

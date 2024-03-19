@@ -1,8 +1,4 @@
-#include <aws/crt/Api.h>
-#include <aws/crt/crypto/Hash.h>
-#include <aws/crt/http/HttpConnection.h>
-#include <aws/crt/http/HttpRequestResponse.h>
-#include <aws/crt/io/Uri.h>
+#include <shared_device_sdk.hpp>
 
 #include <logging.hpp>
 #include <plugin.hpp>
