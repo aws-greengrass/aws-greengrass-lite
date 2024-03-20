@@ -8,7 +8,7 @@
 }:
 let
   inherit (builtins) fromJSON readFile;
-  inherit (lib) any elem fileset mapAttrs;
+  inherit (lib) fileset mapAttrs;
   deps = mapAttrs (_: v: fetchgit (v // { fetchSubmodules = true; }))
     (fromJSON (readFile (src + "/dependencies.json")));
   fetchcontentFlags = lib.mapAttrsToList
@@ -34,6 +34,14 @@ stdenv.mkDerivation {
   nativeBuildInputs = [ cmake ninja ];
   buildInputs = [ openssl ];
   hardeningDisable = [ "all" ];
-  cmakeFlags = fetchcontentFlags;
+  cmakeFlags = fetchcontentFlags ++ [
+    "-DBUILD_TESTING=1"
+  ];
+  doCheck = true;
+  checkPhase = ''
+    runHook preCheck
+    ctest -R nucleus --output-on-failure
+    runHook postCheck
+  '';
   passthru = { inherit fetchcontentFlags; };
 }
