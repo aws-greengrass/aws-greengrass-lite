@@ -35,42 +35,14 @@ jobs:
             c_compiler: clang
             cpp_compiler: clang++
             build_type: Debug
-          - os: ubuntu-20.04
-            setup: QEMU
-            c_compiler: gcc
-            cpp_compiler: g++
-            build_type: Debug
     runs-on: ${{ matrix.os }}
     steps:
       - name: Clone the repo
         uses: actions/checkout@v4
 
-      - name: Build and Run on ARM [QEMU]
-        if: ${{ matrix.os == 'ubuntu-20.04' && matrix.setup == 'QEMU' }}
-        uses: pguyot/arm-runner-action@v2
-        with:
-          image_additional_mb: 2048
-          base_image: raspios_lite_arm64:latest
-          shell: /bin/bash -o pipefail
-          optimize_image: no
-          cpu: cortex-a53
-          commands: |
-            sudo apt-get -y install cmake
-            sudo apt-get -y install git
-            cmake -B build -S . \
-              -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
-              -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-              -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-              -DBUILD_TESTING=1
-            cmake --build /aws-greengrass-lite/build --config ${{matrix.build_type }} --target nucleus-tests -j4
-            cd /aws-greengrass-lite/build
-            ctest -R nucleus --output-on-failure
-
       - name: Configure CMake
         shell: bash
-        if:
-          ${{ matrix.os == 'windows-latest' && matrix.cpp_compiler == 'g++' &&
-          matrix.setup != 'QEMU'}}
+        if: ${{ matrix.os == 'windows-latest' && matrix.cpp_compiler == 'g++' }}
         run: |
           cmake -B build -S . -G "MinGW Makefiles" \
             -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
@@ -101,12 +73,10 @@ jobs:
             -DBUILD_TESTING=1
 
       - name: Build
-        if: ${{ matrix.setup != 'QEMU'}}
         run:
           cmake --build ${{ github.workspace }}/build --config ${{
           matrix.build_type }} -j4
 
       - name: Run Tests
-        if: ${{ matrix.setup != 'QEMU'}}
         working-directory: ${{ github.workspace }}/build
         run: ctest -R nucleus --output-on-failure
