@@ -1,6 +1,6 @@
-<mxfile host="Electron" modified="2024-03-20T17:15:40.294Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/23.1.5 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="Vs216iupzrAgJBTgNSjs" version="23.1.5" type="device">
+<mxfile host="Electron" modified="2024-03-20T17:36:16.329Z" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/23.1.5 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="EYngmabKre14IA7QVtuV" version="23.1.5" type="device">
   <diagram name="Page-1" id="wpfdz7qY0o8RLpWgsAYX">
-    <mxGraphModel dx="4236" dy="1609" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="3334" dy="748" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -780,7 +780,7 @@
           </mxGeometry>
         </mxCell>
         <mxCell id="S7y93g3U63tdlhSzu_0h-90" value="Should delegate creation happen here?" style="shape=callout;whiteSpace=wrap;html=1;perimeter=calloutPerimeter;" vertex="1" parent="1">
-          <mxGeometry x="1105" y="160" width="120" height="80" as="geometry" />
+          <mxGeometry x="1242.5" y="159.86" width="120" height="80" as="geometry" />
         </mxCell>
         <mxCell id="S7y93g3U63tdlhSzu_0h-91" value="It is also reasonable to execute the plugin lifecycle steps in the threadpool." style="shape=callout;whiteSpace=wrap;html=1;perimeter=calloutPerimeter;" vertex="1" parent="1">
           <mxGeometry x="1180" y="27.57" width="130" height="92.43" as="geometry" />
@@ -802,6 +802,17 @@
         </mxCell>
         <mxCell id="S7y93g3U63tdlhSzu_0h-94" value="New delegates can be added to the dependency list after the initial list is created." style="shape=callout;whiteSpace=wrap;html=1;perimeter=calloutPerimeter;" vertex="1" parent="1">
           <mxGeometry x="-160" y="1500" width="140" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="S7y93g3U63tdlhSzu_0h-95" value="" style="endArrow=classic;html=1;rounded=0;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1095" y="199.63" as="sourcePoint" />
+            <mxPoint x="1135" y="199.63" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="S7y93g3U63tdlhSzu_0h-96" value="Register as a&lt;br&gt;aws.greengrass.generic&lt;br&gt;handler" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="S7y93g3U63tdlhSzu_0h-95">
+          <mxGeometry x="-0.2926" y="-1" relative="1" as="geometry">
+            <mxPoint x="56" y="21" as="offset" />
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>
