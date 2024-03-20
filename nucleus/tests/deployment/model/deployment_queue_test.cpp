@@ -8,13 +8,13 @@ SCENARIO("Operations on a deployment queue", "[deployment]") {
         DeploymentQueue queue{};
         REQUIRE(queue.size() == 0);
         WHEN("Add deployments to the queue") {
-            deployment::Deployment deploy;
+            deployment::Deployment deploy{};
             deploy.id = "deployment1";
 
-            deployment::Deployment deploy2;
+            deployment::Deployment deploy2{};
             deploy2.id = "deployment2";
 
-            deployment::Deployment deploy3;
+            deployment::Deployment deploy3{};
             deploy3.id = "deployment3";
 
             REQUIRE(queue.offer(deploy));
@@ -26,7 +26,7 @@ SCENARIO("Operations on a deployment queue", "[deployment]") {
             }
 
             THEN("Deployments with same Id are not added to the queue") {
-                deployment::Deployment deploy4;
+                deployment::Deployment deploy4{};
                 deploy4.id = "deployment1"; // Same as 1
                 REQUIRE(!queue.offer(deploy4)); // Not added as the id is not unique
             }
@@ -38,12 +38,13 @@ SCENARIO("Operations on a deployment queue", "[deployment]") {
                 REQUIRE(queue.size() == 0);
             }
         }
-        WHEN("Enqueued deployment is not in DEFAULT stage, then the offered deployment is ignored") {
-            deployment::Deployment deploy1;
+        WHEN(
+            "Enqueued deployment is not in DEFAULT stage, then the offered deployment is ignored") {
+            deployment::Deployment deploy1{};
             deploy1.id = "deployment1";
             deploy1.deploymentStage = deployment::DeploymentStage::BOOTSTRAP;
 
-            deployment::Deployment deploy2;
+            deployment::Deployment deploy2{};
             deploy2.id = "deployment1";
             deploy2.deploymentStage = deployment::DeploymentStage::DEFAULT;
 
@@ -53,35 +54,32 @@ SCENARIO("Operations on a deployment queue", "[deployment]") {
         }
 
         WHEN("Offered deployment is cancelled, the enqueued deployment is replaced") {
-            deployment::Deployment deploy1;
+            deployment::Deployment deploy1{};
             deploy1.id = "deployment1";
             deploy1.deploymentStage = deployment::DeploymentStage::DEFAULT;
             deploy1.deploymentDocument = "oldDeployment";
 
-            deployment::Deployment deploy2;
+            deployment::Deployment deploy2{};
             deploy2.id = "deployment1";
             deploy2.isCancelled = true;
             deploy2.deploymentStage = deployment::DeploymentStage::DEFAULT;
             deploy2.deploymentDocument = "newCancelledDeployment";
 
-
             THEN("Cancelled deployment replaces the enqueued deployment")
             REQUIRE(queue.offer(deploy1));
             REQUIRE(queue.offer(deploy2));
             REQUIRE(queue.size() == 1);
-            auto dep =  queue.poll();
+            auto dep = queue.poll();
             REQUIRE(dep.isCancelled);
             REQUIRE(dep.deploymentDocument == "newCancelledDeployment");
-
-
         }
         WHEN("Enqueued deployment is of type SHADOW") {
-            deployment::Deployment deploy1;
+            deployment::Deployment deploy1{};
             deploy1.id = "deployment1";
             deploy1.deploymentStage = deployment::DeploymentStage::DEFAULT;
             deploy1.deploymentDocument = "oldShadowDeployment";
 
-            deployment::Deployment deploy2;
+            deployment::Deployment deploy2{};
             deploy2.id = "deployment1";
             deploy2.deploymentType = deployment::DeploymentType::SHADOW;
             deploy2.deploymentStage = deployment::DeploymentStage::DEFAULT;
@@ -96,12 +94,12 @@ SCENARIO("Operations on a deployment queue", "[deployment]") {
             REQUIRE(dep.deploymentDocument == "newShadowDeployment");
         }
         WHEN("Offered deployment is not in DEFAULT state") {
-            deployment::Deployment deploy1;
+            deployment::Deployment deploy1{};
             deploy1.id = "deployment1";
             deploy1.deploymentStage = deployment::DeploymentStage::DEFAULT;
             deploy1.deploymentDocument = "oldDeployment";
 
-            deployment::Deployment deploy2;
+            deployment::Deployment deploy2{};
             deploy2.id = "deployment1";
             deploy2.deploymentStage = deployment::DeploymentStage::KERNEL_ROLLBACK;
             deploy2.deploymentDocument = "newNonDefaultDeployment";
