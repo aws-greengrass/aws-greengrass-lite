@@ -1,4 +1,4 @@
-name: Test
+name: Build
 
 on:
   push:
@@ -19,40 +19,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
-            c_compiler: gcc
-            cpp_compiler: g++
-            build_type: Debug
-          - os: ubuntu-20.04
-            c_compiler: clang
-            cpp_compiler: clang++
-            build_type: Debug
-          - os: macos-latest
-            c_compiler: clang
-            cpp_compiler: clang++
-            build_type: Debug
+          - name: Linux GCC
+            os: ubuntu-latest
+            package: default
+          - name: Linux LLVM
+            os: ubuntu-latest
+            package: gglite-clang
+          - name: MacOS
+            os: macos-14
+            package: default
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Clone the repo
-        uses: actions/checkout@v4
-
-      - name: Configure CMake
-        shell: bash
-        run: |
-          cmake -B build -S . \
-            -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
-            -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-            -DBUILD_TESTING=1
-
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Build
-        run:
-          cmake --build ${{ github.workspace }}/build --config ${{
-          matrix.build_type }} -j4
-
-      - name: Run Tests
-        working-directory: ${{ github.workspace }}/build
-        run: ctest -R nucleus --output-on-failure
+        run: nix build -L --log-lines 0 .#${{ matrix.package }}
 
   build-windows:
     name: Windows MinGW
