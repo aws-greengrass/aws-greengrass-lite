@@ -35,7 +35,7 @@ stdenv.mkDerivation {
   nativeBuildInputs = [ cmake ninja ];
   buildInputs = [ openssl ] ++ lib.optional stdenv.isDarwin darwin.Security;
   hardeningDisable = [ "all" ];
-  cmakeBuildType = if stdenv.isDarwin then "Debug" else "Release";
+  cmakeBuildType = if stdenv.isDarwin then "Debug" else "MinSizeRel";
   cmakeFlags = fetchcontentFlags ++ [
     "-DBUILD_TESTING=1"
   ];
