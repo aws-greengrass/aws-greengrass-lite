@@ -1,4 +1,4 @@
-{ lib, pkgs, moduleArgs, ... }: _: {
+{ lib, pkgs, moduleArgs, ... }: {
   imports = [ (moduleArgs.config.devShells.ci pkgs) ];
   packages = with pkgs; ([
     (python3.withPackages (ps: with ps; [ yapf python-lsp-server ]))
