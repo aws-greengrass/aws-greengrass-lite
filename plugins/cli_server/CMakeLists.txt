@@ -21,5 +21,5 @@ target_link_libraries(cli_server PRIVATE gg_plugin_api)
 set_version_script(cli_server "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS cli_server DESTINATION plugins)
-install(FILES recipes/${COMPONENT_NAME}-${CMAKE_PROJECT_VERSION}.yaml
+install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
         DESTINATION plugins/recipes)
