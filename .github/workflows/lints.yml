@@ -54,7 +54,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
-        run: nix develop .#gglite-clang -c cmake $FETCHCONTENT_FLAGS -B build
+        run: nix develop .#gglite-clang -ic cmake $FETCHCONTENT_FLAGS -B build
 
       - name: Get file list
         id: get-file-list
@@ -62,7 +62,7 @@ jobs:
           git fetch origin ${{ github.event.pull_request.base.sha }}
           set +e
           export CHANGED_FILES=$(git diff --name-only \
-           ${{ github.event.pull_request.base.sha }} | grep "\.[ch]pp$")
+           ${{ github.event.pull_request.base.sha }} | grep "\.c\(pp\)\?$")
           set -e
           echo CHANGED_FILES=$CHANGED_FILES >> $GITHUB_OUTPUT
 
@@ -70,16 +70,14 @@ jobs:
         id: clang-tidy-check
         if: ${{ steps.get-file-list.outputs.CHANGED_FILES != ''}}
         run: |
-          clang-tidy -p ./build --warnings-as-errors='*' \
-            -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
+          clang-tidy -p ./build --header-filter='.*' --warnings-as-errors='*' \
             ${{ steps.get-file-list.outputs.CHANGED_FILES }}
 
       - name: Generate / Show Patch
         if: ${{ failure() && steps.clang-tidy-check.outcome == 'failure' }}
         run: |
-          clang-tidy -p ./build --fix --fix-errors --quiet \
-            -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
-            ${{ steps.get-file-list.outputs.CHANGED_FILES }}
+          clang-tidy -p ./build --header-filter='.*' --fix --fix-errors \
+            --quiet ${{ steps.get-file-list.outputs.CHANGED_FILES }}
           git diff >> clang-tidy.patch
           git diff --color=always
 
