@@ -5,6 +5,7 @@
 , ninja
 , openssl
 , src
+, darwin ? null
 }:
 let
   inherit (builtins) fromJSON readFile;
@@ -32,8 +33,9 @@ stdenv.mkDerivation {
   };
   strictDeps = true;
   nativeBuildInputs = [ cmake ninja ];
-  buildInputs = [ openssl ];
+  buildInputs = [ openssl ] ++ lib.optional stdenv.isDarwin darwin.Security;
   hardeningDisable = [ "all" ];
+  cmakeBuildType = if stdenv.isDarwin then "Debug" else "Release";
   cmakeFlags = fetchcontentFlags ++ [
     "-DBUILD_TESTING=1"
   ];
