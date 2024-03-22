@@ -2,6 +2,7 @@
 #include "file_descriptor.hpp"
 #include "process.hpp"
 #include "scope/context_full.hpp"
+#include "syscall.hpp"
 #include <algorithm>
 #include <chrono>
 #include <csignal>
@@ -27,6 +28,7 @@ namespace ipc {
         using namespace std::chrono_literals;
         constexpr auto epollTimeout = 1000ms;
         constexpr int maxEvents = 10;
+        constexpr auto minTimePoint = std::chrono::steady_clock::time_point::min();
 
         void raiseEventFd(FileDescriptor &eventfd, uint64_t count = 1) noexcept {
             if(-1 == eventfd.write(util::as_bytes(util::Span{&count, size_t{1}}))) {
@@ -194,23 +196,28 @@ namespace ipc {
         if(!_running.load()) {
             throw std::runtime_error("Logger not running");
         }
-        ProcessId pid{p->getProcessFd().get()};
+        ProcessId pid{p->getPid()};
 
-        // TODO: Move timeout logic to lifecycle manager.
-        if (auto timeoutPoint = p->getTimeout(); timeoutPoint != std::chrono::steady_clock::time_point::min()) {
-
+        if (auto timeoutPoint = p->getTimeout(); timeoutPoint != minTimePoint) {
+            // TODO: Move timeout logic to lifecycle manager.
+            // TODO: Fix miniscule time delay by doing conversion with timepoints. Keep timeout as same unit throughout. (2s vs 1.9999s)
             auto currentTimePoint = std::chrono::steady_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(timeoutPoint - currentTimePoint);
             auto delay = static_cast<uint32_t>(duration.count());
 
             ggapi::later(delay, [this](ProcessId pid) {
+                // TODO: Error out the child process via lifecycle manager.
+                std::cout << "Process has reached the time out limit." << std::endl;
+                if(kill(pid.id, SIGKILL) < 0) {
+                    throw std::system_error{errno, std::generic_category()};
+                }
+                /*
                 try {
                     closeProcess(pid);
-                    // TODO: Throw error here after closing due to time out.
                 } catch(const std::exception& ex) {
-                    // TODO: scope down exception
                     throw ex;
                 }
+                */
             }, pid);
         }
 
@@ -234,7 +241,7 @@ namespace ipc {
                     using EventT = std::remove_cv_t<std::remove_reference_t<decltype(e)>>;
                     if constexpr(std::is_same_v<ProcessComplete, EventT>) {
                         std::cout << "Is a ProcessComplete type event" << std::endl;
-                        return e.process->getProcessFd().get() == id.id;
+                        return e.process->getPid() == id.id;
                     }
                     return false;
                 }, e);
@@ -252,6 +259,7 @@ namespace ipc {
         }
         if(process.process->isRunning()) {
             // TODO: allow process to close gracefully
+            std::cout << "closing process..." << std::endl;
             process.process->close(true);
             _fds.erase(found);
         }

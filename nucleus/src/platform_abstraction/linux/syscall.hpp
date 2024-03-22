@@ -45,6 +45,11 @@ inline int pidfd_send_signal(int pidfd, int sig, siginfo_t *info, unsigned int f
     return details::invokeSyscall(SYS_pidfd_send_signal, pidfd, sig, info, flags);
 }
 
+// send a signal to a process
+inline int kill(pid_t pid, int sig) noexcept {
+    return details::invokeSyscall(SYS_kill, pid, sig);
+}
+
 // non-standard; calls waitid(3) with P_PIDFD
 inline int pidfd_wait(id_t pidfd, siginfo_t *info, unsigned int flags) noexcept {
     return details::invokeSyscall(SYS_waitid, P_PIDFD, pidfd, info, flags, 0);
