@@ -20,6 +20,7 @@ namespace ipc {
         FileDescriptor _pidfd;
         FileDescriptor _err;
         FileDescriptor _out;
+        int _pid;
 
         void terminate(bool force);
 
@@ -34,6 +35,15 @@ namespace ipc {
         LinuxProcess &setPidFd(FileDescriptor &&pidfd) noexcept {
             _pidfd = std::move(pidfd);
             return *this;
+        }
+
+        LinuxProcess &setPid(int &pid) noexcept {
+            _pid = std::move(pid);
+            return *this;
+        }
+
+        int &getPid() & noexcept {
+            return  _pid;
         }
 
         FileDescriptor &getOut() noexcept {

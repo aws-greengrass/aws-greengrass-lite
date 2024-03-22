@@ -1,6 +1,7 @@
 #include "process_manager.hpp"
 #include "file_descriptor.hpp"
 #include "process.hpp"
+#include "scope/context_full.hpp"
 #include <algorithm>
 #include <chrono>
 #include <csignal>
@@ -18,12 +19,13 @@
 #include <unistd.h>
 #include <util.hpp>
 #include <variant>
+#include <typeinfo>
 
 namespace ipc {
 
     namespace {
         using namespace std::chrono_literals;
-        constexpr auto timeout = 1000ms;
+        constexpr auto epollTimeout = 1000ms;
         constexpr int maxEvents = 10;
 
         void raiseEventFd(FileDescriptor &eventfd, uint64_t count = 1) noexcept {
@@ -106,7 +108,7 @@ namespace ipc {
 
             std::array<epoll_event, maxEvents> events{};
             while(_running) {
-                auto n = epoll_wait(_epfd.get(), events.data(), maxEvents, timeout.count());
+                auto n = epoll_wait(_epfd.get(), events.data(), maxEvents, epollTimeout.count());
                 if(n == -1) {
                     if(errno != EINTR) {
                         perror("epoll_wait");
@@ -194,18 +196,23 @@ namespace ipc {
         }
         ProcessId pid{p->getProcessFd().get()};
 
-        // TODO: Scheduled task -> close process / throw timeout error
-        auto timeoutPoint = p->getTimeout(); // time in future to timeout on
-        auto currentTimePoint = std::chrono:steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(timeoutPoint - currentTimePoint);
-        auto microseconds = duration.count();
-        auto delay = static_cast<uint32_t>(microseconds * 10);
+        // TODO: Move timeout logic to lifecycle manager.
+        if (auto timeoutPoint = p->getTimeout(); timeoutPoint != std::chrono::steady_clock::time_point::min()) {
 
-        ggApi::later(delay, []() {
-            // Process has timed out, kill and error out.
-            closeProcess(pid);
-            throw std::runtime_error("Process (pidfd= "<< pid << ") has timed out. Killing process.");
-        }, ggapi::Container{})
+            auto currentTimePoint = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(timeoutPoint - currentTimePoint);
+            auto delay = static_cast<uint32_t>(duration.count());
+
+            ggapi::later(delay, [this](ProcessId pid) {
+                try {
+                    closeProcess(pid);
+                    // TODO: Throw error here after closing due to time out.
+                } catch(const std::exception& ex) {
+                    // TODO: scope down exception
+                    throw ex;
+                }
+            }, pid);
+        }
 
         std::list<ProcessEvent> events;
         addEvent(events, ErrorLog{std::move(p->getErr()), std::move(p->getErrorHandler())});
@@ -223,15 +230,14 @@ namespace ipc {
         // TODO: ProcessId associative lookup
         auto found = std::find_if(_fds.begin(), _fds.end(), [&id](ProcessEvent &e) {
             return std::visit(
-                [&id](const auto &e) {
-                    using EventT = std::remove_reference_t<decltype(e)>;
-                    if constexpr(std::is_same_v<EventT, ProcessComplete>) {
+                [&id](const auto &e) -> bool {
+                    using EventT = std::remove_cv_t<std::remove_reference_t<decltype(e)>>;
+                    if constexpr(std::is_same_v<ProcessComplete, EventT>) {
+                        std::cout << "Is a ProcessComplete type event" << std::endl;
                         return e.process->getProcessFd().get() == id.id;
-                    } else {
-                        return false;
                     }
-                },
-                e);
+                    return false;
+                }, e);
         });
 
         if(found == _fds.end()) {
