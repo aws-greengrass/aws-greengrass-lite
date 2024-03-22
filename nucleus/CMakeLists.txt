@@ -208,6 +208,7 @@ if(BUILD_TESTING)
 
   add_executable(
     nucleus-tests
+    tests/api/archive_tests.cpp
     tests/api/buffer_tests.cpp
     tests/api/callback_tests.cpp
     tests/api/enum_tests.cpp
@@ -221,6 +222,7 @@ if(BUILD_TESTING)
     tests/api/task_tests.cpp
     tests/data/handle_tests.cpp
     tests/data/obfuscator_test.cpp
+    tests/data/struct_tests.cpp
     tests/data/symbol_tests.cpp
     tests/deployment/deploy_tests.cpp
     tests/deployment/model/dependency_order_test.cpp

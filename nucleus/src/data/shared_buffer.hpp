@@ -32,6 +32,7 @@ namespace data {
         uint32_t size() const override;
         void resize(uint32_t newSize);
         uint32_t get(int idx, MemoryView bytes) const;
+        std::shared_ptr<ContainerModelBase> clone() const override;
         std::shared_ptr<ContainerModelBase> parseJson();
         std::shared_ptr<ContainerModelBase> parseYaml();
         void write(std::ostream &stream) const;

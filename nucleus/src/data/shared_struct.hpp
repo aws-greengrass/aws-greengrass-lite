@@ -34,6 +34,7 @@ namespace data {
         std::shared_ptr<ListModelBase> getKeysAsList() const override;
         StructElement getImpl(Symbol symbol) const override;
         std::shared_ptr<StructModelBase> copy() const override;
+        std::shared_ptr<StructModelBase> createForChild() override;
         Symbol foldKey(const Symbolish &key, bool ignoreCase) const override;
     };
     template<>

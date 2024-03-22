@@ -20,6 +20,10 @@ namespace ggapi {
         }
 
     public:
+        [[nodiscard]] static bool isA(const ObjHandle &obj) {
+            return obj.isScope();
+        }
+
         constexpr ModuleScope() noexcept = default;
         ModuleScope(const ModuleScope &) noexcept = default;
         ModuleScope(ModuleScope &&) noexcept = default;

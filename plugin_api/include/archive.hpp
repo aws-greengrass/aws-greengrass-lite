@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <util.hpp>
 #include <vector>
+#include <stdexcept>
 
 namespace util {
 
@@ -200,39 +201,39 @@ namespace util {
         void visit(ValueType &vt) override = 0;
 
         void visit(bool &i) override {
-            ValueType v{i};
+            ValueType v = Traits::valueOf(i);
             visit(v);
         }
         void visit(int32_t &i) override {
-            ValueType v{i};
+            ValueType v = Traits::valueOf(i);
             visit(v);
         }
         void visit(uint32_t &i) override {
-            ValueType v{i};
+            ValueType v = Traits::valueOf(i);
             visit(v);
         }
         void visit(int64_t &i) override {
-            ValueType v{i};
+            ValueType v = Traits::valueOf(i);
             visit(v);
         }
         void visit(uint64_t &i) override {
-            ValueType v{i};
+            ValueType v = Traits::valueOf(i);
             visit(v);
         }
         void visit(float &f) override {
-            ValueType v{f};
+            ValueType v = Traits::valueOf(f);
             visit(v);
         }
         void visit(double &d) override {
-            ValueType v{d};
+            ValueType v = Traits::valueOf(d);
             visit(v);
         }
         void visit(std::string &str) override {
-            ValueType v{str};
+            ValueType v = Traits::valueOf(str);
             visit(v);
         }
         void visit(SymbolType &symbol) override {
-            ValueType v{symbol};
+            ValueType v = Traits::valueOf(symbol);
             visit(v);
         }
         void visit(ArchiveBase<Traits> &other) override {
@@ -411,7 +412,7 @@ namespace util {
                 auto myKeys = keys();
                 for(const auto &k : myKeys) {
                     auto perKey = key(k); // archive entry
-                    auto destKey = typename T::key_type{k}; // key for dest map
+                    auto destKey = static_cast<typename T::key_type>(k); // key for dest map
                     typename T::mapped_type destVal; // value for dest map
                     perKey.visit(destVal);
                     value.emplace(std::move(destKey), std::move(destVal));
@@ -527,11 +528,11 @@ namespace util {
         template<typename T>
         void visit(T &value) {
             if constexpr(std::is_base_of_v<SerializableType, T>) {
-                // Delegate
+                // Delegate to class itself
                 value.visit(*this);
             } else {
-                // Trivial types
-                _adapter->visit(value);
+                // Pass through traits
+                Traits::visit(*this, value);
             }
         }
 
@@ -548,6 +549,29 @@ namespace util {
 
         [[nodiscard]] AdapterBase &operator*() {
             return *_adapter;
+        }
+
+        /**
+         * Factory for building an archive struct
+         *
+         * @tparam AdapterType Type of archive adapter to use
+         * @param args Arguments to pass to archive adapter constructor
+         * @return Archive class to pass to visitor
+         */
+        template<typename AdapterType, typename... Args>
+        [[nodiscard]] static ArchiveBase make(Args &&...args) {
+            static_assert(std::is_base_of_v<ArchiveAdapter<Traits>, AdapterType>);
+            return ArchiveBase(std::make_shared<AdapterType>(std::forward<Args>(args)...));
+        }
+
+        /**
+         * Combine make and visit together
+         */
+        template<typename AdapterType, typename DataType, typename... Args>
+        static void transform(DataType &data, Args &&...args) {
+            static_assert(std::is_base_of_v<ArchiveAdapter<Traits>, AdapterType>);
+            auto archive = ArchiveBase(std::make_shared<AdapterType>(std::forward<Args>(args)...));
+            archive.visit(data);
         }
     };
 

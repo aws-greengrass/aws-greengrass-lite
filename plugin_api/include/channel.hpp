@@ -20,6 +20,10 @@ namespace ggapi {
         }
 
     public:
+        [[nodiscard]] static bool isA(const ObjHandle &obj) {
+            return obj.isChannel();
+        }
+
         constexpr Channel() noexcept = default;
 
         explicit Channel(const ObjHandle &other) : ObjHandle{other} {

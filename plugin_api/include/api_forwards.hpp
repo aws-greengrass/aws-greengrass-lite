@@ -6,14 +6,26 @@
 #include <string>
 #include <type_traits>
 
+namespace util {
+    template<typename T>
+    class SerializableBase;
+    template<typename T>
+    class ArchiveBase;
+    template<typename T>
+    class ArchiveAdapter;
+    template<typename T>
+    class AbstractArchiver;
+    template<typename T>
+    class AbstractDearchiver;
+} // namespace util
+
 namespace ggapi {
 
     //
     // Common definitions that are needed ahead of other definitions
     //
 
-    class Archive;
-    class ArchiveAdapter;
+    struct ArchiveTraits;
     class Buffer;
     class CallbackManager;
     class ChannelCloseCallback;
@@ -27,7 +39,6 @@ namespace ggapi {
     class ModuleScope;
     class ObjHandle;
     class Promise;
-    class Serializable;
     class Struct;
     class Subscription;
     class Symbol;
@@ -35,6 +46,12 @@ namespace ggapi {
 
     using TopicCallbackLambda = std::function<ObjHandle(Symbol, Container)>;
     using LifecycleCallbackLambda = std::function<bool(ModuleScope, Symbol, Struct)>;
+
+    using Serializable = util::SerializableBase<ArchiveTraits>;
+    using ArchiveAdapter = util::ArchiveAdapter<ArchiveTraits>;
+    using Archive = util::ArchiveBase<ArchiveTraits>;
+    using AbstractArchiver = util::AbstractArchiver<ArchiveTraits>;
+    using AbstractDearchiver = util::AbstractDearchiver<ArchiveTraits>;
 
     template<typename Func, typename... Args>
     void callApiThrowError(Func &&f, Args &&...args);

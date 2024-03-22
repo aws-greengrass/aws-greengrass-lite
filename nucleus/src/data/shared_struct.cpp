@@ -36,6 +36,11 @@ namespace data {
         return newCopy;
     }
 
+    std::shared_ptr<StructModelBase> SharedStruct::createForChild() {
+        std::shared_ptr<SharedStruct> newStruct{std::make_shared<SharedStruct>(context())};
+        return newStruct;
+    }
+
     void SharedStruct::putImpl(const Symbol symbol, const StructElement &element) {
         checkedPut(element, [this, symbol](auto &el) {
             std::unique_lock guard{_mutex};

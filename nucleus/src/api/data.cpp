@@ -176,8 +176,11 @@ uint32_t ggapiBoxSymbol(uint32_t symValInt) noexcept {
 }
 
 uint32_t ggapiBoxHandle(uint32_t handle) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([handle]() {
+    return ggapi::trapErrorReturn<uint32_t>([handle]() -> uint32_t {
         auto context = scope::context();
+        if(handle == 0) {
+            return 0;
+        }
         auto value = context->objFromInt(handle);
         auto boxed = data::Boxed::box(context, value);
         return scope::asIntHandle(boxed);
@@ -473,6 +476,17 @@ bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) noexcept {
     });
 }
 
+ggapiErrorKind ggapiStructFoldKey(
+    ggapiObjHandle structHandle, ggapiSymbol key, ggapiSymbol *retKey) noexcept {
+    return apiImpl::catchErrorToKind([structHandle, key, retKey]() -> void {
+        auto context = scope::context();
+        auto ss{context->objFromInt<StructModelBase>(structHandle)};
+        Symbol keySym = context->symbolFromInt(key);
+        Symbol keyOut = ss->foldKey(keySym, true);
+        *retKey = keyOut.asInt();
+    });
+}
+
 uint32_t ggapiStructKeys(uint32_t structHandle) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([structHandle]() {
         auto context = scope::context();
@@ -500,12 +514,22 @@ bool ggapiIsEmpty(uint32_t containerHandle) noexcept {
     });
 }
 
-uint32_t ggapiStructClone(uint32_t structHandle) noexcept {
-    return ggapi::trapErrorReturn<uint32_t>([structHandle]() {
+ggapiErrorKind ggapiCloneContainer(ggapiObjHandle objHandle, ggapiObjHandle *retObject) noexcept {
+    return apiImpl::catchErrorToKind([objHandle, retObject]() -> void {
         auto context = scope::context();
-        auto ss{context->objFromInt<StructModelBase>(structHandle)};
-        auto copy = ss->copy();
-        return scope::asIntHandle(copy);
+        auto obj{context->objFromInt<data::ContainerModelBase>(objHandle)};
+        auto copy = obj->clone();
+        *retObject = scope::asIntHandle(copy);
+    });
+}
+
+ggapiErrorKind ggapiStructCreateForChild(
+    ggapiObjHandle objHandle, ggapiObjHandle *retObject) noexcept {
+    return apiImpl::catchErrorToKind([objHandle, retObject]() -> void {
+        auto context = scope::context();
+        auto obj{context->objFromInt<data::StructModelBase>(objHandle)};
+        auto newStruct = obj->createForChild();
+        *retObject = scope::asIntHandle(newStruct);
     });
 }
 

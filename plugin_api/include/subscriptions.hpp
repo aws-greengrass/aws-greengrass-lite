@@ -155,13 +155,7 @@ namespace ggapi {
     inline FutureSet Subscription::callTopicAll(ggapi::Symbol topic, const Container &data) {
         auto list =
             callHandleApiThrowError<List>(::ggapiCallTopicAll, topic.asInt(), data.getHandleId());
-        auto count = util::safeBoundPositive<int32_t>(list.size());
-        std::vector<Future> futures;
-        futures.reserve(count);
-        for(int32_t i = 0; i < count; ++i) {
-            auto f = list.get<Future>(i);
-            futures.emplace_back(f);
-        }
+        std::vector<Future> futures = list.toVector<Future>();
         return FutureSet(std::move(futures));
     }
 

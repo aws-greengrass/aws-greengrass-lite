@@ -23,6 +23,11 @@ namespace data {
         using SymbolType = data::Symbol;
         using AutoKeyType = data::Symbolish;
 
+        template<typename T>
+        static ValueType valueOf(const T &in) {
+            return ValueType{in};
+        }
+
         static ValueType toValue(const ReadType &rv);
         static SymbolType toSymbol(const ReadType &rv);
         static std::string toString(const ReadType &rv);
@@ -36,8 +41,15 @@ namespace data {
         static std::shared_ptr<ArchiveAdapter> toList(const ReadType &rv);
         static std::vector<KeyType> toKeys(const ReadType &rv);
         template<typename T>
+
         static T *initSharedPtr(std::shared_ptr<T> &ptr) {
-            return nullptr;
+            ptr = std::make_shared<T>();
+            return ptr.get();
+        }
+
+        template<typename T>
+        static void visit(Archive &archive, T &value) {
+            archive->visit(value);
         }
     };
 

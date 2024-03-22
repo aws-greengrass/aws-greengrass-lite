@@ -184,6 +184,14 @@ namespace config {
         return newCopy;
     }
 
+    std::shared_ptr<data::StructModelBase> Topics::createForChild() {
+        const std::shared_ptr<Topics> parent{ref<Topics>()};
+        std::shared_lock guard{_mutex}; // for source
+        std::shared_ptr<Topics> newChild{
+            std::make_shared<Topics>(context(), parent, _nameOrd, _modtime)};
+        return newChild;
+    }
+
     void Topics::putImpl(const data::Symbol handle, const data::StructElement &element) {
         updateChild(TopicElement{handle, Timestamp::never(), element});
     }
