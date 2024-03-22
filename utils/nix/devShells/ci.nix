@@ -8,6 +8,6 @@
   ];
   env = {
     NIX_HARDENING_ENABLE = "";
-    FETCHCONTENT_FLAGS = toString pkgs.default.fetchcontentFlags;
+    FETCHCONTENT_FLAGS = toString pkgs.dependencies.fetchcontentFlags;
   };
 }
