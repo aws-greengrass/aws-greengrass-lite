@@ -1,6 +1,6 @@
 { stdenv
 , lib
-, fetchgit
+, dependencies
 , cmake
 , ninja
 , openssl
@@ -10,14 +10,7 @@
 , darwin ? null
 }:
 let
-  inherit (builtins) fromJSON readFile;
-  inherit (lib) any concatStrings fileset mapAttrs;
-
-  deps = mapAttrs (_: v: fetchgit (v // { fetchSubmodules = true; }))
-    (fromJSON (readFile (src + "/dependencies.json")));
-  fetchcontentFlags = lib.mapAttrsToList
-    (n: v: "-DFETCHCONTENT_SOURCE_DIR_${lib.toUpper n}=${v}")
-    deps;
+  inherit (lib) any concatStrings fileset;
 
   # All files needed for build
   baseFileset = fileset.unions (map (f: src + f) [
@@ -64,7 +57,7 @@ let
     cmakeBuildType = "MinSizeRel";
     cmakeDir = "/build/source";
     cmakeBuildDir = "/tmp/build";
-    cmakeFlags = fetchcontentFlags ++ [
+    cmakeFlags = dependencies.fetchcontentFlags ++ [
       "-GNinja"
       "-DBUILD_TESTING=1"
       "-DCMAKE_INSTALL_PREFIX=/tmp/install"
@@ -117,5 +110,4 @@ stdenv.mkDerivation (commonArgs // {
   postInstall = ''
     mv /tmp/install $out
   '';
-  passthru = { inherit fetchcontentFlags; };
 })
