@@ -39,7 +39,7 @@ SCENARIO("Recipe Reader", "[deployment]") {
                 AND_WHEN("Linux lifecycle is parsed") {
                     deployment::LifecycleSection linuxLifecycle;
                     REQUIRE_FALSE(linuxManifest.lifecycle->empty());
-                    data::Archive::readFromStruct(linuxManifest.lifecycle, linuxLifecycle);
+                    data::archive::readFromStruct(linuxManifest.lifecycle, linuxLifecycle);
                     THEN("The lifecycle section was parsed correctly") {
                         REQUIRE(linuxLifecycle.run.has_value());
                         REQUIRE_FALSE(linuxLifecycle.run->script.empty());
@@ -53,7 +53,7 @@ SCENARIO("Recipe Reader", "[deployment]") {
                 AND_WHEN("Darwin lifecycle is parsed") {
                     deployment::LifecycleSection darwinLifecycle;
                     REQUIRE_FALSE(darwinManifest.lifecycle->empty());
-                    data::Archive::readFromStruct(darwinManifest.lifecycle, darwinLifecycle);
+                    data::archive::readFromStruct(darwinManifest.lifecycle, darwinLifecycle);
                     THEN("The lifecycle section was parsed correctly") {
                         REQUIRE(darwinLifecycle.run.has_value());
                         REQUIRE_FALSE(darwinLifecycle.run->script.empty());
@@ -66,7 +66,7 @@ SCENARIO("Recipe Reader", "[deployment]") {
                 AND_WHEN("Windows lifecycle is parsed") {
                     deployment::LifecycleSection windowsLifecycle;
                     REQUIRE_FALSE(windowsManifest.lifecycle->empty());
-                    data::Archive::readFromStruct(windowsManifest.lifecycle, windowsLifecycle);
+                    data::archive::readFromStruct(windowsManifest.lifecycle, windowsLifecycle);
                     THEN("The lifecycle section was parsed correctly") {
                         REQUIRE(windowsLifecycle.run.has_value());
                         REQUIRE_FALSE(windowsLifecycle.run->script.empty());
@@ -95,7 +95,7 @@ SCENARIO("Recipe Reader", "[deployment]") {
                 AND_WHEN("Linux lifecycle is parsed") {
                     deployment::LifecycleSection linuxLifecycle;
                     REQUIRE_FALSE(recipe.manifests[0].lifecycle->empty());
-                    data::Archive::readFromStruct(recipe.manifests[0].lifecycle, linuxLifecycle);
+                    data::archive::readFromStruct(recipe.manifests[0].lifecycle, linuxLifecycle);
                     THEN("The lifecycle section was parsed correctly") {
                         REQUIRE(linuxLifecycle.install.has_value());
                         REQUIRE(linuxLifecycle.run.has_value());

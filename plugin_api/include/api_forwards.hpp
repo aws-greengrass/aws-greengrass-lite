@@ -12,6 +12,8 @@ namespace ggapi {
     // Common definitions that are needed ahead of other definitions
     //
 
+    class Archive;
+    class ArchiveAdapter;
     class Buffer;
     class CallbackManager;
     class ChannelCloseCallback;
@@ -25,6 +27,7 @@ namespace ggapi {
     class ModuleScope;
     class ObjHandle;
     class Promise;
+    class Serializable;
     class Struct;
     class Subscription;
     class Symbol;

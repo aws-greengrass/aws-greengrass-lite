@@ -1,6 +1,7 @@
 #include "shared_struct.hpp"
 #include "safe_handle.hpp"
 #include "scope/context_full.hpp"
+#include "shared_list.hpp"
 #include "string_table.hpp"
 #include <shared_mutex>
 
@@ -115,13 +116,13 @@ namespace data {
     }
 
     template<>
-    StructModelBase *Archive::initSharedPtr(std::shared_ptr<StructModelBase> &ptr) {
+    StructModelBase *ArchiveTraits::initSharedPtr(std::shared_ptr<StructModelBase> &ptr) {
         auto newPtr = std::make_shared<SharedStruct>(scope::context());
         ptr = newPtr;
         return newPtr.get();
     }
     template<>
-    SharedStruct *Archive::initSharedPtr(std::shared_ptr<SharedStruct> &ptr) {
+    SharedStruct *ArchiveTraits::initSharedPtr(std::shared_ptr<SharedStruct> &ptr) {
         auto newPtr = std::make_shared<SharedStruct>(scope::context());
         ptr = newPtr;
         return newPtr.get();

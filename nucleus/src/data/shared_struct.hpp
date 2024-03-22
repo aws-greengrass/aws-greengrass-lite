@@ -1,7 +1,6 @@
 #pragma once
 
 #include "scope/mapper.hpp"
-#include "shared_list.hpp"
 #include "struct_model.hpp"
 #include "symbol_value_map.hpp"
 
@@ -37,10 +36,9 @@ namespace data {
         std::shared_ptr<StructModelBase> copy() const override;
         Symbol foldKey(const Symbolish &key, bool ignoreCase) const override;
     };
-
     template<>
-    StructModelBase *Archive::initSharedPtr(std::shared_ptr<StructModelBase> &ptr);
+    StructModelBase *ArchiveTraits::initSharedPtr(std::shared_ptr<StructModelBase> &ptr);
     template<>
-    SharedStruct *Archive::initSharedPtr(std::shared_ptr<SharedStruct> &ptr);
+    SharedStruct *ArchiveTraits::initSharedPtr(std::shared_ptr<SharedStruct> &ptr);
 
 } // namespace data

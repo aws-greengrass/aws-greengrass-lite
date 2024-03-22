@@ -255,7 +255,7 @@ namespace deployment {
         }
 
         LifecycleSection lifecycle;
-        data::Archive::readFromStruct(it->lifecycle, lifecycle);
+        data::archive::readFromStruct(it->lifecycle, lifecycle);
 
         // set global env
         Environment globalEnv;
@@ -406,7 +406,7 @@ namespace deployment {
             auto deploymentDocument = scope::context()->objFromInt<data::StructModelBase>(
                 deploymentDocumentStruct.getHandleId());
 
-            data::Archive::readFromStruct(deploymentDocument, deployment.deploymentDocumentObj);
+            data::archive::readFromStruct(deploymentDocument, deployment.deploymentDocumentObj);
 
             deployment.id = deploymentStruct.get<std::string>("id");
             deployment.isCancelled = deploymentStruct.get<bool>("isCancelled");

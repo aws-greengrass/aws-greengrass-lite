@@ -15,7 +15,6 @@ namespace scope {
 }
 
 namespace data {
-    class Archive;
     class ContainerModelBase;
     class StructModelBase;
     class ListModelBase;
