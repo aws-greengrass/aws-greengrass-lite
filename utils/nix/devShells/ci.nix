@@ -1,6 +1,6 @@
 { pkgs, ... }: {
   packages = with pkgs; [
-    clang-tools_16
+    clang-tools_17
     coreutils
     cppcheck
     git

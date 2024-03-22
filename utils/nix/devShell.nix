@@ -7,7 +7,7 @@
     gnutar
     temurin-jre-bin-17
     zig
-    llvmPackages_15.bintools
+    llvmPackages_17.bintools
   ] ++ (lib.optionals (!pkgs.stdenv.isDarwin) [
     gdb
   ]));
