@@ -1,5 +1,4 @@
 { pkgs, ... }: {
-  inputsFrom = [ pkgs.gglite-clang ];
   packages = with pkgs; [
     clang-tools_16
     coreutils
