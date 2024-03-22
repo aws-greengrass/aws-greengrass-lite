@@ -1,4 +1,4 @@
-name: Test
+name: Build
 
 on:
   push:
@@ -19,123 +19,46 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
-            c_compiler: gcc
-            cpp_compiler: g++
-            build_type: Debug
-          - os: ubuntu-20.04
-            c_compiler: gcc
-            cpp_compiler: g++
-            build_type: Debug
-          - os: ubuntu-20.04
-            c_compiler: clang
-            cpp_compiler: clang++
-            build_type: Debug
-          - os: macos-latest
-            c_compiler: clang
-            cpp_compiler: clang++
-            build_type: Debug
-          - os: ubuntu-20.04
-            setup: QEMU
-            c_compiler: gcc
-            cpp_compiler: g++
-            build_type: Debug
+          - name: Linux GCC
+            os: ubuntu-latest
+            package: default
+          - name: Linux LLVM
+            os: ubuntu-latest
+            package: gglite-clang
+          - name: MacOS
+            os: macos-14
+            package: default
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Clone the repo
-        uses: actions/checkout@v4
-
-      - name: Build and Run on ARM [QEMU]
-        if: ${{ matrix.os == 'ubuntu-20.04' && matrix.setup == 'QEMU' }}
-        uses: pguyot/arm-runner-action@v2
+      - uses: actions/checkout@v4
         with:
-          image_additional_mb: 2048
-          base_image: raspios_lite_arm64:latest
-          shell: /bin/bash -o pipefail
-          optimize_image: no
-          cpu: cortex-a53
-          commands: |
-            sudo apt-get -y install cmake
-            sudo apt-get -y install git
-            cmake -B build -S . \
-              -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
-              -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-              -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-              -DBUILD_TESTING=1
-            cmake --build /aws-greengrass-lite/build --config ${{matrix.build_type }} --target nucleus-tests -j4
-            cd /aws-greengrass-lite/build
-            ctest -R nucleus --output-on-failure
-
-      - name: Cache CMake dependency source code
-        if: ${{ matrix.setup != 'QEMU'}}
-        uses: actions/cache@v4
-        env:
-          cache-name: cache-cmake-dependency-sources
-        with:
-          path: ${{github.workspace}}/build/_deps/*-src
-          key:
-            ${{ env.cache-name }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**')
-            }}
-          restore-keys: |
-            ${{ env.cache-name }}-
-
-      - name: Cache CMake dependency build objects
-        if: ${{ matrix.setup != 'QEMU'}}
-        uses: actions/cache@v4
-        env:
-          cache-name: cache-cmake-dependency-builds
-        with:
-          path: |
-            ${{github.workspace}}/build/_deps/*-build
-            ${{github.workspace}}/build/_deps/*-subbuild
-
-          key:
-            ${{ env.cache-name }}-${{ matrix.os }}-${{ matrix.cpp_compiler
-            }}-${{ hashFiles('**/CMakeLists.txt', 'cmake/**') }}
-          restore-keys: |
-            ${{ env.cache-name }}-${{ matrix.os }}-${{ matrix.cpp_compiler }}-
-
-      - name: Configure CMake
-        shell: bash
-        if:
-          ${{ matrix.os == 'windows-latest' && matrix.cpp_compiler == 'g++' &&
-          matrix.setup != 'QEMU'}}
-        run: |
-          cmake -B build -S . -G "MinGW Makefiles" \
-            -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
-            -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-            -DBUILD_TESTING=1
-
-      - name: Configure CMake
-        shell: bash
-        if:
-          ${{ matrix.os == 'windows-latest' && matrix.cpp_compiler == 'msvc' &&
-          matrix.setup != 'QEMU'}}
-        run: |
-          cmake -B build -S . -G "Visual Studio 17 2022" \
-            -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
-            -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-            -DBUILD_TESTING=1
-
-      - name: Configure CMake
-        shell: bash
-        if: ${{ matrix.os != 'windows-latest' && matrix.setup != 'QEMU'}}
-        run: |
-          cmake -B build -S . \
-            -DCMAKE_C_COMPILER=${{matrix.c_compiler}} \
-            -DCMAKE_CXX_COMPILER=${{matrix.cpp_compiler}} \
-            -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-            -DBUILD_TESTING=1
-
+          fetch-depth: 0
+          filter: "tree:0"
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
       - name: Build
-        if: ${{ matrix.setup != 'QEMU'}}
-        run:
-          cmake --build ${{ github.workspace }}/build --config ${{
-          matrix.build_type }} -j4
+        run: nix build -L --log-lines 0 .#${{ matrix.package }}
 
-      - name: Run Tests
-        if: ${{ matrix.setup != 'QEMU'}}
+  build-windows:
+    name: Windows MinGW
+    timeout-minutes: 100
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -B build -G "MinGW Makefiles" \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_TESTING=1
+      - name: Build
+        run: make -C build -j4
+      - name: Tests
         working-directory: ${{ github.workspace }}/build
         run: ctest -R nucleus --output-on-failure

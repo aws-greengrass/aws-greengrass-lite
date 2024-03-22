@@ -331,17 +331,29 @@ namespace lifecycle {
         loader.setPaths(getPaths());
         loader.setDeviceConfiguration(_deviceConfiguration);
         loader.discoverPlugins(getPaths()->pluginPath());
+        auto runningSet = loader.processActiveList();
 
-        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
-            plugin.lifecycle(loader.START, data);
-        });
+        for(auto &&plugin : runningSet) {
+            plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
+                plugin.lifecycle(loader.INITIALIZE, data);
+            });
+        }
+
+        for(auto &&plugin : runningSet) {
+            plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
+                plugin.lifecycle(loader.START, data);
+            });
+        }
 
         // Block this thread until termination (TODO: improve on this somehow)
         _mainPromise->waitUntil(tasks::ExpireTime::infinite());
 
-        loader.forAllPlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
-            plugin.lifecycle(loader.STOP, data);
-        });
+        for(auto &&plugin : runningSet) {
+            plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
+                plugin.lifecycle(loader.STOP, data);
+            });
+        }
+
         getConfig().publishQueue().stop();
         _deploymentManager->stop();
         context()->logManager().publishQueue()->stop();

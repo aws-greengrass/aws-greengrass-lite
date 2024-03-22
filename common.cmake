@@ -48,10 +48,14 @@ option(BUILD_TESTING "" OFF)
 
 # Compiler options
 
+set(CMAKE_COLOR_DIAGNOSTICS ON)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
+
+option(CMAKE_COMPILE_WARNING_AS_ERROR "Compile warnings as errors" OFF)
 
 # Sets warning flags intended for first-party compilation objects
 macro(enable_warnings)

@@ -5,6 +5,10 @@ on:
   pull_request:
     branches: ["main"]
 
+defaults:
+  run:
+    shell: nix develop .#ci -c bash -exo pipefail {0}
+
 jobs:
   format-check:
     timeout-minutes: 60
@@ -24,7 +28,6 @@ jobs:
 
       - name: Generate / Show Patch
         if: ${{ failure() && steps.formatting-check.outcome == 'failure' }}
-        shell: nix develop -c bash -exo pipefail {0}
         run: |
           nix fmt
           git diff >> formatting.patch
@@ -40,11 +43,8 @@ jobs:
 
   clang-tidy:
     timeout-minutes: 15
-    name: Check Clang-tidy
+    name: Check clang-tidy
     runs-on: ubuntu-22.04
-    defaults:
-      run:
-        shell: nix develop -c bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,7 +54,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
-        run: cmake $cmakeFlags -B build
+        run: nix develop .#gglite-clang -ic cmake $FETCHCONTENT_FLAGS -B build
 
       - name: Get file list
         id: get-file-list
@@ -62,7 +62,7 @@ jobs:
           git fetch origin ${{ github.event.pull_request.base.sha }}
           set +e
           export CHANGED_FILES=$(git diff --name-only \
-           ${{ github.event.pull_request.base.sha }} | grep "\.[ch]pp$")
+           ${{ github.event.pull_request.base.sha }} | grep "\.c\(pp\)\?$")
           set -e
           echo CHANGED_FILES=$CHANGED_FILES >> $GITHUB_OUTPUT
 
@@ -70,16 +70,14 @@ jobs:
         id: clang-tidy-check
         if: ${{ steps.get-file-list.outputs.CHANGED_FILES != ''}}
         run: |
-          clang-tidy -p ./build --warnings-as-errors='*' \
-            -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
+          clang-tidy -p ./build --header-filter='.*' --warnings-as-errors='*' \
             ${{ steps.get-file-list.outputs.CHANGED_FILES }}
 
       - name: Generate / Show Patch
         if: ${{ failure() && steps.clang-tidy-check.outcome == 'failure' }}
         run: |
-          clang-tidy -p ./build --fix --fix-errors --quiet \
-            -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
-            ${{ steps.get-file-list.outputs.CHANGED_FILES }}
+          clang-tidy -p ./build --header-filter='.*' --fix --fix-errors \
+            --quiet ${{ steps.get-file-list.outputs.CHANGED_FILES }}
           git diff >> clang-tidy.patch
           git diff --color=always
 
@@ -95,9 +93,6 @@ jobs:
     timeout-minutes: 60
     name: Check cppcheck
     runs-on: ubuntu-22.04
-    defaults:
-      run:
-        shell: nix develop -c bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -107,7 +102,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
-        run: cmake $cmakeFlags -B build
+        run: cmake $FETCHCONTENT_FLAGS -B build
 
       - name: Check cppcheck
         id: cppcheck-run
@@ -178,7 +173,6 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Run git-secrets
-        shell: nix develop -c bash -eo pipefail {0}
         run: |
           git-secrets --register-aws
           git-secrets --scan
@@ -195,7 +189,6 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check dependency hashes
-        shell: nix develop -c bash -eo pipefail {0}
         run: |
           ./utils/scripts/update_hashes.py
           git diff --color=always --exit-code
