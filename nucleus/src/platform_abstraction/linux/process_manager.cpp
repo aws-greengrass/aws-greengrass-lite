@@ -211,13 +211,6 @@ namespace ipc {
                 if(kill(-pid.pid, SIGKILL) < 0) {
                     throw std::system_error{errno, std::generic_category()};
                 }
-                /*
-                try {
-                    closeProcess(pid);
-                } catch(const std::exception& ex) {
-                    throw ex;
-                }
-                */
             }, pid);
         }
 
@@ -258,7 +251,6 @@ namespace ipc {
         }
         if(process.process->isRunning()) {
             // TODO: allow process to close gracefully
-            std::cout << "closing process..." << std::endl;
             process.process->close(true);
             _fds.erase(found);
         }

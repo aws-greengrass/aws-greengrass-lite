@@ -61,7 +61,7 @@ namespace ipc {
                 if (resestFdErr) {
                     throw std::system_error(resestFdErr);
                 }
-                // create a session so all decendants are reaped when SIGKILL/SIGTERM is received
+                // set pgid to current child pid so all decendants are reaped when SIGKILL/SIGTERM is received
                 //std::ignore = setsid();
                 setpgid(0, 0);
 
@@ -69,15 +69,12 @@ namespace ipc {
                 FileDescriptor{STDIN_FILENO}.close();
 
                 // pipe program output to parent process
-
-                /*
                 outPipe.input().duplicate(STDOUT_FILENO);
                 errPipe.input().duplicate(STDERR_FILENO);
                 std::ignore = outPipe.input().release();
                 std::ignore = errPipe.input().release();
                 outPipe.output().close();
                 errPipe.output().close();
-                */
 
                 setUserInfo(user);
 

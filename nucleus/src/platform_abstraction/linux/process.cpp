@@ -25,7 +25,7 @@ namespace ipc {
 
     void LinuxProcess::close(bool force) {
         auto signal = force ? SIGKILL : SIGTERM;
-        if(pidfd_send_signal(-_pidfd.get(), signal, nullptr, 0) < 0) {
+        if(pidfd_send_signal(_pidfd.get(), signal, nullptr, 0) < 0) {
             throw std::system_error{errno, std::generic_category()};
         }
     }
