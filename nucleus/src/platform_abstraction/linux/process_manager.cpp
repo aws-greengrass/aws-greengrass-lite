@@ -60,7 +60,7 @@ namespace ipc {
     } // namespace
 
     ProcessId::operator bool() const noexcept {
-        return id >= 0;
+        return pidfd >= 0;
     }
 
     FileDescriptor LinuxProcessManager::createEvent() {
@@ -190,13 +190,13 @@ namespace ipc {
 
     ProcessId LinuxProcessManager::registerProcess(std::unique_ptr<Process> p) {
         if(!p || !p->isRunning()) {
-            return {-1};
+            return {-1, -1};
         }
 
         if(!_running.load()) {
             throw std::runtime_error("Logger not running");
         }
-        ProcessId pid{p->getPid()};
+        ProcessId pid{p->getPid(), p->getProcessFd().get()};
 
         if (auto timeoutPoint = p->getTimeout(); timeoutPoint != minTimePoint) {
             // TODO: Move timeout logic to lifecycle manager.
@@ -208,7 +208,7 @@ namespace ipc {
             ggapi::later(delay, [this](ProcessId pid) {
                 // TODO: Error out the child process via lifecycle manager.
                 std::cout << "Process has reached the time out limit." << std::endl;
-                if(kill(pid.id, SIGKILL) < 0) {
+                if(kill(-pid.pid, SIGKILL) < 0) {
                     throw std::system_error{errno, std::generic_category()};
                 }
                 /*
@@ -240,8 +240,7 @@ namespace ipc {
                 [&id](const auto &e) -> bool {
                     using EventT = std::remove_cv_t<std::remove_reference_t<decltype(e)>>;
                     if constexpr(std::is_same_v<ProcessComplete, EventT>) {
-                        std::cout << "Is a ProcessComplete type event" << std::endl;
-                        return e.process->getPid() == id.id;
+                        return e.process->getProcessFd().get() == id.pidfd;
                     }
                     return false;
                 }, e);

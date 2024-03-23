@@ -62,7 +62,8 @@ namespace ipc {
                     throw std::system_error(resestFdErr);
                 }
                 // create a session so all decendants are reaped when SIGKILL/SIGTERM is received
-                std::ignore = setsid();
+                //std::ignore = setsid();
+                setpgid(0, 0);
 
                 // close stdin
                 FileDescriptor{STDIN_FILENO}.close();
