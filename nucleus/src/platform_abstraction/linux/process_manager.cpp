@@ -208,8 +208,10 @@ namespace ipc {
             ggapi::later(delay, [this](ProcessId pid) {
                 // TODO: Error out the child process via lifecycle manager.
                 std::cout << "Process has reached the time out limit." << std::endl;
-                if(kill(-pid.pid, SIGKILL) < 0) {
-                    throw std::system_error{errno, std::generic_category()};
+                try {
+                    closeProcess(pid);
+                } catch (const std::system_error& ex){
+                    throw ex;
                 }
             }, pid);
         }
@@ -233,7 +235,7 @@ namespace ipc {
                 [&id](const auto &e) -> bool {
                     using EventT = std::remove_cv_t<std::remove_reference_t<decltype(e)>>;
                     if constexpr(std::is_same_v<ProcessComplete, EventT>) {
-                        return e.process->getProcessFd().get() == id.pidfd;
+                        return e.process->getPid() == id.pid;
                     }
                     return false;
                 }, e);
@@ -244,15 +246,9 @@ namespace ipc {
         }
 
         auto &process = std::get<ProcessComplete>(*found);
-        // avoid a race condition where the process ends and its event handled after the event
-        // listing is deleted
-        if(deleteEpollEvent(_epfd, process.process->getProcessFd()) < 0) {
-            perror("epoll_ctl");
-        }
         if(process.process->isRunning()) {
             // TODO: allow process to close gracefully
             process.process->close(true);
-            _fds.erase(found);
         }
     }
 
