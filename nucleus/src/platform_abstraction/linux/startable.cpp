@@ -57,9 +57,9 @@ namespace ipc {
                 // async-signal-safe to be safest
 
                 // child process may be using select, which requires fds <= 1024
-                auto resestFdErr = resetFdLimit();
-                if (resestFdErr) {
-                    throw std::system_error(resestFdErr);
+                auto resetFdLimitErr = resetFdLimit();
+                if (resetFdLimitErr) {
+                    throw std::system_error(resetFdLimitErr);
                 }
                 // set pgid to current child pid so all decendants are reaped when SIGKILL/SIGTERM is received
                 //std::ignore = setsid();
