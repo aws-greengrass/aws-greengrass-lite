@@ -109,7 +109,7 @@ namespace ipc {
             switch (returnCode) {
                 case (SIGKILLCODE):
                     std::cerr << "Process has been killed by the manager." << std::endl;
-                    break; 
+                    break;
                 default:
                     break;
             }

@@ -70,7 +70,7 @@ SCENARIO("Process Manager (Posix)", "[native]") {
 
                 const std::chrono::seconds timeout = 2s;
                 startable.withTimeout(timeout);
-                
+
                 auto process = startable.start();
                 REQUIRE(process != nullptr);
                 REQUIRE(process->isRunning());
