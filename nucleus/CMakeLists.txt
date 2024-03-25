@@ -142,7 +142,10 @@ add_library(
   src/util/nucleus_paths.cpp
   src/util/nucleus_paths.hpp
   src/util/permissions.cpp
-  src/util/permissions.hpp)
+  src/util/permissions.hpp
+        src/config/update_behavior_tree.hpp
+        src/config/update_behavior_tree.cpp
+)
 
 if(LINUX)
   target_sources(
