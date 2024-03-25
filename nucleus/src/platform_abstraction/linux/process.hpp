@@ -7,11 +7,13 @@
 #include <chrono>
 #include <stdexcept>
 #include <system_error>
+#include <iostream>
 
 namespace ipc {
 
     namespace {
         namespace cr = std::chrono;
+        constexpr int SIGKILLCODE = 9;
     }
 
     class LinuxProcess final : public AbstractProcess {
@@ -104,6 +106,14 @@ namespace ipc {
         [[nodiscard]] bool isRunning() const noexcept override;
 
         void complete(int returnCode) noexcept {
+            switch (returnCode) {
+                case (SIGKILLCODE):
+                    std::cerr << "Process has been killed by the manager." << std::endl;
+                    break; 
+                default:
+                    break;
+            }
+
             if(_onComplete) {
                 _onComplete(returnCode);
             }

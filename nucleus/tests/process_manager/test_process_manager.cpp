@@ -1,12 +1,11 @@
 #include "test_util.hpp"
-#include <abstract_process_manager.hpp>
+#include "platform_abstraction/abstract_process_manager.hpp"
+#include "platform_abstraction/startable.hpp"
 #include <catch2/catch_all.hpp>
-
-#include <native_plugin.hpp>
-#include <startable.hpp>
 
 #include <atomic>
 #include <chrono>
+#include <thread>
 #include <condition_variable>
 #include <memory>
 #include <type_traits>
@@ -51,12 +50,11 @@ SCENARIO("Process Manager (Posix)", "[native]") {
 
                 THEN("Program runs and succeeds") {
                     auto pid = manager.registerProcess(std::move(process));
-                    REQUIRE(pid.id >= 0);
+                    REQUIRE(pid.pidfd >= 0);
 
                     std::unique_lock lock{m};
-                    REQUIRE(cv.wait_for(lock, 10s, [&done] { return done.load(); }));
-
-                    auto t2 = std::chrono::high_resolution_clock::now();
+                    auto isDone = [&done] { return done.load(); };
+                    REQUIRE(cv.wait_for(lock, 10s, isDone));
 
                     auto code = returnCode.load();
                     REQUIRE(done.load() == true);
@@ -66,6 +64,30 @@ SCENARIO("Process Manager (Posix)", "[native]") {
 
                     auto deviation = expectedStopTime - std::chrono::high_resolution_clock::now();
                     REQUIRE(std::chrono::abs(deviation) <= 1s);
+                }
+            }
+            WHEN("Running a process with a timeout and registering it") {
+
+                const std::chrono::seconds timeout = 2s;
+                startable.withTimeout(timeout);
+                
+                auto process = startable.start();
+                REQUIRE(process != nullptr);
+                REQUIRE(process->isRunning());
+
+                THEN("Program runs and times out") {
+                    auto pid = manager.registerProcess(std::move(process));
+                    REQUIRE(pid.pidfd >= 0);
+
+                    std::unique_lock lock{m};
+                    auto isDone = [&done] { return done.load(); };
+                    REQUIRE(cv.wait_for(lock, 10s, isDone));
+
+                    auto code = returnCode.load();
+                    REQUIRE(done.load() == true);
+                    REQUIRE(code == 9);
+                    REQUIRE(error == "Process has been killed by the manager.\n");
+                    REQUIRE(output.empty());
                 }
             }
         }

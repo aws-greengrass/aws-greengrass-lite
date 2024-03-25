@@ -18,7 +18,7 @@ namespace ipc {
 
         virtual ~AbstractProcessManager() noexcept = default;
         virtual ProcessId registerProcess(std::unique_ptr<Process> proc) = 0;
-        virtual void closeProcess(ProcessId pid) = 0;
+        virtual void closeProcess(ProcessId pid, std::string reason) = 0;
     };
 } // namespace ipc
 

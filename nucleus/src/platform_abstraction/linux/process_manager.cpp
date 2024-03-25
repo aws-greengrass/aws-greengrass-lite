@@ -21,6 +21,7 @@
 #include <util.hpp>
 #include <variant>
 #include <typeinfo>
+#include <sstream>
 
 namespace ipc {
 
@@ -207,9 +208,11 @@ namespace ipc {
 
             ggapi::later(delay, [this](ProcessId pid) {
                 // TODO: Error out the child process via lifecycle manager.
-                std::cout << "Process has reached the time out limit." << std::endl;
+                std::ostringstream reasonStream;
+                reasonStream << "Process (pidfd=" << pid.pidfd
+                    << ") has reached the time out limit.";
                 try {
-                    closeProcess(pid);
+                    closeProcess(pid, reasonStream.str());
                 } catch (const std::system_error& ex){
                     throw ex;
                 }
@@ -227,7 +230,7 @@ namespace ipc {
         return pid;
     }
 
-    void LinuxProcessManager::closeProcess(ProcessId id) {
+    void LinuxProcessManager::closeProcess(ProcessId id, std::string reason) {
         std::unique_lock guard{_listMutex};
         // TODO: ProcessId associative lookup
         auto found = std::find_if(_fds.begin(), _fds.end(), [&id](ProcessEvent &e) {
@@ -248,6 +251,7 @@ namespace ipc {
         auto &process = std::get<ProcessComplete>(*found);
         if(process.process->isRunning()) {
             // TODO: allow process to close gracefully
+            std::cout << reason << std::endl;
             process.process->close(true);
         }
     }
