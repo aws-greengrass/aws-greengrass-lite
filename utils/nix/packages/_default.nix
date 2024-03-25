@@ -59,6 +59,7 @@ let
     cmakeBuildDir = "/tmp/build";
     cmakeFlags = dependencies.fetchcontentFlags ++ [
       "-GNinja"
+      "-DCMAKE_COMPILE_WARNING_AS_ERROR=1"
       "-DBUILD_TESTING=1"
       "-DCMAKE_INSTALL_PREFIX=/tmp/install"
     ];
