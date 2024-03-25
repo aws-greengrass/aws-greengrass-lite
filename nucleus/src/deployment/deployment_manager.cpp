@@ -80,12 +80,12 @@ namespace deployment {
                             // TODO: Not implemented
                             LOG.atInfo("deployment")
                                 .kv(DEPLOYMENT_ID_LOG_KEY, nextDeployment.id)
-                                .log("Unsupported deployment type");
+                                .log("Unsupported deployment type SHADOW");
                         } else if(deploymentType == DeploymentType::IOT_JOBS) {
                             // TODO: Not implemented
                             LOG.atInfo("deployment")
                                 .kv(DEPLOYMENT_ID_LOG_KEY, nextDeployment.id)
-                                .log("Unsupported deployment type");
+                                .log("Unsupported deployment type IOT_JOBS");
                         }
                     }
                 }
@@ -130,6 +130,7 @@ namespace deployment {
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
             .log("Canceling given deployment");
         // TODO: Kill the process doing the deployment
+        [](auto &&...) {}(*this);
     }
 
     void DeploymentManager::loadRecipesAndArtifacts(const Deployment &deployment) {
@@ -337,7 +338,9 @@ namespace deployment {
                     };
 
                     bool requirePrivilege = false;
-                    std::chrono::seconds timeout{120};
+                    // TODO: default should be *no* timeout
+                    static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
+                    std::chrono::seconds timeout = DEFAULT_TIMEOUT;
 
                     // privilege
                     if(step.requiresPrivilege.has_value() && step.requiresPrivilege.value()) {
@@ -408,10 +411,9 @@ namespace deployment {
             deployment.deploymentStage =
                 DeploymentStageMap.lookup(deploymentStruct.get<std::string>("deploymentStage"))
                     .value_or(DeploymentStage::DEFAULT);
-            // TODO: This needs to be checked (optional access)
             deployment.deploymentType =
                 DeploymentTypeMap.lookup(deploymentStruct.get<std::string>("deploymentType"))
-                    .value();
+                    .value_or(DeploymentType::IOT_JOBS);
         } catch(std::exception &e) {
             LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)
