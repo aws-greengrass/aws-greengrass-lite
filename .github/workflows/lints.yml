@@ -189,6 +189,4 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check dependency hashes
-        run: |
-          ./utils/scripts/update_hashes.py
-          git diff --color=always --exit-code
+        run: nix build -L --log-lines 0 .#checks.x86_64-linux.deps-hashes
