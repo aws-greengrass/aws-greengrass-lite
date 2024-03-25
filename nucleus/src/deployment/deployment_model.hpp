@@ -3,7 +3,7 @@
 #include "data/string_table.hpp"
 #include <cstdint>
 #include <forward_list>
-#include <util.hpp>
+#include <lookup_table.hpp>
 
 namespace deployment {
     inline static const data::SymbolInit CREATE_DEPLOYMENT_TOPIC_NAME{

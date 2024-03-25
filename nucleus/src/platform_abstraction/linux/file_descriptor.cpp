@@ -1,6 +1,7 @@
 
 #include "file_descriptor.hpp"
 #include "error.hpp"
+#include <array>
 #include <stdexcept>
 #include <system_error>
 #include <unistd.h>

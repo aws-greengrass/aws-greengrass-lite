@@ -4,6 +4,7 @@
 #include "buffer_stream.hpp"
 #include "c_api.hpp"
 #include "handles.hpp"
+#include <span.hpp>
 #include <variant>
 
 namespace ggapi {

@@ -5,9 +5,10 @@
 #include <filesystem>
 #include <fstream>
 #include <regex>
+#include <stdexcept>
+#include <string_util.hpp>
 #include <system_error>
 #include <temp_module.hpp>
-#include <util.hpp>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
     logging::Logger::of("com.aws.greengrass.lifecycle.Deployment");
@@ -109,7 +110,8 @@ namespace deployment {
 
         if(deploymentType == DeploymentType::LOCAL) {
             try {
-                const auto &requiredCapabilities = deployment.deploymentDocumentObj.requiredCapabilities;
+                const auto &requiredCapabilities =
+                    deployment.deploymentDocumentObj.requiredCapabilities;
                 if(!requiredCapabilities.empty()) {
                     // TODO: check if required capabilities are supported
                 }
@@ -261,7 +263,6 @@ namespace deployment {
             globalEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
         }
 
-
         // TODO: Lifecycle management
         std::array<std::pair<std::optional<ScriptSection> *, std::string_view>, 4> sections = {
             std::pair(&lifecycle.install, "install"),
@@ -402,7 +403,8 @@ namespace deployment {
                 return ggapi::Struct{container};
             };
             auto deploymentDocumentStruct = jsonToStruct(deploymentDocumentJson);
-            auto deploymentDocument = scope::context()->objFromInt<data::StructModelBase>(deploymentDocumentStruct.getHandleId());
+            auto deploymentDocument = scope::context()->objFromInt<data::StructModelBase>(
+                deploymentDocumentStruct.getHandleId());
 
             data::Archive::readFromStruct(deploymentDocument, deployment.deploymentDocumentObj);
 

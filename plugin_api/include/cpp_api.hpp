@@ -10,4 +10,3 @@
 #include "logging.hpp"
 #include "scopes.hpp"
 #include "subscriptions.hpp"
-#include "util.hpp"
