@@ -140,7 +140,6 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             }
         }
         WHEN("Performing an LPC callFirst with topic") {
-            tasks::ExpireTime expireTime = tasks::ExpireTime::now();
             auto callArgData{std::make_shared<data::SharedStruct>(context)};
             auto future = context->lpcTopics().callFirst(topic, callArgData);
             THEN("Future was returned") {
@@ -155,7 +154,6 @@ SCENARIO("PubSub Internal Behavior", "[pubsub]") {
             }
         }
         WHEN("Performing an LPC callFirst with deferred promise") {
-            tasks::ExpireTime expireTime = tasks::ExpireTime::now();
             auto callArgData{std::make_shared<data::SharedStruct>(context)};
             auto future = context->lpcTopics().callFirst(topic2, callArgData);
             THEN("Future was returned") {

@@ -47,16 +47,19 @@ namespace util {
             std::optional<Ret> r{};
             // Invoke the visitor only for the matching enum value (logical-&& short-circuiting).
             // Stop searching once the visitor is called (logical-|| short-circuiting).
-            (((v == EVals)
-              && ((r = std::invoke(std::forward<Func>(func), ConstType<EVals>{})), true))
-             || ...);
+            std::ignore =
+                (((v == EVals)
+                  && ((r = std::invoke(std::forward<Func>(func), ConstType<EVals>{})), true))
+                 || ...);
             return r;
         }
 
         template<typename Func>
         static void visitNoRet(const BaseType &v, Func &&func) {
-            (((v == EVals) && ((std::invoke(std::forward<Func>(func), ConstType<EVals>{})), true))
-             || ...);
+            std::ignore =
+                (((v == EVals)
+                  && ((std::invoke(std::forward<Func>(func), ConstType<EVals>{})), true))
+                 || ...);
         }
     };
 
