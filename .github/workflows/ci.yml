@@ -62,7 +62,7 @@ jobs:
         run: make -C build -j4
       - name: Tests
         working-directory: ${{ github.workspace }}/build
-        run: ctest -R nucleus --output-on-failure
+        run: ctest --test-dir nucleus --output-on-failure
 
   run-checks:
     timeout-minutes: 60
