@@ -104,7 +104,7 @@ stdenv.mkDerivation (commonArgs // {
   doCheck = true;
   checkPhase = ''
     runHook preCheck
-    ctest -R nucleus --output-on-failure
+    ctest --test-dir nucleus --output-on-failure
     runHook postCheck
   '';
   postInstall = ''
