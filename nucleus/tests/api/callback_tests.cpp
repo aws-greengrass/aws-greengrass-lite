@@ -3,7 +3,6 @@
 #include <catch2/catch_all.hpp>
 #include <cpp_api.hpp>
 #include <temp_module.hpp>
-#include <util.hpp>
 
 // NOLINTBEGIN
 

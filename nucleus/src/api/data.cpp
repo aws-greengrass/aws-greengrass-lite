@@ -4,7 +4,6 @@
 #include "data/shared_struct.hpp"
 #include "scope/context_full.hpp"
 #include <cpp_api.hpp>
-#include <util.hpp>
 
 using namespace data;
 

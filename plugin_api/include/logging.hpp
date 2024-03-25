@@ -1,12 +1,14 @@
 #pragma once
 
+#include "lookup_table.hpp"
+#include "ref_object.hpp"
 #include <atomic>
 #include <chrono>
 #include <functional>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
-#include <util.hpp>
+#include <string>
 
 /**
  * GG-Interop: Logging API is intentionally replicating the facility built into Greengrass-Java

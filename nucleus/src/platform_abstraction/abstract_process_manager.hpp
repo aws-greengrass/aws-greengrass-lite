@@ -1,6 +1,7 @@
 #pragma once
 
 #include "abstract_process.hpp"
+#include <memory>
 
 namespace ipc {
     struct ProcessId {

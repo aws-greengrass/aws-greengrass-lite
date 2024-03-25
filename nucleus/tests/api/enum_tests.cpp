@@ -1,5 +1,6 @@
 #include <catch2/catch_all.hpp>
-#include <cpp_api.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <lookup_table.hpp>
 #include <util.hpp>
 
 // NOLINTBEGIN
@@ -20,48 +21,45 @@ int func(MyEnums::ConstType<MyEnum::Baz>) {
 }
 
 SCENARIO("Test enum capabilities", "[enum]") {
-    ggapi::Symbol foo("foo");
-    ggapi::Symbol bar("bar");
-    ggapi::Symbol baz("baz");
     GIVEN("An enum value") {
-        util::LookupTable expected{MyEnum::Foo, 1, MyEnum::Bar, 2, MyEnum::Baz, 3};
-        auto in = GENERATE(MyEnum::Foo, MyEnum::Bar, MyEnum::Baz);
+        constexpr util::LookupTable expected{
+            MyEnum::Foo,
+            1,
+            MyEnum::Bar,
+            2,
+            MyEnum::Baz,
+            3,
+        };
+
         WHEN("Visiting the enum value") {
-            std::optional<int> v = MyEnums::visit<int>(in, [](auto e) { return func(e); });
+            auto in = GENERATE(MyEnum::Foo, MyEnum::Bar, MyEnum::Baz);
+            size_t callCount = 0;
+            std::optional<int> v = MyEnums::visit<int>(in, [&callCount](auto e) {
+                ++callCount;
+                return func(e);
+            });
             THEN("Returned value is valid") {
                 REQUIRE(v.has_value());
-                REQUIRE(v.value() == expected.lookup(in).value_or(0));
+                REQUIRE(v == expected.lookup(in));
+                AND_THEN("Visitor is invoked exactly once") {
+                    REQUIRE(callCount == 1);
+                }
             }
         }
     }
     GIVEN("An invalid enum value") {
         auto in = MyEnum::Other;
         WHEN("Visiting the enum value") {
-            std::optional<int> v = MyEnums::visit<int>(in, [](auto e) { return func(e); });
+            size_t callCount = 0;
+            std::optional<int> v = MyEnums::visit<int>(in, [&callCount](auto e) {
+                ++callCount;
+                return func(e);
+            });
             THEN("No value is returned") {
                 REQUIRE_FALSE(v.has_value());
-            }
-        }
-    }
-    GIVEN("An enum table") {
-        util::LookupTable table{foo, MyEnum::Foo, bar, MyEnum::Bar, baz, MyEnum::Baz};
-        WHEN("Performing a lookup") {
-            ggapi::Symbol value("bar");
-            MyEnum val = table.lookup(value).value_or(MyEnum::Other);
-            THEN("The correct value is returned") {
-                REQUIRE(val == MyEnum::Bar);
-            }
-        }
-        WHEN("Performing a reverse lookup") {
-            ggapi::Symbol sym = table.rlookup(MyEnum::Baz).value_or(ggapi::Symbol{});
-            THEN("The correct value is returned") {
-                REQUIRE(sym == baz);
-            }
-        }
-        WHEN("Performing looking up a value that doesn't exist") {
-            auto val = table.lookup(ggapi::Symbol("missing"));
-            THEN("No value was returned") {
-                REQUIRE_FALSE(val.has_value());
+                AND_THEN("Visitor is not invoked") {
+                    REQUIRE(callCount == 0);
+                }
             }
         }
     }

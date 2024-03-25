@@ -1,6 +1,5 @@
 #pragma once
 #include "cpp_api.hpp"
-#include "util.hpp"
 #include <atomic>
 #include <map>
 
@@ -102,9 +101,7 @@ namespace ggapi {
             // No exceptions may cross API boundary
             // Return true if handled.
             return ggapi::catchErrorToKind([this, event, data, pHandled]() {
-                *pHandled = lifecycle(
-                    Symbol{event},
-                    ObjHandle::of<Struct>(data));
+                *pHandled = lifecycle(Symbol{event}, ObjHandle::of<Struct>(data));
             });
         }
 

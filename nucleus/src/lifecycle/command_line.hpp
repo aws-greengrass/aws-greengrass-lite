@@ -5,7 +5,6 @@
 #include "sys_properties.hpp"
 
 #include <scope/context.hpp>
-#include <util.hpp>
 
 #include <filesystem>
 #include <memory>

@@ -3,9 +3,9 @@
 #include <mutex>
 #include <optional>
 #include <shared_mutex>
+#include <span.hpp>
 #include <string>
 #include <string_view>
-#include <util.hpp>
 
 namespace lifecycle {
     using namespace std::string_view_literals;
