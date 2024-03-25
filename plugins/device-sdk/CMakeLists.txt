@@ -11,6 +11,11 @@ endif()
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 cmake_policy(SET CMP0077 NEW)
 
+find_package(OpenSSL)
+if(OpenSSL_FOUND)
+  set(USE_OPENSSL ON)
+endif()
+
 fetchContentAddCmake(device-sdk-cpp)
 
 add_library(device-sdk SHARED include/shared_device_sdk.hpp src/main.cpp)
