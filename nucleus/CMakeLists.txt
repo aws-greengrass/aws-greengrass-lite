@@ -172,8 +172,9 @@ endif()
 
 target_link_libraries(nucleus-obj PUBLIC gg_plugin_api_min Threads::Threads
                                          ${CMAKE_DL_LIBS} yaml-cpp)
-target_include_directories(nucleus-obj PUBLIC include src
-                                              ${rapidjson_SOURCE_DIR}/include)
+target_include_directories(nucleus-obj PUBLIC include src)
+target_include_directories(nucleus-obj SYSTEM
+                           PUBLIC ${rapidjson_SOURCE_DIR}/include)
 
 # Shared library
 
