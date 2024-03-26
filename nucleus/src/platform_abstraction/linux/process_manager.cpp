@@ -238,8 +238,9 @@ namespace ipc {
                     using EventT = std::remove_cv_t<std::remove_reference_t<decltype(e)>>;
                     if constexpr(std::is_same_v<ProcessComplete, EventT>) {
                         return e.process->getPid() == id.pid;
+                    } else {
+                        return false;
                     }
-                    return false;
                 }, e);
         });
 
