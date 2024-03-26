@@ -3,8 +3,6 @@
 #include <string_view>
 
 #include <sys/types.h>
-#include "syscall.hpp"
-
 
 namespace ipc {
     struct UserInfo {

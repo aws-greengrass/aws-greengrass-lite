@@ -1,5 +1,7 @@
 #include "permissions.hpp"
 
+#include "syscall.hpp"
+
 #include <stdexcept>
 #include <system_error>
 
