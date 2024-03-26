@@ -1,4 +1,5 @@
 #include "permissions.hpp"
+
 #include <stdexcept>
 #include <system_error>
 
@@ -69,10 +70,10 @@ namespace ipc {
     void setUserInfo(UserInfo user) noexcept {
         // if either fail, aborting is safest to avoid creating
         // a privileged process
-        if(setgid(user.gid) == -1) {
+        if(sys_setgid(user.gid) == -1) {
             perror("setgid: Failed to set to the configured group");
             std::abort();
-        } else if(setuid(user.uid) == -1) {
+        } else if(sys_setuid(user.uid) == -1) {
             perror("setuid: Failed to set to the configured user");
             std::abort();
         }

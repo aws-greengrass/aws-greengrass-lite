@@ -53,3 +53,11 @@ inline int pidfd_wait(id_t pidfd, siginfo_t *info, unsigned int flags) noexcept 
 inline int sys_clone3(clone_args *info) noexcept {
     return details::invokeSyscall(SYS_clone3, info, sizeof(clone_args));
 }
+
+inline int sys_setgid(int gid) noexcept{
+    return details::invokeSyscall(SYS_setgid, gid);
+}
+
+inline int sys_setuid(int uid) noexcept{
+    return details::invokeSyscall(SYS_setuid, uid);
+}
