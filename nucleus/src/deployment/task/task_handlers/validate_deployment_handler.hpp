@@ -1,7 +1,7 @@
 #pragma once
+
 #include "lifecycle/kernel.hpp"
 #include "task_handler.hpp"
-
 
 class ValidateDeploymentHandler : public TaskHandler {
 public:
@@ -12,7 +12,7 @@ public:
         if (!deployment.isCancelled) {
             // TODO: cloud-deployments: Only IoT Jobs can be stale. Ignoring this check for local deployments.
 
-            const auto &kernelSupportedCapabilities = _kernel.getSupportedCapabilities();
+            std::vector<std::string> kernelSupportedCapabilities = _kernel.getSupportedCapabilities();
             for(const std::string& reqCapability : deployment.deploymentDocumentObj.requiredCapabilities)
             {
                 if(!std::count(kernelSupportedCapabilities.begin(), kernelSupportedCapabilities.end(), reqCapability)) {

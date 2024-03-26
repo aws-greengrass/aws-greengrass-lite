@@ -1,4 +1,5 @@
 #pragma once
+
 #include "deployment/task/task_handlers/validate_deployment_handler.hpp"
 #include "deployment/task/task_handlers/resolve_dependencies_handler.hpp"
 #include "deployment/task/task_handlers/resolve_config_handler.hpp"
@@ -8,7 +9,6 @@
 
 class DefaultDeploymentTask {
 private:
-
     ValidateDeploymentHandler validateDeploymentHandler;
     ResolveDependenciesHandler resolveDependenciesHandler;
     PrepareArtifactsHandler prepareArtifactsHandler;

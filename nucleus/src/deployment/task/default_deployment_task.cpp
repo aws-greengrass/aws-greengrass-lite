@@ -12,6 +12,6 @@ void DefaultDeploymentTask::handleTaskExecution(deployment::Deployment &deployme
     // add rollback handler if needed.
 
     // Invoke the first handler
-    const deployment::DeploymentResult& deploymentResult = validateDeploymentHandler.handleRequest(deployment);
+    validateDeploymentHandler.handleRequest(deployment);
     // TODO: Persist and publish deployment status
 }

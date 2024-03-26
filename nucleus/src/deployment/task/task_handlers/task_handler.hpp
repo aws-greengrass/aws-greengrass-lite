@@ -1,4 +1,5 @@
 #pragma once
+
 #include "deployment/deployment_model.hpp"
 #include "scope/context_full.hpp"
 
@@ -17,7 +18,7 @@ public:
     TaskHandler(const scope::UsingContext &context, lifecycle::Kernel &kernel)
         : scope::UsesContext{context}, _kernel(kernel) {};
     virtual ~TaskHandler() = default;
-    virtual deployment::DeploymentResult handleRequest(deployment::Deployment &deployment){};
+    virtual deployment::DeploymentResult handleRequest(deployment::Deployment &deployment) = 0;
 
     virtual void setNextHandler(TaskHandler& handler) {
         nextTaskHandler = &handler;
@@ -25,4 +26,3 @@ public:
 
 
 };
-

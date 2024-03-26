@@ -1,6 +1,5 @@
 #include "task_handler.hpp"
 
-
 class MergeConfigHandler : public TaskHandler  {
 public:
     MergeConfigHandler(const scope::UsingContext &context, lifecycle::Kernel &kernel)
@@ -10,4 +9,3 @@ public:
         return {};
     }
 };
-

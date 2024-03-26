@@ -414,7 +414,7 @@ namespace lifecycle {
         return context()->configManager();
     }
 
-    const std::vector<std::string> Kernel::getSupportedCapabilities() const {
+    std::vector<std::string> Kernel::getSupportedCapabilities() const {
         // TODO: This should be coming from GG SDK.
         std::vector<std::string> v;
         return std::vector<std::string>{"LARGE_CONFIGURATION", "LINUX_RESOURCE_LIMITS", "SUB_DEPLOYMENTS"};
