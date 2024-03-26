@@ -5,9 +5,10 @@
 #include <filesystem>
 #include <fstream>
 #include <regex>
+#include <stdexcept>
+#include <string_util.hpp>
 #include <system_error>
 #include <temp_module.hpp>
-#include <util.hpp>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
     logging::Logger::of("com.aws.greengrass.lifecycle.Deployment");
@@ -80,12 +81,12 @@ namespace deployment {
                             // TODO: Not implemented
                             LOG.atInfo("deployment")
                                 .kv(DEPLOYMENT_ID_LOG_KEY, nextDeployment.id)
-                                .log("Unsupported deployment type");
+                                .log("Unsupported deployment type SHADOW");
                         } else if(deploymentType == DeploymentType::IOT_JOBS) {
                             // TODO: Not implemented
                             LOG.atInfo("deployment")
                                 .kv(DEPLOYMENT_ID_LOG_KEY, nextDeployment.id)
-                                .log("Unsupported deployment type");
+                                .log("Unsupported deployment type IOT_JOBS");
                         }
                     }
                 }
@@ -109,7 +110,8 @@ namespace deployment {
 
         if(deploymentType == DeploymentType::LOCAL) {
             try {
-                const auto &requiredCapabilities = deployment.deploymentDocumentObj.requiredCapabilities;
+                const auto &requiredCapabilities =
+                    deployment.deploymentDocumentObj.requiredCapabilities;
                 if(!requiredCapabilities.empty()) {
                     // TODO: check if required capabilities are supported
                 }
@@ -130,6 +132,7 @@ namespace deployment {
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
             .log("Canceling given deployment");
         // TODO: Kill the process doing the deployment
+        [](auto &&...) {}(*this);
     }
 
     void DeploymentManager::loadRecipesAndArtifacts(const Deployment &deployment) {
@@ -260,7 +263,6 @@ namespace deployment {
             globalEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
         }
 
-
         // TODO: Lifecycle management
         std::array<std::pair<std::optional<ScriptSection> *, std::string_view>, 4> sections = {
             std::pair(&lifecycle.install, "install"),
@@ -337,8 +339,10 @@ namespace deployment {
                     };
 
                     bool requirePrivilege = false;
-                    // TODO: get default per step (each step has a different timeout)
-                    std::chrono::seconds timeout{120};
+                    // TODO: get default per step (each step has a different default timeout)
+                    // https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html
+                    static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
+                    std::chrono::seconds timeout = DEFAULT_TIMEOUT;
 
                     // privilege
                     if(step.requiresPrivilege.has_value() && step.requiresPrivilege.value()) {
@@ -400,7 +404,8 @@ namespace deployment {
                 return ggapi::Struct{container};
             };
             auto deploymentDocumentStruct = jsonToStruct(deploymentDocumentJson);
-            auto deploymentDocument = scope::context()->objFromInt<data::StructModelBase>(deploymentDocumentStruct.getHandleId());
+            auto deploymentDocument = scope::context()->objFromInt<data::StructModelBase>(
+                deploymentDocumentStruct.getHandleId());
 
             data::Archive::readFromStruct(deploymentDocument, deployment.deploymentDocumentObj);
 
@@ -409,10 +414,9 @@ namespace deployment {
             deployment.deploymentStage =
                 DeploymentStageMap.lookup(deploymentStruct.get<std::string>("deploymentStage"))
                     .value_or(DeploymentStage::DEFAULT);
-            // TODO: This needs to be checked (optional access)
             deployment.deploymentType =
                 DeploymentTypeMap.lookup(deploymentStruct.get<std::string>("deploymentType"))
-                    .value();
+                    .value_or(DeploymentType::IOT_JOBS);
         } catch(std::exception &e) {
             LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)

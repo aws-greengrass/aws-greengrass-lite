@@ -4,8 +4,8 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <optional>
 #include <unordered_map>
-#include <util.hpp>
 #include <vector>
 
 namespace data {
@@ -417,7 +417,6 @@ namespace data {
 
     class Serializable {
     protected:
-
     public:
         Serializable() = default;
         virtual ~Serializable() = default;

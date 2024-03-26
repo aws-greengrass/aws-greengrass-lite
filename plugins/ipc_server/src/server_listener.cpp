@@ -60,8 +60,9 @@ int ServerListener::sendErrorResponse(
     aws_event_stream_rpc_message_type error_type,
     uint32_t flags) {
     ggapi::Buffer payload = ggapi::Buffer::create().put(0, message);
+    std::string contentType{ContentType::JSON};
     std::array headers{
-        makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
+        makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(contentType))};
     return sendMessage(
         [conn](auto *args) {
             return aws_event_stream_rpc_server_connection_send_protocol_message(
@@ -110,7 +111,8 @@ void ServerListenerCCallbacks::onServerConnectionShutdown(
 
     thisConnection->underlyingConnection.remove(connection);
 
-    if(error_code == 1051) {
+    static constexpr int CLOSED_SUCCESS = 1051;
+    if(error_code == CLOSED_SUCCESS) {
         std::cerr << "[IPC] connection closed with " << connection << " successfully ("
                   << error_code << ")" << std::endl;
     } else {

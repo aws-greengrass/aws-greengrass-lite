@@ -29,6 +29,20 @@
 #include <aws/io/stream.h>
 #include <aws/iot/Mqtt5Client.h>
 
+#if defined(_WIN32)
+#define IMPORT __declspec(dllimport)
+#define EXPORT __declspec(dllexport)
+#else
+#define IMPORT
+#define EXPORT __attribute__((visibility("default")))
+#endif
+
+#if defined(EXPORT_DEVICESDK_API)
+#define IMPEXP EXPORT
+#else
+#define IMPEXP IMPORT
+#endif
+
 namespace util {
-    extern Aws::Crt::ApiHandle &getDeviceSdkApiHandle();
+    IMPEXP Aws::Crt::ApiHandle &getDeviceSdkApiHandle();
 } // namespace util

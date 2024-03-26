@@ -1,6 +1,7 @@
 #pragma once
 
-#include <util.hpp>
+#include <containers.hpp>
+#include <span.hpp>
 
 #include <chrono>
 #include <ios>
@@ -69,7 +70,7 @@ void to_network_bytes(uint8_t (&buffer)[N], const From &from) noexcept {
     }
 }
 
-static inline aws_event_stream_header_value_type getType(const HeaderValue &variant) noexcept {
+inline aws_event_stream_header_value_type getType(const HeaderValue &variant) noexcept {
     return std::visit(
         [](auto &&value) -> aws_event_stream_header_value_type {
             using T = std::decay_t<decltype(value)>;
@@ -100,17 +101,18 @@ static inline aws_event_stream_header_value_type getType(const HeaderValue &vari
 }
 
 template<typename T>
-static std::enable_if_t<std::is_constructible_v<HeaderValue, T>, aws_event_stream_header_value_pair>
+std::enable_if_t<std::is_constructible_v<HeaderValue, T>, aws_event_stream_header_value_pair>
 makeHeader(std::string_view name, const T &val) noexcept {
     aws_event_stream_header_value_pair args{};
 
     args.header_name_len = name.copy(std::data(args.header_name), std::size(args.header_name));
 
     if constexpr(is_variable_length_value<T>) {
-        // NOLINTNEXTLINE(*-reinterpret-cast)
+        // NOLINTNEXTLINE(*-reinterpret-cast, *-union-access)
         args.header_value.variable_len_val = reinterpret_cast<uint8_t *>(std::data(val));
         args.header_value_len = std::size(val);
     } else { // static-sized types
+        // NOLINTNEXTLINE(*-union-access)
         to_network_bytes(args.header_value.static_val, val);
         args.header_value_len = sizeof(val);
     }
@@ -195,7 +197,7 @@ inline std::ostream &operator<<(std::ostream &os, HeaderValue v) {
         v);
 }
 
-static std::ostream &operator<<(
+inline std::ostream &operator<<(
     std::ostream &os, const aws_event_stream_rpc_message_args &message_args) {
     // print all headers and the payload
     using namespace std::string_view_literals;
@@ -214,7 +216,7 @@ static std::ostream &operator<<(
 }
 
 template<class SendFn>
-static int sendMessage(SendFn fn, aws_event_stream_rpc_message_type message_type, uint32_t flags) {
+int sendMessage(SendFn fn, aws_event_stream_rpc_message_type message_type, uint32_t flags) {
     auto payload = Aws::Crt::ByteBufFromEmptyArray(nullptr, 0);
 
     aws_event_stream_rpc_message_args args = {};
@@ -230,10 +232,10 @@ static int sendMessage(SendFn fn, aws_event_stream_rpc_message_type message_type
 }
 
 template<class SendFn>
-static int sendMessage(
+inline int sendMessage(
     SendFn fn,
     util::Span<aws_event_stream_header_value_pair> headers,
-    ggapi::Buffer payload,
+    const ggapi::Buffer &payload,
     aws_event_stream_rpc_message_type message_type,
     uint32_t flags) {
 
@@ -253,7 +255,7 @@ static int sendMessage(
 }
 
 extern "C" {
-[[maybe_unused]] static void onMessageFlush(int error_code, void *user_data) noexcept {
+inline void onMessageFlush(int error_code, void *user_data) noexcept {
     std::ignore = user_data;
     std::ignore = error_code;
 }
@@ -267,6 +269,7 @@ namespace Headers {
 } // namespace Headers
 
 namespace ContentType {
-    static inline std::string JSON = "application/json";
-    static inline std::string Text = "text/plain";
+    using namespace std::string_view_literals;
+    inline constexpr auto JSON = "application/json"sv;
+    inline constexpr auto Text = "text/plain"sv;
 } // namespace ContentType

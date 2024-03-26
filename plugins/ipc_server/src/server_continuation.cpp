@@ -33,9 +33,9 @@ ggapi::Struct ServerContinuation::onTopicResponse(
     };
 
     using namespace std::string_literals;
-    auto contentType = response.hasKey(keys.contentType)
-                           ? response.get<std::string>(keys.contentType)
-                           : ContentType::JSON;
+    std::string contentType = response.hasKey(keys.contentType)
+                                  ? response.get<std::string>(keys.contentType)
+                                  : std::string{ContentType::JSON};
     if(contentType.size() > std::numeric_limits<uint16_t>::max()) {
         // TODO: Error handling
         contentType.resize(std::numeric_limits<uint16_t>::max());
@@ -118,8 +118,9 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
                 .put("error", "LPC error") // needs to be better error here
                 .put("message", error.what());
             ggapi::Buffer payload = message.toJson();
-            std::array headers{makeHeader(
-                Headers::ContentType, Headervaluetypes::stringbuffer(ContentType::JSON))};
+            std::string contentType{ContentType::JSON};
+            std::array headers{
+                makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(contentType))};
             sendMessage(
                 sender,
                 headers,

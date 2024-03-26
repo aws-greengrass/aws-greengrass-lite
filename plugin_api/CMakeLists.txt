@@ -20,10 +20,15 @@ add_library(
   include/cpp_api.hpp
   include/error_tmpl.hpp
   include/futures.hpp
+  include/greengrass_traits.hpp
   include/handles.hpp
   include/logging.hpp
+  include/lookup_table.hpp
   include/plugin.hpp
+  include/ref_object.hpp
   include/scopes.hpp
+  include/span.hpp
+  include/string_util.hpp
   include/subscriptions.hpp
   include/temp_module.hpp
   include/util.hpp)

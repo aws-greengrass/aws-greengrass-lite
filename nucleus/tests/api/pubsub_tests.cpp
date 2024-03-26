@@ -26,12 +26,6 @@ static ggapi::Future simpleListener3(ggapi::StringOrd, ggapi::Container c) {
         500, [](ggapi::Container cc, ggapi::Promise promise) { promise.setValue(cc); }, c);
 }
 
-static ggapi::Promise simpleListener4(ggapi::StringOrd, ggapi::Struct s) {
-    s.put("=4", true);
-    // promise is never fulfilled (requires wait timeout)
-    return ggapi::Promise::create();
-}
-
 SCENARIO("PubSub API", "[pubsub]") {
     scope::LocalizedContext forTesting{};
     auto context = forTesting.context()->context();

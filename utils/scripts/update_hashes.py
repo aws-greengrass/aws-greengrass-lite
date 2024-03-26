@@ -74,10 +74,9 @@ def getHashForDep(url, rev):
     prevdir = os.getcwd()
     with tempfile.TemporaryDirectory() as tmpdir:
         os.chdir(tmpdir)
-        os.system(f"git clone {url} .")
-        os.system(f"git fetch origin {rev}")
-        os.system("git reset --hard FETCH_HEAD")
-        os.system("git submodule update --init --recursive")
+        os.system(f"git clone --no-checkout --filter=tree:0 {url} .")
+        os.system(f"git checkout {rev}")
+        os.system("git submodule update --init --recursive --filter=tree:0")
         shutil.rmtree(".git")
         for f in glob.glob("**/.git", recursive=True):
             os.remove(f)

@@ -10,8 +10,6 @@
 namespace constants {
     using namespace std::chrono_literals;
     static constexpr auto TIMER_GRANULARITY = 500ms; // If too small, tests will become unstable
-
-    static constexpr auto ZERO_TIME = 0ms;
 } // namespace constants
 
 struct TestTask : public tasks::Task {

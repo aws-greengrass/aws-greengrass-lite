@@ -10,7 +10,6 @@ namespace cr = std::chrono;
 namespace ipc {
     namespace {
         using namespace std::chrono_literals;
-        constexpr auto timestep = 10ms;
     } // namespace
 
     int LinuxProcess::queryReturnCode(std::error_code &ec) noexcept {

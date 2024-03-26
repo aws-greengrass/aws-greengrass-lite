@@ -18,7 +18,6 @@
 #include <thread>
 #include <type_traits>
 #include <unistd.h>
-#include <util.hpp>
 #include <variant>
 #include <typeinfo>
 #include <sstream>

@@ -8,7 +8,7 @@
 #include "server_continuation.hpp"
 
 extern "C" {
-[[maybe_unused]] static void onListenerDestroy(
+inline void onListenerDestroy(
     aws_event_stream_rpc_server_listener *server, void *user_data) noexcept {
 }
 }
@@ -59,11 +59,11 @@ public:
 
     void Close(int shutdownCode = AWS_ERROR_SUCCESS) noexcept;
 
-    int sendConnectionResponse(Connection *conn);
+    static int sendConnectionResponse(Connection *conn);
 
-    int sendPingResponse(Connection *conn);
+    static int sendPingResponse(Connection *conn);
 
-    int sendErrorResponse(
+    static int sendErrorResponse(
         Connection *conn,
         std::string_view message,
         aws_event_stream_rpc_message_type error_type,

@@ -7,7 +7,7 @@
 #include <mutex>
 #include <set>
 #include <stdexcept>
-#include <util.hpp>
+#include <string_util.hpp>
 #include <vector>
 
 namespace scope {

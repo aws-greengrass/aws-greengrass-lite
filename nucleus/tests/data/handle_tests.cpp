@@ -216,7 +216,7 @@ SCENARIO("HandleTable manages handles", "[handles]") {
                     == data::IdObfuscator::deobfuscate(root.asInt()));
             }
             AND_WHEN("Releasing a root") {
-                auto p = root.partial();
+                [[maybe_unused]] auto p = root.partial();
                 handleTable.releaseRoot(root);
                 THEN("Root handle is no longer valid") {
                     REQUIRE_FALSE(root);

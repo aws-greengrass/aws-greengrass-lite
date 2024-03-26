@@ -172,8 +172,9 @@ endif()
 
 target_link_libraries(nucleus-obj PUBLIC gg_plugin_api_min Threads::Threads
                                          ${CMAKE_DL_LIBS} yaml-cpp)
-target_include_directories(nucleus-obj PUBLIC include src
-                                              ${rapidjson_SOURCE_DIR}/include)
+target_include_directories(nucleus-obj PUBLIC include src)
+target_include_directories(nucleus-obj SYSTEM
+                           PUBLIC ${rapidjson_SOURCE_DIR}/include)
 
 # Shared library
 
@@ -213,6 +214,7 @@ if(BUILD_TESTING)
     tests/api/json_tests.cpp
     tests/api/list_tests.cpp
     tests/api/logging_tests.cpp
+    tests/api/lookup_table_tests.cpp
     tests/api/module_scope_tests.cpp
     tests/api/pubsub_tests.cpp
     tests/api/struct_tests.cpp

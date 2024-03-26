@@ -1,7 +1,8 @@
 #pragma once
 
 #include "argument_iterator.hpp"
-#include "util.hpp"
+#include <greengrass_traits.hpp>
+#include <string_util.hpp>
 
 #include <exception>
 #include <iostream>
