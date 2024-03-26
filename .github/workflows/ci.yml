@@ -28,6 +28,9 @@ jobs:
           - name: MacOS
             os: macos-14
             package: default
+          - name: sample component
+            os: ubuntu-latest
+            package: sample-component
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     steps:
