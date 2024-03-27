@@ -3,7 +3,7 @@
 #include "data/string_table.hpp"
 #include <cstdint>
 #include <forward_list>
-#include <util.hpp>
+#include <lookup_table.hpp>
 
 namespace deployment {
     inline static const data::SymbolInit CREATE_DEPLOYMENT_TOPIC_NAME{
@@ -206,10 +206,10 @@ namespace deployment {
         // GG-Java: Need both document object and string
         DeploymentDocument deploymentDocumentObj;
         std::string deploymentDocument;
-        DeploymentType deploymentType;
+        DeploymentType deploymentType{DeploymentType::IOT_JOBS};
         std::string id;
-        bool isCancelled;
-        DeploymentStage deploymentStage;
+        bool isCancelled{false};
+        DeploymentStage deploymentStage{DeploymentStage::BOOTSTRAP};
         std::string stageDetails;
         std::vector<std::string> errorStack;
         std::vector<std::string> errorTypes;

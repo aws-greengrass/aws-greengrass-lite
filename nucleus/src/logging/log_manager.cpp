@@ -2,7 +2,6 @@
 #include "data/shared_buffer.hpp"
 #include "logging/log_queue.hpp"
 #include "scope/context_full.hpp"
-#include <util.hpp>
 
 namespace logging {
 

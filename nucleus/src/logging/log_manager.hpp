@@ -7,7 +7,6 @@
 #include <fstream>
 #include <logging.hpp>
 #include <map>
-#include <util.hpp>
 
 namespace config {
     class Topics;

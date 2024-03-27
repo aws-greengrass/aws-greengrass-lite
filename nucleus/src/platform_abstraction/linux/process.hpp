@@ -7,11 +7,13 @@
 #include <chrono>
 #include <stdexcept>
 #include <system_error>
+#include <iostream>
 
 namespace ipc {
 
     namespace {
         namespace cr = std::chrono;
+        constexpr int SIGKILLCODE = 9;
     }
 
     class LinuxProcess final : public AbstractProcess {
@@ -20,6 +22,7 @@ namespace ipc {
         FileDescriptor _pidfd;
         FileDescriptor _err;
         FileDescriptor _out;
+        int _pid;
 
         void terminate(bool force);
 
@@ -34,6 +37,15 @@ namespace ipc {
         LinuxProcess &setPidFd(FileDescriptor &&pidfd) noexcept {
             _pidfd = std::move(pidfd);
             return *this;
+        }
+
+        LinuxProcess &setPid(int &pid) noexcept {
+            _pid = std::move(pid);
+            return *this;
+        }
+
+        int &getPid() & noexcept {
+            return  _pid;
         }
 
         FileDescriptor &getOut() noexcept {
@@ -69,6 +81,11 @@ namespace ipc {
             return *this;
         }
 
+        LinuxProcess &setTimeout(cr::steady_clock::time_point timeout) noexcept {
+            this->timeout = std::move(timeout);
+            return *this;
+        }
+
         OutputCallback &getErrorHandler() noexcept {
             return _onErr;
         }
@@ -89,6 +106,14 @@ namespace ipc {
         [[nodiscard]] bool isRunning() const noexcept override;
 
         void complete(int returnCode) noexcept {
+            switch (returnCode) {
+                case (SIGKILLCODE):
+                    std::cerr << "Process has been killed by the manager." << std::endl;
+                    break;
+                default:
+                    break;
+            }
+
             if(_onComplete) {
                 _onComplete(returnCode);
             }

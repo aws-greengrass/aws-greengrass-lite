@@ -1,6 +1,6 @@
 { src, pkgs, ... }:
 let
-  clang-format = "${pkgs.clang-tools_16}/bin/clang-format -i";
+  clang-format = "${pkgs.clang-tools_17}/bin/clang-format -i";
   cmake-format = "${pkgs.cmake-format}/bin/cmake-format " +
     "-c ${src}/.cmake-format.yml -i";
   yapf = "${pkgs.yapf}/bin/yapf -i";

@@ -4,6 +4,7 @@
 #include "api_forwards.hpp"
 #include "buffer_stream.hpp"
 #include "c_api.hpp"
+#include "containers.hpp"
 #include "handles.hpp"
 
 namespace ggapi {
@@ -19,6 +20,10 @@ namespace ggapi {
         }
 
     public:
+        [[nodiscard]] static bool isA(const ObjHandle &obj) {
+            return obj.isScope();
+        }
+
         constexpr ModuleScope() noexcept = default;
         ModuleScope(const ModuleScope &) noexcept = default;
         ModuleScope(ModuleScope &&) noexcept = default;
@@ -74,7 +79,7 @@ namespace ggapi {
         public:
             explicit LifecycleDispatch(Callable callable, Args... args)
                 : CallbackManager::CaptureDispatch<Callable, Args...>{
-                      std::move(callable), std::move(args)...} {
+                    std::move(callable), std::move(args)...} {
                 static_assert(
                     std::is_invocable_r_v<bool, Callable, Args..., ModuleScope, Symbol, Struct>);
             }

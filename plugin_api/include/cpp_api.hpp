@@ -1,4 +1,7 @@
 #pragma once
+#include "api_forwards.hpp"
+
+#include "api_archive.hpp"
 #include "api_callbacks.hpp"
 #include "api_errors.hpp"
 #include "api_logging.hpp"
@@ -10,4 +13,3 @@
 #include "logging.hpp"
 #include "scopes.hpp"
 #include "subscriptions.hpp"
-#include "util.hpp"

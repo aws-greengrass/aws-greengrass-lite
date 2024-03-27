@@ -1,13 +1,10 @@
 #include "plugin_loader.hpp"
 #include "data/shared_list.hpp"
 #include "deployment/device_configuration.hpp"
-#include "errors/error_base.hpp"
+#include "deployment/model/dependency_order.hpp"
+#include "deployment/recipe_loader.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task_callbacks.hpp"
-#include <cpp_api.hpp>
-#include <filesystem>
-#include <stdexcept>
-#include <string_view>
 
 namespace fs = std::filesystem;
 
@@ -141,7 +138,7 @@ namespace plugins {
         _lifecycleFn.store(reinterpret_cast<lifecycleFn_t>(lifecycleFn));
     }
 
-    bool NativePlugin::isActive() noexcept {
+    bool NativePlugin::isActive() const noexcept {
         return _lifecycleFn.load() != nullptr;
     }
 
@@ -194,28 +191,46 @@ namespace plugins {
 
     void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
         if(entry.path().extension() == NATIVE_SUFFIX) {
-            loadNativePlugin(entry.path());
-            return;
+            auto plugin = loadNativePlugin(entry.path());
         }
     }
 
-    void PluginLoader::loadNativePlugin(const std::filesystem::path &path) {
+    std::shared_ptr<AbstractPlugin> PluginLoader::loadNativePlugin(
+        const std::filesystem::path &path) {
         LOG.atInfo().kv("path", path.string()).log("Loading native plugin");
         auto stem = path.stem().generic_string();
         auto name = util::trimStart(stem, "lib");
         std::string serviceName = std::string("local.plugins.discovered.") + std::string(name);
-        std::shared_ptr<NativePlugin> plugin{
-            std::make_shared<NativePlugin>(context(), serviceName)};
+        auto plugin{std::make_shared<NativePlugin>(context(), serviceName)};
         plugin->load(path);
-        _all.emplace_back(plugin);
         plugin->initialize(*this);
+        _all.emplace(std::move(serviceName), plugin);
+        return plugin;
+    }
+
+    std::vector<std::shared_ptr<AbstractPlugin>> PluginLoader::processActiveList() {
+        std::unordered_map<std::string, std::shared_ptr<AbstractPlugin>> unresolved = _all;
+        auto resolved = util::DependencyOrder{}.computeOrderedDependencies(
+            unresolved, [](auto &&pendingService) -> const std::unordered_set<std::string> & {
+                return pendingService->getDependencies();
+            });
+
+        for(auto &&pendingService : unresolved) {
+            _inactive.emplace_back(pendingService.second);
+        }
+        std::vector<std::shared_ptr<AbstractPlugin>> runOrder;
+        while(!resolved->empty()) {
+            runOrder.emplace_back(resolved->poll());
+        }
+        _active = std::move(runOrder);
+        return _active;
     }
 
     void PluginLoader::forAllPlugins(
         const std::function<void(AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)>
             &fn) const {
 
-        for(const auto &i : _all) {
+        for(const auto &i : _active) {
             i->invoke(fn);
         }
     }
@@ -226,6 +241,33 @@ namespace plugins {
 
     std::shared_ptr<config::Topics> PluginLoader::getServiceTopics(AbstractPlugin &plugin) const {
         return context()->configManager().lookupTopics({SERVICES, plugin.getName()});
+    }
+
+    std::optional<deployment::Recipe> PluginLoader::loadRecipe(
+        const AbstractPlugin &plugin) const noexcept {
+        std::string_view name = plugin.getName();
+        std::error_code err{};
+        fs::directory_iterator dir{_paths->pluginPath() / "recipes", err};
+        if(err) {
+            return {};
+        }
+        for(const auto &entry : dir) {
+            try {
+                if(util::startsWith(entry.path().stem().string(), name)) {
+                    return deployment::RecipeLoader{}.read(entry);
+                }
+            } catch(std::runtime_error &e) {
+                // pass
+                LOG.atWarn("recipe-not-loaded")
+                    .cause(e)
+                    .kv("path", entry.path().string())
+                    .log("Unable to load recipe file");
+            }
+        }
+        LOG.atWarn("recipe-not-found")
+            .kv("component", plugin.getName())
+            .log("Unable to locate recipe");
+        return {};
     }
 
     std::shared_ptr<data::StructModelBase> PluginLoader::buildParams(
@@ -292,9 +334,6 @@ namespace plugins {
     }
 
     void AbstractPlugin::initialize(PluginLoader &loader) {
-        if(!isActive()) {
-            return;
-        }
         auto data = loader.buildParams(*this, true);
         data::StructElement el = data->get(loader.NAME);
         if(el.isScalar()) {
@@ -302,14 +341,26 @@ namespace plugins {
             _moduleName = el.getString();
         }
         configure(loader);
+        // search for recipe file
+        auto recipe = loader.loadRecipe(*this);
         // Update data, module name is now known
-        // TODO: This path is only when recipe is unknown
         data = loader.buildParams(*this, false);
         auto config = data->get(loader.CONFIG).castObject<data::StructModelBase>();
-        config->put("version", std::string("0.0.0"));
-        config->put("dependencies", std::make_shared<data::SharedList>(context()));
-        // Now allow plugin to bind to service part of the config tree
-        lifecycle(loader.INITIALIZE, data);
+        if(!recipe) {
+            // This path is only taken if the recipe is unknown
+            config->put("version", std::string("0.0.0"));
+            config->put("dependencies", std::make_shared<data::SharedList>(context()));
+        } else {
+            auto dependencies = std::make_shared<data::SharedList>(context());
+            for(auto &&dependency : recipe->componentDependencies) {
+                if(dependency.second.dependencyType == "HARD") {
+                    dependencies->push(dependency.first);
+                    _dependencies.emplace(dependency.first);
+                }
+            }
+            config->put("version", recipe->componentVersion);
+            config->put("dependencies", dependencies);
+        }
     }
 
     void AbstractPlugin::configure(PluginLoader &loader) {

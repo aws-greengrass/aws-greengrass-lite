@@ -1,15 +1,38 @@
-name: Linting
+name: CI
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
   pull_request:
     branches: ["main"]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
-  format-check:
-    timeout-minutes: 60
-    name: Check Formatting
-    runs-on: ubuntu-22.04
+  build:
+    timeout-minutes: 100
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux GCC
+            os: ubuntu-latest
+            package: default
+          - name: Linux LLVM
+            os: ubuntu-latest
+            package: gglite-clang
+          - name: MacOS
+            os: macos-14
+            package: default
+          - name: sample component
+            os: ubuntu-latest
+            package: sample-component
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -18,19 +41,85 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Check Formatting
+      - name: Build
+        run: nix build -L --log-lines 0 .#${{ matrix.package }}
+
+  build-windows:
+    name: Build Windows MinGW
+    timeout-minutes: 100
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -B build -G "MinGW Makefiles" \
+            -DCMAKE_C_COMPILER=gcc \
+            -DCMAKE_CXX_COMPILER=g++ \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DBUILD_TESTING=1
+      - name: Build
+        run: make -C build -j4
+      - name: Tests
+        working-directory: ${{ github.workspace }}/build
+        run: ctest --test-dir nucleus --output-on-failure
+
+  run-checks:
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: editorconfig
+            check: editorconfig
+          - name: CMake
+            check: cmake-lint
+          - name: dependency hashes
+            check: deps-hashes
+    name: Check ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check ${{ matrix.name }}
+        run:
+          nix build -L --log-lines 0 .#checks.x86_64-linux.${{ matrix.check }}
+
+  format-check:
+    timeout-minutes: 60
+    name: Check formatting
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: nix develop .#ci -c bash -exo pipefail {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Check formatting
         id: formatting-check
         run: nix build -L --log-lines 0 .#checks.x86_64-linux.formatting
 
-      - name: Generate / Show Patch
+      - name: Generate / show patch
         if: ${{ failure() && steps.formatting-check.outcome == 'failure' }}
-        shell: nix develop -c bash -exo pipefail {0}
         run: |
           nix fmt
           git diff >> formatting.patch
           git diff --color=always
 
-      - name: Upload Patch
+      - name: Upload patch
         if: ${{ failure() && steps.formatting-check.outcome == 'failure' }}
         uses: actions/upload-artifact@v3
         with:
@@ -40,11 +129,11 @@ jobs:
 
   clang-tidy:
     timeout-minutes: 15
-    name: Check Clang-tidy
-    runs-on: ubuntu-22.04
+    name: Check clang-tidy
+    runs-on: ubuntu-latest
     defaults:
       run:
-        shell: nix develop -c bash -exo pipefail {0}
+        shell: nix develop .#ci -c bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,7 +143,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
-        run: cmake $cmakeFlags -B build
+        run: nix develop .#gglite-clang -ic cmake $FETCHCONTENT_FLAGS -B build
 
       - name: Get file list
         id: get-file-list
@@ -62,28 +151,26 @@ jobs:
           git fetch origin ${{ github.event.pull_request.base.sha }}
           set +e
           export CHANGED_FILES=$(git diff --name-only \
-           ${{ github.event.pull_request.base.sha }} | grep "\.[ch]pp$")
+           ${{ github.event.pull_request.base.sha }} | grep "\.c\(pp\)\?$")
           set -e
           echo CHANGED_FILES=$CHANGED_FILES >> $GITHUB_OUTPUT
 
-      - name: Check Clang-tidy
+      - name: Check clang-tidy
         id: clang-tidy-check
         if: ${{ steps.get-file-list.outputs.CHANGED_FILES != ''}}
         run: |
-          clang-tidy -p ./build --warnings-as-errors='*' \
-            -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
+          clang-tidy -p ./build --header-filter='.*' --warnings-as-errors='*' \
             ${{ steps.get-file-list.outputs.CHANGED_FILES }}
 
-      - name: Generate / Show Patch
+      - name: Generate / show patch
         if: ${{ failure() && steps.clang-tidy-check.outcome == 'failure' }}
         run: |
-          clang-tidy -p ./build --fix --fix-errors --quiet \
-            -header-filter="$PWD/(nucleus|plugin_api|plugins)/.*" \
-            ${{ steps.get-file-list.outputs.CHANGED_FILES }}
+          clang-tidy -p ./build --header-filter='.*' --fix --fix-errors \
+            --quiet ${{ steps.get-file-list.outputs.CHANGED_FILES }}
           git diff >> clang-tidy.patch
           git diff --color=always
 
-      - name: Upload Patch
+      - name: Upload patch
         if: ${{ failure() && steps.clang-tidy-check.outcome == 'failure' }}
         uses: actions/upload-artifact@v3
         with:
@@ -94,10 +181,10 @@ jobs:
   cppcheck:
     timeout-minutes: 60
     name: Check cppcheck
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     defaults:
       run:
-        shell: nix develop -c bash -exo pipefail {0}
+        shell: nix develop .#ci -c bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -107,7 +194,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
-        run: cmake $cmakeFlags -B build
+        run: cmake $FETCHCONTENT_FLAGS -B build
 
       - name: Check cppcheck
         id: cppcheck-run
@@ -136,39 +223,13 @@ jobs:
           path: cppcheck_report
           retention-days: 5
 
-  editorconfig:
-    timeout-minutes: 60
-    name: Check editorconfig-checker
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-
-      - name: Check editorconfig-checker
-        run: nix build -L --log-lines 0 .#checks.x86_64-linux.editorconfig
-
-  cmake-lint:
-    timeout-minutes: 60
-    name: Check CMake
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-
-      - name: Check CMake
-        run: nix build -L --log-lines 0 .#checks.x86_64-linux.cmake-lint
-
   git-secrets:
     timeout-minutes: 60
-    runs-on: ubuntu-22.04
+    name: Check git-secrets
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: nix develop .#ci -c bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -177,25 +238,7 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Run git-secrets
-        shell: nix develop -c bash -eo pipefail {0}
+      - name: Check git-secrets
         run: |
           git-secrets --register-aws
           git-secrets --scan
-
-  check-dependency-hashes:
-    timeout-minutes: 60
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
-
-      - name: Check dependency hashes
-        shell: nix develop -c bash -eo pipefail {0}
-        run: |
-          ./utils/scripts/update_hashes.py
-          git diff --color=always --exit-code

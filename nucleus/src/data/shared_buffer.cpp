@@ -139,5 +139,11 @@ namespace data {
     void SharedBuffer::visit(Archive &archive) {
         throw std::runtime_error("Attempting to serialize/deserialize a buffer");
     }
+    std::shared_ptr<ContainerModelBase> SharedBuffer::clone() const {
+        std::shared_lock guard{_mutex};
+        auto clone = std::make_shared<SharedBuffer>(context());
+        clone->_buffer = _buffer;
+        return clone;
+    }
 
 } // namespace data

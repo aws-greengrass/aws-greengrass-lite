@@ -1,6 +1,8 @@
 #include "process_manager.hpp"
 #include "file_descriptor.hpp"
 #include "process.hpp"
+#include "scope/context_full.hpp"
+#include "syscall.hpp"
 #include <algorithm>
 #include <chrono>
 #include <csignal>
@@ -16,15 +18,17 @@
 #include <thread>
 #include <type_traits>
 #include <unistd.h>
-#include <util.hpp>
 #include <variant>
+#include <typeinfo>
+#include <sstream>
 
 namespace ipc {
 
     namespace {
         using namespace std::chrono_literals;
-        constexpr auto timeout = 1000ms;
+        constexpr auto epollTimeout = 1000ms;
         constexpr int maxEvents = 10;
+        constexpr auto minTimePoint = std::chrono::steady_clock::time_point::min();
 
         void raiseEventFd(FileDescriptor &eventfd, uint64_t count = 1) noexcept {
             if(-1 == eventfd.write(util::as_bytes(util::Span{&count, size_t{1}}))) {
@@ -56,7 +60,7 @@ namespace ipc {
     } // namespace
 
     ProcessId::operator bool() const noexcept {
-        return id >= 0;
+        return pidfd >= 0;
     }
 
     FileDescriptor LinuxProcessManager::createEvent() {
@@ -106,7 +110,7 @@ namespace ipc {
 
             std::array<epoll_event, maxEvents> events{};
             while(_running) {
-                auto n = epoll_wait(_epfd.get(), events.data(), maxEvents, timeout.count());
+                auto n = epoll_wait(_epfd.get(), events.data(), maxEvents, epollTimeout.count());
                 if(n == -1) {
                     if(errno != EINTR) {
                         perror("epoll_wait");
@@ -186,13 +190,34 @@ namespace ipc {
 
     ProcessId LinuxProcessManager::registerProcess(std::unique_ptr<Process> p) {
         if(!p || !p->isRunning()) {
-            return {-1};
+            return {-1, -1};
         }
 
         if(!_running.load()) {
             throw std::runtime_error("Logger not running");
         }
-        ProcessId pid{p->getProcessFd().get()};
+        ProcessId pid{p->getPid(), p->getProcessFd().get()};
+
+        if (auto timeoutPoint = p->getTimeout(); timeoutPoint != minTimePoint) {
+            // TODO: Move timeout logic to lifecycle manager.
+            // TODO: Fix miniscule time delay by doing conversion with timepoints. Keep timeout as same unit throughout. (2s vs 1.9999s)
+            auto currentTimePoint = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(timeoutPoint - currentTimePoint);
+            auto delay = static_cast<uint32_t>(duration.count());
+
+            ggapi::later(delay, [this](ProcessId pid) {
+                // TODO: Error out the child process via lifecycle manager.
+                std::ostringstream reasonStream;
+                reasonStream << "Process (pidfd=" << pid.pidfd
+                    << ") has reached the time out limit.";
+                try {
+                    closeProcess(pid, reasonStream.str());
+                } catch (const std::system_error& ex){
+                    throw ex;
+                }
+            }, pid);
+        }
+
         std::list<ProcessEvent> events;
         addEvent(events, ErrorLog{std::move(p->getErr()), std::move(p->getErrorHandler())});
         addEvent(events, OutLog{std::move(p->getOut()), std::move(p->getOutputHandler())});
@@ -204,20 +229,19 @@ namespace ipc {
         return pid;
     }
 
-    void LinuxProcessManager::closeProcess(ProcessId id) {
+    void LinuxProcessManager::closeProcess(ProcessId id, std::string reason) {
         std::unique_lock guard{_listMutex};
         // TODO: ProcessId associative lookup
         auto found = std::find_if(_fds.begin(), _fds.end(), [&id](ProcessEvent &e) {
             return std::visit(
-                [&id](const auto &e) {
-                    using EventT = std::remove_reference_t<decltype(e)>;
-                    if constexpr(std::is_same_v<EventT, ProcessComplete>) {
-                        return e.process->getProcessFd().get() == id.id;
+                [&id](const auto &e) -> bool {
+                    using EventT = std::remove_cv_t<std::remove_reference_t<decltype(e)>>;
+                    if constexpr(std::is_same_v<ProcessComplete, EventT>) {
+                        return e.process->getPid() == id.pid;
                     } else {
                         return false;
                     }
-                },
-                e);
+                }, e);
         });
 
         if(found == _fds.end()) {
@@ -225,15 +249,10 @@ namespace ipc {
         }
 
         auto &process = std::get<ProcessComplete>(*found);
-        // avoid a race condition where the process ends and its event handled after the event
-        // listing is deleted
-        if(deleteEpollEvent(_epfd, process.process->getProcessFd()) < 0) {
-            perror("epoll_ctl");
-        }
         if(process.process->isRunning()) {
             // TODO: allow process to close gracefully
+            std::cout << reason << std::endl;
             process.process->close(true);
-            _fds.erase(found);
         }
     }
 

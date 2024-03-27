@@ -96,7 +96,7 @@ SCENARIO("Json conversion tests", "[json][list][struct][buffer]") {
         buffer.put(0, std::string_view(jsonLiteral));
         WHEN("Parsing as JSON") {
             ggapi::Container c = buffer.fromJson();
-            THEN("Literal is boxed, retrieve via unbox function") {
+            THEN("Literal is boxed, retrieve via autoUnbox function") {
                 REQUIRE(c.isScalar());
                 REQUIRE(c.unbox<std::string>() == "Foo");
                 REQUIRE(c.size() == 1);
