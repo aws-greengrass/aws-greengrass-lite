@@ -55,7 +55,7 @@ namespace ipc {
         LinuxProcessManager &operator=(const LinuxProcessManager &) = delete;
         LinuxProcessManager &operator=(LinuxProcessManager &&) = delete;
         ProcessId registerProcess(std::unique_ptr<Process> p) override;
-        void closeProcess(ProcessId id) override;
+        void closeProcess(ProcessId id, std::string reason) override;
 
         ~LinuxProcessManager() noexcept override;
     };

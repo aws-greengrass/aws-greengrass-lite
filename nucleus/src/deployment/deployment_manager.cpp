@@ -339,7 +339,8 @@ namespace deployment {
                     };
 
                     bool requirePrivilege = false;
-                    // TODO: default should be *no* timeout
+                    // TODO: get default per step (each step has a different default timeout)
+                    // https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html
                     static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
                     std::chrono::seconds timeout = DEFAULT_TIMEOUT;
 
