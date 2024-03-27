@@ -1,9 +1,12 @@
 #include "deployment_manager.hpp"
+#include "containers.hpp"
+#include "data/shared_struct.hpp"
 #include "lifecycle/kernel.hpp"
 #include "logging/log_queue.hpp"
 #include "scope/context_full.hpp"
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <regex>
 #include <stdexcept>
 #include <string_util.hpp>
@@ -160,6 +163,7 @@ namespace deployment {
         for(const auto &entry : iter) {
             if(!entry.is_directory()) {
                 Recipe recipe = loadRecipeFile(entry);
+                _recipeAsStruct = loadRecipeFileAsStruct(entry);
                 saveRecipeFile(recipe);
                 auto semVer = recipe.componentName + "-v" + recipe.componentVersion;
                 const std::hash<std::string> hasher;
@@ -178,7 +182,22 @@ namespace deployment {
 
     Recipe DeploymentManager::loadRecipeFile(const std::filesystem::path &recipeFile) {
         try {
+            // const std::make_shared<data::SharedStruct> target;
+            // std::make_shared<data::SharedStruct>(scope::context());
+            // readFromFileStruct(recipeFile, );
             return _recipeLoader.read(recipeFile);
+        } catch(std::exception &e) {
+            LOG.atWarn("deployment").kv("DeploymentType", "LOCAL").logAndThrow(e);
+        }
+    }
+
+    std::shared_ptr<data::SharedStruct> DeploymentManager::loadRecipeFileAsStruct(
+        const std::filesystem::path &recipeFile) {
+        try {
+            // const std::make_shared<data::SharedStruct> target;
+            // std::make_shared<data::SharedStruct>(scope::context());
+            // readFromFileStruct(recipeFile, );
+            return _recipeLoader.readAsStruct(recipeFile);
         } catch(std::exception &e) {
             LOG.atWarn("deployment").kv("DeploymentType", "LOCAL").logAndThrow(e);
         }
@@ -269,117 +288,124 @@ namespace deployment {
             std::pair(&lifecycle.run, "run"),
             std::pair(&lifecycle.startup, "startup"),
             std::pair(&lifecycle.shutdown, "shutdown") /*, "recover", "bootstrap" */};
-        for(auto &section : sections) {
-            if(section.first->has_value()) {
-                using namespace std::chrono_literals;
-                auto &step = section.first->value();
-                std::string stepName{section.second};
 
-                // execute each lifecycle phase
-                auto deploymentRequest = ggapi::Struct::create();
+        auto context = scope::context();
 
-                if(step.skipIf.has_value()) {
-                    auto skipIf = util::splitWith(step.skipIf.value(), ' ');
-                    if(!skipIf.empty()) {
-                        std::string cmd = util::lower(skipIf[0]);
-                        // skip the step if the executable exists on path
-                        if(cmd == on_path_prefix) {
-                            const auto &executable = skipIf[1];
-                            // TODO: This seems so odd here? - code does nothing
-                            auto envList = ggapi::List::create();
-                            envList.put(0, executable);
-                            auto request = ggapi::Struct::create();
-                            request.put("GetEnv", envList);
-                            // TODO: Skipif
-                        }
-                        // skip the step if the file exists
-                        else if(cmd == exists_prefix) {
-                            if(std::filesystem::exists(skipIf[1])) {
-                                return;
-                            }
-                        }
-                        // TODO: what if sub-command not recognized?
-                    }
-                }
+        data::Symbol topic{context->intern("componentType::aws.greengrass.generic")};
+        auto future = context->lpcTopics().callFirst(topic, _recipeAsStruct);
+        auto response = future->getValue();
 
-                auto pid = std::invoke([&]() -> ipc::ProcessId {
-                    // TODO: This needs a cleanup
+        // for(auto &section : sections) {
+        //     if(section.first->has_value()) {
+        //         using namespace std::chrono_literals;
+        //         auto &step = section.first->value();
+        //         std::string stepName{section.second};
 
-                    auto getSetEnv =
-                        [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
-                        Environment localEnv;
-                        if(lifecycle.envMap.has_value()) {
-                            localEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
-                        }
-                        // Append global entries where local entries do not exist
-                        localEnv.insert(globalEnv.begin(), globalEnv.end());
-                        return localEnv;
-                    };
+        //         // execute each lifecycle phase
+        //         auto deploymentRequest = ggapi::Struct::create();
 
-                    // script
-                    auto getScript = [&]() -> std::string {
-                        auto script = std::regex_replace(
-                            step.script,
-                            std::regex(R"(\{artifacts:path\})"),
-                            artifactPath.string());
+        //         if(step.skipIf.has_value()) {
+        //             auto skipIf = util::splitWith(step.skipIf.value(), ' ');
+        //             if(!skipIf.empty()) {
+        //                 std::string cmd = util::lower(skipIf[0]);
+        //                 // skip the step if the executable exists on path
+        //                 if(cmd == on_path_prefix) {
+        //                     const auto &executable = skipIf[1];
+        //                     // TODO: This seems so odd here? - code does nothing
+        //                     auto envList = ggapi::List::create();
+        //                     envList.put(0, executable);
+        //                     auto request = ggapi::Struct::create();
+        //                     request.put("GetEnv", envList);
+        //                     // TODO: Skipif
+        //                 }
+        //                 // skip the step if the file exists
+        //                 else if(cmd == exists_prefix) {
+        //                     if(std::filesystem::exists(skipIf[1])) {
+        //                         return;
+        //                     }
+        //                 }
+        //                 // TODO: what if sub-command not recognized?
+        //             }
+        //         }
 
-                        if(defaultConfig && !defaultConfig->empty()) {
-                            for(auto key : defaultConfig->getKeys()) {
-                                auto value = defaultConfig->get(key);
-                                if(value.isScalar()) {
-                                    script = std::regex_replace(
-                                        script,
-                                        std::regex(R"(\{configuration:\/)" + key + R"(\})"),
-                                        value.getString());
-                                }
-                            }
-                        }
+        //         auto pid = std::invoke([&]() -> ipc::ProcessId {
+        //             // TODO: This needs a cleanup
 
-                        return script;
-                    };
+        //             auto getSetEnv =
+        //                 [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
+        //                 Environment localEnv;
+        //                 if(lifecycle.envMap.has_value()) {
+        //                     localEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
+        //                 }
+        //                 // Append global entries where local entries do not exist
+        //                 localEnv.insert(globalEnv.begin(), globalEnv.end());
+        //                 return localEnv;
+        //             };
 
-                    bool requirePrivilege = false;
-                    // TODO: get default per step (each step has a different default timeout)
-                    // https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html
-                    static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
-                    std::chrono::seconds timeout = DEFAULT_TIMEOUT;
+        //             // script
+        //             auto getScript = [&]() -> std::string {
+        //                 auto script = std::regex_replace(
+        //                     step.script,
+        //                     std::regex(R"(\{artifacts:path\})"),
+        //                     artifactPath.string());
 
-                    // privilege
-                    if(step.requiresPrivilege.has_value() && step.requiresPrivilege.value()) {
-                        requirePrivilege = true;
-                        deploymentRequest.put("RequiresPrivilege", requirePrivilege);
-                    }
+        //                 if(defaultConfig && !defaultConfig->empty()) {
+        //                     for(auto key : defaultConfig->getKeys()) {
+        //                         auto value = defaultConfig->get(key);
+        //                         if(value.isScalar()) {
+        //                             script = std::regex_replace(
+        //                                 script,
+        //                                 std::regex(R"(\{configuration:\/)" + key + R"(\})"),
+        //                                 value.getString());
+        //                         }
+        //                     }
+        //                 }
 
-                    // timeout
-                    if(step.timeout.has_value()) {
-                        deploymentRequest.put("Timeout", step.timeout.value());
-                        timeout = std::chrono::seconds{step.timeout.value()};
-                    }
+        //                 return script;
+        //             };
 
-                    return _kernel.startProcess(
-                        getScript(),
-                        timeout,
-                        requirePrivilege,
-                        getSetEnv(),
-                        currentRecipe.componentName);
-                });
+        // bool requirePrivilege = false;
+        // TODO: get default per step (each step has a different default timeout)
+        // https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html
+        // static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
+        // std::chrono::seconds timeout = DEFAULT_TIMEOUT;
 
-                if(pid) {
-                    LOG.atInfo("deployment")
-                        .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
-                        .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
-                        .kv("DeploymentType", "LOCAL")
-                        .log("Executed " + stepName + " step of the lifecycle");
-                } else {
-                    LOG.atError("deployment")
-                        .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
-                        .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
-                        .kv("DeploymentType", "LOCAL")
-                        .log("Failed to execute " + stepName + " step of the lifecycle");
-                    return; // if any of the lifecycle step fails, stop the deployment
-                }
-            }
-        }
+        //             // privilege
+        //             if(step.requiresPrivilege.has_value() && step.requiresPrivilege.value()) {
+        //                 requirePrivilege = true;
+        //                 deploymentRequest.put("RequiresPrivilege", requirePrivilege);
+        //             }
+
+        //             // timeout
+        //             if(step.timeout.has_value()) {
+        //                 deploymentRequest.put("Timeout", step.timeout.value());
+        //                 timeout = std::chrono::seconds{step.timeout.value()};
+        //             }
+
+        //             return _kernel.startProcess(
+        //                 getScript(),
+        //                 timeout,
+        //                 requirePrivilege,
+        //                 getSetEnv(),
+        //                 currentRecipe.componentName);
+        //         });
+
+        //         if(pid) {
+        //             LOG.atInfo("deployment")
+        //                 .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+        //                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+        //                 .kv("DeploymentType", "LOCAL")
+        //                 .log("Executed " + stepName + " step of the lifecycle");
+        //         } else {
+        //             LOG.atError("deployment")
+        //                 .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
+        //                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+        //                 .kv("DeploymentType", "LOCAL")
+        //                 .log("Failed to execute " + stepName + " step of the lifecycle");
+        //             return; // if any of the lifecycle step fails, stop the deployment
+        //         }
+        //     }
+        // }
 
         // gets here only if all lifecycle steps are executed successfully
         LOG.atInfo("deployment")

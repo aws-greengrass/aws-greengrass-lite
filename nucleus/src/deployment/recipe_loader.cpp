@@ -1,4 +1,7 @@
 #include "recipe_loader.hpp"
+#include "scope/context_full.hpp"
+#include <data/generic_serializer.hpp>
+#include <memory>
 
 namespace deployment {
 
@@ -8,6 +11,12 @@ namespace deployment {
         data::archive::readFromFile(file, recipe);
 
         // TODO: dependency resolution
+        return recipe;
+    }
+
+    std::shared_ptr<data::SharedStruct> RecipeLoader::readAsStruct(const std::filesystem::path &file) {
+        auto recipe = std::make_shared<data::SharedStruct>(scope::context());
+        data::ArchiveExtend::readFromFileStruct(file, recipe);
         return recipe;
     }
 } // namespace deployment
