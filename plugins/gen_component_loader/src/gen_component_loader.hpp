@@ -4,14 +4,11 @@
 class GenComponentLoader : public ggapi::Plugin {
 private:
     
-    ggapi::ModuleScope registerGenComponent(ggapi::Symbol, const ggapi::Container &callData);
-
-    ggapi::Subscription _fetchTesFromCloudSubs;
+    ggapi::ObjHandle registerGenComponent(ggapi::Symbol, const ggapi::Container &callData);
+    ggapi::Subscription _delegateComponentSubscription;
 
 public:
     bool onInitialize(ggapi::Struct data) override;
-
-    bool onStart(ggapi::Struct data) override;
 
     static GenComponentLoader &get() {
         static GenComponentLoader instance{};

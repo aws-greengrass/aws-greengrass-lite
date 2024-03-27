@@ -291,9 +291,27 @@ namespace deployment {
 
         auto context = scope::context();
 
+        auto data_pack = std::make_shared<data::SharedStruct>(context);
+        data_pack->put("recipe", _recipeAsStruct);
+        data_pack->put("componentName", "TestComponent");
+
+        auto install = _recipeAsStruct->get("ComponentPublisher");
+
         data::Symbol topic{context->intern("componentType::aws.greengrass.generic")};
-        auto future = context->lpcTopics().callFirst(topic, _recipeAsStruct);
-        auto response = future->getValue();
+        auto future = context->lpcTopics().callFirst(topic, data_pack);
+
+        auto response = future->waitUntil(tasks::ExpireTime::infinite());
+        if(response) {
+            auto responeContainer = future->getValue();
+            auto responseStruct =
+                std::dynamic_pointer_cast<data::StructModelBase>(responeContainer);
+            auto newComponent =
+                responseStruct->get("moduleHandle").castObject<plugins::AbstractPlugin>();
+            newComponent->initialize(context->pluginLoader());
+            newComponent->invoke([&](plugins::AbstractPlugin &newComponent, auto &data) {
+                newComponent.lifecycle(context->pluginLoader().INITIALIZE, data);
+            });
+        }
 
         // for(auto &section : sections) {
         //     if(section.first->has_value()) {
