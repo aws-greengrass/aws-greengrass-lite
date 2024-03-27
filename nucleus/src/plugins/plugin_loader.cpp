@@ -1,4 +1,5 @@
 #include "plugin_loader.hpp"
+#include "data/shared_list.hpp"
 #include "deployment/device_configuration.hpp"
 #include "deployment/model/dependency_order.hpp"
 #include "deployment/recipe_loader.hpp"

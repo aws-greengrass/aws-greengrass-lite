@@ -138,6 +138,8 @@ IMPEXP bool ggapiStructPutSymbol(uint32_t listHandle, uint32_t symInt, uint32_t 
 IMPEXP bool ggapiStructPutHandle(
     uint32_t structHandle, uint32_t symInt, uint32_t nestedHandle) NOEXCEPT;
 IMPEXP bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiStructFoldKey(ggapiObjHandle structHandle, ggapiSymbol key, ggapiSymbol *retKey) NOEXCEPT;
 IMPEXP uint32_t ggapiStructKeys(uint32_t structHandle) NOEXCEPT;
 IMPEXP bool ggapiStructGetBool(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
 IMPEXP uint64_t ggapiStructGetInt64(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
@@ -146,7 +148,10 @@ IMPEXP size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t keyInt) NO
 IMPEXP size_t
 ggapiStructGetString(uint32_t structHandle, uint32_t symInt, char *buffer, size_t buflen) NOEXCEPT;
 IMPEXP uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
-IMPEXP uint32_t ggapiStructClone(uint32_t structHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiCloneContainer(ggapiObjHandle objHandle, ggapiObjHandle *retObject) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiStructCreateForChild(ggapiObjHandle objHandle, ggapiObjHandle *retObject) NOEXCEPT;
 IMPEXP bool ggapiListPutBool(uint32_t listHandle, int32_t idx, bool value) NOEXCEPT;
 IMPEXP bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) NOEXCEPT;
 IMPEXP bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) NOEXCEPT;
