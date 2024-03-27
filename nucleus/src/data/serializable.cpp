@@ -6,216 +6,150 @@
 
 namespace data {
 
-    void AbstractArchiver::visit(data::Archive &other) {
-        if(canVisit() && other->canVisit()) {
-            ValueType v;
-            other.visit(v);
-            visit(v);
-        }
-
-        auto keySet = other.keys();
-        for(auto &k : keySet) {
-            auto me = key(k);
-            auto otherKey = other.key(k);
-            me->visit(otherKey);
-        }
+    ArchiveTraits::SymbolType ArchiveTraits::toSymbol(const ArchiveTraits::ReadType &rv) {
+        return scope::context()->intern(toString(rv));
     }
 
-    /**
-     * Recursive visitor
-     */
-    void AbstractDearchiver::visit(data::Archive &other) {
-        if(isList() || other->isList()) {
-            // List visitor case
-            auto me = list();
-            auto otherList = other->list();
-            while(me->canVisit() && otherList->canVisit()) {
-                ValueType v;
-                me->visit(v); // retrieve value
-                otherList->visit(v); // write value
-                me->advance();
-                otherList->advance();
-            }
-        } else if(canVisit() && other->canVisit()) {
-            // Scalar visitor case
-            ValueType v;
-            visit(v); // retrieve value
-            other.visit(v); // write value
-        }
-
-        // Subkeys
-        auto keySet = keys();
-        for(auto &k : keySet) {
-            auto me = key(k);
-            auto otherKey = other.key(k);
-            me->visit(otherKey);
-        }
+    ArchiveTraits::ValueType ArchiveTraits::toValue(const ArchiveTraits::ReadType &rv) {
+        return rv.get();
     }
 
-    std::shared_ptr<ArchiveAdapter> ArchiveAdapter::key(const data::Symbol &symbol) {
-        throw std::runtime_error("Not a structure");
+    double ArchiveTraits::toDouble(const ArchiveTraits::ReadType &rv) {
+        return rv.getDouble();
     }
 
-    std::shared_ptr<ArchiveAdapter> ArchiveAdapter::list() {
-        throw std::runtime_error("Not a list");
+    uint64_t ArchiveTraits::toInt64(const ArchiveTraits::ReadType &rv) {
+        return rv.getInt();
     }
 
-    void AbstractDearchiver::visit(data::Symbol &symbol) {
-        std::string str;
-        visit(str);
-        symbol = scope::context()->intern(str);
+    std::string ArchiveTraits::toString(const ArchiveTraits::ReadType &rv) {
+        return rv.getString();
     }
 
-    std::vector<Symbol> ArchiveAdapter::keys() const {
-        return {};
+    bool ArchiveTraits::toBool(const ArchiveTraits::ReadType &rv) {
+        return rv.getBool();
     }
-    void AbstractDearchiver::visit(ValueType &vt) {
-        vt = read().get();
+
+    bool ArchiveTraits::hasValue(const ArchiveTraits::ReadType &rv) {
+        return !rv.isNull();
     }
-    void AbstractDearchiver::visit(bool &b) {
-        b = read().getBool();
+
+    bool ArchiveTraits::isList(const ArchiveTraits::ReadType &rv) {
+        return rv.isList();
     }
-    void AbstractDearchiver::visit(int32_t &i) {
-        i = static_cast<int32_t>(read().getInt());
-    }
-    void AbstractDearchiver::visit(uint32_t &i) {
-        i = static_cast<uint32_t>(read().getInt());
-    }
-    void AbstractDearchiver::visit(int64_t &i) {
-        i = static_cast<int64_t>(read().getInt());
-    }
-    void AbstractDearchiver::visit(uint64_t &i) {
-        i = static_cast<uint64_t>(read().getInt());
-    }
-    void AbstractDearchiver::visit(float &f) {
-        f = static_cast<float>(read().getDouble());
-    }
-    void AbstractDearchiver::visit(double &d) {
-        d = read().getDouble();
-    }
-    void AbstractDearchiver::visit(std::string &str) {
-        str = read().getString();
-    }
-    std::shared_ptr<ArchiveAdapter> AbstractDearchiver::key(const Symbol &symbol) {
-        auto el = read();
-        if(el.isStruct()) {
-            auto refStruct = el.getStruct();
+
+    std::shared_ptr<ArchiveAdapter> ArchiveTraits::toKey(
+        const ArchiveTraits::ReadType &rv, const ArchiveTraits::KeyType &symbol, bool ignoreCase) {
+        if(rv.isStruct()) {
+            auto refStruct = rv.getStruct();
             return std::make_shared<ElementDearchiver>(
-                refStruct->get(refStruct->foldKey(symbol, isIgnoreCase())));
-        } else if(!el.isNull()) {
-            return ArchiveAdapter::key(symbol);
+                refStruct->get(refStruct->foldKey(symbol, ignoreCase)));
+        } else if(!rv.isNull()) {
+            throw std::runtime_error("Not a Struct container");
         } else {
-            return std::make_shared<NullArchiveEntry>();
+            return util::NullArchiveEntry<ArchiveTraits>::getNull();
         }
     }
-    std::vector<Symbol> AbstractDearchiver::keys() const {
-        auto el = read();
-        if(el.isStruct()) {
-            return el.getStruct()->getKeys();
+
+    std::vector<ArchiveTraits::KeyType> ArchiveTraits::toKeys(const ArchiveTraits::ReadType &rv) {
+        if(rv.isStruct()) {
+            return rv.getStruct()->getKeys();
         } else {
             return {};
         }
     }
-    std::shared_ptr<ArchiveAdapter> AbstractDearchiver::list() {
-        auto el = read();
-        if(el.isList()) {
-            return std::make_shared<ListDearchiver>(el.castObject<ListModelBase>());
-        } else if(!el.isNull()) {
-            return ArchiveAdapter::list();
+
+    std::shared_ptr<ArchiveAdapter> ArchiveTraits::toList(const ArchiveTraits::ReadType &rv) {
+        if(rv.isList()) {
+            return std::make_shared<ListDearchiver>(rv.castObject<ListModelBase>());
+        } else if(!rv.isNull()) {
+            throw std::runtime_error("Not a List container");
         } else {
-            return std::make_shared<NullArchiveEntry>();
-        }
-    }
-    bool AbstractDearchiver::canVisit() const {
-        return true;
-    }
-    bool AbstractDearchiver::hasValue() const {
-        return !read().isNull();
-    }
-    bool AbstractDearchiver::isList() const noexcept {
-        return read().isList();
-    }
-
-    void Archive::readFromStruct(
-        const std::shared_ptr<ContainerModelBase> &data, Serializable &target) {
-
-        if(!data) {
-            throw std::runtime_error("Structure/container is empty");
-        }
-
-        Archive archive(std::make_shared<ElementDearchiver>(data));
-        target.visit(archive);
-    }
-
-    void Archive::writeToStruct(
-        const std::shared_ptr<StructModelBase> &data, Serializable &target) {
-
-        if(!data) {
-            throw std::runtime_error("Structure is empty");
-        }
-
-        Archive archive(std::make_shared<StructArchiver>(data));
-        target.visit(archive);
-    }
-
-    void Archive::readFromFile(const std::filesystem::path &file, Serializable &target) {
-        std::string ext = util::lower(file.extension().generic_string());
-        if(ext == ".yaml" || ext == ".yml") {
-            readFromYamlFile(file, target);
-        } else if(ext == ".json") {
-            readFromJsonFile(file, target);
-        } else {
-            throw std::runtime_error("Unsupported file type");
+            return util::NullArchiveEntry<ArchiveTraits>::getNull();
         }
     }
 
-    void Archive::readFromYamlFile(const std::filesystem::path &file, Serializable &target) {
-        // TODO: Currently converts to struct first then deserialize, this can be made more
-        // efficient, but let's get consistent first by creating a Yaml Dearchiver
-        auto intermediate = std::make_shared<data::SharedStruct>(scope::context());
-        conv::YamlReader reader(scope::context(), intermediate);
-        reader.read(file);
-        readFromStruct(intermediate, target);
-    }
+    namespace archive {
+        void readFromStruct(const std::shared_ptr<ContainerModelBase> &data, Serializable &target) {
 
-    void Archive::readFromJsonFile(const std::filesystem::path &file, Serializable &target) {
-        // TODO: Currently converts to struct first then deserialize, this can be made more
-        // efficient, but let's get consistent first
-        std::ifstream stream;
-        stream.open(file, std::ios_base::in);
-        if(!stream) {
-            throw std::runtime_error("Unable to read from " + file.generic_string());
+            if(!data) {
+                throw std::runtime_error("Structure/container is empty");
+            }
+
+            Archive archive(std::make_shared<ElementDearchiver>(data));
+            target.visit(archive);
         }
-        auto intermediate = std::make_shared<data::SharedStruct>(scope::context());
-        conv::JsonReader reader(scope::context());
-        data::StructElement value;
-        reader.push(std::make_unique<conv::JsonElementResponder>(reader, value));
-        rapidjson::ParseResult result = reader.read(stream);
-        stream.close();
-        if(!result) {
-            throw errors::JsonParseError();
+
+        void writeToStruct(const std::shared_ptr<StructModelBase> &data, Serializable &target) {
+
+            if(!data) {
+                throw std::runtime_error("Structure is empty");
+            }
+
+            Archive archive(std::make_shared<StructArchiver>(data));
+            target.visit(archive);
         }
-        Archive archive(std::make_shared<ElementDearchiver>(value));
-        target.visit(archive);
-    }
 
-    void Archive::writeToFile(const std::filesystem::path &file, Serializable &target) {
-        std::string ext = util::lower(file.extension().generic_string());
-        if(ext == ".yaml" || ext == ".yml") {
-            writeToYamlFile(file, target);
-        } else if(ext == ".json") {
-            writeToJsonFile(file, target);
-        } else {
-            throw std::runtime_error("Unsupported file type");
+        void readFromFile(const std::filesystem::path &file, Serializable &target) {
+            std::string ext = util::lower(file.extension().generic_string());
+            if(ext == ".yaml" || ext == ".yml") {
+                readFromYamlFile(file, target);
+            } else if(ext == ".json") {
+                readFromJsonFile(file, target);
+            } else {
+                throw std::runtime_error("Unsupported file type");
+            }
         }
-    }
 
-    void Archive::writeToJsonFile(const std::filesystem::path &, Serializable &) {
-        throw std::runtime_error("Not yet implemented");
-    }
+        void readFromYamlFile(const std::filesystem::path &file, Serializable &target) {
+            // TODO: Currently converts to struct first then deserialize, this can be made more
+            // efficient, but let's get consistent first by creating a Yaml Dearchiver
+            auto intermediate = std::make_shared<data::SharedStruct>(scope::context());
+            conv::YamlReader reader(scope::context(), intermediate);
+            reader.read(file);
+            readFromStruct(intermediate, target);
+        }
 
-    void Archive::writeToYamlFile(const std::filesystem::path &, Serializable &) {
-        throw std::runtime_error("Not yet implemented");
-    }
+        void readFromJsonFile(const std::filesystem::path &file, Serializable &target) {
+            // TODO: Currently converts to struct first then deserialize, this can be made more
+            // efficient, but let's get consistent first
+            std::ifstream stream;
+            stream.open(file, std::ios_base::in);
+            if(!stream) {
+                throw std::runtime_error("Unable to read from " + file.generic_string());
+            }
+            auto intermediate = std::make_shared<data::SharedStruct>(scope::context());
+            conv::JsonReader reader(scope::context());
+            data::StructElement value;
+            reader.push(std::make_unique<conv::JsonElementResponder>(reader, value));
+            rapidjson::ParseResult result = reader.read(stream);
+            stream.close();
+            if(!result) {
+                throw errors::JsonParseError();
+            }
+            Archive archive(std::make_shared<ElementDearchiver>(value));
+            target.visit(archive);
+        }
+
+        void writeToFile(const std::filesystem::path &file, Serializable &target) {
+            std::string ext = util::lower(file.extension().generic_string());
+            if(ext == ".yaml" || ext == ".yml") {
+                writeToYamlFile(file, target);
+            } else if(ext == ".json") {
+                writeToJsonFile(file, target);
+            } else {
+                throw std::runtime_error("Unsupported file type");
+            }
+        }
+
+        void writeToJsonFile(const std::filesystem::path &, Serializable &) {
+            throw std::runtime_error("Not yet implemented");
+        }
+
+        void writeToYamlFile(const std::filesystem::path &, Serializable &) {
+            throw std::runtime_error("Not yet implemented");
+        }
+
+    } // namespace archive
 
 } // namespace data

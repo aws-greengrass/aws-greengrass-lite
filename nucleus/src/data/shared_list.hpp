@@ -31,9 +31,9 @@ namespace data {
         StructElement get(int idx) const override;
         std::shared_ptr<ListModelBase> copy() const override;
     };
+    template<>
+    ListModelBase *ArchiveTraits::initSharedPtr(std::shared_ptr<ListModelBase> &ptr);
+    template<>
+    SharedList *ArchiveTraits::initSharedPtr(std::shared_ptr<SharedList> &ptr);
 
-    template<>
-    ListModelBase *Archive::initSharedPtr(std::shared_ptr<ListModelBase> &ptr);
-    template<>
-    SharedList *Archive::initSharedPtr(std::shared_ptr<SharedList> &ptr);
 } // namespace data

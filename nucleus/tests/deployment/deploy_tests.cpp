@@ -12,7 +12,7 @@ SCENARIO("Json Reader", "[deployment]") {
         auto samples = test::samples();
         deployment::DeploymentDocument document;
         WHEN("Reading a sample document") {
-            data::Archive::readFromJsonFile(samples / "basic_document.json", document);
+            data::archive::readFromJsonFile(samples / "basic_document.json", document);
             THEN("Document was read correctly") {
                 REQUIRE_THAT(document.deploymentId, Equals("cf295b56-9c4c-4fd3-a36b-0bf76e5d7e7c"));
                 REQUIRE(document.timestamp == 1708496331538);

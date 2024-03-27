@@ -7,10 +7,12 @@ include(../common.cmake)
 add_library(
   gg_plugin_api_min
   INTERFACE
+  include/api_archive.hpp
   include/api_callbacks.hpp
   include/api_errors.hpp
   include/api_forwards.hpp
   include/api_logging.hpp
+  include/archive.hpp
   include/atomic_shared.hpp
   include/buffer_stream.hpp
   include/c_api.h

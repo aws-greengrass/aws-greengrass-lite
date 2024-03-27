@@ -87,6 +87,8 @@ add_library(
   src/deployment/model/dependency_order.hpp
   src/deployment/model/deployment_queue.cpp
   src/deployment/model/deployment_queue.hpp
+  src/deployment/task/default_deployment_task.cpp
+  src/deployment/task/default_deployment_task.hpp
   src/deployment/model/linked_map.hpp
   src/deployment/recipe_model.hpp
   src/deployment/recipe_loader.hpp
@@ -142,7 +144,13 @@ add_library(
   src/util/nucleus_paths.cpp
   src/util/nucleus_paths.hpp
   src/util/permissions.cpp
-  src/util/permissions.hpp)
+  src/util/permissions.hpp
+  src/deployment/task/task_handlers/prepare_artifacts_handler.hpp
+  src/deployment/task/task_handlers/resolve_config_handler.hpp
+  src/deployment/task/task_handlers/merge_config_handler.hpp
+  src/deployment/task/task_handlers/track_service_status_handler.hpp
+  src/deployment/task/task_handlers/task_handler.hpp
+  src/deployment/task/task_handlers/validate_deployment_handler.hpp)
 
 if(LINUX)
   target_sources(
@@ -208,6 +216,7 @@ if(BUILD_TESTING)
 
   add_executable(
     nucleus-tests
+    tests/api/archive_tests.cpp
     tests/api/buffer_tests.cpp
     tests/api/callback_tests.cpp
     tests/api/enum_tests.cpp
@@ -221,12 +230,14 @@ if(BUILD_TESTING)
     tests/api/task_tests.cpp
     tests/data/handle_tests.cpp
     tests/data/obfuscator_test.cpp
+    tests/data/struct_tests.cpp
     tests/data/symbol_tests.cpp
     tests/deployment/deploy_tests.cpp
     tests/deployment/model/dependency_order_test.cpp
     tests/deployment/model/deployment_queue_test.cpp
     tests/deployment/model/linked_map_test.cpp
     tests/deployment/recipe_tests.cpp
+    tests/deployment/tasks/deployment_task_handler_test.cpp
     tests/errors/errors_test.cpp
     tests/lifecycle/kernel_tests.cpp
     tests/lifecycle/lifecycle_tests.cpp
