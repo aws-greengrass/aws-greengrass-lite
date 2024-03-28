@@ -18,6 +18,8 @@ add_library(cli_server MODULE src/cli_server.cpp src/cli_server.hpp
 
 target_link_libraries(cli_server PRIVATE gg_plugin_api)
 
+configureRPATH(cli_server)
+
 set_version_script(cli_server "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS cli_server DESTINATION plugins)

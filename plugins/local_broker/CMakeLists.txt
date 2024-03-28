@@ -18,6 +18,8 @@ add_library(local_broker MODULE src/main.cpp)
 
 target_link_libraries(local_broker PRIVATE gg_plugin_api shared_resources)
 
+configureRPATH(local_broker)
+
 set_version_script(local_broker "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS local_broker DESTINATION plugins)
