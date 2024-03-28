@@ -144,7 +144,6 @@ add_library(
   src/util/permissions.cpp
   src/util/permissions.hpp
         src/config/update_behavior_tree.hpp
-        src/config/update_behavior_tree.cpp
 )
 
 if(LINUX)
