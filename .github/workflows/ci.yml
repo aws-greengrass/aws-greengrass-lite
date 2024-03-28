@@ -20,19 +20,13 @@ jobs:
       matrix:
         include:
           - name: Linux GCC
-            os: ubuntu-latest
             package: default
           - name: Linux LLVM
-            os: ubuntu-latest
             package: gglite-clang
-          - name: MacOS
-            os: macos-14
-            package: default
           - name: sample component
-            os: ubuntu-latest
             package: sample-component
     name: Build ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -43,6 +37,21 @@ jobs:
 
       - name: Build
         run: nix build -L --log-lines 0 .#${{ matrix.package }}
+
+  build-mac:
+    timeout-minutes: 100
+    name: Build MacOS
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: "tree:0"
+      - uses: cachix/install-nix-action@master
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Build
+        run: nix build -L --log-lines 0
 
   build-windows:
     name: Build Windows MinGW
