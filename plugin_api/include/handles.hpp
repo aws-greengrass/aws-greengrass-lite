@@ -77,6 +77,10 @@ namespace ggapi {
                 callApiThrowError(::ggapiGetSymbolString, _asInt, buf, bufLen, fillLen, reqLen);
             });
         }
+
+        [[nodiscard]] explicit operator std::string() const {
+            return toString();
+        }
     };
 
     /**
@@ -154,6 +158,10 @@ namespace ggapi {
         }
 
     public:
+        [[nodiscard]] static bool isA(const ObjHandle &obj) {
+            return true;
+        }
+
         constexpr ObjHandle() noexcept = default;
         ObjHandle(const ObjHandle &) noexcept = default;
         ObjHandle(ObjHandle &&) noexcept = default;

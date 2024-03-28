@@ -63,7 +63,7 @@ The `plugin_api` directory has the interface plugins should build against.
 
 Building Nucleus and the included plugins was tested with:
 
-- CMake: 3.22
+- CMake: 3.25
 - make: 4.2.1
 - GCC: 9.4.0
 

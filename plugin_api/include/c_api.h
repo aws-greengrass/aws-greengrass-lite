@@ -10,17 +10,18 @@
 #define NOEXCEPT
 #endif
 
+#pragma push_macro("IMPEXP")
+#define IMPORT_NUCLEUS_DECL
 #if defined(_WIN32)
-#define IMPORT __declspec(dllimport)
-#define EXPORT __declspec(dllexport)
+#define EXPORT_NUCLEUS_DECL __declspec(dllexport)
 #else
-#define IMPORT
-#define EXPORT __attribute__((visibility("default")))
+#define EXPORT_NUCLEUS_DECL __attribute__((visibility("default")))
 #endif
-#if defined(EXPORT_API)
-#define IMPEXP EXPORT
+// TODO: replace IMPEXP?
+#if defined(EXPORT_NUCLEUS_API)
+#define IMPEXP EXPORT_NUCLEUS_DECL
 #else
-#define IMPEXP IMPORT
+#define IMPEXP IMPORT_NUCLEUS_DECL
 #endif
 
 typedef uint32_t ggapiErrorKind; // Symbol representing kind of error, 0 = success
@@ -84,7 +85,7 @@ typedef ggapiErrorKind GgapiLifecycleFn(
     ggapiObjHandle data,
     bool *pWasHandled) NOEXCEPT;
 
-[[maybe_unused]] EXPORT GgapiLifecycleFn greengrass_lifecycle;
+[[maybe_unused]] EXPORT_NUCLEUS_DECL GgapiLifecycleFn greengrass_lifecycle;
 
 IMPEXP ggapiErrorKind
 ggapiSetError(ggapiErrorKind kind, ggapiCountedString what, ggapiDataLen len) NOEXCEPT;
@@ -138,6 +139,8 @@ IMPEXP bool ggapiStructPutSymbol(uint32_t listHandle, uint32_t symInt, uint32_t 
 IMPEXP bool ggapiStructPutHandle(
     uint32_t structHandle, uint32_t symInt, uint32_t nestedHandle) NOEXCEPT;
 IMPEXP bool ggapiStructHasKey(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiStructFoldKey(ggapiObjHandle structHandle, ggapiSymbol key, ggapiSymbol *retKey) NOEXCEPT;
 IMPEXP uint32_t ggapiStructKeys(uint32_t structHandle) NOEXCEPT;
 IMPEXP bool ggapiStructGetBool(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
 IMPEXP uint64_t ggapiStructGetInt64(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
@@ -146,7 +149,10 @@ IMPEXP size_t ggapiStructGetStringLen(uint32_t structHandle, uint32_t keyInt) NO
 IMPEXP size_t
 ggapiStructGetString(uint32_t structHandle, uint32_t symInt, char *buffer, size_t buflen) NOEXCEPT;
 IMPEXP uint32_t ggapiStructGetHandle(uint32_t structHandle, uint32_t keyInt) NOEXCEPT;
-IMPEXP uint32_t ggapiStructClone(uint32_t structHandle) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiCloneContainer(ggapiObjHandle objHandle, ggapiObjHandle *retObject) NOEXCEPT;
+IMPEXP ggapiErrorKind
+ggapiStructCreateForChild(ggapiObjHandle objHandle, ggapiObjHandle *retObject) NOEXCEPT;
 IMPEXP bool ggapiListPutBool(uint32_t listHandle, int32_t idx, bool value) NOEXCEPT;
 IMPEXP bool ggapiListPutInt64(uint32_t listHandle, int32_t idx, uint64_t value) NOEXCEPT;
 IMPEXP bool ggapiListPutFloat64(uint32_t listHandle, int32_t idx, double value) NOEXCEPT;
@@ -227,4 +233,5 @@ IMPEXP uint32_t ggapiGetLogLevel(uint64_t *counter, uint32_t cachedLevel) NOEXCE
 IMPEXP bool ggapiSetLogLevel(uint32_t level) NOEXCEPT;
 IMPEXP bool ggapiLogEvent(uint32_t dataHandle) NOEXCEPT;
 
+#pragma pop_macro("IMPEXP")
 #endif // GG_PLUGIN_API

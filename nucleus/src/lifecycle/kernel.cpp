@@ -414,6 +414,13 @@ namespace lifecycle {
         return context()->configManager();
     }
 
+    std::vector<std::string> Kernel::getSupportedCapabilities() const {
+        // TODO: This should be coming from GG SDK.
+        std::vector<std::string> v;
+        return std::vector<std::string>{"LARGE_CONFIGURATION", "LINUX_RESOURCE_LIMITS", "SUB_DEPLOYMENTS"};
+    }
+
+
     ipc::ProcessId Kernel::startProcess(
         std::string script,
         std::chrono::seconds timeout,
@@ -518,7 +525,8 @@ namespace lifecycle {
                     if(onComplete) {
                         (*onComplete)(returnCode == 0);
                     }
-                });
+                })
+                .withTimeout(timeout);
 
         if(!requiresPrivilege) {
             auto [user, group] =

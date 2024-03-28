@@ -255,7 +255,7 @@ namespace deployment {
         }
 
         LifecycleSection lifecycle;
-        data::Archive::readFromStruct(it->lifecycle, lifecycle);
+        data::archive::readFromStruct(it->lifecycle, lifecycle);
 
         // set global env
         Environment globalEnv;
@@ -339,7 +339,8 @@ namespace deployment {
                     };
 
                     bool requirePrivilege = false;
-                    // TODO: default should be *no* timeout
+                    // TODO: get default per step (each step has a different default timeout)
+                    // https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html
                     static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
                     std::chrono::seconds timeout = DEFAULT_TIMEOUT;
 
@@ -406,7 +407,7 @@ namespace deployment {
             auto deploymentDocument = scope::context()->objFromInt<data::StructModelBase>(
                 deploymentDocumentStruct.getHandleId());
 
-            data::Archive::readFromStruct(deploymentDocument, deployment.deploymentDocumentObj);
+            data::archive::readFromStruct(deploymentDocument, deployment.deploymentDocumentObj);
 
             deployment.id = deploymentStruct.get<std::string>("id");
             deployment.isCancelled = deploymentStruct.get<bool>("isCancelled");

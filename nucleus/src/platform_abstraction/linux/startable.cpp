@@ -59,8 +59,9 @@ namespace ipc {
                 // child process may be using select, which requires fds <= 1024
                 resetFdLimit();
 
-                // create a session so all decendants are reaped when SIGKILL/SIGTERM is received
-                std::ignore = setsid();
+                // set pgid to current child pid so all decendants are reaped when SIGKILL/SIGTERM is received
+                //std::ignore = setsid();
+                setpgid(0, 0);
 
                 // close stdin
                 FileDescriptor{STDIN_FILENO}.close();
@@ -103,11 +104,13 @@ namespace ipc {
 
                 auto process = std::make_unique<Process>();
                 process->setPidFd(std::move(pidfd))
+                    .setPid(pid)
                     .setOut(std::move(outPipe.output()))
                     .setErr(std::move(errPipe.output()))
                     .setCompletionHandler(_completeHandler.value_or([](auto &&...) {}))
                     .setErrHandler(_errHandler.value_or([](auto &&...) {}))
-                    .setOutHandler(_outHandler.value_or([](auto &&...) {}));
+                    .setOutHandler(_outHandler.value_or([](auto &&...) {}))
+                    .setTimeout(_timeout.value_or(std::chrono::steady_clock::time_point::min()));
                 return process;
             }
         }
