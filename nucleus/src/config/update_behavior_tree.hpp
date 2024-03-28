@@ -24,17 +24,19 @@ namespace config {
 
         static constexpr const std::string_view WILDCARD = "*";
 
-    protected:
-        const Timestamp timestamp;
+    private:
         scope::SharedContextMapper _symbolMapper;
+
+    protected:
+        std::shared_ptr<scope::Context> context;
+        const Timestamp timestamp;
         using TreeMap = data::SymbolValueMap<std::shared_ptr<UpdateBehaviorTree>>;
         std::shared_ptr<TreeMap> childOverride;
-        std::shared_ptr<scope::Context> context = scope::context();
 
         UpdateBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp,
                            const std::shared_ptr<TreeMap> &childOverride) :
-              scope::UsesContext(context), timestamp(timestamp), _symbolMapper(context),
-              childOverride(childOverride) {}
+              scope::UsesContext(context), _symbolMapper(context), context(context),
+              timestamp(timestamp), childOverride(childOverride) {}
 
         virtual std::shared_ptr<UpdateBehaviorTree> getDefaultChildBehavior() = 0;
     };
@@ -65,12 +67,14 @@ namespace config {
         class PrunedMergeBehaviorTree : public UpdateBehaviorTree,
                                         std::enable_shared_from_this<PrunedMergeBehaviorTree> {
         private:
+            scope::SharedContextMapper _symbolMapper;
             const std::shared_ptr<TreeMap> defaultChildBehavior =
                 std::make_shared<TreeMap>(_symbolMapper);
 
         public:
             PrunedMergeBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp)
-                : UpdateBehaviorTree(context, timestamp, defaultChildBehavior) {}
+                : UpdateBehaviorTree(context, timestamp, defaultChildBehavior),
+                  _symbolMapper(context) {}
 
             std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
                 return shared_from_this();
@@ -108,12 +112,14 @@ namespace config {
         class PrunedReplaceBehaviorTree : public UpdateBehaviorTree,
                                           std::enable_shared_from_this<PrunedReplaceBehaviorTree> {
         private:
+            scope::SharedContextMapper _symbolMapper;
             const std::shared_ptr<TreeMap> defaultChildBehavior =
                 std::make_shared<TreeMap>(_symbolMapper);
 
         public:
             PrunedReplaceBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp)
-                : UpdateBehaviorTree(context, timestamp, defaultChildBehavior) {}
+                : UpdateBehaviorTree(context, timestamp, defaultChildBehavior),
+                  _symbolMapper(context){}
 
             std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
                 return shared_from_this();
