@@ -189,7 +189,9 @@ namespace plugins {
             }
         }
         
-        // Load found Native plugins if also in recipes map pass.
+        // TODO: Move loading of plugins to after the dependency order map is created, load in that order.
+        // TODO: Get path of native plugins from this code block, therefore during dependency order, no need to search
+        // Load all found Native plugins in plugins dir, if also in recipes map pass.
         for(const auto &top : fs::directory_iterator(getPaths()->pluginPath())) {
             if(top.is_regular_file()) {
                 discoverPlugin(top);
@@ -203,9 +205,6 @@ namespace plugins {
         }
     }
 
-
-    // TODO: 1. get plugin names to load from recipes dir -> add to a recipe map
-    //       2. load so files the same as normal, but only if the plugin also exists in the recipe map
     void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
         if(entry.path().extension() == NATIVE_SUFFIX) {
             auto stem = entry.path().stem().generic_string();
