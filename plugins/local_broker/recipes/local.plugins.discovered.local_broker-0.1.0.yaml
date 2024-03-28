@@ -1,0 +1,7 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: local.plugins.discovered.local_broker
+ComponentVersion: "0.1.0"
+ComponentDescription:
+  Enables local communication of messages between client devices and Greengrass core device
+ComponentPublisher: Amazon

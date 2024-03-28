@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
-project(iot_broker)
+project(iot_broker VERSION 0.1.0)
 
 include(../../common.cmake)
+set(COMPONENT_NAME local.plugins.discovered.iot_broker)
 
 if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
   message(
@@ -26,3 +27,5 @@ configureRPATH(iot_broker)
 set_version_script(iot_broker "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS iot_broker DESTINATION plugins)
+install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
+        DESTINATION plugins/recipes)
