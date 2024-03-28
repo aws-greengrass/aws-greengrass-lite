@@ -1,5 +1,4 @@
 #pragma once
-#include "../data/string_table.hpp"
 #include "config_timestamp.hpp"
 #include "data/string_table.hpp"
 #include "data/symbol_value_map.hpp"
@@ -12,7 +11,10 @@ namespace config {
      */
     class UpdateBehaviorTree : private scope::UsesContext {
     public:
-        UpdateBehaviorTree(const UpdateBehaviorTree &other) = default;
+        UpdateBehaviorTree(const UpdateBehaviorTree &other) = delete;
+        UpdateBehaviorTree(UpdateBehaviorTree &&) = delete;
+        UpdateBehaviorTree &operator=(const UpdateBehaviorTree &other) = delete;
+        UpdateBehaviorTree &operator=(UpdateBehaviorTree &&) = delete;
         virtual ~UpdateBehaviorTree() noexcept = default;
 
         virtual std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) = 0;
@@ -27,7 +29,7 @@ namespace config {
         std::shared_ptr<scope::Context> context = scope::context();
 
         UpdateBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp) :
-              scope::UsesContext(context), _symbolMapper(context), timestamp(timestamp) {}
+              scope::UsesContext(context), timestamp(timestamp), _symbolMapper(context) {}
 
         virtual std::shared_ptr<UpdateBehaviorTree> getDefaultChildBehavior() = 0;
     };
@@ -56,17 +58,19 @@ namespace config {
         }
 
     private:
-        class PrunedMergeBehaviorTree : public UpdateBehaviorTree {
+        class PrunedMergeBehaviorTree : public UpdateBehaviorTree,
+                                        std::enable_shared_from_this<PrunedMergeBehaviorTree> {
         public:
             PrunedMergeBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp)
                 : UpdateBehaviorTree(context, timestamp) {}
 
             std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
-                return std::make_shared<PrunedMergeBehaviorTree>(*this); /* how to make shared pointer of this object */
+
+                return shared_from_this();
             }
 
             std::shared_ptr<UpdateBehaviorTree> getDefaultChildBehavior() override {
-                return std::make_shared<PrunedMergeBehaviorTree>(*this);
+                return shared_from_this();
             }
         };
     };
@@ -95,17 +99,18 @@ namespace config {
         }
 
     private:
-        class PrunedReplaceBehaviorTree : public UpdateBehaviorTree {
+        class PrunedReplaceBehaviorTree : public UpdateBehaviorTree,
+                                          std::enable_shared_from_this<PrunedReplaceBehaviorTree> {
         public:
             PrunedReplaceBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp)
                 : UpdateBehaviorTree(context, timestamp) {}
 
             std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
-                return std::make_shared<PrunedReplaceBehaviorTree>(*this); /* how to make shared pointer of this object */
+                return shared_from_this();
             }
 
             std::shared_ptr<UpdateBehaviorTree> getDefaultChildBehavior() override {
-                return std::make_shared<PrunedReplaceBehaviorTree>(*this);
+                return shared_from_this();
             }
         };
     };
