@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
-project(ipc_server)
+project(ipc_server VERSION 0.1.0)
 
 include(../../common.cmake)
+set(COMPONENT_NAME local.plugins.discovered.ipc_server)
 
 if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
   message(
@@ -36,3 +37,5 @@ configureRPATH(ipc_server)
 set_version_script(ipc_server "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS ipc_server DESTINATION plugins)
+install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
+        DESTINATION plugins/recipes)

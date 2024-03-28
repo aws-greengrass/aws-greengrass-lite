@@ -157,6 +157,7 @@ namespace plugins {
         std::shared_ptr<util::NucleusPaths> _paths;
         data::RootHandle _root;
         std::unordered_map<std::string, std::shared_ptr<AbstractPlugin>> _all;
+        std::unordered_map<std::string, std::filesystem::path> _recipePaths;
         std::vector<std::shared_ptr<AbstractPlugin>> _active;
         std::vector<std::shared_ptr<AbstractPlugin>> _inactive;
         std::vector<std::shared_ptr<AbstractPlugin>> _broken;
@@ -235,10 +236,13 @@ namespace plugins {
         std::shared_ptr<data::StructModelBase> buildParams(
             plugins::AbstractPlugin &plugin, bool partial = false) const;
 
-        void discoverPlugins(const std::filesystem::path &pluginDir);
+        void discoverPlugins();
         void discoverPlugin(const std::filesystem::directory_entry &entry);
+        void discoverRecipe(const std::filesystem::directory_entry &entry);
 
-        std::shared_ptr<AbstractPlugin> loadNativePlugin(const std::filesystem::path &path);
+        std::shared_ptr<AbstractPlugin> loadNativePlugin(
+                                const std::filesystem::path &path,
+                                const std::string &serviceName);
 
         std::optional<deployment::Recipe> loadRecipe(const AbstractPlugin &plugin) const noexcept;
 

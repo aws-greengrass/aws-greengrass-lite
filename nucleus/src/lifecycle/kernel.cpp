@@ -330,7 +330,7 @@ namespace lifecycle {
         auto &loader = context()->pluginLoader();
         loader.setPaths(getPaths());
         loader.setDeviceConfiguration(_deviceConfiguration);
-        loader.discoverPlugins(getPaths()->pluginPath());
+        loader.discoverPlugins();
         auto runningSet = loader.processActiveList();
 
         for(auto &&plugin : runningSet) {
