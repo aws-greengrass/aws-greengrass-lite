@@ -1,4 +1,5 @@
 #pragma once
+
 #include <aws/common/byte_order.h>
 #include <aws/common/logging.h>
 #include <aws/common/uuid.h>
@@ -29,20 +30,18 @@
 #include <aws/io/stream.h>
 #include <aws/iot/Mqtt5Client.h>
 
+#ifdef EXPORT_DEVICESDK_API
 #if defined(_WIN32)
-#define IMPORT __declspec(dllimport)
-#define EXPORT __declspec(dllexport)
+// Apparently defining this ends up breaking desired behavior (cause not understood)
+#define IMPEXP_DEVICE_SDK_API
 #else
-#define IMPORT
-#define EXPORT __attribute__((visibility("default")))
+#define IMPEXP_DEVICE_SDK_API __attribute__((visibility("default")))
 #endif
-
-#if defined(EXPORT_DEVICESDK_API)
-#define IMPEXP EXPORT
 #else
-#define IMPEXP IMPORT
+// Nothing needed for import
+#define IMPEXP_DEVICE_SDK_API
 #endif
 
 namespace util {
-    IMPEXP Aws::Crt::ApiHandle &getDeviceSdkApiHandle();
+    IMPEXP_DEVICE_SDK_API Aws::Crt::ApiHandle &getDeviceSdkApiHandle();
 } // namespace util
