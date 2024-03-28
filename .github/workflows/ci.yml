@@ -38,7 +38,7 @@ jobs:
         with:
           fetch-depth: 0
           filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: cachix/install-nix-action@master
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Build
@@ -86,7 +86,7 @@ jobs:
         with:
           fetch-depth: 0
           filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: cachix/install-nix-action@master
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check ${{ matrix.name }}
@@ -105,7 +105,7 @@ jobs:
         with:
           fetch-depth: 0
           filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: cachix/install-nix-action@master
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check formatting
@@ -139,7 +139,7 @@ jobs:
         with:
           fetch-depth: 0
           filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: cachix/install-nix-action@master
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
@@ -190,7 +190,7 @@ jobs:
         with:
           fetch-depth: 0
           filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: cachix/install-nix-action@master
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
@@ -235,7 +235,7 @@ jobs:
         with:
           fetch-depth: 0
           filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: cachix/install-nix-action@master
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check git-secrets
