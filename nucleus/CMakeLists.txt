@@ -201,8 +201,7 @@ target_link_libraries(greengrass-lite nucleus-core)
 
 configureRPATH(greengrass-lite)
 
-install(TARGETS greengrass-lite DESTINATION bin)
-install(TARGETS nucleus-core DESTINATION lib)
+install(TARGETS greengrass-lite nucleus-core)
 
 # Tests
 
