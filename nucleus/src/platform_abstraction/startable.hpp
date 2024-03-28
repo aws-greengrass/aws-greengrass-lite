@@ -2,8 +2,8 @@
 #include <chrono>
 #include <iostream>
 #include <optional>
+#include <span.hpp>
 #include <unordered_map>
-#include <util.hpp>
 
 #include "abstract_process.hpp"
 #include "env.hpp"
@@ -141,6 +141,11 @@ namespace ipc {
 
         Startable &withCompletion(CompletionCallback complete) noexcept {
             _completeHandler = std::move(complete);
+            return *this;
+        }
+
+        Startable &withTimeout(const cr::seconds &timeout) noexcept {
+            _timeout = cr::steady_clock::now() + timeout;
             return *this;
         }
     };

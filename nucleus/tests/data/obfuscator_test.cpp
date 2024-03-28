@@ -23,7 +23,7 @@ SCENARIO("Obfuscator is reversable", "[obfuscator]") {
         }
     }
     GIVEN("A set of IDs") {
-        auto id1 =
+        uint32_t id1 =
             GENERATE(1, 2, 3, 4, 5, 0x11, 0x121, 0x1234, 0x12345, 0x654321, 0x7654321, 0x87651234);
         WHEN("Round-tripping the ID") {
             uint32_t obf = data::IdObfuscator::obfuscate(id1);

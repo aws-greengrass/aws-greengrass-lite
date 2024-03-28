@@ -4,6 +4,7 @@
 #include "scope/context_full.hpp"
 
 namespace data {
+    // NOLINTNEXTLINE(*-no-recursion)
     void ContainerModelBase::checkedPut(
         const StructElement &element, const std::function<void(const StructElement &)> &putAction) {
         auto ctx = context();
@@ -39,11 +40,15 @@ namespace data {
 
     void StructModelBase::put(std::string_view sv, const StructElement &element) {
         Symbol handle = context()->symbols().intern(sv);
-        putImpl(handle, element);
+        put(handle, element);
     }
 
     void StructModelBase::put(data::Symbol handle, const data::StructElement &element) {
-        putImpl(handle, element);
+        if(element.isBoxed()) {
+            putImpl(handle, element.unbox());
+        } else {
+            putImpl(handle, element);
+        }
     }
 
     bool StructModelBase::hasKey(const std::string_view sv) const {
@@ -119,6 +124,8 @@ namespace data {
             case OBJECT:
                 return std::get<std::shared_ptr<TrackedObject>>(_value);
             default:
+                // Auto-box object may delay a real error, but also allows more options for
+                // doing the right thing.
                 return getBoxed();
         }
     }
@@ -127,18 +134,50 @@ namespace data {
         archive(_value);
     }
 
+    StructElement StructElement::unbox() const {
+        if(_value.index() == OBJECT) {
+            auto ptr = std::get<std::shared_ptr<TrackedObject>>(_value);
+            auto boxed = std::dynamic_pointer_cast<Boxed>(ptr);
+            if(boxed) {
+                return boxed->get();
+            }
+        }
+        return *this;
+    }
+
+    StructElement StructElement::autoUnbox(std::string_view desiredTypeForError) const {
+        if(_value.index() == OBJECT) {
+            auto ptr = std::get<std::shared_ptr<TrackedObject>>(_value);
+            auto boxed = std::dynamic_pointer_cast<Boxed>(ptr);
+            if(boxed) {
+                return boxed->get();
+            }
+        }
+        throw(std::runtime_error{
+            std::string("Unsupported type conversion to ") + desiredTypeForError});
+    }
+
     void Boxed::visit(Archive &archive) {
         std::unique_lock guard{_mutex};
         archive(_value);
     }
 
-    std::shared_ptr<StructModelBase> StructAllocator::makeStruct() {
-        return std::make_shared<SharedStruct>(scope::context());
+    std::shared_ptr<ContainerModelBase> Boxed::clone() const {
+        auto clone = std::make_shared<Boxed>(context());
+        clone->put(get());
+        return clone;
+    }
+
+    std::shared_ptr<ContainerModelBase> StructModelBase::clone() const {
+        return copy(); // Delegate
+    }
+
+    std::shared_ptr<ContainerModelBase> ListModelBase::clone() const {
+        return copy(); // Delegate
     }
 
     std::shared_ptr<ArchiveAdapter> StructArchiver::key(const Symbol &symbol) {
-        return std::make_shared<StructKeyArchiver>(
-            _model, _alloc, _model->foldKey(symbol, isIgnoreCase()));
+        return std::make_shared<StructKeyArchiver>(_model, _model->foldKey(symbol, isIgnoreCase()));
     }
 
     void StructArchiver::visit(ValueType &vt) {
@@ -153,14 +192,14 @@ namespace data {
         auto e = _model->get(_key);
         std::shared_ptr<StructModelBase> refStruct;
         if(e.isNull()) {
-            refStruct = _alloc->makeStruct();
+            refStruct = _model->createForChild();
             _model->put(_key, refStruct);
         } else if(e.isStruct()) {
             refStruct = e.castObject<StructModelBase>();
         }
         if(refStruct) {
             return std::make_shared<StructKeyArchiver>(
-                refStruct, _alloc, refStruct->foldKey(symbol, isIgnoreCase()));
+                refStruct, refStruct->foldKey(symbol, isIgnoreCase()));
         } else {
             throw std::runtime_error("Key type mismatch");
         }
@@ -168,11 +207,7 @@ namespace data {
 
     std::vector<Symbol> StructKeyArchiver::keys() const {
         auto e = _model->get(_key);
-        if(e.isStruct()) {
-            return e.castObject<StructModelBase>()->getKeys();
-        } else {
-            return {};
-        }
+        return ArchiveTraits::toKeys(e);
     }
 
     std::shared_ptr<ArchiveAdapter> StructKeyArchiver::list() {

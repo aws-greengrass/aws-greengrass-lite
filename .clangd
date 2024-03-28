@@ -1,7 +1,2 @@
 Index:
   StandardLibrary: Yes
----
-If:
-  PathMatch: build/.*
-Diagnostics:
-  Suppress: '*'

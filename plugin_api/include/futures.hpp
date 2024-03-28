@@ -7,6 +7,7 @@
 #include "containers.hpp"
 #include "handles.hpp"
 #include "scopes.hpp"
+#include "util.hpp"
 
 namespace ggapi {
     class Promise;

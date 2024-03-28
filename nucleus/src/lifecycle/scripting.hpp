@@ -11,7 +11,10 @@ public:
         ggapi::Struct scriptConfig,
         std::function<void(bool)> eventSender,
         std::chrono::seconds timeout)
-        : _eventSender(std::move(eventSender)), _timeout(timeout){};
+        : _eventSender(std::move(eventSender)), _timeout(timeout) {
+        // TODO: Handle timeout
+        std::ignore = _timeout;
+    };
 
     ScriptRunner() noexcept = default;
 
@@ -22,5 +25,6 @@ public:
     void kill(); /* issue sigTERM/sigKILL to the script process to ensure it is truly dead */
 private:
     std::function<void(bool)> _eventSender;
+
     std::chrono::seconds _timeout;
 };

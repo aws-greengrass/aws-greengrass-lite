@@ -1,10 +1,12 @@
 #pragma once
 
 #include "abstract_process.hpp"
+#include <memory>
 
 namespace ipc {
     struct ProcessId {
-        std::int64_t id;
+        std::int64_t pid;
+        std::int64_t pidfd;
         explicit operator bool() const noexcept;
     };
     class AbstractProcessManager {
@@ -17,7 +19,7 @@ namespace ipc {
 
         virtual ~AbstractProcessManager() noexcept = default;
         virtual ProcessId registerProcess(std::unique_ptr<Process> proc) = 0;
-        virtual void closeProcess(ProcessId pid) = 0;
+        virtual void closeProcess(ProcessId pid, std::string reason) = 0;
     };
 } // namespace ipc
 

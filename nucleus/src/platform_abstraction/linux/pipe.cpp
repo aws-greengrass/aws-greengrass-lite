@@ -1,5 +1,6 @@
 #include "pipe.hpp"
 
+#include <array>
 #include <fcntl.h>
 #include <unistd.h>
 

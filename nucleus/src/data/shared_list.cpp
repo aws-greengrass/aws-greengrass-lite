@@ -107,13 +107,13 @@ namespace data {
     }
 
     template<>
-    ListModelBase *Archive::initSharedPtr(std::shared_ptr<ListModelBase> &ptr) {
+    ListModelBase *ArchiveTraits::initSharedPtr(std::shared_ptr<ListModelBase> &ptr) {
         auto newPtr = std::make_shared<SharedList>(scope::context());
         ptr = newPtr;
         return newPtr.get();
     }
     template<>
-    SharedList *Archive::initSharedPtr(std::shared_ptr<SharedList> &ptr) {
+    SharedList *ArchiveTraits::initSharedPtr(std::shared_ptr<SharedList> &ptr) {
         auto newPtr = std::make_shared<SharedList>(scope::context());
         ptr = newPtr;
         return newPtr.get();

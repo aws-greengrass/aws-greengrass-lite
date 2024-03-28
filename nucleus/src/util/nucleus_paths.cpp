@@ -1,5 +1,5 @@
 #include "nucleus_paths.hpp"
-#include <util.hpp>
+#include <string_util.hpp>
 
 namespace util {
 

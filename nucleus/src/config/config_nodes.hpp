@@ -162,6 +162,7 @@ namespace config {
         uint32_t size() const override;
         bool empty() const override;
         std::shared_ptr<data::StructModelBase> copy() const override;
+        std::shared_ptr<data::StructModelBase> createForChild() override;
 
         // Watchers/Publishing
 
