@@ -525,7 +525,8 @@ namespace lifecycle {
                     if(onComplete) {
                         (*onComplete)(returnCode == 0);
                     }
-                });
+                })
+                .withTimeout(timeout);
 
         if(!requiresPrivilege) {
             auto [user, group] =

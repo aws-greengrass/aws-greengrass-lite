@@ -10,17 +10,18 @@
 #define NOEXCEPT
 #endif
 
+#pragma push_macro("IMPEXP")
+#define IMPORT_NUCLEUS_DECL
 #if defined(_WIN32)
-#define IMPORT __declspec(dllimport)
-#define EXPORT __declspec(dllexport)
+#define EXPORT_NUCLEUS_DECL __declspec(dllexport)
 #else
-#define IMPORT
-#define EXPORT __attribute__((visibility("default")))
+#define EXPORT_NUCLEUS_DECL __attribute__((visibility("default")))
 #endif
-#if defined(EXPORT_API)
-#define IMPEXP EXPORT
+// TODO: replace IMPEXP?
+#if defined(EXPORT_NUCLEUS_API)
+#define IMPEXP EXPORT_NUCLEUS_DECL
 #else
-#define IMPEXP IMPORT
+#define IMPEXP IMPORT_NUCLEUS_DECL
 #endif
 
 typedef uint32_t ggapiErrorKind; // Symbol representing kind of error, 0 = success
@@ -84,7 +85,7 @@ typedef ggapiErrorKind GgapiLifecycleFn(
     ggapiObjHandle data,
     bool *pWasHandled) NOEXCEPT;
 
-[[maybe_unused]] EXPORT GgapiLifecycleFn greengrass_lifecycle;
+[[maybe_unused]] EXPORT_NUCLEUS_DECL GgapiLifecycleFn greengrass_lifecycle;
 
 IMPEXP ggapiErrorKind
 ggapiSetError(ggapiErrorKind kind, ggapiCountedString what, ggapiDataLen len) NOEXCEPT;
@@ -232,4 +233,5 @@ IMPEXP uint32_t ggapiGetLogLevel(uint64_t *counter, uint32_t cachedLevel) NOEXCE
 IMPEXP bool ggapiSetLogLevel(uint32_t level) NOEXCEPT;
 IMPEXP bool ggapiLogEvent(uint32_t dataHandle) NOEXCEPT;
 
+#pragma pop_macro("IMPEXP")
 #endif // GG_PLUGIN_API

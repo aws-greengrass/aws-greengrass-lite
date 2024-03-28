@@ -15,7 +15,7 @@ namespace ipc {
         ProcessId registerProcess(std::unique_ptr<Process> p) override {
             throw std::logic_error{"Not implememented."};
         }
-        void closeProcess(ProcessId id) override {
+        void closeProcess(ProcessId id, std::string reason) override {
             throw std::logic_error{"Not implememented."};
         };
 

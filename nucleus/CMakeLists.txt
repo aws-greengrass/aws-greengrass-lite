@@ -11,7 +11,7 @@ find_package(Threads REQUIRED)
 fetchContentAddCmake(yaml-cpp)
 fetchContentAdd(rapidjson)
 
-add_compile_definitions(EXPORT_API)
+add_compile_definitions(EXPORT_NUCLEUS_API)
 
 if(UNIX)
   add_compile_definitions(USE_DLFCN)

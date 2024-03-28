@@ -143,5 +143,10 @@ namespace ipc {
             _completeHandler = std::move(complete);
             return *this;
         }
+
+        Startable &withTimeout(const cr::seconds &timeout) noexcept {
+            _timeout = cr::steady_clock::now() + timeout;
+            return *this;
+        }
     };
 } // namespace ipc
