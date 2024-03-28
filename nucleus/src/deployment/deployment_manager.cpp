@@ -273,21 +273,21 @@ namespace deployment {
             return;
         }
 
-        LifecycleSection lifecycle;
-        data::archive::readFromStruct(it->lifecycle, lifecycle);
+        // LifecycleSection lifecycle;
+        //  data::archive::readFromStruct(it->lifecycle, lifecycle);
 
-        // set global env
-        Environment globalEnv;
-        if(lifecycle.envMap.has_value()) {
-            globalEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
-        }
+        // // set global env
+        // Environment globalEnv;
+        // if(lifecycle.envMap.has_value()) {
+        //     globalEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
+        // }
 
         // TODO: Lifecycle management
-        std::array<std::pair<std::optional<ScriptSection> *, std::string_view>, 4> sections = {
-            std::pair(&lifecycle.install, "install"),
-            std::pair(&lifecycle.run, "run"),
-            std::pair(&lifecycle.startup, "startup"),
-            std::pair(&lifecycle.shutdown, "shutdown") /*, "recover", "bootstrap" */};
+        // std::array<std::pair<std::optional<ScriptSection> *, std::string_view>, 4> sections = {
+        //     std::pair(&lifecycle.install, "install"),
+        //     std::pair(&lifecycle.run, "run"),
+        //     std::pair(&lifecycle.startup, "startup"),
+        //     std::pair(&lifecycle.shutdown, "shutdown") /*, "recover", "bootstrap" */};
 
         auto context = scope::context();
 
