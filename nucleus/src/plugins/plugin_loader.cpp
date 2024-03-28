@@ -188,7 +188,7 @@ namespace plugins {
                 }
             }
         }
-        
+
         // TODO: Move loading of plugins to after the dependency order map is created, load in that order.
         // TODO: Get path of native plugins from this code block, therefore during dependency order, no need to search
         // Load all found Native plugins in plugins dir, if also in recipes map pass.

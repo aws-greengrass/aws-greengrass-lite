@@ -9,3 +9,4 @@ ComponentDependencies:
   local.plugins.discovered.ipc_server:
     VersionRequirement: ">=0.1.0"
     DependencyType: HARD
+    
