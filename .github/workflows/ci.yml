@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: nix develop .#ci -c bash -exo pipefail {0}
+        shell: nix develop .#ci -ic bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -146,7 +146,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: nix develop .#ci -c bash -exo pipefail {0}
+        shell: nix develop .#ci -ic bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -197,7 +197,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: nix develop .#ci -c bash -exo pipefail {0}
+        shell: nix develop .#ci -ic bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -242,7 +242,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        shell: nix develop .#ci -c bash -exo pipefail {0}
+        shell: nix develop .#ci -ic bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4
         with:
