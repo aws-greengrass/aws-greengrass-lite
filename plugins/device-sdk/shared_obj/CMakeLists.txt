@@ -23,4 +23,6 @@ target_include_directories(
          $<TARGET_PROPERTY:aws-c-http,INTERFACE_INCLUDE_DIRECTORIES>
          $<TARGET_PROPERTY:aws-c-event-stream,INTERFACE_INCLUDE_DIRECTORIES>)
 
+configureRPATH(device-sdk)
+
 install(TARGETS device-sdk)

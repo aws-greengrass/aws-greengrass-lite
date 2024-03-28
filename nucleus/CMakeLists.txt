@@ -194,6 +194,8 @@ target_link_libraries(
 
 target_include_directories(nucleus-core PUBLIC include)
 
+configureRPATH(nucleus-core)
+
 # Executable
 
 add_executable(greengrass-lite stub/main.c)
