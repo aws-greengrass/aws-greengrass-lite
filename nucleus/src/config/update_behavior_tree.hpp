@@ -25,27 +25,30 @@ namespace config {
         const Timestamp timestamp;
         scope::SharedContextMapper _symbolMapper;
         using TreeMap = data::SymbolValueMap<std::shared_ptr<UpdateBehaviorTree>>;
-        TreeMap childOverride{_symbolMapper};
+        std::shared_ptr<TreeMap> childOverride;
         std::shared_ptr<scope::Context> context = scope::context();
 
-        UpdateBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp) :
-              scope::UsesContext(context), timestamp(timestamp), _symbolMapper(context) {}
+        UpdateBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp,
+                           const std::shared_ptr<TreeMap> &childOverride) :
+              scope::UsesContext(context), timestamp(timestamp), _symbolMapper(context),
+              childOverride(childOverride) {}
 
         virtual std::shared_ptr<UpdateBehaviorTree> getDefaultChildBehavior() = 0;
     };
 
     class MergeBehaviorTree : public UpdateBehaviorTree {
     public:
-        MergeBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp) :
-              UpdateBehaviorTree(context, timestamp) {}
+        MergeBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp,
+                          const std::shared_ptr<TreeMap> &childOverride) :
+              UpdateBehaviorTree(context, timestamp, childOverride) {}
 
         std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
-            auto i = childOverride.find(key);
-            if (i != childOverride.end()) {
+            auto i = childOverride->find(key);
+            if (i != childOverride->end()) {
                 return i->second;
             }
-            i = childOverride.find(context->intern(WILDCARD));
-            if (i != childOverride.end()) {
+            i = childOverride->find(context->intern(WILDCARD));
+            if (i != childOverride->end()) {
                 return i->second;
             }
 
@@ -54,15 +57,19 @@ namespace config {
 
     protected:
         std::shared_ptr<UpdateBehaviorTree> getDefaultChildBehavior() override {
-            return std::make_shared<PrunedMergeBehaviorTree>(context, config::Timestamp::now());
+            return std::make_shared<PrunedMergeBehaviorTree>(context,
+                                                             config::Timestamp::now(),
+                                                             std::make_shared<TreeMap>(_symbolMapper));
         }
 
     private:
         class PrunedMergeBehaviorTree : public UpdateBehaviorTree,
                                         std::enable_shared_from_this<PrunedMergeBehaviorTree> {
         public:
-            PrunedMergeBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp)
-                : UpdateBehaviorTree(context, timestamp) {}
+            PrunedMergeBehaviorTree(const scope::UsingContext &context,
+                                    const Timestamp &timestamp,
+                                    const std::shared_ptr<TreeMap> &childOverride)
+                : UpdateBehaviorTree(context, timestamp, childOverride) {}
 
             std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
 
@@ -77,16 +84,17 @@ namespace config {
 
     class ReplaceBehaviorTree : public UpdateBehaviorTree {
     public:
-        ReplaceBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp) :
-              UpdateBehaviorTree(context, timestamp) {}
+        ReplaceBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp,
+                            const std::shared_ptr<TreeMap> &childOverride) :
+              UpdateBehaviorTree(context, timestamp, childOverride) {}
 
         std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
-            auto i = childOverride.find(key);
-            if (i != childOverride.end()) {
+            auto i = childOverride->find(key);
+            if (i != childOverride->end()) {
                 return i->second;
             }
-            i = childOverride.find(context->intern(WILDCARD));
-            if (i != childOverride.end()) {
+            i = childOverride->find(context->intern(WILDCARD));
+            if (i != childOverride->end()) {
                 return i->second;
             }
 
@@ -95,15 +103,18 @@ namespace config {
 
     protected:
         std::shared_ptr<UpdateBehaviorTree> getDefaultChildBehavior() override {
-            return std::make_shared<PrunedReplaceBehaviorTree>(context, config::Timestamp::now());
+            return std::make_shared<PrunedReplaceBehaviorTree>(context, config::Timestamp::now(),
+                                                               std::make_shared<TreeMap>(_symbolMapper));
         }
 
     private:
         class PrunedReplaceBehaviorTree : public UpdateBehaviorTree,
                                           std::enable_shared_from_this<PrunedReplaceBehaviorTree> {
         public:
-            PrunedReplaceBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp)
-                : UpdateBehaviorTree(context, timestamp) {}
+            PrunedReplaceBehaviorTree(const scope::UsingContext &context,
+                                      const Timestamp &timestamp,
+                                      const std::shared_ptr<TreeMap> &childOverride)
+                : UpdateBehaviorTree(context, timestamp, childOverride) {}
 
             std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
                 return shared_from_this();
