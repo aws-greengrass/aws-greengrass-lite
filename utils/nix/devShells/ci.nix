@@ -5,6 +5,7 @@
     cppcheck
     git
     git-secrets
+    openssl
   ];
   env = {
     NIX_HARDENING_ENABLE = "";
