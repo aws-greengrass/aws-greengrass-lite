@@ -74,7 +74,9 @@ namespace lifecycle {
         static constexpr auto DEPLOYMENT_STAGE_LOG_KEY{"stage"};
         static constexpr auto SHUTDOWN_TIMEOUT_SECONDS{30};
         static constexpr auto SERVICE_SHUTDOWN_TIMEOUT_SECONDS{5};
-        const data::SymbolInit SERVICES_TOPIC_KEY{"services"};
+        static inline const data::SymbolInit SERVICES_TOPIC_KEY{"services"};
+        static inline const data::SymbolInit SERVICE_LOADER_TOPIC_KEY{
+            "aws.greengrass.componentType"};
 
         void preLaunch(CommandLine &commandLine);
         int launch();

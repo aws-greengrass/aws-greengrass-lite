@@ -222,7 +222,7 @@ namespace deployment {
         std::string componentPublisher;
         ComponentConfiguration configuration;
         std::unordered_map<std::string, DependencyProperties> componentDependencies;
-        std::optional<std::string> componentType;
+        std::string componentType;
         std::string componentSource;
         std::vector<PlatformManifest> manifests;
         std::shared_ptr<data::SharedStruct> lifecycle;
@@ -236,7 +236,9 @@ namespace deployment {
             archive("ComponentPublisher", componentPublisher);
             archive("ComponentConfiguration", configuration);
             archive("ComponentDependencies", componentDependencies);
-            archive("ComponentType", componentType);
+            std::optional<std::string> cType;
+            archive("ComponentType", cType);
+            componentType = cType.value_or("aws.greengrass.generic");
             archive("ComponentSource", componentSource);
             archive("Manifests", manifests);
             archive("Lifecycle", lifecycle);
