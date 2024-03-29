@@ -423,11 +423,11 @@ namespace lifecycle {
         }
     }
 
-    void Kernel::softShutdown(std::chrono::seconds timeoutSeconds) {
+    void Kernel::softShutdown(std::chrono::seconds expireTime) {
         getConfig().publishQueue().drainQueue();
         _deploymentManager->clearQueue();
         LOG.atDebug("system-shutdown").log("Starting soft shutdown");
-        stopAllServices(timeoutSeconds);
+        stopAllServices(expireTime);
         LOG.atDebug("system-shutdown").log("Closing transaction log");
         _tlog->commit();
         writeEffectiveConfig();
@@ -438,6 +438,7 @@ namespace lifecycle {
 
     std::vector<std::string> Kernel::getSupportedCapabilities() const {
         // TODO: This should be coming from GG SDK.
+        std::ignore = *this;
         std::vector<std::string> v;
         return std::vector<std::string>{
             "LARGE_CONFIGURATION", "LINUX_RESOURCE_LIMITS", "SUB_DEPLOYMENTS"};

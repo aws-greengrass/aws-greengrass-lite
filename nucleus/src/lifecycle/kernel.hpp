@@ -112,7 +112,7 @@ namespace lifecycle {
         }
 
         config::Manager &getConfig();
-        std::vector<std::string> getSupportedCapabilities() const;
+        [[nodiscard]] std::vector<std::string> getSupportedCapabilities() const;
 
         ipc::ProcessId startProcess(
             std::string script,
