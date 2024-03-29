@@ -39,6 +39,8 @@ macro(try_add_link_option name option)
   endif()
 endmacro()
 
+option(INSTALL_RUNTIME_DEPENDENCIES "Install runtime dependencies" OFF)
+
 # Misc
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

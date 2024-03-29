@@ -203,7 +203,12 @@ target_link_libraries(greengrass-lite nucleus-core)
 
 configureRPATH(greengrass-lite)
 
-install(TARGETS greengrass-lite nucleus-core)
+install(TARGETS greengrass-lite nucleus-core RUNTIME_DEPENDENCY_SET
+                nucleus-deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET nucleus-deps)
+endif()
 
 # Tests
 

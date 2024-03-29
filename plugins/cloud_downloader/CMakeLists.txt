@@ -33,7 +33,15 @@ configureRPATH(cloud_downloader)
 set_version_script(cloud_downloader
                    "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS cloud_downloader DESTINATION plugins)
+install(
+  TARGETS cloud_downloader
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET cloud_downloader_deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET cloud_downloader_deps)
+endif()
+
 install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
         DESTINATION plugins/recipes)
 
