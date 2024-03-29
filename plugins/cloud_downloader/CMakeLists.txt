@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
-project(cloud_downloader)
+project(cloud_downloader VERSION 0.1.0)
 
 include(../../common.cmake)
+set(COMPONENT_NAME local.plugins.discovered.cloud_downloader)
 
 if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
   message(
@@ -33,6 +34,8 @@ set_version_script(cloud_downloader
                    "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS cloud_downloader DESTINATION plugins)
+install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
+        DESTINATION plugins/recipes)
 
 # Tests
 
