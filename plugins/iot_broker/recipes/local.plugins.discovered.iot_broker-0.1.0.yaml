@@ -3,5 +3,5 @@ RecipeFormatVersion: "2020-01-25"
 ComponentName: local.plugins.discovered.iot_broker
 ComponentVersion: "0.1.0"
 ComponentDescription:
-  Enables communication of messages between client devices and Greengrass core device
+  Enables comms of messages between client devices and core device
 ComponentPublisher: Amazon
