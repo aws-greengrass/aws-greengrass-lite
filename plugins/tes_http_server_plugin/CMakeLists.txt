@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
-project(tes_http_server_plugin)
+project(tes_http_server_plugin VERSION 0.1.0)
 
 include(../../common.cmake)
+set(COMPONENT_NAME local.plugins.discovered.tes_http_server_plugin)
 
 if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
   message(
@@ -25,3 +26,5 @@ set_version_script(tes_http_server_plugin
                    "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(TARGETS tes_http_server_plugin DESTINATION plugins)
+install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
+        DESTINATION plugins/recipes)
