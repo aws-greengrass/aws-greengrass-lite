@@ -160,7 +160,9 @@ will need to be patched:
 cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX=~/gglite_testing -DINSTALL_RUNTIME_DEPENDENCIES=1
 make -C build -j4 install/strip
 cd ~/gglite_testing
-patchelf --set-interpreter $PWD/lib/ld-linux-x86-64.so.2 bin/* lib/* plugins/*
+# Match name for interpreter for your system
+chmod +x lib/ld-linux-*
+patchelf --set-interpreter $PWD/lib/ld-linux-* bin/* lib/* plugins/*
 ```
 
 The `patchelf --set-interpreter` command is needed as CMake just copies the
