@@ -66,7 +66,7 @@ struct ggapiLifecycleCallbackData {
 };
 
 struct ggapiChannelListenCallbackData {
-    ggapiObjHandle data;
+    ggapiObjHandle objHandle;
 };
 
 struct ggapiChannelCloseCallbackData {

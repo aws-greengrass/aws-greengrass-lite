@@ -1,6 +1,7 @@
 #pragma once
 #include "api_errors.hpp"
 #include "api_forwards.hpp"
+#include "checked_pointers.hpp"
 #include <map>
 #include <memory>
 #include <mutex>
@@ -151,8 +152,8 @@ namespace ggapi {
         };
 
     private:
+        util::CheckedPointers<CallbackDispatch> _callbacks;
         std::shared_mutex _mutex;
-        std::map<uintptr_t, std::unique_ptr<const CallbackDispatch>> _callbacks;
 
         ggapiErrorKind callback(
             ggapiContext callbackContext,
@@ -166,15 +167,17 @@ namespace ggapi {
                 _callbacks.erase(callbackContext);
                 return 0;
             } else {
-                // Prepare the call
-                std::shared_lock guard{_mutex};
-                // We could enable a fast "unsafe" option that just casts the callbackContext
-                // to a pointer. For now, this acts as a robust double-check.
-                const auto &cb = _callbacks.at(callbackContext);
-                // Pre-process callback while lock is held
-                auto delegate = cb->prepare(Symbol(callbackType), callbackDataSize, callbackData);
-                guard.unlock();
-                // Actual call
+                Delegate delegate;
+                // Prepare the call (locking held)
+                {
+                    std::shared_lock guard{_mutex};
+                    // We could enable a fast "unsafe" option that just casts the callbackContext
+                    // to a pointer. For now, this acts as a robust double-check.
+                    const auto &cb = _callbacks.at(callbackContext);
+                    // Pre-process callback while lock is held
+                    delegate = cb->prepare(Symbol(callbackType), callbackDataSize, callbackData);
+                }
+                // Actual call (lock must not be held)
                 return catchErrorToKind(delegate);
             }
         }
@@ -185,14 +188,14 @@ namespace ggapi {
          * @return callback handle
          */
         ObjHandle registerHelper(std::unique_ptr<CallbackDispatch> cb) {
-            // NOLINTNEXTLINE(*-pro-type-reinterpret-cast)
-            auto idx = reinterpret_cast<uintptr_t>(cb.get());
+            uintptr_t idx;
             auto type = cb->type();
-            std::unique_lock guard{_mutex};
-            // Note, we need pointer for reanchor step. We know pointer is not removed until used,
-            // and pointer will not be used until after return.
-            _callbacks.emplace(idx, std::move(cb));
-            guard.unlock(); // if call below fails, callback is immediately unregistered
+            // Add to table (lock must be held)
+            {
+                std::unique_lock guard{_mutex};
+                idx = _callbacks.addAsInt(std::move(cb));
+            }
+            // Register with Nucleus (lock must NOT be held)
             ggapiObjHandle callbackHandle = 0;
             callApiThrowError(
                 ::ggapiRegisterCallback,

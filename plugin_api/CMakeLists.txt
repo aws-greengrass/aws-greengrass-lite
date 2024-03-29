@@ -18,6 +18,7 @@ add_library(
   include/c_api.h
   include/c_api.hpp
   include/channel.hpp
+  include/checked_pointers.hpp
   include/containers.hpp
   include/cpp_api.hpp
   include/error_tmpl.hpp
@@ -37,7 +38,8 @@ add_library(
 
 target_include_directories(gg_plugin_api_min INTERFACE include)
 
-add_library(gg_plugin_api INTERFACE)
+add_library(gg_plugin_api INTERFACE
+  include/checked_pointers.hpp)
 target_link_libraries(gg_plugin_api INTERFACE gg_plugin_api_min)
 
 if(NOT LINUX)
