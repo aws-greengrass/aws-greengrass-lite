@@ -25,4 +25,8 @@ target_include_directories(
 
 configureRPATH(device-sdk)
 
-install(TARGETS device-sdk)
+install(TARGETS device-sdk RUNTIME_DEPENDENCY_SET device-sdk-deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET device-sdk-deps)
+endif()
