@@ -43,6 +43,7 @@ namespace data {
 
         std::unique_lock guard{_mutex};
         auto &newData = _roots.alloc();
+        _roots.insertLast(_activeRoots, newData.check);
         return applyUncheckedRoot(handleOf(newData.check));
     }
 
@@ -130,6 +131,8 @@ namespace data {
             // Add to free linked list
             _handles.free(pData->check);
         }
+        _roots.unlink(_activeRoots, handleIndex);
+        _roots.free(handleIndex);
         guard.unlock();
         objs.clear(); // this releases references on all objects
         return true;

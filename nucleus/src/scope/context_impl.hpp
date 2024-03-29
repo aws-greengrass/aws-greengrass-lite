@@ -183,8 +183,11 @@ namespace scope {
         std::shared_ptr<data::RootHandle> _prev;
         std::shared_ptr<data::RootHandle> _temp;
 
+        static std::shared_ptr<data::RootHandle> makeTemp(const ContextRef &ptr);
+
     public:
         TempRoot();
+        explicit TempRoot(const ContextRef &ptr);
         TempRoot(const TempRoot &) = delete;
         TempRoot(TempRoot &&) = delete;
         TempRoot &operator=(const TempRoot &) = delete;

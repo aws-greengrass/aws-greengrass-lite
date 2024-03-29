@@ -34,8 +34,12 @@ def deobfuscate(id):
     return gdb.parse_and_eval('data::IdObfuscator::deobfuscate(%d)' % int(id))
 
 
+def is_index_invalid(index):
+    return int(index) == 0xffffffff
+
+
 #
-# Access to the contextualized symbols table - is symbols table is changed, this class
+# Access to the contextualized symbols table - if symbols table is changed, this class
 # needs to also change.
 #
 class SymbolTable(object):
@@ -268,8 +272,11 @@ class HandleTable(object):
     def handles(self):
         return self._table['_handles'].address
 
-    def first_handle(self):
-        return self._table['_handles'].address
+    def first_root_index(self):
+        return int(self._table['_activeRoots']['next'])
+
+    def first_root(self):
+        return self.lazy_root_at(self.first_root_index())
 
     def handle_expr(self, expr):
         gdb.set_convenience_variable('obj', self.handles())
@@ -280,6 +287,12 @@ class HandleTable(object):
 
     def handle_at(self, index):
         return self.handle_expr('at(%d)' % int(index))
+
+    def lazy_handle_at(self, index):
+        if is_index_invalid(index):
+            return None
+        entry = self.handle_at(index)
+        return LazyObjHandle(self, None, None, entry)
 
     def roots(self):
         return self._table['_roots'].address
@@ -293,6 +306,12 @@ class HandleTable(object):
 
     def root_at(self, index):
         return self.root_expr('at(%d)' % int(index))
+
+    def lazy_root_at(self, index):
+        if is_index_invalid(index):
+            return None
+        entry = self.root_at(index)
+        return LazyRootHandle(self, None, None, entry)
 
     @staticmethod
     def id_of_partial(partial):
@@ -325,10 +344,16 @@ class HandleTable(object):
 #
 class LazyObjHandle(object):
 
-    def __init__(self, table, handle, index=None):
+    def __init__(self, table, handle, index=None, entry=None):
         if table is None:
             table = HandleTable(None)
         self._table = table
+        self._is_valid = None
+        self._entry = None
+        if entry is not None:
+            self._is_valid = True
+            self._entry = entry
+            index = entry['check']
         if handle is None:
             handle = int(obfuscate(index))
         if isinstance(handle, int):
@@ -336,9 +361,7 @@ class LazyObjHandle(object):
         else:
             self._handle_id = HandleTable.id_of_partial(handle)
         self._index = index
-        self._entry = None
         self._object = None
-        self._is_valid = None
         self._root_index = None
 
     def table(self):
@@ -375,11 +398,7 @@ class LazyObjHandle(object):
         if not entry:
             return None
         index = entry['next']
-        handle_id = int(obfuscate(index))
-        if handle_id == 0:
-            return None
-        else:
-            return LazyRootHandle(self._table, handle_id, index)
+        return self._table.lazy_handle_at(index)
 
     def is_valid(self):
         self.entry()  # side-effect is setting valid flag
@@ -420,10 +439,16 @@ class LazyObjHandle(object):
 #
 class LazyRootHandle(object):
 
-    def __init__(self, table, handle, index=None):
+    def __init__(self, table, handle, index=None, entry=None):
         if table is None:
             table = HandleTable(None)
         self._table = table
+        self._is_valid = None
+        self._entry = None
+        if entry is not None:
+            self._is_valid = True
+            self._entry = entry
+            index = entry['check']
         if handle is None:
             handle = int(obfuscate(index))
         if isinstance(handle, int):
@@ -431,9 +456,7 @@ class LazyRootHandle(object):
         else:
             self._handle_id = HandleTable.id_of_partial(handle)
         self._index = index
-        self._entry = None
         self._object = None
-        self._is_valid = None
         self._root_index = None
 
     def table(self):
@@ -469,24 +492,15 @@ class LazyRootHandle(object):
         entry = self.entry()
         if not entry:
             return None
-        print(entry)
         index = entry['handles']['next']
-        handle_id = int(obfuscate(index))
-        if handle_id == 0:
-            return None
-        else:
-            return LazyObjHandle(self._table, handle_id, index)
+        return self._table.lazy_handle_at(index)
 
     def next(self):
         entry = self.entry()
         if not entry:
             return None
         index = entry['next']
-        handle_id = int(obfuscate(index))
-        if handle_id == 0:
-            return None
-        else:
-            return LazyRootHandle(self._table, handle_id, index)
+        return self._table.lazy_root_at(index)
 
     def is_valid(self):
         self.entry()  # side-effect is setting valid flag
@@ -611,7 +625,7 @@ class RootHandlePrinter(object):
         return '%s{%d}' % (str(self._type), self._lazy_obj.handle_id())
 
 
-class DataRootHandlePrinter(ObjHandlePrinter):
+class DataRootHandlePrinter(RootHandlePrinter):
 
     def __init__(self, val):
         table = HandleTable(val['_table']['_p'])
@@ -696,7 +710,7 @@ class Symbols(gdb.Command):
         super(Symbols, self).__init__("gg-symbol", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        args = arg.split()
+        args = gdb.string_to_argv(arg)
         if len(args) == 0:
             table = DataSymbolTablePrinter(
                 gdb.parse_and_eval('&scope::context().get()->symbols()'))
@@ -718,13 +732,13 @@ class Handles(gdb.Command):
         super(Handles, self).__init__("gg-handle", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        args = arg.split()
+        args = gdb.string_to_argv(arg)
+        table = HandleTable(
+            gdb.parse_and_eval('&scope::context().get()->handles()'))
         if len(args) == 0:
             print('Handle ID required')
             return None
         else:
-            table = HandleTable(
-                gdb.parse_and_eval('&scope::context().get()->handles()'))
             lazy_obj = LazyObjHandle(table, int(args[0]))
             if lazy_obj.is_null():
                 print('ObjHandle{0} - Null handle')
@@ -748,13 +762,19 @@ class HandleRoots(gdb.Command):
         super(HandleRoots, self).__init__("gg-root", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
-        args = arg.split()
+        table = HandleTable(
+            gdb.parse_and_eval('&scope::context().get()->handles()'))
+        args = gdb.string_to_argv(arg)
         if len(args) == 0:
-            print('Root ID required')
+            lazy_root = table.first_root()
+            n = 0
+            while lazy_root is not None:
+                n = n + 1
+                print('%d: %s' % (n, lazy_root))
+                lazy_root = lazy_root.next()
+            print('%d roots(s)' % n)
             return None
         else:
-            table = HandleTable(
-                gdb.parse_and_eval('&scope::context().get()->handles()'))
             lazy_root = LazyRootHandle(table, int(args[0]))
             print(lazy_root)
             obj = lazy_root.first_object()
