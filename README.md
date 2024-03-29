@@ -157,7 +157,7 @@ To have cmake bundle runtime dependencies, pass the
 will need to be patched:
 
 ```bash
-cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX=~/gglite_testing -DC -DINSTALL_RUNTIME_DEPENDENCIES=1
+cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX=~/gglite_testing -DINSTALL_RUNTIME_DEPENDENCIES=1
 make -C build -j4 install/strip
 cd ~/gglite_testing
 patchelf --set-interpreter $PWD/lib/ld-linux-x86-64.so.2 bin/* lib/* plugins/*
