@@ -172,11 +172,27 @@ namespace plugins {
         }
     }
 
-    void PluginLoader::discoverPlugins(const std::filesystem::path &pluginDir) {
+    void PluginLoader::discoverPlugins() {
         // The only plugins used are those in the plugin directory, or subdirectory of
         // plugin directory
-        // TODO: This is temporary logic until recipe logic has been written
-        for(const auto &top : fs::directory_iterator(pluginDir)) {
+
+        // Create found recipes unordered map pass.
+        for(const auto &top : fs::directory_iterator(getPaths()->pluginRecipePath())) {
+            if(top.is_regular_file()) {
+                discoverRecipe(top);
+            } else if(top.is_directory()) {
+                for(const auto &fileEnt : fs::directory_iterator(top)) {
+                    if(fileEnt.is_regular_file()) {
+                        discoverRecipe(fileEnt);
+                    }
+                }
+            }
+        }
+
+        // TODO: Move loading of plugins to after the dependency order map is created, load in that order.
+        // TODO: Get path of native plugins from this code block, therefore during dependency order, no need to search
+        // Load all found Native plugins in plugins dir, if also in recipes map pass.
+        for(const auto &top : fs::directory_iterator(getPaths()->pluginPath())) {
             if(top.is_regular_file()) {
                 discoverPlugin(top);
             } else if(top.is_directory()) {
@@ -191,16 +207,32 @@ namespace plugins {
 
     void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
         if(entry.path().extension() == NATIVE_SUFFIX) {
-            auto plugin = loadNativePlugin(entry.path());
+            auto stem = entry.path().stem().generic_string();
+            auto name = util::trimStart(stem, "lib");
+            std::string serviceName = std::string("local.plugins.discovered.") + std::string(name);
+
+            if (auto it = _recipePaths.find(serviceName); it != _recipePaths.end()){
+                auto plugin = loadNativePlugin(entry.path(), serviceName);
+            }
+        }
+    }
+
+    void PluginLoader::discoverRecipe(const fs::directory_entry &entry) {
+        std::string ext = util::lower(entry.path().extension().generic_string());
+        auto stem = entry.path().stem().generic_string();
+        // For every recipe found, add to the recipePaths unordered map
+        if(ext == ".yaml" || ext == ".yml" || ext == ".json") {
+            if (auto pos = stem.find_last_of('-'); pos != std::string::npos) {
+                _recipePaths.emplace(stem.substr(0, pos), entry.path());
+            } else {
+                _recipePaths.emplace(stem, entry.path());
+            }
         }
     }
 
     std::shared_ptr<AbstractPlugin> PluginLoader::loadNativePlugin(
-        const std::filesystem::path &path) {
+        const std::filesystem::path &path, const std::string &serviceName) {
         LOG.atInfo().kv("path", path.string()).log("Loading native plugin");
-        auto stem = path.stem().generic_string();
-        auto name = util::trimStart(stem, "lib");
-        std::string serviceName = std::string("local.plugins.discovered.") + std::string(name);
         auto plugin{std::make_shared<NativePlugin>(context(), serviceName)};
         plugin->load(path);
         plugin->initialize(*this);
@@ -247,7 +279,7 @@ namespace plugins {
         const AbstractPlugin &plugin) const noexcept {
         std::string_view name = plugin.getName();
         std::error_code err{};
-        fs::directory_iterator dir{_paths->pluginPath() / "recipes", err};
+        fs::directory_iterator dir{_paths->pluginRecipePath(), err};
         if(err) {
             return {};
         }

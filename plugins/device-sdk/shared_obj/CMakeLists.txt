@@ -23,4 +23,10 @@ target_include_directories(
          $<TARGET_PROPERTY:aws-c-http,INTERFACE_INCLUDE_DIRECTORIES>
          $<TARGET_PROPERTY:aws-c-event-stream,INTERFACE_INCLUDE_DIRECTORIES>)
 
-install(TARGETS device-sdk DESTINATION lib)
+configureRPATH(device-sdk)
+
+install(TARGETS device-sdk RUNTIME_DEPENDENCY_SET device-sdk-deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET device-sdk-deps)
+endif()

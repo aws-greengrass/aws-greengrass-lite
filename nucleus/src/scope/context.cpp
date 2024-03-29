@@ -169,8 +169,16 @@ namespace scope {
         return prev;
     }
 
-    TempRoot::TempRoot()
-        : _temp(std::make_shared<data::RootHandle>(scope::context()->handles().createRoot())) {
+    std::shared_ptr<data::RootHandle> TempRoot::makeTemp(const ContextRef &context) {
+        // NOLINTNEXTLINE(*-make-shared) make_shared causes RootHandle to be destroyed early
+        return std::shared_ptr<data::RootHandle>{
+            new data::RootHandle(context->handles().createRoot())};
+    }
+
+    TempRoot::TempRoot() : TempRoot(scope::context()) {
+    }
+
+    TempRoot::TempRoot(const ContextRef &context) : _temp(makeTemp(context)) {
         _prev = thread()->setTempRoot(_temp);
     }
 

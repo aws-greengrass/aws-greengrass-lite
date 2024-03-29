@@ -1,0 +1,7 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: local.plugins.discovered.ipc_server
+ComponentVersion: "0.1.0"
+ComponentDescription:
+  Enables local interprocess communication between plugins and components
+ComponentPublisher: Amazon

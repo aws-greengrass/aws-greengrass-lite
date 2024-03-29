@@ -18,8 +18,18 @@ add_library(cli_server MODULE src/cli_server.cpp src/cli_server.hpp
 
 target_link_libraries(cli_server PRIVATE gg_plugin_api)
 
+configureRPATH(cli_server)
+
 set_version_script(cli_server "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS cli_server DESTINATION plugins)
+install(
+  TARGETS cli_server
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET cli_server_deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET cli_server_deps)
+endif()
+
 install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
         DESTINATION plugins/recipes)

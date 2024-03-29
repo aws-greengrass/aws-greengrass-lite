@@ -1,0 +1,7 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: local.plugins.discovered.local_broker
+ComponentVersion: "0.1.0"
+ComponentDescription:
+  Enables local comms of messages between client devices and core device
+ComponentPublisher: Amazon

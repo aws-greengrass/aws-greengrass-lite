@@ -170,6 +170,10 @@ namespace util {
             return rootPath() / PLUGINS_DIRECTORY;
         }
 
+        [[nodiscard]] std::filesystem::path pluginRecipePath() const {
+            return pluginPath() / RECIPE_DIRECTORY;
+        }
+
         NucleusPaths &setRootPath(const std::filesystem::path &newPath, bool passive = false) {
             std::unique_lock guard{_mutex};
             _rootPath = newPath;

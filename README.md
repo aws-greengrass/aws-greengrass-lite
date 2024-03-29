@@ -150,6 +150,33 @@ $ cd run
 $ ./bin/greengrass-lite -r . --config ./config/config.yaml
 ```
 
+#### Using bundled runtime dependencies
+
+To have cmake bundle runtime dependencies, pass the
+`-DINSTALL_RUNTIME_DEPENDENCIES=1` flag when configuring. Then the interpreter
+will need to be patched:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX=~/gglite_testing -DINSTALL_RUNTIME_DEPENDENCIES=1
+make -C build -j4 install/strip
+cd ~/gglite_testing
+patchelf --set-interpreter $PWD/lib/ld-linux-x86-64.so.2 bin/* lib/* plugins/*
+```
+
+The `patchelf --set-interpreter` command is needed as CMake just copies the
+dependencies into the install directory, and doesn't modify the ELF headers to
+use the copied files. That command sets the ELF interpreter for all the
+installables to the bundled `ld-linux-x86-64.so.2`.
+
+When running, `LD_LIBRARY_PATH` must be set to the lib dir, such as in the
+example below:
+
+```bash
+cd ~/gglite_testing
+GG_ROOT=$PWD
+LD_LIBRARY_PATH=$GG_ROOT/lib $GG_ROOT/bin/greengrass-lite -r . --init-config $GG_ROOT/config/config.yaml
+```
+
 ### Deployments
 
 Follow the instructions

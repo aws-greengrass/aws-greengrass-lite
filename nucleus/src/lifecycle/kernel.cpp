@@ -330,9 +330,10 @@ namespace lifecycle {
         auto &loader = context()->pluginLoader();
         loader.setPaths(getPaths());
         loader.setDeviceConfiguration(_deviceConfiguration);
-        loader.discoverPlugins(getPaths()->pluginPath());
+        loader.discoverPlugins();
         auto runningSet = loader.processActiveList();
 
+        // TODO: plugins must wait till all dependencies are RUNNING or FINISHED state, before initalizing.
         for(auto &&plugin : runningSet) {
             plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
                 plugin.lifecycle(loader.INITIALIZE, data);
