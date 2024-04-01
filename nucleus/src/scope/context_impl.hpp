@@ -238,10 +238,10 @@ namespace scope {
         static std::shared_ptr<Context> get();
         static std::shared_ptr<Context> getDefaultContext();
 
-        data::SymbolTable &symbols() {
+        data::SymbolTable &symbols() noexcept {
             return _stringTable;
         }
-        data::HandleTable &handles() {
+        data::HandleTable &handles() noexcept {
             return _handleTable;
         }
         config::Manager &configManager();
@@ -249,10 +249,10 @@ namespace scope {
         pubsub::PubSubManager &lpcTopics();
         plugins::PluginLoader &pluginLoader();
         logging::LogManager &logManager();
-        std::mutex &cycleCheckMutex() {
+        std::mutex &cycleCheckMutex() noexcept {
             return _cycleCheckMutex;
         }
-        lifecycle::SysProperties &sysProperties() {
+        lifecycle::SysProperties &sysProperties() noexcept {
             return _sysProperties;
         }
 

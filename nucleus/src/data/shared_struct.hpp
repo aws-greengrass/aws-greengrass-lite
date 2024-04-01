@@ -10,11 +10,8 @@ namespace data {
      * Typical implementation of StructModelBase
      */
     class SharedStruct : public StructModelBase {
-    private:
-        scope::SharedContextMapper _symbolMapper;
-
     protected:
-        SymbolValueMap<StructElement> _elements{_symbolMapper};
+        SymbolValueMap<StructElement> _elements{context()};
         mutable std::shared_mutex _mutex;
 
         void rootsCheck(const ContainerModelBase *target) const override;
@@ -22,9 +19,7 @@ namespace data {
     public:
         using BadCastError = errors::InvalidStructError;
 
-        explicit SharedStruct(const scope::UsingContext &context)
-            : StructModelBase(context), _symbolMapper(context) {
-        }
+        using StructModelBase::StructModelBase;
 
         uint32_t size() const override;
         bool empty() const override;
