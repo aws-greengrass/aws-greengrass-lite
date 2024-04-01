@@ -25,6 +25,14 @@ configureRPATH(tes_http_server_plugin)
 set_version_script(tes_http_server_plugin
                    "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS tes_http_server_plugin DESTINATION plugins)
+install(
+  TARGETS tes_http_server_plugin
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET tes_http_server_plugin_deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET tes_http_server_plugin_deps)
+endif()
+
 install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
         DESTINATION plugins/recipes)

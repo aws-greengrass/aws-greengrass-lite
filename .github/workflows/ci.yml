@@ -198,6 +198,7 @@ jobs:
 
       - name: Check cppcheck
         id: cppcheck-run
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
           mkdir .cppcheck
           cppcheck_flags="--cppcheck-build-dir=.cppcheck --quiet --std=c++17 \

@@ -1,3 +1,15 @@
+## 2024-03-29
+
+- Fixed bug causing hang when loading plugins in certain optimized builds.
+- Installables now also have RUNPATH set in addition to RPATHS.
+- OpenSSL's libcrypto is used when available; aws-lc is now the fallback.
+- Debuginfo is now compressed in Debug and RelWithDebInfo builds.
+- All plugins now have RPATH/RUNPATH set.
+- Additional env variables are set for generic components.
+- Plugins can now load in dependency order.
+- Script timeouts are now handled.
+- Runtime dependencies can be bundled into the Greengrass install dir
+
 ## 2024-03-07
 
 - Fix conflicts with aws-device-sdk-cpp-v2 api handles

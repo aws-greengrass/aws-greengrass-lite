@@ -26,6 +26,14 @@ configureRPATH(iot_broker)
 
 set_version_script(iot_broker "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS iot_broker DESTINATION plugins)
+install(
+  TARGETS iot_broker
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET iot_broker_deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET iot_broker_deps)
+endif()
+
 install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
         DESTINATION plugins/recipes)

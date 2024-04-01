@@ -36,6 +36,14 @@ configureRPATH(ipc_server)
 
 set_version_script(ipc_server "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS ipc_server DESTINATION plugins)
+install(
+  TARGETS ipc_server
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET ipc_server_deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET ipc_server_deps)
+endif()
+
 install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
         DESTINATION plugins/recipes)

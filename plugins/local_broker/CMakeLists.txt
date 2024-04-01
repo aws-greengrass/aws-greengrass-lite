@@ -18,8 +18,18 @@ add_library(local_broker MODULE src/main.cpp)
 
 target_link_libraries(local_broker PRIVATE gg_plugin_api shared_resources)
 
+configureRPATH(local_broker)
+
 set_version_script(local_broker "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS local_broker DESTINATION plugins)
+install(
+  TARGETS local_broker
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET local_broker_deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET local_broker_deps)
+endif()
+
 install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
         DESTINATION plugins/recipes)

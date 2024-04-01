@@ -194,6 +194,8 @@ target_link_libraries(
 
 target_include_directories(nucleus-core PUBLIC include)
 
+configureRPATH(nucleus-core)
+
 # Executable
 
 add_executable(greengrass-lite stub/main.c)
@@ -201,8 +203,12 @@ target_link_libraries(greengrass-lite nucleus-core)
 
 configureRPATH(greengrass-lite)
 
-install(TARGETS greengrass-lite DESTINATION bin)
-install(TARGETS nucleus-core DESTINATION lib)
+install(TARGETS greengrass-lite nucleus-core RUNTIME_DEPENDENCY_SET
+                nucleus-deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET nucleus-deps)
+endif()
 
 # Tests
 
