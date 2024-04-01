@@ -189,8 +189,6 @@ namespace plugins {
             }
         }
 
-        // TODO: Move loading of plugins to after the dependency order map is created, load in that order.
-        // TODO: Get path of native plugins from this code block, therefore during dependency order, no need to search
         // Load all found Native plugins in plugins dir, if also in recipes map pass.
         for(const auto &top : fs::directory_iterator(getPaths()->pluginPath())) {
             if(top.is_regular_file()) {
@@ -277,22 +275,22 @@ namespace plugins {
 
     std::optional<deployment::Recipe> PluginLoader::loadRecipe(
         const AbstractPlugin &plugin) const noexcept {
-        std::string_view name = plugin.getName();
+        std::string name = plugin.getName();
         std::error_code err{};
         fs::directory_iterator dir{_paths->pluginRecipePath(), err};
         if(err) {
             return {};
         }
-        for(const auto &entry : dir) {
+        // search recipe map for path and load
+        if (auto it = _recipePaths.find(name); it != _recipePaths.end()) {
+            auto recipePath = it->second;
             try {
-                if(util::startsWith(entry.path().stem().string(), name)) {
-                    return deployment::RecipeLoader{}.read(entry);
-                }
-            } catch(std::runtime_error &e) {
+                return deployment::RecipeLoader{}.read(recipePath);
+            } catch (std::runtime_error &e) {
                 // pass
                 LOG.atWarn("recipe-not-loaded")
                     .cause(e)
-                    .kv("path", entry.path().string())
+                    .kv("path", recipePath.string())
                     .log("Unable to load recipe file");
             }
         }
