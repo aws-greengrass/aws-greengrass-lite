@@ -1,4 +1,5 @@
 #pragma once
+
 #include "data/safe_handle.hpp"
 #include "errors/errors.hpp"
 #include "scope/context.hpp"
@@ -87,8 +88,7 @@ namespace data {
         TrackedObject &operator=(const TrackedObject &) = delete;
         TrackedObject &operator=(TrackedObject &&) noexcept = delete;
 
-        explicit TrackedObject(const scope::UsingContext &context) : UsesContext(context) {
-        }
+        using scope::UsesContext::UsesContext;
 
         virtual void close() {
             // meaning of close depends on object - by default it's a no-op

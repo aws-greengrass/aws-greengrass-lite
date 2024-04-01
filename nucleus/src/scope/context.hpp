@@ -2,12 +2,11 @@
 #include "errors/errors.hpp"
 #include <atomic_shared.hpp>
 #include <memory>
-#include <optional>
 #include <utility>
 
 namespace data {
     class RootHandle;
-}
+} // namespace data
 
 namespace scope {
     class Context;
@@ -23,7 +22,7 @@ namespace scope {
      * Typically used to decorate a block of code using 'visit' or 'safeVisit', where context is set
      * for that block of code.
      */
-    class UsingContext {
+    class UsingContext final {
         ContextRef _context;
 
     public:
@@ -88,5 +87,4 @@ namespace scope {
             return {_context};
         }
     };
-
 } // namespace scope

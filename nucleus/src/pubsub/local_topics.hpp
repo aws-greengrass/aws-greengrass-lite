@@ -86,8 +86,7 @@ namespace pubsub {
     //
     class PubSubManager : private scope::UsesContext {
     private:
-        scope::SharedContextMapper _symbolMapper;
-        data::SymbolValueMap<std::shared_ptr<Listeners>> _topics{_symbolMapper};
+        data::SymbolValueMap<std::shared_ptr<Listeners>> _topics{context()};
         mutable std::shared_mutex _mutex;
 
         std::shared_mutex &managerMutex() {
@@ -99,9 +98,7 @@ namespace pubsub {
         friend class Listener;
 
     public:
-        explicit PubSubManager(const scope::UsingContext &context)
-            : scope::UsesContext(context), _symbolMapper(context) {
-        }
+        using scope::UsesContext::UsesContext;
 
         void cleanup();
         // if listeners exist for a given topic, return those listeners

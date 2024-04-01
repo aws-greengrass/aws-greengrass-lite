@@ -13,10 +13,6 @@ namespace tasks {
         tc->changeContext(context());
     }
 
-    TaskPoolWorker::TaskPoolWorker(const scope::UsingContext &context)
-        : scope::UsesContext(context) {
-    }
-
     std::unique_ptr<TaskPoolWorker> TaskPoolWorker::create(const scope::UsingContext &context) {
 
         auto worker = std::make_unique<TaskPoolWorker>(context);

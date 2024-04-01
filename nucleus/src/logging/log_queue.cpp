@@ -114,7 +114,7 @@ namespace logging {
         _needsSync.clear();
     }
 
-    LogQueue::~LogQueue() {
+    LogQueue::~LogQueue() noexcept {
         assert(!_running.load());
     }
 } // namespace logging

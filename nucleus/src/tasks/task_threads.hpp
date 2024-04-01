@@ -1,4 +1,5 @@
 #pragma once
+
 #include "data/handle_table.hpp"
 #include <condition_variable>
 #include <list>
@@ -34,7 +35,7 @@ namespace tasks {
         void stall(const ExpireTime &expireTime) noexcept;
 
     public:
-        explicit TaskPoolWorker(const scope::UsingContext &context);
+        using scope::UsesContext::UsesContext;
         TaskPoolWorker(const TaskPoolWorker &) = delete;
         TaskPoolWorker(TaskPoolWorker &&) = delete;
         TaskPoolWorker &operator=(const TaskPoolWorker &) = delete;
@@ -55,8 +56,7 @@ namespace tasks {
 
     class TimerWorker : public TaskPoolWorker {
     public:
-        explicit TimerWorker(const scope::UsingContext &context) : TaskPoolWorker(context) {
-        }
+        using TaskPoolWorker::TaskPoolWorker;
         void runLoop() noexcept override;
         static std::unique_ptr<TimerWorker> create(const scope::UsingContext &context);
     };
