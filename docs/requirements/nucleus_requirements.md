@@ -3,7 +3,7 @@
 ## Abbreviations and Jargon
 
 1. GG-Java : The existing Greengrass v2 in Java.
-2. GG-Lite : The new implementatyion of Greengrass v2 in C++.
+2. GG-Lite : The new implementation of Greengrass v2 in C++.
 3. Nucleus : The executable core of Greengrass.
 4.
 

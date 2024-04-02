@@ -50,7 +50,7 @@ public:
 };
 
 extern "C" class ServerContinuationCCallbacks {
-    using ContinutationHandle = std::shared_ptr<ServerContinuation> *;
+    using ContinuationHandle = std::shared_ptr<ServerContinuation> *;
 
 public:
     static void onContinuation(

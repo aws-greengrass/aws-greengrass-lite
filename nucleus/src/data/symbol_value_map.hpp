@@ -1,36 +1,39 @@
 #pragma once
+#include "scope/context.hpp"
 #include "scope/mapper.hpp"
 #include <functional>
 
-namespace scope {
-    class Context;
-}
-
 namespace data {
-    class SymbolMapper;
     //
     // Recurring pattern of having a table of symbols - As currently implemented, does not
     // provide a map facade, but does provide a set of helper methods for common operators
     //
 
     template<typename T>
-    class SymbolValueMap {
+    class SymbolValueMap : scope::UsesContext {
     private:
         using ValueMap = std::map<data::Symbol::Partial, T, data::Symbol::Partial::CompLess>;
 
     public:
-        explicit SymbolValueMap(scope::SymbolMapper &mapper) : _mapper(mapper) {
-        }
-        SymbolValueMap(const SymbolValueMap &other) = delete;
-        SymbolValueMap(SymbolValueMap &&other) = delete;
-        SymbolValueMap &operator=(SymbolValueMap &&other) = delete;
-        ~SymbolValueMap() = default;
+        using iterator = typename ValueMap::iterator;
+        using const_iterator = typename ValueMap::const_iterator;
 
-        ValueMap &get() {
+        SymbolValueMap(const SymbolValueMap &) = delete;
+        SymbolValueMap(SymbolValueMap &&) noexcept = default;
+        SymbolValueMap &operator=(SymbolValueMap &&) noexcept = default;
+        SymbolValueMap &operator=(const SymbolValueMap &lhs) {
+            _values = lhs._values;
+            return *this;
+        }
+        ~SymbolValueMap() noexcept = default;
+
+        using scope::UsesContext::UsesContext;
+
+        ValueMap &get() & noexcept {
             return _values;
         }
 
-        const ValueMap &get() const {
+        const ValueMap &get() const & noexcept {
             return _values;
         }
 
@@ -38,35 +41,35 @@ namespace data {
             return _values.at(partial(k));
         }
 
-        typename ValueMap::iterator find(const Symbol &k) {
+        iterator find(const Symbol &k) {
             return _values.find(partial(k));
         }
 
-        typename ValueMap::const_iterator find(const Symbol &k) const {
+        const_iterator find(const Symbol &k) const {
             return _values.find(partial(k));
         }
 
-        typename ValueMap::iterator begin() {
+        iterator begin() noexcept {
             return _values.begin();
         }
 
-        typename ValueMap::iterator end() {
+        iterator end() noexcept {
             return _values.end();
         }
 
-        typename ValueMap::const_iterator begin() const {
+        const_iterator begin() const noexcept {
             return _values.begin();
         }
 
-        typename ValueMap::const_iterator end() const {
+        const_iterator end() const noexcept {
             return _values.end();
         }
 
-        typename ValueMap::const_iterator cbegin() const {
+        const_iterator cbegin() const noexcept {
             return _values.cbegin();
         }
 
-        typename ValueMap::const_iterator cend() const {
+        const_iterator cend() const noexcept {
             return _values.cend();
         }
 
@@ -84,9 +87,20 @@ namespace data {
             return _values.erase(partial(symbol));
         }
 
-        template<typename I>
-        auto erase(I pos) {
+        auto erase(iterator pos) {
             return _values.erase(pos);
+        }
+
+        auto erase(const_iterator pos) {
+            return _values.erase(pos);
+        }
+
+        auto erase(const T &key) {
+            return _values.erase(key);
+        }
+
+        auto erase(const_iterator first, const_iterator last) {
+            return _values.erase(first, last);
         }
 
         auto size() const noexcept {
@@ -98,20 +112,14 @@ namespace data {
         }
 
         [[nodiscard]] Symbol::Partial partial(const Symbol &symbol) const {
-            return _mapper.partial(symbol);
+            return scope::partial(*context(), symbol);
         }
 
-        [[nodiscard]] Symbol apply(const Symbol::Partial &symbol) const {
-            return _mapper.apply(symbol);
-        }
-
-        SymbolValueMap &operator=(const SymbolValueMap &other) {
-            _values = other._values;
-            return *this;
+        [[nodiscard]] Symbol apply(const Symbol::Partial &partial) const {
+            return scope::apply(*context(), partial);
         }
 
     private:
-        scope::SymbolMapper &_mapper;
         ValueMap _values;
     };
 

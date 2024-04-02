@@ -13,7 +13,7 @@ namespace plugins {
 }
 
 namespace pubsub {
-    class Future;
+    class FutureBase;
 }
 
 namespace tasks {
@@ -47,7 +47,7 @@ namespace tasks {
             const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data);
         uint32_t size() const override;
         void *data() override;
-        std::shared_ptr<pubsub::Future> retVal() const;
+        std::shared_ptr<pubsub::FutureBase> retVal() const;
     };
 
     class AsyncCallbackData : public CallbackPackedData {
@@ -67,7 +67,7 @@ namespace tasks {
         static data::Symbol futureType();
 
     public:
-        explicit FutureCallbackData(const std::shared_ptr<pubsub::Future> &future);
+        explicit FutureCallbackData(const std::shared_ptr<pubsub::FutureBase> &future);
         uint32_t size() const override;
         void *data() override;
     };
@@ -93,7 +93,7 @@ namespace tasks {
         static data::Symbol channelListenCallbackType();
 
     public:
-        explicit ChannelListenCallbackData(const std::shared_ptr<data::ContainerModelBase> &data);
+        explicit ChannelListenCallbackData(const std::shared_ptr<data::TrackedObject> &obj);
         uint32_t size() const override;
         void *data() override;
     };
@@ -120,16 +120,15 @@ namespace tasks {
         explicit Callback(const scope::UsingContext &context) : data::TrackedObject(context) {
         }
 
-        virtual std::shared_ptr<pubsub::Future> invokeTopicCallback(
+        virtual std::shared_ptr<pubsub::FutureBase> invokeTopicCallback(
             const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data);
         virtual void invokeAsyncCallback();
-        virtual void invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future);
+        virtual void invokeFutureCallback(const std::shared_ptr<pubsub::FutureBase> &future);
         virtual bool invokeLifecycleCallback(
             const std::shared_ptr<plugins::AbstractPlugin> &module,
             const data::Symbol &phase,
             const std::shared_ptr<data::ContainerModelBase> &data);
-        virtual void invokeChannelListenCallback(
-            const std::shared_ptr<data::ContainerModelBase> &data);
+        virtual void invokeChannelListenCallback(const std::shared_ptr<data::TrackedObject> &obj);
         virtual void invokeChannelCloseCallback();
     };
 
@@ -167,17 +166,16 @@ namespace tasks {
         RegisteredCallback &operator=(RegisteredCallback &&) = delete;
         ~RegisteredCallback() override;
 
-        std::shared_ptr<pubsub::Future> invokeTopicCallback(
+        std::shared_ptr<pubsub::FutureBase> invokeTopicCallback(
             const data::Symbol &topic,
             const std::shared_ptr<data::ContainerModelBase> &data) override;
         void invokeAsyncCallback() override;
-        void invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future) override;
+        void invokeFutureCallback(const std::shared_ptr<pubsub::FutureBase> &future) override;
         bool invokeLifecycleCallback(
             const std::shared_ptr<plugins::AbstractPlugin> &module,
             const data::Symbol &phase,
             const std::shared_ptr<data::ContainerModelBase> &data) override;
-        void invokeChannelListenCallback(
-            const std::shared_ptr<data::ContainerModelBase> &data) override;
+        void invokeChannelListenCallback(const std::shared_ptr<data::TrackedObject> &obj) override;
         void invokeChannelCloseCallback() override;
     };
 

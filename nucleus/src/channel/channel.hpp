@@ -17,7 +17,7 @@ namespace channel {
     //
     class Channel final : public data::TrackedObject {
     private:
-        std::queue<std::shared_ptr<data::ContainerModelBase>> _inFlight;
+        std::queue<std::shared_ptr<data::TrackedObject>> _inFlight;
         std::shared_ptr<tasks::Callback> _listener;
         std::vector<std::shared_ptr<tasks::Callback>> _onClose;
         mutable std::mutex _mutex;

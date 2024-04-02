@@ -1,4 +1,5 @@
 #pragma once
+
 #include "data/handle_table.hpp"
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
@@ -241,8 +242,7 @@ namespace plugins {
         void discoverRecipe(const std::filesystem::directory_entry &entry);
 
         std::shared_ptr<AbstractPlugin> loadNativePlugin(
-                                const std::filesystem::path &path,
-                                const std::string &serviceName);
+            const std::filesystem::path &path, const std::string &serviceName);
 
         std::optional<deployment::Recipe> loadRecipe(const AbstractPlugin &plugin) const noexcept;
 

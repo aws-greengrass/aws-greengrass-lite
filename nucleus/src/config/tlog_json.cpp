@@ -84,7 +84,7 @@ namespace config {
             return true;
         }
         if(result.Code() == rapidjson::ParseErrorCode::kParseErrorDocumentEmpty) {
-            return false; // failure occured prior to parsing
+            return false; // failure occurred prior to parsing
         }
         throw std::runtime_error("JSON structure invalid");
     }

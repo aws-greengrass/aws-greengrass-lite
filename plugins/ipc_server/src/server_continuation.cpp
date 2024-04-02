@@ -63,7 +63,7 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
     const aws_event_stream_rpc_message_args *message_args,
     void *user_data) noexcept {
 
-    auto continuation = *static_cast<ContinutationHandle>(user_data);
+    auto continuation = *static_cast<ContinuationHandle>(user_data);
     util::TempModule module(continuation->module());
 
     // TODO: IPC calls must NOT be blocking, we're doing too much on this IPC thread
@@ -105,7 +105,7 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
                 auto channel = response.get<ggapi::Channel>(keys.channel);
                 continuation->_channel = channel;
                 auto continuationWeak = std::weak_ptr{continuation};
-                channel.addListenCallback(ggapi::ChannelListenCallback::of(
+                channel.addListenCallback(ggapi::ChannelListenCallback::of<ggapi::Struct>(
                     &ServerContinuation::onTopicResponse, continuationWeak));
             }
         } catch(const ggapi::GgApiError &error) {
@@ -133,7 +133,7 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
 
 extern "C" void ServerContinuationCCallbacks::onContinuationClose(
     aws_event_stream_rpc_server_continuation_token *, void *user_data) noexcept {
-    auto continuation = static_cast<ContinutationHandle>(user_data);
+    auto continuation = static_cast<ContinuationHandle>(user_data);
     std::cerr << "Stream ending for " << (*continuation)->_operation << std::endl;
     // TODO: Improve in this, per memory coding standards
     // NOLINTNEXTLINE(*-owning-memory)

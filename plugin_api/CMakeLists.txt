@@ -18,6 +18,7 @@ add_library(
   include/c_api.h
   include/c_api.hpp
   include/channel.hpp
+  include/checked_pointers.hpp
   include/containers.hpp
   include/cpp_api.hpp
   include/error_tmpl.hpp

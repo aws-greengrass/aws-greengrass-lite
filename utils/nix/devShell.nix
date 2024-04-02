@@ -6,8 +6,7 @@
     gh
     gnutar
     temurin-jre-bin-17
-    zig
-    llvmPackages_17.bintools
+    nodePackages.cspell
   ] ++ (lib.optionals (!pkgs.stdenv.isDarwin) [
     gdb
   ]));

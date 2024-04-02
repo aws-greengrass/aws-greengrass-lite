@@ -1,4 +1,5 @@
 #pragma once
+
 #include "scope/context_full.hpp"
 
 namespace scope {

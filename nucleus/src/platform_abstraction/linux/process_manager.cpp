@@ -11,16 +11,16 @@
 #include <iostream>
 #include <iterator>
 #include <mutex>
+#include <sstream>
 #include <stdexcept>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <system_error>
 #include <thread>
 #include <type_traits>
+#include <typeinfo>
 #include <unistd.h>
 #include <variant>
-#include <typeinfo>
-#include <sstream>
 
 namespace ipc {
 
@@ -46,16 +46,16 @@ namespace ipc {
         }
 
         template<class T>
-        int addEpollEvent(FileDescriptor &epfd, FileDescriptor &fd, uint32_t events, T &data) {
+        int addEpollEvent(FileDescriptor &epollFd, FileDescriptor &fd, uint32_t events, T &data) {
             epoll_event e{};
             e.events = events;
             e.data.ptr = &data;
-            return epoll_ctl(epfd.get(), EPOLL_CTL_ADD, fd.get(), &e);
+            return epoll_ctl(epollFd.get(), EPOLL_CTL_ADD, fd.get(), &e);
         }
 
-        int deleteEpollEvent(FileDescriptor &epfd, FileDescriptor &fd) {
+        int deleteEpollEvent(FileDescriptor &epollFd, FileDescriptor &fd) {
             struct epoll_event e {};
-            return epoll_ctl(epfd.get(), EPOLL_CTL_DEL, fd.get(), &e);
+            return epoll_ctl(epollFd.get(), EPOLL_CTL_DEL, fd.get(), &e);
         }
     } // namespace
 
@@ -73,12 +73,12 @@ namespace ipc {
     }
 
     FileDescriptor LinuxProcessManager::createEpoll() {
-        int epfd = epoll_create1(EPOLL_CLOEXEC);
-        if(epfd == -1) {
+        int epollFd = epoll_create1(EPOLL_CLOEXEC);
+        if(epollFd == -1) {
             perror("epoll_create");
             throw std::system_error(errno, std::generic_category());
         }
-        return FileDescriptor{epfd};
+        return FileDescriptor{epollFd};
     }
 
     void LinuxProcessManager::addEvent(std::list<ProcessEvent> &eventList, ProcessEvent event) {
@@ -95,7 +95,7 @@ namespace ipc {
                 }
             },
             eventList.front());
-        if(addEpollEvent(_epfd, fd, events, eventList.front()) < 0) {
+        if(addEpollEvent(_epollFd, fd, events, eventList.front()) < 0) {
             perror("epoll_ctl");
             throw std::system_error{errno, std::generic_category()};
         }
@@ -110,7 +110,7 @@ namespace ipc {
 
             std::array<epoll_event, maxEvents> events{};
             while(_running) {
-                auto n = epoll_wait(_epfd.get(), events.data(), maxEvents, epollTimeout.count());
+                auto n = epoll_wait(_epollFd.get(), events.data(), maxEvents, epollTimeout.count());
                 if(n == -1) {
                     if(errno != EINTR) {
                         perror("epoll_wait");
@@ -132,14 +132,14 @@ namespace ipc {
                                     }
                                 }
                                 if(event.events & (EPOLLHUP | EPOLLERR)) {
-                                    if(deleteEpollEvent(_epfd, fd) < 0) {
+                                    if(deleteEpollEvent(_epollFd, fd) < 0) {
                                         perror("epoll_ctl");
                                     }
                                     fd.close();
                                 }
                             } else if constexpr(std::is_same_v<EventT, ProcessComplete>) {
                                 auto &fd = e.process->getProcessFd();
-                                if(deleteEpollEvent(_epfd, fd) < 0) {
+                                if(deleteEpollEvent(_epollFd, fd) < 0) {
                                     perror("epoll_ctl");
                                 }
                                 std::error_code ec{};
@@ -183,7 +183,7 @@ namespace ipc {
             std::cerr << "Linux Process Logger: " << e.what() << '\n';
         } catch(...) {
             std::cerr << "Linux Process Logger: "
-                      << "Unexepected exception\n";
+                      << "Unexpected exception\n";
         }
         _running.store(false);
     }
@@ -198,24 +198,29 @@ namespace ipc {
         }
         ProcessId pid{p->getPid(), p->getProcessFd().get()};
 
-        if (auto timeoutPoint = p->getTimeout(); timeoutPoint != minTimePoint) {
+        if(auto timeoutPoint = p->getTimeout(); timeoutPoint != minTimePoint) {
             // TODO: Move timeout logic to lifecycle manager.
-            // TODO: Fix miniscule time delay by doing conversion with timepoints. Keep timeout as same unit throughout. (2s vs 1.9999s)
+            // TODO: Fix miniscule time delay by doing conversion with timepoints. Keep timeout as
+            // same unit throughout. (2s vs 1.9999s)
             auto currentTimePoint = std::chrono::steady_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(timeoutPoint - currentTimePoint);
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                timeoutPoint - currentTimePoint);
             auto delay = static_cast<uint32_t>(duration.count());
 
-            ggapi::later(delay, [this](ProcessId pid) {
-                // TODO: Error out the child process via lifecycle manager.
-                std::ostringstream reasonStream;
-                reasonStream << "Process (pidfd=" << pid.pidfd
-                    << ") has reached the time out limit.";
-                try {
-                    closeProcess(pid, reasonStream.str());
-                } catch (const std::system_error& ex){
-                    throw ex;
-                }
-            }, pid);
+            ggapi::later(
+                delay,
+                [this](ProcessId pid) {
+                    // TODO: Error out the child process via lifecycle manager.
+                    std::ostringstream reasonStream;
+                    reasonStream << "Process (pidfd=" << pid.pidfd
+                                 << ") has reached the time out limit.";
+                    try {
+                        closeProcess(pid, reasonStream.str());
+                    } catch(const std::system_error &ex) {
+                        throw ex;
+                    }
+                },
+                pid);
         }
 
         std::list<ProcessEvent> events;
@@ -241,7 +246,8 @@ namespace ipc {
                     } else {
                         return false;
                     }
-                }, e);
+                },
+                e);
         });
 
         if(found == _fds.end()) {

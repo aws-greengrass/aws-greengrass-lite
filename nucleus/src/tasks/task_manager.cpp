@@ -6,9 +6,6 @@
 
 namespace tasks {
 
-    TaskManager::TaskManager(const scope::UsingContext &context) : scope::UsesContext(context) {
-    }
-
     void TaskManager::queueTask(const std::shared_ptr<Task> &task) {
         // no affinity, Add to backlog for a worker to pick up
         std::unique_lock guard{_mutex};

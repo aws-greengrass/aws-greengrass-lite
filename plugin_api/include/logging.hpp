@@ -6,8 +6,8 @@
 #include <chrono>
 #include <functional>
 #include <memory>
-#include <mutex>
 #include <shared_mutex>
+#include <sstream>
 #include <string>
 
 /**
@@ -277,11 +277,11 @@ namespace logging {
 
             virtual void setMessage(const ArgValue &) = 0;
 
-            virtual void setLazyMessage(const std::function<const ArgValue &()> &) = 0;
+            virtual void setLazyMessage(const std::function<ArgValue()> &) = 0;
 
             virtual void addKV(SymbolArgType, const ArgValue &) = 0;
 
-            virtual void addLazyKV(SymbolArgType, const std::function<const ArgValue &()> &) = 0;
+            virtual void addLazyKV(SymbolArgType, const std::function<ArgValue()> &) = 0;
 
             virtual void commit() = 0;
         };
@@ -304,13 +304,13 @@ namespace logging {
             void setMessage(const ArgValue &) override {
             }
 
-            void setLazyMessage(const std::function<const ArgValue &()> &) override {
+            void setLazyMessage(const std::function<ArgValue()> &) override {
             }
 
             void addKV(SymbolArgType, const ArgValue &) override {
             }
 
-            void addLazyKV(SymbolArgType, const std::function<const ArgValue &()> &) override {
+            void addLazyKV(SymbolArgType, const std::function<ArgValue()> &) override {
             }
 
             void commit() override {
@@ -376,7 +376,7 @@ namespace logging {
                 Traits::putStruct(_data, _manager->MESSAGE_KEY, message);
             }
 
-            void setLazyMessage(const std::function<const ArgValue &()> &func) override {
+            void setLazyMessage(const std::function<ArgValue()> &func) override {
                 setMessage(func());
             }
 
@@ -384,8 +384,7 @@ namespace logging {
                 Traits::putStruct(_context, key, value);
             }
 
-            void addLazyKV(
-                SymbolArgType key, const std::function<const ArgValue &()> &func) override {
+            void addLazyKV(SymbolArgType key, const std::function<ArgValue()> &func) override {
                 addKV(key, func());
             }
 
@@ -465,7 +464,7 @@ namespace logging {
         /**
          * Add context information to event with lazy evaluation as a lambda
          */
-        Event &kv(SymbolArgType key, const std::function<const ArgValue &()> &fn) {
+        Event &kv(SymbolArgType key, const std::function<ArgValue()> &fn) {
             _impl->addLazyKV(key, fn);
             return *this;
         }
@@ -504,9 +503,20 @@ namespace logging {
         /**
          * Commit the log entry with a lazy-evaluation message
          */
-        void log(const std::function<const ArgValue &()> &fn) {
+        void logLazy(const std::function<ArgValue()> &fn) {
             _impl->setLazyMessage(fn);
             _impl->commit();
+        }
+
+        /**
+         * Version of logLazy that allows stream operations.
+         */
+        void logStream(const std::function<void(std::stringstream &)> &fn) {
+            logLazy([&]() {
+                std::stringstream stream;
+                fn(stream);
+                return stream.str();
+            });
         }
     };
 
