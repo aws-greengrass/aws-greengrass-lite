@@ -48,6 +48,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Default to not building tests
 option(BUILD_TESTING "" OFF)
 
+# Ensure all shared libs in lib on Unix platforms
+set(CMAKE_INSTALL_LIBDIR "lib")
+
 # Compiler options
 
 set(CMAKE_COLOR_DIAGNOSTICS ON)
