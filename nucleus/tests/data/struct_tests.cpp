@@ -21,7 +21,7 @@ SCENARIO("Shared structure implementation", "[struct]") {
             s->put("foo", 1);
             s->put(ping, 3);
             s->put("zing", 4.6);
-            s->put("zap", "zooey");
+            s->put("zap", "zoo");
             s->put(pow, pow);
             THEN("Structure size increased") {
                 REQUIRE(s->size() == 5);
@@ -30,7 +30,7 @@ SCENARIO("Shared structure implementation", "[struct]") {
                 REQUIRE(s->get("foo").getInt() == 1);
                 REQUIRE(s->get("ping").getInt() == 3);
                 REQUIRE(s->get("zing").getDouble() == 4.6);
-                REQUIRE(s->get("zap").getString() == "zooey");
+                REQUIRE(s->get("zap").getString() == "zoo");
                 REQUIRE(s->get("pow").getString() == "pow");
             }
         }

@@ -37,7 +37,7 @@ namespace ipc {
         std::mutex _listMutex;
         std::list<ProcessEvent> _fds;
 
-        FileDescriptor _epfd{createEpoll()};
+        FileDescriptor _epollFd{createEpoll()};
         FileDescriptor _eventfd{createEvent()};
 
         std::thread _thread{&LinuxProcessManager::workerThread, this};

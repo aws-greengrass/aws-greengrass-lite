@@ -27,7 +27,7 @@ namespace util {
         struct always_false : std::false_type {};
 
         // a static_assert which always fails is ill-formed in C++17
-        // in C++23, static_assert(false) in an uninstantiated context is OK
+        // in C++23, static_assert(false) in an instantiated context is OK
         // Supports construct static_assert(traits::always_false_v);
         template<>
         struct always_false<detail::_reservedType> : std::true_type {};

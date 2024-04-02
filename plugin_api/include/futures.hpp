@@ -108,7 +108,7 @@ namespace ggapi {
 
         /**
          * Create a fulfilled promise - which handles the most typical case
-         * when no async fulfilment is needed.
+         * when no async fulfillment is needed.
          *
          * @param value Value to assign
          * @return new fulfilled promise

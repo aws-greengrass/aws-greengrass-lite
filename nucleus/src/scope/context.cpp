@@ -65,8 +65,8 @@ namespace scope {
     }
 
     std::shared_ptr<Context> Context::getDefaultContext() {
-        static std::shared_ptr<Context> deflt{create()};
-        return deflt;
+        static std::shared_ptr<Context> defaultCtx{create()};
+        return defaultCtx;
     }
 
     std::shared_ptr<Context> Context::get() {

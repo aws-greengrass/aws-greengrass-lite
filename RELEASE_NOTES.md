@@ -1,7 +1,7 @@
 ## 2024-03-29
 
 - Fixed bug causing hang when loading plugins in certain optimized builds.
-- Installables now also have RUNPATH set in addition to RPATHS.
+- Installables now also have RUNPATH set in addition to RPATHs.
 - OpenSSL's libcrypto is used when available; aws-lc is now the fallback.
 - Debuginfo is now compressed in Debug and RelWithDebInfo builds.
 - All plugins now have RPATH/RUNPATH set.
