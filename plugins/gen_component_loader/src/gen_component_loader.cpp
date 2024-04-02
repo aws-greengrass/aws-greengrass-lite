@@ -2,14 +2,16 @@
 #include "c_api.h"
 #include "containers.hpp"
 #include "handles.hpp"
+#include "platform_abstraction/startable.hpp"
 #include "scopes.hpp"
 #include "string_util.hpp"
-#include <filesystem>
+
 #include <fstream>
 #include <iostream>
 #include <iterator>
 #include <memory>
 #include <mutex>
+#include <regex>
 #include <string>
 #include <temp_module.hpp>
 #include <utility>
@@ -34,9 +36,152 @@ ggapi::ModuleScope GenComponentDelegate::registerComponent() {
     return module;
 }
 
+ipc::ProcessId GenComponentDelegate::startProcess(
+    std::string script,
+    std::chrono::seconds timeout,
+    bool requiresPrivilege,
+    std::unordered_map<std::string, std::optional<std::string>> env,
+    const std::string &note,
+    std::optional<ipc::CompletionCallback> onComplete) {
+    using namespace std::string_literals;
+
+    auto getShell = [this]() -> std::string {
+        if(_nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"})
+           != "") {
+            return _nucleusConfig.getValue<std::string>(
+                {"configuration", "runWithDefault", "posixShell"});
+        } else {
+            LOG.atWarn("missing-config-option")
+                .kv("message", "posixShell not configured. Defaulting to bash.")
+                .log();
+            return "bash"s;
+        }
+    };
+
+    auto getThingName = [this]() -> std::string {
+        return _systemConfig.getValue<std::string>({"thingName"});
+    };
+
+    auto getAWSRegion = [this]() -> std::string {
+        return _nucleusConfig.getValue<std::string>({"configuration", "awsRegion"});
+    };
+
+    auto getRootCAPath = [this]() -> std::string {
+        return _systemConfig.getValue<std::string>({"rootpath"});
+    };
+
+    std::string getNucleusVersion =  "0.0.0";
+
+    // TODO: query TES plugin
+    std::string container_uri = "http://localhost:8090/2016-11-01/credentialprovider/";
+
+    auto [socketPath, authToken] =
+        [note = note]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
+        auto request = ggapi::Struct::create();
+        // TODO: is note correct here?
+        request.put("serviceName", note);
+        auto resultFuture =
+            ggapi::Subscription::callTopicFirst("aws.greengrass.RequestIpcInfo", request);
+        if(!resultFuture) {
+            return {};
+        };
+        auto result = ggapi::Struct(resultFuture.waitAndGetValue());
+        if(!result || result.empty()) {
+            return {};
+        }
+
+        auto socketPath = result.hasKey("domain_socket_path")
+                              ? std::make_optional(result.get<std::string>("domain_socket_path"))
+                              : std::nullopt;
+        auto authToken = result.hasKey("cli_auth_token")
+                             ? std::make_optional(result.get<std::string>("cli_auth_token"))
+                             : std::nullopt;
+        return {std::move(socketPath), std::move(authToken)};
+    }();
+
+    auto startable =
+        ipc::Startable{}
+            .withCommand(getShell())
+            .withEnvironment(std::move(env))
+            // TODO: Should entire nucleus env be copied?
+            .addEnvironment(ipc::PATH_ENVVAR, ipc::getEnviron(ipc::PATH_ENVVAR))
+            .addEnvironment("SVCUID", authToken)
+            .addEnvironment(
+                "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"s, std::move(socketPath))
+            .addEnvironment("AWS_CONTAINER_CREDENTIALS_FULL_URI"s, std::move(container_uri))
+            .addEnvironment("AWS_CONTAINER_AUTHORIZATION_TOKEN"s, std::move(authToken))
+            .addEnvironment("AWS_IOT_THING_NAME"s, getThingName())
+            .addEnvironment("GG_ROOT_CA_PATH"s, getRootCAPath())
+            .addEnvironment("AWS_REGION"s, getAWSRegion())
+            .addEnvironment("AWS_DEFAULT_REGION"s, getAWSRegion())
+            .addEnvironment("GGC_VERSION"s, getNucleusVersion)
+            // TODO: Windows "run raw script" switch
+            .withArguments({"-c", std::move(script)})
+            // TODO: allow output to pass back to caller if subscription is specified
+            .withOutput([note = note](util::Span<const char> buffer) {
+                LOG.atInfo("stdout")
+                    .kv("note", note)
+                    .kv("message", std::string_view{buffer.data(), buffer.size()})
+                    .log();
+            })
+            .withError([note = note](util::Span<const char> buffer) {
+                LOG.atWarn("stderr")
+                    .kv("note", note)
+                    .kv("message", std::string_view{buffer.data(), buffer.size()})
+                    .log();
+            })
+            .withCompletion([onComplete = std::move(onComplete)](int returnCode) mutable {
+                if(returnCode == 0) {
+                    LOG.atInfo("process-exited").kv("returnCode", returnCode).log();
+                } else {
+                    LOG.atError("process-failed").kv("returnCode", returnCode).log();
+                }
+                if(onComplete) {
+                    (*onComplete)(returnCode == 0);
+                }
+            });
+
+    if(!requiresPrivilege) {
+        auto [user, group] =
+            [this]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
+            auto cfg = _nucleusConfig.getValue<std::string>(
+                {"configuration", "runWithDefault", "posixUser"});
+            ;
+            if(cfg != "") {
+                return {};
+            }
+            // TODO: Windows
+            auto it = cfg.find(':');
+            if(it == std::string::npos) {
+                return {cfg, std::nullopt};
+            }
+            return {cfg.substr(0, it), cfg.substr(it + 1)};
+        }();
+        if(user) {
+            startable.asUser(std::move(user).value());
+            if(group) {
+                startable.asGroup(std::move(group).value());
+            }
+        }
+    } else {
+        // requiresPrivilege -> run as root user
+        startable.asUser("root");
+        startable.asGroup("root");
+    }
+
+    return _processManager->registerProcess([startable]() -> std::unique_ptr<ipc::Process> {
+        try {
+            return startable.start();
+        } catch(const std::exception &e) {
+            LOG.atError().event("process-start-error").cause(e).log();
+            return {};
+        }
+    }());
+}
+
 void GenComponentDelegate::processScript(ScriptSection section, std::string_view stepNameArg) {
     using namespace std::chrono_literals;
-    
+
     auto &step = section;
     std::string stepName{stepNameArg};
 
@@ -72,28 +217,26 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
 
         auto getSetEnv = [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
             Environment localEnv;
-            if(lifecycle.envMap.has_value()) {
-                localEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
+            if(_lifecycle.envMap.has_value()) {
+                localEnv.insert(_lifecycle.envMap->begin(), _lifecycle.envMap->end());
             }
             // Append global entries where local entries do not exist
-            localEnv.insert(globalEnv.begin(), globalEnv.end());
+            localEnv.insert(_globalEnv.begin(), _globalEnv.end());
             return localEnv;
         };
 
         // script
         auto getScript = [&]() -> std::string {
             auto script = std::regex_replace(
-                step.script, std::regex(R"(\{artifacts:path\})"), artifactPath.string());
+                step.script, std::regex(R"(\{artifacts:path\})"), _artifactPath.string());
 
-            if(defaultConfig && !defaultConfig->empty()) {
-                for(auto key : defaultConfig->getKeys()) {
-                    auto value = defaultConfig->get(key);
-                    if(value.isScalar()) {
-                        script = std::regex_replace(
-                            script,
-                            std::regex(R"(\{configuration:\/)" + key + R"(\})"),
-                            value.getString());
-                    }
+            if(_defaultConfig && !_defaultConfig.empty()) {
+                for(auto key : _defaultConfig.keys().toVector<ggapi::Archive::KeyType>()) {
+                    auto value = _defaultConfig.get<std::string>(key);
+                    script = std::regex_replace(
+                        script,
+                        std::regex(R"(\{configuration:\/)" + key.toString() + R"(\})"),
+                        value);
                 }
             }
 
@@ -116,21 +259,19 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
             deploymentRequest.put("Timeout", step.timeout.value());
             timeout = std::chrono::seconds{step.timeout.value()};
         }
-
-        return _kernel.startProcess(
-            getScript(), timeout, requirePrivilege, getSetEnv(), currentRecipe.componentName);
+        return startProcess(getScript(), timeout, requirePrivilege, getSetEnv(), _name);
     });
 
     if(pid) {
         LOG.atInfo("deployment")
-            .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
-            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+            .kv(DEPLOYMENT_ID_LOG_KEY, _deploymentId)
+            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, _deploymentId)
             .kv("DeploymentType", "LOCAL")
             .log("Executed " + stepName + " step of the lifecycle");
     } else {
         LOG.atError("deployment")
-            .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
-            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
+            .kv(DEPLOYMENT_ID_LOG_KEY, _deploymentId)
+            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, _deploymentId)
             .kv("DeploymentType", "LOCAL")
             .log("Failed to execute " + stepName + " step of the lifecycle");
         return; // if any of the lifecycle step fails, stop the deployment
@@ -140,6 +281,9 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
 bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
     data.put(NAME, "aws.greengrass.gen_component_delegate");
 
+    _nucleusConfig = data.getValue<ggapi::Struct>({"nucleus"});
+    _systemConfig = data.getValue<ggapi::Struct>({"system"});
+
     auto lifecycleAsStruct = _recipe.get<ggapi::Struct>("Lifecycle");
 
     ggapi::Archive::transform<ggapi::ContainerDearchiver>(_lifecycle, lifecycleAsStruct);
@@ -148,7 +292,10 @@ bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
         _globalEnv.insert(_lifecycle.envMap->begin(), _lifecycle.envMap->end());
     }
 
-    processScript(_lifecycle.install);
+    if (_lifecycle.install.has_value()){
+        processScript(_lifecycle.install.value(), "install");
+    }
+    
     std::cout << "I was initialized" << std::endl;
     return true;
 }
@@ -177,12 +324,16 @@ bool GenComponentLoader::onInitialize(ggapi::Struct data) {
         ggapi::TopicCallback::of(&GenComponentLoader::registerGenComponent, this));
 
     // Notify nucleus that this plugin supports loading generic components
-    auto request{ggapi::Struct::create()};
-    request.put("componentSupportType", "aws.greengrass.generic");
-    request.put("componentSupportTopic", "componentType::aws.greengrass.generic");
-    auto future =
-        ggapi::Subscription::callTopicFirst(ggapi::Symbol{"aws.greengrass.componentType"}, request);
-    auto response = ggapi::Struct(future.waitAndGetValue());
+    // auto request{ggapi::Struct::create()};
+    // request.put("componentSupportType", "aws.greengrass.generic");
+    // request.put("componentSupportTopic", "componentType::aws.greengrass.generic");
+    // auto future =
+    //     ggapi::Subscription::callTopicFirst(ggapi::Symbol{"aws.greengrass.componentType"}, request);
+    
+    // if(future.isValid()){
+    //     auto response = ggapi::Struct(future.waitAndGetValue());
+    // }
+    
 
     return true;
 }

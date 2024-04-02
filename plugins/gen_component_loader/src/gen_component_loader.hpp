@@ -1,6 +1,8 @@
-#include <logging.hpp>
 #include <functional>
+#include <logging.hpp>
 #include <plugin.hpp>
+#include <filesystem>
+#include "platform_abstraction/abstract_process_manager.hpp"
 
 class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenComponentDelegate> {
     struct ScriptSection : public ggapi::Serializable {
@@ -103,18 +105,32 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
             helper(archive, "bootstrap", bootstrap);
         }
     };
+    
+    static constexpr std::string_view DEPLOYMENT_ID_LOG_KEY = "DeploymentId";
+    static constexpr std::string_view DISCARDED_DEPLOYMENT_ID_LOG_KEY = "DiscardedDeploymentId";
+    static constexpr std::string_view GG_DEPLOYMENT_ID_LOG_KEY_NAME = "GreengrassDeploymentId";
 
 private:
     std::string _name;
     ggapi::Struct _recipe;
+    std::string _deploymentId;
+    std::filesystem::__cxx11::path _artifactPath;
+    ggapi::Struct _defaultConfig;
+
     using Environment = std::unordered_map<std::string, std::optional<std::string>>;
     Environment _globalEnv;
     LifecycleSection _lifecycle;
+
+    ggapi::Struct _nucleusConfig;
+    ggapi::Struct _systemConfig;
+    std::unique_ptr<ipc::ProcessManager> _processManager{};
 
 public:
     explicit GenComponentDelegate(const ggapi::Struct &data) {
         _recipe = data.get<ggapi::Struct>("recipe");
         _name = data.get<std::string>("componentName");
+        _deploymentId = data.get<std::string>("deploymentId");
+        _artifactPath = data.get<std::string>("artifactPath");
     }
     //  self-> To store a count to the class's object itself
     //            so that the Delegate remains in memory event after the GenComponentLoader returns
@@ -128,7 +144,15 @@ public:
 
     ggapi::ModuleScope registerComponent();
 
-    void processScript(ScriptSection section);
+    void processScript(ScriptSection section, std::string_view stepNameArg);
+
+    ipc::ProcessId startProcess(
+        std::string script,
+        std::chrono::seconds timeout,
+        bool requiresPrivilege,
+        std::unordered_map<std::string, std::optional<std::string>> env,
+        const std::string &note,
+        std::optional<ipc::CompletionCallback> onComplete = {});
 
     bool onInitialize(ggapi::Struct data) override;
 };

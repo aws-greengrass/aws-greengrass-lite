@@ -228,7 +228,7 @@ namespace deployment {
     }
 
     void DeploymentManager::runDeploymentTask() {
-        using Environment = std::unordered_map<std::string, std::optional<std::string>>;
+        //using Environment = std::unordered_map<std::string, std::optional<std::string>>;
         // TODO: More streamlined deployment task
         // TODO: Get non-target group to root packages group
         // TODO: Component manager - resolve version, prepare packages, ...
@@ -294,6 +294,9 @@ namespace deployment {
         auto data_pack = std::make_shared<data::SharedStruct>(context);
         data_pack->put("recipe", _recipeAsStruct);
         data_pack->put("componentName", "TestComponent");
+        data_pack->put("deploymentId", currentDeployment.id);
+        data_pack->put("artifactPath", artifactPath);
+        data_pack->put("defaultConfig", currentDeployment.id);
 
         auto install = _recipeAsStruct->get("ComponentPublisher");
 

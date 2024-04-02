@@ -16,8 +16,40 @@ enable_warnings()
 
 # Object library shared between plugin and tests
 
-add_library(gen_component_loader_obj OBJECT src/gen_component_loader.cpp
-                                            src/gen_component_loader.hpp)
+add_library(
+  gen_component_loader_obj OBJECT
+  src/gen_component_loader.cpp
+  src/gen_component_loader.hpp
+  src/platform_abstraction/abstract_process.hpp
+  src/platform_abstraction/abstract_process_manager.hpp
+  src/platform_abstraction/env.hpp
+  src/platform_abstraction/startable.hpp)
+
+if(LINUX)
+  target_sources(
+    gen_component_loader_obj
+    PRIVATE src/platform_abstraction/linux/error.hpp
+            src/platform_abstraction/linux/file_descriptor.cpp
+            src/platform_abstraction/linux/file_descriptor.hpp
+            src/platform_abstraction/linux/permissions.cpp
+            src/platform_abstraction/linux/permissions.hpp
+            src/platform_abstraction/linux/pipe.cpp
+            src/platform_abstraction/linux/pipe.hpp
+            src/platform_abstraction/linux/process.cpp
+            src/platform_abstraction/linux/process.hpp
+            src/platform_abstraction/linux/process_manager.cpp
+            src/platform_abstraction/linux/process_manager.hpp
+            src/platform_abstraction/linux/rlimits.cpp
+            src/platform_abstraction/linux/rlimits.hpp
+            src/platform_abstraction/linux/startable.cpp
+            src/platform_abstraction/linux/syscall.hpp)
+else()
+  target_sources(
+    gen_component_loader_obj
+    PRIVATE src/platform_abstraction/stub/startable.cpp
+            src/platform_abstraction/stub/process_manager.hpp
+            src/platform_abstraction/stub/process.hpp)
+endif()
 
 target_include_directories(gen_component_loader_obj PUBLIC src)
 target_link_libraries(gen_component_loader_obj PUBLIC gg_plugin_api device-sdk)
