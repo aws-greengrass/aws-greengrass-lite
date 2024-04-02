@@ -105,7 +105,6 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
             helper(archive, "bootstrap", bootstrap);
         }
     };
-    
     static constexpr std::string_view DEPLOYMENT_ID_LOG_KEY = "DeploymentId";
     static constexpr std::string_view DISCARDED_DEPLOYMENT_ID_LOG_KEY = "DiscardedDeploymentId";
     static constexpr std::string_view GG_DEPLOYMENT_ID_LOG_KEY_NAME = "GreengrassDeploymentId";

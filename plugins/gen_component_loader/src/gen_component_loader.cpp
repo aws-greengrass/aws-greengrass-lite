@@ -295,7 +295,6 @@ bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
     if (_lifecycle.install.has_value()){
         processScript(_lifecycle.install.value(), "install");
     }
-    
     std::cout << "I was initialized" << std::endl;
     return true;
 }
@@ -329,11 +328,8 @@ bool GenComponentLoader::onInitialize(ggapi::Struct data) {
     // request.put("componentSupportTopic", "componentType::aws.greengrass.generic");
     // auto future =
     //     ggapi::Subscription::callTopicFirst(ggapi::Symbol{"aws.greengrass.componentType"}, request);
-    
     // if(future.isValid()){
     //     auto response = ggapi::Struct(future.waitAndGetValue());
     // }
-    
-
     return true;
 }
