@@ -38,8 +38,7 @@ add_library(
 
 target_include_directories(gg_plugin_api_min INTERFACE include)
 
-add_library(gg_plugin_api INTERFACE
-  include/checked_pointers.hpp)
+add_library(gg_plugin_api INTERFACE)
 target_link_libraries(gg_plugin_api INTERFACE gg_plugin_api_min)
 
 if(NOT LINUX)
