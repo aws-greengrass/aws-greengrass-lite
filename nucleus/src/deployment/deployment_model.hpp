@@ -192,7 +192,7 @@ namespace deployment {
             archive("rootComponentsToRemove", componentsToRemove);
             archive("groupName", groupName);
             archive("parentGroupName", parentGroupName);
-            archive("onBehalfof", onBehalfOf);
+            archive("onBehalfOf", onBehalfOf);
             archive("configurationArn", configurationArn);
             archive("requiredCapabilities", requiredCapabilities);
             archive("recipeDirectoryPath", recipeDirectoryPath);

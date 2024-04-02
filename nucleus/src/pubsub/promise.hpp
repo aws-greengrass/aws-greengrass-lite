@@ -30,6 +30,61 @@ namespace pubsub {
         virtual void addCallback(const std::shared_ptr<tasks::Callback> &callback) = 0;
     };
 
+    /**
+     * Completed Future that wraps an error
+     */
+    class ErrorFuture : public FutureBase {
+        const errors::Error _error;
+
+    public:
+        explicit ErrorFuture(const scope::UsingContext &context, errors::Error error)
+            : FutureBase(context), _error(std::move(error)) {
+        }
+
+        std::shared_ptr<data::ContainerModelBase> getValue() const override {
+            throw _error;
+        }
+        bool isValid() const override {
+            return true;
+        }
+        bool waitUntil(const tasks::ExpireTime &) const override {
+            return true;
+        }
+        std::shared_ptr<Future> getFuture() override {
+            return ref<Future>();
+        }
+        void addCallback(const std::shared_ptr<tasks::Callback> &callback) override {
+        }
+    };
+
+    /**
+     * Completed Future that wraps a value
+     */
+    class ValueFuture : public FutureBase {
+        const std::shared_ptr<data::ContainerModelBase> _value;
+
+    public:
+        explicit ValueFuture(
+            const scope::UsingContext &context, std::shared_ptr<data::ContainerModelBase> value)
+            : FutureBase(context), _value(std::move(value)) {
+        }
+
+        std::shared_ptr<data::ContainerModelBase> getValue() const override {
+            return _value;
+        }
+        bool isValid() const override {
+            return true;
+        }
+        bool waitUntil(const tasks::ExpireTime &) const override {
+            return true;
+        }
+        std::shared_ptr<Future> getFuture() override {
+            return ref<Future>();
+        }
+        void addCallback(const std::shared_ptr<tasks::Callback> &callback) override {
+        }
+    };
+
     class Future : public FutureBase {
         const std::shared_ptr<Promise> _promise;
         friend class Promise;

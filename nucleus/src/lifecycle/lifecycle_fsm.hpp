@@ -17,7 +17,7 @@
  */
 
 namespace event {
-    /** Used to move from the iniitial state to NEW.  Probably can become Skip */
+    /** Used to move from the initial state to NEW.  Probably can become Skip */
     struct Initialize {
         static constexpr std::string_view name = "Initialize";
     };

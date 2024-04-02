@@ -62,10 +62,10 @@ namespace lifecycle {
 
         template<class... Arguments>
         [[nodiscard]] static bool processArg(
-            CommandLine &cli, ArgumentIterator &argi, Arguments &&...args) {
+            CommandLine &cli, ArgumentIterator &argIter, Arguments &&...args) {
             // tests each argument parser in the parameter pack against the current argument.
             // Terminates and returns true on the first match.
-            return (args.process(cli, argi) || ...);
+            return (args.process(cli, argIter) || ...);
         }
 
         void printDescription() const {

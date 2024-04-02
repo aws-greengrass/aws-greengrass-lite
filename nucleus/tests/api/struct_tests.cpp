@@ -25,7 +25,7 @@ SCENARIO("Shared structure API", "[struct]") {
             s.put("foo", 1);
             s.put(ping, 3);
             s.put("zing", 4.6);
-            s.put("zap", "zooey");
+            s.put("zap", "zoo");
             s.put(pow, pow);
             THEN("Structure size increased") {
                 REQUIRE(s.size() == 5);
@@ -34,7 +34,7 @@ SCENARIO("Shared structure API", "[struct]") {
                 REQUIRE(s.get<int>("foo") == 1);
                 REQUIRE(s.get<int>("ping") == 3);
                 REQUIRE(s.get<double>("zing") == 4.6);
-                REQUIRE(s.get<std::string>("zap") == "zooey");
+                REQUIRE(s.get<std::string>("zap") == "zoo");
                 REQUIRE(s.get<std::string>("pow") == "pow");
             }
         }
@@ -52,7 +52,7 @@ SCENARIO("Shared structure API", "[struct]") {
         }
         WHEN("Items are added to structure") {
             s.put("foo", 1).put("baz", 10);
-            s.put({{"bar", 2}, {ping, 3}, {"zing", 4.6}, {"zap", "zooey"}, {pow, pow}});
+            s.put({{"bar", 2}, {ping, 3}, {"zing", 4.6}, {"zap", "zoo"}, {pow, pow}});
             THEN("Structure size increased") {
                 REQUIRE(s.size() == 7);
             }
@@ -62,7 +62,7 @@ SCENARIO("Shared structure API", "[struct]") {
                 REQUIRE(s.get<int>("bar") == 2);
                 REQUIRE(s.get<int>("ping") == 3);
                 REQUIRE(s.get<double>("zing") == 4.6);
-                REQUIRE(s.get<std::string>("zap") == "zooey");
+                REQUIRE(s.get<std::string>("zap") == "zoo");
                 REQUIRE(s.get<std::string>("pow") == "pow");
             }
             AND_WHEN("A key of same name is used") {

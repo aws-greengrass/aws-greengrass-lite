@@ -79,6 +79,8 @@ jobs:
             check: cmake-lint
           - name: dependency hashes
             check: deps-hashes
+          - name: spelling
+            check: spelling
     name: Check ${{ matrix.name }}
     runs-on: ubuntu-latest
     steps:
