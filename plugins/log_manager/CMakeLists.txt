@@ -5,8 +5,8 @@ include(../../common.cmake)
 set(COMPONENT_NAME local.plugins.discovered.log_manager)
 
 if (PROJECT_IS_TOP_LEVEL AND NOT LINUX)
-  message(
-    SEND_ERROR "Building plugins individually is not supported on Mac/Windows.")
+    message(
+            SEND_ERROR "Building plugins individually is not supported on Mac/Windows.")
 endif ()
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
