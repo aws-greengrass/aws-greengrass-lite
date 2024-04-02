@@ -105,7 +105,7 @@ extern "C" void ServerContinuationCCallbacks::onContinuation(
                 auto channel = response.get<ggapi::Channel>(keys.channel);
                 continuation->_channel = channel;
                 auto continuationWeak = std::weak_ptr{continuation};
-                channel.addListenCallback(ggapi::ChannelListenCallback::of(
+                channel.addListenCallback(ggapi::ChannelListenCallback::of<ggapi::Struct>(
                     &ServerContinuation::onTopicResponse, continuationWeak));
             }
         } catch(const ggapi::GgApiError &error) {

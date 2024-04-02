@@ -26,7 +26,7 @@ public:
         : tasks::Callback(context), _flagName(flagName) {
     }
 
-    std::shared_ptr<pubsub::Future> invokeTopicCallback(
+    std::shared_ptr<pubsub::FutureBase> invokeTopicCallback(
         const data::Symbol &topicSymbol,
         const std::shared_ptr<data::ContainerModelBase> &data) override {
 
@@ -59,7 +59,7 @@ public:
         //        return _returnData;
     }
 
-    void invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future) override {
+    void invokeFutureCallback(const std::shared_ptr<pubsub::FutureBase> &future) override {
 
         //        auto topic = topicSymbol.toStringOr("(anon)"s);
         //        if(data) {

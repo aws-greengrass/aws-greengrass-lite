@@ -61,17 +61,19 @@ namespace ggapi {
          * routine. Note that this enables the same callback approach as std::invoke and std::thread
          * where a typical use is (callbackMethod, this) but acceptable also to do something like
          * (callbackMethod, this, extraArg1, extraArg2).
+         * @tparam ObjType Type of data passed in
          * @tparam Callable Lambda, function pointer, method, etc.
          * @tparam Args Prefix arguments, particularly optional This
          */
-        template<typename Callable, typename... Args>
+        template<typename ObjType, typename Callable, typename... Args>
         class ChannelListenDispatch : public CallbackManager::CaptureDispatch<Callable, Args...> {
 
         public:
             explicit ChannelListenDispatch(Callable callable, Args... args)
                 : CallbackManager::CaptureDispatch<Callable, Args...>{
                     std::move(callable), std::move(args)...} {
-                static_assert(std::is_invocable_v<Callable, Args..., Struct>);
+                static_assert(std::is_invocable_v<Callable, Args..., ObjType>);
+                static_assert(std::is_base_of_v<ObjHandle, ObjType>);
             }
             [[nodiscard]] Symbol type() const override {
                 return {"channelListen"};
@@ -81,8 +83,7 @@ namespace ggapi {
 
                 auto &cb = this->template checkedStruct<ggapiChannelListenCallbackData>(
                     callbackType, size, data);
-                // TODO: change to container
-                return this->prepareWithArgs(ggapi::ObjHandle::of<Struct>(cb.data));
+                return this->prepareWithArgs(ggapi::ObjHandle::of<ObjType>(cb.objHandle));
             }
         };
 
@@ -95,10 +96,10 @@ namespace ggapi {
         /**
          * Create reference to a channel listen callback.
          */
-        template<typename Callable, typename... Args>
+        template<typename ObjType = ObjHandle, typename Callable, typename... Args>
         static ChannelListenCallback of(const Callable &callable, Args &...args) {
             auto dispatch = std::make_unique<
-                ChannelListenDispatch<std::decay_t<Callable>, std::decay_t<Args>...>>(
+                ChannelListenDispatch<ObjType, std::decay_t<Callable>, std::decay_t<Args>...>>(
                 callable, std::forward<Args>(args)...);
             return CallbackManager::self().registerWithNucleus<ChannelListenCallback>(
                 std::move(dispatch));

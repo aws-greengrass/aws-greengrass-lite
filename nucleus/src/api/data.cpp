@@ -703,7 +703,7 @@ ggapiErrorKind ggapiReleaseHandle(uint32_t objectHandle) noexcept {
 }
 
 /**
- * Close a handle - meaning of close depends on the object
+ * close a handle - meaning of close depends on the object
  * @param objectHandle Handle to close (becomes invalid after call)
  */
 ggapiErrorKind ggapiCloseHandle(uint32_t objectHandle) noexcept {
