@@ -16,7 +16,7 @@ class component {
         scriptRunner &installRunner,
         scriptRunner &startupRunner,
         scriptRunner &runRunner,
-        scriptRunner &shutdwonRunner)
+        scriptRunner &shutdownRunner)
         : _fsm(theData, installRunner, startupRunner, runRunner, shutdownRunner),
           theData(
               name, [this]() { sendSkipEvent(); }, [this]() { sendUpdateEvent(); }){

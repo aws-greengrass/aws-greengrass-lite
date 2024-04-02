@@ -44,7 +44,7 @@ SCENARIO("Module scopes", "[module]") {
                 THEN("Clone handle is different to original") {
                     REQUIRE(copy != data);
                 }
-                AND_WHEN("Resetting orignal handle") {
+                AND_WHEN("Resetting original handle") {
                     data.reset();
                     THEN("Copy is still valid") {
                         REQUIRE(copy.isStruct());

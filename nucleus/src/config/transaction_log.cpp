@@ -106,21 +106,21 @@ namespace config {
             return;
         }
         auto *nodeAsTopic = dynamic_cast<const Topic *>(&node);
-        TlogLine tlogline;
-        tlogline.topicPath = node.getKeyPath();
-        tlogline.timestamp = node.getModTime();
+        TlogLine tlogLine;
+        tlogLine.topicPath = node.getKeyPath();
+        tlogLine.timestamp = node.getModTime();
         if((changeType & (WhatHappened::changed | WhatHappened::childChanged))
                != WhatHappened::never
            && nodeAsTopic != nullptr) {
-            tlogline.value = nodeAsTopic->slice();
-            tlogline.action = WhatHappened::changed;
+            tlogLine.value = nodeAsTopic->slice();
+            tlogLine.action = WhatHappened::changed;
         } else {
             if((changeType & WhatHappened::childRemoved) != WhatHappened::never) {
-                tlogline.action = WhatHappened::removed;
+                tlogLine.action = WhatHappened::removed;
             } else if((changeType & WhatHappened::interiorAdded) != WhatHappened::never) {
-                tlogline.action = WhatHappened::interiorAdded;
+                tlogLine.action = WhatHappened::interiorAdded;
             } else if((changeType & WhatHappened::timestampUpdated) != WhatHappened::never) {
-                tlogline.action = WhatHappened::timestampUpdated;
+                tlogLine.action = WhatHappened::timestampUpdated;
             } else {
                 return; // Other change types ignored
             }
@@ -128,7 +128,7 @@ namespace config {
 
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-        tlogline.serialize(context(), writer);
+        tlogLine.serialize(context(), writer);
 
         std::unique_lock guard{_mutex};
         if(!_tlogFile.is_open()) {

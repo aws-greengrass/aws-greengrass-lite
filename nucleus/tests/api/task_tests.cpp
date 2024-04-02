@@ -26,7 +26,7 @@ SCENARIO("Deferred Tasks", "[tasks]") {
             THEN("Value was returned") {
                 REQUIRE(f.getValue().isSameObject(data));
             }
-            THEN("Handle reanchoring occurred") {
+            THEN("Handle re-anchoring occurred") {
                 REQUIRE(f.getValue() != data);
             }
             THEN("Callback was visited") {
