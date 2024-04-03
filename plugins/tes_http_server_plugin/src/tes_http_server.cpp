@@ -2,13 +2,13 @@
 
 // TODO: Fix file to follow coding conventions (camelCase vs snake_case etc)
 
-const auto LOG = ggapi::Logger::of("TesHttpServerPlugin");
-const auto requestTesCredentialsTopic = "aws.greengrass.requestTES";
-const auto contentTypeHeader = "Content-Type";
-const auto jsonTypeHeader = "application/json";
-const auto contentLengthHeader = "Content-Length";
-const auto tesAuthzHeader = "Authorization";
-const auto credentialProviderUri = "/2016-11-01/credentialprovider/";
+const static auto LOG = ggapi::Logger::of("TesHttpServerPlugin");
+const inline auto requestTesCredentialsTopic = "aws.greengrass.requestTES";
+const inline auto contentTypeHeader = "Content-Type";
+const inline auto jsonTypeHeader = "application/json";
+const inline auto contentLengthHeader = "Content-Length";
+const inline auto tesAuthzHeader = "Authorization";
+const inline auto credentialProviderUri = "/2016-11-01/credentialprovider/";
 
 static struct ServerParams {
     aws_allocator *allocator{};
