@@ -102,8 +102,8 @@
                                  : std::nullopt;
             return {std::move(socketPath), std::move(authToken)};
         }();
-        
-        //Here the scope for GenComponentDelagate isn't passed within the Startable 
+
+        //Here the scope for GenComponentDelagate isn't passed within the Startable
         //Hence a weak self pointing variable is required
         auto weak_self = std::weak_ptr(ref<GenComponentDelegate>());
         auto startable =
@@ -348,7 +348,7 @@
             //TODO:: Find a better LOG and throw
             throw ggapi::GgApiError("No deployment run or startup phase provided");
         }
-        
+
         std::cout << "I have completed ontart" << std::endl;
 
         return true;

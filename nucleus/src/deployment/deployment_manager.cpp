@@ -296,7 +296,6 @@ namespace deployment {
                 std::dynamic_pointer_cast<data::StructModelBase>(responeContainer);
             auto newComponent =
                 responseStruct->get("moduleHandle").castObject<plugins::AbstractPlugin>();
-            
             newComponent->initialize(context->pluginLoader());
             newComponent->invoke([&](plugins::AbstractPlugin &newComponent, auto &data) {
                 newComponent.lifecycle(context->pluginLoader().INITIALIZE, data);
