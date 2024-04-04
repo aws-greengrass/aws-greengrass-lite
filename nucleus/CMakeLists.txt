@@ -50,6 +50,7 @@ add_library(
   src/config/transaction_log.cpp
   src/config/transaction_log.hpp
   src/config/watcher.hpp
+  src/config/update_behavior_tree.hpp
   src/config/yaml_config.cpp
   src/config/yaml_config.hpp
   src/conv/json_conv.cpp
