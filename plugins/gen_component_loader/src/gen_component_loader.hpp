@@ -112,6 +112,7 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
 private:
     std::string _name;
     ggapi::Struct _recipe;
+    ggapi::Struct _lifecycleAsStruct;
     std::string _deploymentId;
     std::filesystem::__cxx11::path _artifactPath;
     ggapi::Struct _defaultConfig;
@@ -123,7 +124,6 @@ private:
     ggapi::Struct _nucleusConfig;
     ggapi::Struct _systemConfig;
     ipc::ProcessManager _manager{};
-    ggapi::ModuleScope _module;
 
 public:
     explicit GenComponentDelegate(const ggapi::Struct &data);
@@ -151,6 +151,7 @@ public:
         std::optional<ipc::CompletionCallback> onComplete = {});
 
     bool onInitialize(ggapi::Struct data) override;
+    bool onStart(ggapi::Struct data) override;
 };
 
 class GenComponentLoader : public ggapi::Plugin {

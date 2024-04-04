@@ -72,6 +72,7 @@
             return _systemConfig.getValue<std::string>({"rootpath"});
         };
 
+        //TODO:: get the actual value
         std::string getNucleusVersion = "0.0.0";
 
         // TODO: query TES plugin
@@ -102,6 +103,8 @@
             return {std::move(socketPath), std::move(authToken)};
         }();
         
+        //Here the scope for GenComponentDelagate isn't passed within the Startable 
+        //Hence a weak self pointing variable is required
         auto weak_self = std::weak_ptr(ref<GenComponentDelegate>());
         auto startable =
             ipc::Startable{}
@@ -188,7 +191,6 @@
             startable.asUser("root");
             startable.asGroup("root");
         }
-        util::TempModule moduleScope(_module);
         return _manager.registerProcess(
             [this, startable]() -> std::unique_ptr<ipc::Process> {
                 try {
@@ -299,19 +301,12 @@
         }
     }
     GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
-        std::cout << "data Content";
-        data.toJson().write(std::cout);
-        _recipe = data.get<ggapi::Struct>("recipe");
-
-        std::cout << std::endl;
-        std::cout << "recipe Content Constructor";
-        _recipe.toJson().write(std::cout);
-
         _name = data.get<std::string>("componentName");
+        _recipe = data.get<ggapi::Struct>("recipe");
+        _lifecycleAsStruct = data.get<ggapi::Struct>("lifecycle");
         _deploymentId = data.get<std::string>("deploymentId");
         _artifactPath = data.get<std::string>("artifactPath");
         _defaultConfig = data.get<ggapi::Struct>("defaultConfig");
-        _module = util::TempModule::create("GenDelegate");
     }
 
     bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
@@ -320,21 +315,41 @@
         _nucleusConfig = data.getValue<ggapi::Struct>({"nucleus"});
         _systemConfig = data.getValue<ggapi::Struct>({"system"});
 
-        // auto lifecycleAsStruct = _recipe.get<std::string>("install");
+        ggapi::Archive::transform<ggapi::ContainerDearchiver>(_lifecycle, _lifecycleAsStruct);
 
-        std::cout << std::endl;
-        std::cout << "LifeCycle Content";
-        // lifecycleAsStruct.toJson().write(std::cout);
+        if(_lifecycle.envMap.has_value()) {
+            _globalEnv.insert(_lifecycle.envMap->begin(), _lifecycle.envMap->end());
+        }
 
-        ggapi::Archive::transform<ggapi::ContainerDearchiver>(_lifecycle, _recipe);
-
-        // if(_lifecycle.envMap.has_value()) {
-        //     _globalEnv.insert(_lifecycle.envMap->begin(), _lifecycle.envMap->end());
-        // }
-
-        processScript(_lifecycle.install.value(), "install");
+        if (_lifecycle.install.has_value())
+        {
+           processScript(_lifecycle.install.value(), "install");
+        }
 
         std::cout << "I was initialized" << std::endl;
+
+        return true;
+    }
+
+    bool GenComponentDelegate::onStart(ggapi::Struct data) {
+        if(_lifecycle.envMap.has_value()) {
+            _globalEnv.insert(_lifecycle.envMap->begin(), _lifecycle.envMap->end());
+        }
+
+        if (_lifecycle.startup.has_value())
+        {
+           processScript(_lifecycle.startup.value(), "startup");
+        }
+        else if (_lifecycle.run.has_value())
+        {
+            processScript(_lifecycle.run.value(), "run");
+        }
+        else{
+            //TODO:: Find a better LOG and throw
+            throw ggapi::GgApiError("No deployment run or startup phase provided");
+        }
+        
+        std::cout << "I have completed ontart" << std::endl;
 
         return true;
     }
@@ -362,6 +377,7 @@
             ggapi::Symbol{"componentType::aws.greengrass.generic"},
             ggapi::TopicCallback::of(&GenComponentLoader::registerGenComponent, this));
 
+        //TODO:Uncomment when kernel is ready with subscription
         // Notify nucleus that this plugin supports loading generic components
         // auto request{ggapi::Struct::create()};
         // request.put("componentSupportType", "aws.greengrass.generic");

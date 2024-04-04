@@ -24,7 +24,7 @@ namespace lifecycle::kernel {
     public:
         using tasks::Callback::Callback;
 
-        std::shared_ptr<pubsub::Future> invokeTopicCallback(
+        std::shared_ptr<pubsub::FutureBase> invokeTopicCallback(
             const data::Symbol &, const std::shared_ptr<data::ContainerModelBase> &data) override {
             auto casted = std::dynamic_pointer_cast<data::SharedStruct>(data);
             if(!casted) {
