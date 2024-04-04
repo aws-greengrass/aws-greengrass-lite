@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
-project(gen_component_loader)
+project(gen_component_loader VERSION 0.1.0)
 
 include(../../common.cmake)
+set(COMPONENT_NAME local.plugins.discovered.gen_component_loader)
 
 if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
   message(
@@ -64,8 +65,17 @@ configureRPATH(gen_component_loader)
 set_version_script(gen_component_loader
                    "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS gen_component_loader DESTINATION plugins)
+install(
+  TARGETS gen_component_loader
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET gen_component_loader_deps)
 
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET gen_component_loader_deps)
+endif()
+
+install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
+        DESTINATION plugins/recipes)
 # Tests
 
 if(BUILD_TESTING AND NOT WIN32)

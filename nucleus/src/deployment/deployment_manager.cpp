@@ -228,10 +228,10 @@ namespace deployment {
     }
 
     void DeploymentManager::runDeploymentTask() {
-        //using Environment = std::unordered_map<std::string, std::optional<std::string>>;
-        // TODO: More streamlined deployment task
-        // TODO: Get non-target group to root packages group
-        // TODO: Component manager - resolve version, prepare packages, ...
+        // using Environment = std::unordered_map<std::string, std::optional<std::string>>;
+        //  TODO: More streamlined deployment task
+        //  TODO: Get non-target group to root packages group
+        //  TODO: Component manager - resolve version, prepare packages, ...
         const auto &currentDeployment = _deploymentQueue->next();
         const auto &currentRecipe = _componentStore->next();
 
@@ -292,11 +292,13 @@ namespace deployment {
         auto context = scope::context();
 
         auto data_pack = std::make_shared<data::SharedStruct>(context);
-        data_pack->put("recipe", _recipeAsStruct);
+        
+        
+        data_pack->put("recipe", it->lifecycle);
         data_pack->put("componentName", "TestComponent");
         data_pack->put("deploymentId", currentDeployment.id);
         data_pack->put("artifactPath", artifactPath);
-        data_pack->put("defaultConfig", currentDeployment.id);
+        data_pack->put("defaultConfig", defaultConfig);
 
         auto install = _recipeAsStruct->get("ComponentPublisher");
 
@@ -385,11 +387,11 @@ namespace deployment {
         //                 return script;
         //             };
 
-        // bool requirePrivilege = false;
-        // TODO: get default per step (each step has a different default timeout)
-        // https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html
-        // static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
-        // std::chrono::seconds timeout = DEFAULT_TIMEOUT;
+        //             bool requirePrivilege = false;
+        //             // TODO: get default per step (each step has a different default timeout)
+        //             // https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html
+        //             static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
+        //             std::chrono::seconds timeout = DEFAULT_TIMEOUT;
 
         //             // privilege
         //             if(step.requiresPrivilege.has_value() && step.requiresPrivilege.value()) {

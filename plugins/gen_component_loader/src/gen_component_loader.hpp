@@ -1,8 +1,8 @@
+#include "platform_abstraction/abstract_process_manager.hpp"
+#include <filesystem>
 #include <functional>
 #include <logging.hpp>
 #include <plugin.hpp>
-#include <filesystem>
-#include "platform_abstraction/abstract_process_manager.hpp"
 
 class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenComponentDelegate> {
     struct ScriptSection : public ggapi::Serializable {
@@ -122,17 +122,14 @@ private:
 
     ggapi::Struct _nucleusConfig;
     ggapi::Struct _systemConfig;
-    std::unique_ptr<ipc::ProcessManager> _processManager{};
+    ipc::ProcessManager _manager{};
+    ggapi::ModuleScope _module;
 
 public:
-    explicit GenComponentDelegate(const ggapi::Struct &data) {
-        _recipe = data.get<ggapi::Struct>("recipe");
-        _name = data.get<std::string>("componentName");
-        _deploymentId = data.get<std::string>("deploymentId");
-        _artifactPath = data.get<std::string>("artifactPath");
-    }
+    explicit GenComponentDelegate(const ggapi::Struct &data);
     //  self-> To store a count to the class's object itself
-    //            so that the Delegate remains in memory event after the GenComponentLoader returns
+    //            so that the Delegate remains in memory event after the GenComponentLoader
+    //            returns
     //        self is passed as const as the reference count for the class itself should not be
     //        increased any further.
     static bool lifecycleCallback(
