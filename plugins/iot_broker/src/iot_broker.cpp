@@ -289,16 +289,8 @@ const IotBroker::Keys IotBroker::keys{};
 
 bool IotBroker::onInitialize(ggapi::Struct data) {
     std::cout << "[mqtt-plugin] initializing\n"; // TODO: Replace std::cout/cerr with logging
-    auto &apiHandle = util::getDeviceSdkApiHandle();
+    std::ignore = util::getDeviceSdkApiHandle();
     data.put("name", "aws.greengrass.iot_broker");
-
-    // activate the logging. TODO: Consider relocating it
-    try {
-        apiHandle.InitializeLogging(Aws::Crt::LogLevel::Info, stderr);
-    } catch(const std::exception &e) {
-        std::cerr << "[mqtt-plugin] probably did not initialize the logging: " << e.what()
-                  << std::endl;
-    }
 
     std::unique_lock guard{_mutex};
     _nucleus = data.getValue<ggapi::Struct>({"nucleus"});

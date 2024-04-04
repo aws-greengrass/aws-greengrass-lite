@@ -23,17 +23,6 @@ bool TesHttpServerPlugin::onInitialize(ggapi::Struct data) {
 
 // TODO: Must verify if TES is running before starting up the HTTP server.
 bool TesHttpServerPlugin::onStart(ggapi::Struct data) {
-    // Uncomment this to enable SDK Logging
-
-    /* static std::once_flag loggingInitialized;
-      try {
-         std::call_once(loggingInitialized, []() {
-              apiHandle.InitializeLogging(Aws::Crt::LogLevel::Debug, stderr);
-          });
-      } catch(const std::exception &e) {
-          std::cerr << "[he-plugin] probably did not initialize the logging: " << e.what()
-                    << std::endl;
-    */
     TesHttpServer::startServer();
     return true;
 }
