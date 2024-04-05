@@ -1,5 +1,5 @@
 #include "local_topics.hpp"
-#include "scope/context_full.hpp"
+#include "scope/context_impl.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
 #include <shared_mutex>

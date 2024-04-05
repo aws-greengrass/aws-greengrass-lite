@@ -4,6 +4,8 @@
 #include "pubsub/promise.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
+#include <exception>
+#include <memory>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
     logging::Logger::of("com.aws.greengrass.tasks.RegisteredCallback");
@@ -61,23 +63,24 @@ namespace tasks {
         return &_packed;
     }
 
-    std::shared_ptr<pubsub::FutureBase> TopicCallbackData::retVal() const {
-        if(_packed.ret != 0) {
-            auto ctx = scope::context();
-            auto obj = ctx->objFromInt<data::TrackedObject>(_packed.ret);
-            auto asFuture = std::dynamic_pointer_cast<pubsub::FutureBase>(obj);
-            if(asFuture != nullptr) {
-                return asFuture->getFuture();
-            }
-            try {
-                auto asContainer = obj->ref<data::ContainerModelBase>();
-                return std::make_shared<pubsub::ValueFuture>(ctx, asContainer);
-            } catch(std::bad_cast &) {
-                throw data::ContainerModelBase::BadCastError();
-            }
-        } else {
+    std::shared_ptr<pubsub::Future> TopicCallbackData::retVal() const {
+        if(_packed.ret == 0) {
             return {};
         }
+        auto ctx = scope::context();
+        auto obj = ctx->objFromInt<data::TrackedObject>(_packed.ret);
+        auto asFuture = std::dynamic_pointer_cast<pubsub::FutureBase>(obj);
+        if(asFuture == nullptr) {
+            auto promise = std::make_shared<pubsub::Promise>(ctx);
+            try {
+                auto cont = obj->ref<data::ContainerModelBase>();
+                promise->setValue(cont);
+                return promise->getFuture();
+            } catch(const std::bad_cast &) {
+                throw data::ContainerModelBase::BadCastError{};
+            }
+        }
+        return asFuture->getFuture();
     }
 
     data::Symbol AsyncCallbackData::asyncType() {
@@ -197,12 +200,10 @@ namespace tasks {
             // An exception thrown here is (should be) result of an error in the callback itself
             // For consistency, rewrap into a future
             invoke(packed);
-        } catch(const errors::Error &err) {
-            try {
-                return std::make_shared<pubsub::ErrorFuture>(context(), err);
-            } catch(...) {
-                throw err;
-            }
+        } catch(...) {
+            auto promise = std::make_shared<pubsub::Promise>(context());
+            promise->setError(std::current_exception());
+            return promise->getFuture();
         }
         // Other exceptions may occur due to (e.g.) bad handle
         return packed.retVal();

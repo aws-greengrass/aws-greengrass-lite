@@ -1,127 +1,158 @@
 #include "promise.hpp"
-#include "scope/context_full.hpp"
+#include "errors/errors.hpp"
+#include "tasks/expire_time.hpp"
 #include "tasks/task_callbacks.hpp"
+#include <exception>
+#include <future>
+#include <memory>
+
+namespace tasks {
+    static bool waitUntil(
+        const tasks::ExpireTime &when,
+        const std::shared_future<std::shared_ptr<data::ContainerModelBase>> &future) {
+        switch(future.wait_until(when.toTimePoint())) {
+            case std::future_status::timeout:
+                return false;
+            case std::future_status::deferred:
+                future.wait();
+                [[fallthrough]];
+            case std::future_status::ready:
+                return true;
+        }
+        return false;
+    }
+} // namespace tasks
 
 namespace pubsub {
+    struct PromiseCallbacks {
+        std::shared_mutex m;
+        std::vector<std::shared_ptr<tasks::Callback>> callbacks;
+    };
 
-    std::shared_ptr<data::ContainerModelBase> Promise::handleValue(const std::monostate &) {
-        throw errors::PromiseNotFulfilledError();
-    }
-
-    std::shared_ptr<data::ContainerModelBase> Promise::handleValue(
-        const std::shared_ptr<data::ContainerModelBase> &value) {
-        return value;
-    }
-
-    std::shared_ptr<data::ContainerModelBase> Promise::handleValue(const errors::Error &error) {
-        throw error;
-    }
+    Future::~Future() noexcept = default;
+    Promise::~Promise() noexcept = default;
 
     template<typename T>
     void Promise::setAndFire(const T &value) {
-        std::vector<std::shared_ptr<tasks::Callback>> callbacks;
-        std::unique_lock guard{_mutex};
-        if(_value.index() != 0) {
-            throw errors::PromiseDoubleWriteError();
+        std::unique_lock guard{_callbacks->m};
+        try {
+            if constexpr(std::is_same_v<std::exception_ptr, T>) {
+                _promise.set_exception(value);
+            } else {
+                _promise.set_value(value);
+            }
+        } catch(const std::future_error &e) {
+            switch(static_cast<std::future_errc>(e.code().value())) {
+                case std::future_errc::promise_already_satisfied:
+                    throw errors::PromiseDoubleWriteError{};
+                case std::future_errc::no_state:
+                case std::future_errc::future_already_retrieved:
+                case std::future_errc::broken_promise:
+                    throw errors::InvalidPromiseError{e.what()};
+            }
         }
-        _value = value;
-        callbacks = _callbacks;
-        _callbacks.clear();
+
+        if(_callbacks->callbacks.empty()) {
+            return;
+        }
+
+        auto future = std::make_shared<Future>(context(), _callbacks, _future);
+        auto callbacks = std::move(_callbacks->callbacks);
+        _callbacks->callbacks.clear();
         guard.unlock();
-        auto f = getFuture();
-        _fire.notify_all();
-        for(auto &callback : callbacks) {
+
+        for(const auto &callback : callbacks) {
             if(callback) {
-                callback->invokeFutureCallback(f);
+                callback->invokeFutureCallback(future);
             }
         }
     }
 
-    Promise::Promise(const scope::UsingContext &context) : FutureBase(context) {
+    Promise::Promise(const scope::UsingContext &context)
+        : FutureBase(context), _callbacks(std::make_shared<PromiseCallbacks>()) {
     }
 
-    std::shared_ptr<FutureBase> Promise::getFuture() {
-        std::unique_lock guard{_mutex};
-        auto f = _future.lock();
-        if(f) {
-            return f;
-        }
-        f = std::make_shared<Future>(context(), ref<Promise>());
-        _future = f;
-        return f;
+    std::shared_ptr<Future> Promise::getFuture() {
+        std::shared_lock guard{_callbacks->m};
+        return std::make_shared<Future>(context(), _callbacks, _future);
     }
 
     std::shared_ptr<data::ContainerModelBase> Promise::getValue() const {
-        std::shared_lock guard{_mutex};
-        return std::visit([](auto &&value) { return handleValue(value); }, _value);
+        return _future.get();
     }
 
     void Promise::setValue(const std::shared_ptr<data::ContainerModelBase> &value) {
         setAndFire(value);
     }
 
-    void Promise::setError(const errors::Error &error) {
-        setAndFire(error);
+    void Promise::setError(const std::exception_ptr &ex) {
+        setAndFire(ex);
     }
 
     void Promise::cancel() {
         // TODO: specific error
-        setError(errors::PromiseCancelledError());
+        setError(std::make_exception_ptr(errors::PromiseCancelledError()));
     }
 
     void Promise::addCallback(const std::shared_ptr<tasks::Callback> &callback) {
-        std::unique_lock guard{_mutex};
-        if(_value.index() == 0) {
-            _callbacks.emplace_back(callback);
-            return;
+        std::unique_lock guard{_callbacks->m};
+        if(!isValid()) {
+            _callbacks->callbacks.emplace_back(callback);
+        } else {
+            guard.unlock();
+            callback->invokeFutureCallback(getFuture());
         }
-        guard.unlock();
-        callback->invokeFutureCallback(getFuture());
-    }
-
-    void ErrorFuture::addCallback(const std::shared_ptr<tasks::Callback> &callback) {
-        callback->invokeFutureCallback(getFuture());
-    }
-    void ValueFuture::addCallback(const std::shared_ptr<tasks::Callback> &callback) {
-        callback->invokeFutureCallback(getFuture());
     }
 
     bool Promise::isValid() const {
-        std::shared_lock guard{_mutex};
-        return _value.index() != 0;
+        using namespace std::chrono_literals;
+        return _future.wait_for(0s) != std::future_status::timeout;
     }
 
     bool Promise::waitUntil(const tasks::ExpireTime &when) const {
-        std::shared_lock guard{_mutex};
-        return _fire.wait_until(
-            guard, when.toTimePoint(), [this]() { return _value.index() != 0; });
+        return tasks::waitUntil(when, _future);
     }
 
     FutureBase::FutureBase(const scope::UsingContext &context) : data::TrackedObject(context) {
     }
 
-    Future::Future(const scope::UsingContext &context, const std::shared_ptr<Promise> &promise)
-        : FutureBase(context), _promise(promise) {
+    Future::Future(
+        const scope::UsingContext &context,
+        std::shared_ptr<PromiseCallbacks> callbacks,
+        std::shared_future<std::shared_ptr<data::ContainerModelBase>> future)
+        : FutureBase(context), _callbacks{std::move(callbacks)}, _future{std::move(future)} {
     }
 
     std::shared_ptr<data::ContainerModelBase> Future::getValue() const {
-        return _promise->getValue();
+        try {
+            return _future.get();
+        } catch(const std::future_error &e) {
+            // none of these should be caught here, but translating them here for
+            // completions-sake...
+            throw errors::InvalidFutureError{e.what()};
+        }
+    }
+
+    std::shared_ptr<Future> Future::getFuture() {
+        return ref<Future>();
     }
 
     bool Future::isValid() const {
-        return _promise->isValid();
+        using namespace std::chrono_literals;
+        return _future.wait_for(0s) != std::future_status::timeout;
     }
 
     void Future::addCallback(const std::shared_ptr<tasks::Callback> &callback) {
-        _promise->addCallback(callback);
+        std::unique_lock guard{_callbacks->m};
+        if(!isValid()) {
+            _callbacks->callbacks.emplace_back(callback);
+        } else {
+            guard.unlock();
+            callback->invokeFutureCallback(getFuture());
+        }
     }
 
     bool Future::waitUntil(const tasks::ExpireTime &when) const {
-        return _promise->waitUntil(when);
+        return tasks::waitUntil(when, _future);
     }
-
-    std::shared_ptr<FutureBase> Future::getFuture() {
-        return ref<FutureBase>();
-    }
-
 } // namespace pubsub
