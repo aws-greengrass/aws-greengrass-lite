@@ -13,10 +13,10 @@ namespace ipc {
         StubProcessManager &operator=(const StubProcessManager &) = delete;
         StubProcessManager &operator=(StubProcessManager &&) = delete;
         ProcessId registerProcess(std::unique_ptr<Process> p) override {
-            throw std::logic_error{"Not implememented."};
+            throw std::logic_error{"Not implemented."};
         }
         void closeProcess(ProcessId id) override {
-            throw std::logic_error{"Not implememented."};
+            throw std::logic_error{"Not implemented."};
         };
 
         ~StubProcessManager() noexcept override = default;

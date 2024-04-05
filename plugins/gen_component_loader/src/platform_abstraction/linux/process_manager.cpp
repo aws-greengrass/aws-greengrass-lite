@@ -178,7 +178,7 @@ namespace ipc {
             std::cerr << "Linux Process Logger: " << e.what() << '\n';
         } catch(...) {
             std::cerr << "Linux Process Logger: "
-                      << "Unexepected exception\n";
+                      << "Unexpected exception\n";
         }
         _running.store(false);
     }
