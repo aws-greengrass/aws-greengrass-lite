@@ -5,6 +5,7 @@
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
 #include <cpp_api.hpp>
+#include <exception>
 
 ggapiErrorKind ggapiIsSubscription(ggapiObjHandle handle, ggapiBool *pBool) noexcept {
     return apiImpl::catchErrorToKind([handle, pBool]() {
@@ -35,9 +36,7 @@ ggapiErrorKind ggapiCreatePromise(ggapiObjHandle *pHandle) noexcept {
 }
 
 ggapiErrorKind ggapiSubscribeToTopic(
-    ggapiSymbol topic,
-    ggapiObjHandle callbackHandle,
-    ggapiObjHandle *outListener) noexcept {
+    ggapiSymbol topic, ggapiObjHandle callbackHandle, ggapiObjHandle *outListener) noexcept {
 
     return apiImpl::catchErrorToKind([topic, callbackHandle, outListener]() {
         auto context = scope::context();
@@ -109,7 +108,7 @@ ggapiErrorKind ggapiPromiseSetError(
         auto kindSymbol = context->symbolFromInt(errorKind);
         std::string msg(str, strlen);
         auto promiseObj = context->objFromInt<pubsub::Promise>(promiseHandle);
-        promiseObj->setError(errors::Error(kindSymbol, msg));
+        promiseObj->setError(std::make_exception_ptr(errors::Error(kindSymbol, msg)));
     });
 }
 

@@ -1,7 +1,16 @@
-#include "scope/context_full.hpp"
+#include "errors/error_base.hpp"
+#include "pubsub/promise.hpp"
+#include "scope/context_impl.hpp"
+#include "subscriptions.hpp"
 #include "tasks/task_callbacks.hpp"
 #include <catch2/catch_all.hpp>
+#include <catch2/catch_message.hpp>
+#include <catch2/catch_test_macros.hpp>
+#include <catch2/matchers/catch_matchers.hpp>
+#include <catch2/matchers/catch_matchers_string.hpp>
 #include <cpp_api.hpp>
+#include <memory>
+#include <stdexcept>
 #include <temp_module.hpp>
 
 // NOLINTBEGIN
@@ -219,6 +228,34 @@ SCENARIO("callable", "[callable]") {
                     REQUIRE(res->isValid());
                     auto resStruct = res->getValue()->ref<data::SharedStruct>();
                     REQUIRE(resStruct->get("A").getString() == "B");
+                }
+            }
+        }
+
+        GIVEN("A topic function which throws an exception") {
+
+            auto obj = ggapi::TopicCallback::of([](auto topic, auto data) -> ggapi::Struct {
+                throw std::domain_error{"An exception"};
+            });
+
+            WHEN("Calling the callback") {
+                auto callback = context->objFromInt<tasks::Callback>(obj.getHandleId());
+                auto topic = context->intern("test");
+                auto data = std::make_shared<data::SharedStruct>(context);
+
+                std::shared_ptr<pubsub::FutureBase> future{};
+                THEN("Exception is not thrown during invocation") {
+                    REQUIRE_NOTHROW(std::invoke(
+                        [&]() { future = callback->invokeTopicCallback(topic, data); }));
+
+                    REQUIRE(future != nullptr);
+
+                    AND_THEN("Error is thrown when getting the value") {
+                        REQUIRE_THROWS_MATCHES(
+                            [&]() { future->getValue(); }(),
+                            errors::Error,
+                            Catch::Matchers::Message("An exception"));
+                    }
                 }
             }
         }

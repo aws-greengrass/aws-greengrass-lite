@@ -1,8 +1,7 @@
 #pragma once
-#include "data/handle_table.hpp"
 #include "data/string_table.hpp"
+#include "data/tracked_object.hpp"
 #include <c_api.hpp>
-#include <utility>
 
 namespace data {
     class ContainerModelBase;
@@ -14,7 +13,8 @@ namespace plugins {
 
 namespace pubsub {
     class FutureBase;
-}
+    class Future;
+} // namespace pubsub
 
 namespace tasks {
     class Task;
@@ -47,7 +47,7 @@ namespace tasks {
             const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data);
         uint32_t size() const override;
         void *data() override;
-        std::shared_ptr<pubsub::FutureBase> retVal() const;
+        std::shared_ptr<pubsub::Future> retVal() const;
     };
 
     class AsyncCallbackData : public CallbackPackedData {

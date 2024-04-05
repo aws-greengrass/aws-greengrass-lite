@@ -3,16 +3,8 @@
 #include "data/safe_handle.hpp"
 #include "errors/errors.hpp"
 #include "scope/context.hpp"
-#include <cstddef>
-#include <cstdint>
-#include <functional>
-#include <map>
 #include <memory>
-#include <mutex>
 #include <ref_object.hpp>
-#include <shared_mutex>
-#include <unordered_map>
-#include <vector>
 
 namespace data {
 
