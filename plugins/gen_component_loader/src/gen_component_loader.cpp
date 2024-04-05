@@ -366,7 +366,7 @@
         auto module = newModule->registerComponent();
 
         returnData.put("moduleHandle", module);
-        return std::move(returnData);
+        return returnData;
     }
 
     bool GenComponentLoader::onInitialize(ggapi::Struct data) {
