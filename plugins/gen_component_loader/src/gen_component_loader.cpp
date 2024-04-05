@@ -251,7 +251,7 @@
             // script
             auto getScript = [&]() -> std::string {
                 auto script = std::regex_replace(
-                    step.script, std::regex(R"(\{artifacts:path\})"), _artifactPath.string());
+                    step.script, std::regex(R"(\{artifacts:path\})"), _artifactPath);
 
                 if(_defaultConfig && !_defaultConfig.empty()) {
                     for(auto key : _defaultConfig.keys().toVector<ggapi::Archive::KeyType>()) {

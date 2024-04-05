@@ -281,7 +281,7 @@ namespace deployment {
         data_pack->put("lifecycle", it->lifecycle);
         data_pack->put("componentName", _recipeAsStruct->get("ComponentName").getString() );
         data_pack->put("deploymentId", currentDeployment.id);
-        data_pack->put("artifactPath", artifactPath);
+        data_pack->put("artifactPath", artifactPath.generic_string());
         data_pack->put("defaultConfig", defaultConfig);
 
         auto install = _recipeAsStruct->get("ComponentPublisher");
