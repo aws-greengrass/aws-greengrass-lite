@@ -71,6 +71,10 @@ endmacro()
 
 add_compile_options(-fno-common)
 
+if(LINUX)
+  add_compile_options(-fno-semantic-interposition)
+endif()
+
 # For all built shared-objects, request that exports are explicitly defined
 # Note, this isn't necessarily enough - see also version-script option
 if(UNIX)
