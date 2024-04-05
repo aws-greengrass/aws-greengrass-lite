@@ -192,7 +192,7 @@
             startable.asGroup("root");
         }
         return _manager.registerProcess(
-            [this, startable]() -> std::unique_ptr<ipc::Process> {
+            [startable]() -> std::unique_ptr<ipc::Process> {
                 try {
                     return startable.start();
                 } catch(const std::exception &e) {

@@ -37,13 +37,13 @@ namespace ipc {
 
         int pidfdOut;
 
-        clone_args clargs{};
-        clargs.flags = CLONE_PIDFD;
+        clone_args cloneArgs{};
+        cloneArgs.flags = CLONE_PIDFD;
         // NOLINTNEXTLINE(*-pro-type-reinterpret-cast) Linux API compatibility
-        clargs.pidfd = reinterpret_cast<__aligned_u64>(&pidfdOut);
-        clargs.exit_signal = SIGCHLD;
+        cloneArgs.pidfd = reinterpret_cast<__aligned_u64>(&pidfdOut);
+        cloneArgs.exit_signal = SIGCHLD;
 
-        auto pid = sys_clone3(&clargs);
+        auto pid = sys_clone3(&cloneArgs);
 
         switch(pid) {
             // parent, on error

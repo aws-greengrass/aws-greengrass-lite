@@ -21,15 +21,15 @@ namespace details {
 
     template<class... Args>
     std::enable_if_t</* requires */ all_scalar<Args...>, int> invokeSyscall(
-        long sysno, Args... args) noexcept {
+        long syscallNumber, Args... args) noexcept {
         // TODO: x86_32 support. Idea: expand arguments into a tuple, using 2 32-bit values to
         // represent a 64-bit one, and passing the rest.
         // std::apply(
-        //     [sysno](auto... args) { return syscall(sysno, args...); },
+        //     [syscallNumber](auto... args) { return syscall(syscallNumber, args...); },
         //     std::tuple_cat(expand_arg(args)...));
         static_assert(sizeof(void *) == ByteWidth::x64);
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
-        return static_cast<int>(syscall(sysno, args...));
+        return static_cast<int>(syscall(syscallNumber, args...));
     }
 } // namespace details
 

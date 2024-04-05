@@ -41,16 +41,16 @@ namespace ipc {
         }
 
         template<class T>
-        int addEpollEvent(FileDescriptor &epfd, FileDescriptor &fd, uint32_t events, T &data) {
+        int addEpollEvent(FileDescriptor &epollFd, FileDescriptor &fd, uint32_t events, T &data) {
             epoll_event e{};
             e.events = events;
             e.data.ptr = &data;
-            return epoll_ctl(epfd.get(), EPOLL_CTL_ADD, fd.get(), &e);
+            return epoll_ctl(epollFd.get(), EPOLL_CTL_ADD, fd.get(), &e);
         }
 
-        int deleteEpollEvent(FileDescriptor &epfd, FileDescriptor &fd) {
+        int deleteEpollEvent(FileDescriptor &epollFd, FileDescriptor &fd) {
             struct epoll_event e {};
-            return epoll_ctl(epfd.get(), EPOLL_CTL_DEL, fd.get(), &e);
+            return epoll_ctl(epollFd.get(), EPOLL_CTL_DEL, fd.get(), &e);
         }
     } // namespace
 
@@ -68,12 +68,12 @@ namespace ipc {
     }
 
     FileDescriptor LinuxProcessManager::createEpoll() {
-        int epfd = epoll_create1(EPOLL_CLOEXEC);
-        if(epfd == -1) {
+        int epollFd = epoll_create1(EPOLL_CLOEXEC);
+        if(epollFd == -1) {
             perror("epoll_create");
             throw std::system_error(errno, std::generic_category());
         }
-        return FileDescriptor{epfd};
+        return FileDescriptor{epollFd};
     }
 
     void LinuxProcessManager::addEvent(std::list<ProcessEvent> &eventList, ProcessEvent event) {
@@ -90,7 +90,7 @@ namespace ipc {
                 }
             },
             eventList.front());
-        if(addEpollEvent(_epfd, fd, events, eventList.front()) < 0) {
+        if(addEpollEvent(_epollFd, fd, events, eventList.front()) < 0) {
             perror("epoll_ctl");
             throw std::system_error{errno, std::generic_category()};
         }
@@ -105,7 +105,7 @@ namespace ipc {
 
             std::array<epoll_event, maxEvents> events{};
             while(_running) {
-                auto n = epoll_wait(_epfd.get(), events.data(), maxEvents, timeout.count());
+                auto n = epoll_wait(_epollFd.get(), events.data(), maxEvents, timeout.count());
                 if(n == -1) {
                     if(errno != EINTR) {
                         perror("epoll_wait");
@@ -127,14 +127,14 @@ namespace ipc {
                                     }
                                 }
                                 if(event.events & (EPOLLHUP | EPOLLERR)) {
-                                    if(deleteEpollEvent(_epfd, fd) < 0) {
+                                    if(deleteEpollEvent(_epollFd, fd) < 0) {
                                         perror("epoll_ctl");
                                     }
                                     fd.close();
                                 }
                             } else if constexpr(std::is_same_v<EventT, ProcessComplete>) {
                                 auto &fd = e.process->getProcessFd();
-                                if(deleteEpollEvent(_epfd, fd) < 0) {
+                                if(deleteEpollEvent(_epollFd, fd) < 0) {
                                     perror("epoll_ctl");
                                 }
                                 std::error_code ec{};
@@ -226,7 +226,7 @@ namespace ipc {
         auto &process = std::get<ProcessComplete>(*found);
         // avoid a race condition where the process ends and its event handled after the event
         // listing is deleted
-        if(deleteEpollEvent(_epfd, process.process->getProcessFd()) < 0) {
+        if(deleteEpollEvent(_epollFd, process.process->getProcessFd()) < 0) {
             perror("epoll_ctl");
         }
         if(process.process->isRunning()) {
