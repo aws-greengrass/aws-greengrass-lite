@@ -1,0 +1,12 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: local.plugins.discovered.fleet_status_service
+ComponentType: aws.greengrass.plugin
+ComponentVersion: "0.1.0"
+ComponentDescription:
+  Sends status updates to the Greengrass Fleet Status Service.
+ComponentPublisher: Amazon
+ComponentDependencies:
+  local.plugins.discovered.iot_broker:
+    VersionRequirement: ">=0.1.0"
+    DependencyType: HARD

@@ -207,6 +207,9 @@ namespace plugins {
                 }
             }
         }
+
+        /* Noop statement for breakpoint in debugger */
+        ;
     }
 
     void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
