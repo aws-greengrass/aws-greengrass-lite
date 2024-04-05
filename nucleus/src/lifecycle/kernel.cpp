@@ -2,10 +2,12 @@
 #include "command_line.hpp"
 #include "config/yaml_config.hpp"
 #include "deployment/device_configuration.hpp"
+#include "lifecycle/component_loader_listener.hpp"
 #include "logging/log_queue.hpp"
 #include "platform_abstraction/abstract_process.hpp"
 #include "platform_abstraction/abstract_process_manager.hpp"
 #include "platform_abstraction/startable.hpp"
+#include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
 #include <filesystem>
@@ -331,29 +333,48 @@ namespace lifecycle {
         loader.setPaths(getPaths());
         loader.setDeviceConfiguration(_deviceConfiguration);
         loader.discoverPlugins();
-        auto runningSet = loader.processActiveList();
 
-        // TODO: plugins must wait till all dependencies are RUNNING or FINISHED state, before initalizing.
-        for(auto &&plugin : runningSet) {
-            plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
-                plugin.lifecycle(loader.INITIALIZE, data);
-            });
-        }
+        using namespace std::string_view_literals;
+        auto callback = std::make_shared<kernel::ComponentLoaderListener>(context());
+        std::shared_ptr<pubsub::Listener> subs1{
+            context()->lpcTopics().subscribe(SERVICE_LOADER_TOPIC_KEY, callback)};
+        auto runningSet = loader.processInactiveList();
+        for(;;) {
+            if(runningSet.empty()) {
+                break;
+            }
 
-        for(auto &&plugin : runningSet) {
-            plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
-                plugin.lifecycle(loader.START, data);
-            });
+            auto sz = runningSet.size();
+
+            for(auto &&plugin : runningSet) {
+                plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
+                    plugin.lifecycle(loader.INITIALIZE, data);
+                });
+            }
+
+            for(auto &&plugin : runningSet) {
+                plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
+                    plugin.lifecycle(loader.START, data);
+                });
+            }
+
+            if(callback->hasNewLoader()) {
+                auto loaders = callback->getLoaders();
+                loader.updateLoaders(loaders);
+            }
+
+            runningSet = loader.processInactiveList();
+            if(sz == runningSet.size()) {
+                break;
+            }
         }
 
         // Block this thread until termination (TODO: improve on this somehow)
         _mainPromise->waitUntil(tasks::ExpireTime::infinite());
 
-        for(auto &&plugin : runningSet) {
-            plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
-                plugin.lifecycle(loader.STOP, data);
-            });
-        }
+        loader.forAllActivePlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
+            plugin.lifecycle(loader.STOP, data);
+        });
 
         getConfig().publishQueue().stop();
         _deploymentManager->stop();
@@ -402,11 +423,11 @@ namespace lifecycle {
         }
     }
 
-    void Kernel::softShutdown(std::chrono::seconds timeoutSeconds) {
+    void Kernel::softShutdown(std::chrono::seconds expireTime) {
         getConfig().publishQueue().drainQueue();
         _deploymentManager->clearQueue();
         LOG.atDebug("system-shutdown").log("Starting soft shutdown");
-        stopAllServices(timeoutSeconds);
+        stopAllServices(expireTime);
         LOG.atDebug("system-shutdown").log("Closing transaction log");
         _tlog->commit();
         writeEffectiveConfig();
@@ -417,10 +438,11 @@ namespace lifecycle {
 
     std::vector<std::string> Kernel::getSupportedCapabilities() const {
         // TODO: This should be coming from GG SDK.
+        std::ignore = *this;
         std::vector<std::string> v;
-        return std::vector<std::string>{"LARGE_CONFIGURATION", "LINUX_RESOURCE_LIMITS", "SUB_DEPLOYMENTS"};
+        return std::vector<std::string>{
+            "LARGE_CONFIGURATION", "LINUX_RESOURCE_LIMITS", "SUB_DEPLOYMENTS"};
     }
-
 
     ipc::ProcessId Kernel::startProcess(
         std::string script,

@@ -30,110 +30,10 @@ namespace deployment {
         }
     };
 
-    struct ScriptSection : public data::Serializable {
-        std::optional<std::unordered_map<std::string, std::string>> envMap;
-        std::string script;
-        std::optional<bool> requiresPrivilege;
-        std::optional<std::string> skipIf;
-        std::optional<int64_t> timeout;
-
-        void visit(data::Archive &archive) override {
-            archive.setIgnoreCase();
-            archive("SetEnv", envMap);
-            archive("Script", script);
-            archive("RequiresPrivilege", requiresPrivilege);
-            archive("SkipIf", skipIf);
-            archive("Timeout", timeout);
-        }
-    };
-
-    struct BootstrapSection : public data::Serializable {
-        std::optional<std::unordered_map<std::string, std::string>> envMap;
-        std::optional<bool> bootstrapOnRollback;
-        std::optional<std::string> script;
-        std::optional<bool> requiresPrivilege;
-        std::optional<int64_t> timeout;
-
-        void visit(data::Archive &archive) override {
-            archive.setIgnoreCase();
-            archive("SetEnv", envMap);
-            archive("BootstrapOnRollback", bootstrapOnRollback);
-            archive("Script", script);
-            archive("RequiresPrivilege", requiresPrivilege);
-            archive("Timeout", timeout);
-        }
-    };
-
-    struct LifecycleSection : public data::Serializable {
-        std::optional<std::unordered_map<std::string, std::string>> envMap;
-        std::optional<ScriptSection> install;
-        std::optional<ScriptSection> run;
-        std::optional<ScriptSection> startup;
-        std::optional<ScriptSection> shutdown;
-        std::optional<ScriptSection> recover;
-        std::optional<BootstrapSection> bootstrap;
-        std::optional<bool> bootstrapOnRollback;
-
-        void helper(
-            data::Archive &archive, std::string_view name, std::optional<ScriptSection> &section) {
-
-            // Complexity is to handle behavior when a string is used instead of struct
-
-            if(archive.isArchiving()) {
-                archive(name, section);
-                return;
-            }
-            auto sec = archive[name];
-            if(!sec) {
-                return;
-            }
-            if(!sec.keys().empty()) {
-                sec(section); // map/structure
-            } else {
-                // if not a map, expected to be a script
-                section.emplace();
-                sec(section.value().script);
-            }
-        }
-
-        void helper(
-            data::Archive &archive,
-            std::string_view name,
-            std::optional<BootstrapSection> &section) {
-
-            // Complexity is to handle behavior when a string is used instead of struct
-
-            if(archive.isArchiving()) {
-                archive(name, section);
-                return;
-            }
-            auto sec = archive[name];
-            if(!sec) {
-                return;
-            }
-            if(!sec.keys().empty()) {
-                sec(section); // map/structure
-            }
-            // if not a map, expected to be a script
-            section.emplace();
-            sec(section.value().script);
-        }
-
-        void visit(data::Archive &archive) override {
-            archive.setIgnoreCase();
-            archive("SetEnv", envMap);
-            helper(archive, "install", install);
-            helper(archive, "run", run);
-            helper(archive, "startup", startup);
-            helper(archive, "shutdown", shutdown);
-            helper(archive, "recover", recover);
-            helper(archive, "bootstrap", bootstrap);
-        }
-    };
-
     class DeploymentManager : private scope::UsesContext {
         DeploymentQueue<std::string, Deployment> _deploymentQueue;
         DeploymentQueue<std::string, Recipe> _componentStore;
+        std::shared_ptr<data::SharedStruct> _recipeAsStruct ;
         static constexpr std::string_view DEPLOYMENT_ID_LOG_KEY = "DeploymentId";
         static constexpr std::string_view DISCARDED_DEPLOYMENT_ID_LOG_KEY = "DiscardedDeploymentId";
         static constexpr std::string_view GG_DEPLOYMENT_ID_LOG_KEY_NAME = "GreengrassDeploymentId";
@@ -161,6 +61,7 @@ namespace deployment {
         void loadRecipesAndArtifacts(const Deployment &);
         void copyAndLoadRecipes(const std::filesystem::path &);
         Recipe loadRecipeFile(const std::filesystem::path &);
+        std::shared_ptr<data::SharedStruct> loadRecipeFileAsStruct(const std::filesystem::path &);
         void saveRecipeFile(const Recipe &);
         void copyArtifacts(std::string_view);
         void runDeploymentTask();

@@ -61,6 +61,8 @@ add_library(
   src/data/handle_table.cpp
   src/data/handle_table.hpp
   src/data/safe_handle.hpp
+  src/data/generic_serializer.cpp
+  src/data/generic_serializer.hpp
   src/data/serializable.cpp
   src/data/serializable.hpp
   src/data/shared_buffer.cpp

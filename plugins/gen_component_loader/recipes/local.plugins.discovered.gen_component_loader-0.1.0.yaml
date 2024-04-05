@@ -1,0 +1,7 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: local.plugins.discovered.gen_component_loader
+ComponentType: aws.greengrass.plugin
+ComponentVersion: "0.1.0"
+ComponentDescription: Enables nucleus to mange a generic component's lifecycle
+ComponentPublisher: Amazon
