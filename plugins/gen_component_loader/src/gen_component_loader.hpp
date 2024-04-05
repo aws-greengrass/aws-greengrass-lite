@@ -114,7 +114,7 @@ private:
     ggapi::Struct _recipe;
     ggapi::Struct _lifecycleAsStruct;
     std::string _deploymentId;
-    std::filesystem::__cxx11::path _artifactPath;
+    std::filesystem::path _artifactPath;
     ggapi::Struct _defaultConfig;
 
     using Environment = std::unordered_map<std::string, std::optional<std::string>>;
