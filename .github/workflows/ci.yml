@@ -144,9 +144,6 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Configure project
-        run: nix develop .#gglite-clang -ic cmake $FETCHCONTENT_FLAGS -B build
-
       - name: Get file list
         id: get-file-list
         run: |
@@ -156,6 +153,12 @@ jobs:
            ${{ github.event.pull_request.base.sha }} | grep "\.c\(pp\)\?$")
           set -e
           echo CHANGED_FILES=$CHANGED_FILES >> $GITHUB_OUTPUT
+
+      - name: Configure project
+        if: ${{ steps.get-file-list.outputs.CHANGED_FILES != ''}}
+        run: >
+          nix develop .#gglite-clang.buildDir -ic cmake $FETCHCONTENT_FLAGS -B
+          build
 
       - name: Check clang-tidy
         id: clang-tidy-check
