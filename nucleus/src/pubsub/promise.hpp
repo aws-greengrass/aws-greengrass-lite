@@ -26,7 +26,7 @@ namespace pubsub {
         virtual std::shared_ptr<data::ContainerModelBase> getValue() const = 0;
         virtual bool isValid() const = 0;
         virtual bool waitUntil(const tasks::ExpireTime &when) const = 0;
-        virtual std::shared_ptr<Future> getFuture() = 0;
+        virtual std::shared_ptr<FutureBase> getFuture() = 0;
         virtual void addCallback(const std::shared_ptr<tasks::Callback> &callback) = 0;
     };
 
@@ -50,11 +50,10 @@ namespace pubsub {
         bool waitUntil(const tasks::ExpireTime &) const override {
             return true;
         }
-        std::shared_ptr<Future> getFuture() override {
-            return ref<Future>();
+        std::shared_ptr<FutureBase> getFuture() override {
+            return ref<FutureBase>();
         }
-        void addCallback(const std::shared_ptr<tasks::Callback> &callback) override {
-        }
+        void addCallback(const std::shared_ptr<tasks::Callback> &callback) override;
     };
 
     /**
@@ -78,11 +77,10 @@ namespace pubsub {
         bool waitUntil(const tasks::ExpireTime &) const override {
             return true;
         }
-        std::shared_ptr<Future> getFuture() override {
-            return ref<Future>();
+        std::shared_ptr<FutureBase> getFuture() override {
+            return ref<FutureBase>();
         }
-        void addCallback(const std::shared_ptr<tasks::Callback> &callback) override {
-        }
+        void addCallback(const std::shared_ptr<tasks::Callback> &callback) override;
     };
 
     class Future : public FutureBase {
@@ -96,7 +94,7 @@ namespace pubsub {
         std::shared_ptr<data::ContainerModelBase> getValue() const override;
         bool isValid() const override;
         bool waitUntil(const tasks::ExpireTime &when) const override;
-        std::shared_ptr<Future> getFuture() override;
+        std::shared_ptr<FutureBase> getFuture() override;
         void addCallback(const std::shared_ptr<tasks::Callback> &callback) override;
     };
 
@@ -120,7 +118,7 @@ namespace pubsub {
     public:
         using BadCastError = errors::InvalidPromiseError;
         explicit Promise(const scope::UsingContext &context);
-        std::shared_ptr<Future> getFuture() override;
+        std::shared_ptr<FutureBase> getFuture() override;
         std::shared_ptr<data::ContainerModelBase> getValue() const override;
         void addCallback(const std::shared_ptr<tasks::Callback> &callback) override;
         bool isValid() const override;

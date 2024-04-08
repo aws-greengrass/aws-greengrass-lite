@@ -40,7 +40,7 @@ namespace pubsub {
     Promise::Promise(const scope::UsingContext &context) : FutureBase(context) {
     }
 
-    std::shared_ptr<Future> Promise::getFuture() {
+    std::shared_ptr<FutureBase> Promise::getFuture() {
         std::unique_lock guard{_mutex};
         auto f = _future.lock();
         if(f) {
@@ -79,6 +79,13 @@ namespace pubsub {
         callback->invokeFutureCallback(getFuture());
     }
 
+    void ErrorFuture::addCallback(const std::shared_ptr<tasks::Callback> &callback) {
+        callback->invokeFutureCallback(getFuture());
+    }
+    void ValueFuture::addCallback(const std::shared_ptr<tasks::Callback> &callback) {
+        callback->invokeFutureCallback(getFuture());
+    }
+
     bool Promise::isValid() const {
         std::shared_lock guard{_mutex};
         return _value.index() != 0;
@@ -113,8 +120,8 @@ namespace pubsub {
         return _promise->waitUntil(when);
     }
 
-    std::shared_ptr<Future> Future::getFuture() {
-        return ref<Future>();
+    std::shared_ptr<FutureBase> Future::getFuture() {
+        return ref<FutureBase>();
     }
 
 } // namespace pubsub
