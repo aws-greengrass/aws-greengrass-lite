@@ -113,4 +113,5 @@ stdenv.mkDerivation (commonArgs // {
   postInstall = ''
     mv /tmp/install $out
   '';
+  passthru = { inherit buildDir; };
 })

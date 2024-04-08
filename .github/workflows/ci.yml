@@ -197,7 +197,9 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
-        run: cmake $FETCHCONTENT_FLAGS -B build
+        run: >
+          nix develop .#gglite-clang.buildDir -ic cmake $FETCHCONTENT_FLAGS -B
+          build
 
       - name: Check cppcheck
         id: cppcheck-run
