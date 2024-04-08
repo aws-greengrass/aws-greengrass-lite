@@ -187,6 +187,7 @@ jobs:
     defaults:
       run:
         shell: nix develop .#ci -c bash -exo pipefail {0}
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -200,7 +201,6 @@ jobs:
 
       - name: Check cppcheck
         id: cppcheck-run
-        if: ${{ github.event_name == 'pull_request' }}
         run: |
           mkdir .cppcheck
           cppcheck_flags="--cppcheck-build-dir=.cppcheck --quiet --std=c++17 \
