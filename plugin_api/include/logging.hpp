@@ -6,6 +6,7 @@
 #include <chrono>
 #include <functional>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <sstream>
 #include <string>
