@@ -144,9 +144,6 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
-      - name: Configure project
-        run: nix develop .#gglite-clang -ic cmake $FETCHCONTENT_FLAGS -B build
-
       - name: Get file list
         id: get-file-list
         run: |
@@ -156,6 +153,12 @@ jobs:
            ${{ github.event.pull_request.base.sha }} | grep "\.c\(pp\)\?$")
           set -e
           echo CHANGED_FILES=$CHANGED_FILES >> $GITHUB_OUTPUT
+
+      - name: Configure project
+        if: ${{ steps.get-file-list.outputs.CHANGED_FILES != ''}}
+        run: >
+          nix develop .#gglite-clang.buildDir -ic cmake $FETCHCONTENT_FLAGS -B
+          build
 
       - name: Check clang-tidy
         id: clang-tidy-check
@@ -187,6 +190,7 @@ jobs:
     defaults:
       run:
         shell: nix develop .#ci -c bash -exo pipefail {0}
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -196,11 +200,12 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Configure project
-        run: cmake $FETCHCONTENT_FLAGS -B build
+        run: >
+          nix develop .#gglite-clang.buildDir -ic cmake $FETCHCONTENT_FLAGS -B
+          build
 
       - name: Check cppcheck
         id: cppcheck-run
-        if: ${{ github.event_name == 'pull_request' }}
         run: |
           mkdir .cppcheck
           cppcheck_flags="--cppcheck-build-dir=.cppcheck --quiet --std=c++17 \
