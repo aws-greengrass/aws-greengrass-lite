@@ -2,6 +2,6 @@
 RecipeFormatVersion: "2020-01-25"
 ComponentName: local.plugins.discovered.log_manager
 ComponentType: aws.greengrass.plugin
-ComponentVersion: "1.0.0"
+ComponentVersion: "0.1.0"
 ComponentDescription: AWS Greengrass Lite Log Manager
 ComponentPublisher: Amazon
