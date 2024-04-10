@@ -5,12 +5,12 @@
 #include "deployment/deployment_model.hpp"
 #include "deployment/device_configuration.hpp"
 #include "lifecycle/kernel_alternatives.hpp"
-#include "platform_abstraction/abstract_process_manager.hpp"
 #include "scope/context.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task_threads.hpp"
 #include "util/nucleus_paths.hpp"
 #include <filesystem>
+#include <gg_pal/abstract_process_manager.hpp>
 #include <optional>
 
 namespace pubsub {
