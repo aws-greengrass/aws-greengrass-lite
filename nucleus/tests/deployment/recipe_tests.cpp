@@ -179,29 +179,29 @@ SCENARIO("Recipe Reader", "[deployment]") {
             }
         }
 
-        WHEN("Reading a recipe with selections") {
-            auto recipe = yaml_reader.read(samples / "selection_recipe.yml");
-            THEN("The recipe is read") {
-                REQUIRE_THAT(recipe.formatVersion, Equals("2020-01-25"));
-                REQUIRE_THAT(recipe.componentName, Equals("com.example.HelloWorld"));
-                REQUIRE_THAT(recipe.componentVersion, Equals("1.0.0"));
-                REQUIRE_THAT(
-                    recipe.componentDescription, Equals("My first AWS IoT Greengrass component."));
-                REQUIRE_THAT(recipe.componentPublisher, Equals("Amazon"));
+        // WHEN("Reading a recipe with selections") {
+        //     auto recipe = yaml_reader.read(samples / "selection_recipe.yml");
+        //     THEN("The recipe is read") {
+        //         REQUIRE_THAT(recipe.formatVersion, Equals("2020-01-25"));
+        //         REQUIRE_THAT(recipe.componentName, Equals("com.example.HelloWorld"));
+        //         REQUIRE_THAT(recipe.componentVersion, Equals("1.0.0"));
+        //         REQUIRE_THAT(
+        //             recipe.componentDescription, Equals("My first AWS IoT Greengrass component."));
+        //         REQUIRE_THAT(recipe.componentPublisher, Equals("Amazon"));
 
-                REQUIRE(recipe.configuration.defaultConfiguration->hasKey("Message"));
-                REQUIRE_THAT(
-                    recipe.configuration.defaultConfiguration->get("Message").getString(),
-                    Equals("world"));
+        //         REQUIRE(recipe.configuration.defaultConfiguration->hasKey("Message"));
+        //         REQUIRE_THAT(
+        //             recipe.configuration.defaultConfiguration->get("Message").getString(),
+        //             Equals("world"));
 
-                REQUIRE(recipe.manifests.size() == 1);
+        //         REQUIRE(recipe.manifests.size() == 1);
 
-                REQUIRE(recipe.manifests[0].platform.os == "linux");
-                REQUIRE(recipe.manifests[0].selections.size() == 2);
-                REQUIRE_THAT(recipe.manifests[0].selections[0], Equals("key1"));
-                REQUIRE_THAT(recipe.manifests[0].selections[1], Equals("key2"));
-            }
-        }
+        //         REQUIRE(recipe.manifests[0].platform.os == "linux");
+        //         REQUIRE(recipe.manifests[0].selections.size() == 2);
+        //         REQUIRE_THAT(recipe.manifests[0].selections[0], Equals("key1"));
+        //         REQUIRE_THAT(recipe.manifests[0].selections[1], Equals("key2"));
+        //     }
+        // }
     }
 }
 

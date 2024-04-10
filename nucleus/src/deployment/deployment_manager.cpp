@@ -259,12 +259,23 @@ namespace deployment {
         // TODO: This needs to be a generic map compare
         auto manifests = currentRecipe.getManifests();
 
-        auto it = std::find_if(manifests.begin(), manifests.end(), [](const auto &manifest) {
+        /*
+        Manifests:
+        - Platform:
+            nucleus: java
+            Artifacts:
+            - URI: s3://mock-bucket/java/java-stuff.zip
+            - URI: s3://mock-bucket/shared/shared.zip
+            Selections:
+            - java
+        */
+        auto iterator = std::find_if(manifests.begin(), manifests.end(), [](const auto &manifest) {
             return manifest.platform.os.empty() || manifest.platform.os == PLATFORM_NAME
                    || manifest.platform.os == "*";
         });
+
         // TODO: and the nucleus type is lite?
-        if(it == manifests.end()) {
+        if(iterator == manifests.end()) {
             LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
@@ -273,13 +284,19 @@ namespace deployment {
             return;
         }
 
+        auto index = std::distance(manifests.begin(), iterator);
+
+        auto selectedManifest = _recipeAsStruct->get(_recipeAsStruct->foldKey("Manifests", true)).castObject<data::ListModelBase>()->get(index).castObject<data::StructModelBase>();
+
+        std::cout<< selectedManifest->toJson().get()<<std::endl;
+        
         auto context = scope::context();
 
         auto data_pack = std::make_shared<data::SharedStruct>(context);
 
         data_pack->put("recipe", _recipeAsStruct);
-        data_pack->put("lifecycle", it->lifecycle);
-        data_pack->put("componentName", _recipeAsStruct->get("ComponentName").getString() );
+        data_pack->put("manifest", selectedManifest);
+        data_pack->put("componentName", currentRecipe.componentName);
         data_pack->put("deploymentId", currentDeployment.id);
         data_pack->put("artifactPath", artifactPath.generic_string());
         data_pack->put("defaultConfig", defaultConfig);

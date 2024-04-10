@@ -113,6 +113,7 @@ private:
     std::string _name;
     ggapi::Struct _recipe;
     ggapi::Struct _lifecycleAsStruct;
+    ggapi::Struct _manifestAsStruct;
     std::string _deploymentId;
     std::string _artifactPath;
     ggapi::Struct _defaultConfig;

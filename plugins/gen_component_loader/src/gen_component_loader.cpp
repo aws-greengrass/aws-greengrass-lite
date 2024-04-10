@@ -303,10 +303,12 @@
     GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
         _name = data.get<std::string>("componentName");
         _recipe = data.get<ggapi::Struct>("recipe");
-        _lifecycleAsStruct = data.get<ggapi::Struct>("lifecycle");
+        _manifestAsStruct =data.get<ggapi::Struct>("manifest");
         _deploymentId = data.get<std::string>("deploymentId");
         _artifactPath = data.get<std::string>("artifactPath");
         _defaultConfig = data.get<ggapi::Struct>("defaultConfig");
+
+        _lifecycleAsStruct = _manifestAsStruct.get<ggapi::Struct>(_manifestAsStruct.foldKey("Lifecycle"));
     }
 
     bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
