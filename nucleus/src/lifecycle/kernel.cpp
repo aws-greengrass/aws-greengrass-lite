@@ -4,13 +4,13 @@
 #include "deployment/device_configuration.hpp"
 #include "lifecycle/component_loader_listener.hpp"
 #include "logging/log_queue.hpp"
-#include "platform_abstraction/abstract_process.hpp"
-#include "platform_abstraction/abstract_process_manager.hpp"
-#include "platform_abstraction/startable.hpp"
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
 #include <filesystem>
+#include <gg_pal/abstract_process.hpp>
+#include <gg_pal/abstract_process_manager.hpp>
+#include <gg_pal/startable.hpp>
 #include <memory>
 #include <optional>
 

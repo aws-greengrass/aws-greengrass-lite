@@ -1,6 +1,6 @@
-#include "platform_abstraction/abstract_process_manager.hpp"
 #include <filesystem>
 #include <functional>
+#include <gg_pal/abstract_process_manager.hpp>
 #include <logging.hpp>
 #include <plugin.hpp>
 

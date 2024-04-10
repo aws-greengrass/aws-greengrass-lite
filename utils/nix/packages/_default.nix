@@ -19,6 +19,7 @@ let
     "/dependencies.json"
     "/nucleus"
     "/plugin_api"
+    "/gg_pal"
     "/plugins"
     "/utils/cmake"
   ]);
