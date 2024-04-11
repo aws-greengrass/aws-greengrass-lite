@@ -9,6 +9,7 @@
 #define SIGV4_DO_NOT_USE_CUSTOM_CONFIG
 
 const auto LOG = ggapi::Logger::of("LogManager");
+bool logGroupCreated = false;
 
 bool LogManager::onInitialize(ggapi::Struct data) {
     // TODO: retrieve and process system config
@@ -19,12 +20,13 @@ bool LogManager::onInitialize(ggapi::Struct data) {
 }
 
 bool LogManager::onStart(ggapi::Struct data) {
-    // TODO: subscribe to LPC topics and register log uploading callback
     retrieveCredentialsFromTES();
     if (_credentials.hasKey("Response")) {
         // setup callback to upload logs
         //TODO: how to register this to loop and run constantly
-        _logUploadPromise = _logUploadPromise.later(300, &LogManager::processLogsAndUpload);
+        ggapi::later(500, [this]() {
+            LogManager::processLogsAndUpload();
+        });
     } else {
         LOG.atError().log("Could not retrieve credentials from TES");
         return false; // not sure if we should be doing this
@@ -52,8 +54,9 @@ void LogManager::retrieveCredentialsFromTES() {
     _credentials.toJson().write(std::cout);
 }
 
-
-void LogManager::setupClient(const std::string &uriAsString, const rapidjson::Document& requestBody) {
+void LogManager::setupClient(const std::string &uriAsString,
+                             const rapidjson::Document& putLogEventsRequestBody,
+                             const std::string logGroupName, const std::string logStreamName) {
     auto allocator = Aws::Crt::DefaultAllocator();
     aws_io_library_init(allocator);
 
@@ -98,6 +101,7 @@ void LogManager::setupClient(const std::string &uriAsString, const rapidjson::Do
     bool errorOccurred = true;
     bool connectionShutdown = false;
 
+    //TODO: these are being used across each http request, is this correct?
     std::condition_variable conditionalVar;
     std::mutex semaphoreLock;
 
@@ -150,56 +154,208 @@ void LogManager::setupClient(const std::string &uriAsString, const rapidjson::Do
         throw std::runtime_error("Failed to establish successful connection");
     }
 
-    // Setup request
-    Aws::Crt::Http::HttpRequest request;
-    Aws::Crt::Http::HttpRequestOptions requestOptions;
+    // Declaring headers shared by each http request
+    Aws::Crt::Http::HttpHeader versionHeader;
+    versionHeader.name = Aws::Crt::ByteCursorFromCString("Version");
+    versionHeader.value = Aws::Crt::ByteCursorFromCString("2014-03-28");
 
-    int responseCode = 0;
-    requestOptions.request = &request;
+    Aws::Crt::Http::HttpHeader contentHeader;
+    contentHeader.name = Aws::Crt::ByteCursorFromCString("Content-Type");
+    contentHeader.value = Aws::Crt::ByteCursorFromCString("application/x-amz-json-1.1");
 
-    bool streamCompleted = false;
-    requestOptions.onStreamComplete = [&](Aws::Crt::Http::HttpStream &, int errorCode) {
+    Aws::Crt::Http::HttpHeader connectionHeader;
+    connectionHeader.name = Aws::Crt::ByteCursorFromCString("Connection");
+    connectionHeader.value = Aws::Crt::ByteCursorFromCString("Keep-Alive");
+
+    // Create log group if it doesn't exist
+    if (!logGroupCreated) {
+        Aws::Crt::Http::HttpRequest logGroupRequest;
+        logGroupRequest.SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
+        //TODO: set path for request
+
+        Aws::Crt::Http::HttpRequestOptions requestOptions;
+
+        int logGroupResponseCode = 0;
+        requestOptions.request = &logGroupRequest;
+
+        bool streamCompleted = false;
+        requestOptions.onStreamComplete = [&](Aws::Crt::Http::HttpStream &, int errorCode) {
+            std::lock_guard<std::mutex> lockGuard(semaphoreLock);
+            streamCompleted = true;
+            if(errorCode) {
+                errorOccurred = true;
+            }
+            conditionalVar.notify_one();
+        };
+        requestOptions.onIncomingHeadersBlockDone = nullptr;
+        requestOptions.onIncomingHeaders = [&](Aws::Crt::Http::HttpStream &stream,
+                                               enum aws_http_header_block,
+                                               const Aws::Crt::Http::HttpHeader *,
+                                               std::size_t) {
+            logGroupResponseCode = stream.GetResponseStatusCode();
+        };
+
+        Aws::Crt::Http::HttpHeader hostHeader;
+        hostHeader.name = Aws::Crt::ByteCursorFromCString("host");
+        // host name = logs.<region>.<domain>
+        //hostHeader.value = uri.GetHostName();
+        logGroupRequest.AddHeader(hostHeader);
+
+        //TODO: authorization header for sigv4
+
+        Aws::Crt::Http::HttpHeader actionHeader;
+        actionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
+        actionHeader.value = Aws::Crt::ByteCursorFromCString("CreateLogGroup");
+        logGroupRequest.AddHeader(actionHeader);
+
+        //TODO: try this if action above doesn't work
+        //    Aws::Crt::Http::HttpHeader actionHeader;
+        //    actionHeader.name = Aws::Crt::ByteCursorFromCString("X-Amz-Target");
+        //    actionHeader.value = Aws::Crt::ByteCursorFromCString("Logs_20140328.CreateLogGroup");
+        //    request.AddHeader(actionHeader);
+
+        logGroupRequest.AddHeader(versionHeader);
+        logGroupRequest.AddHeader(contentHeader);
+        logGroupRequest.AddHeader(connectionHeader);
+
+        rapidjson::Document createLogGroupBody;
+        createLogGroupBody.AddMember("logGroupName", logGroupName.c_str(),
+                                     createLogGroupBody.GetAllocator());
+        rapidjson::StringBuffer buffer;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+        createLogGroupBody.Accept(writer);
+        const char* logGroupRequestBodyStr = buffer.GetString();
+        std::istringstream createLogGroupIStream(logGroupRequestBodyStr);
+        std::shared_ptr<Aws::Crt::Io::IStream> createLogGroupBodyStream =
+            std::make_shared<Aws::Crt::Io::IStream>(createLogGroupIStream);
+        logGroupRequest.SetBody(createLogGroupBodyStream);
+
+        auto stream = connection->NewClientStream(requestOptions);
+        if(!stream->Activate()) {
+            LOG.atError().log("Failed to activate stream and create log group");
+            throw std::runtime_error("Failed to activate stream and create log group");
+        }
+
+        conditionalVar.wait(semaphoreULock, [&]() { return streamCompleted; });
+
+        connection->Close();
+        conditionalVar.wait(semaphoreULock, [&]() { return connectionShutdown; });
+
+        LOG.atInfo().event("CreateLogGroup Status").kv("response_code",
+                                                       logGroupResponseCode).log();
+        logGroupCreated = true;
+    }
+
+    // Setup createLogStream request
+    Aws::Crt::Http::HttpRequest logStreamRequest;
+    logStreamRequest.SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
+    //TODO: set path for request
+
+    Aws::Crt::Http::HttpRequestOptions logStreamRequestOptions;
+
+    int streamResponseCode = 0;
+    logStreamRequestOptions.request = &logStreamRequest;
+
+    bool logStreamRequestCompleted = false;
+    logStreamRequestOptions.onStreamComplete = [&](Aws::Crt::Http::HttpStream &, int errorCode) {
         std::lock_guard<std::mutex> lockGuard(semaphoreLock);
-        streamCompleted = true;
+        logStreamRequestCompleted = true;
         if(errorCode) {
             errorOccurred = true;
         }
         conditionalVar.notify_one();
     };
-    requestOptions.onIncomingHeadersBlockDone = nullptr;
-    requestOptions.onIncomingHeaders = [&](Aws::Crt::Http::HttpStream &stream,
+    logStreamRequestOptions.onIncomingHeadersBlockDone = nullptr;
+    logStreamRequestOptions.onIncomingHeaders = [&](Aws::Crt::Http::HttpStream &stream,
                                            enum aws_http_header_block,
                                            const Aws::Crt::Http::HttpHeader *,
                                            std::size_t) {
-        responseCode = stream.GetResponseStatusCode();
+        streamResponseCode = stream.GetResponseStatusCode();
     };
 
-    request.SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
-    // TODO cloudwatch uri?
-    request.SetPath(uri.GetPathAndQuery());
+    Aws::Crt::Http::HttpHeader createLogStreamHostHeader;
+    createLogStreamHostHeader.name = Aws::Crt::ByteCursorFromCString("host");
+    // host name = logs.<region>.<domain>
+    //hostHeader.value = uri.GetHostName();
+    logStreamRequest.AddHeader(createLogStreamHostHeader);
 
+    Aws::Crt::Http::HttpHeader createLogStreamActionHeader;
+    createLogStreamActionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
+    createLogStreamActionHeader.value = Aws::Crt::ByteCursorFromCString("CreateLogStream");
+    logStreamRequest.AddHeader(createLogStreamActionHeader);
+
+    logStreamRequest.AddHeader(versionHeader);
+    logStreamRequest.AddHeader(contentHeader);
+    logStreamRequest.AddHeader(connectionHeader);
+
+    //TODO: authorization header
+
+    rapidjson::Document createLogStreamBody;
+    createLogStreamBody.AddMember("logGroupName", logGroupName.c_str(),
+                                  createLogStreamBody.GetAllocator());
+    createLogStreamBody.AddMember("logStreamName", logStreamName.c_str(),
+                                  createLogStreamBody.GetAllocator());
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    requestBody.Accept(writer);
-    const char* requestBodyStr = buffer.GetString();
+    createLogStreamBody.Accept(writer);
+    const char* logStreamRequestBodyStr = buffer.GetString();
+    std::istringstream istream(logStreamRequestBodyStr);
+    std::shared_ptr<Aws::Crt::Io::IStream> createLogStreamBodyStream =
+        std::make_shared<Aws::Crt::Io::IStream>(istream);
+    logStreamRequest.SetBody(createLogStreamBodyStream);
 
-    std::istringstream istream(requestBodyStr);
-    //TODO: how to make an IStream???
-    std::shared_ptr<Aws::Crt::Io::IStream> bodyStream = std::make_shared<Aws::Crt::Io::IStream>(istream);
+    auto createLogStreamStream = connection->NewClientStream(logStreamRequestOptions);
+    if(!createLogStreamStream->Activate()) {
+        LOG.atError().log("Failed to activate stream and upload logs");
+        throw std::runtime_error("Failed to activate stream and upload logs");
+    }
 
-    request.SetBody(bodyStream);
+    conditionalVar.wait(semaphoreULock, [&]() { return logStreamRequestCompleted; });
 
-    Aws::Crt::Http::HttpHeader hostHeader;
-    hostHeader.name = Aws::Crt::ByteCursorFromCString("host");
+    connection->Close();
+    conditionalVar.wait(semaphoreULock, [&]() { return connectionShutdown; });
+
+    LOG.atInfo().event("CreateLogStream Status").kv("response_code", streamResponseCode).log();
+
+    // Setup putLogEvent request
+    Aws::Crt::Http::HttpRequest putLogsRequest;
+    Aws::Crt::Http::HttpRequestOptions putLogsRequestOptions;
+
+    int putLogsResponseCode = 0;
+    putLogsRequestOptions.request = &putLogsRequest;
+
+    bool putLogsRequestCompleted = false;
+    putLogsRequestOptions.onStreamComplete = [&](Aws::Crt::Http::HttpStream &, int errorCode) {
+        std::lock_guard<std::mutex> lockGuard(semaphoreLock);
+        putLogsRequestCompleted = true;
+        if(errorCode) {
+            errorOccurred = true;
+        }
+        conditionalVar.notify_one();
+    };
+    putLogsRequestOptions.onIncomingHeadersBlockDone = nullptr;
+    putLogsRequestOptions.onIncomingHeaders = [&](Aws::Crt::Http::HttpStream &stream,
+                                           enum aws_http_header_block,
+                                           const Aws::Crt::Http::HttpHeader *,
+                                           std::size_t) {
+        putLogsResponseCode = stream.GetResponseStatusCode();
+    };
+
+    putLogsRequest.SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
+    // TODO cloudwatch uri?
+    putLogsRequest.SetPath(uri.GetPathAndQuery());
+
+    Aws::Crt::Http::HttpHeader putLogEventsHostHeader;
+    putLogEventsHostHeader.name = Aws::Crt::ByteCursorFromCString("host");
     // TODO cloudwatch uri -- maybe don't need uri?
     // host name = logs.<region>.<domain>
-    hostHeader.value = uri.GetHostName();
-    request.AddHeader(hostHeader);
+    putLogEventsHostHeader.value = uri.GetHostName();
+    putLogsRequest.AddHeader(putLogEventsHostHeader);
 
     Aws::Crt::Http::HttpHeader actionHeader;
     actionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
     actionHeader.value = Aws::Crt::ByteCursorFromCString("PutLogEvents");
-    request.AddHeader(actionHeader);
+    putLogsRequest.AddHeader(actionHeader);
 
     //TODO: try this if action above doesn't work
 //    Aws::Crt::Http::HttpHeader actionHeader;
@@ -207,10 +363,9 @@ void LogManager::setupClient(const std::string &uriAsString, const rapidjson::Do
 //    actionHeader.value = Aws::Crt::ByteCursorFromCString("Logs_20140328.PutLogEvents");
 //    request.AddHeader(actionHeader);
 
-    Aws::Crt::Http::HttpHeader versionHeader;
-    versionHeader.name = Aws::Crt::ByteCursorFromCString("Version");
-    versionHeader.value = Aws::Crt::ByteCursorFromCString("2014-03-28");
-    request.AddHeader(versionHeader);
+    putLogsRequest.AddHeader(versionHeader);
+    putLogsRequest.AddHeader(contentHeader);
+    putLogsRequest.AddHeader(connectionHeader);
 
     //TODO: date hopefully not needed
 //    Aws::Crt::Http::HttpHeader dateHeader;
@@ -223,7 +378,7 @@ void LogManager::setupClient(const std::string &uriAsString, const rapidjson::Do
     SigV4Status_t status = SigV4Success;
     char pSigv4Auth[ 2048U ];
     size_t sigv4AuthLen = sizeof( pSigv4Auth );
-    request.AddHeader(authHeader);
+    putLogsRequest.AddHeader(authHeader);
     char * signature = NULL;
     size_t signatureLen = 0;
     auto region = std::getenv("AWS_REGION");
@@ -250,10 +405,6 @@ void LogManager::setupClient(const std::string &uriAsString, const rapidjson::Do
         LOG.atError().log("Failed to generate Authorization header");
         throw std::runtime_error("Failed to generate Authorization header");
     }
-    Aws::Crt::Http::HttpHeader contentHeader;
-    contentHeader.name = Aws::Crt::ByteCursorFromCString("Content-Type");
-    contentHeader.value = Aws::Crt::ByteCursorFromCString("application/x-amz-json-1.1");
-    request.AddHeader(contentHeader);
 
     //TODO: not sure if needed, also we aren't chunking right now
 //    Aws::Crt::Http::HttpHeader lengthHeader;
@@ -262,23 +413,25 @@ void LogManager::setupClient(const std::string &uriAsString, const rapidjson::Do
 //    lengthHeader.value = Aws::Crt::ByteCursorFromCString(chunkSize.c_str());
 //    request.AddHeader(lengthHeader);
 
-    Aws::Crt::Http::HttpHeader connectionHeader;
-    connectionHeader.name = Aws::Crt::ByteCursorFromCString("Connection");
-    connectionHeader.value = Aws::Crt::ByteCursorFromCString("Keep-Alive");
-    request.AddHeader(connectionHeader);
+    putLogEventsRequestBody.Accept(writer);
+    const char* putLogEventsRequestBodyStr = buffer.GetString();
+    std::istringstream putLogEventsIstream(putLogEventsRequestBodyStr);
+    std::shared_ptr<Aws::Crt::Io::IStream> putLogEventsBodyStream =
+        std::make_shared<Aws::Crt::Io::IStream>(putLogEventsIstream);
+    putLogsRequest.SetBody(putLogEventsBodyStream);
 
-    auto stream = connection->NewClientStream(requestOptions);
+    auto stream = connection->NewClientStream(putLogsRequestOptions);
     if(!stream->Activate()) {
         LOG.atError().log("Failed to activate stream and upload logs");
         throw std::runtime_error("Failed to activate stream and upload logs");
     }
 
-    conditionalVar.wait(semaphoreULock, [&]() { return streamCompleted; });
+    conditionalVar.wait(semaphoreULock, [&]() { return putLogsRequestCompleted; });
 
     connection->Close();
     conditionalVar.wait(semaphoreULock, [&]() { return connectionShutdown; });
 
-    LOG.atInfo().event("Upload Status").kv("response_code", responseCode).log();
+    LOG.atInfo().event("PutLogEvents Status").kv("response_code", putLogsResponseCode).log();
 }
 
 void LogManager::processLogsAndUpload() {
@@ -295,8 +448,7 @@ void LogManager::processLogsAndUpload() {
         "/aws/greengrass/" + _logGroup.componentType + "/" + _logGroup.region + "/" +
         _logGroup.componentName;
     std::string logStreamName = "/" + _logStream.date + "/thing/" +
-                                std::string(_logStream.thingName.c_str(),
-                                            _logStream.thingName.size());
+                                std::string(_logStream.thingName.c_str());
 
     // read log file and build request body
     std::ifstream file(logFilePath);
@@ -339,7 +491,7 @@ void LogManager::processLogsAndUpload() {
     //TODO: uri stuff
     // uri host name format: logs.<region>.<domain>
     // need to figure out the path and query field called for on line 176
-    LogManager::setupClient(body);
+    LogManager::setupClient(body, logGroupName, logStreamName);
 
 
 }

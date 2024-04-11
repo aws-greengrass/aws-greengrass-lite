@@ -24,9 +24,7 @@ private:
     ggapi::Struct _system;
     ggapi::Struct _config;
     ggapi::Struct _credentials;
-    std::string _iotRoleAlias;
     ggapi::Subscription _requestTesSubscription;
-    ggapi::Promise _logUploadPromise;
 
     static constexpr std::string_view THING_NAME = "thingName";
     static constexpr std::string_view TES_REQUEST_TOPIC = "aws.greengrass.requestTES";
