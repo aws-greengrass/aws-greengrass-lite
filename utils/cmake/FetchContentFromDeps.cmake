@@ -26,6 +26,7 @@ function(fetchContentAdd)
 
     string(TOLOWER "${name}" lower_name)
 
+    FetchContent_GetProperties(${name})
     if(NOT ${lower_name}_POPULATED)
       FetchContent_Populate(${name})
     endif()
