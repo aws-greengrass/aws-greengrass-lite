@@ -8,9 +8,6 @@
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
 #include <filesystem>
-#include <gg_pal/abstract_process.hpp>
-#include <gg_pal/abstract_process_manager.hpp>
-#include <gg_pal/startable.hpp>
 #include <memory>
 #include <optional>
 
@@ -65,7 +62,6 @@ namespace lifecycle {
         initConfigAndTlog(commandLine);
         initDeviceConfiguration(commandLine);
         initializeNucleusFromRecipe();
-        initializeProcessManager(commandLine);
     }
 
     //
@@ -180,10 +176,6 @@ namespace lifecycle {
     void Kernel::initializeNucleusFromRecipe() {
         // _kernelAlts = std::make_unique<KernelAlternatives>(_global.environment, *this);
         // TODO: missing code
-    }
-
-    void Kernel::initializeProcessManager(CommandLine &commandLine) {
-        _processManager = std::make_unique<ipc::ProcessManager>();
     }
 
     void Kernel::setupProxy() {
@@ -442,149 +434,5 @@ namespace lifecycle {
         std::vector<std::string> v;
         return std::vector<std::string>{
             "LARGE_CONFIGURATION", "LINUX_RESOURCE_LIMITS", "SUB_DEPLOYMENTS"};
-    }
-
-    ipc::ProcessId Kernel::startProcess(
-        std::string script,
-        std::chrono::seconds timeout,
-        bool requiresPrivilege,
-        std::unordered_map<std::string, std::optional<std::string>> env,
-        const std::string &note,
-        std::optional<ipc::CompletionCallback> onComplete) {
-        using namespace std::string_literals;
-
-        auto getShell = [this]() -> std::string {
-            if(_deviceConfiguration->getRunWithDefaultPosixShell().isScalar()) {
-                return _deviceConfiguration->getRunWithDefaultPosixShell().getString();
-            } else {
-                LOG.atWarn("missing-config-option")
-                    .kv("message", "posixShell not configured. Defaulting to bash.")
-                    .log();
-                return "bash"s;
-            }
-        };
-
-        auto getThingName = [this]() -> std::string {
-            return _deviceConfiguration->getThingName().getString();
-        };
-
-        auto getAWSRegion = [this]() -> std::string {
-            return _deviceConfiguration->getAWSRegion().getString();
-        };
-
-        auto getRootCAPath = [this]() -> std::string {
-            return _deviceConfiguration->getRootCAFilePath().getString();
-        };
-
-        auto getNucleusVersion = [this]() -> std::string {
-            return _deviceConfiguration->getNucleusVersion();
-        };
-
-        // TODO: query TES plugin
-        std::string container_uri = "http://localhost:8090/2016-11-01/credentialprovider/";
-
-        auto [socketPath, authToken] =
-            [note = note]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
-            auto request = ggapi::Struct::create();
-            // TODO: is note correct here?
-            request.put("serviceName", note);
-            auto resultFuture =
-                ggapi::Subscription::callTopicFirst("aws.greengrass.RequestIpcInfo", request);
-            if(!resultFuture) {
-                return {};
-            };
-            auto result = ggapi::Struct(resultFuture.waitAndGetValue());
-            if(!result || result.empty()) {
-                return {};
-            }
-
-            auto socketPath =
-                result.hasKey("domain_socket_path")
-                    ? std::make_optional(result.get<std::string>("domain_socket_path"))
-                    : std::nullopt;
-            auto authToken = result.hasKey("cli_auth_token")
-                                 ? std::make_optional(result.get<std::string>("cli_auth_token"))
-                                 : std::nullopt;
-            return {std::move(socketPath), std::move(authToken)};
-        }();
-
-        auto startable =
-            ipc::Startable{}
-                .withCommand(getShell())
-                .withEnvironment(std::move(env))
-                // TODO: Should entire nucleus env be copied?
-                .addEnvironment(ipc::PATH_ENVVAR, ipc::getEnviron(ipc::PATH_ENVVAR))
-                .addEnvironment("SVCUID", authToken)
-                .addEnvironment(
-                    "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"s, std::move(socketPath))
-                .addEnvironment("AWS_CONTAINER_CREDENTIALS_FULL_URI"s, std::move(container_uri))
-                .addEnvironment("AWS_CONTAINER_AUTHORIZATION_TOKEN"s, std::move(authToken))
-                .addEnvironment("AWS_IOT_THING_NAME"s, getThingName())
-                .addEnvironment("GG_ROOT_CA_PATH"s, getRootCAPath())
-                .addEnvironment("AWS_REGION"s, getAWSRegion())
-                .addEnvironment("AWS_DEFAULT_REGION"s, getAWSRegion())
-                .addEnvironment("GGC_VERSION"s, getNucleusVersion())
-                // TODO: Windows "run raw script" switch
-                .withArguments({"-c", std::move(script)})
-                // TODO: allow output to pass back to caller if subscription is specified
-                .withOutput([note = note](util::Span<const char> buffer) {
-                    LOG.atInfo("stdout")
-                        .kv("note", note)
-                        .kv("message", std::string_view{buffer.data(), buffer.size()})
-                        .log();
-                })
-                .withError([note = note](util::Span<const char> buffer) {
-                    LOG.atWarn("stderr")
-                        .kv("note", note)
-                        .kv("message", std::string_view{buffer.data(), buffer.size()})
-                        .log();
-                })
-                .withCompletion([onComplete = std::move(onComplete)](int returnCode) mutable {
-                    if(returnCode == 0) {
-                        LOG.atInfo("process-exited").kv("returnCode", returnCode).log();
-                    } else {
-                        LOG.atError("process-failed").kv("returnCode", returnCode).log();
-                    }
-                    if(onComplete) {
-                        (*onComplete)(returnCode == 0);
-                    }
-                })
-                .withTimeout(timeout);
-
-        if(!requiresPrivilege) {
-            auto [user, group] =
-                [this]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
-                auto cfg = _deviceConfiguration->getRunWithDefaultPosixUser();
-                if(!cfg) {
-                    return {};
-                }
-                // TODO: Windows
-                auto str = cfg.getString();
-                auto it = str.find(':');
-                if(it == std::string::npos) {
-                    return {str, std::nullopt};
-                }
-                return {str.substr(0, it), str.substr(it + 1)};
-            }();
-            if(user) {
-                startable.asUser(std::move(user).value());
-                if(group) {
-                    startable.asGroup(std::move(group).value());
-                }
-            }
-        } else {
-            // requiresPrivilege -> run as root user
-            startable.asUser("root");
-            startable.asGroup("root");
-        }
-
-        return _processManager->registerProcess([startable]() -> std::unique_ptr<ipc::Process> {
-            try {
-                return startable.start();
-            } catch(const std::exception &e) {
-                LOG.atError().event("process-start-error").cause(e).log();
-                return {};
-            }
-        }());
     }
 } // namespace lifecycle
