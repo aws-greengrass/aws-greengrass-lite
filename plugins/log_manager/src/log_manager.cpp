@@ -57,7 +57,6 @@ bool LogManager::onStart(ggapi::Struct data) {
         LOG.atError().log("Could not retrieve credentials from TES");
         return false; // not sure if we should be doing this
     }
-    return true;
 }
 
 bool LogManager::onStop(ggapi::Struct data) {
@@ -80,11 +79,10 @@ void LogManager::retrieveCredentialsFromTES() {
     _credentials.toJson().write(std::cout);
 }
 
-void LogManager::setupClient(const std::string &uriAsString,
-                             const rapidjson::Document& putLogEventsRequestBody,
+void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
                              const std::string logGroupName, const std::string logStreamName) {
-    _logGroup.region = _nucleus.getValue<std::string>({"configuration", "awsRegion"});
     auto allocator = Aws::Crt::DefaultAllocator();
+    std::string uriAsString = "logs" + _logGroup.region + "amazonaws.com";
     aws_io_library_init(allocator);
 
     // Create Credentials to pass to sigv4 signer
@@ -227,14 +225,14 @@ void LogManager::setupClient(const std::string &uriAsString,
 
     Aws::Crt::Http::HttpHeader hostHeader;
     hostHeader.name = Aws::Crt::ByteCursorFromCString("host");
-    // host name = logs.<region>.<domain>
-    hostHeader.value = "logs" + _logGroup.region + "amazonaws.com";
+    hostHeader.value = hostName;
 
     // Create log group if it doesn't exist
     if (!logGroupCreated) {
         auto logGroupRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
         logGroupRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
-        //TODO: set path for request
+        //TODO: verify - not setting anything for the path and will reuse the uri for each request
+        logGroupRequest->SetPath(uri.GetPathAndQuery());
 
         Aws::Crt::Http::HttpRequestOptions requestOptions;
 
@@ -314,7 +312,8 @@ void LogManager::setupClient(const std::string &uriAsString,
     // Setup createLogStream request
     auto logStreamRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
     logStreamRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
-    //TODO: set path for request
+    //TODO: verify - not setting anything for the path and reusing the uri
+    logStreamRequest->SetPath(uri.GetPathAndQuery());
 
     Aws::Crt::Http::HttpRequestOptions logStreamRequestOptions;
 
@@ -409,7 +408,6 @@ void LogManager::setupClient(const std::string &uriAsString,
     };
 
     putLogsRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
-    // TODO cloudwatch uri?
     putLogsRequest->SetPath(uri.GetPathAndQuery());
 
     Aws::Crt::Http::HttpHeader actionHeader;
@@ -448,7 +446,6 @@ void LogManager::setupClient(const std::string &uriAsString,
     putLogsRequest->SetBody(putLogEventsBodyStream);
 
     // Sign the request
-    SignWaiter waiter;
     signer->SignRequest(
             putLogsRequest, signingConfig, [&](const std::shared_ptr<Aws::Crt::Http::HttpRequest> &request, int errorCode) {
                 waiter.OnSigningComplete(request, errorCode);
@@ -472,13 +469,14 @@ void LogManager::setupClient(const std::string &uriAsString,
 void LogManager::processLogsAndUpload() {
     // TODO: remove hardcoded values
     auto system = _system;
+    auto nucleus = _nucleus;
+    _logGroup.region = nucleus.getValue<std::string>({"configuration", "awsRegion"});
     _logGroup.componentType = "GreengrassSystemComponent";
     _logGroup.componentName = "System";
     _logStream.thingName = system.getValue<Aws::Crt::String>({THING_NAME});
     auto logFilePath = system.getValue<std::string>({"rootpath"})
                        + "/logs/greengrass.log";
 
-    //TODO: set region
     std::string logGroupName =
         "/aws/greengrass/" + _logGroup.componentType + "/" + _logGroup.region + "/" +
         _logGroup.componentName;
@@ -508,7 +506,6 @@ void LogManager::processLogsAndUpload() {
         logEvents.PushBack(inputLogEvent, logEvents.GetAllocator());
     }
 
-    //TODO: don't know if log stream and log group are created automatically if they don't already exist
     rapidjson::Document body;
     body.AddMember("logStreamName", logStreamName.c_str(), body.GetAllocator());
     body.AddMember("logGroupName", logGroupName.c_str(), body.GetAllocator());
@@ -523,10 +520,5 @@ void LogManager::processLogsAndUpload() {
 //        downloadContent.write((const char *) data.ptr, data.len);
 //    };
 
-    //TODO: uri stuff
-    // uri host name format: logs.<region>.<domain>
-    // need to figure out the path and query field called for on line 176
     LogManager::setupClient(body, logGroupName, logStreamName);
-
-
 }
