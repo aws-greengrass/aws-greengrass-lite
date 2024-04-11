@@ -5,6 +5,7 @@
 #include <rapidjson/writer.h>
 #include <temp_module.hpp>
 #include <sigv4.h>
+#include <thread>
 
 #define SIGV4_DO_NOT_USE_CUSTOM_CONFIG
 
@@ -50,9 +51,10 @@ bool LogManager::onStart(ggapi::Struct data) {
     if (_credentials.hasKey("Response")) {
         // setup callback to upload logs
         //TODO: how to register this to loop and run constantly
-        ggapi::later(500, [this]() {
+        while(true) {
             LogManager::processLogsAndUpload();
-        });
+            ggapi::sleep(300);
+        }
     } else {
         LOG.atError().log("Could not retrieve credentials from TES");
         return false; // not sure if we should be doing this
@@ -83,6 +85,7 @@ void LogManager::retrieveCredentialsFromTES() {
 void LogManager::setupClient(const std::string &uriAsString,
                              const rapidjson::Document& putLogEventsRequestBody,
                              const std::string logGroupName, const std::string logStreamName) {
+    _logGroup.region = _nucleus.getValue<std::string>({"configuration", "awsRegion"});
     auto allocator = Aws::Crt::DefaultAllocator();
     aws_io_library_init(allocator);
 
@@ -193,6 +196,11 @@ void LogManager::setupClient(const std::string &uriAsString,
     connectionHeader.name = Aws::Crt::ByteCursorFromCString("Connection");
     connectionHeader.value = Aws::Crt::ByteCursorFromCString("Keep-Alive");
 
+    Aws::Crt::Http::HttpHeader hostHeader;
+    hostHeader.name = Aws::Crt::ByteCursorFromCString("host");
+    // host name = logs.<region>.<domain>
+    hostHeader.value = "logs" + _logGroup.region + "amazonaws.com";
+
     // Create log group if it doesn't exist
     if (!logGroupCreated) {
         Aws::Crt::Http::HttpRequest logGroupRequest;
@@ -221,12 +229,6 @@ void LogManager::setupClient(const std::string &uriAsString,
             logGroupResponseCode = stream.GetResponseStatusCode();
         };
 
-        Aws::Crt::Http::HttpHeader hostHeader;
-        hostHeader.name = Aws::Crt::ByteCursorFromCString("host");
-        // host name = logs.<region>.<domain>
-        //hostHeader.value = uri.GetHostName();
-        logGroupRequest.AddHeader(hostHeader);
-
         //TODO: authorization header for sigv4
 
         Aws::Crt::Http::HttpHeader actionHeader;
@@ -243,6 +245,7 @@ void LogManager::setupClient(const std::string &uriAsString,
         logGroupRequest.AddHeader(versionHeader);
         logGroupRequest.AddHeader(contentHeader);
         logGroupRequest.AddHeader(connectionHeader);
+        logGroupRequest.AddHeader(hostHeader);
 
         rapidjson::Document createLogGroupBody;
         createLogGroupBody.AddMember("logGroupName", logGroupName.c_str(),
@@ -298,12 +301,6 @@ void LogManager::setupClient(const std::string &uriAsString,
         streamResponseCode = stream.GetResponseStatusCode();
     };
 
-    Aws::Crt::Http::HttpHeader createLogStreamHostHeader;
-    createLogStreamHostHeader.name = Aws::Crt::ByteCursorFromCString("host");
-    // host name = logs.<region>.<domain>
-    //hostHeader.value = uri.GetHostName();
-    logStreamRequest.AddHeader(createLogStreamHostHeader);
-
     Aws::Crt::Http::HttpHeader createLogStreamActionHeader;
     createLogStreamActionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
     createLogStreamActionHeader.value = Aws::Crt::ByteCursorFromCString("CreateLogStream");
@@ -312,6 +309,7 @@ void LogManager::setupClient(const std::string &uriAsString,
     logStreamRequest.AddHeader(versionHeader);
     logStreamRequest.AddHeader(contentHeader);
     logStreamRequest.AddHeader(connectionHeader);
+    logStreamRequest.AddHeader(hostHeader);
 
     //TODO: authorization header
 
@@ -369,13 +367,6 @@ void LogManager::setupClient(const std::string &uriAsString,
     // TODO cloudwatch uri?
     putLogsRequest->SetPath(uri.GetPathAndQuery());
 
-    Aws::Crt::Http::HttpHeader putLogEventsHostHeader;
-    putLogEventsHostHeader.name = Aws::Crt::ByteCursorFromCString("host");
-    // TODO cloudwatch uri -- maybe don't need uri?
-    // host name = logs.<region>.<domain>
-    putLogEventsHostHeader.value = uri.GetHostName();
-    putLogsRequest->AddHeader(putLogEventsHostHeader);
-
     Aws::Crt::Http::HttpHeader actionHeader;
     actionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
     actionHeader.value = Aws::Crt::ByteCursorFromCString("PutLogEvents");
@@ -390,14 +381,13 @@ void LogManager::setupClient(const std::string &uriAsString,
     putLogsRequest->AddHeader(versionHeader);
     putLogsRequest->AddHeader(contentHeader);
     putLogsRequest->AddHeader(connectionHeader);
+    putLogsRequest->AddHeader(hostHeader);
 
     //TODO: date hopefully not needed
 //    Aws::Crt::Http::HttpHeader dateHeader;
 //    dateHeader.name = Aws::Crt::ByteCursorFromCString("x-amz-date");
 //    // need to add value
 //    request.AddHeader(dateHeader);
-
-    auto region = std::getenv("AWS_REGION");
 
     //TODO: not sure if needed, also we aren't chunking right now
 //    Aws::Crt::Http::HttpHeader lengthHeader;
@@ -416,7 +406,7 @@ void LogManager::setupClient(const std::string &uriAsString,
     auto signer = Aws::Crt::MakeShared<Aws::Crt::Auth::Sigv4HttpRequestSigner>(allocator, allocator);
     Aws::Crt::Auth::AwsSigningConfig signingConfig(allocator);
     signingConfig.SetSigningTimepoint(Aws::Crt::DateTime());
-    signingConfig.SetRegion(region);
+    signingConfig.SetRegion(_logGroup.region.c_str());
     signingConfig.SetService("logs");
     signingConfig.SetCredentials(s_MakeDummyCredentials(allocator));
     signingConfig.SetSignedBodyValue(Aws::Crt::Auth::SignedBodyValue::UnsignedPayloadStr());
