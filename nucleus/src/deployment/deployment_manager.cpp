@@ -289,7 +289,7 @@ namespace deployment {
         auto selectedManifest = _recipeAsStruct->get(_recipeAsStruct->foldKey("Manifests", true)).castObject<data::ListModelBase>()->get(index).castObject<data::StructModelBase>();
 
         std::cout<< selectedManifest->toJson().get()<<std::endl;
-        
+
         auto context = scope::context();
 
         auto data_pack = std::make_shared<data::SharedStruct>(context);

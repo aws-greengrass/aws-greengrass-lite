@@ -128,6 +128,7 @@ private:
 
 public:
     explicit GenComponentDelegate(const ggapi::Struct &data);
+
     //  self-> To store a count to the class's object itself
     //            so that the Delegate remains in memory event after the GenComponentLoader
     //            returns

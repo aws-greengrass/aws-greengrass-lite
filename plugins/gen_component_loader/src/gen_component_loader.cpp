@@ -295,8 +295,9 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
             .log("Failed to execute " + stepName + " step of the lifecycle");
         return; // if any of the lifecycle step fails, stop the deployment
     }
+}
 
-    GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
+GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
         _name = data.get<std::string>("componentName");
         _recipe = data.get<ggapi::Struct>("recipe");
         _manifestAsStruct =data.get<ggapi::Struct>("manifest");
