@@ -31,6 +31,7 @@ private:
     static constexpr int TIME_OUT_MS = 5000;
     static constexpr int PORT_NUM = 443;
     static constexpr int CHUNK_SIZE = 1024;
+    static constexpr std::string_view CLOUDWATCH_LOGS_SERVICE_CODE = "logs";
 
     struct Config {
         static constexpr std::string_view LOGS_UPLOADER_PERIODIC_UPDATE_INTERVAL_SEC =

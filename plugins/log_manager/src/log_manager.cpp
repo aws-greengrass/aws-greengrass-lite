@@ -11,6 +11,32 @@
 const auto LOG = ggapi::Logger::of("LogManager");
 bool logGroupCreated = false;
 
+class SignWaiter
+{
+public:
+    SignWaiter() : m_lock(), m_signal(), m_done(false) {}
+
+    void OnSigningComplete(const std::shared_ptr<Aws::Crt::Http::HttpRequest> &, int)
+    {
+        std::unique_lock<std::mutex> lock(m_lock);
+        m_done = true;
+        m_signal.notify_one();
+    }
+
+    void Wait()
+    {
+        {
+            std::unique_lock<std::mutex> lock(m_lock);
+            m_signal.wait(lock, [this]() { return m_done == true; });
+        }
+    }
+
+private:
+    std::mutex m_lock;
+    std::condition_variable m_signal;
+    bool m_done;
+};
+
 bool LogManager::onInitialize(ggapi::Struct data) {
     // TODO: retrieve and process system config
     std::unique_lock guard{_mutex};
@@ -316,11 +342,11 @@ void LogManager::setupClient(const std::string &uriAsString,
     LOG.atInfo().event("CreateLogStream Status").kv("response_code", streamResponseCode).log();
 
     // Setup putLogEvent request
-    Aws::Crt::Http::HttpRequest putLogsRequest;
+    auto putLogsRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
     Aws::Crt::Http::HttpRequestOptions putLogsRequestOptions;
 
     int putLogsResponseCode = 0;
-    putLogsRequestOptions.request = &putLogsRequest;
+    putLogsRequestOptions.request = putLogsRequest.get();
 
     bool putLogsRequestCompleted = false;
     putLogsRequestOptions.onStreamComplete = [&](Aws::Crt::Http::HttpStream &, int errorCode) {
@@ -339,21 +365,21 @@ void LogManager::setupClient(const std::string &uriAsString,
         putLogsResponseCode = stream.GetResponseStatusCode();
     };
 
-    putLogsRequest.SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
+    putLogsRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
     // TODO cloudwatch uri?
-    putLogsRequest.SetPath(uri.GetPathAndQuery());
+    putLogsRequest->SetPath(uri.GetPathAndQuery());
 
     Aws::Crt::Http::HttpHeader putLogEventsHostHeader;
     putLogEventsHostHeader.name = Aws::Crt::ByteCursorFromCString("host");
     // TODO cloudwatch uri -- maybe don't need uri?
     // host name = logs.<region>.<domain>
     putLogEventsHostHeader.value = uri.GetHostName();
-    putLogsRequest.AddHeader(putLogEventsHostHeader);
+    putLogsRequest->AddHeader(putLogEventsHostHeader);
 
     Aws::Crt::Http::HttpHeader actionHeader;
     actionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
     actionHeader.value = Aws::Crt::ByteCursorFromCString("PutLogEvents");
-    putLogsRequest.AddHeader(actionHeader);
+    putLogsRequest->AddHeader(actionHeader);
 
     //TODO: try this if action above doesn't work
 //    Aws::Crt::Http::HttpHeader actionHeader;
@@ -361,9 +387,9 @@ void LogManager::setupClient(const std::string &uriAsString,
 //    actionHeader.value = Aws::Crt::ByteCursorFromCString("Logs_20140328.PutLogEvents");
 //    request.AddHeader(actionHeader);
 
-    putLogsRequest.AddHeader(versionHeader);
-    putLogsRequest.AddHeader(contentHeader);
-    putLogsRequest.AddHeader(connectionHeader);
+    putLogsRequest->AddHeader(versionHeader);
+    putLogsRequest->AddHeader(contentHeader);
+    putLogsRequest->AddHeader(connectionHeader);
 
     //TODO: date hopefully not needed
 //    Aws::Crt::Http::HttpHeader dateHeader;
@@ -376,27 +402,34 @@ void LogManager::setupClient(const std::string &uriAsString,
     SigV4Status_t status = SigV4Success;
     char pSigv4Auth[ 2048U ];
     size_t sigv4AuthLen = sizeof( pSigv4Auth );
-    putLogsRequest.AddHeader(authHeader);
+    putLogsRequest->AddHeader(authHeader);
     char * signature = NULL;
     size_t signatureLen = 0;
     auto region = std::getenv("AWS_REGION");
     // TODO: All values
+    auto jsonResponse = ggapi::Struct{};
+    SigV4Credentials_t sigv4Creds =
+            {
+//                 .pAccessKeyId = _credentials.get<std::string>("Response"),
+
+
+
+            };
     SigV4Parameters_t sigv4Params =
-        {
-            // Parsed temporary credentials obtained from AWS IoT Credential Provider.
-            .pCredentials     = &sigv4Creds,
-            // Date in ISO8601 format.
-            .pDateIso8601     = pDateISO8601,
-            .pRegion          = region,
-            .regionLen        = strlen(region),
-            // The AWS service for the request.
-            .pService         = AWS_SERVICE_NAME,
-            .serviceLen       = strlen( AWS_SERVICE_NAME ),
-            // SigV4 crypto interface. See SigV4CryptoInterface_t interface documentation.
-            .pCryptoInterface = &cryptoInterface,
-            // HTTP parameters for the HTTP request to generate a SigV4 authorization header for.
-            .pHttpParameters  = &sigv4HttpParams
-        };
+            {
+                // Parsed temporary credentials obtained from AWS IoT Credential Provider.
+                .pCredentials     = &sigv4Creds,
+                // Date in ISO8601 format.
+                .pDateIso8601     = pDateISO8601,
+                .pRegion          = region,
+                .regionLen        = strlen(region),
+                .pService         = CLOUDWATCH_LOGS_SERVICE_CODE,
+                .serviceLen       = CLOUDWATCH_LOGS_SERVICE_CODE.size(),
+                // SigV4 crypto interface. See SigV4CryptoInterface_t interface documentation.
+                .pCryptoInterface = &cryptoInterface,
+                // HTTP parameters for the HTTP request to generate a SigV4 authorization header for.
+                .pHttpParameters  = &sigv4HttpParams
+            };
     status = SigV4_GenerateHTTPAuthorization( &sigv4Params, pSigv4Auth, &sigv4AuthLen, &signature, &signatureLen );
     if( status != SigV4Success )
     {
@@ -414,8 +447,25 @@ void LogManager::setupClient(const std::string &uriAsString,
     putLogEventsRequestBody.Accept(writer);
     const char* putLogEventsRequestBodyStr = buffer.GetString();
     std::shared_ptr<Aws::Crt::Io::IStream> putLogEventsBodyStream =
-        std::make_shared<std::istringstream>(putLogEventsRequestBodyStr);
-    putLogsRequest.SetBody(putLogEventsBodyStream);
+            std::make_shared<std::istringstream>(putLogEventsRequestBodyStr);
+    putLogsRequest->SetBody(putLogEventsBodyStream);
+
+    // SIGV4??
+    auto signer = Aws::Crt::MakeShared<Aws::Crt::Auth::Sigv4HttpRequestSigner>(allocator, allocator);
+    Aws::Crt::Auth::AwsSigningConfig signingConfig(allocator);
+    signingConfig.SetSigningTimepoint(Aws::Crt::DateTime());
+    signingConfig.SetRegion(region);
+    signingConfig.SetService("logs");
+    signingConfig.SetCredentials(s_MakeDummyCredentials(allocator));
+    signingConfig.SetSignedBodyValue(Aws::Crt::Auth::SignedBodyValue::UnsignedPayloadStr());
+    signingConfig.SetSignedBodyHeader(Aws::Crt::Auth::SignedBodyHeaderType::XAmzContentSha256);
+    SignWaiter waiter;
+
+    signer->SignRequest(
+            putLogsRequest, signingConfig, [&](const std::shared_ptr<Aws::Crt::Http::HttpRequest> &request, int errorCode) {
+                waiter.OnSigningComplete(request, errorCode);
+            });
+    waiter.Wait();
 
     auto stream = connection->NewClientStream(putLogsRequestOptions);
     if(!stream->Activate()) {
