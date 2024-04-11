@@ -2,10 +2,14 @@ add_subdirectory(../../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 add_library(
   gg_pal STATIC
+  include/gg_pal/abstract_process.hpp
+  include/gg_pal/abstract_process_manager.hpp
+  include/gg_pal/env.hpp
   include/gg_pal/file_descriptor.hpp
   include/gg_pal/permissions.hpp
   include/gg_pal/process.hpp
   include/gg_pal/process_manager.hpp
+  include/gg_pal/startable.hpp
   src/error.hpp
   src/file_descriptor.cpp
   src/permissions.cpp

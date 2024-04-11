@@ -4,10 +4,7 @@ project(gg_pal)
 
 include(../common.cmake)
 
-add_library(
-  gg_pal_interface INTERFACE include/gg_pal/abstract_process.hpp
-  include/gg_pal/abstract_process_manager.hpp include/gg_pal/env.hpp
-  include/gg_pal/startable.hpp)
+add_library(gg_pal_interface INTERFACE)
 
 target_include_directories(gg_pal_interface INTERFACE include)
 
