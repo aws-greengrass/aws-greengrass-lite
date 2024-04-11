@@ -4,14 +4,16 @@ project(gg_pal)
 
 include(../common.cmake)
 
-add_library(gg_pal_interface INTERFACE)
+add_library(gg_pal_interface INTERFACE include/gg_pal/process.hpp)
 
 target_include_directories(gg_pal_interface INTERFACE include)
 
-if(LINUX)
-  set(GGLITE_DETECTED_PLATFORM "linux")
+target_link_libraries(gg_pal_interface INTERFACE gg_plugin_api_min)
+
+if(UNIX)
+  set(GGLITE_DETECTED_PLATFORM "posix")
 else()
-  set(GGLITE_DETECTED_PLATFORM "stub")
+  message(FATAL_ERROR "Unsupported platform.")
 endif()
 
 set(GGLITE_PLATFORM
