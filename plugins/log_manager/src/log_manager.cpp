@@ -87,6 +87,37 @@ void LogManager::setupClient(const std::string &uriAsString,
     auto allocator = Aws::Crt::DefaultAllocator();
     aws_io_library_init(allocator);
 
+    // Create Credentials to pass to sigv4 signer
+    auto responseCred = _credentials.get<std::string>("Response");
+    auto buffTest = ggapi::Buffer::create().put(0, std::string_view{responseCred}).fromJson();
+    auto buffTestAsStruct = ggapi::Struct{buffTest};
+    auto accessKey = buffTestAsStruct.get<std::string>("AccessKeyId");
+    auto secretAccessKey = buffTestAsStruct.get<std::string>("AccessKeyId");
+    auto token = buffTestAsStruct.get<std::string>("Token");
+    auto expiration = buffTestAsStruct.get<std::string>("Expiration");
+
+    auto credentialsForRequest = Aws::Crt::MakeShared<Aws::Crt::Auth::Credentials>(
+            allocator,
+            aws_byte_cursor_from_c_str(accessKey.c_str()),
+            aws_byte_cursor_from_c_str(secretAccessKey.c_str()),
+            aws_byte_cursor_from_c_str(token.c_str()),
+            std::stoull(expiration)
+    );
+
+    // Sigv4 Signer
+    auto signer = Aws::Crt::MakeShared<Aws::Crt::Auth::Sigv4HttpRequestSigner>(allocator, allocator);
+    Aws::Crt::Auth::AwsSigningConfig signingConfig(allocator);
+    signingConfig.SetRegion(_logGroup.region.c_str());
+    signingConfig.SetSigningAlgorithm(Aws::Crt::Auth::SigningAlgorithm::SigV4A);
+    signingConfig.SetSignatureType(Aws::Crt::Auth::SignatureType::HttpRequestViaHeaders);
+    signingConfig.SetService("logs");
+    signingConfig.SetSigningTimepoint(Aws::Crt::DateTime::Now());
+    signingConfig.SetUseDoubleUriEncode(false);
+    signingConfig.SetShouldNormalizeUriPath(true);
+    signingConfig.SetSignedBodyValue("");
+    signingConfig.SetSignedBodyHeader(Aws::Crt::Auth::SignedBodyHeaderType::XAmzContentSha256);
+    signingConfig.SetCredentials(credentialsForRequest);
+
     // Setup Connection TLS
     Aws::Crt::Io::TlsContextOptions tlsCtxOptions =
         Aws::Crt::Io::TlsContextOptions::InitDefaultClient();
@@ -201,14 +232,14 @@ void LogManager::setupClient(const std::string &uriAsString,
 
     // Create log group if it doesn't exist
     if (!logGroupCreated) {
-        Aws::Crt::Http::HttpRequest logGroupRequest;
-        logGroupRequest.SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
+        auto logGroupRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
+        logGroupRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
         //TODO: set path for request
 
         Aws::Crt::Http::HttpRequestOptions requestOptions;
 
         int logGroupResponseCode = 0;
-        requestOptions.request = &logGroupRequest;
+        requestOptions.request = logGroupRequest.get();
 
         bool streamCompleted = false;
         requestOptions.onStreamComplete = [&](Aws::Crt::Http::HttpStream &, int errorCode) {
@@ -232,7 +263,7 @@ void LogManager::setupClient(const std::string &uriAsString,
         Aws::Crt::Http::HttpHeader actionHeader;
         actionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
         actionHeader.value = Aws::Crt::ByteCursorFromCString("CreateLogGroup");
-        logGroupRequest.AddHeader(actionHeader);
+        logGroupRequest->AddHeader(actionHeader);
 
         //TODO: try this if action above doesn't work
         //    Aws::Crt::Http::HttpHeader actionHeader;
@@ -240,10 +271,10 @@ void LogManager::setupClient(const std::string &uriAsString,
         //    actionHeader.value = Aws::Crt::ByteCursorFromCString("Logs_20140328.CreateLogGroup");
         //    request.AddHeader(actionHeader);
 
-        logGroupRequest.AddHeader(versionHeader);
-        logGroupRequest.AddHeader(contentHeader);
-        logGroupRequest.AddHeader(connectionHeader);
-        logGroupRequest.AddHeader(hostHeader);
+        logGroupRequest->AddHeader(versionHeader);
+        logGroupRequest->AddHeader(contentHeader);
+        logGroupRequest->AddHeader(connectionHeader);
+        logGroupRequest->AddHeader(hostHeader);
 
         rapidjson::Document createLogGroupBody;
         createLogGroupBody.AddMember("logGroupName", logGroupName.c_str(),
@@ -254,7 +285,15 @@ void LogManager::setupClient(const std::string &uriAsString,
         const char* logGroupRequestBodyStr = buffer.GetString();
         std::shared_ptr<Aws::Crt::Io::IStream> createLogGroupBodyStream =
             std::make_shared<std::istringstream>(logGroupRequestBodyStr);
-        logGroupRequest.SetBody(createLogGroupBodyStream);
+        logGroupRequest->SetBody(createLogGroupBodyStream);
+
+        // Sign the request
+        SignWaiter waiter;
+        signer->SignRequest(
+                logGroupRequest, signingConfig, [&](const std::shared_ptr<Aws::Crt::Http::HttpRequest> &request, int errorCode) {
+                    waiter.OnSigningComplete(request, errorCode);
+                });
+        waiter.Wait();
 
         auto stream = connection->NewClientStream(requestOptions);
         if(!stream->Activate()) {
@@ -273,14 +312,14 @@ void LogManager::setupClient(const std::string &uriAsString,
     }
 
     // Setup createLogStream request
-    Aws::Crt::Http::HttpRequest logStreamRequest;
-    logStreamRequest.SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
+    auto logStreamRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
+    logStreamRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
     //TODO: set path for request
 
     Aws::Crt::Http::HttpRequestOptions logStreamRequestOptions;
 
     int streamResponseCode = 0;
-    logStreamRequestOptions.request = &logStreamRequest;
+    logStreamRequestOptions.request = logStreamRequest.get();
 
     bool logStreamRequestCompleted = false;
     logStreamRequestOptions.onStreamComplete = [&](Aws::Crt::Http::HttpStream &, int errorCode) {
@@ -302,12 +341,12 @@ void LogManager::setupClient(const std::string &uriAsString,
     Aws::Crt::Http::HttpHeader createLogStreamActionHeader;
     createLogStreamActionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
     createLogStreamActionHeader.value = Aws::Crt::ByteCursorFromCString("CreateLogStream");
-    logStreamRequest.AddHeader(createLogStreamActionHeader);
+    logStreamRequest->AddHeader(createLogStreamActionHeader);
 
-    logStreamRequest.AddHeader(versionHeader);
-    logStreamRequest.AddHeader(contentHeader);
-    logStreamRequest.AddHeader(connectionHeader);
-    logStreamRequest.AddHeader(hostHeader);
+    logStreamRequest->AddHeader(versionHeader);
+    logStreamRequest->AddHeader(contentHeader);
+    logStreamRequest->AddHeader(connectionHeader);
+    logStreamRequest->AddHeader(hostHeader);
 
     //TODO: authorization header
 
@@ -322,7 +361,15 @@ void LogManager::setupClient(const std::string &uriAsString,
     const char* logStreamRequestBodyStr = buffer.GetString();
     std::shared_ptr<Aws::Crt::Io::IStream> createLogStreamBodyStream =
         std::make_shared<std::istringstream>(logStreamRequestBodyStr);
-    logStreamRequest.SetBody(createLogStreamBodyStream);
+    logStreamRequest->SetBody(createLogStreamBodyStream);
+
+    // Sign the request
+    SignWaiter waiter;
+    signer->SignRequest(
+            logStreamRequest, signingConfig, [&](const std::shared_ptr<Aws::Crt::Http::HttpRequest> &request, int errorCode) {
+                waiter.OnSigningComplete(request, errorCode);
+            });
+    waiter.Wait();
 
     auto createLogStreamStream = connection->NewClientStream(logStreamRequestOptions);
     if(!createLogStreamStream->Activate()) {
@@ -400,38 +447,8 @@ void LogManager::setupClient(const std::string &uriAsString,
             std::make_shared<std::istringstream>(putLogEventsRequestBodyStr);
     putLogsRequest->SetBody(putLogEventsBodyStream);
 
-    auto responseCred = _credentials.get<std::string>("Response");
-    auto buffTest = ggapi::Buffer::create().put(0, std::string_view{responseCred}).fromJson();
-    auto buffTestAsStruct = ggapi::Struct{buffTest};
-    auto accessKey = buffTestAsStruct.get<std::string>("AccessKeyId");
-    auto secretAccessKey = buffTestAsStruct.get<std::string>("AccessKeyId");
-    auto token = buffTestAsStruct.get<std::string>("Token");
-    auto expiration = buffTestAsStruct.get<std::string>("Expiration");
-
-    auto credentialsForRequest = Aws::Crt::MakeShared<Aws::Crt::Auth::Credentials>(
-            allocator,
-            aws_byte_cursor_from_c_str(accessKey.c_str()),
-            aws_byte_cursor_from_c_str(secretAccessKey.c_str()),
-            aws_byte_cursor_from_c_str(token.c_str()),
-            std::stoull(expiration)
-            );
-
-    // SIGV4??
-    auto signer = Aws::Crt::MakeShared<Aws::Crt::Auth::Sigv4HttpRequestSigner>(allocator, allocator);
-    Aws::Crt::Auth::AwsSigningConfig signingConfig(allocator);
-    signingConfig.SetRegion(_logGroup.region.c_str());
-    signingConfig.SetSigningAlgorithm(Aws::Crt::Auth::SigningAlgorithm::SigV4A);
-    signingConfig.SetSignatureType(Aws::Crt::Auth::SignatureType::HttpRequestViaHeaders);
-    signingConfig.SetService("logs");
-    signingConfig.SetSigningTimepoint(Aws::Crt::DateTime::Now());
-    signingConfig.SetUseDoubleUriEncode(false);
-    signingConfig.SetShouldNormalizeUriPath(true);
-    signingConfig.SetSignedBodyValue("");
-    signingConfig.SetSignedBodyHeader(Aws::Crt::Auth::SignedBodyHeaderType::XAmzContentSha256);
-    signingConfig.SetCredentials(credentialsForRequest);
-
+    // Sign the request
     SignWaiter waiter;
-
     signer->SignRequest(
             putLogsRequest, signingConfig, [&](const std::shared_ptr<Aws::Crt::Http::HttpRequest> &request, int errorCode) {
                 waiter.OnSigningComplete(request, errorCode);
