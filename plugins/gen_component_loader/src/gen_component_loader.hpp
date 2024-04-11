@@ -49,7 +49,7 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
         std::optional<BootstrapSection> bootstrap;
         std::optional<bool> bootstrapOnRollback;
 
-        void helper(
+        static void helper(
             ggapi::Archive &archive, std::string_view name, std::optional<ScriptSection> &section) {
 
             // Complexity is to handle behavior when a string is used instead of struct
@@ -71,7 +71,7 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
             }
         }
 
-        void helper(
+        static void helper(
             ggapi::Archive &archive,
             std::string_view name,
             std::optional<BootstrapSection> &section) {
@@ -136,7 +136,7 @@ public:
     //        increased any further.
     static bool lifecycleCallback(
         const std::shared_ptr<GenComponentDelegate> &self,
-        ggapi::ModuleScope,
+        const ggapi::ModuleScope&,
         ggapi::Symbol event,
         ggapi::Struct data);
 

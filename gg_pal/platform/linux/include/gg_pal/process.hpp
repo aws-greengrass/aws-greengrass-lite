@@ -21,7 +21,7 @@ namespace ipc {
         FileDescriptor _pidfd;
         FileDescriptor _err;
         FileDescriptor _out;
-        int _pid;
+        int _pid{};
 
         void terminate(bool force);
 

@@ -22,7 +22,7 @@ static constexpr std::string_view exists_prefix = "exists";
 
 bool GenComponentDelegate::lifecycleCallback(
     const std::shared_ptr<GenComponentDelegate> &self,
-    ggapi::ModuleScope,
+    const ggapi::ModuleScope&,
     ggapi::Symbol event,
     ggapi::Struct data) {
     return self->lifecycle(event, std::move(data));
@@ -45,8 +45,7 @@ ipc::ProcessId GenComponentDelegate::startProcess(
     using namespace std::string_literals;
 
     auto getShell = [this]() -> std::string {
-        if(_nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"})
-           != "") {
+        if(_nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"}).empty()) {
             return _nucleusConfig.getValue<std::string>(
                 {"configuration", "runWithDefault", "posixShell"});
         } else {
@@ -167,7 +166,7 @@ ipc::ProcessId GenComponentDelegate::startProcess(
             auto cfg = _nucleusConfig.getValue<std::string>(
                 {"configuration", "runWithDefault", "posixUser"});
             ;
-            if(cfg == "") {
+            if(cfg.empty()) {
                 return {};
             }
             // TODO: Windows
