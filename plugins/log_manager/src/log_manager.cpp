@@ -4,6 +4,9 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <temp_module.hpp>
+#include <sigv4.h>
+
+#define SIGV4_DO_NOT_USE_CUSTOM_CONFIG
 
 const auto LOG = ggapi::Logger::of("LogManager");
 
@@ -217,9 +220,36 @@ void LogManager::setupClient(const std::string &uriAsString, const rapidjson::Do
 
     Aws::Crt::Http::HttpHeader authHeader;
     authHeader.name = Aws::Crt::ByteCursorFromCString("Authorization");
-    // TODO sigv4
+    SigV4Status_t status = SigV4Success;
+    char pSigv4Auth[ 2048U ];
+    size_t sigv4AuthLen = sizeof( pSigv4Auth );
     request.AddHeader(authHeader);
-
+    char * signature = NULL;
+    size_t signatureLen = 0;
+    auto region = std::getenv("AWS_REGION");
+    // TODO: All values
+    SigV4Parameters_t sigv4Params =
+        {
+            // Parsed temporary credentials obtained from AWS IoT Credential Provider.
+            .pCredentials     = &sigv4Creds,
+            // Date in ISO8601 format.
+            .pDateIso8601     = pDateISO8601,
+            .pRegion          = region,
+            .regionLen        = strlen(region),
+            // The AWS service for the request.
+            .pService         = AWS_SERVICE_NAME,
+            .serviceLen       = strlen( AWS_SERVICE_NAME ),
+            // SigV4 crypto interface. See SigV4CryptoInterface_t interface documentation.
+            .pCryptoInterface = &cryptoInterface,
+            // HTTP parameters for the HTTP request to generate a SigV4 authorization header for.
+            .pHttpParameters  = &sigv4HttpParams
+        };
+    status = SigV4_GenerateHTTPAuthorization( &sigv4Params, pSigv4Auth, &sigv4AuthLen, &signature, &signatureLen );
+    if( status != SigV4Success )
+    {
+        LOG.atError().log("Failed to generate Authorization header");
+        throw std::runtime_error("Failed to generate Authorization header");
+    }
     Aws::Crt::Http::HttpHeader contentHeader;
     contentHeader.name = Aws::Crt::ByteCursorFromCString("Content-Type");
     contentHeader.value = Aws::Crt::ByteCursorFromCString("application/x-amz-json-1.1");
