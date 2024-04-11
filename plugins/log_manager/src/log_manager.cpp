@@ -397,45 +397,7 @@ void LogManager::setupClient(const std::string &uriAsString,
 //    // need to add value
 //    request.AddHeader(dateHeader);
 
-    Aws::Crt::Http::HttpHeader authHeader;
-    authHeader.name = Aws::Crt::ByteCursorFromCString("Authorization");
-    SigV4Status_t status = SigV4Success;
-    char pSigv4Auth[ 2048U ];
-    size_t sigv4AuthLen = sizeof( pSigv4Auth );
-    putLogsRequest->AddHeader(authHeader);
-    char * signature = NULL;
-    size_t signatureLen = 0;
     auto region = std::getenv("AWS_REGION");
-    // TODO: All values
-    auto jsonResponse = ggapi::Struct{};
-    SigV4Credentials_t sigv4Creds =
-            {
-//                 .pAccessKeyId = _credentials.get<std::string>("Response"),
-
-
-
-            };
-    SigV4Parameters_t sigv4Params =
-            {
-                // Parsed temporary credentials obtained from AWS IoT Credential Provider.
-                .pCredentials     = &sigv4Creds,
-                // Date in ISO8601 format.
-                .pDateIso8601     = pDateISO8601,
-                .pRegion          = region,
-                .regionLen        = strlen(region),
-                .pService         = CLOUDWATCH_LOGS_SERVICE_CODE,
-                .serviceLen       = CLOUDWATCH_LOGS_SERVICE_CODE.size(),
-                // SigV4 crypto interface. See SigV4CryptoInterface_t interface documentation.
-                .pCryptoInterface = &cryptoInterface,
-                // HTTP parameters for the HTTP request to generate a SigV4 authorization header for.
-                .pHttpParameters  = &sigv4HttpParams
-            };
-    status = SigV4_GenerateHTTPAuthorization( &sigv4Params, pSigv4Auth, &sigv4AuthLen, &signature, &signatureLen );
-    if( status != SigV4Success )
-    {
-        LOG.atError().log("Failed to generate Authorization header");
-        throw std::runtime_error("Failed to generate Authorization header");
-    }
 
     //TODO: not sure if needed, also we aren't chunking right now
 //    Aws::Crt::Http::HttpHeader lengthHeader;
