@@ -1,6 +1,7 @@
 #pragma once
 
 #include <plugin.hpp>
+#include <rapidjson/document.h>
 #include <shared_device_sdk.hpp>
 
 class LogManager : public ggapi::Plugin {
@@ -27,8 +28,18 @@ private:
 
     static constexpr std::string_view THING_NAME = "thingName";
     static constexpr std::string_view TES_REQUEST_TOPIC = "aws.greengrass.requestTES";
+    static constexpr int TIME_OUT_MS = 5000;
+    static constexpr int PORT_NUM = 443;
+    static constexpr int CHUNK_SIZE = 1024;
+
+
 
     void retrieveCredentialsFromTES();
+    void setupClient(Aws::Crt::Io::TlsConnectionOptions tlsConnectionOptions,
+                     const std::string &uriAsString,
+                     Aws::Crt::Http::HttpRequest &request,
+                     Aws::Crt::Http::HttpRequestOptions requestOptions,
+                     Aws::Crt::Allocator *allocator, rapidjson::Document requestBody);
     void processLogsAndUpload();
 
 
