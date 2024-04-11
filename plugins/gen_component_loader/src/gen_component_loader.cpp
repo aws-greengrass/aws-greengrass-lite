@@ -299,12 +299,13 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
 
 GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
         _name = data.get<std::string>("componentName");
-        _recipe = data.get<ggapi::Struct>("recipe");
+        _recipeAsStruct = data.get<ggapi::Struct>("recipe");
         _manifestAsStruct =data.get<ggapi::Struct>("manifest");
         _deploymentId = data.get<std::string>("deploymentId");
         _artifactPath = data.get<std::string>("artifactPath");
         _defaultConfig = data.get<ggapi::Struct>("defaultConfig");
 
+        //TODO:: Improve how Lifecycle is extracted from recipe with respect to manifest
         _lifecycleAsStruct = _manifestAsStruct.get<ggapi::Struct>(_manifestAsStruct.foldKey("Lifecycle"));
 }
 

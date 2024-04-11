@@ -182,9 +182,6 @@ namespace deployment {
 
     Recipe DeploymentManager::loadRecipeFile(const std::filesystem::path &recipeFile) {
         try {
-            // const std::make_shared<data::SharedStruct> target;
-            // std::make_shared<data::SharedStruct>(scope::context());
-            // readFromFileStruct(recipeFile, );
             return _recipeLoader.read(recipeFile);
         } catch(std::exception &e) {
             LOG.atWarn("deployment").kv("DeploymentType", "LOCAL").logAndThrow(e);
@@ -194,9 +191,6 @@ namespace deployment {
     std::shared_ptr<data::SharedStruct> DeploymentManager::loadRecipeFileAsStruct(
         const std::filesystem::path &recipeFile) {
         try {
-            // const std::make_shared<data::SharedStruct> target;
-            // std::make_shared<data::SharedStruct>(scope::context());
-            // readFromFileStruct(recipeFile, );
             return _recipeLoader.readAsStruct(recipeFile);
         } catch(std::exception &e) {
             LOG.atWarn("deployment").kv("DeploymentType", "LOCAL").logAndThrow(e);

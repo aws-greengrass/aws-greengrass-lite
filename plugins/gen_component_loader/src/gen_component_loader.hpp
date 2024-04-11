@@ -111,7 +111,7 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
 
 private:
     std::string _name;
-    ggapi::Struct _recipe;
+    ggapi::Struct _recipeAsStruct;
     ggapi::Struct _lifecycleAsStruct;
     ggapi::Struct _manifestAsStruct;
     std::string _deploymentId;
