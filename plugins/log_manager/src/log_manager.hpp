@@ -71,7 +71,9 @@ private:
     std::unordered_map<std::string, ComponentLogConfiguration> componentLogConfigurations;
 
     void retrieveCredentialsFromTES();
-    void setupClient(const std::string &uriAsString, const rapidjson::Document& requestBody);
+    void setupClient(const std::string &uriAsString,
+                     const rapidjson::Document& putLogEventsRequestBody,
+                     const std::string logGroupName, const std::string logStreamName);
     void processLogsAndUpload();
 
 

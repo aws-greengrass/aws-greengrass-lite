@@ -225,9 +225,8 @@ void LogManager::setupClient(const std::string &uriAsString,
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
         createLogGroupBody.Accept(writer);
         const char* logGroupRequestBodyStr = buffer.GetString();
-        std::istringstream createLogGroupIStream(logGroupRequestBodyStr);
         std::shared_ptr<Aws::Crt::Io::IStream> createLogGroupBodyStream =
-            std::make_shared<Aws::Crt::Io::IStream>(createLogGroupIStream);
+            std::make_shared<std::istringstream>(logGroupRequestBodyStr);
         logGroupRequest.SetBody(createLogGroupBodyStream);
 
         auto stream = connection->NewClientStream(requestOptions);
@@ -299,9 +298,8 @@ void LogManager::setupClient(const std::string &uriAsString,
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     createLogStreamBody.Accept(writer);
     const char* logStreamRequestBodyStr = buffer.GetString();
-    std::istringstream istream(logStreamRequestBodyStr);
     std::shared_ptr<Aws::Crt::Io::IStream> createLogStreamBodyStream =
-        std::make_shared<Aws::Crt::Io::IStream>(istream);
+        std::make_shared<std::istringstream>(logStreamRequestBodyStr);
     logStreamRequest.SetBody(createLogStreamBodyStream);
 
     auto createLogStreamStream = connection->NewClientStream(logStreamRequestOptions);
@@ -415,9 +413,8 @@ void LogManager::setupClient(const std::string &uriAsString,
 
     putLogEventsRequestBody.Accept(writer);
     const char* putLogEventsRequestBodyStr = buffer.GetString();
-    std::istringstream putLogEventsIstream(putLogEventsRequestBodyStr);
     std::shared_ptr<Aws::Crt::Io::IStream> putLogEventsBodyStream =
-        std::make_shared<Aws::Crt::Io::IStream>(putLogEventsIstream);
+        std::make_shared<std::istringstream>(putLogEventsRequestBodyStr);
     putLogsRequest.SetBody(putLogEventsBodyStream);
 
     auto stream = connection->NewClientStream(putLogsRequestOptions);
