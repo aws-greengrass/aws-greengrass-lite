@@ -4,10 +4,8 @@
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
 #include <temp_module.hpp>
-#include <sigv4.h>
 #include <thread>
-
-#define SIGV4_DO_NOT_USE_CUSTOM_CONFIG
+#include <aws/crt/auth/Credentials.h>
 
 const auto LOG = ggapi::Logger::of("LogManager");
 bool logGroupCreated = false;
@@ -402,15 +400,36 @@ void LogManager::setupClient(const std::string &uriAsString,
             std::make_shared<std::istringstream>(putLogEventsRequestBodyStr);
     putLogsRequest->SetBody(putLogEventsBodyStream);
 
+    auto responseCred = _credentials.get<std::string>("Response");
+    auto buffTest = ggapi::Buffer::create().put(0, std::string_view{responseCred}).fromJson();
+    auto buffTestAsStruct = ggapi::Struct{buffTest};
+    auto accessKey = buffTestAsStruct.get<std::string>("AccessKeyId");
+    auto secretAccessKey = buffTestAsStruct.get<std::string>("AccessKeyId");
+    auto token = buffTestAsStruct.get<std::string>("Token");
+    auto expiration = buffTestAsStruct.get<std::string>("Expiration");
+
+    auto credentialsForRequest = Aws::Crt::MakeShared<Aws::Crt::Auth::Credentials>(
+            allocator,
+            aws_byte_cursor_from_c_str(accessKey.c_str()),
+            aws_byte_cursor_from_c_str(secretAccessKey.c_str()),
+            aws_byte_cursor_from_c_str(token.c_str()),
+            std::stoull(expiration)
+            );
+
     // SIGV4??
     auto signer = Aws::Crt::MakeShared<Aws::Crt::Auth::Sigv4HttpRequestSigner>(allocator, allocator);
     Aws::Crt::Auth::AwsSigningConfig signingConfig(allocator);
-    signingConfig.SetSigningTimepoint(Aws::Crt::DateTime());
     signingConfig.SetRegion(_logGroup.region.c_str());
+    signingConfig.SetSigningAlgorithm(Aws::Crt::Auth::SigningAlgorithm::SigV4A);
+    signingConfig.SetSignatureType(Aws::Crt::Auth::SignatureType::HttpRequestViaHeaders);
     signingConfig.SetService("logs");
-    signingConfig.SetCredentials(s_MakeDummyCredentials(allocator));
-    signingConfig.SetSignedBodyValue(Aws::Crt::Auth::SignedBodyValue::UnsignedPayloadStr());
+    signingConfig.SetSigningTimepoint(Aws::Crt::DateTime::Now());
+    signingConfig.SetUseDoubleUriEncode(false);
+    signingConfig.SetShouldNormalizeUriPath(true);
+    signingConfig.SetSignedBodyValue("");
     signingConfig.SetSignedBodyHeader(Aws::Crt::Auth::SignedBodyHeaderType::XAmzContentSha256);
+    signingConfig.SetCredentials(credentialsForRequest);
+
     SignWaiter waiter;
 
     signer->SignRequest(
