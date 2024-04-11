@@ -1,6 +1,6 @@
 #include <filesystem>
 #include <functional>
-#include <gg_pal/abstract_process_manager.hpp>
+#include <gg_pal/process.hpp>
 #include <logging.hpp>
 #include <plugin.hpp>
 
@@ -124,7 +124,15 @@ private:
 
     ggapi::Struct _nucleusConfig;
     ggapi::Struct _systemConfig;
-    ipc::ProcessManager _manager{};
+
+    void processScript(ScriptSection section, std::string_view stepNameArg);
+
+    gg_pal::Process startProcess(
+        std::string script,
+        std::chrono::seconds timeout,
+        bool requiresPrivilege,
+        const std::unordered_map<std::string, std::optional<std::string>> &env,
+        const std::string &note);
 
 public:
     explicit GenComponentDelegate(const ggapi::Struct &data);
@@ -141,16 +149,6 @@ public:
         ggapi::Struct data);
 
     ggapi::ModuleScope registerComponent();
-
-    void processScript(ScriptSection section, std::string_view stepNameArg);
-
-    ipc::ProcessId startProcess(
-        std::string script,
-        std::chrono::seconds timeout,
-        bool requiresPrivilege,
-        std::unordered_map<std::string, std::optional<std::string>> env,
-        const std::string &note,
-        std::optional<ipc::CompletionCallback> onComplete = {});
 
     bool onInitialize(ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;

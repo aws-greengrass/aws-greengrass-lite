@@ -1,17 +1,16 @@
 #include "gen_component_loader.hpp"
-#include "c_api.h"
-#include "containers.hpp"
-#include "handles.hpp"
-#include "scopes.hpp"
-#include "string_util.hpp"
-#include <fstream>
-#include <gg_pal/startable.hpp>
-#include <iostream>
-#include <iterator>
+#include <c_api.h>
+#include <containers.hpp>
+#include <cstdlib>
+#include <filesystem>
+#include <gg_pal/process.hpp>
+#include <handles.hpp>
 #include <memory>
 #include <mutex>
 #include <regex>
+#include <scopes.hpp>
 #include <string>
+#include <string_util.hpp>
 #include <temp_module.hpp>
 #include <utility>
 
@@ -22,7 +21,7 @@ static constexpr std::string_view exists_prefix = "exists";
 
 bool GenComponentDelegate::lifecycleCallback(
     const std::shared_ptr<GenComponentDelegate> &self,
-    const ggapi::ModuleScope&,
+    const ggapi::ModuleScope &,
     ggapi::Symbol event,
     ggapi::Struct data) {
     return self->lifecycle(event, std::move(data));
@@ -35,17 +34,28 @@ ggapi::ModuleScope GenComponentDelegate::registerComponent() {
     return module;
 }
 
-ipc::ProcessId GenComponentDelegate::startProcess(
+static std::string getEnvVar(std::string_view variable) {
+    // concurrent calls to getenv by itself does not introduce a data-race in C++11, as long as
+    // functions modifying the host environment are not called.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    const char *env = std::getenv(variable.data());
+    if(env == nullptr) {
+        return {};
+    }
+    return {env};
+}
+
+gg_pal::Process GenComponentDelegate::startProcess(
     std::string script,
     std::chrono::seconds timeout,
     bool requiresPrivilege,
-    std::unordered_map<std::string, std::optional<std::string>> env,
-    const std::string &note,
-    std::optional<ipc::CompletionCallback> onComplete) {
+    const gg_pal::EnvironmentMap &env,
+    const std::string &note) {
     using namespace std::string_literals;
 
     auto getShell = [this]() -> std::string {
-        auto posixShell = _nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"});
+        auto posixShell =
+            _nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"});
 
         if(!posixShell.empty()) {
             return posixShell;
@@ -102,100 +112,146 @@ ipc::ProcessId GenComponentDelegate::startProcess(
     // Here the scope for GenComponentDelagate isn't passed within the Startable
     // Hence a weak self pointing variable is required
     auto weak_self = std::weak_ptr(ref<GenComponentDelegate>());
-    auto startable =
-        ipc::Startable{}
-            .withCommand(getShell())
-            .withEnvironment(std::move(env))
-            // TODO: Should entire nucleus env be copied?
-            .addEnvironment(ipc::PATH_ENVVAR, ipc::getEnviron(ipc::PATH_ENVVAR))
-            .addEnvironment("SVCUID", authToken)
-            .addEnvironment(
-                "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"s, std::move(socketPath))
-            .addEnvironment("AWS_CONTAINER_CREDENTIALS_FULL_URI"s, std::move(container_uri))
-            .addEnvironment("AWS_CONTAINER_AUTHORIZATION_TOKEN"s, std::move(authToken))
-            .addEnvironment("AWS_IOT_THING_NAME"s, getThingName())
-            .addEnvironment("GG_ROOT_CA_PATH"s, getRootCAPath())
-            .addEnvironment("AWS_REGION"s, getAWSRegion())
-            .addEnvironment("AWS_DEFAULT_REGION"s, getAWSRegion())
-            .addEnvironment("GGC_VERSION"s, getNucleusVersion)
-            // TODO: Windows "run raw script" switch
-            .withArguments({"-c", std::move(script)})
-            // TODO: allow output to pass back to caller if subscription is specified
-            .withOutput([note = note, weak_self](util::Span<const char> buffer) {
-                auto self = weak_self.lock();
-                if(!self) {
-                    return;
-                }
-                util::TempModule moduleScope(self->getModule());
-                LOG.atInfo("stdout")
-                    .kv("note", note)
-                    .kv("message", std::string_view{buffer.data(), buffer.size()})
-                    .log();
-            })
-            .withError([note = note, weak_self](util::Span<const char> buffer) {
-                auto self = weak_self.lock();
-                if(!self) {
-                    return;
-                }
-                util::TempModule moduleScope(self->getModule());
 
-                LOG.atWarn("stderr")
-                    .kv("note", note)
-                    .kv("message", std::string_view{buffer.data(), buffer.size()})
-                    .log();
-            })
-            .withCompletion(
-                [onComplete = std::move(onComplete), weak_self](int returnCode) mutable {
-                    auto self = weak_self.lock();
-                    if(!self) {
-                        return;
-                    }
-                    util::TempModule moduleScope(self->getModule());
-                    if(returnCode == 0) {
-                        LOG.atInfo("process-exited").kv("returnCode", returnCode).log();
-                    } else {
-                        LOG.atError("process-failed").kv("returnCode", returnCode).log();
-                    }
-                    if(onComplete) {
-                        (*onComplete)(returnCode == 0);
-                    }
-                });
+    gg_pal::EnvironmentMap envExt{
+        {"PATH", getEnvVar("PATH")},
+        {"SVCUID", authToken},
+        {"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"s, std::move(socketPath)},
+        {"AWS_CONTAINER_CREDENTIALS_FULL_URI"s, std::move(container_uri)},
+        {"AWS_CONTAINER_AUTHORIZATION_TOKEN"s, std::move(authToken)},
+        {"AWS_IOT_THING_NAME"s, getThingName()},
+        {"GG_ROOT_CA_PATH"s, getRootCAPath()},
+        {"AWS_REGION"s, getAWSRegion()},
+        {"AWS_DEFAULT_REGION"s, getAWSRegion()},
+        {"GGC_VERSION"s, getNucleusVersion}};
 
-    if(!requiresPrivilege) {
-        auto [user, group] =
-            [this]() -> std::pair<std::optional<std::string>, std::optional<std::string>> {
-            auto cfg = _nucleusConfig.getValue<std::string>(
-                {"configuration", "runWithDefault", "posixUser"});
-            ;
-            if(cfg.empty()) {
-                return {};
-            }
-            // TODO: Windows
-            auto it = cfg.find(':');
-            if(it == std::string::npos) {
-                return {cfg, std::nullopt};
-            }
-            return {cfg.substr(0, it), cfg.substr(it + 1)};
-        }();
-        if(user) {
-            startable.asUser(std::move(user).value());
-            if(group) {
-                startable.asGroup(std::move(group).value());
-            }
+    gg_pal::EnvironmentMap fullEnv{env};
+    fullEnv.merge(envExt);
+
+    auto [user, group] = [this, &requiresPrivilege]()
+        -> std::pair<std::optional<std::string>, std::optional<std::string>> {
+        if(requiresPrivilege) {
+            return {"root", "root"};
         }
-    } else {
-        // requiresPrivilege -> run as root user
-        startable.asUser("root");
-        startable.asGroup("root");
-    }
-    return _manager.registerProcess([startable]() -> std::unique_ptr<ipc::Process> {
-        try {
-            return startable.start();
-        } catch(const std::exception &e) {
-            LOG.atError().event("process-start-error").cause(e).log();
+        auto cfg =
+            _nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixUser"});
+        if(cfg.empty()) {
             return {};
         }
-    }());
+        // TODO: Windows
+        auto it = cfg.find(':');
+        if(it == std::string::npos) {
+            return {cfg, std::nullopt};
+        }
+        return {cfg.substr(0, it), cfg.substr(it + 1)};
+    }();
+
+    struct Ctx {
+        std::mutex mtx;
+        bool complete;
+    };
+
+    auto ctx = std::make_shared<Ctx>();
+
+    gg_pal::Process proc = {
+        getShell(),
+        {"-c", std::move(script)},
+        // TODO: configure proc cwd
+        std::filesystem::current_path(),
+        fullEnv,
+        user,
+        group,
+        [note = note, weak_self](util::Span<const char> buffer) {
+            auto self = weak_self.lock();
+            if(!self) {
+                return;
+            }
+            util::TempModule moduleScope(self->getModule());
+
+            if(buffer.empty()) {
+                return;
+            }
+
+            LOG.atInfo("stdout")
+                .kv("note", note)
+                .kv("message", std::string_view{buffer.data(), buffer.size()})
+                .log();
+        },
+        [note = note, weak_self](util::Span<const char> buffer) {
+            auto self = weak_self.lock();
+            if(!self) {
+                return;
+            }
+            util::TempModule moduleScope(self->getModule());
+
+            if(buffer.empty()) {
+                return;
+            }
+
+            LOG.atWarn("stderr")
+                .kv("note", note)
+                .kv("message", std::string_view{buffer.data(), buffer.size()})
+                .log();
+        },
+        [weak_self, ctx](int returnCode) mutable {
+            auto self = weak_self.lock();
+            if(!self) {
+                return;
+            }
+            util::TempModule moduleScope(self->getModule());
+
+            std::lock_guard<std::mutex> guard(ctx->mtx);
+            ctx->complete = true;
+
+            if(returnCode == 0) {
+                LOG.atInfo("process-exited").kv("returnCode", returnCode).log();
+            } else {
+                LOG.atError("process-failed").kv("returnCode", returnCode).log();
+            }
+        }};
+
+    auto currentTimePoint = std::chrono::steady_clock::now();
+    auto timeoutPoint = currentTimePoint + timeout;
+    if(timeoutPoint != std::chrono::steady_clock::time_point::min()) {
+        // TODO: Move timeout logic to lifecycle manager.
+        // TODO: Fix miniscule time delay by doing conversion with timepoints. Keep timeout as
+        // same unit throughout. (2s vs 1.9999s)
+        auto currentTimePoint = std::chrono::steady_clock::now();
+        auto duration =
+            std::chrono::duration_cast<std::chrono::milliseconds>(timeoutPoint - currentTimePoint);
+        auto delay = static_cast<uint32_t>(duration.count());
+
+        ggapi::later(
+            delay,
+            [weak_self, ctx, note = note](gg_pal::Process proc) {
+                std::lock_guard<std::mutex> guard(ctx->mtx);
+                if(!ctx->complete) {
+                    LOG.atWarn("process-timeout")
+                        .kv("note", note)
+                        .log("Process has reached the time out limit, stopping.");
+
+                    static constexpr int killDelayMs = 5000;
+                    ggapi::later(
+                        killDelayMs,
+                        [weak_self, ctx, note = note](gg_pal::Process proc) {
+                            std::lock_guard<std::mutex> guard(ctx->mtx);
+                            if(!ctx->complete) {
+                                LOG.atWarn("process-stop-timeout")
+                                    .kv("note", note)
+                                    .log("Process failed to stop in time, killing.");
+
+                                proc.kill();
+                            }
+                        },
+                        proc);
+
+                    proc.stop();
+                }
+            },
+            proc);
+    }
+
+    return proc;
 }
 
 void GenComponentDelegate::processScript(ScriptSection section, std::string_view stepNameArg) {
@@ -231,7 +287,7 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
         }
     }
 
-    auto pid = std::invoke([&]() -> ipc::ProcessId {
+    auto process = std::invoke([&]() -> gg_pal::Process {
         // TODO: This needs a cleanup
 
         auto getSetEnv = [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
@@ -281,7 +337,7 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
         return startProcess(getScript(), timeout, requirePrivilege, getSetEnv(), _name);
     });
 
-    if(pid) {
+    if(process) {
         LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, _deploymentId)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, _deploymentId)
@@ -298,15 +354,16 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
 }
 
 GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
-        _name = data.get<std::string>("componentName");
-        _recipeAsStruct = data.get<ggapi::Struct>("recipe");
-        _manifestAsStruct =data.get<ggapi::Struct>("manifest");
-        _deploymentId = data.get<std::string>("deploymentId");
-        _artifactPath = data.get<std::string>("artifactPath");
-        _defaultConfig = data.get<ggapi::Struct>("defaultConfig");
+    _name = data.get<std::string>("componentName");
+    _recipeAsStruct = data.get<ggapi::Struct>("recipe");
+    _manifestAsStruct = data.get<ggapi::Struct>("manifest");
+    _deploymentId = data.get<std::string>("deploymentId");
+    _artifactPath = data.get<std::string>("artifactPath");
+    _defaultConfig = data.get<ggapi::Struct>("defaultConfig");
 
-        //TODO:: Improve how Lifecycle is extracted from recipe with respect to manifest
-        _lifecycleAsStruct = _manifestAsStruct.get<ggapi::Struct>(_manifestAsStruct.foldKey("Lifecycle"));
+    // TODO:: Improve how Lifecycle is extracted from recipe with respect to manifest
+    _lifecycleAsStruct =
+        _manifestAsStruct.get<ggapi::Struct>(_manifestAsStruct.foldKey("Lifecycle"));
 }
 
 bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
@@ -319,14 +376,11 @@ bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
 
     if(_lifecycle.envMap.has_value()) {
         _globalEnv.insert(_lifecycle.envMap->begin(), _lifecycle.envMap->end());
-
     }
 
     if(_lifecycle.install.has_value()) {
         processScript(_lifecycle.install.value(), "install");
     }
-
-    std::cout << "I was initialized" << std::endl;
 
     return true;
 }
@@ -344,8 +398,6 @@ bool GenComponentDelegate::onStart(ggapi::Struct data) {
         // TODO:: Find a better LOG and throw
         throw ggapi::GgApiError("No deployment run or startup phase provided");
     }
-
-    std::cout << "I have completed ontart" << std::endl;
 
     return true;
 }
