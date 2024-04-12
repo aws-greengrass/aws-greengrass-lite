@@ -1,3 +1,19 @@
+## 2024-04-12
+
+- `-DGGLITE_PLATFORM=posix` can be passed to cmake to build for 32-bit systems
+  and/or older kernels.
+- Greengrass Lite devices now show up on the AWS IoT console web interface under
+  Manage > Greengrass devices > Core devices, alongside Greengrass Java devices.
+- Generic components' lifecycles and recipe steps are handled by the
+  `gen_component_loader` plugin.
+- Bundling GG Lite dynamic dependencies now works correctly on systems that use
+  lib64 by default instead of lib.
+
+Known bugs:
+
+- Extending a recipe’s script section using default configuration is currently
+  not supported
+
 ## 2024-03-29
 
 - Fixed bug causing hang when loading plugins in certain optimized builds.

@@ -81,6 +81,10 @@ cmake -B build
 make -C build -j4
 ```
 
+For Linux, Greengrass Lite can be compiled with the Linux or Posix platforms.
+The Linux platform uses modern Linux-specific features; for compatibility with
+older systems, pass `-DGGLITE_PLATFORM=posix` to cmake.
+
 ### Compiling Greengrass Lite for minimal footprint
 
 Build type "MinSizeRel" enables multiple size reduction options. Note that in

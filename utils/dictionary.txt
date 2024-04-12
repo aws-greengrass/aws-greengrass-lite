@@ -16,6 +16,7 @@ dearchiving
 deobfuscating
 devicesdk
 DFETCHCONTENT
+DGGLITE
 distro
 DLFCN
 dtags
