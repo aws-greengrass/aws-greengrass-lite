@@ -166,7 +166,6 @@ static void onIncomingConnection(
     struct aws_http_connection *connection,
     int error_code,
     void *user_data) {
-    
     util::TempModule module(TesHttpServerPlugin::get().getModule());
     if(error_code) {
         LOG.atWarn().log("Connection is not setup properly");
