@@ -22,7 +22,7 @@ static constexpr std::string_view exists_prefix = "exists";
 
 bool GenComponentDelegate::lifecycleCallback(
     const std::shared_ptr<GenComponentDelegate> &self,
-    ggapi::ModuleScope,
+    const ggapi::ModuleScope&,
     ggapi::Symbol event,
     ggapi::Struct data) {
     return self->lifecycle(event, std::move(data));
@@ -45,10 +45,10 @@ ipc::ProcessId GenComponentDelegate::startProcess(
     using namespace std::string_literals;
 
     auto getShell = [this]() -> std::string {
-        if(_nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"})
-           != "") {
-            return _nucleusConfig.getValue<std::string>(
-                {"configuration", "runWithDefault", "posixShell"});
+        auto posixShell = _nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"});
+
+        if(!posixShell.empty()) {
+            return posixShell;
         } else {
             LOG.atWarn("missing-config-option")
                 .kv("message", "posixShell not configured. Defaulting to bash.")
@@ -167,7 +167,7 @@ ipc::ProcessId GenComponentDelegate::startProcess(
             auto cfg = _nucleusConfig.getValue<std::string>(
                 {"configuration", "runWithDefault", "posixUser"});
             ;
-            if(cfg == "") {
+            if(cfg.empty()) {
                 return {};
             }
             // TODO: Windows
@@ -249,15 +249,15 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
             auto script =
                 std::regex_replace(step.script, std::regex(R"(\{artifacts:path\})"), _artifactPath);
 
-            if(_defaultConfig && !_defaultConfig.empty()) {
-                for(auto key : _defaultConfig.keys().toVector<ggapi::Archive::KeyType>()) {
-                    auto value = _defaultConfig.get<std::string>(key);
-                    script = std::regex_replace(
-                        script,
-                        std::regex(R"(\{configuration:\/)" + key.toString() + R"(\})"),
-                        value);
-                }
-            }
+            // if(_defaultConfig && !_defaultConfig.empty()) {
+            //     for(auto key : _defaultConfig.keys().toVector<ggapi::Archive::KeyType>()) {
+            //         auto value = _defaultConfig.get<std::string>(key);
+            //         script = std::regex_replace(
+            //             script,
+            //             std::regex(R"(\{configuration:\/)" + key.toString() + R"(\})"),
+            //             value);
+            //     }
+            // }
 
             return script;
         };
@@ -296,13 +296,17 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
         return; // if any of the lifecycle step fails, stop the deployment
     }
 }
+
 GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
-    _name = data.get<std::string>("componentName");
-    _recipe = data.get<ggapi::Struct>("recipe");
-    _lifecycleAsStruct = data.get<ggapi::Struct>("lifecycle");
-    _deploymentId = data.get<std::string>("deploymentId");
-    _artifactPath = data.get<std::string>("artifactPath");
-    _defaultConfig = data.get<ggapi::Struct>("defaultConfig");
+        _name = data.get<std::string>("componentName");
+        _recipeAsStruct = data.get<ggapi::Struct>("recipe");
+        _manifestAsStruct =data.get<ggapi::Struct>("manifest");
+        _deploymentId = data.get<std::string>("deploymentId");
+        _artifactPath = data.get<std::string>("artifactPath");
+        _defaultConfig = data.get<ggapi::Struct>("defaultConfig");
+
+        //TODO:: Improve how Lifecycle is extracted from recipe with respect to manifest
+        _lifecycleAsStruct = _manifestAsStruct.get<ggapi::Struct>(_manifestAsStruct.foldKey("Lifecycle"));
 }
 
 bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
@@ -315,6 +319,7 @@ bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
 
     if(_lifecycle.envMap.has_value()) {
         _globalEnv.insert(_lifecycle.envMap->begin(), _lifecycle.envMap->end());
+
     }
 
     if(_lifecycle.install.has_value()) {
