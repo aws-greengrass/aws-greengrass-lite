@@ -6,9 +6,8 @@ fetchContentAdd(rapidjson)
 
 if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
   message(
-          SEND_ERROR "Building plugins individually is not supported on Mac/Windows.")
+    SEND_ERROR "Building plugins individually is not supported on Mac/Windows.")
 endif()
-
 
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 add_subdirectory(../device-sdk/ device-sdk EXCLUDE_FROM_ALL)
@@ -18,20 +17,19 @@ add_subdirectory(../device-sdk/ device-sdk EXCLUDE_FROM_ALL)
 #add_library(SigV4-for-AWS-IoT-embedded-sdk ${SIGV4_SOURCES})
 #target_include_directories(SigV4-for-AWS-IoT-embedded-sdk SYSTEM PUBLIC ${SIGV4_INCLUDE_PUBLIC_DIRS})
 
-
 set(COMPONENT_NAME local.plugins.discovered.log_manager)
 
 enable_warnings()
 
 # Object library shared between plugin and tests
 
-add_library(log_manager_obj OBJECT src/log_manager.cpp src/log_manager.hpp
-        src/main.cpp)
+add_library(log_manager_obj OBJECT src/log_manager.cpp src/log_manager.hpp)
 
 target_include_directories(log_manager_obj PUBLIC src)
-target_link_libraries(log_manager_obj PUBLIC gg_plugin_api device-sdk SigV4-for-AWS-IoT-embedded-sdk)
+# target_link_libraries(log_manager_obj PUBLIC gg_plugin_api device-sdk SigV4-for-AWS-IoT-embedded-sdk)
+target_link_libraries(log_manager_obj PUBLIC gg_plugin_api device-sdk)
 target_include_directories(log_manager_obj SYSTEM
-        PUBLIC ${rapidjson_SOURCE_DIR}/include)
+                           PUBLIC ${rapidjson_SOURCE_DIR}/include)
 
 # Plugin
 
@@ -43,9 +41,9 @@ configureRPATH(log_manager)
 set_version_script(log_manager "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(
-        TARGETS log_manager
-        DESTINATION plugins
-        RUNTIME_DEPENDENCY_SET log_manager_deps)
+  TARGETS log_manager
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET log_manager_deps)
 
 if(INSTALL_RUNTIME_DEPENDENCIES)
   install(RUNTIME_DEPENDENCY_SET log_manager_deps)
@@ -66,16 +64,16 @@ if(BUILD_TESTING AND NOT WIN32)
 
   add_subdirectory(../../nucleus nucleus EXCLUDE_FROM_ALL)
 
-#  add_executable(
-#          log_manager_tests tests/test_log_manager.cpp
-#          tests/test_log_manager.cpp tests/test_util.hpp)
-#
-#  target_include_directories(log_manager_tests PRIVATE tests)
-#  target_link_libraries(
-#          log_manager_tests PRIVATE log_manager_obj Catch2::Catch2WithMain
-#          trompeloeil::trompeloeil nucleus-core)
-#
-#  catch_discover_tests(log_manager_tests)
-#
-#  add_test(NAME log_manager COMMAND log_manager_tests)
+  #  add_executable(
+  #          log_manager_tests tests/test_log_manager.cpp
+  #          tests/test_log_manager.cpp tests/test_util.hpp)
+  #
+  #  target_include_directories(log_manager_tests PRIVATE tests)
+  #  target_link_libraries(
+  #          log_manager_tests PRIVATE log_manager_obj Catch2::Catch2WithMain
+  #          trompeloeil::trompeloeil nucleus-core)
+  #
+  #  catch_discover_tests(log_manager_tests)
+  #
+  #  add_test(NAME log_manager COMMAND log_manager_tests)
 endif()

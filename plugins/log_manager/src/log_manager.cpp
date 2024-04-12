@@ -9,7 +9,6 @@
 #include <thread>
 #include <aws/crt/auth/Credentials.h>
 
-
 const auto LOG = ggapi::Logger::of("LogManager");
 bool logGroupCreated = false;
 
@@ -44,21 +43,22 @@ bool LogManager::onInitialize(ggapi::Struct data) {
     std::unique_lock guard{_mutex};
     _nucleus = data.getValue<ggapi::Struct>({"nucleus"});
     _system = data.getValue<ggapi::Struct>({"system"});
+    LOG.atInfo().log("initializing log manager");
     return true;
 }
 
 bool LogManager::onStart(ggapi::Struct data) {
     retrieveCredentialsFromTES();
     if (_credentials.hasKey("Response")) {
-        // setup callback to upload logs
-        //TODO: how to register this to loop and run constantly
+        LOG.atInfo().log("retrieved credentials successfully, starting the loop");
         while(true) {
+            LOG.atInfo().log("preparing to process logs");
             LogManager::processLogsAndUpload();
             ggapi::sleep(300);
         }
     } else {
         LOG.atError().log("Could not retrieve credentials from TES");
-        return false; // not sure if we should be doing this
+        return false;
     }
 }
 
@@ -73,6 +73,7 @@ bool LogManager::onError_stop(ggapi::Struct data) {
 void LogManager::retrieveCredentialsFromTES() {
     auto request{ggapi::Struct::create()};
     request.put("test", "some-unique-token");
+    LOG.atInfo().log("calling topic to request credentials");
     auto tesFuture = ggapi::Subscription::callTopicFirst(
         ggapi::Symbol{TES_REQUEST_TOPIC}, request);
     if(tesFuture) {
@@ -84,11 +85,12 @@ void LogManager::retrieveCredentialsFromTES() {
 
 void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
                              const std::string logGroupName, const std::string logStreamName) {
+    LOG.atInfo().log("starting client setup");
     auto allocator = Aws::Crt::DefaultAllocator();
     std::string uriAsString = "logs" + _logGroup.region + "amazonaws.com";
     aws_io_library_init(allocator);
 
-    // Create Credentials to pass to sigv4 signer
+    // Create Credentials to pass to SigV4 signer
     auto responseCred = _credentials.get<std::string>("Response");
     auto buffTest = ggapi::Buffer::create().put(0, std::string_view{responseCred}).fromJson();
     auto buffTestAsStruct = ggapi::Struct{buffTest};
@@ -105,7 +107,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
             std::stoull(expiration)
     );
 
-    // Sigv4 Signer
+    // SigV4 Signer
     auto signer = Aws::Crt::MakeShared<Aws::Crt::Auth::Sigv4HttpRequestSigner>(allocator, allocator);
     Aws::Crt::Auth::AwsSigningConfig signingConfig(allocator);
     signingConfig.SetRegion(_logGroup.region.c_str());
@@ -120,6 +122,8 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     signingConfig.SetCredentials(credentialsForRequest);
 
     // Setup Connection TLS
+    LOG.atInfo().log("starting tls connection setup");
+
     Aws::Crt::Io::TlsContextOptions tlsCtxOptions =
         Aws::Crt::Io::TlsContextOptions::InitDefaultClient();
     Aws::Crt::Io::TlsContext tlsContext(
@@ -160,7 +164,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     bool errorOccurred = true;
     bool connectionShutdown = false;
 
-    //TODO: these are being used across each http request, is this correct?
+    //TODO: Check reuse of variables
     std::condition_variable conditionalVar;
     std::mutex semaphoreLock;
 
@@ -232,6 +236,8 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
 
     // Create log group if it doesn't exist
     if (!logGroupCreated) {
+        LOG.atInfo().kv("creating log group", logGroupName);
+
         auto logGroupRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
         logGroupRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
         //TODO: verify - not setting anything for the path and will reuse the uri for each request
@@ -258,8 +264,6 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
                                                std::size_t) {
             logGroupResponseCode = stream.GetResponseStatusCode();
         };
-
-        //TODO: authorization header for sigv4
 
         Aws::Crt::Http::HttpHeader actionHeader;
         actionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
@@ -289,6 +293,8 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
         logGroupRequest->SetBody(createLogGroupBodyStream);
 
         // Sign the request
+        LOG.atInfo().log("signing log group request");
+
         SignWaiter waiter;
         signer->SignRequest(
                 logGroupRequest, signingConfig, [&](const std::shared_ptr<Aws::Crt::Http::HttpRequest> &request, int errorCode) {
@@ -313,6 +319,8 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     }
 
     // Setup createLogStream request
+    LOG.atInfo().kv("creating log stream request", logStreamName);
+
     auto logStreamRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
     logStreamRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
     //TODO: verify - not setting anything for the path and reusing the uri
@@ -350,8 +358,6 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     logStreamRequest->AddHeader(connectionHeader);
     logStreamRequest->AddHeader(hostHeader);
 
-    //TODO: authorization header
-
     rapidjson::Document createLogStreamBody;
     createLogStreamBody.AddMember("logGroupName", logGroupName,
                                   createLogStreamBody.GetAllocator());
@@ -366,6 +372,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     logStreamRequest->SetBody(createLogStreamBodyStream);
 
     // Sign the request
+    LOG.atInfo().log("signing log stream request");
     SignWaiter waiter;
     signer->SignRequest(
             logStreamRequest, signingConfig, [&](const std::shared_ptr<Aws::Crt::Http::HttpRequest> &request, int errorCode) {
@@ -429,13 +436,13 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     putLogsRequest->AddHeader(connectionHeader);
     putLogsRequest->AddHeader(hostHeader);
 
-    //TODO: date hopefully not needed
+    //TODO: Look into Date header
 //    Aws::Crt::Http::HttpHeader dateHeader;
 //    dateHeader.name = Aws::Crt::ByteCursorFromCString("x-amz-date");
 //    // need to add value
 //    request.AddHeader(dateHeader);
 
-    //TODO: not sure if needed, also we aren't chunking right now
+    //TODO: Look into Content-length header
 //    Aws::Crt::Http::HttpHeader lengthHeader;
 //    lengthHeader.name = Aws::Crt::ByteCursorFromCString("Content-length");
 //    const std::string chunkSize = std::to_string(CHUNK_SIZE);
