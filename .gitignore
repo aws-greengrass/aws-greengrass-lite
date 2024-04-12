@@ -7,3 +7,4 @@ result
 result-*
 .cppcheck/
 aws-greengrass-lite*.tar.gz
+.vscode/
