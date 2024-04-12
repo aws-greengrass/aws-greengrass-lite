@@ -45,9 +45,10 @@ ipc::ProcessId GenComponentDelegate::startProcess(
     using namespace std::string_literals;
 
     auto getShell = [this]() -> std::string {
-        if(_nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"}).empty()) {
-            return _nucleusConfig.getValue<std::string>(
-                {"configuration", "runWithDefault", "posixShell"});
+        auto posixShell = _nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"});
+
+        if(posixShell.empty()) {
+            return posixShell;
         } else {
             LOG.atWarn("missing-config-option")
                 .kv("message", "posixShell not configured. Defaulting to bash.")
@@ -248,15 +249,15 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
             auto script =
                 std::regex_replace(step.script, std::regex(R"(\{artifacts:path\})"), _artifactPath);
 
-            if(_defaultConfig && !_defaultConfig.empty()) {
-                for(auto key : _defaultConfig.keys().toVector<ggapi::Archive::KeyType>()) {
-                    auto value = _defaultConfig.get<std::string>(key);
-                    script = std::regex_replace(
-                        script,
-                        std::regex(R"(\{configuration:\/)" + key.toString() + R"(\})"),
-                        value);
-                }
-            }
+            // if(_defaultConfig && !_defaultConfig.empty()) {
+            //     for(auto key : _defaultConfig.keys().toVector<ggapi::Archive::KeyType>()) {
+            //         auto value = _defaultConfig.get<std::string>(key);
+            //         script = std::regex_replace(
+            //             script,
+            //             std::regex(R"(\{configuration:\/)" + key.toString() + R"(\})"),
+            //             value);
+            //     }
+            // }
 
             return script;
         };
