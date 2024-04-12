@@ -1,3 +1,5 @@
+#define RAPIDJSON_HAS_STDSTRING 1
+
 #include "log_manager.hpp"
 #include "futures.hpp"
 #include <fstream>
@@ -6,6 +8,7 @@
 #include <temp_module.hpp>
 #include <thread>
 #include <aws/crt/auth/Credentials.h>
+
 
 const auto LOG = ggapi::Logger::of("LogManager");
 bool logGroupCreated = false;
@@ -275,7 +278,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
         logGroupRequest->AddHeader(hostHeader);
 
         rapidjson::Document createLogGroupBody;
-        createLogGroupBody.AddMember("logGroupName", logGroupName.c_str(),
+        createLogGroupBody.AddMember("logGroupName", logGroupName,
                                      createLogGroupBody.GetAllocator());
         rapidjson::StringBuffer buffer;
         rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -350,9 +353,9 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     //TODO: authorization header
 
     rapidjson::Document createLogStreamBody;
-    createLogStreamBody.AddMember("logGroupName", logGroupName.c_str(),
+    createLogStreamBody.AddMember("logGroupName", logGroupName,
                                   createLogStreamBody.GetAllocator());
-    createLogStreamBody.AddMember("logStreamName", logStreamName.c_str(),
+    createLogStreamBody.AddMember("logStreamName", logStreamName,
                                   createLogStreamBody.GetAllocator());
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -501,14 +504,14 @@ void LogManager::processLogsAndUpload() {
         readLog.Parse(logLine.c_str());
         inputLogEvent.AddMember("timestamp", readLog["timestamp"],
                                 inputLogEvent.GetAllocator());
-        inputLogEvent.AddMember("message", logLine.c_str(),
+        inputLogEvent.AddMember("message", logLine,
                                 inputLogEvent.GetAllocator());
         logEvents.PushBack(inputLogEvent, logEvents.GetAllocator());
     }
 
     rapidjson::Document body;
-    body.AddMember("logStreamName", logStreamName.c_str(), body.GetAllocator());
-    body.AddMember("logGroupName", logGroupName.c_str(), body.GetAllocator());
+    body.AddMember("logStreamName", logStreamName, body.GetAllocator());
+    body.AddMember("logGroupName", logGroupName, body.GetAllocator());
     body.AddMember("logEvents", logEvents, body.GetAllocator());
 
     // Callback on success request stream response
