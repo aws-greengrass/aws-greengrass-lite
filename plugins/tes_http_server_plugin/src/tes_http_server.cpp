@@ -41,7 +41,7 @@ ggapi::Struct getTesCredentialsStruct() {
 extern "C" {
 static int onRequestDone(struct aws_http_stream *stream, void *user_data) {
     (void) stream;
-    util::TempModule tempModule{"server"};
+    util::TempModule module(TesHttpServerPlugin::get().getModule());
     auto *requestParams = static_cast<RequestHandlerParams *>(user_data);
     const ggapi::Struct tes_credentials_struct = getTesCredentialsStruct();
     requestParams->response = aws_http_message_new_response(serverParams.allocator);
