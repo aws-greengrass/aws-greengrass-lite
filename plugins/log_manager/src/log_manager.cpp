@@ -5,11 +5,8 @@
 #include <fstream>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
-#include <rapidjson/error/en.h>
 #include <temp_module.hpp>
-#include <thread>
 #include <aws/crt/auth/Credentials.h>
-#include <chrono>
 
 const auto LOG = ggapi::Logger::of("LogManager");
 bool logGroupCreated = false;
@@ -54,6 +51,7 @@ bool LogManager::onStart(ggapi::Struct data) {
     if (_credentials.hasKey("Response")) {
         LOG.atInfo().log("retrieved credentials successfully, starting the loop");
         while(true) {
+            LOG.atInfo().log("preparing to process logs");
             LogManager::processLogsAndUpload();
             ggapi::sleep(300);
         }
@@ -91,7 +89,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     LOG.atInfo().log("starting client setup");
     auto allocator = Aws::Crt::DefaultAllocator();
     std::string uriAsString = "http://logs." + _logGroup.region + ".amazonaws.com/";
-    LOG.atInfo().log(uriAsString);
+    LOG.atInfo().log("URI set as: " + uriAsString);
     aws_io_library_init(allocator);
 
     // Create Credentials to pass to SigV4 signer
@@ -521,6 +519,7 @@ void LogManager::processLogsAndUpload() {
         rapidjson::Document readLog;
         readLog.SetObject();
         rapidjson::Document inputLogEvent;
+        std::ignore = readLog.Parse(logLine.c_str());
         inputLogEvent.SetObject();
         inputLogEvent.AddMember("timestamp", readLog["timestamp"],
                                 inputLogEvent.GetAllocator());
