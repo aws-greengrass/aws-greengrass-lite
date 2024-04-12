@@ -13,7 +13,8 @@ target_link_libraries(gg_pal_interface INTERFACE gg_plugin_api_min)
 if(UNIX)
   set(GGLITE_DETECTED_PLATFORM "posix")
 else()
-  message(FATAL_ERROR "Unsupported platform.")
+  message(WARNING "Unsupported platform.")
+  set(GGLITE_DETECTED_PLATFORM "stub")
 endif()
 
 set(GGLITE_PLATFORM
