@@ -47,7 +47,7 @@ ipc::ProcessId GenComponentDelegate::startProcess(
     auto getShell = [this]() -> std::string {
         auto posixShell = _nucleusConfig.getValue<std::string>({"configuration", "runWithDefault", "posixShell"});
 
-        if(posixShell.empty()) {
+        if(!posixShell.empty()) {
             return posixShell;
         } else {
             LOG.atWarn("missing-config-option")
