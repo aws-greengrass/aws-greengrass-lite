@@ -5,9 +5,11 @@
 #include <fstream>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
+#include <rapidjson/error/en.h>
 #include <temp_module.hpp>
 #include <thread>
 #include <aws/crt/auth/Credentials.h>
+#include <chrono>
 
 const auto LOG = ggapi::Logger::of("LogManager");
 bool logGroupCreated = false;
@@ -52,7 +54,6 @@ bool LogManager::onStart(ggapi::Struct data) {
     if (_credentials.hasKey("Response")) {
         LOG.atInfo().log("retrieved credentials successfully, starting the loop");
         while(true) {
-            LOG.atInfo().log("preparing to process logs");
             LogManager::processLogsAndUpload();
             ggapi::sleep(300);
         }
@@ -79,15 +80,18 @@ void LogManager::retrieveCredentialsFromTES() {
     if(tesFuture) {
         _credentials = ggapi::Struct(tesFuture.waitAndGetValue());
     }
-    _credentials = {};
-    _credentials.toJson().write(std::cout);
+    else {
+        _credentials = {};
+    }
+    // _credentials.toJson().write(std::cout);
 }
 
 void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
                              const std::string logGroupName, const std::string logStreamName) {
     LOG.atInfo().log("starting client setup");
     auto allocator = Aws::Crt::DefaultAllocator();
-    std::string uriAsString = "logs" + _logGroup.region + "amazonaws.com";
+    std::string uriAsString = "http://logs." + _logGroup.region + ".amazonaws.com/";
+    LOG.atInfo().log(uriAsString);
     aws_io_library_init(allocator);
 
     // Create Credentials to pass to SigV4 signer
@@ -174,7 +178,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
             util::TempModule tempModule{getModule()};
             std::lock_guard<std::mutex> lockGuard(semaphoreLock);
             if(!errorCode) {
-                LOG.atDebug().log("Successful on establishing connection.");
+                LOG.atInfo().log("Successful on establishing connection.");
                 connection = newConnection;
                 errorOccurred = false;
             } else {
@@ -236,7 +240,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
 
     // Create log group if it doesn't exist
     if (!logGroupCreated) {
-        LOG.atInfo().kv("creating log group", logGroupName);
+        LOG.atInfo().kv("creating log group", logGroupName).log();
 
         auto logGroupRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
         logGroupRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
@@ -282,6 +286,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
         logGroupRequest->AddHeader(hostHeader);
 
         rapidjson::Document createLogGroupBody;
+        createLogGroupBody.SetObject();
         createLogGroupBody.AddMember("logGroupName", logGroupName,
                                      createLogGroupBody.GetAllocator());
         rapidjson::StringBuffer buffer;
@@ -315,11 +320,12 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
 
         LOG.atInfo().event("CreateLogGroup Status").kv("response_code",
                                                        logGroupResponseCode).log();
+        // TODO: check if log group exists instead of this
         logGroupCreated = true;
     }
 
     // Setup createLogStream request
-    LOG.atInfo().kv("creating log stream request", logStreamName);
+    LOG.atInfo().kv("creating log stream request", logStreamName).log();
 
     auto logStreamRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
     logStreamRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
@@ -359,6 +365,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     logStreamRequest->AddHeader(hostHeader);
 
     rapidjson::Document createLogStreamBody;
+    createLogStreamBody.SetObject();
     createLogStreamBody.AddMember("logGroupName", logGroupName,
                                   createLogStreamBody.GetAllocator());
     createLogStreamBody.AddMember("logStreamName", logStreamName,
@@ -484,6 +491,8 @@ void LogManager::processLogsAndUpload() {
     _logGroup.componentType = "GreengrassSystemComponent";
     _logGroup.componentName = "System";
     _logStream.thingName = system.getValue<Aws::Crt::String>({THING_NAME});
+    // TODO: Actual timestamp
+    _logStream.date = "3921313123";
     auto logFilePath = system.getValue<std::string>({"rootpath"})
                        + "/logs/greengrass.log";
 
@@ -492,6 +501,9 @@ void LogManager::processLogsAndUpload() {
         _logGroup.componentName;
     std::string logStreamName = "/" + _logStream.date + "/thing/" +
                                 std::string(_logStream.thingName.c_str());
+
+    LOG.atInfo().log("Log group name: " + logGroupName);
+    LOG.atInfo().log("Log stream name: " + logStreamName);
 
     // read log file and build request body
     std::ifstream file(logFilePath);
@@ -507,8 +519,9 @@ void LogManager::processLogsAndUpload() {
     while (getline(file, logLine)) {
         // reading greengrass.log line by line here, process each line as needed
         rapidjson::Document readLog;
+        readLog.SetObject();
         rapidjson::Document inputLogEvent;
-        readLog.Parse(logLine.c_str());
+        inputLogEvent.SetObject();
         inputLogEvent.AddMember("timestamp", readLog["timestamp"],
                                 inputLogEvent.GetAllocator());
         inputLogEvent.AddMember("message", logLine,
@@ -517,6 +530,7 @@ void LogManager::processLogsAndUpload() {
     }
 
     rapidjson::Document body;
+    body.SetObject();
     body.AddMember("logStreamName", logStreamName, body.GetAllocator());
     body.AddMember("logGroupName", logGroupName, body.GetAllocator());
     body.AddMember("logEvents", logEvents, body.GetAllocator());
