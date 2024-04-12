@@ -13,10 +13,10 @@ endif()
 add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 add_subdirectory(../device-sdk/ device-sdk EXCLUDE_FROM_ALL)
 
-fetchContentAdd(SigV4-for-AWS-IoT-embedded-sdk)
-include("${sigv4-for-aws-iot-embedded-sdk_SOURCE_DIR}/sigv4FilePaths.cmake")
-add_library(SigV4-for-AWS-IoT-embedded-sdk ${SIGV4_SOURCES})
-target_include_directories(SigV4-for-AWS-IoT-embedded-sdk SYSTEM PUBLIC ${SIGV4_INCLUDE_PUBLIC_DIRS})
+#fetchContentAdd(SigV4-for-AWS-IoT-embedded-sdk)
+#include("${sigv4-for-aws-iot-embedded-sdk_SOURCE_DIR}/sigv4FilePaths.cmake")
+#add_library(SigV4-for-AWS-IoT-embedded-sdk ${SIGV4_SOURCES})
+#target_include_directories(SigV4-for-AWS-IoT-embedded-sdk SYSTEM PUBLIC ${SIGV4_INCLUDE_PUBLIC_DIRS})
 
 
 set(COMPONENT_NAME local.plugins.discovered.log_manager)
