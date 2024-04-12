@@ -19,6 +19,8 @@ Note:
 
 Known bugs:
 
+- In occasional builds, the IPC server fails to handle incoming connections;
+  this is currently being investigated. If you can reproduce this, let us know.
 - Extending a recipe’s script section using default configuration is currently
   not supported
 
