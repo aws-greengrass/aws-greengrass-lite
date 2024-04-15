@@ -98,7 +98,7 @@ namespace tasks { //
 
         template<class Rep, class Period>
         [[nodiscard]] static ExpireTime fromNow(std::chrono::duration<Rep, Period> delta) noexcept {
-            return ExpireTime::now().checkedPositiveAdd(delta);
+            return ExpireTime::now() + delta;
         }
 
         // for converting durations received from cross-plugin API calls
