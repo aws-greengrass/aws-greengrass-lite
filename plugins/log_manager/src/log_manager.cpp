@@ -88,7 +88,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
                              const std::string logGroupName, const std::string logStreamName) {
     LOG.atInfo().log("starting client setup");
     auto allocator = Aws::Crt::DefaultAllocator();
-    std::string uriAsString = "http://logs." + _logGroup.region + ".amazonaws.com/";
+    std::string uriAsString = "https://logs." + _logGroup.region + ".amazonaws.com/";
     LOG.atInfo().log("URI set as: " + uriAsString);
     aws_io_library_init(allocator);
 
@@ -97,30 +97,46 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
     auto buffTest = ggapi::Buffer::create().put(0, std::string_view{responseCred}).fromJson();
     auto buffTestAsStruct = ggapi::Struct{buffTest};
     auto accessKey = buffTestAsStruct.get<std::string>("AccessKeyId");
-    auto secretAccessKey = buffTestAsStruct.get<std::string>("AccessKeyId");
+    auto secretAccessKey = buffTestAsStruct.get<std::string>("SecretAccessKey");
     auto token = buffTestAsStruct.get<std::string>("Token");
     auto expiration = buffTestAsStruct.get<std::string>("Expiration");
 
+    LOG.atInfo().log("ACCESS KEY BELOW:");
+    LOG.atInfo().log(accessKey);
+    LOG.atInfo().log("SECRET ACCESS KEY BELOW:");
+    LOG.atInfo().log(secretAccessKey);
+    LOG.atInfo().log("TOKEN BELOW:");
+    LOG.atInfo().log(token);
+    LOG.atInfo().log("EXPIRATION BELOW:");
+    LOG.atInfo().log(expiration);
+//
+//    accessKey = "ASIAZECTMMURTHSCJY5V";
+//    secretAccessKey = "TZcqqf9kAYb7vjsR71UKgGXOJ1I3tjMa9dfHZzLr";
+//    token = "IQoJb3JpZ2luX2VjEC0aCXVzLWVhc3QtMSJHMEUCIE+SyAUiHfvKauohd1EQHmVybmjPPA4Sl+R3RNPUZU67AiEAz5wEypdBxO9jwi8TrWRwNCSVQ0abb7bwo/c0bAR9SjUqngIIZRACGgw2MjcyNDAxMDExNTUiDFJMMIHjI3vwdE3NJyr7ASoIA63/8iM3m+E4THNsYDsgDIbwu/jWNi/D16+QGQ/IsMTro5H/nqyLXEnjBrCokNM9UboeYnschg+tcrAAyyBjqK6Ix9RtKHO6KbzEUg94a3CZk/ThZLkTyvyJrrkufLvQkFliQej32tnJakTNjLQ0eKNtVTxWvPDvneqwNl0MkKwgQVy/oeqaihXmBUmMJ7TKwiEeWq6C5MUPlxBATVtWfaJdGKB4N7+U8lbUA8r8AxT3JRKpgzA7gskiY0tSMkMQ+qH8xVRc1oMpFnWdQhnw4j9YKrqQsgsVQei1yNga3a1nwEBiRgTcK3adSuV1a/ZFw0m4pZPPMpUsMOiu5rAGOp0Bl46QgzWz9cMGjU2khz4WNKZWSEJyYle2anK1NGRvSQ6Npgk6OVc/S+nqb0UVEL64t7poiQ+V7m1kgM6CUt3QuN87YHiSQwcMfNmx+N8vVFh0o7t/WH8qmnlS3ehzpsqBKzOkYnq0JAM43FmQLE/ezmlovbsbwNajdThVIwIHwidd2l+skBrBWn2yQ66POHsmj3/o5eFfVD7a3SFvXw==";
+
+    // TODO: Convert TES expiration to uint_64 and include it, verify if needed
     auto credentialsForRequest = Aws::Crt::MakeShared<Aws::Crt::Auth::Credentials>(
             allocator,
             aws_byte_cursor_from_c_str(accessKey.c_str()),
             aws_byte_cursor_from_c_str(secretAccessKey.c_str()),
             aws_byte_cursor_from_c_str(token.c_str()),
-            std::stoull(expiration)
+            UINT64_MAX
     );
+
+    // printf(PRInSTR "\n", AWS_BYTE_BUF_PRI(aws_byte_cursor_from_c_str(accessKey.c_str()));
 
     // SigV4 Signer
     auto signer = Aws::Crt::MakeShared<Aws::Crt::Auth::Sigv4HttpRequestSigner>(allocator, allocator);
     Aws::Crt::Auth::AwsSigningConfig signingConfig(allocator);
     signingConfig.SetRegion(_logGroup.region.c_str());
-    signingConfig.SetSigningAlgorithm(Aws::Crt::Auth::SigningAlgorithm::SigV4A);
+    signingConfig.SetSigningAlgorithm(Aws::Crt::Auth::SigningAlgorithm::SigV4);
     signingConfig.SetSignatureType(Aws::Crt::Auth::SignatureType::HttpRequestViaHeaders);
     signingConfig.SetService("logs");
     signingConfig.SetSigningTimepoint(Aws::Crt::DateTime::Now());
-    signingConfig.SetUseDoubleUriEncode(false);
-    signingConfig.SetShouldNormalizeUriPath(true);
-    signingConfig.SetSignedBodyValue("");
-    signingConfig.SetSignedBodyHeader(Aws::Crt::Auth::SignedBodyHeaderType::XAmzContentSha256);
+    // signingConfig.SetSignedBodyValue(Aws::Crt::Auth::SignedBodyValue::UnsignedPayloadStr());
+    // signingConfig.SetUseDoubleUriEncode(false);
+    // signingConfig.SetShouldNormalizeUriPath(true);
+    // signingConfig.SetSignedBodyHeader(Aws::Crt::Auth::SignedBodyHeaderType::XAmzContentSha256);
     signingConfig.SetCredentials(credentialsForRequest);
 
     // Setup Connection TLS
@@ -243,7 +259,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
         auto logGroupRequest = Aws::Crt::MakeShared<Aws::Crt::Http::HttpRequest>(allocator);
         logGroupRequest->SetMethod(Aws::Crt::ByteCursorFromCString("POST"));
         //TODO: verify - not setting anything for the path and will reuse the uri for each request
-        logGroupRequest->SetPath(uri.GetPathAndQuery());
+        logGroupRequest->SetPath(uri.GetPath());
 
         Aws::Crt::Http::HttpRequestOptions requestOptions;
 
@@ -266,21 +282,27 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
                                                std::size_t) {
             logGroupResponseCode = stream.GetResponseStatusCode();
         };
+        std::stringstream receivedBody;
+        requestOptions.onIncomingBody = [&](Aws::Crt::Http::HttpStream &,
+                                            const Aws::Crt::ByteCursor &data) {
+            receivedBody.write((const char *) data.ptr, data.len);
+        };
 
-        Aws::Crt::Http::HttpHeader actionHeader;
-        actionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
-        actionHeader.value = Aws::Crt::ByteCursorFromCString("CreateLogGroup");
-        logGroupRequest->AddHeader(actionHeader);
+
+//        Aws::Crt::Http::HttpHeader actionHeader;
+//        actionHeader.name = Aws::Crt::ByteCursorFromCString("Action");
+//        actionHeader.value = Aws::Crt::ByteCursorFromCString("CreateLogGroup");
+//        logGroupRequest->AddHeader(actionHeader);
 
         //TODO: try this if action above doesn't work
-        //    Aws::Crt::Http::HttpHeader actionHeader;
-        //    actionHeader.name = Aws::Crt::ByteCursorFromCString("X-Amz-Target");
-        //    actionHeader.value = Aws::Crt::ByteCursorFromCString("Logs_20140328.CreateLogGroup");
-        //    request.AddHeader(actionHeader);
+        Aws::Crt::Http::HttpHeader actionHeader;
+        actionHeader.name = Aws::Crt::ByteCursorFromCString("X-Amz-Target");
+        actionHeader.value = Aws::Crt::ByteCursorFromCString("Logs_20140328.CreateLogGroup");
+        logGroupRequest->AddHeader(actionHeader);
 
-        logGroupRequest->AddHeader(versionHeader);
+        // logGroupRequest->AddHeader(versionHeader);
         logGroupRequest->AddHeader(contentHeader);
-        logGroupRequest->AddHeader(connectionHeader);
+        // logGroupRequest->AddHeader(connectionHeader);
         logGroupRequest->AddHeader(hostHeader);
 
         rapidjson::Document createLogGroupBody;
@@ -294,6 +316,9 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
         std::shared_ptr<Aws::Crt::Io::IStream> createLogGroupBodyStream =
             std::make_shared<std::istringstream>(logGroupRequestBodyStr);
         logGroupRequest->SetBody(createLogGroupBodyStream);
+
+        LOG.atInfo().log("ASLKFJLKGDLZJGGLFG");
+        LOG.atInfo().log(logGroupRequestBodyStr);
 
         // Sign the request
         LOG.atInfo().log("signing log group request");
@@ -320,6 +345,8 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
                                                        logGroupResponseCode).log();
         // TODO: check if log group exists instead of this
         logGroupCreated = true;
+
+        LOG.atInfo().log("Response body from HTTP request: " + receivedBody.str());
     }
 
     // Setup createLogStream request
@@ -494,9 +521,10 @@ void LogManager::processLogsAndUpload() {
     auto logFilePath = system.getValue<std::string>({"rootpath"})
                        + "/logs/greengrass.log";
 
-    std::string logGroupName =
-        "/aws/greengrass/" + _logGroup.componentType + "/" + _logGroup.region + "/" +
-        _logGroup.componentName;
+//    std::string logGroupName =
+//        "/aws/greengrass/" + _logGroup.componentType + "/" + _logGroup.region + "/" +
+//        _logGroup.componentName;
+    std::string logGroupName = "gglitelogmanager";
     std::string logStreamName = "/" + _logStream.date + "/thing/" +
                                 std::string(_logStream.thingName.c_str());
 
