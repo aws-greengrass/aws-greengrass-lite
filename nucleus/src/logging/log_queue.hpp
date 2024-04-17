@@ -29,6 +29,7 @@ namespace logging {
 
     private:
         mutable std::mutex _mutex;
+        mutable std::mutex _drainMutex;
         std::thread _thread;
         std::list<QueueEntry> _entries;
         std::condition_variable _wake;
