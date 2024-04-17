@@ -42,13 +42,11 @@ namespace logging {
     public:
         using scope::UsesContext::UsesContext;
         ~LogQueue() noexcept;
-        void publish(
-            const std::shared_ptr<LogState> &state,
-            const std::shared_ptr<data::StructModelBase> &entry);
+        void publish(std::shared_ptr<LogState> state, std::shared_ptr<data::StructModelBase> entry);
         void reconfigure(const std::shared_ptr<LogState> &state);
         std::optional<QueueEntry> pickupEntry();
         void processEntry(const QueueEntry &entry);
-        void setWatch(const std::function<bool(const QueueEntry &entry)> &fn);
+        void setWatch(std::function<bool(const QueueEntry &entry)> fn);
         void stop();
         void publishThread();
         bool drainQueue();

@@ -5,14 +5,13 @@
 namespace logging {
 
     void LogQueue::publish(
-        const std::shared_ptr<LogState> &state,
-        const std::shared_ptr<data::StructModelBase> &entry) {
+        std::shared_ptr<LogState> state, std::shared_ptr<data::StructModelBase> entry) {
 
         std::unique_lock guard{_mutex};
         if(_terminate.load()) {
             return; // if terminating, drop everything
         }
-        _entries.emplace_back(state, entry);
+        _entries.emplace_back(std::move(state), std::move(entry));
         if(!_running.exchange(true)) {
             _thread = std::thread(&LogQueue::publishThread, this);
         }
@@ -71,18 +70,18 @@ namespace logging {
         return entry;
     }
 
-    void LogQueue::setWatch(const std::function<bool(const QueueEntry &entry)> &fn) {
-
+    void LogQueue::setWatch(std::function<bool(const QueueEntry &entry)> fn) {
         std::unique_lock guard{_mutex};
-        _watch = fn;
-        _watching = static_cast<bool>(fn);
+        _watching.store(static_cast<bool>(fn));
+        _watch = std::move(fn);
     }
 
     void LogQueue::processEntry(const QueueEntry &entry) {
         if(_watching) {
+            const auto fn = [this]() {
             std::unique_lock guard{_mutex};
-            const auto &fn = _watch;
-            guard.unlock();
+                return _watch;
+            }();
             if(fn) {
                 bool resume = fn(entry);
                 if(!resume) {
@@ -92,7 +91,7 @@ namespace logging {
         }
         if(entry.second) {
             // only used in this thread
-            _needsSync.insert(entry.first->getContextName());
+            _needsSync.emplace(entry.first->getContextName());
             entry.first->writeLog(entry.second);
         } else {
             entry.first->changeOutput();
@@ -104,7 +103,7 @@ namespace logging {
         auto ctx = context();
         if(ctx) {
             auto &logMgr = ctx->logManager();
-            for(auto &name : _needsSync) {
+            for(const auto &name : _needsSync) {
                 auto state = logMgr.getState(name);
                 if(state) {
                     state->syncOutput();
