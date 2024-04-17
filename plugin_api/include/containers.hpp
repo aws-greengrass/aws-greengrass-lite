@@ -4,6 +4,8 @@
 #include "buffer_stream.hpp"
 #include "c_api.hpp"
 #include "handles.hpp"
+#include "util.hpp"
+#include <optional>
 #include <span.hpp>
 #include <variant>
 
@@ -189,12 +191,13 @@ namespace ggapi {
             if constexpr(std::is_same_v<bool, T>) {
                 return callApiReturn<bool>([this]() { return ::ggapiUnboxBool(asId()); });
             } else if constexpr(std::is_integral_v<T>) {
-                auto intv = callApiReturn<uint64_t>([this]() { return ::ggapiUnboxInt64(asId()); });
-                return static_cast<T>(intv);
+                auto intVal =
+                    callApiReturn<uint64_t>([this]() { return ::ggapiUnboxInt64(asId()); });
+                return static_cast<T>(intVal);
             } else if constexpr(std::is_floating_point_v<T>) {
-                auto floatv =
+                auto floatVal =
                     callApiReturn<double>([this]() { return ::ggapiUnboxFloat64(asId()); });
-                return static_cast<T>(floatv);
+                return static_cast<T>(floatVal);
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                 return callApiReturnHandle<T>([this]() { return ::ggapiUnboxHandle(asId()); });
             } else if constexpr(std ::is_assignable_v<T, std::string>) {
@@ -315,13 +318,13 @@ namespace ggapi {
                 return callApiReturn<bool>(
                     [this, idx]() { return ::ggapiListGetBool(asId(), idx); });
             } else if constexpr(std::is_integral_v<T>) {
-                auto intv = callApiReturn<uint64_t>(
+                auto intVal = callApiReturn<uint64_t>(
                     [this, idx]() { return ::ggapiListGetInt64(asId(), idx); });
-                return static_cast<T>(intv);
+                return static_cast<T>(intVal);
             } else if constexpr(std::is_floating_point_v<T>) {
-                auto floatv = callApiReturn<double>(
+                auto floatVal = callApiReturn<double>(
                     [this, idx]() { return ::ggapiListGetFloat64(asId(), idx); });
-                return static_cast<T>(floatv);
+                return static_cast<T>(floatVal);
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                 return callApiReturnHandle<T>(
                     [this, idx]() { return ::ggapiListGetHandle(asId(), idx); });
@@ -472,13 +475,13 @@ namespace ggapi {
                 return callApiReturn<bool>(
                     [this, key]() { return ::ggapiStructGetBool(asId(), key.asInt()); });
             } else if constexpr(std::is_integral_v<T>) {
-                auto intv = callApiReturn<uint64_t>(
+                auto intVal = callApiReturn<uint64_t>(
                     [this, key]() { return ::ggapiStructGetInt64(asId(), key.asInt()); });
-                return static_cast<T>(intv);
+                return static_cast<T>(intVal);
             } else if constexpr(std::is_floating_point_v<T>) {
-                auto floatv = callApiReturn<double>(
+                auto floatVal = callApiReturn<double>(
                     [this, key]() { return ::ggapiStructGetFloat64(asId(), key.asInt()); });
-                return static_cast<T>(floatv);
+                return static_cast<T>(floatVal);
             } else if constexpr(std::is_base_of_v<ObjHandle, T>) {
                 return callApiReturnHandle<T>(
                     [this, key]() { return ::ggapiStructGetHandle(asId(), key.asInt()); });

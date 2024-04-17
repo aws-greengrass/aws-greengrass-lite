@@ -91,24 +91,24 @@ namespace util {
     class BufferStreamBase : public std::streambuf {
 
         Buffer _buffer;
-        pos_type _inpos{0}; // unbuffered position
-        pos_type _outpos{0};
-        std::vector<char> _inbuf;
-        std::vector<char> _outbuf;
+        pos_type _inPos{0}; // unbuffered position
+        pos_type _outPos{0};
+        std::vector<char> _inBuf;
+        std::vector<char> _outBuf;
         static constexpr uint32_t BUFFER_SIZE{256};
 
         int32_t inAsInt(uint32_t limit = std::numeric_limits<int32_t>::max()) {
-            if(_inpos > limit) {
+            if(_inPos > limit) {
                 throw std::invalid_argument("Seek position beyond limit");
             }
-            return static_cast<int32_t>(_inpos);
+            return static_cast<int32_t>(_inPos);
         }
 
         int32_t outAsInt(uint32_t limit = std::numeric_limits<int32_t>::max()) {
-            if(_outpos > limit) {
+            if(_outPos > limit) {
                 throw std::invalid_argument("Seek position beyond limit");
             }
-            return static_cast<int32_t>(_outpos);
+            return static_cast<int32_t>(_outPos);
         }
 
         bool readMore() {
@@ -122,8 +122,8 @@ namespace util {
             std::vector<char> temp(std::min(end - pos, BUFFER_SIZE));
             auto didRead = _buffer.get(pos, temp);
             if(didRead > 0) {
-                _inbuf = std::move(temp);
-                auto span = util::Span{_inbuf};
+                _inBuf = std::move(temp);
+                auto span = util::Span{_inBuf};
                 setg(span.begin(), span.begin(), span.end());
                 return true;
             } else {
@@ -133,21 +133,21 @@ namespace util {
 
         void flushWrite() {
 
-            if(!_outbuf.empty()) {
+            if(!_outBuf.empty()) {
                 if(unflushed() > 0) {
                     int32_t pos = outAsInt();
                     _buffer.put(pos, util::Span{pbase(), unflushed()});
-                    _outpos += unflushed();
+                    _outPos += unflushed();
                 }
-                _outbuf.clear();
+                _outBuf.clear();
                 setp(nullptr, nullptr);
             }
         }
 
         void flushRead() {
-            if(!_inbuf.empty()) {
-                _inpos += consumed();
-                _inbuf.clear();
+            if(!_inBuf.empty()) {
+                _inPos += consumed();
+                _inBuf.clear();
                 setg(nullptr, nullptr, nullptr);
             }
         }
@@ -165,13 +165,13 @@ namespace util {
         }
 
         pos_type eInPos() {
-            return _inpos + static_cast<pos_type>(consumed());
+            return _inPos + static_cast<pos_type>(consumed());
         }
 
         void prepareWrite() {
             flushWrite();
-            _outbuf.resize(BUFFER_SIZE);
-            auto span = util::Span{_outbuf};
+            _outBuf.resize(BUFFER_SIZE);
+            auto span = util::Span{_outBuf};
             setp(span.begin(), span.end());
         }
 
@@ -211,18 +211,18 @@ namespace util {
             if(_seekIn && _seekOut) {
                 flushRead();
                 flushWrite();
-                _outpos = _inpos = seek(_outpos, pos, seekdir);
-                return _outpos;
+                _outPos = _inPos = seek(_outPos, pos, seekdir);
+                return _outPos;
             }
             if(_seekIn) {
                 flushRead();
-                _inpos = seek(_inpos, pos, seekdir);
-                return _inpos;
+                _inPos = seek(_inPos, pos, seekdir);
+                return _inPos;
             }
             if(_seekOut) {
                 flushWrite();
-                _outpos = seek(_outpos, pos, seekdir);
-                return _outpos;
+                _outPos = seek(_outPos, pos, seekdir);
+                return _outPos;
             }
             return std::streambuf::seekoff(pos, seekdir, openmode);
         }
@@ -259,7 +259,7 @@ namespace util {
             if(eInPos() == 0) {
                 return traits_type::eof();
             }
-            _inpos -= 1;
+            _inPos -= 1;
             if(traits_type::not_eof(c)) {
                 auto cc = static_cast<char_type>(c);
                 _buffer.put(inAsInt(), std::basic_string_view(&cc, 1));

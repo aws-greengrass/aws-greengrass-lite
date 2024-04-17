@@ -223,7 +223,7 @@ namespace ggapi {
         }
 
         /**
-         * Close - interpretation depends on type of object, by default it's an alias of reset()
+         * close - interpretation depends on type of object, by default it's an alias of reset()
          */
         void close() {
             if(*this) {

@@ -27,8 +27,7 @@ namespace config {
         std::atomic_bool _terminate{false};
 
     public:
-        explicit PublishQueue(const scope::UsingContext &context) : scope::UsesContext(context) {
-        }
+        using scope::UsesContext::UsesContext;
         void publish(PublishAction action);
         void start();
         void stop();

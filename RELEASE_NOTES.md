@@ -1,3 +1,41 @@
+## 2024-04-12
+
+Features:
+
+- `-DGGLITE_PLATFORM=posix` can be passed to cmake to build for 32-bit systems
+  and/or older kernels.
+- Greengrass Lite devices now show up on the AWS IoT console web interface under
+  Manage > Greengrass devices > Core devices, alongside Greengrass Java devices.
+- Generic components' lifecycles and recipe steps are handled by the
+  `gen_component_loader` plugin.
+- Bundling GG Lite dynamic dependencies now works correctly on systems that use
+  lib64 by default instead of lib.
+
+Note:
+
+- The `posixUser` configuration now needs to be configured to a valid value for
+  generic components to run (can be the user/group Greengrass is running as).
+  See `sample/nucleus_config.yml` for an example.
+
+Known bugs:
+
+- In occasional builds, the IPC server fails to handle incoming connections;
+  this is currently being investigated. If you can reproduce this, let us know.
+- Extending a recipe’s script section using default configuration is currently
+  not supported
+
+## 2024-03-29
+
+- Fixed bug causing hang when loading plugins in certain optimized builds.
+- Installables now also have RUNPATH set in addition to RPATHs.
+- OpenSSL's libcrypto is used when available; aws-lc is now the fallback.
+- Debuginfo is now compressed in Debug and RelWithDebInfo builds.
+- All plugins now have RPATH/RUNPATH set.
+- Additional env variables are set for generic components.
+- Plugins can now load in dependency order.
+- Script timeouts are now handled.
+- Runtime dependencies can be bundled into the Greengrass install dir
+
 ## 2024-03-07
 
 - Fix conflicts with aws-device-sdk-cpp-v2 api handles

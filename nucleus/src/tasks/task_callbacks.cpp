@@ -4,6 +4,8 @@
 #include "pubsub/promise.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task.hpp"
+#include <exception>
+#include <memory>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
     logging::Logger::of("com.aws.greengrass.tasks.RegisteredCallback");
@@ -62,23 +64,23 @@ namespace tasks {
     }
 
     std::shared_ptr<pubsub::Future> TopicCallbackData::retVal() const {
-        if(_packed.ret != 0) {
-            auto obj = scope::context()->objFromInt<data::TrackedObject>(_packed.ret);
-            auto asFuture = std::dynamic_pointer_cast<pubsub::FutureBase>(obj);
-            if(asFuture != nullptr) {
-                return asFuture->getFuture();
-            }
-            try {
-                auto asContainer = obj->ref<data::ContainerModelBase>();
-                auto promise = std::make_shared<pubsub::Promise>(scope::Context::get());
-                promise->setValue(asContainer);
-                return promise->getFuture();
-            } catch(std::bad_cast &) {
-                throw data::ContainerModelBase::BadCastError();
-            }
-        } else {
+        if(_packed.ret == 0) {
             return {};
         }
+        auto ctx = scope::context();
+        auto obj = ctx->objFromInt<data::TrackedObject>(_packed.ret);
+        auto asFuture = std::dynamic_pointer_cast<pubsub::FutureBase>(obj);
+        if(asFuture == nullptr) {
+            auto promise = std::make_shared<pubsub::Promise>(ctx);
+            try {
+                auto cont = obj->ref<data::ContainerModelBase>();
+                promise->setValue(cont);
+                return promise->getFuture();
+            } catch(const std::bad_cast &) {
+                throw data::ContainerModelBase::BadCastError{};
+            }
+        }
+        return asFuture->getFuture();
     }
 
     data::Symbol AsyncCallbackData::asyncType() {
@@ -103,7 +105,7 @@ namespace tasks {
         return future;
     }
 
-    FutureCallbackData::FutureCallbackData(const std::shared_ptr<pubsub::Future> &future)
+    FutureCallbackData::FutureCallbackData(const std::shared_ptr<pubsub::FutureBase> &future)
         : CallbackPackedData(futureType()) {
 
         _packed.futureHandle = scope::asIntHandle(future);
@@ -152,10 +154,10 @@ namespace tasks {
     }
 
     ChannelListenCallbackData::ChannelListenCallbackData(
-        const std::shared_ptr<data::ContainerModelBase> &data)
+        const std::shared_ptr<data::TrackedObject> &obj)
         : CallbackPackedData(channelListenCallbackType()) {
 
-        _packed.data = scope::asIntHandle(data);
+        _packed.objHandle = scope::asIntHandle(obj);
     }
 
     uint32_t ChannelListenCallbackData::size() const {
@@ -184,7 +186,7 @@ namespace tasks {
         return &_packed;
     }
 
-    std::shared_ptr<pubsub::Future> RegisteredCallback::invokeTopicCallback(
+    std::shared_ptr<pubsub::FutureBase> RegisteredCallback::invokeTopicCallback(
         const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data) {
 
         if(_callbackType != context()->intern("topic")) {
@@ -194,7 +196,16 @@ namespace tasks {
         scope::TempRoot tempRoot;
         plugins::CurrentModuleScope moduleScope(getModule());
         tasks::TopicCallbackData packed{topic, data};
-        invoke(packed);
+        try {
+            // An exception thrown here is (should be) result of an error in the callback itself
+            // For consistency, rewrap into a future
+            invoke(packed);
+        } catch(...) {
+            auto promise = std::make_shared<pubsub::Promise>(context());
+            promise->setError(std::current_exception());
+            return promise->getFuture();
+        }
+        // Other exceptions may occur due to (e.g.) bad handle
         return packed.retVal();
     }
 
@@ -210,7 +221,8 @@ namespace tasks {
         invoke(packed);
     }
 
-    void RegisteredCallback::invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future) {
+    void RegisteredCallback::invokeFutureCallback(
+        const std::shared_ptr<pubsub::FutureBase> &future) {
 
         if(_callbackType != context()->intern("future")) {
             throw std::runtime_error("Mismatched callback");
@@ -238,8 +250,8 @@ namespace tasks {
         return packed.retVal();
     }
 
-    std::shared_ptr<pubsub::Future> Callback::invokeTopicCallback(
-        const data::Symbol &topic, const std::shared_ptr<data::ContainerModelBase> &data) {
+    std::shared_ptr<pubsub::FutureBase> Callback::invokeTopicCallback(
+        const data::Symbol &, const std::shared_ptr<data::ContainerModelBase> &) {
         throw std::runtime_error("Mismatched callback");
     }
 
@@ -247,26 +259,25 @@ namespace tasks {
         throw std::runtime_error("Mismatched callback");
     }
 
-    void Callback::invokeFutureCallback(const std::shared_ptr<pubsub::Future> &future) {
+    void Callback::invokeFutureCallback(const std::shared_ptr<pubsub::FutureBase> &) {
         throw std::runtime_error("Mismatched callback");
     }
 
     bool Callback::invokeLifecycleCallback(
-        const std::shared_ptr<plugins::AbstractPlugin> &module,
-        const data::Symbol &phase,
-        const std::shared_ptr<data::ContainerModelBase> &data) {
+        const std::shared_ptr<plugins::AbstractPlugin> &,
+        const data::Symbol &,
+        const std::shared_ptr<data::ContainerModelBase> &) {
         throw std::runtime_error("Mismatched callback");
     }
 
-    void Callback::invokeChannelListenCallback(
-        const std::shared_ptr<data::ContainerModelBase> &data) {
+    void Callback::invokeChannelListenCallback(const std::shared_ptr<data::TrackedObject> &) {
         throw std::runtime_error("Mismatched callback");
     }
     void Callback::invokeChannelCloseCallback() {
         throw std::runtime_error("Mismatched callback");
     }
     void RegisteredCallback::invokeChannelListenCallback(
-        const std::shared_ptr<data::ContainerModelBase> &data) {
+        const std::shared_ptr<data::TrackedObject> &obj) {
 
         if(_callbackType != context()->intern("channelListen")) {
             throw std::runtime_error("Mismatched callback");
@@ -274,7 +285,7 @@ namespace tasks {
 
         scope::TempRoot tempRoot;
         plugins::CurrentModuleScope moduleScope(getModule());
-        tasks::ChannelListenCallbackData packed{data};
+        tasks::ChannelListenCallbackData packed{obj};
         invoke(packed);
     }
     void RegisteredCallback::invokeChannelCloseCallback() {

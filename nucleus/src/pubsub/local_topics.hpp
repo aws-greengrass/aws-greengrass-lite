@@ -21,7 +21,7 @@ namespace data {
 }
 
 namespace pubsub {
-    class Future;
+    class FutureBase;
     class Listeners;
     class PubSubManager;
 
@@ -47,7 +47,7 @@ namespace pubsub {
             data::Symbol topicOrd,
             const std::shared_ptr<Listeners> &listeners,
             const std::shared_ptr<tasks::Callback> &callback);
-        std::shared_ptr<pubsub::Future> call(
+        std::shared_ptr<pubsub::FutureBase> call(
             const std::shared_ptr<data::ContainerModelBase> &dataIn);
         void close() override;
         void closeImpl() noexcept;
@@ -86,8 +86,7 @@ namespace pubsub {
     //
     class PubSubManager : private scope::UsesContext {
     private:
-        scope::SharedContextMapper _symbolMapper;
-        data::SymbolValueMap<std::shared_ptr<Listeners>> _topics{_symbolMapper};
+        data::SymbolValueMap<std::shared_ptr<Listeners>> _topics{context()};
         mutable std::shared_mutex _mutex;
 
         std::shared_mutex &managerMutex() {
@@ -99,9 +98,7 @@ namespace pubsub {
         friend class Listener;
 
     public:
-        explicit PubSubManager(const scope::UsingContext &context)
-            : scope::UsesContext(context), _symbolMapper(context) {
-        }
+        using scope::UsesContext::UsesContext;
 
         void cleanup();
         // if listeners exist for a given topic, return those listeners
@@ -111,9 +108,9 @@ namespace pubsub {
         // subscribe a new listener to a callback
         std::shared_ptr<Listener> subscribe(
             data::Symbol topic, const std::shared_ptr<tasks::Callback> &callback);
-        std::shared_ptr<Future> callFirst(
+        std::shared_ptr<FutureBase> callFirst(
             data::Symbol topic, const std::shared_ptr<data::ContainerModelBase> &dataIn);
-        std::vector<std::shared_ptr<Future>> callAll(
+        std::vector<std::shared_ptr<FutureBase>> callAll(
             data::Symbol topic, const std::shared_ptr<data::ContainerModelBase> &dataIn);
     };
 

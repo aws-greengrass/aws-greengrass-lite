@@ -19,6 +19,7 @@ let
     "/dependencies.json"
     "/nucleus"
     "/plugin_api"
+    "/gg_pal"
     "/plugins"
     "/utils/cmake"
   ]);
@@ -62,6 +63,8 @@ let
       "-DCMAKE_COMPILE_WARNING_AS_ERROR=1"
       "-DBUILD_TESTING=1"
       "-DCMAKE_INSTALL_PREFIX=/tmp/install"
+      "-DCMAKE_INSTALL_BINDIR=/tmp/install/bin"
+      "-DCMAKE_INSTALL_LIBDIR=/tmp/install/lib"
     ];
     dontAddPrefix = true;
   } // lib.optionalAttrs stdenv.isDarwin {
@@ -111,4 +114,5 @@ stdenv.mkDerivation (commonArgs // {
   postInstall = ''
     mv /tmp/install $out
   '';
+  passthru = { inherit buildDir; };
 })

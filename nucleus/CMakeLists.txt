@@ -5,6 +5,7 @@ project(nucleus-core)
 include(../common.cmake)
 
 add_subdirectory(../plugin_api plugin_api EXCLUDE_FROM_ALL)
+add_subdirectory(../gg_pal/ gg_pal EXCLUDE_FROM_ALL)
 
 find_package(Threads REQUIRED)
 
@@ -50,6 +51,7 @@ add_library(
   src/config/transaction_log.cpp
   src/config/transaction_log.hpp
   src/config/watcher.hpp
+  src/config/update_behavior_tree.hpp
   src/config/yaml_config.cpp
   src/config/yaml_config.hpp
   src/conv/json_conv.cpp
@@ -60,6 +62,8 @@ add_library(
   src/data/handle_table.cpp
   src/data/handle_table.hpp
   src/data/safe_handle.hpp
+  src/data/generic_serializer.cpp
+  src/data/generic_serializer.hpp
   src/data/serializable.cpp
   src/data/serializable.hpp
   src/data/shared_buffer.cpp
@@ -123,10 +127,6 @@ add_library(
   src/pubsub/promise.hpp
   src/scope/context.cpp
   src/scope/context.hpp
-  src/platform_abstraction/abstract_process.hpp
-  src/platform_abstraction/abstract_process_manager.hpp
-  src/platform_abstraction/env.hpp
-  src/platform_abstraction/startable.hpp
   src/scope/context_full.hpp
   src/scope/context_glob.hpp
   src/scope/fixed_pointer.hpp
@@ -152,34 +152,9 @@ add_library(
   src/deployment/task/task_handlers/task_handler.hpp
   src/deployment/task/task_handlers/validate_deployment_handler.hpp)
 
-if(LINUX)
-  target_sources(
-    nucleus-obj
-    PRIVATE src/platform_abstraction/linux/error.hpp
-            src/platform_abstraction/linux/file_descriptor.cpp
-            src/platform_abstraction/linux/file_descriptor.hpp
-            src/platform_abstraction/linux/permissions.cpp
-            src/platform_abstraction/linux/permissions.hpp
-            src/platform_abstraction/linux/pipe.cpp
-            src/platform_abstraction/linux/pipe.hpp
-            src/platform_abstraction/linux/process.cpp
-            src/platform_abstraction/linux/process.hpp
-            src/platform_abstraction/linux/process_manager.cpp
-            src/platform_abstraction/linux/process_manager.hpp
-            src/platform_abstraction/linux/rlimits.cpp
-            src/platform_abstraction/linux/rlimits.hpp
-            src/platform_abstraction/linux/startable.cpp
-            src/platform_abstraction/linux/syscall.hpp)
-else()
-  target_sources(
-    nucleus-obj
-    PRIVATE src/platform_abstraction/stub/startable.cpp
-            src/platform_abstraction/stub/process_manager.hpp
-            src/platform_abstraction/stub/process.hpp)
-endif()
-
-target_link_libraries(nucleus-obj PUBLIC gg_plugin_api_min Threads::Threads
-                                         ${CMAKE_DL_LIBS} yaml-cpp)
+target_link_libraries(
+  nucleus-obj PUBLIC gg_plugin_api_min gg_pal Threads::Threads ${CMAKE_DL_LIBS}
+                     yaml-cpp)
 target_include_directories(nucleus-obj PUBLIC include src)
 target_include_directories(nucleus-obj SYSTEM
                            PUBLIC ${rapidjson_SOURCE_DIR}/include)
@@ -194,6 +169,8 @@ target_link_libraries(
 
 target_include_directories(nucleus-core PUBLIC include)
 
+configureRPATH(nucleus-core)
+
 # Executable
 
 add_executable(greengrass-lite stub/main.c)
@@ -201,8 +178,12 @@ target_link_libraries(greengrass-lite nucleus-core)
 
 configureRPATH(greengrass-lite)
 
-install(TARGETS greengrass-lite DESTINATION bin)
-install(TARGETS nucleus-core DESTINATION lib)
+install(TARGETS greengrass-lite nucleus-core RUNTIME_DEPENDENCY_SET
+                nucleus-deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET nucleus-deps)
+endif()
 
 # Tests
 

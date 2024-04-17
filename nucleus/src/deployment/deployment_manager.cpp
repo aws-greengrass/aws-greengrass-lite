@@ -1,9 +1,12 @@
 #include "deployment_manager.hpp"
+#include "containers.hpp"
+#include "data/shared_struct.hpp"
 #include "lifecycle/kernel.hpp"
 #include "logging/log_queue.hpp"
 #include "scope/context_full.hpp"
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <regex>
 #include <stdexcept>
 #include <string_util.hpp>
@@ -160,6 +163,7 @@ namespace deployment {
         for(const auto &entry : iter) {
             if(!entry.is_directory()) {
                 Recipe recipe = loadRecipeFile(entry);
+                _recipeAsStruct = loadRecipeFileAsStruct(entry);
                 saveRecipeFile(recipe);
                 auto semVer = recipe.componentName + "-v" + recipe.componentVersion;
                 const std::hash<std::string> hasher;
@@ -179,6 +183,15 @@ namespace deployment {
     Recipe DeploymentManager::loadRecipeFile(const std::filesystem::path &recipeFile) {
         try {
             return _recipeLoader.read(recipeFile);
+        } catch(std::exception &e) {
+            LOG.atWarn("deployment").kv("DeploymentType", "LOCAL").logAndThrow(e);
+        }
+    }
+
+    std::shared_ptr<data::SharedStruct> DeploymentManager::loadRecipeFileAsStruct(
+        const std::filesystem::path &recipeFile) {
+        try {
+            return _recipeLoader.readAsStruct(recipeFile);
         } catch(std::exception &e) {
             LOG.atWarn("deployment").kv("DeploymentType", "LOCAL").logAndThrow(e);
         }
@@ -209,10 +222,10 @@ namespace deployment {
     }
 
     void DeploymentManager::runDeploymentTask() {
-        using Environment = std::unordered_map<std::string, std::optional<std::string>>;
-        // TODO: More streamlined deployment task
-        // TODO: Get non-target group to root packages group
-        // TODO: Component manager - resolve version, prepare packages, ...
+        // using Environment = std::unordered_map<std::string, std::optional<std::string>>;
+        //  TODO: More streamlined deployment task
+        //  TODO: Get non-target group to root packages group
+        //  TODO: Component manager - resolve version, prepare packages, ...
         const auto &currentDeployment = _deploymentQueue->next();
         const auto &currentRecipe = _componentStore->next();
 
@@ -240,12 +253,23 @@ namespace deployment {
         // TODO: This needs to be a generic map compare
         auto manifests = currentRecipe.getManifests();
 
-        auto it = std::find_if(manifests.begin(), manifests.end(), [](const auto &manifest) {
+        /*
+        Manifests:
+        - Platform:
+            nucleus: java
+            Artifacts:
+            - URI: s3://mock-bucket/java/java-stuff.zip
+            - URI: s3://mock-bucket/shared/shared.zip
+            Selections:
+            - java
+        */
+        auto iterator = std::find_if(manifests.begin(), manifests.end(), [](const auto &manifest) {
             return manifest.platform.os.empty() || manifest.platform.os == PLATFORM_NAME
                    || manifest.platform.os == "*";
         });
+
         // TODO: and the nucleus type is lite?
-        if(it == manifests.end()) {
+        if(iterator == manifests.end()) {
             LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
@@ -254,131 +278,44 @@ namespace deployment {
             return;
         }
 
-        LifecycleSection lifecycle;
-        data::archive::readFromStruct(it->lifecycle, lifecycle);
+        auto index = std::distance(manifests.begin(), iterator);
 
-        // set global env
-        Environment globalEnv;
-        if(lifecycle.envMap.has_value()) {
-            globalEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
-        }
+        auto selectedManifest = _recipeAsStruct->get(_recipeAsStruct->foldKey("Manifests", true)).castObject<data::ListModelBase>()->get(index).castObject<data::StructModelBase>();
 
-        // TODO: Lifecycle management
-        std::array<std::pair<std::optional<ScriptSection> *, std::string_view>, 4> sections = {
-            std::pair(&lifecycle.install, "install"),
-            std::pair(&lifecycle.run, "run"),
-            std::pair(&lifecycle.startup, "startup"),
-            std::pair(&lifecycle.shutdown, "shutdown") /*, "recover", "bootstrap" */};
-        for(auto &section : sections) {
-            if(section.first->has_value()) {
-                using namespace std::chrono_literals;
-                auto &step = section.first->value();
-                std::string stepName{section.second};
+        std::cout<< selectedManifest->toJson().get()<<std::endl;
 
-                // execute each lifecycle phase
-                auto deploymentRequest = ggapi::Struct::create();
+        auto context = scope::context();
 
-                if(step.skipIf.has_value()) {
-                    auto skipIf = util::splitWith(step.skipIf.value(), ' ');
-                    if(!skipIf.empty()) {
-                        std::string cmd = util::lower(skipIf[0]);
-                        // skip the step if the executable exists on path
-                        if(cmd == on_path_prefix) {
-                            const auto &executable = skipIf[1];
-                            // TODO: This seems so odd here? - code does nothing
-                            auto envList = ggapi::List::create();
-                            envList.put(0, executable);
-                            auto request = ggapi::Struct::create();
-                            request.put("GetEnv", envList);
-                            // TODO: Skipif
-                        }
-                        // skip the step if the file exists
-                        else if(cmd == exists_prefix) {
-                            if(std::filesystem::exists(skipIf[1])) {
-                                return;
-                            }
-                        }
-                        // TODO: what if sub-command not recognized?
-                    }
-                }
+        auto data_pack = std::make_shared<data::SharedStruct>(context);
 
-                auto pid = std::invoke([&]() -> ipc::ProcessId {
-                    // TODO: This needs a cleanup
+        data_pack->put("recipe", _recipeAsStruct);
+        data_pack->put("manifest", selectedManifest);
+        data_pack->put("componentName", currentRecipe.componentName);
+        data_pack->put("deploymentId", currentDeployment.id);
+        data_pack->put("artifactPath", artifactPath.generic_string());
+        data_pack->put("defaultConfig", defaultConfig);
 
-                    auto getSetEnv =
-                        [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
-                        Environment localEnv;
-                        if(lifecycle.envMap.has_value()) {
-                            localEnv.insert(lifecycle.envMap->begin(), lifecycle.envMap->end());
-                        }
-                        // Append global entries where local entries do not exist
-                        localEnv.insert(globalEnv.begin(), globalEnv.end());
-                        return localEnv;
-                    };
+        auto install = _recipeAsStruct->get("ComponentPublisher");
 
-                    // script
-                    auto getScript = [&]() -> std::string {
-                        auto script = std::regex_replace(
-                            step.script,
-                            std::regex(R"(\{artifacts:path\})"),
-                            artifactPath.string());
+        data::Symbol topic{context->intern("componentType::aws.greengrass.generic")};
+        auto future = context->lpcTopics().callFirst(topic, data_pack);
 
-                        if(defaultConfig && !defaultConfig->empty()) {
-                            for(auto key : defaultConfig->getKeys()) {
-                                auto value = defaultConfig->get(key);
-                                if(value.isScalar()) {
-                                    script = std::regex_replace(
-                                        script,
-                                        std::regex(R"(\{configuration:\/)" + key + R"(\})"),
-                                        value.getString());
-                                }
-                            }
-                        }
+        auto response = future->waitUntil(tasks::ExpireTime::infinite());
+        if(response) {
+            auto responeContainer = future->getValue();
+            auto responseStruct =
+                std::dynamic_pointer_cast<data::StructModelBase>(responeContainer);
+            auto newComponent =
+                responseStruct->get("moduleHandle").castObject<plugins::AbstractPlugin>();
+            newComponent->initialize(context->pluginLoader());
+            newComponent->invoke([&](plugins::AbstractPlugin &newComponent, auto &data) {
+                newComponent.lifecycle(context->pluginLoader().INITIALIZE, data);
+            });
 
-                        return script;
-                    };
+            newComponent->invoke([&](plugins::AbstractPlugin &newComponent, auto &data) {
+                newComponent.lifecycle(context->pluginLoader().START, data);
+            });
 
-                    bool requirePrivilege = false;
-                    // TODO: get default per step (each step has a different default timeout)
-                    // https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html
-                    static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
-                    std::chrono::seconds timeout = DEFAULT_TIMEOUT;
-
-                    // privilege
-                    if(step.requiresPrivilege.has_value() && step.requiresPrivilege.value()) {
-                        requirePrivilege = true;
-                        deploymentRequest.put("RequiresPrivilege", requirePrivilege);
-                    }
-
-                    // timeout
-                    if(step.timeout.has_value()) {
-                        deploymentRequest.put("Timeout", step.timeout.value());
-                        timeout = std::chrono::seconds{step.timeout.value()};
-                    }
-
-                    return _kernel.startProcess(
-                        getScript(),
-                        timeout,
-                        requirePrivilege,
-                        getSetEnv(),
-                        currentRecipe.componentName);
-                });
-
-                if(pid) {
-                    LOG.atInfo("deployment")
-                        .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
-                        .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
-                        .kv("DeploymentType", "LOCAL")
-                        .log("Executed " + stepName + " step of the lifecycle");
-                } else {
-                    LOG.atError("deployment")
-                        .kv(DEPLOYMENT_ID_LOG_KEY, currentDeployment.id)
-                        .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, currentDeployment.id)
-                        .kv("DeploymentType", "LOCAL")
-                        .log("Failed to execute " + stepName + " step of the lifecycle");
-                    return; // if any of the lifecycle step fails, stop the deployment
-                }
-            }
         }
 
         // gets here only if all lifecycle steps are executed successfully

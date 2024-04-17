@@ -167,8 +167,7 @@ namespace conv {
         std::vector<std::unique_ptr<JsonResponder>> _responders;
 
     public:
-        explicit JsonReader(const scope::UsingContext &context) : scope::UsesContext(context) {
-        }
+        using scope::UsesContext::UsesContext;
 
         [[nodiscard]] rapidjson::ParseResult read(std::ifstream &stream);
         [[nodiscard]] rapidjson::ParseResult readStream(std::istream &stream);

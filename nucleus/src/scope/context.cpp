@@ -65,8 +65,8 @@ namespace scope {
     }
 
     std::shared_ptr<Context> Context::getDefaultContext() {
-        static std::shared_ptr<Context> deflt{create()};
-        return deflt;
+        static std::shared_ptr<Context> defaultCtx{create()};
+        return defaultCtx;
     }
 
     std::shared_ptr<Context> Context::get() {
@@ -169,8 +169,16 @@ namespace scope {
         return prev;
     }
 
-    TempRoot::TempRoot()
-        : _temp(std::make_shared<data::RootHandle>(scope::context()->handles().createRoot())) {
+    std::shared_ptr<data::RootHandle> TempRoot::makeTemp(const ContextRef &context) {
+        // NOLINTNEXTLINE(*-make-shared) make_shared causes RootHandle to be destroyed early
+        return std::shared_ptr<data::RootHandle>{
+            new data::RootHandle(context->handles().createRoot())};
+    }
+
+    TempRoot::TempRoot() : TempRoot(scope::context()) {
+    }
+
+    TempRoot::TempRoot(const ContextRef &context) : _temp(makeTemp(context)) {
         _prev = thread()->setTempRoot(_temp);
     }
 
@@ -230,12 +238,12 @@ namespace scope {
                 errors::ModuleError{"Not permitted to change context to specified module"});
     }
 
-    data::Symbol::Partial SharedContextMapper::partial(const data::Symbol &symbol) const {
-        return context()->symbols().partial(symbol);
+    data::Symbol::Partial partial(Context &context, const data::Symbol &symbol) {
+        return context.symbols().partial(symbol);
     }
 
-    data::Symbol SharedContextMapper::apply(data::Symbol::Partial partial) const {
-        return context()->symbols().apply(partial);
+    data::Symbol apply(Context &context, const data::PartialHandle &partial) {
+        return context.symbols().apply(partial);
     }
 
     LazyContext::~LazyContext() {

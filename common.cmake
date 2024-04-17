@@ -39,12 +39,17 @@ macro(try_add_link_option name option)
   endif()
 endmacro()
 
+option(INSTALL_RUNTIME_DEPENDENCIES "Install runtime dependencies" OFF)
+
 # Misc
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Default to not building tests
 option(BUILD_TESTING "" OFF)
+
+# Ensure all shared libs in lib on Unix platforms
+set(CMAKE_INSTALL_LIBDIR "lib")
 
 # Compiler options
 
@@ -65,6 +70,10 @@ macro(enable_warnings)
 endmacro()
 
 add_compile_options(-fno-common)
+
+if(LINUX)
+  add_compile_options(-fno-semantic-interposition)
+endif()
 
 # For all built shared-objects, request that exports are explicitly defined
 # Note, this isn't necessarily enough - see also version-script option
@@ -115,9 +124,6 @@ try_add_link_option(compress-debug LINKER:--compress-debug-sections=zlib)
 
 if(LINUX)
   add_debuginfo_option(-ggdb3)
-  if(GCC)
-    add_debuginfo_option(-Og)
-  endif()
 endif()
 
 if(APPLE)

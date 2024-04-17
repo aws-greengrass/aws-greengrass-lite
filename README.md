@@ -81,6 +81,10 @@ cmake -B build
 make -C build -j4
 ```
 
+For Linux, Greengrass Lite can be compiled with the Linux or Posix platforms.
+The Linux platform uses modern Linux-specific features; for compatibility with
+older systems, pass `-DGGLITE_PLATFORM=posix` to cmake.
+
 ### Compiling Greengrass Lite for minimal footprint
 
 Build type "MinSizeRel" enables multiple size reduction options. Note that in
@@ -126,6 +130,11 @@ Configure the following in your config file
 - awsRegion: The AWS region with the Thing
 - iotCredEndpoint: The IoT Core endpoint
 - iotDataEndpoint: The IoT Core endpoint
+- posixUser: colon separated user/group that generic components should run as
+
+`posixUser` must be set to a valid user and group. If no colon and group is
+provided, the user's default group is used. If not running Greengrass as root,
+set this to the user Greengrass is running as.
 
 ### Running Greengrass Lite
 
@@ -148,6 +157,35 @@ $ cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=./run
 $ make -C build -j8 install
 $ cd run
 $ ./bin/greengrass-lite -r . --config ./config/config.yaml
+```
+
+#### Using bundled runtime dependencies
+
+To have cmake bundle runtime dependencies, pass the
+`-DINSTALL_RUNTIME_DEPENDENCIES=1` flag when configuring. Then the interpreter
+will need to be patched:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_INSTALL_PREFIX=~/gglite_testing -DINSTALL_RUNTIME_DEPENDENCIES=1
+make -C build -j4 install/strip
+cd ~/gglite_testing
+# Match name for interpreter for your system
+chmod +x lib/ld-linux-*
+patchelf --set-interpreter $PWD/lib/ld-linux-* bin/* lib/* plugins/*
+```
+
+The `patchelf --set-interpreter` command is needed as CMake just copies the
+dependencies into the install directory, and doesn't modify the ELF headers to
+use the copied files. That command sets the ELF interpreter for all the
+installables to the bundled `ld-linux-x86-64.so.2`.
+
+When running, `LD_LIBRARY_PATH` must be set to the lib dir, such as in the
+example below:
+
+```bash
+cd ~/gglite_testing
+GG_ROOT=$PWD
+LD_LIBRARY_PATH=$GG_ROOT/lib $GG_ROOT/bin/greengrass-lite -r . --init-config $GG_ROOT/config/config.yaml
 ```
 
 ### Deployments

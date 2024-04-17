@@ -350,6 +350,7 @@ namespace data {
         mutable scope::FixedPtr<HandleTable> _table{scope::FixedPtr<HandleTable>::of(this)};
         handleImpl::IndexList<handleImpl::RootEntry> _roots;
         handleImpl::IndexList<handleImpl::HandleEntry> _handles;
+        handleImpl::LinkEntry _activeRoots;
 
         [[nodiscard]] ObjHandle applyUnchecked(ObjHandle::Partial h) const noexcept {
             return {_table, h};

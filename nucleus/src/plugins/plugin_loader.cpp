@@ -1,10 +1,16 @@
 #include "plugin_loader.hpp"
 #include "data/shared_list.hpp"
+#include "deployment/deployment_manager.hpp"
 #include "deployment/device_configuration.hpp"
 #include "deployment/model/dependency_order.hpp"
 #include "deployment/recipe_loader.hpp"
+#include "deployment/recipe_model.hpp"
 #include "scope/context_full.hpp"
 #include "tasks/task_callbacks.hpp"
+#include <algorithm>
+#include <memory>
+#include <string>
+#include <unordered_map>
 
 namespace fs = std::filesystem;
 
@@ -172,11 +178,25 @@ namespace plugins {
         }
     }
 
-    void PluginLoader::discoverPlugins(const std::filesystem::path &pluginDir) {
+    void PluginLoader::discoverPlugins() {
         // The only plugins used are those in the plugin directory, or subdirectory of
         // plugin directory
-        // TODO: This is temporary logic until recipe logic has been written
-        for(const auto &top : fs::directory_iterator(pluginDir)) {
+
+        // Create found recipes unordered map pass.
+        for(const auto &top : fs::directory_iterator(getPaths()->pluginRecipePath())) {
+            if(top.is_regular_file()) {
+                discoverRecipe(top);
+            } else if(top.is_directory()) {
+                for(const auto &fileEnt : fs::directory_iterator(top)) {
+                    if(fileEnt.is_regular_file()) {
+                        discoverRecipe(fileEnt);
+                    }
+                }
+            }
+        }
+
+        // Load all found Native plugins in plugins dir, if also in recipes map pass.
+        for(const auto &top : fs::directory_iterator(getPaths()->pluginPath())) {
             if(top.is_regular_file()) {
                 discoverPlugin(top);
             } else if(top.is_directory()) {
@@ -187,46 +207,99 @@ namespace plugins {
                 }
             }
         }
+
+        /* Noop statement for breakpoint in debugger */
+        ;
     }
 
     void PluginLoader::discoverPlugin(const fs::directory_entry &entry) {
         if(entry.path().extension() == NATIVE_SUFFIX) {
-            auto plugin = loadNativePlugin(entry.path());
+            std::cout << entry.path().stem() << '\n';
+            auto stem = entry.path().stem().generic_string();
+            auto name = util::trimStart(stem, "lib");
+            std::string serviceName = std::string("local.plugins.discovered.") + std::string(name);
+
+            if(auto it = _recipePaths.find(serviceName); it != _recipePaths.end()) {
+                auto plugin = loadNativePlugin(entry.path(), serviceName);
+            }
         }
+    }
+
+    void PluginLoader::discoverRecipe(const fs::directory_entry &entry) {
+        std::string ext = util::lower(entry.path().extension().generic_string());
+        auto stem = entry.path().stem().generic_string();
+        // For every recipe found, add to the recipePaths unordered map
+        if(ext == ".yaml" || ext == ".yml" || ext == ".json") {
+            if(auto pos = stem.find_last_of('-'); pos != std::string::npos) {
+                _recipePaths.emplace(stem.substr(0, pos), entry.path());
+            } else {
+                _recipePaths.emplace(stem, entry.path());
+            }
+        }
+    }
+
+    std::shared_ptr<AbstractPlugin> PluginLoader::loadComponent(
+        const deployment::Recipe &recipe,
+        const std::unordered_map<std::string, std::string> &loaders) {
+        std::ignore = *this;
+        return {};
+    }
+
+    void PluginLoader::updateLoaders(std::unordered_map<std::string, std::string> const &loaders) {
+        auto middle = std::partition(
+            _missingLoader.begin(),
+            _missingLoader.end(),
+            [&loaders](const deployment::Recipe &recipe) -> bool {
+                return loaders.find(recipe.componentType) == loaders.end();
+            });
+
+        auto broken = std::partition(
+            middle,
+            _missingLoader.end(),
+            [this, loaders](const deployment::Recipe &recipe) -> bool {
+                std::shared_ptr<AbstractPlugin> component = loadComponent(recipe, loaders);
+                if(!component) {
+                    return true;
+                }
+                std::string name = component->getName();
+                _inactive.emplace(std::move(name), std::move(component));
+                return false;
+            });
+
+        for(auto first = middle; first != broken; ++first) {
+            // Track this somewhere?
+            std::cerr << "Failed to load: " << first->getComponentName() << '\n';
+        }
+
+        _missingLoader.erase(middle, _missingLoader.end());
     }
 
     std::shared_ptr<AbstractPlugin> PluginLoader::loadNativePlugin(
-        const std::filesystem::path &path) {
+        const std::filesystem::path &path, const std::string &serviceName) {
         LOG.atInfo().kv("path", path.string()).log("Loading native plugin");
-        auto stem = path.stem().generic_string();
-        auto name = util::trimStart(stem, "lib");
-        std::string serviceName = std::string("local.plugins.discovered.") + std::string(name);
         auto plugin{std::make_shared<NativePlugin>(context(), serviceName)};
         plugin->load(path);
         plugin->initialize(*this);
-        _all.emplace(std::move(serviceName), plugin);
+        _all.emplace(serviceName, plugin);
+        _inactive.emplace(std::move(serviceName), plugin);
         return plugin;
     }
 
-    std::vector<std::shared_ptr<AbstractPlugin>> PluginLoader::processActiveList() {
-        std::unordered_map<std::string, std::shared_ptr<AbstractPlugin>> unresolved = _all;
+    std::vector<std::shared_ptr<AbstractPlugin>> PluginLoader::processInactiveList() {
         auto resolved = util::DependencyOrder{}.computeOrderedDependencies(
-            unresolved, [](auto &&pendingService) -> const std::unordered_set<std::string> & {
+            _inactive, [](auto &&pendingService) -> const std::unordered_set<std::string> & {
                 return pendingService->getDependencies();
             });
-
-        for(auto &&pendingService : unresolved) {
-            _inactive.emplace_back(pendingService.second);
-        }
         std::vector<std::shared_ptr<AbstractPlugin>> runOrder;
+        runOrder.reserve(resolved->size());
         while(!resolved->empty()) {
             runOrder.emplace_back(resolved->poll());
+            _active.emplace_back(runOrder.back());
         }
-        _active = std::move(runOrder);
-        return _active;
+        return runOrder;
     }
 
-    void PluginLoader::forAllPlugins(
+    void PluginLoader::forAllActivePlugins(
         const std::function<void(AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)>
             &fn) const {
 
@@ -245,22 +318,22 @@ namespace plugins {
 
     std::optional<deployment::Recipe> PluginLoader::loadRecipe(
         const AbstractPlugin &plugin) const noexcept {
-        std::string_view name = plugin.getName();
+        std::string name = plugin.getName();
         std::error_code err{};
-        fs::directory_iterator dir{_paths->pluginPath() / "recipes", err};
+        fs::directory_iterator dir{_paths->pluginRecipePath(), err};
         if(err) {
             return {};
         }
-        for(const auto &entry : dir) {
+        // search recipe map for path and load
+        if (auto it = _recipePaths.find(name); it != _recipePaths.end()) {
+            auto recipePath = it->second;
             try {
-                if(util::startsWith(entry.path().stem().string(), name)) {
-                    return deployment::RecipeLoader{}.read(entry);
-                }
-            } catch(std::runtime_error &e) {
+                return deployment::RecipeLoader{}.read(recipePath);
+            } catch (std::runtime_error &e) {
                 // pass
                 LOG.atWarn("recipe-not-loaded")
                     .cause(e)
-                    .kv("path", entry.path().string())
+                    .kv("path", recipePath.string())
                     .log("Unable to load recipe file");
             }
         }

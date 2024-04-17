@@ -73,6 +73,7 @@ SCENARIO("Buffer API", "[buffer]") {
                 strm.flush();
 
                 THEN("Buffer data is as expected") {
+                    // spell-checker: disable-next-line
                     REQUIRE(buf.get<std::string>(0, 200) == "Hello\nBingd\nBar4567890\n");
                 }
             }

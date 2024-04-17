@@ -30,13 +30,24 @@ namespace util {
         template<class K, class V, class DependencyGetterFn>
         std::unique_ptr<data::LinkedMap<K, V>> computeOrderedDependencies(
             std::unordered_map<K, V> &pendingDependencies, DependencyGetterFn &&dependencyGetter) {
-            // TO-IMPROVE: maybe allow a partial map to be passed in
             auto dependencyFound = std::make_unique<data::LinkedMap<K, V>>();
+            computeOrderedDependencies(
+                *dependencyFound,
+                pendingDependencies,
+                std::forward<DependencyGetterFn>(dependencyGetter));
+            return dependencyFound;
+        }
+
+        template<class K, class V, class DependencyGetterFn>
+        void computeOrderedDependencies(
+            data::LinkedMap<K, V> &dependencyFound,
+            std::unordered_map<K, V> &pendingDependencies,
+            DependencyGetterFn &&dependencyGetter) {
             while(!pendingDependencies.empty()) {
                 auto sz = pendingDependencies.size();
                 erase_if(pendingDependencies, [&](auto &&pending) {
-                    if(contains_all(*dependencyFound, dependencyGetter(pending.second))) {
-                        dependencyFound->push(pending);
+                    if(contains_all(dependencyFound, dependencyGetter(pending.second))) {
+                        dependencyFound.push(pending);
                         return true;
                     }
                     return false;
@@ -46,7 +57,6 @@ namespace util {
                     break;
                 }
             }
-            return dependencyFound;
         }
     };
 

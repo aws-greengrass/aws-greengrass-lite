@@ -114,13 +114,12 @@ namespace config {
     //
     class Topics : public data::StructModelBase, public ConfigNode {
     private:
-        scope::SharedContextMapper _symbolMapper;
         data::Symbol _nameOrd;
         Timestamp _modtime;
         std::atomic_bool _excludeTlog{false};
         bool _notifyParent{true};
         std::weak_ptr<Topics> _parent;
-        data::SymbolValueMap<TopicElement> _children{_symbolMapper};
+        data::SymbolValueMap<TopicElement> _children{context()};
         std::vector<Watching> _watching;
         mutable std::shared_mutex _mutex;
 

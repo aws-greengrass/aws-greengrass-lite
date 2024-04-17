@@ -1,4 +1,5 @@
 #pragma once
+
 #include "data/handle_table.hpp"
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
@@ -38,9 +39,8 @@ namespace logging {
         std::unordered_set<std::string> _needsSync;
 
     public:
-        explicit LogQueue(const scope::UsingContext &context) : scope::UsesContext(context) {
-        }
-        ~LogQueue();
+        using scope::UsesContext::UsesContext;
+        ~LogQueue() noexcept;
         void publish(
             const std::shared_ptr<LogState> &state,
             const std::shared_ptr<data::StructModelBase> &entry);

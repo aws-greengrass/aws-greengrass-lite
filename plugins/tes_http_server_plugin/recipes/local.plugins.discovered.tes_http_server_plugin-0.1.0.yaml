@@ -1,0 +1,11 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: local.plugins.discovered.tes_http_server_plugin
+ComponentType: aws.greengrass.plugin
+ComponentVersion: "0.1.0"
+ComponentDescription: Enables a http server
+ComponentPublisher: Amazon
+ComponentDependencies:
+  local.plugins.discovered.iot_broker:
+    VersionRequirement: ">=0.1.0"
+    DependencyType: HARD

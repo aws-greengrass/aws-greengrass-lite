@@ -5,7 +5,6 @@
 #include "deployment/deployment_model.hpp"
 #include "deployment/device_configuration.hpp"
 #include "lifecycle/kernel_alternatives.hpp"
-#include "platform_abstraction/abstract_process_manager.hpp"
 #include "scope/context.hpp"
 #include "tasks/expire_time.hpp"
 #include "tasks/task_threads.hpp"
@@ -53,7 +52,6 @@ namespace lifecycle {
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfiguration{nullptr};
         std::unique_ptr<KernelAlternatives> _kernelAlts{nullptr};
         std::unique_ptr<deployment::DeploymentManager> _deploymentManager{nullptr};
-        std::unique_ptr<ipc::ProcessManager> _processManager{};
 
     public:
         explicit Kernel(const scope::UsingContext &context);
@@ -74,7 +72,9 @@ namespace lifecycle {
         static constexpr auto DEPLOYMENT_STAGE_LOG_KEY{"stage"};
         static constexpr auto SHUTDOWN_TIMEOUT_SECONDS{30};
         static constexpr auto SERVICE_SHUTDOWN_TIMEOUT_SECONDS{5};
-        const data::SymbolInit SERVICES_TOPIC_KEY{"services"};
+        static inline const data::SymbolInit SERVICES_TOPIC_KEY{"services"};
+        static inline const data::SymbolInit SERVICE_LOADER_TOPIC_KEY{
+            "aws.greengrass.componentType"};
 
         void preLaunch(CommandLine &commandLine);
         int launch();
@@ -83,7 +83,6 @@ namespace lifecycle {
         void initConfigAndTlog(CommandLine &commandLine);
         void initDeviceConfiguration(CommandLine &commandLine);
         void initializeNucleusFromRecipe();
-        void initializeProcessManager(CommandLine &commandLine);
         void setupProxy();
         void launchBootstrap();
         void launchRollbackBootstrap();
@@ -110,14 +109,6 @@ namespace lifecycle {
         }
 
         config::Manager &getConfig();
-        std::vector<std::string> getSupportedCapabilities() const;
-
-        ipc::ProcessId startProcess(
-            std::string script,
-            std::chrono::seconds timeout,
-            bool requiresPrivilege,
-            std::unordered_map<std::string, std::optional<std::string>> env,
-            const std::string &note,
-            std::optional<ipc::CompletionCallback> onComplete = {});
+        [[nodiscard]] std::vector<std::string> getSupportedCapabilities() const;
     };
 } // namespace lifecycle

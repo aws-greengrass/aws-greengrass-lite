@@ -1,5 +1,5 @@
 #include "local_topics.hpp"
-#include "scope/context_full.hpp"
+#include "scope/context_impl.hpp"
 #include "tasks/task.hpp"
 #include "tasks/task_callbacks.hpp"
 #include <shared_mutex>
@@ -103,7 +103,7 @@ namespace pubsub {
         return listener;
     }
 
-    std::shared_ptr<Future> PubSubManager::callFirst(
+    std::shared_ptr<FutureBase> PubSubManager::callFirst(
         data::Symbol topic, const std::shared_ptr<data::ContainerModelBase> &dataIn) {
         if(!dataIn) {
             throw std::runtime_error("Data must be passed into an LPC call");
@@ -123,7 +123,7 @@ namespace pubsub {
         return {};
     }
 
-    std::vector<std::shared_ptr<Future>> PubSubManager::callAll(
+    std::vector<std::shared_ptr<FutureBase>> PubSubManager::callAll(
         data::Symbol topic, const std::shared_ptr<data::ContainerModelBase> &dataIn) {
         if(!dataIn) {
             throw std::runtime_error("Data must be passed into an LPC call");
@@ -133,7 +133,7 @@ namespace pubsub {
         }
         auto listeners = getListeners(topic);
         std::vector<std::shared_ptr<Listener>> callOrder;
-        std::vector<std::shared_ptr<Future>> futures;
+        std::vector<std::shared_ptr<FutureBase>> futures;
         listeners->fillTopicListeners(callOrder);
         for(const auto &i : callOrder) {
             auto future = i->call(dataIn);
@@ -160,7 +160,7 @@ namespace pubsub {
         return context()->lpcTopics();
     }
 
-    std::shared_ptr<pubsub::Future> Listener::call(
+    std::shared_ptr<pubsub::FutureBase> Listener::call(
         const std::shared_ptr<data::ContainerModelBase> &dataIn) {
         return _callback->invokeTopicCallback(_topic, dataIn);
     }

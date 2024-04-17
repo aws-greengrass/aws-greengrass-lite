@@ -1,28 +1,35 @@
 #pragma once
-#include "data/handle_table.hpp"
-#include "data/safe_handle.hpp"
-#include "data/shared_struct.hpp"
-#include "data/string_table.hpp"
-#include "data/symbol_value_map.hpp"
-#include "errors/error_base.hpp"
-#include "scope/context.hpp"
-#include "tasks/task.hpp"
-#include <condition_variable>
-#include <functional>
-#include <map>
-#include <string>
-#include <variant>
-#include <vector>
+#include "data/tracked_object.hpp"
+#include <exception>
+#include <future>
+
+namespace tasks {
+    class ExpireTime;
+    class Callback;
+} // namespace tasks
+
+namespace data {
+    class ContainerModelBase;
+}
 
 namespace pubsub {
     class Future;
     class Promise;
 
+    struct PromiseCallbacks;
+
     class FutureBase : public data::TrackedObject {
 
     public:
         using BadCastError = errors::InvalidFutureError;
+
         explicit FutureBase(const scope::UsingContext &context);
+        virtual ~FutureBase() noexcept = default;
+        FutureBase(const FutureBase &) = delete;
+        FutureBase(FutureBase &&) = delete;
+        FutureBase &operator=(const FutureBase &) = delete;
+        FutureBase &operator=(FutureBase &&) = delete;
+
         virtual std::shared_ptr<data::ContainerModelBase> getValue() const = 0;
         virtual bool isValid() const = 0;
         virtual bool waitUntil(const tasks::ExpireTime &when) const = 0;
@@ -31,47 +38,55 @@ namespace pubsub {
     };
 
     class Future : public FutureBase {
-        const std::shared_ptr<Promise> _promise;
-        friend class Promise;
+        std::shared_ptr<PromiseCallbacks> _callbacks;
+        std::shared_future<std::shared_ptr<data::ContainerModelBase>> _future;
 
     public:
         using BadCastError = errors::InvalidFutureError;
-        explicit Future(
-            const scope::UsingContext &context, const std::shared_ptr<Promise> &promise);
+
+        Future(
+            const scope::UsingContext &context,
+            std::shared_ptr<PromiseCallbacks> callbacks,
+            std::shared_future<std::shared_ptr<data::ContainerModelBase>> future);
+        std::shared_ptr<Future> getFuture() override;
+        ~Future() noexcept override;
+        Future(const Future &) = delete;
+        Future(Future &&) = delete;
+        Future &operator=(const Future &) = delete;
+        Future &operator=(Future &&) = delete;
+
         std::shared_ptr<data::ContainerModelBase> getValue() const override;
         bool isValid() const override;
         bool waitUntil(const tasks::ExpireTime &when) const override;
-        std::shared_ptr<Future> getFuture() override;
         void addCallback(const std::shared_ptr<tasks::Callback> &callback) override;
     };
 
     class Promise : public FutureBase {
-
-        std::variant<std::monostate, std::shared_ptr<data::ContainerModelBase>, errors::Error>
-            _value;
-        mutable std::shared_mutex _mutex;
-        mutable std::condition_variable_any _fire;
-        std::weak_ptr<Future> _future;
-        std::vector<std::shared_ptr<tasks::Callback>> _callbacks;
+        std::promise<std::shared_ptr<data::ContainerModelBase>> _promise;
+        std::shared_future<std::shared_ptr<data::ContainerModelBase>> _future{
+            _promise.get_future().share()};
+        std::shared_ptr<PromiseCallbacks> _callbacks;
 
         template<typename T>
         void setAndFire(const T &value);
 
-        static std::shared_ptr<data::ContainerModelBase> handleValue(const std::monostate &);
-        static std::shared_ptr<data::ContainerModelBase> handleValue(
-            const std::shared_ptr<data::ContainerModelBase> &);
-        static std::shared_ptr<data::ContainerModelBase> handleValue(const errors::Error &);
-
     public:
         using BadCastError = errors::InvalidPromiseError;
+
         explicit Promise(const scope::UsingContext &context);
+        ~Promise() noexcept override;
+        Promise(const Promise &) = delete;
+        Promise(Promise &&) = delete;
+        Promise &operator=(const Promise &) = delete;
+        Promise &operator=(Promise &&) = delete;
+
         std::shared_ptr<Future> getFuture() override;
         std::shared_ptr<data::ContainerModelBase> getValue() const override;
         void addCallback(const std::shared_ptr<tasks::Callback> &callback) override;
         bool isValid() const override;
         bool waitUntil(const tasks::ExpireTime &when) const override;
         void setValue(const std::shared_ptr<data::ContainerModelBase> &value);
-        void setError(const errors::Error &error);
+        void setError(const std::exception_ptr &ex);
         void cancel();
     };
 

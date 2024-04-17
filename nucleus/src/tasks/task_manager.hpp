@@ -49,7 +49,7 @@ namespace tasks {
         mutable std::mutex _mutex;
 
     public:
-        explicit TaskManager(const scope::UsingContext &context);
+        using scope::UsesContext::UsesContext;
 
         TaskManager(const TaskManager &) = delete;
         TaskManager(TaskManager &&) = delete;

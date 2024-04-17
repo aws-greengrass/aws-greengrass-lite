@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.25)
-project(provision_plugin)
+project(provision_plugin VERSION 0.1.0)
 
 include(../../common.cmake)
+set(COMPONENT_NAME local.plugins.discovered.provision_plugin)
 
 if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
   message(
@@ -24,4 +25,14 @@ configureRPATH(provision_plugin)
 set_version_script(provision_plugin
                    "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS provision_plugin DESTINATION plugins)
+install(
+  TARGETS provision_plugin
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET provision_plugin_deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET provision_plugin_deps)
+endif()
+
+install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
+        DESTINATION plugins/recipes)

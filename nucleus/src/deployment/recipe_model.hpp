@@ -201,15 +201,12 @@ namespace deployment {
         std::string name;
         Platform platform;
         std::shared_ptr<data::SharedStruct> lifecycle;
-        std::vector<std::string> selections;
         std::vector<ComponentArtifact> artifacts;
 
         void visit(data::Archive &archive) override {
             archive.setIgnoreCase();
             archive("Name", name);
             archive("Platform", platform);
-            archive("Lifecycle", lifecycle);
-            archive("Selections", selections);
             archive("Artifacts", artifacts);
         }
     };
@@ -222,10 +219,9 @@ namespace deployment {
         std::string componentPublisher;
         ComponentConfiguration configuration;
         std::unordered_map<std::string, DependencyProperties> componentDependencies;
-        std::optional<std::string> componentType;
+        std::string componentType;
         std::string componentSource;
         std::vector<PlatformManifest> manifests;
-        std::shared_ptr<data::SharedStruct> lifecycle;
 
         void visit(data::Archive &archive) override {
             archive.setIgnoreCase();
@@ -236,10 +232,11 @@ namespace deployment {
             archive("ComponentPublisher", componentPublisher);
             archive("ComponentConfiguration", configuration);
             archive("ComponentDependencies", componentDependencies);
-            archive("ComponentType", componentType);
+            std::optional<std::string> cType;
+            archive("ComponentType", cType);
+            componentType = cType.value_or("aws.greengrass.generic");
             archive("ComponentSource", componentSource);
             archive("Manifests", manifests);
-            archive("Lifecycle", lifecycle);
         }
 
         [[nodiscard]] std::string getFormatVersion() const {

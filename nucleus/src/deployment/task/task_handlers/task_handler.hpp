@@ -1,12 +1,16 @@
 #pragma once
 
 #include "deployment/deployment_model.hpp"
-#include "scope/context_full.hpp"
+#include "scope/context.hpp"
 
-class TaskHandler: public scope::UsesContext {
+namespace lifecycle {
+    class Kernel;
+}
+
+class TaskHandler : public scope::UsesContext {
 
 private:
-     TaskHandler* nextTaskHandler{};
+    TaskHandler *nextTaskHandler{};
 
 protected:
     [[nodiscard]] virtual TaskHandler &getNextHandler() const {
@@ -15,14 +19,16 @@ protected:
 
 public:
     lifecycle::Kernel &_kernel;
+    TaskHandler(const TaskHandler &) = default;
+    TaskHandler(TaskHandler &&) = delete;
+    TaskHandler &operator=(const TaskHandler &) = delete;
+    TaskHandler &operator=(TaskHandler &&) = delete;
     TaskHandler(const scope::UsingContext &context, lifecycle::Kernel &kernel)
-        : scope::UsesContext{context}, _kernel(kernel) {};
+        : scope::UsesContext{context}, _kernel(kernel){};
     virtual ~TaskHandler() = default;
     virtual deployment::DeploymentResult handleRequest(deployment::Deployment &deployment) = 0;
 
-    virtual void setNextHandler(TaskHandler& handler) {
+    virtual void setNextHandler(TaskHandler &handler) {
         nextTaskHandler = &handler;
     }
-
-
 };

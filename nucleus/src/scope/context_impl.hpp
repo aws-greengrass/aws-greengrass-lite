@@ -183,8 +183,11 @@ namespace scope {
         std::shared_ptr<data::RootHandle> _prev;
         std::shared_ptr<data::RootHandle> _temp;
 
+        static std::shared_ptr<data::RootHandle> makeTemp(const ContextRef &ptr);
+
     public:
         TempRoot();
+        explicit TempRoot(const ContextRef &ptr);
         TempRoot(const TempRoot &) = delete;
         TempRoot(TempRoot &&) = delete;
         TempRoot &operator=(const TempRoot &) = delete;
@@ -235,10 +238,10 @@ namespace scope {
         static std::shared_ptr<Context> get();
         static std::shared_ptr<Context> getDefaultContext();
 
-        data::SymbolTable &symbols() {
+        data::SymbolTable &symbols() noexcept {
             return _stringTable;
         }
-        data::HandleTable &handles() {
+        data::HandleTable &handles() noexcept {
             return _handleTable;
         }
         config::Manager &configManager();
@@ -246,10 +249,10 @@ namespace scope {
         pubsub::PubSubManager &lpcTopics();
         plugins::PluginLoader &pluginLoader();
         logging::LogManager &logManager();
-        std::mutex &cycleCheckMutex() {
+        std::mutex &cycleCheckMutex() noexcept {
             return _cycleCheckMutex;
         }
-        lifecycle::SysProperties &sysProperties() {
+        lifecycle::SysProperties &sysProperties() noexcept {
             return _sysProperties;
         }
 

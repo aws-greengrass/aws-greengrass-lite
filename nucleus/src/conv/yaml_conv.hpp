@@ -1,4 +1,5 @@
 #pragma once
+
 #include "config/config_manager.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
@@ -10,8 +11,7 @@ namespace conv {
     class YamlReaderBase : private scope::UsesContext {
 
     public:
-        explicit YamlReaderBase(const scope::UsingContext &context) : scope::UsesContext{context} {
-        }
+        using scope::UsesContext::UsesContext;
         virtual ~YamlReaderBase() = default;
 
         void read(const std::filesystem::path &path);

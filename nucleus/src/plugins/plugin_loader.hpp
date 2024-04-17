@@ -1,8 +1,11 @@
 #pragma once
+
 #include "data/handle_table.hpp"
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
+#include "deployment/recipe_model.hpp"
 #include "scope/context.hpp"
+#include <algorithm>
 #include <atomic>
 #include <cpp_api.hpp>
 #include <filesystem>
@@ -11,6 +14,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 
@@ -157,9 +161,11 @@ namespace plugins {
         std::shared_ptr<util::NucleusPaths> _paths;
         data::RootHandle _root;
         std::unordered_map<std::string, std::shared_ptr<AbstractPlugin>> _all;
+        std::unordered_map<std::string, std::filesystem::path> _recipePaths;
+        std::unordered_map<std::string, std::shared_ptr<AbstractPlugin>> _inactive;
         std::vector<std::shared_ptr<AbstractPlugin>> _active;
-        std::vector<std::shared_ptr<AbstractPlugin>> _inactive;
         std::vector<std::shared_ptr<AbstractPlugin>> _broken;
+        std::vector<deployment::Recipe> _missingLoader;
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfig;
 
     public:
@@ -235,18 +241,20 @@ namespace plugins {
         std::shared_ptr<data::StructModelBase> buildParams(
             plugins::AbstractPlugin &plugin, bool partial = false) const;
 
-        void discoverPlugins(const std::filesystem::path &pluginDir);
+        void discoverPlugins();
         void discoverPlugin(const std::filesystem::directory_entry &entry);
+        void discoverRecipe(const std::filesystem::directory_entry &entry);
 
-        std::shared_ptr<AbstractPlugin> loadNativePlugin(const std::filesystem::path &path);
+        std::shared_ptr<AbstractPlugin> loadNativePlugin(
+            const std::filesystem::path &path, const std::string &serviceName);
 
         std::optional<deployment::Recipe> loadRecipe(const AbstractPlugin &plugin) const noexcept;
 
-        void forAllPlugins(const std::function<void(
-                               plugins::AbstractPlugin &,
-                               const std::shared_ptr<data::StructModelBase> &)> &fn) const;
+        void forAllActivePlugins(const std::function<void(
+                                     plugins::AbstractPlugin &,
+                                     const std::shared_ptr<data::StructModelBase> &)> &fn) const;
 
-        std::vector<std::shared_ptr<AbstractPlugin>> processActiveList();
+        std::vector<std::shared_ptr<AbstractPlugin>> processInactiveList();
 
         void setDeviceConfiguration(
             const std::shared_ptr<deployment::DeviceConfiguration> &deviceConfig) {
@@ -256,6 +264,12 @@ namespace plugins {
         std::shared_ptr<util::NucleusPaths> getPaths() {
             return _paths;
         }
+
+        std::shared_ptr<AbstractPlugin> loadComponent(
+            const deployment::Recipe &recipe,
+            std::unordered_map<std::string, std::string> const &loaders);
+
+        void updateLoaders(std::unordered_map<std::string, std::string> const &loaders);
     };
 
     /**
