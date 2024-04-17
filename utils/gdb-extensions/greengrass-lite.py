@@ -555,17 +555,15 @@ class ObjHandleIterator(object):
 
     def __next__(self):
         (index, self._index) = (self._index, self._index + 1)
-        match index:
-            case 0:
-                return 'handle', 'ObjHandle{%d}' % int(
-                    self._lazy_obj.handle_id())  # helps CLion
-            case 1:
-                return 'object', self._lazy_obj.object_ptr().dereference()
-            case 2:
-                return 'root', 'RootHandle{%d}' % int(
-                    self._lazy_obj.root().handle_id())
-            case _:
-                raise StopIteration
+        if index == 0:
+            return 'handle', 'ObjHandle{%d}' % int(
+                self._lazy_obj.handle_id())  # helps CLion
+        if index == 1:
+            return 'object', self._lazy_obj.object_ptr().dereference()
+        if index == 2:
+            return 'root', 'RootHandle{%d}' % int(
+                self._lazy_obj.root().handle_id())
+        raise StopIteration
 
 
 #
@@ -663,26 +661,25 @@ class DynamicStructPrinter:
             str_name = str(DataSymbolPrinter(name).to_simple_string())
             gdb.set_convenience_variable('arg', name)
             val_type = int(self._struct.eval('get($arg).getType()'))
-            match val_type:
-                case 0:  # NONE
-                    val = '[null]'
-                case 1:  # BOOL
-                    val = self._struct.eval('get($arg).getBool()')
-                case 2:  # INT
-                    val = self._struct.eval('get($arg).getInt()')
-                case 3:  # DOUBLE
-                    val = self._struct.eval('get($arg).getDouble()')
-                case 4:  # STRING, SYMBOL
-                    val = self._struct.eval('get($arg).rawGetString()')
-                case 5:  # STRING, SYMBOL
-                    val = self._struct.eval('get($arg).rawGetSymbol()')
-                case 6:  # OBJECT
-                    obj = self._struct.eval(
-                        'get($arg).getObject().get()').cast(
-                            gdb.lookup_type('data::TrackedObject*'))
-                    val = obj.cast(obj.dynamic_type).dereference()
-                case _:
-                    val = '[Unknown]'
+            if val_type == 0:
+                val = '[null]'
+            elif val_type == 1:
+                val = self._struct.eval('get($arg).getBool()')
+            elif val_type == 2:
+                val = self._struct.eval('get($arg).getInt()')
+            elif val_type == 3:
+                val = self._struct.eval('get($arg).getDouble()')
+            elif val_type == 4:
+                val = self._struct.eval('get($arg).rawGetString()')
+            elif val_type == 5:
+                val = self._struct.eval('get($arg).rawGetSymbol()')
+            elif val_type == 6:
+                obj = self._struct.eval(
+                    'get($arg).getObject().get()').cast(
+                        gdb.lookup_type('data::TrackedObject*'))
+                val = obj.cast(obj.dynamic_type).dereference()
+            else:
+                val = '[Unknown]'
 
             return str(str_name), val
 
