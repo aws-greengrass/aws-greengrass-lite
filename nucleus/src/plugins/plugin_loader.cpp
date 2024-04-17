@@ -325,11 +325,11 @@ namespace plugins {
             return {};
         }
         // search recipe map for path and load
-        if (auto it = _recipePaths.find(name); it != _recipePaths.end()) {
+        if(auto it = _recipePaths.find(name); it != _recipePaths.end()) {
             auto recipePath = it->second;
             try {
                 return deployment::RecipeLoader{}.read(recipePath);
-            } catch (std::runtime_error &e) {
+            } catch(std::runtime_error &e) {
                 // pass
                 LOG.atWarn("recipe-not-loaded")
                     .cause(e)
@@ -381,27 +381,32 @@ namespace plugins {
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 
         try {
-            bool wasHandled = callNativeLifecycle(event, data);
-            if(wasHandled) {
-                LOG.atDebug()
-                    .event("lifecycle-completed")
-                    .kv("name", getName())
-                    .kv("event", event)
-                    .log();
-            } else {
-                LOG.atInfo()
-                    .event("lifecycle-unhandled")
-                    .kv("name", getName())
-                    .kv("event", event)
-                    .log();
-                // TODO: Add default behavior for unhandled callback
-            }
+            callNativeLifecycle(event, data);
+            LOG.atDebug()
+                .event("lifecycle-completed")
+                .kv("name", getName())
+                .kv("event", event)
+                .log();
+        } catch(ggapi::EXCEPTION_UNHANDLED &e) {
+            LOG.atInfo()
+                .event("lifecycle-unhandled")
+                .kv("name", getName())
+                .kv("event", event)
+                .log();
+            // TODO: Add default behavior for unhandled callback
         } catch(const errors::Error &lastError) {
             LOG.atError()
                 .event("lifecycle-error")
                 .kv("name", getName())
                 .kv("event", event)
                 .cause(lastError)
+                .log();
+        } catch(...) { 
+            LOG.atError()
+                .event("lifecycle-error")
+                .kv("name", getName())
+                .kv("event", event)
+                .kv("error", "UNKNOWN")
                 .log();
         }
     }

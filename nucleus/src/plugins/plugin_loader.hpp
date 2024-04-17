@@ -59,7 +59,7 @@ namespace plugins {
             : TrackingScope(context), _moduleName(std::move(name)) {
         }
 
-        virtual bool callNativeLifecycle(
+        virtual void callNativeLifecycle(
             const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) = 0;
 
         void lifecycle(data::Symbol event, const std::shared_ptr<data::StructModelBase> &data);

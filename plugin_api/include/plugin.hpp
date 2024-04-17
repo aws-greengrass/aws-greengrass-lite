@@ -97,12 +97,11 @@ namespace ggapi {
         }
 
     protected:
-        bool lifecycle(Symbol event, Struct data) {
+        void lifecycle(Symbol event, Struct data) {
             auto mappedEvent = EVENT_MAP.lookup(event).value_or(Events::UNKNOWN);
-            bool handled = EventEnum::visit<bool>(mappedEvent, [this, data](auto p) {
-                               return this->lifecycleDispatch(p, data);
-                           }).value_or(false);
-            return handled;
+            EventEnum::visit<bool>(mappedEvent, [this, data](auto p) {
+                return this->lifecycleDispatch(p, data);
+            }).value_or(false);
         }
 
         /**
@@ -114,13 +113,15 @@ namespace ggapi {
         }
         /**
          * @brief Event Handlers for lifecycle events
-         * Lifecycle event handlers return true if the lifecycle step is complete and false if there
-         * is an error. Nucleus will do an orderly shutdown of affected plugins if a false response
-         * is sent. The plugin must apply any retries or other recovery techniques before returning
-         * TRUE/FALSE.  The response from the plugin is considered the authoritative response and
-         * nucleus will react accordingly.
+         * Any errors that happen during the lifecycle event shall result in a thrown exception.
+         * However, Nucleus cannot interpret these errors and react uniquely.  Nucleus will abort
+         * the plugin and take it to the broken state if ANY exception happens.  The exception will
+         * be logged so a verbose exception report will help a user diagnose issues by analysing the
+         * log output stream. The plugin must apply any retries or other recovery techniques before
+         * returning.  The response from the plugin is considered the authoritative
+         * response and nucleus will react accordingly.
          *
-         * NOTE: If an error occured, AND YOU RETURN FALSE, you will recieve a STOP event.  If
+         * NOTE: If an error occured, and you throw, you will recieve a STOP event.  If
          * special cleanup is required due to the error condition, you must retain any state for the
          * STOP cleanup.  Any retries or other steps to recover from an error must happen INSIDE
          * this function.
@@ -128,48 +129,46 @@ namespace ggapi {
 
         /**
          * Initialize any state and prepare to run.
-         * Return TRUE, if no error.
-         * Return FALSE if an error occured.
          *
          * Any declared dependencies are running so LPC interactions are permitted.
          *
-         * Default implementation returns TRUE.
          */
         // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
-        virtual bool onInitialize(Struct data) {
-            std::cout << "Default onInitialize\n";
-            return true;
+        virtual void onInitialize(Struct data) {
+            LOG.atInfo()
+                .event("lifecycle-unhandled")
+                .kv("name", NAME)
+                .kv("event", "onInitialize")
+                .log();
         }
 
         /**
          * Begin operations.
          * start any threads, respond to LPC messages, post LPC messages.
-         * Return TRUE, if no error.
-         * Return FALSE, if an error occured.
+         * Return TRUE, if handled.
+         * Return FALSE, if unhandled
          *
-         * default implementation returns TRUE;
+         * default implementation returns FALSE;
          */
         // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
-        virtual bool onStart(Struct data) {
-            std::cout << "Default onStart\n";
-            return false;
+        virtual void onStart(Struct data) {
+            LOG.atInfo().event("lifecycle-unhandled").kv("name", NAME).kv("event", "onStart").log();
         }
 
         /**
          * Stop operations and cleanup
          * This event happens when a normal shutdown is happening (no errors) and also when an error
          * has been reported.  The plugin must take appropriate action for either condition.
-         * Return TRUE if no error.
-         * Return FALSE if an error.
+         * Return TRUE if handled
+         * Return FALSE if unhandled
          *
-         * If this is an orderly shutdown and you have an error in the STOP (return FALSE) you will
+         * If this is an orderly shutdown and you have an error in the STOP (throw) you will
          * get a STOP event a second time.
          *
          */
         // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
-        virtual bool onStop(Struct data) {
-            std::cout << "Default onStop\n";
-            return false;
+        virtual void onStop(Struct data) {
+            LOG.atInfo().event("lifecycle-unhandled").kv("name", NAME).kv("event", "onStop").log();
         }
     };
 } // namespace ggapi
