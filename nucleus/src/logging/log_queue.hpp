@@ -1,8 +1,5 @@
 #pragma once
 
-#include "data/handle_table.hpp"
-#include "data/safe_handle.hpp"
-#include "data/shared_struct.hpp"
 #include "scope/context.hpp"
 #include <atomic>
 #include <condition_variable>
@@ -12,6 +9,10 @@
 #include <optional>
 #include <thread>
 #include <unordered_set>
+
+namespace data {
+    class StructModelBase;
+}
 
 namespace logging {
     class LogState;
