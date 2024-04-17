@@ -52,7 +52,3 @@ bool IpcServer::onStop(ggapi::Struct structData) {
     _listener->Disconnect();
     return true;
 }
-
-bool IpcServer::onError_stop(ggapi::Struct data) {
-    return true;
-}

@@ -8,7 +8,6 @@ public:
     bool onInitialize(ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;
     bool onStop(ggapi::Struct data) override;
-    bool onError_stop(ggapi::Struct data) override;
 
     static TesHttpServerPlugin &get() {
         static TesHttpServerPlugin instance{};
@@ -40,10 +39,6 @@ bool TesHttpServerPlugin::onStart(ggapi::Struct data) {
 
 bool TesHttpServerPlugin::onStop(ggapi::Struct data) {
     TesHttpServer::stopServer();
-    return true;
-}
-
-bool TesHttpServerPlugin::onError_stop(ggapi::Struct data) {
     return true;
 }
 

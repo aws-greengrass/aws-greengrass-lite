@@ -89,10 +89,6 @@ bool CliServer::onStop(ggapi::Struct data) {
     return true;
 }
 
-bool CliServer::onError_stop(ggapi::Struct data) {
-    return true;
-}
-
 ggapi::ObjHandle CliServer::createLocalDeploymentHandler(
     ggapi::Symbol, const ggapi::Container &request) {
     auto deploymentDocument = ggapi::Struct{request};
@@ -135,8 +131,8 @@ ggapi::ObjHandle CliServer::createLocalDeploymentHandler(
     if(!resultFuture) {
         return {};
     }
-    return resultFuture.andThen(
-        [deploymentId, channel](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
+    return resultFuture.andThen([deploymentId, channel](
+                                    ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
         nextPromise.fulfill([&]() {
             ggapi::Struct result{prevFuture.getValue()};
             if(result.getValue<bool>({"status"})) {
@@ -177,8 +173,8 @@ ggapi::ObjHandle CliServer::listDeploymentsHandler(ggapi::Symbol, const ggapi::C
     if(!resultFuture) {
         return {};
     }
-    return resultFuture.andThen(
-        [requestId, channel](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
+    return resultFuture.andThen([requestId, channel](
+                                    ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
         nextPromise.fulfill([&]() {
             ggapi::Struct result{prevFuture.getValue()};
             if(result.getValue<bool>({"status"})) {

@@ -107,7 +107,6 @@ public:
     bool onInitialize(ggapi::Struct data) override;
     bool onStart(ggapi::Struct data) override;
     bool onStop(ggapi::Struct data) override;
-    bool onError_stop(ggapi::Struct data) override;
     static CliServer &get() {
         static CliServer instance{};
         return instance;
