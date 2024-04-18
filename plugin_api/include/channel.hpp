@@ -72,8 +72,8 @@ namespace ggapi {
             explicit ChannelListenDispatch(Callable callable, Args... args)
                 : CallbackManager::CaptureDispatch<Callable, Args...>{
                     std::move(callable), std::move(args)...} {
-                static_assert(std::is_invocable_v<Callable, Args..., ObjType>);
                 static_assert(std::is_base_of_v<ObjHandle, ObjType>);
+                static_assert(std::is_invocable_v<Callable, Args..., ObjType>);
             }
             [[nodiscard]] Symbol type() const override {
                 return {"channelListen"};
