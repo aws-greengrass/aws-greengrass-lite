@@ -18,7 +18,7 @@ static const Keys keys;
 class FleetStatusService : public ggapi::Plugin {
 private:
 public:
-    bool onStart(ggapi::Struct data) override;
+    void onStart(ggapi::Struct data) override;
 
     static FleetStatusService &get() {
         static FleetStatusService instance{};
@@ -26,7 +26,7 @@ public:
     }
 };
 
-bool FleetStatusService::onStart(ggapi::Struct data) {
+void FleetStatusService::onStart(ggapi::Struct data) {
     auto thingName = data.getValue<std::string>({"system", "thingName"});
 
     std::string json;
@@ -77,11 +77,9 @@ bool FleetStatusService::onStart(ggapi::Struct data) {
             }
         });
     }
-
-    return true;
 }
 
 extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(
-    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data, bool *pHandled) noexcept {
-    return FleetStatusService::get().lifecycle(moduleHandle, phase, data, pHandled);
+    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data) noexcept {
+    return FleetStatusService::get().lifecycle(moduleHandle, phase, data);
 }

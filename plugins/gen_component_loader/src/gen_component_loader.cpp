@@ -19,12 +19,12 @@ static const auto LOG = ggapi::Logger::of("gen_component_loader");
 static constexpr std::string_view on_path_prefix = "onpath";
 static constexpr std::string_view exists_prefix = "exists";
 
-bool GenComponentDelegate::lifecycleCallback(
+void GenComponentDelegate::lifecycleCallback(
     const std::shared_ptr<GenComponentDelegate> &self,
     const ggapi::ModuleScope &,
     ggapi::Symbol event,
     ggapi::Struct data) {
-    return self->lifecycle(event, std::move(data));
+    self->lifecycle(event, std::move(data));
 }
 
 ggapi::ModuleScope GenComponentDelegate::registerComponent() {
@@ -366,7 +366,7 @@ GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
         _manifestAsStruct.get<ggapi::Struct>(_manifestAsStruct.foldKey("Lifecycle"));
 }
 
-bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
+void GenComponentDelegate::onInitialize(ggapi::Struct data) {
     data.put(NAME, "aws.greengrass.gen_component_delegate");
 
     _nucleusConfig = data.getValue<ggapi::Struct>({"nucleus"});
@@ -381,11 +381,9 @@ bool GenComponentDelegate::onInitialize(ggapi::Struct data) {
     if(_lifecycle.install.has_value()) {
         processScript(_lifecycle.install.value(), "install");
     }
-
-    return true;
 }
 
-bool GenComponentDelegate::onStart(ggapi::Struct data) {
+void GenComponentDelegate::onStart(ggapi::Struct data) {
     if(_lifecycle.envMap.has_value()) {
         _globalEnv.insert(_lifecycle.envMap->begin(), _lifecycle.envMap->end());
     }
@@ -398,8 +396,6 @@ bool GenComponentDelegate::onStart(ggapi::Struct data) {
         // TODO:: Find a better LOG and throw
         throw ggapi::GgApiError("No deployment run or startup phase provided");
     }
-
-    return true;
 }
 
 ggapi::ObjHandle GenComponentLoader::registerGenComponent(
@@ -417,7 +413,7 @@ ggapi::ObjHandle GenComponentLoader::registerGenComponent(
     return returnData;
 }
 
-bool GenComponentLoader::onInitialize(ggapi::Struct data) {
+void GenComponentLoader::onInitialize(ggapi::Struct data) {
 
     data.put(NAME, "aws.greengrass.gen_component_loader");
 
@@ -436,5 +432,4 @@ bool GenComponentLoader::onInitialize(ggapi::Struct data) {
     //  if(future.isValid()){
     //      auto response = ggapi::Struct(future.waitAndGetValue());
     //  }
-    return true;
 }

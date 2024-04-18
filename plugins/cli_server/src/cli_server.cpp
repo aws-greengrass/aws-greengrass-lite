@@ -9,15 +9,14 @@ static const Keys keys;
 
 static const DeploymentKeys deploymentKeys;
 
-bool CliServer::onInitialize(ggapi::Struct data) {
+void CliServer::onInitialize(ggapi::Struct data) {
     data.put(NAME, keys.serviceName);
     std::unique_lock guard{_mutex};
     _system = data.getValue<ggapi::Struct>({"system"});
     _config = data.getValue<ggapi::Struct>({"config"});
-    return true;
 }
 
-bool CliServer::onStart(ggapi::Struct data) {
+void CliServer::onStart(ggapi::Struct data) {
     std::shared_lock guard{_mutex};
     // TODO: also need to call close() onStop
     _createLocalDeploymentSubs = ggapi::Subscription::subscribeToTopic(
@@ -38,7 +37,6 @@ bool CliServer::onStart(ggapi::Struct data) {
     std::filesystem::path rootPath = _system.getValue<std::string>({"rootpath"});
     // TODO: This should be async?
     generateCliIpcInfo(rootPath / CLI_IPC_INFO_PATH);
-    return true;
 }
 
 void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) {
@@ -84,9 +82,8 @@ void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) 
         filePath, std::filesystem::perms::owner_read | std::filesystem::perms::owner_write);
 }
 
-bool CliServer::onStop(ggapi::Struct data) {
+void CliServer::onStop(ggapi::Struct data) {
     // TODO: call close on all LPCs
-    return true;
 }
 
 ggapi::ObjHandle CliServer::createLocalDeploymentHandler(

@@ -142,16 +142,16 @@ public:
     //            returns
     //        self is passed as const as the reference count for the class itself should not be
     //        increased any further.
-    static bool lifecycleCallback(
+    static void lifecycleCallback(
         const std::shared_ptr<GenComponentDelegate> &self,
-        const ggapi::ModuleScope&,
+        const ggapi::ModuleScope &,
         ggapi::Symbol event,
         ggapi::Struct data);
 
     ggapi::ModuleScope registerComponent();
 
-    bool onInitialize(ggapi::Struct data) override;
-    bool onStart(ggapi::Struct data) override;
+    void onInitialize(ggapi::Struct data) override;
+    void onStart(ggapi::Struct data) override;
 };
 
 class GenComponentLoader : public ggapi::Plugin {
@@ -160,7 +160,7 @@ private:
     ggapi::Subscription _delegateComponentSubscription;
 
 public:
-    bool onInitialize(ggapi::Struct data) override;
+    void onInitialize(ggapi::Struct data) override;
 
     static GenComponentLoader &get() {
         static GenComponentLoader instance{};

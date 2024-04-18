@@ -48,9 +48,9 @@ private:
 
 public:
     IpcServer() noexcept;
-    bool onInitialize(ggapi::Struct data) override;
-    bool onStart(ggapi::Struct data) override;
-    bool onStop(ggapi::Struct data) override;
+    void onInitialize(ggapi::Struct data) override;
+    void onStart(ggapi::Struct data) override;
+    void onStop(ggapi::Struct data) override;
 
     static IpcServer &get() {
         static IpcServer instance{};
