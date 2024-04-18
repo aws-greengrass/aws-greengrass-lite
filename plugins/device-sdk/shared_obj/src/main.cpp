@@ -15,4 +15,9 @@ namespace util {
         }();
         return handle;
     }
+
+    std::string getAwsCrtErrorString(int errorCode) {
+        return {aws_error_str(errorCode)};
+    }
+
 } // namespace util
