@@ -22,7 +22,7 @@ private:
     ggapi::Subscription _fetchTesFromCloudSubs;
 
 public:
-    bool onInitialize(ggapi::Struct data) override;
+    void onInitialize(ggapi::Struct data) override;
 
     static CloudDownloader &get() {
         static CloudDownloader instance{};

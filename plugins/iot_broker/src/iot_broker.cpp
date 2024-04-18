@@ -284,7 +284,7 @@ const IotBroker::Keys IotBroker::keys{};
 
 /* Lifecycle function implementations */
 
-bool IotBroker::onInitialize(ggapi::Struct data) {
+void IotBroker::onInitialize(ggapi::Struct data) {
     std::cout << "[mqtt-plugin] initializing\n"; // TODO: Replace std::cout/cerr with logging
     std::ignore = util::getDeviceSdkApiHandle();
     data.put("name", "aws.greengrass.iot_broker");
@@ -292,11 +292,9 @@ bool IotBroker::onInitialize(ggapi::Struct data) {
     std::unique_lock guard{_mutex};
     _nucleus = data.getValue<ggapi::Struct>({"nucleus"});
     _system = data.getValue<ggapi::Struct>({"system"});
-    return true;
 }
 
-bool IotBroker::onStart(ggapi::Struct data) {
-    bool returnValue = false;
+void IotBroker::onStart(ggapi::Struct data) {
     std::cout << "[mqtt-plugin] starting\n";
     std::shared_lock guard{_mutex};
     try {
@@ -343,7 +341,6 @@ bool IotBroker::onStart(ggapi::Struct data) {
         _ipcSubscribeSubs = ggapi::Subscription::subscribeToTopic(
             keys.ipcSubscribeToIoTCoreTopic,
             ggapi::TopicCallback::of(&IotBroker::ipcSubscribeHandler, this));
-        returnValue = true;
     } catch(const std::exception &e) {
         std::cerr << "[mqtt-plugin] Error: " << e.what() << std::endl;
     }
@@ -353,11 +350,9 @@ bool IotBroker::onStart(ggapi::Struct data) {
     // TODO: This should not be blocking
     tesOnStart(data);
     tesOnRun();
-    return returnValue;
 }
 
-bool IotBroker::onStop(ggapi::Struct structData) {
+void IotBroker::onStop(ggapi::Struct structData) {
     // TODO: Cleanly stop thread and clean up listeners
     std::cout << "[mqtt-plugin] stopping\n";
-    return true;
 }

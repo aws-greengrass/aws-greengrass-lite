@@ -112,7 +112,7 @@ namespace plugins {
             : AbstractPlugin(context, std::move(name)), _parent{parent}, _callback{callback} {
         }
 
-        bool callNativeLifecycle(
+        void callNativeLifecycle(
             const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) override;
 
         std::shared_ptr<AbstractPlugin> getParent() noexcept {
@@ -148,7 +148,7 @@ namespace plugins {
         NativePlugin &operator=(NativePlugin &&) noexcept = delete;
         ~NativePlugin() noexcept override;
         void load(const std::filesystem::path &path);
-        bool callNativeLifecycle(
+        void callNativeLifecycle(
             const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) override;
         bool isActive() const noexcept override;
     };
@@ -183,11 +183,6 @@ namespace plugins {
          */
         data::SymbolInit STOP{"stop"};
         /**
-         * Plugin component to ERROR_STOP.  This is like STOP but upon completion, NUCLEUS
-         * will place the plugin in the BROKEN state.
-         */
-        data::SymbolInit ERROR_STOP{"error_stop"};
-        /**
          * Root of configuration tree (used by special plugins only)
          */
         data::SymbolInit CONFIG_ROOT{"configRoot"};
@@ -221,7 +216,6 @@ namespace plugins {
                     &INITIALIZE,
                     &START,
                     &STOP,
-                    &ERROR_STOP,
                     &CONFIG_ROOT,
                     &CONFIG,
                     &NUCLEUS_CONFIG,

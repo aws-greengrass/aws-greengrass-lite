@@ -1,11 +1,11 @@
 #pragma once
 
-#include <shared_device_sdk.hpp>
 #include <cpp_api.hpp>
 #include <logging.hpp>
 #include <memory>
 #include <mqtt/topic_filter.hpp>
 #include <plugin.hpp>
+#include <shared_device_sdk.hpp>
 #include <shared_mutex>
 
 class MqttBuilderException : public ggapi::GgApiError {
@@ -75,9 +75,9 @@ class IotBroker : public ggapi::Plugin {
     std::string _savedToken;
 
 public:
-    bool onInitialize(ggapi::Struct data) override;
-    bool onStart(ggapi::Struct data) override;
-    bool onStop(ggapi::Struct data) override;
+    void onInitialize(ggapi::Struct data) override;
+    void onStart(ggapi::Struct data) override;
+    void onStop(ggapi::Struct data) override;
 
     static IotBroker &get() {
         static IotBroker instance{};

@@ -1,4 +1,5 @@
 #include "plugin_loader.hpp"
+#include "api_standard_errors.hpp"
 #include "data/shared_list.hpp"
 #include "deployment/deployment_manager.hpp"
 #include "deployment/device_configuration.hpp"
@@ -148,34 +149,22 @@ namespace plugins {
         return _lifecycleFn.load() != nullptr;
     }
 
-    bool NativePlugin::callNativeLifecycle(
+    void NativePlugin::callNativeLifecycle(
         const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) {
 
         auto *lifecycleFn = _lifecycleFn.load();
-        if(lifecycleFn != nullptr) {
-            scope::TempRoot tempRoot;
-            bool handled = false;
-            // TODO: Remove module parameter
-            ggapiErrorKind error = lifecycleFn(
-                scope::asIntHandle(baseRef()), event.asInt(), scope::asIntHandle(data), &handled);
-            errors::Error::throwThreadError(error);
-            return handled;
-        } else {
-            return false; // not handled
-        }
+        assert(lifecycleFn);
+        scope::TempRoot tempRoot;
+        // TODO: Remove module parameter
+        ggapiErrorKind error =
+            lifecycleFn(scope::asIntHandle(baseRef()), event.asInt(), scope::asIntHandle(data));
+        errors::Error::throwThreadError(error);
     }
 
-    bool DelegatePlugin::callNativeLifecycle(
+    void DelegatePlugin::callNativeLifecycle(
         const data::Symbol &phase, const std::shared_ptr<data::StructModelBase> &data) {
-
-        auto callback = _callback;
-        if(callback) {
-            scope::TempRoot tempRoot;
-            // TODO: Remove module parameter
-            return callback->invokeLifecycleCallback(ref<plugins::AbstractPlugin>(), phase, data);
-        } else {
-            return false; // no callback, so caller should act as if event unhandled
-        }
+        assert(_callback);
+        _callback->invokeLifecycleCallback(ref<plugins::AbstractPlugin>(), phase, data);
     }
 
     void PluginLoader::discoverPlugins() {
@@ -387,7 +376,7 @@ namespace plugins {
                 .kv("name", getName())
                 .kv("event", event)
                 .log();
-        } catch(ggapi::EXCEPTION_UNHANDLED &e) {
+        } catch(ggapi::UnhandledLifecycleEvent &e) {
             LOG.atInfo()
                 .event("lifecycle-unhandled")
                 .kv("name", getName())
@@ -401,7 +390,7 @@ namespace plugins {
                 .kv("event", event)
                 .cause(lastError)
                 .log();
-        } catch(...) { 
+        } catch(...) {
             LOG.atError()
                 .event("lifecycle-error")
                 .kv("name", getName())

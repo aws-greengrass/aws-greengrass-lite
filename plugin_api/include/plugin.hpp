@@ -4,7 +4,6 @@
 #include <map>
 
 namespace ggapi {
-
     /**
      * Base class for all plugins
      */
@@ -19,22 +18,22 @@ namespace ggapi {
         ModuleScope _moduleScope{ModuleScope{}};
         Struct _config{};
 
-        bool lifecycleDispatch(const EventEnum::ConstType<Events::INITIALIZE> &, Struct data) {
+        void lifecycleDispatch(const EventEnum::ConstType<Events::INITIALIZE> &, Struct data) {
             internalBind(data);
-            return onInitialize(std::move(data));
+            onInitialize(std::move(data));
         }
 
-        bool lifecycleDispatch(const EventEnum::ConstType<Events::START> &, Struct data) {
-            return onStart(std::move(data));
+        void lifecycleDispatch(const EventEnum::ConstType<Events::START> &, Struct data) {
+            onStart(std::move(data));
         }
 
-        bool lifecycleDispatch(const EventEnum::ConstType<Events::STOP> &, Struct data) {
-            return onStop(std::move(data));
+        void lifecycleDispatch(const EventEnum::ConstType<Events::STOP> &, Struct data) {
+            onStop(std::move(data));
         }
 
-        static bool lifecycleDispatch(
+        static void lifecycleDispatch(
             const EventEnum::ConstType<Events::UNKNOWN> &, const Struct &) {
-            return false;
+            // add a log message here for the unknown event
         }
 
     protected:
@@ -79,13 +78,11 @@ namespace ggapi {
         ggapiErrorKind lifecycle(
             ggapiObjHandle, // TODO: Remove
             ggapiSymbol event,
-            ggapiObjHandle data,
-            bool *pHandled) noexcept {
+            ggapiObjHandle data) noexcept {
             // No exceptions may cross API boundary
             // Return true if handled.
-            return ggapi::catchErrorToKind([this, event, data, pHandled]() {
-                *pHandled = lifecycle(Symbol{event}, ObjHandle::of<Struct>(data));
-            });
+            return ggapi::catchErrorToKind(
+                [this, event, data]() { lifecycle(Symbol{event}, ObjHandle::of<Struct>(data)); });
         }
 
         /**
@@ -99,9 +96,8 @@ namespace ggapi {
     protected:
         void lifecycle(Symbol event, Struct data) {
             auto mappedEvent = EVENT_MAP.lookup(event).value_or(Events::UNKNOWN);
-            EventEnum::visit<bool>(mappedEvent, [this, data](auto p) {
-                return this->lifecycleDispatch(p, data);
-            }).value_or(false);
+            EventEnum::visitNoRet(
+                mappedEvent, [this, data](auto p) { this->lifecycleDispatch(p, data); });
         }
 
         /**
@@ -111,64 +107,33 @@ namespace ggapi {
             std::shared_lock guard{_baseMutex};
             return _config;
         }
-        /**
-         * @brief Event Handlers for lifecycle events
-         * Any errors that happen during the lifecycle event shall result in a thrown exception.
-         * However, Nucleus cannot interpret these errors and react uniquely.  Nucleus will abort
-         * the plugin and take it to the broken state if ANY exception happens.  The exception will
-         * be logged so a verbose exception report will help a user diagnose issues by analysing the
-         * log output stream. The plugin must apply any retries or other recovery techniques before
-         * returning.  The response from the plugin is considered the authoritative
-         * response and nucleus will react accordingly.
-         *
-         * NOTE: If an error occured, and you throw, you will recieve a STOP event.  If
-         * special cleanup is required due to the error condition, you must retain any state for the
-         * STOP cleanup.  Any retries or other steps to recover from an error must happen INSIDE
-         * this function.
-         */
 
         /**
-         * Initialize any state and prepare to run.
-         *
-         * Any declared dependencies are running so LPC interactions are permitted.
-         *
+         * For plugins discovered during bootstrap. Return true if handled. Typically a plugin
+         * will set the component name during this cycle.
+         * TODO: This may change
          */
         // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
         virtual void onInitialize(Struct data) {
-            LOG.atInfo()
-                .event("lifecycle-unhandled")
-                .kv("name", NAME)
-                .kv("event", "onInitialize")
-                .log();
+            /* TODO: remove the std::cout in favor of logging */
+            std::cout << "Default onInitialize\n";
         }
 
         /**
-         * Begin operations.
-         * start any threads, respond to LPC messages, post LPC messages.
-         * Return TRUE, if handled.
-         * Return FALSE, if unhandled
-         *
-         * default implementation returns FALSE;
+         * For plugins, after recipe has been read, but before any other
+         * lifecycle stages. Use this cycle for any data binding.
          */
         // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
         virtual void onStart(Struct data) {
-            LOG.atInfo().event("lifecycle-unhandled").kv("name", NAME).kv("event", "onStart").log();
+            std::cout << "Default onStart\n";
         }
 
         /**
-         * Stop operations and cleanup
-         * This event happens when a normal shutdown is happening (no errors) and also when an error
-         * has been reported.  The plugin must take appropriate action for either condition.
-         * Return TRUE if handled
-         * Return FALSE if unhandled
-         *
-         * If this is an orderly shutdown and you have an error in the STOP (throw) you will
-         * get a STOP event a second time.
-         *
+         * Plugin has transitioned into an active state. Return true if handled.
          */
         // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
         virtual void onStop(Struct data) {
-            LOG.atInfo().event("lifecycle-unhandled").kv("name", NAME).kv("event", "onStop").log();
+            std::cout << "Default onStop\n";
         }
     };
-} // namespace ggapi
+}; // namespace ggapi
