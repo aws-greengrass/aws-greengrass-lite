@@ -11,6 +11,20 @@
 const auto LOG = ggapi::Logger::of("LogManager");
 bool logGroupCreated = false;
 
+Aws::Crt::ApiHandle &getDeviceSdkApiHandleWithTrace() {
+    static auto &handle = []() -> Aws::Crt::ApiHandle & {
+        static Aws::Crt::ApiHandle apiHandle{};
+        try {
+            apiHandle.InitializeLogging(Aws::Crt::LogLevel::Info, stderr);
+        } catch(const std::exception &e) {
+            std::cerr << "[device-sdk] probably did not initialize the logging: " << e.what()
+                      << std::endl;
+        }
+        return apiHandle;
+    }();
+    return handle;
+}
+
 class SignWaiter
 {
 public:
@@ -38,6 +52,7 @@ private:
 };
 
 bool LogManager::onInitialize(ggapi::Struct data) {
+    std::ignore = getDeviceSdkApiHandleWithTrace();
     // TODO: retrieve and process system config
     std::unique_lock guard{_mutex};
     _nucleus = data.getValue<ggapi::Struct>({"nucleus"});
@@ -122,9 +137,11 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
             aws_byte_cursor_from_c_str(token.c_str()),
             UINT64_MAX
     );
-
-    // printf(PRInSTR "\n", AWS_BYTE_BUF_PRI(aws_byte_cursor_from_c_str(accessKey.c_str()));
-
+    std::cout << ":::::::::::::::::::::::::"<< std::endl;
+    printf(PRInSTR "\n", aws_byte_cursor_from_c_str(accessKey.c_str()));
+    std::cout << ":::::::::::::::::::::::::" << std::endl;
+    printf(PRInSTR "\n", aws_byte_cursor_from_c_str(secretAccessKey.c_str()));
+    std::cout << ":::::::::::::::::::::::::" << std::endl;
     // SigV4 Signer
     auto signer = Aws::Crt::MakeShared<Aws::Crt::Auth::Sigv4HttpRequestSigner>(allocator, allocator);
     Aws::Crt::Auth::AwsSigningConfig signingConfig(allocator);
@@ -315,7 +332,28 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
         const char* logGroupRequestBodyStr = buffer.GetString();
         std::shared_ptr<Aws::Crt::Io::IStream> createLogGroupBodyStream =
             std::make_shared<std::istringstream>(logGroupRequestBodyStr);
-        logGroupRequest->SetBody(createLogGroupBodyStream);
+        // logGroupRequest->SetBody(createLogGroupBodyStream);
+
+//        const char *logGroupRequestBodyStr = "{\"logGroupName\": \"my-test-log-grouc\"}";
+//        std::cout << ":::::::::::::::::::::::::"<< std::endl;
+//        std::shared_ptr<Aws::Crt::Io::IStream> bodyStream =
+//                std::make_shared<std::istringstream>(logGroupRequestBodyStr);
+
+        uint64_t dataLen = strlen(logGroupRequestBodyStr);
+        // if (!bodyStream->GetLength(dataLen))
+        // {
+        //     std::cerr << "failed to get length of input stream.\n";
+        //     exit(1);
+        // }
+        if (dataLen > 0)
+        {
+            std::string contentLength = std::to_string(dataLen);
+            Aws::Crt::Http::HttpHeader contentLengthHeader;
+            contentLengthHeader.name = Aws::Crt::ByteCursorFromCString("content-length");
+            contentLengthHeader.value = Aws::Crt::ByteCursorFromCString(contentLength.c_str());
+            logGroupRequest->AddHeader(contentLengthHeader);
+            logGroupRequest->SetBody(createLogGroupBodyStream);
+        }
 
         LOG.atInfo().log("ASLKFJLKGDLZJGGLFG");
         LOG.atInfo().log(logGroupRequestBodyStr);
@@ -338,8 +376,8 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
 
         conditionalVar.wait(semaphoreULock, [&]() { return streamCompleted; });
 
-        connection->Close();
-        conditionalVar.wait(semaphoreULock, [&]() { return connectionShutdown; });
+//        connection->Close();
+//        conditionalVar.wait(semaphoreULock, [&]() { return connectionShutdown; });
 
         LOG.atInfo().event("CreateLogGroup Status").kv("response_code",
                                                        logGroupResponseCode).log();
@@ -509,6 +547,7 @@ void LogManager::setupClient(const rapidjson::Document& putLogEventsRequestBody,
 }
 
 void LogManager::processLogsAndUpload() {
+    std::cout << "[Log_Manager] Start Logic " << std::endl;
     // TODO: remove hardcoded values
     auto system = _system;
     auto nucleus = _nucleus;
@@ -521,10 +560,10 @@ void LogManager::processLogsAndUpload() {
     auto logFilePath = system.getValue<std::string>({"rootpath"})
                        + "/logs/greengrass.log";
 
-//    std::string logGroupName =
-//        "/aws/greengrass/" + _logGroup.componentType + "/" + _logGroup.region + "/" +
-//        _logGroup.componentName;
-    std::string logGroupName = "gglitelogmanager";
+    std::string logGroupName =
+        "/aws/greengrass/" + _logGroup.componentType + "/" + _logGroup.region + "/" +
+        _logGroup.componentName;
+    // std::string logGroupName = "gglitelogmanager";
     std::string logStreamName = "/" + _logStream.date + "/thing/" +
                                 std::string(_logStream.thingName.c_str());
 
