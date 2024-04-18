@@ -32,6 +32,19 @@ namespace util {
         }
 
     public:
+        CheckedPointers() = default;
+        CheckedPointers(const CheckedPointers &) = delete;
+        CheckedPointers &operator=(const CheckedPointers &) = delete;
+        CheckedPointers(CheckedPointers &&) noexcept = default;
+        CheckedPointers &operator=(CheckedPointers &&) noexcept = default;
+        ~CheckedPointers() noexcept = default;
+
+        /**
+         * Erase everything
+         */
+        void clear() {
+            _refs.clear();
+        }
         /**
          * Erase real pointer at location given by handle. Caller responsible for mutex.
          *
@@ -119,6 +132,25 @@ namespace util {
         mutable std::mutex _mutex;
 
     public:
+        CheckedSharedPointers() = default;
+        CheckedSharedPointers(const CheckedSharedPointers &) = delete;
+        CheckedSharedPointers &operator=(const CheckedSharedPointers &) = delete;
+        CheckedSharedPointers(CheckedSharedPointers &&) noexcept = default;
+        CheckedSharedPointers &operator=(CheckedSharedPointers &&) noexcept = default;
+        ~CheckedSharedPointers() noexcept {
+            // Final use of mutex in case of race condition
+            // Make a copy of all shared pointers to maintain a ref count
+            std::vector<PointerType> copy;
+            CheckedPointers<DataType, PointerType> hold;
+            {
+                std::unique_lock guard{_mutex};
+                _table.insertInto(copy);
+                _table.clear();
+            }
+            // Allow shared-pointers to be destroyed outside of mutex
+            copy.clear();
+        }
+
         /**
          * Erase real pointer at location given by handle.
          *
@@ -151,7 +183,8 @@ namespace util {
         }
 
         /**
-         * Retrieve real pointer at location given by handle. Caller responsible for mutex.
+         * Retrieve real pointer at location given by handle. Caller responsible for mutex. If
+         * handle is invalid, exception is thrown
          *
          * @param handle - handle to data (when integer is expected)
          * @return workable pointer
@@ -162,7 +195,8 @@ namespace util {
         }
 
         /**
-         * Typically used to delegate to member function per handle.
+         * Typically used to delegate to member function per handle. If handle is invalid,
+         * exception is thrown.
          */
         template<typename FuncCall, typename... Args>
         std::invoke_result_t<FuncCall, DataType *, Args...> invoke(
@@ -200,7 +234,7 @@ namespace util {
          * @param args arguments to pass to function
          */
         template<typename FuncCall, typename... Args>
-        void invokeAll(const FuncCall &func, Args &&...args) {
+        void invokeAll(const FuncCall &func, Args... args) {
             static_assert(std::is_invocable_v<FuncCall, DataType *, Args...>);
             std::vector<PointerType> copy;
             {
@@ -209,7 +243,7 @@ namespace util {
             }
             // Perform actual call with no mutex (hence copies)
             for(const auto &ptr : copy) {
-                std::invoke(func, ptr.get(), std::forward<Args>(args)...);
+                std::invoke(func, ptr.get(), args...);
             }
         }
     };
