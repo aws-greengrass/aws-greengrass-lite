@@ -179,6 +179,7 @@ namespace config {
             WhatHappened reasons) const;
         void notifyChange(data::Symbol subKey, WhatHappened changeType);
         void notifyChange(WhatHappened changeType);
+        using data::StructModelBase::validate;
         std::optional<data::ValueType> validate(
             data::Symbol subKey,
             const data::ValueType &proposed,
