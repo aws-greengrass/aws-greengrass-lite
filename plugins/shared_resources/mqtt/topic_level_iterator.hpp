@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <string_view>
 
+// TODO: Move to util namespace
+
 struct TopicLevelIterator {
     using value_type = std::string_view;
     using difference_type = std::ptrdiff_t;
