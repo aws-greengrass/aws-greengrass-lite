@@ -284,9 +284,12 @@ namespace deployment {
 
         auto index = std::distance(manifests.begin(), iterator);
 
-        auto selectedManifest = _recipeAsStruct->get(_recipeAsStruct->foldKey("Manifests", true)).castObject<data::ListModelBase>()->get(index).castObject<data::StructModelBase>();
+        auto selectedManifest = _recipeAsStruct->get(_recipeAsStruct->foldKey("Manifests", true))
+                                    .castObject<data::ListModelBase>()
+                                    ->get(index)
+                                    .castObject<data::StructModelBase>();
 
-        std::cout<< selectedManifest->toJson().get()<<std::endl;
+        std::cout << selectedManifest->toJson().get() << std::endl;
 
         auto context = scope::context();
 
@@ -294,10 +297,7 @@ namespace deployment {
 
         data_pack->put("recipe", _recipeAsStruct);
         data_pack->put("manifest", selectedManifest);
-        data_pack->put("componentName", currentRecipe.componentName);
-        data_pack->put("deploymentId", currentDeployment.id);
         data_pack->put("artifactPath", artifactPath.generic_string());
-        data_pack->put("defaultConfig", defaultConfig);
 
         auto install = _recipeAsStruct->get("ComponentPublisher");
 
@@ -319,7 +319,6 @@ namespace deployment {
             newComponent->invoke([&](plugins::AbstractPlugin &newComponent, auto &data) {
                 newComponent.lifecycle(context->pluginLoader().START, data);
             });
-
         }
 
         // gets here only if all lifecycle steps are executed successfully

@@ -44,7 +44,7 @@ if(INSTALL_RUNTIME_DEPENDENCIES)
 endif()
 
 install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
-        DESTINATION plugins/recipes)
+        DESTINATION plugins/test_recipes)
 # Tests
 
 if(BUILD_TESTING AND NOT WIN32)

@@ -357,9 +357,12 @@ GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
     _name = data.get<std::string>("componentName");
     _recipeAsStruct = data.get<ggapi::Struct>("recipe");
     _manifestAsStruct = data.get<ggapi::Struct>("manifest");
-    _deploymentId = data.get<std::string>("deploymentId");
+    //TODO: fetch this information from nucleus's config
     _artifactPath = data.get<std::string>("artifactPath");
-    _defaultConfig = data.get<ggapi::Struct>("defaultConfig");
+
+    _deploymentId = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("ComponentName"));
+    auto compConfig = _recipeAsStruct.get<ggapi::Struct>(_recipeAsStruct.foldKey("ComponentConfiguration"));
+    auto _defaultConfig = compConfig.get<ggapi::Struct>(compConfig.foldKey("DefaultConfiguration"));
 
     // TODO:: Improve how Lifecycle is extracted from recipe with respect to manifest
     _lifecycleAsStruct =

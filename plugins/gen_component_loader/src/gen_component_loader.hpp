@@ -5,6 +5,7 @@
 #include <plugin.hpp>
 
 class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenComponentDelegate> {
+    public:
     struct ScriptSection : public ggapi::Serializable {
         std::optional<std::unordered_map<std::string, std::string>> envMap;
         std::string script;
