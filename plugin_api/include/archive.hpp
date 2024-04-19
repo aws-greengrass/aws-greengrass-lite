@@ -24,6 +24,9 @@ namespace util {
     public:
         virtual ~SerializableBase() noexcept = default;
         virtual void visit(ArchiveBase<Traits> &archive) = 0;
+        virtual void validate() {
+            // override with post-deserialize validation
+        }
     };
 
     /**
@@ -530,6 +533,10 @@ namespace util {
             if constexpr(std::is_base_of_v<SerializableType, T>) {
                 // Delegate to class itself
                 value.visit(*this);
+                if(!isArchiving()) {
+                    // Allow validation after deserialization
+                    value.validate();
+                }
             } else {
                 // Pass through traits
                 Traits::visit(*this, value);
