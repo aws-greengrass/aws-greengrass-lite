@@ -512,7 +512,7 @@ namespace logging {
         /**
          * Version of logLazy that allows stream operations.
          */
-        void logStream(const std::function<void(std::stringstream &)> &fn) {
+        void logStream(const std::function<void(std::ostream &)> &fn) {
             logLazy([&]() {
                 std::stringstream stream;
                 fn(stream);
