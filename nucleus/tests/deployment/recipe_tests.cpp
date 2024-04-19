@@ -2,6 +2,7 @@
 #include "deployment/recipe_loader.hpp"
 #include "test_tools.hpp"
 #include <catch2/catch_all.hpp>
+#include <data/shared_buffer.hpp>
 
 using Catch::Matchers::Equals;
 
@@ -13,6 +14,7 @@ SCENARIO("Recipe Reader", "[deployment]") {
         auto yaml_reader = deployment::RecipeLoader();
         WHEN("Reading a hello world recipe") {
             auto recipe = yaml_reader.read(samples / "hello_recipe.yml");
+            auto recipeAsStruct = yaml_reader.readAsStruct(samples / "hello_recipe.yml");
             THEN("The recipe is read") {
                 REQUIRE_THAT(recipe.formatVersion, Equals("2020-01-25"));
                 REQUIRE_THAT(recipe.componentName, Equals("com.example.HelloWorld"));
@@ -36,46 +38,78 @@ SCENARIO("Recipe Reader", "[deployment]") {
                     REQUIRE(darwinManifest.platform.os == "darwin");
                     REQUIRE(windowsManifest.platform.os == "windows");
                 }
-                // AND_WHEN("Linux lifecycle is parsed") {
-                //     deployment::LifecycleSection linuxLifecycle;
-                //     REQUIRE_FALSE(linuxManifest.lifecycle->empty());
-                //     data::archive::readFromStruct(linuxManifest.lifecycle, linuxLifecycle);
-                //     THEN("The lifecycle section was parsed correctly") {
-                //         REQUIRE(linuxLifecycle.run.has_value());
-                //         REQUIRE_FALSE(linuxLifecycle.run->script.empty());
-                //         REQUIRE(
-                //             linuxLifecycle.run->script
-                //             == "python3 -u {artifacts:path}/hello_world.py "
-                //                "\"{configuration:/Message}\"\n");
-                //     }
-                // }
+                AND_WHEN("Linux lifecycle is parsed") {
+                    auto selectedManifest =
+                        recipeAsStruct->get(recipeAsStruct->foldKey("Manifests", true))
+                            .castObject<data::ListModelBase>()
+                            ->get(0)
+                            .castObject<data::StructModelBase>();
+                    REQUIRE_FALSE(selectedManifest->empty());
+                    auto linuxLifecycle =
+                        selectedManifest->get(selectedManifest->foldKey("Lifecycle", true))
+                            .castObject<data::StructModelBase>();
 
-                // AND_WHEN("Darwin lifecycle is parsed") {
-                //     deployment::LifecycleSection darwinLifecycle;
-                //     REQUIRE_FALSE(darwinManifest.lifecycle->empty());
-                //     data::archive::readFromStruct(darwinManifest.lifecycle, darwinLifecycle);
-                //     THEN("The lifecycle section was parsed correctly") {
-                //         REQUIRE(darwinLifecycle.run.has_value());
-                //         REQUIRE_FALSE(darwinLifecycle.run->script.empty());
-                //         REQUIRE(
-                //             darwinLifecycle.run->script
-                //             == "python3 -u {artifacts:path}/hello_world.py "
-                //                "\"{configuration:/Message}\"\n");
-                //     }
-                // }
-                // AND_WHEN("Windows lifecycle is parsed") {
-                //     deployment::LifecycleSection windowsLifecycle;
-                //     REQUIRE_FALSE(windowsManifest.lifecycle->empty());
-                //     data::archive::readFromStruct(windowsManifest.lifecycle, windowsLifecycle);
-                //     THEN("The lifecycle section was parsed correctly") {
-                //         REQUIRE(windowsLifecycle.run.has_value());
-                //         REQUIRE_FALSE(windowsLifecycle.run->script.empty());
-                //         REQUIRE(
-                //             windowsLifecycle.run->script
-                //             == "py -3 -u {artifacts:path}/hello_world.py "
-                //                "\"{configuration:/Message}\"\n");
-                //     }
-                // }
+                    auto val = linuxLifecycle->toJson();
+                    // auto buffer = val.get<std::vector<char>>(0, size());
+                    linuxLifecycle->toJson()->write(std::cout);
+                    std::cout << std::endl;
+                    REQUIRE_FALSE(linuxLifecycle->empty());
+
+                    THEN("The lifecycle section was parsed correctly") {
+                        auto run =
+                            linuxLifecycle->get(linuxLifecycle->foldKey("run", true)).getString();
+                        REQUIRE_FALSE(run.empty());
+                        REQUIRE(
+                            run
+                            == "python3 -u {artifacts:path}/hello_world_linux.py "
+                               "\"{configuration:/Message}\"\n");
+                    }
+                }
+
+                AND_WHEN("Darwin lifecycle is parsed") {
+                    auto selectedManifest =
+                        recipeAsStruct->get(recipeAsStruct->foldKey("Manifests", true))
+                            .castObject<data::ListModelBase>()
+                            ->get(1)
+                            .castObject<data::StructModelBase>();
+                    REQUIRE_FALSE(selectedManifest->empty());
+                    auto darwinLifecycle =
+                        selectedManifest->get(selectedManifest->foldKey("Lifecycle", true))
+                            .castObject<data::StructModelBase>();
+                    REQUIRE_FALSE(darwinLifecycle->empty());
+
+                    THEN("The lifecycle section was parsed correctly") {
+                        auto run =
+                            darwinLifecycle->get(darwinLifecycle->foldKey("run", true)).getString();
+                        REQUIRE_FALSE(run.empty());
+                        REQUIRE(
+                            run
+                            == "python3 -u {artifacts:path}/hello_world_darwin.py "
+                               "\"{configuration:/Message}\"\n");
+                    }
+                }
+                AND_WHEN("Windows lifecycle is parsed") {
+                    auto selectedManifest =
+                        recipeAsStruct->get(recipeAsStruct->foldKey("Manifests", true))
+                            .castObject<data::ListModelBase>()
+                            ->get(2)
+                            .castObject<data::StructModelBase>();
+                    REQUIRE_FALSE(selectedManifest->empty());
+                    auto windowsLifecycle =
+                        selectedManifest->get(selectedManifest->foldKey("Lifecycle", true))
+                            .castObject<data::StructModelBase>();
+                    REQUIRE_FALSE(windowsLifecycle->empty());
+
+                    THEN("The lifecycle section was parsed correctly") {
+                        auto run =
+                            windowsLifecycle->get(windowsLifecycle->foldKey("run", true)).getString();
+                        REQUIRE_FALSE(run.empty());
+                        REQUIRE(
+                            run
+                            == "py -3 -u {artifacts:path}/hello_world.py "
+                               "\"{configuration:/Message}\"\n");
+                    }
+                }
             }
         }
         WHEN("Reading a recipe with dependencies") {
@@ -179,29 +213,28 @@ SCENARIO("Recipe Reader", "[deployment]") {
             }
         }
 
-        // WHEN("Reading a recipe with selections") {
-        //     auto recipe = yaml_reader.read(samples / "selection_recipe.yml");
-        //     THEN("The recipe is read") {
-        //         REQUIRE_THAT(recipe.formatVersion, Equals("2020-01-25"));
-        //         REQUIRE_THAT(recipe.componentName, Equals("com.example.HelloWorld"));
-        //         REQUIRE_THAT(recipe.componentVersion, Equals("1.0.0"));
-        //         REQUIRE_THAT(
-        //             recipe.componentDescription, Equals("My first AWS IoT Greengrass component."));
-        //         REQUIRE_THAT(recipe.componentPublisher, Equals("Amazon"));
+        WHEN("Reading a recipe with selections") {
+            auto recipe = yaml_reader.read(samples / "selection_recipe.yml");
+            THEN("The recipe is read") {
+                REQUIRE_THAT(recipe.formatVersion, Equals("2020-01-25"));
+                REQUIRE_THAT(recipe.componentName, Equals("com.example.HelloWorld"));
+                REQUIRE_THAT(recipe.componentVersion, Equals("1.0.0"));
+                REQUIRE_THAT(recipe.componentDescription, Equals("My first AWS IoT Greengrass component."));
+                REQUIRE_THAT(recipe.componentPublisher, Equals("Amazon"));
 
-        //         REQUIRE(recipe.configuration.defaultConfiguration->hasKey("Message"));
-        //         REQUIRE_THAT(
-        //             recipe.configuration.defaultConfiguration->get("Message").getString(),
-        //             Equals("world"));
+                REQUIRE(recipe.configuration.defaultConfiguration->hasKey("Message"));
+                REQUIRE_THAT(
+                    recipe.configuration.defaultConfiguration->get("Message").getString(),
+                    Equals("world"));
 
-        //         REQUIRE(recipe.manifests.size() == 1);
+                REQUIRE(recipe.manifests.size() == 1);
 
-        //         REQUIRE(recipe.manifests[0].platform.os == "linux");
-        //         REQUIRE(recipe.manifests[0].selections.size() == 2);
-        //         REQUIRE_THAT(recipe.manifests[0].selections[0], Equals("key1"));
-        //         REQUIRE_THAT(recipe.manifests[0].selections[1], Equals("key2"));
-        //     }
-        // }
+                REQUIRE(recipe.manifests[0].platform.os == "linux");
+                // REQUIRE(recipe.manifests[0].selections.size() == 2);
+                // REQUIRE_THAT(recipe.manifests[0].selections[0], Equals("key1"));
+                // REQUIRE_THAT(recipe.manifests[0].selections[1], Equals("key2"));
+            }
+        }
     }
 }
 
