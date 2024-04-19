@@ -37,7 +37,7 @@ namespace channel {
         };
     }
 
-    void Channel::write(const std::shared_ptr<data::ContainerModelBase> &value) {
+    void Channel::write(const std::shared_ptr<data::TrackedObject> &value) {
         std::unique_lock _lock(_mutex);
         if(!_closed) {
             _inFlight.push(value);
