@@ -183,8 +183,10 @@ namespace deployment {
     Recipe DeploymentManager::loadRecipeFile(const std::filesystem::path &recipeFile) {
         try {
             return _recipeLoader.read(recipeFile);
-        } catch(std::exception &e) {
-            LOG.atWarn("deployment").kv("DeploymentType", "LOCAL").logAndThrow(e);
+        } catch(...) {
+            LOG.atWarn("deployment")
+                .kv("DeploymentType", "LOCAL")
+                .logAndThrow(std::current_exception());
         }
     }
 
@@ -192,8 +194,10 @@ namespace deployment {
         const std::filesystem::path &recipeFile) {
         try {
             return _recipeLoader.readAsStruct(recipeFile);
-        } catch(std::exception &e) {
-            LOG.atWarn("deployment").kv("DeploymentType", "LOCAL").logAndThrow(e);
+        } catch(...) {
+            LOG.atWarn("deployment")
+                .kv("DeploymentType", "LOCAL")
+                .logAndThrow(std::current_exception());
         }
     }
 
