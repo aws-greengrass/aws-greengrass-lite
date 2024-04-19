@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <plugin.hpp>
 #include <string_view>
 #include <temp_module.hpp>
@@ -29,14 +30,20 @@ namespace test {
             _nucleusNode.put("configuration", _nucleusNodeConfiguration);
         }
 
+        static inline auto NULL_INIT = [](Lifecycle &) {};
+
     public:
         using Plugin = ggapi::Plugin;
         using Events = ggapi::Plugin::Events;
 
-        explicit Lifecycle(std::string_view name, ggapi::Plugin &plugin)
+        explicit Lifecycle(
+            std::string_view name,
+            ggapi::Plugin &plugin,
+            std::function<void(Lifecycle &lifecycle)> moreInit = NULL_INIT)
             : _name(name), _plugin(plugin), _module(name) {
             // Mock out configuration
             init();
+            more_init(*this);
             // Perform the initialization phase
             auto data = lifecycleData();
             event(Events::INITIALIZE, data);
