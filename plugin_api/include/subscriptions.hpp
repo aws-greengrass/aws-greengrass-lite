@@ -96,15 +96,15 @@ namespace ggapi {
          * @tparam Callable Lambda, function pointer, method, etc.
          * @tparam Args Prefix arguments, particularly optional This
          */
-        template<typename Callable, typename... Args>
+        template<typename ObjType, typename Callable, typename... Args>
         class TopicDispatch : public CallbackManager::CaptureDispatch<Callable, Args...> {
 
         public:
             explicit TopicDispatch(Callable callable, Args... args)
                 : CallbackManager::CaptureDispatch<Callable, Args...>{
                     std::move(callable), std::move(args)...} {
-                static_assert(
-                    std::is_invocable_r_v<ObjHandle, Callable, Args..., Symbol, Container>);
+                static_assert(std::is_base_of_v<Container, ObjType>);
+                static_assert(std::is_invocable_r_v<ObjHandle, Callable, Args..., Symbol, ObjType>);
             }
             [[nodiscard]] Symbol type() const override {
                 return {"topic"};
@@ -120,7 +120,7 @@ namespace ggapi {
                     // released
                     [&cb](const ObjHandle &s) { cb.ret = s.makeTemp(); },
                     Symbol(cb.topicSymbol),
-                    ObjHandle::of<Container>(cb.data));
+                    ObjHandle::of<ObjType>(cb.data));
             }
         };
 
@@ -133,11 +133,11 @@ namespace ggapi {
         /**
          * Create reference to a topic callback.
          */
-        template<typename Callable, typename... Args>
+        template<typename ObjType = Container, typename Callable, typename... Args>
         static TopicCallback of(const Callable &callable, const Args &...args) {
-            auto dispatch =
-                std::make_unique<TopicDispatch<std::decay_t<Callable>, std::decay_t<Args>...>>(
-                    callable, args...);
+            auto dispatch = std::make_unique<
+                TopicDispatch<ObjType, std::decay_t<Callable>, std::decay_t<Args>...>>(
+                callable, args...);
             return CallbackManager::self().registerWithNucleus<TopicCallback>(std::move(dispatch));
         }
     };

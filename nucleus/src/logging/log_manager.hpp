@@ -76,13 +76,20 @@ namespace logging {
     };
 
     class LogState {
+
+#ifdef NDEBUG
+        constexpr static auto DEFAULT_LOG_LEVEL = Level::Info;
+#else
+        constexpr static auto DEFAULT_LOG_LEVEL = Level::Debug;
+#endif
+
         constexpr static std::string_view DEFAULT_LOG_BASE{"greengrass"};
         constexpr static std::string_view LOG_EXTENSION{".log"};
         constexpr static uint64_t DEFAULT_MAX_FILE_SIZE_KB{1024L};
         constexpr static uint64_t DEFAULT_MAX_FILE_SIZE_ALL_KB{DEFAULT_MAX_FILE_SIZE_KB * 10};
         mutable std::shared_mutex _mutex;
         std::string _contextName;
-        Level _level{Level::Info};
+        Level _level{DEFAULT_LOG_LEVEL};
         Format _format{Format::Text};
         OutputType _outputType{OutputType::Console}; // until file specified
         uint64_t _fileSizeKB{DEFAULT_MAX_FILE_SIZE_KB};
