@@ -65,4 +65,5 @@ namespace ggapi {
             : GgApiError(KIND, what) {
         }
     };
+
 } // namespace ggapi

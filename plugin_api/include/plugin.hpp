@@ -63,6 +63,7 @@ namespace ggapi {
         // Lifecycle parameter constants
         inline static const Symbol CONFIG_ROOT{"configRoot"};
         inline static const Symbol CONFIG{"config"};
+        inline static const Symbol SYSTEM{"system"};
         inline static const Symbol NUCLEUS_CONFIG{"nucleus"};
         inline static const Symbol NAME{"name"};
         inline static const Symbol MODULE{"module"};
@@ -93,13 +94,17 @@ namespace ggapi {
             return _moduleScope;
         }
 
-    protected:
-        void lifecycle(Symbol event, Struct data) {
+
+        /**
+         * Exposed for testing
+         */
+        bool lifecycle(Symbol event, Struct data) {
             auto mappedEvent = EVENT_MAP.lookup(event).value_or(Events::UNKNOWN);
             EventEnum::visitNoRet(
                 mappedEvent, [this, data](auto p) { this->lifecycleDispatch(p, data); });
         }
 
+    protected:
         /**
          * Retrieve config space unique to the given plugin
          */
