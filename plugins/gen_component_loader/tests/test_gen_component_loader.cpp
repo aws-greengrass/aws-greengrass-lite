@@ -147,10 +147,10 @@ Manifests:
                         REQUIRE(responseFuture);
                         THEN("Manage generic component's lifecycle") {
                             auto response = ggapi::Struct{responseFuture.waitAndGetValue()};
-                            auto genLifecycle = response.get<GenComponentDelegate*>("moduleHandle");
+                            auto genLifecycle = response.get<ggapi::ModuleScope>("moduleHandle");
 
-                            genLifecycle->onInitialize(configAsStruct);
-                            genLifecycle->onStart(configAsStruct);
+                            genLifecycle.onInitialize(configAsStruct);
+                            genLifecycle.onStart(configAsStruct);
                         }
                     }
                 }

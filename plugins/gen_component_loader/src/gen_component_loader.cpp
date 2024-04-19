@@ -29,8 +29,9 @@ void GenComponentDelegate::lifecycleCallback(
 
 ggapi::ModuleScope GenComponentDelegate::registerComponent() {
     // baseRef() enables the class to be able to point to itself
+    auto callback = ggapi::LifecycleCallback::of(&GenComponentDelegate::lifecycleCallback, baseRef());
     auto module = ggapi::ModuleScope::registerGlobalPlugin(
-        _name, ggapi::LifecycleCallback::of(&GenComponentDelegate::lifecycleCallback, baseRef()));
+        _name, callback);
     return module;
 }
 
@@ -409,6 +410,10 @@ ggapi::ObjHandle GenComponentLoader::registerGenComponent(
 
     // TODO:
     ggapi::Struct returnData = ggapi::Struct::create();
+
+    if(_initHook.has_value()){
+        _initHook.value()(newModule);
+    }
 
     auto module = newModule->registerComponent();
 

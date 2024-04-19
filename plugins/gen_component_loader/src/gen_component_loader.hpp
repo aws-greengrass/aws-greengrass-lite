@@ -159,9 +159,13 @@ class GenComponentLoader : public ggapi::Plugin {
 private:
     ggapi::ObjHandle registerGenComponent(ggapi::Symbol, const ggapi::Container &callData);
     ggapi::Subscription _delegateComponentSubscription;
-
+    std::optional <std::function<void(std::shared_ptr<GenComponentDelegate>)>> _initHook;
 public:
     void onInitialize(ggapi::Struct data) override;
+
+    void setInitHook(const std::function<void(std::shared_ptr<GenComponentDelegate>)> &initHook){
+        _initHook = initHook;
+    }
 
     static GenComponentLoader &get() {
         static GenComponentLoader instance{};
