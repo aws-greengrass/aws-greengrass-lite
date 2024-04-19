@@ -8,77 +8,7 @@ using Catch::Matchers::Equals;
 namespace gen_component_loader_test {
     SCENARIO("Recipe Reader", "[TestGenComponentLoader]") {
         util::TempModule testModule("json-test");
-
-        auto sampleConfig = R"(---
-system:
-  privateKeyPath: "private.pem.key"
-  certificateFilePath: "certificate.pem.crt"
-  rootCaPath: "AmazonRootCA1.pem"
-  rootpath: "."
-  thingName: "testDevDevice"
-services:
-  aws.greengrass.Nucleus-Lite:
-    componentType: "NUCLEUS"
-    configuration:
-      awsRegion: "us-east-1"
-      componentStoreMaxSizeBytes: "10000000000"
-      deploymentPollingFrequencySeconds: "15"
-      envStage: "prod"
-      fleetStatus:
-        periodicStatusPublishIntervalSeconds: 86400
-      greengrassDataPlanePort: "8443"
-      httpClient: {}
-      iotCredEndpoint: "sample.credentials.iot.us-east-1.amazonaws.com"
-      iotDataEndpoint: "sample-ats.iot.us-east-1.amazonaws.com"
-      iotRoleAlias: "GreengrassV2GammaTokenExchangeRoleAlias"
-      logging:
-        level: "DEBUG"
-      mqtt:
-        spooler: {}
-      networkProxy:
-        proxy: {}
-      platformOverride: {}
-      runWithDefault:
-        posixUser: "ubuntu:ubuntu"
-        posixShell: "sh"
-      telemetry: {}
-    dependencies: []
-  aws.greengrass.FleetProvisioningByClaim:
-    configuration:
-      iotDataEndpoint: "..."
-      iotCredEndpoint: ""
-      claimKeyPath: "..."
-      claimCertPath: "..."
-      deviceId: ""
-      templateName: "..."
-      templateParams: "..."
-      csrPath: ""
-      mqttPort: 80
-      proxyUrl: ""
-      proxyUsername: ""
-      proxyPassword: ""
-  DeploymentService:
-    dependencies: []
-    version: "0.0.0"
-  FleetStatusService:
-    dependencies: []
-    version: "0.0.0"
-  main:
-    dependencies:
-      - "aws.greengrass.Nucleus-Lite"
-    lifecycle: {}
-  TelemetryAgent:
-    dependencies: []
-    version: "0.0.0"
-  UpdateSystemPolicyService:
-    dependencies: []
-    version: "0.0.0"
-)";
-        ggapi::Buffer configBuffer = ggapi::Buffer::create();
-        configBuffer.put(0, std::string_view(sampleConfig));
-        ggapi::Container configAsContainer = configBuffer.fromYaml();
-        ggapi::Struct configAsStruct(configAsContainer);
-
+        
         GIVEN("An instance of recipe structure") {
             const auto recipeAsString = R"(---
 RecipeFormatVersion: "2020-01-25"
