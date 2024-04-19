@@ -98,7 +98,7 @@ namespace ggapi {
         /**
          * Exposed for testing
          */
-        bool lifecycle(Symbol event, Struct data) {
+        void lifecycle(Symbol event, Struct data) {
             auto mappedEvent = EVENT_MAP.lookup(event).value_or(Events::UNKNOWN);
             EventEnum::visitNoRet(
                 mappedEvent, [this, data](auto p) { this->lifecycleDispatch(p, data); });
