@@ -11,7 +11,7 @@ jobs:
     name: Create Bundle
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"
