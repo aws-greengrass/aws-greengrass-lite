@@ -12,7 +12,7 @@ set(FETCHCONTENT_QUIET FALSE)
 
 include(../../utils/cmake/FetchContentFromDeps.cmake)
 
-fetchContentAddCmake(device-sdk-cpp)
+fetchContentAddCmake(aws-iot-device-sdk-cpp-v2)
 
 add_executable(sample-component main.cpp)
 

@@ -23,7 +23,7 @@ uint32_t ggapiChannelWrite(uint32_t channel, uint32_t callStruct) noexcept {
     return ggapi::trapErrorReturn<uint32_t>([channel, callStruct]() {
         auto context = scope::context();
         auto channelObj = context->objFromInt<channel::Channel>(channel);
-        auto data = context->objFromInt<data::StructModelBase>(callStruct);
+        auto data = context->objFromInt(callStruct);
         channelObj->write(data);
         return true;
     });

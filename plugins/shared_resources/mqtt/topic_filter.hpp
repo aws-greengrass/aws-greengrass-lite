@@ -4,6 +4,8 @@
 #include <stdexcept>
 #include <string>
 
+// TODO: Move to util namespace
+
 template<class Alloc = std::allocator<char>>
 class TopicFilter {
 public:

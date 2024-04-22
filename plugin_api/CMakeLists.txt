@@ -12,6 +12,7 @@ add_library(
   include/api_errors.hpp
   include/api_forwards.hpp
   include/api_logging.hpp
+  include/api_standard_errors.hpp
   include/archive.hpp
   include/atomic_shared.hpp
   include/buffer_stream.hpp
