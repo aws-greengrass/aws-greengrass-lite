@@ -109,6 +109,8 @@ add_library(
   src/lifecycle/kernel.hpp
   src/lifecycle/lifecycle_fsm.cpp
   src/lifecycle/lifecycle_fsm.hpp
+  src/lifecycle/lifecycle_manager.cpp
+  src/lifecycle/lifecycle_manager.hpp
   src/lifecycle/scripting.cpp
   src/lifecycle/scripting.hpp
   src/lifecycle/kernel_alternatives.cpp

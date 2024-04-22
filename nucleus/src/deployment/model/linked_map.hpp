@@ -1,10 +1,10 @@
 #pragma once
-#include <unordered_map>
+#include <algorithm>
 #include <list>
-#include <optional>
 #include <mutex>
 #include <shared_mutex>
-#include <iostream>
+#include <unordered_map>
+#include <vector>
 
 namespace data {
     template<class K, class V>
@@ -16,16 +16,16 @@ namespace data {
 
     public:
         // Add elements to the queue in order
-        void push(const std::pair<K, V> &arg)  {
+        void push(const std::pair<K, V> &arg) {
             const auto &[key, value] = arg;
             // If the key doesn't exist, add it to the end of the map.
             std::unique_lock guard{_mutex};
-            if (auto foundMapIter = _hashMap.find(key); foundMapIter == _hashMap.end()) {
+            if(auto foundMapIter = _hashMap.find(key); foundMapIter == _hashMap.end()) {
                 _pairList.emplace_back(arg);
                 auto itr = std::prev(_pairList.end());
                 _hashMap.emplace(key, itr);
             } else { // If key exists, replace the value and still maintain the order
-                const auto& listItr = foundMapIter->second;
+                const auto &listItr = foundMapIter->second;
                 listItr->second = value; // replace old value in the list
             }
         }
@@ -34,7 +34,7 @@ namespace data {
         [[nodiscard]] V poll() noexcept {
             std::unique_lock guard{_mutex};
             if(_pairList.empty()) {
-                return {}; //should return nothing
+                return {}; // should return nothing
             }
             // Get value of the first element
             auto [key, value] = _pairList.front();
@@ -81,6 +81,18 @@ namespace data {
             std::unique_lock guard{_mutex};
             _pairList.clear();
             _hashMap.clear();
+        }
+
+        std::vector<V> values() const {
+            std::vector<V> values;
+            std::shared_lock guard{_mutex};
+            values.reserve(_pairList.size());
+            std::transform(
+                _pairList.begin(),
+                _pairList.end(),
+                std::back_inserter(values),
+                [](std::pair<K, V> const &kv) -> V { return kv.second; });
+            return values;
         }
     };
 } // namespace data
