@@ -37,6 +37,7 @@ namespace plugins {
 
     static std::runtime_error makePluginError(
         std::string_view description, const std::filesystem::path &path, std::string_view message) {
+        // TODO, this should be returning a GG error
         const auto pathStr = path.string();
         std::string what;
         what.reserve(description.size() + pathStr.size() + message.size() + 2U);
@@ -318,10 +319,10 @@ namespace plugins {
             auto recipePath = it->second;
             try {
                 return deployment::RecipeLoader{}.read(recipePath);
-            } catch(std::runtime_error &e) {
+            } catch(...) {
                 // pass
                 LOG.atWarn("recipe-not-loaded")
-                    .cause(e)
+                    .cause(std::current_exception())
                     .kv("path", recipePath.string())
                     .log("Unable to load recipe file");
             }
