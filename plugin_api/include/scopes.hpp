@@ -79,9 +79,8 @@ namespace ggapi {
         public:
             explicit LifecycleDispatch(Callable callable, Args... args)
                 : CallbackManager::CaptureDispatch<Callable, Args...>{
-                    std::move(callable), std::move(args)...} {
-                static_assert(
-                    std::is_invocable_r_v<bool, Callable, Args..., ModuleScope, Symbol, Struct>);
+                      std::move(callable), std::move(args)...} {
+                static_assert(std::is_invocable_v<Callable, Args..., ModuleScope, Symbol, Struct>);
             }
             [[nodiscard]] Symbol type() const override {
                 return {"lifecycle"};
@@ -91,8 +90,7 @@ namespace ggapi {
 
                 auto &cb = this->template checkedStruct<ggapiLifecycleCallbackData>(
                     callbackType, size, data);
-                return this->template prepareWithArgsRet<bool, ModuleScope, Symbol, Struct>(
-                    [&cb](bool f) { cb.retWasHandled = f ? 1 : 0; },
+                return this->template prepareWithArgs<ModuleScope, Symbol, Struct>(
                     ObjHandle::of<ModuleScope>(cb.moduleHandle),
                     Symbol(cb.phaseSymbol),
                     ObjHandle::of<Struct>(cb.dataStruct));

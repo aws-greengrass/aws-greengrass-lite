@@ -21,23 +21,21 @@ ggapi::Promise ProvisionPlugin::brokerListener(ggapi::Symbol, const ggapi::Conta
  * bind the provisioning topic during this binding phase. (Atypical)
  */
 
-bool ProvisionPlugin::onInitialize(ggapi::Struct data) {
+void ProvisionPlugin::onInitialize(ggapi::Struct data) {
     std::ignore = util::getDeviceSdkApiHandle(); // Make sure Api initialized
     data.put(NAME, keys.serviceName);
     std::unique_lock guard{_mutex};
     _subscription = ggapi::Subscription::subscribeToTopic(
         keys.topicName, ggapi::TopicCallback::of(&ProvisionPlugin::brokerListener, this));
     _system = data.getValue<ggapi::Struct>({"system"});
-    return true;
 }
 
 /**
  * Release subscriptions during termination.
  */
-bool ProvisionPlugin::onStop(ggapi::Struct data) {
+void ProvisionPlugin::onStop(ggapi::Struct data) {
     std::unique_lock guard{_mutex};
     _subscription.close();
-    return true;
 }
 
 /**

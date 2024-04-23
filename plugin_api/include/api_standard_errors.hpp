@@ -57,4 +57,16 @@ namespace ggapi {
         }
     };
 
+    /**
+     * Unhandled Lifecycle event
+     */
+    class UnhandledLifecycleEvent : public GgApiError {
+        inline static const auto KIND = ggapi::Symbol("ggapi::UnhandledLifecycleEvent");
+
+        explicit UnhandledLifecycleEvent(
+            const std::string &what = "Unhandled Lifecycle Event") noexcept
+            : GgApiError(KIND, what) {
+        }
+    };
+
 } // namespace ggapi
