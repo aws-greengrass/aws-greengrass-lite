@@ -76,8 +76,8 @@ class ProvisionPlugin : public ggapi::Plugin {
 
 public:
     ProvisionPlugin() = default;
-    bool onInitialize(ggapi::Struct data) override;
-    bool onStop(ggapi::Struct data) override;
+    void onInitialize(ggapi::Struct data) override;
+    void onStop(ggapi::Struct data) override;
     ggapi::Promise brokerListener(ggapi::StringOrd topic, const ggapi::Container &callData);
     static ProvisionPlugin &get() {
         static ProvisionPlugin instance;

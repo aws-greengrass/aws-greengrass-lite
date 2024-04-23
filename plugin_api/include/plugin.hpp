@@ -4,46 +4,36 @@
 #include <map>
 
 namespace ggapi {
-
     /**
      * Base class for all plugins
      */
     class Plugin {
     public:
-        enum class Events { INITIALIZE, START, STOP, ERROR_STOP, UNKNOWN };
-        using EventEnum = util::Enum<
-            Events,
-            Events::INITIALIZE,
-            Events::START,
-            Events::STOP,
-            Events::ERROR_STOP,
-            Events::UNKNOWN>;
+        enum class Events { INITIALIZE, START, STOP, UNKNOWN };
+        using EventEnum =
+            util::Enum<Events, Events::INITIALIZE, Events::START, Events::STOP, Events::UNKNOWN>;
 
     private:
         mutable std::shared_mutex _baseMutex; // Unique name to simplify debugging
         ModuleScope _moduleScope{ModuleScope{}};
         Struct _config{};
 
-        bool lifecycleDispatch(const EventEnum::ConstType<Events::INITIALIZE> &, Struct data) {
+        void lifecycleDispatch(const EventEnum::ConstType<Events::INITIALIZE> &, Struct data) {
             internalBind(data);
-            return onInitialize(std::move(data));
+            onInitialize(std::move(data));
         }
 
-        bool lifecycleDispatch(const EventEnum::ConstType<Events::START> &, Struct data) {
-            return onStart(std::move(data));
+        void lifecycleDispatch(const EventEnum::ConstType<Events::START> &, Struct data) {
+            onStart(std::move(data));
         }
 
-        bool lifecycleDispatch(const EventEnum::ConstType<Events::STOP> &, Struct data) {
-            return onStop(std::move(data));
+        void lifecycleDispatch(const EventEnum::ConstType<Events::STOP> &, Struct data) {
+            onStop(std::move(data));
         }
 
-        bool lifecycleDispatch(const EventEnum::ConstType<Events::ERROR_STOP> &, Struct data) {
-            return onError_stop(std::move(data));
-        }
-
-        static bool lifecycleDispatch(
+        static void lifecycleDispatch(
             const EventEnum::ConstType<Events::UNKNOWN> &, const Struct &) {
-            return false;
+            // add a log message here for the unknown event
         }
 
     protected:
@@ -64,19 +54,11 @@ namespace ggapi {
         inline static const Symbol INITIALIZE_SYM{"initialize"};
         inline static const Symbol START_SYM{"start"};
         inline static const Symbol STOP_SYM{"stop"};
-        inline static const Symbol ERROR_STOP_SYM{"error_stop"};
 
     public:
         // Mapping of symbols to enums
         inline static const util::LookupTable EVENT_MAP{
-            INITIALIZE_SYM,
-            Events::INITIALIZE,
-            START_SYM,
-            Events::START,
-            STOP_SYM,
-            Events::STOP,
-            ERROR_STOP_SYM,
-            Events::ERROR_STOP};
+            INITIALIZE_SYM, Events::INITIALIZE, START_SYM, Events::START, STOP_SYM, Events::STOP};
 
         // Lifecycle parameter constants
         inline static const Symbol CONFIG_ROOT{"configRoot"};
@@ -97,13 +79,11 @@ namespace ggapi {
         ggapiErrorKind lifecycle(
             ggapiObjHandle, // TODO: Remove
             ggapiSymbol event,
-            ggapiObjHandle data,
-            bool *pHandled) noexcept {
+            ggapiObjHandle data) noexcept {
             // No exceptions may cross API boundary
             // Return true if handled.
-            return ggapi::catchErrorToKind([this, event, data, pHandled]() {
-                *pHandled = lifecycle(Symbol{event}, ObjHandle::of<Struct>(data));
-            });
+            return ggapi::catchErrorToKind(
+                [this, event, data]() { lifecycle(Symbol{event}, ObjHandle::of<Struct>(data)); });
         }
 
         /**
@@ -114,15 +94,14 @@ namespace ggapi {
             return _moduleScope;
         }
 
+
         /**
          * Exposed for testing
          */
-        bool lifecycle(Symbol event, Struct data) {
+        void lifecycle(Symbol event, Struct data) {
             auto mappedEvent = EVENT_MAP.lookup(event).value_or(Events::UNKNOWN);
-            bool handled = EventEnum::visit<bool>(mappedEvent, [this, data](auto p) {
-                               return this->lifecycleDispatch(p, data);
-                           }).value_or(false);
-            return handled;
+            EventEnum::visitNoRet(
+                mappedEvent, [this, data](auto p) { this->lifecycleDispatch(p, data); });
         }
 
     protected:
@@ -140,9 +119,9 @@ namespace ggapi {
          * TODO: This may change
          */
         // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
-        virtual bool onInitialize(Struct data) {
+        virtual void onInitialize(Struct data) {
+            /* TODO: remove the std::cout in favor of logging */
             std::cout << "Default onInitialize\n";
-            return false;
         }
 
         /**
@@ -150,27 +129,16 @@ namespace ggapi {
          * lifecycle stages. Use this cycle for any data binding.
          */
         // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
-        virtual bool onStart(Struct data) {
+        virtual void onStart(Struct data) {
             std::cout << "Default onStart\n";
-            return false;
         }
 
         /**
          * Plugin has transitioned into an active state. Return true if handled.
          */
         // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
-        virtual bool onStop(Struct data) {
+        virtual void onStop(Struct data) {
             std::cout << "Default onStop\n";
-            return false;
-        }
-
-        /**
-         * Plugin is being terminated - use for cleanup. Return true if handled.
-         */
-        // NOLINTNEXTLINE(performance-unnecessary-value-param) Override may modify data
-        virtual bool onError_stop(Struct data) {
-            std::cout << "Default onError_stop\n";
-            return false;
         }
     };
-} // namespace ggapi
+}; // namespace ggapi

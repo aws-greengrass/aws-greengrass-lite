@@ -21,6 +21,7 @@ distro
 DLFCN
 dtags
 EPOLLIN
+errfd
 eventfd
 execvpe
 fdata
@@ -54,6 +55,7 @@ noexecstack
 NOLINTNEXTLINE
 onpath
 ostream
+outfd
 pidfd
 pname
 posix
