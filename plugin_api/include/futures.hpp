@@ -462,12 +462,8 @@ namespace ggapi {
             static_assert(std::is_invocable_r_v<ggapi::Container, Func, Args...>);
             Container c = std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
             setValue(c);
-        } catch(const ggapi::GgApiError &err) {
-            setError(err); // Note, setError() can throw exception if Promise invalid
-        } catch(const std::exception &exp) {
-            setError(ggapi::GgApiError::of(exp));
         } catch(...) {
-            setError(ggapi::GgApiError("Unknown error"));
+            setError(ggapi::GgApiError::of(std::current_exception()));
         }
         return *this;
     }

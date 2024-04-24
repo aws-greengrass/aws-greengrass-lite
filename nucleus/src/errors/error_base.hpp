@@ -14,10 +14,8 @@ namespace errors {
     namespace traits {
         struct ErrorTraits {
             using SymbolType = data::Symbol;
-            static SymbolType translateKind(std::string_view strKind) noexcept;
-            static SymbolType translateKind(SymbolType symKind) noexcept;
-            static SymbolType translateKind(ggapi::Symbol symKind) noexcept;
             static SymbolType translateKind(ggapiErrorKind intKind) noexcept;
+            static SymbolType translateKind(std::string_view strKind) noexcept;
         };
     } // namespace traits
 

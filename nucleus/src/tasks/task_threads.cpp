@@ -47,14 +47,10 @@ namespace tasks {
         if(task) {
             try {
                 task->invoke();
-            } catch(const errors::Error &err) {
-                LOG.atError("asyncTaskError").cause(err).log("errors::Error thrown by async task");
-            } catch(const std::exception &exp) {
-                LOG.atError("asyncStdError")
-                    .cause(exp)
-                    .log("c++ exception thrown executing async task");
             } catch(...) {
-                LOG.atError("asyncUnknownError").log("Unrecognized exception");
+                LOG.atError("asyncStdError")
+                    .cause(std::current_exception())
+                    .log("c++ exception thrown executing async task");
             }
         } else {
             stall(ExpireTime::infinite());

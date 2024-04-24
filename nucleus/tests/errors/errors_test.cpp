@@ -5,7 +5,7 @@
 SCENARIO("Last error is invariant in thread", "[errors]") {
     GIVEN("Thread is in an error state") {
         std::runtime_error cpp_err{"Some error text"};
-        errors::Error err{errors::Error::of(cpp_err)};
+        errors::Error err{errors::Error::of(std::make_exception_ptr(cpp_err))};
         errors::ThreadErrorContainer::get().setError(err);
         WHEN("Error is retrieved") {
             auto gotErr = errors::ThreadErrorContainer::get().getError();
@@ -15,7 +15,7 @@ SCENARIO("Last error is invariant in thread", "[errors]") {
                 // The platform safe way is to use typeid
                 // When manually testing, this was string like "std13runtime_error"
                 std::string kindName = gotErr.value().kind().toString();
-                REQUIRE(kindName == typeid(std::runtime_error).name());
+                REQUIRE(kindName == "std::runtime_error");
                 REQUIRE(
                     std::string_view(gotErr.value().what()) == std::string_view("Some error text"));
             }
