@@ -1,4 +1,5 @@
 #include "cli_server.hpp"
+#include <ipc_standard_errors.hpp>
 
 #include <algorithm>
 #include <fstream>
@@ -137,8 +138,8 @@ ggapi::ObjHandle CliServer::createLocalDeploymentHandler(
                 message.put("deploymentId", deploymentId);
                 return ggapi::Struct::create().put(keys.channel, channel).put(keys.shape, message);
             } else {
-                // TODO: call setError instead
-                return ggapi::Struct::create().put(keys.errorCode, 1);
+                // TODO Deprecate "status" / Correct error
+                throw ggapi::ipc::ServiceError("Deployment failed");
             }
         });
     });
@@ -179,8 +180,8 @@ ggapi::ObjHandle CliServer::listDeploymentsHandler(ggapi::Symbol, const ggapi::C
                 message.put("deploymentId", requestId);
                 return ggapi::Struct::create().put(keys.channel, channel).put(keys.shape, message);
             } else {
-                // TODO: call setError instead
-                return ggapi::Struct::create().put(keys.errorCode, 1);
+                // TODO Deprecate "status" / Correct error
+                throw ggapi::ipc::ServiceError("Deployment failed");
             }
         });
     });

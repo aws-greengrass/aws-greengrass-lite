@@ -19,7 +19,6 @@ struct Keys {
     ggapi::Symbol cliAuthToken{"cli_auth_token"};
     ggapi::Symbol shape{"shape"};
     ggapi::Symbol channel{"channel"};
-    ggapi::Symbol errorCode{"errorCode"};
     ggapi::Symbol terminate{"terminate"};
 };
 
