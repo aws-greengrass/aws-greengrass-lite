@@ -87,6 +87,7 @@ trompeloeil
 unarchived
 unflushed
 unmarshall
+unmodeled
 Wextra
 Wmissing
 Wundef

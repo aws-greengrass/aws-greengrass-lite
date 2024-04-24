@@ -27,6 +27,7 @@ add_library(
   include/futures.hpp
   include/greengrass_traits.hpp
   include/handles.hpp
+  include/ipc_standard_errors.hpp
   include/logging.hpp
   include/lookup_table.hpp
   include/plugin.hpp

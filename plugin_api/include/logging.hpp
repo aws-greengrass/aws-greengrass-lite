@@ -477,12 +477,28 @@ namespace logging {
             return *this;
         }
 
+        void logError(const ErrorType &err) {
+            _impl->setCause(err);
+            _impl->setMessage(err.what());
+            _impl->commit();
+        }
+
+        void logError(const std::exception_ptr &err) {
+            logError(ErrorType::of(err));
+        }
+
+        template<
+            typename T,
+            std::enable_if_t</* requires */ std::is_base_of_v<std::exception, T>, int> = 0>
+        void logError(const T &err) {
+            logError(std::make_exception_ptr(err));
+        }
+
         /**
          * Commit the log entry and throw exception
          */
         [[noreturn]] void logAndThrow(const ErrorType &err) {
-            _impl->setCause(err);
-            _impl->commit();
+            logError(err);
             throw err;
         }
 
@@ -490,8 +506,7 @@ namespace logging {
          * Commit the log entry and throw exception with translation
          */
         [[noreturn]] void logAndThrow(const std::exception_ptr &err) {
-            _impl->setCause(ErrorType::of(err));
-            _impl->commit();
+            logError(err);
             std::rethrow_exception(err);
         }
 
@@ -502,7 +517,8 @@ namespace logging {
             typename T,
             std::enable_if_t</* requires */ std::is_base_of_v<std::exception, T>, int> = 0>
         [[noreturn]] void logAndThrow(const T &err) {
-            logAndThrow(ErrorType::of(std::make_exception_ptr(err)));
+            logError(err);
+            throw err;
         }
 
         /**
