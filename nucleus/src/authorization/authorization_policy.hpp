@@ -2,6 +2,7 @@
 
 #include "scope/context.hpp"
 
+#include <filesystem>
 #include <list>
 #include <string>
 #include <unordered_map>

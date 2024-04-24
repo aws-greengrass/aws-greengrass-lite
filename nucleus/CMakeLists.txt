@@ -38,6 +38,8 @@ add_library(
   src/api/pubsub.cpp
   src/api/tasks.cpp
   src/api/channel.cpp
+  src/authorization/authorization_handler.cpp
+  src/authorization/authorization_policy_parser.cpp
   src/channel/channel.cpp
   src/channel/channel.hpp
   src/config/config_manager.cpp

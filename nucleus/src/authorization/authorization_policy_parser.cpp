@@ -1,5 +1,5 @@
+#include "authorization_policy.hpp"
 #include "lifecycle/kernel.hpp"
-#include <authorization_policy.hpp>
 
 namespace authorization {
     AuthorizationPolicyParser::AuthorizationPolicyParser(
@@ -19,11 +19,13 @@ namespace authorization {
 
     std::unordered_map<std::string, std::list<AuthorizationPolicy>>
     AuthorizationPolicyParser::parseAllPoliciesForComponent(std::string sourceComponent) {
+        return {};
     }
 
     std::list<AuthorizationPolicy> AuthorizationPolicyParser::parseAuthorizationPolicyConfig(
         std::string componentName,
         std::unordered_map<std::string, AuthorizationPolicyConfig> accessControlConfig) {
+        return {};
     }
 
     // TODO: Remove recipes discovering? move funct to lookuptopics on services namespace
