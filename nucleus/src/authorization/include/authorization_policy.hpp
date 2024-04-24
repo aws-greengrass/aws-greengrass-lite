@@ -1,9 +1,15 @@
 #pragma once
 
+#include "scope/context.hpp"
+
 #include <list>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+
+namespace lifecycle {
+    class Kernel;
+}
 
 namespace authorization {
     class AuthorizationPolicy {
@@ -32,10 +38,17 @@ namespace authorization {
               resources(std::move(resources)){};
     };
 
-    class AuthorizationPolicyParser {
+    class AuthorizationPolicyParser : private scope::UsesContext {
+        lifecycle::Kernel &_kernel;
+        std::unordered_map<std::string, std::filesystem::path> _recipePaths;
+
     public:
+        explicit AuthorizationPolicyParser(const scope::UsingContext &, lifecycle::Kernel &kernel);
         [[nodiscard]] std::unordered_map<std::string, std::list<AuthorizationPolicy>>
         parseAllAuthorizationPolicies();
+        void discoverRecipes(std::filesystem::path csRecipeDir);
+        void discoverRecipe(
+            std::string componentName, const std::filesystem::directory_entry &entry);
 
     private:
         std::unordered_map<std::string, std::list<AuthorizationPolicy>>

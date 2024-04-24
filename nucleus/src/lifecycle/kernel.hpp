@@ -73,6 +73,7 @@ namespace lifecycle {
         static constexpr auto SHUTDOWN_TIMEOUT_SECONDS{30};
         static constexpr auto SERVICE_SHUTDOWN_TIMEOUT_SECONDS{5};
         static inline const data::SymbolInit SERVICES_TOPIC_KEY{"services"};
+        static inline const data::SymbolInit ACCESS_CONTROL_TOPIC_KEY{"accessControl"};
         static inline const data::SymbolInit SERVICE_LOADER_TOPIC_KEY{
             "aws.greengrass.componentType"};
 
