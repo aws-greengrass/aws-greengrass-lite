@@ -9,7 +9,7 @@ SCENARIO("Example download from a url sent over LPC", "[cloudDownloader]") {
         // start the lifecycle
         util::TempModule tempModule{"plugin"};
         TestCloudDownloader sender = TestCloudDownloader(*tempModule);
-        CHECK(sender.startLifecycle());
+        sender.startLifecycle();
 
         WHEN("A device Credential is provided to retrieve the token") {
 
@@ -23,8 +23,7 @@ SCENARIO("Example download from a url sent over LPC", "[cloudDownloader]") {
             auto pkeyPath = ""; // your pkeyPath
 
             std::stringstream ss;
-            ss << "https://" << endpoint << "/role-aliases/"
-               << "GreengrassV2TokenExchangeRoleAlias"
+            ss << "https://" << endpoint << "/role-aliases/" << "GreengrassV2TokenExchangeRoleAlias"
                << "/credentials";
 
             request.put("uri", ss.str());
@@ -71,7 +70,7 @@ SCENARIO("Example download from a url sent over LPC", "[cloudDownloader]") {
             }
 
             // stop lifecycle
-            CHECK(sender.stopLifecycle());
+            sender.stopLifecycle();
         }
     }
 }

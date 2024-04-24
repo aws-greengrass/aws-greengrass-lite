@@ -80,10 +80,7 @@ typedef ggapiErrorKind (*ggapiGenericCallback)(
     void *callbackData) NOEXCEPT;
 
 typedef ggapiErrorKind GgapiLifecycleFn(
-    ggapiObjHandle moduleHandle,
-    ggapiSymbol phase,
-    ggapiObjHandle data,
-    bool *pWasHandled) NOEXCEPT;
+    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data) NOEXCEPT;
 
 [[maybe_unused]] EXPORT_NUCLEUS_DECL GgapiLifecycleFn greengrass_lifecycle;
 
@@ -214,9 +211,7 @@ ggapiCallTopicFirst(ggapiSymbol topic, ggapiObjHandle data, ggapiObjHandle *outF
 IMPEXP ggapiErrorKind ggapiCallTopicAll(
     ggapiSymbol topic, ggapiObjHandle data, ggapiObjHandle *outListOfFutures) NOEXCEPT;
 IMPEXP ggapiErrorKind ggapiSubscribeToTopic(
-    ggapiSymbol topic,
-    ggapiObjHandle callbackHandle,
-    ggapiObjHandle *pSubscription) NOEXCEPT;
+    ggapiSymbol topic, ggapiObjHandle callbackHandle, ggapiObjHandle *pSubscription) NOEXCEPT;
 IMPEXP uint32_t ggapiRegisterPlugin(
     uint32_t moduleHandle, uint32_t componentName, uint32_t callbackHandle) NOEXCEPT;
 IMPEXP ggapiErrorKind

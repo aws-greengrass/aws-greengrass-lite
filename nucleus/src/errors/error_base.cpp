@@ -46,15 +46,7 @@ namespace errors {
         return scope::context()->symbols().intern(strKind);
     }
     traits::ErrorTraits::SymbolType traits::ErrorTraits::translateKind(
-        traits::ErrorTraits::SymbolType symKind) noexcept {
-        return symKind;
-    }
-    traits::ErrorTraits::SymbolType traits::ErrorTraits::translateKind(
         ggapiErrorKind intKind) noexcept {
         return scope::context()->symbolFromInt(intKind);
-    }
-    traits::ErrorTraits::SymbolType traits::ErrorTraits::translateKind(
-        ggapi::Symbol symKind) noexcept {
-        return translateKind(symKind.asInt());
     }
 } // namespace errors

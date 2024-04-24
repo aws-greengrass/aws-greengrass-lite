@@ -14,10 +14,20 @@
     "rev": "v1.1.0",
     "hash": "sha256-mFM1Etpf+qF/G0t91eXD8FQXwSQKyQbJq8gUA0jsm4Q="
   },
-  "device-sdk-cpp": {
+  "aws-crt-cpp": {
+    "url": "https://github.com/awslabs/aws-crt-cpp.git",
+    "rev": "v0.26.6",
+    "hash": "sha256-8AmycANQcMWnpfR+YcHBuAKWFaDmXA9eQFWl+B0X3Dg="
+  },
+  "aws-c-iot": {
+    "url": "https://github.com/awslabs/aws-c-iot.git",
+    "rev": "v0.1.21",
+    "hash": "sha256-gQdvg7bxmWjnFPhgcy154tdPw4bmldpjxedZz0/nV/U="
+  },
+  "aws-iot-device-sdk-cpp-v2": {
     "url": "https://github.com/aws/aws-iot-device-sdk-cpp-v2.git",
-    "rev": "v1.30.3",
-    "hash": "sha256-0PCy4fIzZybL0eVegqQQqG61IDikk190NuKSO4D7+zM="
+    "rev": "v1.32.6",
+    "hash": "sha256-NCrOyfbHAUM9er3HI6EJM2q36xyoaG+m7GN1hwxGHyw="
   },
   "trompeloeil": {
     "url": "https://github.com/rollbear/trompeloeil.git",

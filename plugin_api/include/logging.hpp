@@ -441,9 +441,16 @@ namespace logging {
             return *this;
         }
 
-        Event &cause(const std::exception &cause) {
+        Event &cause(const std::exception_ptr &cause) {
             _impl->setCause(ErrorType::of(cause));
             return *this;
+        }
+
+        template<
+            typename T,
+            std::enable_if_t</* requires */ std::is_base_of_v<std::exception, T>, int> = 0>
+        Event &cause(const T &cause) {
+            return this->cause(std::make_exception_ptr(cause));
         }
 
         /**
@@ -482,8 +489,20 @@ namespace logging {
         /**
          * Commit the log entry and throw exception with translation
          */
-        [[noreturn]] void logAndThrow(const std::exception &err) {
-            logAndThrow(ErrorType::of(err));
+        [[noreturn]] void logAndThrow(const std::exception_ptr &err) {
+            _impl->setCause(ErrorType::of(err));
+            _impl->commit();
+            std::rethrow_exception(err);
+        }
+
+        /**
+         * Commit the log entry and throw exception with translation
+         */
+        template<
+            typename T,
+            std::enable_if_t</* requires */ std::is_base_of_v<std::exception, T>, int> = 0>
+        [[noreturn]] void logAndThrow(const T &err) {
+            logAndThrow(ErrorType::of(std::make_exception_ptr(err)));
         }
 
         /**
@@ -512,7 +531,7 @@ namespace logging {
         /**
          * Version of logLazy that allows stream operations.
          */
-        void logStream(const std::function<void(std::stringstream &)> &fn) {
+        void logStream(const std::function<void(std::ostream &)> &fn) {
             logLazy([&]() {
                 std::stringstream stream;
                 fn(stream);

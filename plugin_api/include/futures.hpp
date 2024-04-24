@@ -25,6 +25,14 @@ namespace ggapi {
 
     public:
         constexpr Future() noexcept = default;
+        using ObjHandle::of;
+
+        /**
+         * Either pass a Future through, or wrap a result in a future.
+         * @param other Some handle that may be a future
+         * @return Always a future
+         */
+        static Future of(const ObjHandle &other);
 
         explicit Future(const ObjHandle &other) : ObjHandle{other} {
             check();
@@ -120,6 +128,18 @@ namespace ggapi {
         }
 
         /**
+         * Create a failed promise
+         *
+         * @param err Error to assign
+         * @return new failed promise
+         */
+        [[nodiscard]] static Promise of(const ggapi::GgApiError &err) {
+            auto p = create();
+            p.setError(err);
+            return p;
+        }
+
+        /**
          * Retrieve an un-modifiable future from the promise. The future cannot be re-cast to
          * a promise (can be monitored, cannot be fulfilled)
          *
@@ -157,7 +177,7 @@ namespace ggapi {
         }
 
         template<typename Func, typename... Args>
-        inline Container fulfill(Func &&f, Args &&...args);
+        inline Promise &fulfill(Func &&f, Args &&...args);
     };
 
     /**
@@ -437,20 +457,23 @@ namespace ggapi {
     }
 
     template<typename Func, typename... Args>
-    inline Container Promise::fulfill(Func &&f, Args &&...args) {
+    inline Promise &Promise::fulfill(Func &&f, Args &&...args) {
         try {
             static_assert(std::is_invocable_r_v<ggapi::Container, Func, Args...>);
             Container c = std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
             setValue(c);
-            return c;
-        } catch(const ggapi::GgApiError &err) {
-            setError(err); // Note, setError() can throw exception if Promise invalid
-        } catch(const std::exception &exp) {
-            setError(ggapi::GgApiError::of(exp));
         } catch(...) {
-            setError(ggapi::GgApiError("Unknown error"));
+            setError(ggapi::GgApiError::of(std::current_exception()));
         }
-        return {};
+        return *this;
+    }
+
+    inline Future Future::of(const ObjHandle &other) {
+        if(other.isFuture()) {
+            return Future(other);
+        }
+        auto p = Promise::create();
+        return p.fulfill([&other]() -> Container { return Container(other); }).toFuture();
     }
 
 } // namespace ggapi

@@ -2,7 +2,8 @@ enable_warnings()
 
 add_compile_definitions(EXPORT_DEVICESDK_API)
 
-add_library(device-sdk SHARED include/shared_device_sdk.hpp src/main.cpp)
+add_library(device-sdk SHARED include/sdk_errors.hpp
+                              include/shared_device_sdk.hpp src/main.cpp)
 
 if(APPLE)
   target_link_libraries(

@@ -44,4 +44,6 @@
 
 namespace util {
     IMPEXP_DEVICE_SDK_API Aws::Crt::ApiHandle &getDeviceSdkApiHandle();
+    [[nodiscard]] IMPEXP_DEVICE_SDK_API std::string_view getAwsCrtErrorString(
+        int errorCode) noexcept;
 } // namespace util

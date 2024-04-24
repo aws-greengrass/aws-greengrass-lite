@@ -1,4 +1,5 @@
 #include "plugin_loader.hpp"
+#include "api_standard_errors.hpp"
 #include "data/shared_list.hpp"
 #include "deployment/deployment_manager.hpp"
 #include "deployment/device_configuration.hpp"
@@ -36,6 +37,7 @@ namespace plugins {
 
     static std::runtime_error makePluginError(
         std::string_view description, const std::filesystem::path &path, std::string_view message) {
+        // TODO, this should be returning a GG error
         const auto pathStr = path.string();
         std::string what;
         what.reserve(description.size() + pathStr.size() + message.size() + 2U);
@@ -148,34 +150,22 @@ namespace plugins {
         return _lifecycleFn.load() != nullptr;
     }
 
-    bool NativePlugin::callNativeLifecycle(
+    void NativePlugin::callNativeLifecycle(
         const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) {
 
         auto *lifecycleFn = _lifecycleFn.load();
-        if(lifecycleFn != nullptr) {
-            scope::TempRoot tempRoot;
-            bool handled = false;
-            // TODO: Remove module parameter
-            ggapiErrorKind error = lifecycleFn(
-                scope::asIntHandle(baseRef()), event.asInt(), scope::asIntHandle(data), &handled);
-            errors::Error::throwThreadError(error);
-            return handled;
-        } else {
-            return false; // not handled
-        }
+        assert(lifecycleFn);
+        scope::TempRoot tempRoot;
+        // TODO: Remove module parameter
+        ggapiErrorKind error =
+            lifecycleFn(scope::asIntHandle(baseRef()), event.asInt(), scope::asIntHandle(data));
+        errors::Error::throwThreadError(error);
     }
 
-    bool DelegatePlugin::callNativeLifecycle(
+    void DelegatePlugin::callNativeLifecycle(
         const data::Symbol &phase, const std::shared_ptr<data::StructModelBase> &data) {
-
-        auto callback = _callback;
-        if(callback) {
-            scope::TempRoot tempRoot;
-            // TODO: Remove module parameter
-            return callback->invokeLifecycleCallback(ref<plugins::AbstractPlugin>(), phase, data);
-        } else {
-            return false; // no callback, so caller should act as if event unhandled
-        }
+        assert(_callback);
+        _callback->invokeLifecycleCallback(ref<plugins::AbstractPlugin>(), phase, data);
     }
 
     void PluginLoader::discoverPlugins() {
@@ -325,14 +315,14 @@ namespace plugins {
             return {};
         }
         // search recipe map for path and load
-        if (auto it = _recipePaths.find(name); it != _recipePaths.end()) {
+        if(auto it = _recipePaths.find(name); it != _recipePaths.end()) {
             auto recipePath = it->second;
             try {
                 return deployment::RecipeLoader{}.read(recipePath);
-            } catch (std::runtime_error &e) {
+            } catch(...) {
                 // pass
                 LOG.atWarn("recipe-not-loaded")
-                    .cause(e)
+                    .cause(std::current_exception())
                     .kv("path", recipePath.string())
                     .log("Unable to load recipe file");
             }
@@ -381,27 +371,32 @@ namespace plugins {
         plugins::CurrentModuleScope moduleScope(ref<AbstractPlugin>());
 
         try {
-            bool wasHandled = callNativeLifecycle(event, data);
-            if(wasHandled) {
-                LOG.atDebug()
-                    .event("lifecycle-completed")
-                    .kv("name", getName())
-                    .kv("event", event)
-                    .log();
-            } else {
-                LOG.atInfo()
-                    .event("lifecycle-unhandled")
-                    .kv("name", getName())
-                    .kv("event", event)
-                    .log();
-                // TODO: Add default behavior for unhandled callback
-            }
+            callNativeLifecycle(event, data);
+            LOG.atDebug()
+                .event("lifecycle-completed")
+                .kv("name", getName())
+                .kv("event", event)
+                .log();
+        } catch(ggapi::UnhandledLifecycleEvent &e) {
+            LOG.atInfo()
+                .event("lifecycle-unhandled")
+                .kv("name", getName())
+                .kv("event", event)
+                .log();
+            // TODO: Add default behavior for unhandled callback
         } catch(const errors::Error &lastError) {
             LOG.atError()
                 .event("lifecycle-error")
                 .kv("name", getName())
                 .kv("event", event)
                 .cause(lastError)
+                .log();
+        } catch(...) {
+            LOG.atError()
+                .event("lifecycle-error")
+                .kv("name", getName())
+                .kv("event", event)
+                .kv("error", "UNKNOWN")
                 .log();
         }
     }

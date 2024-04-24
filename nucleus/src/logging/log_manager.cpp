@@ -226,7 +226,7 @@ namespace logging {
 
     bool LogState::applyConfig(const LogConfigUpdate &source) {
         std::unique_lock guard{_mutex};
-        _level = source.getLevel().value_or(Level::Info);
+        _level = source.getLevel().value_or(DEFAULT_LOG_LEVEL);
         _fileSizeKB = source.getFileSizeKB().value_or(DEFAULT_MAX_FILE_SIZE_KB);
         _totalLogsSizeKB = source.getTotalLogsSizeKB().value_or(DEFAULT_MAX_FILE_SIZE_ALL_KB);
         auto format = source.getFormat().value_or(Format::Text);
