@@ -74,6 +74,8 @@ private:
     void retrieveCredentialsFromTES();
     void setupClient(const rapidjson::Document& putLogEventsRequestBody,
                      const std::string logGroupName, const std::string logStreamName);
+    void setLogStream(const std::string logStreamName, const std::string logGroupName);
+    void uploadLogs(const rapidjson::Document& putLogEventsRequestBody);
     void processLogsAndUpload();
 
 
