@@ -10,6 +10,7 @@
 
 extern "C" {
 #include <grp.h>
+#include <poll.h>
 #include <pwd.h>
 #include <signal.h>
 #include <sys/wait.h>
@@ -164,6 +165,102 @@ namespace gg_pal {
         return {pw.pw_uid, gr.gr_gid};
     }
 
+    static void fdReaderFn(
+        OutputCallback stdoutCallback,
+        OutputCallback stderrCallback,
+        FileDescriptor outfd,
+        FileDescriptor errfd) {
+        static constexpr size_t defaultBufferSize = 0xFFF;
+
+        try {
+            std::array<pollfd, 2> fds{};
+            fds[0].fd = outfd.fd;
+            fds[0].events = POLLIN | POLLPRI;
+            fds[1].fd = errfd.fd;
+            fds[1].events = POLLIN | POLLPRI;
+
+            std::array<char, defaultBufferSize> buffer{};
+
+            static constexpr int pollTimeoutMs = 10000;
+
+            while(true) {
+                int result = poll(fds.data(), fds.size(), pollTimeoutMs);
+
+                if(result == -1) {
+                    if((errno == EINTR) || (errno == EAGAIN)) {
+                        continue;
+                    }
+
+                    perror("poll");
+                    return;
+                }
+
+                bool emptyRead = false;
+                // Regular or high priority data available on stdout
+                if((fds[0].revents & POLLIN) || (fds[0].revents & POLLPRI)) {
+                    auto readVal = outfd.read(buffer);
+                    stdoutCallback(util::as_bytes(readVal));
+                    if(readVal.empty()) {
+                        emptyRead = true;
+                    }
+                }
+                // No data read, conn closed, or error
+                if(emptyRead || (fds[0].revents & POLLHUP) || (fds[0].revents & POLLERR)) {
+                    outfd.close();
+                    fds[0].fd = -1;
+                }
+
+                emptyRead = false;
+                // Regular or high priority data available on stderr
+                if((fds[1].revents & POLLIN) || (fds[1].revents & POLLPRI)) {
+                    auto readVal = errfd.read(buffer);
+                    stderrCallback(util::as_bytes(readVal));
+                    if(readVal.empty()) {
+                        emptyRead = true;
+                    }
+                }
+                // No data read, conn closed, or error
+                if(emptyRead || (fds[1].revents & POLLHUP) || (fds[1].revents & POLLERR)) {
+                    errfd.close();
+                    fds[1].fd = -1;
+                }
+            };
+        } catch(...) {
+            // TODO: Log exception
+            // TODO: Call callback to allow caller to handle failure.
+        }
+    }
+
+    static void retHandlerFn(CompletionCallback onComplete, pid_t pid) {
+        try {
+            while(true) {
+                int stat;
+                pid_t ret = waitpid(pid, &stat, 0);
+
+                if(ret == -1) {
+                    if(errno == EINTR) {
+                        continue;
+                    }
+                    // TODO: Log error
+                    perror("waitpid");
+                    return;
+                }
+
+                if(WIFEXITED(stat)) {
+                    onComplete(WEXITSTATUS(stat));
+                    break;
+                }
+                if(WIFSIGNALED(stat)) {
+                    onComplete(ENOENT);
+                    break;
+                }
+            }
+        } catch(...) {
+            // TODO: Log exception
+            // TODO: Call callback to allow caller to handle failure.
+        }
+    }
+
     Process::Process(
         std::string file,
         std::vector<std::string> args,
@@ -189,7 +286,8 @@ namespace gg_pal {
                   return std::nullopt;
               }();
 
-              const char *filePtr = file.c_str();
+              // null terminated as of C++11
+              char *filePtr = file.data();
 
               std::vector<std::string> envVec(environment.size());
               std::transform(
@@ -201,13 +299,14 @@ namespace gg_pal {
                       }
                   });
 
-              auto toCharP = [](std::string &str) { return const_cast<char *>(str.c_str()); };
+              // null terminated as of C++11
+              auto toCharP = [](std::string &str) { return str.data(); };
 
               std::vector<char *> envp(envVec.size() + 1);
               std::transform(envVec.begin(), envVec.end(), envp.begin(), toCharP);
 
               std::vector<char *> argsp(args.size() + 2);
-              argsp[0] = const_cast<char *>(filePtr);
+              argsp[0] = filePtr;
               std::transform(args.begin(), args.end(), std::next(argsp.begin()), toCharP);
 
               // Note: all memory allocation for the child process must be performed before forking
@@ -217,6 +316,7 @@ namespace gg_pal {
               switch(pid) {
                   case -1: {
                       // parent, on error
+                      // TODO: Log error
                       perror("fork");
                       throw std::system_error(errno, std::generic_category());
                   }
@@ -242,6 +342,7 @@ namespace gg_pal {
                       }
 
                       if(chdir(workingDir.c_str()) == -1) {
+                          // TODO: Log error
                           perror("chdir");
                       }
 
@@ -259,6 +360,7 @@ namespace gg_pal {
                       std::ignore = execvp(filePtr, argsp.data());
 
                       // only reachable if exec fails
+                      // TODO: Log error
                       perror("execvp");
                       // SECURITY-TODO: log permissions error
                       if(errno == EPERM || errno == EACCES) {
@@ -269,55 +371,33 @@ namespace gg_pal {
                   default: {
                       static constexpr size_t defaultBufferSize = 0xFFF;
 
-                      std::thread stdoutReader{[stdoutCallback, fd = std::move(outPipe.output)]() {
-                          std::array<char, defaultBufferSize> buffer{};
-                          while(true) {
-                              auto readVal = fd.read(buffer);
-                              stdoutCallback(util::as_bytes(readVal));
-                              if(readVal.empty()) {
-                                  break;
-                              }
-                          }
-                      }};
-                      stdoutReader.detach();
+                      // While we could use a shared thread to poll on the file descriptors for all
+                      // Processes' outputs, this would incur extra complexity. We'd need to manage
+                      // the state of the global polling thread, and keep it synchronized with
+                      // starting threads. We'd need a mutex to guard data access from multiple
+                      // threads, and two vectors to store the state. Since poll blocks and mutates
+                      // its array, new values will have to be written elsewhere for the polling
+                      // thread to merge into its main array between poll calls. The thread will
+                      // also need to be interrupted so that it can add the new items. Cleanup will
+                      // be similar. Poll also requires scanning the array for changes, so does not
+                      // scale well, though this is unlikely to matter at our scale. Similarly at
+                      // our scale, a thread per Process will incur around 2 pages of memory use,
+                      // which is small and thus the solution used here to keep the implementation
+                      // simple.
+                      std::thread fdReader{
+                          fdReaderFn,
+                          stdoutCallback,
+                          stderrCallback,
+                          std::move(outPipe.output),
+                          std::move(errPipe.output)};
+                      fdReader.detach();
 
-                      std::thread stderrReader{[stderrCallback, fd = std::move(errPipe.output)]() {
-                          std::array<char, defaultBufferSize> buffer{};
-                          while(true) {
-                              auto readVal = fd.read(buffer);
-                              stderrCallback(util::as_bytes(readVal));
-                              if(readVal.empty()) {
-                                  break;
-                              }
-                          }
-                      }};
-                      stderrReader.detach();
-
-                      // TODO: use a forked process to spawn children, and catch SIGCHLD instead of
-                      // waiting in a thread
-                      std::thread retHandler{[onComplete, pid]() {
-                          while(true) {
-                              int stat;
-                              pid_t ret = waitpid(pid, &stat, 0);
-
-                              if(ret == -1) {
-                                  if(errno == EINTR) {
-                                      continue;
-                                  }
-                                  perror("waitpid");
-                                  throw std::system_error(errno, std::generic_category());
-                              }
-
-                              if(WIFEXITED(stat)) {
-                                  onComplete(WEXITSTATUS(stat));
-                                  break;
-                              }
-                              if(WIFSIGNALED(stat)) {
-                                  onComplete(ENOENT);
-                                  break;
-                              }
-                          }
-                      }};
+                      // We can't use SIGCHLD to catch child thread exits, as signal handling is
+                      // process-wide, and doing so would conflict with nucleus and other plugins.
+                      // We could potentially have a separate process, with a queue for offloading
+                      // forking children, and a queue to return results, though that would make
+                      // debugging difficult compared to just a watcher thread per child as below.
+                      std::thread retHandler{retHandlerFn, onComplete, pid};
                       retHandler.detach();
                   }
               }
