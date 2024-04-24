@@ -191,6 +191,9 @@ namespace data {
     };
 
     inline std::string Symbol::toString() const {
+        if(!partial()) {
+            return {};
+        }
         return table().getString(partial());
     }
 
