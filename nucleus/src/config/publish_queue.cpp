@@ -1,12 +1,13 @@
 #include "publish_queue.hpp"
 #include "scope/context_full.hpp"
+#include <mutex>
 
 namespace config {
 
     void PublishQueue::publish(config::PublishAction action) {
-        std::unique_lock guard{_mutex};
+        std::scoped_lock guard{_drainMutex, _mutex};
         _actions.emplace_back(std::move(action));
-        _wake.notify_all();
+        _wake.notify_one();
     }
 
     void PublishQueue::start() {
@@ -29,33 +30,35 @@ namespace config {
         scope::thread()->changeContext(context());
         for(;;) {
             std::optional<PublishAction> action = pickupAction();
-            if(action.has_value()) {
-                action.value()();
-            } else {
+            if(!action.has_value()) {
                 break; // queue is empty and terminated
+            }
+
+            action.value()();
+
+            std::unique_lock guard{_mutex};
+            _actions.pop_front();
+            if(_actions.empty()) {
+                _drained.notify_all();
             }
         }
     }
 
     bool PublishQueue::drainQueue() {
-        std::unique_lock guard{_mutex};
-        while(!_actions.empty()) {
-            _drained.wait(guard);
-        }
-        return _actions.empty();
+        std::unique_lock drainGuard{_drainMutex, std::defer_lock};
+        std::unique_lock guard{_mutex, std::defer_lock};
+        std::lock(drainGuard, guard);
+        _drained.wait(guard, [this]() -> bool { return _actions.empty(); });
+        return true;
     }
 
     std::optional<PublishAction> PublishQueue::pickupAction() {
         std::unique_lock guard{_mutex};
-        while(_actions.empty() && !_terminate) {
-            _drained.notify_all();
-            _wake.wait(guard);
-        }
+        _wake.wait(guard, [this]() -> bool { return !_actions.empty() || _terminate.load(); });
         if(_actions.empty()) {
             return {}; // terminated and empty
         }
         PublishAction action = std::move(_actions.front());
-        _actions.pop_front();
         return action;
     }
 } // namespace config

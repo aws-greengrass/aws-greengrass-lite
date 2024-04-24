@@ -20,6 +20,7 @@ namespace config {
     //
     class PublishQueue : protected scope::UsesContext {
         mutable std::mutex _mutex;
+        mutable std::mutex _drainMutex;
         std::thread _thread;
         std::list<PublishAction> _actions;
         std::condition_variable _wake;
