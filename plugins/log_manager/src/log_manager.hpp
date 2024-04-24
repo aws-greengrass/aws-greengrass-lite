@@ -30,7 +30,7 @@ private:
     static constexpr std::string_view TES_REQUEST_TOPIC = "aws.greengrass.requestTES";
     static constexpr int TIME_OUT_MS = 5000;
     static constexpr int PORT_NUM = 443;
-    static constexpr int UPLOAD_FREQUENCY = 30;
+    static constexpr int UPLOAD_FREQUENCY = 300;
 
     struct Config {
         static constexpr std::string_view LOGS_UPLOADER_PERIODIC_UPDATE_INTERVAL_SEC =
@@ -71,9 +71,7 @@ private:
     std::unordered_map<std::string, ComponentLogConfiguration> componentLogConfigurations;
 
     void retrieveCredentialsFromTES();
-    void createLogGroup(const std::string& logGroupName);
-    void setLogStream(const std::string& logStreamName, const std::string& logGroupName);
-    void uploadLogs(const rapidjson::Document& putLogEventsRequestBody);
+    void makeHTTPCallToCloudwatchLogs(const std::string& action, const rapidjson::Document& requestBody);
     void processLogsAndUpload();
 
 
