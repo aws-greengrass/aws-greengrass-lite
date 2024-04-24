@@ -1,8 +1,5 @@
 #pragma once
 
-#include "data/handle_table.hpp"
-#include "data/safe_handle.hpp"
-#include "data/shared_struct.hpp"
 #include "scope/context.hpp"
 #include <atomic>
 #include <condition_variable>
@@ -12,6 +9,10 @@
 #include <optional>
 #include <thread>
 #include <unordered_set>
+
+namespace data {
+    class StructModelBase;
+}
 
 namespace logging {
     class LogState;
@@ -28,6 +29,7 @@ namespace logging {
 
     private:
         mutable std::mutex _mutex;
+        mutable std::mutex _drainMutex;
         std::thread _thread;
         std::list<QueueEntry> _entries;
         std::condition_variable _wake;
@@ -41,13 +43,11 @@ namespace logging {
     public:
         using scope::UsesContext::UsesContext;
         ~LogQueue() noexcept;
-        void publish(
-            const std::shared_ptr<LogState> &state,
-            const std::shared_ptr<data::StructModelBase> &entry);
+        void publish(std::shared_ptr<LogState> state, std::shared_ptr<data::StructModelBase> entry);
         void reconfigure(const std::shared_ptr<LogState> &state);
         std::optional<QueueEntry> pickupEntry();
         void processEntry(const QueueEntry &entry);
-        void setWatch(const std::function<bool(const QueueEntry &entry)> &fn);
+        void setWatch(std::function<bool(const QueueEntry &entry)> fn);
         void stop();
         void publishThread();
         bool drainQueue();

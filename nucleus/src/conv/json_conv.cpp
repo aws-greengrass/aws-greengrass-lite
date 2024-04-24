@@ -62,7 +62,11 @@ namespace conv {
         const scope::UsingContext &,
         rapidjson::Writer<rapidjson::StringBuffer> &writer,
         const data::Symbol &sym) {
-        writer.String(sym.toString().c_str());
+        if(sym) {
+            writer.String(sym.toString().c_str());
+        } else {
+            writer.Null();
+        }
     }
 
     void JsonHelper::serialize(
