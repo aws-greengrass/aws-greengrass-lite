@@ -77,10 +77,9 @@ private:
 
 public:
     LogManager() = default;
-    bool onInitialize(ggapi::Struct data) override;
-    bool onStart(ggapi::Struct data) override;
-    bool onStop(ggapi::Struct data) override;
-    bool onError_stop(ggapi::Struct data) override;
+    void onInitialize(ggapi::Struct data) override;
+    void onStart(ggapi::Struct data) override;
+    void onStop(ggapi::Struct data) override;
 
     static LogManager &get() {
         static LogManager instance{};

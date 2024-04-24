@@ -39,17 +39,16 @@ private:
     bool m_done;
 };
 
-bool LogManager::onInitialize(ggapi::Struct data) {
+void LogManager::onInitialize(ggapi::Struct data) {
     std::ignore = util::getDeviceSdkApiHandle();
     // TODO: retrieve and process system config
     std::unique_lock guard{_mutex};
     _nucleus = data.getValue<ggapi::Struct>({"nucleus"});
     _system = data.getValue<ggapi::Struct>({"system"});
     LOG.atInfo().log("Initializing log manager");
-    return true;
 }
 
-bool LogManager::onStart(ggapi::Struct data) {
+void LogManager::onStart(ggapi::Struct data) {
     LOG.atInfo().log("Beginning persistent logging loop logic");
     while(true) {
         retrieveCredentialsFromTES();
@@ -58,19 +57,13 @@ bool LogManager::onStart(ggapi::Struct data) {
             LogManager::processLogsAndUpload();
         } else {
             LOG.atError().log("Could not retrieve credentials from TES");
-            return false;
+            return;
         }
         std::this_thread::sleep_for(std::chrono::seconds(UPLOAD_FREQUENCY));
     }
 }
 
-bool LogManager::onStop(ggapi::Struct data) {
-    return true;
-}
-
-bool LogManager::onError_stop(ggapi::Struct data) {
-    return true;
-}
+void LogManager::onStop(ggapi::Struct data) {}
 
 void LogManager::retrieveCredentialsFromTES() {
     auto request{ggapi::Struct::create()};
