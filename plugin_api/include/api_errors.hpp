@@ -11,13 +11,10 @@ namespace ggapi {
     namespace traits {
         struct ErrorTraits {
             using SymbolType = ggapi::Symbol;
-            static SymbolType translateKind(SymbolType symKind) noexcept {
-                return symKind;
-            }
             static SymbolType translateKind(ggapiErrorKind intKind) noexcept {
                 return SymbolType(intKind);
             }
-            static SymbolType translateKind(const std::string &strKind) noexcept {
+            static SymbolType translateKind(const std::string_view &strKind) noexcept {
                 return {strKind};
             }
         };
@@ -37,15 +34,13 @@ namespace ggapi {
             } else {
                 return fn();
             }
-        } catch(std::exception &e) {
-            std::ignore = GgApiError::of(e).toThreadLastError();
         } catch(...) {
-            std::ignore = GgApiError::unspecified().toThreadLastError();
-        }
-        if constexpr(std::is_void_v<T>) {
-            return;
-        } else {
-            return static_cast<T>(0);
+            std::ignore = GgApiError::of(std::current_exception()).toThreadLastError();
+            if constexpr(std::is_void_v<T>) {
+                return;
+            } else {
+                return static_cast<T>(0);
+            }
         }
     }
 
@@ -79,12 +74,8 @@ namespace ggapi {
         try {
             std::invoke(std::forward<Func>(f), std::forward<Args>(args)...);
             return 0;
-        } catch(GgApiError &err) {
-            return err.toThreadLastError();
-        } catch(std::exception &err) {
-            return GgApiError::of<std::exception>(err).toThreadLastError();
         } catch(...) {
-            return GgApiError::unspecified().toThreadLastError();
+            return GgApiError::of(std::current_exception()).toThreadLastError();
         }
     }
 

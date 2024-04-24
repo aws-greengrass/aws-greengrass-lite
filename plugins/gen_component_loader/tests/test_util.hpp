@@ -30,9 +30,3 @@
 //         return executePhase(TERMINATE);
 //     }
 // };
-
-// class cloudPubCallback {
-// public:
-//     virtual ~cloudPubCallback() = default;
-//     virtual void sendToTopic() = 0;
-// };

@@ -25,7 +25,7 @@ class narWriter:
             self._item(b'type')
             self._item(b'symlink')
             self._item(b'target')
-            self._item(path.readlink())
+            self._item(str(path.readlink()).encode())
         elif path.is_dir():
             self._item(b'type')
             self._item(b'directory')

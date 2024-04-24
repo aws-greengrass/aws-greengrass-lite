@@ -81,6 +81,10 @@ cmake -B build
 make -C build -j4
 ```
 
+For Linux, Greengrass Lite can be compiled with the Linux or Posix platforms.
+The Linux platform uses modern Linux-specific features; for compatibility with
+older systems, pass `-DGGLITE_PLATFORM=posix` to cmake.
+
 ### Compiling Greengrass Lite for minimal footprint
 
 Build type "MinSizeRel" enables multiple size reduction options. Note that in
@@ -126,6 +130,11 @@ Configure the following in your config file
 - awsRegion: The AWS region with the Thing
 - iotCredEndpoint: The IoT Core endpoint
 - iotDataEndpoint: The IoT Core endpoint
+- posixUser: colon separated user/group that generic components should run as
+
+`posixUser` must be set to a valid user and group. If no colon and group is
+provided, the user's default group is used. If not running Greengrass as root,
+set this to the user Greengrass is running as.
 
 ### Running Greengrass Lite
 

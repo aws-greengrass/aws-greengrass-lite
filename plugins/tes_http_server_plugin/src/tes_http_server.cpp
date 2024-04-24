@@ -1,4 +1,5 @@
 #include "tes_http_server.hpp"
+#include <temp_module.hpp>
 
 // TODO: Fix file to follow coding conventions (camelCase vs snake_case etc)
 
@@ -40,6 +41,7 @@ ggapi::Struct getTesCredentialsStruct() {
 extern "C" {
 static int onRequestDone(struct aws_http_stream *stream, void *user_data) {
     (void) stream;
+    util::TempModule module(TesHttpServerPlugin::get().getModule());
     auto *requestParams = static_cast<RequestHandlerParams *>(user_data);
     const ggapi::Struct tes_credentials_struct = getTesCredentialsStruct();
     requestParams->response = aws_http_message_new_response(serverParams.allocator);
@@ -83,6 +85,7 @@ static int onRequestDone(struct aws_http_stream *stream, void *user_data) {
 
 static int onRequestHeadersDone(
     struct aws_http_stream *stream, enum aws_http_header_block header_block, void *user_data) {
+    util::TempModule module(TesHttpServerPlugin::get().getModule());
 
     auto *requestParams = static_cast<RequestHandlerParams *>(user_data);
     (void) header_block;
@@ -115,6 +118,7 @@ static int onIncomingRequestHeaders(
     const struct aws_http_header *header_array,
     size_t num_headers,
     void *user_data) {
+    util::TempModule module(TesHttpServerPlugin::get().getModule());
     (void) header_block;
     (void) stream;
     auto *requestParams = static_cast<RequestHandlerParams *>(user_data);
@@ -134,6 +138,7 @@ static void onRequestComplete(struct aws_http_stream *stream, int error_code, vo
 }
 static struct aws_http_stream *onIncomingRequest(
     struct aws_http_connection *connection, void *user_data) {
+    util::TempModule module(TesHttpServerPlugin::get().getModule());
     auto *requestParams = static_cast<RequestHandlerParams *>(user_data);
     requestParams->request_headers = aws_http_headers_new(serverParams.allocator);
 
@@ -150,6 +155,7 @@ static struct aws_http_stream *onIncomingRequest(
 
 static void onConnectionShutdown(
     aws_http_connection *connection, int error_code, void *connection_user_data) {
+    util::TempModule module(TesHttpServerPlugin::get().getModule());
     (void) error_code;
     (void) connection_user_data;
     aws_http_connection_release(connection);
@@ -160,7 +166,7 @@ static void onIncomingConnection(
     struct aws_http_connection *connection,
     int error_code,
     void *user_data) {
-
+    util::TempModule module(TesHttpServerPlugin::get().getModule());
     if(error_code) {
         LOG.atWarn().log("Connection is not setup properly");
         return;

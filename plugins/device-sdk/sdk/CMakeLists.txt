@@ -12,4 +12,11 @@ endif()
 
 add_compile_options(-w)
 
-fetchContentAddCmake(device-sdk-cpp)
+fetchContentAddCmake(aws-crt-cpp)
+
+set(BUILD_DEPS OFF)
+set(USE_EXTERNAL_DEPS_SOURCES ON)
+
+fetchContentAddCmake(aws-c-iot)
+
+fetchContentAddCmake(aws-iot-device-sdk-cpp-v2)

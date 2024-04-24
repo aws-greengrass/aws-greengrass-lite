@@ -9,14 +9,8 @@ namespace apiImpl {
         try {
             std::invoke(f, std::forward<Args>(args)...);
             return 0;
-        } catch(errors::Error &err) {
-            return err.toThreadLastError();
-        } catch(ggapi::GgApiError &err) {
-            return errors::Error::of<ggapi::GgApiError>(err).toThreadLastError();
-        } catch(std::exception &err) {
-            return errors::Error::of<std::exception>(err).toThreadLastError();
         } catch(...) {
-            return errors::Error::unspecified().toThreadLastError();
+            return errors::Error::of(std::current_exception()).toThreadLastError();
         }
     }
 

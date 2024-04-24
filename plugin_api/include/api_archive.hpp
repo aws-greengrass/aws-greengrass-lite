@@ -344,4 +344,27 @@ namespace ggapi {
             archive.visit(other);
         }
     }
+
+    /**
+     * Translate a dynamic data structure to a C++ structure with validation
+     * @param data Dynamic structure
+     * @param target C++ structure (must implement Serializable)
+     */
+    inline void deserialize(const Container &data, Serializable &target) {
+        auto archive = Archive(std::make_shared<ContainerDearchiver>(data));
+        archive.visit(target);
+    }
+
+    /**
+     * Translate a C++ structure to a dynamic structure
+     * @param target C++ structure (must implement Serializable)
+     * @return dynamic structure
+     */
+    inline Struct serialize(Serializable &target) {
+        auto data = Struct::create();
+        auto archive = Archive(std::make_shared<StructArchiver>(data));
+        archive.visit(target);
+        return data;
+    }
+
 } // namespace ggapi

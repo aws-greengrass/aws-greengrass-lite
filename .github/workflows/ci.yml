@@ -34,7 +34,7 @@ jobs:
     name: Build ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"
@@ -49,7 +49,7 @@ jobs:
     timeout-minutes: 100
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"
@@ -84,7 +84,7 @@ jobs:
     name: Check ${{ matrix.name }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"
@@ -103,7 +103,7 @@ jobs:
       run:
         shell: nix develop .#ci -c bash -exo pipefail {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"
@@ -137,7 +137,7 @@ jobs:
       run:
         shell: nix develop .#ci -c bash -exo pipefail {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"
@@ -192,7 +192,7 @@ jobs:
         shell: nix develop .#ci -c bash -exo pipefail {0}
     if: ${{ github.event_name == 'pull_request' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"
@@ -239,7 +239,7 @@ jobs:
       run:
         shell: nix develop .#ci -c bash -exo pipefail {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"

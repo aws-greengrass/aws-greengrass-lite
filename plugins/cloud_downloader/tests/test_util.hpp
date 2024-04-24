@@ -16,18 +16,19 @@ public:
         internalBind(init);
     }
 
-    bool executePhase(std::string_view phase) {
-        bool status = lifecycle(ggapi::Symbol{phase}, ggapi::Struct::create());
-        return status;
+    void executePhase(std::string_view phase) {
+        lifecycle(ggapi::Symbol{phase}, ggapi::Struct::create());
     };
 
-    bool startLifecycle() {
+    void startLifecycle() {
         // TODO: gotta be a better way to do this
-        return executePhase(DISCOVER) && executePhase(START) && executePhase(RUN);
+        executePhase(DISCOVER);
+        executePhase(START);
+        executePhase(RUN);
     }
 
-    bool stopLifecycle() {
-        return executePhase(TERMINATE);
+    void stopLifecycle() {
+        executePhase(TERMINATE);
     }
 };
 

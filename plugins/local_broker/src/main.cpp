@@ -34,7 +34,7 @@ private:
     ggapi::Subscription _ipcSubscribeSubs;
 
 public:
-    bool onStart(ggapi::Struct data) override;
+    void onStart(ggapi::Struct data) override;
 
     ggapi::ObjHandle publishToTopicHandler(ggapi::Symbol topic, const ggapi::Container &);
 
@@ -112,7 +112,7 @@ ggapi::ObjHandle LocalBroker::subscribeToTopicHandler(
         .put(keys.channel, channel);
 }
 
-bool LocalBroker::onStart(ggapi::Struct data) {
+void LocalBroker::onStart(ggapi::Struct data) {
     std::unique_lock guard{_mutex};
     // TODO: These need to be closed on onStop()
     _ipcPublishSubs = ggapi::Subscription::subscribeToTopic(
@@ -121,10 +121,9 @@ bool LocalBroker::onStart(ggapi::Struct data) {
     _ipcSubscribeSubs = ggapi::Subscription::subscribeToTopic(
         keys.ipcSubscribeToTopic,
         ggapi::TopicCallback::of(&LocalBroker::subscribeToTopicHandler, this));
-    return true;
 }
 
 extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(
-    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data, bool *pHandled) noexcept {
-    return LocalBroker::get().lifecycle(moduleHandle, phase, data, pHandled);
+    ggapiObjHandle moduleHandle, ggapiSymbol phase, ggapiObjHandle data) noexcept {
+    return LocalBroker::get().lifecycle(moduleHandle, phase, data);
 }

@@ -1,6 +1,6 @@
-#include "platform_abstraction/abstract_process_manager.hpp"
 #include <filesystem>
 #include <functional>
+#include <gg_pal/process.hpp>
 #include <logging.hpp>
 #include <plugin.hpp>
 
@@ -49,7 +49,7 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
         std::optional<BootstrapSection> bootstrap;
         std::optional<bool> bootstrapOnRollback;
 
-        void helper(
+        static void helper(
             ggapi::Archive &archive, std::string_view name, std::optional<ScriptSection> &section) {
 
             // Complexity is to handle behavior when a string is used instead of struct
@@ -71,7 +71,7 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
             }
         }
 
-        void helper(
+        static void helper(
             ggapi::Archive &archive,
             std::string_view name,
             std::optional<BootstrapSection> &section) {
@@ -111,8 +111,9 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
 
 private:
     std::string _name;
-    ggapi::Struct _recipe;
+    ggapi::Struct _recipeAsStruct;
     ggapi::Struct _lifecycleAsStruct;
+    ggapi::Struct _manifestAsStruct;
     std::string _deploymentId;
     std::string _artifactPath;
     ggapi::Struct _defaultConfig;
@@ -123,35 +124,34 @@ private:
 
     ggapi::Struct _nucleusConfig;
     ggapi::Struct _systemConfig;
-    ipc::ProcessManager _manager{};
+
+    void processScript(ScriptSection section, std::string_view stepNameArg);
+
+    gg_pal::Process startProcess(
+        std::string script,
+        std::chrono::seconds timeout,
+        bool requiresPrivilege,
+        const std::unordered_map<std::string, std::optional<std::string>> &env,
+        const std::string &note);
 
 public:
     explicit GenComponentDelegate(const ggapi::Struct &data);
+
     //  self-> To store a count to the class's object itself
     //            so that the Delegate remains in memory event after the GenComponentLoader
     //            returns
     //        self is passed as const as the reference count for the class itself should not be
     //        increased any further.
-    static bool lifecycleCallback(
+    static void lifecycleCallback(
         const std::shared_ptr<GenComponentDelegate> &self,
-        ggapi::ModuleScope,
+        const ggapi::ModuleScope &,
         ggapi::Symbol event,
         ggapi::Struct data);
 
     ggapi::ModuleScope registerComponent();
 
-    void processScript(ScriptSection section, std::string_view stepNameArg);
-
-    ipc::ProcessId startProcess(
-        std::string script,
-        std::chrono::seconds timeout,
-        bool requiresPrivilege,
-        std::unordered_map<std::string, std::optional<std::string>> env,
-        const std::string &note,
-        std::optional<ipc::CompletionCallback> onComplete = {});
-
-    bool onInitialize(ggapi::Struct data) override;
-    bool onStart(ggapi::Struct data) override;
+    void onInitialize(ggapi::Struct data) override;
+    void onStart(ggapi::Struct data) override;
 };
 
 class GenComponentLoader : public ggapi::Plugin {
@@ -160,7 +160,7 @@ private:
     ggapi::Subscription _delegateComponentSubscription;
 
 public:
-    bool onInitialize(ggapi::Struct data) override;
+    void onInitialize(ggapi::Struct data) override;
 
     static GenComponentLoader &get() {
         static GenComponentLoader instance{};

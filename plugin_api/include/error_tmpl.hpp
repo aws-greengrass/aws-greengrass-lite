@@ -9,21 +9,14 @@ namespace util {
 
     using namespace std::literals;
 
-    namespace traits {
-        //
-        // C++17 Template SFINAE to verify given class T has a "KindType" member and a "kind" member
-        // function
-        //
-        template<typename, typename = void>
-        struct ClassProvidesKind : std::false_type {};
-        template<typename T>
-        struct ClassProvidesKind<
-            T,
-            std::void_t<decltype(std::declval<T>().kind()), typename T::KindType>>
-            : std::true_type {};
-        template<typename T>
-        static constexpr bool classProvidesKind = ClassProvidesKind<T>::value;
-    } // namespace traits
+    /**
+     * This abstraction simplifies Nucleus code
+     */
+    class RuntimeErrorWithKind : public std::runtime_error {
+    public:
+        [[nodiscard]] virtual ggapiErrorKind getKindId() const noexcept = 0;
+        using std::runtime_error::runtime_error;
+    };
 
     /**
      * Common logic for an error that can pass between Nucleus and Plugins. Such errors are
@@ -31,19 +24,21 @@ namespace util {
      * non-empty string.
      */
     template<typename Traits>
-    class ErrorBase : public std::runtime_error {
+    class ErrorBase : public RuntimeErrorWithKind {
     public:
         using KindType = typename Traits::SymbolType;
 
     private:
         inline static const auto DEFAULT_ERROR_TEXT = "Unspecified Error"s; // NOLINT(*-err58-cpp)
+        inline static const auto DEFAULT_ERROR_KIND =
+            Traits::translateKind("ggapi::UnspecifiedError"); // NOLINT(*-err58-cpp)
+        inline static const auto RUNTIME_ERROR_KIND =
+            Traits::translateKind("std::runtime_error"); // NOLINT(*-err58-cpp)
+        inline static const auto LOGICAL_ERROR_KIND =
+            Traits::translateKind("std::logic_error"); // NOLINT(*-err58-cpp)
+        inline static const auto STD_ERROR_KIND =
+            Traits::translateKind("std::exception"); // NOLINT(*-err58-cpp)
         KindType _kind;
-
-        template<typename Error>
-        static KindType typeKind() noexcept {
-            static_assert(std::is_base_of_v<std::exception, Error>);
-            return Traits::translateKind(std::string_view{typeid(Error).name()});
-        }
 
     public:
         ErrorBase(const ErrorBase &) noexcept = default;
@@ -53,7 +48,11 @@ namespace util {
         ~ErrorBase() noexcept override = default;
 
         explicit ErrorBase(KindType kind, const std::string &what = DEFAULT_ERROR_TEXT) noexcept
-            : std::runtime_error(what), _kind(kind) {
+            : RuntimeErrorWithKind(what), _kind(kind) {
+        }
+
+        explicit ErrorBase(const RuntimeErrorWithKind &other) noexcept
+            : ErrorBase(Traits::translateKind(other.getKindId()), other.what()) {
         }
 
         explicit ErrorBase(
@@ -65,18 +64,45 @@ namespace util {
             : ErrorBase(std::string_view(kind), what) {
         }
 
-        template<typename E>
-        [[nodiscard]] static ErrorBase of(const E &error) noexcept {
-            static_assert(std::is_base_of_v<std::exception, E>);
-            if constexpr(traits::classProvidesKind<E>) {
-                return ErrorBase(Traits::translateKind(error.kind()), error.what());
-            } else {
-                return ErrorBase(typeKind<E>(), error.what());
+        /**
+         * Universal symbol ID for Kind
+         * @return error kind
+         */
+        [[nodiscard]] ggapiErrorKind getKindId() const noexcept override {
+            return _kind.asInt();
+        }
+
+        /**
+         * Convert error to Wrapped error preserving some information about the underlying
+         * error if possible.
+         *
+         * @param error Exception pointer
+         * @return Wrapped error
+         */
+        [[nodiscard]] static ErrorBase of(const std::exception_ptr &error) noexcept {
+            try {
+                if(error) {
+                    std::rethrow_exception(error);
+                } else {
+                    return unspecified();
+                }
+            } catch(const ErrorBase &err) {
+                return err;
+            } catch(const RuntimeErrorWithKind &err) {
+                return ErrorBase(Traits::translateKind(err.getKindId()), err.what());
+            } catch(const std::runtime_error &err) {
+                return ErrorBase(RUNTIME_ERROR_KIND, err.what());
+            } catch(const std::logic_error &err) {
+                return ErrorBase(LOGICAL_ERROR_KIND, err.what());
+            } catch(const std::exception &err) {
+                return ErrorBase(STD_ERROR_KIND, err.what());
+            } catch(...) {
+                return unspecified();
             }
         }
 
         [[nodiscard]] static ErrorBase unspecified() noexcept {
-            return ErrorBase("unspecified");
+            return ErrorBase(DEFAULT_ERROR_KIND);
         }
 
         [[nodiscard]] constexpr KindType kind() const noexcept {
@@ -105,11 +131,6 @@ namespace util {
             } else {
                 return {};
             }
-        }
-
-        // TODO: Will be deprecated
-        [[nodiscard]] static bool hasThreadLastError() noexcept {
-            return ::ggapiGetErrorKind() != 0;
         }
 
         static void throwThreadError(ggapiErrorKind err) {

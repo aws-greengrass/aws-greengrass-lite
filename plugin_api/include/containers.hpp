@@ -646,6 +646,11 @@ namespace ggapi {
         }
 
         template<typename T>
+        [[nodiscard]] T get() const {
+            return get<T>(0, size());
+        }
+
+        template<typename T>
         [[nodiscard]] T get(int32_t idx, size_t max) const {
             if(max > std::numeric_limits<uint32_t>::max()) {
                 throw std::out_of_range("max length out of range");

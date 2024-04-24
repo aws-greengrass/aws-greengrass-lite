@@ -4,7 +4,10 @@
 
 // #include <filesystem>
 
-// SCENARIO("Example download from a url sent over LPC", "[TestGenComponentLoader]") {
+// using Catch::Matchers::Equals;
+
+// SCENARIO("Recipe Reader", "[TestGenComponentLoader]") {
+//     auto samples = test::samples();
 //     GIVEN("Initiate the plugin") {
 //         // start the lifecycle
 //         util::TempModule tempModule{"plugin"};

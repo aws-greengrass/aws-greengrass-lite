@@ -124,9 +124,6 @@ try_add_link_option(compress-debug LINKER:--compress-debug-sections=zlib)
 
 if(LINUX)
   add_debuginfo_option(-ggdb3)
-  if(GCC)
-    add_debuginfo_option(-Og)
-  endif()
 endif()
 
 if(APPLE)

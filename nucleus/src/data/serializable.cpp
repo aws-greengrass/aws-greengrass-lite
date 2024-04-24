@@ -77,7 +77,7 @@ namespace data {
             }
 
             Archive archive(std::make_shared<ElementDearchiver>(data));
-            target.visit(archive);
+            archive.visit(target);
         }
 
         void writeToStruct(const std::shared_ptr<StructModelBase> &data, Serializable &target) {
@@ -87,7 +87,7 @@ namespace data {
             }
 
             Archive archive(std::make_shared<StructArchiver>(data));
-            target.visit(archive);
+            archive.visit(target);
         }
 
         void readFromFile(const std::filesystem::path &file, Serializable &target) {
@@ -128,7 +128,7 @@ namespace data {
                 throw errors::JsonParseError();
             }
             Archive archive(std::make_shared<ElementDearchiver>(value));
-            target.visit(archive);
+            archive.visit(target);
         }
 
         void writeToFile(const std::filesystem::path &file, Serializable &target) {
