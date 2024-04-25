@@ -34,11 +34,13 @@ gdbinit
 ggapi
 ggdb
 gglite
+ggpal
 ggroot
 glldb
 greengrass
 greengrasscoreipc
 greengrassv2
+GRND
 Hasnt
 inlines
 iot

@@ -38,10 +38,10 @@ ggapi::ObjHandle IpcServer::cliHandler(ggapi::Symbol, const ggapi::Container &re
     ggapi::Struct req{reqBase};
     auto serviceName = req.getValue<std::string>({keys.serviceName});
 
-    std::shared_lock guard{_mutex};
+    std::unique_lock guard{_mutex};
     auto resp = ggapi::Struct::create();
     resp.put(keys.socketPath, _socketPath);
-    resp.put(keys.cliAuthToken, _authHandler->generateAuthToken(serviceName));
+    resp.put(keys.cliAuthToken, _authHandler->generateAuthToken(serviceName).value());
     return resp;
 }
 
