@@ -149,7 +149,7 @@ public:
         ggapi::Symbol event,
         ggapi::Struct data);
 
-    ggapi::ModuleScope registerComponent();
+    ggapi::ModuleScope registerComponent(ggapi::ModuleScope &moduleScope );
 
     void onInitialize(ggapi::Struct data) override;
     void onStart(ggapi::Struct data) override;

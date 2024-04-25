@@ -18,7 +18,9 @@ namespace gen_component_loader_test {
     }
 
     SCENARIO("Recipe Reader", "[TestGenComponentLoader]") {
-        util::TempModule testModule("json-test");
+          //auto &plugin = GenComponentLoader::get();
+        GenComponentLoader plugin{};
+                Lifecycle lifecycle{"aws.greengrass.genComponentLoader", plugin, sampleMoreInit};
 
         GIVEN("An instance of recipe structure") {
             const auto recipeAsString = R"(---
@@ -49,13 +51,6 @@ Manifests:
         py -3 -u {artifacts:path}/hello_world.py "{configuration:/Message}"
 )";
             AND_GIVEN("Generic Component Loader plugin is initalized") {
-                auto &plugin = GenComponentLoader::get();
-                util::TempModule tempModule{"plugin"};
-
-                LifecycleConfigData data;
-                data._pluginNode.put("system", "a");
-
-                Lifecycle lifecycle{"aws.greengrass.genComponentLoader", plugin, sampleMoreInit};
 
                 WHEN("a hello world recipe is converted to a Struct") {
                     ggapi::Buffer buffer = ggapi::Buffer::create();
@@ -89,9 +84,9 @@ Manifests:
                             data_pack.put("artifactPath", "Path");
                             lifecycle.start();
 
-                            plugin.setInitHook([&lifecycle](auto lifecyclePtr) {
-                                lifecyclePtr->onInitialize(lifecycle.lifecycleData());
-                                lifecyclePtr->onStart(lifecycle.lifecycleData());
+                            std::shared_ptr<GenComponentDelegate> delegatePtr;
+                            plugin.setInitHook([&delegatePtr](auto lifecyclePtr) {
+                                delegatePtr = lifecyclePtr;
                             });
 
                             auto responseFuture = ggapi::Subscription::callTopicFirst(
@@ -102,6 +97,8 @@ Manifests:
 
                                 auto response = ggapi::Struct{responseFuture.waitAndGetValue()};
                                 REQUIRE_FALSE(response.empty());
+                                Lifecycle componentLifecycle{"aws.greengrass.DeligateComponent", *delegatePtr, sampleMoreInit};
+                                componentLifecycle.start();
                             }
                         }
                     }
