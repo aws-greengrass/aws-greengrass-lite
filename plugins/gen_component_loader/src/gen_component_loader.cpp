@@ -220,8 +220,12 @@ gg_pal::Process GenComponentDelegate::startProcess(
         auto currentTimePoint = std::chrono::steady_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(timeoutPoint - currentTimePoint);
+        
+        auto self = weak_self.lock();
+        util::TempModule moduleScope(self->getModule());
+        
         auto delay = static_cast<uint32_t>(duration.count());
-
+        
         ggapi::later(
             delay,
             [weak_self, ctx, note = note](gg_pal::Process proc) {
@@ -355,7 +359,6 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
 }
 
 GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
-    _name = data.get<std::string>("componentName");
     _recipeAsStruct = data.get<ggapi::Struct>("recipe");
     _manifestAsStruct = data.get<ggapi::Struct>("manifest");
     //TODO: fetch this information from nucleus's config
@@ -364,6 +367,8 @@ GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
     _deploymentId = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("ComponentName"));
     auto compConfig = _recipeAsStruct.get<ggapi::Struct>(_recipeAsStruct.foldKey("ComponentConfiguration"));
     auto _defaultConfig = compConfig.get<ggapi::Struct>(compConfig.foldKey("DefaultConfiguration"));
+
+    _name = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("componentName"));
 
     // TODO:: Improve how Lifecycle is extracted from recipe with respect to manifest
     _lifecycleAsStruct =
@@ -411,11 +416,13 @@ ggapi::ObjHandle GenComponentLoader::registerGenComponent(
     // TODO:
     ggapi::Struct returnData = ggapi::Struct::create();
 
+    auto module = newModule->registerComponent();
+
     if(_initHook.has_value()){
         _initHook.value()(newModule);
     }
 
-    auto module = newModule->registerComponent();
+    
 
     returnData.put("moduleHandle", module);
     return returnData;
