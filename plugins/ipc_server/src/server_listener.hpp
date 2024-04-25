@@ -17,8 +17,8 @@ namespace ipc_server {
     class ServerConnection;
 
     /**
-     * This class manages listening on a single IPC socket. As requests come in, it is
-     * responsible for creating a continuation stream until the request has been completed.
+     * This class manages listening on a single IPC socket. As connections come in, it is
+     * responsible for creating and delegating to ServerConnection for each connection.
      */
     class ServerListener : public util::RefObject<ServerListener> {
 

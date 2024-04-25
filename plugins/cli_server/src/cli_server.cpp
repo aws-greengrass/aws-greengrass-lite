@@ -1,4 +1,5 @@
 #include "cli_server.hpp"
+#include <interfaces/ipc_auth_info.hpp>
 #include <ipc_standard_errors.hpp>
 
 #include <algorithm>
@@ -11,7 +12,7 @@ static const Keys keys;
 static const DeploymentKeys deploymentKeys;
 
 void CliServer::onInitialize(ggapi::Struct data) {
-    data.put(NAME, keys.serviceName);
+    data.put(NAME, "aws.greengrass.cli_server"); // TODO: This should come from recipe
     std::unique_lock guard{_mutex};
     _system = data.getValue<ggapi::Struct>({"system"});
     _config = data.getValue<ggapi::Struct>({"config"});
@@ -53,22 +54,23 @@ void CliServer::generateCliIpcInfo(const std::filesystem::path &ipcCliInfoPath) 
         return;
     }
 
-    // get ipc info
-    auto request = ggapi::Struct::create();
-    request.put(keys.serviceName, SERVICE_NAME);
-    auto resultFuture = ggapi::Subscription::callTopicFirst(keys.infoTopicName, request);
-    // TODO handle case of resultFuture {} / no data returned
+    interfaces::ipc_auth_info::IpcAuthInfoIn authIn;
+    authIn.serviceName = SERVICE_NAME;
+    auto request = ggapi::serialize(authIn);
+    auto resultFuture =
+        ggapi::Subscription::callTopicFirst(interfaces::ipc_auth_info::interfaceTopic, request);
+    // TODO: handle case of resultFuture {} / no data returned
     auto result = ggapi::Struct(resultFuture.waitAndGetValue());
-    auto socketPath = result.get<std::string>(keys.socketPath);
-    auto cliAuthToken = result.get<std::string>(keys.cliAuthToken);
+    interfaces::ipc_auth_info::IpcAuthInfoOut authOut;
+    ggapi::deserialize(result, authOut);
 
-    _clientIdToAuthToken.insert({clientId, cliAuthToken});
+    _clientIdToAuthToken.insert({clientId, authOut.authToken});
 
     ggapi::Struct ipcInfo = ggapi::Struct::create();
-    ipcInfo.put(keys.cliAuthToken, cliAuthToken);
+    ipcInfo.put(keys.cliAuthToken, authOut.authToken);
     ipcInfo.put(
         keys.socketPath,
-        socketPath); // TODO: override socket path from recipe or nucleus config
+        authOut.socketPath); // TODO: override socket path from recipe or nucleus config
 
     // write to the path
     auto filePath = ipcCliInfoPath / clientId;

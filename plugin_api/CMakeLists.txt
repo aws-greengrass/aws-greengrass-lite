@@ -37,7 +37,8 @@ add_library(
   include/string_util.hpp
   include/subscriptions.hpp
   include/temp_module.hpp
-  include/util.hpp)
+  include/util.hpp
+  include/interfaces/ipc_auth_info.hpp)
 
 target_include_directories(gg_plugin_api_min INTERFACE include)
 

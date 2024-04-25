@@ -14,8 +14,11 @@ namespace ipc_server {
     using AwsConnection = util::AutoReleasePtr<aws_event_stream_rpc_server_connection>;
 
     /**
-     * This class manages listening on a single IPC socket. As requests come in, it is
-     * responsible for creating a continuation stream until the request has been completed.
+     * This class manages a single IPC connection. Typically there is a single connection per
+     * process, but not required or enforced. There are multiple incoming connections per
+     * ServerListener, and multiple ConnectionStream's per connection. As requests come in, it is
+     * responsible for creating a continuation stream that takes over until the request has been
+     * completed.
      */
     class ServerConnection : public util::RefObject<ServerConnection> {
 

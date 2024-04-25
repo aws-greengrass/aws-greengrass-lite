@@ -6,7 +6,6 @@
 #include <unordered_map>
 
 struct Keys {
-    ggapi::Symbol infoTopicName{"aws.greengrass.RequestIpcInfo"};
     ggapi::Symbol createDeploymentTopicName{"aws.greengrass.deployment.Offer"};
     ggapi::Symbol cancelDeploymentTopicName{"aws.greengrass.deployment.Cancel"};
     ggapi::Symbol createLocalDeployment{"IPC::aws.greengrass#CreateLocalDeployment"};
@@ -14,7 +13,6 @@ struct Keys {
     ggapi::Symbol getLocalDeploymentStatus{"IPC::aws.greengrass#GetLocalDeploymentStatus"};
     ggapi::Symbol listLocalDeployments{"IPC::aws.greengrass#ListLocalDeployments"};
     ggapi::Symbol listDeployments{"IPC::aws.greengrass#ListDeployments"};
-    ggapi::Symbol serviceName{"serviceName"};
     ggapi::Symbol socketPath{"domain_socket_path"};
     ggapi::Symbol cliAuthToken{"cli_auth_token"};
     ggapi::Symbol shape{"shape"};

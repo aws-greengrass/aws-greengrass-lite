@@ -2,6 +2,7 @@
 #include "bound_promise.hpp"
 #include "server_listener.hpp"
 #include "temp_module.hpp"
+#include <interfaces/ipc_auth_info.hpp>
 
 static const auto LOG = // NOLINT(cert-err58-cpp)
     ggapi::Logger::of("com.aws.greengrass.ipc_server");
@@ -31,20 +32,21 @@ namespace ipc_server {
         {
             std::unique_lock guard{_mutex};
 
-            // Initialize IPC socket
-            auto system = _system;
-            if(system.hasKey("ipcSocketPath")) {
-                _socketPath = system.get<std::string>("ipcSocketPath");
+            // The path for the socket may be explicitly specified in config, or if not, is
+            // inferred from root directory.
+            if(_system.hasKey("ipcSocketPath")) {
+                _socketPath = _system.get<std::string>("ipcSocketPath");
             } else {
                 std::filesystem::path filePath =
-                    std::filesystem::canonical(system.getValue<std::string>({"rootPath"}))
+                    std::filesystem::canonical(_system.getValue<std::string>({"rootPath"}))
                     / SOCKET_NAME;
                 _socketPath = filePath.string();
             }
 
-            // Initialize subscription(s)
+            // This LPC topic is used to allow another plugin (e.g. Generic Component plugin,
+            // or CLI plugin) to obtain credentials for a component or other identity "service"
             _ipcInfoSubs = ggapi::Subscription::subscribeToTopic(
-                keys.requestIpcInfoTopic,
+                interfaces::ipc_auth_info::interfaceTopic,
                 ggapi::TopicCallback::of(&IpcServer::requestIpcInfoHandler, this));
         }
 
@@ -56,10 +58,8 @@ namespace ipc_server {
         try {
             // TODO: Make non-blocking
             listener->connect(_socketPath);
-        } catch(ggapi::GgApiError &err) {
-            throw err; // Error preserves error-kind
-        } catch(std::exception &e) {
-            throw IpcError(e.what()); // Rewrite error-kind as IPC error
+        } catch(...) {
+            throw ggapi::GgApiError::of(std::current_exception());
         }
     }
 
@@ -68,14 +68,14 @@ namespace ipc_server {
      */
     ggapi::Struct IpcServer::requestIpcInfoHandler(ggapi::Symbol, const ggapi::Container &req) {
 
-        IpcInfoIn inData;
+        interfaces::ipc_auth_info::IpcAuthInfoIn inData;
         ggapi::deserialize(req, inData);
 
-        IpcInfoOut outData;
+        interfaces::ipc_auth_info::IpcAuthInfoOut outData;
         {
             std::unique_lock guard{_mutex};
             outData.socketPath = _socketPath;
-            outData.cliAuthToken = _authHandler->generateAuthToken(inData.serviceName).value();
+            outData.authToken = _authHandler->generateAuthToken(inData.serviceName).value();
         }
         return ggapi::serialize(outData);
     }

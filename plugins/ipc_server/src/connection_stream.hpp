@@ -14,6 +14,11 @@ namespace ipc_server {
     using AwsConnection = util::AutoReleasePtr<aws_event_stream_rpc_server_connection>;
     using AwsToken = util::AutoReleasePtr<aws_event_stream_rpc_server_continuation_token>;
 
+    /**
+     * A stream is a sequence of messages that implements a single IPC request, initial response,
+     * and streamed response. The token individually identifies a single stream, that is, request.
+     * All streams (requests) are associated with a single connection (many to one).
+     */
     class ConnectionStream : public util::RefObject<ConnectionStream> {
 
     public:

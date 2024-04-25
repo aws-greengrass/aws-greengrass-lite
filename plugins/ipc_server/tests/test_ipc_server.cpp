@@ -1,5 +1,6 @@
 #include "ipc_server.hpp"
 #include <catch2/catch_all.hpp>
+#include <interfaces/ipc_auth_info.hpp>
 #include <test/plugin_lifecycle.hpp>
 
 #include <aws/crt/Api.h>
@@ -48,8 +49,8 @@ namespace test {
 
         static ConnectionConfig config() {
             auto reqData = ggapi::Struct::create().put("serviceName", "test");
-            ggapi::Future resp =
-                ggapi::Subscription::callTopicFirst(ipc_server::keys.requestIpcInfoTopic, reqData);
+            ggapi::Future resp = ggapi::Subscription::callTopicFirst(
+                interfaces::ipc_auth_info::interfaceTopic, reqData);
             if(!resp) {
                 throw std::runtime_error("IPC Info Topic not registered");
             }
@@ -57,12 +58,13 @@ namespace test {
             if(!respData) {
                 throw std::runtime_error("IPC Info Topic did not return data");
             }
-            auto respStruct = ggapi::Struct(respData);
-            auto socketPath = respStruct.get<std::string>("domain_socket_path");
+            interfaces::ipc_auth_info::IpcAuthInfoOut authInfoOut;
+            ggapi::deserialize(respData, authInfoOut);
+            auto socketPath = authInfoOut.socketPath;
             if(socketPath.empty()) {
                 throw std::runtime_error("IPC Info Topic did not return socket");
             }
-            auto socketAuth = respStruct.get<std::string>("cli_auth_token");
+            auto socketAuth = authInfoOut.authToken;
             if(socketAuth.empty()) {
                 throw std::runtime_error("IPC Info Topic did not return auth token");
             }

@@ -39,12 +39,7 @@ namespace ipc_server {
         ggapi::Symbol _message{"_message"};
         ggapi::Symbol _service{"_service"};
         ggapi::Symbol channel{"channel"};
-        ggapi::Symbol socketPath{"domain_socket_path"};
-        ggapi::Symbol cliAuthToken{"cli_auth_token"};
-        ggapi::Symbol requestIpcInfoTopic{"aws.greengrass.RequestIpcInfo"};
-        ggapi::Symbol serviceName{"serviceName"};
         ggapi::Symbol greengrassIpcServiceName{IPC_PREFIX + "GreengrassCoreIPC"};
-        ggapi::Symbol ipcError{"ipcError"};
         ggapi::Symbol fatal{"fatal"};
         static const Keys &get() noexcept {
             static Keys keys;
@@ -53,37 +48,6 @@ namespace ipc_server {
     };
 
     static const auto &keys = Keys::get();
-
-    struct IpcInfoIn : public ggapi::Serializable {
-
-        std::string serviceName;
-
-        void visit(util::ArchiveBase<ggapi::ArchiveTraits> &archive) override {
-            archive(keys.serviceName, serviceName);
-        }
-        void validate() override {
-            if(serviceName.empty()) {
-                throw ggapi::ValidationError("Service name was not specified");
-            }
-        }
-    };
-
-    struct IpcInfoOut : public ggapi::Serializable {
-
-        std::string socketPath;
-        std::string cliAuthToken;
-
-        void visit(util::ArchiveBase<ggapi::ArchiveTraits> &archive) override {
-            archive(keys.socketPath, socketPath);
-            archive(keys.cliAuthToken, cliAuthToken);
-        }
-    };
-
-    class IpcError : public ggapi::GgApiError {
-    public:
-        explicit IpcError(const std::string &what) : ggapi::GgApiError(keys.ipcError, what) {
-        }
-    };
 
     class IpcServer final : public ggapi::Plugin {
     private:
