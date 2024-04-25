@@ -352,6 +352,7 @@ void LogManager::processLogsAndUpload() {
         logEvents.PushBack(inputLogEvent, logEvents.GetAllocator());
     }
 
+    // TODO: Use ggapi for JSON parsing and creation
     rapidjson::Document logEventsBody;
     logEventsBody.SetObject();
     logEventsBody.AddMember("logStreamName", logStreamName, logEventsBody.GetAllocator());
