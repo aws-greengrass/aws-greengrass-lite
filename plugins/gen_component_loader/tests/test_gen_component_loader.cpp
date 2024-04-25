@@ -2,7 +2,7 @@
 #include <catch2/catch_all.hpp>
 #include <temp_module.hpp>
 #include <test/plugin_lifecycle.hpp>
-
+#include <fstream>
 #include <filesystem>
 
 using namespace test;
@@ -99,6 +99,8 @@ Manifests:
                                 REQUIRE_FALSE(response.empty());
                                 Lifecycle componentLifecycle{"aws.greengrass.DeligateComponent", *delegatePtr, sampleMoreInit};
                                 componentLifecycle.start();
+                                bool exists = std::ifstream("./testFile.txt").good();
+                                REQUIRE(exists);
                             }
                         }
                     }
