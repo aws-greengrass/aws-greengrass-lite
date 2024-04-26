@@ -57,15 +57,14 @@ if(BUILD_TESTING AND NOT WIN32)
 
   add_subdirectory(../../nucleus nucleus EXCLUDE_FROM_ALL)
 
-  add_executable(
-    gen_component_loader_tests
-    tests/test_gen_component_loader.cpp tests/test_gen_component_loader.cpp)
+  add_executable(gen_component_loader_tests tests/test_gen_component_loader.cpp
+                                            tests/test_gen_component_loader.cpp)
 
   target_include_directories(gen_component_loader_tests PRIVATE tests)
   target_link_libraries(
     gen_component_loader_tests
     PRIVATE gen_component_loader_obj Catch2::Catch2WithMain
-            trompeloeil::trompeloeil nucleus-core shared_test_resources )
+            trompeloeil::trompeloeil nucleus-core shared_test_resources)
 
   catch_discover_tests(gen_component_loader_tests)
 
