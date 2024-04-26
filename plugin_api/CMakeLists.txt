@@ -27,6 +27,7 @@ add_library(
   include/futures.hpp
   include/greengrass_traits.hpp
   include/handles.hpp
+  include/ipc_standard_errors.hpp
   include/logging.hpp
   include/lookup_table.hpp
   include/plugin.hpp
@@ -36,7 +37,8 @@ add_library(
   include/string_util.hpp
   include/subscriptions.hpp
   include/temp_module.hpp
-  include/util.hpp)
+  include/util.hpp
+  include/interfaces/ipc_auth_info.hpp)
 
 target_include_directories(gg_plugin_api_min INTERFACE include)
 

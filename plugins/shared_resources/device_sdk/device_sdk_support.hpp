@@ -7,14 +7,10 @@ namespace util {
 
         [[nodiscard]] static std::string formError(int errorCode, const std::string &prefix) {
             if(prefix.empty()) {
-                return formError(errorCode);
+                return std::string(getAwsCrtErrorString(errorCode));
             } else {
-                return prefix + ": " + formError(errorCode);
+                return prefix + std::string(": ") + std::string(getAwsCrtErrorString(errorCode));
             }
-        }
-
-        [[nodiscard]] static std::string formError(int errorCode) {
-            return util::getAwsCrtErrorString(errorCode);
         }
 
     public:

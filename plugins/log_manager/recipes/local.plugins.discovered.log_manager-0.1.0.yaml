@@ -1,0 +1,14 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: local.plugins.discovered.log_manager
+ComponentType: aws.greengrass.plugin
+ComponentVersion: "0.1.0"
+ComponentDescription: AWS Greengrass Lite Log Manager
+ComponentPublisher: Amazon
+ComponentDependencies:
+  local.plugins.discovered.cloud_downloader:
+    VersionRequirement: ">=0.1.0"
+    DependencyType: HARD
+  local.plugins.discovered.iot_broker:
+    VersionRequirement: ">=0.1.0"
+    DependencyType: HARD

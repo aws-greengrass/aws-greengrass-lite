@@ -45,8 +45,8 @@ namespace util {
             static_assert(std::is_move_assignable_v<ResourceType>);
         }
 
-        AutoRelease(const ReleaseLambda &lambda, ResourceType resource) noexcept
-            : _lambda(lambda), _resource(std::move(resource)) {
+        AutoRelease(ReleaseLambda lambda, ResourceType resource) noexcept
+            : _lambda(std::move(lambda)), _resource(std::move(resource)) {
             static_assert(std::is_move_assignable_v<ResourceType>);
         }
 

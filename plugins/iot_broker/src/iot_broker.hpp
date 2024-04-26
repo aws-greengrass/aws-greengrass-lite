@@ -43,7 +43,6 @@ class IotBroker : public ggapi::Plugin {
         ggapi::Symbol payload{"payload"};
         ggapi::Symbol message{"message"};
         ggapi::Symbol shape{"shape"};
-        ggapi::Symbol errorCode{"errorCode"};
         ggapi::Symbol channel{"channel"};
         ggapi::Symbol serviceModelType{"serviceModelType"};
         ggapi::Symbol terminate{"terminate"};

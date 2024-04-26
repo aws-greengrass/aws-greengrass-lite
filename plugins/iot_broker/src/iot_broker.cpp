@@ -4,6 +4,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <cpp_api.hpp>
+#include <ipc_standard_errors.hpp>
 #include <mutex>
 #include <variant>
 
@@ -98,8 +99,8 @@ ggapi::Promise IotBroker::ipcSubscribeHandler(ggapi::Symbol, const ggapi::Contai
                         .put(keys.channel, std::get<ggapi::Channel>(ret));
                 }
 
-                // TODO: replace with setError
-                return ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret));
+                // TODO: error handling needs to be addressed in this function
+                throw ggapi::ipc::ServiceError("Subscribe failed");
             });
         },
         args);
@@ -163,9 +164,12 @@ void IotBroker::publishHandlerAsync(const ggapi::Struct &args, ggapi::Promise pr
             barrier.wait(lock);
         }
 
-        // TODO - setValue on success, setError on error
-        response.put(keys.errorCode, !success);
-        return response;
+        if(success) {
+            return ggapi::Struct::create();
+        } else {
+            // TODO: error handling needs to be addressed in this function
+            throw ggapi::ipc::ServiceError("Publish failed");
+        }
     });
 }
 
@@ -213,8 +217,8 @@ void IotBroker::subscribeHandlerAsync(const ggapi::Struct &args, ggapi::Promise 
             return ggapi::Struct::create().put(keys.channel, std::get<ggapi::Channel>(ret));
         }
 
-        // TODO: replace with setError
-        return ggapi::Struct::create().put(keys.errorCode, std::get<uint32_t>(ret));
+        // TODO: error handling needs to be addressed in this function
+        throw ggapi::ipc::ServiceError("Subscribe failed");
     });
 }
 

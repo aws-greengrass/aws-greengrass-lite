@@ -358,14 +358,18 @@ namespace deployment {
             deployment.deploymentType =
                 DeploymentTypeMap.lookup(deploymentStruct.get<std::string>("deploymentType"))
                     .value_or(DeploymentType::IOT_JOBS);
-        } catch(std::exception &e) {
+        } catch(...) {
             LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)
                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deployment.id)
                 .kv("DeploymentType", "LOCAL")
+                .cause(std::current_exception())
                 .log("Invalid deployment request. Please check you recipe.");
-            return ggapi::Struct::create().put("status", false);
+
+            throw;
         }
+
+        // TODO revisit status key / return code path
         bool returnStatus = true;
 
         // TODO: Shadow deployments use a special queue id
@@ -414,6 +418,7 @@ namespace deployment {
         } else {
             throw DeploymentException("Deployment do not exist");
         }
+        // TODO: is this needed?
         return ggapi::Struct::create().put("status", true);
     }
 
