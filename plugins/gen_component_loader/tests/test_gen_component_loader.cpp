@@ -36,9 +36,9 @@ Manifests:
   - Platform:
       os: linux
     Lifecycle:
-      Startup: 
+      Startup:
         RequiresPrivilege: false
-        Script: touch ./testFile.txt 
+        Script: touch ./testFile.txt
   - Platform:
       os: darwin
     Lifecycle:
@@ -99,7 +99,7 @@ Manifests:
                                 REQUIRE_FALSE(response.empty());
                                 Lifecycle componentLifecycle{"aws.greengrass.DeligateComponent", *delegatePtr, sampleMoreInit};
                                 componentLifecycle.start();
-                                
+
                                 //TODO:: Check when the lifecycle is complete the file exists
                                 // bool exists = std::ifstream("./testFile.txt").good();
                                 // REQUIRE(exists);

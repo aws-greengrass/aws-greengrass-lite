@@ -24,7 +24,6 @@ namespace test {
         util::TempModule _module;
         test::TempDir _tempDir;
     public:
-
         ggapi::Struct _configRoot{ggapi::Struct::create()};
         ggapi::Struct _pluginNode{ggapi::Struct::create()};
         ggapi::Struct _pluginNodeConfiguration{ggapi::Struct::create()};
@@ -32,7 +31,6 @@ namespace test {
         ggapi::Struct _services{ggapi::Struct::create()};
         ggapi::Struct _nucleusNode{ggapi::Struct::create()};
         ggapi::Struct _nucleusNodeConfiguration{ggapi::Struct::create()};
-    
     private:
         void init() {
             _configRoot.put("system", _system);
