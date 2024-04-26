@@ -17,8 +17,14 @@ add_subdirectory(../device-sdk/ device-sdk EXCLUDE_FROM_ALL)
 enable_warnings()
 
 add_library(
-  iot_broker MODULE src/iot_broker.cpp src/iot_broker.hpp src/main.cpp
-                    src/publish.cpp src/subscribe.cpp src/tes.cpp)
+  iot_broker MODULE
+  src/iot_broker.cpp
+  src/iot_broker.hpp
+  src/main.cpp
+  src/publish.cpp
+  src/subscribe.cpp
+  src/tes.cpp
+  src/thread_safe_queue.hpp)
 
 target_link_libraries(iot_broker PRIVATE gg_plugin_api device-sdk
                                          shared_resources)
