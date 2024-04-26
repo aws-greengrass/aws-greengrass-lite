@@ -30,20 +30,20 @@ namespace test {
             _nucleusNode.put("configuration", _nucleusNodeConfiguration);
         }
 
-        static inline auto NULL_INIT = [](Lifecycle &) {};
+        inline static const auto NULL_INIT = [](Lifecycle &) {};
 
     public:
         using Plugin = ggapi::Plugin;
         using Events = ggapi::Plugin::Events;
 
-        explicit Lifecycle(
+        Lifecycle(
             std::string_view name,
             ggapi::Plugin &plugin,
             std::function<void(Lifecycle &lifecycle)> moreInit = NULL_INIT)
             : _name(name), _plugin(plugin), _module(name) {
             // Mock out configuration
             init();
-            more_init(*this);
+            moreInit(*this);
             // Perform the initialization phase
             auto data = lifecycleData();
             event(Events::INITIALIZE, data);
@@ -51,6 +51,11 @@ namespace test {
             _name = data.get<std::string>("name");
             _services.put(_name, _pluginNode);
         }
+        Lifecycle() = delete;
+        Lifecycle(const Lifecycle &) = delete;
+        Lifecycle(Lifecycle &&) = delete;
+        Lifecycle &operator=(const Lifecycle &) = delete;
+        Lifecycle &operator=(Lifecycle &&) = delete;
         ~Lifecycle() {
             if(_running) {
                 stop();
@@ -85,34 +90,29 @@ namespace test {
         }
 
     public:
-        bool event(ggapi::Plugin::Events event, ggapi::Struct &data) {
+        void event(ggapi::Plugin::Events event, ggapi::Struct &data) {
             util::TempModule module(*_module);
             auto eventSymbol = ggapi::Plugin::EVENT_MAP.rlookup(event).value_or(ggapi::Symbol{});
-            return _plugin.lifecycle(eventSymbol, data);
+            _plugin.lifecycle(eventSymbol, data);
         }
 
-        bool event(ggapi::Plugin::Events event) {
+        void event(ggapi::Plugin::Events event) {
             if(event == ggapi::Plugin::Events::START) {
                 _running = true;
             }
             auto data = lifecycleData();
-            bool handled = this->event(event, data);
+            this->event(event, data);
             if(event == ggapi::Plugin::Events::STOP) {
                 _running = false;
             }
-            return handled;
         }
 
-        bool start() {
-            return event(Events::START);
+        void start() {
+            event(Events::START);
         }
 
-        bool stop() {
-            return event(Events::STOP);
-        }
-
-        bool errorStop() {
-            return event(Events::ERROR_STOP);
+        void stop() {
+            event(Events::STOP);
         }
     };
 

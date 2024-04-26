@@ -1,6 +1,6 @@
 ---
 RecipeFormatVersion: "2020-01-25"
-ComponentName: local.plugins.discovered.cli_server
+ComponentName: aws.greengrass.cli_server
 ComponentType: aws.greengrass.plugin
 ComponentVersion: "0.1.0"
 ComponentDescription:
