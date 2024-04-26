@@ -1,6 +1,7 @@
 #include "random_device.hpp"
 
 // TODO: move into separate implementations inside platform abstraction
+// TODO: rename ggpal to gg_pal and remove ggpal from dictionary
 
 // C++17 standard __has_include preprocessor directive
 #if __has_include(<unistd.h>) // detect POSIX platform
@@ -100,7 +101,6 @@ ggpal::random_device::result_type ggpal::random_device::operator()() const {
 // Windows implementation (cl; Visual Studio, or MinGW-w64)
 #elif defined(_MSC_FULL_VER) || defined(__MINGW64_VERSION_MAJOR)
 
-#define _CRT_RAND_S 1
 #include <stdlib.h>
 #include <system_error>
 
