@@ -364,14 +364,6 @@ namespace lifecycle {
         // Block this thread until termination (TODO: improve on this somehow)
         _mainPromise->waitUntil(tasks::ExpireTime::infinite());
 
-        {
-            std::shared_ptr<config::Topics> allServices =
-                getConfig().findTopics({SERVICES_TOPIC_KEY});
-            if(allServices != nullptr) {
-                std::cout << "A service exists." << std::endl;
-            }
-        }
-
         loader.forAllActivePlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
             plugin.lifecycle(loader.STOP, data);
         });

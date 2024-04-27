@@ -1,5 +1,5 @@
 #pragma once
-/*
+
 #include "errors/errors.hpp"
 
 namespace authorization {
@@ -10,5 +10,3 @@ namespace authorization {
         }
     };
 } // namespace authorization
-
-*/
