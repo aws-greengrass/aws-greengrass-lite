@@ -5,6 +5,7 @@
 #include <plugin.hpp>
 
 class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenComponentDelegate> {
+    public:
     struct ScriptSection : public ggapi::Serializable {
         std::optional<std::unordered_map<std::string, std::string>> envMap;
         std::string script;
@@ -148,7 +149,7 @@ public:
         ggapi::Symbol event,
         ggapi::Struct data);
 
-    ggapi::ModuleScope registerComponent();
+    ggapi::ModuleScope registerComponent(ggapi::ModuleScope &moduleScope );
 
     void onInitialize(ggapi::Struct data) override;
     void onStart(ggapi::Struct data) override;
@@ -158,9 +159,13 @@ class GenComponentLoader : public ggapi::Plugin {
 private:
     ggapi::ObjHandle registerGenComponent(ggapi::Symbol, const ggapi::Container &callData);
     ggapi::Subscription _delegateComponentSubscription;
-
+    std::optional <std::function<void(std::shared_ptr<GenComponentDelegate>)>> _initHook;
 public:
     void onInitialize(ggapi::Struct data) override;
+
+    void setInitHook(const std::function<void(std::shared_ptr<GenComponentDelegate>)> &initHook){
+        _initHook = initHook;
+    }
 
     static GenComponentLoader &get() {
         static GenComponentLoader instance{};

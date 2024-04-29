@@ -6,12 +6,8 @@
 #include <test/temp_dir.hpp>
 
 namespace test {
-    class Lifecycle {
-        bool _running{false};
-        std::string _name;
-        ggapi::Plugin &_plugin;
-        util::TempModule _module;
-        test::TempDir _tempDir;
+    struct LifecycleConfigData
+    {
         ggapi::Struct _configRoot{ggapi::Struct::create()};
         ggapi::Struct _pluginNode{ggapi::Struct::create()};
         ggapi::Struct _pluginNodeConfiguration{ggapi::Struct::create()};
@@ -19,7 +15,23 @@ namespace test {
         ggapi::Struct _services{ggapi::Struct::create()};
         ggapi::Struct _nucleusNode{ggapi::Struct::create()};
         ggapi::Struct _nucleusNodeConfiguration{ggapi::Struct::create()};
+    };
 
+    class Lifecycle {
+        bool _running{false};
+        std::string _name;
+        ggapi::Plugin &_plugin;
+        util::TempModule _module;
+        test::TempDir _tempDir;
+    public:
+        ggapi::Struct _configRoot{ggapi::Struct::create()};
+        ggapi::Struct _pluginNode{ggapi::Struct::create()};
+        ggapi::Struct _pluginNodeConfiguration{ggapi::Struct::create()};
+        ggapi::Struct _system{ggapi::Struct::create()};
+        ggapi::Struct _services{ggapi::Struct::create()};
+        ggapi::Struct _nucleusNode{ggapi::Struct::create()};
+        ggapi::Struct _nucleusNodeConfiguration{ggapi::Struct::create()};
+    private:
         void init() {
             _configRoot.put("system", _system);
             _configRoot.put("services", _services);
@@ -40,7 +52,7 @@ namespace test {
             std::string_view name,
             ggapi::Plugin &plugin,
             std::function<void(Lifecycle &lifecycle)> moreInit = NULL_INIT)
-            : _name(name), _plugin(plugin), _module(name) {
+            : _name(name), _plugin(plugin), _module(name){
             // Mock out configuration
             init();
             moreInit(*this);
