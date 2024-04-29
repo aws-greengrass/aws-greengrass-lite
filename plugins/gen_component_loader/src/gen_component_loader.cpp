@@ -365,9 +365,6 @@ GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
     _artifactPath = data.get<std::string>("artifactPath");
 
     _deploymentId = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("ComponentName"));
-    auto compConfig =
-        _recipeAsStruct.get<ggapi::Struct>(_recipeAsStruct.foldKey("ComponentConfiguration"));
-    auto _defaultConfig = compConfig.get<ggapi::Struct>(compConfig.foldKey("DefaultConfiguration"));
 
     _name = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("componentName"));
 
@@ -381,6 +378,11 @@ void GenComponentDelegate::onInitialize(ggapi::Struct data) {
 
     _nucleusConfig = data.getValue<ggapi::Struct>({"nucleus"});
     _systemConfig = data.getValue<ggapi::Struct>({"system"});
+
+    //TODO: Use nucleus's global config to parse this information
+    // auto compConfig =
+    //     _recipeAsStruct.get<ggapi::Struct>(_recipeAsStruct.foldKey("ComponentConfiguration"));
+    // auto _defaultConfig = compConfig.get<ggapi::Struct>(compConfig.foldKey("DefaultConfiguration"));
 
     ggapi::Archive::transform<ggapi::ContainerDearchiver>(_lifecycle, _lifecycleAsStruct);
 
