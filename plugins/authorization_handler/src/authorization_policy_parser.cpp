@@ -26,6 +26,7 @@ AuthorizationPolicyParser::parseAllAuthorizationPolicies(ggapi::Struct configRoo
             continue;
         }
         // TODO: Get the serviceName (componentName) from the service struct some how
+        // For now this parses it as all lower case.
         auto componentName = serviceKey;
 
         auto configurationStruct = service.get<ggapi::Struct>("configuration");

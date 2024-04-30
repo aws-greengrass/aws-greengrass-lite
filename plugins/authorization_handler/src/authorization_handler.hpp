@@ -3,6 +3,7 @@
 #include "authorization_module.hpp"
 #include "authorization_policy.hpp"
 #include "permission.hpp"
+#include "wildcard_trie.hpp"
 
 #include <logging.hpp>
 #include <plugin.hpp>
@@ -11,6 +12,8 @@
 class AuthorizationModule;
 
 class AuthorizationHandler : public ggapi::Plugin {
+    ggapi::Subscription _requestAuthZSub;
+
 private:
     mutable std::shared_mutex _mutex;
     ggapi::Struct _configRoot;
@@ -31,15 +34,28 @@ private:
         std::vector<std::string> principals,
         std::vector<std::string> operations,
         std::vector<std::string> resources) noexcept;
+    static char asciiToLower(char in);
 
 public:
     AuthorizationHandler() noexcept;
     static constexpr const auto ANY_REGEX = "*";
-    bool isAuthorized(std::string destination, Permission permission);
+    bool isAuthorized(
+        std::string destination,
+        std::string principal,
+        std::string operation,
+        std::string resource,
+        ResourceLookupPolicy resourceLookupPolicy);
+    bool isAuthorized(
+        std::string destination,
+        std::string principal,
+        std::string operation,
+        std::string resource);
 
     void onInitialize(ggapi::Struct data) override;
     void onStart(ggapi::Struct data) override;
-
+    bool checkAuthZListenerStart();
+    ggapi::Promise checkAuthorized(ggapi::Symbol, const ggapi::Container &callData);
+    void checkAuthorizedAsync(const ggapi::Struct &, ggapi::Promise promise);
     static AuthorizationHandler &get() {
         static AuthorizationHandler instance{};
         return instance;
