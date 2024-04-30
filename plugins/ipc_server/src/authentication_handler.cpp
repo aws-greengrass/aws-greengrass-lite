@@ -1,28 +1,62 @@
 #include "authentication_handler.hpp"
+#include "random_device.hpp"
 #include <algorithm>
+#include <mutex>
 
-static constexpr int SEED = 123;
+namespace ipc_server {
+    Token AuthenticationHandler::generateAuthToken(std::string serviceName) {
+        static constexpr size_t TOKEN_LENGTH = 16;
+        // Base64
+        static constexpr std::string_view chars = "0123456789"
+                                                  "+/"
+                                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                                  "abcdefghijklmnopqrstuvwxyz";
+        ggpal::random_device rng;
+        auto dist = std::uniform_int_distribution<std::string_view::size_type>{0, chars.size() - 1};
+        auto token = std::string(TOKEN_LENGTH, '\0');
+        std::generate(token.begin(), token.end(), [&] { return chars.at(dist(rng)); });
 
-std::string AuthenticationHandler::generateAuthToken(const std::string &serviceName) {
-    // SECURITY-TODO: Make random generation secure
-    static constexpr size_t TOKEN_LENGTH = 16;
-    std::string_view chars = "0123456789"
-                             "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    thread_local std::mt19937 rng{SEED};
-    auto dist = std::uniform_int_distribution{{}, chars.size() - 1};
-    auto token = std::string(TOKEN_LENGTH, '\0');
-    std::generate_n(token.begin(), TOKEN_LENGTH, [&]() { return chars[dist(rng)]; });
-    _tokenMap.insert({token, serviceName});
-    return token;
-}
-
-bool AuthenticationHandler::authenticateRequest(const std::string &authToken) const {
-    if(_tokenMap.find(authToken) == _tokenMap.cend()) {
-        return false;
+        std::unique_lock guard{_mutex};
+        auto [iter, emplaced] = _tokenMap.emplace(serviceName + ":" + token, serviceName);
+        if(emplaced) {
+            try {
+                _serviceMap.emplace(std::move(serviceName), iter->first);
+            } catch(...) {
+                _tokenMap.erase(iter);
+                throw;
+            }
+        }
+        return iter->first;
     }
-    const auto &serviceName = _tokenMap.at(authToken);
-    if(serviceName.rfind("aws.greengrass", 0) != 0) {
-        return false;
+
+    bool AuthenticationHandler::authenticateRequest(const Token &authToken) const {
+        std::shared_lock guard{_mutex};
+        auto found = _tokenMap.find(authToken);
+        if(found == _tokenMap.cend()) {
+            return false;
+        }
+        const auto &serviceName = found->second;
+        if(serviceName.rfind("aws.greengrass", 0) != 0) {
+            return false;
+        }
+        return true;
     }
-    return true;
-}
+
+    void AuthenticationHandler::revokeService(std::string const &serviceName) {
+        std::unique_lock guard{_mutex};
+        auto found = _serviceMap.find(serviceName);
+        if(found != _serviceMap.cend()) {
+            _tokenMap.erase(found->second);
+            _serviceMap.erase(found);
+        }
+    }
+
+    void AuthenticationHandler::revokeToken(const Token &token) {
+        std::unique_lock guard{_mutex};
+        auto found = _tokenMap.find(token);
+        if(found != _tokenMap.cend()) {
+            _serviceMap.erase(found->second);
+            _tokenMap.erase(found);
+        }
+    }
+} // namespace ipc_server

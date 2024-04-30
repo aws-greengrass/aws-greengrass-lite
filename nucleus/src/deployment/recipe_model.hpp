@@ -200,7 +200,6 @@ namespace deployment {
     struct PlatformManifest : data::Serializable {
         std::string name;
         Platform platform;
-        std::shared_ptr<data::SharedStruct> lifecycle;
         std::vector<ComponentArtifact> artifacts;
 
         void visit(data::Archive &archive) override {

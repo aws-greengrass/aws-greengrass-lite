@@ -133,6 +133,10 @@ if(APPLE)
   endif()
 endif()
 
+if(WIN32)
+  add_compile_definitions(_CRT_RAND_S)
+endif()
+
 # Sanitizers
 
 # Enable a sanitizer

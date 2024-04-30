@@ -34,11 +34,13 @@ gdbinit
 ggapi
 ggdb
 gglite
+ggpal
 ggroot
 glldb
 greengrass
 greengrasscoreipc
 greengrassv2
+GRND
 Hasnt
 inlines
 iot
@@ -72,6 +74,7 @@ rpc
 SARC
 sdk
 SHLIB
+Sigv
 skipif
 struct
 svcuid
@@ -85,6 +88,7 @@ trompeloeil
 unarchived
 unflushed
 unmarshall
+unmodeled
 Wextra
 Wmissing
 Wundef

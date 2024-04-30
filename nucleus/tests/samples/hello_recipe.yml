@@ -12,12 +12,12 @@ Manifests:
       os: linux
     Lifecycle:
       Run: |
-        python3 -u {artifacts:path}/hello_world.py "{configuration:/Message}"
+        python3 -u {artifacts:path}/hello_world_linux.py "{configuration:/Message}"
   - Platform:
       os: darwin
     Lifecycle:
       Run: |
-        python3 -u {artifacts:path}/hello_world.py "{configuration:/Message}"
+        python3 -u {artifacts:path}/hello_world_darwin.py "{configuration:/Message}"
   - Platform:
       os: windows
     Lifecycle:

@@ -32,7 +32,7 @@ The `plugin_api` directory has the interface plugins should build against.
 | SubscribeToConfigurationUpdate          |           |   soon   |                              |
 | SubscribeToValidateConfigurationUpdates |           |   soon   |                              |
 | SendConfigurationValidityReport         |           |   soon   |                              |
-| GetSecretValue                          |           |   soon   |                              |
+| GetSecretValue                          |           |  future  |                              |
 | PutComponentMetric                      |           |   soon   |                              |
 | GetComponentDetails                     |           |  future  |                              |
 | RestartComponent                        |           |  future  |                              |

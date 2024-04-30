@@ -22,7 +22,7 @@ namespace test {
         static std::filesystem::path genPath() {
             auto tempdir = std::filesystem::temp_directory_path();
             std::random_device rd;
-            std::mt19937 gen(rd());
+            std::mt19937 gen(static_cast<std::mt19937::result_type>(rd()));
 
             for(int i = 0; i < MAX_ITERATIONS; ++i) {
                 auto num = gen();
@@ -36,8 +36,7 @@ namespace test {
         }
 
     public:
-        TempDir() : _tempDir(genPath()) {
-        }
+        TempDir() = default;
         TempDir(const TempDir &) = delete;
         TempDir &operator=(const TempDir &) = delete;
         TempDir(TempDir &&) noexcept = default;

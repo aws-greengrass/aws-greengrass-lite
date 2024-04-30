@@ -1,189 +1,172 @@
 #include "server_listener.hpp"
+#include "ipc_server.hpp"
+#include "server_connection.hpp"
 #include <temp_module.hpp>
 
-void ServerListener::Connect(std::string_view socket_path) {
-    // TODO: This should be refactored again into a new class
-    if(std::filesystem::exists(socket_path)) {
-        std::filesystem::remove(socket_path);
+namespace ipc_server {
+
+    static const auto LOG = // NOLINT(cert-err58-cpp)
+        ggapi::Logger::of("com.aws.greengrass.ipc_server.listener");
+
+    void ServerListener::connect(const std::string &socket_path) {
+        // TODO: This should be refactored again into a new class
+        if(std::filesystem::exists(socket_path)) {
+            std::filesystem::remove(socket_path);
+        }
+
+        aws_event_stream_rpc_server_listener_options listenerOptions = {};
+        listenerOptions.host_name = socket_path.c_str();
+        listenerOptions.port = 0;
+        listenerOptions.socket_options = &_socketOpts.GetImpl();
+        listenerOptions.bootstrap = _bootstrap.GetUnderlyingHandle();
+        listenerOptions.on_new_connection = ServerListener::onNewServerConnection;
+        listenerOptions.on_connection_shutdown = ServerListener::onServerConnectionShutdown;
+        listenerOptions.on_destroy_callback = ServerListener::onListenerDestroy;
+        listenerOptions.user_data = _handle;
+        _listener.set(aws_event_stream_rpc_server_new_listener(_allocator, &listenerOptions));
+        if(!_listener) {
+            LOG.atError("connect-error")
+                .logAndThrow(util::AwsSdkError("Failed to create IPC server"));
+        }
+        LOG.atDebug("connect").log("Listening for IPC connections");
     }
 
-    aws_event_stream_rpc_server_listener_options listenerOptions = {};
-    listenerOptions.host_name = socket_path.data();
-    listenerOptions.port = port;
-    listenerOptions.socket_options = &_socketOpts.GetImpl();
-    listenerOptions.bootstrap = _bootstrap.GetUnderlyingHandle();
-    listenerOptions.on_new_connection = ServerListenerCCallbacks::onNewServerConnection;
-    listenerOptions.on_connection_shutdown = ServerListenerCCallbacks::onServerConnectionShutdown;
-    listenerOptions.on_destroy_callback = onListenerDestroy;
-    listenerOptions.user_data = static_cast<void *>(this);
+    void ServerListener::close() noexcept {
+        _closing.store(true); // prevent new connections
 
-    if(listener =
-           aws_event_stream_rpc_server_new_listener(Aws::Crt::ApiAllocator(), &listenerOptions);
-       !listener) {
-        int error_code = aws_last_error();
-        throw std::runtime_error{"Failed to create RPC server: " + std::to_string(error_code)};
+        // Snapshot existing connections
+        std::vector<std::shared_ptr<ServerConnection>> connections;
+        {
+            std::shared_lock guard{_stateMutex};
+            for(const auto &connection : _connections) {
+                connections.push_back(connection.second);
+            }
+        }
+        // And then close
+        for(auto &connectionToClose : connections) {
+            connectionToClose->close();
+        }
+
+        if(_listener) {
+            LOG.atDebug("disconnect").log("Disconnected IPC server");
+            std::unique_lock guard{_stateMutex};
+            _listener.release();
+        }
     }
-}
 
-void ServerListener::Disconnect() {
-    aws_event_stream_rpc_server_listener_release(std::exchange(listener, nullptr));
-}
+    int ServerListener::onNewServerConnection(
+        aws_event_stream_rpc_server_connection *awsConnection,
+        int error_code,
+        aws_event_stream_rpc_connection_options *connection_options,
+        void *user_data) noexcept {
 
-void ServerListener::Close(int shutdownCode) noexcept {
-    std::unique_lock guard{stateMutex};
-    aws_event_stream_rpc_server_listener_release(listener);
-}
-
-int ServerListener::sendConnectionResponse(Connection *conn) {
-    return sendMessage(
-        [conn](auto *args) {
-            return aws_event_stream_rpc_server_connection_send_protocol_message(
-                conn, args, onMessageFlush, nullptr);
-        },
-        AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT_ACK,
-        AWS_EVENT_STREAM_RPC_MESSAGE_FLAG_CONNECTION_ACCEPTED);
-}
-
-int ServerListener::sendPingResponse(Connection *conn) {
-    return sendMessage(
-        [conn](auto *args) {
-            return aws_event_stream_rpc_server_connection_send_protocol_message(
-                conn, args, onMessageFlush, nullptr);
-        },
-        AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_PING_RESPONSE,
-        0);
-}
-
-int ServerListener::sendErrorResponse(
-    Connection *conn,
-    std::string_view message,
-    aws_event_stream_rpc_message_type error_type,
-    uint32_t flags) {
-    ggapi::Buffer payload = ggapi::Buffer::create().put(0, message);
-    std::string contentType{ContentType::JSON};
-    std::array headers{
-        makeHeader(Headers::ContentType, Headervaluetypes::stringbuffer(contentType))};
-    return sendMessage(
-        [conn](auto *args) {
-            return aws_event_stream_rpc_server_connection_send_protocol_message(
-                conn, args, onMessageFlush, nullptr);
-        },
-        headers,
-        payload,
-        error_type,
-        flags);
-}
-
-extern "C" {
-int ServerListenerCCallbacks::onNewServerConnection(
-    aws_event_stream_rpc_server_connection *connection,
-    int error_code,
-    aws_event_stream_rpc_connection_options *connection_options,
-    void *user_data) noexcept {
-
-    auto *thisConnection = static_cast<ServerListener *>(user_data);
-    util::TempModule tempModule{thisConnection->module()};
-
-    const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
-    if(error_code) {
-        aws_event_stream_rpc_server_connection_release(connection);
-        return AWS_OP_ERR;
-    } else {
-        thisConnection->underlyingConnection.push_front(connection);
-
-        *connection_options = {
-            onIncomingStream,
-            onProtocolMessage,
-            // NOLINTNEXTLINE
-            user_data};
-
-        std::cerr << "[IPC] incoming connection\n";
-        return AWS_OP_SUCCESS;
+        try {
+            return IpcServer::listeners().invoke(
+                user_data,
+                &ServerListener::onNewServerConnectionImpl,
+                awsConnection,
+                error_code,
+                connection_options);
+        } catch(...) {
+            IpcServer::logFatal(
+                std::current_exception(), "Error trying to dispatch new server connection");
+            return AWS_OP_ERR;
+        }
     }
-}
 
-void ServerListenerCCallbacks::onServerConnectionShutdown(
-    aws_event_stream_rpc_server_connection *connection, int error_code, void *user_data) noexcept {
+    int ServerListener::onNewServerConnectionImpl(
+        aws_event_stream_rpc_server_connection *awsConnection,
+        int error_code,
+        aws_event_stream_rpc_connection_options *connection_options) noexcept {
 
-    auto *thisConnection = static_cast<ServerListener *>(user_data);
-    util::TempModule tempModule{thisConnection->module()};
-    const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
+        util::TempModule tempModule{module()};
 
-    thisConnection->underlyingConnection.remove(connection);
+        if(error_code) {
+            // SDK is simply reporting a connection failure (awsConnection should be nullptr)
+            // Caller will take care of de-refing awsConnection
+            util::AwsSdkError err(error_code, "Connection request failed");
+            LOG.atError().cause(err).log("Connection request failed");
+            return AWS_OP_ERR;
+        }
 
-    static constexpr int CLOSED_SUCCESS = 1051;
-    if(error_code == CLOSED_SUCCESS) {
-        std::cerr << "[IPC] connection closed with " << connection << " successfully ("
-                  << error_code << ")" << std::endl;
-    } else {
-        std::cerr << "[IPC] connection closed with " << connection << " with error code "
-                  << error_code << std::endl;
+        if(_closing.load()) {
+            // We are shutting down, so we can just close the connection
+            LOG.atWarn().log("Closing: rejecting incoming connection");
+            return AWS_OP_ERR;
+        }
+
+        // Add-ref to connection ref count to account for us making a copy of the connection
+        aws_event_stream_rpc_server_connection_acquire(awsConnection);
+        AwsConnection refConnection(aws_event_stream_rpc_server_connection_release, awsConnection);
+
+        try {
+            auto managed =
+                std::make_shared<ServerConnection>(baseRef(), module(), std::move(refConnection));
+            managed->setHandleRef(IpcServer::connections().addAsPtr(managed));
+            managed->initOptions(*connection_options);
+
+            {
+                std::unique_lock guard{_stateMutex};
+                // Connections associated with this listener
+                _connections.emplace(awsConnection, managed);
+            }
+
+            LOG.atDebug().kv("id", managed->id()).log("Incoming connection");
+            return AWS_OP_SUCCESS;
+        } catch(...) {
+            LOG.atError().cause(std::current_exception()).log("Exception while connecting");
+            return AWS_OP_ERR;
+        }
     }
-}
 
-void ServerListenerCCallbacks::onProtocolMessage(
-    aws_event_stream_rpc_server_connection *connection,
-    const aws_event_stream_rpc_message_args *message_args,
-    void *user_data) noexcept {
-    auto *thisConnection = static_cast<ServerListener *>(user_data);
-    util::TempModule tempModule{thisConnection->module()};
-    const std::scoped_lock<std::recursive_mutex> lock{thisConnection->stateMutex};
+    void ServerListener::onServerConnectionShutdown(
+        aws_event_stream_rpc_server_connection *awsConnection,
+        int error_code,
+        void *user_data) noexcept {
 
-    std::cerr << "Received protocol message: " << *message_args << '\n';
-
-    // TODO:  Authentication handler based on auth token
-
-    switch(message_args->message_type) {
-        case AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT:
-            thisConnection->sendConnectionResponse(connection);
-            return;
-        case AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_PING:
-            thisConnection->sendPingResponse(connection);
-            return;
-        case AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_PING_RESPONSE:
-            // GG-Java Interop
-            return;
-        default:
-            std::cerr << "Unhandled message type " << message_args->message_type << '\n';
-            std::string messageValue = std::to_string(
-                static_cast<std::underlying_type_t<aws_event_stream_rpc_message_type>>(
-                    message_args->message_type));
-            std::string bufMessage =
-                R"({ "error": "Unrecognized Message Type", "message": " message type value: )"
-                + messageValue + " is not recognized as a valid request path.\" }";
-            thisConnection->sendErrorResponse(
-                connection, bufMessage, AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_INTERNAL_ERROR, 0);
-            break;
+        try {
+            IpcServer::listeners().invoke(
+                user_data,
+                &ServerListener::onServerConnectionShutdownImpl,
+                awsConnection,
+                error_code);
+        } catch(...) {
+            IpcServer::logFatal(
+                std::current_exception(), "Error trying to dispatch server connection shutdown");
+        }
     }
-}
 
-int ServerListenerCCallbacks::onIncomingStream(
-    aws_event_stream_rpc_server_connection *,
-    aws_event_stream_rpc_server_continuation_token *token,
-    aws_byte_cursor operation_name,
-    aws_event_stream_rpc_server_stream_continuation_options *continuation_options,
-    void *user_data) noexcept {
+    void ServerListener::onServerConnectionShutdownImpl(
+        aws_event_stream_rpc_server_connection *awsConnection, int error_code) noexcept {
 
-    auto *thisConnection = static_cast<ServerListener *>(user_data);
-    util::TempModule tempModule{thisConnection->module()};
+        util::TempModule tempModule{module()};
 
-    auto operationName = [operation_name]() -> std::string {
-        auto sv = Aws::Crt::ByteCursorToStringView(operation_name);
-        return {sv.data(), sv.size()};
-    }();
+        std::shared_ptr<ServerConnection> connection;
 
-    std::cerr << "[IPC] Request for " << operationName << " Received\n";
+        {
+            std::unique_lock guard{_stateMutex};
+            auto ent = _connections.find(awsConnection);
+            if(ent == _connections.end()) {
+                LOG.atError().log("Connection not found");
+                return;
+            }
+            connection = ent->second;
+            _connections.erase(ent);
+        }
+        connection->onShutdown(error_code);
+    }
 
-    auto *continuation = new std::shared_ptr{
-        std::make_shared<ServerContinuation>(*tempModule, token, std::move(operationName))};
+    void ServerListener::removeConnection(
+        aws_event_stream_rpc_server_connection *awsConnection) noexcept {
 
-    *continuation_options = {};
-    continuation_options->on_continuation = ServerContinuationCCallbacks::onContinuation;
-    continuation_options->on_continuation_closed =
-        ServerContinuationCCallbacks::onContinuationClose;
-    // NOLINTNEXTLINE
-    continuation_options->user_data = static_cast<void *>(continuation);
+        std::unique_lock guard{_stateMutex};
+        _connections.erase(awsConnection);
+    }
 
-    return AWS_OP_SUCCESS;
-}
-}
+    void ServerListener::onListenerDestroy(
+        aws_event_stream_rpc_server_listener *, void *user_data) noexcept {
+
+        IpcServer::listeners().erase(user_data);
+    }
+
+} // namespace ipc_server

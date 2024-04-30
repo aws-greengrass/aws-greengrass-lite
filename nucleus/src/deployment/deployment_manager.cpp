@@ -284,9 +284,12 @@ namespace deployment {
 
         auto index = std::distance(manifests.begin(), iterator);
 
-        auto selectedManifest = _recipeAsStruct->get(_recipeAsStruct->foldKey("Manifests", true)).castObject<data::ListModelBase>()->get(index).castObject<data::StructModelBase>();
+        auto selectedManifest = _recipeAsStruct->get(_recipeAsStruct->foldKey("Manifests", true))
+                                    .castObject<data::ListModelBase>()
+                                    ->get(index)
+                                    .castObject<data::StructModelBase>();
 
-        std::cout<< selectedManifest->toJson().get()<<std::endl;
+        std::cout << selectedManifest->toJson().get() << std::endl;
 
         auto context = scope::context();
 
@@ -294,10 +297,7 @@ namespace deployment {
 
         data_pack->put("recipe", _recipeAsStruct);
         data_pack->put("manifest", selectedManifest);
-        data_pack->put("componentName", currentRecipe.componentName);
-        data_pack->put("deploymentId", currentDeployment.id);
         data_pack->put("artifactPath", artifactPath.generic_string());
-        data_pack->put("defaultConfig", defaultConfig);
 
         auto install = _recipeAsStruct->get("ComponentPublisher");
 
@@ -319,7 +319,6 @@ namespace deployment {
             newComponent->invoke([&](plugins::AbstractPlugin &newComponent, auto &data) {
                 newComponent.lifecycle(context->pluginLoader().START, data);
             });
-
         }
 
         // gets here only if all lifecycle steps are executed successfully
@@ -358,14 +357,18 @@ namespace deployment {
             deployment.deploymentType =
                 DeploymentTypeMap.lookup(deploymentStruct.get<std::string>("deploymentType"))
                     .value_or(DeploymentType::IOT_JOBS);
-        } catch(std::exception &e) {
+        } catch(...) {
             LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)
                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deployment.id)
                 .kv("DeploymentType", "LOCAL")
+                .cause(std::current_exception())
                 .log("Invalid deployment request. Please check you recipe.");
-            return ggapi::Struct::create().put("status", false);
+
+            throw;
         }
+
+        // TODO revisit status key / return code path
         bool returnStatus = true;
 
         // TODO: Shadow deployments use a special queue id
@@ -414,6 +417,7 @@ namespace deployment {
         } else {
             throw DeploymentException("Deployment do not exist");
         }
+        // TODO: is this needed?
         return ggapi::Struct::create().put("status", true);
     }
 

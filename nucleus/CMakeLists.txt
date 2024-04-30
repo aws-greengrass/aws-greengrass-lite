@@ -222,7 +222,7 @@ if(BUILD_TESTING)
     tests/errors/errors_test.cpp
     tests/lifecycle/kernel_tests.cpp
     tests/lifecycle/lifecycle_tests.cpp
-    tests/pubsub/pubsub_tests.cpp
+    tests/pubsub/basic_pubsub_tests.cpp
     tests/scope/context_tests.cpp
     tests/tasks/task_tests.cpp
     tests/test_ggroot.hpp

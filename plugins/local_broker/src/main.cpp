@@ -1,5 +1,5 @@
 #include <cpp_api.hpp>
-#include <iostream>
+#include <ipc_standard_errors.hpp>
 #include <mqtt/topic_filter.hpp>
 #include <plugin.hpp>
 #include <string>
@@ -17,7 +17,6 @@ struct Keys {
     ggapi::StringOrd receiveMode{"receiveMode"};
     ggapi::StringOrd channel{"channel"};
     ggapi::StringOrd shape{"shape"};
-    ggapi::StringOrd errorCode{"errorCode"};
     ggapi::StringOrd serviceModelType{"serviceModelType"};
     ggapi::StringOrd terminate{"terminate"};
 };
@@ -58,8 +57,12 @@ ggapi::ObjHandle LocalBroker::publishToTopicHandler(
     bool isBin = message.hasKey(keys.binaryMessage);
     bool isJson = message.hasKey(keys.jsonMessage);
 
-    if((isBin && isJson) || (!isBin && !isJson)) {
-        return ggapi::Struct::create().put(keys.errorCode, 1);
+    if(isBin && isJson) {
+        throw ggapi::ipc::InvalidArgumentsError("Both binary and JSON specified");
+    }
+
+    if(!isBin && !isJson) {
+        throw ggapi::ipc::InvalidArgumentsError("Neither binary or JSON specified");
     }
 
     if(isBin) {

@@ -27,10 +27,11 @@ void GenComponentDelegate::lifecycleCallback(
     self->lifecycle(event, std::move(data));
 }
 
-ggapi::ModuleScope GenComponentDelegate::registerComponent() {
+ggapi::ModuleScope GenComponentDelegate::registerComponent(ggapi::ModuleScope &moduleScope ) {
     // baseRef() enables the class to be able to point to itself
-    auto module = ggapi::ModuleScope::registerGlobalPlugin(
-        _name, ggapi::LifecycleCallback::of(&GenComponentDelegate::lifecycleCallback, baseRef()));
+    auto callback =
+        ggapi::LifecycleCallback::of(&GenComponentDelegate::lifecycleCallback, baseRef());
+    auto module = moduleScope.registerPlugin(_name,callback);
     return module;
 }
 
@@ -219,6 +220,10 @@ gg_pal::Process GenComponentDelegate::startProcess(
         auto currentTimePoint = std::chrono::steady_clock::now();
         auto duration =
             std::chrono::duration_cast<std::chrono::milliseconds>(timeoutPoint - currentTimePoint);
+
+        auto self = weak_self.lock();
+        util::TempModule moduleScope(self->getModule());
+
         auto delay = static_cast<uint32_t>(duration.count());
 
         ggapi::later(
@@ -354,12 +359,14 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
 }
 
 GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
-    _name = data.get<std::string>("componentName");
     _recipeAsStruct = data.get<ggapi::Struct>("recipe");
     _manifestAsStruct = data.get<ggapi::Struct>("manifest");
-    _deploymentId = data.get<std::string>("deploymentId");
+    // TODO: fetch this information from nucleus's config
     _artifactPath = data.get<std::string>("artifactPath");
-    _defaultConfig = data.get<ggapi::Struct>("defaultConfig");
+
+    _deploymentId = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("ComponentName"));
+
+    _name = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("componentName"));
 
     // TODO:: Improve how Lifecycle is extracted from recipe with respect to manifest
     _lifecycleAsStruct =
@@ -371,6 +378,11 @@ void GenComponentDelegate::onInitialize(ggapi::Struct data) {
 
     _nucleusConfig = data.getValue<ggapi::Struct>({"nucleus"});
     _systemConfig = data.getValue<ggapi::Struct>({"system"});
+
+    //TODO: Use nucleus's global config to parse this information
+    // auto compConfig =
+    //     _recipeAsStruct.get<ggapi::Struct>(_recipeAsStruct.foldKey("ComponentConfiguration"));
+    // auto _defaultConfig = compConfig.get<ggapi::Struct>(compConfig.foldKey("DefaultConfiguration"));
 
     ggapi::Archive::transform<ggapi::ContainerDearchiver>(_lifecycle, _lifecycleAsStruct);
 
@@ -407,7 +419,12 @@ ggapi::ObjHandle GenComponentLoader::registerGenComponent(
     // TODO:
     ggapi::Struct returnData = ggapi::Struct::create();
 
-    auto module = newModule->registerComponent();
+    auto tmpScope = getModule();
+    auto module = newModule->registerComponent(tmpScope);
+
+    if(_initHook.has_value()) {
+        _initHook.value()(newModule);
+    }
 
     returnData.put("moduleHandle", module);
     return returnData;

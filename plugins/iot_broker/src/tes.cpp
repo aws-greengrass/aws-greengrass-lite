@@ -31,19 +31,23 @@ void IotBroker::retrieveTokenAsync(const ggapi::Struct &, ggapi::Promise promise
             return response;
         }
 
-        LOG.atInfo().event("Unable to fetch TES credentials").kv("ERROR", _savedToken).log();
-        std::cerr << "[TES] Unable to fetch TES credentials. ERROR: " << _savedToken << std::endl;
-
         auto responseBuffer = jsonStruct.toJson();
         auto responseVec = responseBuffer.get<std::vector<uint8_t>>(0, responseBuffer.size());
         auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
-        // TODO: change to throw exception
-        response.put("Error", responseJsonAsString);
-        return response;
+
+        LOG.atWarn("testFetchFailed")
+            .kv("Token", _savedToken)
+            .kv("Response", responseJsonAsString)
+            .log("Unable to fetch TES credentials");
+
+        // TODO: Replace with more applicable error
+        throw ggapi::GgApiError(
+            "ggapi::TesFailure",
+            std::string("Failed to retrieve TES credentials: ") + responseJsonAsString);
     });
 }
 
-bool IotBroker::tesOnStart(const ggapi::Struct &data) {
+bool IotBroker::tesOnStart(const ggapi::Struct &) {
     std::shared_lock guard{_mutex};
     // Read the Device credentials
     auto returnValue = false;
