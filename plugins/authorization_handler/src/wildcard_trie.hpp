@@ -23,7 +23,7 @@ enum class ResourceLookupPolicy { STANDARD, MQTT_STYLE };
  * will always be a terminal Node.
  */
 
-class WildcardTrie {
+class WildcardTrie : public std::enable_shared_from_this<WildcardTrie> {
 public:
     static constexpr auto GLOBAL_WILDCARD = "*";
     static constexpr auto MQTT_MULTILEVEL_WILDCARD = "#";
@@ -250,84 +250,81 @@ private:
     std::unordered_map<std::string, std::shared_ptr<WildcardTrie>> _children;
     std::shared_ptr<WildcardTrie> add(std::string subject, bool isTerminal) {
         if(subject.empty()) {
-            _isTerminal = isTerminal;
-            return std::make_shared<WildcardTrie>(*this);
+            this->_isTerminal |= isTerminal;
+            return shared_from_this();
         }
-        int subjectLength = subject.size();
-        auto current = std::make_shared<WildcardTrie>(*this);
-        ;
-        std::stringstream ss;
-        for(int i = 0; i < subjectLength; i++) {
+        size_t subjectLength = subject.length();
+        auto current = shared_from_this();
+        std::string ss;
+        for(size_t i = 0; i < subjectLength; i++) {
             char currentChar = subject[i];
             if(currentChar == wildcardChar) {
-                current = current->add(ss.str(), false);
-                if(auto it = current->_children.find(GLOBAL_WILDCARD);
-                   it != current->_children.end()) {
-                    current = std::move(it->second);
-                    current->_isWildcard = true;
-                    if(i == subjectLength - 1) {
-                        current->_isTerminal = isTerminal;
-                        return current;
-                    }
-                    return current->add(subject.substr(i + 1), true);
+                current = current->add(ss, false);
+                if(!current->_children.count(GLOBAL_WILDCARD)) {
+                    current->_children[GLOBAL_WILDCARD] = std::make_shared<WildcardTrie>();
                 }
-                return nullptr;
+                current = current->_children[GLOBAL_WILDCARD];
+                current->_isWildcard = true;
+                if(i == subjectLength - 1) {
+                    current->_isTerminal = isTerminal;
+                    return current;
+                }
+                return current->add(subject.substr(i + 1), true);
             }
             if(currentChar == multiLevelWildcardChar) {
-                auto terminalLevel = current->add(ss.str(), false);
-                if(auto it = terminalLevel->_children.find(MQTT_MULTILEVEL_WILDCARD);
-                   it != terminalLevel->_children.end()) {
-                    current = std::move(it->second);
-                    if(i == subjectLength - 1) {
-                        current->_isTerminal = true;
-                        if(i > 0 && subject[i - 1] == levelSeparatorChar) {
-                            current->_isMQTTWildcard = true;
-                            current->_matchAll = true;
-                            terminalLevel->_isTerminalLevel = true;
-                        }
-                        return current;
-                    }
-                    return current->add(subject.substr(i + 1), true);
+                auto terminalLevel = current->add(ss, false);
+                if(!current->_children.count(MQTT_MULTILEVEL_WILDCARD)) {
+                    current->_children[MQTT_MULTILEVEL_WILDCARD] = std::make_shared<WildcardTrie>();
                 }
-                return nullptr;
+                current = terminalLevel->_children[MQTT_MULTILEVEL_WILDCARD];
+                if(i == subjectLength - 1) {
+                    current->_isTerminal = true;
+                    if(i > 0 && subject[i - 1] == levelSeparatorChar) {
+                        current->_isMQTTWildcard = true;
+                        current->_matchAll = true;
+                        terminalLevel->_isTerminalLevel = true;
+                    }
+                    return current;
+                }
+                return current->add(subject.substr(i + 1), true);
             }
             if(currentChar == singleLevelWildcardChar) {
-                current = current->add(ss.str(), false);
-                if(auto it = current->_children.find(MQTT_SINGLELEVEL_WILDCARD);
-                   it != current->_children.end()) {
-                    current = std::move(it->second);
-                    if(i == subjectLength - 1) {
-                        current->_isTerminal = true;
-                        if(i > 0 && subject[i - 1] == levelSeparatorChar) {
-                            current->_isMQTTWildcard = true;
-                        }
-                        return current;
-                    }
-                    if(i > 0 && subject[i - 1] == levelSeparatorChar
-                       && subject[i + 1] == levelSeparatorChar) {
+                current = current->add(ss, false);
+                if(!current->_children.count(MQTT_SINGLELEVEL_WILDCARD)) {
+                    current->_children[MQTT_SINGLELEVEL_WILDCARD] =
+                        std::make_shared<WildcardTrie>();
+                }
+                current = current->_children[MQTT_SINGLELEVEL_WILDCARD];
+                if(i == subjectLength - 1) {
+                    current->_isTerminal = true;
+                    if(i > 0 && subject[i - 1] == levelSeparatorChar) {
                         current->_isMQTTWildcard = true;
                     }
-                    return current->add(subject.substr(i + 1), true);
+                    return current;
                 }
-                return nullptr;
+                if(i > 0 && subject[i - 1] == levelSeparatorChar
+                   && subject[i + 1] == levelSeparatorChar) {
+                    current->_isMQTTWildcard = true;
+                }
+                return current->add(subject.substr(i + 1), true);
             }
             if(currentChar == escapeChar) {
                 char actualChar = getActualChar(subject.substr(i));
                 if(actualChar != nullChar) {
-                    ss << actualChar;
+                    ss.push_back(actualChar);
                     i = i + 3;
                     continue;
                 }
             }
-            ss << currentChar;
+            ss.push_back(currentChar);
         }
         // Handle non-wildcard value
-        if(auto it = current->_children.find(ss.str()); it != current->_children.end()) {
-            current = std::move(it->second);
-            current->_isTerminal = isTerminal;
-            return current;
+        if(!current->_children.count(ss)) {
+            current->_children[ss] = std::make_shared<WildcardTrie>();
         }
-        return nullptr;
+        current = current->_children[ss];
+        current->_isTerminal |= isTerminal;
+        return current;
     };
     bool endsWith(const std::string &str, const std::string &suffix) {
         return str.size() >= suffix.size()

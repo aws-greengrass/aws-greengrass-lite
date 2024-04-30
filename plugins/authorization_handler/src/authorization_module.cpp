@@ -9,30 +9,18 @@ void AuthorizationModule::addPermission(std::string destination, Permission perm
     std::string resource = permission.resource;
     validateResource(resource);
 
-    // add permission to each map if they exist
-    if(auto completeIt = _resourceAuthZCompleteMap.find(destination);
-       completeIt != _resourceAuthZCompleteMap.end()) {
-        auto destMap = completeIt->second;
-        if(auto desIt = destMap.find(permission.principal); desIt != destMap.end()) {
-            auto principalMap = desIt->second;
-            if(auto principalIt = principalMap.find(permission.operation);
-               principalIt != principalMap.end()) {
-                principalIt->second->add(resource);
-            }
-        }
+    auto &destMap = _resourceAuthZCompleteMap[destination];
+    auto &principalMap = destMap[permission.principal];
+    auto &resourceTrie = principalMap[permission.operation];
+    if(!resourceTrie) {
+        resourceTrie = std::make_shared<WildcardTrie>();
     }
+    resourceTrie->add(resource);
 
-    if(auto rawIt = _rawResourceList.find(destination); rawIt != _rawResourceList.end()) {
-        auto destMap = rawIt->second;
-        if(auto desIt = destMap.find(permission.principal); desIt != destMap.end()) {
-            auto principalMap = desIt->second;
-            if(auto principalIt = principalMap.find(permission.operation);
-               principalIt != principalMap.end()) {
-                auto vec = principalIt->second;
-                vec.push_back(resource);
-            }
-        }
-    }
+    auto &destMapRaw = _rawResourceList[destination];
+    auto &principalMapRaw = destMapRaw[permission.principal];
+    auto &resourceVectorRaw = principalMapRaw[permission.operation];
+    resourceVectorRaw.push_back(resource);
 }
 
 void AuthorizationModule::validateResource(std::string resource) {
