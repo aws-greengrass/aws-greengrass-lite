@@ -139,6 +139,7 @@ add_library(
   src/tasks/task_manager.hpp
   src/tasks/task_threads.cpp
   src/tasks/task_threads.hpp
+  src/tasks/expire_time_tests.cpp
   src/util/commitable_file.cpp
   src/util/commitable_file.hpp
   src/util/nucleus_paths.cpp
