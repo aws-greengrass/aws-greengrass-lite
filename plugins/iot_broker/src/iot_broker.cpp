@@ -1,7 +1,7 @@
 #include "iot_broker.hpp"
-#include "temp_module.hpp"
 #include <cpp_api.hpp>
 #include <mutex>
+#include <temp_module.hpp>
 
 const IotBroker::Keys IotBroker::keys{};
 
@@ -46,14 +46,11 @@ void IotBroker::initMqtt() {
                               << payload << std::endl;
 
                     std::shared_lock lock(_subscriptionMutex);
-                    for(const auto &[filter, channel, packetHandler] : _subscriptions) {
+                    for(const auto &[filter, channel] : _subscriptions) {
                         if(filter.match(topic)) {
-                            auto response{ggapi::Struct::create()};
-                            response.put(keys.topicName, topic);
-                            response.put(keys.payload, payload);
-
-                            auto finalResp = packetHandler(response);
-                            channel.write(finalResp);
+                            channel.write(ggapi::Struct::create()
+                                              .put(keys.topicName, topic)
+                                              .put(keys.payload, payload));
                         }
                     }
                 }
@@ -79,65 +76,96 @@ void IotBroker::onInitialize(ggapi::Struct data) {
     _system = data.getValue<ggapi::Struct>({"system"});
 }
 
-void IotBroker::onStart(ggapi::Struct data) {
-    std::cout << "[mqtt-plugin] starting\n";
-    std::shared_lock guard{_mutex};
-    try {
-        auto nucleus = _nucleus;
-        auto system = _system;
+void IotBroker::connectionThread(ggapi::Struct data) {
+    util::TempModule module(getModule());
+    while(true) {
+        try {
+            std::cout << "[mqtt-plugin] starting\n";
+            std::shared_lock guard{_mutex};
+            auto nucleus = _nucleus;
+            auto system = _system;
 
-        _thingInfo.rootPath = system.getValue<std::string>({"rootpath"});
-        _thingInfo.rootCaPath = system.getValue<std::string>({"rootCaPath"});
+            _thingInfo.rootPath = system.getValue<std::string>({"rootpath"});
+            _thingInfo.rootCaPath = system.getValue<std::string>({"rootCaPath"});
 
-        _thingInfo.certPath = system.getValue<std::string>({"certificateFilePath"});
-        _thingInfo.keyPath = system.getValue<std::string>({"privateKeyPath"});
-        _thingInfo.thingName = system.getValue<Aws::Crt::String>({"thingName"});
-        // TODO: Lots of logic here can block onStart - needs to be made async
-        if(_thingInfo.certPath.empty() || _thingInfo.keyPath.empty()
-           || _thingInfo.thingName.empty()) {
-            auto reqData = ggapi::Struct::create();
-            auto respFuture = ggapi::Subscription::callTopicFirst(
-                ggapi::Symbol{keys.requestDeviceProvisionTopic}, reqData);
-            if(!respFuture) {
-                // TODO: replace with better error
-                throw std::runtime_error("Failed to provision device");
+            _thingInfo.certPath = system.getValue<std::string>({"certificateFilePath"});
+            _thingInfo.keyPath = system.getValue<std::string>({"privateKeyPath"});
+            _thingInfo.thingName = system.getValue<Aws::Crt::String>({"thingName"});
+            if(_thingInfo.certPath.empty() || _thingInfo.keyPath.empty()
+               || _thingInfo.thingName.empty()) {
+                auto reqData = ggapi::Struct::create();
+                auto respFuture = ggapi::Subscription::callTopicFirst(
+                    ggapi::Symbol{keys.requestDeviceProvisionTopic}, reqData);
+                if(!respFuture) {
+                    // TODO: replace with better error
+                    throw std::runtime_error("Failed to provision device");
+                }
+                auto respData = ggapi::Struct{respFuture.waitAndGetValue()};
+                _thingInfo.thingName = respData.get<Aws::Crt::String>("thingName");
+                _thingInfo.keyPath = respData.get<std::string>("keyPath");
+                _thingInfo.certPath = respData.get<std::string>("certPath");
             }
-            // TODO: This should not block onStart
-            auto respData = ggapi::Struct{respFuture.waitAndGetValue()};
-            _thingInfo.thingName = respData.get<Aws::Crt::String>("thingName");
-            _thingInfo.keyPath = respData.get<std::string>("keyPath");
-            _thingInfo.certPath = respData.get<std::string>("certPath");
+
+            // TODO: Note, reference of the module name will be done by Nucleus, this is
+            // temporary.
+            _thingInfo.credEndpoint =
+                nucleus.getValue<std::string>({"configuration", "iotCredEndpoint"});
+            _thingInfo.dataEndpoint =
+                nucleus.getValue<std::string>({"configuration", "iotDataEndpoint"});
+            initMqtt();
+            if(!_worker.joinable()) {
+                _worker = std::thread{&IotBroker::queueWorker, this};
+            }
+
+            // Fetch the initial token from TES
+            // TODO: This should not be blocking
+            tesOnStart(data);
+            tesOnRun();
+        } catch(const std::exception &e) {
+            // TODO: Log and add backoff
+            std::cerr << "[mqtt-plugin] Error: " << e.what() << std::endl;
+            _client.reset();
+            continue;
+        } catch(...) {
+            std::cerr << "[mqtt-plugin] Unknown exception." << std::endl;
+            _client.reset();
+            continue;
         }
-
-        // TODO: Note, reference of the module name will be done by Nucleus, this is temporary.
-        _thingInfo.credEndpoint =
-            nucleus.getValue<std::string>({"configuration", "iotCredEndpoint"});
-        _thingInfo.dataEndpoint =
-            nucleus.getValue<std::string>({"configuration", "iotDataEndpoint"});
-        initMqtt();
-        _publishSubs = ggapi::Subscription::subscribeToTopic(
-            keys.publishToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::publishHandler, this));
-        _ipcPublishSubs = ggapi::Subscription::subscribeToTopic(
-            keys.ipcPublishToIoTCoreTopic,
-            ggapi::TopicCallback::of(&IotBroker::ipcPublishHandler, this));
-        _subscribeSubs = ggapi::Subscription::subscribeToTopic(
-            keys.subscribeToIoTCoreTopic,
-            ggapi::TopicCallback::of(&IotBroker::subscribeHandler, this));
-        _ipcSubscribeSubs = ggapi::Subscription::subscribeToTopic(
-            keys.ipcSubscribeToIoTCoreTopic,
-            ggapi::TopicCallback::of(&IotBroker::ipcSubscribeHandler, this));
-    } catch(const std::exception &e) {
-        std::cerr << "[mqtt-plugin] Error: " << e.what() << std::endl;
+        break;
     }
-    guard.unlock();
+}
 
-    // Fetch the initial token from TES
-    // TODO: This should not be blocking
-    tesOnStart(data);
-    tesOnRun();
+void IotBroker::onStart(ggapi::Struct data) {
+    _publishSubs = ggapi::Subscription::subscribeToTopic(
+        keys.publishToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::publishHandler, this));
+    _ipcPublishSubs = ggapi::Subscription::subscribeToTopic(
+        keys.ipcPublishToIoTCoreTopic,
+        ggapi::TopicCallback::of(&IotBroker::ipcPublishHandler, this));
+    _subscribeSubs = ggapi::Subscription::subscribeToTopic(
+        keys.subscribeToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::subscribeHandler, this));
+    _ipcSubscribeSubs = ggapi::Subscription::subscribeToTopic(
+        keys.ipcSubscribeToIoTCoreTopic,
+        ggapi::TopicCallback::of(&IotBroker::ipcSubscribeHandler, this));
+    _conn = std::thread{&IotBroker::connectionThread, this, data};
 }
 
 void IotBroker::onStop(ggapi::Struct structData) {
     // TODO: Cleanly stop thread and clean up listeners
     std::cout << "[mqtt-plugin] stopping\n";
+}
+
+void IotBroker::queueWorker() {
+    util::TempModule module(getModule());
+    while(true) {
+        auto task = _queue.pop();
+        auto event{task.get<std::string>("event")};
+        auto promise{task.get<ggapi::Promise>("promise")};
+        auto data{task.get<ggapi::Struct>("data")};
+
+        if(event == "publish") {
+            publishHandlerAsync(data, promise);
+        } else if(event == "subscribe") {
+            subscribeHandlerAsync(data, promise);
+        }
+    }
 }

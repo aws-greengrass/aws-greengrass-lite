@@ -17,7 +17,9 @@ ggapi::Promise IotBroker::ipcPublishHandler(
         auto decoded = Aws::Crt::Base64Decode(args.get<Aws::Crt::String>(keys.payload));
         args.put(keys.payload, std::string{decoded.begin(), decoded.end()});
     }
+
     auto promise = publishHandler(symbol, args);
+
     return promise.andThen([](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
         nextPromise.fulfill([&]() {
             auto resp = ggapi::Struct(prevFuture.getValue());
@@ -27,9 +29,13 @@ ggapi::Promise IotBroker::ipcPublishHandler(
 }
 
 ggapi::Promise IotBroker::publishHandler(ggapi::Symbol, const ggapi::Container &args) {
-    // TODO: This can be done with continuations (andThen, whenValid, etc)
-    return ggapi::Promise::create().async(
-        &IotBroker::publishHandlerAsync, this, ggapi::Struct(args));
+    auto promise = ggapi::Promise::create();
+    ggapi::Struct task = ggapi::Struct::create();
+    task.put("event", "publish");
+    task.put("promise", promise);
+    task.put("data", ggapi::Struct(args));
+    _queue.push(task);
+    return promise;
 }
 
 void IotBroker::publishHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise) {
