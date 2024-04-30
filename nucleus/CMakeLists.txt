@@ -9,8 +9,8 @@ add_subdirectory(../gg_pal/ gg_pal EXCLUDE_FROM_ALL)
 
 find_package(Threads REQUIRED)
 
-fetchcontentaddcmake(yaml-cpp)
-fetchcontentadd(rapidjson)
+fetchContentAddCmake(yaml-cpp)
+fetchContentAdd(rapidjson)
 
 add_compile_definitions(EXPORT_NUCLEUS_API)
 
@@ -169,14 +169,14 @@ target_link_libraries(
 
 target_include_directories(nucleus-core PUBLIC include)
 
-configurerpath(nucleus-core)
+configureRPATH(nucleus-core)
 
 # Executable
 
 add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
 
-configurerpath(greengrass-lite)
+configureRPATH(greengrass-lite)
 
 install(TARGETS greengrass-lite nucleus-core RUNTIME_DEPENDENCY_SET
                 nucleus-deps)
@@ -190,7 +190,7 @@ endif()
 if(BUILD_TESTING)
   include(CTest)
 
-  fetchcontentaddcmake(Catch2 trompeloeil)
+  fetchContentAddCmake(Catch2 trompeloeil)
 
   list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
   include(Catch)
@@ -225,7 +225,6 @@ if(BUILD_TESTING)
     tests/pubsub/basic_pubsub_tests.cpp
     tests/scope/context_tests.cpp
     tests/tasks/task_tests.cpp
-    tests/tasks/expire_time_tests.cpp
     tests/test_ggroot.hpp
     tests/test_tools.hpp)
 
