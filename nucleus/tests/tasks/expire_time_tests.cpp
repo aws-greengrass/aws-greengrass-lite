@@ -14,7 +14,7 @@ SCENARIO("Expire Time Class", "[Expire]") {
 
         WHEN("Checking the expiration") {
             THEN("Expiration not yet") {
-                bool notExpired = e.remaining() != std::chrono::milliseconds::zero();
+                bool notExpired = e.remaining() > std::chrono::milliseconds::zero();
                 REQUIRE(notExpired);
                 AND_THEN("Time expired") {
                     std::this_thread::sleep_for(200ms);
