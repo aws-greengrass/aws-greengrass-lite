@@ -20,20 +20,22 @@ void AuthorizationHandler::checkAuthorizedAsync(
         auto resource = callData.get<std::string>("resource");
         auto resourceType = callData.get<std::string>("resourceType");
 
-        bool _isAuthZ;
+        bool success;
         try {
             auto resourceTypeSelection = ResourceLookupPolicy::STANDARD;
             if(resourceType == "MQTT") {
                 resourceTypeSelection = ResourceLookupPolicy::MQTT_STYLE;
             }
-            _isAuthZ =
+            success =
                 isAuthorized(destination, principal, operation, resource, resourceTypeSelection);
         } catch(const AuthorizationException &e) {
             throw ggapi::GgApiError("ggapi::AuthorizationException", e.what());
         }
 
         LOG.atDebug().event("Check Authorized Status").log("Completed checking if authorized");
-        if(!_isAuthZ) {
+        if(success) {
+            return ggapi::Struct::create();
+        } else {
             throw ggapi::GgApiError(
                 "ggapi::AuthorizationException",
                 "Principal " + principal + " is not authorized to perform " + destination + ":"
@@ -180,7 +182,7 @@ void AuthorizationHandler::loadAuthorizationPolicies(
 }
 
 void AuthorizationHandler::validateOperations(
-    const std::string &componentName, const AuthorizationPolicy &policy) const {
+    const std::string &componentName, const AuthorizationPolicy &policy) {
     if(policy.operations.empty()) {
         throw AuthorizationException(
             "Malformed policy with invalid/empty operations: " + policy.policyId);
@@ -188,8 +190,7 @@ void AuthorizationHandler::validateOperations(
     // TODO: check if operations is valid and registered?
 }
 
-void AuthorizationHandler::validatePolicyId(
-    const std::vector<AuthorizationPolicy> &policies) const {
+void AuthorizationHandler::validatePolicyId(const std::vector<AuthorizationPolicy> &policies) {
     for(const auto &policy : policies) {
         if(policy.policyId.empty()) {
             throw AuthorizationException("Malformed policy with empty/null policy IDs");
@@ -197,7 +198,7 @@ void AuthorizationHandler::validatePolicyId(
     }
 }
 
-void AuthorizationHandler::validatePrincipals(const AuthorizationPolicy &policy) const {
+void AuthorizationHandler::validatePrincipals(const AuthorizationPolicy &policy) {
     std::vector<std::string> principals = policy.principals;
     if(principals.empty()) {
         throw AuthorizationException(
