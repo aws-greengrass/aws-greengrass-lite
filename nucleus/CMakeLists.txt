@@ -139,7 +139,6 @@ add_library(
   src/tasks/task_manager.hpp
   src/tasks/task_threads.cpp
   src/tasks/task_threads.hpp
-  src/tasks/expire_time_tests.cpp
   src/util/commitable_file.cpp
   src/util/commitable_file.hpp
   src/util/nucleus_paths.cpp
@@ -226,6 +225,7 @@ if(BUILD_TESTING)
     tests/pubsub/basic_pubsub_tests.cpp
     tests/scope/context_tests.cpp
     tests/tasks/task_tests.cpp
+    tests/tasks/expire_time_tests.cpp
     tests/test_ggroot.hpp
     tests/test_tools.hpp)
 
