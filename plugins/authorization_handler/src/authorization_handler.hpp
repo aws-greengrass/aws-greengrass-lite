@@ -36,10 +36,10 @@ private:
         const std::string &componentName,
         const std::vector<AuthorizationPolicy> &policies,
         bool isUpdate);
-    static void validateOperations(
-        const std::string &componentName, const AuthorizationPolicy &policy);
-    static void validatePolicyId(const std::vector<AuthorizationPolicy> &policies);
-    static void validatePrincipals(const AuthorizationPolicy &policy);
+    void validateOperations(
+        const std::string &componentName, const AuthorizationPolicy &policy) const;
+    void validatePolicyId(const std::vector<AuthorizationPolicy> &policies) const;
+    void validatePrincipals(const AuthorizationPolicy &policy) const;
     void addPermission(
         const std::string &destination,
         const std::string &policyId,

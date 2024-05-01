@@ -33,9 +33,12 @@ void AuthorizationHandler::checkAuthorizedAsync(
         }
 
         LOG.atDebug().event("Check Authorized Status").log("Completed checking if authorized");
-        ggapi::Struct response = ggapi::Struct::create();
-        response.put("Response", _isAuthZ);
-        return response;
+        if(!_isAuthZ) {
+            throw ggapi::GgApiError(
+                "ggapi::AuthorizationException",
+                "Principal " + principal + " is not authorized to perform " + destination + ":"
+                    + operation + " on resource " + resource);
+        }
     });
 }
 
@@ -177,7 +180,7 @@ void AuthorizationHandler::loadAuthorizationPolicies(
 }
 
 void AuthorizationHandler::validateOperations(
-    const std::string &componentName, const AuthorizationPolicy &policy) {
+    const std::string &componentName, const AuthorizationPolicy &policy) const {
     if(policy.operations.empty()) {
         throw AuthorizationException(
             "Malformed policy with invalid/empty operations: " + policy.policyId);
@@ -185,7 +188,8 @@ void AuthorizationHandler::validateOperations(
     // TODO: check if operations is valid and registered?
 }
 
-void AuthorizationHandler::validatePolicyId(const std::vector<AuthorizationPolicy> &policies) {
+void AuthorizationHandler::validatePolicyId(
+    const std::vector<AuthorizationPolicy> &policies) const {
     for(const auto &policy : policies) {
         if(policy.policyId.empty()) {
             throw AuthorizationException("Malformed policy with empty/null policy IDs");
@@ -193,7 +197,7 @@ void AuthorizationHandler::validatePolicyId(const std::vector<AuthorizationPolic
     }
 }
 
-void AuthorizationHandler::validatePrincipals(const AuthorizationPolicy &policy) {
+void AuthorizationHandler::validatePrincipals(const AuthorizationPolicy &policy) const {
     std::vector<std::string> principals = policy.principals;
     if(principals.empty()) {
         throw AuthorizationException(
