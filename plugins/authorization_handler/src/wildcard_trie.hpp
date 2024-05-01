@@ -88,7 +88,7 @@ public:
         return lookupPolicy == ResourceLookupPolicy::MQTT_STYLE ? matchesMQTT(str)
                                                                 : matchesStandard(str);
     };
-    bool matchesMQTT(const std::string &str) {
+    bool matchesMQTT(const std::string &str) { // NOLINT(*-no-recursion)
         if((_isWildcard && _isTerminal) || (_isTerminal && str.empty())) {
             return true;
         }
@@ -180,7 +180,7 @@ public:
         }
         return false;
     };
-    bool matchesStandard(const std::string &str) {
+    bool matchesStandard(const std::string &str) { // NOLINT(*-no-recursion)
         if((_isWildcard && _isTerminal) || (_isTerminal && str.empty())) {
             return true;
         }
@@ -241,13 +241,14 @@ public:
     };
 
 private:
-    bool _isTerminal;
-    bool _isTerminalLevel;
-    bool _isWildcard;
-    bool _isMQTTWildcard;
-    bool _matchAll;
+    bool _isTerminal = false;
+    bool _isTerminalLevel = false;
+    bool _isWildcard = false;
+    bool _isMQTTWildcard = false;
+    bool _matchAll = false;
     std::unordered_map<std::string, std::shared_ptr<WildcardTrie>> _children;
-    std::shared_ptr<WildcardTrie> add(std::string subject, bool isTerminal) {
+    std::shared_ptr<WildcardTrie> add(
+        std::string subject, bool isTerminal) { // NOLINT(*-no-recursion)
         if(subject.empty()) {
             this->_isTerminal |= isTerminal;
             return shared_from_this();

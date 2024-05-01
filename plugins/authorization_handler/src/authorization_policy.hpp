@@ -48,7 +48,8 @@ public:
     parseAllAuthorizationPolicies(const ggapi::Struct &configRoot);
 
 private:
-    std::unordered_map<std::string, std::vector<AuthorizationPolicy>> parseAllPoliciesForComponent(
+    static std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
+    parseAllPoliciesForComponent(
         const ggapi::Struct &accessControlStruct, const std::string &sourceComponent);
 
     static std::vector<AuthorizationPolicy> parseAuthorizationPolicyConfig(

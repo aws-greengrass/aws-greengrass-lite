@@ -24,7 +24,7 @@ void AuthorizationModule::addPermission(
     resourceVectorRaw.push_back(resource);
 }
 
-void AuthorizationModule::validateResource(std::string resource) {
+void AuthorizationModule::validateResource(const std::string &resource) {
     if(resource.empty()) {
         throw AuthorizationException("Resource cannot be empty");
     }
@@ -82,10 +82,6 @@ bool AuthorizationModule::isPresent(
         }
     }
     return false;
-}
-
-bool AuthorizationModule::isPresent(std::string destination, Permission permission) {
-    return isPresent(std::move(destination), std::move(permission), ResourceLookupPolicy::STANDARD);
 }
 
 std::vector<std::string> AuthorizationModule::getResources(

@@ -85,8 +85,9 @@ bool AuthorizationHandler::isAuthorized(
     ResourceLookupPolicy resourceLookupPolicy) {
 
     // service name to be lower case
-    std::transform(
-        principal.begin(), principal.end(), principal.begin(), AuthorizationHandler::asciiToLower);
+    std::transform(principal.begin(), principal.end(), principal.begin(), [](unsigned char c) {
+        return std::tolower(c);
+    });
 
     std::vector<std::vector<std::string>> combinations = {
         {destination, principal, operation, resource},
@@ -111,16 +112,6 @@ bool AuthorizationHandler::isAuthorized(
             + operation + " on resource " + resource);
     }
     return false;
-}
-
-bool AuthorizationHandler::isAuthorized(
-    std::string destination, std::string principal, std::string operation, std::string resource) {
-    return isAuthorized(
-        std::move(destination),
-        std::move(principal),
-        std::move(operation),
-        std::move(resource),
-        ResourceLookupPolicy::STANDARD);
 }
 
 void AuthorizationHandler::loadAuthorizationPolicies(
@@ -187,8 +178,7 @@ void AuthorizationHandler::loadAuthorizationPolicies(
 
 void AuthorizationHandler::validateOperations(
     const std::string &componentName, const AuthorizationPolicy &policy) {
-    std::vector<std::string> operations = policy.operations;
-    if(operations.empty()) {
+    if(policy.operations.empty()) {
         throw AuthorizationException(
             "Malformed policy with invalid/empty operations: " + policy.policyId);
     }
@@ -244,10 +234,4 @@ void AuthorizationHandler::addPermission(
             }
         }
     }
-}
-
-char AuthorizationHandler::asciiToLower(char in) {
-    if(in <= 'Z' && in >= 'A')
-        return in - ('Z' - 'z');
-    return in;
 }

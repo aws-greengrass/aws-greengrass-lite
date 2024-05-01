@@ -20,7 +20,6 @@ public:
         const std::string &destination,
         const Permission &permission,
         ResourceLookupPolicy lookupPolicy);
-    bool isPresent(std::string destination, Permission permission);
     void deletePermissionsWithDestination(const std::string &destination);
 
 private:
@@ -34,7 +33,7 @@ private:
         std::string,
         std::unordered_map<std::string, std::unordered_map<std::string, std::vector<std::string>>>>
         _rawResourceList;
-    void validateResource(std::string resource);
+    static void validateResource(const std::string &resource);
     std::vector<std::string> addResourceInternal(
         std::vector<std::string> out,
         const std::string &destination,

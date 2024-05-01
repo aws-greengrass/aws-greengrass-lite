@@ -28,16 +28,12 @@ target_link_libraries(authorization_handler PRIVATE gg_plugin_api)
 
 configureRPATH(authorization_handler)
 
-set_version_script(authorization_handler "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
+set_version_script(authorization_handler
+                    "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
 install(
   TARGETS authorization_handler
-  DESTINATION plugins
-  RUNTIME_DEPENDENCY_SET authorization_handler_deps)
-
-if(INSTALL_RUNTIME_DEPENDENCIES)
-  install(RUNTIME_DEPENDENCY_SET authorization_handler_deps)
-endif()
+  DESTINATION plugins)
 
 install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
         DESTINATION plugins/recipes)
