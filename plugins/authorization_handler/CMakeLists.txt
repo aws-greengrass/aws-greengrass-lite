@@ -13,7 +13,7 @@ add_subdirectory(../../plugin_api plugin_api EXCLUDE_FROM_ALL)
 
 enable_warnings()
 
-add_library(authorization_handler MODULE 
+add_library(authorization_handler MODULE
     src/authorization_handler.cpp
     src/authorization_handler.hpp
     src/authorization_module.cpp

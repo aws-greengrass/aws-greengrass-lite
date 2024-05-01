@@ -5,11 +5,10 @@
 
 static const auto LOG = ggapi::Logger::of("authorization_handler");
 
-AuthorizationPolicyParser::AuthorizationPolicyParser() {
-}
+AuthorizationPolicyParser::AuthorizationPolicyParser() = default;
 
 std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
-AuthorizationPolicyParser::parseAllAuthorizationPolicies(ggapi::Struct configRoot) {
+AuthorizationPolicyParser::parseAllAuthorizationPolicies(const ggapi::Struct &configRoot) {
     std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
         _primaryAuthorizationPolicyMap;
 
@@ -20,14 +19,14 @@ AuthorizationPolicyParser::parseAllAuthorizationPolicies(ggapi::Struct configRoo
         return _primaryAuthorizationPolicyMap;
     }
 
-    for(auto serviceKey : allServices.keys().toVector<std::string>()) {
+    for(const auto &serviceKey : allServices.keys().toVector<std::string>()) {
         auto service = allServices.get<ggapi::Struct>(serviceKey);
         if(service.empty()) {
             continue;
         }
         // TODO: Get the serviceName (componentName) from the service struct some how
         // For now this parses it as all lower case.
-        auto componentName = serviceKey;
+        const auto &componentName = serviceKey;
 
         auto configurationStruct = service.get<ggapi::Struct>("configuration");
         if(configurationStruct.empty()) {
@@ -45,7 +44,7 @@ AuthorizationPolicyParser::parseAllAuthorizationPolicies(ggapi::Struct configRoo
         auto componentAuthorizationPolicyMap =
             parseAllPoliciesForComponent(accessControlStruct, componentName);
 
-        for(auto it : componentAuthorizationPolicyMap) {
+        for(const auto &it : componentAuthorizationPolicyMap) {
             auto policyType = it.first;
             auto policyList = it.second;
 
@@ -66,18 +65,18 @@ AuthorizationPolicyParser::parseAllAuthorizationPolicies(ggapi::Struct configRoo
 
 std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
 AuthorizationPolicyParser::parseAllPoliciesForComponent(
-    ggapi::Struct accessControlStruct, std::string sourceComponent) {
+    const ggapi::Struct &accessControlStruct, const std::string &sourceComponent) {
     std::unordered_map<std::string, std::vector<AuthorizationPolicy>> authorizationPolicyMap;
     std::unordered_map<std::string, std::unordered_map<std::string, AuthorizationPolicyConfig>>
         accessControlMap;
 
-    for(auto destination : accessControlStruct.keys().toVector<std::string>()) {
+    for(const auto &destination : accessControlStruct.keys().toVector<std::string>()) {
         auto destinationStruct = accessControlStruct.get<ggapi::Struct>(destination);
         if(destinationStruct.empty()) {
             continue;
         }
         std::unordered_map<std::string, AuthorizationPolicyConfig> policyIdMap;
-        for(auto policyId : destinationStruct.keys().toVector<std::string>()) {
+        for(const auto &policyId : destinationStruct.keys().toVector<std::string>()) {
             auto policyIdStruct = destinationStruct.get<ggapi::Struct>(policyId);
             if(policyIdStruct.empty()) {
                 continue;
@@ -91,7 +90,7 @@ AuthorizationPolicyParser::parseAllPoliciesForComponent(
         accessControlMap.insert({destination, policyIdMap});
     }
 
-    for(auto accessControl : accessControlMap) {
+    for(const auto &accessControl : accessControlMap) {
         std::string destinationComponent = accessControl.first;
         std::unordered_map<std::string, AuthorizationPolicyConfig> accessControlValue =
             accessControl.second;
@@ -105,11 +104,11 @@ AuthorizationPolicyParser::parseAllPoliciesForComponent(
 }
 
 std::vector<AuthorizationPolicy> AuthorizationPolicyParser::parseAuthorizationPolicyConfig(
-    std::string componentName,
-    std::unordered_map<std::string, AuthorizationPolicyConfig> accessControlConfig) {
+    const std::string &componentName,
+    const std::unordered_map<std::string, AuthorizationPolicyConfig> &accessControlConfig) {
     std::vector<AuthorizationPolicy> newAuthorizationPolicyList;
 
-    for(auto policyEntryIterator : accessControlConfig) {
+    for(const auto &policyEntryIterator : accessControlConfig) {
         auto authZPolicy = policyEntryIterator.second;
         if(authZPolicy.operations.empty()) {
             std::string err = "Policy operations are missing or invalid";

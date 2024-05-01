@@ -24,21 +24,23 @@ private:
 
     // std::unordered_map<std::string, std::vector<AuthorizationPolicy>> getDefaultPolicies();
     void loadAuthorizationPolicies(
-        std::string componentName, std::vector<AuthorizationPolicy> policies, bool isUpdate);
-    void validateOperations(std::string componentName, AuthorizationPolicy policy);
-    void validatePolicyId(std::vector<AuthorizationPolicy> policies);
-    void validatePrincipals(AuthorizationPolicy policy);
+        const std::string &componentName,
+        const std::vector<AuthorizationPolicy> &policies,
+        bool isUpdate);
+    static void validateOperations(
+        const std::string &componentName, const AuthorizationPolicy &policy);
+    static void validatePolicyId(const std::vector<AuthorizationPolicy> &policies);
+    static void validatePrincipals(const AuthorizationPolicy &policy);
     void addPermission(
-        std::string destination,
-        std::string policyId,
-        std::vector<std::string> principals,
-        std::vector<std::string> operations,
-        std::vector<std::string> resources) noexcept;
+        const std::string &destination,
+        const std::string &policyId,
+        const std::vector<std::string> &principals,
+        const std::vector<std::string> &operations,
+        const std::vector<std::string> &resources) noexcept;
     static char asciiToLower(char in);
 
 public:
     AuthorizationHandler() noexcept;
-    static constexpr const auto ANY_REGEX = "*";
     bool isAuthorized(
         std::string destination,
         std::string principal,

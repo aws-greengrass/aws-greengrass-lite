@@ -2,7 +2,8 @@
 
 #include "wildcard_trie.hpp"
 
-void AuthorizationModule::addPermission(std::string destination, Permission permission) {
+void AuthorizationModule::addPermission(
+    const std::string &destination, const Permission &permission) {
     if(destination.empty() || permission.principal.empty() || permission.operation.empty()) {
         throw AuthorizationException("Invalid arguments");
     }
@@ -27,8 +28,8 @@ void AuthorizationModule::validateResource(std::string resource) {
     if(resource.empty()) {
         throw AuthorizationException("Resource cannot be empty");
     }
-    int length = resource.size();
-    for(int i = 0; i < length; i++) {
+    size_t length = resource.length();
+    for(size_t i = 0; i < length; i++) {
         auto currentChar = resource[i];
         if(currentChar == WildcardTrie::escapeChar && i + 1 < length && resource[i + 1] == '{') {
             auto actualChar = WildcardTrie::getActualChar(resource.substr(i));
@@ -53,13 +54,15 @@ bool AuthorizationModule::isSpecialChar(char actualChar) {
         || actualChar == WildcardTrie::singleCharWildcard);
 }
 
-void AuthorizationModule::deletePermissionsWithDestination(std::string destination) {
+void AuthorizationModule::deletePermissionsWithDestination(const std::string &destination) {
     _resourceAuthZCompleteMap.erase(destination);
     _rawResourceList.erase(destination);
 }
 
 bool AuthorizationModule::isPresent(
-    std::string destination, Permission permission, ResourceLookupPolicy resourceLookupPolicy) {
+    const std::string &destination,
+    const Permission &permission,
+    ResourceLookupPolicy resourceLookupPolicy) {
     if(destination.empty() || permission.principal.empty() || permission.operation.empty()) {
         throw AuthorizationException("Invalid arguments");
     }
@@ -82,37 +85,36 @@ bool AuthorizationModule::isPresent(
 }
 
 bool AuthorizationModule::isPresent(std::string destination, Permission permission) {
-    return isPresent(destination, permission, ResourceLookupPolicy::STANDARD);
+    return isPresent(std::move(destination), std::move(permission), ResourceLookupPolicy::STANDARD);
 }
 
 std::vector<std::string> AuthorizationModule::getResources(
-    std::string destination, std::string principal, std::string operation) {
-    if(destination.empty() || principal.empty() || operation.empty()
-       || !principal.compare(AuthorizationHandler::ANY_REGEX)
-       || !operation.compare(AuthorizationHandler::ANY_REGEX)) {
+    const std::string &destination, const std::string &principal, const std::string &operation) {
+    if(destination.empty() || principal.empty() || operation.empty() || principal == ANY_REGEX
+       || operation == ANY_REGEX) {
         throw AuthorizationException("Invalid arguments");
     }
 
     std::vector<std::string> out;
     out = addResourceInternal(out, destination, principal, operation);
-    out = addResourceInternal(out, destination, AuthorizationHandler::ANY_REGEX, operation);
-    out = addResourceInternal(out, destination, principal, AuthorizationHandler::ANY_REGEX);
+    out = addResourceInternal(out, destination, ANY_REGEX, operation);
+    out = addResourceInternal(out, destination, principal, ANY_REGEX);
 
     return out;
 }
 
 std::vector<std::string> AuthorizationModule::addResourceInternal(
     std::vector<std::string> out,
-    std::string destination,
-    std::string principal,
-    std::string operation) {
+    const std::string &destination,
+    const std::string &principal,
+    const std::string &operation) {
     if(auto it = _rawResourceList.find(destination); it != _rawResourceList.end()) {
         auto destMap = it->second;
         if(auto desIt = destMap.find(principal); desIt != destMap.end()) {
             auto principalMap = desIt->second;
             if(auto principalIt = principalMap.find(operation); principalIt != principalMap.end()) {
                 auto vec = principalIt->second;
-                for(auto e : vec) {
+                for(const auto &e : vec) {
                     out.push_back(e);
                 }
             }

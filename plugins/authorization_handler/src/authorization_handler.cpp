@@ -22,12 +22,12 @@ void AuthorizationHandler::checkAuthorizedAsync(
 
         bool _isAuthZ;
         try {
-            if(!resourceType.compare("MQTT")) {
-                _isAuthZ = isAuthorized(
-                    destination, principal, operation, resource, ResourceLookupPolicy::MQTT_STYLE);
-            } else {
-                _isAuthZ = isAuthorized(destination, principal, operation, resource);
+            auto resourceTypeSelection = ResourceLookupPolicy::STANDARD;
+            if(resourceType == "MQTT") {
+                resourceTypeSelection = ResourceLookupPolicy::MQTT_STYLE;
             }
+            _isAuthZ =
+                isAuthorized(destination, principal, operation, resource, resourceTypeSelection);
         } catch(const AuthorizationException &e) {
             throw ggapi::GgApiError("ggapi::AuthorizationException", e.what());
         }
@@ -60,7 +60,7 @@ void AuthorizationHandler::onStart(ggapi::Struct data) {
     std::unordered_map<std::string, std::vector<AuthorizationPolicy>> defaultPoliciesMap = {};
     componentNameToPolicies.insert(defaultPoliciesMap.begin(), defaultPoliciesMap.end());
 
-    for(auto acl : componentNameToPolicies) {
+    for(const auto &acl : componentNameToPolicies) {
         loadAuthorizationPolicies(acl.first, acl.second, false);
     }
 
@@ -90,9 +90,9 @@ bool AuthorizationHandler::isAuthorized(
 
     std::vector<std::vector<std::string>> combinations = {
         {destination, principal, operation, resource},
-        {destination, principal, ANY_REGEX, resource},
-        {destination, ANY_REGEX, operation, resource},
-        {destination, ANY_REGEX, ANY_REGEX, resource},
+        {destination, principal, AuthorizationModule::ANY_REGEX, resource},
+        {destination, AuthorizationModule::ANY_REGEX, operation, resource},
+        {destination, AuthorizationModule::ANY_REGEX, AuthorizationModule::ANY_REGEX, resource},
     };
     try {
         for(auto combination : combinations) {
@@ -116,11 +116,17 @@ bool AuthorizationHandler::isAuthorized(
 bool AuthorizationHandler::isAuthorized(
     std::string destination, std::string principal, std::string operation, std::string resource) {
     return isAuthorized(
-        destination, principal, operation, resource, ResourceLookupPolicy::STANDARD);
+        std::move(destination),
+        std::move(principal),
+        std::move(operation),
+        std::move(resource),
+        ResourceLookupPolicy::STANDARD);
 }
 
 void AuthorizationHandler::loadAuthorizationPolicies(
-    std::string componentName, std::vector<AuthorizationPolicy> policies, bool isUpdate) {
+    const std::string &componentName,
+    const std::vector<AuthorizationPolicy> &policies,
+    bool isUpdate) {
     if(policies.empty()) {
         return;
     }
@@ -133,7 +139,7 @@ void AuthorizationHandler::loadAuthorizationPolicies(
         return;
     }
 
-    for(auto policy : policies) {
+    for(const auto &policy : policies) {
         try {
             validatePrincipals(policy);
         } catch(const AuthorizationException &e) {
@@ -155,7 +161,7 @@ void AuthorizationHandler::loadAuthorizationPolicies(
     if(isUpdate) {
         _authModule->deletePermissionsWithDestination(componentName);
     }
-    for(auto policy : policies) {
+    for(const auto &policy : policies) {
         try {
             addPermission(
                 componentName,
@@ -180,7 +186,7 @@ void AuthorizationHandler::loadAuthorizationPolicies(
 }
 
 void AuthorizationHandler::validateOperations(
-    std::string componentName, AuthorizationPolicy policy) {
+    const std::string &componentName, const AuthorizationPolicy &policy) {
     std::vector<std::string> operations = policy.operations;
     if(operations.empty()) {
         throw AuthorizationException(
@@ -189,15 +195,15 @@ void AuthorizationHandler::validateOperations(
     // TODO: check if operations is valid and registered?
 }
 
-void AuthorizationHandler::validatePolicyId(std::vector<AuthorizationPolicy> policies) {
-    for(auto policy : policies) {
+void AuthorizationHandler::validatePolicyId(const std::vector<AuthorizationPolicy> &policies) {
+    for(const auto &policy : policies) {
         if(policy.policyId.empty()) {
             throw AuthorizationException("Malformed policy with empty/null policy IDs");
         }
     }
 }
 
-void AuthorizationHandler::validatePrincipals(AuthorizationPolicy policy) {
+void AuthorizationHandler::validatePrincipals(const AuthorizationPolicy &policy) {
     std::vector<std::string> principals = policy.principals;
     if(principals.empty()) {
         throw AuthorizationException(
@@ -207,18 +213,18 @@ void AuthorizationHandler::validatePrincipals(AuthorizationPolicy policy) {
 }
 
 void AuthorizationHandler::addPermission(
-    std::string destination,
-    std::string policyId,
-    std::vector<std::string> principals,
-    std::vector<std::string> operations,
-    std::vector<std::string> resources) noexcept {
-    for(auto principal : principals) {
-        for(auto operation : operations) {
+    const std::string &destination,
+    const std::string &policyId,
+    const std::vector<std::string> &principals,
+    const std::vector<std::string> &operations,
+    const std::vector<std::string> &resources) noexcept {
+    for(const auto &principal : principals) {
+        for(const auto &operation : operations) {
             if(resources.empty()) {
                 Permission permission = Permission(principal, operation);
                 _authModule->addPermission(destination, permission);
             } else {
-                for(auto resource : resources) {
+                for(const auto &resource : resources) {
                     try {
                         Permission permission = Permission(principal, operation, resource);
                         _authModule->addPermission(destination, permission);
@@ -229,9 +235,10 @@ void AuthorizationHandler::addPermission(
                             .kv("operation", operation)
                             .kv("IPC service", destination)
                             .kv("resource", resource)
-                            .log(
-                                "Error while adding permission for component " + principal
-                                + " to IPC service " + destination);
+                            .log(std::string("Error while adding permission for component ")
+                                     .append(principal)
+                                     .append(" to IPC service ")
+                                     .append(destination));
                     }
                 }
             }

@@ -1,7 +1,5 @@
 #pragma once
 
-#include "authorization_handler.hpp"
-
 #include <memory>
 #include <sstream>
 #include <string>
@@ -37,6 +35,11 @@ public:
     static constexpr auto multiLevelWildcardChar = '#';
     static constexpr auto singleLevelWildcardChar = '+';
     static constexpr auto levelSeparatorChar = '/';
+
+    WildcardTrie()
+        : _isTerminal(false), _isTerminalLevel(false), _isWildcard(false), _isMQTTWildcard(false),
+          _matchAll(false){};
+
     static char getActualChar(std::string str) {
         if(str.size() < 4) {
             return nullChar;
@@ -47,8 +50,8 @@ public:
         }
         return nullChar;
     };
-    void add(std::string subject) {
-        if(!subject.compare(GLOBAL_WILDCARD)) {
+    void add(const std::string &subject) {
+        if(subject == GLOBAL_WILDCARD) {
             if(auto it = _children.find(GLOBAL_WILDCARD); it != _children.end()) {
                 it->second->_matchAll = true;
                 it->second->_isTerminal = true;
@@ -56,7 +59,7 @@ public:
             }
             return;
         }
-        if(!subject.compare(MQTT_MULTILEVEL_WILDCARD)) {
+        if(subject == MQTT_MULTILEVEL_WILDCARD) {
             if(auto it = _children.find(MQTT_MULTILEVEL_WILDCARD); it != _children.end()) {
                 it->second->_matchAll = true;
                 it->second->_isTerminal = true;
@@ -64,7 +67,7 @@ public:
             }
             return;
         }
-        if(!subject.compare(MQTT_SINGLELEVEL_WILDCARD)) {
+        if(subject == MQTT_SINGLELEVEL_WILDCARD) {
             if(auto it = _children.find(MQTT_SINGLELEVEL_WILDCARD); it != _children.end()) {
                 it->second->_isTerminal = true;
                 it->second->_isMQTTWildcard = true;
@@ -81,11 +84,11 @@ public:
 
         add(subject, true);
     };
-    bool matches(std::string str, ResourceLookupPolicy lookupPolicy) {
+    bool matches(const std::string &str, ResourceLookupPolicy lookupPolicy) {
         return lookupPolicy == ResourceLookupPolicy::MQTT_STYLE ? matchesMQTT(str)
                                                                 : matchesStandard(str);
     };
-    bool matchesMQTT(std::string str) {
+    bool matchesMQTT(const std::string &str) {
         if((_isWildcard && _isTerminal) || (_isTerminal && str.empty())) {
             return true;
         }
@@ -107,10 +110,9 @@ public:
             auto value = std::move(childIt.second);
 
             // Process *, # and + wildcards (only process MQTT wildcards that have valid usages)
-            if((value->_isWildcard && !key.compare(GLOBAL_WILDCARD))
+            if((value->_isWildcard && key == GLOBAL_WILDCARD)
                || (value->_isMQTTWildcard
-                   && (!key.compare(MQTT_SINGLELEVEL_WILDCARD)
-                       || !key.compare(MQTT_MULTILEVEL_WILDCARD)))) {
+                   && (key == MQTT_SINGLELEVEL_WILDCARD || key == MQTT_MULTILEVEL_WILDCARD))) {
                 hasMatch = value->matchesMQTT(str);
                 continue;
             }
@@ -126,7 +128,7 @@ public:
             //      "abc/*xy/#" should match "abc/12xy"
             std::string terminalKey = key.substr(0, key.size() - 1);
             if(value->_isTerminalLevel) {
-                if(!str.compare(terminalKey)) {
+                if(str == terminalKey) {
                     return true;
                 }
                 if(endsWith(str, terminalKey)) {
@@ -134,28 +136,26 @@ public:
                 }
             }
 
-            int keyLength = key.size();
-            int strLength = static_cast<int>(str.size());
+            size_t keyLength = key.length();
+            size_t strLength = str.length();
             // If I'm a wildcard, then I need to maybe chomp many characters to match my
             // children
             if(_isWildcard) {
-                int foundChildIndex = str.find(key);
-                while(foundChildIndex >= 0 && foundChildIndex < strLength) {
-                    matchingChildren.insert(
-                        {str.substr(foundChildIndex + keyLength), std::move(value)});
+                size_t foundChildIndex = str.find(key);
+                while(foundChildIndex != std::string::npos && foundChildIndex < strLength) {
+                    matchingChildren.insert({str.substr(foundChildIndex + keyLength), value});
                     foundChildIndex = str.find(key, foundChildIndex + 1);
                 }
             }
             // If I'm a MQTT wildcard (specifically +, as # is already covered),
             // then I need to maybe chomp many characters to match my children
             if(_isMQTTWildcard) {
-                int foundChildIndex = str.find(key);
+                size_t foundChildIndex = str.find(key);
                 // Matched characters inside + should not contain a "/"
-                while(foundChildIndex >= 0 && foundChildIndex < strLength
+                while(foundChildIndex != std::string::npos && foundChildIndex < strLength
                       && (str.substr(0, foundChildIndex).find(MQTT_LEVEL_SEPARATOR)
                           == std::string::npos)) {
-                    matchingChildren.insert(
-                        {str.substr(foundChildIndex + keyLength), std::move(value)});
+                    matchingChildren.insert({str.substr(foundChildIndex + keyLength), value});
                     foundChildIndex = str.find(key, foundChildIndex + 1);
                 }
             }
@@ -180,7 +180,7 @@ public:
         }
         return false;
     };
-    bool matchesStandard(std::string str) {
+    bool matchesStandard(const std::string &str) {
         if((_isWildcard && _isTerminal) || (_isTerminal && str.empty())) {
             return true;
         }
@@ -196,7 +196,7 @@ public:
             auto value = *childIt.second;
 
             // Process * wildcards
-            if(value._isWildcard && !key.compare(GLOBAL_WILDCARD)) {
+            if(value._isWildcard && key == GLOBAL_WILDCARD) {
                 hasMatch = value.matchesStandard(str);
                 continue;
             }
@@ -213,11 +213,10 @@ public:
             // If I'm a wildcard, then I need to maybe chomp many characters to match my
             // children
             if(_isWildcard) {
-                int foundChildIndex = str.find(key);
-                int keyLength = key.size();
-                while(foundChildIndex >= 0) {
-                    matchingChildren.insert(
-                        {str.substr(foundChildIndex + keyLength), std::move(value)});
+                size_t foundChildIndex = str.find(key);
+                size_t keyLength = key.length();
+                while(foundChildIndex != std::string::npos) {
+                    matchingChildren.insert({str.substr(foundChildIndex + keyLength), value});
                     foundChildIndex = str.find(key, foundChildIndex + 1);
                 }
             }
@@ -326,7 +325,7 @@ private:
         current->_isTerminal |= isTerminal;
         return current;
     };
-    bool endsWith(const std::string &str, const std::string &suffix) {
+    static bool endsWith(const std::string &str, const std::string &suffix) {
         return str.size() >= suffix.size()
                && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
     };

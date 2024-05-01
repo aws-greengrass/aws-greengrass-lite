@@ -45,13 +45,13 @@ class AuthorizationPolicyParser {
 public:
     explicit AuthorizationPolicyParser();
     [[nodiscard]] std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
-    parseAllAuthorizationPolicies(ggapi::Struct configRoot);
+    parseAllAuthorizationPolicies(const ggapi::Struct &configRoot);
 
 private:
     std::unordered_map<std::string, std::vector<AuthorizationPolicy>> parseAllPoliciesForComponent(
-        ggapi::Struct accessControlStruct, std::string sourceComponent);
+        const ggapi::Struct &accessControlStruct, const std::string &sourceComponent);
 
-    std::vector<AuthorizationPolicy> parseAuthorizationPolicyConfig(
-        std::string componentName,
-        std::unordered_map<std::string, AuthorizationPolicyConfig> accessControlConfig);
+    static std::vector<AuthorizationPolicy> parseAuthorizationPolicyConfig(
+        const std::string &componentName,
+        const std::unordered_map<std::string, AuthorizationPolicyConfig> &accessControlConfig);
 };

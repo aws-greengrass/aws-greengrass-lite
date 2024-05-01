@@ -3,5 +3,5 @@ RecipeFormatVersion: "2020-01-25"
 ComponentName: local.plugins.discovered.authorization_handler
 ComponentType: aws.greengrass.plugin
 ComponentVersion: "0.1.0"
-ComponentDescription: Enables plugins to check if requests are authorized to be performed
+ComponentDescription: Enables plugins to check if authorized
 ComponentPublisher: Amazon

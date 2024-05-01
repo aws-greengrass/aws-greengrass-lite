@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "authorization_handler.hpp"
 #include "permission.hpp"
 #include "wildcard_trie.hpp"
 #include <logging.hpp>
@@ -13,13 +12,16 @@
 
 class AuthorizationModule {
 public:
-    void addPermission(std::string destination, Permission permission);
+    static constexpr const auto ANY_REGEX = "*";
+    void addPermission(const std::string &destination, const Permission &permission);
     std::vector<std::string> getResources(
-        std::string destination, std::string principal, std::string operation);
+        const std::string &destination, const std::string &principal, const std::string &operation);
     bool isPresent(
-        std::string destination, Permission permission, ResourceLookupPolicy lookupPolicy);
+        const std::string &destination,
+        const Permission &permission,
+        ResourceLookupPolicy lookupPolicy);
     bool isPresent(std::string destination, Permission permission);
-    void deletePermissionsWithDestination(std::string destination);
+    void deletePermissionsWithDestination(const std::string &destination);
 
 private:
     std::unordered_map<
@@ -35,15 +37,15 @@ private:
     void validateResource(std::string resource);
     std::vector<std::string> addResourceInternal(
         std::vector<std::string> out,
-        std::string destination,
-        std::string principal,
-        std::string operation);
-    bool isSpecialChar(char actualChar);
+        const std::string &destination,
+        const std::string &principal,
+        const std::string &operation);
+    static bool isSpecialChar(char actualChar);
 };
 
 class AuthorizationException : public ggapi::GgApiError {
 public:
-    AuthorizationException(const std::string &msg)
+    explicit AuthorizationException(const std::string &msg)
         : ggapi::GgApiError("AuthorizationException", msg) {
     }
 };
