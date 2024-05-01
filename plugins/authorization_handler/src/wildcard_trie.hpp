@@ -36,9 +36,7 @@ public:
     static constexpr auto singleLevelWildcardChar = '+';
     static constexpr auto levelSeparatorChar = '/';
 
-    WildcardTrie()
-        : _isTerminal(false), _isTerminalLevel(false), _isWildcard(false), _isMQTTWildcard(false),
-          _matchAll(false){};
+    WildcardTrie() = default;
 
     static char getActualChar(std::string str) {
         if(str.size() < 4) {
@@ -247,8 +245,9 @@ private:
     bool _isMQTTWildcard = false;
     bool _matchAll = false;
     std::unordered_map<std::string, std::shared_ptr<WildcardTrie>> _children;
-    std::shared_ptr<WildcardTrie> add(
-        std::string subject, bool isTerminal) { // NOLINT(*-no-recursion)
+    std::shared_ptr<WildcardTrie> add( // NOLINT(*-no-recursion)
+        std::string subject,
+        bool isTerminal) {
         if(subject.empty()) {
             this->_isTerminal |= isTerminal;
             return shared_from_this();
