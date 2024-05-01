@@ -224,8 +224,8 @@ if(BUILD_TESTING)
     tests/lifecycle/lifecycle_tests.cpp
     tests/pubsub/basic_pubsub_tests.cpp
     tests/scope/context_tests.cpp
-    tests/tasks/task_tests.cpp
     tests/tasks/expire_time_tests.cpp
+    tests/tasks/task_tests.cpp
     tests/test_ggroot.hpp
     tests/test_tools.hpp)
 
