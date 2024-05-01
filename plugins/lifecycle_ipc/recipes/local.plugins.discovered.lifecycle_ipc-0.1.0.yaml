@@ -3,6 +3,5 @@ RecipeFormatVersion: "2020-01-25"
 ComponentName: local.plugins.discovered.lifecycle_ipc
 ComponentType: aws.greengrass.plugin
 ComponentVersion: "0.1.0"
-ComponentDescription:
-  Enables component lifecycle IPC service commands
+ComponentDescription: Enables component lifecycle IPC service commands
 ComponentPublisher: Amazon
