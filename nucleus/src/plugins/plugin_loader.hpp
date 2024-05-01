@@ -246,7 +246,7 @@ namespace plugins {
             plugins::AbstractPlugin &plugin, bool partial = false) const;
 
         std::vector<deployment::Recipe> discoverComponents();
-        static std::optional<deployment::Recipe> discoverRecipe(
+        std::optional<deployment::Recipe> discoverRecipe(
             const std::filesystem::directory_entry &entry);
 
         std::shared_ptr<AbstractPlugin> loadNativePlugin(const deployment::Recipe &recipe);

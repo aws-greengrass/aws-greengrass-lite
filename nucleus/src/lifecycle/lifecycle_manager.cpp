@@ -1,11 +1,17 @@
 #include "lifecycle_manager.hpp"
+#include "deployment/recipe_loader.hpp"
+#include "deployment/recipe_model.hpp"
+#include "lifecycle/kernel.hpp"
 #include <chrono>
 #include <config/config_nodes.hpp>
 #include <deployment/model/dependency_order.hpp>
 #include <logging/log_manager.hpp>
+#include <memory>
+#include <mutex>
 #include <pubsub/local_topics.hpp>
 #include <pubsub/promise.hpp>
 #include <scope/context_impl.hpp>
+#include <shared_mutex>
 
 [[maybe_unused]] static const auto &getLog() noexcept {
     static const auto log = logging::Logger::of("aws.greengrass.lifecycle");
@@ -118,6 +124,100 @@ namespace lifecycle {
         }
     }
 
+    auto LifecycleManager::runLifecycleStep(const std::string &name, const data::Symbol &phase)
+        -> LifecycleManager::LifecycleResult {
+        std::unique_lock guard{_serviceMutex};
+        auto iter = _services.active.find(name);
+        if(iter == _services.active.end()) {
+            return LifecycleResult::inactive;
+        }
+        auto component = iter->second;
+        // Check that all dependencies are active
+        if(const auto &dependencies = component->getDependencies(); std::any_of(
+               dependencies.begin(),
+               dependencies.end(),
+               [this](std::string const &dependency) -> bool {
+                   return _services.active.find(dependency) == _services.active.end();
+               })) {
+            _services.inactive.emplace(*iter);
+            _services.active.erase(iter);
+            return LifecycleResult::missingDependency;
+        }
+        guard.unlock();
+
+        if(!component->lifecycle(phase, component->loader().buildParams(*component))) {
+            std::unique_lock guard{_serviceMutex};
+            _services.broken.emplace(*iter);
+            _services.active.erase(iter);
+            return LifecycleResult::failed;
+        }
+        return LifecycleResult::success;
+    };
+
+    size_t LifecycleManager::runLifecyclesToCompletion(std::vector<std::string> components) {
+        auto ctx = context();
+        auto &loader = ctx->pluginLoader();
+
+        components.erase(
+            std::remove_if(
+                components.begin(),
+                components.end(),
+                [&loader, this](std::string const &name) {
+                    return runLifecycleStep(name, loader.INITIALIZE) != LifecycleResult::success;
+                }),
+            components.end());
+
+        components.erase(
+            std::remove_if(
+                components.begin(),
+                components.end(),
+                [&loader, this](std::string const &name) {
+                    return runLifecycleStep(name, loader.START) != LifecycleResult::success;
+                }),
+            components.end());
+
+        return components.size();
+    }
+
+    void LifecycleManager::loadComponents(
+        std::launch type, const std::vector<deployment::Recipe> &recipes) {
+        std::vector<std::pair<std::string, std::future<std::shared_ptr<plugins::AbstractPlugin>>>>
+            futures;
+        futures.reserve(recipes.size());
+        std::transform(
+            recipes.begin(),
+            recipes.end(),
+            std::back_inserter(futures),
+            [this](const deployment::Recipe &recipe) {
+                return std::make_pair(
+                    recipe.componentName,
+                    std::async(
+                        std::launch::deferred, &LifecycleManager::loadComponent, this, recipe));
+            });
+
+        for(auto &&[name, future] : std::move(futures)) {
+            auto plugin = [](const auto &name,
+                             auto &&future) -> std::shared_ptr<plugins::AbstractPlugin> {
+                try {
+                    return future.get();
+                } catch(...) {
+                    getLog()
+                        .atError("plugin-load-fail")
+                        .kv("componentName", name)
+                        .cause(std::current_exception())
+                        .log();
+                    return {};
+                }
+            }(name, std::move(future));
+            std::unique_lock guard{_serviceMutex};
+            if(plugin) {
+                _services.active.emplace(std::move(name), std::move(plugin));
+            } else {
+                _services.broken.emplace(std::move(name), std::move(plugin));
+            }
+        }
+    }
+
     std::future<bool> LifecycleManager::addTask(
         Request request, std::vector<std::string> components) {
         std::promise<bool> promise;
@@ -187,140 +287,34 @@ namespace lifecycle {
             });
         // build initial graph with just native plugins
         std::unordered_map<std::string, deployment::Recipe> unresolved;
-
-        // load each plugin
-        std::invoke([&] {
-            std::vector<
-                std::pair<std::string, std::future<std::shared_ptr<plugins::AbstractPlugin>>>>
-                futures;
-            futures.reserve(std::distance(recipes.begin(), middle));
-            std::transform(
-                recipes.begin(),
-                middle,
-                std::back_inserter(futures),
-                [this, &unresolved](const deployment::Recipe &recipe) {
-                    unresolved.emplace(recipe.componentName, recipe);
-                    return std::make_pair(
-                        recipe.componentName,
-                        std::async(
-                            std::launch::deferred, &LifecycleManager::loadComponent, this, recipe));
-                });
-
-            for(auto &&[name, future] : std::move(futures)) {
-                auto plugin = [](const auto &name,
-                                 auto &&future) -> std::shared_ptr<plugins::AbstractPlugin> {
-                    try {
-                        return future.get();
-                    } catch(...) {
-                        getLog()
-                            .atError("plugin-load-fail")
-                            .kv("componentName", name)
-                            .cause(std::current_exception())
-                            .log();
-                        return {};
-                    }
-                }(name, std::move(future));
-                std::unique_lock guard{_serviceMutex};
-                if(plugin) {
-                    _services.active.emplace(std::move(name), std::move(plugin));
-                } else {
-                    _services.broken.emplace(std::move(name), std::move(plugin));
-                }
-            }
+        // add each plugin to the unresolved map
+        std::for_each(recipes.begin(), middle, [&unresolved](const deployment::Recipe &recipe) {
+            unresolved.emplace(recipe.componentName, recipe);
         });
-
         auto runOrder = util::DependencyOrder{}.computeOrderedDependencies(
             unresolved, deployment::getDependencies);
 
-        // Mark each unresolved plugin as inactive
+        // Mark each still-unresolved plugin as inactive, remove from map
         std::invoke([&, this] {
             if(!unresolved.empty()) {
                 std::unique_lock guard{_serviceMutex};
                 for(const auto &[name, _] : unresolved) {
-                    auto found = _services.active.find(name);
-                    if(found != _services.active.end()) {
-                        _services.inactive.emplace(*found);
-                        _services.active.erase(found);
-                    }
+                    _services.inactive.emplace(name, nullptr);
                 }
                 unresolved.clear();
             }
         });
 
-        auto startComponents = [this](std::vector<std::string> components) -> size_t {
-            auto ctx = context();
-            auto &loader = ctx->pluginLoader();
-            auto runLifecycle = [this](const std::string &name, const data::Symbol &phase) -> bool {
-                auto component = std::invoke(
-                    [this](std::string const &name) -> std::shared_ptr<plugins::AbstractPlugin> {
-                        std::unique_lock guard{_serviceMutex};
-                        auto iter = _services.active.find(name);
-                        if(iter == _services.active.end()) {
-                            return {};
-                        }
-                        auto component = iter->second;
-                        // Check that all dependencies are active
-                        if(const auto &dependencies = component->getDependencies(); std::any_of(
-                               dependencies.begin(),
-                               dependencies.end(),
-                               [this](std::string const &dependency) -> bool {
-                                   return _services.active.find(dependency)
-                                          == _services.active.end();
-                               })) {
-                            _services.inactive.emplace(*iter);
-                            _services.active.erase(iter);
-                            return {};
-                        }
-                        return component;
-                    },
-                    name);
-                if(!component) {
-                    return false;
-                }
-
-                if(!component->lifecycle(phase, component->loader().buildParams(*component))) {
-                    std::unique_lock guard{_serviceMutex};
-                    _services.broken.emplace(name, component);
-                    _services.active.erase(name);
-                    return false;
-                }
-                return true;
-            };
-
-            components.erase(
-                std::remove_if(
-                    components.begin(),
-                    components.end(),
-                    [&](std::string const &name) {
-                        return !runLifecycle(name, loader.INITIALIZE);
-                    }),
-                components.end());
-
-            components.erase(
-                std::remove_if(
-                    components.begin(),
-                    components.end(),
-                    [&runLifecycle, &loader](std::string const &name) {
-                        return !runLifecycle(name, loader.START);
-                    }),
-                components.end());
-
-            return components.size();
-        };
-
-        // start all plugins
+        // load and start all plugins
         std::invoke(
-            [&startComponents](std::vector<deployment::Recipe> recipes) {
+            [this](const std::vector<deployment::Recipe> &recipes) {
+                loadComponents(std::launch::deferred, recipes);
                 std::vector<std::string> names;
                 names.reserve(recipes.size());
-                std::transform(
-                    recipes.begin(),
-                    recipes.end(),
-                    std::back_inserter(names),
-                    [](const deployment::Recipe &recipe) -> std::string {
-                        return recipe.componentName;
-                    });
-                startComponents(std::move(names));
+                for(const auto &recipe : recipes) {
+                    names.emplace_back(recipe.componentName);
+                }
+                runLifecyclesToCompletion(std::move(names));
             },
             runOrder->values());
 
@@ -339,9 +333,20 @@ namespace lifecycle {
             middle = last;
         }
 
+        // Mark each still-unresolved components as inactive, remove from map
+        std::invoke([&, this] {
+            if(!unresolved.empty()) {
+                std::unique_lock guard{_serviceMutex};
+                for(const auto &[name, _] : unresolved) {
+                    _services.inactive.emplace(name, nullptr);
+                }
+                unresolved.clear();
+            }
+        });
+
         // load and start all other components
         std::invoke(
-            [&startComponents, this](std::vector<deployment::Recipe> recipes) {
+            [this](std::vector<deployment::Recipe> recipes) {
                 recipes.erase(
                     std::remove_if(
                         recipes.begin(),
@@ -355,60 +360,17 @@ namespace lifecycle {
                     return;
                 }
 
-                std::vector<
-                    std::pair<std::string, std::future<std::shared_ptr<plugins::AbstractPlugin>>>>
-                    futures;
-                futures.reserve(recipes.size());
-                // load all components
-                for(auto &recipe : recipes) {
-                    auto future = std::invoke(
-                        [this](deployment::Recipe &recipe)
-                            -> std::future<std::shared_ptr<plugins::AbstractPlugin>> {
-                            return std::async(
-                                std::launch::deferred,
-                                &LifecycleManager::loadComponent,
-                                this,
-                                recipe);
-                        },
-                        recipe);
-                    futures.emplace_back(recipe.componentName, std::move(future));
-                }
-
+                loadComponents(std::launch::async, recipes);
                 std::vector<std::string> names;
-                names.reserve(futures.size());
-                for(auto &[name, future] : futures) {
-
-                    auto component = std::invoke(
-                        [](std::future<std::shared_ptr<plugins::AbstractPlugin>> &future)
-                            -> std::shared_ptr<plugins::AbstractPlugin> {
-                            try {
-                                return future.get();
-                                // TODO: log errors
-                            } catch(...) {
-                                return {};
-                            }
-                        },
-                        future);
-
-                    if(component) {
-                        std::invoke(
-                            [this](std::shared_ptr<plugins::AbstractPlugin> component) {
-                                component->initialize(context()->pluginLoader());
-                                auto name = component->getName();
-                                std::unique_lock guard{_serviceMutex};
-                                _services.active.emplace(std::move(name), std::move(component));
-                            },
-                            component);
-                        names.emplace_back(name);
-                    } else {
-                        // TODO: track unloadable components
-                    }
+                names.reserve(recipes.size());
+                for(const auto &recipe : recipes) {
+                    names.emplace_back(recipe.componentName);
                 }
-
-                startComponents(std::move(names));
+                runLifecyclesToCompletion(std::move(names));
             },
             runOrder->values());
 
+        // verify all requested components are running
         std::shared_lock guard{_serviceMutex};
         auto result =
             std::all_of(components.begin(), components.end(), [this](const std::string &name) {

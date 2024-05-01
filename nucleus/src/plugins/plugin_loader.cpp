@@ -205,7 +205,12 @@ namespace plugins {
         // For every recipe found, add to the recipe list
         if(ext == ".yaml" || ext == ".yml" || ext == ".json") {
             try {
-                return deployment::RecipeLoader{}.read(entry);
+                // TODO: move component config behavior into deployment manager
+                auto recipe = deployment::RecipeLoader{}.read(entry);
+                auto serviceTopic =
+                    context()->configManager().lookupTopics({SERVICES, recipe.componentName});
+                serviceTopic->put("recipePath", entry.path().generic_string());
+                return recipe;
             } catch(const std::exception &e) {
                 LOG.atError()
                     .cause(e)

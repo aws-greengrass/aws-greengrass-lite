@@ -328,6 +328,8 @@ namespace lifecycle {
         auto &loader = context()->pluginLoader();
         loader.setPaths(getPaths());
         loader.setDeviceConfiguration(_deviceConfiguration);
+
+        // TODO: use deploymentManager to do this
         auto components = loader.discoverComponents();
 
         std::vector<std::string> names;
@@ -337,17 +339,6 @@ namespace lifecycle {
         }
         auto future = _lifecycleManager->runComponents(names);
         future.get();
-
-        std::filesystem::last_write_time("/home/").time_since_epoch().count();
-        auto startupTopic = getConfig().lookupTopics(
-            {"services", _deviceConfiguration->getNucleusComponentName(), "deplyOnStartup"});
-
-        if(std::filesystem::path deploymentPath = startupTopic->lookup({"path"}).getString();
-           !deploymentPath.empty() && std::filesystem::exists(deploymentPath)) {
-            if(config::Timestamp{std::filesystem::last_write_time(deploymentPath)}
-               > startupTopic->lookup({"lastModified"}).getModTime()) {
-            }
-        }
 
         // Block this thread until termination (TODO: improve on this somehow)
         _mainPromise->waitUntil(tasks::ExpireTime::infinite());
