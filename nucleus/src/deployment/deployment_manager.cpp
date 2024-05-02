@@ -329,6 +329,65 @@ namespace deployment {
             .log("Successfully deployed the component!");
     }
 
+    void DeploymentManager::ManageConfigDeployment(std::filesystem::path deploymentPath) {
+        DeploymentDocFile doc;
+        data::archive::readFromFile(deploymentPath, doc);
+
+        auto componentMap = doc.rootComponentVersionsToAdd.value();
+
+        auto recipeDirSource = doc.recipeDirectoryPath.value();
+        auto artifactsDirSource =doc.artifactsDirectoryPath.value();
+
+        std::error_code ec{};
+        auto iter = std::filesystem::directory_iterator(recipeDirSource, ec);
+        if(ec != std::error_code{}) {
+            LOG.atError()
+                .event("recipe-load-failure")
+                .kv("message", ec.message())
+                .logAndThrow(std::filesystem::filesystem_error{ec.message(), recipeDirSource, ec});
+        }
+        std::filesystem::path artifactsDir;
+        for(const auto &entry : iter) {
+            if(!entry.is_directory()) {
+                Recipe recipe = loadRecipeFile(entry);
+
+                saveRecipeFile(recipe);
+                auto semVer = recipe.componentName + "-v" + recipe.componentVersion;
+                const std::hash<std::string> hasher;
+                auto hashValue = hasher(semVer); // TODO: Digest hashing algorithm
+
+                auto saveRecipeName =
+                    std::to_string(hashValue) + "@" + recipe.componentVersion + ".recipe.yml";
+                auto saveRecipeDst = _kernel.getPaths()->componentStorePath() / "recipes"
+                                     / recipe.componentName / recipe.componentVersion
+                                     / saveRecipeName;
+
+                artifactsDir = _kernel.getPaths()->componentStorePath() / "artifacts"
+                               / recipe.componentName / recipe.componentVersion;
+
+                if(!std::filesystem::exists(artifactsDir)) {
+                    std::filesystem::create_directories(artifactsDir);
+                }
+                auto artifactPath = std::filesystem::path{artifactsDir} / recipe.componentName
+                                    / recipe.componentVersion;
+                std::filesystem::copy(
+                    artifactsDirSource,
+                    artifactsDir,
+                    std::filesystem::copy_options::recursive
+                        | std::filesystem::copy_options::overwrite_existing);
+
+                std::filesystem::copy_file(
+                    entry, saveRecipeDst, std::filesystem::copy_options::overwrite_existing);
+
+                auto serviceTopic = _kernel.getConfig().lookupTopics(
+                    {"services", "com.greegrass.sample-component"});
+                serviceTopic->put("recipePath", saveRecipeDst.generic_string());
+            }
+        }
+
+
+    }
+
     ggapi::ObjHandle DeploymentManager::createDeploymentHandler(
         ggapi::Symbol, const ggapi::Container &deploymentContainer) {
 
