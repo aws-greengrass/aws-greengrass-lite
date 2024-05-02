@@ -30,7 +30,7 @@ namespace interfaces::ipc_auth_info {
         }
 
     private:
-        ggapi::Symbol _serviceName{"serviceName"};
+        inline static const ggapi::Symbol _serviceName{"serviceName"};
     };
 
     /**
