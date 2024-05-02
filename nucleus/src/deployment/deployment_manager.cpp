@@ -354,6 +354,8 @@ namespace deployment {
                 .kv("message", ec.message())
                 .logAndThrow(std::filesystem::filesystem_error{ec.message(), recipeDirSource, ec});
         }
+
+        //TODO:: Refactor to reuse the local functions
         std::filesystem::path artifactsDir;
         for(const auto &entry : iter) {
             if(!entry.is_directory()) {
