@@ -332,11 +332,19 @@ namespace deployment {
     void DeploymentManager::ManageConfigDeployment(std::filesystem::path deploymentPath) {
         DeploymentDocFile doc;
         data::archive::readFromFile(deploymentPath, doc);
-
-        auto componentMap = doc.rootComponentVersionsToAdd.value();
+        std::map<std::string,std::string> componentMap;
+        if(doc.rootComponentVersionsToAdd.has_value()) {
+            componentMap = doc.rootComponentVersionsToAdd.value();
+        } else {
+            std::string errorMessage = "Component's name and version is not provided";
+            LOG.atError()
+                .event("Deployment Doc parse error....")
+                .kv("message", errorMessage)
+                .logAndThrow(errors::InvalidContainerError{errorMessage});
+        }
 
         auto recipeDirSource = doc.recipeDirectoryPath.value();
-        auto artifactsDirSource =doc.artifactsDirectoryPath.value();
+        auto artifactsDirSource = doc.artifactsDirectoryPath.value();
 
         std::error_code ec{};
         auto iter = std::filesystem::directory_iterator(recipeDirSource, ec);
@@ -356,12 +364,18 @@ namespace deployment {
                 const std::hash<std::string> hasher;
                 auto hashValue = hasher(semVer); // TODO: Digest hashing algorithm
 
+                // Save the recipe
                 auto saveRecipeName =
                     std::to_string(hashValue) + "@" + recipe.componentVersion + ".recipe.yml";
                 auto saveRecipeDst = _kernel.getPaths()->componentStorePath() / "recipes"
                                      / recipe.componentName / recipe.componentVersion
                                      / saveRecipeName;
 
+                std::filesystem::copy_file(
+                    entry, saveRecipeDst, std::filesystem::copy_options::overwrite_existing);
+
+                // Save artifacts
+                auto currentArtifactsDirSource = artifactsDirSource + "/" + recipe.componentName + "/" +recipe.componentVersion;
                 artifactsDir = _kernel.getPaths()->componentStorePath() / "artifacts"
                                / recipe.componentName / recipe.componentVersion;
 
@@ -371,21 +385,17 @@ namespace deployment {
                 auto artifactPath = std::filesystem::path{artifactsDir} / recipe.componentName
                                     / recipe.componentVersion;
                 std::filesystem::copy(
-                    artifactsDirSource,
+                    currentArtifactsDirSource,
                     artifactsDir,
                     std::filesystem::copy_options::recursive
                         | std::filesystem::copy_options::overwrite_existing);
 
-                std::filesystem::copy_file(
-                    entry, saveRecipeDst, std::filesystem::copy_options::overwrite_existing);
-
+                // Put the name of the componet in the config
                 auto serviceTopic = _kernel.getConfig().lookupTopics(
-                    {"services", "com.greegrass.sample-component"});
+                    {"services", recipe.componentName});
                 serviceTopic->put("recipePath", saveRecipeDst.generic_string());
             }
         }
-
-
     }
 
     ggapi::ObjHandle DeploymentManager::createDeploymentHandler(

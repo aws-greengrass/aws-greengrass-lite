@@ -348,7 +348,7 @@ namespace lifecycle {
         //TODO:: TEST ONLY REMOVE
         auto sampleConfigForTest = getConfig().lookupTopics(
             {"services", "com.greegrass.sample-component"});
-        
+
         std::cout << sampleConfigForTest->lookup({"recipePath"}).getString() <<std::endl;
         std::cout << deploymentTopic->lookup({"lastModifiedTime"}).getString() <<std::endl;
 
