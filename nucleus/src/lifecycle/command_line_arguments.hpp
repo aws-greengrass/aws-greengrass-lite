@@ -150,4 +150,4 @@ namespace lifecycle {
     constexpr auto makeArgumentValue(HandlerFn &&fn, A &&...a) noexcept {
         return ArgumentValue<T, HandlerFn>{std::forward<HandlerFn>(fn), std::forward<A>(a)...};
     }
-}; // namespace lifecycle
+} // namespace lifecycle
