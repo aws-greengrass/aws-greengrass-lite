@@ -5,7 +5,7 @@
 #include <string>
 #include <utility>
 
-enum class ResourceLookupPolicy { STANDARD, MQTT_STYLE };
+enum class ResourceLookupPolicy { STANDARD, MQTT_STYLE, UNKNOWN };
 
 /**
  * A Wildcard trie node which contains properties to identify the Node and a map of all it's
@@ -48,35 +48,49 @@ public:
         }
         return nullChar;
     };
+
+    /**
+     * Add allowed resources for a particular operation.
+     * - A new node is created for every occurrence of a wildcard (*, #, +).
+     * - Only nodes with valid usage of wildcards are marked with isWildcard or isMQTTWildcard.
+     * - Any other characters are grouped together to form a node.
+     * - Just a '*' or '#' creates a Node setting matchAll to true and would match all resources
+     *
+     * @param subject resource pattern
+     */
     void add(const std::string &subject) {
+        // 
+        if(subject.empty()) {
+            return;
+        }
         if(subject == GLOBAL_WILDCARD) {
-            if(auto it = _children.find(GLOBAL_WILDCARD); it != _children.end()) {
-                it->second->_matchAll = true;
-                it->second->_isTerminal = true;
-                it->second->_isMQTTWildcard = true;
-            }
+            _children[GLOBAL_WILDCARD] = std::make_shared<WildcardTrie>();
+            auto initial = _children[GLOBAL_WILDCARD];
+            initial->_matchAll = true;
+            initial->_isTerminal = true;
+            initial->_isWildcard = true;
             return;
         }
         if(subject == MQTT_MULTILEVEL_WILDCARD) {
-            if(auto it = _children.find(MQTT_MULTILEVEL_WILDCARD); it != _children.end()) {
-                it->second->_matchAll = true;
-                it->second->_isTerminal = true;
-                it->second->_isMQTTWildcard = true;
-            }
+            _children[MQTT_MULTILEVEL_WILDCARD] = std::make_shared<WildcardTrie>();
+            auto initial = _children[MQTT_MULTILEVEL_WILDCARD];
+            initial->_matchAll = true;
+            initial->_isTerminal = true;
+            initial->_isMQTTWildcard = true;
             return;
         }
         if(subject == MQTT_SINGLELEVEL_WILDCARD) {
-            if(auto it = _children.find(MQTT_SINGLELEVEL_WILDCARD); it != _children.end()) {
-                it->second->_isTerminal = true;
-                it->second->_isMQTTWildcard = true;
-            }
+            _children[MQTT_SINGLELEVEL_WILDCARD] = std::make_shared<WildcardTrie>();
+            auto initial = _children[MQTT_SINGLELEVEL_WILDCARD];
+            initial->_isTerminal = true;
+            initial->_isMQTTWildcard = true;
             return;
         }
         if(subject.rfind(MQTT_SINGLELEVEL_SEPARATOR, 0) == 0) {
-            if(auto it = _children.find(MQTT_SINGLELEVEL_WILDCARD); it != _children.end()) {
-                it->second->_isMQTTWildcard = true;
-                it->second->add(subject.substr(1), true);
-            }
+            _children[MQTT_SINGLELEVEL_WILDCARD] = std::make_shared<WildcardTrie>();
+            auto initial = _children[MQTT_SINGLELEVEL_WILDCARD];
+            initial->_isMQTTWildcard = true;
+            initial->add(subject.substr(1), true);
             return;
         }
 

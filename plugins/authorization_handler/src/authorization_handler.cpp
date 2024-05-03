@@ -5,6 +5,8 @@
 
 static const auto LOG = ggapi::Logger::of("authorization_handler");
 
+const AuthorizationHandler::Keys AuthorizationHandler::keys{};
+
 ggapi::Promise AuthorizationHandler::checkAuthorized(
     ggapi::Symbol, const ggapi::Container &callData) {
     return ggapi::Promise::create().async(
@@ -14,33 +16,41 @@ ggapi::Promise AuthorizationHandler::checkAuthorized(
 void AuthorizationHandler::checkAuthorizedAsync(
     const ggapi::Struct &callData, ggapi::Promise promise) {
     promise.fulfill([&]() {
-        auto destination = callData.get<std::string>("destination");
-        auto principal = callData.get<std::string>("principal");
-        auto operation = callData.get<std::string>("operation");
-        auto resource = callData.get<std::string>("resource");
-        auto resourceType = callData.get<std::string>("resourceType");
+        // Invoke the isAuthorized function using the lpc call meta data received in the callData
+        // struct. Lpc operations can optionally check if their caller is authorized to make such a
+        // request using this meta data.
+        auto destination = callData.get<std::string>(keys.destination);
+        auto principal = callData.get<std::string>(keys.principal);
+        auto operation = callData.get<std::string>(keys.operation);
+        auto resource = callData.get<std::string>(keys.resource);
+        auto resourceType = callData.get<std::string>(keys.resourceType);
 
         bool success;
         try {
-            auto resourceTypeSelection = ResourceLookupPolicy::STANDARD;
-            if(resourceType == "MQTT") {
+            auto resourceTypeSelection = ResourceLookupPolicy::UNKNOWN;
+            if(resourceType == keys.MQTT.toString()) {
                 resourceTypeSelection = ResourceLookupPolicy::MQTT_STYLE;
+            } else if(resourceType.empty()) {
+                resourceTypeSelection = ResourceLookupPolicy::STANDARD;
+            } else {
+                throw ggapi::GgApiError(
+                    "ggapi::AuthorizationException",
+                    "Unknown resource type exception: " + resourceType);
             }
-            success =
-                isAuthorized(destination, principal, operation, resource, resourceTypeSelection);
+            Permission permission = Permission(principal, operation, resource);
+            success = isAuthorized(destination, permission, resourceTypeSelection);
         } catch(const AuthorizationException &e) {
             throw ggapi::GgApiError("ggapi::AuthorizationException", e.what());
         }
 
         LOG.atDebug().event("Check Authorized Status").log("Completed checking if authorized");
-        if(success) {
-            return ggapi::Struct::create();
-        } else {
+        if(!success) {
             throw ggapi::GgApiError(
                 "ggapi::AuthorizationException",
                 "Principal " + principal + " is not authorized to perform " + destination + ":"
                     + operation + " on resource " + resource);
         }
+        return ggapi::Struct::create();
     });
 }
 
@@ -76,7 +86,7 @@ void AuthorizationHandler::onStart(ggapi::Struct data) {
 
 bool AuthorizationHandler::checkAuthZListenerStart() {
     _requestAuthZSub = ggapi::Subscription::subscribeToTopic(
-        ggapi::Symbol{"aws.greengrass.checkAuthorized"},
+        keys.checkAuthorizationTopic,
         ggapi::TopicCallback::of(&AuthorizationHandler::checkAuthorized, this));
 
     return true;
@@ -84,10 +94,12 @@ bool AuthorizationHandler::checkAuthZListenerStart() {
 
 bool AuthorizationHandler::isAuthorized(
     std::string destination,
-    std::string principal,
-    std::string operation,
-    std::string resource,
+    Permission permission,
     ResourceLookupPolicy resourceLookupPolicy) {
+
+    std::string principal = permission.principal;
+    std::string operation = permission.operation;
+    std::string resource = permission.resource;
 
     // service name to be lower case
     std::transform(principal.begin(), principal.end(), principal.begin(), [](unsigned char c) {
@@ -102,19 +114,23 @@ bool AuthorizationHandler::isAuthorized(
     };
     try {
         for(auto combination : combinations) {
-            Permission permission = Permission(combination[1], combination[2], combination[3]);
-            if(_authModule->isPresent(combination[0], permission, resourceLookupPolicy)) {
+            // Lookup all possible allow configurations starting from most specific to least
+            // This helps for access logs, as customer can figure out which policy is being hit.
+            // Check each specified combination of provided data, and '*' for lpc calling component
+            // and lpc operation.
+            Permission newPermission = Permission(combination[1], combination[2], combination[3]);
+            if(_authModule->isPresent(combination[0], newPermission, resourceLookupPolicy)) {
                 LOG.atDebug().log(
                     "Hit policy with principal " + combination[1] + ",  operation " + combination[2]
                     + ", resource " + combination[3]);
                 return true;
             }
         }
+        throw AuthorizationException("Principal " + principal + " is not authorized to perform " + destination + ":"
+            + operation + " on resource " + resource);
     } catch(const AuthorizationException &e) {
         LOG.atError().log(e.what());
-        throw AuthorizationException(
-            "Principal " + principal + " is not authorized to perform " + destination + ":"
-            + operation + " on resource " + resource);
+        throw AuthorizationException(e.what());
     }
     return false;
 }
@@ -123,6 +139,9 @@ void AuthorizationHandler::loadAuthorizationPolicies(
     const std::string &componentName,
     const std::vector<AuthorizationPolicy> &policies,
     bool isUpdate) {
+    // load parsed authorization policies into the authorization module. isUpdate is for when a
+    // (future) watcher sees an update to an access control block of a service, and needs to re-run
+    // the loading. False on startup.
     if(policies.empty()) {
         return;
     }

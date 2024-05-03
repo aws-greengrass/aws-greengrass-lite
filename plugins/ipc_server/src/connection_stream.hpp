@@ -92,6 +92,14 @@ namespace ipc_server {
             return "IPC::" + _operation;
         }
 
+        [[nodiscard]] std::string lpcMetaTopic() const {
+            return "IPC:META::" + _operation;
+        }
+
+        [[nodiscard]] std::string lpcAuthTopic() const {
+            return "aws.greengrass.checkAuthorized";
+        }
+
         [[nodiscard]] std::string ipcServiceModel() const {
             return _operation + "Response";
         }

@@ -4,6 +4,8 @@
 
 void AuthorizationModule::addPermission(
     const std::string &destination, const Permission &permission) {
+    // update the permission map with a new access control block policy permission for a specific
+    // lpc method destination.
     if(destination.empty() || permission.principal.empty() || permission.operation.empty()) {
         throw AuthorizationException("Invalid arguments");
     }
@@ -25,6 +27,7 @@ void AuthorizationModule::addPermission(
 }
 
 void AuthorizationModule::validateResource(const std::string &resource) {
+    // resource must be of correct formatting characters else, we will throw an exception
     if(resource.empty()) {
         throw AuthorizationException("Resource cannot be empty");
     }

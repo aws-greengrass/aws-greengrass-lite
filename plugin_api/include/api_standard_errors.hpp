@@ -31,6 +31,20 @@ namespace ggapi {
     };
 
     /**
+     * Unauthorized Error - e.g. IPC authorization was denied
+     * Naming is based on IPC operations.
+     */
+    class UnauthorizedError : public GgApiError {
+    public:
+        inline static const auto KIND = ggapi::Symbol("ggapi::UnauthorizedError");
+
+        explicit UnauthorizedError(
+            const std::string &what = "Unauthorized to perform this IPC operation") noexcept
+            : GgApiError(KIND, what) {
+        }
+    };
+
+    /**
      * Operation is unsupported (e.g. IPC operation)
      * Naming is based on IPC operations.
      */

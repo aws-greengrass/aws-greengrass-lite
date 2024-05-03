@@ -121,9 +121,46 @@ namespace ipc_server {
                 structData.put(keys.serviceModelType, header.toString());
             }
         }
+
+        // Get LPC call meta data needed to make an authorization check
+        auto future = ggapi::Subscription::callTopicFirst(lpcMetaTopic(), content);
+        if(!future) {
+            LOG.atDebug("getLpcMetaFailed").log("No lpc meta data handler for "s + lpcMetaTopic());
+            future = ggapi::Promise::create().setValue(ggapi::Struct::create()).toFuture();
+        } else {
+            future = future.andThen([](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
+                nextPromise.fulfill([&prevFuture]() {
+                    return ggapi::Struct(prevFuture.waitAndGetValue());
+                });
+            });
+            auto resp = ggapi::Struct(future.getValue());
+            auto request{ggapi::Struct::create()};
+            request.put("destination", resp.get<std::string>("destination"));
+            request.put("principal", "testComponent");
+            request.put("operation", operation());
+            request.put("resource", resp.get<std::string>("resource"));
+            request.put("resourceType", resp.get<std::string>("resourceType"));
+
+            future = ggapi::Subscription::callTopicFirst(lpcAuthTopic(), request);
+            if(!future) {
+                throw ggapi::UnauthorizedError(
+                    "No authorization check handler for " + lpcAuthTopic());
+            }
+            future.andThen([](ggapi::Promise authPromise, const ggapi::Future &completedAuthFuture) {
+                authPromise.fulfill([&completedAuthFuture]() {
+                    try {
+                        std::ignore = completedAuthFuture.waitAndGetValue();
+                    } catch(ggapi::GgApiError &err) {
+                        throw ggapi::UnauthorizedError(err.what());
+                    }
+                    return ggapi::Struct::create();
+                });
+            });
+        }
+
         // TODO: Right now we're passing payload and dropping all the headers
         // Need to restructure in a similar way as the return message
-        auto future = ggapi::Subscription::callTopicFirst(lpcTopic(), content);
+        future = ggapi::Subscription::callTopicFirst(lpcTopic(), content);
         if(!future) {
             throw ggapi::UnsupportedOperationError("No handler for "s + lpcTopic());
         }

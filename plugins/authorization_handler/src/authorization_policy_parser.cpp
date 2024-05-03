@@ -28,6 +28,10 @@ AuthorizationPolicyParser::parseAllAuthorizationPolicies(const ggapi::Struct &co
         // For now this parses it as all lower case.
         const auto &componentName = serviceKey;
 
+        if(!service.hasKey("configuration") || !service.isStruct("configuration")) {
+            continue;
+        }
+
         auto configurationStruct = service.get<ggapi::Struct>("configuration");
         if(configurationStruct.empty()) {
             continue;
@@ -36,6 +40,11 @@ AuthorizationPolicyParser::parseAllAuthorizationPolicies(const ggapi::Struct &co
         // TODO: accessControl block may need to be injected from gen_components / plugins
         // currently directly in nucleus_config, plugins only have "logging" in configurations
         // struct
+        if(!configurationStruct.hasKey("accessControl")
+           || !configurationStruct.isStruct("accessControl")) {
+            continue;
+        }
+
         auto accessControlStruct = configurationStruct.get<ggapi::Struct>("accessControl");
         if(accessControlStruct.empty()) {
             continue;

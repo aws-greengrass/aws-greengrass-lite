@@ -10,13 +10,3 @@ ComponentDependencies:
   local.plugins.discovered.iot_broker:
     VersionRequirement: ">=0.1.0"
     DependencyType: HARD
-ComponentConfiguration:
-  DefaultConfiguration:
-    accessControl:
-      aws.greengrass.ipc.pubsub:
-        "local.plugins.discovered.fleet_status_service:pubsub:1":
-          policyDescription: Allows access to publish to topic.
-          operations:
-            - "aws.greengrass#PublishToTopic"
-          resources:
-            - "$aws/things/*/greengrassv2/health/json"

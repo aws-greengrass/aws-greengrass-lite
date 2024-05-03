@@ -12,10 +12,22 @@
 class AuthorizationModule;
 
 class AuthorizationHandler : public ggapi::Plugin {
+
+    struct Keys {
+        ggapi::Symbol checkAuthorizationTopic{"aws.greengrass.checkAuthorized"};
+        ggapi::Symbol destination{"destination"};
+        ggapi::Symbol principal{"principal"};
+        ggapi::Symbol operation{"operation"};
+        ggapi::Symbol resource{"resource"};
+        ggapi::Symbol resourceType{"resourceType"};
+        ggapi::Symbol MQTT{"MQTT"};
+    };
+
     ggapi::Subscription _requestAuthZSub;
 
 private:
     mutable std::shared_mutex _mutex;
+    static const Keys keys;
     ggapi::Struct _configRoot;
 
     std::unique_ptr<AuthorizationModule> _authModule;
@@ -25,12 +37,10 @@ private:
     // std::unordered_map<std::string, std::vector<AuthorizationPolicy>> getDefaultPolicies();
     bool checkAuthZListenerStart();
     ggapi::Promise checkAuthorized(ggapi::Symbol, const ggapi::Container &callData);
-    void checkAuthorizedAsync(const ggapi::Struct &, ggapi::Promise promise);
+    void checkAuthorizedAsync(const ggapi::Struct &callData, ggapi::Promise promise);
     bool isAuthorized(
         std::string destination,
-        std::string principal,
-        std::string operation,
-        std::string resource,
+        Permission permission,
         ResourceLookupPolicy resourceLookupPolicy);
     void loadAuthorizationPolicies(
         const std::string &componentName,
