@@ -36,6 +36,10 @@ namespace ipc_server {
         ggapi::Channel _channel{};
         std::atomic<State> _state{State::Begin};
 
+        void ipcMetaCallback(const std::shared_ptr<ConnectionStream> &, const ggapi::Container &content, const ggapi::Future &future) noexcept;
+        void ipcAuthCallback(const std::shared_ptr<ConnectionStream> &, const ggapi::Container &content, const ggapi::Future &future) noexcept;
+        void ipcCallOperation(const ggapi::Container &content);
+
     public:
         ConnectionStream(const ConnectionStream &) = delete;
         ConnectionStream(ConnectionStream &&) = delete;

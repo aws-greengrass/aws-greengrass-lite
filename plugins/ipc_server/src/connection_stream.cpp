@@ -123,47 +123,61 @@ namespace ipc_server {
         }
 
         // Get LPC call meta data needed to make an authorization check
-        auto future = ggapi::Subscription::callTopicFirst(lpcMetaTopic(), content);
-        if(!future) {
-            LOG.atDebug("getLpcMetaFailed").log("No lpc meta data handler for "s + lpcMetaTopic());
-            future = ggapi::Promise::create().setValue(ggapi::Struct::create()).toFuture();
+        auto metaFuture = ggapi::Subscription::callTopicFirst(lpcMetaTopic(), content);
+        if(!metaFuture) {
+            LOG.atDebug("getIpcMetaFailed").log("No IPC meta data handler for "s + lpcMetaTopic());
+            // TODO: SECURITY: Before GA, throw exception instead of lpcCallOperation (all ipc operations need to handle authorization)
+            ipcCallOperation(content);
         } else {
-            future = future.andThen([](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
-                nextPromise.fulfill([&prevFuture]() {
-                    return ggapi::Struct(prevFuture.waitAndGetValue());
-                });
-            });
+            metaFuture.whenValid(&ConnectionStream::ipcMetaCallback, this, baseRef(), content);
+        }
+    }
+
+    void ConnectionStream::ipcMetaCallback(const std::shared_ptr<ConnectionStream> &, const ggapi::Container &content, const ggapi::Future &future) noexcept {
+        try {
             auto metaResp = ggapi::Struct(future.getValue());
             auto request{ggapi::Struct::create()};
-            // TODO: get service name
-            auto serviceName = "testComponent";
+
+            auto conn = connection();
+            if (!conn) {
+                throw ggapi::NotConnectedError();
+            }
+            auto serviceName = conn->getConnectedServiceName();
             request.put("destination", metaResp.get<std::string>("destination"));
             request.put("principal", serviceName);
             request.put("operation", operation());
             request.put("resource", metaResp.get<std::string>("resource"));
             request.put("resourceType", metaResp.get<std::string>("resourceType"));
 
-            future = ggapi::Subscription::callTopicFirst(lpcAuthTopic(), request);
-            if(!future) {
+            auto authFuture = ggapi::Subscription::callTopicFirst(lpcAuthTopic(), request);
+            if(!authFuture) {
                 throw ggapi::UnauthorizedError(
                     "No authorization check handler for " + lpcAuthTopic());
             }
-            future.andThen([](ggapi::Promise authPromise, const ggapi::Future &completedAuthFuture) {
-                authPromise.fulfill([&completedAuthFuture]() {
-                    try {
-                        auto authResp = ggapi::Struct(completedAuthFuture.waitAndGetValue());
-                    } catch(ggapi::GgApiError &err) {
-                        throw ggapi::UnauthorizedError(err.what());
-                    }
-                    return ggapi::Struct::create();
-                });
-            });
+            authFuture.whenValid(&ConnectionStream::ipcAuthCallback, this, baseRef(), content);
+        } catch(...) {
+            auto err = ggapi::GgApiError::of(std::current_exception());
+            LOG.atError("ipcMetaFailed").logError(err);
+            sendErrorMessage(err);
         }
+    }
 
+    void ConnectionStream::ipcAuthCallback(const std::shared_ptr<ConnectionStream> &, const ggapi::Container &content, const ggapi::Future &future) noexcept {
+        try {
+            auto authResp = ggapi::Struct(future.getValue());
+            ipcCallOperation(content);
+        } catch(...) {
+            auto err = ggapi::GgApiError::of(std::current_exception());
+            LOG.atError("ipcAuthFailed").logError(err);
+            sendErrorMessage(err);
+        }
+    }
+
+    void ConnectionStream::ipcCallOperation(const ggapi::Container &content) {
         // TODO: Right now we're passing payload and dropping all the headers
         // Need to restructure in a similar way as the return message
-        future = ggapi::Subscription::callTopicFirst(lpcTopic(), content);
-        if(!future) {
+        auto opFuture = ggapi::Subscription::callTopicFirst(lpcTopic(), content);
+        if(!opFuture) {
             throw ggapi::UnsupportedOperationError("No handler for "s + lpcTopic());
         }
         auto expected = State::Command;
@@ -171,7 +185,7 @@ namespace ipc_server {
             throw ggapi::UnsupportedOperationError(
                 "Illegal internal state: "s + std::to_string(static_cast<int>(expected)));
         }
-        future.whenValid(&ConnectionStream::firstResponseAsync, this, baseRef());
+        opFuture.whenValid(&ConnectionStream::firstResponseAsync, this, baseRef());
     }
 
     void ConnectionStream::firstResponseAsync(

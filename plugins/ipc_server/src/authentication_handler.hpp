@@ -49,5 +49,6 @@ namespace ipc_server {
         bool authenticateRequest(const Token &authToken) const;
         void revokeService(const std::string &serviceName);
         void revokeToken(const Token &token);
+        std::string retrieveServiceName(const std::string &token);
     };
 } // namespace ipc_server

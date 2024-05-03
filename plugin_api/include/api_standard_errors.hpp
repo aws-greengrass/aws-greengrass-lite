@@ -45,6 +45,19 @@ namespace ggapi {
     };
 
     /**
+     * NotConnection Error - e.g. IPC connection was not connected
+     */
+    class NotConnectedError : public GgApiError {
+    public:
+        inline static const auto KIND = ggapi::Symbol("ggapi::NotConnectedError");
+
+        explicit NotConnectedError(
+            const std::string &what = "Error when grabbing the IPC connection") noexcept
+            : GgApiError(KIND, what) {
+        }
+    };
+
+    /**
      * Operation is unsupported (e.g. IPC operation)
      * Naming is based on IPC operations.
      */

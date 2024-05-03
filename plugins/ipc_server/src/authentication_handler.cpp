@@ -59,4 +59,15 @@ namespace ipc_server {
             _tokenMap.erase(found);
         }
     }
+
+    std::string AuthenticationHandler::retrieveServiceName(const std::string &tokenStr) {
+        std::unique_lock guard{_mutex};
+        auto token = Token{tokenStr};
+        auto found = _tokenMap.find(token);
+        std::string serviceName;
+        if(found != _tokenMap.cend()) {
+            serviceName = found->second;
+        }
+        return serviceName;
+    }
 } // namespace ipc_server
