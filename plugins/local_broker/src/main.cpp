@@ -23,7 +23,7 @@ struct Keys {
     ggapi::StringOrd shape{"shape"};
     ggapi::StringOrd serviceModelType{"serviceModelType"};
     ggapi::StringOrd terminate{"terminate"};
-    ggapi::StringOrd serviceName{"aws.greengrass.ipc.pubsub"};
+    ggapi::StringOrd ipcServiceName{"aws.greengrass.ipc.pubsub"};
 };
 
 static const Keys keys;
@@ -128,7 +128,7 @@ ggapi::ObjHandle LocalBroker::getAuthZMetaData(ggapi::Symbol, const ggapi::Conta
 
     auto topic = callData.get<std::string>("topic");
     return ggapi::Struct::create()
-        .put(keys.destination, keys.serviceName.toString())
+        .put(keys.destination, keys.ipcServiceName.toString())
         .put(keys.resource, topic);
 }
 

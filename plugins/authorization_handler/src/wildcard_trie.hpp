@@ -59,7 +59,6 @@ public:
      * @param subject resource pattern
      */
     void add(const std::string &subject) {
-        // 
         if(subject.empty()) {
             return;
         }

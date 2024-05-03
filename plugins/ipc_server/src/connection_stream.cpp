@@ -133,13 +133,15 @@ namespace ipc_server {
                     return ggapi::Struct(prevFuture.waitAndGetValue());
                 });
             });
-            auto resp = ggapi::Struct(future.getValue());
+            auto metaResp = ggapi::Struct(future.getValue());
             auto request{ggapi::Struct::create()};
-            request.put("destination", resp.get<std::string>("destination"));
-            request.put("principal", "testComponent");
+            // TODO: get service name
+            auto serviceName = "testComponent";
+            request.put("destination", metaResp.get<std::string>("destination"));
+            request.put("principal", serviceName);
             request.put("operation", operation());
-            request.put("resource", resp.get<std::string>("resource"));
-            request.put("resourceType", resp.get<std::string>("resourceType"));
+            request.put("resource", metaResp.get<std::string>("resource"));
+            request.put("resourceType", metaResp.get<std::string>("resourceType"));
 
             future = ggapi::Subscription::callTopicFirst(lpcAuthTopic(), request);
             if(!future) {
@@ -149,7 +151,7 @@ namespace ipc_server {
             future.andThen([](ggapi::Promise authPromise, const ggapi::Future &completedAuthFuture) {
                 authPromise.fulfill([&completedAuthFuture]() {
                     try {
-                        std::ignore = completedAuthFuture.waitAndGetValue();
+                        auto authResp = ggapi::Struct(completedAuthFuture.waitAndGetValue());
                     } catch(ggapi::GgApiError &err) {
                         throw ggapi::UnauthorizedError(err.what());
                     }
