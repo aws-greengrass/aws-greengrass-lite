@@ -369,8 +369,9 @@ namespace deployment {
                 // Save the recipe
                 auto saveRecipeName =
                     std::to_string(hashValue) + "@" + recipe.componentVersion + ".recipe.yml";
-                auto saveRecipeDst = _kernel.getPaths()->componentStorePath() / "recipes"
-                                     / recipe.componentName / recipe.componentVersion
+
+                //TODO:: Fix the lifecycle Kernel to use packages folder for loading generic components
+                auto saveRecipeDst = _kernel.getPaths()->pluginRecipePath()
                                      / saveRecipeName;
 
                 std::filesystem::copy_file(
