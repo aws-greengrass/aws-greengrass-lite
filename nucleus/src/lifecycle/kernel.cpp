@@ -331,19 +331,23 @@ namespace lifecycle {
         auto deploymentTopic = getConfig().lookupTopics(
             {"services", nucleusConfigString, "configuration", "deploymentOnStart"});
         std::filesystem::path pathValue = deploymentTopic->lookup({"path"}).getString();
-        auto lastModified = deploymentTopic->lookup({"lastModifiedTime"}).getInt();
-
-        if(std::isnan(lastModified)) {
-            lastModified = 0;
-        }
-        auto lastWriteTime = std::filesystem::last_write_time(pathValue).time_since_epoch();
-        auto positiveDuration = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::seconds>(lastWriteTime).count());
 
         if(!pathValue.empty()) {
-            if(std::filesystem::exists(pathValue)) {
-                if(positiveDuration > lastModified) {
-                    _deploymentManager->ManageConfigDeployment(pathValue);
-                    deploymentTopic->put("lastModifiedTime",positiveDuration);
+            auto lastModified = deploymentTopic->lookup({"lastModifiedTime"}).getInt();
+
+            if(std::isnan(lastModified)) {
+                lastModified = 0;
+            }
+            auto lastWriteTime = std::filesystem::last_write_time(pathValue).time_since_epoch();
+            auto positiveDuration = static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::seconds>(lastWriteTime).count());
+
+            if(!pathValue.empty()) {
+                if(std::filesystem::exists(pathValue)) {
+                    if(positiveDuration > lastModified) {
+                        _deploymentManager->ManageConfigDeployment(pathValue);
+                        deploymentTopic->put("lastModifiedTime", positiveDuration);
+                    }
                 }
             }
         }
