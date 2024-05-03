@@ -329,6 +329,78 @@ namespace deployment {
             .log("Successfully deployed the component!");
     }
 
+    void DeploymentManager::ManageConfigDeployment(std::filesystem::path deploymentPath) {
+        DeploymentDocFile doc;
+        data::archive::readFromFile(deploymentPath, doc);
+        std::map<std::string,std::string> componentMap;
+        if(doc.rootComponentVersionsToAdd.has_value()) {
+            componentMap = doc.rootComponentVersionsToAdd.value();
+        } else {
+            std::string errorMessage = "Component's name and version is not provided";
+            LOG.atError()
+                .event("Deployment Doc parse error....")
+                .kv("message", errorMessage)
+                .logAndThrow(errors::InvalidContainerError{errorMessage});
+        }
+
+        auto recipeDirSource = doc.recipeDirectoryPath.value();
+        auto artifactsDirSource = doc.artifactsDirectoryPath.value();
+
+        std::error_code ec{};
+        auto iter = std::filesystem::directory_iterator(recipeDirSource, ec);
+        if(ec != std::error_code{}) {
+            LOG.atError()
+                .event("recipe-load-failure")
+                .kv("message", ec.message())
+                .logAndThrow(std::filesystem::filesystem_error{ec.message(), recipeDirSource, ec});
+        }
+
+        //TODO:: Refactor to reuse the local functions
+        std::filesystem::path artifactsDir;
+        for(const auto &entry : iter) {
+            if(!entry.is_directory()) {
+                Recipe recipe = loadRecipeFile(entry);
+
+                saveRecipeFile(recipe);
+                auto semVer = recipe.componentName + "-v" + recipe.componentVersion;
+                const std::hash<std::string> hasher;
+                auto hashValue = hasher(semVer); // TODO: Digest hashing algorithm
+
+                // Save the recipe
+                auto saveRecipeName =
+                    std::to_string(hashValue) + "@" + recipe.componentVersion + ".recipe.yml";
+
+                //TODO:: Fix the lifecycle Kernel to use packages folder for loading generic components
+                auto saveRecipeDst = _kernel.getPaths()->pluginRecipePath()
+                                     / saveRecipeName;
+
+                std::filesystem::copy_file(
+                    entry, saveRecipeDst, std::filesystem::copy_options::overwrite_existing);
+
+                // Save artifacts
+                auto currentArtifactsDirSource = artifactsDirSource + "/" + recipe.componentName + "/" +recipe.componentVersion;
+                artifactsDir = _kernel.getPaths()->componentStorePath() / "artifacts"
+                               / recipe.componentName / recipe.componentVersion;
+
+                if(!std::filesystem::exists(artifactsDir)) {
+                    std::filesystem::create_directories(artifactsDir);
+                }
+                auto artifactPath = std::filesystem::path{artifactsDir} / recipe.componentName
+                                    / recipe.componentVersion;
+                std::filesystem::copy(
+                    currentArtifactsDirSource,
+                    artifactsDir,
+                    std::filesystem::copy_options::recursive
+                        | std::filesystem::copy_options::overwrite_existing);
+
+                // Put the name of the componet in the config
+                auto serviceTopic = _kernel.getConfig().lookupTopics(
+                    {"services", recipe.componentName});
+                serviceTopic->put("recipePath", saveRecipeDst.generic_string());
+            }
+        }
+    }
+
     ggapi::ObjHandle DeploymentManager::createDeploymentHandler(
         ggapi::Symbol, const ggapi::Container &deploymentContainer) {
 

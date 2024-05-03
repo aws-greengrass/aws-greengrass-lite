@@ -6,11 +6,8 @@
 #include "deployment/device_configuration.hpp"
 #include "lifecycle/kernel_alternatives.hpp"
 #include "scope/context.hpp"
-#include "tasks/expire_time.hpp"
-#include "tasks/task_threads.hpp"
 #include "util/nucleus_paths.hpp"
 #include <filesystem>
-#include <optional>
 
 namespace pubsub {
     class Promise;
@@ -25,6 +22,7 @@ namespace lifecycle {
     class CommandLine;
     class Kernel;
     class KernelAlternatives;
+    class LifecycleManager;
 
     class RootPathWatcher : public config::Watcher {
         Kernel &_kernel;
@@ -52,6 +50,7 @@ namespace lifecycle {
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfiguration{nullptr};
         std::unique_ptr<KernelAlternatives> _kernelAlts{nullptr};
         std::unique_ptr<deployment::DeploymentManager> _deploymentManager{nullptr};
+        std::unique_ptr<LifecycleManager> _lifecycleManager{};
 
     public:
         explicit Kernel(const scope::UsingContext &context);
@@ -59,7 +58,7 @@ namespace lifecycle {
         Kernel(Kernel &&) = delete;
         Kernel &operator=(const Kernel &) = delete;
         Kernel &operator=(Kernel &&) = delete;
-        ~Kernel() = default;
+        ~Kernel() noexcept;
 
         static constexpr auto SERVICE_TYPE_TOPIC_KEY{"componentType"};
         static constexpr auto SERVICE_TYPE_TO_CLASS_MAP_KEY{"componentTypeToClassMap"};

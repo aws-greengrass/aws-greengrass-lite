@@ -1,18 +1,14 @@
 #pragma once
 
-#include "data/handle_table.hpp"
-#include "data/safe_handle.hpp"
-#include "data/shared_struct.hpp"
+#include "data/struct_model.hpp"
 #include "deployment/recipe_model.hpp"
 #include "scope/context.hpp"
-#include <algorithm>
 #include <atomic>
 #include <cpp_api.hpp>
 #include <filesystem>
-#include <list>
 #include <memory>
-#include <mutex>
 #include <shared_mutex>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -49,20 +45,30 @@ namespace plugins {
     //
     class AbstractPlugin : public data::TrackingScope {
     protected:
-        std::string _moduleName;
-        std::unordered_set<std::string> _dependencies{};
+        deployment::Recipe _recipe;
+
+        static deployment::Recipe recipeFromName(std::string name) {
+            deployment::Recipe recipe;
+            recipe.componentName = std::move(name);
+            return recipe;
+        }
 
     public:
         using BadCastError = errors::InvalidModuleError;
 
+        AbstractPlugin(const scope::UsingContext &context, deployment::Recipe recipe)
+            : TrackingScope(context), _recipe{std::move(recipe)} {
+        }
+        // TODO: TempModules can't create a recipe struct without an existing module...
+        // Should there just be a default Kernel module for Nucleus-scoped objects?
         AbstractPlugin(const scope::UsingContext &context, std::string name)
-            : TrackingScope(context), _moduleName(std::move(name)) {
+            : AbstractPlugin{context, recipeFromName(std::move(name))} {
         }
 
         virtual void callNativeLifecycle(
             const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) = 0;
 
-        void lifecycle(data::Symbol event, const std::shared_ptr<data::StructModelBase> &data);
+        bool lifecycle(data::Symbol event, const std::shared_ptr<data::StructModelBase> &data);
 
         void configure(PluginLoader &loader);
 
@@ -71,11 +77,17 @@ namespace plugins {
         }
 
         [[nodiscard]] const std::string &getName() const noexcept {
-            return _moduleName;
+            return _recipe.componentName;
         }
 
-        const std::unordered_set<std::string> &getDependencies() const noexcept {
-            return _dependencies;
+        std::unordered_set<std::string> getDependencies() const {
+            const auto &dependencies = _recipe.componentDependencies;
+            auto ret = std::unordered_set<std::string>{};
+            ret.reserve(dependencies.size());
+            for(const auto &[k, v] : dependencies) {
+                ret.emplace(k);
+            }
+            return ret;
         }
 
         void invoke(
@@ -83,6 +95,10 @@ namespace plugins {
                 plugins::AbstractPlugin &, const std::shared_ptr<data::StructModelBase> &)> &fn);
 
         void initialize(PluginLoader &loader);
+        void setRecipe(deployment::Recipe recipe) noexcept {
+            _recipe = std::move(recipe);
+        }
+
         PluginLoader &loader();
     };
 
@@ -113,7 +129,7 @@ namespace plugins {
         }
 
         void callNativeLifecycle(
-            const data::Symbol &event, const std::shared_ptr<data::StructModelBase> &data) override;
+            const data::Symbol &phase, const std::shared_ptr<data::StructModelBase> &data) override;
 
         std::shared_ptr<AbstractPlugin> getParent() noexcept {
             return _parent.lock();
@@ -138,8 +154,8 @@ namespace plugins {
         std::atomic<lifecycleFn_t> _lifecycleFn{nullptr};
 
     public:
-        explicit NativePlugin(const scope::UsingContext &context, std::string name)
-            : AbstractPlugin(context, std::move(name)) {
+        explicit NativePlugin(const scope::UsingContext &context, deployment::Recipe recipe)
+            : AbstractPlugin(context, std::move(recipe)) {
         }
 
         NativePlugin(const NativePlugin &) = delete;
@@ -160,12 +176,6 @@ namespace plugins {
     private:
         std::shared_ptr<util::NucleusPaths> _paths;
         data::RootHandle _root;
-        std::unordered_map<std::string, std::shared_ptr<AbstractPlugin>> _all;
-        std::unordered_map<std::string, std::filesystem::path> _recipePaths;
-        std::unordered_map<std::string, std::shared_ptr<AbstractPlugin>> _inactive;
-        std::vector<std::shared_ptr<AbstractPlugin>> _active;
-        std::vector<std::shared_ptr<AbstractPlugin>> _broken;
-        std::vector<deployment::Recipe> _missingLoader;
         std::shared_ptr<deployment::DeviceConfiguration> _deviceConfig;
 
     public:
@@ -235,20 +245,11 @@ namespace plugins {
         std::shared_ptr<data::StructModelBase> buildParams(
             plugins::AbstractPlugin &plugin, bool partial = false) const;
 
-        void discoverPlugins();
-        void discoverPlugin(const std::filesystem::directory_entry &entry);
-        void discoverRecipe(const std::filesystem::directory_entry &entry);
+        std::vector<deployment::Recipe> discoverComponents();
+        std::optional<deployment::Recipe> discoverRecipe(
+            const std::filesystem::directory_entry &entry);
 
-        std::shared_ptr<AbstractPlugin> loadNativePlugin(
-            const std::filesystem::path &path, const std::string &serviceName);
-
-        std::optional<deployment::Recipe> loadRecipe(const AbstractPlugin &plugin) const noexcept;
-
-        void forAllActivePlugins(const std::function<void(
-                                     plugins::AbstractPlugin &,
-                                     const std::shared_ptr<data::StructModelBase> &)> &fn) const;
-
-        std::vector<std::shared_ptr<AbstractPlugin>> processInactiveList();
+        std::shared_ptr<AbstractPlugin> loadNativePlugin(const deployment::Recipe &recipe);
 
         void setDeviceConfiguration(
             const std::shared_ptr<deployment::DeviceConfiguration> &deviceConfig) {
@@ -258,12 +259,6 @@ namespace plugins {
         std::shared_ptr<util::NucleusPaths> getPaths() {
             return _paths;
         }
-
-        std::shared_ptr<AbstractPlugin> loadComponent(
-            const deployment::Recipe &recipe,
-            std::unordered_map<std::string, std::string> const &loaders);
-
-        void updateLoaders(std::unordered_map<std::string, std::string> const &loaders);
     };
 
     /**

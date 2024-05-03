@@ -183,6 +183,25 @@ namespace deployment {
         }
     };
 
+    struct DeploymentDocFile : data::Serializable {
+        std::optional<std::string> serviceModelType;
+        std::optional<std::string> recipeDirectoryPath;
+        std::optional<std::string> artifactsDirectoryPath;
+        std::optional<double> requestTimestamp;
+        std::optional<std::map<std::string, std::string>> rootComponentVersionsToAdd;
+        std::optional<std::string> requestId;
+
+        void visit(data::Archive &archive) override {
+            archive.setIgnoreCase();
+            archive("serviceModelType", serviceModelType);
+            archive("recipeDirectoryPath", recipeDirectoryPath);
+            archive("artifactsDirectoryPath", artifactsDirectoryPath);
+            archive("requestTimestamp", requestTimestamp);
+            archive("rootComponentVersionsToAdd", rootComponentVersionsToAdd);
+            archive("requestId", requestId);
+        }
+    };
+
     struct Platform : data::Serializable {
         // TODO: this should be a simple string:string map
         std::string os;

@@ -1,4 +1,5 @@
 #include "iot_broker.hpp"
+#include <exception>
 
 const auto LOG = ggapi::Logger::of("TES");
 
@@ -48,7 +49,6 @@ void IotBroker::retrieveTokenAsync(const ggapi::Struct &, ggapi::Promise promise
 }
 
 bool IotBroker::tesOnStart(const ggapi::Struct &) {
-    std::shared_lock guard{_mutex};
     // Read the Device credentials
     auto returnValue = false;
     try {
@@ -77,7 +77,6 @@ bool IotBroker::tesOnStart(const ggapi::Struct &) {
             .log();
         std::cerr << "[TES] Error: " << e.what() << std::endl;
     }
-    guard.unlock();
 
     tesRefresh();
 
@@ -101,17 +100,20 @@ void IotBroker::tesRefresh() {
     request.put("caFile", _thingInfo.rootCaPath.c_str());
     request.put("pkeyPath", _thingInfo.keyPath.c_str());
 
-    auto future = ggapi::Subscription::callTopicFirst(
-        ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, request);
-    // TODO: Handle case when resultFuture is empty (no handlers)
-    auto response = ggapi::Struct(future.waitAndGetValue());
+    try {
+        auto future = ggapi::Subscription::callTopicFirst(
+            ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, request);
+        // TODO: Handle case when resultFuture is empty (no handlers)
+        auto response = ggapi::Struct(future.waitAndGetValue());
 
-    std::unique_lock guard{_mutex};
-    _savedToken = response.get<std::string>("Response");
+        _savedToken = response.get<std::string>("Response");
+    } catch(std::exception &e) {
+        // This failing is ok
+        LOG.atInfo().event("TES retrieval failed").kv("ERROR", e.what()).log();
+    }
 }
 
 bool IotBroker::tesOnRun() {
-    std::unique_lock guard{_mutex};
     _requestTestSubs = ggapi::Subscription::subscribeToTopic(
         ggapi::Symbol{"aws.greengrass.requestTES"},
         ggapi::TopicCallback::of(&IotBroker::retrieveToken, this));
