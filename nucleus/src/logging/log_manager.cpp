@@ -360,20 +360,22 @@ namespace logging {
 
     void LogState::rotateLog(std::size_t logBytes) {
         std::string currDateHour = dateHour();
-        auto oldName = getLogPath(false);
+//        if (_lastDateHour.empty()) {
+//            std::string lastWriteTime = currDateHour;
+//            return;
+//        }
 
-        if (_lastDateHour.empty()) {
-            std::string lastWriteTime = lastModifiedTime(std::filesystem::last_write_time(oldName));
-            _lastDateHour = lastWriteTime;
-            std::cout << "-------\n";
-            std::cout << _lastDateHour;
-            std::cout << "\n--------\n";
-            return;
-        }
-        bool rotateForTime = _lastDateHour != currDateHour;
+//        bool rotateForTime = _lastDateHour != currDateHour;
         bool rotateForSize = static_cast<int>(_stream.tellp()) + logBytes > _fileSizeKB * 1024;
 
-        if (rotateForTime || rotateForSize) {
+        if (rotateForSize) {
+            auto oldName = getLogPath(false);
+            if (_lastDateHour.empty()) {
+                std::string lastWriteTime = lastModifiedTime(std::filesystem::last_write_time(oldName));
+                _lastDateHour = lastWriteTime;
+                return;
+            }
+
             std::cout << "inside if: line 367\n";
             // close current file
             syncOutput();
@@ -386,10 +388,11 @@ namespace logging {
             changeOutput();
         }
 
-        if (rotateForTime) {
-            _lastDateHour = currDateHour;
-            _lastFileCounter = 0;
-        } else if (rotateForSize) {
+//        if (rotateForTime) {
+//            _lastDateHour = currDateHour;
+//            _lastFileCounter = 0;
+//        } else
+            if (rotateForSize) {
             std::cout << "inside if for rotateForSize";
             _lastFileCounter++;
         }
