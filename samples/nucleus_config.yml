@@ -12,6 +12,8 @@ services:
       awsRegion: "us-west-2"
       componentStoreMaxSizeBytes: "10000000000"
       deploymentPollingFrequencySeconds: "15"
+      deploymentOnStart:
+        path: "path/to/deploymentDoc.json"
       envStage: "prod"
       fleetStatus:
         periodicStatusPublishIntervalSeconds: 86400
