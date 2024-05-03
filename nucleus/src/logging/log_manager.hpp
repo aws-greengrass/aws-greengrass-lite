@@ -136,6 +136,7 @@ namespace logging {
         void syncOutput();
         void rotateLog(std::size_t);
         std::string dateHour();
+        std::string lastModifiedTime(std::filesystem::file_time_type);
     };
 
     class LogManager : public LogManagerBase<NucleusLoggingTraits>, protected scope::UsesContext {
