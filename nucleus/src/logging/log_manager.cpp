@@ -379,7 +379,6 @@ namespace logging {
         }
 
     }
-    }
 
     std::string LogState::lastModifiedTime(std::filesystem::file_time_type ftime) {
         //C++17 hack to convert file_time to string
