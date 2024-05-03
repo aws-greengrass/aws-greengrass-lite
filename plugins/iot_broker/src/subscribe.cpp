@@ -24,9 +24,10 @@ ggapi::Promise IotBroker::ipcSubscribeHandler(ggapi::Symbol symbol, const ggapi:
                                            keys.payload,
                                            Aws::Crt::Base64Encode(Aws::Crt::Vector<uint8_t>{
                                                payload.begin(), payload.end()}));
-                    return ggapi::Struct::create()
-                        .put(keys.shape, ggapi::Struct::create().put(keys.message, message))
-                        .put(keys.serviceModelType, "aws.greengrass#IoTCoreMessage");
+                    filteredChannel.write(
+                        ggapi::Struct::create()
+                            .put(keys.shape, ggapi::Struct::create().put(keys.message, message))
+                            .put(keys.serviceModelType, "aws.greengrass#IoTCoreMessage"));
                 }));
             return resp;
         });
