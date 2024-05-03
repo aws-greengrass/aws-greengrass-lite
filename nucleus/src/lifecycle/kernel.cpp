@@ -1,6 +1,7 @@
 #include "kernel.hpp"
 #include "command_line.hpp"
 #include "config/yaml_config.hpp"
+#include "deployment/deployment_manager.hpp"
 #include "deployment/device_configuration.hpp"
 #include "deployment/recipe_model.hpp"
 #include "lifecycle/lifecycle_manager.hpp"
@@ -324,6 +325,28 @@ namespace lifecycle {
         // management is implemented.
         //
         _mainPromise = std::make_shared<pubsub::Promise>(context());
+
+        // TODO:: Get the files based on the path within the config
+        auto nucleusConfigString = _deviceConfiguration->getNucleusComponentName();
+        auto deploymentTopic = getConfig().lookupTopics(
+            {"services", nucleusConfigString, "configuration", "deploymentOnStart"});
+        std::filesystem::path pathValue = deploymentTopic->lookup({"path"}).getString();
+        auto lastModified = deploymentTopic->lookup({"lastModifiedTime"}).getInt();
+
+        if(std::isnan(lastModified)) {
+            lastModified = 0;
+        }
+        auto lastWriteTime = std::filesystem::last_write_time(pathValue).time_since_epoch();
+        auto positiveDuration = static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::seconds>(lastWriteTime).count());
+
+        if(!pathValue.empty()) {
+            if(std::filesystem::exists(pathValue)) {
+                if(positiveDuration > lastModified) {
+                    _deploymentManager->ManageConfigDeployment(pathValue);
+                    deploymentTopic->put("lastModifiedTime",positiveDuration);
+                }
+            }
+        }
 
         auto &loader = context()->pluginLoader();
         loader.setPaths(getPaths());

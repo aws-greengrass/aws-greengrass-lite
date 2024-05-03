@@ -1,226 +1,9 @@
 #include "iot_broker.hpp"
-#include "temp_module.hpp"
-#include <algorithm>
-#include <atomic>
-#include <condition_variable>
 #include <cpp_api.hpp>
-#include <ipc_standard_errors.hpp>
 #include <mutex>
-#include <variant>
+#include <temp_module.hpp>
 
-ggapi::Promise IotBroker::ipcPublishHandler(
-    ggapi::Symbol symbol, const ggapi::Container &argsBase) {
-
-    ggapi::Struct args{argsBase};
-
-    // TODO: pretty sure we can detect whether to perform this base64decode
-    // from the json document. It's either bytes (base64) or plaintext
-    {
-        auto decoded = Aws::Crt::Base64Decode(args.get<Aws::Crt::String>(keys.payload));
-        args.put(keys.payload, std::string{decoded.begin(), decoded.end()});
-    }
-    auto promise = publishHandler(symbol, args);
-    return promise.andThen([](ggapi::Promise nextPromise, const ggapi::Future &prevFuture) {
-        nextPromise.fulfill([&]() {
-            auto resp = ggapi::Struct(prevFuture.getValue());
-            return ggapi::Struct::create().put(keys.shape, resp).put(keys.terminate, true);
-        });
-    });
-}
-
-static bool blockingSubscribe(
-    Aws::Crt::Mqtt5::Mqtt5Client &client, std::shared_ptr<Aws::SubscribePacket> subscribeOptions) {
-
-    std::mutex mutex;
-    std::condition_variable barrier;
-    std::atomic_bool success{false};
-
-    auto onSubscribeComplete = [&barrier, &success](
-                                   int error_code,
-                                   const std::shared_ptr<Aws::Crt::Mqtt5::SubAckPacket> &suback) {
-        auto subackReceived = [error_code, &suback]() -> bool {
-            if(error_code != 0) {
-                std::cerr << "[mqtt-plugin] Subscribe failed with error_code: " << error_code
-                          << std::endl;
-                return false;
-            }
-
-            if(suback && !suback->getReasonCodes().empty()) {
-                auto reasonCode = suback->getReasonCodes().front();
-                if(reasonCode
-                   >= Aws::Crt::Mqtt5::SubAckReasonCode::AWS_MQTT5_SARC_UNSPECIFIED_ERROR) {
-                    std::cerr << "[mqtt-plugin] Subscribe rejected with reason code: " << reasonCode
-                              << std::endl;
-                    return false;
-                } else {
-                    std::cerr << "[mqtt-plugin] Subscribe accepted" << std::endl;
-                }
-            }
-
-            return true;
-        };
-
-        if(subackReceived()) {
-            success.store(true, std::memory_order_relaxed);
-        }
-        barrier.notify_one();
-    };
-
-    if(!client.Subscribe(std::move(subscribeOptions), onSubscribeComplete)) {
-        return false;
-    }
-
-    std::unique_lock guard{mutex};
-    barrier.wait(guard);
-    return success.load(std::memory_order_relaxed);
-}
-
-ggapi::Promise IotBroker::ipcSubscribeHandler(ggapi::Symbol, const ggapi::Container &argsBase) {
-    ggapi::Struct args{argsBase};
-
-    // TODO: We can probably remove async() here
-    return ggapi::Promise::create().async(
-        [this](const ggapi::Struct &args, ggapi::Promise promise) {
-            promise.fulfill([&]() {
-                auto ret = commonSubscribeHandler(args, [](ggapi::Struct packet) {
-                    auto payload = packet.get<std::string>(keys.payload);
-                    packet.put(
-                        keys.payload,
-                        Aws::Crt::Base64Encode(
-                            Aws::Crt::Vector<uint8_t>{payload.begin(), payload.end()}));
-                    return ggapi::Struct::create()
-                        .put(keys.shape, ggapi::Struct::create().put(keys.message, packet))
-                        .put(keys.serviceModelType, "aws.greengrass#IoTCoreMessage");
-                });
-
-                if(std::holds_alternative<ggapi::Channel>(ret)) {
-                    return ggapi::Struct::create()
-                        .put(keys.shape, ggapi::Struct::create())
-                        .put(keys.channel, std::get<ggapi::Channel>(ret));
-                }
-
-                // TODO: error handling needs to be addressed in this function
-                throw ggapi::ipc::ServiceError("Subscribe failed");
-            });
-        },
-        args);
-}
-
-ggapi::Promise IotBroker::publishHandler(ggapi::Symbol, const ggapi::Container &args) {
-    // TODO: This can be done with continuations (andThen, whenValid, etc)
-    return ggapi::Promise::create().async(
-        &IotBroker::publishHandlerAsync, this, ggapi::Struct(args));
-}
-
-void IotBroker::publishHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise) {
-    promise.fulfill([&]() {
-        auto topic{args.get<Aws::Crt::String>(keys.topicName)};
-        auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
-        auto payload{args.get<Aws::Crt::String>(keys.payload)};
-
-        std::atomic_bool success = false;
-
-        std::cerr << "[mqtt-plugin] Sending " << payload << " to " << topic << std::endl;
-
-        std::condition_variable barrier{};
-        std::mutex mutex{};
-
-        auto onPublishComplete =
-            [&barrier,
-             &success](int, const std::shared_ptr<Aws::Crt::Mqtt5::PublishResult> &result) {
-                success = [&result]() -> bool {
-                    if(!result->wasSuccessful()) {
-                        std::cerr << "[mqtt-plugin] Publish failed with error_code: "
-                                  << result->getErrorCode() << std::endl;
-                        return false;
-                    }
-
-                    if(auto puback = std::dynamic_pointer_cast<Aws::Crt::Mqtt5::PubAckPacket>(
-                           result->getAck())) {
-                        if(puback->getReasonCode() == 0) {
-                            std::cerr << "[mqtt-plugin] Puback success" << std::endl;
-                        } else {
-                            std::cerr << "[mqtt-plugin] Puback failed: "
-                                      << puback->getReasonString().value() << std::endl;
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }();
-
-                barrier.notify_one();
-            };
-
-        auto publish = std::make_shared<Aws::Crt::Mqtt5::PublishPacket>(
-            std::move(topic), ByteCursorFromString(payload), qos);
-
-        auto response = ggapi::Struct::create();
-
-        if(!_client->Publish(publish, onPublishComplete)) {
-            std::cerr << "[mqtt-plugin] Publish failed" << std::endl;
-        } else {
-            std::unique_lock lock{mutex};
-            barrier.wait(lock);
-        }
-
-        if(success) {
-            return ggapi::Struct::create();
-        } else {
-            // TODO: error handling needs to be addressed in this function
-            throw ggapi::ipc::ServiceError("Publish failed");
-        }
-    });
-}
-
-std::variant<ggapi::Channel, uint32_t> IotBroker::commonSubscribeHandler(
-    const ggapi::Struct &args, PacketHandler handler) {
-
-    TopicFilter topicFilter{args.get<Aws::Crt::String>(keys.topicName)};
-    auto qos{static_cast<Aws::Crt::Mqtt5::QOS>(args.get<int>(keys.qos))};
-
-    std::cerr << "[mqtt-plugin] Subscribing to " << topicFilter.get() << std::endl;
-
-    auto subscribe = std::make_shared<Aws::Crt::Mqtt5::SubscribePacket>();
-    subscribe->WithSubscription(Aws::Crt::Mqtt5::Subscription{topicFilter.get(), qos});
-
-    if(!blockingSubscribe(*_client, std::move(subscribe))) {
-        std::cerr << "[mqtt-plugin] Subscribe failed" << std::endl;
-        return uint32_t{1};
-    } else {
-        std::unique_lock lock(_subscriptionMutex);
-        auto channel = ggapi::Channel::create();
-        _subscriptions.emplace_back(std::move(topicFilter), channel, std::move(handler));
-        channel.addCloseCallback([this, channel]() {
-            std::unique_lock lock(_subscriptionMutex);
-            auto iter =
-                std::find_if(_subscriptions.begin(), _subscriptions.end(), [channel](auto &&sub) {
-                    return std::get<1>(sub) == channel;
-                });
-            std::iter_swap(iter, std::prev(_subscriptions.end()));
-            _subscriptions.pop_back();
-        });
-        return channel;
-    }
-}
-
-ggapi::Promise IotBroker::subscribeHandler(ggapi::Symbol, const ggapi::Container &args) {
-    return ggapi::Promise::create().async(
-        &IotBroker::subscribeHandlerAsync, this, ggapi::Struct(args));
-}
-
-void IotBroker::subscribeHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise) {
-    promise.fulfill([&]() {
-        auto ret = commonSubscribeHandler(args, [](ggapi::Struct packet) { return packet; });
-
-        if(std::holds_alternative<ggapi::Channel>(ret)) {
-            return ggapi::Struct::create().put(keys.channel, std::get<ggapi::Channel>(ret));
-        }
-
-        // TODO: error handling needs to be addressed in this function
-        throw ggapi::ipc::ServiceError("Subscribe failed");
-    });
-}
+const IotBroker::Keys IotBroker::keys{};
 
 void IotBroker::initMqtt() {
     {
@@ -263,14 +46,11 @@ void IotBroker::initMqtt() {
                               << payload << std::endl;
 
                     std::shared_lock lock(_subscriptionMutex);
-                    for(const auto &[filter, channel, packetHandler] : _subscriptions) {
+                    for(const auto &[filter, channel] : _subscriptions) {
                         if(filter.match(topic)) {
-                            auto response{ggapi::Struct::create()};
-                            response.put(keys.topicName, topic);
-                            response.put(keys.payload, payload);
-
-                            auto finalResp = packetHandler(response);
-                            channel.write(finalResp);
+                            channel.write(ggapi::Struct::create()
+                                              .put(keys.topicName, topic)
+                                              .put(keys.payload, payload));
                         }
                     }
                 }
@@ -284,8 +64,6 @@ void IotBroker::initMqtt() {
         throw MqttClientFailedToStart();
 }
 
-const IotBroker::Keys IotBroker::keys{};
-
 /* Lifecycle function implementations */
 
 void IotBroker::onInitialize(ggapi::Struct data) {
@@ -298,65 +76,96 @@ void IotBroker::onInitialize(ggapi::Struct data) {
     _system = data.getValue<ggapi::Struct>({"system"});
 }
 
-void IotBroker::onStart(ggapi::Struct data) {
-    std::cout << "[mqtt-plugin] starting\n";
-    std::shared_lock guard{_mutex};
-    try {
-        auto nucleus = _nucleus;
-        auto system = _system;
+void IotBroker::connectionThread(ggapi::Struct data) {
+    util::TempModule module(getModule());
+    while(true) {
+        try {
+            std::cout << "[mqtt-plugin] starting\n";
+            std::shared_lock guard{_mutex};
+            auto nucleus = _nucleus;
+            auto system = _system;
 
-        _thingInfo.rootPath = system.getValue<std::string>({"rootpath"});
-        _thingInfo.rootCaPath = system.getValue<std::string>({"rootCaPath"});
+            _thingInfo.rootPath = system.getValue<std::string>({"rootpath"});
+            _thingInfo.rootCaPath = system.getValue<std::string>({"rootCaPath"});
 
-        _thingInfo.certPath = system.getValue<std::string>({"certificateFilePath"});
-        _thingInfo.keyPath = system.getValue<std::string>({"privateKeyPath"});
-        _thingInfo.thingName = system.getValue<Aws::Crt::String>({"thingName"});
-        // TODO: Lots of logic here can block onStart - needs to be made async
-        if(_thingInfo.certPath.empty() || _thingInfo.keyPath.empty()
-           || _thingInfo.thingName.empty()) {
-            auto reqData = ggapi::Struct::create();
-            auto respFuture = ggapi::Subscription::callTopicFirst(
-                ggapi::Symbol{keys.requestDeviceProvisionTopic}, reqData);
-            if(!respFuture) {
-                // TODO: replace with better error
-                throw std::runtime_error("Failed to provision device");
+            _thingInfo.certPath = system.getValue<std::string>({"certificateFilePath"});
+            _thingInfo.keyPath = system.getValue<std::string>({"privateKeyPath"});
+            _thingInfo.thingName = system.getValue<Aws::Crt::String>({"thingName"});
+            if(_thingInfo.certPath.empty() || _thingInfo.keyPath.empty()
+               || _thingInfo.thingName.empty()) {
+                auto reqData = ggapi::Struct::create();
+                auto respFuture = ggapi::Subscription::callTopicFirst(
+                    ggapi::Symbol{keys.requestDeviceProvisionTopic}, reqData);
+                if(!respFuture) {
+                    // TODO: replace with better error
+                    throw std::runtime_error("Failed to provision device");
+                }
+                auto respData = ggapi::Struct{respFuture.waitAndGetValue()};
+                _thingInfo.thingName = respData.get<Aws::Crt::String>("thingName");
+                _thingInfo.keyPath = respData.get<std::string>("keyPath");
+                _thingInfo.certPath = respData.get<std::string>("certPath");
             }
-            // TODO: This should not block onStart
-            auto respData = ggapi::Struct{respFuture.waitAndGetValue()};
-            _thingInfo.thingName = respData.get<Aws::Crt::String>("thingName");
-            _thingInfo.keyPath = respData.get<std::string>("keyPath");
-            _thingInfo.certPath = respData.get<std::string>("certPath");
+
+            // TODO: Note, reference of the module name will be done by Nucleus, this is
+            // temporary.
+            _thingInfo.credEndpoint =
+                nucleus.getValue<std::string>({"configuration", "iotCredEndpoint"});
+            _thingInfo.dataEndpoint =
+                nucleus.getValue<std::string>({"configuration", "iotDataEndpoint"});
+            initMqtt();
+            if(!_worker.joinable()) {
+                _worker = std::thread{&IotBroker::queueWorker, this};
+            }
+
+            // Fetch the initial token from TES
+            // TODO: This should not be blocking
+            tesOnStart(data);
+            tesOnRun();
+        } catch(const std::exception &e) {
+            // TODO: Log and add backoff
+            std::cerr << "[mqtt-plugin] Error: " << e.what() << std::endl;
+            _client.reset();
+            continue;
+        } catch(...) {
+            std::cerr << "[mqtt-plugin] Unknown exception." << std::endl;
+            _client.reset();
+            continue;
         }
-
-        // TODO: Note, reference of the module name will be done by Nucleus, this is temporary.
-        _thingInfo.credEndpoint =
-            nucleus.getValue<std::string>({"configuration", "iotCredEndpoint"});
-        _thingInfo.dataEndpoint =
-            nucleus.getValue<std::string>({"configuration", "iotDataEndpoint"});
-        initMqtt();
-        _publishSubs = ggapi::Subscription::subscribeToTopic(
-            keys.publishToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::publishHandler, this));
-        _ipcPublishSubs = ggapi::Subscription::subscribeToTopic(
-            keys.ipcPublishToIoTCoreTopic,
-            ggapi::TopicCallback::of(&IotBroker::ipcPublishHandler, this));
-        _subscribeSubs = ggapi::Subscription::subscribeToTopic(
-            keys.subscribeToIoTCoreTopic,
-            ggapi::TopicCallback::of(&IotBroker::subscribeHandler, this));
-        _ipcSubscribeSubs = ggapi::Subscription::subscribeToTopic(
-            keys.ipcSubscribeToIoTCoreTopic,
-            ggapi::TopicCallback::of(&IotBroker::ipcSubscribeHandler, this));
-    } catch(const std::exception &e) {
-        std::cerr << "[mqtt-plugin] Error: " << e.what() << std::endl;
+        break;
     }
-    guard.unlock();
+}
 
-    // Fetch the initial token from TES
-    // TODO: This should not be blocking
-    tesOnStart(data);
-    tesOnRun();
+void IotBroker::onStart(ggapi::Struct data) {
+    _publishSubs = ggapi::Subscription::subscribeToTopic(
+        keys.publishToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::publishHandler, this));
+    _ipcPublishSubs = ggapi::Subscription::subscribeToTopic(
+        keys.ipcPublishToIoTCoreTopic,
+        ggapi::TopicCallback::of(&IotBroker::ipcPublishHandler, this));
+    _subscribeSubs = ggapi::Subscription::subscribeToTopic(
+        keys.subscribeToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::subscribeHandler, this));
+    _ipcSubscribeSubs = ggapi::Subscription::subscribeToTopic(
+        keys.ipcSubscribeToIoTCoreTopic,
+        ggapi::TopicCallback::of(&IotBroker::ipcSubscribeHandler, this));
+    _conn = std::thread{&IotBroker::connectionThread, this, data};
 }
 
 void IotBroker::onStop(ggapi::Struct structData) {
     // TODO: Cleanly stop thread and clean up listeners
     std::cout << "[mqtt-plugin] stopping\n";
+}
+
+void IotBroker::queueWorker() {
+    util::TempModule module(getModule());
+    while(true) {
+        auto task = _queue.pop();
+        auto event{task.get<std::string>("event")};
+        auto promise{task.get<ggapi::Promise>("promise")};
+        auto data{task.get<ggapi::Struct>("data")};
+
+        if(event == "publish") {
+            publishHandlerAsync(data, promise);
+        } else if(event == "subscribe") {
+            subscribeHandlerAsync(data, promise);
+        }
+    }
 }
