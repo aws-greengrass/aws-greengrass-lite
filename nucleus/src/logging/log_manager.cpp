@@ -295,9 +295,6 @@ namespace logging {
             baseName += suffix.str();
         }
         baseName += LOG_EXTENSION;
-        std::cout << "suffix is ";
-        std::cout << baseName;
-        std::cout << "\n";
         return _outputDirectory / baseName;
     }
 
@@ -335,8 +332,6 @@ namespace logging {
         const FormatEnum::ConstType<Format::Json> &) {
 
         auto buffer = data->toJson();
-
-        std::cout << "before rotate method: line 334";
         rotateLog(sizeof(buffer)); // rotate file if needed
 
         stream() << buffer << "\n"; // intentionally not endl - data not flushed immediately
@@ -352,20 +347,12 @@ namespace logging {
         // For now, just dump the JSON
         auto buffer = data->toJson();
 
-        std::cout << "before rotate method; line 350\n";
         rotateLog(sizeof(buffer)); // rotate file if needed
 
         stream() << buffer << "\n";
     }
 
     void LogState::rotateLog(std::size_t logBytes) {
-        std::string currDateHour = dateHour();
-//        if (_lastDateHour.empty()) {
-//            std::string lastWriteTime = currDateHour;
-//            return;
-//        }
-
-//        bool rotateForTime = _lastDateHour != currDateHour;
         bool rotateForSize = static_cast<int>(_stream.tellp()) + logBytes > _fileSizeKB * 1024;
 
         if (rotateForSize) {
@@ -376,7 +363,6 @@ namespace logging {
                 return;
             }
 
-            std::cout << "inside if: line 367\n";
             // close current file
             syncOutput();
             _stream.close();
@@ -388,38 +374,15 @@ namespace logging {
             changeOutput();
         }
 
-//        if (rotateForTime) {
-//            _lastDateHour = currDateHour;
-//            _lastFileCounter = 0;
-//        } else
             if (rotateForSize) {
-            std::cout << "inside if for rotateForSize";
             _lastFileCounter++;
         }
 
     }
-
-    std::string LogState::dateHour() {
-        std::time_t t = std::time(0);
-        std::tm* now = std::localtime(&t);
-        std::ostringstream oss;
-        oss << std::put_time(now, "%Y_%m_%d_%H");
-        auto dateHourStr = oss.str();
-        return dateHourStr;
     }
 
     std::string LogState::lastModifiedTime(std::filesystem::file_time_type ftime) {
-        // std::time_t cftime = decltype(ftime)::clock::to_time_t(ftime);
-        // time_t last_write_time = std::chrono::system_clock::to_time_t(std::chrono::utc_clock::to_sys(std::chrono::file_clock::to_utc(ftime));
-//        auto cftime = std::chrono::system_clock::to_time_t(std::chrono::file_clock::to_sys(ftime));
-//        std::time_t t = std::asctime(std::localtime(&cftime))
-//        std::tm* now = std::filesystem::file_time_type::clock::now();
-//        std::ostringstream oss;
-//        oss << std::put_time(now, "%Y_%m_%d_%H");
-//        auto lastWriteStr = oss.str();
-//        return lastWriteStr;
-
-
+        //C++17 hack to convert file_time to string
         auto sctp = time_point_cast<system_clock::duration>(
             ftime - std::filesystem::file_time_type::clock::now()+ system_clock::now());
 
