@@ -2,6 +2,7 @@
 #include <cpp_api.hpp>
 #include <ipc_standard_errors.hpp>
 #include <string>
+#include <temp_module.hpp>
 
 ggapi::Promise IotBroker::ipcSubscribeHandler(ggapi::Symbol symbol, const ggapi::Container &args) {
     auto promise = subscribeHandler(symbol, args);
@@ -56,6 +57,7 @@ void IotBroker::subscribeHandlerAsync(const ggapi::Struct &args, ggapi::Promise 
             [this, promise, topicFilter](
                 int error_code,
                 const std::shared_ptr<Aws::Crt::Mqtt5::SubAckPacket> &suback) mutable {
+                util::TempModule module(getModule());
                 promise.fulfill([&]() {
                     if(error_code != 0) {
                         std::cerr << "[mqtt-plugin] Subscribe failed with error_code: "
