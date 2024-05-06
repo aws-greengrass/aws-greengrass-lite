@@ -357,6 +357,8 @@ void LogManager::processLogsAndUpload() {
     logEventsBody.SetObject();
     logEventsBody.AddMember("logStreamName", logStreamName, logEventsBody.GetAllocator());
     logEventsBody.AddMember("logGroupName", logGroupName, logEventsBody.GetAllocator());
+    // TODO: Ensure that the batch of log events satisfies all requirements of the API here:
+    // https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
     logEventsBody.AddMember("logEvents", logEvents, logEventsBody.GetAllocator());
 
     rapidjson::Document createLogGroupBody;
