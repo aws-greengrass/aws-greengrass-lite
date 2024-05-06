@@ -52,8 +52,9 @@ void IotBroker::publishHandlerAsync(const ggapi::Struct &args, ggapi::Promise pr
         std::mutex mutex{};
 
         auto onPublishComplete =
-            [&barrier,
-             &success](int, const std::shared_ptr<Aws::Crt::Mqtt5::PublishResult> &result) {
+            [this, &barrier, &success](
+                int, const std::shared_ptr<Aws::Crt::Mqtt5::PublishResult> &result) {
+                util::TempModule module(getModule());
                 success = [&result]() -> bool {
                     if(!result->wasSuccessful()) {
                         std::cerr << "[mqtt-plugin] Publish failed with error_code: "
