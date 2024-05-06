@@ -36,7 +36,11 @@ void AuthorizationModule::validateResource(const std::string &resource) {
         auto currentChar = resource[i];
         if(currentChar == WildcardTrie::escapeChar && i + 1 < length && resource[i + 1] == '{') {
             auto actualChar = WildcardTrie::getActualChar(resource.substr(i));
-            if(actualChar == WildcardTrie::nullChar || !isSpecialChar(actualChar)) {
+            if(actualChar == WildcardTrie::nullChar
+               || !(
+                   actualChar == WildcardTrie::wildcardChar
+                   || actualChar == WildcardTrie::escapeChar
+                   || actualChar == WildcardTrie::singleCharWildcard)) {
                 throw AuthorizationException(
                     "Resource contains an invalid escape sequence. You can use *, $, or ?");
             }
@@ -49,12 +53,6 @@ void AuthorizationModule::validateResource(const std::string &resource) {
                 "'?' character isn't supported as a wildcard");
         }
     }
-}
-
-bool AuthorizationModule::isSpecialChar(char actualChar) {
-    return (
-        actualChar == WildcardTrie::wildcardChar || actualChar == WildcardTrie::escapeChar
-        || actualChar == WildcardTrie::singleCharWildcard);
 }
 
 void AuthorizationModule::deletePermissionsWithDestination(const std::string &destination) {

@@ -5,6 +5,8 @@
 #include <string>
 #include <utility>
 
+#include <string_util.hpp>
+
 enum class ResourceLookupPolicy { STANDARD, MQTT_STYLE, UNKNOWN };
 
 /**
@@ -142,7 +144,7 @@ public:
                 if(str == terminalKey) {
                     return true;
                 }
-                if(endsWith(str, terminalKey)) {
+                if(util::endsWith(str, terminalKey)) {
                     key = terminalKey;
                 }
             }
@@ -337,9 +339,5 @@ private:
         current = current->_children[ss];
         current->_isTerminal |= isTerminal;
         return current;
-    };
-    static bool endsWith(const std::string &str, const std::string &suffix) {
-        return str.size() >= suffix.size()
-               && str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
     };
 };

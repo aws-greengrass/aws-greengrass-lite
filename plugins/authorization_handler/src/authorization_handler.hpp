@@ -23,6 +23,13 @@ class AuthorizationHandler : public ggapi::Plugin {
         ggapi::Symbol MQTT{"MQTT"};
     };
 
+    struct Combination {
+        std::string destination;
+        std::string principal;
+        std::string operation;
+        std::string resource;
+    };
+
     ggapi::Subscription _requestAuthZSub;
 
 private:

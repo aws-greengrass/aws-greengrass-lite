@@ -2,6 +2,7 @@
 
 #include <logging.hpp>
 #include <plugin.hpp>
+#include <string_util.hpp>
 
 static const auto LOG = ggapi::Logger::of("authorization_handler");
 
@@ -102,11 +103,9 @@ bool AuthorizationHandler::isAuthorized(
     std::string resource = permission.resource;
 
     // service name to be lower case
-    std::transform(principal.begin(), principal.end(), principal.begin(), [](unsigned char c) {
-        return std::tolower(c);
-    });
+    principal = util::lower(principal);
 
-    std::vector<std::vector<std::string>> combinations = {
+    std::vector<Combination> combinations = {
         {destination, principal, operation, resource},
         {destination, principal, AuthorizationModule::ANY_REGEX, resource},
         {destination, AuthorizationModule::ANY_REGEX, operation, resource},
@@ -118,11 +117,11 @@ bool AuthorizationHandler::isAuthorized(
             // This helps for access logs, as customer can figure out which policy is being hit.
             // Check each specified combination of provided data, and '*' for lpc calling component
             // and lpc operation.
-            Permission newPermission = Permission(combination[1], combination[2], combination[3]);
-            if(_authModule->isPresent(combination[0], newPermission, resourceLookupPolicy)) {
+            Permission newPermission = Permission(combination.principal, combination.operation, combination.resource);
+            if(_authModule->isPresent(combination.destination, newPermission, resourceLookupPolicy)) {
                 LOG.atDebug().log(
-                    "Hit policy with principal " + combination[1] + ",  operation " + combination[2]
-                    + ", resource " + combination[3]);
+                    "Hit policy with principal " + combination.principal + ",  operation " + combination.operation
+                    + ", resource " + combination.resource);
                 return true;
             }
         }

@@ -39,7 +39,6 @@ private:
         const std::string &destination,
         const std::string &principal,
         const std::string &operation);
-    static bool isSpecialChar(char actualChar);
 };
 
 class AuthorizationException : public ggapi::GgApiError {
