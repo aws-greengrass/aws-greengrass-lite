@@ -8,51 +8,54 @@
 #include <unordered_map>
 #include <vector>
 
-class AuthorizationPolicy {
+namespace authorization {
 
-public:
-    std::string policyId;
-    std::string policyDescription;
-    std::vector<std::string> principals{};
-    std::vector<std::string> operations{};
-    std::vector<std::string> resources{};
-    explicit AuthorizationPolicy(
-        std::string policyId,
-        std::string policyDescription,
-        std::vector<std::string> principals,
-        std::vector<std::string> operations,
-        std::vector<std::string> resources)
-        : policyId(std::move(policyId)), policyDescription(std::move(policyDescription)),
-          principals(std::move(principals)), operations(std::move(operations)),
-          resources(std::move(resources)){};
-};
+    class AuthorizationPolicy {
 
-struct AuthorizationPolicyConfig : ggapi::Serializable {
-public:
-    std::vector<std::string> operations;
-    std::string policyDescription;
-    std::vector<std::string> resources;
+    public:
+        std::string policyId;
+        std::string policyDescription;
+        std::vector<std::string> principals{};
+        std::vector<std::string> operations{};
+        std::vector<std::string> resources{};
+        explicit AuthorizationPolicy(
+            std::string policyId,
+            std::string policyDescription,
+            std::vector<std::string> principals,
+            std::vector<std::string> operations,
+            std::vector<std::string> resources)
+            : policyId(std::move(policyId)), policyDescription(std::move(policyDescription)),
+              principals(std::move(principals)), operations(std::move(operations)),
+              resources(std::move(resources)){};
+    };
 
-    void visit(ggapi::Archive &archive) override {
-        archive.setIgnoreCase();
-        archive("operations", operations);
-        archive("policyDescription", policyDescription);
-        archive("resources", resources);
-    }
-};
+    struct AuthorizationPolicyConfig : ggapi::Serializable {
+    public:
+        std::vector<std::string> operations;
+        std::string policyDescription;
+        std::vector<std::string> resources;
 
-class AuthorizationPolicyParser {
-public:
-    explicit AuthorizationPolicyParser();
-    [[nodiscard]] static std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
-    parseAllAuthorizationPolicies(const ggapi::Struct &configRoot);
+        void visit(ggapi::Archive &archive) override {
+            archive.setIgnoreCase();
+            archive("operations", operations);
+            archive("policyDescription", policyDescription);
+            archive("resources", resources);
+        }
+    };
 
-private:
-    static std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
-    parseAllPoliciesForComponent(
-        const ggapi::Struct &accessControlStruct, const std::string &sourceComponent);
+    class AuthorizationPolicyParser {
+    public:
+        explicit AuthorizationPolicyParser();
+        [[nodiscard]] static std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
+        parseAllAuthorizationPolicies(const ggapi::Struct &configRoot);
 
-    static std::vector<AuthorizationPolicy> parseAuthorizationPolicyConfig(
-        const std::string &componentName,
-        const std::unordered_map<std::string, AuthorizationPolicyConfig> &accessControlConfig);
-};
+    private:
+        static std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
+        parseAllPoliciesForComponent(
+            const ggapi::Struct &accessControlStruct, const std::string &sourceComponent);
+
+        static std::vector<AuthorizationPolicy> parseAuthorizationPolicyConfig(
+            const std::string &componentName,
+            const std::unordered_map<std::string, AuthorizationPolicyConfig> &accessControlConfig);
+    };
+} // namespace authorization

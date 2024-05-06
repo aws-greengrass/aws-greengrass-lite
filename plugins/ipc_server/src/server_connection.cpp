@@ -109,10 +109,10 @@ namespace ipc_server {
                         auto msg = Message::ofError(
                             "Unrecognized Message type: value: "
                             + std::to_string(
-                                    static_cast<
-                                        std::underlying_type_t<aws_event_stream_rpc_message_type>>(
-                                        message_args->message_type))
-                                + " is not recognized as a valid request path.");
+                                static_cast<
+                                    std::underlying_type_t<aws_event_stream_rpc_message_type>>(
+                                    message_args->message_type))
+                            + " is not recognized as a valid request path.");
                         msg.setTerminateStream();
                         sendProtocolMessage(msg);
                 }
@@ -306,7 +306,7 @@ namespace ipc_server {
     std::string ServerConnection::getServiceNameFromToken(const std::string &authToken) {
         auto authHandler = IpcServer::getAuthHandler();
         std::string serviceName;
-        if (authHandler) {
+        if(authHandler) {
             serviceName = authHandler->retrieveServiceName(authToken);
         }
         return serviceName;

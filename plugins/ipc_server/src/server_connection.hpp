@@ -33,6 +33,7 @@ namespace ipc_server {
         std::string _connectedServiceName;
         // std::atomic_flag would fit in C++20, but not C++17
         std::atomic<bool> _authenticated{false};
+
     private:
         std::string getServiceNameFromToken(const std::string &token);
 
