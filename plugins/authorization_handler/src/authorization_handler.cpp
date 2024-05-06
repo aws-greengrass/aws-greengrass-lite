@@ -37,18 +37,18 @@ namespace authorization {
                     resourceTypeSelection = ResourceLookupPolicy::STANDARD;
                 } else {
                     throw ggapi::GgApiError(
-                        authExceptionSymb, "Unknown resource type exception: " + resourceType);
+                        authExceptionSymbol, "Unknown resource type exception: " + resourceType);
                 }
                 Permission permission = Permission(principal, operation, resource);
                 success = isAuthorized(destination, permission, resourceTypeSelection);
             } catch(const AuthorizationException &e) {
-                throw ggapi::GgApiError(authExceptionSymb, e.what());
+                throw ggapi::GgApiError(authExceptionSymbol, e.what());
             }
 
             LOG.atDebug().event("Check Authorized Status").log("Completed checking if authorized");
             if(!success) {
                 throw ggapi::GgApiError(
-                    authExceptionSymb,
+                    authExceptionSymbol,
                     "Principal " + principal + " is not authorized to perform " + destination + ":"
                         + operation + " on resource " + resource);
             }

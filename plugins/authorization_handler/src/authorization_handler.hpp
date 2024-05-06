@@ -15,7 +15,7 @@ namespace authorization {
 
     class AuthorizationHandler : public ggapi::Plugin {
 
-        ggapi::Symbol authExceptionSymb{"AuthorizationException"};
+        ggapi::Symbol authExceptionSymbol{"AuthorizationException"};
 
         struct Keys {
             ggapi::Symbol checkAuthorizationTopic{"aws.greengrass.checkAuthorized"};
