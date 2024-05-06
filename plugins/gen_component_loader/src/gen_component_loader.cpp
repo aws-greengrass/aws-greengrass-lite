@@ -6,7 +6,6 @@
 #include <gg_pal/process.hpp>
 #include <handles.hpp>
 #include <memory>
-#include <mutex>
 #include <regex>
 #include <scopes.hpp>
 #include <string>
@@ -27,11 +26,11 @@ void GenComponentDelegate::lifecycleCallback(
     self->lifecycle(event, std::move(data));
 }
 
-ggapi::ModuleScope GenComponentDelegate::registerComponent(ggapi::ModuleScope &moduleScope ) {
+ggapi::ModuleScope GenComponentDelegate::registerComponent(ggapi::ModuleScope &moduleScope) {
     // baseRef() enables the class to be able to point to itself
     auto callback =
         ggapi::LifecycleCallback::of(&GenComponentDelegate::lifecycleCallback, baseRef());
-    auto module = moduleScope.registerPlugin(_name,callback);
+    auto module = moduleScope.registerPlugin(_name, callback);
     return module;
 }
 
@@ -112,7 +111,7 @@ gg_pal::Process GenComponentDelegate::startProcess(
 
     // Here the scope for GenComponentDelagate isn't passed within the Startable
     // Hence a weak self pointing variable is required
-    auto weak_self = std::weak_ptr(ref<GenComponentDelegate>());
+    auto weak_self = weak_from_this();
 
     gg_pal::EnvironmentMap envExt{
         {"PATH", getEnvVar("PATH")},
@@ -379,10 +378,11 @@ void GenComponentDelegate::onInitialize(ggapi::Struct data) {
     _nucleusConfig = data.getValue<ggapi::Struct>({"nucleus"});
     _systemConfig = data.getValue<ggapi::Struct>({"system"});
 
-    //TODO: Use nucleus's global config to parse this information
-    // auto compConfig =
-    //     _recipeAsStruct.get<ggapi::Struct>(_recipeAsStruct.foldKey("ComponentConfiguration"));
-    // auto _defaultConfig = compConfig.get<ggapi::Struct>(compConfig.foldKey("DefaultConfiguration"));
+    // TODO: Use nucleus's global config to parse this information
+    //  auto compConfig =
+    //      _recipeAsStruct.get<ggapi::Struct>(_recipeAsStruct.foldKey("ComponentConfiguration"));
+    //  auto _defaultConfig =
+    //  compConfig.get<ggapi::Struct>(compConfig.foldKey("DefaultConfiguration"));
 
     ggapi::Archive::transform<ggapi::ContainerDearchiver>(_lifecycle, _lifecycleAsStruct);
 
@@ -417,6 +417,7 @@ ggapi::ObjHandle GenComponentLoader::registerGenComponent(
     auto newModule = std::make_shared<GenComponentDelegate>(data);
 
     // TODO:
+    std::ignore = this;
     ggapi::Struct returnData = ggapi::Struct::create();
 
     auto tmpScope = getModule();
@@ -437,16 +438,4 @@ void GenComponentLoader::onInitialize(ggapi::Struct data) {
     _delegateComponentSubscription = ggapi::Subscription::subscribeToTopic(
         ggapi::Symbol{"componentType::aws.greengrass.generic"},
         ggapi::TopicCallback::of(&GenComponentLoader::registerGenComponent, this));
-
-    // TODO:Uncomment when kernel is ready with subscription
-    //  Notify nucleus that this plugin supports loading generic components
-    //  auto request{ggapi::Struct::create()};
-    //  request.put("componentSupportType", "aws.greengrass.generic");
-    //  request.put("componentSupportTopic", "componentType::aws.greengrass.generic");
-    //  auto future =
-    //      ggapi::Subscription::callTopicFirst(ggapi::Symbol{"aws.greengrass.componentType"},
-    //      request);
-    //  if(future.isValid()){
-    //      auto response = ggapi::Struct(future.waitAndGetValue());
-    //  }
 }

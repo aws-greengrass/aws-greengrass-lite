@@ -7,19 +7,19 @@ namespace util {
     namespace auto_release_impl {
         template<typename ResourceT>
         struct BasicTraits {
-            [[nodiscard]] static bool isValid(const ResourceT &item) {
+            [[nodiscard]] static bool isValid(const ResourceT &item) noexcept {
                 return static_cast<bool>(item);
             }
-            [[nodiscard]] static ResourceT empty() {
+            [[nodiscard]] static ResourceT empty() noexcept {
                 return ResourceT{};
             }
         };
         template<typename ResourceT>
         struct PtrTraits {
-            [[nodiscard]] static bool isValid(const ResourceT &item) {
+            [[nodiscard]] static bool isValid(const ResourceT &item) noexcept {
                 return item != nullptr;
             }
-            [[nodiscard]] static ResourceT empty() {
+            [[nodiscard]] static ResourceT empty() noexcept {
                 return nullptr;
             }
         };
@@ -69,7 +69,7 @@ namespace util {
             _lambda = lambda;
         }
 
-        void set(ResourceType resource) {
+        void set(ResourceType resource) noexcept {
             release();
             _resource = std::move(resource);
         }
@@ -83,19 +83,19 @@ namespace util {
             _resource = Traits::empty();
         }
 
-        [[nodiscard]] ResourceType &get() {
+        [[nodiscard]] ResourceType &get() noexcept {
             return _resource;
         }
 
-        [[nodiscard]] const ResourceType &get() const {
+        [[nodiscard]] const ResourceType &get() const noexcept {
             return _resource;
         }
 
-        [[nodiscard]] explicit operator bool() const {
+        [[nodiscard]] explicit operator bool() const noexcept {
             return Traits::isValid(_resource);
         }
 
-        [[nodiscard]] bool operator!() const {
+        [[nodiscard]] bool operator!() const noexcept {
             return !Traits::isValid(_resource);
         }
     };

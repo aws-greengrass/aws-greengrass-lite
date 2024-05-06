@@ -51,6 +51,7 @@ namespace deployment {
 
     public:
         explicit DeploymentManager(const scope::UsingContext &, lifecycle::Kernel &kernel);
+        void ManageConfigDeployment(std::filesystem::path deploymentPath);
         void start();
         void listen(const ggapi::ModuleScope &module);
         void stop();

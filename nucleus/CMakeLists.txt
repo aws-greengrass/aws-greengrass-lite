@@ -109,6 +109,8 @@ add_library(
   src/lifecycle/kernel.hpp
   src/lifecycle/lifecycle_fsm.cpp
   src/lifecycle/lifecycle_fsm.hpp
+  src/lifecycle/lifecycle_manager.cpp
+  src/lifecycle/lifecycle_manager.hpp
   src/lifecycle/scripting.cpp
   src/lifecycle/scripting.hpp
   src/lifecycle/kernel_alternatives.cpp
@@ -224,6 +226,7 @@ if(BUILD_TESTING)
     tests/lifecycle/lifecycle_tests.cpp
     tests/pubsub/basic_pubsub_tests.cpp
     tests/scope/context_tests.cpp
+    tests/tasks/expire_time_tests.cpp
     tests/tasks/task_tests.cpp
     tests/test_ggroot.hpp
     tests/test_tools.hpp)

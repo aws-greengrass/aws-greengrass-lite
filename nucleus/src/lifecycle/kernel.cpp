@@ -1,8 +1,10 @@
 #include "kernel.hpp"
 #include "command_line.hpp"
 #include "config/yaml_config.hpp"
+#include "deployment/deployment_manager.hpp"
 #include "deployment/device_configuration.hpp"
-#include "lifecycle/component_loader_listener.hpp"
+#include "deployment/recipe_model.hpp"
+#include "lifecycle/lifecycle_manager.hpp"
 #include "logging/log_queue.hpp"
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
@@ -21,12 +23,15 @@ namespace lifecycle {
     // from both. Also, some functionality from KernelCommandLine is moved here.
     //
 
-    Kernel::Kernel(const scope::UsingContext &context) : scope::UsesContext(context) {
+    Kernel::Kernel(const scope::UsingContext &context)
+        : scope::UsesContext(context),
+          _lifecycleManager(std::make_unique<LifecycleManager>(context, *this)) {
         _nucleusPaths = std::make_shared<util::NucleusPaths>();
-        _deploymentManager =
-            std::make_unique<deployment::DeploymentManager>(scope::context(), *this);
+        _deploymentManager = std::make_unique<deployment::DeploymentManager>(context, *this);
         data::SymbolInit::init(context, {&SERVICES_TOPIC_KEY});
     }
+
+    Kernel::~Kernel() noexcept = default;
 
     //
     // GG-Interop:
@@ -321,52 +326,49 @@ namespace lifecycle {
         //
         _mainPromise = std::make_shared<pubsub::Promise>(context());
 
+        // TODO:: Get the files based on the path within the config
+        auto nucleusConfigString = _deviceConfiguration->getNucleusComponentName();
+        auto deploymentTopic = getConfig().lookupTopics(
+            {"services", nucleusConfigString, "configuration", "deploymentOnStart"});
+        std::filesystem::path depDocPath = deploymentTopic->lookup({"path"}).getString();
+
+        if(!depDocPath.empty()) {
+            auto lastModified = deploymentTopic->lookup({"lastModifiedTime"}).getInt();
+
+            if(std::isnan(lastModified)) {
+                lastModified = 0;
+            }
+            auto lastWriteTime = std::filesystem::last_write_time(depDocPath).time_since_epoch();
+            auto positiveDuration = static_cast<uint64_t>(
+                std::chrono::duration_cast<std::chrono::seconds>(lastWriteTime).count());
+
+            if(std::filesystem::exists(depDocPath)) {
+                if(positiveDuration > lastModified) {
+                    _deploymentManager->ManageConfigDeployment(depDocPath);
+                    deploymentTopic->put("lastModifiedTime", positiveDuration);
+                }
+            }
+        }
+
         auto &loader = context()->pluginLoader();
         loader.setPaths(getPaths());
         loader.setDeviceConfiguration(_deviceConfiguration);
-        loader.discoverPlugins();
 
-        using namespace std::string_view_literals;
-        auto callback = std::make_shared<kernel::ComponentLoaderListener>(context());
-        std::shared_ptr<pubsub::Listener> subs1{
-            context()->lpcTopics().subscribe(SERVICE_LOADER_TOPIC_KEY, callback)};
-        auto runningSet = loader.processInactiveList();
-        for(;;) {
-            if(runningSet.empty()) {
-                break;
-            }
+        // TODO: use deploymentManager to do this
+        auto components = loader.discoverComponents();
 
-            auto sz = runningSet.size();
-
-            for(auto &&plugin : runningSet) {
-                plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
-                    plugin.lifecycle(loader.INITIALIZE, data);
-                });
-            }
-
-            for(auto &&plugin : runningSet) {
-                plugin->invoke([&](plugins::AbstractPlugin &plugin, auto &data) {
-                    plugin.lifecycle(loader.START, data);
-                });
-            }
-
-            if(callback->hasNewLoader()) {
-                auto loaders = callback->getLoaders();
-                loader.updateLoaders(loaders);
-            }
-
-            runningSet = loader.processInactiveList();
-            if(sz == runningSet.size()) {
-                break;
-            }
+        std::vector<std::string> names;
+        names.reserve(components.size());
+        for(const auto &recipe : components) {
+            names.emplace_back(recipe.componentName);
         }
+        auto future = _lifecycleManager->runComponents(names);
+        future.get();
 
         // Block this thread until termination (TODO: improve on this somehow)
         _mainPromise->waitUntil(tasks::ExpireTime::infinite());
 
-        loader.forAllActivePlugins([&](plugins::AbstractPlugin &plugin, auto &data) {
-            plugin.lifecycle(loader.STOP, data);
-        });
+        // _lifecycleManager->stopAllComponents();
 
         getConfig().publishQueue().stop();
         _deploymentManager->stop();

@@ -141,4 +141,4 @@ namespace ggapi {
             std::cout << "Default onStop\n";
         }
     };
-}; // namespace ggapi
+} // namespace ggapi

@@ -1,3 +1,12 @@
+## 2024-05-03
+
+Features:
+
+- Components can be initially deployed from a configured deployment doc.
+- Logs are now rotated.
+- Improved error handling.
+- MQTT client connection is now async.
+
 ## 2024-04-12
 
 Features:

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "thread_safe_queue.hpp"
 #include <cpp_api.hpp>
 #include <logging.hpp>
 #include <memory>
@@ -93,19 +94,22 @@ public:
 private:
     static const Keys keys;
     ggapi::Promise publishHandler(ggapi::Symbol, const ggapi::Container &args);
-    void publishHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise);
     ggapi::Promise ipcPublishHandler(ggapi::Symbol, const ggapi::Container &args);
+    void publishHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise);
     ggapi::Promise subscribeHandler(ggapi::Symbol, const ggapi::Container &args);
-    void subscribeHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise);
     ggapi::Promise ipcSubscribeHandler(ggapi::Symbol, const ggapi::Container &args);
-
-    std::variant<ggapi::Channel, uint32_t> commonSubscribeHandler(
-        const ggapi::Struct &args, PacketHandler handler);
+    void subscribeHandlerAsync(const ggapi::Struct &args, ggapi::Promise promise);
 
     void initMqtt();
+    void connectionThread(ggapi::Struct data);
+    std::thread _conn;
+    std::thread _worker;
+
+    ThreadSafeQueue<ggapi::Struct> _queue;
+    void queueWorker();
 
     using Key = TopicFilter<Aws::Crt::StlAllocator<char>>;
-    std::vector<std::tuple<Key, ggapi::Channel, PacketHandler>> _subscriptions;
+    std::vector<std::tuple<Key, ggapi::Channel>> _subscriptions;
     std::shared_mutex _subscriptionMutex; // TODO: fold this with _mutex?
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
 };
