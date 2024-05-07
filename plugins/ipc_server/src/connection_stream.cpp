@@ -121,10 +121,63 @@ namespace ipc_server {
                 structData.put(keys.serviceModelType, header.toString());
             }
         }
+
+        // Get LPC call meta data needed to make an authorization check
+        auto metaFuture = ggapi::Subscription::callTopicFirst(lpcMetaTopic(), content);
+        if(!metaFuture) {
+            LOG.atDebug("getIpcMetaFailed").log("No IPC meta data handler for "s + lpcMetaTopic());
+            // TODO: SECURITY: Before GA, throw exception instead of lpcCallOperation (all ipc operations need to handle authorization)
+            ipcCallOperation(content);
+        } else {
+            metaFuture.whenValid(&ConnectionStream::ipcMetaCallback, this, baseRef(), content);
+        }
+    }
+
+    void ConnectionStream::ipcMetaCallback(const std::shared_ptr<ConnectionStream> &, const ggapi::Container &content, const ggapi::Future &future) noexcept {
+        try {
+            auto metaResp = ggapi::Struct(future.getValue());
+            auto request{ggapi::Struct::create()};
+
+            auto conn = connection();
+            if (!conn) {
+                throw ggapi::NotConnectedError();
+            }
+            auto serviceName = conn->getConnectedServiceName();
+            request.put("destination", metaResp.get<std::string>("destination"));
+            request.put("principal", serviceName);
+            request.put("operation", operation());
+            request.put("resource", metaResp.get<std::string>("resource"));
+            request.put("resourceType", metaResp.get<std::string>("resourceType"));
+
+            auto authFuture = ggapi::Subscription::callTopicFirst(lpcAuthTopic(), request);
+            if(!authFuture) {
+                throw ggapi::UnauthorizedError(
+                    "No authorization check handler for " + lpcAuthTopic());
+            }
+            authFuture.whenValid(&ConnectionStream::ipcAuthCallback, this, baseRef(), content);
+        } catch(...) {
+            auto err = ggapi::GgApiError::of(std::current_exception());
+            LOG.atError("ipcMetaFailed").logError(err);
+            sendErrorMessage(err);
+        }
+    }
+
+    void ConnectionStream::ipcAuthCallback(const std::shared_ptr<ConnectionStream> &, const ggapi::Container &content, const ggapi::Future &future) noexcept {
+        try {
+            auto authResp = ggapi::Struct(future.getValue());
+            ipcCallOperation(content);
+        } catch(...) {
+            auto err = ggapi::GgApiError::of(std::current_exception());
+            LOG.atError("ipcAuthFailed").logError(err);
+            sendErrorMessage(err);
+        }
+    }
+
+    void ConnectionStream::ipcCallOperation(const ggapi::Container &content) {
         // TODO: Right now we're passing payload and dropping all the headers
         // Need to restructure in a similar way as the return message
-        auto future = ggapi::Subscription::callTopicFirst(lpcTopic(), content);
-        if(!future) {
+        auto opFuture = ggapi::Subscription::callTopicFirst(lpcTopic(), content);
+        if(!opFuture) {
             throw ggapi::UnsupportedOperationError("No handler for "s + lpcTopic());
         }
         auto expected = State::Command;
@@ -132,7 +185,7 @@ namespace ipc_server {
             throw ggapi::UnsupportedOperationError(
                 "Illegal internal state: "s + std::to_string(static_cast<int>(expected)));
         }
-        future.whenValid(&ConnectionStream::firstResponseAsync, this, baseRef());
+        opFuture.whenValid(&ConnectionStream::firstResponseAsync, this, baseRef());
     }
 
     void ConnectionStream::firstResponseAsync(

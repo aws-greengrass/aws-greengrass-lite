@@ -6,3 +6,7 @@ ComponentVersion: "0.1.0"
 ComponentDescription:
   Enables local interprocess communication between plugins and components
 ComponentPublisher: Amazon
+ComponentDependencies:
+  local.plugins.discovered.authorization_handler:
+    VersionRequirement: ">=0.1.0"
+    DependencyType: HARD

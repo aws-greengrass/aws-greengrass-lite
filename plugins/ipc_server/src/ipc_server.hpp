@@ -67,7 +67,7 @@ namespace ipc_server {
 
         std::string _socketPath;
 
-        std::unique_ptr<AuthenticationHandler> _authHandler;
+        std::shared_ptr<AuthenticationHandler> _authHandler;
         std::shared_ptr<ServerListener> _activeListener;
 
     public:
@@ -86,6 +86,10 @@ namespace ipc_server {
         static IpcServer &get() {
             static IpcServer instance{};
             return instance;
+        }
+
+        static std::shared_ptr<AuthenticationHandler> &getAuthHandler() {
+            return get()._authHandler;
         }
 
         static util::CheckedSharedPointers<ServerListener> &listeners() {

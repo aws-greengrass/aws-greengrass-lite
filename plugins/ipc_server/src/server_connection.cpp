@@ -109,10 +109,10 @@ namespace ipc_server {
                         auto msg = Message::ofError(
                             "Unrecognized Message type: value: "
                             + std::to_string(
-                                    static_cast<
-                                        std::underlying_type_t<aws_event_stream_rpc_message_type>>(
-                                        message_args->message_type))
-                                + " is not recognized as a valid request path.");
+                                static_cast<
+                                    std::underlying_type_t<aws_event_stream_rpc_message_type>>(
+                                    message_args->message_type))
+                            + " is not recognized as a valid request path.");
                         msg.setTerminateStream();
                         sendProtocolMessage(msg);
                 }
@@ -271,6 +271,9 @@ namespace ipc_server {
         // TODO: Validate version header
         // TODO: Validate Message
         // TODO: Authenticate - throw exception if authentication failed
+        auto authTokenStr = ggapi::Struct{message.getPayload()}.get<std::string>("authToken");
+        _connectedServiceName = getServiceNameFromToken(authTokenStr);
+
         Message resp;
         resp.setType(AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT_ACK);
         resp.setConnectionAccepted();
@@ -298,6 +301,19 @@ namespace ipc_server {
         // GG-Interop: Ignore ping response
         // See amazon/awssdk/eventstreamrpc/ServiceOperationMappingContinuationHandler.java
         LOG.atWarn().kv("id", id()).log("Ignored Ping Response");
+    }
+
+    std::string ServerConnection::getServiceNameFromToken(const std::string &authToken) {
+        auto authHandler = IpcServer::getAuthHandler();
+        std::string serviceName;
+        if(authHandler) {
+            serviceName = authHandler->retrieveServiceName(authToken);
+        }
+        return serviceName;
+    }
+
+    std::string ServerConnection::getConnectedServiceName() {
+        return _connectedServiceName;
     }
 
 } // namespace ipc_server

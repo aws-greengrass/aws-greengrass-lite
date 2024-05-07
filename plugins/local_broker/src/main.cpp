@@ -8,6 +8,10 @@
 struct Keys {
     ggapi::StringOrd ipcPublishToTopic{"IPC::aws.greengrass#PublishToTopic"};
     ggapi::StringOrd ipcSubscribeToTopic{"IPC::aws.greengrass#SubscribeToTopic"};
+    ggapi::StringOrd ipcPublishMetaTopic{"IPC:META::aws.greengrass#PublishToTopic"};
+    ggapi::StringOrd ipcSubscribeMetaTopic{"IPC:META::aws.greengrass#SubscribeToTopic"};
+    ggapi::StringOrd resource{"resource"};
+    ggapi::StringOrd destination{"destination"};
     ggapi::StringOrd topic{"topic"};
     ggapi::StringOrd publishMessage{"publishMessage"};
     ggapi::StringOrd jsonMessage{"jsonMessage"};
@@ -19,6 +23,7 @@ struct Keys {
     ggapi::StringOrd shape{"shape"};
     ggapi::StringOrd serviceModelType{"serviceModelType"};
     ggapi::StringOrd terminate{"terminate"};
+    ggapi::StringOrd ipcServiceName{"aws.greengrass.ipc.pubsub"};
 };
 
 static const Keys keys;
@@ -31,6 +36,8 @@ private:
 
     ggapi::Subscription _ipcPublishSubs;
     ggapi::Subscription _ipcSubscribeSubs;
+    ggapi::Subscription _ipcPublishMetaSubs;
+    ggapi::Subscription _ipcSubscribeMetaSubs;
 
 public:
     void onStart(ggapi::Struct data) override;
@@ -38,6 +45,7 @@ public:
     ggapi::ObjHandle publishToTopicHandler(ggapi::Symbol topic, const ggapi::Container &);
 
     ggapi::ObjHandle subscribeToTopicHandler(ggapi::Symbol topic, const ggapi::Container &);
+    ggapi::ObjHandle getAuthZMetaData(ggapi::Symbol topic, const ggapi::Container &);
 
     static LocalBroker &get() {
         static LocalBroker instance{};
@@ -115,9 +123,22 @@ ggapi::ObjHandle LocalBroker::subscribeToTopicHandler(
         .put(keys.channel, channel);
 }
 
+ggapi::ObjHandle LocalBroker::getAuthZMetaData(ggapi::Symbol, const ggapi::Container &callDataIn) {
+    ggapi::Struct callData{callDataIn};
+
+    auto topic = callData.get<std::string>("topic");
+    return ggapi::Struct::create()
+        .put(keys.destination, keys.ipcServiceName.toString())
+        .put(keys.resource, topic);
+}
+
 void LocalBroker::onStart(ggapi::Struct data) {
     std::unique_lock guard{_mutex};
     // TODO: These need to be closed on onStop()
+    _ipcPublishMetaSubs = ggapi::Subscription::subscribeToTopic(
+        keys.ipcPublishMetaTopic, ggapi::TopicCallback::of(&LocalBroker::getAuthZMetaData, this));
+    _ipcSubscribeMetaSubs = ggapi::Subscription::subscribeToTopic(
+        keys.ipcSubscribeMetaTopic, ggapi::TopicCallback::of(&LocalBroker::getAuthZMetaData, this));
     _ipcPublishSubs = ggapi::Subscription::subscribeToTopic(
         keys.ipcPublishToTopic,
         ggapi::TopicCallback::of(&LocalBroker::publishToTopicHandler, this));

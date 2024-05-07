@@ -30,8 +30,12 @@ namespace ipc_server {
         mutable std::shared_mutex _stateMutex;
         AwsConnection _connection;
         std::map<void *, std::weak_ptr<ConnectionStream>> _streams;
+        std::string _connectedServiceName;
         // std::atomic_flag would fit in C++20, but not C++17
         std::atomic<bool> _authenticated{false};
+
+    private:
+        std::string getServiceNameFromToken(const std::string &token);
 
     public:
         ServerConnection(const ServerConnection &) = delete;
@@ -69,6 +73,8 @@ namespace ipc_server {
         void setHandleRef(void *handle) {
             _handle = handle;
         }
+
+        std::string getConnectedServiceName();
 
         void close() noexcept;
         void onShutdown(int error_code) noexcept;

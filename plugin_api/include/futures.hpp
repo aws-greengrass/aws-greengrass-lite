@@ -161,15 +161,17 @@ namespace ggapi {
         template<typename Callable, typename... Args>
         [[nodiscard]] Promise &later(uint32_t delay, const Callable &callable, Args &&...args);
 
-        void setValue(const Container &value) {
+        Promise &setValue(const Container &value) {
             callApiThrowError(::ggapiPromiseSetValue, getHandleId(), value.getHandleId());
+            return *this;
         }
 
-        void setError(const GgApiError &error) {
+        Promise &setError(const GgApiError &error) {
             uint32_t kindId = error.kind().asInt();
             std::string message{error.what()};
             callApiThrowError(
                 ::ggapiPromiseSetError, getHandleId(), kindId, message.data(), message.length());
+            return *this;
         }
 
         void cancel() const {
