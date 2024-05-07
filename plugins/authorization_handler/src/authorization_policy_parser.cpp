@@ -10,11 +10,11 @@ namespace authorization {
     AuthorizationPolicyParser::AuthorizationPolicyParser() = default;
 
     std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
-    AuthorizationPolicyParser::parseAllAuthorizationPolicies(const ggapi::Struct &configRoot) {
+    AuthorizationPolicyParser::parseAllAuthorizationPolicies(ggapi::Struct configRoot) {
         std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
             _primaryAuthorizationPolicyMap;
 
-        auto allServices = configRoot.get<ggapi::Struct>("services");
+        auto allServices = configRoot.get<ggapi::Struct>(configRoot.foldKey("services"));
         if(allServices.empty()) {
             LOG.atWarn("load-authorization-all-services-component-config-retrieval-error")
                 .log("Unable to retrieve services config");
@@ -22,7 +22,10 @@ namespace authorization {
         }
 
         for(const auto &serviceKey : allServices.keys().toVector<std::string>()) {
-            auto service = allServices.get<ggapi::Struct>(serviceKey);
+            if(!allServices.hasKey(serviceKey) || !allServices.isStruct(serviceKey)) {
+                continue;
+            }
+            auto service = allServices.get<ggapi::Struct>(allServices.foldKey(serviceKey));
             if(service.empty()) {
                 continue;
             }
@@ -34,7 +37,7 @@ namespace authorization {
                 continue;
             }
 
-            auto configurationStruct = service.get<ggapi::Struct>("configuration");
+            auto configurationStruct = service.get<ggapi::Struct>(service.foldKey("configuration"));
             if(configurationStruct.empty()) {
                 continue;
             }
@@ -47,7 +50,8 @@ namespace authorization {
                 continue;
             }
 
-            auto accessControlStruct = configurationStruct.get<ggapi::Struct>("accessControl");
+            auto accessControlStruct = configurationStruct.get<ggapi::Struct>(
+                configurationStruct.foldKey("accessControl"));
             if(accessControlStruct.empty()) {
                 continue;
             }
@@ -76,19 +80,28 @@ namespace authorization {
 
     std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
     AuthorizationPolicyParser::parseAllPoliciesForComponent(
-        const ggapi::Struct &accessControlStruct, const std::string &sourceComponent) {
+        ggapi::Struct accessControlStruct, const std::string &sourceComponent) {
         std::unordered_map<std::string, std::vector<AuthorizationPolicy>> authorizationPolicyMap;
         std::unordered_map<std::string, std::unordered_map<std::string, AuthorizationPolicyConfig>>
             accessControlMap;
 
         for(const auto &destination : accessControlStruct.keys().toVector<std::string>()) {
-            auto destinationStruct = accessControlStruct.get<ggapi::Struct>(destination);
+            if(!accessControlStruct.hasKey(destination)
+               || !accessControlStruct.isStruct(destination)) {
+                continue;
+            }
+            auto destinationStruct =
+                accessControlStruct.get<ggapi::Struct>(accessControlStruct.foldKey(destination));
             if(destinationStruct.empty()) {
                 continue;
             }
             std::unordered_map<std::string, AuthorizationPolicyConfig> policyIdMap;
             for(const auto &policyId : destinationStruct.keys().toVector<std::string>()) {
-                auto policyIdStruct = destinationStruct.get<ggapi::Struct>(policyId);
+                if(!destinationStruct.hasKey(policyId) || !destinationStruct.isStruct(policyId)) {
+                    continue;
+                }
+                auto policyIdStruct =
+                    destinationStruct.get<ggapi::Struct>(destinationStruct.foldKey(policyId));
                 if(policyIdStruct.empty()) {
                     continue;
                 }

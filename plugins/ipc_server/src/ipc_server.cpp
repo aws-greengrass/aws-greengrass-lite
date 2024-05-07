@@ -9,7 +9,7 @@ static const auto LOG = // NOLINT(cert-err58-cpp)
 
 namespace ipc_server {
 
-    IpcServer::IpcServer() noexcept : _authHandler(std::make_unique<AuthenticationHandler>()) {
+    IpcServer::IpcServer() noexcept : _authHandler(std::make_shared<AuthenticationHandler>()) {
     }
 
     /**
