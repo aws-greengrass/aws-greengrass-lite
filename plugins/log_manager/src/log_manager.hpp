@@ -74,6 +74,8 @@ private:
     void makeHTTPCallToCloudwatchLogs(const std::string& action, const rapidjson::Document& requestBody);
     void processLogsAndUpload();
 
+    void uploadThread(ggapi::Struct data);
+    std::thread _upload;
 
 public:
     LogManager() = default;

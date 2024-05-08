@@ -48,8 +48,8 @@ void LogManager::onInitialize(ggapi::Struct data) {
     LOG.atInfo().log("Initializing log manager");
 }
 
-void LogManager::onStart(ggapi::Struct data) {
-    LOG.atInfo().log("Beginning persistent logging loop logic");
+void LogManager::uploadThread(ggapi::Struct data) {
+    util::TempModule module(getModule());
     while(true) {
         // Give TES some time to boot. Will help most cases.
         std::this_thread::sleep_for(std::chrono::seconds(5));
@@ -62,6 +62,11 @@ void LogManager::onStart(ggapi::Struct data) {
         }
         std::this_thread::sleep_for(std::chrono::seconds(UPLOAD_FREQUENCY));
     }
+}
+
+void LogManager::onStart(ggapi::Struct data) {
+    LOG.atInfo().log("Beginning persistent logging loop logic");
+    _upload = std::thread{&LogManager::uploadThread, this, data};
 }
 
 void LogManager::onStop(ggapi::Struct data) {}
