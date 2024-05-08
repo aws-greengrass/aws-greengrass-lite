@@ -51,13 +51,14 @@ void LogManager::onInitialize(ggapi::Struct data) {
 void LogManager::onStart(ggapi::Struct data) {
     LOG.atInfo().log("Beginning persistent logging loop logic");
     while(true) {
+        // Give TES some time to boot. Will help most cases.
+        std::this_thread::sleep_for(std::chrono::seconds(5));
         retrieveCredentialsFromTES();
-        if (_credentials.hasKey("Response")) {
+        if (!_credentials.empty() && _credentials.hasKey("Response")) {
             LOG.atInfo().log("Credentials successfully retrieved from TES");
             LogManager::processLogsAndUpload();
         } else {
-            LOG.atError().log("Could not retrieve credentials from TES");
-            return;
+            LOG.atError().log("Could not retrieve credentials from TES. Skipping this upload attempt.");
         }
         std::this_thread::sleep_for(std::chrono::seconds(UPLOAD_FREQUENCY));
     }
@@ -70,7 +71,7 @@ void LogManager::retrieveCredentialsFromTES() {
     request.put("test", "some-unique-token");
     LOG.atInfo().log("Calling topic to request credentials from TES");
     auto tesFuture = ggapi::Subscription::callTopicFirst(
-        ggapi::Symbol{TES_REQUEST_TOPIC}, request);
+            ggapi::Symbol{TES_REQUEST_TOPIC}, request);
     if(tesFuture) {
         _credentials = ggapi::Struct(tesFuture.waitAndGetValue());
     }
