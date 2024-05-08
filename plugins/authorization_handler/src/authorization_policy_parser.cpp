@@ -2,6 +2,7 @@
 
 #include <logging.hpp>
 #include <plugin.hpp>
+#include <string_util.hpp>
 
 static const auto LOG = ggapi::Logger::of("authorization_handler");
 
@@ -21,7 +22,7 @@ namespace authorization {
             return _primaryAuthorizationPolicyMap;
         }
 
-        for(const auto &serviceKey : allServices.keys().toVector<std::string>()) {
+        for(auto serviceKey : allServices.keys().toVector<std::string>()) {
             if(!allServices.hasKey(serviceKey) || !allServices.isStruct(serviceKey)) {
                 continue;
             }
@@ -29,9 +30,8 @@ namespace authorization {
             if(service.empty()) {
                 continue;
             }
-            // TODO: Get the serviceName (componentName) from the service struct some how
-            // For now this parses it as all lower case.
-            const auto &componentName = serviceKey;
+
+            const auto &componentName = util::lower(serviceKey);
 
             if(!service.hasKey("configuration") || !service.isStruct("configuration")) {
                 continue;
@@ -105,11 +105,15 @@ namespace authorization {
                 if(policyIdStruct.empty()) {
                     continue;
                 }
-
-                AuthorizationPolicyConfig _authZPolicyConfig;
-                ggapi::Archive::transform<ggapi::ContainerDearchiver>(
-                    _authZPolicyConfig, policyIdStruct);
-                policyIdMap.insert({policyId, _authZPolicyConfig});
+                try {
+                    AuthorizationPolicyConfig _authZPolicyConfig;
+                    ggapi::Archive::transform<ggapi::ContainerDearchiver>(
+                        _authZPolicyConfig, policyIdStruct);
+                    policyIdMap.insert({policyId, _authZPolicyConfig});
+                } catch(...) {
+                    LOG.atError("load-authorization-service-component-config-retrieval-error")
+                        .log("Invalid access control config at policy id: " + policyId);
+                }
             }
             accessControlMap.insert({destination, policyIdMap});
         }
