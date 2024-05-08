@@ -35,7 +35,12 @@ configureRPATH(authorization_handler)
 set_version_script(authorization_handler
                    "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS authorization_handler DESTINATION plugins)
+install(TARGETS authorization_handler DESTINATION plugins
+        RUNTIME_DEPENDENCY_SET authorization_handler_deps)
+
+if(INSTALL_RUNTIME_DEPENDENCIES)
+  install(RUNTIME_DEPENDENCY_SET authorization_handler_deps)
+endif()
 
 install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
         DESTINATION plugins/recipes)
@@ -43,24 +48,25 @@ install(FILES recipes/${COMPONENT_NAME}-${PROJECT_VERSION}.yaml
 # Tests
 
 if(BUILD_TESTING AND NOT WIN32)
-    include(CTest)
+  include(CTest)
 
-    fetchContentAddCmake(Catch2 trompeloeil)
+  fetchContentAddCmake(Catch2 trompeloeil)
 
-    list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
-    include(Catch)
+  list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+  include(Catch)
 
-    add_subdirectory(../../nucleus nucleus EXCLUDE_FROM_ALL)
+  add_subdirectory(../../nucleus nucleus EXCLUDE_FROM_ALL)
 
-    add_executable(
-    authorization_handler_tests tests/test_authorization_handler.cpp)
+  add_executable(authorization_handler_tests
+                 tests/test_authorization_handler.cpp)
 
-    target_include_directories(authorization_handler_tests PRIVATE tests)
-    target_link_libraries(
-        authorization_handler_tests PRIVATE authorization_handler_obj Catch2::Catch2WithMain
-                                    trompeloeil::trompeloeil nucleus-core shared_test_resources)
+  target_include_directories(authorization_handler_tests PRIVATE tests)
+  target_link_libraries(
+    authorization_handler_tests
+    PRIVATE authorization_handler_obj Catch2::Catch2WithMain
+            trompeloeil::trompeloeil nucleus-core shared_test_resources)
 
-    catch_discover_tests(authorization_handler_tests)
+  catch_discover_tests(authorization_handler_tests)
 
-    add_test(NAME authorization_handler COMMAND authorization_handler_tests)
+  add_test(NAME authorization_handler COMMAND authorization_handler_tests)
 endif()

@@ -56,6 +56,7 @@ memsz
 mqtt
 msvc
 mtls
+mqttproxy
 noall
 noexecstack
 NOLINTNEXTLINE
