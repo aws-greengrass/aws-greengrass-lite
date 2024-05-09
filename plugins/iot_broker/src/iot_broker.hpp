@@ -86,7 +86,6 @@ public:
 
     // TES
     bool tesOnStart(const ggapi::Struct &data);
-    bool tesOnRun();
     void tesRefresh();
     ggapi::Promise retrieveToken(ggapi::Symbol, const ggapi::Container &callData);
     void retrieveTokenAsync(const ggapi::Struct &callData, ggapi::Promise promise);
