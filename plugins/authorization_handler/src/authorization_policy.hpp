@@ -47,12 +47,12 @@ namespace authorization {
     public:
         explicit AuthorizationPolicyParser();
         [[nodiscard]] static std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
-        parseAllAuthorizationPolicies(const ggapi::Struct &configRoot);
+        parseAllAuthorizationPolicies(ggapi::Struct configRoot);
 
     private:
         static std::unordered_map<std::string, std::vector<AuthorizationPolicy>>
         parseAllPoliciesForComponent(
-            const ggapi::Struct &accessControlStruct, const std::string &sourceComponent);
+            ggapi::Struct accessControlStruct, const std::string &sourceComponent);
 
         static std::vector<AuthorizationPolicy> parseAuthorizationPolicyConfig(
             const std::string &componentName,

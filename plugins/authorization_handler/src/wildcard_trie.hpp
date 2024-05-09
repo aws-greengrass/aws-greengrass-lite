@@ -104,6 +104,9 @@ namespace authorization {
                                                                     : matchesStandard(str);
         };
         bool matchesMQTT(const std::string &str) { // NOLINT(*-no-recursion)
+            if(str.empty()) {
+                return true;
+            }
             if((_isWildcard && _isTerminal) || (_isTerminal && str.empty())) {
                 return true;
             }
@@ -174,24 +177,22 @@ namespace authorization {
                         foundChildIndex = str.find(key, foundChildIndex + 1);
                     }
                 }
-
-                // Succeed fast
-                if(hasMatch) {
+            }
+            // Succeed fast
+            if(hasMatch) {
+                return true;
+            }
+            if((_isWildcard || _isMQTTWildcard) && !matchingChildren.empty()) {
+                bool anyMatch = false;
+                for(auto &e : matchingChildren) {
+                    if(e.second.matchesMQTT(e.first)) {
+                        anyMatch = true;
+                        break;
+                    }
+                }
+                if(anyMatch) {
                     return true;
                 }
-                if((_isWildcard || _isMQTTWildcard) && !matchingChildren.empty()) {
-                    bool anyMatch = false;
-                    for(auto &e : matchingChildren) {
-                        if(e.second.matchesMQTT(e.first)) {
-                            anyMatch = true;
-                            break;
-                        }
-                    }
-                    if(anyMatch) {
-                        return true;
-                    }
-                }
-                return false;
             }
             return false;
         };
@@ -289,8 +290,8 @@ namespace authorization {
                 }
                 if(currentChar == multiLevelWildcardChar) {
                     auto terminalLevel = current->add(ss, false);
-                    if(!current->_children.count(MQTT_MULTILEVEL_WILDCARD)) {
-                        current->_children[MQTT_MULTILEVEL_WILDCARD] =
+                    if(!terminalLevel->_children.count(MQTT_MULTILEVEL_WILDCARD)) {
+                        terminalLevel->_children[MQTT_MULTILEVEL_WILDCARD] =
                             std::make_shared<WildcardTrie>();
                     }
                     current = terminalLevel->_children[MQTT_MULTILEVEL_WILDCARD];

@@ -54,6 +54,7 @@ LPSTR
 lptn
 memsz
 mqtt
+mqttproxy
 msvc
 mtls
 noall
