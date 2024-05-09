@@ -78,7 +78,7 @@ bool IotBroker::tesOnStart(const ggapi::Struct &) {
         std::cerr << "[TES] Error: " << e.what() << std::endl;
     }
 
-    _requestTestSubs = ggapi::Subscription::subscribeToTopic(
+    _requestTesSubs = ggapi::Subscription::subscribeToTopic(
             ggapi::Symbol{"aws.greengrass.requestTES"},
             ggapi::TopicCallback::of(&IotBroker::retrieveToken, this));
 

@@ -68,7 +68,7 @@ class IotBroker : public ggapi::Plugin {
     ggapi::Subscription _ipcPublishSubs;
     ggapi::Subscription _subscribeSubs;
     ggapi::Subscription _ipcSubscribeSubs;
-    ggapi::Subscription _requestTestSubs;
+    ggapi::Subscription _requestTesSubs;
 
     // TES
     std::string _iotRoleAlias;
