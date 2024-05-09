@@ -49,10 +49,6 @@ void IotBroker::retrieveTokenAsync(const ggapi::Struct &, ggapi::Promise promise
 }
 
 bool IotBroker::tesOnStart(const ggapi::Struct &) {
-    _requestTestSubs = ggapi::Subscription::subscribeToTopic(
-            ggapi::Symbol{"aws.greengrass.requestTES"},
-            ggapi::TopicCallback::of(&IotBroker::retrieveToken, this));
-
     // Read the Device credentials
     auto returnValue = false;
     try {
@@ -82,10 +78,13 @@ bool IotBroker::tesOnStart(const ggapi::Struct &) {
         std::cerr << "[TES] Error: " << e.what() << std::endl;
     }
 
+    _requestTestSubs = ggapi::Subscription::subscribeToTopic(
+            ggapi::Symbol{"aws.greengrass.requestTES"},
+            ggapi::TopicCallback::of(&IotBroker::retrieveToken, this));
+
     return returnValue;
 }
 
-// TODO:: Fix the mutex on TLSConnectionInit failure on refresh
 // TODO: This is blocking, it needs to be async
 void IotBroker::tesRefresh() {
     auto request{ggapi::Struct::create()};
@@ -102,13 +101,17 @@ void IotBroker::tesRefresh() {
     request.put("caFile", _thingInfo.rootCaPath.c_str());
     request.put("pkeyPath", _thingInfo.keyPath.c_str());
 
+    std::cout << "BEFOREE\n";
     try {
         auto future = ggapi::Subscription::callTopicFirst(
                 ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, request);
+        std::cout << "BEFOREE1\n";
         // TODO: Handle case when resultFuture is empty (no handlers)
         auto response = ggapi::Struct(future.waitAndGetValue());
+        std::cout << "BEFOREE2\n";
 
         _savedToken = response.get<std::string>("Response");
+        std::cout << "BEFOREE3\n";
     } catch(std::exception &e) {
         // This failing is ok
         LOG.atInfo().event("TES retrieval failed").kv("ERROR", e.what()).log();
