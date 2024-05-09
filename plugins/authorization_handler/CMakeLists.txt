@@ -35,9 +35,10 @@ configureRPATH(authorization_handler)
 set_version_script(authorization_handler
                    "${CMAKE_CURRENT_SOURCE_DIR}/version.script")
 
-install(TARGETS authorization_handler
-        DESTINATION plugins
-        RUNTIME_DEPENDENCY_SET authorization_handler_deps)
+install(
+  TARGETS authorization_handler
+  DESTINATION plugins
+  RUNTIME_DEPENDENCY_SET authorization_handler_deps)
 
 if(INSTALL_RUNTIME_DEPENDENCIES)
   install(RUNTIME_DEPENDENCY_SET authorization_handler_deps)
