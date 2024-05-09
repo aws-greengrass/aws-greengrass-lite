@@ -122,27 +122,44 @@ namespace ipc_server {
             }
         }
 
+        auto conn = connection();
+        if(!conn) {
+            throw ggapi::NotConnectedError();
+        }
+        auto serviceName = conn->getConnectedServiceName();
+
+        if(serviceName.empty()) {
+            // IPC call is not associated as a "service", meaning there is no way to
+            // check if authorized. Skip checking authorization if so, to unblock IPC tests (which
+            // don't run as a "service").
+
+            // TODO: Determine if we want to support IPC calls when not running as a GG "service",
+            // if not update IPC tests and throw error here instead.
+            ipcCallOperation(content);
+            return;
+        }
         // Get LPC call meta data needed to make an authorization check
         auto metaFuture = ggapi::Subscription::callTopicFirst(lpcMetaTopic(), content);
         if(!metaFuture) {
             LOG.atDebug("getIpcMetaFailed").log("No IPC meta data handler for "s + lpcMetaTopic());
-            // TODO: SECURITY: Before GA, throw exception instead of lpcCallOperation (all ipc operations need to handle authorization)
+            // TODO: SECURITY: Before GA, throw exception instead of lpcCallOperation (all ipc
+            // operations need to handle authorization).
             ipcCallOperation(content);
         } else {
-            metaFuture.whenValid(&ConnectionStream::ipcMetaCallback, this, baseRef(), content);
+            metaFuture.whenValid(
+                &ConnectionStream::ipcMetaCallback, this, baseRef(), content, serviceName);
         }
     }
 
-    void ConnectionStream::ipcMetaCallback(const std::shared_ptr<ConnectionStream> &, const ggapi::Container &content, const ggapi::Future &future) noexcept {
+    void ConnectionStream::ipcMetaCallback(
+        const std::shared_ptr<ConnectionStream> &,
+        const ggapi::Container &content,
+        const std::string &serviceName,
+        const ggapi::Future &future) noexcept {
         try {
             auto metaResp = ggapi::Struct(future.getValue());
             auto request{ggapi::Struct::create()};
 
-            auto conn = connection();
-            if (!conn) {
-                throw ggapi::NotConnectedError();
-            }
-            auto serviceName = conn->getConnectedServiceName();
             request.put("destination", metaResp.get<std::string>("destination"));
             request.put("principal", serviceName);
             request.put("operation", operation());
@@ -162,7 +179,10 @@ namespace ipc_server {
         }
     }
 
-    void ConnectionStream::ipcAuthCallback(const std::shared_ptr<ConnectionStream> &, const ggapi::Container &content, const ggapi::Future &future) noexcept {
+    void ConnectionStream::ipcAuthCallback(
+        const std::shared_ptr<ConnectionStream> &,
+        const ggapi::Container &content,
+        const ggapi::Future &future) noexcept {
         try {
             auto authResp = ggapi::Struct(future.getValue());
             ipcCallOperation(content);

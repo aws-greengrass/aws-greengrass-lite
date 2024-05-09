@@ -39,6 +39,7 @@ namespace ipc_server {
         void ipcMetaCallback(
             const std::shared_ptr<ConnectionStream> &,
             const ggapi::Container &content,
+            const std::string &serviceName,
             const ggapi::Future &future) noexcept;
         void ipcAuthCallback(
             const std::shared_ptr<ConnectionStream> &,
