@@ -23,7 +23,7 @@ namespace authorization {
         }
 
         for(auto serviceKey : allServices.keys().toVector<std::string>()) {
-            if(!allServices.hasKey(serviceKey) || !allServices.isStruct(serviceKey)) {
+            if(!allServices.isStruct(serviceKey)) {
                 continue;
             }
             auto service = allServices.get<ggapi::Struct>(allServices.foldKey(serviceKey));
@@ -86,8 +86,7 @@ namespace authorization {
             accessControlMap;
 
         for(const auto &destination : accessControlStruct.keys().toVector<std::string>()) {
-            if(!accessControlStruct.hasKey(destination)
-               || !accessControlStruct.isStruct(destination)) {
+            if(!accessControlStruct.isStruct(destination)) {
                 continue;
             }
             auto destinationStruct =
@@ -97,7 +96,7 @@ namespace authorization {
             }
             std::unordered_map<std::string, AuthorizationPolicyConfig> policyIdMap;
             for(const auto &policyId : destinationStruct.keys().toVector<std::string>()) {
-                if(!destinationStruct.hasKey(policyId) || !destinationStruct.isStruct(policyId)) {
+                if(!destinationStruct.isStruct(policyId)) {
                     continue;
                 }
                 auto policyIdStruct =
