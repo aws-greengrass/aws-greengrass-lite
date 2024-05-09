@@ -52,7 +52,7 @@ void LogManager::uploadThread(ggapi::Struct data) {
     util::TempModule module(getModule());
     LOG.atInfo().log("Starting upload thread");
     // Give TES some time to boot. Will help most cases.
-    std::this_thread::sleep_for(std::chrono::seconds(5));
+    // std::this_thread::sleep_for(std::chrono::seconds(5));
     while(true) {
         retrieveCredentialsFromTES();
         if (!_credentials.empty() && _credentials.hasKey("Response")) {

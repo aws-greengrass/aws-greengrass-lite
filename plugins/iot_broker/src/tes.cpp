@@ -5,7 +5,7 @@ const auto LOG = ggapi::Logger::of("TES");
 
 ggapi::Promise IotBroker::retrieveToken(ggapi::Symbol, const ggapi::Container &callData) {
     return ggapi::Promise::create().async(
-        &IotBroker::retrieveTokenAsync, this, ggapi::Struct(callData));
+            &IotBroker::retrieveTokenAsync, this, ggapi::Struct(callData));
 }
 
 void IotBroker::retrieveTokenAsync(const ggapi::Struct &, ggapi::Promise promise) {
@@ -37,18 +37,22 @@ void IotBroker::retrieveTokenAsync(const ggapi::Struct &, ggapi::Promise promise
         auto responseJsonAsString = std::string{responseVec.begin(), responseVec.end()};
 
         LOG.atWarn("testFetchFailed")
-            .kv("Token", _savedToken)
-            .kv("Response", responseJsonAsString)
-            .log("Unable to fetch TES credentials");
+                .kv("Token", _savedToken)
+                .kv("Response", responseJsonAsString)
+                .log("Unable to fetch TES credentials");
 
         // TODO: Replace with more applicable error
         throw ggapi::GgApiError(
-            "ggapi::TesFailure",
-            std::string("Failed to retrieve TES credentials: ") + responseJsonAsString);
+                "ggapi::TesFailure",
+                std::string("Failed to retrieve TES credentials: ") + responseJsonAsString);
     });
 }
 
 bool IotBroker::tesOnStart(const ggapi::Struct &) {
+    _requestTestSubs = ggapi::Subscription::subscribeToTopic(
+            ggapi::Symbol{"aws.greengrass.requestTES"},
+            ggapi::TopicCallback::of(&IotBroker::retrieveToken, this));
+
     // Read the Device credentials
     auto returnValue = false;
     try {
@@ -56,29 +60,27 @@ bool IotBroker::tesOnStart(const ggapi::Struct &) {
         auto nucleus = _nucleus;
 
         _thingInfo.rootCaPath =
-            system.getValue<std::string>({"rootCaPath"}); // OverrideDefaultTrustStore
+                system.getValue<std::string>({"rootCaPath"}); // OverrideDefaultTrustStore
         _thingInfo.certPath =
-            system.getValue<std::string>({"certificateFilePath"}); // InitClientWithMtls
+                system.getValue<std::string>({"certificateFilePath"}); // InitClientWithMtls
         _thingInfo.keyPath = system.getValue<std::string>({"privateKeyPath"}); // InitClientWithMtls
         _thingInfo.thingName = system.getValue<Aws::Crt::String>({"thingName"}); // Header
         _iotRoleAlias = nucleus.getValue<std::string>({"configuration", "iotRoleAlias"}); // URI
 
         // TODO: Note, reference of the module name will be done by Nucleus, this is temporary.
         _thingInfo.credEndpoint =
-            nucleus.getValue<std::string>({"configuration", "iotCredEndpoint"});
+                nucleus.getValue<std::string>({"configuration", "iotCredEndpoint"});
 
         // TODO:: Validate that these key exist [RoleAlias minimum]
 
         returnValue = true;
     } catch(const std::exception &e) {
         LOG.atInfo()
-            .event("Failed to parse device config for credentials")
-            .kv("ERROR", e.what())
-            .log();
+                .event("Failed to parse device config for credentials")
+                .kv("ERROR", e.what())
+                .log();
         std::cerr << "[TES] Error: " << e.what() << std::endl;
     }
-
-    tesRefresh();
 
     return returnValue;
 }
@@ -102,7 +104,7 @@ void IotBroker::tesRefresh() {
 
     try {
         auto future = ggapi::Subscription::callTopicFirst(
-            ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, request);
+                ggapi::Symbol{"aws.greengrass.fetchTesFromCloud"}, request);
         // TODO: Handle case when resultFuture is empty (no handlers)
         auto response = ggapi::Struct(future.waitAndGetValue());
 
@@ -111,12 +113,4 @@ void IotBroker::tesRefresh() {
         // This failing is ok
         LOG.atInfo().event("TES retrieval failed").kv("ERROR", e.what()).log();
     }
-}
-
-bool IotBroker::tesOnRun() {
-    _requestTestSubs = ggapi::Subscription::subscribeToTopic(
-        ggapi::Symbol{"aws.greengrass.requestTES"},
-        ggapi::TopicCallback::of(&IotBroker::retrieveToken, this));
-
-    return true;
 }

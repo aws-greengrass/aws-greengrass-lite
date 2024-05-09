@@ -116,11 +116,6 @@ void IotBroker::connectionThread(ggapi::Struct data) {
             if(!_worker.joinable()) {
                 _worker = std::thread{&IotBroker::queueWorker, this};
             }
-
-            // Fetch the initial token from TES
-            // TODO: This should not be blocking
-            tesOnStart(data);
-            tesOnRun();
         } catch(const std::exception &e) {
             // TODO: Log and add backoff
             std::cerr << "[mqtt-plugin] Error: " << e.what() << std::endl;
@@ -147,6 +142,8 @@ void IotBroker::onStart(ggapi::Struct data) {
         keys.ipcSubscribeToIoTCoreTopic,
         ggapi::TopicCallback::of(&IotBroker::ipcSubscribeHandler, this));
     _conn = std::thread{&IotBroker::connectionThread, this, data};
+
+    tesOnStart(data);
 }
 
 void IotBroker::onStop(ggapi::Struct structData) {
@@ -169,3 +166,4 @@ void IotBroker::queueWorker() {
         }
     }
 }
+
