@@ -3,11 +3,10 @@
 #include <api_standard_errors.hpp>
 #include <auto_release.hpp>
 #include <cpp_api.hpp>
-#include <filesystem>
-#include <forward_list>
 #include <shared_device_sdk.hpp>
 
 namespace ipc_server {
+    class Token;
     class ServerListener;
     class ConnectionStream;
 
@@ -35,7 +34,7 @@ namespace ipc_server {
         std::atomic<bool> _authenticated{false};
 
     private:
-        std::string getServiceNameFromToken(const std::string &token);
+        [[nodiscard]] std::string getServiceNameFromToken(const Token &token) const;
 
     public:
         ServerConnection(const ServerConnection &) = delete;

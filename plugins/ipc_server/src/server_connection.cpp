@@ -148,7 +148,7 @@ namespace ipc_server {
         auto &formatted = copy.prepare();
         AwsConnection awsConnection = connection();
         std::shared_ptr<BoundPromise> bound;
-        auto handle = IpcServer::get().beginPromise(module(), bound);
+        auto handle = IpcServer::beginPromise(module(), bound);
         int code = aws_event_stream_rpc_server_connection_send_protocol_message(
             awsConnection.get(), &formatted, ServerConnection::onCompleteSend, handle);
         ggapi::Future f;
@@ -270,9 +270,11 @@ namespace ipc_server {
 
         // TODO: Validate version header
         // TODO: Validate Message
-        // TODO: Authenticate - throw exception if authentication failed
-        auto authTokenStr = ggapi::Struct{message.getPayload()}.get<std::string>("authToken");
-        _connectedServiceName = getServiceNameFromToken(authTokenStr);
+
+        auto getToken = [&message]() -> Token {
+            return Token{ggapi::Struct{message.getPayload()}.get<std::string>("authToken")};
+        };
+        _connectedServiceName = getServiceNameFromToken(getToken());
 
         Message resp;
         resp.setType(AWS_EVENT_STREAM_RPC_MESSAGE_TYPE_CONNECT_ACK);
@@ -303,13 +305,19 @@ namespace ipc_server {
         LOG.atWarn().kv("id", id()).log("Ignored Ping Response");
     }
 
-    std::string ServerConnection::getServiceNameFromToken(const std::string &authToken) {
-        auto authHandler = IpcServer::getAuthHandler();
-        std::string serviceName;
-        if(authHandler) {
-            serviceName = authHandler->retrieveServiceName(authToken);
+    std::string ServerConnection::getServiceNameFromToken(const Token &authToken) const {
+        auto name = IpcServer::getAuthHandler()->retrieveServiceName(authToken);
+        if(name.has_value()) {
+            return *std::move(name);
+        } else {
+            LOG.atError("authentication-error")
+                .kv("id", id())
+                .cause(ggapi::AccessDeniedError{})
+                .log();
+            // SECURITY-TODO: throw here instead of logging
+            // throw ggapi::AccessDeniedError{};
+            return {};
         }
-        return serviceName;
     }
 
     std::string ServerConnection::getConnectedServiceName() {

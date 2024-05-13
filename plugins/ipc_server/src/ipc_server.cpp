@@ -75,6 +75,7 @@ namespace ipc_server {
         {
             std::unique_lock guard{_mutex};
             outData.socketPath = _socketPath;
+            // TODO: handle empty service names
             outData.authToken = _authHandler->generateAuthToken(inData.serviceName).value();
         }
         return ggapi::serialize(outData);

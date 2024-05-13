@@ -1,4 +1,5 @@
 #pragma once
+#include <optional>
 #include <shared_mutex>
 #include <string>
 #include <unordered_map>
@@ -46,9 +47,8 @@ namespace ipc_server {
 
     public:
         Token generateAuthToken(std::string serviceName);
-        bool authenticateRequest(const Token &authToken) const;
         void revokeService(const std::string &serviceName);
         void revokeToken(const Token &token);
-        std::string retrieveServiceName(const std::string &token);
+        std::optional<std::string> retrieveServiceName(const Token &token) const;
     };
 } // namespace ipc_server

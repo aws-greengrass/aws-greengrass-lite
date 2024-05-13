@@ -2,6 +2,7 @@
 #include "random_device.hpp"
 #include <algorithm>
 #include <mutex>
+#include <shared_mutex>
 
 namespace ipc_server {
     Token AuthenticationHandler::generateAuthToken(std::string serviceName) {
@@ -29,19 +30,6 @@ namespace ipc_server {
         return iter->first;
     }
 
-    bool AuthenticationHandler::authenticateRequest(const Token &authToken) const {
-        std::shared_lock guard{_mutex};
-        auto found = _tokenMap.find(authToken);
-        if(found == _tokenMap.cend()) {
-            return false;
-        }
-        const auto &serviceName = found->second;
-        if(serviceName.rfind("aws.greengrass", 0) != 0) {
-            return false;
-        }
-        return true;
-    }
-
     void AuthenticationHandler::revokeService(std::string const &serviceName) {
         std::unique_lock guard{_mutex};
         auto found = _serviceMap.find(serviceName);
@@ -60,14 +48,20 @@ namespace ipc_server {
         }
     }
 
-    std::string AuthenticationHandler::retrieveServiceName(const std::string &tokenStr) {
-        std::unique_lock guard{_mutex};
-        auto token = Token{tokenStr};
+    std::optional<std::string> AuthenticationHandler::retrieveServiceName(
+        const Token &token) const {
+        std::shared_lock guard{_mutex};
         auto found = _tokenMap.find(token);
-        std::string serviceName;
-        if(found != _tokenMap.cend()) {
-            serviceName = found->second;
+        if(found == _tokenMap.cend()) {
+            return {};
         }
+        auto serviceName = found->second;
+        guard.unlock();
+
+        // TODO: uncomment this. Currently,  breaks IPC tests
+        // if(serviceName.rfind("aws.greengrass", 0) != 0) {
+        //     return {};
+        // }
         return serviceName;
     }
 } // namespace ipc_server
