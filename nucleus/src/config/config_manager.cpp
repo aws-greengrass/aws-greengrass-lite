@@ -1,7 +1,10 @@
 #include "config/config_manager.hpp"
 #include "config/config_nodes.hpp"
+// #include "config/update_behavior_tree.hpp"
+#include "config/config_timestamp.hpp"
 #include "config/yaml_config.hpp"
 #include "transaction_log.hpp"
+#include <set>
 #include <util.hpp>
 #include <utility>
 
@@ -58,6 +61,44 @@ namespace config {
         return getNameUnsafe();
     }
 
+    void Topics::updateFromMap(const TopicElement &mapElement) {
+        if(mapElement.empty() || mapElement.isNull()
+           || !mapElement.isType<data::StructModelBase>()) {
+            return;
+        }
+        std::shared_ptr<data::StructModelBase> map;
+        if(map = mapElement.getStruct(); map == nullptr) {
+            return;
+        }
+
+        /* TODO: Add in the update behavior logic (i.e remove child if needed)
+        // std::set<data::Symbol> childrenToRemove;
+        // auto ctx = context();
+        // auto &syms = ctx->symbols();
+
+        for(const auto &i : _children.get()) {
+            childrenToRemove.insert(syms.apply(i.first));
+        }
+        */
+
+        for(const auto &key : map->getKeys()) {
+            auto value = map->get(key);
+            auto newElement = TopicElement(key, Timestamp::now(), value);
+
+            updateChild(newElement);
+        }
+        /*
+        for(auto childSym : childrenToRemove) {
+            auto childMergeBehavior = mergeBehavior->getChildBehavior(childSym);
+
+            // remove the existing child if its merge behavior is REPLACE
+            if(childMergeBehavior->getBehavior() == UpdateBehaviorTree::UpdateBehavior::REPLACE) {
+                removeChild(*getNode(childSym));
+            }
+        }
+        */
+    }
+
     void Topics::updateChild(const Topic &element) {
         updateChild(TopicElement(element));
     }
@@ -65,7 +106,9 @@ namespace config {
     void Topics::updateChild(const TopicElement &element) {
         data::Symbol key = element.getKey();
         if(element.isType<data::StructModelBase>()) {
-            throw std::runtime_error("Not permitted to insert structures/maps");
+            auto newNode = createInteriorChild(key);
+            newNode->updateFromMap(element);
+            return;
         }
         checkedPut(element, [this, key, &element](auto &el) {
             std::unique_lock guard{_mutex};
