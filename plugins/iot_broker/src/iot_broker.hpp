@@ -39,6 +39,7 @@ class IotBroker : public ggapi::Plugin {
         ggapi::Symbol subscribeToIoTCoreTopic{"aws.greengrass.SubscribeToIoTCore"};
         ggapi::Symbol ipcSubscribeToIoTCoreTopic{"IPC::aws.greengrass#SubscribeToIoTCore"};
         ggapi::Symbol requestDeviceProvisionTopic{"aws.greengrass.RequestDeviceProvision"};
+        ggapi::Symbol subscribeConnTopic{"aws.greengrass.SubscribeConnStatus"};
         ggapi::Symbol topicName{"topicName"};
         ggapi::Symbol qos{"qos"};
         ggapi::Symbol payload{"payload"};
@@ -47,6 +48,7 @@ class IotBroker : public ggapi::Plugin {
         ggapi::Symbol channel{"channel"};
         ggapi::Symbol serviceModelType{"serviceModelType"};
         ggapi::Symbol terminate{"terminate"};
+        ggapi::Symbol status{"status"};
     };
 
     struct ThingInfo {
@@ -69,6 +71,7 @@ class IotBroker : public ggapi::Plugin {
     ggapi::Subscription _subscribeSubs;
     ggapi::Subscription _ipcSubscribeSubs;
     ggapi::Subscription _requestTesSubs;
+    ggapi::Subscription _connStatusSubs;
 
     // TES
     std::string _iotRoleAlias;
@@ -111,4 +114,10 @@ private:
     std::vector<std::tuple<Key, ggapi::Channel>> _subscriptions;
     std::shared_mutex _subscriptionMutex; // TODO: fold this with _mutex?
     std::shared_ptr<Aws::Crt::Mqtt5::Mqtt5Client> _client;
+
+    std::vector<ggapi::Channel> _connStatusListeners;
+    std::shared_mutex _connStatusMutex;
+    bool _connected = false;
+    void updateConnStatus(bool connected);
+    ggapi::Promise connStatusHandler(ggapi::Symbol, const ggapi::Container &args);
 };
