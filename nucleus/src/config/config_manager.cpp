@@ -4,7 +4,7 @@
 #include "config/update_behavior_tree.hpp"
 #include "config/yaml_config.hpp"
 #include "transaction_log.hpp"
-#include <set>
+#include <unordered_map>
 #include <util.hpp>
 #include <utility>
 
@@ -72,12 +72,13 @@ namespace config {
             return;
         }
 
-        std::set<data::Symbol> childrenToRemove;
+        std::unordered_map<std::string, data::Symbol> childrenToRemove;
         auto ctx = context();
         auto &syms = ctx->symbols();
 
         for(const auto &i : _children.get()) {
-            childrenToRemove.insert(syms.apply(i.first));
+            auto sym = syms.apply(i.first);
+            childrenToRemove.insert({sym.toString(), sym});
         }
 
         for(const auto &key : map->getKeys()) {
@@ -92,7 +93,7 @@ namespace config {
             return;
         }
 
-        for(auto childSym : childrenToRemove) {
+        for(auto &[_, childSym] : childrenToRemove) {
             auto childMergeBehavior = mergeBehavior->getChildBehavior(childSym);
 
             // remove the existing child if its merge behavior is REPLACE

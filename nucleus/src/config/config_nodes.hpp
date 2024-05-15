@@ -1,7 +1,6 @@
 #pragma once
 
 #include "config/config_manager.hpp"
-#include "config/update_behavior_tree.hpp"
 #include "data/symbol_value_map.hpp"
 #include "scope/context.hpp"
 
@@ -14,6 +13,7 @@ namespace config {
     class TopicElement;
     class Topic;
     class Topics;
+    class UpdateBehaviorTree;
 
     //
     // Container class for watches on a given topic
