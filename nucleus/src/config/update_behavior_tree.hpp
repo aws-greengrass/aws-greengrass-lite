@@ -48,6 +48,10 @@ namespace config {
     public:
         using UpdateBehaviorTree::UpdateBehaviorTree;
 
+        MergeBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp)
+            : UpdateBehaviorTree(context, timestamp, TreeMap{context}) {
+        }
+
         std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
             auto i = childOverride.find(key);
             if(i != childOverride.end()) {
@@ -87,6 +91,9 @@ namespace config {
     class ReplaceBehaviorTree : public UpdateBehaviorTree {
     public:
         using UpdateBehaviorTree::UpdateBehaviorTree;
+
+        ReplaceBehaviorTree(const scope::UsingContext &context, const Timestamp &timestamp)
+            : UpdateBehaviorTree(context, timestamp, TreeMap{context}) {}
 
         std::shared_ptr<UpdateBehaviorTree> getChildBehavior(data::Symbol &key) override {
             auto i = childOverride.find(key);

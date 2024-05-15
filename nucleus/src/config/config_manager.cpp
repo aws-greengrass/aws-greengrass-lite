@@ -762,5 +762,19 @@ namespace config {
     std::shared_ptr<config::Topics> Manager::findTopics(std::initializer_list<std::string> path) {
         return _root->findTopics(path);
     }
-
+    void Manager::mergeMap(const Timestamp &timestamp, const TopicElement &mapElement) {
+        std::shared_ptr<MergeBehaviorTree> mergeBehavior{
+            std::make_shared<MergeBehaviorTree>(context(), timestamp)};
+        this->updateMap(mapElement, mergeBehavior);
+    }
+    void Manager::updateMap(
+        const TopicElement &mapElement, std::shared_ptr<UpdateBehaviorTree> updateBehavior) {
+        _configUnderUpdate.store(true);
+        // TODO: determine if mutex and notification is needed here.
+        // Needed for lifecycle state change config waiting.
+        publishQueue().publish([this, mapElement, updateBehavior]() {
+            _root->updateFromMap(mapElement, updateBehavior);
+            _configUnderUpdate.store(false);
+        });
+    }
 } // namespace config
