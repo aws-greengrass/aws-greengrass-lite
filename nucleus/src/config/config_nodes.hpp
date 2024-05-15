@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config/config_manager.hpp"
+#include "config/update_behavior_tree.hpp"
 #include "data/symbol_value_map.hpp"
 #include "scope/context.hpp"
 
@@ -186,7 +187,9 @@ namespace config {
             const data::ValueType &currentValue);
 
         // Child manipulation used in context of configuration
-        void updateFromMap(const TopicElement &mapElement);
+        void updateFromMap(
+            const TopicElement &mapElement,
+            std::shared_ptr<UpdateBehaviorTree> mergeBehavior = nullptr);
         void updateChild(const Topic &element);
         std::shared_ptr<ConfigNode> getNode(data::Symbol handle);
         std::shared_ptr<ConfigNode> getNode(std::string_view name);

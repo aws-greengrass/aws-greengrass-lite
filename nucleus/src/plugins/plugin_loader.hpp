@@ -216,6 +216,7 @@ namespace plugins {
         data::SymbolInit SERVICES{"services"};
         data::SymbolInit SYSTEM{"system"};
         data::SymbolInit CONFIGURATION{"configuration"};
+        data::SymbolInit ACCESS_CONTROL{"accessControl"};
         data::SymbolInit LOGGING{"logging"};
 
         explicit PluginLoader(const scope::UsingContext &context)

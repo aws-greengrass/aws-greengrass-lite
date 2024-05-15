@@ -1,7 +1,7 @@
 #include "config/config_manager.hpp"
 #include "config/config_nodes.hpp"
-// #include "config/update_behavior_tree.hpp"
 #include "config/config_timestamp.hpp"
+#include "config/update_behavior_tree.hpp"
 #include "config/yaml_config.hpp"
 #include "transaction_log.hpp"
 #include <set>
@@ -61,7 +61,8 @@ namespace config {
         return getNameUnsafe();
     }
 
-    void Topics::updateFromMap(const TopicElement &mapElement) {
+    void Topics::updateFromMap(
+        const TopicElement &mapElement, std::shared_ptr<UpdateBehaviorTree> mergeBehavior) {
         if(mapElement.empty() || mapElement.isNull()
            || !mapElement.isType<data::StructModelBase>()) {
             return;
@@ -71,32 +72,34 @@ namespace config {
             return;
         }
 
-        /* TODO: Add in the update behavior logic (i.e remove child if needed)
-        // std::set<data::Symbol> childrenToRemove;
-        // auto ctx = context();
-        // auto &syms = ctx->symbols();
+        std::set<data::Symbol> childrenToRemove;
+        auto ctx = context();
+        auto &syms = ctx->symbols();
 
         for(const auto &i : _children.get()) {
             childrenToRemove.insert(syms.apply(i.first));
         }
-        */
 
         for(const auto &key : map->getKeys()) {
             auto value = map->get(key);
-            auto newElement = TopicElement(key, Timestamp::now(), value);
 
-            updateChild(newElement);
+            childrenToRemove.erase(key);
+            updateChild(TopicElement{key, Timestamp::never(), value});
         }
-        /*
+
+        // if nullptr, means not REPLACE object, can skip removal
+        if(!mergeBehavior) {
+            return;
+        }
+
         for(auto childSym : childrenToRemove) {
             auto childMergeBehavior = mergeBehavior->getChildBehavior(childSym);
 
             // remove the existing child if its merge behavior is REPLACE
-            if(childMergeBehavior->getBehavior() == UpdateBehaviorTree::UpdateBehavior::REPLACE) {
+            if(std::dynamic_pointer_cast<ReplaceBehaviorTree>(childMergeBehavior)) {
                 removeChild(*getNode(childSym));
             }
         }
-        */
     }
 
     void Topics::updateChild(const Topic &element) {
