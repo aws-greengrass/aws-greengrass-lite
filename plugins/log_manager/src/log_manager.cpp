@@ -76,11 +76,14 @@ void LogManager::retrieveCredentialsFromTES() {
     LOG.atInfo().log("Calling topic to request credentials from TES");
     auto tesFuture = ggapi::Subscription::callTopicFirst(
             ggapi::Symbol{TES_REQUEST_TOPIC}, request);
-    if(tesFuture.isValid()) {
-        _credentials = ggapi::Struct(tesFuture.waitAndGetValue());
-    }
-    else {
-        _credentials = {};
+    _credentials = {};
+    if(tesFuture) {
+        // TODO: Review error behavior and change
+        try {
+            _credentials = ggapi::Struct(tesFuture.waitAndGetValue());
+        } catch (...) {
+            LOG.atInfo().log("There was an issue while getting TES future.");
+        }
     }
 }
 

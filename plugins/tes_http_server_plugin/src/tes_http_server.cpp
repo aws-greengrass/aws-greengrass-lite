@@ -32,7 +32,13 @@ ggapi::Struct getTesCredentialsStruct() {
     auto tesFuture = ggapi::Subscription::callTopicFirst(
         ggapi::Symbol{requestTesCredentialsTopic}, tes_lpc_request);
     if(tesFuture) {
-        return ggapi::Struct(tesFuture.waitAndGetValue());
+        // TODO: Review error behavior and change
+        try {
+            return ggapi::Struct(tesFuture.waitAndGetValue());
+        } catch (...) {
+            LOG.atInfo().log("There was an issue while getting TES future.");
+            return {};
+        }
     } else {
         return {};
     }
