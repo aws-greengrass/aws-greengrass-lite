@@ -76,7 +76,7 @@ void LogManager::retrieveCredentialsFromTES() {
     LOG.atInfo().log("Calling topic to request credentials from TES");
     auto tesFuture = ggapi::Subscription::callTopicFirst(
             ggapi::Symbol{TES_REQUEST_TOPIC}, request);
-    if(tesFuture) {
+    if(tesFuture.isValid()) {
         _credentials = ggapi::Struct(tesFuture.waitAndGetValue());
     }
     else {
