@@ -236,15 +236,8 @@ namespace plugins {
         for(const auto &[service, type] : recipe.componentDependencies) {
             dependencies->push(service);
         }
-        auto configuration = std::make_shared<data::SharedStruct>(context());
-        auto defaultConfig = recipe.configuration.defaultConfiguration;
         config->put("version", recipe.componentVersion);
         config->put("dependencies", dependencies);
-        if(defaultConfig != nullptr && !defaultConfig->empty()) {
-            auto accessControl = defaultConfig->get(defaultConfig->foldKey("accessControl", true));
-            configuration->put(ACCESS_CONTROL, accessControl);
-            config->put("configuration", configuration);
-        }
         return plugin;
     }
 
