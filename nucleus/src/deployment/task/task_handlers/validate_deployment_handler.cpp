@@ -24,20 +24,19 @@ bool ValidateDeploymentHandler::isDeploymentStale(deployment::Deployment &docume
 }
 
 deployment::DeploymentResult ValidateDeploymentHandler::handleRequest(deployment::Deployment &deployment) {
-    deployment::DeploymentResult failedNoStateChangeResult{deployment::DeploymentStatus::FAILED_NO_STATE_CHANGE};
     if (!deployment.isCancelled) {
         if(isDeploymentStale(deployment)) {
-            return failedNoStateChangeResult;
+            return deployment::DeploymentResult{deployment::DeploymentStatus::REJECTED};
         }
         std::vector<std::string> kernelSupportedCapabilities = _kernel.getSupportedCapabilities();
         for(const std::string& reqCapability : deployment.deploymentDocumentObj.requiredCapabilities)
         {
             if(!std::count(kernelSupportedCapabilities.begin(), kernelSupportedCapabilities.end(), reqCapability)) {
-                return failedNoStateChangeResult;
+                return deployment::DeploymentResult{deployment::DeploymentStatus::FAILED_NO_STATE_CHANGE};
             }
         }
         return this->getNextHandler().handleRequest(deployment); // Pass processing to the next handler
     }
     // TODO: cloud-deployments: Handle cancelled IoT Jobs deployments .
-    return failedNoStateChangeResult;
+    return deployment::DeploymentResult{deployment::DeploymentStatus::FAILED_NO_STATE_CHANGE};
 }
