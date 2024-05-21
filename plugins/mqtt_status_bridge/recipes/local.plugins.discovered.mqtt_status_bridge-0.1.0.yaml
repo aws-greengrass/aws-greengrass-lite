@@ -1,0 +1,14 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: local.plugins.discovered.mqtt_status_bridge
+ComponentType: aws.greengrass.plugin
+ComponentVersion: "0.1.0"
+ComponentDescription: Sends MQTT connection status over local pubsub.
+ComponentPublisher: Amazon
+ComponentDependencies:
+  local.plugins.discovered.iot_broker:
+    VersionRequirement: ">=0.1.0"
+    DependencyType: HARD
+  local.plugins.discovered.local_broker:
+    VersionRequirement: ">=0.1.0"
+    DependencyType: HARD

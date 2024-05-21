@@ -12,6 +12,8 @@ struct Keys {
     ggapi::StringOrd ipcSubscribeMetaTopic{"IPC:META::aws.greengrass#SubscribeToTopic"};
     ggapi::StringOrd resource{"resource"};
     ggapi::StringOrd destination{"destination"};
+    ggapi::StringOrd publishToTopic{"aws.greengrass.PublishToTopic"};
+    ggapi::StringOrd subscribeToTopic{"aws.greengrass.SubscribeToTopic"};
     ggapi::StringOrd topic{"topic"};
     ggapi::StringOrd publishMessage{"publishMessage"};
     ggapi::StringOrd jsonMessage{"jsonMessage"};
@@ -34,6 +36,8 @@ private:
     std::shared_mutex _mutex;
     std::mutex _subscriptionMutex; // TODO: fold these two mutexes together?
 
+    ggapi::Subscription _publishSubs;
+    ggapi::Subscription _subscribeSubs;
     ggapi::Subscription _ipcPublishSubs;
     ggapi::Subscription _ipcSubscribeSubs;
     ggapi::Subscription _ipcPublishMetaSubs;
@@ -43,15 +47,23 @@ public:
     void onStart(ggapi::Struct data) override;
 
     ggapi::ObjHandle publishToTopicHandler(ggapi::Symbol topic, const ggapi::Container &);
-
     ggapi::ObjHandle subscribeToTopicHandler(ggapi::Symbol topic, const ggapi::Container &);
     ggapi::ObjHandle getAuthZMetaData(ggapi::Symbol topic, const ggapi::Container &);
+    ggapi::ObjHandle ipcPublishToTopicHandler(ggapi::Symbol topic, const ggapi::Container &);
+    ggapi::ObjHandle ipcSubscribeToTopicHandler(ggapi::Symbol topic, const ggapi::Container &);
 
     static LocalBroker &get() {
         static LocalBroker instance{};
         return instance;
     }
 };
+
+ggapi::ObjHandle LocalBroker::ipcPublishToTopicHandler(
+    ggapi::Symbol topic, const ggapi::Container &callDataIn) {
+    auto ret = publishToTopicHandler(topic, callDataIn);
+
+    return ggapi::Struct::create().put(keys.shape, ret).put(keys.terminate, true);
+}
 
 ggapi::ObjHandle LocalBroker::publishToTopicHandler(
     ggapi::Symbol, const ggapi::Container &callDataIn) {
@@ -81,20 +93,33 @@ ggapi::ObjHandle LocalBroker::publishToTopicHandler(
         jsonMsg.put(keys.context, context);
     }
 
-    ggapi::Struct payload =
-        ggapi::Struct::create()
-            .put("shape", message)
-            .put(keys.serviceModelType, "aws.greengrass#SubscriptionResponseMessage");
-
     for(const auto &[filter, channel] : _subscriptions) {
         if(filter.match(topic)) {
-            channel.write(payload);
+            channel.write(message);
         }
     }
 
+    return ggapi::Struct::create();
+}
+
+ggapi::ObjHandle LocalBroker::ipcSubscribeToTopicHandler(
+    ggapi::Symbol topic, const ggapi::Container &callDataIn) {
+
+    ggapi::Struct resp{subscribeToTopicHandler(topic, callDataIn)};
+    ggapi::Channel channel{resp.get<ggapi::Channel>("channel")};
+
+    auto filteredChannel = ggapi::Channel::create();
+    channel.addListenCallback(ggapi::ChannelListenCallback::of<ggapi::Struct>(
+        [filteredChannel](const ggapi::Struct &message) {
+            filteredChannel.write(
+                ggapi::Struct::create()
+                    .put("shape", message)
+                    .put(keys.serviceModelType, "aws.greengrass#SubscriptionResponseMessage"));
+        }));
+
     return ggapi::Struct::create()
         .put(keys.shape, ggapi::Struct::create())
-        .put(keys.terminate, true);
+        .put(keys.channel, filteredChannel);
 }
 
 ggapi::ObjHandle LocalBroker::subscribeToTopicHandler(
@@ -118,9 +143,7 @@ ggapi::ObjHandle LocalBroker::subscribeToTopicHandler(
         _subscriptions.pop_back();
     });
 
-    return ggapi::Struct::create()
-        .put(keys.shape, ggapi::Struct::create())
-        .put(keys.channel, channel);
+    return ggapi::Struct::create().put(keys.channel, channel);
 }
 
 ggapi::ObjHandle LocalBroker::getAuthZMetaData(ggapi::Symbol, const ggapi::Container &callDataIn) {
@@ -139,12 +162,17 @@ void LocalBroker::onStart(ggapi::Struct data) {
         keys.ipcPublishMetaTopic, ggapi::TopicCallback::of(&LocalBroker::getAuthZMetaData, this));
     _ipcSubscribeMetaSubs = ggapi::Subscription::subscribeToTopic(
         keys.ipcSubscribeMetaTopic, ggapi::TopicCallback::of(&LocalBroker::getAuthZMetaData, this));
+    _publishSubs = ggapi::Subscription::subscribeToTopic(
+        keys.publishToTopic, ggapi::TopicCallback::of(&LocalBroker::publishToTopicHandler, this));
+    _subscribeSubs = ggapi::Subscription::subscribeToTopic(
+        keys.subscribeToTopic,
+        ggapi::TopicCallback::of(&LocalBroker::subscribeToTopicHandler, this));
     _ipcPublishSubs = ggapi::Subscription::subscribeToTopic(
         keys.ipcPublishToTopic,
-        ggapi::TopicCallback::of(&LocalBroker::publishToTopicHandler, this));
+        ggapi::TopicCallback::of(&LocalBroker::ipcPublishToTopicHandler, this));
     _ipcSubscribeSubs = ggapi::Subscription::subscribeToTopic(
         keys.ipcSubscribeToTopic,
-        ggapi::TopicCallback::of(&LocalBroker::subscribeToTopicHandler, this));
+        ggapi::TopicCallback::of(&LocalBroker::ipcSubscribeToTopicHandler, this));
 }
 
 extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(
