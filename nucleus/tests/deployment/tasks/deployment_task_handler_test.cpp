@@ -52,6 +52,8 @@ SCENARIO("Validate deployment task handler", "[deployment]") {
                 REQUIRE(result.deploymentStatus == deployment::DeploymentStatus::SUCCESSFUL);
             }
         }
+
+        // TODO: Add test for stale deployments when more deployment functionality is implemented
     }
 }
 // NOLINTEND
