@@ -61,8 +61,9 @@ namespace config {
         return getNameUnsafe();
     }
 
+    // NOLINTNEXTLINE(*-no-recursion)
     void Topics::updateFromMap(
-        const TopicElement &mapElement, std::shared_ptr<UpdateBehaviorTree> mergeBehavior) {
+        const TopicElement &mapElement, const std::shared_ptr<UpdateBehaviorTree> &mergeBehavior) {
         if(mapElement.empty() || mapElement.isNull()
            || !mapElement.isType<data::StructModelBase>()) {
             return;
@@ -107,6 +108,7 @@ namespace config {
         updateChild(TopicElement(element));
     }
 
+    // NOLINTNEXTLINE(*-no-recursion)
     void Topics::updateChild(const TopicElement &element) {
         data::Symbol key = element.getKey();
         if(element.isType<data::StructModelBase>()) {
@@ -768,7 +770,7 @@ namespace config {
         this->updateMap(mapElement, mergeBehavior);
     }
     void Manager::updateMap(
-        const TopicElement &mapElement, std::shared_ptr<UpdateBehaviorTree> updateBehavior) {
+        const TopicElement &mapElement, const std::shared_ptr<UpdateBehaviorTree> &updateBehavior) {
         _configUnderUpdate.store(true);
         // TODO: determine if mutex and notification is needed here.
         // Needed for lifecycle state change config waiting.

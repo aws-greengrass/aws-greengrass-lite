@@ -189,7 +189,7 @@ namespace config {
         // Child manipulation used in context of configuration
         void updateFromMap(
             const TopicElement &mapElement,
-            std::shared_ptr<UpdateBehaviorTree> mergeBehavior = nullptr);
+            const std::shared_ptr<UpdateBehaviorTree> &mergeBehavior = nullptr);
         void updateChild(const Topic &element);
         std::shared_ptr<ConfigNode> getNode(data::Symbol handle);
         std::shared_ptr<ConfigNode> getNode(std::string_view name);

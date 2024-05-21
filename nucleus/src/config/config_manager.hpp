@@ -58,7 +58,8 @@ namespace config {
         void mergeMap(const Timestamp &timestamp, const TopicElement &mapElement);
 
         void updateMap(
-            const TopicElement &mapElement, std::shared_ptr<UpdateBehaviorTree> updateBehavior);
+            const TopicElement &mapElement,
+            const std::shared_ptr<UpdateBehaviorTree> &updateBehavior);
 
         Manager &read(const std::filesystem::path &path);
     };
