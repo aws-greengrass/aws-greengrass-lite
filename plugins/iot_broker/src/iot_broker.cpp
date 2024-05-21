@@ -5,6 +5,14 @@
 
 const IotBroker::Keys IotBroker::keys{};
 
+void IotBroker::updateConnStatus(bool connected) {
+    std::shared_lock lock{_connStatusMutex};
+    _connected = connected;
+    for(const auto &channel : _connStatusListeners) {
+        channel.write(ggapi::Struct::create().put(keys.status, connected));
+    }
+}
+
 void IotBroker::initMqtt() {
     {
         std::unique_ptr<Aws::Iot::Mqtt5ClientBuilder> builder{
@@ -21,15 +29,26 @@ void IotBroker::initMqtt() {
         }
 
         builder->WithClientConnectionSuccessCallback(
-            [](const Aws::Crt::Mqtt5::OnConnectionSuccessEventData &eventData) {
+            [this](const Aws::Crt::Mqtt5::OnConnectionSuccessEventData &eventData) {
+                util::TempModule module(getModule());
                 std::cerr << "[mqtt-plugin] Connection successful with clientid "
                           << eventData.negotiatedSettings->getClientId() << "." << std::endl;
+                updateConnStatus(true);
             });
 
         builder->WithClientConnectionFailureCallback(
-            [](const Aws::Crt::Mqtt5::OnConnectionFailureEventData &eventData) {
+            [this](const Aws::Crt::Mqtt5::OnConnectionFailureEventData &eventData) {
+                util::TempModule module(getModule());
                 std::cerr << "[mqtt-plugin] Connection failed: "
                           << aws_error_debug_str(eventData.errorCode) << "." << std::endl;
+                updateConnStatus(false);
+            });
+
+        builder->WithClientDisconnectionCallback(
+            [this](const Aws::Crt::Mqtt5::OnDisconnectionEventData &eventData) {
+                util::TempModule module(getModule());
+                std::cerr << "[mqtt-plugin] Disconnected." << std::endl;
+                updateConnStatus(false);
             });
 
         builder->WithPublishReceivedCallback(
@@ -130,6 +149,27 @@ void IotBroker::connectionThread(ggapi::Struct data) {
     }
 }
 
+ggapi::Promise IotBroker::connStatusHandler(ggapi::Symbol, const ggapi::Container &args) {
+    auto promise = ggapi::Promise::create();
+    promise.fulfill([&]() {
+        auto channel = ggapi::Channel::create();
+        std::unique_lock lock(_connStatusMutex);
+        _connStatusListeners.emplace_back(channel);
+        channel.addCloseCallback([this, channel]() {
+            std::unique_lock lock(_connStatusMutex);
+            auto iter =
+                std::find(_connStatusListeners.begin(), _connStatusListeners.end(), channel);
+            std::iter_swap(iter, std::prev(_connStatusListeners.end()));
+            _subscriptions.pop_back();
+        });
+
+        channel.write(ggapi::Struct::create().put(keys.status, _connected));
+
+        return ggapi::Struct::create().put(keys.channel, channel);
+    });
+    return promise;
+}
+
 void IotBroker::onStart(ggapi::Struct data) {
     _publishSubs = ggapi::Subscription::subscribeToTopic(
         keys.publishToIoTCoreTopic, ggapi::TopicCallback::of(&IotBroker::publishHandler, this));
@@ -141,6 +181,8 @@ void IotBroker::onStart(ggapi::Struct data) {
     _ipcSubscribeSubs = ggapi::Subscription::subscribeToTopic(
         keys.ipcSubscribeToIoTCoreTopic,
         ggapi::TopicCallback::of(&IotBroker::ipcSubscribeHandler, this));
+    _connStatusSubs = ggapi::Subscription::subscribeToTopic(
+        keys.subscribeConnTopic, ggapi::TopicCallback::of(&IotBroker::connStatusHandler, this));
     _conn = std::thread{&IotBroker::connectionThread, this, data};
 
     tesOnStart(data);
@@ -166,4 +208,3 @@ void IotBroker::queueWorker() {
         }
     }
 }
-

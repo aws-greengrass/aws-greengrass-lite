@@ -1,3 +1,14 @@
+## 2024-05-16
+
+Features:
+
+- Experimental support for reporting connection status over local pubsub.
+
+Bugfixes:
+
+- Fixed possible crash in log manager plugin.
+- TES no longer blocks on IoT Core MQTT connection.
+
 ## 2024-05-03
 
 Features:
