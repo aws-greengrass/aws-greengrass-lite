@@ -304,8 +304,13 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
             return localEnv;
         };
 
+        auto SAME_COMPONENT_INTERPOLATION_REGEX = "\\{([.\\w-]+):([^:}]*)}";
+        auto CROSS_COMPONENT_INTERPOLATION_REGEX = "\\{([.\\w-]+):([.\\w-]+):([^:}]*)}";
         // script
         auto getScript = [&]() -> std::string {
+            // TODO: instead of hard coded matching, find all interpolation attempts by regex, and
+            // then replace all found matchings
+            std::cout << "SCRIPT HERE 😂:: " << step.script << std::endl;
             auto script =
                 std::regex_replace(step.script, std::regex(R"(\{artifacts:path\})"), _artifactPath);
 

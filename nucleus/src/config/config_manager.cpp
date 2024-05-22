@@ -86,7 +86,7 @@ namespace config {
             auto value = map->get(key);
 
             childrenToRemove.erase(key);
-            updateChild(TopicElement{key, Timestamp::never(), value});
+            updateChild(TopicElement{key, Timestamp::dawn(), value});
         }
 
         // if nullptr, means not REPLACE object, can skip removal

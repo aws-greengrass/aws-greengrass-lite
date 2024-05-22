@@ -293,18 +293,9 @@ namespace deployment {
         auto context = scope::context();
 
         auto newService = std::make_shared<data::SharedStruct>(context);
-
         newService->put("configuration", defaultConfig);
         auto servicesTopic = _kernel.getConfig().lookupTopics({"services"});
         servicesTopic->put(currentRecipe.getComponentName(), newService);
-
-        auto config =
-            _kernel.getConfig().lookupTopics({"services", currentRecipe.getComponentName()});
-        auto configTest = config->lookup({"configuration"}).getStruct();
-
-        for(auto key : configTest->getKeys()) {
-            auto dum = key.toString();
-        }
 
         auto data_pack = std::make_shared<data::SharedStruct>(context);
 
