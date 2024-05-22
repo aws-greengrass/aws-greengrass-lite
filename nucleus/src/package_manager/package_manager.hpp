@@ -16,8 +16,6 @@ namespace lifecycle {
 }
 
 namespace deployment {
-    //     template<class K, class V>
-    //     using DeploymentQueue = std::shared_ptr<data::SharedQueue<K, V>>;
     class Recipe;
 } // namespace deployment
 

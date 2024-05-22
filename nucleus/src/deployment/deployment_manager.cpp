@@ -35,8 +35,6 @@ namespace deployment {
         : scope::UsesContext(context), _module(util::TempModule::create("DeploymentManager")),
           _packageManager(std::move(packageManager)), _kernel(kernel) {
         _deploymentQueue = std::make_shared<data::SharedQueue<std::string, Deployment>>(context);
-        //_componentStore = std::make_shared<data::SharedQueue<std::string, Recipe>>(context);
-        //_packageManager = package_manager::PackageManager(context, kernel);
     }
 
     void DeploymentManager::start() {

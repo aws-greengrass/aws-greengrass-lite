@@ -32,8 +32,6 @@ namespace deployment {
 
     class DeploymentManager : private scope::UsesContext {
         DeploymentQueue<std::string, Deployment> _deploymentQueue;
-        //DeploymentQueue<std::string, Recipe> _componentStore;
-        //std::shared_ptr<data::SharedStruct> _recipeAsStruct ;
         static constexpr std::string_view DEPLOYMENT_ID_LOG_KEY = "DeploymentId";
         static constexpr std::string_view DISCARDED_DEPLOYMENT_ID_LOG_KEY = "DiscardedDeploymentId";
         static constexpr std::string_view GG_DEPLOYMENT_ID_LOG_KEY_NAME = "GreengrassDeploymentId";
