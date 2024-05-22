@@ -152,7 +152,8 @@ add_library(
   src/deployment/task/task_handlers/merge_config_handler.hpp
   src/deployment/task/task_handlers/track_service_status_handler.hpp
   src/deployment/task/task_handlers/task_handler.hpp
-  src/deployment/task/task_handlers/validate_deployment_handler.hpp)
+  src/deployment/task/task_handlers/validate_deployment_handler.hpp
+  src/deployment/task/task_handlers/validate_deployment_handler.cpp)
 
 target_link_libraries(
   nucleus-obj PUBLIC gg_plugin_api_min gg_pal Threads::Threads ${CMAKE_DL_LIBS}
