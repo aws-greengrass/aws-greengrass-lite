@@ -5,7 +5,7 @@
 #include <plugin.hpp>
 
 class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenComponentDelegate> {
-    public:
+public:
     struct ScriptSection : public ggapi::Serializable {
         std::optional<std::unordered_map<std::string, std::string>> envMap;
         std::string script;
@@ -125,6 +125,7 @@ private:
 
     ggapi::Struct _nucleusConfig;
     ggapi::Struct _systemConfig;
+    ggapi::Struct _configRoot;
 
     void processScript(ScriptSection section, std::string_view stepNameArg);
 
@@ -149,7 +150,7 @@ public:
         ggapi::Symbol event,
         ggapi::Struct data);
 
-    ggapi::ModuleScope registerComponent(ggapi::ModuleScope &moduleScope );
+    ggapi::ModuleScope registerComponent(ggapi::ModuleScope &moduleScope);
 
     void onInitialize(ggapi::Struct data) override;
     void onStart(ggapi::Struct data) override;
@@ -159,11 +160,12 @@ class GenComponentLoader : public ggapi::Plugin {
 private:
     ggapi::ObjHandle registerGenComponent(ggapi::Symbol, const ggapi::Container &callData);
     ggapi::Subscription _delegateComponentSubscription;
-    std::optional <std::function<void(std::shared_ptr<GenComponentDelegate>)>> _initHook;
+    std::optional<std::function<void(std::shared_ptr<GenComponentDelegate>)>> _initHook;
+
 public:
     void onInitialize(ggapi::Struct data) override;
 
-    void setInitHook(const std::function<void(std::shared_ptr<GenComponentDelegate>)> &initHook){
+    void setInitHook(const std::function<void(std::shared_ptr<GenComponentDelegate>)> &initHook) {
         _initHook = initHook;
     }
 

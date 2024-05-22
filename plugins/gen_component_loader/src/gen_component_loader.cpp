@@ -309,15 +309,20 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
             auto script =
                 std::regex_replace(step.script, std::regex(R"(\{artifacts:path\})"), _artifactPath);
 
-            // if(_defaultConfig && !_defaultConfig.empty()) {
-            //     for(auto key : _defaultConfig.keys().toVector<ggapi::Archive::KeyType>()) {
-            //         auto value = _defaultConfig.get<std::string>(key);
-            //         script = std::regex_replace(
-            //             script,
-            //             std::regex(R"(\{configuration:\/)" + key.toString() + R"(\})"),
-            //             value);
-            //     }
-            // }
+            if(_defaultConfig && !_defaultConfig.empty()) {
+                for(auto key : _defaultConfig.keys().toVector<std::string>()) {
+                    auto dum = key;
+                    // auto value = _defaultConfig.get<std::string>(key);
+
+                    std::cout << "Config here 👏:: ";
+                    _defaultConfig.toJson().write(std::cout);
+                    std::cout << std::endl;
+                    /*script = std::regex_replace(
+                        script,
+                        std::regex(R"(\{configuration:\/)" + key.toString() + R"(\})"),
+                        value);*/
+                }
+            }
 
             return script;
         };
@@ -366,7 +371,6 @@ GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
     _deploymentId = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("ComponentName"));
 
     _name = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("componentName"));
-
     // TODO:: Improve how Lifecycle is extracted from recipe with respect to manifest
     _lifecycleAsStruct =
         _manifestAsStruct.get<ggapi::Struct>(_manifestAsStruct.foldKey("Lifecycle"));
@@ -377,12 +381,21 @@ void GenComponentDelegate::onInitialize(ggapi::Struct data) {
 
     _nucleusConfig = data.getValue<ggapi::Struct>({"nucleus"});
     _systemConfig = data.getValue<ggapi::Struct>({"system"});
+    _configRoot = data.getValue<ggapi::Struct>({"configRoot"});
 
-    // TODO: Use nucleus's global config to parse this information
-    //  auto compConfig =
-    //      _recipeAsStruct.get<ggapi::Struct>(_recipeAsStruct.foldKey("ComponentConfiguration"));
-    //  auto _defaultConfig =
-    //  compConfig.get<ggapi::Struct>(compConfig.foldKey("DefaultConfiguration"));
+    auto allServices = _configRoot.get<ggapi::Struct>(_configRoot.foldKey("services"));
+
+    if(allServices.hasKey(_name)) {
+        auto service = allServices.get<ggapi::Struct>(allServices.foldKey(_name));
+        if(!service.empty()) {
+            if(service.hasKey("configuration") && service.isStruct("configuration")) {
+                _defaultConfig = service.get<ggapi::Struct>(service.foldKey("configuration"));
+                std::cout << "Config here 👏:: ";
+                _defaultConfig.toJson().write(std::cout);
+                std::cout << std::endl;
+            }
+        }
+    }
 
     ggapi::Archive::transform<ggapi::ContainerDearchiver>(_lifecycle, _lifecycleAsStruct);
 
