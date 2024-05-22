@@ -15,10 +15,6 @@ namespace lifecycle {
     class Kernel;
 }
 
-namespace deployment {
-    class Recipe;
-} // namespace deployment
-
 namespace package_manager {
 
     template<class K, class V>
