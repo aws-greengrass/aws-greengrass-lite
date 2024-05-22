@@ -94,7 +94,7 @@ add_library(
   src/deployment/task/default_deployment_task.cpp
   src/deployment/task/default_deployment_task.hpp
   src/deployment/model/linked_map.hpp
-        src/deployment/recipe_model.hpp
+  src/deployment/recipe_model.hpp
   src/package_manager/recipe_loader.hpp
   src/package_manager/recipe_loader.cpp
   src/package_manager/package_manager.cpp
