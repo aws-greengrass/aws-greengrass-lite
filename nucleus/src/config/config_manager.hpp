@@ -20,11 +20,13 @@ namespace config {
     class ConfigNode;
     class Topic;
     class Topics;
+    class UpdateBehaviorTree;
 
     class Manager : private scope::UsesContext {
     private:
         std::shared_ptr<Topics> _root;
         PublishQueue _publishQueue;
+        std::atomic_bool _configUnderUpdate{false};
 
     public:
         explicit Manager(const scope::UsingContext &context);
@@ -52,6 +54,12 @@ namespace config {
             const data::ValueType &defaultV, std::initializer_list<std::string> path);
 
         std::shared_ptr<config::Topics> findTopics(std::initializer_list<std::string> path);
+
+        void mergeMap(const Timestamp &timestamp, const TopicElement &mapElement);
+
+        void updateMap(
+            const TopicElement &mapElement,
+            const std::shared_ptr<UpdateBehaviorTree> &updateBehavior);
 
         Manager &read(const std::filesystem::path &path);
     };

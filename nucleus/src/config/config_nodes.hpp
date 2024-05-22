@@ -13,6 +13,7 @@ namespace config {
     class TopicElement;
     class Topic;
     class Topics;
+    class UpdateBehaviorTree;
 
     //
     // Container class for watches on a given topic
@@ -186,7 +187,9 @@ namespace config {
             const data::ValueType &currentValue);
 
         // Child manipulation used in context of configuration
-
+        void updateFromMap(
+            const TopicElement &mapElement,
+            const std::shared_ptr<UpdateBehaviorTree> &mergeBehavior = nullptr);
         void updateChild(const Topic &element);
         std::shared_ptr<ConfigNode> getNode(data::Symbol handle);
         std::shared_ptr<ConfigNode> getNode(std::string_view name);
