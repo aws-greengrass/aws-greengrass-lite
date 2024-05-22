@@ -1,11 +1,9 @@
 #pragma once
+#include <deployment/recipe_model.hpp>
 #include <filesystem>
 
 namespace data {
     class SharedStruct;
-}
-namespace deployment {
-    class Recipe;
 }
 
 namespace package_manager {

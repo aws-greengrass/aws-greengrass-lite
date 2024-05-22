@@ -1,7 +1,7 @@
 #include "package_manager.hpp"
 #include "logging.hpp"
-#include "recipe_model.hpp"
 #include <data/shared_struct.hpp>
+#include <deployment/recipe_model.hpp>
 #include <lifecycle/kernel.hpp>
 
 #include <temp_module.hpp>

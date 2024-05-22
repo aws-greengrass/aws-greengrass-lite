@@ -1,6 +1,6 @@
 #pragma once
 
-#include "package_manager/recipe_model.hpp"
+#include "deployment/recipe_model.hpp"
 #include "plugins/plugin_loader.hpp"
 #include <future>
 #include <queue>

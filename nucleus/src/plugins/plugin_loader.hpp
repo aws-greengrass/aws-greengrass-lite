@@ -1,7 +1,7 @@
 #pragma once
 
 #include "data/struct_model.hpp"
-#include "package_manager/recipe_model.hpp"
+#include "deployment/recipe_model.hpp"
 #include "scope/context.hpp"
 #include <atomic>
 #include <cpp_api.hpp>

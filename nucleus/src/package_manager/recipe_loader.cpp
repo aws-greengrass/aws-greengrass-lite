@@ -1,6 +1,6 @@
 #include "recipe_loader.hpp"
 #include "data/generic_serializer.hpp"
-#include "package_manager/recipe_model.hpp"
+#include "deployment/recipe_model.hpp"
 
 namespace package_manager {
     deployment::Recipe RecipeLoader::read(const std::filesystem::path &file) {
