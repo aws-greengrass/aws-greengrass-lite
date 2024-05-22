@@ -1,7 +1,10 @@
 #include "config/config_manager.hpp"
 #include "config/config_nodes.hpp"
+#include "config/config_timestamp.hpp"
+#include "config/update_behavior_tree.hpp"
 #include "config/yaml_config.hpp"
 #include "transaction_log.hpp"
+#include <unordered_map>
 #include <util.hpp>
 #include <utility>
 
@@ -58,14 +61,60 @@ namespace config {
         return getNameUnsafe();
     }
 
+    // NOLINTNEXTLINE(*-no-recursion)
+    void Topics::updateFromMap(
+        const TopicElement &mapElement, const std::shared_ptr<UpdateBehaviorTree> &mergeBehavior) {
+        if(mapElement.empty() || mapElement.isNull()
+           || !mapElement.isType<data::StructModelBase>()) {
+            return;
+        }
+        std::shared_ptr<data::StructModelBase> map;
+        if(map = mapElement.getStruct(); map == nullptr) {
+            return;
+        }
+
+        std::unordered_map<std::string, data::Symbol> childrenToRemove;
+        auto ctx = context();
+        auto &syms = ctx->symbols();
+
+        for(const auto &i : _children.get()) {
+            auto sym = syms.apply(i.first);
+            childrenToRemove.insert({sym.toString(), sym});
+        }
+
+        for(const auto &key : map->getKeys()) {
+            auto value = map->get(key);
+
+            childrenToRemove.erase(key);
+            updateChild(TopicElement{key, Timestamp::never(), value});
+        }
+
+        // if nullptr, means not REPLACE object, can skip removal
+        if(!mergeBehavior) {
+            return;
+        }
+
+        for(auto &[_, childSym] : childrenToRemove) {
+            auto childMergeBehavior = mergeBehavior->getChildBehavior(childSym);
+
+            // remove the existing child if its merge behavior is REPLACE
+            if(std::dynamic_pointer_cast<ReplaceBehaviorTree>(childMergeBehavior)) {
+                removeChild(*getNode(childSym));
+            }
+        }
+    }
+
     void Topics::updateChild(const Topic &element) {
         updateChild(TopicElement(element));
     }
 
+    // NOLINTNEXTLINE(*-no-recursion)
     void Topics::updateChild(const TopicElement &element) {
         data::Symbol key = element.getKey();
         if(element.isType<data::StructModelBase>()) {
-            throw std::runtime_error("Not permitted to insert structures/maps");
+            auto newNode = createInteriorChild(key);
+            newNode->updateFromMap(element);
+            return;
         }
         checkedPut(element, [this, key, &element](auto &el) {
             std::unique_lock guard{_mutex};
@@ -715,5 +764,19 @@ namespace config {
     std::shared_ptr<config::Topics> Manager::findTopics(std::initializer_list<std::string> path) {
         return _root->findTopics(path);
     }
-
+    void Manager::mergeMap(const Timestamp &timestamp, const TopicElement &mapElement) {
+        std::shared_ptr<MergeBehaviorTree> mergeBehavior{
+            std::make_shared<MergeBehaviorTree>(context(), timestamp)};
+        this->updateMap(mapElement, mergeBehavior);
+    }
+    void Manager::updateMap(
+        const TopicElement &mapElement, const std::shared_ptr<UpdateBehaviorTree> &updateBehavior) {
+        _configUnderUpdate.store(true);
+        // TODO: determine if mutex and notification is needed here.
+        // Needed for lifecycle state change config waiting.
+        publishQueue().publish([this, mapElement, updateBehavior]() {
+            _root->updateFromMap(mapElement, updateBehavior);
+            _configUnderUpdate.store(false);
+        });
+    }
 } // namespace config
