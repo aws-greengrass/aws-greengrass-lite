@@ -2,8 +2,8 @@
 #include <catch2/catch_all.hpp>
 #include <data/shared_buffer.hpp>
 #include <deployment/deployment_manager.hpp>
+#include <deployment/recipe_model.hpp>
 #include <package_manager/recipe_loader.hpp>
-#include <package_manager/recipe_model.hpp>
 
 using Catch::Matchers::Equals;
 
