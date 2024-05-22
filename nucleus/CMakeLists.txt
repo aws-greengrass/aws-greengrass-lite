@@ -94,9 +94,11 @@ add_library(
   src/deployment/task/default_deployment_task.cpp
   src/deployment/task/default_deployment_task.hpp
   src/deployment/model/linked_map.hpp
-        src/package_manager/recipe_model.hpp
-        src/package_manager/recipe_loader.hpp
-        src/package_manager/recipe_loader.cpp
+  src/package_manager/recipe_model.hpp
+  src/package_manager/recipe_loader.hpp
+  src/package_manager/recipe_loader.cpp
+  src/package_manager/package_manager.cpp
+  src/package_manager/package_manager.hpp
   src/errors/api_errors.hpp
   src/errors/error_base.cpp
   src/errors/error_base.hpp
@@ -152,8 +154,7 @@ add_library(
   src/deployment/task/task_handlers/merge_config_handler.hpp
   src/deployment/task/task_handlers/track_service_status_handler.hpp
   src/deployment/task/task_handlers/task_handler.hpp
-  src/deployment/task/task_handlers/validate_deployment_handler.hpp
-        src/package_manager/package_manager.cpp)
+  src/deployment/task/task_handlers/validate_deployment_handler.hpp)
 
 target_link_libraries(
   nucleus-obj PUBLIC gg_plugin_api_min gg_pal Threads::Threads ${CMAKE_DL_LIBS}
@@ -176,11 +177,7 @@ configureRPATH(nucleus-core)
 
 # Executable
 
-add_executable(greengrass-lite stub/main.c
-        src/package_manager/package_manager.hpp
-        src/package_manager/package_manager.hpp
-        src/package_manager/package_manager.cpp
-        src/package_manager/package_manager.cpp)
+add_executable(greengrass-lite stub/main.c)
 target_link_libraries(greengrass-lite nucleus-core)
 
 configureRPATH(greengrass-lite)

@@ -1,11 +1,12 @@
-#include "../data/shared_struct.hpp"
 #include "package_manager.hpp"
-#include "../lifecycle/kernel.hpp"
 #include "logging.hpp"
+#include "recipe_model.hpp"
+#include <data/shared_struct.hpp>
+#include <lifecycle/kernel.hpp>
 
 #include <temp_module.hpp>
 
-static const auto LOG = //NOLINT(cert-err58-cpp)
+static const auto LOG = // NOLINT(cert-err58-cpp)
     ggapi::Logger::of("com.aws.greengrass.packagemanager");
 
 namespace package_manager {
@@ -101,4 +102,4 @@ namespace package_manager {
             std::filesystem::copy_options::recursive
                 | std::filesystem::copy_options::overwrite_existing);
     }
-}
+} // namespace package_manager

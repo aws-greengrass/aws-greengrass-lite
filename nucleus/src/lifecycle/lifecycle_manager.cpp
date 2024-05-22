@@ -59,7 +59,8 @@ namespace lifecycle {
             auto componentTopic =
                 ctx->configManager().lookupTopics({"services", recipe.componentName});
             auto recipePath = componentTopic->lookup({"recipePath"});
-            auto recipeStruct = deployment::RecipeLoader{}.readAsStruct(recipePath.getString());
+            auto recipeStruct =
+                package_manager::RecipeLoader{}.readAsStruct(recipePath.getString());
 
             // get the default config
             auto defaultConfig = recipe.getComponentConfiguration().defaultConfiguration;
@@ -268,7 +269,7 @@ namespace lifecycle {
 
             auto componentTopic = serviceTopic->lookupTopics({name});
             auto recipePath = componentTopic->lookup({"recipePath"}).getString();
-            recipes.emplace_back(deployment::RecipeLoader{}.read(recipePath));
+            recipes.emplace_back(package_manager::RecipeLoader{}.read(recipePath));
         }
 
         // process plugins first

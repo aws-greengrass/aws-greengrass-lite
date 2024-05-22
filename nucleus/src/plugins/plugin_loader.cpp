@@ -206,7 +206,7 @@ namespace plugins {
         if(ext == ".yaml" || ext == ".yml" || ext == ".json") {
             try {
                 // TODO: move component config behavior into deployment manager
-                auto recipe = deployment::RecipeLoader{}.read(entry);
+                auto recipe = package_manager::RecipeLoader{}.read(entry);
                 auto serviceTopic =
                     context()->configManager().lookupTopics({SERVICES, recipe.componentName});
                 serviceTopic->put("recipePath", entry.path().generic_string());

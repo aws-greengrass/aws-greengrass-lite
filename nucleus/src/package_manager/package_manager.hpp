@@ -1,10 +1,10 @@
 #pragma once
-#include "../data/shared_struct.hpp"
-#include "../data/shared_queue.hpp"
-#include "../deployment/deployment_model.hpp"
-#include "../scope/context.hpp"
 #include "recipe_loader.hpp"
+#include <data/shared_queue.hpp>
+#include <data/shared_struct.hpp>
+#include <deployment/deployment_model.hpp>
 #include <memory>
+#include <scope/context.hpp>
 
 namespace data {
     template<class K, class V>
@@ -15,10 +15,11 @@ namespace lifecycle {
     class Kernel;
 }
 
-//namespace deployment {
-//    template<class K, class V>
-//    using DeploymentQueue = std::shared_ptr<data::SharedQueue<K, V>>;
-//}
+namespace deployment {
+    //     template<class K, class V>
+    //     using DeploymentQueue = std::shared_ptr<data::SharedQueue<K, V>>;
+    class Recipe;
+} // namespace deployment
 
 namespace package_manager {
 
@@ -41,4 +42,4 @@ namespace package_manager {
         std::shared_ptr<data::SharedStruct> _recipeAsStruct;
         DeploymentQueue<std::string, deployment::Recipe> _componentStore;
     };
-}
+} // namespace package_manager

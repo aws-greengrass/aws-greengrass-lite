@@ -1,8 +1,9 @@
-#include "deployment/deployment_manager.hpp"
-#include "deployment/recipe_loader.hpp"
 #include "test_tools.hpp"
 #include <catch2/catch_all.hpp>
 #include <data/shared_buffer.hpp>
+#include <deployment/deployment_manager.hpp>
+#include <package_manager/recipe_loader.hpp>
+#include <package_manager/recipe_model.hpp>
 
 using Catch::Matchers::Equals;
 
@@ -11,7 +12,7 @@ using Catch::Matchers::Equals;
 SCENARIO("Recipe Reader", "[deployment]") {
     auto samples = test::samples();
     GIVEN("An instance of recipe reader") {
-        auto yaml_reader = deployment::RecipeLoader();
+        auto yaml_reader = package_manager::RecipeLoader();
         WHEN("Reading a hello world recipe") {
             auto recipe = yaml_reader.read(samples / "hello_recipe.yml");
             auto recipeAsStruct = yaml_reader.readAsStruct(samples / "hello_recipe.yml");
@@ -101,8 +102,8 @@ SCENARIO("Recipe Reader", "[deployment]") {
                     REQUIRE_FALSE(windowsLifecycle->empty());
 
                     THEN("The lifecycle section was parsed correctly") {
-                        auto run =
-                            windowsLifecycle->get(windowsLifecycle->foldKey("run", true)).getString();
+                        auto run = windowsLifecycle->get(windowsLifecycle->foldKey("run", true))
+                                       .getString();
                         REQUIRE_FALSE(run.empty());
                         REQUIRE(
                             run
@@ -219,7 +220,8 @@ SCENARIO("Recipe Reader", "[deployment]") {
                 REQUIRE_THAT(recipe.formatVersion, Equals("2020-01-25"));
                 REQUIRE_THAT(recipe.componentName, Equals("com.example.HelloWorld"));
                 REQUIRE_THAT(recipe.componentVersion, Equals("1.0.0"));
-                REQUIRE_THAT(recipe.componentDescription, Equals("My first AWS IoT Greengrass component."));
+                REQUIRE_THAT(
+                    recipe.componentDescription, Equals("My first AWS IoT Greengrass component."));
                 REQUIRE_THAT(recipe.componentPublisher, Equals("Amazon"));
 
                 REQUIRE(recipe.configuration.defaultConfiguration->hasKey("Message"));
