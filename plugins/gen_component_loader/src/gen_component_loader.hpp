@@ -133,7 +133,7 @@ private:
 
     void processScript(ScriptSection section, std::string_view stepNameArg);
 
-    gg_pal::Process startProcess(
+    std::optional<gg_pal::Process> startProcess(
         std::string script,
         std::chrono::seconds timeout,
         bool requiresPrivilege,

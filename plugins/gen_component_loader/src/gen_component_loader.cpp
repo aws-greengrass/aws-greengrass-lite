@@ -1,5 +1,7 @@
 #include "gen_component_loader.hpp"
+#include <atomic>
 #include <c_api.h>
+#include <condition_variable>
 #include <containers.hpp>
 #include <cstdlib>
 #include <filesystem>
@@ -51,7 +53,7 @@ static std::string getEnvVar(std::string_view variable) {
     return {env};
 }
 
-gg_pal::Process GenComponentDelegate::startProcess(
+std::optional<gg_pal::Process> GenComponentDelegate::startProcess(
     std::string script,
     std::chrono::seconds timeout,
     bool requiresPrivilege,
@@ -153,8 +155,10 @@ gg_pal::Process GenComponentDelegate::startProcess(
     }();
 
     struct Ctx {
+        std::condition_variable cv;
         std::mutex mtx;
-        bool complete{};
+        std::atomic_bool complete{false};
+        std::atomic_bool failed{false};
     };
 
     auto ctx = std::make_shared<Ctx>();
@@ -206,61 +210,50 @@ gg_pal::Process GenComponentDelegate::startProcess(
             }
             util::TempModule moduleScope(self->getModule());
 
-            std::lock_guard<std::mutex> guard(ctx->mtx);
-            ctx->complete = true;
-
+            std::unique_lock guard{ctx->mtx};
             if(returnCode == 0) {
                 LOG.atInfo("process-exited").kv("returnCode", returnCode).log();
             } else {
                 LOG.atError("process-failed").kv("returnCode", returnCode).log();
+                ctx->failed = true;
             }
+            ctx->complete = true;
+            ctx->cv.notify_all();
         }};
 
-    auto currentTimePoint = std::chrono::steady_clock::now();
-    auto timeoutPoint = currentTimePoint + timeout;
-    if(timeoutPoint != std::chrono::steady_clock::time_point::min()) {
+    if(timeout.count() >= 0) {
         // TODO: Move timeout logic to lifecycle manager.
-        // TODO: Fix miniscule time delay by doing conversion with timepoints. Keep timeout as
-        // same unit throughout. (2s vs 1.9999s)
-        auto currentTimePoint = std::chrono::steady_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(timeoutPoint - currentTimePoint);
 
         auto self = weak_self.lock();
         util::TempModule moduleScope(self->getModule());
 
-        auto delay = static_cast<uint32_t>(duration.count());
+        std::unique_lock guard{ctx->mtx};
+        auto waitResult =
+            ctx->cv.wait_for(guard, timeout, [&ctx]() -> bool { return ctx->complete; });
+        if(!waitResult) {
+            if(!ctx->complete) {
+                LOG.atWarn("process-timeout")
+                    .kv("note", note)
+                    .log("Process has reached the time out limit, stopping.");
 
-        ggapi::later(
-            delay,
-            [weak_self, ctx, note = note](gg_pal::Process proc) {
-                std::lock_guard<std::mutex> guard(ctx->mtx);
-                if(!ctx->complete) {
-                    LOG.atWarn("process-timeout")
+                proc.stop();
+
+                using namespace std::chrono_literals;
+                waitResult =
+                    ctx->cv.wait_for(guard, 5s, [&ctx]() -> bool { return ctx->complete; });
+
+                if(!waitResult) {
+                    LOG.atWarn("process-stop-timeout")
                         .kv("note", note)
-                        .log("Process has reached the time out limit, stopping.");
+                        .log("Process failed to stop in time, killing.");
 
-                    static constexpr int killDelayMs = 5000;
-                    ggapi::later(
-                        killDelayMs,
-                        [weak_self, ctx, note = note](gg_pal::Process proc) {
-                            std::lock_guard<std::mutex> guard(ctx->mtx);
-                            if(!ctx->complete) {
-                                LOG.atWarn("process-stop-timeout")
-                                    .kv("note", note)
-                                    .log("Process failed to stop in time, killing.");
-
-                                proc.kill();
-                            }
-                        },
-                        proc);
-
-                    proc.stop();
+                    proc.kill();
                 }
-            },
-            proc);
+            } else if(ctx->failed) {
+                return std::nullopt;
+            }
+        }
     }
-
     return proc;
 }
 
@@ -297,7 +290,7 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
         }
     }
 
-    auto process = std::invoke([&]() -> gg_pal::Process {
+    auto process = std::invoke([&]() -> std::optional<gg_pal::Process> {
         // TODO: This needs a cleanup
 
         auto getSetEnv = [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
@@ -347,26 +340,26 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
             return result;
         };
 
-        bool requirePrivilege = false;
-        // TODO: default should be *no* timeout
-        static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
-        std::chrono::seconds timeout = DEFAULT_TIMEOUT;
-
         // privilege
-        if(step.requiresPrivilege.has_value() && step.requiresPrivilege.value()) {
+        bool requirePrivilege = false;
+        if(step.requiresPrivilege == true) {
             requirePrivilege = true;
             deploymentRequest.put("RequiresPrivilege", requirePrivilege);
         }
 
+        // TODO: default should be *no* timeout
+        static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
+
         // timeout
-        if(step.timeout.has_value()) {
-            deploymentRequest.put("Timeout", step.timeout.value());
-            timeout = std::chrono::seconds{step.timeout.value()};
+        std::chrono::seconds timeout = DEFAULT_TIMEOUT;
+        if(step.timeout >= 0) {
+            deploymentRequest.put("Timeout", *step.timeout);
+            timeout = std::chrono::seconds{*step.timeout};
         }
         return startProcess(getScript(), timeout, requirePrivilege, getSetEnv(), _name);
     });
 
-    if(process) {
+    if(process.has_value() && (*process)) {
         LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, _deploymentId)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, _deploymentId)
