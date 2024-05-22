@@ -1,9 +1,9 @@
 #pragma once
-#include "deployment_model.hpp"
+#include "deployment/deployment_model.hpp"
 #include "recipe_model.hpp"
 #include <filesystem>
 
-namespace deployment {
+namespace package_manager {
     class RecipeLoader {
 
     public:

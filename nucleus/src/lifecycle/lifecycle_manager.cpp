@@ -1,7 +1,7 @@
 #include "lifecycle_manager.hpp"
-#include "deployment/recipe_loader.hpp"
-#include "deployment/recipe_model.hpp"
 #include "lifecycle/kernel.hpp"
+#include "package_manager/recipe_loader.hpp"
+#include "package_manager/recipe_model.hpp"
 #include <chrono>
 #include <config/config_nodes.hpp>
 #include <deployment/model/dependency_order.hpp>
