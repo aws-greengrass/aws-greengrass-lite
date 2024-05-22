@@ -2,18 +2,7 @@
 #include "deployment/task/default_deployment_task.hpp"
 #include <catch2/catch_all.hpp>
 #include "test_ggroot.hpp"
-
-
-// For testing, instead of passing to the next handler, pass to a dummy handler that will return success state
-class DummySuccessHandler : public TaskHandler  {
-public:
-    DummySuccessHandler(const scope::UsingContext &context, lifecycle::Kernel &kernel)
-            : TaskHandler(context,kernel) {
-    }
-    deployment::DeploymentResult handleRequest(deployment::Deployment& deployment) override {
-        return deployment::DeploymentResult{deployment::DeploymentStatus::SUCCESSFUL};
-    }
-};
+#include "dummy_success_handler.hpp"
 
 // NOLINTBEGIN
 SCENARIO("Validate deployment task handler", "[deployment]") {
