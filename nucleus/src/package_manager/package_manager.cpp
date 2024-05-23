@@ -4,8 +4,6 @@
 #include <deployment/recipe_model.hpp>
 #include <lifecycle/kernel.hpp>
 
-#include <temp_module.hpp>
-
 static const auto LOG = // NOLINT(cert-err58-cpp)
     ggapi::Logger::of("com.aws.greengrass.packagemanager");
 
