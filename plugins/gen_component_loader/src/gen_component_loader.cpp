@@ -6,6 +6,10 @@
 #include <gg_pal/process.hpp>
 #include <handles.hpp>
 #include <memory>
+#include <rapidjson/document.h>
+#include <rapidjson/pointer.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include <regex>
 #include <scopes.hpp>
 #include <sstream>
@@ -309,12 +313,11 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
 
         // script
         auto getScript = [&]() -> std::string {
-            std::cout << "SCRIPT HERE 😂:: " << step.script << std::endl;
-
             std::smatch matcher;
             std::string result;
             std::string::const_iterator searchStart(step.script.cbegin());
 
+            // Loop through all found regex matchings, replace if value exists, rebuild
             while(std::regex_search(
                 searchStart, step.script.cend(), matcher, SAME_COMPONENT_INTERPOLATION_REGEX)) {
                 result.append(searchStart, matcher.prefix().second);
@@ -342,8 +345,6 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
                 searchStart = matcher.suffix().first;
             }
             result.append(searchStart, step.script.cend());
-
-            std::cout << "NEW SCRIPT HERE 😂:: " << result << std::endl;
 
             return result;
         };
@@ -385,33 +386,70 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
 
 std::optional<std::string> GenComponentDelegate::lookupConfigurationValue(const std::string &path) {
     auto config = _defaultConfig;
+    if(_defaultConfig.empty()) {
+        return std::nullopt;
+    }
 
-    std::vector<std::string> keys;
-    std::stringstream ss(path);
-    std::string token;
+    auto configStr = _defaultConfig.toJson().get<std::string>();
 
-    // Split the string by the '/' separator
-    while(std::getline(ss, token, '/')) {
-        if(!token.empty()) {
-            keys.push_back(token);
-        }
+    rapidjson::Document configDoc;
+
+    if(configDoc.Parse(configStr.c_str()).HasParseError()) {
+        LOG.atDebug("deployment")
+            .kv(DEPLOYMENT_ID_LOG_KEY, _deploymentId)
+            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, _deploymentId)
+            .log("Failed to parse default config json");
+        return std::nullopt;
     }
 
     try {
-        auto value = config.getValue<ggapi::Struct>(keys);
-        if(!value.empty()) {
-            auto jsonPaylod = value.toJson().get<std::string>();
-            return jsonPaylod;
+        // Create a json pointer of the json path with all keys lower case, this is cause the
+        // ggapi::Struct to json, keys are all lowercase
+        auto lowerPath = util::lower(path);
+
+        if(lowerPath.empty() || lowerPath[0] != '/') {
+            throw std::invalid_argument("JSON pointer must start with '/'");
         }
-    } catch(...) {
-        try {
-            auto value = config.getValue<std::string>(keys);
-            return value;
-        } catch(...) {
+
+        rapidjson::Pointer jsonPointer(lowerPath.c_str());
+
+        const rapidjson::Value *value = jsonPointer.Get(configDoc);
+
+        // Key did not exist in the document
+        if(value == nullptr) {
             return std::nullopt;
         }
+
+        return jsonValueToString(*value);
+    } catch(...) {
+        LOG.atWarn("deployment")
+            .kv(DEPLOYMENT_ID_LOG_KEY, _deploymentId)
+            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, _deploymentId)
+            .log("Invalid use of json_pointer");
+        return std::nullopt;
     }
-    return std::nullopt;
+}
+
+std::string GenComponentDelegate::jsonValueToString(const rapidjson::Value &value) {
+    if(value.IsString()) {
+        return value.GetString();
+    } else if(value.IsInt()) {
+        return std::to_string(value.GetInt());
+    } else if(value.IsUint()) {
+        return std::to_string(value.GetUint());
+    } else if(value.IsInt64()) {
+        return std::to_string(value.GetInt64());
+    } else if(value.IsUint64()) {
+        return std::to_string(value.GetUint64());
+    } else if(value.IsDouble()) {
+        return std::to_string(value.GetDouble());
+    } else {
+        // For non-scalar values, use JSON serialization
+        rapidjson::StringBuffer sb;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+        value.Accept(writer);
+        return sb.GetString();
+    }
 }
 
 GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {

@@ -3,6 +3,7 @@
 #include <gg_pal/process.hpp>
 #include <logging.hpp>
 #include <plugin.hpp>
+#include <rapidjson/document.h>
 #include <regex>
 
 class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenComponentDelegate> {
@@ -155,6 +156,7 @@ public:
 
     ggapi::ModuleScope registerComponent(ggapi::ModuleScope &moduleScope);
     std::optional<std::string> lookupConfigurationValue(const std::string &path);
+    static std::string jsonValueToString(const rapidjson::Value &value);
 
     void onInitialize(ggapi::Struct data) override;
     void onStart(ggapi::Struct data) override;

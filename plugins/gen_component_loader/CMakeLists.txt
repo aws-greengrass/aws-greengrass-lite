@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 project(gen_component_loader VERSION 0.1.0)
 
 include(../../common.cmake)
+fetchContentAdd(rapidjson)
 set(COMPONENT_NAME local.plugins.discovered.gen_component_loader)
 
 if(PROJECT_IS_TOP_LEVEL AND NOT LINUX)
@@ -23,6 +24,8 @@ add_library(gen_component_loader_obj OBJECT src/gen_component_loader.cpp
 target_include_directories(gen_component_loader_obj PUBLIC src)
 target_link_libraries(gen_component_loader_obj PUBLIC gg_plugin_api gg_pal
                                                       device-sdk)
+target_include_directories(gen_component_loader_obj SYSTEM
+                           PUBLIC ${rapidjson_SOURCE_DIR}/include)
 
 # Plugin
 
