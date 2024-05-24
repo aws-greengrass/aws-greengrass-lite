@@ -8,15 +8,18 @@
 #include <memory>
 #include <regex>
 #include <scopes.hpp>
+#include <sstream>
 #include <string>
 #include <string_util.hpp>
 #include <temp_module.hpp>
 #include <utility>
+#include <vector>
 
 static const auto LOG = ggapi::Logger::of("gen_component_loader");
 
 static constexpr std::string_view on_path_prefix = "onpath";
 static constexpr std::string_view exists_prefix = "exists";
+const std::regex SAME_COMPONENT_INTERPOLATION_REGEX(R"(\{([.\w-]+):([^:}]*)\})");
 
 void GenComponentDelegate::lifecycleCallback(
     const std::shared_ptr<GenComponentDelegate> &self,
@@ -304,32 +307,45 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
             return localEnv;
         };
 
-        auto SAME_COMPONENT_INTERPOLATION_REGEX = "\\{([.\\w-]+):([^:}]*)}";
-        auto CROSS_COMPONENT_INTERPOLATION_REGEX = "\\{([.\\w-]+):([.\\w-]+):([^:}]*)}";
         // script
         auto getScript = [&]() -> std::string {
-            // TODO: instead of hard coded matching, find all interpolation attempts by regex, and
-            // then replace all found matchings
             std::cout << "SCRIPT HERE 😂:: " << step.script << std::endl;
-            auto script =
-                std::regex_replace(step.script, std::regex(R"(\{artifacts:path\})"), _artifactPath);
 
-            if(_defaultConfig && !_defaultConfig.empty()) {
-                for(auto key : _defaultConfig.keys().toVector<std::string>()) {
-                    auto dum = key;
-                    // auto value = _defaultConfig.get<std::string>(key);
+            std::smatch matcher;
+            std::string result;
+            std::string::const_iterator searchStart(step.script.cbegin());
 
-                    std::cout << "Config here 👏:: ";
-                    _defaultConfig.toJson().write(std::cout);
-                    std::cout << std::endl;
-                    /*script = std::regex_replace(
-                        script,
-                        std::regex(R"(\{configuration:\/)" + key.toString() + R"(\})"),
-                        value);*/
+            while(std::regex_search(
+                searchStart, step.script.cend(), matcher, SAME_COMPONENT_INTERPOLATION_REGEX)) {
+                result.append(searchStart, matcher.prefix().second);
+
+                std::string namespace_ = matcher[1].str();
+                std::string key = matcher[2].str();
+                std::string replacement;
+
+                if(namespace_ == CONFIGURATION_NAMESPACE) {
+                    auto configReplacement = lookupConfigurationValue(key);
+                    if(configReplacement.has_value()) {
+                        replacement = configReplacement.value();
+                    } else {
+                        replacement = matcher.str();
+                    }
+
+                } else if(namespace_ == ARTIFACTS_NAMESPACE) {
+                    if(key == "path") {
+                        replacement = _artifactPath;
+                    }
+                } else {
+                    replacement = matcher.str();
                 }
+                result.append(replacement);
+                searchStart = matcher.suffix().first;
             }
+            result.append(searchStart, step.script.cend());
 
-            return script;
+            std::cout << "NEW SCRIPT HERE 😂:: " << result << std::endl;
+
+            return result;
         };
 
         bool requirePrivilege = false;
@@ -367,6 +383,37 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
     }
 }
 
+std::optional<std::string> GenComponentDelegate::lookupConfigurationValue(const std::string &path) {
+    auto config = _defaultConfig;
+
+    std::vector<std::string> keys;
+    std::stringstream ss(path);
+    std::string token;
+
+    // Split the string by the '/' separator
+    while(std::getline(ss, token, '/')) {
+        if(!token.empty()) {
+            keys.push_back(token);
+        }
+    }
+
+    try {
+        auto value = config.getValue<ggapi::Struct>(keys);
+        if(!value.empty()) {
+            auto jsonPaylod = value.toJson().get<std::string>();
+            return jsonPaylod;
+        }
+    } catch(...) {
+        try {
+            auto value = config.getValue<std::string>(keys);
+            return value;
+        } catch(...) {
+            return std::nullopt;
+        }
+    }
+    return std::nullopt;
+}
+
 GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
     _recipeAsStruct = data.get<ggapi::Struct>("recipe");
     _manifestAsStruct = data.get<ggapi::Struct>("manifest");
@@ -395,9 +442,6 @@ void GenComponentDelegate::onInitialize(ggapi::Struct data) {
         if(!service.empty()) {
             if(service.hasKey("configuration") && service.isStruct("configuration")) {
                 _defaultConfig = service.get<ggapi::Struct>(service.foldKey("configuration"));
-                std::cout << "Config here 👏:: ";
-                _defaultConfig.toJson().write(std::cout);
-                std::cout << std::endl;
             }
         }
     }

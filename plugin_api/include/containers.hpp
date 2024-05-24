@@ -508,6 +508,16 @@ namespace ggapi {
             }
             return childStruct.get<T>(*it);
         }
+
+        template<typename T, typename V>
+        [[nodiscard]] T getValue(const std::vector<V> &keys) const {
+            ggapi::Struct childStruct = *this;
+            auto it = keys.begin();
+            for(; it != std::prev(keys.end()); it++) {
+                childStruct = childStruct.get<ggapi::Struct>(*it);
+            }
+            return childStruct.get<T>(*it);
+        }
     };
 
     class Buffer;

@@ -3,6 +3,7 @@
 #include <gg_pal/process.hpp>
 #include <logging.hpp>
 #include <plugin.hpp>
+#include <regex>
 
 class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenComponentDelegate> {
 public:
@@ -109,6 +110,8 @@ public:
     static constexpr std::string_view DEPLOYMENT_ID_LOG_KEY = "DeploymentId";
     static constexpr std::string_view DISCARDED_DEPLOYMENT_ID_LOG_KEY = "DiscardedDeploymentId";
     static constexpr std::string_view GG_DEPLOYMENT_ID_LOG_KEY_NAME = "GreengrassDeploymentId";
+    static constexpr std::string_view CONFIGURATION_NAMESPACE = "configuration";
+    static constexpr std::string_view ARTIFACTS_NAMESPACE = "artifacts";
 
 private:
     std::string _name;
@@ -151,6 +154,7 @@ public:
         ggapi::Struct data);
 
     ggapi::ModuleScope registerComponent(ggapi::ModuleScope &moduleScope);
+    std::optional<std::string> lookupConfigurationValue(const std::string &path);
 
     void onInitialize(ggapi::Struct data) override;
     void onStart(ggapi::Struct data) override;
