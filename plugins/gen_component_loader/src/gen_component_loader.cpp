@@ -333,7 +333,6 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
                     } else {
                         replacement = matcher.str();
                     }
-
                 } else if(namespace_ == ARTIFACTS_NAMESPACE) {
                     if(key == "path") {
                         replacement = _artifactPath;
