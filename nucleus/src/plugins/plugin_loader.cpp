@@ -4,9 +4,9 @@
 #include "deployment/deployment_manager.hpp"
 #include "deployment/device_configuration.hpp"
 #include "deployment/model/dependency_order.hpp"
-#include "deployment/recipe_loader.hpp"
 #include "deployment/recipe_model.hpp"
 #include "errors/error_base.hpp"
+#include "package_manager/recipe_loader.hpp"
 #include "scope/context_full.hpp"
 #include "string_util.hpp"
 #include "tasks/task_callbacks.hpp"
@@ -206,7 +206,7 @@ namespace plugins {
         if(ext == ".yaml" || ext == ".yml" || ext == ".json") {
             try {
                 // TODO: move component config behavior into deployment manager
-                auto recipe = deployment::RecipeLoader{}.read(entry);
+                auto recipe = package_manager::RecipeLoader{}.read(entry);
                 auto serviceTopic =
                     context()->configManager().lookupTopics({SERVICES, recipe.componentName});
                 serviceTopic->put("recipePath", entry.path().generic_string());

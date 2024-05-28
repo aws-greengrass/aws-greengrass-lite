@@ -95,8 +95,10 @@ add_library(
   src/deployment/task/default_deployment_task.hpp
   src/deployment/model/linked_map.hpp
   src/deployment/recipe_model.hpp
-  src/deployment/recipe_loader.hpp
-  src/deployment/recipe_loader.cpp
+  src/package_manager/recipe_loader.hpp
+  src/package_manager/recipe_loader.cpp
+  src/package_manager/package_manager.cpp
+  src/package_manager/package_manager.hpp
   src/errors/api_errors.hpp
   src/errors/error_base.cpp
   src/errors/error_base.hpp

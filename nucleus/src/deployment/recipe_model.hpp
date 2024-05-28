@@ -1,6 +1,6 @@
 #pragma once
-#include "data/serializable.hpp"
-#include "data/shared_struct.hpp"
+#include "../data/serializable.hpp"
+#include "../data/shared_struct.hpp"
 
 namespace deployment {
     enum class NucleusType {

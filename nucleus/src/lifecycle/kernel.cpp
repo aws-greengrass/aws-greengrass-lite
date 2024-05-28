@@ -6,6 +6,7 @@
 #include "deployment/recipe_model.hpp"
 #include "lifecycle/lifecycle_manager.hpp"
 #include "logging/log_queue.hpp"
+#include "package_manager/package_manager.hpp"
 #include "pubsub/local_topics.hpp"
 #include "scope/context_full.hpp"
 #include "util/commitable_file.hpp"
@@ -27,7 +28,8 @@ namespace lifecycle {
         : scope::UsesContext(context),
           _lifecycleManager(std::make_unique<LifecycleManager>(context, *this)) {
         _nucleusPaths = std::make_shared<util::NucleusPaths>();
-        _deploymentManager = std::make_unique<deployment::DeploymentManager>(context, *this);
+        _deploymentManager = std::make_unique<deployment::DeploymentManager>(
+            context, *this, package_manager::PackageManager{context, *this});
         data::SymbolInit::init(context, {&SERVICES_TOPIC_KEY});
     }
 

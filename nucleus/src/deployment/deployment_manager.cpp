@@ -8,11 +8,11 @@
 #include <filesystem>
 #include <fstream>
 #include <memory>
-#include <regex>
 #include <stdexcept>
 #include <string_util.hpp>
 #include <system_error>
 #include <temp_module.hpp>
+#include <utility>
 
 const auto LOG = // NOLINT(cert-err58-cpp)
     logging::Logger::of("com.aws.greengrass.lifecycle.Deployment");
@@ -30,11 +30,12 @@ static constexpr std::string_view PLATFORM_NAME = "unknown";
 
 namespace deployment {
     DeploymentManager::DeploymentManager(
-        const scope::UsingContext &context, lifecycle::Kernel &kernel)
+        const scope::UsingContext &context,
+        lifecycle::Kernel &kernel,
+        package_manager::PackageManager packageManager)
         : scope::UsesContext(context), _module(util::TempModule::create("DeploymentManager")),
-          _kernel(kernel) {
+          _packageManager(std::move(packageManager)), _kernel(kernel) {
         _deploymentQueue = std::make_shared<data::SharedQueue<std::string, Deployment>>(context);
-        _componentStore = std::make_shared<data::SharedQueue<std::string, Recipe>>(context);
     }
 
     void DeploymentManager::start() {
@@ -119,7 +120,7 @@ namespace deployment {
                 if(!requiredCapabilities.empty()) {
                     // TODO: check if required capabilities are supported
                 }
-                loadRecipesAndArtifacts(deployment);
+                _packageManager.loadRecipesAndArtifacts(deployment);
             } catch(std::runtime_error &e) {
                 LOG.atError("deployment")
                     .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
@@ -139,100 +140,13 @@ namespace deployment {
         [](auto &&...) {}(*this);
     }
 
-    void DeploymentManager::loadRecipesAndArtifacts(const Deployment &deployment) {
-        auto &deploymentDocument = deployment.deploymentDocumentObj;
-        if(!deploymentDocument.recipeDirectoryPath.empty()) {
-            const auto &recipeDir = deploymentDocument.recipeDirectoryPath;
-            copyAndLoadRecipes(recipeDir);
-        }
-        if(!deploymentDocument.artifactsDirectoryPath.empty()) {
-            const auto &artifactsDir = deploymentDocument.artifactsDirectoryPath;
-            copyArtifacts(artifactsDir);
-        }
-    }
-
-    void DeploymentManager::copyAndLoadRecipes(const std::filesystem::path &recipeDir) {
-        std::error_code ec{};
-        auto iter = std::filesystem::directory_iterator(recipeDir, ec);
-        if(ec != std::error_code{}) {
-            LOG.atError()
-                .event("recipe-load-failure")
-                .kv("message", ec.message())
-                .logAndThrow(std::filesystem::filesystem_error{ec.message(), recipeDir, ec});
-        }
-
-        for(const auto &entry : iter) {
-            if(!entry.is_directory()) {
-                Recipe recipe = loadRecipeFile(entry);
-                _recipeAsStruct = loadRecipeFileAsStruct(entry);
-                saveRecipeFile(recipe);
-                auto semVer = recipe.componentName + "-v" + recipe.componentVersion;
-                const std::hash<std::string> hasher;
-                auto hashValue = hasher(semVer); // TODO: Digest hashing algorithm
-                _componentStore->push({semVer, recipe});
-                auto saveRecipeName =
-                    std::to_string(hashValue) + "@" + recipe.componentVersion + ".recipe.yml";
-                auto saveRecipeDst = _kernel.getPaths()->componentStorePath() / "recipes"
-                                     / recipe.componentName / recipe.componentVersion
-                                     / saveRecipeName;
-                std::filesystem::copy_file(
-                    entry, saveRecipeDst, std::filesystem::copy_options::overwrite_existing);
-            }
-        }
-    }
-
-    Recipe DeploymentManager::loadRecipeFile(const std::filesystem::path &recipeFile) {
-        try {
-            return _recipeLoader.read(recipeFile);
-        } catch(...) {
-            LOG.atWarn("deployment")
-                .kv("DeploymentType", "LOCAL")
-                .logAndThrow(std::current_exception());
-        }
-    }
-
-    std::shared_ptr<data::SharedStruct> DeploymentManager::loadRecipeFileAsStruct(
-        const std::filesystem::path &recipeFile) {
-        try {
-            return _recipeLoader.readAsStruct(recipeFile);
-        } catch(...) {
-            LOG.atWarn("deployment")
-                .kv("DeploymentType", "LOCAL")
-                .logAndThrow(std::current_exception());
-        }
-    }
-
-    void DeploymentManager::saveRecipeFile(const deployment::Recipe &recipe) {
-        auto saveRecipePath = _kernel.getPaths()->componentStorePath() / "recipes"
-                              / recipe.componentName / recipe.componentVersion;
-        if(!std::filesystem::exists(saveRecipePath)) {
-            std::filesystem::create_directories(saveRecipePath);
-        }
-    }
-
-    void DeploymentManager::copyArtifacts(std::string_view artifactsDir) {
-        Recipe recipe = _componentStore->next();
-        auto saveArtifactPath = _kernel.getPaths()->componentStorePath() / "artifacts"
-                                / recipe.componentName / recipe.componentVersion;
-        if(!std::filesystem::exists(saveArtifactPath)) {
-            std::filesystem::create_directories(saveArtifactPath);
-        }
-        auto artifactPath =
-            std::filesystem::path{artifactsDir} / recipe.componentName / recipe.componentVersion;
-        std::filesystem::copy(
-            artifactPath,
-            saveArtifactPath,
-            std::filesystem::copy_options::recursive
-                | std::filesystem::copy_options::overwrite_existing);
-    }
-
     void DeploymentManager::runDeploymentTask() {
         // using Environment = std::unordered_map<std::string, std::optional<std::string>>;
         //  TODO: More streamlined deployment task
         //  TODO: Get non-target group to root packages group
         //  TODO: Component manager - resolve version, prepare packages, ...
         const auto &currentDeployment = _deploymentQueue->next();
-        const auto &currentRecipe = _componentStore->next();
+        const auto &currentRecipe = _packageManager._componentStore->next();
 
         // component name is not recommended to start with "aws.greengrass"
         if(util::startsWith(currentRecipe.getComponentName(), "aws.greengrass")) {
@@ -285,7 +199,9 @@ namespace deployment {
 
         auto index = std::distance(manifests.begin(), iterator);
 
-        auto selectedManifest = _recipeAsStruct->get(_recipeAsStruct->foldKey("Manifests", true))
+        auto selectedManifest =
+            _packageManager._recipeAsStruct->get(_packageManager._recipeAsStruct->
+                                                 foldKey("Manifests", true))
                                     .castObject<data::ListModelBase>()
                                     ->get(index)
                                     .castObject<data::StructModelBase>();
@@ -299,11 +215,11 @@ namespace deployment {
 
         auto data_pack = std::make_shared<data::SharedStruct>(context);
 
-        data_pack->put("recipe", _recipeAsStruct);
+        data_pack->put("recipe", _packageManager._recipeAsStruct);
         data_pack->put("manifest", selectedManifest);
         data_pack->put("artifactPath", artifactPath.generic_string());
 
-        auto install = _recipeAsStruct->get("ComponentPublisher");
+        auto install = _packageManager._recipeAsStruct->get("ComponentPublisher");
 
         data::Symbol topic{context->intern("componentType::aws.greengrass.generic")};
         auto future = context->lpcTopics().callFirst(topic, data_pack);
@@ -363,9 +279,9 @@ namespace deployment {
         std::filesystem::path artifactsDir;
         for(const auto &entry : iter) {
             if(!entry.is_directory()) {
-                Recipe recipe = loadRecipeFile(entry);
+                Recipe recipe = _packageManager.loadRecipeFile(entry);
 
-                saveRecipeFile(recipe);
+                _packageManager.saveRecipeFile(recipe);
                 auto semVer = recipe.componentName + "-v" + recipe.componentVersion;
                 const std::hash<std::string> hasher;
                 auto hashValue = hasher(semVer); // TODO: Digest hashing algorithm

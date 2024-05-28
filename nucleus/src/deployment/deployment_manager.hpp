@@ -1,8 +1,8 @@
 #pragma once
 #include "data/shared_queue.hpp"
 #include "deployment_model.hpp"
+#include "package_manager/package_manager.hpp"
 #include "plugin.hpp"
-#include "recipe_loader.hpp"
 #include "scope/context.hpp"
 #include <thread>
 
@@ -32,8 +32,6 @@ namespace deployment {
 
     class DeploymentManager : private scope::UsesContext {
         DeploymentQueue<std::string, Deployment> _deploymentQueue;
-        DeploymentQueue<std::string, Recipe> _componentStore;
-        std::shared_ptr<data::SharedStruct> _recipeAsStruct ;
         static constexpr std::string_view DEPLOYMENT_ID_LOG_KEY = "DeploymentId";
         static constexpr std::string_view DISCARDED_DEPLOYMENT_ID_LOG_KEY = "DiscardedDeploymentId";
         static constexpr std::string_view GG_DEPLOYMENT_ID_LOG_KEY_NAME = "GreengrassDeploymentId";
@@ -45,12 +43,14 @@ namespace deployment {
         ggapi::Subscription _createSubs;
         ggapi::Subscription _cancelSubs;
         ggapi::ModuleScope _module;
-
+        package_manager::PackageManager _packageManager;
         lifecycle::Kernel &_kernel;
-        RecipeLoader _recipeLoader;
 
     public:
-        explicit DeploymentManager(const scope::UsingContext &, lifecycle::Kernel &kernel);
+        explicit DeploymentManager(
+            const scope::UsingContext &,
+            lifecycle::Kernel &kernel,
+            package_manager::PackageManager packageManager);
         void ManageConfigDeployment(std::filesystem::path deploymentPath);
         void start();
         void listen(const ggapi::ModuleScope &module);
@@ -58,13 +58,6 @@ namespace deployment {
         void clearQueue();
         void createNewDeployment(const Deployment &);
         void cancelDeployment(const std::string &);
-        void resolveDependencies(DeploymentDocument);
-        void loadRecipesAndArtifacts(const Deployment &);
-        void copyAndLoadRecipes(const std::filesystem::path &);
-        Recipe loadRecipeFile(const std::filesystem::path &);
-        std::shared_ptr<data::SharedStruct> loadRecipeFileAsStruct(const std::filesystem::path &);
-        void saveRecipeFile(const Recipe &);
-        void copyArtifacts(std::string_view);
         void runDeploymentTask();
         ggapi::ObjHandle createDeploymentHandler(ggapi::Symbol, const ggapi::Container &);
         ggapi::ObjHandle cancelDeploymentHandler(ggapi::Symbol, const ggapi::Container &);
