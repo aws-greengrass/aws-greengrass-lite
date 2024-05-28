@@ -6,7 +6,6 @@
 #include <gg_pal/process.hpp>
 #include <handles.hpp>
 #include <memory>
-#include <rapidjson/document.h>
 #include <rapidjson/pointer.h>
 #include <rapidjson/stringbuffer.h>
 #include <rapidjson/writer.h>
@@ -155,7 +154,7 @@ gg_pal::Process GenComponentDelegate::startProcess(
 
     struct Ctx {
         std::mutex mtx;
-        bool complete;
+        bool complete{};
     };
 
     auto ctx = std::make_shared<Ctx>();
@@ -391,6 +390,8 @@ std::optional<std::string> GenComponentDelegate::lookupConfigurationValue(const 
 
     auto configStr = _defaultConfig.toJson().get<std::string>();
 
+    // all the edge cases for grabbing via a json_pointer is handled with rapidjson
+    // TODO: determine is implementing json_pointer support without rapidjson is needed.
     rapidjson::Document configDoc;
 
     if(configDoc.Parse(configStr.c_str()).HasParseError()) {
