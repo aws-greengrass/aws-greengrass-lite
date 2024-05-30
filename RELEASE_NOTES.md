@@ -1,3 +1,10 @@
+## 2024-05-30
+
+Bugfixes:
+
+- Recipe non-run sections are now run fully before being considered complete.
+- Recipe DefaultConfiguration is usable in lifecycle scripts.
+
 ## 2024-05-16
 
 Features:
