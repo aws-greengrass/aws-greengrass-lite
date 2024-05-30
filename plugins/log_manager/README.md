@@ -7,7 +7,7 @@ greengrass.log file every 5 minutes, under the
 stream corresponding to each upload. Log manager will create the log group and
 log streams in addition to uploading log events from the log file.
 
-## Requirements
+### Requirements
 
 Log manager is available as a plugin for Greengrass Lite. It has hard
 dependencies on the cloud_downloader and iot_broker plugins which must complete
@@ -32,7 +32,7 @@ currently required. Future iterations of log manager may also require the
 Log manager must be able to perform outbound requests to the
 `logs.region.amazonaws.com` endpoint.
 
-## Running
+### Running
 
 Log manager runs on Greengrass Lite startup as a plugin and will begin its
 lifecycle after its two dependencies have finished starting. To verify that log
@@ -44,7 +44,7 @@ all of three HTTP requests per log upload attempt. A 200 response code indicates
 a successful HTTP request and a 400 response code may not necessarily be a
 concern.
 
-## Possible Issues
+### Possible Issues
 
 The following issues may occur:
 
