@@ -348,6 +348,7 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
         }
 
         // TODO: default should be *no* timeout
+        // TODO: Add different types of timeout
         static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
 
         // timeout
