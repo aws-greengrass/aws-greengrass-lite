@@ -93,7 +93,13 @@ public:
     ggapi::Promise retrieveToken(ggapi::Symbol, const ggapi::Container &callData);
     void retrieveTokenAsync(const ggapi::Struct &callData, ggapi::Promise promise);
 
+    int JobsRun();
+
 private:
+    //Jobs
+    std::atomic<bool> _done;
+    //Jobs End
+
     static const Keys keys;
     ggapi::Promise publishHandler(ggapi::Symbol, const ggapi::Container &args);
     ggapi::Promise ipcPublishHandler(ggapi::Symbol, const ggapi::Container &args);

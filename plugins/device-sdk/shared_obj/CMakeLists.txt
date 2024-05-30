@@ -7,12 +7,12 @@ add_library(device-sdk SHARED include/sdk_errors.hpp
 
 if(APPLE)
   target_link_libraries(
-    device-sdk PRIVATE -Wl,-all_load aws-crt-cpp IotIdentity-cpp aws-c-http
+    device-sdk PRIVATE -Wl,-all_load aws-crt-cpp IotIdentity-cpp aws-c-http IotJobs-cpp
                        aws-c-event-stream -Wl,-noall_load)
 else()
   target_link_libraries(
-    device-sdk PRIVATE -Wl,--whole-archive aws-crt-cpp IotIdentity-cpp
-                       aws-c-http aws-c-event-stream -Wl,--no-whole-archive)
+    device-sdk PRIVATE -Wl,--whole-archive aws-crt-cpp IotIdentity-cpp 
+                       aws-c-http IotJobs-cpp aws-c-event-stream -Wl,--no-whole-archive )
 endif()
 
 target_include_directories(device-sdk PUBLIC include)
@@ -21,6 +21,7 @@ target_include_directories(
   device-sdk SYSTEM
   PUBLIC $<TARGET_PROPERTY:aws-crt-cpp,INTERFACE_INCLUDE_DIRECTORIES>
          $<TARGET_PROPERTY:IotIdentity-cpp,INTERFACE_INCLUDE_DIRECTORIES>
+         $<TARGET_PROPERTY:IotJobs-cpp,INTERFACE_INCLUDE_DIRECTORIES>
          $<TARGET_PROPERTY:aws-c-http,INTERFACE_INCLUDE_DIRECTORIES>
          $<TARGET_PROPERTY:aws-c-event-stream,INTERFACE_INCLUDE_DIRECTORIES>)
 
