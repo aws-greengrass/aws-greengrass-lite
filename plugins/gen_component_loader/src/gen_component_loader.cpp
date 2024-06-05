@@ -1,22 +1,30 @@
 #include "gen_component_loader.hpp"
+#include <atomic>
 #include <c_api.h>
+#include <condition_variable>
 #include <containers.hpp>
 #include <cstdlib>
 #include <filesystem>
 #include <gg_pal/process.hpp>
 #include <handles.hpp>
 #include <memory>
+#include <rapidjson/pointer.h>
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/writer.h>
 #include <regex>
 #include <scopes.hpp>
+#include <sstream>
 #include <string>
 #include <string_util.hpp>
 #include <temp_module.hpp>
 #include <utility>
+#include <vector>
 
 static const auto LOG = ggapi::Logger::of("gen_component_loader");
 
 static constexpr std::string_view on_path_prefix = "onpath";
 static constexpr std::string_view exists_prefix = "exists";
+const std::regex SAME_COMPONENT_INTERPOLATION_REGEX(R"(\{([.\w-]+):([^:}]*)\})");
 
 void GenComponentDelegate::lifecycleCallback(
     const std::shared_ptr<GenComponentDelegate> &self,
@@ -45,7 +53,7 @@ static std::string getEnvVar(std::string_view variable) {
     return {env};
 }
 
-gg_pal::Process GenComponentDelegate::startProcess(
+std::optional<gg_pal::Process> GenComponentDelegate::startProcess(
     std::string script,
     std::chrono::seconds timeout,
     bool requiresPrivilege,
@@ -147,8 +155,10 @@ gg_pal::Process GenComponentDelegate::startProcess(
     }();
 
     struct Ctx {
+        std::condition_variable cv;
         std::mutex mtx;
-        bool complete;
+        std::atomic_bool complete{false};
+        std::atomic_bool failed{false};
     };
 
     auto ctx = std::make_shared<Ctx>();
@@ -200,61 +210,50 @@ gg_pal::Process GenComponentDelegate::startProcess(
             }
             util::TempModule moduleScope(self->getModule());
 
-            std::lock_guard<std::mutex> guard(ctx->mtx);
-            ctx->complete = true;
-
+            std::unique_lock guard{ctx->mtx};
             if(returnCode == 0) {
                 LOG.atInfo("process-exited").kv("returnCode", returnCode).log();
             } else {
                 LOG.atError("process-failed").kv("returnCode", returnCode).log();
+                ctx->failed = true;
             }
+            ctx->complete = true;
+            ctx->cv.notify_all();
         }};
 
-    auto currentTimePoint = std::chrono::steady_clock::now();
-    auto timeoutPoint = currentTimePoint + timeout;
-    if(timeoutPoint != std::chrono::steady_clock::time_point::min()) {
+    if(timeout.count() >= 0) {
         // TODO: Move timeout logic to lifecycle manager.
-        // TODO: Fix miniscule time delay by doing conversion with timepoints. Keep timeout as
-        // same unit throughout. (2s vs 1.9999s)
-        auto currentTimePoint = std::chrono::steady_clock::now();
-        auto duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(timeoutPoint - currentTimePoint);
 
         auto self = weak_self.lock();
         util::TempModule moduleScope(self->getModule());
 
-        auto delay = static_cast<uint32_t>(duration.count());
+        std::unique_lock guard{ctx->mtx};
+        auto waitResult =
+            ctx->cv.wait_for(guard, timeout, [&ctx]() -> bool { return ctx->complete; });
+        if(!waitResult) {
+            if(!ctx->complete) {
+                LOG.atWarn("process-timeout")
+                    .kv("note", note)
+                    .log("Process has reached the time out limit, stopping.");
 
-        ggapi::later(
-            delay,
-            [weak_self, ctx, note = note](gg_pal::Process proc) {
-                std::lock_guard<std::mutex> guard(ctx->mtx);
-                if(!ctx->complete) {
-                    LOG.atWarn("process-timeout")
+                proc.stop();
+
+                using namespace std::chrono_literals;
+                waitResult =
+                    ctx->cv.wait_for(guard, 5s, [&ctx]() -> bool { return ctx->complete; });
+
+                if(!waitResult) {
+                    LOG.atWarn("process-stop-timeout")
                         .kv("note", note)
-                        .log("Process has reached the time out limit, stopping.");
+                        .log("Process failed to stop in time, killing.");
 
-                    static constexpr int killDelayMs = 5000;
-                    ggapi::later(
-                        killDelayMs,
-                        [weak_self, ctx, note = note](gg_pal::Process proc) {
-                            std::lock_guard<std::mutex> guard(ctx->mtx);
-                            if(!ctx->complete) {
-                                LOG.atWarn("process-stop-timeout")
-                                    .kv("note", note)
-                                    .log("Process failed to stop in time, killing.");
-
-                                proc.kill();
-                            }
-                        },
-                        proc);
-
-                    proc.stop();
+                    proc.kill();
                 }
-            },
-            proc);
+            } else if(ctx->failed) {
+                return std::nullopt;
+            }
+        }
     }
-
     return proc;
 }
 
@@ -291,7 +290,7 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
         }
     }
 
-    auto process = std::invoke([&]() -> gg_pal::Process {
+    auto process = std::invoke([&]() -> std::optional<gg_pal::Process> {
         // TODO: This needs a cleanup
 
         auto getSetEnv = [&]() -> std::unordered_map<std::string, std::optional<std::string>> {
@@ -306,42 +305,62 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
 
         // script
         auto getScript = [&]() -> std::string {
-            auto script =
-                std::regex_replace(step.script, std::regex(R"(\{artifacts:path\})"), _artifactPath);
+            std::smatch matcher;
+            std::string result;
+            std::string::const_iterator searchStart(step.script.cbegin());
 
-            // if(_defaultConfig && !_defaultConfig.empty()) {
-            //     for(auto key : _defaultConfig.keys().toVector<ggapi::Archive::KeyType>()) {
-            //         auto value = _defaultConfig.get<std::string>(key);
-            //         script = std::regex_replace(
-            //             script,
-            //             std::regex(R"(\{configuration:\/)" + key.toString() + R"(\})"),
-            //             value);
-            //     }
-            // }
+            // Loop through all found regex matchings, replace if value exists, rebuild
+            while(std::regex_search(
+                searchStart, step.script.cend(), matcher, SAME_COMPONENT_INTERPOLATION_REGEX)) {
+                result.append(searchStart, matcher.prefix().second);
 
-            return script;
+                std::string namespace_ = matcher[1].str();
+                std::string key = matcher[2].str();
+                std::string replacement;
+
+                if(namespace_ == CONFIGURATION_NAMESPACE) {
+                    auto configReplacement = lookupConfigurationValue(key);
+                    if(configReplacement.has_value()) {
+                        replacement = configReplacement.value();
+                    } else {
+                        replacement = matcher.str();
+                    }
+                } else if(namespace_ == ARTIFACTS_NAMESPACE) {
+                    if(key == "path") {
+                        replacement = _artifactPath;
+                    }
+                } else {
+                    replacement = matcher.str();
+                }
+                result.append(replacement);
+                searchStart = matcher.suffix().first;
+            }
+            result.append(searchStart, step.script.cend());
+
+            return result;
         };
 
-        bool requirePrivilege = false;
-        // TODO: default should be *no* timeout
-        static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
-        std::chrono::seconds timeout = DEFAULT_TIMEOUT;
-
         // privilege
-        if(step.requiresPrivilege.has_value() && step.requiresPrivilege.value()) {
+        bool requirePrivilege = false;
+        if(step.requiresPrivilege == true) {
             requirePrivilege = true;
             deploymentRequest.put("RequiresPrivilege", requirePrivilege);
         }
 
+        // TODO: default should be *no* timeout
+        // TODO: Add different types of timeout
+        static constexpr std::chrono::seconds DEFAULT_TIMEOUT{120};
+
         // timeout
-        if(step.timeout.has_value()) {
-            deploymentRequest.put("Timeout", step.timeout.value());
-            timeout = std::chrono::seconds{step.timeout.value()};
+        std::chrono::seconds timeout = DEFAULT_TIMEOUT;
+        if(step.timeout >= 0) {
+            deploymentRequest.put("Timeout", *step.timeout);
+            timeout = std::chrono::seconds{*step.timeout};
         }
         return startProcess(getScript(), timeout, requirePrivilege, getSetEnv(), _name);
     });
 
-    if(process) {
+    if(process.has_value() && (*process)) {
         LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, _deploymentId)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, _deploymentId)
@@ -357,6 +376,76 @@ void GenComponentDelegate::processScript(ScriptSection section, std::string_view
     }
 }
 
+std::optional<std::string> GenComponentDelegate::lookupConfigurationValue(const std::string &path) {
+    auto config = _defaultConfig;
+    if(_defaultConfig.empty()) {
+        return std::nullopt;
+    }
+
+    auto configStr = _defaultConfig.toJson().get<std::string>();
+
+    // all the edge cases for grabbing via a json_pointer is handled with rapidjson
+    // TODO: determine is implementing json_pointer support without rapidjson is needed.
+    rapidjson::Document configDoc;
+
+    if(configDoc.Parse(configStr.c_str()).HasParseError()) {
+        LOG.atDebug("deployment")
+            .kv(DEPLOYMENT_ID_LOG_KEY, _deploymentId)
+            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, _deploymentId)
+            .log("Failed to parse default config json");
+        return std::nullopt;
+    }
+
+    try {
+        // Create a json pointer of the json path with all keys lower case, this is cause the
+        // ggapi::Struct to json, keys are all lowercase
+        auto lowerPath = util::lower(path);
+
+        if(lowerPath.empty() || lowerPath[0] != '/') {
+            throw std::invalid_argument("JSON pointer must start with '/'");
+        }
+
+        rapidjson::Pointer jsonPointer(lowerPath.c_str());
+
+        const rapidjson::Value *value = jsonPointer.Get(configDoc);
+
+        // Key did not exist in the document
+        if(value == nullptr) {
+            return std::nullopt;
+        }
+
+        return jsonValueToString(*value);
+    } catch(...) {
+        LOG.atWarn("deployment")
+            .kv(DEPLOYMENT_ID_LOG_KEY, _deploymentId)
+            .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, _deploymentId)
+            .log("Invalid use of json_pointer");
+        return std::nullopt;
+    }
+}
+
+std::string GenComponentDelegate::jsonValueToString(const rapidjson::Value &value) {
+    if(value.IsString()) {
+        return value.GetString();
+    } else if(value.IsInt()) {
+        return std::to_string(value.GetInt());
+    } else if(value.IsUint()) {
+        return std::to_string(value.GetUint());
+    } else if(value.IsInt64()) {
+        return std::to_string(value.GetInt64());
+    } else if(value.IsUint64()) {
+        return std::to_string(value.GetUint64());
+    } else if(value.IsDouble()) {
+        return std::to_string(value.GetDouble());
+    } else {
+        // For non-scalar values, use JSON serialization
+        rapidjson::StringBuffer sb;
+        rapidjson::Writer<rapidjson::StringBuffer> writer(sb);
+        value.Accept(writer);
+        return sb.GetString();
+    }
+}
+
 GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
     _recipeAsStruct = data.get<ggapi::Struct>("recipe");
     _manifestAsStruct = data.get<ggapi::Struct>("manifest");
@@ -366,7 +455,6 @@ GenComponentDelegate::GenComponentDelegate(const ggapi::Struct &data) {
     _deploymentId = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("ComponentName"));
 
     _name = _recipeAsStruct.get<std::string>(_recipeAsStruct.foldKey("componentName"));
-
     // TODO:: Improve how Lifecycle is extracted from recipe with respect to manifest
     _lifecycleAsStruct =
         _manifestAsStruct.get<ggapi::Struct>(_manifestAsStruct.foldKey("Lifecycle"));
@@ -377,12 +465,18 @@ void GenComponentDelegate::onInitialize(ggapi::Struct data) {
 
     _nucleusConfig = data.getValue<ggapi::Struct>({"nucleus"});
     _systemConfig = data.getValue<ggapi::Struct>({"system"});
+    _configRoot = data.getValue<ggapi::Struct>({"configRoot"});
 
-    // TODO: Use nucleus's global config to parse this information
-    //  auto compConfig =
-    //      _recipeAsStruct.get<ggapi::Struct>(_recipeAsStruct.foldKey("ComponentConfiguration"));
-    //  auto _defaultConfig =
-    //  compConfig.get<ggapi::Struct>(compConfig.foldKey("DefaultConfiguration"));
+    auto allServices = _configRoot.get<ggapi::Struct>(_configRoot.foldKey("services"));
+
+    if(allServices.hasKey(_name)) {
+        auto service = allServices.get<ggapi::Struct>(allServices.foldKey(_name));
+        if(!service.empty()) {
+            if(service.hasKey("configuration") && service.isStruct("configuration")) {
+                _defaultConfig = service.get<ggapi::Struct>(service.foldKey("configuration"));
+            }
+        }
+    }
 
     ggapi::Archive::transform<ggapi::ContainerDearchiver>(_lifecycle, _lifecycleAsStruct);
 

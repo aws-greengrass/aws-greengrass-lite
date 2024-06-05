@@ -3,9 +3,11 @@
 #include <gg_pal/process.hpp>
 #include <logging.hpp>
 #include <plugin.hpp>
+#include <rapidjson/document.h>
+#include <regex>
 
 class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenComponentDelegate> {
-    public:
+public:
     struct ScriptSection : public ggapi::Serializable {
         std::optional<std::unordered_map<std::string, std::string>> envMap;
         std::string script;
@@ -109,6 +111,8 @@ class GenComponentDelegate : public ggapi::Plugin, public util::RefObject<GenCom
     static constexpr std::string_view DEPLOYMENT_ID_LOG_KEY = "DeploymentId";
     static constexpr std::string_view DISCARDED_DEPLOYMENT_ID_LOG_KEY = "DiscardedDeploymentId";
     static constexpr std::string_view GG_DEPLOYMENT_ID_LOG_KEY_NAME = "GreengrassDeploymentId";
+    static constexpr std::string_view CONFIGURATION_NAMESPACE = "configuration";
+    static constexpr std::string_view ARTIFACTS_NAMESPACE = "artifacts";
 
 private:
     std::string _name;
@@ -125,10 +129,11 @@ private:
 
     ggapi::Struct _nucleusConfig;
     ggapi::Struct _systemConfig;
+    ggapi::Struct _configRoot;
 
     void processScript(ScriptSection section, std::string_view stepNameArg);
 
-    gg_pal::Process startProcess(
+    std::optional<gg_pal::Process> startProcess(
         std::string script,
         std::chrono::seconds timeout,
         bool requiresPrivilege,
@@ -149,7 +154,9 @@ public:
         ggapi::Symbol event,
         ggapi::Struct data);
 
-    ggapi::ModuleScope registerComponent(ggapi::ModuleScope &moduleScope );
+    ggapi::ModuleScope registerComponent(ggapi::ModuleScope &moduleScope);
+    std::optional<std::string> lookupConfigurationValue(const std::string &path);
+    static std::string jsonValueToString(const rapidjson::Value &value);
 
     void onInitialize(ggapi::Struct data) override;
     void onStart(ggapi::Struct data) override;
@@ -159,11 +166,12 @@ class GenComponentLoader : public ggapi::Plugin {
 private:
     ggapi::ObjHandle registerGenComponent(ggapi::Symbol, const ggapi::Container &callData);
     ggapi::Subscription _delegateComponentSubscription;
-    std::optional <std::function<void(std::shared_ptr<GenComponentDelegate>)>> _initHook;
+    std::optional<std::function<void(std::shared_ptr<GenComponentDelegate>)>> _initHook;
+
 public:
     void onInitialize(ggapi::Struct data) override;
 
-    void setInitHook(const std::function<void(std::shared_ptr<GenComponentDelegate>)> &initHook){
+    void setInitHook(const std::function<void(std::shared_ptr<GenComponentDelegate>)> &initHook) {
         _initHook = initHook;
     }
 

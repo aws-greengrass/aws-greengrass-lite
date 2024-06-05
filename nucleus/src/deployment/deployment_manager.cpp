@@ -1,4 +1,5 @@
 #include "deployment_manager.hpp"
+#include "config/config_timestamp.hpp"
 #include "containers.hpp"
 #include "data/shared_struct.hpp"
 #include "lifecycle/kernel.hpp"
@@ -205,9 +206,12 @@ namespace deployment {
                                     ->get(index)
                                     .castObject<data::StructModelBase>();
 
-        std::cout << selectedManifest->toJson().get() << std::endl;
-
         auto context = scope::context();
+
+        auto newService = std::make_shared<data::SharedStruct>(context);
+        newService->put("configuration", defaultConfig);
+        auto servicesTopic = _kernel.getConfig().lookupTopics({"services"});
+        servicesTopic->put(currentRecipe.getComponentName(), newService);
 
         auto data_pack = std::make_shared<data::SharedStruct>(context);
 
@@ -248,7 +252,7 @@ namespace deployment {
     void DeploymentManager::ManageConfigDeployment(std::filesystem::path deploymentPath) {
         DeploymentDocFile doc;
         data::archive::readFromFile(deploymentPath, doc);
-        std::map<std::string,std::string> componentMap;
+        std::map<std::string, std::string> componentMap;
         if(doc.rootComponentVersionsToAdd.has_value()) {
             componentMap = doc.rootComponentVersionsToAdd.value();
         } else {
@@ -271,7 +275,7 @@ namespace deployment {
                 .logAndThrow(std::filesystem::filesystem_error{ec.message(), recipeDirSource, ec});
         }
 
-        //TODO:: Refactor to reuse the local functions
+        // TODO:: Refactor to reuse the local functions
         std::filesystem::path artifactsDir;
         for(const auto &entry : iter) {
             if(!entry.is_directory()) {
@@ -286,15 +290,16 @@ namespace deployment {
                 auto saveRecipeName =
                     std::to_string(hashValue) + "@" + recipe.componentVersion + ".recipe.yml";
 
-                //TODO:: Fix the lifecycle Kernel to use packages folder for loading generic components
-                auto saveRecipeDst = _kernel.getPaths()->pluginRecipePath()
-                                     / saveRecipeName;
+                // TODO:: Fix the lifecycle Kernel to use packages folder for loading generic
+                // components
+                auto saveRecipeDst = _kernel.getPaths()->pluginRecipePath() / saveRecipeName;
 
                 std::filesystem::copy_file(
                     entry, saveRecipeDst, std::filesystem::copy_options::overwrite_existing);
 
                 // Save artifacts
-                auto currentArtifactsDirSource = artifactsDirSource + "/" + recipe.componentName + "/" +recipe.componentVersion;
+                auto currentArtifactsDirSource =
+                    artifactsDirSource + "/" + recipe.componentName + "/" + recipe.componentVersion;
                 artifactsDir = _kernel.getPaths()->componentStorePath() / "artifacts"
                                / recipe.componentName / recipe.componentVersion;
 
@@ -310,8 +315,8 @@ namespace deployment {
                         | std::filesystem::copy_options::overwrite_existing);
 
                 // Put the name of the componet in the config
-                auto serviceTopic = _kernel.getConfig().lookupTopics(
-                    {"services", recipe.componentName});
+                auto serviceTopic =
+                    _kernel.getConfig().lookupTopics({"services", recipe.componentName});
                 serviceTopic->put("recipePath", saveRecipeDst.generic_string());
             }
         }
