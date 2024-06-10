@@ -24,7 +24,6 @@ add_library(
   src/publish.cpp
   src/subscribe.cpp
   src/tes.cpp
-  src/jobsFetch.cpp
   src/thread_safe_queue.hpp)
 
 target_link_libraries(iot_broker PRIVATE gg_plugin_api device-sdk

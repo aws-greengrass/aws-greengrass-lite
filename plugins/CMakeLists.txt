@@ -2,6 +2,7 @@ add_subdirectory(device-sdk)
 
 add_subdirectory(provision_plugin)
 add_subdirectory(iot_broker)
+add_subdirectory(iot_jobs_handler)
 add_subdirectory(ipc_server)
 add_subdirectory(lifecycle_ipc)
 add_subdirectory(local_broker)
