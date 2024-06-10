@@ -29,17 +29,6 @@
 #include <aws/io/socket.h>
 #include <aws/io/stream.h>
 #include <aws/iot/Mqtt5Client.h>
-#include <aws/iotjobs/DescribeJobExecutionRequest.h>
-#include <aws/iotjobs/DescribeJobExecutionResponse.h>
-#include <aws/iotjobs/DescribeJobExecutionSubscriptionRequest.h>
-#include <aws/iotjobs/GetPendingJobExecutionsRequest.h>
-#include <aws/iotjobs/GetPendingJobExecutionsResponse.h>
-#include <aws/iotjobs/GetPendingJobExecutionsSubscriptionRequest.h>
-#include <aws/iotjobs/IotJobsClient.h>
-#include <aws/iotjobs/JobExecutionsChangedEvent.h>
-#include <aws/iotjobs/JobExecutionsChangedSubscriptionRequest.h>
-#include <aws/iotjobs/JobStatus.h>
-#include <aws/iotjobs/RejectedError.h>
 
 #ifdef EXPORT_DEVICESDK_API
 #if defined(_WIN32)

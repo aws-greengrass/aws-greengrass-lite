@@ -3,7 +3,7 @@ RecipeFormatVersion: "2020-01-25"
 ComponentName: local.plugins.discovered.iot_jobs_handler
 ComponentType: aws.greengrass.plugin
 ComponentVersion: "0.1.0"
-ComponentDescription: Handler for deployment information via IoT Jobs
+ComponentDescription: Handler for deployment information via AWS IoT Jobs
 ComponentPublisher: Amazon
 ComponentDependencies:
   local.plugins.discovered.iot_broker:
