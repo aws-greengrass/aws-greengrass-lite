@@ -15,21 +15,29 @@ namespace iot_jobs_handler {
     void IotJobsHandler::onStart(ggapi::Struct data) {
         _thingName = data.getValue<std::string>({"system", "thingName"});
 
-        LOG.atInfo("Jobs-START-subscriptions")
+        LOG.atInfo("jobs-handler-start-subscriptions")
             .log("Subscribing to Iot Jobs related Greengrass topics...");
 
         // TODO: unsubscribe and resubscribe if thing name changes
         // (subscriptions with old name need to be removed)
-
-        SubscribeToDescribeJobExecutionAccepted();
-        // SubscribeToDescribeJobExecutionRejected();
-        SubscribeToJobExecutionsChangedEvents();
-        PublishDescribeJobExecution();
+        try {
+            SubscribeToDescribeJobExecutionAccepted();
+            SubscribeToDescribeJobExecutionRejected();
+            SubscribeToJobExecutionsChangedEvents();
+            PublishDescribeJobExecution();
+        } catch(const MqttException &e) {
+            LOG.atError("jobs-handler-start-subscriptions")
+                .kv("ErrorReason", e.what())
+                .log("Failed to subscribe to Iot jobs related Greengrass topics");
+        }
     }
 
     // TODO: Wrap all update job execution subscripts and publishes into 1 method the DM can call
     // Call wrapper, subscribe to jobid updates for confirmations, publish jobid update, unsubscribe
     // to job id updates
+
+    // TODO: Deployment manager would publish to a topic created here which would trigger job status
+    // updates.
 
     // https://github.com/aws-greengrass/aws-greengrass-nucleus/blob/b563193ed52d6abfcc76d65feeed3b2377cbe07c/src/main/java/com/aws/greengrass/deployment/IotJobsHelper.java#L381
     void IotJobsHandler::updateJobStatus(
@@ -52,7 +60,11 @@ namespace iot_jobs_handler {
     void IotJobsHandler::PublishDescribeJobExecution() {
         util::TempModule tempModule(getModule());
         // TODO: make these info calls DEBUG level
-        LOG.atInfo("Jobs-MQTT-publish").log("Publishing to describe job execution...");
+        LOG.atInfo("jobs-handler-mqtt-publish").log("Publishing to describe job execution...");
+
+        if(_thingName.empty() || _thingName == "") {
+            throw MqttException("DescribeJobExecutionRequest must have a non-null thingName");
+        }
 
         std::string json;
         auto buf = ggapi::Struct::create()
@@ -74,20 +86,22 @@ namespace iot_jobs_handler {
         auto responseFuture =
             ggapi::Subscription::callTopicFirst(keys.publishToIoTCoreTopic, value);
         if(!responseFuture) {
-            LOG.atError("Jobs-MQTT-publish-failed").log("Failed to publish to describe job topic.");
+            LOG.atError("jobs-handler-mqtt-publish")
+                .log("Failed to publish to describe job topic.");
         } else {
             responseFuture.whenValid([](const ggapi::Future &completedFuture) {
                 try {
                     auto response = ggapi::Struct(completedFuture.getValue());
                     if(response.get<int>(keys.errorCode) == 0) {
-                        LOG.atInfo("Jobs-MQTT-publish-success")
+                        LOG.atInfo("jobs-handler-mqtt-publish")
                             .log("Successfully sent to get next job description.");
                     } else {
-                        LOG.atError("Jobs-MQTT-publish-error")
+                        LOG.atError("jobs-handler-mqtt-publish")
                             .log("Error sending to get next job description.");
                     }
+                    LOG.atDebug("jobs-handler-mqtt-publish").log("Requesting the next deployment");
                 } catch(const ggapi::GgApiError &error) {
-                    LOG.atError("Jobs-MQTT-message-received-throw")
+                    LOG.atError("jobs-handler-mqtt-message-received")
                         .cause(error)
                         .log("Failed to receive accepted deployment job execution description.");
                 }
@@ -98,7 +112,13 @@ namespace iot_jobs_handler {
     void IotJobsHandler::SubscribeToDescribeJobExecutionAccepted() {
         util::TempModule tempModule(getModule());
         // TODO: make these info calls DEBUG level
-        LOG.atInfo("Jobs-MQTT-subscribe").log("Subscribing to deployment job execution update...");
+        LOG.atInfo("jobs-handler-mqtt-subscribe")
+            .log("Subscribing to deployment job execution update...");
+
+        if(_thingName.empty() || _thingName == "") {
+            throw MqttException(
+                "DescribeJobExecutionSubscriptionRequest must have a non-null thingName");
+        }
 
         auto value = ggapi::Struct::create().put(
             {{keys.topicName,
@@ -109,7 +129,7 @@ namespace iot_jobs_handler {
         auto responseFuture =
             ggapi::Subscription::callTopicFirst(keys.subscribeToIoTCoreTopic, value);
         if(!responseFuture) {
-            LOG.atError("Jobs-MQTT-subscribe-failed").log("Failed to subscribe.");
+            LOG.atError("jobs-handler-mqtt-subscribe").log("Failed to subscribe.");
         } else {
             responseFuture.whenValid([&](const ggapi::Future &completedFuture) {
                 try {
@@ -118,29 +138,37 @@ namespace iot_jobs_handler {
                     channel.addListenCallback(ggapi::ChannelListenCallback::of<ggapi::Struct>(
                         [&](const ggapi::Struct &packet) {
                             auto topic = packet.get<std::string>(keys.topicName);
-                            auto payload = packet.get<std::string>(keys.payload);
+                            auto payloadStr = packet.get<std::string>(keys.payload);
 
-                            // TODO: Retry request for next pending if unprocessed > 0
+                            auto payloadStruct = jsonToStruct(payloadStr);
+
+                            auto execution = payloadStruct.get<ggapi::Struct>("execution");
+                            if(execution.empty()) {
+                                LOG.atInfo("jobs-handler-mqtt-message-received")
+                                    .log("No deployment job found");
+                                if(_unprocessedJobs.load() > 0) {
+                                    LOG.atDebug().log("Retry requesting next pending job document");
+                                    PublishDescribeJobExecution();
+                                }
+                                return;
+                            }
+
+                            LOG.atInfo("jobs-handler-mqtt-message-received")
+                                .log("Received accepted Iot job description.");
 
                             if(_unprocessedJobs.load() > 0) {
                                 _unprocessedJobs.fetch_sub(1);
                             }
-                            LOG.atInfo("Jobs-MQTT-message-received")
-                                .log("Received Iot job description.");
 
-                            std::cout << "PAYLOAD STRING 👏:: " << std::endl;
-                            std::cout << payload << std::endl;
-
-                            // TODO: convert jsonstring of payload to ggapi::struct
-                            // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-https-api.html#jobs-mqtt-job-execution-data
-
-                            // TODO: add to deployment queue -> send to deployment manager as
-                            // ggapi::struct over LPC
-                            // TODO: evaluate cancellation and cancel deployment if needed (maybe
-                            // done in DM?, update sent here)
+                            if(createAndSendDeployment(execution)) {
+                                auto jobId = execution.get<std::string>("jobId");
+                                LOG.atInfo("jobs-handler-mqtt-message-received")
+                                    .kv("JobId", jobId)
+                                    .log("Added the job to the queue");
+                            }
                         }));
                 } catch(const ggapi::GgApiError &error) {
-                    LOG.atError("Jobs-MQTT-message-received-throw")
+                    LOG.atError("jobs-handler-mqtt-message-received-throw")
                         .cause(error)
                         .log("Failed to receive accepted deployment job execution description.");
                 }
@@ -149,26 +177,58 @@ namespace iot_jobs_handler {
     }
 
     void IotJobsHandler::SubscribeToDescribeJobExecutionRejected() {
-        /*
-        auto failureHandler = [&](Aws::Iotjobs::RejectedError *rejectedError, int ioErr) {
-            if(ioErr) {
-                std::cout << "Error " << ioErr << " occurred" << std::endl;
-                return;
-            }
-            if(rejectedError) {
-                std::cout << "Service Error " << (int) rejectedError->Code.value() << " occurred"
-                          << std::endl;
-                return;
-            }
-        };
-        */
+        util::TempModule tempModule(getModule());
+        // TODO: make these info calls DEBUG level
+        LOG.atInfo("jobs-handler-mqtt-subscribe")
+            .log("Subscribing to deployment job execution update...");
+
+        if(_thingName.empty() || _thingName == "") {
+            throw MqttException(
+                "DescribeJobExecutionSubscriptionRequest must have a non-null thingName");
+        }
+
+        auto value = ggapi::Struct::create().put(
+            {{keys.topicName,
+              "$aws/things/" + _thingName + "/jobs/" + NEXT_JOB_LITERAL
+                  + "/namespace-aws-gg-deployment/get/rejected"},
+             {keys.qos, 1}});
+
+        auto responseFuture =
+            ggapi::Subscription::callTopicFirst(keys.subscribeToIoTCoreTopic, value);
+        if(!responseFuture) {
+            LOG.atError("jobs-handler-mqtt-subscribe-failed").log("Failed to subscribe.");
+        } else {
+            responseFuture.whenValid([&](const ggapi::Future &completedFuture) {
+                try {
+                    auto response = ggapi::Struct(completedFuture.getValue());
+                    auto channel = response.get<ggapi::Channel>(keys.channel);
+                    channel.addListenCallback(ggapi::ChannelListenCallback::of<ggapi::Struct>(
+                        [&](const ggapi::Struct &packet) {
+                            auto payloadStr = packet.get<std::string>(keys.payload);
+                            LOG.atError("obs-handler-mqtt-message-received")
+                                .kv("payload", payloadStr)
+                                .log("Job subscription got rejected");
+                        }));
+                } catch(const ggapi::GgApiError &error) {
+                    LOG.atError("jobs-handler-mqtt-message-received-throw")
+                        .cause(error)
+                        .log("Failed to receive rejected deployment job execution description.");
+                }
+            });
+        }
     }
 
     void IotJobsHandler::SubscribeToJobExecutionsChangedEvents() {
         util::TempModule tempModule(getModule());
 
-        LOG.atInfo("Jobs-MQTT-subscribe")
+        LOG.atInfo("jobs-handler-mqtt-subscribe")
             .log("Subscribing to deployment job event notifications...");
+
+        if(_thingName.empty() || _thingName == "") {
+            throw MqttException(
+                "JobExecutionsChangedSubscriptionRequest must have a non-null thingName");
+        }
+
         auto value = ggapi::Struct::create().put(
             {{keys.topicName,
               "$aws/things/" + _thingName + "/jobs/notify-namespace-aws-gg-deployment"},
@@ -177,66 +237,46 @@ namespace iot_jobs_handler {
         auto responseFuture =
             ggapi::Subscription::callTopicFirst(keys.subscribeToIoTCoreTopic, value);
         if(!responseFuture) {
-            LOG.atError("Jobs-MQTT-subscribe-failed").log("Failed to subscribe.");
+            LOG.atError("jobs-handler-mqtt-subscribe-failed").log("Failed to subscribe.");
         } else {
             responseFuture.whenValid([&](const ggapi::Future &completedFuture) {
                 try {
                     auto response = ggapi::Struct(completedFuture.getValue());
                     auto channel = response.get<ggapi::Channel>(keys.channel);
-                    channel.addListenCallback(ggapi::ChannelListenCallback::of<ggapi::Struct>(
-                        [&](const ggapi::Struct &packet) {
-                            auto topic = packet.get<std::string>(keys.topicName);
-                            auto payload = packet.get<std::string>(keys.payload);
+                    channel.addListenCallback(ggapi::ChannelListenCallback::of<
+                                              ggapi::Struct>([&](const ggapi::Struct &packet) {
+                        auto topic = packet.get<std::string>(keys.topicName);
+                        auto payloadStr = packet.get<std::string>(keys.payload);
 
-                            LOG.atInfo("Jobs-MQTT-message-received")
-                                .log("Received accepted deployment job execution description.");
+                        _unprocessedJobs.fetch_add(1);
 
-                            std::cout << "PAYLOAD STRING 👏:: " << std::endl;
-                            std::cout << payload << std::endl;
+                        LOG.atInfo("jobs-handler-mqtt-message-received")
+                            .log("Received accepted deployment job execution description.");
 
-                            // TODO: convert jsonstring of payload to ggapi::object/struct
-                            // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-https-api.html#jobs-mqtt-job-execution-data
+                        auto payloadStruct = jsonToStruct(payloadStr);
 
-                            /*
-                            if(!payload->Jobs.has_value() || payload->Jobs.value().empty()) {
-                                std::cout << "Received empty jobs in notification." << std::endl;
-                                _unprocessedJobs.store(0);
-                                return;
-                            }
-                            auto jobs = payload->Jobs.value();
-                            if(jobs.count(Aws::Iotjobs::JobStatus::QUEUED)) {
-                                // We will get one notification per each new job QUEUED
-                                auto jobVec = jobs.at(Aws::Iotjobs::JobStatus::QUEUED);
-                                Aws::Crt::String jobId;
-                                if(jobVec.size() > 0) {
-                                    std::cout
-                                        << "Received new jobs in notification. Getting first
-                            jobId..."
-                                        << std::endl;
-                                    auto job = jobVec.front();
-                                    if(job.JobId.has_value()) {
-                                        jobId = job.JobId.value();
-                                        std::cout << jobId << std::endl;
-                                    }
-                                }
-                                _unprocessedJobs.fetch_add(1);
-                                std::cout << "Received new deployment notification. Requesting
-                            details."
-                                          << std::endl;
-                                // requestNextPendingJobDocument();
-                                return;
-                            }
-                            std::cout << "Received other deployment notification. Not supported
-                            yet."
-                                      << std::endl;
-                            */
+                        auto jobs = payloadStruct.get<ggapi::Struct>("jobs");
+                        if(jobs.empty()) {
+                            LOG.atInfo().log("Received empty jobs in notification ");
+                            _unprocessedJobs.store(0);
+                            // TODO: evaluate cancellation and cancel deployment if needed
+                            // (maybe done in DM?, update sent here)
+                            return;
+                        }
+
+                        auto v = jobs.keys().toVector<std::string>();
+
+                        if(std::find(v.begin(), v.end(), "QUEUED") != v.end()) {
                             _unprocessedJobs.fetch_add(1);
-                            std::cout << "Received new deployment notification. Requesting details."
-                                      << std::endl;
+                            LOG.atInfo("jobs-handler-mqtt-message-received")
+                                .log("Received new deployment notification. Requesting details.");
                             PublishDescribeJobExecution();
-                        }));
+                        }
+                        LOG.atInfo().log(
+                            "Received other deployment notification. Not supported yet");
+                    }));
                 } catch(const ggapi::GgApiError &error) {
-                    LOG.atError("Jobs-MQTT-message-received-throw")
+                    LOG.atError("jobs-handler-mqtt-message-received-throw")
                         .cause(error)
                         .log("Failed to receive accepted deployment job execution description.");
                 }
@@ -244,6 +284,46 @@ namespace iot_jobs_handler {
         }
     }
 
+    bool IotJobsHandler::createAndSendDeployment(ggapi::Struct deploymentExecutionData) {
+
+        auto jobDocument = deploymentExecutionData.get<ggapi::Struct>("jobDocument");
+        if(jobDocument.empty()) {
+            LOG.atError("jobs-handler-create-deployment").log("Job document is empty");
+            return false;
+        }
+        auto deploymentId = jobDocument.get<std::string>("deploymentId");
+        auto jobDocumentJson = jobDocument.toJson();
+        auto jobDeploymentVec =
+            jobDocumentJson.get<std::vector<uint8_t>>(0, jobDocumentJson.size());
+        auto jobDocumentString = std::string{jobDeploymentVec.begin(), jobDeploymentVec.end()};
+
+        auto deployment = ggapi::Struct::create();
+        deployment.put("deploymentDocumentobj", jobDocument);
+        deployment.put("deploymentDocument", jobDocumentString);
+        deployment.put("deploymentType", "IOT_JOBS");
+        deployment.put("id", deploymentId);
+        deployment.put("isCancelled", false);
+        deployment.put("deploymentStage", "DEFAULT");
+        deployment.put("stageDetails", 0);
+        deployment.put("errorStack", 0);
+        deployment.put("errorTypes", 0);
+
+        auto resultFuture =
+            ggapi::Subscription::callTopicFirst(keys.CREATE_DEPLOYMENT_TOPIC_NAME, deployment);
+        if(!resultFuture) {
+            return false;
+        }
+        ggapi::Struct result{resultFuture.waitAndGetValue()};
+        if(!result.getValue<bool>({"status"})) {
+            LOG.atError("jobs-handler-create-deployment").log("Deployment failed");
+        }
+        return result.getValue<bool>({"status"});
+    }
+
+    ggapi::Struct IotJobsHandler::jsonToStruct(std::string json) {
+        auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();
+        return ggapi::Struct{container};
+    };
 } // namespace iot_jobs_handler
 
 extern "C" [[maybe_unused]] ggapiErrorKind greengrass_lifecycle(

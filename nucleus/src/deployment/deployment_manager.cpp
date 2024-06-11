@@ -79,6 +79,15 @@ namespace deployment {
                     auto deploymentType = nextDeployment.deploymentType;
                     auto deploymentStage = nextDeployment.deploymentStage;
                     if(deploymentStage == DeploymentStage::DEFAULT) {
+                        if(deploymentType == DeploymentType::IOT_JOBS) {
+                            // TODO: Not implemented
+                            LOG.atInfo("deployment")
+                                .kv(DEPLOYMENT_ID_LOG_KEY, nextDeployment.id)
+                                .kv("deploymentDocument", nextDeployment.deploymentDocument)
+                                .log("Unsupported deployment type IOT_JOBS");
+                            _deploymentQueue->pop();
+                            return;
+                        }
                         createNewDeployment(nextDeployment);
                     } else {
                         // TODO: Perform kernel update
@@ -110,7 +119,6 @@ namespace deployment {
         LOG.atInfo("deployment")
             .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
             .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
-            .kv("DeploymentType", "LOCAL")
             .log("Received deployment in the queue");
 
         if(deploymentType == DeploymentType::LOCAL) {
@@ -126,6 +134,17 @@ namespace deployment {
                     .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
                     .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
                     .kv("DeploymentType", "LOCAL")
+                    .log(e.what());
+            }
+        }
+        if(deploymentType == DeploymentType::IOT_JOBS) {
+            try {
+                // TODO: determine if anything needed here
+            } catch(std::runtime_error &e) {
+                LOG.atError("deployment")
+                    .kv(DEPLOYMENT_ID_LOG_KEY, deploymentId)
+                    .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deploymentId)
+                    .kv("DeploymentType", "IOT_JOBS")
                     .log(e.what());
             }
         }
@@ -200,11 +219,11 @@ namespace deployment {
         auto index = std::distance(manifests.begin(), iterator);
 
         auto selectedManifest =
-            _packageManager._recipeAsStruct->get(_packageManager._recipeAsStruct->
-                                                 foldKey("Manifests", true))
-                                    .castObject<data::ListModelBase>()
-                                    ->get(index)
-                                    .castObject<data::StructModelBase>();
+            _packageManager._recipeAsStruct
+                ->get(_packageManager._recipeAsStruct->foldKey("Manifests", true))
+                .castObject<data::ListModelBase>()
+                ->get(index)
+                .castObject<data::StructModelBase>();
 
         auto context = scope::context();
 
@@ -328,18 +347,24 @@ namespace deployment {
         ggapi::Struct deploymentStruct{deploymentContainer};
         std::unique_lock guard{_mutex};
         Deployment deployment;
+        ggapi::Struct deploymentDocumentStruct;
+        std::string deploymentTypeStr;
         try {
             // TODO: validate deployment
             // TODO: Document is intended to be a Struct (loaded document), not a file / string
-            auto deploymentDocumentJson = deploymentStruct.get<std::string>("deploymentDocument");
+            auto deploymentDocumentString = deploymentStruct.get<std::string>("deploymentDocument");
             auto jsonToStruct = [](auto json) {
                 auto container = ggapi::Buffer::create().insert(-1, util::Span{json}).fromJson();
                 return ggapi::Struct{container};
             };
-            auto deploymentDocumentStruct = jsonToStruct(deploymentDocumentJson);
+            if(deploymentStruct.isStruct("deploymentDocumentobj")) {
+                deploymentDocumentStruct =
+                    deploymentStruct.get<ggapi::Struct>("deploymentDocumentobj");
+            } else {
+                deploymentDocumentStruct = jsonToStruct(deploymentDocumentString);
+            }
             auto deploymentDocument = scope::context()->objFromInt<data::StructModelBase>(
                 deploymentDocumentStruct.getHandleId());
-
             data::archive::readFromStruct(deploymentDocument, deployment.deploymentDocumentObj);
 
             deployment.id = deploymentStruct.get<std::string>("id");
@@ -347,14 +372,15 @@ namespace deployment {
             deployment.deploymentStage =
                 DeploymentStageMap.lookup(deploymentStruct.get<std::string>("deploymentStage"))
                     .value_or(DeploymentStage::DEFAULT);
+            deploymentTypeStr = deploymentStruct.get<std::string>("deploymentType");
             deployment.deploymentType =
-                DeploymentTypeMap.lookup(deploymentStruct.get<std::string>("deploymentType"))
-                    .value_or(DeploymentType::IOT_JOBS);
+                DeploymentTypeMap.lookup(deploymentTypeStr).value_or(DeploymentType::IOT_JOBS);
+            deployment.deploymentDocument = deploymentDocumentString;
         } catch(...) {
             LOG.atError("deployment")
                 .kv(DEPLOYMENT_ID_LOG_KEY, deployment.id)
                 .kv(GG_DEPLOYMENT_ID_LOG_KEY_NAME, deployment.id)
-                .kv("DeploymentType", "LOCAL")
+                .kv("DeploymentType", deploymentTypeStr)
                 .cause(std::current_exception())
                 .log("Invalid deployment request. Please check you recipe.");
 
