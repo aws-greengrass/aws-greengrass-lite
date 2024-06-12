@@ -15,7 +15,7 @@ namespace iot_jobs_handler {
     void IotJobsHandler::onStart(ggapi::Struct data) {
         _thingName = data.getValue<std::string>({"system", "thingName"});
 
-        LOG.atInfo("jobs-handler-start-subscriptions")
+        LOG.atDebug("jobs-handler-start-subscriptions")
             .log("Subscribing to Iot Jobs related Greengrass topics...");
 
         // TODO: unsubscribe and resubscribe if thing name changes
@@ -59,8 +59,7 @@ namespace iot_jobs_handler {
 
     void IotJobsHandler::PublishDescribeJobExecution() {
         util::TempModule tempModule(getModule());
-        // TODO: make these info calls DEBUG level
-        LOG.atInfo("jobs-handler-mqtt-publish").log("Publishing to describe job execution...");
+        LOG.atDebug("jobs-handler-mqtt-publish").log("Publishing to describe job execution...");
 
         if(_thingName.empty() || _thingName == "") {
             throw MqttException("DescribeJobExecutionRequest must have a non-null thingName");
@@ -111,8 +110,7 @@ namespace iot_jobs_handler {
 
     void IotJobsHandler::SubscribeToDescribeJobExecutionAccepted() {
         util::TempModule tempModule(getModule());
-        // TODO: make these info calls DEBUG level
-        LOG.atInfo("jobs-handler-mqtt-subscribe")
+        LOG.atDebug("jobs-handler-mqtt-subscribe")
             .log("Subscribing to deployment job execution update...");
 
         if(_thingName.empty() || _thingName == "") {
@@ -147,7 +145,8 @@ namespace iot_jobs_handler {
                                 LOG.atInfo("jobs-handler-mqtt-message-received")
                                     .log("No deployment job found");
                                 if(_unprocessedJobs.load() > 0) {
-                                    LOG.atDebug().log("Retry requesting next pending job document");
+                                    LOG.atDebug("jobs-handler-mqtt-message-received")
+                                        .log("Retry requesting next pending job document");
                                     PublishDescribeJobExecution();
                                 }
                                 return;
@@ -178,8 +177,7 @@ namespace iot_jobs_handler {
 
     void IotJobsHandler::SubscribeToDescribeJobExecutionRejected() {
         util::TempModule tempModule(getModule());
-        // TODO: make these info calls DEBUG level
-        LOG.atInfo("jobs-handler-mqtt-subscribe")
+        LOG.atDebug("jobs-handler-mqtt-subscribe")
             .log("Subscribing to deployment job execution update...");
 
         if(_thingName.empty() || _thingName == "") {
@@ -221,7 +219,7 @@ namespace iot_jobs_handler {
     void IotJobsHandler::SubscribeToJobExecutionsChangedEvents() {
         util::TempModule tempModule(getModule());
 
-        LOG.atInfo("jobs-handler-mqtt-subscribe")
+        LOG.atDebug("jobs-handler-mqtt-subscribe")
             .log("Subscribing to deployment job event notifications...");
 
         if(_thingName.empty() || _thingName == "") {
@@ -257,10 +255,10 @@ namespace iot_jobs_handler {
 
                         auto jobs = payloadStruct.get<ggapi::Struct>("jobs");
                         if(jobs.empty()) {
-                            LOG.atInfo().log("Received empty jobs in notification ");
+                            LOG.atInfo("jobs-handler-mqtt-message-received")
+                                .log("Received empty jobs in notification ");
                             _unprocessedJobs.store(0);
                             // TODO: evaluate cancellation and cancel deployment if needed
-                            // (maybe done in DM?, update sent here)
                             return;
                         }
 
@@ -272,8 +270,8 @@ namespace iot_jobs_handler {
                                 .log("Received new deployment notification. Requesting details.");
                             PublishDescribeJobExecution();
                         }
-                        LOG.atInfo().log(
-                            "Received other deployment notification. Not supported yet");
+                        LOG.atInfo("jobs-handler-mqtt-message-received")
+                            .log("Received other deployment notification. Not supported yet");
                     }));
                 } catch(const ggapi::GgApiError &error) {
                     LOG.atError("jobs-handler-mqtt-message-received-throw")
