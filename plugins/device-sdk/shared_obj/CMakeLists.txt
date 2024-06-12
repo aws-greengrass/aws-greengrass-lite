@@ -11,8 +11,8 @@ if(APPLE)
                        aws-c-event-stream -Wl,-noall_load)
 else()
   target_link_libraries(
-    device-sdk PRIVATE -Wl,--whole-archive aws-crt-cpp IotIdentity-cpp 
-                       aws-c-http aws-c-event-stream -Wl,--no-whole-archive )
+    device-sdk PRIVATE -Wl,--whole-archive aws-crt-cpp IotIdentity-cpp
+                       aws-c-http aws-c-event-stream -Wl,--no-whole-archive)
 endif()
 
 target_include_directories(device-sdk PUBLIC include)

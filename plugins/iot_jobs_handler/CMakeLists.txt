@@ -14,15 +14,9 @@ set(COMPONENT_NAME local.plugins.discovered.iot_jobs_handler)
 
 enable_warnings()
 
-add_library(
-  iot_jobs_handler_obj OBJECT
-  src/iot_jobs_handler.hpp)
-
-target_include_directories(iot_jobs_handler_obj PUBLIC src)
-target_link_libraries(iot_jobs_handler_obj PUBLIC gg_plugin_api)
-
-add_library(iot_jobs_handler MODULE src/main.cpp)
-target_link_libraries(iot_jobs_handler PRIVATE iot_jobs_handler_obj)
+add_library(iot_jobs_handler MODULE src/main.cpp
+                                    src/iot_jobs_handler.hpp)
+target_link_libraries(iot_jobs_handler PRIVATE gg_plugin_api)
 
 configureRPATH(iot_jobs_handler)
 

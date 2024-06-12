@@ -6,7 +6,7 @@
 namespace iot_jobs_handler {
     class MqttException : public ggapi::GgApiError {
     public:
-        MqttException(std::string str) : ggapi::GgApiError("MqttException", str) {
+        explicit MqttException(const std::string &str) : ggapi::GgApiError("MqttException", str) {
         }
     };
     class IotJobsHandler : public ggapi::Plugin {
@@ -28,11 +28,12 @@ namespace iot_jobs_handler {
         std::string _thingName;
         static const Keys keys;
 
-        ggapi::Struct jsonToStruct(std::string json);
+        static ggapi::Struct jsonToStruct(std::string json);
 
     public:
-        void updateJobStatus(std::string jobId, std::string status, std::string details);
-        bool createAndSendDeployment(ggapi::Struct deploymentExecutionData);
+        void updateJobStatus(
+            const std::string &jobId, const std::string &status, const std::string &details);
+        static bool createAndSendDeployment(const ggapi::Struct &deploymentExecutionData);
         void PublishUpdateJobExecution();
         void PublishDescribeJobExecution();
         void SubscribeToUpdateJobExecutionAccepted();

@@ -41,7 +41,7 @@ namespace iot_jobs_handler {
 
     // https://github.com/aws-greengrass/aws-greengrass-nucleus/blob/b563193ed52d6abfcc76d65feeed3b2377cbe07c/src/main/java/com/aws/greengrass/deployment/IotJobsHelper.java#L381
     void IotJobsHandler::updateJobStatus(
-        std::string jobId, std::string status, std::string details) {
+        const std::string &jobId, const std::string &status, const std::string &details) {
         SubscribeToUpdateJobExecutionAccepted();
         SubscribeToUpdateJobExecutionRejected();
         PublishUpdateJobExecution();
@@ -61,7 +61,7 @@ namespace iot_jobs_handler {
         util::TempModule tempModule(getModule());
         LOG.atDebug("jobs-handler-mqtt-publish").log("Publishing to describe job execution...");
 
-        if(_thingName.empty() || _thingName == "") {
+        if(_thingName.empty()) {
             throw MqttException("DescribeJobExecutionRequest must have a non-null thingName");
         }
 
@@ -113,7 +113,7 @@ namespace iot_jobs_handler {
         LOG.atDebug("jobs-handler-mqtt-subscribe")
             .log("Subscribing to deployment job execution update...");
 
-        if(_thingName.empty() || _thingName == "") {
+        if(_thingName.empty()) {
             throw MqttException(
                 "DescribeJobExecutionSubscriptionRequest must have a non-null thingName");
         }
@@ -180,7 +180,7 @@ namespace iot_jobs_handler {
         LOG.atDebug("jobs-handler-mqtt-subscribe")
             .log("Subscribing to deployment job execution update...");
 
-        if(_thingName.empty() || _thingName == "") {
+        if(_thingName.empty()) {
             throw MqttException(
                 "DescribeJobExecutionSubscriptionRequest must have a non-null thingName");
         }
@@ -222,7 +222,7 @@ namespace iot_jobs_handler {
         LOG.atDebug("jobs-handler-mqtt-subscribe")
             .log("Subscribing to deployment job event notifications...");
 
-        if(_thingName.empty() || _thingName == "") {
+        if(_thingName.empty()) {
             throw MqttException(
                 "JobExecutionsChangedSubscriptionRequest must have a non-null thingName");
         }
@@ -282,7 +282,7 @@ namespace iot_jobs_handler {
         }
     }
 
-    bool IotJobsHandler::createAndSendDeployment(ggapi::Struct deploymentExecutionData) {
+    bool IotJobsHandler::createAndSendDeployment(const ggapi::Struct &deploymentExecutionData) {
 
         auto jobDocument = deploymentExecutionData.get<ggapi::Struct>("jobDocument");
         if(jobDocument.empty()) {
