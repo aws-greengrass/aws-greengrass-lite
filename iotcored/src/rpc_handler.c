@@ -68,7 +68,7 @@ void gravel_receive_callback(
 ) {
     (void) ctx;
 
-    if ((params.len < 1) && (params.items[0].type != GRAVEL_TYPE_MAP)) {
+    if ((params.len < 1) || (params.items[0].type != GRAVEL_TYPE_MAP)) {
         GRAVEL_LOGE("rpc-handler", "Received invalid arguments.");
         gravel_respond(handle, EINVAL, GRAVEL_OBJ_NULL());
         return;
