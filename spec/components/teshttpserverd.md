@@ -30,7 +30,7 @@ The following is the current daemon implementation flow:
 - [tesd-cli-error-1] `Invalid port provided`
   - The port provided was not valid, make sure the port is in the valid range of
     `1024–49151`.
-- [tesd-cli-error-3]
+- [tesd-cli-error-2]
   `Unable to start the TES HTTP Server daemon on configured port`
   - The TES HTTP Server daemon was unable to start on provided port. Make sure
     the `teshttpserverd` daemon is configured properly with a port that is not
