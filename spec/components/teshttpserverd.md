@@ -4,7 +4,7 @@
 credentials for other processes to acquire.
 
 For information on TES, see
-<https://docs.aws.amazon.com/greengrass/v2/developerguide/interact-with-aws-services.html>.
+<https://docs.aws.amazon.com/greengrass/v2/developerguide/token-exchange-service-component.html>.
 
 The following is the current daemon implementation flow:
 
@@ -24,6 +24,17 @@ The following is the current daemon implementation flow:
 
 - [teshttpserverd-param-port-1] The port argument configures the port for which
   the server will run on. If not provided will default to port `8090`.
+
+#### Error Handling
+
+- [tesd-cli-error-1] `Invalid port provided`
+  - The port provided was not valid, make sure the port is in the valid range of
+    `1024–49151`.
+- [tesd-cli-error-3]
+  `Unable to start the TES HTTP Server daemon on configured port`
+  - The TES HTTP Server daemon was unable to start on provided port. Make sure
+    the `teshttpserverd` daemon is configured properly with a port that is not
+    in use.
 
 ## Environment Variables
 
