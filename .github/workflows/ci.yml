@@ -16,6 +16,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: build with GCC
+            check: packages-default
+          - name: build with Clang
+            check: packages-gravel-clang
           - name: editorconfig
             check: editorconfig
     name: Check ${{ matrix.name }}
