@@ -7,8 +7,8 @@ The following components are expected to have some reliance or functionality
 that is contained within the gghttplib:
 
 - Deployments daemon: During a typical deployments process, we expect to make
-  several cloud calls to the Greengrassv2 Dataplane APIs which will require both
-  GET and POST HTTP calls. These will need to be done over mutual
+  several cloud calls to the Greengrass v2 Dataplane APIs which will require
+  both GET and POST HTTP calls. These will need to be done over mutual
   authentication, providing the device certificate, private key, and root CA
   over mTLS. A subset of deployment features may be possible without the
   gghttplib.
@@ -48,23 +48,25 @@ and root CA retrieved from the config module to authenticate using mutual auth.
 If localPath is specified, it does not return the response as a buffer but
 rather a confirmation that the file writing is complete.
 
-- [gghttplib-httpwithmtls-params-1] `url` is a required parameter of type buffer
-  - [gghttplib-httpwithmtls-params-1.1] `url` must contain the full url endpoint
-    for the http call.
-- [gghttplib-httpwithmtls-params-2] `action` is a required parameter of type
+- [gghttplib-http-with-mtls-params-1] `url` is a required parameter of type
   buffer
-  - [gghttplib-httpwithmtls-params-2.1] `action` must be one of `GET` or `POST`.
-- [gghttplib-httpwithmtls-params-3] `body` is an optional parameter of type
+  - [gghttplib-http-with-mtls-params-1.1] `url` must contain the full url
+    endpoint for the http call.
+- [gghttplib-http-with-mtls-params-2] `action` is a required parameter of type
   buffer
-  - [gghttplib-httpwithmtls-params-3.1] `body` is the body of the HTTP call.
-  - [gghttplib-httpwithmtls-params-3.2] This parameter should only be provided
+  - [gghttplib-http-with-mtls-params-2.1] `action` must be one of `GET` or
+    `POST`.
+- [gghttplib-http-with-mtls-params-3] `body` is an optional parameter of type
+  buffer
+  - [gghttplib-http-with-mtls-params-3.1] `body` is the body of the HTTP call.
+  - [gghttplib-http-with-mtls-params-3.2] This parameter should only be provided
     for a `POST` request. If action is specified as `GET`, then this parameter
     is ignored.
-- [gghttplib-httpwithmtls-params-4] `local_path` is an optional parameter of
+- [gghttplib-http-with-mtls-params-4] `local_path` is an optional parameter of
   type buffer
-  - [gghttplib-httpwithmtls-params-4.1] `local_path` is a path that the response
-    of the HTTP call should be downloaded to.
-  - [gghttplib-httpwithmtls-params-4.2] If `local_path` is not provided, the
+  - [gghttplib-http-with-mtls-params-4.1] `local_path` is a path that the
+    response of the HTTP call should be downloaded to.
+  - [gghttplib-http-with-mtls-params-4.2] If `local_path` is not provided, the
     response is only returned in-memory. If it is provided, the in-memory
     response does not include the http response.
 
@@ -74,28 +76,29 @@ The `http_with_sigV4` function makes a HTTP request to the specified endpoint
 and returns the response as a buffer. It will sign the HTTP call according to
 the AWS SigV4 algorithm.
 
-- [gghttplib-httpwithsigv4-params-1] `url` is a required parameter of type
+- [gghttplib-http-with-sigv4-params-1] `url` is a required parameter of type
   buffer
-  - [gghttplib-httpwithsigv4-params-1.1] `url` must contain the full url
+  - [gghttplib-http-with-sigv4-params-1.1] `url` must contain the full url
     endpoint for the http call.
-- [gghttplib-httpwithsigv4-params-2] `action` is a required parameter of type
+- [gghttplib-http-with-sigv4-params-2] `action` is a required parameter of type
   buffer
-  - [gghttplib-httpwithsigv4-params-2.1] `action` must be one of `GET` or
+  - [gghttplib-http-with-sigv4-params-2.1] `action` must be one of `GET` or
     `POST`.
-- [gghttplib-httpwithsigv4-params-3] `body` is an optional parameter of type
+- [gghttplib-http-with-sigv4-params-3] `body` is an optional parameter of type
   buffer
-  - [gghttplib-httpwithsigv4-params-3.1] `body` is the body of the HTTP call.
-  - [gghttplib-httpwithsigv4-params-3.2] This parameter should only be provided
-    for a `POST` request. If action is specified as `GET`, then this parameter
-    is ignored.
-- [gghttplib-httpwithsigv4-params-4] `credentials` is a required parameter of
+  - [gghttplib-http-with-sigv4-params-3.1] `body` is the body of the HTTP call.
+  - [gghttplib-http-with-sigv4-params-3.2] This parameter should only be
+    provided for a `POST` request. If action is specified as `GET`, then this
+    parameter is ignored.
+- [gghttplib-http-with-sigv4-params-4] `credentials` is a required parameter of
   type map
-  - [gghttplib-httpwithsigv4-params-4.1] The `credentials` map should include
+  - [gghttplib-http-with-sigv4-params-4.1] The `credentials` map should include
     the following keys and associated values as buffers:
-    - [gghttplib-httpwithsigv4-params-4.1.1] `access_key_id`: The AWS
+    - [gghttplib-http-with-sigv4-params-4.1.1] `access_key_id`: The AWS
       credentials access key
-    - [gghttplib-httpwithsigv4-params-4.1.2] `secret_access_key`: The AWS
+    - [gghttplib-http-with-sigv4-params-4.1.2] `secret_access_key`: The AWS
       credentials secret access key
-    - [gghttplib-httpwithsigv4-params-4.1.3] `token`: The AWS credentials token
-    - [gghttplib-httpwithsigv4-params-4.1.4] `expiration`: The expiration for
+    - [gghttplib-http-with-sigv4-params-4.1.3] `token`: The AWS credentials
+      token
+    - [gghttplib-http-with-sigv4-params-4.1.4] `expiration`: The expiration for
       the AWS credentials

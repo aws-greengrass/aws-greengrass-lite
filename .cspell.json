@@ -1,0 +1,13 @@
+{
+  "version": "0.2",
+  "allowCompoundWords": true,
+  "dictionaryDefinitions": [
+    {
+      "name": "project",
+      "path": "utils/dictionary.txt",
+      "addWords": true
+    }
+  ],
+  "dictionaries": ["project"],
+  "ignorePaths": ["**/*.mk", "**/Makefile"]
+}

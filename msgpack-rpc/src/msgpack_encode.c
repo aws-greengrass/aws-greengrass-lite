@@ -147,7 +147,7 @@ static int write_f64(GravelAlloc *alloc, double f64) {
     if (f64 == (double) f32) {
         // No precision loss, encode as f32
         uint32_t f32_bytes;
-        // memcpy nessesary for well-defined type-punning
+        // memcpy necessary for well-defined type-punning
         static_assert(sizeof(float) == sizeof(int32_t), "float is not 32 bits");
         memcpy(&f32_bytes, &f32, sizeof(int32_t));
         f32_bytes = htobe32(f32_bytes);

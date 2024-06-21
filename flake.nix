@@ -62,6 +62,11 @@
 
       devShells.clang = devShell // { stdenv = llvmStdenvFor; };
 
+      checks.spelling = pkgs: ''
+        ${pkgs.nodePackages.cspell}/bin/cspell "**" --quiet
+        ${pkgs.coreutils}/bin/sort -cuf utils/dictionary.txt
+      '';
+
       formatters = pkgs: {
         "*.c" = "${pkgs.llvmPackages.clang-unwrapped}/bin/clang-format -i";
         "*.h" = "${pkgs.llvmPackages.clang-unwrapped}/bin/clang-format -i";
