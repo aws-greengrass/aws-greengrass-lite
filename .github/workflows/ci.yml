@@ -20,6 +20,8 @@ jobs:
             check: packages-default
           - name: build with Clang
             check: packages-gravel-clang
+          - name: clang-tidy
+            check: clang-tidy
           - name: editorconfig
             check: editorconfig
           - name: spelling
