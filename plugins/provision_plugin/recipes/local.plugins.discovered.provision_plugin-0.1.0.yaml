@@ -1,7 +1,0 @@
----
-RecipeFormatVersion: "2020-01-25"
-ComponentName: local.plugins.discovered.provision_plugin
-ComponentType: aws.greengrass.plugin
-ComponentVersion: "0.1.0"
-ComponentDescription: Enables the provisioning of the core thing device via ..
-ComponentPublisher: Amazon
