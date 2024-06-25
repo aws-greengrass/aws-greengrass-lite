@@ -5,3 +5,7 @@ ComponentType: aws.greengrass.plugin
 ComponentVersion: "0.1.0"
 ComponentDescription: Enables nucleus to download objects from the cloud
 ComponentPublisher: Amazon
+ComponentDependencies:
+  aws.greengrass.fleet_provisioning:
+    VersionRequirement: ">=0.1.0"
+    DependencyType: HARD

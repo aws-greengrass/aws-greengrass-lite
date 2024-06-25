@@ -1,4 +1,5 @@
 #include "iot_broker.hpp"
+#include "containers.hpp"
 #include <cpp_api.hpp>
 #include <mutex>
 #include <temp_module.hpp>
@@ -93,6 +94,8 @@ void IotBroker::onInitialize(ggapi::Struct data) {
     std::unique_lock guard{_mutex};
     _nucleus = data.getValue<ggapi::Struct>({"nucleus"});
     _system = data.getValue<ggapi::Struct>({"system"});
+
+    _conn = std::thread{&IotBroker::connectionThread, this, data};
 }
 
 void IotBroker::connectionThread(ggapi::Struct data) {
@@ -121,16 +124,21 @@ void IotBroker::connectionThread(ggapi::Struct data) {
                 }
                 auto respData = ggapi::Struct{respFuture.waitAndGetValue()};
                 _thingInfo.thingName = respData.get<Aws::Crt::String>("thingName");
+                system.put("thingName", _thingInfo.thingName);
                 _thingInfo.keyPath = respData.get<std::string>("keyPath");
+                system.put("privateKeyPath", _thingInfo.keyPath);
                 _thingInfo.certPath = respData.get<std::string>("certPath");
-            }
+                system.put("certificateFilePath", _thingInfo.certPath);
 
-            // TODO: Note, reference of the module name will be done by Nucleus, this is
-            // temporary.
+                auto configRef = nucleus.get<ggapi::Struct>("configuration");
+                configRef.put("iotCredEndpoint", respData.get<std::string>("credEndpoint"));
+                configRef.put("iotDataEndpoint", respData.get<std::string>("dataEndpoint"));
+            }
             _thingInfo.credEndpoint =
                 nucleus.getValue<std::string>({"configuration", "iotCredEndpoint"});
             _thingInfo.dataEndpoint =
                 nucleus.getValue<std::string>({"configuration", "iotDataEndpoint"});
+
             initMqtt();
             if(!_worker.joinable()) {
                 _worker = std::thread{&IotBroker::queueWorker, this};
@@ -147,6 +155,7 @@ void IotBroker::connectionThread(ggapi::Struct data) {
         }
         break;
     }
+    tesOnStart(data);
 }
 
 ggapi::Promise IotBroker::connStatusHandler(ggapi::Symbol, const ggapi::Container &args) {
@@ -183,9 +192,6 @@ void IotBroker::onStart(ggapi::Struct data) {
         ggapi::TopicCallback::of(&IotBroker::ipcSubscribeHandler, this));
     _connStatusSubs = ggapi::Subscription::subscribeToTopic(
         keys.subscribeConnTopic, ggapi::TopicCallback::of(&IotBroker::connStatusHandler, this));
-    _conn = std::thread{&IotBroker::connectionThread, this, data};
-
-    tesOnStart(data);
 }
 
 void IotBroker::onStop(ggapi::Struct structData) {
