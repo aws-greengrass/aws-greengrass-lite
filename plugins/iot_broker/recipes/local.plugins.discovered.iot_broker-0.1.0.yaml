@@ -7,6 +7,9 @@ ComponentDescription:
   Enables comms of messages between client devices and core device
 ComponentPublisher: Amazon
 ComponentDependencies:
+  aws.greengrass.fleet_provisioning:
+    VersionRequirement: ">=0.1.0"
+    DependencyType: HARD
   local.plugins.discovered.cloud_downloader:
     VersionRequirement: ">=0.1.0"
     DependencyType: HARD
