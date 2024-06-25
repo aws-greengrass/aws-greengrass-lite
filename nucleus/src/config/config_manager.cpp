@@ -3,6 +3,7 @@
 #include "config/config_timestamp.hpp"
 #include "config/update_behavior_tree.hpp"
 #include "config/yaml_config.hpp"
+#include "data/shared_struct.hpp"
 #include "transaction_log.hpp"
 #include <unordered_map>
 #include <util.hpp>
@@ -222,10 +223,9 @@ namespace config {
     }
 
     std::shared_ptr<data::StructModelBase> Topics::copy() const {
-        const std::shared_ptr<Topics> parent{_parent};
         std::shared_lock guard{_mutex}; // for source
-        std::shared_ptr<Topics> newCopy{
-            std::make_shared<Topics>(context(), parent, _nameOrd, _modtime)};
+        std::shared_ptr<data::SharedStruct> newCopy{
+            std::make_shared<data::SharedStruct>(context())};
         for(const auto &i : _children.get()) {
             newCopy->put(_children.apply(i.first), i.second);
         }
@@ -241,7 +241,9 @@ namespace config {
     }
 
     void Topics::putImpl(const data::Symbol handle, const data::StructElement &element) {
-        updateChild(TopicElement{handle, Timestamp::never(), element});
+        auto now = Timestamp::now();
+        auto topic = createTopic(handle, now);
+        topic.withNewerValue(now, element.get());
     }
 
     bool Topics::hasKeyImpl(const data::Symbol handle) const {

@@ -6,6 +6,7 @@
 #include "data/safe_handle.hpp"
 #include "data/shared_struct.hpp"
 #include "data/string_table.hpp"
+#include "pubsub/promise.hpp"
 #include "scope/context.hpp"
 #include "tasks/expire_time.hpp"
 #include "watcher.hpp"
@@ -62,5 +63,6 @@ namespace config {
             const std::shared_ptr<UpdateBehaviorTree> &updateBehavior);
 
         Manager &read(const std::filesystem::path &path);
+
     };
 } // namespace config
