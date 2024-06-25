@@ -38,6 +38,8 @@ void MqttStatusBridge::onStart(ggapi::Struct data) {
             channel.addListenCallback(
                 ggapi::ChannelListenCallback::of<ggapi::Struct>([](const ggapi::Struct &response) {
                     auto status = response.get<bool>(keys.status);
+                    auto connectedMessage = ggapi::Struct::create().put("connected", true);
+                    auto disconnectedMessage = ggapi::Struct::create().put("connected", false);
                     auto payload =
                         ggapi::Struct::create()
                             .put("topic", "/greengrass/connection-status")
@@ -45,7 +47,7 @@ void MqttStatusBridge::onStart(ggapi::Struct data) {
                                 "publishMessage",
                                 ggapi::Struct::create().put(
                                     "jsonMessage",
-                                    status ? "{\"connected\":true}" : "{\"connected\":false}"));
+                                    status ? connectedMessage : disconnectedMessage));
                     auto pubFuture =
                         ggapi::Subscription::callTopicFirst(keys.publishToTopic, payload);
                     if(pubFuture) {
