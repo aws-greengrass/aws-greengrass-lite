@@ -100,7 +100,7 @@ namespace config {
 
             // remove the existing child if its merge behavior is REPLACE
             if(std::dynamic_pointer_cast<ReplaceBehaviorTree>(childMergeBehavior)) {
-                removeChild(*getNode(childSym));
+                _children.erase(childSym);
             }
         }
     }
@@ -113,8 +113,14 @@ namespace config {
     void Topics::updateChild(const TopicElement &element) {
         data::Symbol key = element.getKey();
         if(element.isType<data::StructModelBase>()) {
-            auto newNode = createInteriorChild(key);
-            newNode->updateFromMap(element);
+            auto i = _children.find(key);
+            if(i != _children.end()) {
+                _children.erase(key);
+                auto newNode = createInteriorChild(key.toString());
+                newNode->updateFromMap(element);
+            } else {
+                createInteriorChild(key.toString())->updateFromMap(element);
+            }
             return;
         }
         checkedPut(element, [this, key, &element](auto &el) {
