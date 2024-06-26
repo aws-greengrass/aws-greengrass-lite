@@ -24,3 +24,4 @@ statusd
 stdenv
 tesd
 unsuback
+xlink
