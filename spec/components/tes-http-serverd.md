@@ -1,6 +1,6 @@
-# `teshttpserverd` spec
+# `tes-http-serverd` spec
 
-`teshttpserverd` implements a generic HTTP server which will host temporary
+`tes-http-serverd` implements a generic HTTP server which will host temporary
 credentials for other processes to acquire.
 
 For information on TES, see
@@ -8,22 +8,22 @@ For information on TES, see
 
 The following is the current daemon implementation flow:
 
-- [teshttpserverd-1] The `teshttpserverd` daemon will use the `tes` daemon for
-  acquiring credentials.
-- [teshttpserverd-2] On connection, the `teshttpserverd` daemon will validate
-  the provided token and establish an http connection with the server.
-- [teshttpserverd-3] On request, the `teshttpserverd` daemon will validate the
-  request and headers.
-- [teshttpserverd-4] On request, the `teshttpserverd` daemon will make a request
-  to the `tes` daemon to acquire the temporary credentials vended, and return to
-  the caller.
+- [tes-http-serverd-1] The `tes-http-serverd` daemon will use the `tes` daemon
+  for acquiring credentials.
+- [tes-http-serverd-2] On connection, the `tes-http-serverd` daemon will
+  validate the provided token and establish an http connection with the server.
+- [tes-http-serverd-3] On request, the `tes-http-serverd` daemon will validate
+  the request and headers.
+- [tes-http-serverd-4] On request, the `tes-http-serverd` daemon will make a
+  request to the `tes` daemon to acquire the temporary credentials vended, and
+  return to the caller.
 
 ## CLI parameters
 
 ### port
 
-- [teshttpserverd-param-port-1] The port argument configures the port for which
-  the server will run on. If not provided will default to port `8090`.
+- [tes-http-serverd-param-port-1] The port argument configures the port for
+  which the server will run on. If not provided will default to port `8090`.
 
 ## Environment Variables
 

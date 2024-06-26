@@ -14,8 +14,8 @@ The following is the current daemon implementation flow:
   key, to make an HTTP request using the downloader lib to their IoT credential
   endpoint for a session token and access key.
 - [tesd-3] Other processes can now make requests on the core bus for the
-  temporary credentials, such as the `teshttpserver` daemon which will host the
-  credentials on a port for the AWS SDK to acquire.
+  temporary credentials, such as the `tes-http-serverd` daemon which will host
+  the credentials on a port for the AWS SDK to acquire.
 
 ## CLI parameters
 
@@ -67,5 +67,5 @@ credentials.
   - [tesd-bus-request_credentials-1.1] `token` can contain an unique token
     identifier which will be validated before retrieval.
 - [iotcored-bus-request_credentials-2] The method response is a map containing
-  `accesskeyid`, `secretaccesskey`, `token`, and `expiration` keys, all of which
-  have values of type buffer.
+  `access_key_id`, `secret_access_key`, `token`, and `expiration` keys, all of
+  which have values of type buffer.
