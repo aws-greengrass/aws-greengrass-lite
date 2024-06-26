@@ -2,7 +2,7 @@ ALLOCN
 clientfd
 coremqtt
 coreutils
-DGRAVEL
+DGGL
 gghttplib
 htobe
 iotcored

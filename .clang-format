@@ -24,4 +24,5 @@ PointerAlignment: Right
 QualifierAlignment: Left
 SeparateDefinitionBlocks: Always
 SpaceAfterCStyleCast: true
+PenaltyReturnTypeOnItsOwnLine: 240
 ...

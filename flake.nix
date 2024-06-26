@@ -1,9 +1,9 @@
-# gravel - Utilities for AWS IoT Core clients
+# aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
 {
-  description = "Utilities for AWS IoT Core clients.";
+  description = "AWS IoT Greengrass runtime for constrained devices.";
   inputs.flakelight.url = "github:accelbread/flakelight";
   outputs = { flakelight, ... }: flakelight ./. (
     let
@@ -18,7 +18,7 @@
       };
     in
     rec {
-      pname = "gravel";
+      pname = "ggl";
       package =
         { pkgs, lib, stdenv, fetchgit, runCommand, pkg-config, openssl, defaultMeta }:
         let
@@ -28,14 +28,14 @@
               (file: file.name == "Makefile"
                 || lib.any file.hasExt [ "c" "h" "mk" ]) ./.;
           };
-          src-with-modules = runCommand "gravel-src" { } ''
+          src-with-modules = runCommand "ggl-src" { } ''
             cp -r ${filtered-src} $out
             chmod -R +w $out
             ln -s ${core_mqtt pkgs} $out/deps/core_mqtt/coreMQTT
           '';
         in
         stdenv.mkDerivation {
-          name = "gravel";
+          name = "ggl";
           src = src-with-modules;
           nativeBuildInputs = [ pkg-config ];
           buildInputs = [ openssl ];
@@ -44,7 +44,7 @@
           meta = defaultMeta;
         };
 
-      packages.gravel-clang = { default, pkgs }:
+      packages.ggl-clang = { default, pkgs }:
         (default.overrideAttrs {
           preConfigure = "";
         }).override { stdenv = llvmStdenvFor pkgs; };
@@ -71,7 +71,7 @@
         clang-tidy =
           { pkgs, stdenv, runCommand, pkg-config, bear, clang-tools, openssl, ... }:
           let
-            src-with-modules = runCommand "gravel-src" { } ''
+            src-with-modules = runCommand "ggl-src" { } ''
               cp -r ${./.} $out
               chmod -R +w $out
               ln -s ${core_mqtt pkgs} $out/deps/core_mqtt/coreMQTT

@@ -1,11 +1,11 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
 #include "args.h"
-#include "gravel/object.h"
-#include "gravel/server.h"
+#include "ggl/object.h"
+#include "ggl/server.h"
 #include "mqtt.h"
 #include <argp.h>
 #include <stdlib.h>
@@ -55,5 +55,5 @@ int main(int argc, char **argv) {
         return ret;
     }
 
-    gravel_listen(GRAVEL_STR("/aws/gravel/iotcored"), NULL);
+    ggl_listen(GGL_STR("/aws/ggl/iotcored"), NULL);
 }

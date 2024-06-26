@@ -1,32 +1,29 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef GRAVEL_COMMS_SERVER_H
-#define GRAVEL_COMMS_SERVER_H
+#ifndef GGL_COMMS_SERVER_H
+#define GGL_COMMS_SERVER_H
 
 #include "object.h"
 #include <stdnoreturn.h>
 
 /*! Pluggable RPC client interface */
 
-typedef struct GravelResponseHandle GravelResponseHandle;
+typedef struct GglResponseHandle GglResponseHandle;
 
 /** Listen on `path` and receive incoming RPC calls/notifications.
- * Messages are passed to `gravel_receive_callback`. */
-noreturn void gravel_listen(GravelBuffer path, void *ctx);
+ * Messages are passed to `ggl_receive_callback`. */
+noreturn void ggl_listen(GglBuffer path, void *ctx);
 
 /** Function that receives messages from listen.
  * `handle` will be non-NULL if client is expecting a response.
- * If `handle` is non-NULL, it must be passed to `gravel_respond` at some point.
+ * If `handle` is non-NULL, it must be passed to `ggl_respond` at some point.
  * Defined by user of library.
  */
-void gravel_receive_callback(
-    void *ctx,
-    GravelBuffer method,
-    GravelList params,
-    GravelResponseHandle *handle
+void ggl_receive_callback(
+    void *ctx, GglBuffer method, GglList params, GglResponseHandle *handle
 );
 
 /** Respond to a message received from listen.
@@ -34,8 +31,6 @@ void gravel_receive_callback(
  * On error the RPC protocol will send the error code if supported. It may use
  * the value as extra debugging information for the error.
  * If handle is NULL, does nothing. */
-void gravel_respond(
-    GravelResponseHandle *handle, int error, GravelObject value
-);
+void ggl_respond(GglResponseHandle *handle, int error, GglObject value);
 
 #endif

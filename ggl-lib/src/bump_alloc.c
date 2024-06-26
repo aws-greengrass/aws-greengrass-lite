@@ -1,25 +1,22 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "gravel/bump_alloc.h"
-#include "gravel/alloc.h"
-#include "gravel/log.h"
-#include "gravel/object.h"
+#include "ggl/bump_alloc.h"
+#include "ggl/alloc.h"
+#include "ggl/log.h"
+#include "ggl/object.h"
 #include <stdlib.h>
 
-static void *
-bump_alloc_alloc(GravelAlloc *alloc, size_t size, size_t alignment) {
-    GravelBumpAlloc *ctx = (GravelBumpAlloc *) alloc;
+static void *bump_alloc_alloc(GglAlloc *alloc, size_t size, size_t alignment) {
+    GglBumpAlloc *ctx = (GglBumpAlloc *) alloc;
 
     size_t pad = (alignment - (ctx->index % alignment)) % alignment;
     size_t idx = ctx->index + pad;
 
     if (pad > 0) {
-        GRAVEL_LOGD(
-            "gravel-lib", "[%p] Need %zu padding.", (void *) alloc, pad
-        );
+        GGL_LOGD("ggl-lib", "[%p] Need %zu padding.", (void *) alloc, pad);
     }
 
     if (idx + size >= ctx->buf.len) {
@@ -30,8 +27,8 @@ bump_alloc_alloc(GravelAlloc *alloc, size_t size, size_t alignment) {
     return &ctx->buf.data[idx];
 }
 
-GravelBumpAlloc gravel_bump_alloc_init(GravelBuffer buf) {
-    return (GravelBumpAlloc) {
+GglBumpAlloc ggl_bump_alloc_init(GglBuffer buf) {
+    return (GglBumpAlloc) {
         .alloc = { .ALLOC = bump_alloc_alloc, .FREE = NULL },
         .buf = buf,
         .index = 0,

@@ -1,4 +1,4 @@
-# gravel - Utilities for AWS IoT Core clients
+# aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -67,7 +67,7 @@ define dir_template
 ifndef $(notdir $1)_LOADED
 $(notdir $1)_LOADED := 1
 
-include $1/gravel.mk
+include $1/ggl.mk
 
 $1_INCDIRS ?= include
 $1_SRCDIR ?= src
@@ -78,7 +78,7 @@ endif
 $1_OBJS := $$(patsubst %.c,$(BUILDDIR)/%.o,$$($1_SRCS))
 $1_DEPS := $$($1_OBJS:.o=.d)
 
-$$($1_OBJS) $$($1_DEPS): $1/gravel.mk
+$$($1_OBJS) $$($1_DEPS): $1/ggl.mk
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += $$($1_CPPFLAGS)
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += $$(call include_flags,$1)
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += \
@@ -118,7 +118,7 @@ endif # $(notdir $1)_LOADED
 endef # dir_template
 
 DIRS = $(shell find * -maxdepth 1 -type d \
-		-exec test -f '{}'/gravel.mk \; -print)
+		-exec test -f '{}'/ggl.mk \; -print)
 
 $(foreach dir,$(DIRS),$(eval $(call dir_template,$(dir))))
 

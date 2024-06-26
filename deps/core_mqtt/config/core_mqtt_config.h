@@ -1,4 +1,4 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,16 +16,16 @@ pthread_mutex_t *coremqtt_get_state_mtx(const MQTTContext_t *ctx);
 
 #ifdef CORE_MQTT_SOURCE
 
-#include "gravel/log.h"
+#include "ggl/log.h"
 
-#define GRAVEL_MQTT_LOGUNPACK(...) __VA_ARGS__
-#define GRAVEL_MQTT_LOG2(fn, ...) fn("coreMQTT", __VA_ARGS__)
-#define GRAVEL_MQTT_LOG(fn, ...) GRAVEL_MQTT_LOG2(fn, __VA_ARGS__)
+#define GGL_MQTT_LOGUNPACK(...) __VA_ARGS__
+#define GGL_MQTT_LOG2(fn, ...) fn("coreMQTT", __VA_ARGS__)
+#define GGL_MQTT_LOG(fn, ...) GGL_MQTT_LOG2(fn, __VA_ARGS__)
 
-#define LogDebug(body) GRAVEL_MQTT_LOG(GRAVEL_LOGD, GRAVEL_MQTT_LOGUNPACK body)
-#define LogInfo(body) GRAVEL_MQTT_LOG(GRAVEL_LOGI, GRAVEL_MQTT_LOGUNPACK body)
-#define LogWarn(body) GRAVEL_MQTT_LOG(GRAVEL_LOGW, GRAVEL_MQTT_LOGUNPACK body)
-#define LogError(body) GRAVEL_MQTT_LOG(GRAVEL_LOGE, GRAVEL_MQTT_LOGUNPACK body)
+#define LogDebug(body) GGL_MQTT_LOG(GGL_LOGD, GGL_MQTT_LOGUNPACK body)
+#define LogInfo(body) GGL_MQTT_LOG(GGL_LOGI, GGL_MQTT_LOGUNPACK body)
+#define LogWarn(body) GGL_MQTT_LOG(GGL_LOGW, GGL_MQTT_LOGUNPACK body)
+#define LogError(body) GGL_MQTT_LOG(GGL_LOGE, GGL_MQTT_LOGUNPACK body)
 
 #define MQTT_PRE_SEND_HOOK(pContext) \
     pthread_mutex_lock(coremqtt_get_send_mtx(pContext));

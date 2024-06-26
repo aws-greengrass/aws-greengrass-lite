@@ -1,12 +1,12 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "gravel/math.h"
+#include "ggl/math.h"
 #include <stdint.h>
 
-uint64_t gravel_abs(int64_t i64) {
+uint64_t ggl_abs(int64_t i64) {
     if (i64 >= 0) {
         return (uint64_t) i64;
     }

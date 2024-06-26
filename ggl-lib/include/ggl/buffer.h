@@ -1,10 +1,10 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef GRAVEL_BUFFER_H
-#define GRAVEL_BUFFER_H
+#ifndef GGL_BUFFER_H
+#define GGL_BUFFER_H
 
 /*! Map utilities */
 
@@ -13,6 +13,6 @@
 
 /** Get the value corresponding with a key.
  * If not found, returns false and `result` is NULL. */
-bool gravel_buffer_eq(GravelBuffer buf1, GravelBuffer buf2);
+bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2);
 
 #endif

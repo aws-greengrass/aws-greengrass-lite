@@ -1,3 +1,3 @@
-# gravel
+# AWS Greengrass Lite
 
-Utilities for AWS IoT Core clients
+AWS IoT Greengrass runtime for constrained devices.

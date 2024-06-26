@@ -1,36 +1,36 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef GRAVEL_COMMS_CLIENT_H
-#define GRAVEL_COMMS_CLIENT_H
+#ifndef GGL_COMMS_CLIENT_H
+#define GGL_COMMS_CLIENT_H
 
 /*! Pluggable RPC client interface */
 
 #include "alloc.h"
 #include "object.h"
 
-typedef struct GravelConn GravelConn;
+typedef struct GglConn GglConn;
 
 /** Open a connection to server on `path`. */
-int gravel_connect(GravelBuffer path, GravelConn **conn)
+int ggl_connect(GglBuffer path, GglConn **conn)
     __attribute__((warn_unused_result));
 
 /** Close a connection to a server. */
-void gravel_close(GravelConn *conn);
+void ggl_close(GglConn *conn);
 
 /** Make an RPC call.
  * `result` will use memory from `alloc` if needed. */
-int gravel_call(
-    GravelConn *conn,
-    GravelBuffer method,
-    GravelList params,
-    GravelAlloc *alloc,
-    GravelObject *result
+int ggl_call(
+    GglConn *conn,
+    GglBuffer method,
+    GglList params,
+    GglAlloc *alloc,
+    GglObject *result
 ) __attribute__((warn_unused_result));
 
 /** Make an RPC notification (no response). */
-int gravel_notify(GravelConn *conn, GravelBuffer method, GravelList params);
+int ggl_notify(GglConn *conn, GglBuffer method, GglList params);
 
 #endif
