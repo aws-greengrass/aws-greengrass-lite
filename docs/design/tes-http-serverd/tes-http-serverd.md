@@ -16,7 +16,7 @@ expiration as the response.
 
 ## System Flow
 
-![image info](./ggl-tes-http-server.jpg)
+![image info](./ggl-tes-http-server.svg)
 
 1. Host orchestrator starts up the `tesd` service
 2. Host orchestrator starts up the `tes-http-serverd` service
