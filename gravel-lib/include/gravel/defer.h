@@ -9,29 +9,27 @@
 /*! Macros for automatic resource cleanup */
 
 #include "alloc.h"
-#include "macro_util.h"
 #include <pthread.h>
 #include <unistd.h>
 #include <stdlib.h>
 
-// clang-format off
 /** Run clean up for `fn` when this falls out of scope. */
-#define GRAVEL_DEFER(fn, ...) \
+#define GRAVEL_DEFER(fn, ...) GRAVEL_DEFER_PRIV(fn, __VA_ARGS__, )
+
+#define GRAVEL_DEFER_PRIV(fn, var, ...) \
+    GravelDeferArgType__##fn gravel_defer_check_type__##var \
+        __attribute__((unused)) \
+        = var; \
     __attribute__((cleanup(gravel_defer__##fn))) \
-    GravelDeferRecord__##fn \
-    GRAVEL_MACRO_PASTE(\
-        gravel_defer_record__, GRAVEL_MACRO_FIRST(__VA_ARGS__, ) \
-    ) = { &GRAVEL_MACRO_FIRST(__VA_ARGS__, ), \
-          GRAVEL_MACRO_REST(__VA_ARGS__, ) }; \
-    static void (* const GRAVEL_MACRO_PASTE( \
-        gravel_defer_fn__, GRAVEL_MACRO_FIRST(__VA_ARGS__, ) \
-    ))(GravelDeferRecord__##fn *) __attribute__((unused)) = \
-        gravel_defer__##fn; \
-    static void (* const GRAVEL_MACRO_PASTE( \
-        gravel_defer_cancel_fn__, GRAVEL_MACRO_FIRST(__VA_ARGS__, ) \
-    ))(GravelDeferRecord__##fn *) __attribute__((unused)) = \
-        gravel_cancel_defer__##fn
-// clang-format on
+    GravelDeferRecord__##fn gravel_defer_record__##var \
+        = { (GravelDeferArgType__##fn *) &var, __VA_ARGS__ }; \
+    static void (*const gravel_defer_fn__##var)(GravelDeferRecord__##fn *) \
+        __attribute__((unused)) \
+        = gravel_defer__##fn; \
+    static void (*const gravel_defer_cancel_fn__##var)(GravelDeferRecord__##fn \
+                                                           *) \
+        __attribute__((unused)) \
+        = gravel_cancel_defer__##fn
 
 /** Cancel cleanup for `id`. */
 #define GRAVEL_DEFER_CANCEL(id) \
@@ -45,6 +43,7 @@
 // NOLINTBEGIN(bugprone-macro-parentheses)
 /** Enable defer for a function with one parameter. */
 #define GRAVEL_DEFINE_DEFER(fn, type, name, cleanup) \
+    typedef type GravelDeferArgType__##fn; \
     typedef type *GravelDeferRecord__##fn; \
     static inline void gravel_defer__##fn(type **defer_record_ptr) { \
         type *name = *defer_record_ptr; \
@@ -71,6 +70,9 @@ GRAVEL_DEFINE_DEFER(
 )
 
 /** Enable defer for `gravel_free` */
+
+// NOLINTNEXTLINE(readability-identifier-naming)
+typedef void *GravelDeferArgType__gravel_free;
 
 typedef struct {
     void **ptr;
