@@ -105,6 +105,10 @@ static int write_i64(GglAlloc *alloc, int64_t i64) {
         return 0;
     }
 
+    if (i64 >= 0) {
+        return write_u64(alloc, (uint64_t) i64);
+    }
+
     uint64_t i32b;
     memcpy(&i32b, &i64, sizeof(int64_t));
     uint64_t i32bbe = htobe64(i32b);
@@ -348,7 +352,6 @@ static int write_obj(GglAlloc *alloc, GglObject obj) {
     switch (obj.type) {
     case GGL_TYPE_NULL: return write_null(alloc);
     case GGL_TYPE_BOOLEAN: return write_bool(alloc, obj.boolean);
-    case GGL_TYPE_U64: return write_u64(alloc, obj.u64);
     case GGL_TYPE_I64: return write_i64(alloc, obj.i64);
     case GGL_TYPE_F64: return write_f64(alloc, obj.f64);
     case GGL_TYPE_BUF: return write_buf(alloc, obj.buf);

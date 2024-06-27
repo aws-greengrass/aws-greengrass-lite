@@ -43,12 +43,12 @@ static void rpc_publish(GglMap params, GglResponseHandle *handle) {
     }
 
     if (ggl_map_get(params, GGL_STR("qos"), &val)) {
-        if ((val->type != GGL_TYPE_U64) || (val->u64 > 2)) {
+        if ((val->type != GGL_TYPE_I64) || (val->i64 < 0) || (val->i64 > 2)) {
             GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
             ggl_respond(handle, EINVAL, GGL_OBJ_NULL());
             return;
         }
-        qos = (uint8_t) val->u64;
+        qos = (uint8_t) val->i64;
     }
 
     int ret = iotcored_mqtt_publish(&msg, qos);
