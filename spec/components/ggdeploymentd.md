@@ -92,14 +92,19 @@ the following requirements.
      correctly handled.
    - [ggdeploymentd-4.3] Stale components are removed from the device on a new
      deployment handling.
-5. [ggdeploymentd-5] The deployment service can notify components about updates
-   and defer component updates when requested.
-   - [ggdeploymentd-5.1]
-   - [ggdeploymentd-5.2] The SubscribeToComponentUpdates IPC command is
+5. [ggdeploymentd-5] The deployment service can notify components and get
+   confirmation to move forward with the deployment.
+   - [ggdeploymentd-5.1] The SubscribeToComponentUpdates IPC command is
      supported and the deployment service notifies components about updates if
      configured to do so.
-   - [ggdeploymentd-5.3] The DeferComponentUpdates IPC command is supported and
+   - [ggdeploymentd-5.2] The DeferComponentUpdates IPC command is supported and
      the deployment service defers a component update if notified.
+   - [ggdeploymentd-5.3] The SubscribeToValidateConfigurationUpdates IPC command
+     is supported and the deployment service notifies components about updates
+     to the component configuration.
+   - [ggdeploymentd-5.4] The SendConfigurationValidityReport IPC command is
+     supported and the deployment fails if a component notifies that the
+     configuration is not valid.
 6. [ggdeploymentd-6] Other components can make a request on the core bus to get
    the status of a deployment.
 

@@ -3,6 +3,7 @@ clientfd
 coremqtt
 coreutils
 DGGL
+ggdeploymentd
 gghttplib
 htobe
 iotcored
