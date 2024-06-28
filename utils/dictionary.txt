@@ -3,7 +3,13 @@ clientfd
 coremqtt
 coreutils
 DGGL
+ENOKEY
+EOK
+ENOCOMPONENT
+EBADPATH
+EDUPLICATE
 gghttplib
+ggconfiglib
 htobe
 iotcored
 LOGD
