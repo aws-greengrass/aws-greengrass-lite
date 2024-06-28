@@ -8,6 +8,8 @@ EOK
 ENOCOMPONENT
 EBADPATH
 EDUPLICATE
+ggconfig
+ggconfiglib
 gghttplib
 ggconfiglib
 htobe

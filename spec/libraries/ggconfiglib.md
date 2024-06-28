@@ -91,7 +91,7 @@ The configuration table includes the owning component and the config parent to c
 | Integer KEY      | Integer             | Integer                 | Text NOT NULL | Text  |
 
 CONFIGURATION ID
-: The configuraiton id is the unique integer value for this configuration key.  This allows two configuration items to share the same key text.
+: The configuration id is the unique integer value for this configuration key.  This allows two configuration items to share the same key text.
 
 COMPONENT OWNER ID
 : The component owner id is an integer reference to a component in the component table.
