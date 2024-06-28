@@ -64,10 +64,10 @@ The design before this point should be universal to any implementation of the gg
 Most systems have sqlite already installed.   If necessary, this library can be built with the sqlite source interated (it is a single giant C file) and all components can link against this library including the ggconfigd component.
 
 ## Data model
-The datamodel for gg config is a heirarchical key-value store.  Each config key is "owned" by a component.  All values are stored as strings.
+The datamodel for gg config is a hierarchical key-value store.  Each config key is "owned" by a component.  All values are stored as strings.
 
 ## Mapping the Datamodel to a relational database (sqlite)
-This implementation will use an adjacency list to create the heirarchical data mapping.  The tables needed for configuration are as follows:
+This implementation will use an adjacency list to create the hierarchical data mapping.  The tables needed for configuration are as follows:
 1. Component Table
 2. Configuration Table
 
@@ -84,7 +84,7 @@ COMPONENT NAME
 : The component name is a text field containing the name for this component.  This name must match the values send via the IPC API to ensure the correct key-value is accessed.
 
 ### Configuration Table
-The configuration table includes the owning component and the config parent to create the heirarchy.  The key is a text string and is required to be a non-null value.  The value can be null to allow the value to simply be a "key" on the heirarchy path.
+The configuration table includes the owning component and the config parent to create the hierarchy.  The key is a text string and is required to be a non-null value.  The value can be null to allow the value to simply be a "key" on the hierarchy path.
 
 | Configuration ID | Component Owner ID  | Configuration Parent ID | Key           | Value |
 | ---------------- | ------------------- | ----------------------- | ------------- | ----- |
@@ -97,15 +97,15 @@ COMPONENT OWNER ID
 : The component owner id is an integer reference to a component in the component table.
 
 CONFIGURATION PARENT ID
-: Each key knows its parent.  This creates the heirarchy.  If the parent is NULL then it is the root level of the heirarchy.
+: Each key knows its parent.  This creates the hierarchy.  If the parent is NULL then it is the root level of the hierarchy.
 
 KEY
-: The key is the name associated with this config option.  A component must not have two keys with the same name at the same layer in the heirarchy.  All keys must have a name and cannot be NULL.
+: The key is the name associated with this config option.  A component must not have two keys with the same name at the same layer in the hierarchy.  All keys must have a name and cannot be NULL.
 
 VALUE
 : The value is the text data that is associated with a config key.  The value can be NULL for keys that only exist in the path with no data.  There are no data types or format checks on the values.
 
-### Appendix Other heirarchical map techniques
+### Appendix Other hierarchical map techniques
 Mapping methods include[^1]:
 
 | Design           | Table count | Query Child | Query Subtree | Delete Key | Insert Key | Move Subtree | Referential Integrity |
