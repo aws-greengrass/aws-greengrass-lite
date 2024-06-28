@@ -9,7 +9,7 @@ The ggconfiglib interfaces a component to the configuration system with a common
     - [ggconfiglib-1.1] The library will return GGCONFLIB_EFAILURE when the requested key is not found.
     - [ggconfiglib-1.2] The library will return GGCONFLIB_EFAILURE when the requested keypath is invalid.
     - [ggconfiglib-1.3] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
-    - [ggconfiglib-1.4] The library will return GGCONFIGLIB_EOK and the requested value string when the key is found.
+    - [ggconfiglib-1.4] The library will return GGCONFLIB_EOK and the requested value string when the key is found.
 2. [ggconfiglib-2] The library can insert new key/value pairs
     - [ggconfiglib-2.1] The library will create the entire path as needed to place the new key-value pair.
     - [ggconfiglib-2.2] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
@@ -19,18 +19,18 @@ The ggconfiglib interfaces a component to the configuration system with a common
     - [ggconfiglib-3.1] The library will return GGCONFLIB_EFAILURE when the requested key is not found.
     - [ggconfiglib-3.2] The library will return GGCONFLIB_EFAILURE when the requested keypath is invalid.
     - [ggconfiglib-3.3] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
-    - [ggconfiglib-3.4] The library will return GGCONFIGLIB_EOK when the existing value is updated.
+    - [ggconfiglib-3.4] The library will return GGCONFLIB_EOK when the existing value is updated.
 4. [ggconfiglib-4] The library can add components to the configuration
     - [ggconfiglib-4.1] The library will return GGCONFLIB_EFAILURE if the component is already in the list.
-    - [ggconfiglib-4.2] The library will return GGCONFIGLIB_EOK when the new component is added.
+    - [ggconfiglib-4.2] The library will return GGCONFLIB_EOK when the new component is added.
 5. [ggconfiglib-5] The library can delete components from the configuration
     - [ggconfiglib-5.1] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
-    - [ggconfiglib-5.2] The library will return GGCONFIG_EOK when the component is deleted.
+    - [ggconfiglib-5.2] The library will return GGCONFLIB_EOK when the component is deleted.
 6. [ggconfiglib-6] The library can call callbacks when key values change.
     - [ggconfiglib-6.1] The library will return GGCONFLIB_EFAILURE if the requested subscription key is not found.
     - [ggconfiglib-6.2] The library will return GGCONFLIB_EFAILURE when the requested keypath is invalid.
     - [ggconfiglib-6.3] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
-    - [ggconfiglib-6.4] The library will return GGCONFIG_EOK when the subscription callback is installed.
+    - [ggconfiglib-6.4] The library will return GGCONFLIB_EOK when the subscription callback is installed.
     - [ggconfiglib-6.5] The library will accept a NULL callback reference to disable notifications.
 
 ## Library API
@@ -48,13 +48,12 @@ The ggconfiglib interfaces a component to the configuration system with a common
 
 ### Error Constants
 
-| Error Name               | Purpose                                                      |
-| ------------------------ | ------------------------------------------------------------ |
-| GGCONFIGLIB_EOK          | The command completed successfully                           |
-| GGCONFIGLIB_ENOKEY       | The last key in the keypath is not found                     |
-| GGCONFIGLIB_EBADPATH     | A key in the keypath is not found                            |
-| GGCONFIGLIB_ENOCOMPONENT | The specified component does not exist in the component list |
-| GGCONFIGLIB_EDUPLICATE   | New key already exists in the path location.                 |
+- ERRORS are part of the GGLITE Error handling.
+
+| Error Name     | Purpose                                                      |
+| -------------- | ------------------------------------------------------------ |
+| EOK            | The command completed successfully                           |
+| EFAILURE       | The command failed.  Check the logs for details              |
 
 
 ## Design for SQLITE implementation
