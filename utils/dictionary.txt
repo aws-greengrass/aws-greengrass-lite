@@ -5,12 +5,12 @@ coreutils
 DGGL
 EFAILURE
 EOK
-GGCONFLIB
 ggconfig
 ggconfigd
 ggconfiglib
-gglite
+ggconflib
 gghttplib
+gglite
 htobe
 iotcored
 LOGD
