@@ -1,3 +1,11 @@
+## 2024-06-28
+
+Bugfixes:
+
+- Fleet provisioning plugin is now working as expected
+- Tlog and effective config are now actually being updated during runtime,
+  effectiveConfig will be updated at startup
+
 ## 2024-05-30
 
 Bugfixes:
