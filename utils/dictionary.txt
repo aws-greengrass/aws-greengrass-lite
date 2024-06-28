@@ -3,11 +3,8 @@ clientfd
 coremqtt
 coreutils
 DGGL
-ENOKEY
+EFAILURE
 EOK
-ENOCOMPONENT
-EBADPATH
-EDUPLICATE
 GGCONFLIB
 ggconfig
 ggconfiglib

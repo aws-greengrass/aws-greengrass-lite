@@ -6,30 +6,30 @@ The ggconfiglib interfaces a component to the configuration system with a common
 ## Requirements
 
 1. [ggconfiglib-1] The configuration library can retrieve values assigned to keys
-    - [ggconfiglib-1.1] The library will return GGCONFLIB_ENOKEY when the requested key is not found.
-    - [ggconfiglib-1.2] The library will return GGCONFIGLIB_EBADPATH when the requested keypath is invalid.
-    - [ggconfiglib-1.3] The library will return GGCONFLIB_ENOCOMPONENT when the requested component is not found.
+    - [ggconfiglib-1.1] The library will return GGCONFLIB_EFAILURE when the requested key is not found.
+    - [ggconfiglib-1.2] The library will return GGCONFLIB_EFAILURE when the requested keypath is invalid.
+    - [ggconfiglib-1.3] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
     - [ggconfiglib-1.4] The library will return GGCONFIGLIB_EOK and the requested value string when the key is found.
 2. [ggconfiglib-2] The library can insert new key/value pairs
     - [ggconfiglib-2.1] The library will create the entire path as needed to place the new key-value pair.
-    - [ggconfiglib-2.2] The library will return GGCONFIGLIB_ENOCOMPONENT when the requested component is not found.
-    - [ggconfiglib-2.3] The library will return GGCONFIGLIB_EDUPLICATE if the new key is a duplicate.
-    - [ggconfiglib-2.4] The library will return GGCONFIGLIB_EOK when the new value is created.
+    - [ggconfiglib-2.2] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
+    - [ggconfiglib-2.3] The library will return GGCONFLIB_EFAILURE if the new key is a duplicate.
+    - [ggconfiglib-2.4] The library will return GGCONFLIB_EFAILURE when the new value is created.
 3. [ggconfiglib-3] The library can modify existing key/value pairs
-    - [ggconfiglib-3.1] The library will return GGCONFIGLIB_ENOKEY when the requested key is not found.
-    - [ggconfiglib-3.2] The library will return GGCONFIGLIB_EBADPATH when the requested keypath is invalid.
-    - [ggconfiglib-3.3] The library will return GGCONFIGLIB_ENOCOMPONENT when the requested component is not found.
+    - [ggconfiglib-3.1] The library will return GGCONFLIB_EFAILURE when the requested key is not found.
+    - [ggconfiglib-3.2] The library will return GGCONFLIB_EFAILURE when the requested keypath is invalid.
+    - [ggconfiglib-3.3] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
     - [ggconfiglib-3.4] The library will return GGCONFIGLIB_EOK when the existing value is updated.
 4. [ggconfiglib-4] The library can add components to the configuration
-    - [ggconfiglib-4.1] The library will return GGCONFIG_EDUPLICATE if the component is already in the list.
+    - [ggconfiglib-4.1] The library will return GGCONFLIB_EFAILURE if the component is already in the list.
     - [ggconfiglib-4.2] The library will return GGCONFIGLIB_EOK when the new component is added.
 5. [ggconfiglib-5] The library can delete components from the configuration
-    - [ggconfiglib-5.1] The library will return GGCONFIG_ENOCOMPONENT when the requested component is not found.
+    - [ggconfiglib-5.1] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
     - [ggconfiglib-5.2] The library will return GGCONFIG_EOK when the component is deleted.
 6. [ggconfiglib-6] The library can call callbacks when key values change.
-    - [ggconfiglib-6.1] The library will return GGCONFIG_ENOKEY if the requested subscription key is not found.
-    - [ggconfiglib-6.2] The library will return GGCONFIG_EBADPATH when the requested keypath is invalid.
-    - [ggconfiglib-6.3] The library will return GGCONFIG_ENOCOMPONENT when the requested component is not found.
+    - [ggconfiglib-6.1] The library will return GGCONFLIB_EFAILURE if the requested subscription key is not found.
+    - [ggconfiglib-6.2] The library will return GGCONFLIB_EFAILURE when the requested keypath is invalid.
+    - [ggconfiglib-6.3] The library will return GGCONFLIB_EFAILURE when the requested component is not found.
     - [ggconfiglib-6.4] The library will return GGCONFIG_EOK when the subscription callback is installed.
     - [ggconfiglib-6.5] The library will accept a NULL callback reference to disable notifications.
 
