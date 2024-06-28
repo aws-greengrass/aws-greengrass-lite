@@ -7,10 +7,10 @@ EFAILURE
 EOK
 GGCONFLIB
 ggconfig
-ggconfiglib
-gghttplib
-ggconfiglib
 ggconfigd
+ggconfiglib
+gglite
+gghttplib
 htobe
 iotcored
 LOGD
