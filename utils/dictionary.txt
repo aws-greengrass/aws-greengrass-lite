@@ -13,6 +13,7 @@ ggconfig
 ggconfiglib
 gghttplib
 ggconfiglib
+ggconfigd
 htobe
 iotcored
 LOGD
