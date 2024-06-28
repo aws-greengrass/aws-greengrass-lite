@@ -13,7 +13,7 @@ services:
       componentStoreMaxSizeBytes: "10000000000"
       deploymentPollingFrequencySeconds: "15"
       deploymentOnStart:
-        path: "path/to/deploymentDoc.json"
+        path: ""
       envStage: "prod"
       fleetStatus:
         periodicStatusPublishIntervalSeconds: 86400
@@ -33,7 +33,7 @@ services:
         posixUser: "ggc_user:ggc_group"
       telemetry: {}
     dependencies: []
-  aws.greengrass.FleetProvisioningByClaim:
+  aws.greengrass.fleet_provisioning:
     configuration:
       iotDataEndpoint: "..."
       iotCredEndpoint: ""
