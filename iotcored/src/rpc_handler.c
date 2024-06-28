@@ -4,12 +4,12 @@
  */
 
 #include "ggl/buffer.h"
+#include "ggl/error.h"
 #include "ggl/log.h"
 #include "ggl/map.h"
 #include "ggl/object.h"
 #include "ggl/server.h"
 #include "mqtt.h"
-#include <errno.h>
 #include <stdint.h>
 
 static void rpc_publish(GglMap params, GglResponseHandle *handle) {
@@ -23,20 +23,20 @@ static void rpc_publish(GglMap params, GglResponseHandle *handle) {
         GglBuffer topic = val->buf;
         if (topic.len > UINT16_MAX) {
             GGL_LOGE("rpc-handler", "Publish payload too large.");
-            ggl_respond(handle, EOVERFLOW, GGL_OBJ_NULL());
+            ggl_respond(handle, GGL_ERR_RANGE, GGL_OBJ_NULL());
             return;
         }
         msg.topic = topic;
     } else {
         GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
-        ggl_respond(handle, EINVAL, GGL_OBJ_NULL());
+        ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
         return;
     }
 
     if (ggl_map_get(params, GGL_STR("payload"), &val)) {
         if (val->type != GGL_TYPE_BUF) {
             GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
-            ggl_respond(handle, EINVAL, GGL_OBJ_NULL());
+            ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
             return;
         }
         msg.payload = val->buf;
@@ -45,19 +45,15 @@ static void rpc_publish(GglMap params, GglResponseHandle *handle) {
     if (ggl_map_get(params, GGL_STR("qos"), &val)) {
         if ((val->type != GGL_TYPE_I64) || (val->i64 < 0) || (val->i64 > 2)) {
             GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
-            ggl_respond(handle, EINVAL, GGL_OBJ_NULL());
+            ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
             return;
         }
         qos = (uint8_t) val->i64;
     }
 
-    int ret = iotcored_mqtt_publish(&msg, qos);
+    GglError ret = iotcored_mqtt_publish(&msg, qos);
 
-    if (ret != 0) {
-        ggl_respond(handle, EIO, GGL_OBJ_NULL());
-    } else {
-        ggl_respond(handle, 0, GGL_OBJ_NULL());
-    }
+    ggl_respond(handle, ret, GGL_OBJ_NULL());
 }
 
 void ggl_receive_callback(
@@ -67,7 +63,7 @@ void ggl_receive_callback(
 
     if ((params.len < 1) || (params.items[0].type != GGL_TYPE_MAP)) {
         GGL_LOGE("rpc-handler", "Received invalid arguments.");
-        ggl_respond(handle, EINVAL, GGL_OBJ_NULL());
+        ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
         return;
     }
 
@@ -82,6 +78,6 @@ void ggl_receive_callback(
             (int) method.len,
             method.data
         );
-        ggl_respond(handle, EINVAL, GGL_OBJ_NULL());
+        ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
     }
 }
