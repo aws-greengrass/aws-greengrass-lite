@@ -16,7 +16,6 @@
 enum GglObjectType {
     GGL_TYPE_NULL = 0,
     GGL_TYPE_BOOLEAN,
-    GGL_TYPE_U64,
     GGL_TYPE_I64,
     GGL_TYPE_F64,
     GGL_TYPE_BUF,
@@ -48,7 +47,6 @@ typedef struct GglObject {
 
     union {
         bool boolean;
-        uint64_t u64;
         int64_t i64;
         double f64;
         GglBuffer buf;
@@ -113,12 +111,6 @@ typedef struct GglKV {
 #define GGL_OBJ_BOOL(value) \
     (GglObject) { \
         .type = GGL_TYPE_BOOLEAN, .boolean = (value) \
-    }
-
-/** Create unsigned integer object literal. */
-#define GGL_OBJ_U64(value) \
-    (GglObject) { \
-        .type = GGL_TYPE_U64, .u64 = (value) \
     }
 
 /** Create signed integer object literal. */

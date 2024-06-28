@@ -141,12 +141,13 @@ static int parse_incoming(
             return ret;
         }
 
-        if ((obj.type != GGL_TYPE_U64) || (obj.u64 > UINT32_MAX)) {
+        if ((obj.type != GGL_TYPE_I64) || (obj.i64 < 0)
+            || (obj.i64 > UINT32_MAX)) {
             GGL_LOGE("msgpack-rpc", "Received payload msgid invalid.");
             return EPROTO;
         }
 
-        *msgid = (uint32_t) obj.u64;
+        *msgid = (uint32_t) obj.i64;
         *needs_resp = true;
     } else if (type == 2) {
         // notification
@@ -347,7 +348,7 @@ void ggl_respond(GglResponseHandle *handle, int error, GglObject value) {
 
     GglObject payload = GGL_OBJ_LIST(
         GGL_OBJ_I64(1),
-        GGL_OBJ_U64(handle->msgid),
+        GGL_OBJ_I64(handle->msgid),
         (error != 0) ? GGL_OBJ_I64(error) : GGL_OBJ_NULL(),
         (error != 0) ? GGL_OBJ_NULL() : value
     );

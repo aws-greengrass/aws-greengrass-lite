@@ -64,7 +64,11 @@ static int decode_uint(GglBuffer *buf, size_t bytes, GglObject *obj) {
         return ret;
     }
 
-    *obj = GGL_OBJ_U64(value);
+    if (value > INT64_MAX) {
+        return ERANGE;
+    }
+
+    *obj = GGL_OBJ_I64((int64_t) value);
     return 0;
 }
 
