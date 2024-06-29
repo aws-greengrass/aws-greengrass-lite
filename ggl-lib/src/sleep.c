@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include "ggl/error.h"
 #include "ggl/log.h"
 #include "ggl/utils.h"
 #include <errno.h>
 #include <time.h>
 #include <stdint.h>
 
-int ggl_sleep(int64_t seconds) {
+GglError ggl_sleep(int64_t seconds) {
     struct timespec time = { .tv_sec = seconds };
     struct timespec remain = { 0 };
 
@@ -17,7 +18,7 @@ int ggl_sleep(int64_t seconds) {
         if (errno != EINTR) {
             int err = errno;
             GGL_LOGE("mqtt", "nanosleep failed: %d.", err);
-            return err;
+            return GGL_ERR_FAILURE;
         }
 
         time = remain;

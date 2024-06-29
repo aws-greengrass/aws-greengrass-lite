@@ -6,7 +6,7 @@
 #ifndef GGL_LOG_H
 #define GGL_LOG_H
 
-/*!  logging interface */
+/*! Logging interface */
 
 #include <stdint.h>
 

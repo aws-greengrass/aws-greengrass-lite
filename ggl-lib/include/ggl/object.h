@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 /** Union tag for `Ggl_Object`. */
-enum GglObjectType {
+typedef enum {
     GGL_TYPE_NULL = 0,
     GGL_TYPE_BOOLEAN,
     GGL_TYPE_I64,
@@ -21,7 +21,7 @@ enum GglObjectType {
     GGL_TYPE_BUF,
     GGL_TYPE_LIST,
     GGL_TYPE_MAP,
-};
+} GglObjectType;
 
 /** A fixed buffer of bytes. Possibly a string. */
 typedef struct {
@@ -43,7 +43,7 @@ typedef struct {
 
 /** A generic object. */
 typedef struct GglObject {
-    enum GglObjectType type;
+    GglObjectType type;
 
     union {
         bool boolean;

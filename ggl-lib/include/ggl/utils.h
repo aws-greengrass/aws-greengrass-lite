@@ -8,11 +8,12 @@
 
 /*! Misc utilites */
 
+#include "ggl/error.h"
 #include <stdint.h>
 
 /** Sleep for given duration in seconds.
  * Returns 0 on success else error code. */
 
-int ggl_sleep(int64_t seconds);
+GglError ggl_sleep(int64_t seconds);
 
 #endif

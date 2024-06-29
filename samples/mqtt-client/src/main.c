@@ -4,6 +4,7 @@
  */
 
 #include "ggl/client.h"
+#include "ggl/error.h"
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include <errno.h>
@@ -12,7 +13,7 @@ int main(void) {
     GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
 
     GglConn *conn;
-    int ret = ggl_connect(iotcored, &conn);
+    GglError ret = ggl_connect(iotcored, &conn);
     if (ret != 0) {
         GGL_LOGE(
             "mqtt-client",

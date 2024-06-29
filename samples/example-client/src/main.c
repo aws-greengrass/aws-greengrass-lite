@@ -5,6 +5,7 @@
 
 #include "ggl/bump_alloc.h"
 #include "ggl/client.h"
+#include "ggl/error.h"
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include <errno.h>
@@ -17,8 +18,8 @@ int main(void) {
     static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
 
     GglConn *conn;
-    int ret = ggl_connect(server, &conn);
-    if (ret != 0) {
+    GglError ret = ggl_connect(server, &conn);
+    if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "client", "Failed to connect to %.*s", (int) server.len, server.data
         );
