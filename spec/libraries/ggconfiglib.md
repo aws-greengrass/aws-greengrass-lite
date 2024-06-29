@@ -23,8 +23,8 @@ flexibility in implementation.
      place the new key-value pair.
    - [ggconfiglib-2.2] The library will return GGL_ERR_FAILURE when the
      requested component is not found.
-   - [ggconfiglib-2.3] The library will return GGL_ERR_FAILURE if the new key
-     is a duplicate.
+   - [ggconfiglib-2.3] The library will return GGL_ERR_FAILURE if the new key is
+     a duplicate.
    - [ggconfiglib-2.4] The library will return GGL_ERR_FAILURE when the new
      value is created.
 3. [ggconfiglib-3] The library can modify existing key/value pairs
@@ -37,24 +37,24 @@ flexibility in implementation.
    - [ggconfiglib-3.4] The library will return GGL_ERR_OK when the existing
      value is updated.
 4. [ggconfiglib-4] The library can add components to the configuration
-   - [ggconfiglib-4.1] The library will return GGL_ERR_FAILURE if the
-     component is already in the list.
-   - [ggconfiglib-4.2] The library will return GGL_ERR_OK when the new
-     component is added.
+   - [ggconfiglib-4.1] The library will return GGL_ERR_FAILURE if the component
+     is already in the list.
+   - [ggconfiglib-4.2] The library will return GGL_ERR_OK when the new component
+     is added.
 5. [ggconfiglib-5] The library can delete components from the configuration
    - [ggconfiglib-5.1] The library will return GGL_ERR_FAILURE when the
      requested component is not found.
-   - [ggconfiglib-5.2] The library will return GGL_ERR_OK when the component
-     is deleted.
+   - [ggconfiglib-5.2] The library will return GGL_ERR_OK when the component is
+     deleted.
 6. [ggconfiglib-6] The library can call callbacks when key values change.
-   - [ggconfiglib-6.1] The library will return GGL_ERR_FAILURE if the
-     requested subscription key is not found.
+   - [ggconfiglib-6.1] The library will return GGL_ERR_FAILURE if the requested
+     subscription key is not found.
    - [ggconfiglib-6.2] The library will return GGL_ERR_FAILURE when the
      requested keypath is invalid.
    - [ggconfiglib-6.3] The library will return GGL_ERR_FAILURE when the
      requested component is not found.
-   - [ggconfiglib-6.4] The library will return GGL_ERR_OK when the
-     subscription callback is installed.
+   - [ggconfiglib-6.4] The library will return GGL_ERR_OK when the subscription
+     callback is installed.
    - [ggconfiglib-6.5] The library will accept a NULL callback reference to
      disable notifications.
 
@@ -75,10 +75,10 @@ flexibility in implementation.
 
 - ERRORS are part of the GGLITE Error handling.
 
-| Error Name        | Purpose                                        |
-| ----------------- | ---------------------------------------------- |
-| GGL_ERR_OK        | The command completed successfully             |
-| GGL_ERR_FAILURE   | The command failed. Check the logs for details |
+| Error Name      | Purpose                                        |
+| --------------- | ---------------------------------------------- |
+| GGL_ERR_OK      | The command completed successfully             |
+| GGL_ERR_FAILURE | The command failed. Check the logs for details |
 
 ## Design for SQLITE implementation
 
@@ -109,8 +109,11 @@ mapping. The tables needed for configuration are as follows:
 
 The component table contains the list of components deployed into the system.
 This table can be extended as needed as the deployment system develops.
-Component data access is not defined in the GG IPC API. | Component ID |
-Component Name | | ------------ | -------------- | | Integer KEY | TEXT |
+Component data access is not defined in the GG IPC API.
+
+| Component ID | Component Name |
+| ------------ | -------------- |
+| Integer KEY  | TEXT           |
 
 COMPONENT ID : The component id is the unique integer value for this component
 table row.
