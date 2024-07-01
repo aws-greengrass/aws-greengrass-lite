@@ -25,34 +25,11 @@ void makeConfigurationReady(void)
     }
 }
 
-bool isKnownComponent(const char *component)
-{
-    /* check the component list and see if this one is present */
-}
-
-bool validateKeys(const char * component, const char *key)
-{
-    /* check the keypath and verify that the key path exists for the component */
-}
-
-GglError ggconfig_writeValueToKey(const char *key, const char *value, const char *component)
-{
-    makeConfigurationReady();
-    if( validateKeys(component, key) )
-    {
-        /* Update the specified key with the new value */
-    }
-    else
-    {
-        return GGL_ERR_FAILURE;
-    }
-}
-
-GglError ggconfig_insertKeyAndValue(const char *key, const char *value, const char *component)
+GglError ggconfig_insertKeyAndValue(const char *key, const char *value)
 {
     makeConfigurationReady();
     /* create a new key on the keypath for this component */
-    if( isKnownComponent(component))
+    if( )
     {
 
     }
