@@ -7,13 +7,13 @@
       "locked": {
         "lastModified": 1719837387,
         "narHash": "sha256-HEs4CneBlAScOEE95zrUyaZAVWyEo7iKvrbnmYRSOpg=",
-        "owner": "accelbread",
+        "owner": "nix-community",
         "repo": "flakelight",
         "rev": "2a96b83bf6ffad4b8a15afe19e883ca1a1720d88",
         "type": "github"
       },
       "original": {
-        "owner": "accelbread",
+        "owner": "nix-community",
         "repo": "flakelight",
         "type": "github"
       }
