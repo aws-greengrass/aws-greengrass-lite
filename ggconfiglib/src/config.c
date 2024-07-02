@@ -2,10 +2,8 @@
 #include <sqlite3.h>
 #include <stdbool.h>
 
-static bool configInitialized = false;
-
 /* note keypath is a null terminated string. */
-static int countKeyPathDepth(const char *keypath) {
+static int count_key_path_depth(const char *keypath) {
     int count = 0;
     for (const char *c = keypath; *c != 0; c++) {
         if (*c == '/') {
@@ -15,18 +13,19 @@ static int countKeyPathDepth(const char *keypath) {
     return count;
 }
 
-void makeConfigurationReady(void) {
-    if (configInitialized = false) {
+void make_configuration_ready(void) {
+    static bool config_initialized = false;
+    if (config_initialized = false) {
         /* do configuration */
     }
 }
 
-bool validateKeys(const char *key) {
+bool validate_keys(const char *key) {
     return true;
 }
 
-GglError ggconfig_insertKeyAndValue(const char *key, const char *value) {
-    makeConfigurationReady();
+GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
+    make_configuration_ready();
     /* create a new key on the keypath for this component */
     if (1) {
     } else {
@@ -37,8 +36,8 @@ GglError ggconfig_insertKeyAndValue(const char *key, const char *value) {
 GglError ggconfig_getValueFromKey(
     const char *key, const char *valueBuffer, size_t *valueBufferLength
 ) {
-    makeConfigurationReady();
-    if (validateKeys(key)) {
+    make_configuration_ready();
+    if (validate_keys(key)) {
         /* collect the data and write it to the supplied buffer. */
         /* if the valueBufferLength is too small, return GGL_ERR_FAILURE */
     } else {
@@ -46,8 +45,8 @@ GglError ggconfig_getValueFromKey(
     }
 }
 
-GglError ggconfig_getKeyNotification(
+GglError ggconfig_get_key_notification(
     const char *key, GglConfigCallback callback, void *parameter
 ) {
-    makeConfigurationReady();
+    make_configuration_ready();
 }

@@ -10,10 +10,12 @@ typedef void GglConfigCallback(void *parameter);
 
 /* TODO: Make const strings into buffers */
 
-GglError ggconfig_insertKeyAndValue(const char *key, const char *value);
-GglError ggconfig_getValueFromKey(
-    const char *key, const char *valueBuffer, size_t *valueBufferLength
+GglError ggconfig_insert_key_and_value(const char *key, const char *value);
+
+GglError ggconfig_get_value_from_key(
+    const char *key, const char *value_buffer, size_t *value_buffer_length
 );
-GglError ggconfig_getKeyNotification(
+
+GglError ggconfig_get_key_notification(
     const char *key, GglConfigCallback callback, void *parameter
 );
