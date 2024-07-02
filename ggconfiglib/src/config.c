@@ -1,4 +1,4 @@
-#include "../include/ggconfig.h"
+#include <ggconfig.h>
 #include <sqlite3.h>
 #include <stdbool.h>
 
@@ -13,7 +13,7 @@ static int count_key_path_depth(const char *keypath) {
     return count;
 }
 
-void make_configuration_ready(void) {
+static void make_configuration_ready(void) {
     static bool config_initialized = false;
     if (config_initialized == false) {
         /* do configuration */
@@ -43,7 +43,7 @@ GglError ggconfig_getValueFromKey(
     }
 }
 
-GglError ggconfig_get_key_notification(
+GglError ggconfig_getkey_notification(
     const char *key, GglConfigCallback callback, void *parameter
 ) {
     make_configuration_ready();

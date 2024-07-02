@@ -1,4 +1,4 @@
-#include "../include/ggconfig.h"
+#include "ggconfig.h"
 #include <stdio.h>
 
 const char *test_key = "component/foo/bar";
