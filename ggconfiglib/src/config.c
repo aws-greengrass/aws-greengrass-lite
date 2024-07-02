@@ -7,7 +7,7 @@ static bool configInitialized = false;
 /* note keypath is a null terminated string. */
 static int countKeyPathDepth(const char *keypath) {
     int count = 0;
-    for (char *c = keypath; *c != 0; c++) {
+    for (const char *c = keypath; *c != 0; c++) {
         if (*c == '/') {
             count++;
         }
@@ -21,10 +21,15 @@ void makeConfigurationReady(void) {
     }
 }
 
+bool validateKeys(const char *key)
+{
+    return true;
+}
+
 GglError ggconfig_insertKeyAndValue(const char *key, const char *value) {
     makeConfigurationReady();
     /* create a new key on the keypath for this component */
-    if () {
+    if (1) {
     } else {
         return GGL_ERR_FAILURE;
     }
@@ -33,8 +38,7 @@ GglError ggconfig_insertKeyAndValue(const char *key, const char *value) {
 GglError ggconfig_getValueFromKey(
     const char *key,
     const char *valueBuffer,
-    size_t *valueBufferLength,
-    const char *component
+    size_t *valueBufferLength
 ) {
     makeConfigurationReady();
     if (validateKeys(key)) {
@@ -45,28 +49,9 @@ GglError ggconfig_getValueFromKey(
     }
 }
 
-GglError ggconfig_insertComponent(const char *component) {
-    makeConfigurationReady();
-    if () {
-        return GGL_ERR_FAILURE;
-    } else {
-        /* create the new component */
-    }
-}
-
-GglError ggconfig_deleteComponent(const char *component) {
-    makeConfigurationReady();
-    if (isKnownComponent(component)) {
-        /* delete the component */
-    } else {
-        return GGL_ERR_FAILURE;
-    }
-}
-
 GglError ggconfig_getKeyNotification(
     const char *key,
-    const char *component,
-    ggconfig_Callback_t callback,
+    GglConfigCallback callback,
     void *parameter
 ) {
     makeConfigurationReady();
