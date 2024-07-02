@@ -43,7 +43,7 @@ GglError ggconfig_insertKeyAndValue(const char *key, const char *value)
 GglError ggconfig_getValueFromKey(const char *key, const char *valueBuffer, size_t *valueBufferLength, const char *component )
 {
     makeConfigurationReady();
-    if( validateKeys( component, key ))
+    if( validateKeys( key ))
     {
         /* collect the data and write it to the supplied buffer. */
         /* if the valueBufferLength is too small, return GGL_ERR_FAILURE */
@@ -58,7 +58,7 @@ GglError ggconfig_getValueFromKey(const char *key, const char *valueBuffer, size
 GglError ggconfig_insertComponent(const char *component)
 {
     makeConfigurationReady();
-    if( isKnownComponent(component))
+    if( )
     {
         return GGL_ERR_FAILURE;
     }
