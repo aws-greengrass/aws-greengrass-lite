@@ -6,6 +6,7 @@
 #ifndef GGL_COMMS_SERVER_H
 #define GGL_COMMS_SERVER_H
 
+#include "ggl/error.h"
 #include "object.h"
 #include <stdnoreturn.h>
 
@@ -31,6 +32,6 @@ void ggl_receive_callback(
  * On error the RPC protocol will send the error code if supported. It may use
  * the value as extra debugging information for the error.
  * If handle is NULL, does nothing. */
-void ggl_respond(GglResponseHandle *handle, int error, GglObject value);
+void ggl_respond(GglResponseHandle *handle, GglError error, GglObject value);
 
 #endif

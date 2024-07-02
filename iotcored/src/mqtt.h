@@ -7,6 +7,7 @@
 #define IOTCORED_MQTT_H
 
 #include "args.h"
+#include "ggl/error.h"
 #include "ggl/object.h"
 #include <stdint.h>
 
@@ -15,9 +16,9 @@ typedef struct {
     GglBuffer payload;
 } IotcoredMsg;
 
-int iotcored_mqtt_connect(const IotcoredArgs *args);
+GglError iotcored_mqtt_connect(const IotcoredArgs *args);
 
-int iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos);
-int iotcored_mqtt_subscribe(GglBuffer topic_filter, uint8_t qos);
+GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos);
+GglError iotcored_mqtt_subscribe(GglBuffer topic_filter, uint8_t qos);
 
 #endif

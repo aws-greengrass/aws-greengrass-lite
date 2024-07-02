@@ -9,12 +9,13 @@
 /*! Pluggable RPC client interface */
 
 #include "alloc.h"
+#include "ggl/error.h"
 #include "object.h"
 
 typedef struct GglConn GglConn;
 
 /** Open a connection to server on `path`. */
-int ggl_connect(GglBuffer path, GglConn **conn)
+GglError ggl_connect(GglBuffer path, GglConn **conn)
     __attribute__((warn_unused_result));
 
 /** Close a connection to a server. */
@@ -22,7 +23,7 @@ void ggl_close(GglConn *conn);
 
 /** Make an RPC call.
  * `result` will use memory from `alloc` if needed. */
-int ggl_call(
+GglError ggl_call(
     GglConn *conn,
     GglBuffer method,
     GglList params,
@@ -31,6 +32,6 @@ int ggl_call(
 ) __attribute__((warn_unused_result));
 
 /** Make an RPC notification (no response). */
-int ggl_notify(GglConn *conn, GglBuffer method, GglList params);
+GglError ggl_notify(GglConn *conn, GglBuffer method, GglList params);
 
 #endif

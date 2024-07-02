@@ -13,16 +13,15 @@
 #include <stdint.h>
 
 /** Union tag for `Ggl_Object`. */
-enum GglObjectType {
+typedef enum {
     GGL_TYPE_NULL = 0,
     GGL_TYPE_BOOLEAN,
-    GGL_TYPE_U64,
     GGL_TYPE_I64,
     GGL_TYPE_F64,
     GGL_TYPE_BUF,
     GGL_TYPE_LIST,
     GGL_TYPE_MAP,
-};
+} GglObjectType;
 
 /** A fixed buffer of bytes. Possibly a string. */
 typedef struct {
@@ -44,11 +43,10 @@ typedef struct {
 
 /** A generic object. */
 typedef struct GglObject {
-    enum GglObjectType type;
+    GglObjectType type;
 
     union {
         bool boolean;
-        uint64_t u64;
         int64_t i64;
         double f64;
         GglBuffer buf;
@@ -113,12 +111,6 @@ typedef struct GglKV {
 #define GGL_OBJ_BOOL(value) \
     (GglObject) { \
         .type = GGL_TYPE_BOOLEAN, .boolean = (value) \
-    }
-
-/** Create unsigned integer object literal. */
-#define GGL_OBJ_U64(value) \
-    (GglObject) { \
-        .type = GGL_TYPE_U64, .u64 = (value) \
     }
 
 /** Create signed integer object literal. */

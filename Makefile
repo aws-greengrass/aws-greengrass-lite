@@ -28,7 +28,7 @@ CFLAGS += -std=gnu11 -pedantic -Wall -Wextra -Wvla -Wshadow -Wformat=2 \
 		-Wunused -Wundef -Wconversion -Wredundant-decls -Wdate-time \
 		-Wstack-protector -Wframe-larger-than=512 \
 		-fPIE -fvisibility=hidden -fno-semantic-interposition \
-		-fstack-protector-strong -fstack-clash-protection -fcf-protection=full
+		-fstack-protector-strong -fstack-clash-protection
 LDFLAGS += -pie -Wl,-z,relro,-z,now,-z,noexecstack -Wl,--as-needed \
 		-Wl,--enable-new-dtags,--hash-style=gnu
 

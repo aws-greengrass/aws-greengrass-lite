@@ -5,6 +5,7 @@
 
 #include "mqtt.h"
 #include "args.h"
+#include "ggl/error.h"
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include "ggl/utils.h"
@@ -13,7 +14,6 @@
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
 #include <core_mqtt_serializer.h>
-#include <errno.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
@@ -95,8 +95,8 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
     MQTTContext_t *ctx = arg;
 
     while (true) {
-        int err = ggl_sleep(IOTCORED_KEEP_ALIVE_PERIOD);
-        if (err != 0) {
+        GglError err = ggl_sleep(IOTCORED_KEEP_ALIVE_PERIOD);
+        if (err != GGL_ERR_OK) {
             break;
         }
 
@@ -130,9 +130,9 @@ static int32_t transport_recv(
 
     GglBuffer buf = { .data = buffer, .len = bytes };
 
-    int ret = iotcored_tls_read(network_context->tls_ctx, &buf);
+    GglError ret = iotcored_tls_read(network_context->tls_ctx, &buf);
 
-    return (ret == 0) ? (int32_t) buf.len : -1;
+    return (ret == GGL_ERR_OK) ? (int32_t) buf.len : -1;
 }
 
 static int32_t transport_send(
@@ -140,15 +140,15 @@ static int32_t transport_send(
 ) {
     size_t bytes = bytes_to_send < INT32_MAX ? bytes_to_send : INT32_MAX;
 
-    int ret = iotcored_tls_write(
+    GglError ret = iotcored_tls_write(
         network_context->tls_ctx,
         (GglBuffer) { .data = (void *) buffer, .len = bytes }
     );
 
-    return (ret == 0) ? (int32_t) bytes : -1;
+    return (ret == GGL_ERR_OK) ? (int32_t) bytes : -1;
 }
 
-int iotcored_mqtt_connect(const IotcoredArgs *args) {
+GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
     TransportInterface_t transport = {
         .pNetworkContext = &net_ctx,
         .recv = transport_recv,
@@ -165,14 +165,15 @@ int iotcored_mqtt_connect(const IotcoredArgs *args) {
     );
     assert(mqtt_ret == MQTTSuccess);
 
-    int ret = iotcored_tls_connect(args, &net_ctx.tls_ctx);
+    GglError ret = iotcored_tls_connect(args, &net_ctx.tls_ctx);
     if (ret != 0) {
         return ret;
     }
 
     size_t id_len = strlen(args->id);
     if (id_len > UINT16_MAX) {
-        return E2BIG;
+        GGL_LOGE("mqtt", "Client ID too long.");
+        return GGL_ERR_CONFIG;
     }
 
     MQTTConnectInfo_t conn_info = {
@@ -195,7 +196,7 @@ int iotcored_mqtt_connect(const IotcoredArgs *args) {
         GGL_LOGE(
             "mqtt", "Connection failed: %s", MQTT_Status_strerror(mqtt_ret)
         );
-        return EIO;
+        return GGL_ERR_FAILURE;
     }
 
     ping_pending = false;
@@ -209,7 +210,7 @@ int iotcored_mqtt_connect(const IotcoredArgs *args) {
     return 0;
 }
 
-int iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
+GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
     assert(msg != NULL);
 
     MQTTStatus_t result = MQTT_Publish(
@@ -233,7 +234,7 @@ int iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
             msg->topic.data,
             MQTT_Status_strerror(result)
         );
-        return EIO;
+        return GGL_ERR_FAILURE;
     }
 
     GGL_LOGD(
@@ -246,7 +247,7 @@ int iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
     return 0;
 }
 
-int iotcored_mqtt_subscribe(GglBuffer topic_filter, uint8_t qos) {
+GglError iotcored_mqtt_subscribe(GglBuffer topic_filter, uint8_t qos) {
     MQTTStatus_t result = MQTT_Subscribe(
         &mqtt_ctx,
         &(MQTTSubscribeInfo_t) {
@@ -267,7 +268,7 @@ int iotcored_mqtt_subscribe(GglBuffer topic_filter, uint8_t qos) {
             topic_filter.data,
             MQTT_Status_strerror(result)
         );
-        return EIO;
+        return GGL_ERR_FAILURE;
     }
 
     GGL_LOGD(

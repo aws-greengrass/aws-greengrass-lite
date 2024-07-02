@@ -6,6 +6,7 @@
 #include "ggl/server.h"
 #include "ggl/bump_alloc.h"
 #include "ggl/defer.h"
+#include "ggl/error.h"
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include "ggl/utils.h"
@@ -83,7 +84,7 @@ static GglResponseHandle *get_free_handle(void) {
     }
 }
 
-static int parse_incoming(
+static GglError parse_incoming(
     GglBuffer buf,
     bool *needs_resp,
     uint32_t *msgid,
@@ -98,21 +99,21 @@ static int parse_incoming(
     GglBuffer msg = buf;
     GglObject obj;
 
-    int ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
+    GglError ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
     if (ret != 0) {
         return ret;
     }
 
     if ((obj.type != GGL_TYPE_LIST)) {
         GGL_LOGE("msgpack-rpc", "Received payload that is not an array.");
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
     size_t mpk_len = obj.list.len;
 
     if (mpk_len < 3) {
         GGL_LOGE("msgpack-rpc", "Received payload that is too small array.");
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
     // type
@@ -123,7 +124,7 @@ static int parse_incoming(
 
     if (obj.type != GGL_TYPE_I64) {
         GGL_LOGE("msgpack-rpc", "Received payload type invalid.");
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
     int64_t type = obj.i64;
@@ -132,7 +133,7 @@ static int parse_incoming(
         // request
         if (mpk_len != 4) {
             GGL_LOGE("msgpack-rpc", "Received payload not 4 element array.");
-            return EPROTO;
+            return GGL_ERR_PARSE;
         }
 
         // msgid
@@ -141,18 +142,19 @@ static int parse_incoming(
             return ret;
         }
 
-        if ((obj.type != GGL_TYPE_U64) || (obj.u64 > UINT32_MAX)) {
+        if ((obj.type != GGL_TYPE_I64) || (obj.i64 < 0)
+            || (obj.i64 > UINT32_MAX)) {
             GGL_LOGE("msgpack-rpc", "Received payload msgid invalid.");
-            return EPROTO;
+            return GGL_ERR_PARSE;
         }
 
-        *msgid = (uint32_t) obj.u64;
+        *msgid = (uint32_t) obj.i64;
         *needs_resp = true;
     } else if (type == 2) {
         // notification
         if (mpk_len != 3) {
             GGL_LOGE("msgpack-rpc", "Received payload not 3 element array.");
-            return EPROTO;
+            return GGL_ERR_PARSE;
         }
         *msgid = 0;
         *needs_resp = false;
@@ -162,7 +164,7 @@ static int parse_incoming(
             "Received payload type invalid: %lu",
             (long unsigned) type
         );
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
     // method
@@ -173,7 +175,7 @@ static int parse_incoming(
 
     if (obj.type != GGL_TYPE_BUF) {
         GGL_LOGE("msgpack-rpc", "Received non-raw method.");
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
     *method = obj.buf;
@@ -187,7 +189,7 @@ static int parse_incoming(
 
     if (obj.type != GGL_TYPE_LIST) {
         GGL_LOGE("msgpack-rpc", "Received non-array params.");
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
     *params = msg;
@@ -290,10 +292,10 @@ noreturn void ggl_listen(GglBuffer path, void *ctx) {
                 GglBuffer method;
                 GglBuffer params_buf;
 
-                int ret = parse_incoming(
+                GglError ret = parse_incoming(
                     recv_buffer, &needs_resp, &msgid, &method, &params_buf
                 );
-                if (ret != 0) {
+                if (ret != GGL_ERR_OK) {
                     break;
                 }
 
@@ -304,7 +306,7 @@ noreturn void ggl_listen(GglBuffer path, void *ctx) {
                 ret = ggl_msgpack_decode(
                     &decode_mem.alloc, params_buf, &params_obj
                 );
-                if (ret != 0) {
+                if (ret != GGL_ERR_OK) {
                     GGL_LOGE(
                         "msgpack-rpc", "Failed decoding incoming payload."
                     );
@@ -338,7 +340,7 @@ noreturn void ggl_listen(GglBuffer path, void *ctx) {
     }
 }
 
-void ggl_respond(GglResponseHandle *handle, int error, GglObject value) {
+void ggl_respond(GglResponseHandle *handle, GglError error, GglObject value) {
     if (handle == NULL) {
         return;
     }
@@ -347,7 +349,7 @@ void ggl_respond(GglResponseHandle *handle, int error, GglObject value) {
 
     GglObject payload = GGL_OBJ_LIST(
         GGL_OBJ_I64(1),
-        GGL_OBJ_U64(handle->msgid),
+        GGL_OBJ_I64(handle->msgid),
         (error != 0) ? GGL_OBJ_I64(error) : GGL_OBJ_NULL(),
         (error != 0) ? GGL_OBJ_NULL() : value
     );
@@ -357,7 +359,7 @@ void ggl_respond(GglResponseHandle *handle, int error, GglObject value) {
 
     GglBuffer encoded = GGL_BUF(encode_array);
 
-    int ret = ggl_msgpack_encode(payload, &encoded);
+    GglError ret = ggl_msgpack_encode(payload, &encoded);
     if (ret != 0) {
         GGL_LOGE("msgpack-rpc", "Failed to encode response.");
         return;

@@ -6,6 +6,7 @@
 #include "ggl/client.h"
 #include "ggl/alloc.h"
 #include "ggl/defer.h"
+#include "ggl/error.h"
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include "ggl/utils.h"
@@ -65,7 +66,7 @@ static GglConn *get_free_conn(void) {
     return NULL;
 }
 
-__attribute__((weak)) int ggl_connect(GglBuffer path, GglConn **conn) {
+__attribute__((weak)) GglError ggl_connect(GglBuffer path, GglConn **conn) {
     assert(conn != NULL);
 
     *conn = NULL;
@@ -74,7 +75,7 @@ __attribute__((weak)) int ggl_connect(GglBuffer path, GglConn **conn) {
     if (sockfd == -1) {
         int err = errno;
         GGL_LOGE("msgpack-rpc", "Failed to create socket: %d.", err);
-        return err;
+        return GGL_ERR_FATAL;
     }
     GGL_DEFER(close, sockfd);
 
@@ -101,12 +102,12 @@ __attribute__((weak)) int ggl_connect(GglBuffer path, GglConn **conn) {
     if (connect(sockfd, (const struct sockaddr *) &addr, sizeof(addr)) == -1) {
         int err = errno;
         GGL_LOGW("msgpack-rpc", "Failed to connect to server: %d.", err);
-        return err;
+        return GGL_ERR_FAILURE;
     }
 
     GglConn *c = get_free_conn();
     if (c == NULL) {
-        return ENOBUFS;
+        return GGL_ERR_BUSY;
     }
 
     GGL_DEFER_CANCEL(sockfd);
@@ -125,20 +126,20 @@ void ggl_close(GglConn *conn) {
     conn->sockfd = CONNS_FREE;
 }
 
-static int parse_incoming(
+static GglError parse_incoming(
     GglBuffer buf, uint32_t *msgid, bool *error, GglBuffer *value
 ) {
     GglBuffer msg = buf;
     GglObject obj;
 
-    int ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
+    GglError ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
     if (ret != 0) {
         return ret;
     }
 
     if ((obj.type != GGL_TYPE_LIST) || (obj.list.len != 4)) {
         GGL_LOGE("msgpack-rpc", "Received payload not 4 element array.");
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
     // payload type
@@ -149,7 +150,7 @@ static int parse_incoming(
 
     if ((obj.type != GGL_TYPE_I64) || (obj.i64 != 1)) {
         GGL_LOGE("msgpack-rpc", "Received payload type invalid.");
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
     // msgid
@@ -158,12 +159,12 @@ static int parse_incoming(
         return ret;
     }
 
-    if ((obj.type != GGL_TYPE_U64) || (obj.u64 > UINT32_MAX)) {
+    if ((obj.type != GGL_TYPE_I64) || (obj.i64 < 0) || (obj.i64 > UINT32_MAX)) {
         GGL_LOGE("msgpack-rpc", "Received payload msgid invalid.");
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
-    *msgid = (uint32_t) obj.u64;
+    *msgid = (uint32_t) obj.i64;
 
     // error
     GglBuffer copy = msg;
@@ -185,7 +186,7 @@ static int parse_incoming(
     return 0;
 }
 
-int ggl_call(
+GglError ggl_call(
     GglConn *conn,
     GglBuffer method,
     GglList params,
@@ -198,7 +199,7 @@ int ggl_call(
     msgid = conn->counter++;
 
     GglObject payload = GGL_OBJ_LIST(
-        GGL_OBJ_I64(0), GGL_OBJ_U64(msgid), GGL_OBJ(method), GGL_OBJ(params)
+        GGL_OBJ_I64(0), GGL_OBJ_I64(msgid), GGL_OBJ(method), GGL_OBJ(params)
     );
 
     ssize_t sys_ret;
@@ -209,8 +210,8 @@ int ggl_call(
 
         GglBuffer send_buffer = GGL_BUF(payload_array);
 
-        int ret = ggl_msgpack_encode(payload, &send_buffer);
-        if (ret != 0) {
+        GglError ret = ggl_msgpack_encode(payload, &send_buffer);
+        if (ret != GGL_ERR_OK) {
             return ret;
         }
 
@@ -220,7 +221,7 @@ int ggl_call(
     if (sys_ret < 0) {
         int err = errno;
         GGL_LOGE("msgpack-rpc", "Failed to send: %d.", err);
-        return err;
+        return GGL_ERR_FAILURE;
     }
 
     while (true) {
@@ -242,7 +243,7 @@ int ggl_call(
                 continue;
             }
             GGL_LOGE("msgpack-rpc", "Failed recv: %d.", err);
-            return err;
+            return GGL_ERR_FAILURE;
         }
 
         if ((size_t) sys_ret > recv_buffer.len) {
@@ -252,7 +253,7 @@ int ggl_call(
                 (size_t) sys_ret,
                 recv_buffer.len
             );
-            return EMSGSIZE;
+            return GGL_ERR_NOMEM;
         }
 
         recv_buffer.len = (size_t) sys_ret;
@@ -261,7 +262,8 @@ int ggl_call(
         uint32_t ret_id;
         bool error;
         GglBuffer result_buf;
-        int ret = parse_incoming(recv_buffer, &ret_id, &error, &result_buf);
+        GglError ret
+            = parse_incoming(recv_buffer, &ret_id, &error, &result_buf);
         if (ret != 0) {
             return ret;
         }
@@ -279,14 +281,14 @@ int ggl_call(
         ret = ggl_msgpack_decode(alloc, result_buf, result);
         if (ret != 0) {
             GGL_LOGE("msgpack-rpc", "Failed to decode payload response.");
-            return EPROTO;
+            return GGL_ERR_PARSE;
         }
 
         return 0;
     }
 }
 
-int ggl_notify(GglConn *conn, GglBuffer method, GglList params) {
+GglError ggl_notify(GglConn *conn, GglBuffer method, GglList params) {
     assert(conn != NULL);
 
     GglObject payload
@@ -300,8 +302,8 @@ int ggl_notify(GglConn *conn, GglBuffer method, GglList params) {
 
         GglBuffer send_buffer = GGL_BUF(payload_array);
 
-        int ret = ggl_msgpack_encode(payload, &send_buffer);
-        if (ret != 0) {
+        GglError ret = ggl_msgpack_encode(payload, &send_buffer);
+        if (ret != GGL_ERR_OK) {
             return ret;
         }
 
@@ -311,7 +313,7 @@ int ggl_notify(GglConn *conn, GglBuffer method, GglList params) {
     if (sys_ret < 0) {
         int err = errno;
         GGL_LOGE("msgpack-rpc", "Failed to send: %d.", err);
-        return err;
+        return GGL_ERR_FAILURE;
     }
 
     return 0;

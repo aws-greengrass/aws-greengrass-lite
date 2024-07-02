@@ -4,6 +4,7 @@
  */
 
 #include "args.h"
+#include "ggl/error.h"
 #include "ggl/object.h"
 #include "ggl/server.h"
 #include "mqtt.h"
@@ -49,10 +50,10 @@ int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
 
-    int ret = iotcored_mqtt_connect(&args);
+    GglError ret = iotcored_mqtt_connect(&args);
 
     if (ret != 0) {
-        return ret;
+        return 1;
     }
 
     ggl_listen(GGL_STR("/aws/ggl/iotcored"), NULL);
