@@ -21,8 +21,7 @@ void makeConfigurationReady(void) {
     }
 }
 
-bool validateKeys(const char *key)
-{
+bool validateKeys(const char *key) {
     return true;
 }
 
@@ -36,9 +35,7 @@ GglError ggconfig_insertKeyAndValue(const char *key, const char *value) {
 }
 
 GglError ggconfig_getValueFromKey(
-    const char *key,
-    const char *valueBuffer,
-    size_t *valueBufferLength
+    const char *key, const char *valueBuffer, size_t *valueBufferLength
 ) {
     makeConfigurationReady();
     if (validateKeys(key)) {
@@ -50,9 +47,7 @@ GglError ggconfig_getValueFromKey(
 }
 
 GglError ggconfig_getKeyNotification(
-    const char *key,
-    GglConfigCallback callback,
-    void *parameter
+    const char *key, GglConfigCallback callback, void *parameter
 ) {
     makeConfigurationReady();
 }
