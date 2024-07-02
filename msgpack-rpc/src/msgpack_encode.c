@@ -10,12 +10,21 @@
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include <assert.h>
-#include <endian.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 
+static_assert(
+    __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "host endian not supported"
+);
+
 static GglError write_obj(GglAlloc *alloc, GglObject obj);
+
+static uint16_t bswap16(uint16_t val) {
+    // prevent int promotion
+    unsigned v = val;
+    return (uint16_t) ((v << 8) | (v >> 8));
+}
 
 static GglError write_null(GglAlloc *alloc) {
     assert(alloc != NULL);
@@ -39,7 +48,7 @@ static GglError write_bool(GglAlloc *alloc, bool boolean) {
 
 static GglError write_u64(GglAlloc *alloc, uint64_t u64) {
     assert(alloc != NULL);
-    uint64_t u64be = htobe64(u64);
+    uint64_t u64be = __builtin_bswap64(u64);
     if (u64 <= UINT8_MAX) {
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 2);
         if (buf == NULL) {
@@ -109,38 +118,38 @@ static GglError write_i64(GglAlloc *alloc, int64_t i64) {
         return write_u64(alloc, (uint64_t) i64);
     }
 
-    uint64_t i32b;
-    memcpy(&i32b, &i64, sizeof(int64_t));
-    uint64_t i32bbe = htobe64(i32b);
+    uint64_t i64b;
+    memcpy(&i64b, &i64, sizeof(int64_t));
+    uint64_t i64bbe = __builtin_bswap64(i64b);
 
-    if (i64_fits_bytes(i32b, 1)) {
+    if (i64_fits_bytes(i64b, 1)) {
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 2);
         if (buf == NULL) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xD0;
-        memcpy(&buf[1], &((char *) &i32bbe)[7], 1);
-    } else if (i64_fits_bytes(i32b, 2)) {
+        memcpy(&buf[1], &((char *) &i64bbe)[7], 1);
+    } else if (i64_fits_bytes(i64b, 2)) {
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 3);
         if (buf == NULL) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xD1;
-        memcpy(&buf[1], &((char *) &i32bbe)[6], 2);
-    } else if (i64_fits_bytes(i32b, 4)) {
+        memcpy(&buf[1], &((char *) &i64bbe)[6], 2);
+    } else if (i64_fits_bytes(i64b, 4)) {
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 5);
         if (buf == NULL) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xD2;
-        memcpy(&buf[1], &((char *) &i32bbe)[4], 4);
+        memcpy(&buf[1], &((char *) &i64bbe)[4], 4);
     } else {
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 9);
         if (buf == NULL) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xD3;
-        memcpy(&buf[1], &i32bbe, 8);
+        memcpy(&buf[1], &i64bbe, 8);
     }
     return 0;
 }
@@ -154,7 +163,7 @@ static GglError write_f64(GglAlloc *alloc, double f64) {
         // memcpy necessary for well-defined type-punning
         static_assert(sizeof(float) == sizeof(int32_t), "float is not 32 bits");
         memcpy(&f32_bytes, &f32, sizeof(int32_t));
-        f32_bytes = htobe32(f32_bytes);
+        f32_bytes = __builtin_bswap32(f32_bytes);
 
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 5);
         if (buf == NULL) {
@@ -168,7 +177,7 @@ static GglError write_f64(GglAlloc *alloc, double f64) {
             sizeof(double) == sizeof(int64_t), "double is not 64 bits"
         );
         memcpy(&f64_bytes, &f64, sizeof(int64_t));
-        f64_bytes = htobe64(f64_bytes);
+        f64_bytes = __builtin_bswap64(f64_bytes);
 
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 9);
         if (buf == NULL) {
@@ -202,7 +211,7 @@ static GglError write_str(GglAlloc *alloc, GglBuffer str) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xDA;
-        uint16_t bytes = htobe16((uint16_t) str.len);
+        uint16_t bytes = bswap16((uint16_t) str.len);
         memcpy(&buf[1], &bytes, 2);
     } else if (str.len < UINT32_MAX) {
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 5);
@@ -210,7 +219,7 @@ static GglError write_str(GglAlloc *alloc, GglBuffer str) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xDB;
-        uint32_t bytes = htobe32((uint32_t) str.len);
+        uint32_t bytes = __builtin_bswap32((uint32_t) str.len);
         memcpy(&buf[1], &bytes, 4);
     } else {
         GGL_LOGE("msgpack", "Can't encode str of len %zu.", str.len);
@@ -239,7 +248,7 @@ static GglError write_buf(GglAlloc *alloc, GglBuffer buffer) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xC5;
-        uint16_t bytes = htobe16((uint16_t) buffer.len);
+        uint16_t bytes = bswap16((uint16_t) buffer.len);
         memcpy(&buf[1], &bytes, 2);
     } else if (buffer.len < UINT32_MAX) {
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 5);
@@ -247,7 +256,7 @@ static GglError write_buf(GglAlloc *alloc, GglBuffer buffer) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xC6;
-        uint32_t bytes = htobe32((uint32_t) buffer.len);
+        uint32_t bytes = __builtin_bswap32((uint32_t) buffer.len);
         memcpy(&buf[1], &bytes, 4);
     } else {
         GGL_LOGE("msgpack", "Can't encode buffer of len %zu.", buffer.len);
@@ -277,7 +286,7 @@ static GglError write_list(GglAlloc *alloc, GglList list) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xDC;
-        uint16_t bytes = htobe16((uint16_t) list.len);
+        uint16_t bytes = bswap16((uint16_t) list.len);
         memcpy(&buf[1], &bytes, 2);
     } else if (list.len < UINT32_MAX) {
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 5);
@@ -285,7 +294,7 @@ static GglError write_list(GglAlloc *alloc, GglList list) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xDD;
-        uint32_t bytes = htobe32((uint32_t) list.len);
+        uint32_t bytes = __builtin_bswap32((uint32_t) list.len);
         memcpy(&buf[1], &bytes, 4);
     } else {
         GGL_LOGE("msgpack", "Can't encode list of len %zu.", list.len);
@@ -317,7 +326,7 @@ static GglError write_map(GglAlloc *alloc, GglMap map) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xDC;
-        uint16_t bytes = htobe16((uint16_t) map.len);
+        uint16_t bytes = bswap16((uint16_t) map.len);
         memcpy(&buf[1], &bytes, 2);
     } else if (map.len < UINT32_MAX) {
         uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 5);
@@ -325,7 +334,7 @@ static GglError write_map(GglAlloc *alloc, GglMap map) {
             return GGL_ERR_NOMEM;
         }
         buf[0] = 0xDD;
-        uint32_t bytes = htobe32((uint32_t) map.len);
+        uint32_t bytes = __builtin_bswap32((uint32_t) map.len);
         memcpy(&buf[1], &bytes, 4);
     } else {
         GGL_LOGE("msgpack", "Can't encode map of len %zu.", map.len);

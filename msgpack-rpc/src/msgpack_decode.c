@@ -9,12 +9,15 @@
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include <assert.h>
-#include <endian.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 static_assert((uint32_t) -1 == 0xFFFFFFFFUL, "twos-compliment required");
+
+static_assert(
+    __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "host endian not supported"
+);
 
 static GglError decode_obj(
     bool noalloc, GglAlloc *alloc, GglBuffer *buf, GglObject *obj
@@ -48,7 +51,7 @@ static GglError read_uint(GglBuffer *buf, size_t bytes, uint64_t *result) {
 
     uint64_t value = 0;
     memcpy(&((char *) &value)[sizeof(uint64_t) - bytes], read_from.data, bytes);
-    value = be64toh(value);
+    value = __builtin_bswap64(value);
 
     *result = value;
     return 0;
@@ -91,7 +94,7 @@ static GglError decode_int(GglBuffer *buf, size_t bytes, GglObject *obj) {
         read_from.data,
         bytes
     );
-    value_bytes = be64toh(value_bytes);
+    value_bytes = __builtin_bswap64(value_bytes);
 
     int64_t value;
     memcpy(&value, &value_bytes, sizeof(uint64_t));
