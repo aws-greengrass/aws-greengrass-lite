@@ -18,7 +18,7 @@ clean:
 	-rm -r $(BUILDDIR)
 
 compile_commands.json:
-	bear -- $(MAKE) -Bk
+	bear -- $(MAKE) -Bk $(COMP_DB_TARGETS)
 
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
 
@@ -90,6 +90,8 @@ endif
 $$($1_OBJS): CFLAGS += $$($1_CFLAGS)
 
 include $$($1_DEPS)
+
+COMP_DB_TARGETS += $$($1_OBJS)
 
 $(BUILDDIR)/$1/$(notdir $1).a: $$($1_OBJS)
 	$$(AR) rcs --thin $$@ $$($1_OBJS)
