@@ -3,6 +3,7 @@ argp
 clientfd
 coremqtt
 coreutils
+cpus
 DGGL
 ggdeploymentd
 gghttplib
@@ -18,11 +19,13 @@ mtls
 NOLINTNEXTLINE
 pkgs
 pname
+posix
 respfd
 rootca
 serverd
 sigv4
 statusd
 stdenv
+subscribetocomponentupdates
 tesd
 unsuback
