@@ -4,11 +4,12 @@ The GG-Lite deployment daemon (`ggdeploymentd`) is a service that is responsible
 for receiving and processing deployments. It should be able to receive
 deployments from multiple sources and maintain a queue of deployment tasks.
 
-The deployment daemon will need to receive deployments (can be from a local deployment, AWS IoT
-Shadow, or AWS IoT Jobs), placing them into a queue so that one deployment can be
-processed at a time. Note that the order that deployments are received is not
-guaranteed, for example a group deployment from AWS IoT Jobs may arrive after
-another AWS IoT Jobs deployment while having an earlier timestamp.
+The deployment daemon will need to receive deployments (can be from a local
+deployment, AWS IoT Shadow, or AWS IoT Jobs), placing them into a queue so that
+one deployment can be processed at a time. Note that the order that deployments
+are received is not guaranteed, for example a group deployment from AWS IoT Jobs
+may arrive after another AWS IoT Jobs deployment while having an earlier
+timestamp.
 
 A (very) brief overview of the key steps that should be executed during a
 deployment task processing:
@@ -52,39 +53,34 @@ the following requirements.
 
 1. [ggdeploymentd-1] The deployment service is able to receive deployments to be
    handled.
-   - [ggdeploymentd-1.1] The deployment service can receive local deployments
+   - [ggdeploymentd-1.1] The deployment service may receive local deployments
      over IPC CreateLocalDeployment.
-   - [ggdeploymentd-1.2] The deployment service can receive local deployments on
+   - [ggdeploymentd-1.2] The deployment service may receive local deployments on
      startup via a deployment doc file.
-   - [ggdeploymentd-1.3] The deployment service can receive IoT shadow
+   - [ggdeploymentd-1.3] The deployment service may receive IoT jobs
      deployments.
-   - [ggdeploymentd-1.4] The deployment service can receive IoT jobs
-     deployments.
-   - [ggdeploymentd-1.5] Multiple deployments can be received and handled such
+   - [ggdeploymentd-1.4] Multiple deployments may be received and handled such
      that they do not conflict with each other.
-2. [ggdeploymentd-2] The deployment service can handle a deployment that
+2. [ggdeploymentd-2] The deployment service may handle a deployment that
    includes new root components.
-   - [ggdeploymentd-2.1] The deployment service can resolve a dependency order
+   - [ggdeploymentd-2.1] The deployment service will resolve a dependency order
      and versions for components with dependencies.
-   - [ggdeploymentd-2.2] The deployment service can prepare a component with a
+   - [ggdeploymentd-2.2] The deployment service may prepare a component with a
      locally provided recipe.
-   - [ggdeploymentd-2.3] The deployment service can prepare a component with a
+   - [ggdeploymentd-2.3] The deployment service may prepare a component with a
      recipe from the cloud.
-   - [ggdeploymentd-2.4] The deployment service can prepare a component with an
+   - [ggdeploymentd-2.4] The deployment service may prepare a component with an
      artifact from a customer's S3 bucket.
-   - [ggdeploymentd-2.5] The deployment service can prepare a component with an
+   - [ggdeploymentd-2.5] The deployment service may prepare a component with an
      artifact from a Greengrass service account's S3 bucket.
-   - [*ggdeploymentd-2.6] The deployment service can prepare a component with
-     docker artifacts.
+   - [ggdeploymentd-2.6] The deployment service will run component install
+     scripts in the component dependency order.
 3. [ggdeploymentd-3] The deployment service fully supports configuration
    features.
-   - [ggdeploymentd-3.1] The deployment service can handle a component's default
+   - [ggdeploymentd-3.1] The deployment service may handle a component's default
      configuration.
-   - [ggdeploymentd-3.2] The deployment service can handle configuration updates
+   - [ggdeploymentd-3.2] The deployment service may handle configuration updates
      and merge/reset configuration.
-   - [*ggdeploymentd-3.3] If the deployment configuration is above 7KB for
-     Shadow deployments or 31KB for Jobs deployments, the deployment service
-     downloads the large configuration from the cloud.
 4. [ggdeploymentd-4] The deployment service is aware of device membership within
    multiple thing groups when executing a new deployment.
    - [ggdeploymentd-4.1] If the device has multiple deployments from different
@@ -94,7 +90,7 @@ the following requirements.
      correctly handled.
    - [ggdeploymentd-4.3] Stale components are removed from the device on a new
      deployment handling.
-5. [ggdeploymentd-5] The deployment service can notify components and get
+5. [ggdeploymentd-5] The deployment service may notify components and get
    confirmation to move forward with the deployment.
    - [ggdeploymentd-5.1] The SubscribeToComponentUpdates IPC command is
      supported and the deployment service notifies components about updates if
@@ -107,12 +103,22 @@ the following requirements.
    - [ggdeploymentd-5.4] The SendConfigurationValidityReport IPC command is
      supported and the deployment fails if a component notifies that the
      configuration is not valid.
-6. [ggdeploymentd-6] Other components can make a request on the core bus and IPC
+6. [ggdeploymentd-6] Other components may make a request on the core bus and IPC
    to get the status of a deployment.
-7. [ggdeploymentd-7] Other components can make a request on the core bus and IPC
+7. [ggdeploymentd-7] Other components may make a request on the core bus and IPC
    to get the list of local deployments.
 
-\* Requirement is of a lower priority
+### Future-Looking Possibilities
+
+These are not requirements, but are documented as possible items to be supported
+in the future.
+
+- The deployment service may receive AWS IoT Shadow deployments.
+- The deployment service may prepare a component with docker artifacts.
+- If the deployment configuration is above 7KB for Shadow deployments or 31KB
+  for Jobs deployments, the deployment service will download the large
+  configuration from the cloud.
+- The deployment may be cancelled during certain phases of deployment handling.
 
 ## Core Bus API
 
