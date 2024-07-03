@@ -2,14 +2,13 @@
 
 The GG-Lite deployment daemon (`ggdeploymentd`) is a service that is responsible
 for receiving and processing deployments. It should be able to receive
-deployments from all possible sources and execute the deployment tasks from a
-queue.
+deployments from multiple sources and maintain a queue of deployment tasks.
 
-The deployment daemon will need to receive deployments (can be from: local, IoT
-shadow, or IoT jobs), placing them into a queue so that one deployment can be
+The deployment daemon will need to receive deployments (can be from a local deployment, AWS IoT
+Shadow, or AWS IoT Jobs), placing them into a queue so that one deployment can be
 processed at a time. Note that the order that deployments are received is not
-guaranteed, for example a group deployment from IoT Jobs may arrive after
-another IoT Jobs deployment while having an earlier timestamp.
+guaranteed, for example a group deployment from AWS IoT Jobs may arrive after
+another AWS IoT Jobs deployment while having an earlier timestamp.
 
 A (very) brief overview of the key steps that should be executed during a
 deployment task processing:
@@ -57,7 +56,7 @@ the following requirements.
      over IPC CreateLocalDeployment.
    - [ggdeploymentd-1.2] The deployment service can receive local deployments on
      startup via a deployment doc file.
-   - [*ggdeploymentd-1.3] The deployment service can receive IoT shadow
+   - [ggdeploymentd-1.3] The deployment service can receive IoT shadow
      deployments.
    - [ggdeploymentd-1.4] The deployment service can receive IoT jobs
      deployments.
