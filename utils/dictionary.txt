@@ -5,8 +5,15 @@ coremqtt
 coreutils
 cpus
 DGGL
+EFAILURE
+EOK
+ggconfig
+ggconfigd
+ggconfiglib
+ggconflib
 ggdeploymentd
 gghttplib
+gglite
 htobe
 iotcored
 LOGD
