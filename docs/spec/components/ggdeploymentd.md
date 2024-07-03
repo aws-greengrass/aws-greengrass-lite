@@ -185,7 +185,7 @@ deployment and can specify deployment parameters.
   - [ggdeploymentd-bus-createlocaldeployment-7.1] group_name is the name of the
     thing group for the deployment to target.
 
-### \*cancel_local_deployment
+### cancel_local_deployment
 
 Currently, cancelling deployments is not in scope of Greengrass Lite. The
 deployment daemon should acknowledge this IPC request but do nothing with it.
