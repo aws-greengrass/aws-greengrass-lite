@@ -1,14 +1,15 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "gravel/server.h"
-#include "gravel/bump_alloc.h"
-#include "gravel/defer.h"
-#include "gravel/log.h"
-#include "gravel/object.h"
-#include "gravel/utils.h"
+#include "ggl/server.h"
+#include "ggl/bump_alloc.h"
+#include "ggl/defer.h"
+#include "ggl/error.h"
+#include "ggl/log.h"
+#include "ggl/object.h"
+#include "ggl/utils.h"
 #include "msgpack.h"
 #include <assert.h>
 #include <errno.h>
@@ -24,57 +25,54 @@
 #include <stdnoreturn.h>
 
 /** Maximum number of outstanding responses.
- * Can be configured with `-DGRAVEL_SERVER_MAX_OUTSTANDING=<N>`. */
-#ifndef GRAVEL_SERVER_MAX_OUTSTANDING
-#define GRAVEL_SERVER_MAX_OUTSTANDING 1
+ * Can be configured with `-DGGL_SERVER_MAX_OUTSTANDING=<N>`. */
+#ifndef GGL_SERVER_MAX_OUTSTANDING
+#define GGL_SERVER_MAX_OUTSTANDING 1
 #endif
 
 /** Buffer length for storing objects from decoding msgpack payloads.
- * Can be configured with `-DGRAVEL_MSGPACK_DECODE_BUFFER_LEN=<N>`. */
-#ifndef GRAVEL_MSGPACK_DECODE_BUFFER_LEN
-#define GRAVEL_MSGPACK_DECODE_BUFFER_LEN (50 * sizeof(GravelObject))
+ * Can be configured with `-DGGL_MSGPACK_DECODE_BUFFER_LEN=<N>`. */
+#ifndef GGL_MSGPACK_DECODE_BUFFER_LEN
+#define GGL_MSGPACK_DECODE_BUFFER_LEN (50 * sizeof(GglObject))
 #endif
 
 static pthread_mutex_t payload_array_mtx = PTHREAD_MUTEX_INITIALIZER;
-static uint8_t payload_array[GRAVEL_MSGPACK_MAX_MSG_LEN];
-static uint8_t decode_array[GRAVEL_MSGPACK_DECODE_BUFFER_LEN];
+static uint8_t payload_array[GGL_MSGPACK_MAX_MSG_LEN];
+static uint8_t decode_array[GGL_MSGPACK_DECODE_BUFFER_LEN];
 
 static pthread_mutex_t encode_array_mtx = PTHREAD_MUTEX_INITIALIZER;
-static uint8_t encode_array[GRAVEL_MSGPACK_MAX_MSG_LEN];
+static uint8_t encode_array[GGL_MSGPACK_MAX_MSG_LEN];
 
-struct GravelResponseHandle {
+struct GglResponseHandle {
     int respfd;
     uint32_t msgid;
 };
 
-static GravelResponseHandle handles[GRAVEL_SERVER_MAX_OUTSTANDING];
+static GglResponseHandle handles[GGL_SERVER_MAX_OUTSTANDING];
 pthread_mutex_t handles_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static const int HANDLE_FREE = -2;
 static const int HANDLE_UNINIT = -3;
 
 __attribute__((constructor)) static void init_handles(void) {
-    for (size_t i = 0; i < GRAVEL_SERVER_MAX_OUTSTANDING; i++) {
-        handles[i] = (GravelResponseHandle) { .respfd = HANDLE_FREE };
+    for (size_t i = 0; i < GGL_SERVER_MAX_OUTSTANDING; i++) {
+        handles[i] = (GglResponseHandle) { .respfd = HANDLE_FREE };
     }
 }
 
-GRAVEL_DEFINE_DEFER(
-    release_handle,
-    GravelResponseHandle *,
-    handle,
-    (*handle)->respfd = HANDLE_FREE
+GGL_DEFINE_DEFER(
+    release_handle, GglResponseHandle *, handle, (*handle)->respfd = HANDLE_FREE
 )
 
-static GravelResponseHandle *get_free_handle(void) {
+static GglResponseHandle *get_free_handle(void) {
     while (true) {
         {
             pthread_mutex_lock(&handles_mutex);
-            GRAVEL_DEFER(pthread_mutex_unlock, handles_mutex);
+            GGL_DEFER(pthread_mutex_unlock, handles_mutex);
 
-            for (size_t i = 0; i < GRAVEL_SERVER_MAX_OUTSTANDING; i++) {
+            for (size_t i = 0; i < GGL_SERVER_MAX_OUTSTANDING; i++) {
                 if (handles[i].respfd == HANDLE_FREE) {
-                    handles[i] = (GravelResponseHandle) {
+                    handles[i] = (GglResponseHandle) {
                         .respfd = HANDLE_UNINIT,
                         .msgid = 0,
                     };
@@ -82,51 +80,51 @@ static GravelResponseHandle *get_free_handle(void) {
                 }
             }
         }
-        gravel_sleep(1);
+        ggl_sleep(1);
     }
 }
 
-static int parse_incoming(
-    GravelBuffer buf,
+static GglError parse_incoming(
+    GglBuffer buf,
     bool *needs_resp,
     uint32_t *msgid,
-    GravelBuffer *method,
-    GravelBuffer *params
+    GglBuffer *method,
+    GglBuffer *params
 ) {
     assert(
         (needs_resp != NULL) && (msgid != NULL) && (method != NULL)
         && (params != NULL)
     );
 
-    GravelBuffer msg = buf;
-    GravelObject obj;
+    GglBuffer msg = buf;
+    GglObject obj;
 
-    int ret = gravel_msgpack_decode_lazy_noalloc(&msg, &obj);
+    GglError ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
     if (ret != 0) {
         return ret;
     }
 
-    if ((obj.type != GRAVEL_TYPE_LIST)) {
-        GRAVEL_LOGE("msgpack-rpc", "Received payload that is not an array.");
-        return EPROTO;
+    if ((obj.type != GGL_TYPE_LIST)) {
+        GGL_LOGE("msgpack-rpc", "Received payload that is not an array.");
+        return GGL_ERR_PARSE;
     }
 
     size_t mpk_len = obj.list.len;
 
     if (mpk_len < 3) {
-        GRAVEL_LOGE("msgpack-rpc", "Received payload that is too small array.");
-        return EPROTO;
+        GGL_LOGE("msgpack-rpc", "Received payload that is too small array.");
+        return GGL_ERR_PARSE;
     }
 
     // type
-    ret = gravel_msgpack_decode_lazy_noalloc(&msg, &obj);
+    ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
     if (ret != 0) {
         return ret;
     }
 
-    if (obj.type != GRAVEL_TYPE_I64) {
-        GRAVEL_LOGE("msgpack-rpc", "Received payload type invalid.");
-        return EPROTO;
+    if (obj.type != GGL_TYPE_I64) {
+        GGL_LOGE("msgpack-rpc", "Received payload type invalid.");
+        return GGL_ERR_PARSE;
     }
 
     int64_t type = obj.i64;
@@ -134,63 +132,64 @@ static int parse_incoming(
     if (type == 0) {
         // request
         if (mpk_len != 4) {
-            GRAVEL_LOGE("msgpack-rpc", "Received payload not 4 element array.");
-            return EPROTO;
+            GGL_LOGE("msgpack-rpc", "Received payload not 4 element array.");
+            return GGL_ERR_PARSE;
         }
 
         // msgid
-        ret = gravel_msgpack_decode_lazy_noalloc(&msg, &obj);
+        ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
         if (ret != 0) {
             return ret;
         }
 
-        if ((obj.type != GRAVEL_TYPE_U64) || (obj.u64 > UINT32_MAX)) {
-            GRAVEL_LOGE("msgpack-rpc", "Received payload msgid invalid.");
-            return EPROTO;
+        if ((obj.type != GGL_TYPE_I64) || (obj.i64 < 0)
+            || (obj.i64 > UINT32_MAX)) {
+            GGL_LOGE("msgpack-rpc", "Received payload msgid invalid.");
+            return GGL_ERR_PARSE;
         }
 
-        *msgid = (uint32_t) obj.u64;
+        *msgid = (uint32_t) obj.i64;
         *needs_resp = true;
     } else if (type == 2) {
         // notification
         if (mpk_len != 3) {
-            GRAVEL_LOGE("msgpack-rpc", "Received payload not 3 element array.");
-            return EPROTO;
+            GGL_LOGE("msgpack-rpc", "Received payload not 3 element array.");
+            return GGL_ERR_PARSE;
         }
         *msgid = 0;
         *needs_resp = false;
     } else {
-        GRAVEL_LOGE(
+        GGL_LOGE(
             "msgpack-rpc",
             "Received payload type invalid: %lu",
             (long unsigned) type
         );
-        return EPROTO;
+        return GGL_ERR_PARSE;
     }
 
     // method
-    ret = gravel_msgpack_decode_lazy_noalloc(&msg, &obj);
+    ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
     if (ret != 0) {
         return ret;
     }
 
-    if (obj.type != GRAVEL_TYPE_BUF) {
-        GRAVEL_LOGE("msgpack-rpc", "Received non-raw method.");
-        return EPROTO;
+    if (obj.type != GGL_TYPE_BUF) {
+        GGL_LOGE("msgpack-rpc", "Received non-raw method.");
+        return GGL_ERR_PARSE;
     }
 
     *method = obj.buf;
 
     // params
-    GravelBuffer copy = msg;
-    ret = gravel_msgpack_decode_lazy_noalloc(&copy, &obj);
+    GglBuffer copy = msg;
+    ret = ggl_msgpack_decode_lazy_noalloc(&copy, &obj);
     if (ret != 0) {
         return ret;
     }
 
-    if (obj.type != GRAVEL_TYPE_LIST) {
-        GRAVEL_LOGE("msgpack-rpc", "Received non-array params.");
-        return EPROTO;
+    if (obj.type != GGL_TYPE_LIST) {
+        GGL_LOGE("msgpack-rpc", "Received non-array params.");
+        return GGL_ERR_PARSE;
     }
 
     *params = msg;
@@ -199,16 +198,16 @@ static int parse_incoming(
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-noreturn void gravel_listen(GravelBuffer path, void *ctx) {
+noreturn void ggl_listen(GglBuffer path, void *ctx) {
     while (true) {
         int sockfd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
         if (sockfd == -1) {
             int err = errno;
-            GRAVEL_LOGE("msgpack-rpc", "Failed to create socket: %d.", err);
-            gravel_sleep(5);
+            GGL_LOGE("msgpack-rpc", "Failed to create socket: %d.", err);
+            ggl_sleep(5);
             continue;
         }
-        GRAVEL_DEFER(close, sockfd);
+        GGL_DEFER(close, sockfd);
 
         struct sockaddr_un addr = { .sun_family = AF_UNIX, .sun_path = { 0 } };
 
@@ -219,7 +218,7 @@ noreturn void gravel_listen(GravelBuffer path, void *ctx) {
             : sizeof(addr.sun_path) - 1;
 
         if (copy_len < path.len) {
-            GRAVEL_LOGW(
+            GGL_LOGW(
                 "msgpack-rpc",
                 "Truncating path to %u bytes [%.*s]",
                 (unsigned) copy_len,
@@ -232,15 +231,15 @@ noreturn void gravel_listen(GravelBuffer path, void *ctx) {
 
         if (bind(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
             int err = errno;
-            GRAVEL_LOGE("msgpack-rpc", "Failed to bind socket: %d.", err);
-            gravel_sleep(5);
+            GGL_LOGE("msgpack-rpc", "Failed to bind socket: %d.", err);
+            ggl_sleep(5);
             continue;
         }
 
         if (listen(sockfd, 20) == -1) {
             int err = errno;
-            GRAVEL_LOGE("msgpack-rpc", "Failed to listen socket: %d.", err);
-            gravel_sleep(5);
+            GGL_LOGE("msgpack-rpc", "Failed to listen socket: %d.", err);
+            ggl_sleep(5);
             continue;
         }
 
@@ -248,25 +247,23 @@ noreturn void gravel_listen(GravelBuffer path, void *ctx) {
             int clientfd = accept(sockfd, NULL, NULL);
             if (clientfd == -1) {
                 int err = errno;
-                GRAVEL_LOGE(
-                    "msgpack-rpc", "Failed to accept on socket: %d.", err
-                );
+                GGL_LOGE("msgpack-rpc", "Failed to accept on socket: %d.", err);
                 break;
             }
-            GRAVEL_DEFER(close, clientfd);
+            GGL_DEFER(close, clientfd);
 
             while (true) {
                 pthread_mutex_lock(&payload_array_mtx);
-                GRAVEL_DEFER(pthread_mutex_unlock, payload_array_mtx);
+                GGL_DEFER(pthread_mutex_unlock, payload_array_mtx);
 
-                GravelBuffer recv_buffer = GRAVEL_BUF(payload_array);
+                GglBuffer recv_buffer = GGL_BUF(payload_array);
 
                 ssize_t sys_ret = recv(
                     clientfd, recv_buffer.data, recv_buffer.len, MSG_TRUNC
                 );
                 if (sys_ret < 0) {
                     int err = errno;
-                    GRAVEL_LOGE(
+                    GGL_LOGE(
                         "msgpack-rpc", "Failed to recv from client: %d.", err
                     );
                     break;
@@ -276,7 +273,7 @@ noreturn void gravel_listen(GravelBuffer path, void *ctx) {
 
                 if ((size_t) sys_ret > recv_buffer.len) {
                     // TODO: respond with server error if request
-                    GRAVEL_LOGE(
+                    GGL_LOGE(
                         "msgpack-rpc",
                         "Payload too large: size %zu, max %zu",
                         (size_t) sys_ret,
@@ -286,93 +283,91 @@ noreturn void gravel_listen(GravelBuffer path, void *ctx) {
                 }
 
                 if ((size_t) sys_ret == 0) {
-                    GRAVEL_LOGI("msgpack-rpc", "Connection closed.");
+                    GGL_LOGI("msgpack-rpc", "Connection closed.");
                     break;
                 }
 
                 bool needs_resp;
                 uint32_t msgid;
-                GravelBuffer method;
-                GravelBuffer params_buf;
+                GglBuffer method;
+                GglBuffer params_buf;
 
-                int ret = parse_incoming(
+                GglError ret = parse_incoming(
                     recv_buffer, &needs_resp, &msgid, &method, &params_buf
                 );
-                if (ret != 0) {
+                if (ret != GGL_ERR_OK) {
                     break;
                 }
 
-                GravelBumpAlloc decode_mem
-                    = gravel_bump_alloc_init(GRAVEL_BUF(decode_array));
-                GravelObject params_obj;
+                GglBumpAlloc decode_mem
+                    = ggl_bump_alloc_init(GGL_BUF(decode_array));
+                GglObject params_obj;
 
-                ret = gravel_msgpack_decode(
+                ret = ggl_msgpack_decode(
                     &decode_mem.alloc, params_buf, &params_obj
                 );
-                if (ret != 0) {
-                    GRAVEL_LOGE(
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE(
                         "msgpack-rpc", "Failed decoding incoming payload."
                     );
                     // TODO: Send server error
                     break;
                 };
 
-                if (params_obj.type != GRAVEL_TYPE_LIST) {
-                    GRAVEL_LOGE(
+                if (params_obj.type != GGL_TYPE_LIST) {
+                    GGL_LOGE(
                         "msgpack-rpc", "Incoming payload params not list."
                     );
                     // TODO: Send server error
                     break;
                 }
 
-                GravelList params = params_obj.list;
+                GglList params = params_obj.list;
 
-                GravelResponseHandle *handle = NULL;
+                GglResponseHandle *handle = NULL;
 
                 if (needs_resp) {
                     handle = get_free_handle();
-                    *handle = (GravelResponseHandle) {
+                    *handle = (GglResponseHandle) {
                         .msgid = msgid,
                         .respfd = clientfd,
                     };
                 }
 
-                gravel_receive_callback(ctx, method, params, handle);
+                ggl_receive_callback(ctx, method, params, handle);
             }
         }
     }
 }
 
-void gravel_respond(
-    GravelResponseHandle *handle, int error, GravelObject value
-) {
+void ggl_respond(GglResponseHandle *handle, GglError error, GglObject value) {
     if (handle == NULL) {
         return;
     }
 
-    GRAVEL_DEFER(release_handle, handle);
+    GGL_DEFER(release_handle, handle);
 
-    GravelObject payload = GRAVEL_OBJ_LIST(
-        GRAVEL_OBJ_I64(1),
-        GRAVEL_OBJ_U64(handle->msgid),
-        (error != 0) ? GRAVEL_OBJ_I64(error) : GRAVEL_OBJ_NULL(),
-        (error != 0) ? GRAVEL_OBJ_NULL() : value
+    GglObject payload = GGL_OBJ_LIST(
+        GGL_OBJ_I64(1),
+        GGL_OBJ_I64(handle->msgid),
+        (error != 0) ? GGL_OBJ_I64(error) : GGL_OBJ_NULL(),
+        (error != 0) ? GGL_OBJ_NULL() : value
     );
 
     pthread_mutex_lock(&encode_array_mtx);
-    GRAVEL_DEFER(pthread_mutex_unlock, encode_array_mtx);
+    GGL_DEFER(pthread_mutex_unlock, encode_array_mtx);
 
-    GravelBuffer encoded = GRAVEL_BUF(encode_array);
+    GglBuffer encoded = GGL_BUF(encode_array);
 
-    int ret = gravel_msgpack_encode(payload, &encoded);
+    GglError ret = ggl_msgpack_encode(payload, &encoded);
     if (ret != 0) {
-        GRAVEL_LOGE("msgpack-rpc", "Failed to encode response.");
+        GGL_LOGE("msgpack-rpc", "Failed to encode response.");
         return;
     }
 
     ssize_t result = send(handle->respfd, encoded.data, encoded.len, 0);
     if (result <= 0) {
         int err = errno;
-        GRAVEL_LOGE("msgpack-rpc", "Failed to send response: %d.", err);
+        GGL_LOGE("msgpack-rpc", "Failed to send response: %d.", err);
     }
 }

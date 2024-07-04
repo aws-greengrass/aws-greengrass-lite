@@ -19,7 +19,7 @@ jobs:
           - name: build with GCC
             check: packages-default
           - name: build with Clang
-            check: packages-gravel-clang
+            check: packages-ggl-clang
           - name: clang-tidy
             check: clang-tidy
           - name: editorconfig

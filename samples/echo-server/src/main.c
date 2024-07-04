@@ -1,39 +1,36 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "gravel/buffer.h"
-#include "gravel/log.h"
-#include "gravel/object.h"
-#include "gravel/server.h"
-#include <errno.h>
+#include "ggl/buffer.h"
+#include "ggl/error.h"
+#include "ggl/log.h"
+#include "ggl/object.h"
+#include "ggl/server.h"
 #include <stdlib.h>
 
-void gravel_receive_callback(
-    void *ctx,
-    GravelBuffer method,
-    GravelList params,
-    GravelResponseHandle *handle
+void ggl_receive_callback(
+    void *ctx, GglBuffer method, GglList params, GglResponseHandle *handle
 ) {
     (void) ctx;
 
-    if ((params.len < 1) && (params.items[0].type != GRAVEL_TYPE_MAP)) {
-        GRAVEL_LOGE("rpc-handler", "Publish received invalid arguments.");
-        gravel_respond(handle, EINVAL, GRAVEL_OBJ_NULL());
+    if ((params.len < 1) && (params.items[0].type != GGL_TYPE_MAP)) {
+        GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
+        ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
         return;
     }
 
-    GravelMap param_map = params.items[0].map;
+    GglMap param_map = params.items[0].map;
 
-    if (gravel_buffer_eq(method, GRAVEL_STR("echo"))) {
-        gravel_respond(handle, 0, GRAVEL_OBJ(param_map));
+    if (ggl_buffer_eq(method, GGL_STR("echo"))) {
+        ggl_respond(handle, 0, GGL_OBJ(param_map));
         return;
     }
 
-    gravel_respond(handle, EINVAL, GRAVEL_OBJ_NULL());
+    ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
 }
 
 int main(void) {
-    gravel_listen(GRAVEL_STR("/aws/gravel/echo-server"), NULL);
+    ggl_listen(GGL_STR("/aws/ggl/echo-server"), NULL);
 }

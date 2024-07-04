@@ -1,20 +1,21 @@
-/* gravel - Utilities for AWS IoT Core clients
+/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
  * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "gravel/client.h"
-#include "gravel/log.h"
-#include "gravel/object.h"
+#include "ggl/client.h"
+#include "ggl/error.h"
+#include "ggl/log.h"
+#include "ggl/object.h"
 #include <errno.h>
 
 int main(void) {
-    GravelBuffer iotcored = GRAVEL_STR("/aws/gravel/iotcored");
+    GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
 
-    GravelConn *conn;
-    int ret = gravel_connect(iotcored, &conn);
+    GglConn *conn;
+    GglError ret = ggl_connect(iotcored, &conn);
     if (ret != 0) {
-        GRAVEL_LOGE(
+        GGL_LOGE(
             "mqtt-client",
             "Failed to connect to %.*s",
             (int) iotcored.len,
@@ -23,12 +24,12 @@ int main(void) {
         return EHOSTUNREACH;
     }
 
-    GravelList args = GRAVEL_LIST(GRAVEL_OBJ_MAP(
-        { GRAVEL_STR("topic"), GRAVEL_OBJ_STR("hello") },
-        { GRAVEL_STR("payload"), GRAVEL_OBJ_STR("hello world") },
+    GglList args = GGL_LIST(GGL_OBJ_MAP(
+        { GGL_STR("topic"), GGL_OBJ_STR("hello") },
+        { GGL_STR("payload"), GGL_OBJ_STR("hello world") },
     ));
 
-    gravel_notify(conn, GRAVEL_STR("publish"), args);
+    ggl_notify(conn, GGL_STR("publish"), args);
 
-    GRAVEL_LOGI("mqtt-client", "Sent MQTT publish.");
+    GGL_LOGI("mqtt-client", "Sent MQTT publish.");
 }

@@ -1,4 +1,4 @@
-# gravel - Utilities for AWS IoT Core clients
+# aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
@@ -18,7 +18,7 @@ clean:
 	-rm -r $(BUILDDIR)
 
 compile_commands.json:
-	bear -- $(MAKE) -Bk
+	bear -- $(MAKE) -Bk $(COMP_DB_TARGETS)
 
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
 
@@ -28,7 +28,7 @@ CFLAGS += -std=gnu11 -pedantic -Wall -Wextra -Wvla -Wshadow -Wformat=2 \
 		-Wunused -Wundef -Wconversion -Wredundant-decls -Wdate-time \
 		-Wstack-protector -Wframe-larger-than=512 \
 		-fPIE -fvisibility=hidden -fno-semantic-interposition \
-		-fstack-protector-strong -fstack-clash-protection -fcf-protection=full
+		-fstack-protector-strong -fstack-clash-protection
 LDFLAGS += -pie -Wl,-z,relro,-z,now,-z,noexecstack -Wl,--as-needed \
 		-Wl,--enable-new-dtags,--hash-style=gnu
 
@@ -67,7 +67,7 @@ define dir_template
 ifndef $(notdir $1)_LOADED
 $(notdir $1)_LOADED := 1
 
-include $1/gravel.mk
+include $1/ggl.mk
 
 $1_INCDIRS ?= include
 $1_SRCDIR ?= src
@@ -78,7 +78,7 @@ endif
 $1_OBJS := $$(patsubst %.c,$(BUILDDIR)/%.o,$$($1_SRCS))
 $1_DEPS := $$($1_OBJS:.o=.d)
 
-$$($1_OBJS) $$($1_DEPS): $1/gravel.mk
+$$($1_OBJS) $$($1_DEPS): $1/ggl.mk
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += $$($1_CPPFLAGS)
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += $$(call include_flags,$1)
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += \
@@ -90,6 +90,8 @@ endif
 $$($1_OBJS): CFLAGS += $$($1_CFLAGS)
 
 include $$($1_DEPS)
+
+COMP_DB_TARGETS += $$($1_OBJS)
 
 $(BUILDDIR)/$1/$(notdir $1).a: $$($1_OBJS)
 	$$(AR) rcs --thin $$@ $$($1_OBJS)
@@ -118,7 +120,7 @@ endif # $(notdir $1)_LOADED
 endef # dir_template
 
 DIRS = $(shell find * -maxdepth 1 -type d \
-		-exec test -f '{}'/gravel.mk \; -print)
+		-exec test -f '{}'/ggl.mk \; -print)
 
 $(foreach dir,$(DIRS),$(eval $(call dir_template,$(dir))))
 
