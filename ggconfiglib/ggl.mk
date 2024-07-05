@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ggconfiglib_LIBS := ggl-lib
-iotcored_PKGS := sqlite3
+ggconfiglib_PKGS := sqlite3
