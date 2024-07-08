@@ -359,13 +359,20 @@ static GglError write_map(GglAlloc *alloc, GglMap map) {
 static GglError write_obj(GglAlloc *alloc, GglObject obj) {
     assert(alloc != NULL);
     switch (obj.type) {
-    case GGL_TYPE_NULL: return write_null(alloc);
-    case GGL_TYPE_BOOLEAN: return write_bool(alloc, obj.boolean);
-    case GGL_TYPE_I64: return write_i64(alloc, obj.i64);
-    case GGL_TYPE_F64: return write_f64(alloc, obj.f64);
-    case GGL_TYPE_BUF: return write_buf(alloc, obj.buf);
-    case GGL_TYPE_LIST: return write_list(alloc, obj.list);
-    case GGL_TYPE_MAP: return write_map(alloc, obj.map);
+    case GGL_TYPE_NULL:
+        return write_null(alloc);
+    case GGL_TYPE_BOOLEAN:
+        return write_bool(alloc, obj.boolean);
+    case GGL_TYPE_I64:
+        return write_i64(alloc, obj.i64);
+    case GGL_TYPE_F64:
+        return write_f64(alloc, obj.f64);
+    case GGL_TYPE_BUF:
+        return write_buf(alloc, obj.buf);
+    case GGL_TYPE_LIST:
+        return write_list(alloc, obj.list);
+    case GGL_TYPE_MAP:
+        return write_map(alloc, obj.map);
     }
     return GGL_ERR_INVALID;
 }
