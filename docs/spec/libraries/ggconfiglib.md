@@ -36,17 +36,7 @@ flexibility in implementation.
      requested component is not found.
    - [ggconfiglib-3.4] The library will return GGL_ERR_OK when the existing
      value is updated.
-4. [ggconfiglib-4] The library can add components to the configuration
-   - [ggconfiglib-4.1] The library will return GGL_ERR_FAILURE if the component
-     is already in the list.
-   - [ggconfiglib-4.2] The library will return GGL_ERR_OK when the new component
-     is added.
-5. [ggconfiglib-5] The library can delete components from the configuration
-   - [ggconfiglib-5.1] The library will return GGL_ERR_FAILURE when the
-     requested component is not found.
-   - [ggconfiglib-5.2] The library will return GGL_ERR_OK when the component is
-     deleted.
-6. [ggconfiglib-6] The library can call callbacks when key values change.
+4. [ggconfiglib-6] The library can call callbacks when key values change.
    - [ggconfiglib-6.1] The library will return GGL_ERR_FAILURE if the requested
      subscription key is not found.
    - [ggconfiglib-6.2] The library will return GGL_ERR_FAILURE when the
@@ -67,8 +57,6 @@ flexibility in implementation.
 | ggconfig_writeValueToKey    | Update the value at the specified key in the keypath. | Key String, Value String, Component Name String                      |
 | ggconfig_insertKeyAndValue  | Create a new key in the keypath and add the value.    | Key String, Value String, Component Name String                      |
 | ggconfig_getValueFromKey    | Return the value stored at the specified keypath.     | Key String, Value Buffer, Value Buffer Length, Component Name String |
-| ggconfig_insertComponent    | Add a component to the component list                 | Component Name String                                                |
-| ggconfig_deleteComponent    | Remove a component from the component list            | Component Name String                                                |
 | ggconfig_getKeyNotification | Register a callback on a keypath                      | Key String, Component Name String, Callback                          |
 
 ### Error Constants
@@ -102,25 +90,7 @@ is "owned" by a component. All values are stored as strings.
 This implementation will use an adjacency list to create the hierarchical data
 mapping. The tables needed for configuration are as follows:
 
-1. Component Table
-2. Configuration Table
-
-### Component Table
-
-The component table contains the list of components deployed into the system.
-This table can be extended as needed as the deployment system develops.
-Component data access is not defined in the GG IPC API.
-
-| Component ID | Component Name |
-| ------------ | -------------- |
-| Integer KEY  | TEXT           |
-
-COMPONENT ID : The component id is the unique integer value for this component
-table row.
-
-COMPONENT NAME : The component name is a text field containing the name for this
-component. This name must match the values send via the IPC API to ensure the
-correct key-value is accessed.
+1. Configuration Table
 
 ### Configuration Table
 
@@ -129,16 +99,13 @@ create the hierarchy. The key is a text string and is required to be a non-null
 value. The value can be null to allow the value to simply be a "key" on the
 hierarchy path.
 
-| Configuration ID | Component Owner ID | Configuration Parent ID | Key           | Value |
-| ---------------- | ------------------ | ----------------------- | ------------- | ----- |
-| Integer KEY      | Integer            | Integer                 | Text NOT NULL | Text  |
+| Configuration ID | Configuration Parent ID | Key           | Value |
+| ---------------- | ----------------------- | ------------- | ----- |
+| Integer KEY      | Integer                 | Text NOT NULL | Text  |
 
 CONFIGURATION ID : The configuration id is the unique integer value for this
 configuration key. This allows two configuration items to share the same key
 text.
-
-COMPONENT OWNER ID : The component owner id is an integer reference to a
-component in the component table.
 
 CONFIGURATION PARENT ID : Each key knows its parent. This creates the hierarchy.
 If the parent is NULL then it is the root level of the hierarchy.
@@ -150,6 +117,11 @@ keys must have a name and cannot be NULL.
 VALUE : The value is the text data that is associated with a config key. The
 value can be NULL for keys that only exist in the path with no data. There are
 no data types or format checks on the values.
+
+### Component data owners
+
+The component name should be the first key in a heirarchy.  This allows
+duplicate key to be in the list under different components.
 
 ### Appendix Other hierarchical map techniques
 
