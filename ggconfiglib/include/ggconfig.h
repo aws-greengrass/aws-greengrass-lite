@@ -19,3 +19,6 @@ GglError ggconfig_get_value_from_key(
 GglError ggconfig_get_key_notification(
     const char *key, GglConfigCallback callback, void *parameter
 );
+
+GglError ggconfig_open(void);
+GglError ggconfig_close(void);
