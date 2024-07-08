@@ -36,10 +36,10 @@ int main(void) {
         GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));
         GglObject result;
 
-        ret = ggl_call(conn, GGL_STR("publish"), args, &alloc.alloc, &result);
+        ret = ggl_call(conn, GGL_STR("echo"), args, &alloc.alloc, &result);
 
         if (ret != 0) {
-            GGL_LOGE("client", "Failed to send publish: %d.", ret);
+            GGL_LOGE("client", "Failed to send echo: %d.", ret);
             break;
         }
     }
