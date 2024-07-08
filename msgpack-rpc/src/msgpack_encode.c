@@ -302,10 +302,7 @@ static GglError write_list(GglAlloc *alloc, GglList list) {
     }
 
     for (size_t i = 0; i < list.len; i++) {
-        GglError ret = write_obj(alloc, list.items[i]);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+        GGL_TRY(write_obj(alloc, list.items[i]));
     }
     return 0;
 }
@@ -343,14 +340,8 @@ static GglError write_map(GglAlloc *alloc, GglMap map) {
 
     for (size_t i = 0; i < map.len; i++) {
         GglKV pair = map.pairs[i];
-        GglError ret = write_str(alloc, pair.key);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        ret = write_obj(alloc, pair.val);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+        GGL_TRY(write_str(alloc, pair.key));
+        GGL_TRY(write_obj(alloc, pair.val));
     }
     return 0;
 }
@@ -380,10 +371,7 @@ static GglError write_obj(GglAlloc *alloc, GglObject obj) {
 GglError ggl_msgpack_encode(GglObject obj, GglBuffer *buf) {
     assert((buf != NULL) && (buf->data != NULL));
     GglBumpAlloc mem = ggl_bump_alloc_init(*buf);
-    GglError ret = write_obj(&mem.alloc, obj);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
+    GGL_TRY(write_obj(&mem.alloc, obj));
     buf->len = mem.index;
     return 0;
 }

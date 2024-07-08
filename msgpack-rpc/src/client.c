@@ -132,10 +132,7 @@ static GglError parse_incoming(
     GglBuffer msg = buf;
     GglObject obj;
 
-    GglError ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(ggl_msgpack_decode_lazy_noalloc(&msg, &obj));
 
     if ((obj.type != GGL_TYPE_LIST) || (obj.list.len != 4)) {
         GGL_LOGE("msgpack-rpc", "Received payload not 4 element array.");
@@ -143,10 +140,7 @@ static GglError parse_incoming(
     }
 
     // payload type
-    ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(ggl_msgpack_decode_lazy_noalloc(&msg, &obj));
 
     if ((obj.type != GGL_TYPE_I64) || (obj.i64 != 1)) {
         GGL_LOGE("msgpack-rpc", "Received payload type invalid.");
@@ -154,10 +148,7 @@ static GglError parse_incoming(
     }
 
     // msgid
-    ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(ggl_msgpack_decode_lazy_noalloc(&msg, &obj));
 
     if ((obj.type != GGL_TYPE_I64) || (obj.i64 < 0) || (obj.i64 > UINT32_MAX)) {
         GGL_LOGE("msgpack-rpc", "Received payload msgid invalid.");
@@ -168,10 +159,7 @@ static GglError parse_incoming(
 
     // error
     GglBuffer copy = msg;
-    ret = ggl_msgpack_decode_lazy_noalloc(&copy, &obj);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(ggl_msgpack_decode_lazy_noalloc(&copy, &obj));
 
     if (obj.type != GGL_TYPE_NULL) {
         msg.len -= 1; // Account for result (should be nil, aka 1 byte)
@@ -210,10 +198,7 @@ GglError ggl_call(
 
         GglBuffer send_buffer = GGL_BUF(payload_array);
 
-        GglError ret = ggl_msgpack_encode(payload, &send_buffer);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+        GGL_TRY(ggl_msgpack_encode(payload, &send_buffer));
 
         sys_ret = send(conn->sockfd, send_buffer.data, send_buffer.len, 0);
     }
@@ -262,11 +247,7 @@ GglError ggl_call(
         uint32_t ret_id;
         bool error;
         GglBuffer result_buf;
-        GglError ret
-            = parse_incoming(recv_buffer, &ret_id, &error, &result_buf);
-        if (ret != 0) {
-            return ret;
-        }
+        GGL_TRY(parse_incoming(recv_buffer, &ret_id, &error, &result_buf));
 
         if (ret_id != msgid) {
             // not ours
@@ -278,7 +259,7 @@ GglError ggl_call(
         // claim message
         (void) recv(conn->sockfd, NULL, 0, MSG_TRUNC);
 
-        ret = ggl_msgpack_decode(alloc, result_buf, result);
+        GglError ret = ggl_msgpack_decode(alloc, result_buf, result);
         if (ret != 0) {
             GGL_LOGE("msgpack-rpc", "Failed to decode payload response.");
             return GGL_ERR_PARSE;
@@ -302,10 +283,7 @@ GglError ggl_notify(GglConn *conn, GglBuffer method, GglList params) {
 
         GglBuffer send_buffer = GGL_BUF(payload_array);
 
-        GglError ret = ggl_msgpack_encode(payload, &send_buffer);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+        GGL_TRY(ggl_msgpack_encode(payload, &send_buffer));
 
         sys_ret = send(conn->sockfd, send_buffer.data, send_buffer.len, 0);
     }

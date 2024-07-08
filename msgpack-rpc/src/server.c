@@ -99,10 +99,7 @@ static GglError parse_incoming(
     GglBuffer msg = buf;
     GglObject obj;
 
-    GglError ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(ggl_msgpack_decode_lazy_noalloc(&msg, &obj));
 
     if ((obj.type != GGL_TYPE_LIST)) {
         GGL_LOGE("msgpack-rpc", "Received payload that is not an array.");
@@ -117,10 +114,7 @@ static GglError parse_incoming(
     }
 
     // type
-    ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(ggl_msgpack_decode_lazy_noalloc(&msg, &obj));
 
     if (obj.type != GGL_TYPE_I64) {
         GGL_LOGE("msgpack-rpc", "Received payload type invalid.");
@@ -137,10 +131,7 @@ static GglError parse_incoming(
         }
 
         // msgid
-        ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
-        if (ret != 0) {
-            return ret;
-        }
+        GGL_TRY(ggl_msgpack_decode_lazy_noalloc(&msg, &obj));
 
         if ((obj.type != GGL_TYPE_I64) || (obj.i64 < 0)
             || (obj.i64 > UINT32_MAX)) {
@@ -168,10 +159,7 @@ static GglError parse_incoming(
     }
 
     // method
-    ret = ggl_msgpack_decode_lazy_noalloc(&msg, &obj);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(ggl_msgpack_decode_lazy_noalloc(&msg, &obj));
 
     if (obj.type != GGL_TYPE_BUF) {
         GGL_LOGE("msgpack-rpc", "Received non-raw method.");
@@ -182,10 +170,7 @@ static GglError parse_incoming(
 
     // params
     GglBuffer copy = msg;
-    ret = ggl_msgpack_decode_lazy_noalloc(&copy, &obj);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(ggl_msgpack_decode_lazy_noalloc(&copy, &obj));
 
     if (obj.type != GGL_TYPE_LIST) {
         GGL_LOGE("msgpack-rpc", "Received non-array params.");

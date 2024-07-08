@@ -132,10 +132,7 @@ static GglError count_headers(GglBuffer headers_buf, uint32_t *count) {
     GglBuffer headers = headers_buf;
 
     while (headers.len > 0) {
-        GglError err = take_header(&headers);
-        if (err != GGL_ERR_OK) {
-            return err;
-        }
+        GGL_TRY(take_header(&headers));
         headers_count += 1;
     }
 
@@ -199,10 +196,7 @@ GglError eventstream_decode(GglBuffer buf, EventStreamMessage *msg) {
     assert(payload.len == payload_len);
 
     uint32_t headers_count = 0;
-    GglError err = count_headers(headers_buf, &headers_count);
-    if (err != GGL_ERR_OK) {
-        return err;
-    }
+    GGL_TRY(count_headers(headers_buf, &headers_count));
 
     EventStreamHeaderIter header_iter = {
         .pos = headers_buf.data,

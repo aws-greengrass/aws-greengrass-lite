@@ -165,10 +165,7 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
     );
     assert(mqtt_ret == MQTTSuccess);
 
-    GglError ret = iotcored_tls_connect(args, &net_ctx.tls_ctx);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(iotcored_tls_connect(args, &net_ctx.tls_ctx));
 
     size_t id_len = strlen(args->id);
     if (id_len > UINT16_MAX) {

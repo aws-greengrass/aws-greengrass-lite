@@ -38,4 +38,12 @@ typedef enum GglError {
     GGL_ERR_CONFIG,
 } GglError;
 
+#define GGL_TRY(exp) \
+    { \
+        GglError try_err = (exp); \
+        if (try_err != GGL_ERR_OK) { \
+            return try_err; \
+        } \
+    }
+
 #endif

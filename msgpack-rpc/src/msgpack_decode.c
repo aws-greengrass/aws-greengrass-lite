@@ -44,10 +44,7 @@ static GglError read_uint(GglBuffer *buf, size_t bytes, uint64_t *result) {
     assert((bytes <= sizeof(uint64_t)) && (bytes > 0));
 
     GglBuffer read_from;
-    GglError ret = buf_split(*buf, &read_from, buf, bytes);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
+    GGL_TRY(buf_split(*buf, &read_from, buf, bytes));
 
     uint64_t value = 0;
     memcpy(&((char *) &value)[sizeof(uint64_t) - bytes], read_from.data, bytes);
@@ -62,10 +59,7 @@ static GglError decode_uint(GglBuffer *buf, size_t bytes, GglObject *obj) {
 
     uint64_t value;
 
-    GglError ret = read_uint(buf, bytes, &value);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
+    GGL_TRY(read_uint(buf, bytes, &value));
 
     if (value > INT64_MAX) {
         return GGL_ERR_RANGE;
@@ -80,10 +74,7 @@ static GglError decode_int(GglBuffer *buf, size_t bytes, GglObject *obj) {
     assert((bytes <= sizeof(uint64_t)) && (bytes > 0));
 
     GglBuffer read_from;
-    GglError ret = buf_split(*buf, &read_from, buf, bytes);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
+    GGL_TRY(buf_split(*buf, &read_from, buf, bytes));
 
     bool negative = (read_from.data[0] & 0x80) > 0;
 
@@ -109,10 +100,7 @@ static GglError decode_buf(
     assert((buf != NULL) && (obj != NULL));
 
     GglBuffer old;
-    GglError ret = buf_split(*buf, &old, buf, len);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
+    GGL_TRY(buf_split(*buf, &old, buf, len));
 
     if (noalloc) {
         *obj = GGL_OBJ(old);
@@ -140,10 +128,7 @@ static GglError decode_len_buf(
     assert((buf != NULL) && (obj != NULL));
 
     uint64_t len;
-    GglError ret = read_uint(buf, len_bytes, &len);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(read_uint(buf, len_bytes, &len));
 
     return decode_buf(noalloc, alloc, buf, len, obj);
 }
@@ -153,10 +138,7 @@ static GglError decode_f32(GglBuffer *buf, GglObject *obj) {
     assert((buf != NULL) && (obj != NULL));
 
     uint64_t value_bytes_64;
-    GglError ret = read_uint(buf, 4, &value_bytes_64);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(read_uint(buf, 4, &value_bytes_64));
 
     uint32_t value_bytes = (uint32_t) value_bytes_64;
     float value;
@@ -171,10 +153,7 @@ static GglError decode_f64(GglBuffer *buf, GglObject *obj) {
     assert((buf != NULL) && (obj != NULL));
 
     uint64_t value_bytes;
-    GglError ret = read_uint(buf, 8, &value_bytes);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(read_uint(buf, 8, &value_bytes));
 
     double value;
     memcpy(&value, &value_bytes, 8);
@@ -198,10 +177,7 @@ static GglError decode_array(
         }
 
         for (size_t i = 0; i < len; i++) {
-            GglError ret = decode_obj(noalloc, alloc, buf, &items[i]);
-            if (ret != 0) {
-                return ret;
-            }
+            GGL_TRY(decode_obj(noalloc, alloc, buf, &items[i]));
         }
 
         *obj = GGL_OBJ((GglList) { .len = len, .items = items });
@@ -221,10 +197,7 @@ static GglError decode_len_array(
     assert((alloc != NULL) && (buf != NULL) && (obj != NULL));
 
     uint64_t len;
-    GglError ret = read_uint(buf, len_bytes, &len);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(read_uint(buf, len_bytes, &len));
 
     return decode_array(noalloc, alloc, buf, len, obj);
 }
@@ -245,10 +218,7 @@ static GglError decode_map(
 
         for (size_t i = 0; i < len; i++) {
             GglObject key;
-            GglError ret = decode_obj(noalloc, alloc, buf, &key);
-            if (ret != 0) {
-                return ret;
-            }
+            GGL_TRY(decode_obj(noalloc, alloc, buf, &key));
 
             if (key.type != GGL_TYPE_BUF) {
                 GGL_LOGE("msgpack", "Map has unsupported key type.");
@@ -256,10 +226,7 @@ static GglError decode_map(
             }
             pairs[i].key = key.buf;
 
-            ret = decode_obj(noalloc, alloc, buf, &pairs[i].val);
-            if (ret != 0) {
-                return ret;
-            }
+            GGL_TRY(decode_obj(noalloc, alloc, buf, &pairs[i].val));
         }
 
         *obj = GGL_OBJ((GglMap) { .len = len, .pairs = pairs });
@@ -278,10 +245,7 @@ static GglError decode_len_map(
     assert((alloc != NULL) && (buf != NULL) && (obj != NULL));
 
     uint64_t len;
-    GglError ret = read_uint(buf, len_bytes, &len);
-    if (ret != 0) {
-        return ret;
-    }
+    GGL_TRY(read_uint(buf, len_bytes, &len));
 
     return decode_map(noalloc, alloc, buf, len, obj);
 }
@@ -436,10 +400,7 @@ GglError ggl_msgpack_decode(GglAlloc *alloc, GglBuffer buf, GglObject *obj) {
     assert((alloc != NULL) && (obj != NULL));
 
     GglBuffer msg = buf;
-    GglError ret = decode_obj(false, alloc, &msg, obj);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
+    GGL_TRY(decode_obj(false, alloc, &msg, obj));
 
     // Ensure no trailing data
     if (msg.len != 0) {
