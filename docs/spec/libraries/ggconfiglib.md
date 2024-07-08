@@ -54,6 +54,8 @@ flexibility in implementation.
 
 | function                    | purpose                                               | parameters                                                           |
 | --------------------------- | ----------------------------------------------------- | -------------------------------------------------------------------- |
+| ggconfig_open               | open the configuration system                         | None                                                                 |
+| ggconfig_close              | close the configuration system                        | None                                                                 |
 | ggconfig_writeValueToKey    | Update the value at the specified key in the keypath. | Key String, Value String, Component Name String                      |
 | ggconfig_insertKeyAndValue  | Create a new key in the keypath and add the value.    | Key String, Value String, Component Name String                      |
 | ggconfig_getValueFromKey    | Return the value stored at the specified keypath.     | Key String, Value Buffer, Value Buffer Length, Component Name String |
