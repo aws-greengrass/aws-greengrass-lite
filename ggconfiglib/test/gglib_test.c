@@ -34,6 +34,26 @@ void testGet() {
     }
 }
 
+void testInsertBadKey() {
+    const char *testKeys[] = {
+        "the key path", "/key/path\\test", "key/path\\test", "key/1path/a_test"
+    };
+
+    for (int index = 0; index < sizeof(testKeys) / sizeof(*testKeys); index++) {
+        if (ggconfig_insert_key_and_value(testKeys[index], "aValue")
+            == GGL_ERR_INVALID) {
+            GGL_LOGI(
+                "ggconfig test", "bad path detected : %s", testKeys[index]
+            );
+        } else {
+            GGL_LOGE(
+                "gglconfig test", "bad path not detected: %s", testKeys[index]
+            );
+            exit(1);
+        }
+    }
+}
+
 int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
@@ -43,6 +63,7 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
+    testInsertBadKey();
     testInsert();
     testGet();
 
