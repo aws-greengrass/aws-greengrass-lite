@@ -24,10 +24,10 @@ int main(void) {
         return EHOSTUNREACH;
     }
 
-    GglList args = GGL_LIST(GGL_OBJ_MAP(
+    GglMap args = GGL_MAP(
         { GGL_STR("topic"), GGL_OBJ_STR("hello") },
         { GGL_STR("payload"), GGL_OBJ_STR("hello world") },
-    ));
+    );
 
     ggl_notify(conn, GGL_STR("publish"), args);
 

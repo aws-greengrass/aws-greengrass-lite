@@ -26,12 +26,12 @@ void ggl_close(GglConn *conn);
 GglError ggl_call(
     GglConn *conn,
     GglBuffer method,
-    GglList params,
+    GglMap params,
     GglAlloc *alloc,
     GglObject *result
 ) __attribute__((warn_unused_result));
 
 /** Make an RPC notification (no response). */
-GglError ggl_notify(GglConn *conn, GglBuffer method, GglList params);
+GglError ggl_notify(GglConn *conn, GglBuffer method, GglMap params);
 
 #endif

@@ -337,7 +337,18 @@ noreturn void ggl_listen(GglBuffer path, void *ctx) {
                     };
                 }
 
-                ggl_receive_callback(ctx, method, params, handle);
+                if ((params.len < 1)
+                    || (params.items[0].type != GGL_TYPE_MAP)) {
+                    GGL_LOGE(
+                        "msgpack-rpc",
+                        "Received invalid arguments. Expected single map as "
+                        "parameter."
+                    );
+                    ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
+                    break;
+                }
+
+                ggl_receive_callback(ctx, method, params.items[0].map, handle);
             }
         }
     }

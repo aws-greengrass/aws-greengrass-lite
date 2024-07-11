@@ -189,7 +189,7 @@ static GglError parse_incoming(
 GglError ggl_call(
     GglConn *conn,
     GglBuffer method,
-    GglList params,
+    GglMap params,
     GglAlloc *alloc,
     GglObject *result
 ) {
@@ -199,7 +199,10 @@ GglError ggl_call(
     msgid = conn->counter++;
 
     GglObject payload = GGL_OBJ_LIST(
-        GGL_OBJ_I64(0), GGL_OBJ_I64(msgid), GGL_OBJ(method), GGL_OBJ(params)
+        GGL_OBJ_I64(0),
+        GGL_OBJ_I64(msgid),
+        GGL_OBJ(method),
+        GGL_OBJ_LIST(GGL_OBJ(params))
     );
 
     ssize_t sys_ret;
@@ -288,11 +291,12 @@ GglError ggl_call(
     }
 }
 
-GglError ggl_notify(GglConn *conn, GglBuffer method, GglList params) {
+GglError ggl_notify(GglConn *conn, GglBuffer method, GglMap params) {
     assert(conn != NULL);
 
-    GglObject payload
-        = GGL_OBJ_LIST(GGL_OBJ_I64(2), GGL_OBJ(method), GGL_OBJ(params));
+    GglObject payload = GGL_OBJ_LIST(
+        GGL_OBJ_I64(2), GGL_OBJ(method), GGL_OBJ_LIST(GGL_OBJ(params))
+    );
 
     ssize_t sys_ret;
 

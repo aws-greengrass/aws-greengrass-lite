@@ -57,20 +57,12 @@ static void rpc_publish(GglMap params, GglResponseHandle *handle) {
 }
 
 void ggl_receive_callback(
-    void *ctx, GglBuffer method, GglList params, GglResponseHandle *handle
+    void *ctx, GglBuffer method, GglMap params, GglResponseHandle *handle
 ) {
     (void) ctx;
 
-    if ((params.len < 1) || (params.items[0].type != GGL_TYPE_MAP)) {
-        GGL_LOGE("rpc-handler", "Received invalid arguments.");
-        ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
-        return;
-    }
-
-    GglMap param_map = params.items[0].map;
-
     if (ggl_buffer_eq(method, GGL_STR("publish"))) {
-        rpc_publish(param_map, handle);
+        rpc_publish(params, handle);
     } else {
         GGL_LOGE(
             "rpc-handler",

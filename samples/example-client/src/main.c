@@ -26,7 +26,7 @@ int main(void) {
         return EHOSTUNREACH;
     }
 
-    GglList args = GGL_LIST(GGL_OBJ_STR("hello"), GGL_OBJ_STR("world"));
+    GglMap args = GGL_MAP({ GGL_STR("message"), GGL_OBJ_STR("hello world") });
 
     struct timespec before;
     struct timespec after;
