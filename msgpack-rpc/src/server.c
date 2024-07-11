@@ -209,38 +209,41 @@ noreturn void ggl_listen(GglBuffer path, void *ctx) {
         }
         GGL_DEFER(close, sockfd);
 
-        struct sockaddr_un addr = { .sun_family = AF_UNIX, .sun_path = { 0 } };
+        { // Scope for reducing stack frame size
+            struct sockaddr_un addr
+                = { .sun_family = AF_UNIX, .sun_path = { 0 } };
 
-        // Skipping first byte (makes socket in abstract namespace)
+            // Skipping first byte (makes socket in abstract namespace)
 
-        size_t copy_len = path.len <= sizeof(addr.sun_path) - 1
-            ? path.len
-            : sizeof(addr.sun_path) - 1;
+            size_t copy_len = path.len <= sizeof(addr.sun_path) - 1
+                ? path.len
+                : sizeof(addr.sun_path) - 1;
 
-        if (copy_len < path.len) {
-            GGL_LOGW(
-                "msgpack-rpc",
-                "Truncating path to %u bytes [%.*s]",
-                (unsigned) copy_len,
-                (int) path.len,
-                (char *) path.data
-            );
-        }
+            if (copy_len < path.len) {
+                GGL_LOGW(
+                    "msgpack-rpc",
+                    "Truncating path to %u bytes [%.*s]",
+                    (unsigned) copy_len,
+                    (int) path.len,
+                    (char *) path.data
+                );
+            }
 
-        memcpy(&addr.sun_path[1], path.data, copy_len);
+            memcpy(&addr.sun_path[1], path.data, copy_len);
 
-        if (bind(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-            int err = errno;
-            GGL_LOGE("msgpack-rpc", "Failed to bind socket: %d.", err);
-            ggl_sleep(5);
-            continue;
-        }
+            if (bind(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+                int err = errno;
+                GGL_LOGE("msgpack-rpc", "Failed to bind socket: %d.", err);
+                ggl_sleep(5);
+                continue;
+            }
 
-        if (listen(sockfd, 20) == -1) {
-            int err = errno;
-            GGL_LOGE("msgpack-rpc", "Failed to listen socket: %d.", err);
-            ggl_sleep(5);
-            continue;
+            if (listen(sockfd, 20) == -1) {
+                int err = errno;
+                GGL_LOGE("msgpack-rpc", "Failed to listen socket: %d.", err);
+                ggl_sleep(5);
+                continue;
+            }
         }
 
         while (true) {
