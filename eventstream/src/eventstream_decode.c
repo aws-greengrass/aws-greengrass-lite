@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "eventstream.h"
+#include "eventstream_decode.h"
 #include "crc32.h"
-#include "ggl/error.h"
-#include "ggl/log.h"
+#include "eventstream_types.h"
 #include <assert.h>
 #include <ggl/buffer.h>
+#include <ggl/error.h>
+#include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
 #include <stdbool.h>
@@ -37,7 +38,10 @@ static int64_t read_be_int(GglBuffer buf) {
     return ret;
 }
 
+/** Removes next header from buffer */
 static GglError take_header(GglBuffer *headers_buf) {
+    assert(headers_buf != NULL);
+
     uint32_t pos = 0;
 
     if (headers_buf->len - pos < 1) {
@@ -61,23 +65,6 @@ static GglError take_header(GglBuffer *headers_buf) {
     pos += 1;
 
     switch (header_value_type) {
-    case EVENTSTREAM_TRUE:
-    case EVENTSTREAM_FALSE:
-        break;
-    case EVENTSTREAM_BYTE:
-        if (headers_buf->len - pos < 1) {
-            GGL_LOGE("eventstream", "Header parsing out of bounds.");
-            return GGL_ERR_PARSE;
-        }
-        pos += 1;
-        break;
-    case EVENTSTREAM_INT16:
-        if (headers_buf->len - pos < 2) {
-            GGL_LOGE("eventstream", "Header parsing out of bounds.");
-            return GGL_ERR_PARSE;
-        }
-        pos += 2;
-        break;
     case EVENTSTREAM_INT32:
         if (headers_buf->len - pos < 4) {
             GGL_LOGE("eventstream", "Header parsing out of bounds.");
@@ -85,22 +72,6 @@ static GglError take_header(GglBuffer *headers_buf) {
         }
         pos += 4;
         break;
-    case EVENTSTREAM_INT64:
-    case EVENTSTREAM_TIMESTAMP:
-        if (headers_buf->len - pos < 8) {
-            GGL_LOGE("eventstream", "Header parsing out of bounds.");
-            return GGL_ERR_PARSE;
-        }
-        pos += 8;
-        break;
-    case EVENTSTREAM_UUID:
-        if (headers_buf->len - pos < 16) {
-            GGL_LOGE("eventstream", "Header parsing out of bounds.");
-            return GGL_ERR_PARSE;
-        }
-        pos += 16;
-        break;
-    case EVENTSTREAM_BYTE_BUFFER:
     case EVENTSTREAM_STRING:
         if (headers_buf->len - pos < 2) {
             GGL_LOGE("eventstream", "Header parsing out of bounds.");
@@ -117,7 +88,7 @@ static GglError take_header(GglBuffer *headers_buf) {
         pos += value_len;
         break;
     default:
-        GGL_LOGE("eventstream", "Invalid header value type.");
+        GGL_LOGE("eventstream", "Unsupported header value type.");
         return GGL_ERR_PARSE;
     }
 
@@ -144,6 +115,8 @@ static GglError count_headers(GglBuffer headers_buf, uint32_t *count) {
 }
 
 GglError eventstream_decode(GglBuffer buf, EventStreamMessage *msg) {
+    assert(msg != NULL);
+
     uint32_t crc = 0;
 
     // Prelude
@@ -189,7 +162,7 @@ GglError eventstream_decode(GglBuffer buf, EventStreamMessage *msg) {
         return GGL_ERR_PARSE;
     }
 
-    uint32_t payload_len = message_len - 16 - headers_len;
+    uint32_t payload_len = message_len - 12 - headers_len - 4;
 
     GglBuffer headers_buf = ggl_buffer_substr(buf, 12, 12 + headers_len);
     GglBuffer payload
@@ -220,6 +193,9 @@ GglError eventstream_decode(GglBuffer buf, EventStreamMessage *msg) {
 GglError eventstream_header_next(
     EventStreamHeaderIter *headers, EventStreamHeader *header
 ) {
+    assert(headers != NULL);
+    assert(header != NULL);
+
     uint8_t *pos = headers->pos;
     uint8_t header_name_len = pos[0];
     pos += 1;
@@ -234,42 +210,19 @@ GglError eventstream_header_next(
     uint8_t header_value_type = pos[0];
     pos += 1;
 
-    GglObject value;
+    EventStreamHeaderValue value = { .type = header_value_type };
 
     switch (header_value_type) {
-    case EVENTSTREAM_TRUE:
-        value = GGL_OBJ_BOOL(true);
-        break;
-    case EVENTSTREAM_FALSE:
-        value = GGL_OBJ_BOOL(false);
-        break;
-    case EVENTSTREAM_BYTE:
-        value = GGL_OBJ_I64((int64_t) pos[0]);
-        pos += 1;
-        break;
-    case EVENTSTREAM_INT16:
-        value = GGL_OBJ_I64(read_be_int((GglBuffer) { .data = pos, .len = 2 }));
-        pos += 2;
-        break;
     case EVENTSTREAM_INT32:
-        value = GGL_OBJ_I64(read_be_int((GglBuffer) { .data = pos, .len = 4 }));
+        value.int32
+            = (int32_t) read_be_int((GglBuffer) { .data = pos, .len = 4 });
         pos += 4;
         break;
-    case EVENTSTREAM_INT64:
-    case EVENTSTREAM_TIMESTAMP:
-        value = GGL_OBJ_I64(read_be_int((GglBuffer) { .data = pos, .len = 8 }));
-        pos += 8;
-        break;
-    case EVENTSTREAM_UUID:
-        value = GGL_OBJ((GglBuffer) { .data = pos, .len = 16 });
-        pos += 16;
-        break;
-    case EVENTSTREAM_BYTE_BUFFER:
     case EVENTSTREAM_STRING: {
-        uint16_t value_len = (uint16_t) (pos[0] << 8) + pos[1];
+        uint16_t str_len = (uint16_t) (pos[0] << 8) + pos[1];
         pos += 2;
-        value = GGL_OBJ((GglBuffer) { .data = pos, .len = value_len });
-        pos += value_len;
+        value.string = (GglBuffer) { .data = pos, .len = str_len };
+        pos += str_len;
         break;
     }
     default:
@@ -282,7 +235,6 @@ GglError eventstream_header_next(
 
     *header = (EventStreamHeader) {
         .name = header_name,
-        .type = header_value_type,
         .value = value,
     };
 
