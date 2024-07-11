@@ -3,22 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/server.h"
-#include "ggl/bump_alloc.h"
-#include "ggl/defer.h"
-#include "ggl/error.h"
-#include "ggl/log.h"
-#include "ggl/object.h"
-#include "ggl/utils.h"
 #include "msgpack.h"
 #include <assert.h>
 #include <errno.h>
+#include <ggl/bump_alloc.h>
+#include <ggl/defer.h>
+#include <ggl/error.h>
+#include <ggl/log.h>
+#include <ggl/object.h>
+#include <ggl/server.h>
+#include <ggl/utils.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -286,7 +287,7 @@ noreturn void ggl_listen(GglBuffer path, void *ctx) {
                 }
 
                 if ((size_t) sys_ret == 0) {
-                    GGL_LOGI("msgpack-rpc", "Connection closed.");
+                    GGL_LOGD("msgpack-rpc", "Connection closed.");
                     break;
                 }
 

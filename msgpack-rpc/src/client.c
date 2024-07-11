@@ -3,16 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/client.h"
-#include "ggl/alloc.h"
-#include "ggl/defer.h"
-#include "ggl/error.h"
-#include "ggl/log.h"
-#include "ggl/object.h"
-#include "ggl/utils.h"
 #include "msgpack.h"
 #include <assert.h>
 #include <errno.h>
+#include <ggl/alloc.h>
+#include <ggl/client.h>
+#include <ggl/defer.h>
+#include <ggl/error.h>
+#include <ggl/log.h>
+#include <ggl/object.h>
+#include <ggl/utils.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -24,52 +24,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/** Maximum number of simultaneous client connections.
- * Can be configured with `-DGGL_CLIENT_CONN_MAX=<N>`. */
-#ifndef GGL_CLIENT_CONN_MAX
-#define GGL_CLIENT_CONN_MAX 1
-#endif
-
 static pthread_mutex_t payload_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t payload_array[GGL_MSGPACK_MAX_MSG_LEN];
 
-struct GglConn {
-    int sockfd;
-    uint32_t counter;
-};
-
-static GglConn conns[GGL_CLIENT_CONN_MAX];
-pthread_mutex_t conns_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-static const int CONNS_FREE = -2;
-static const int CONNS_UNINIT = -3;
-
-__attribute__((constructor)) static void init_conns(void) {
-    for (size_t i = 0; i < GGL_CLIENT_CONN_MAX; i++) {
-        conns[i] = (GglConn) { .sockfd = CONNS_FREE };
-    }
-}
-
-static GglConn *get_free_conn(void) {
-    pthread_mutex_lock(&conns_mutex);
-    GGL_DEFER(pthread_mutex_unlock, conns_mutex);
-
-    for (size_t i = 0; i < GGL_CLIENT_CONN_MAX; i++) {
-        if (conns[i].sockfd == CONNS_FREE) {
-            conns[i] = (GglConn) {
-                .sockfd = CONNS_UNINIT,
-                .counter = 0,
-            };
-            return &conns[i];
-        }
-    }
-    return NULL;
-}
-
-__attribute__((weak)) GglError ggl_connect(GglBuffer path, GglConn **conn) {
+static GglError interface_connect(GglBuffer interface, int *conn) {
     assert(conn != NULL);
-
-    *conn = NULL;
 
     int sockfd = socket(AF_UNIX, SOCK_SEQPACKET, 0);
     if (sockfd == -1) {
@@ -83,21 +42,21 @@ __attribute__((weak)) GglError ggl_connect(GglBuffer path, GglConn **conn) {
 
     // Skipping first byte (makes socket in abstract namespace)
 
-    size_t copy_len = path.len <= sizeof(addr.sun_path) - 1
-        ? path.len
+    size_t copy_len = interface.len <= sizeof(addr.sun_path) - 1
+        ? interface.len
         : sizeof(addr.sun_path) - 1;
 
-    if (copy_len < path.len) {
+    if (copy_len < interface.len) {
         GGL_LOGW(
             "msgpack-rpc",
             "Truncating path to %u bytes [%.*s]",
             (unsigned) copy_len,
-            (int) path.len,
-            (char *) path.data
+            (int) interface.len,
+            (char *) interface.data
         );
     }
 
-    memcpy(&addr.sun_path[1], path.data, copy_len);
+    memcpy(&addr.sun_path[1], interface.data, copy_len);
 
     if (connect(sockfd, (const struct sockaddr *) &addr, sizeof(addr)) == -1) {
         int err = errno;
@@ -105,25 +64,9 @@ __attribute__((weak)) GglError ggl_connect(GglBuffer path, GglConn **conn) {
         return GGL_ERR_FAILURE;
     }
 
-    GglConn *c = get_free_conn();
-    if (c == NULL) {
-        return GGL_ERR_BUSY;
-    }
-
     GGL_DEFER_CANCEL(sockfd);
-    *c = (GglConn) { .sockfd = sockfd, .counter = 0 };
-    *conn = c;
-    return 0;
-}
-
-void ggl_close(GglConn *conn) {
-    assert(conn != NULL);
-
-    pthread_mutex_lock(&conns_mutex);
-    GGL_DEFER(pthread_mutex_unlock, conns_mutex);
-
-    close(conn->sockfd);
-    conn->sockfd = CONNS_FREE;
+    *conn = sockfd;
+    return GGL_ERR_OK;
 }
 
 static GglError parse_incoming(
@@ -187,17 +130,20 @@ static GglError parse_incoming(
 }
 
 GglError ggl_call(
-    GglConn *conn,
+    GglBuffer interface,
     GglBuffer method,
     GglMap params,
     GglAlloc *alloc,
     GglObject *result
 ) {
-    assert(conn != NULL);
+    int conn = -1;
+    GglError ret = interface_connect(interface, &conn);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    GGL_DEFER(close, conn);
 
-    uint32_t msgid;
-    msgid = conn->counter++;
-
+    uint32_t msgid = 1;
     GglObject payload = GGL_OBJ_LIST(
         GGL_OBJ_I64(0),
         GGL_OBJ_I64(msgid),
@@ -213,12 +159,12 @@ GglError ggl_call(
 
         GglBuffer send_buffer = GGL_BUF(payload_array);
 
-        GglError ret = ggl_msgpack_encode(payload, &send_buffer);
+        ret = ggl_msgpack_encode(payload, &send_buffer);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
 
-        sys_ret = send(conn->sockfd, send_buffer.data, send_buffer.len, 0);
+        sys_ret = send(conn, send_buffer.data, send_buffer.len, 0);
     }
 
     if (sys_ret < 0) {
@@ -234,10 +180,7 @@ GglError ggl_call(
         GglBuffer recv_buffer = GGL_BUF(payload_array);
 
         sys_ret = recv(
-            conn->sockfd,
-            recv_buffer.data,
-            recv_buffer.len,
-            MSG_PEEK | MSG_TRUNC
+            conn, recv_buffer.data, recv_buffer.len, MSG_PEEK | MSG_TRUNC
         );
 
         if (sys_ret < 0) {
@@ -265,8 +208,7 @@ GglError ggl_call(
         uint32_t ret_id;
         bool error;
         GglBuffer result_buf;
-        GglError ret
-            = parse_incoming(recv_buffer, &ret_id, &error, &result_buf);
+        ret = parse_incoming(recv_buffer, &ret_id, &error, &result_buf);
         if (ret != 0) {
             return ret;
         }
@@ -279,7 +221,7 @@ GglError ggl_call(
         }
 
         // claim message
-        (void) recv(conn->sockfd, NULL, 0, MSG_TRUNC);
+        (void) recv(conn, NULL, 0, MSG_TRUNC);
 
         ret = ggl_msgpack_decode(alloc, result_buf, result);
         if (ret != 0) {
@@ -291,8 +233,13 @@ GglError ggl_call(
     }
 }
 
-GglError ggl_notify(GglConn *conn, GglBuffer method, GglMap params) {
-    assert(conn != NULL);
+GglError ggl_notify(GglBuffer interface, GglBuffer method, GglMap params) {
+    int conn = -1;
+    GglError ret = interface_connect(interface, &conn);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    GGL_DEFER(close, conn);
 
     GglObject payload = GGL_OBJ_LIST(
         GGL_OBJ_I64(2), GGL_OBJ(method), GGL_OBJ_LIST(GGL_OBJ(params))
@@ -306,12 +253,12 @@ GglError ggl_notify(GglConn *conn, GglBuffer method, GglMap params) {
 
         GglBuffer send_buffer = GGL_BUF(payload_array);
 
-        GglError ret = ggl_msgpack_encode(payload, &send_buffer);
+        ret = ggl_msgpack_encode(payload, &send_buffer);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
 
-        sys_ret = send(conn->sockfd, send_buffer.data, send_buffer.len, 0);
+        sys_ret = send(conn, send_buffer.data, send_buffer.len, 0);
     }
 
     if (sys_ret < 0) {
@@ -320,5 +267,5 @@ GglError ggl_notify(GglConn *conn, GglBuffer method, GglMap params) {
         return GGL_ERR_FAILURE;
     }
 
-    return 0;
+    return GGL_ERR_OK;
 }

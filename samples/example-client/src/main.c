@@ -17,15 +17,6 @@ int main(void) {
     GglBuffer server = GGL_STR("/aws/ggl/echo-server");
     static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
 
-    GglConn *conn;
-    GglError ret = ggl_connect(server, &conn);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "client", "Failed to connect to %.*s", (int) server.len, server.data
-        );
-        return EHOSTUNREACH;
-    }
-
     GglMap args = GGL_MAP({ GGL_STR("message"), GGL_OBJ_STR("hello world") });
 
     struct timespec before;
@@ -36,11 +27,12 @@ int main(void) {
         GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));
         GglObject result;
 
-        ret = ggl_call(conn, GGL_STR("echo"), args, &alloc.alloc, &result);
+        GglError ret
+            = ggl_call(server, GGL_STR("echo"), args, &alloc.alloc, &result);
 
         if (ret != 0) {
             GGL_LOGE("client", "Failed to send echo: %d.", ret);
-            break;
+            return EPROTO;
         }
     }
 

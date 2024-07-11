@@ -12,24 +12,21 @@
 int main(void) {
     GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
 
-    GglConn *conn;
-    GglError ret = ggl_connect(iotcored, &conn);
-    if (ret != 0) {
-        GGL_LOGE(
-            "mqtt-client",
-            "Failed to connect to %.*s",
-            (int) iotcored.len,
-            iotcored.data
-        );
-        return EHOSTUNREACH;
-    }
-
     GglMap args = GGL_MAP(
         { GGL_STR("topic"), GGL_OBJ_STR("hello") },
         { GGL_STR("payload"), GGL_OBJ_STR("hello world") },
     );
 
-    ggl_notify(conn, GGL_STR("publish"), args);
+    GglError ret = ggl_notify(iotcored, GGL_STR("publish"), args);
+    if (ret != 0) {
+        GGL_LOGE(
+            "mqtt-client",
+            "Failed to send notify message to %.*s",
+            (int) iotcored.len,
+            iotcored.data
+        );
+        return EPROTO;
+    }
 
     GGL_LOGI("mqtt-client", "Sent MQTT publish.");
 }

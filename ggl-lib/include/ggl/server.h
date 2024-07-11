@@ -6,7 +6,7 @@
 #ifndef GGL_COMMS_SERVER_H
 #define GGL_COMMS_SERVER_H
 
-#include "ggl/error.h"
+#include "error.h"
 #include "object.h"
 #include <stdnoreturn.h>
 
