@@ -3,11 +3,13 @@
 `recipe-runnerd` will act like a wrapper around the generic component to
 dynamically update the GG-recipe variables
 
-- [recipe-runnerd-1] The executable will execute all the commands within a selected phase as a bash script.
+- [recipe-runnerd-1] The executable will execute all the commands within a
+  selected phase as a bash script.
 - [recipe-runnerd-2] The executable will also forward its environment variables
   to the running script using global config.
 - [recipe-runnerd-3] On execution failure it prints the error message to stderr
-- [recipe-runnerd-4] The executable will take only 1 file as an argument and phase
+- [recipe-runnerd-4] The executable will take only 1 file as an argument and
+  phase
 
 ## CLI parameters
 
@@ -21,7 +23,8 @@ dynamically update the GG-recipe variables
 
 ### filePath
 
-- [recipe-runnerd-param-filePath-1] The argument will provide the path to selected lifecycle json.
+- [recipe-runnerd-param-filePath-1] The argument will provide the path to
+  selected lifecycle json.
 - [recipe-runnerd-param-filePath-2] The filePath argument can be provided by
   `--filepath` or `-f`.
 - [recipe-runnerd-param-filePath-3] The filePath argument is required.
