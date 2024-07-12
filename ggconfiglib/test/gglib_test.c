@@ -5,17 +5,14 @@
 #include <stddef.h>
 #include <stdio.h>
 
-const char *test_key = "component/foo/bar";
-const char *test_value = "baz";
-
-void testInsert() {
+void testInsert(const char *test_key, const char *test_value) {
     if (ggconfig_insert_key_and_value(test_key, test_value) != GGL_ERR_OK) {
         GGL_LOGE("ggconfig test", "insert failure");
         exit(1);
     }
 }
 
-void testGet() {
+void testGet(const char *test_key, const char *test_value) {
     char buffer[4] = { 0 };
     size_t buffer_length = sizeof(buffer);
 
@@ -64,8 +61,12 @@ int main(int argc, char **argv) {
     }
 
     testInsertBadKey();
-    testInsert();
-    testGet();
+    testInsert("component/foo/bar", "another big value");
+    testInsert("component/fooer/bar", "value2");
+    testInsert("component/foo/baz", "value");
+    testInsert("global", "value");
+
+    testGet("component/foo/bar", "another big value");
 
     if (GGL_ERR_OK != ggconfig_close()) {
         GGL_LOGE("ggconfig test", "ggconfig_close fail");

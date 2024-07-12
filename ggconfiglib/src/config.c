@@ -242,8 +242,7 @@ GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
     int keyIndex;
     bool searching = true;
     for (keyIndex = 0; keyIndex < keyPathDepth; keyIndex++) {
-        int i = 0;
-        int keyID = 0;
+        size_t i = 0;
         char aKey[32] = { 0 };
         /* extract the key */
         while (*c == '/') {
@@ -254,9 +253,7 @@ GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
             c++;
             i++;
         }
-
-        char searchString[128] = { 0 };
-
+        
         if (searching) {
             GGL_LOGI("gglconfig_insert", "searching %s", aKey);
             if (keyIndex == 0) {
