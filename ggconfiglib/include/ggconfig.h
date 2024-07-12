@@ -16,6 +16,8 @@ GglError ggconfig_get_value_from_key(
     const char *key, const char *value_buffer, size_t *value_buffer_length
 );
 
+GglError ggconfig_update(const char *key, const char *value);
+
 GglError ggconfig_get_key_notification(
     const char *key, GglConfigCallback callback, void *parameter
 );

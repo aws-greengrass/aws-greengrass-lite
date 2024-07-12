@@ -57,9 +57,9 @@ The API follows CRU.  Create, Read, Update.  Note the DELETE is NOT supported in
 | --------------------------- | ----------------------------------------------------- | ------------------------------- |
 | ggconfig_open               | open the configuration system                         | None                            |
 | ggconfig_close              | close the configuration system                        | None                            |
-| ggconfig_createKeyAndValue  | Create a new key in the keypath and add the value.    | Key, Value                      |
-| ggconfig_readValueFromKey   | Return the value stored at the specified keypath.     | Key, Value, Value Buffer Length |
-| ggconfig_updateValueToKey   | Update the value at the specified key in the keypath. | Key, Value                      |
+| ggconfig_insert             | Create a new key in the keypath and add the value.    | Key, Value                      |
+| ggconfig_read               | Return the value stored at the specified keypath.     | Key, Value, Value Buffer Length |
+| ggconfig_update             | Update the value at the specified key in the keypath. | Key, Value                      |
 | ggconfig_getKeyNotification | Register a callback on a keypath                      | Key, Callback                   |
 
 #### ggconfig_open
@@ -68,7 +68,9 @@ Open the configuration system for access.  The return will be GGL_ERR_OK or GGL_
 
 #### ggconfig_close
 
+Close the configuration system for access.  The return will be GGL_ERR_OK or GGL_ERR_FAILURE.
 
+#### ggconfig_insert
 
 #### ggconfig_writeValue
 
