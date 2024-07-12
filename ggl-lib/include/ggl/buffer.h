@@ -6,13 +6,17 @@
 #ifndef GGL_BUFFER_H
 #define GGL_BUFFER_H
 
-/*! Map utilities */
+/*! Buffer utilities. */
 
 #include "object.h"
 #include <stdbool.h>
 
-/** Get the value corresponding with a key.
- * If not found, returns false and `result` is NULL. */
+/** Returns whether two buffers have identical content. */
 bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2);
+
+/** Returns substring of buffer from start to end.
+ * The result is the overlap between the start to end range and the input
+ * bounds. */
+GglBuffer ggl_buffer_substr(GglBuffer buf, size_t start, size_t end);
 
 #endif

@@ -12,6 +12,7 @@ ggconfigd
 ggconfiglib
 ggconflib
 ggdeploymentd
+gghealthd
 gghttplib
 gglite
 htobe
@@ -23,7 +24,10 @@ LOGT
 LOGW
 mqtt
 mtls
+NOCONN
+NOENTRY
 NOLINTNEXTLINE
+NOMEM
 pkgs
 pname
 posix

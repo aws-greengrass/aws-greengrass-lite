@@ -25,12 +25,23 @@ __attribute__((weak)) void ggl_log(
 
     char *level_str;
     switch (level) {
-    case GGL_LOG_ERROR: level_str = "\033[1;31mE"; break;
-    case GGL_LOG_WARN: level_str = "\033[1;33mW"; break;
-    case GGL_LOG_INFO: level_str = "\033[0;32mI"; break;
-    case GGL_LOG_DEBUG: level_str = "\033[0;34mD"; break;
-    case GGL_LOG_TRACE: level_str = "\033[0;37mT"; break;
-    default: level_str = "\033[0;37m?";
+    case GGL_LOG_ERROR:
+        level_str = "\033[1;31mE";
+        break;
+    case GGL_LOG_WARN:
+        level_str = "\033[1;33mW";
+        break;
+    case GGL_LOG_INFO:
+        level_str = "\033[0;32mI";
+        break;
+    case GGL_LOG_DEBUG:
+        level_str = "\033[0;34mD";
+        break;
+    case GGL_LOG_TRACE:
+        level_str = "\033[0;37mT";
+        break;
+    default:
+        level_str = "\033[0;37m?";
     }
 
     {
