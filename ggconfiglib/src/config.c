@@ -80,7 +80,7 @@ static bool validate_keys(const char *key) {
 /** check for a key with the indicated parent.  Return the rowid for the key if
  * present.  return 0 if no key is found.  Note: rowid's start with 1 so 0 is
  * invalid.  If more than one key is found, return -1. */
-static int getKeyId(const char *key, int parent) {
+static int getKeyId(const char *key, long long parent) {
     sqlite3_stmt *stmt;
     char *errmsg;
     char sqlQuery[128] = { 0 };
@@ -97,7 +97,7 @@ static int getKeyId(const char *key, int parent) {
         snprintf(
             sqlQuery,
             sizeof(sqlQuery),
-            "SELECT rowid from config where parentid = %d and key = '%s';",
+            "SELECT rowid from config where parentid = %lld and key = '%s';",
             parent,
             key
         );
@@ -118,7 +118,7 @@ static int getKeyId(const char *key, int parent) {
             if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
                 GGL_LOGE(
                     "gglconfig_insert",
-                    "more than one instance of %s with parent %d",
+                    "more than one instance of %s with parent %lld",
                     key,
                     parent
                 );
@@ -136,7 +136,7 @@ static int getKeyId(const char *key, int parent) {
     return returnValue;
 }
 
-static bool insertKey(const char *key, int parent) {
+static bool insertKey(const char *key, long long parent) {
     char *errmsg;
     char sqlQuery[128] = { 0 };
     bool returnValue = false;
@@ -156,7 +156,7 @@ static bool insertKey(const char *key, int parent) {
         snprintf(
             sqlQuery,
             sizeof(sqlQuery),
-            "INSERT INTO config(parentid, key) VALUES (%d, '%s');",
+            "INSERT INTO config(parentid, key) VALUES (%lld, '%s');",
             parent,
             key
         );
@@ -175,7 +175,9 @@ static bool insertKey(const char *key, int parent) {
     return returnValue;
 }
 
-static bool insertKeyAndValue(const char *key, const char *value, int parent) {
+static bool insertKeyAndValue(
+    const char *key, const char *value, long long parent
+) {
     char *errmsg;
     char sqlQuery[128] = { 0 };
     bool returnValue = false;
@@ -197,7 +199,8 @@ static bool insertKeyAndValue(const char *key, const char *value, int parent) {
         snprintf(
             sqlQuery,
             sizeof(sqlQuery),
-            "INSERT INTO config(parentid, key, value) VALUES (%d, '%s', '%s');",
+            "INSERT INTO config(parentid, key, value) VALUES (%lld, '%s', "
+            "'%s');",
             parent,
             key,
             value
@@ -238,7 +241,7 @@ GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
     /* first find an existing key with the deepest depth */
     int keyPathDepth = count_key_path_depth(key);
     c = (char *) key;
-    int previousID = 0;
+    long long previousID = 0;
     int keyIndex;
     bool searching = true;
     for (keyIndex = 0; keyIndex < keyPathDepth; keyIndex++) {
@@ -253,7 +256,7 @@ GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
             c++;
             i++;
         }
-        
+
         if (searching) {
             GGL_LOGI("gglconfig_insert", "searching %s", aKey);
             if (keyIndex == 0) {
@@ -265,6 +268,7 @@ GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
                 return GGL_ERR_FAILURE;
             }
             if (previousID == 0) {
+                GGL_LOGI("gglconfig_insert", "leaving search mode");
                 searching = false;
             }
         }
@@ -278,6 +282,10 @@ GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
                 previousID = sqlite3_last_insert_rowid(config_database);
             }
         }
+    }
+    if (searching) {
+        GGL_LOGE("gglconfig_insert", "key path already exists");
+        return GGL_ERR_FAILURE;
     }
     /* finally add the new key & value */
     return GGL_ERR_OK;

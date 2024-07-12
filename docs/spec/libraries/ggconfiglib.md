@@ -21,11 +21,9 @@ flexibility in implementation.
 2. [ggconfiglib-2] The library can insert new key/value pairs
    - [ggconfiglib-2.1] The library will create the entire path as needed to
      place the new key-value pair.
-   - [ggconfiglib-2.2] The library will return GGL_ERR_FAILURE when the
-     requested component is not found.
-   - [ggconfiglib-2.3] The library will return GGL_ERR_FAILURE if the new key is
+   - [ggconfiglib-2.2] The library will return GGL_ERR_FAILURE if the new key is
      a duplicate.
-   - [ggconfiglib-2.4] The library will return GGL_ERR_FAILURE when the new
+   - [ggconfiglib-2.3] The library will return GGL_ERR_OK when the new
      value is created.
 3. [ggconfiglib-3] The library can modify existing key/value pairs
    - [ggconfiglib-3.1] The library will return GGL_ERR_FAILURE when the
@@ -53,14 +51,14 @@ The API follows CRU.  Create, Read, Update.  Note the DELETE is NOT supported in
 
 ### Functions
 
-| function                    | purpose                                               | parameters                      |
-| --------------------------- | ----------------------------------------------------- | ------------------------------- |
-| ggconfig_open               | open the configuration system                         | None                            |
-| ggconfig_close              | close the configuration system                        | None                            |
-| ggconfig_insert             | Create a new key in the keypath and add the value.    | Key, Value                      |
-| ggconfig_read               | Return the value stored at the specified keypath.     | Key, Value, Value Buffer Length |
-| ggconfig_update             | Update the value at the specified key in the keypath. | Key, Value                      |
-| ggconfig_getKeyNotification | Register a callback on a keypath                      | Key, Callback                   |
+| function                      | purpose                                               | parameters                      |
+| ----------------------------- | ----------------------------------------------------- | ------------------------------- |
+| ggconfig_open                 | open the configuration system                         | None                            |
+| ggconfig_close                | close the configuration system                        | None                            |
+| ggconfig_insert_key_and_value | Create a new key in the keypath and add the value.    | Key, Value                      |
+| ggconfig_get_value_from_key   | Return the value stored at the specified keypath.     | Key, Value, Value Buffer Length |
+| ggconfig_update_value_at_key  | Update the value at the specified key in the keypath. | Key, Value                      |
+| ggconfig_getKeyNotification   | Register a callback on a keypath                      | Key, Callback                   |
 
 #### ggconfig_open
 
@@ -70,9 +68,13 @@ Open the configuration system for access.  The return will be GGL_ERR_OK or GGL_
 
 Close the configuration system for access.  The return will be GGL_ERR_OK or GGL_ERR_FAILURE.
 
-#### ggconfig_insert
+#### ggconfig_insert_key_and_value
 
-#### ggconfig_writeValue
+The insert_key_and_value function will inspect the provided key path and determine that the key does not already exist.  If the path does not exist it will create the keys in the path and add the data in the last key.  If the path already exists it will return GG_ERR_FAILURE.
+
+#### ggconfig_update_value_at_key
+
+The update_value_at_key function will find an existing key in the database and update the value to the new value supplied.
 
 ### Error Constants
 
@@ -82,6 +84,7 @@ Close the configuration system for access.  The return will be GGL_ERR_OK or GGL
 | --------------- | ---------------------------------------------- |
 | GGL_ERR_OK      | The command completed successfully             |
 | GGL_ERR_FAILURE | The command failed. Check the logs for details |
+| GGL_ERR_INVALID | The command parameters are incorrect           |
 
 ## Design for SQLITE implementation
 
