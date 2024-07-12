@@ -109,6 +109,12 @@ static int getKeyId(const char *key, int parent) {
     } else {
         GGL_LOGI("gglconfig_insert", "found the rows");
         if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
+            /* get the rowid out of the column data */
+            int cnt = sqlite3_column_count(stmt);
+            int id = sqlite3_column_int(stmt, 0);
+            const char *name = sqlite3_column_text(stmt, 0);
+            GGL_LOGI("gglconfig_insert", "%d %d %s", cnt, id, name);
+
             if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
                 GGL_LOGE(
                     "gglconfig_insert",
@@ -118,11 +124,7 @@ static int getKeyId(const char *key, int parent) {
                 );
                 returnValue = -1;
             } else {
-                /* get the rowid out of the column data */
-                int id = sqlite3_column_int(stmt, 1);
-                const char *name = sqlite3_column_text(stmt, 1);
-                GGL_LOGI("gglconfig_insert", "%d %s", id, name);
-                returnValue = 0; // TODO fix this
+                returnValue = id;
             }
         }
         if (rc != SQLITE_DONE) {
