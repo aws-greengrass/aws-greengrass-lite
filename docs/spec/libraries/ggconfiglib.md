@@ -34,17 +34,20 @@ flexibility in implementation.
      requested component is not found.
    - [ggconfiglib-3.4] The library will return GGL_ERR_OK when the existing
      value is updated.
-4. [ggconfiglib-6] The library can call callbacks when key values change.
-   - [ggconfiglib-6.1] The library will return GGL_ERR_FAILURE if the requested
+4. [ggconfiglib-4] The library can call callbacks when key values change.
+   - [ggconfiglib-4.1] The library will return GGL_ERR_FAILURE if the requested
      subscription key is not found.
-   - [ggconfiglib-6.2] The library will return GGL_ERR_FAILURE when the
+   - [ggconfiglib-4.2] The library will return GGL_ERR_FAILURE when the
      requested keypath is invalid.
-   - [ggconfiglib-6.3] The library will return GGL_ERR_FAILURE when the
+   - [ggconfiglib-4.3] The library will return GGL_ERR_FAILURE when the
      requested component is not found.
-   - [ggconfiglib-6.4] The library will return GGL_ERR_OK when the subscription
+   - [ggconfiglib-4.4] The library will return GGL_ERR_OK when the subscription
      callback is installed.
-   - [ggconfiglib-6.5] The library will accept a NULL callback reference to
+   - [ggconfiglib-4.5] The library will accept a NULL callback reference to
      disable notifications.
+5. [ggconfiglib-5] valid key rules
+   - [ggconfiglib-5.1] A key is either a leaf or a branch.  Leaf's contain data while branches are links between branches or to leaves.
+   - [ggconfiglib-5.2] A key is named as
 
 ## Library API
 The API follows CRU.  Create, Read, Update.  Note the DELETE is NOT supported in this version.
@@ -105,8 +108,8 @@ is "owned" by a component. All values are stored as strings.
 
 ## Mapping the Datamodel to a relational database (sqlite)
 
-This implementation will use an adjacency list to create the hierarchical data
-mapping. The tables needed for configuration are as follows:
+This implementation will use an path list to create the hierarchical data
+mapping. The table needed for this configuration is as follows:
 
 1. Configuration Table
 
@@ -117,24 +120,31 @@ create the hierarchy. The key is a text string and is required to be a non-null
 value. The value can be null to allow the value to simply be a "key" on the
 hierarchy path.
 
-| Configuration ID | Configuration Parent ID | Key           | Value |
-| ---------------- | ----------------------- | ------------- | ----- |
-| Integer KEY      | Integer                 | Text NOT NULL | Text  |
+```
+create table config('path' text not null unique COLLATE NOCASE, 
+                    'isValue' int default 0,
+                    'value' text not null default '',
+                    'parent'  text not null default '' COLLATE NOCASE,
+                    primary key(path),
+                    foreign key(parent) references config(path) );
+```                    
 
-CONFIGURATION ID : The configuration id is the unique integer value for this
-configuration key. This allows two configuration items to share the same key
-text.
+| path       | isValue | value         | parent            |
+| ---------- | ------- | ------------- | ----------------- |
+| TEXT KEY   | INTEGER | TEXT          | TEXT Foreign Key  |
 
-CONFIGURATION PARENT ID : Each key knows its parent. This creates the hierarchy.
-If the parent is NULL then it is the root level of the hierarchy.
+PATH : This is the string path that ends with the key.  The path is case insensitive.
+Example - root/path/key
 
-KEY : The key is the name associated with this config option. A component must
-not have two keys with the same name at the same layer in the hierarchy. All
-keys must have a name and cannot be NULL.
+isValue: This is simply an indicator that the path is a full path terminating in a key or it is a partial path that does not end in a key with a value.
+TODO: Can isValue go away?
 
 VALUE : The value is the text data that is associated with a config key. The
 value can be NULL for keys that only exist in the path with no data. There are
 no data types or format checks on the values.
+
+PARENT: This is the full path up to the key without including the key.  This is included to speed the location of items at the same path level.
+TODO: Can parent go away.
 
 ### Component data owners
 

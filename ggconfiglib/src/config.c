@@ -1,7 +1,9 @@
 #include "ggconfig.h"
+#include <assert.h>
 #include <ctype.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <memory.h>
 #include <sqlite3.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -11,23 +13,9 @@ static bool config_initialized = false;
 static sqlite3 *config_database;
 static const char *config_database_name = "config.db";
 
-/* note keypath is a null terminated string. */
-static int count_key_path_depth(const char *keypath) {
-    int count = 0;
-    const char *c = keypath;
-    bool aWord = false;
-    do {
-        if (*c == 0 || *c == '/') {
-            if (aWord) {
-                aWord = false;
-                count++;
-            }
-        } else {
-            aWord = true;
-        }
-    } while (*c++);
-    GGL_LOGI("GGLCONFIG", "keypath depth is %d", count);
-    return count;
+/* TODO: do something to ensure the keypath is valid */
+bool validate_keys(const char *key) {
+    return true;
 }
 
 GglError ggconfig_open(void) {
@@ -47,10 +35,16 @@ GglError ggconfig_open(void) {
             /* create the initial table */
             int result;
             char *errMessage = 0;
-            const char *createQuery = "create table config('parentid' integer, "
-                                      "'key' string,"
-                                      "'value' string,"
-                                      "UNIQUE(key,parentid));";
+
+            const char *createQuery
+                = "create table config("
+                  "'path' text not null unique collate nocase,"
+                  "'isValue' int default 0,"
+                  "'value' text not null default '',"
+                  "'parent'  text not null default '' collate nocase,"
+                  "primary key(path),"
+                  "foreign key(parent) references config(path) );";
+
             if ((result = sqlite3_exec(
                      config_database, createQuery, NULL, NULL, &errMessage
                  ))) {
@@ -71,157 +65,13 @@ GglError ggconfig_close(void) {
     return GGL_ERR_OK;
 }
 
-static bool validate_keys(const char *key) {
-    (void) count_key_path_depth(key);
-    GGL_LOGI("GGLCONFIG", "validate keypath");
-    return true;
-}
-
-/** check for a key with the indicated parent.  Return the rowid for the key if
- * present.  return 0 if no key is found.  Note: rowid's start with 1 so 0 is
- * invalid.  If more than one key is found, return -1. */
-static int getKeyId(const char *key, long long parent) {
-    sqlite3_stmt *stmt;
-    char *errmsg;
-    char sqlQuery[128] = { 0 };
-    int returnValue = 0;
-
-    if (parent == 0) {
-        snprintf(
-            sqlQuery,
-            sizeof(sqlQuery),
-            "SELECT rowid from config where parentid is NULL and key = '%s';",
-            key
-        );
-    } else {
-        snprintf(
-            sqlQuery,
-            sizeof(sqlQuery),
-            "SELECT rowid from config where parentid = %lld and key = '%s';",
-            parent,
-            key
-        );
-    }
-
-    int rc = sqlite3_prepare_v2(config_database, sqlQuery, -1, &stmt, NULL);
-    if (rc != SQLITE_OK) {
-        GGL_LOGE("ggconfig_insert", "%s", sqlite3_errmsg(config_database));
-    } else {
-        GGL_LOGI("gglconfig_insert", "found the rows");
-        if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-            /* get the rowid out of the column data */
-            int cnt = sqlite3_column_count(stmt);
-            int id = sqlite3_column_int(stmt, 0);
-            const char *name = sqlite3_column_text(stmt, 0);
-            GGL_LOGI("gglconfig_insert", "%d %d %s", cnt, id, name);
-
-            if ((rc = sqlite3_step(stmt)) == SQLITE_ROW) {
-                GGL_LOGE(
-                    "gglconfig_insert",
-                    "more than one instance of %s with parent %lld",
-                    key,
-                    parent
-                );
-                returnValue = -1;
-            } else {
-                returnValue = id;
-            }
-        }
-        if (rc != SQLITE_DONE) {
-            GGL_LOGE("insert", "error %s", sqlite3_errmsg(config_database));
-            returnValue = -1;
-        }
-    }
-    sqlite3_finalize(stmt);
-    return returnValue;
-}
-
-static bool insertKey(const char *key, long long parent) {
-    char *errmsg;
-    char sqlQuery[128] = { 0 };
-    bool returnValue = false;
-    if (parent == 0) {
-        snprintf(
-            sqlQuery,
-            sizeof(sqlQuery),
-            "INSERT INTO config(key) VALUES ('%s');",
-            key
-        );
-        GGL_LOGI(
-            "gglconfig_insert",
-            "setting up for a key only insert without a parent: %s",
-            sqlQuery
-        );
-    } else {
-        snprintf(
-            sqlQuery,
-            sizeof(sqlQuery),
-            "INSERT INTO config(parentid, key) VALUES (%lld, '%s');",
-            parent,
-            key
-        );
-        GGL_LOGI(
-            "gglconfig_insert",
-            "setting up for a key only insert with a parent: %s",
-            sqlQuery
-        );
-    }
-    int rc = sqlite3_exec(config_database, sqlQuery, NULL, NULL, &errmsg);
-    if (rc != SQLITE_OK) {
-        GGL_LOGE("ggconfig_insert", "%s", errmsg);
-    } else {
-        returnValue = true;
-    }
-    return returnValue;
-}
-
-static bool insertKeyAndValue(
-    const char *key, const char *value, long long parent
-) {
-    char *errmsg;
-    char sqlQuery[128] = { 0 };
-    bool returnValue = false;
-
-    if (parent == 0) {
-        snprintf(
-            sqlQuery,
-            sizeof(sqlQuery),
-            "INSERT INTO config(key, value) VALUES ('%s', '%s');",
-            key,
-            value
-        );
-        GGL_LOGI(
-            "gglconfig_insert",
-            "setting up for a key only insert without a parent: %s",
-            sqlQuery
-        );
-    } else {
-        snprintf(
-            sqlQuery,
-            sizeof(sqlQuery),
-            "INSERT INTO config(parentid, key, value) VALUES (%lld, '%s', "
-            "'%s');",
-            parent,
-            key,
-            value
-        );
-        GGL_LOGI(
-            "gglconfig_insert",
-            "setting up for a key only insert with a parent: %s",
-            sqlQuery
-        );
-    }
-    int rc = sqlite3_exec(config_database, sqlQuery, NULL, NULL, &errmsg);
-    if (rc != SQLITE_OK) {
-        GGL_LOGE("ggconfig_insert", "%s", errmsg);
-    } else {
-        returnValue = true;
-    }
-    return returnValue;
-}
-
 GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
-    (void) value;
+    char *errmsg;
+    char sqlQuery[256] = { 0 };
+    char parentKey[128] = { 0 }; // todo... optimize these string sizes.
+
+    bool returnValue = false;
+
     if (config_initialized == false) {
         return GGL_ERR_FAILURE;
     }
@@ -237,57 +87,34 @@ GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
         }
         c++;
     }
-    /* create a new key on the keypath for this component */
-    /* first find an existing key with the deepest depth */
-    int keyPathDepth = count_key_path_depth(key);
-    c = (char *) key;
-    long long previousID = 0;
-    int keyIndex;
-    bool searching = true;
-    for (keyIndex = 0; keyIndex < keyPathDepth; keyIndex++) {
-        size_t i = 0;
-        char aKey[32] = { 0 };
-        /* extract the key */
-        while (*c == '/') {
-            c++;
-        }
-        while (*c != 0 && *c != '/' && i < sizeof(aKey)) {
-            aKey[i] = *c;
-            c++;
-            i++;
-        }
 
-        if (searching) {
-            GGL_LOGI("gglconfig_insert", "searching %s", aKey);
-            if (keyIndex == 0) {
-                previousID = getKeyId(aKey, 0);
-            } else {
-                previousID = getKeyId(aKey, previousID);
-            }
-            if (previousID < 0) {
-                return GGL_ERR_FAILURE;
-            }
-            if (previousID == 0) {
-                GGL_LOGI("gglconfig_insert", "leaving search mode");
-                searching = false;
-            }
-        }
-        if (!searching) {
-            GGL_LOGI("gglconfig_insert", "inserting %s", aKey);
-            if (keyIndex != keyPathDepth - 1) {
-                insertKey(aKey, previousID);
-                previousID = sqlite3_last_insert_rowid(config_database);
-            } else {
-                insertKeyAndValue(aKey, value, previousID);
-                previousID = sqlite3_last_insert_rowid(config_database);
-            }
-        }
+    // strip the parent key
+    // backup the character pointer from the previous path check until we reach
+    // the last / or the beginning of the string.
+    while (*c != '/' && c != key) {
+        c--;
     }
-    if (searching) {
-        GGL_LOGE("gglconfig_insert", "key path already exists");
+    // copy the shorter string to the parentKey variable.
+    // rely upon the initialization of 0's in parentKey for null termination.
+    assert(c >= key);
+    if (c > key) {
+        memcpy(parentKey, key, (unsigned long) ((char *) c - (char *) key));
+    }
+    snprintf(
+        sqlQuery,
+        sizeof(sqlQuery),
+        "INSERT INTO config(path, isValue, value, parent) VALUES ('%s', 1, "
+        "'%s', '%s');",
+        key,
+        value,
+        parentKey
+    );
+    GGL_LOGI("gglconfig_insert", "insert query: %s", sqlQuery);
+    int rc = sqlite3_exec(config_database, sqlQuery, NULL, NULL, &errmsg);
+    if (rc != SQLITE_OK) {
+        GGL_LOGE("ggconfig_insert", "%s", errmsg);
         return GGL_ERR_FAILURE;
     }
-    /* finally add the new key & value */
     return GGL_ERR_OK;
 }
 

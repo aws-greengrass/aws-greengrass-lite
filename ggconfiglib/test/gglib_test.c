@@ -31,6 +31,20 @@ void testGet(const char *test_key, const char *test_value) {
     }
 }
 
+void testCaseSensitiveKeys() {
+    const char *testKeys[] = { "Foo/bar/Baz", "foo/bar/baz" };
+    GglError error1 = ggconfig_insert_key_and_value(testKeys[0], "aValue");
+    GglError error2
+        = ggconfig_insert_key_and_value(testKeys[1], "anotherValue");
+
+    if (error1 == GGL_ERR_OK && error2 == GGL_ERR_FAILURE) {
+        GGL_LOGI("gglconfig test", "case insensitivity test pass");
+    } else {
+        GGL_LOGE("gglconfig test", "case insensitivity test fail");
+        exit(1);
+    }
+}
+
 void testInsertBadKey() {
     const char *testKeys[] = {
         "the key path", "/key/path\\test", "key/path\\test", "key/1path/a_test"
@@ -61,6 +75,7 @@ int main(int argc, char **argv) {
     }
 
     testInsertBadKey();
+    testCaseSensitiveKeys();
     testInsert("component/foo/bar", "another big value");
     testInsert("component/fooer/bar", "value2");
     testInsert("component/foo/baz", "value");
