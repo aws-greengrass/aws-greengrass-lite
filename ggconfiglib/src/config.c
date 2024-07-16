@@ -119,20 +119,41 @@ GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
 }
 
 GglError ggconfig_get_value_from_key(
-    const char *key, const char *value_buffer, size_t *value_buffer_length
+    const char *key, char *const value_buffer, int *value_buffer_length
 ) {
-    (void) value_buffer;
-    *value_buffer_length = 0;
+    sqlite3_stmt *stmt;
+    GglError returnValue = GGL_ERR_FAILURE;
 
     if (config_initialized == false) {
         return GGL_ERR_FAILURE;
     }
     if (validate_keys(key)) {
-        /* collect the data and write it to the supplied buffer. */
-        /* if the valueBufferLength is too small, return GGL_ERR_FAILURE */
-        return GGL_ERR_OK;
+        char sqlQuery[128] = { 0 };
+        snprintf(
+            sqlQuery,
+            sizeof(sqlQuery),
+            "SELECT value FROM config WHERE path = '%s';",
+            key
+        );
+        sqlite3_prepare_v2(config_database, sqlQuery, -1, &stmt, NULL);
+        if (sqlite3_step(stmt) != SQLITE_DONE) {
+            *value_buffer_length = snprintf(
+                value_buffer,
+                *value_buffer_length,
+                "%s",
+                sqlite3_column_text(stmt, 0)
+            );
+            GGL_LOGI("ggconfig_get", "%s", value_buffer);
+            if (sqlite3_step(stmt) != SQLITE_DONE) {
+                GGL_LOGE("ggconfig_get", "%s", sqlite3_errmsg(config_database));
+                returnValue = GGL_ERR_FAILURE;
+            } else {
+                returnValue = GGL_ERR_OK;
+            }
+        }
+        sqlite3_finalize(stmt);
     }
-    return GGL_ERR_FAILURE;
+    return returnValue;
 }
 
 GglError ggconfig_get_key_notification(

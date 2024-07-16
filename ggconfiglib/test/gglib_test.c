@@ -13,11 +13,12 @@ void testInsert(const char *test_key, const char *test_value) {
 }
 
 void testGet(const char *test_key, const char *test_value) {
-    char buffer[4] = { 0 };
-    size_t buffer_length = sizeof(buffer);
+    char buffer[50] = { 0 };
+    int buffer_length = sizeof(buffer);
 
     if (ggconfig_get_value_from_key(test_key, buffer, &buffer_length)
         == GGL_ERR_OK) {
+        GGL_LOGI("testGet", "received %s", buffer);
         if (buffer_length == strnlen(test_value, sizeof(buffer))
             && strncmp(test_value, buffer, buffer_length) == 0) {
             GGL_LOGI(
