@@ -38,7 +38,7 @@ void testCaseSensitiveKeys() {
     GglError error2
         = ggconfig_insert_key_and_value(testKeys[1], "anotherValue");
 
-    if (error1 == GGL_ERR_OK && error2 == GGL_ERR_FAILURE) {
+    if (error1 == GGL_ERR_OK && error2 == GGL_ERR_OK) {
         GGL_LOGI("gglconfig test", "case insensitivity test pass");
     } else {
         GGL_LOGE("gglconfig test", "case insensitivity test fail");
@@ -66,14 +66,18 @@ void testInsertBadKey() {
     }
 }
 
-void notificationCallback(void *parameter) {
-    const char *string = parameter;
-    GGL_LOGI("notification", "notification provided data %s", string);
-}
+void testGetWithBadKey() {
+    const char *testKey = "one/bad/key";
+    char valueBuffer[64] = { 0 };
+    int valueBufferLength = sizeof(valueBuffer);
 
-void testNotificationCallback() {
-
-    
+    GglError error
+        = ggconfig_get_value_from_key(testKey, valueBuffer, &valueBufferLength);
+    if (error == GGL_ERR_OK) {
+        GGL_LOGE("gglconfig_test", "Found %s at %s", valueBuffer, testKey);
+        exit(1);
+    }
+    GGL_LOGI("gglconfig_test", "bad key get successful");
 }
 
 int main(int argc, char **argv) {
@@ -86,6 +90,7 @@ int main(int argc, char **argv) {
     }
 
     testInsertBadKey();
+    testGetWithBadKey();
     testCaseSensitiveKeys();
     testInsert("component/foo/bar", "another big value");
     testInsert("component/fooer/bar", "value2");

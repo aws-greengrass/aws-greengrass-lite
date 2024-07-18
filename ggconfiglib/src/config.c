@@ -13,11 +13,6 @@ static bool config_initialized = false;
 static sqlite3 *config_database;
 static const char *config_database_name = "config.db";
 
-/* TODO: do something to ensure the keypath is valid */
-bool validate_keys(const char *key) {
-    return true;
-}
-
 GglError ggconfig_open(void) {
     if (config_initialized == false) {
         /* do configuration */
@@ -53,7 +48,7 @@ GglError ggconfig_open(void) {
                   "CREATE TRIGGER update_Timestamp_Trigger"
                   "AFTER UPDATE On valueTable BEGIN "
                   "UPDATE valueTable SET timeStamp = CURRENT_TIMESTAMP WHERE "
-                  "id = NEW.id;"
+                  "pathid = NEW.pathid;"
                   "END;";
 
             if ((result = sqlite3_exec(
@@ -76,15 +71,21 @@ GglError ggconfig_close(void) {
     return GGL_ERR_OK;
 }
 
+/* TODO: minimize the number of prepared statements. */
 static bool insertWholePath(const char *key, const char *value) {
     long long parentid = 0;
     char *c = NULL;
+    bool returnValue = false;
     char parentKey[128] = { 0 };
     sqlite3_stmt *rootCheckStmt;
     sqlite3_stmt *pathInsertStmt;
     sqlite3_stmt *relationInsertStmt;
     sqlite3_stmt *findElementStmt;
+    sqlite3_stmt *valueInsertStmt;
+    sqlite3_stmt *pathFindStmt;
+    sqlite3_stmt *updateValueStmt;
 
+    /* get a pathid where the path is a root (first element of a path) */
     sqlite3_prepare_v2(
         config_database,
         "select pathid from pathTable where pathid not in (select "
@@ -107,24 +108,51 @@ static bool insertWholePath(const char *key, const char *value) {
         &relationInsertStmt,
         NULL
     );
+    /* get a pathid where the path is a parent */
     sqlite3_prepare_v2(
         config_database,
-        "SELECT p.pathid FROM relationTable R LEFT JOIN pathTable P WHERE "
-        "P.pathid = R.parentid AND pathvalue = ?;",
+        "SELECT pathid FROM pathTable WHERE "
+        "pathvalue = ?;",
         -1,
         &findElementStmt,
         NULL
     );
+    sqlite3_prepare_v2(
+        config_database,
+        "INSERT INTO valueTable(pathid,value) VALUES (?,?)",
+        -1,
+        &valueInsertStmt,
+        NULL
+    );
+    /* get the pathid for a specified path  that is NOT referenced in the value
+     * table and is NOT referenced as a parent in the relation table */
+    sqlite3_prepare_v2(
+        config_database,
+        "SELECT pathid FROM pathTable WHERE pathid NOT IN (SELECT pathid from "
+        "valueTable) AND pathid NOT IN (SELECT parentid from relationTable) "
+        "AND pathvalue = ?;",
+        -1,
+        &pathFindStmt,
+        NULL
+    );
 
+    sqlite3_prepare_v2(
+        config_database,
+        "UPDATE valueTable SET value = ? WHERE pathid = (SELECT pathid from "
+        "pathTable where pathvalue = ?);",
+        -1,
+        &updateValueStmt,
+        NULL
+    );
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
     int depthCount = 0;
+    int pindex = 0;
     c = (char *) key - 1;
     do {
         c++;
+        assert(pindex < (sizeof(parentKey) / sizeof(*parentKey)));
         if (*c == '/' || *c == 0) {
-            memset(parentKey, 0, sizeof(parentKey));
-            memcpy(parentKey, key, (unsigned long) (c - key));
             GGL_LOGI("ggconfig_insert", "working on %s", parentKey);
             if (depthCount == 0) {
                 sqlite3_bind_text(
@@ -162,7 +190,9 @@ static bool insertWholePath(const char *key, const char *value) {
                 sqlite3_bind_text(
                     findElementStmt, 1, parentKey, -1, SQLITE_STATIC
                 );
-                if (sqlite3_step(findElementStmt) == SQLITE_ROW) {
+                int rc = sqlite3_step(findElementStmt);
+                GGL_LOGI("ggconfig_insert", "find element returned %d", rc);
+                if (rc == SQLITE_ROW) {
                     parentid = sqlite3_column_int(findElementStmt, 0);
                     GGL_LOGI(
                         "ggconfig_insert",
@@ -176,7 +206,9 @@ static bool insertWholePath(const char *key, const char *value) {
                     sqlite3_bind_text(pathInsertStmt, 1, parentKey, -1, NULL);
                     int rc = sqlite3_step(pathInsertStmt);
                     if (rc == SQLITE_DONE || rc == SQLITE_OK) {
-                        GGL_LOGI("ggconfig_insert", "insert successful");
+                        GGL_LOGI(
+                            "ggconfig_insert", "insert successful %s", parentKey
+                        );
                         long long pathid
                             = sqlite3_last_insert_rowid(config_database);
                         sqlite3_bind_int64(relationInsertStmt, 1, pathid);
@@ -184,14 +216,27 @@ static bool insertWholePath(const char *key, const char *value) {
                         rc = sqlite3_step(relationInsertStmt);
                         if (rc == SQLITE_DONE || rc == SQLITE_OK) {
                             GGL_LOGI(
-                                "ggconfig_insert", "relation insert successful"
+                                "ggconfig_insert",
+                                "relation insert successful path:%lld, "
+                                "parent:%lld",
+                                pathid,
+                                parentid
                             );
                         } else {
-                            GGL_LOGE("ggconfig_insert", "relation insert fail");
+                            GGL_LOGE(
+                                "ggconfig_insert",
+                                "relation insert fail: %s",
+                                sqlite3_errmsg(config_database)
+                            );
                         }
+                        parentid = pathid;
                         sqlite3_reset(relationInsertStmt);
                     } else {
-                        GGL_LOGE("ggconfig_insert", "insert fail");
+                        GGL_LOGE(
+                            "ggconfig_insert",
+                            "path insert fail for %s",
+                            parentKey
+                        );
                     }
                     sqlite3_reset(pathInsertStmt);
                 }
@@ -199,18 +244,67 @@ static bool insertWholePath(const char *key, const char *value) {
             }
             depthCount++;
             if (*c == 0) {
-                /* if the value & path is already in the valueTable do an UPDATE
-                 */
-                /* else insert */
+                int pathid = 0;
+                sqlite3_bind_text(pathFindStmt, 1, key, -1, SQLITE_STATIC);
+                if (sqlite3_step(pathFindStmt) == SQLITE_ROW) {
+                    pathid = sqlite3_column_int(pathFindStmt, 0);
+
+                    sqlite3_bind_int(valueInsertStmt, 1, pathid);
+                    sqlite3_bind_text(
+                        valueInsertStmt, 2, value, -1, SQLITE_STATIC
+                    );
+                    int rc = sqlite3_step(valueInsertStmt);
+                    if (rc == SQLITE_DONE || rc == SQLITE_OK) {
+                        GGL_LOGI("ggconfig_insert", "value insert successful");
+                        returnValue = true;
+                    } else {
+                        GGL_LOGE(
+                            "ggconfig_insert",
+                            "value insert fail : %s",
+                            sqlite3_errmsg(config_database)
+                        );
+                    }
+                    sqlite3_reset(valueInsertStmt);
+                } else {
+                    GGL_LOGI(
+                        "ggconfig_insert", "value already present.  updating"
+                    );
+                    sqlite3_bind_text(
+                        updateValueStmt, 1, value, -1, SQLITE_STATIC
+                    );
+                    sqlite3_bind_text(
+                        updateValueStmt, 2, key, -1, SQLITE_STATIC
+                    );
+                    int rc = sqlite3_step(updateValueStmt);
+                    GGL_LOGI("ggconfig_insert", "%d", rc);
+                    if (rc == SQLITE_DONE || rc == SQLITE_OK) {
+                        GGL_LOGI("ggconfig_insert", "value update successful");
+                        returnValue = true;
+                    } else {
+                        GGL_LOGE(
+                            "ggconfig_insert",
+                            "value update fail : %s",
+                            sqlite3_errmsg(config_database)
+                        );
+                    }
+                    sqlite3_reset(updateValueStmt);
+                }
+                sqlite3_reset(pathFindStmt);
             }
         }
+        parentKey[pindex++] = *c;
     } while (*c);
     sqlite3_finalize(findElementStmt);
     sqlite3_finalize(pathInsertStmt);
     sqlite3_finalize(relationInsertStmt);
     sqlite3_finalize(rootCheckStmt);
+    sqlite3_finalize(valueInsertStmt);
+    sqlite3_finalize(pathFindStmt);
+
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
+
     GGL_LOGI("ggconfig_insert", "finished with %s", key);
+    return returnValue;
 }
 
 GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
@@ -238,50 +332,48 @@ GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
         c++;
     }
     GGL_LOGI("ggconfig_insert", "Inserting %s: %s", key, value);
-    insertWholePath(key, value);
+
+    if (insertWholePath(key, value)) {
+        return GGL_ERR_OK;
+    }
     return GGL_ERR_FAILURE;
 }
 
 GglError ggconfig_get_value_from_key(
     const char *key, char *const value_buffer, int *value_buffer_length
 ) {
-    const char *sqlQueryRead
-        = "Select V.Value from PathTable P outer join ValueTable V outer join "
-          "RelationTable R where P.PathId"
-          "V.PathID and P.PathID = R.PathID and pathname = ? ;";
-
     sqlite3_stmt *stmt;
     GglError returnValue = GGL_ERR_FAILURE;
 
     if (config_initialized == false) {
         return GGL_ERR_FAILURE;
     }
-    if (validate_keys(key)) {
-        char sqlQuery[128] = { 0 };
-        snprintf(
-            sqlQuery,
-            sizeof(sqlQuery),
-            "SELECT value FROM config WHERE path = '%s';",
-            key
+
+    sqlite3_prepare_v2(
+        config_database,
+        "SELECT V.value FROM pathTable P LEFT JOIN valueTable V WHERE P.pathid "
+        "= V.pathid AND P.pathvalue = ?;",
+        -1,
+        &stmt,
+        NULL
+    );
+    sqlite3_bind_text(stmt, 1, key, -1, SQLITE_STATIC);
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        *value_buffer_length = snprintf(
+            value_buffer,
+            *value_buffer_length,
+            "%s",
+            sqlite3_column_text(stmt, 0)
         );
-        sqlite3_prepare_v2(config_database, sqlQuery, -1, &stmt, NULL);
+        GGL_LOGI("ggconfig_get", "%s", value_buffer);
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            *value_buffer_length = snprintf(
-                value_buffer,
-                *value_buffer_length,
-                "%s",
-                sqlite3_column_text(stmt, 0)
-            );
-            GGL_LOGI("ggconfig_get", "%s", value_buffer);
-            if (sqlite3_step(stmt) != SQLITE_DONE) {
-                GGL_LOGE("ggconfig_get", "%s", sqlite3_errmsg(config_database));
-                returnValue = GGL_ERR_FAILURE;
-            } else {
-                returnValue = GGL_ERR_OK;
-            }
+            GGL_LOGE("ggconfig_get", "%s", sqlite3_errmsg(config_database));
+            returnValue = GGL_ERR_FAILURE;
+        } else {
+            returnValue = GGL_ERR_OK;
         }
-        sqlite3_finalize(stmt);
     }
+    sqlite3_finalize(stmt);
     return returnValue;
 }
 
