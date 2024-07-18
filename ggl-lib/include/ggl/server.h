@@ -6,7 +6,7 @@
 #ifndef GGL_COMMS_SERVER_H
 #define GGL_COMMS_SERVER_H
 
-#include "ggl/error.h"
+#include "error.h"
 #include "object.h"
 #include <stdnoreturn.h>
 
@@ -24,7 +24,7 @@ noreturn void ggl_listen(GglBuffer path, void *ctx);
  * Defined by user of library.
  */
 void ggl_receive_callback(
-    void *ctx, GglBuffer method, GglList params, GglResponseHandle *handle
+    void *ctx, GglBuffer method, GglMap params, GglResponseHandle *handle
 );
 
 /** Respond to a message received from listen.

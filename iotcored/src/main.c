@@ -24,11 +24,21 @@ static struct argp_option opts[]
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {
     IotcoredArgs *args = state->input;
     switch (key) {
-    case 'e': args->endpoint = arg; break;
-    case 'i': args->id = arg; break;
-    case 'r': args->rootca = arg; break;
-    case 'c': args->cert = arg; break;
-    case 'k': args->key = arg; break;
+    case 'e':
+        args->endpoint = arg;
+        break;
+    case 'i':
+        args->id = arg;
+        break;
+    case 'r':
+        args->rootca = arg;
+        break;
+    case 'c':
+        args->cert = arg;
+        break;
+    case 'k':
+        args->key = arg;
+        break;
     case ARGP_KEY_END:
         if ((args->endpoint == NULL) || (args->id == NULL)
             || (args->rootca == NULL) || (args->cert == NULL)
@@ -37,7 +47,8 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
             argp_usage(state);
         }
         break;
-    default: return ARGP_ERR_UNKNOWN;
+    default:
+        return ARGP_ERR_UNKNOWN;
     }
     return 0;
 }
