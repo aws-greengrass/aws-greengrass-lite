@@ -66,6 +66,16 @@ void testInsertBadKey() {
     }
 }
 
+void notificationCallback(void *parameter) {
+    const char *string = parameter;
+    GGL_LOGI("notification", "notification provided data %s", string);
+}
+
+void testNotificationCallback() {
+
+    
+}
+
 int main(int argc, char **argv) {
     (void) argc;
     (void) argv;

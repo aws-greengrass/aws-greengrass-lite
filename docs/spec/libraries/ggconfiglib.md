@@ -23,8 +23,8 @@ flexibility in implementation.
      place the new key-value pair.
    - [ggconfiglib-2.2] The library will return GGL_ERR_FAILURE if the new key is
      a duplicate.
-   - [ggconfiglib-2.3] The library will return GGL_ERR_OK when the new
-     value is created.
+   - [ggconfiglib-2.3] The library will return GGL_ERR_OK when the new value is
+     created.
 3. [ggconfiglib-3] The library can modify existing key/value pairs
    - [ggconfiglib-3.1] The library will return GGL_ERR_FAILURE when the
      requested key is not found.
@@ -46,11 +46,14 @@ flexibility in implementation.
    - [ggconfiglib-4.5] The library will accept a NULL callback reference to
      disable notifications.
 5. [ggconfiglib-5] valid key rules
-   - [ggconfiglib-5.1] A key is either a leaf or a branch.  Leaf's contain data while branches are links between branches or to leaves.
+   - [ggconfiglib-5.1] A key is either a leaf or a branch. Leaf's contain data
+     while branches are links between branches or to leaves.
    - [ggconfiglib-5.2] A key is named as
 
 ## Library API
-The API follows CRU.  Create, Read, Update.  Note the DELETE is NOT supported in this version.
+
+The API follows CRU. Create, Read, Update. Note the DELETE is NOT supported in
+this version.
 
 ### Functions
 
@@ -65,19 +68,25 @@ The API follows CRU.  Create, Read, Update.  Note the DELETE is NOT supported in
 
 #### ggconfig_open
 
-Open the configuration system for access.  The return will be GGL_ERR_OK or GGL_ERR_FAILURE.
+Open the configuration system for access. The return will be GGL_ERR_OK or
+GGL_ERR_FAILURE.
 
 #### ggconfig_close
 
-Close the configuration system for access.  The return will be GGL_ERR_OK or GGL_ERR_FAILURE.
+Close the configuration system for access. The return will be GGL_ERR_OK or
+GGL_ERR_FAILURE.
 
 #### ggconfig_insert_key_and_value
 
-The insert_key_and_value function will inspect the provided key path and determine that the key does not already exist.  If the path does not exist it will create the keys in the path and add the data in the last key.  If the path already exists it will return GG_ERR_FAILURE.
+The insert_key_and_value function will inspect the provided key path and
+determine that the key does not already exist. If the path does not exist it
+will create the keys in the path and add the data in the last key. If the path
+already exists it will return GG_ERR_FAILURE.
 
 #### ggconfig_update_value_at_key
 
-The update_value_at_key function will find an existing key in the database and update the value to the new value supplied.
+The update_value_at_key function will find an existing key in the database and
+update the value to the new value supplied.
 
 ### Error Constants
 
@@ -111,45 +120,47 @@ is "owned" by a component. All values are stored as strings.
 This implementation will use an path list to create the hierarchical data
 mapping. The table needed for this configuration is as follows:
 
-1. Configuration Table
+1. Path Table
+2. Relationship Table
+3. Value Table
+4. Version Table
 
-### Configuration Table
-
-The configuration table includes the owning component and the config parent to
-create the hierarchy. The key is a text string and is required to be a non-null
-value. The value can be null to allow the value to simply be a "key" on the
-hierarchy path.
-
+### Path Table
+```sql
+CREATE TABLE pathTable('pathid' INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
+                       'pathvalue' TEXT NOT NULL UNIQUE COLLATE NOCASE  );
 ```
-create table config('path' text not null unique COLLATE NOCASE, 
-                    'isValue' int default 0,
-                    'value' text not null default '',
-                    'parent'  text not null default '' COLLATE NOCASE,
-                    primary key(path),
-                    foreign key(parent) references config(path) );
-```                    
+The pathTable keeps a list of every path segment in the system.  The path 'foo/bar/baz' will result in 3 entries into the path table: 'foo', 'foo/bar' and 'foo/bar/baz' with three different id's.
 
-| path       | isValue | value         | parent            |
-| ---------- | ------- | ------------- | ----------------- |
-| TEXT KEY   | INTEGER | TEXT          | TEXT Foreign Key  |
+### Relationship Table
+```SQL
+CREATE TABLE relationTable( 'pathid' INT UNIQUE NOT NULL, 
+                            'parentid' INT NOT NULL,
+                            PRIMARY KEY ( pathid ),
+                            FOREIGN KEY ( pathid ) REFERENCES pathTable(pathid),
+                            FOREIGN KEY( parentid) REFERENCES pathTable(pathid));
+```
+The relationship table allows the paths to keep track of their parents in the heirarchy.  This allows a query such as: 
+```SQL
+SELECT V.Value FROM relationTable R LEFT JOIN valueTable V LEFT JOIN pathTable P WHERE 
+  P.PathId = V.PathID AND P.PathID = R.PathID AND pathvalue = 'foo/bar/baz';
+```
+Which will ensure the returned value is a entry with a specific path and parentage.  The table creation rules also prevent duplicate keys by keeping the path and parents unique.
 
-PATH : This is the string path that ends with the key.  The path is case insensitive.
-Example - root/path/key
+### Value Table
+```SQL
+CREATE TABLE valueTable( 'pathid' INT UNIQUE NOT NULL,
+                         'value' TEXT NOT NULL,
+                         'timeStamp' TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                         FOREIGN KEY(pathid) REFERENCES pathTable(pathid) );
+```
+The value table keeps the actual value stored at a path with a time stamp and a link to the path.  The Timestamp is automatically created when a row is inserted.  An update trigger will update the timestamp automatically when the value is updated.  If an update specifically includes the timestamp the update trigger will overwrite the value.
 
-isValue: This is simply an indicator that the path is a full path terminating in a key or it is a partial path that does not end in a key with a value.
-TODO: Can isValue go away?
-
-VALUE : The value is the text data that is associated with a config key. The
-value can be NULL for keys that only exist in the path with no data. There are
-no data types or format checks on the values.
-
-PARENT: This is the full path up to the key without including the key.  This is included to speed the location of items at the same path level.
-TODO: Can parent go away.
-
-### Component data owners
-
-The component name should be the first key in a heirarchy.  This allows
-duplicate key to be in the list under different components.
+### Version Table
+```SQL
+CREATE TABLE version('version' TEXT DEFAULT '0.1');
+```
+The version table is a simple table that holds the current schema version.  When future changes demand an update to the schema, the version will allow a migration algorithm to be created that will update the schema to any future schema.
 
 ### Appendix Other hierarchical map techniques
 
