@@ -8,7 +8,6 @@ DGGL
 EFAILURE
 EOK
 execvpe
-gglib
 ggconfig
 ggconfigd
 ggconfiglib
@@ -16,6 +15,7 @@ ggconflib
 ggdeploymentd
 gghealthd
 gghttplib
+gglib
 gglite
 htobe
 iotcored
