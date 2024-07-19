@@ -146,7 +146,7 @@ CREATE TABLE relationTable( 'pathid' INT UNIQUE NOT NULL,
 ```
 
 The relationship table allows the paths to keep track of their parents in the
-heirarchy. This allows a query such as:
+hierarchy. This allows a query such as:
 
 ```SQL
 SELECT V.Value FROM relationTable R LEFT JOIN valueTable V LEFT JOIN pathTable P WHERE
