@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 void testInsert(const char *test_key, const char *test_value) {
-    if (ggconfig_insert_key_and_value(test_key, test_value) != GGL_ERR_OK) {
+    if (ggconfig_write_value_at_key(test_key, test_value) != GGL_ERR_OK) {
         GGL_LOGE("ggconfig test", "insert failure");
         exit(1);
     }
@@ -34,9 +34,8 @@ void testGet(const char *test_key, const char *test_value) {
 
 void testCaseSensitiveKeys() {
     const char *testKeys[] = { "Foo/bar/Baz", "foo/bar/baz" };
-    GglError error1 = ggconfig_insert_key_and_value(testKeys[0], "aValue");
-    GglError error2
-        = ggconfig_insert_key_and_value(testKeys[1], "anotherValue");
+    GglError error1 = ggconfig_write_value_at_key(testKeys[0], "aValue");
+    GglError error2 = ggconfig_write_value_at_key(testKeys[1], "anotherValue");
 
     if (error1 == GGL_ERR_OK && error2 == GGL_ERR_OK) {
         GGL_LOGI("gglconfig test", "case insensitivity test pass");
@@ -52,7 +51,7 @@ void testInsertBadKey() {
     };
 
     for (int index = 0; index < sizeof(testKeys) / sizeof(*testKeys); index++) {
-        if (ggconfig_insert_key_and_value(testKeys[index], "aValue")
+        if (ggconfig_write_value_at_key(testKeys[index], "aValue")
             == GGL_ERR_INVALID) {
             GGL_LOGI(
                 "ggconfig test", "bad path detected : %s", testKeys[index]

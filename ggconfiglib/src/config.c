@@ -307,7 +307,7 @@ static bool insertWholePath(const char *key, const char *value) {
     return returnValue;
 }
 
-GglError ggconfig_insert_key_and_value(const char *key, const char *value) {
+GglError ggconfig_write_value_at_key(const char *key, const char *value) {
     int rc;
     int pathid = 0;
     char *errmsg;

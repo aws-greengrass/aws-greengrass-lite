@@ -61,9 +61,8 @@ this version.
 | ----------------------------- | ----------------------------------------------------- | ------------------------------- |
 | ggconfig_open                 | open the configuration system                         | None                            |
 | ggconfig_close                | close the configuration system                        | None                            |
-| ggconfig_insert_key_and_value | Create a new key in the keypath and add the value.    | Key, Value                      |
+| ggconfig_write_value_at_key   | create a key with the indicated value.                | Key, Value                      |
 | ggconfig_get_value_from_key   | Return the value stored at the specified keypath.     | Key, Value, Value Buffer Length |
-| ggconfig_update_value_at_key  | Update the value at the specified key in the keypath. | Key, Value                      |
 | ggconfig_getKeyNotification   | Register a callback on a keypath                      | Key, Callback                   |
 
 #### ggconfig_open
