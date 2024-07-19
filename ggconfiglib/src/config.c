@@ -51,13 +51,15 @@ GglError ggconfig_open(void) {
                   "pathid = NEW.pathid;"
                   "END;";
 
-            if ((result = sqlite3_exec(
-                     config_database, createQuery, NULL, NULL, &errMessage
-                 ))) {
+            result = sqlite3_exec(
+                config_database, createQuery, NULL, NULL, &errMessage
+            );
+            if (result) {
                 if (errMessage) {
                     GGL_LOGI("GGLCONFIG", "%s", errMessage);
                     sqlite3_free(errMessage);
                 }
+                return GGL_ERR_FAILURE;
             }
         }
         config_initialized = true;
@@ -147,7 +149,7 @@ static bool insertWholePath(const char *key, const char *value) {
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
     int depth_count = 0;
-    int path_index = 0;
+    unsigned long path_index = 0;
     c = (char *) key - 1;
     do {
         c++;
@@ -206,7 +208,7 @@ static bool insertWholePath(const char *key, const char *value) {
                     sqlite3_bind_text(
                         path_insert_stmt, 1, parent_key, -1, NULL
                     );
-                    int rc = sqlite3_step(path_insert_stmt);
+                    rc = sqlite3_step(path_insert_stmt);
                     if (rc == SQLITE_DONE || rc == SQLITE_OK) {
                         GGL_LOGI(
                             "ggconfig_insert",
