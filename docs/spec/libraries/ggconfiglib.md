@@ -57,13 +57,13 @@ this version.
 
 ### Functions
 
-| function                      | purpose                                               | parameters                      |
-| ----------------------------- | ----------------------------------------------------- | ------------------------------- |
-| ggconfig_open                 | open the configuration system                         | None                            |
-| ggconfig_close                | close the configuration system                        | None                            |
-| ggconfig_write_value_at_key   | create a key with the indicated value.                | Key, Value                      |
-| ggconfig_get_value_from_key   | Return the value stored at the specified keypath.     | Key, Value, Value Buffer Length |
-| ggconfig_getKeyNotification   | Register a callback on a keypath                      | Key, Callback                   |
+| function                    | purpose                                           | parameters                      |
+| --------------------------- | ------------------------------------------------- | ------------------------------- |
+| ggconfig_open               | open the configuration system                     | None                            |
+| ggconfig_close              | close the configuration system                    | None                            |
+| ggconfig_write_value_at_key | create a key with the indicated value.            | Key, Value                      |
+| ggconfig_get_value_from_key | Return the value stored at the specified keypath. | Key, Value, Value Buffer Length |
+| ggconfig_getKeyNotification | Register a callback on a keypath                  | Key, Callback                   |
 
 #### ggconfig_open
 
@@ -125,41 +125,63 @@ mapping. The table needed for this configuration is as follows:
 4. Version Table
 
 ### Path Table
+
 ```sql
 CREATE TABLE pathTable('pathid' INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE NOT NULL,
                        'pathvalue' TEXT NOT NULL UNIQUE COLLATE NOCASE  );
 ```
-The pathTable keeps a list of every path segment in the system.  The path 'foo/bar/baz' will result in 3 entries into the path table: 'foo', 'foo/bar' and 'foo/bar/baz' with three different id's.
+
+The pathTable keeps a list of every path segment in the system. The path
+'foo/bar/baz' will result in 3 entries into the path table: 'foo', 'foo/bar' and
+'foo/bar/baz' with three different id's.
 
 ### Relationship Table
+
 ```SQL
-CREATE TABLE relationTable( 'pathid' INT UNIQUE NOT NULL, 
+CREATE TABLE relationTable( 'pathid' INT UNIQUE NOT NULL,
                             'parentid' INT NOT NULL,
                             PRIMARY KEY ( pathid ),
                             FOREIGN KEY ( pathid ) REFERENCES pathTable(pathid),
                             FOREIGN KEY( parentid) REFERENCES pathTable(pathid));
 ```
-The relationship table allows the paths to keep track of their parents in the heirarchy.  This allows a query such as: 
+
+The relationship table allows the paths to keep track of their parents in the
+heirarchy. This allows a query such as:
+
 ```SQL
-SELECT V.Value FROM relationTable R LEFT JOIN valueTable V LEFT JOIN pathTable P WHERE 
+SELECT V.Value FROM relationTable R LEFT JOIN valueTable V LEFT JOIN pathTable P WHERE
   P.PathId = V.PathID AND P.PathID = R.PathID AND pathvalue = 'foo/bar/baz';
 ```
-Which will ensure the returned value is a entry with a specific path and parentage.  The table creation rules also prevent duplicate keys by keeping the path and parents unique.
+
+Which will ensure the returned value is a entry with a specific path and
+parentage. The table creation rules also prevent duplicate keys by keeping the
+path and parents unique.
 
 ### Value Table
+
 ```SQL
 CREATE TABLE valueTable( 'pathid' INT UNIQUE NOT NULL,
                          'value' TEXT NOT NULL,
                          'timeStamp' TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                          FOREIGN KEY(pathid) REFERENCES pathTable(pathid) );
 ```
-The value table keeps the actual value stored at a path with a time stamp and a link to the path.  The Timestamp is automatically created when a row is inserted.  An update trigger will update the timestamp automatically when the value is updated.  If an update specifically includes the timestamp the update trigger will overwrite the value.
+
+The value table keeps the actual value stored at a path with a time stamp and a
+link to the path. The Timestamp is automatically created when a row is inserted.
+An update trigger will update the timestamp automatically when the value is
+updated. If an update specifically includes the timestamp the update trigger
+will overwrite the value.
 
 ### Version Table
+
 ```SQL
 CREATE TABLE version('version' TEXT DEFAULT '0.1');
 ```
-The version table is a simple table that holds the current schema version.  When future changes demand an update to the schema, the version will allow a migration algorithm to be created that will update the schema to any future schema.
+
+The version table is a simple table that holds the current schema version. When
+future changes demand an update to the schema, the version will allow a
+migration algorithm to be created that will update the schema to any future
+schema.
 
 ### Appendix Other hierarchical map techniques
 
