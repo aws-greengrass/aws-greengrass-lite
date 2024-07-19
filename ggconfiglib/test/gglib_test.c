@@ -38,9 +38,9 @@ void testCaseSensitiveKeys() {
     GglError error2 = ggconfig_write_value_at_key(testKeys[1], "anotherValue");
 
     if (error1 == GGL_ERR_OK && error2 == GGL_ERR_OK) {
-        GGL_LOGI("gglconfig test", "case insensitivity test pass");
+        GGL_LOGI("ggconfig test", "case insensitivity test pass");
     } else {
-        GGL_LOGE("gglconfig test", "case insensitivity test fail");
+        GGL_LOGE("ggconfig test", "case insensitivity test fail");
         exit(1);
     }
 }
@@ -58,7 +58,7 @@ void testInsertBadKey() {
             );
         } else {
             GGL_LOGE(
-                "gglconfig test", "bad path not detected: %s", testKeys[index]
+                "ggconfig test", "bad path not detected: %s", testKeys[index]
             );
             exit(1);
         }
@@ -73,10 +73,10 @@ void testGetWithBadKey() {
     GglError error
         = ggconfig_get_value_from_key(testKey, valueBuffer, &valueBufferLength);
     if (error == GGL_ERR_OK) {
-        GGL_LOGE("gglconfig_test", "Found %s at %s", valueBuffer, testKey);
+        GGL_LOGE("ggconfig_test", "Found %s at %s", valueBuffer, testKey);
         exit(1);
     }
-    GGL_LOGI("gglconfig_test", "bad key get successful");
+    GGL_LOGI("ggconfig_test", "bad key get successful");
 }
 
 int main(int argc, char **argv) {
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
     testGetWithBadKey();
     testCaseSensitiveKeys();
     testInsert("component/foo/bar", "another big value");
-    testInsert("component/fooer/bar", "value2");
+    testInsert("component/bar/foo", "value2");
     testInsert("component/foo/baz", "value");
     testInsert("global", "value");
 

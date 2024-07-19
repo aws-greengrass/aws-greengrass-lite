@@ -8,6 +8,7 @@ DGGL
 EFAILURE
 EOK
 execvpe
+gglib
 ggconfig
 ggconfigd
 ggconfiglib
@@ -25,10 +26,12 @@ LOGT
 LOGW
 mqtt
 mtls
+NOCASE
 NOCONN
 NOENTRY
 NOLINTNEXTLINE
 NOMEM
+parentid
 pkgs
 pname
 posix
@@ -40,4 +43,5 @@ statusd
 stdenv
 subscribetocomponentupdates
 tesd
+tlog
 unsuback

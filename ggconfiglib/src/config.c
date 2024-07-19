@@ -25,7 +25,7 @@ GglError ggconfig_open(void) {
             );
             return GGL_ERR_FAILURE;
         } else {
-            GGL_LOGI("GGLCONFIG", "Config database Opened");
+            GGL_LOGI("GGCONFIG", "Config database Opened");
 
             /* create the initial table */
             int result;
@@ -56,7 +56,7 @@ GglError ggconfig_open(void) {
             );
             if (result) {
                 if (errMessage) {
-                    GGL_LOGI("GGLCONFIG", "%s", errMessage);
+                    GGL_LOGI("GGCONFIG", "%s", errMessage);
                     sqlite3_free(errMessage);
                 }
                 return GGL_ERR_FAILURE;
