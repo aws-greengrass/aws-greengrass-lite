@@ -3,7 +3,6 @@
 #include <ctype.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <memory.h>
 #include <sqlite3.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -24,44 +23,44 @@ GglError ggconfig_open(void) {
                 sqlite3_errmsg(config_database)
             );
             return GGL_ERR_FAILURE;
-        } else {
-            GGL_LOGI("GGCONFIG", "Config database Opened");
-
-            /* create the initial table */
-            int result;
-            char *errMessage = 0;
-
-            const char *createQuery
-                = "CREATE TABLE pathTable('pathid' INTEGER PRIMARY KEY "
-                  "AUTOINCREMENT unique not null,"
-                  "'pathvalue' TEXT NOT NULL UNIQUE COLLATE NOCASE  );"
-                  "CREATE TABLE relationTable( 'pathid' INT UNIQUE NOT NULL, "
-                  "'parentid' INT NOT NULL,"
-                  "primary key ( pathid ),"
-                  "foreign key ( pathid ) references pathTable(pathid),"
-                  "foreign key( parentid) references pathTable(pathid));"
-                  "CREATE TABLE valueTable( 'pathid' INT UNIQUE NOT NULL,"
-                  "'value' TEXT NOT NULL,"
-                  "'timeStamp' TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
-                  "foreign key(pathid) references pathTable(pathid) );"
-                  "CREATE TABLE version('version' TEXT DEFAULT '0.1');"
-                  "CREATE TRIGGER update_Timestamp_Trigger"
-                  "AFTER UPDATE On valueTable BEGIN "
-                  "UPDATE valueTable SET timeStamp = CURRENT_TIMESTAMP WHERE "
-                  "pathid = NEW.pathid;"
-                  "END;";
-
-            result = sqlite3_exec(
-                config_database, createQuery, NULL, NULL, &errMessage
-            );
-            if (result) {
-                if (errMessage) {
-                    GGL_LOGI("GGCONFIG", "%s", errMessage);
-                    sqlite3_free(errMessage);
-                }
-                return GGL_ERR_FAILURE;
-            }
         }
+        GGL_LOGI("GGCONFIG", "Config database Opened");
+
+        /* create the initial table */
+        int result;
+        char *err_message = 0;
+
+        const char *create_query
+            = "CREATE TABLE pathTable('pathid' INTEGER PRIMARY KEY "
+              "AUTOINCREMENT unique not null,"
+              "'pathvalue' TEXT NOT NULL UNIQUE COLLATE NOCASE  );"
+              "CREATE TABLE relationTable( 'pathid' INT UNIQUE NOT NULL, "
+              "'parentid' INT NOT NULL,"
+              "primary key ( pathid ),"
+              "foreign key ( pathid ) references pathTable(pathid),"
+              "foreign key( parentid) references pathTable(pathid));"
+              "CREATE TABLE valueTable( 'pathid' INT UNIQUE NOT NULL,"
+              "'value' TEXT NOT NULL,"
+              "'timeStamp' TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+              "foreign key(pathid) references pathTable(pathid) );"
+              "CREATE TABLE version('version' TEXT DEFAULT '0.1');"
+              "CREATE TRIGGER update_Timestamp_Trigger"
+              "AFTER UPDATE On valueTable BEGIN "
+              "UPDATE valueTable SET timeStamp = CURRENT_TIMESTAMP WHERE "
+              "pathid = NEW.pathid;"
+              "END;";
+
+        result = sqlite3_exec(
+            config_database, create_query, NULL, NULL, &err_message
+        );
+        if (result) {
+            if (err_message) {
+                GGL_LOGI("GGCONFIG", "%s", err_message);
+                sqlite3_free(err_message);
+            }
+            return GGL_ERR_FAILURE;
+        }
+
         config_initialized = true;
     }
     return GGL_ERR_OK;
@@ -74,7 +73,7 @@ GglError ggconfig_close(void) {
 }
 
 /* TODO: minimize the number of prepared statements. */
-static bool insertWholePath(const char *key, const char *value) {
+static bool insert_whole_path(const char *key, const char *value) {
     long long parent_id = 0;
     char *c = NULL;
     bool return_value = false;
@@ -331,14 +330,14 @@ GglError ggconfig_write_value_at_key(const char *key, const char *value) {
     }
     GGL_LOGI("ggconfig_insert", "Inserting %s: %s", key, value);
 
-    if (insertWholePath(key, value)) {
+    if (insert_whole_path(key, value)) {
         return GGL_ERR_OK;
     }
     return GGL_ERR_FAILURE;
 }
 
 GglError ggconfig_get_value_from_key(
-    const char *key, char *const value_buffer, int *value_buffer_length
+    const char *key, char *value_buffer, int *value_buffer_length
 ) {
     sqlite3_stmt *stmt;
     GglError return_value = GGL_ERR_FAILURE;

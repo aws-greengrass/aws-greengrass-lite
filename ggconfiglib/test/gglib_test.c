@@ -1,24 +1,25 @@
 #include "ggconfig.h"
+#include <assert.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdio.h>
 
-void testInsert(const char *test_key, const char *test_value) {
+static void test_insert(const char *test_key, const char *test_value) {
     if (ggconfig_write_value_at_key(test_key, test_value) != GGL_ERR_OK) {
         GGL_LOGE("ggconfig test", "insert failure");
-        exit(1);
+        assert(0);
     }
 }
 
-void testGet(const char *test_key, const char *test_value) {
+static void test_get(const char *test_key, const char *test_value) {
     char buffer[50] = { 0 };
-    int buffer_length = sizeof(buffer);
+    size_t buffer_length = sizeof(buffer);
 
-    if (ggconfig_get_value_from_key(test_key, buffer, &buffer_length)
+    if (ggconfig_get_value_from_key(test_key, buffer, (int *) &buffer_length)
         == GGL_ERR_OK) {
-        GGL_LOGI("testGet", "received %s", buffer);
+        GGL_LOGI("test_get", "received %s", buffer);
         if (buffer_length == strnlen(test_value, sizeof(buffer))
             && strncmp(test_value, buffer, buffer_length) == 0) {
             GGL_LOGI(
@@ -28,53 +29,51 @@ void testGet(const char *test_key, const char *test_value) {
         }
     } else {
         printf("get failure\n");
-        exit(1);
+        assert(0);
     }
 }
 
-void testCaseSensitiveKeys() {
-    const char *testKeys[] = { "Foo/bar/Baz", "foo/bar/baz" };
-    GglError error1 = ggconfig_write_value_at_key(testKeys[0], "aValue");
-    GglError error2 = ggconfig_write_value_at_key(testKeys[1], "anotherValue");
+static void test_case_sensitive_keys(void) {
+    const char *test_keys[] = { "Foo/bar/Baz", "foo/bar/baz" };
+    GglError error1 = ggconfig_write_value_at_key(test_keys[0], "aValue");
+    GglError error2 = ggconfig_write_value_at_key(test_keys[1], "anotherValue");
 
-    if (error1 == GGL_ERR_OK && error2 == GGL_ERR_OK) {
-        GGL_LOGI("ggconfig test", "case insensitivity test pass");
-    } else {
-        GGL_LOGE("ggconfig test", "case insensitivity test fail");
-        exit(1);
-    }
+    assert(error1 == GGL_ERR_OK && error2 == GGL_ERR_OK);
+    GGL_LOGI("ggconfig test", "case insensitivity test pass");
 }
 
-void testInsertBadKey() {
-    const char *testKeys[] = {
+static void test_insert_bad_key(void) {
+    const char *test_keys[] = {
         "the key path", "/key/path\\test", "key/path\\test", "key/1path/a_test"
     };
 
-    for (int index = 0; index < sizeof(testKeys) / sizeof(*testKeys); index++) {
-        if (ggconfig_write_value_at_key(testKeys[index], "aValue")
+    for (unsigned int index = 0; index < sizeof(test_keys) / sizeof(*test_keys);
+         index++) {
+        if (ggconfig_write_value_at_key(test_keys[index], "aValue")
             == GGL_ERR_INVALID) {
             GGL_LOGI(
-                "ggconfig test", "bad path detected : %s", testKeys[index]
+                "ggconfig test", "bad path detected : %s", test_keys[index]
             );
         } else {
             GGL_LOGE(
-                "ggconfig test", "bad path not detected: %s", testKeys[index]
+                "ggconfig test", "bad path not detected: %s", test_keys[index]
             );
-            exit(1);
+            assert(0);
         }
     }
 }
 
-void testGetWithBadKey() {
-    const char *testKey = "one/bad/key";
-    char valueBuffer[64] = { 0 };
-    int valueBufferLength = sizeof(valueBuffer);
+static void test_get_with_bad_key(void) {
+    const char *test_key = "one/bad/key";
+    char value_buffer[64] = { 0 };
+    int value_buffer_length = sizeof(value_buffer);
 
-    GglError error
-        = ggconfig_get_value_from_key(testKey, valueBuffer, &valueBufferLength);
+    GglError error = ggconfig_get_value_from_key(
+        test_key, value_buffer, &value_buffer_length
+    );
     if (error == GGL_ERR_OK) {
-        GGL_LOGE("ggconfig_test", "Found %s at %s", valueBuffer, testKey);
-        exit(1);
+        GGL_LOGE("ggconfig_test", "Found %s at %s", value_buffer, test_key);
+        assert(0);
     }
     GGL_LOGI("ggconfig_test", "bad key get successful");
 }
@@ -85,18 +84,18 @@ int main(int argc, char **argv) {
 
     if (GGL_ERR_OK != ggconfig_open()) {
         GGL_LOGE("ggconfig test", "ggconfig_open fail");
-        exit(0);
+        assert(0);
     }
 
-    testInsertBadKey();
-    testGetWithBadKey();
-    testCaseSensitiveKeys();
-    testInsert("component/foo/bar", "another big value");
-    testInsert("component/bar/foo", "value2");
-    testInsert("component/foo/baz", "value");
-    testInsert("global", "value");
+    test_insert_bad_key();
+    test_get_with_bad_key();
+    test_case_sensitive_keys();
+    test_insert("component/foo/bar", "another big value");
+    test_insert("component/bar/foo", "value2");
+    test_insert("component/foo/baz", "value");
+    test_insert("global", "value");
 
-    testGet("component/foo/bar", "another big value");
+    test_get("component/foo/bar", "another big value");
 
     if (GGL_ERR_OK != ggconfig_close()) {
         GGL_LOGE("ggconfig test", "ggconfig_close fail");
