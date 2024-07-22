@@ -2,5 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggconfiglib_LIBS := ggl-lib
-ggconfiglib_PKGS := sqlite3
+eventstream_LIBS := ggl-lib

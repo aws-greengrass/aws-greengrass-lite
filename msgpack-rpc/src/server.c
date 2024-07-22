@@ -3,22 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/server.h"
-#include "ggl/bump_alloc.h"
-#include "ggl/defer.h"
-#include "ggl/error.h"
-#include "ggl/log.h"
-#include "ggl/object.h"
-#include "ggl/utils.h"
 #include "msgpack.h"
 #include <assert.h>
 #include <errno.h>
+#include <ggl/bump_alloc.h>
+#include <ggl/defer.h>
+#include <ggl/error.h>
+#include <ggl/log.h>
+#include <ggl/object.h>
+#include <ggl/server.h>
+#include <ggl/utils.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -209,38 +210,41 @@ noreturn void ggl_listen(GglBuffer path, void *ctx) {
         }
         GGL_DEFER(close, sockfd);
 
-        struct sockaddr_un addr = { .sun_family = AF_UNIX, .sun_path = { 0 } };
+        { // Scope for reducing stack frame size
+            struct sockaddr_un addr
+                = { .sun_family = AF_UNIX, .sun_path = { 0 } };
 
-        // Skipping first byte (makes socket in abstract namespace)
+            // Skipping first byte (makes socket in abstract namespace)
 
-        size_t copy_len = path.len <= sizeof(addr.sun_path) - 1
-            ? path.len
-            : sizeof(addr.sun_path) - 1;
+            size_t copy_len = path.len <= sizeof(addr.sun_path) - 1
+                ? path.len
+                : sizeof(addr.sun_path) - 1;
 
-        if (copy_len < path.len) {
-            GGL_LOGW(
-                "msgpack-rpc",
-                "Truncating path to %u bytes [%.*s]",
-                (unsigned) copy_len,
-                (int) path.len,
-                (char *) path.data
-            );
-        }
+            if (copy_len < path.len) {
+                GGL_LOGW(
+                    "msgpack-rpc",
+                    "Truncating path to %u bytes [%.*s]",
+                    (unsigned) copy_len,
+                    (int) path.len,
+                    (char *) path.data
+                );
+            }
 
-        memcpy(&addr.sun_path[1], path.data, copy_len);
+            memcpy(&addr.sun_path[1], path.data, copy_len);
 
-        if (bind(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-            int err = errno;
-            GGL_LOGE("msgpack-rpc", "Failed to bind socket: %d.", err);
-            ggl_sleep(5);
-            continue;
-        }
+            if (bind(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+                int err = errno;
+                GGL_LOGE("msgpack-rpc", "Failed to bind socket: %d.", err);
+                ggl_sleep(5);
+                continue;
+            }
 
-        if (listen(sockfd, 20) == -1) {
-            int err = errno;
-            GGL_LOGE("msgpack-rpc", "Failed to listen socket: %d.", err);
-            ggl_sleep(5);
-            continue;
+            if (listen(sockfd, 20) == -1) {
+                int err = errno;
+                GGL_LOGE("msgpack-rpc", "Failed to listen socket: %d.", err);
+                ggl_sleep(5);
+                continue;
+            }
         }
 
         while (true) {
@@ -283,7 +287,7 @@ noreturn void ggl_listen(GglBuffer path, void *ctx) {
                 }
 
                 if ((size_t) sys_ret == 0) {
-                    GGL_LOGI("msgpack-rpc", "Connection closed.");
+                    GGL_LOGD("msgpack-rpc", "Connection closed.");
                     break;
                 }
 
@@ -334,7 +338,18 @@ noreturn void ggl_listen(GglBuffer path, void *ctx) {
                     };
                 }
 
-                ggl_receive_callback(ctx, method, params, handle);
+                if ((params.len < 1)
+                    || (params.items[0].type != GGL_TYPE_MAP)) {
+                    GGL_LOGE(
+                        "msgpack-rpc",
+                        "Received invalid arguments. Expected single map as "
+                        "parameter."
+                    );
+                    ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
+                    break;
+                }
+
+                ggl_receive_callback(ctx, method, params.items[0].map, handle);
             }
         }
     }

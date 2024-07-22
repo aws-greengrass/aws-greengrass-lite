@@ -69,7 +69,7 @@ typedef struct GglKV {
 /** Create buffer literal from a string literal. */
 #define GGL_STR(strlit) \
     __extension__({ \
-        char temp[] __attribute((unused)) = (strlit); \
+        char temp[] __attribute__((unused)) = (strlit); \
         (GglBuffer) { \
             .data = (uint8_t *) (strlit), \
             .len = sizeof(strlit) - 1U, \
