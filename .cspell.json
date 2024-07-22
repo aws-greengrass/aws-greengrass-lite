@@ -12,6 +12,7 @@
   "ignorePaths": [
     "**/CMakeLists.txt",
     "**/pyproject.toml",
-    "**/iwyu_mappings.yml"
+    "**/iwyu_mappings.yml",
+    "**/*.svg"
   ]
 }
