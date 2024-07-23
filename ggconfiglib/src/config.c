@@ -87,30 +87,6 @@ GglError ggconfig_close(void) {
     return GGL_ERR_OK;
 }
 
-static long long find_root_path(const char *key) {
-    int path_id = 0;
-    sqlite3_stmt *path_find_stmt;
-
-    /* get the pathid for a specified path  that is NOT referenced in the value
-     * table and is NOT referenced as a parent in the relation table */
-    sqlite3_prepare_v2(
-        config_database,
-        "SELECT pathid FROM pathTable WHERE pathid NOT IN (SELECT pathid from "
-        "valueTable) AND pathid NOT IN (SELECT parentid from relationTable) "
-        "AND pathvalue = ?;",
-        -1,
-        &path_find_stmt,
-        NULL
-    );
-
-    sqlite3_bind_text(path_find_stmt, 1, key, -1, SQLITE_STATIC);
-    if (sqlite3_step(path_find_stmt) == SQLITE_ROW) {
-        path_id = sqlite3_column_int(path_find_stmt, 0);
-    }
-    sqlite3_finalize(path_find_stmt);
-    return path_id;
-}
-
 static long long path_insert(const char *key) {
     sqlite3_stmt *path_insert_stmt;
     long long id = 0;
@@ -132,21 +108,26 @@ static long long path_insert(const char *key) {
     return id;
 }
 
-static bool value_is_present_for_id(long long id) {
+static bool value_is_present_for_key(const char *key) {
     sqlite3_stmt *find_value_stmt;
     bool return_value = false;
+    GGL_LOGI("value present", "checking %s", key);
     sqlite3_prepare_v2(
         config_database,
-        "SELECT pathid FROM valueTable where pathid = ?;",
+        "SELECT pathid FROM valueTable where pathid = (SELECT pathid FROM "
+        "pathTable WHERE pathValue = ?);",
         -1,
         &find_value_stmt,
         NULL
     );
-    sqlite3_bind_int64(find_value_stmt, 1, id);
-    sqlite3_step(find_value_stmt);
-    long long pid = sqlite3_column_int(find_value_stmt, 0);
-    if (pid) {
-        return_value = true;
+    sqlite3_bind_text(find_value_stmt, 1, key, -1, SQLITE_STATIC);
+    int rc = sqlite3_step(find_value_stmt);
+    GGL_LOGI("ggconfig_value", "value is present rc : %d", rc);
+    if (rc == SQLITE_ROW) {
+        long long pid = sqlite3_column_int(find_value_stmt, 0);
+        if (pid) {
+            return_value = true;
+        }
     }
     return return_value;
 }
@@ -240,7 +221,7 @@ static GglError value_insert(const char *key, const char *value) {
     sqlite3_prepare_v2(
         config_database,
         "INSERT INTO valueTable(pathid,value) VALUES ( (SELECT pathid FROM "
-        "pathTable where pathvalue = ?),?)",
+        "pathTable where pathvalue = ?),?);",
         -1,
         &value_insert_stmt,
         NULL
@@ -311,7 +292,6 @@ GglError ggconfig_write_value_at_key(const char *key, const char *value) {
     GglError return_value = GGL_ERR_FAILURE;
     long long id = 0;
     long long parent_id = 0;
-    long long path_id = 0;
     char *c = (char *) key;
     char parent_key[128] = { 0 };
     int depth_count = 0;
@@ -327,9 +307,8 @@ GglError ggconfig_write_value_at_key(const char *key, const char *value) {
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    c = (char *) key - 1;
-    do {
-        c++;
+    c = (char *) key;
+    while (*c) {
         assert(path_index < (sizeof(parent_key) / sizeof(*parent_key)));
         if (*c == '/' || *c == 0) {
             if (depth_count == 0) { /* root level of the key path */
@@ -347,19 +326,19 @@ GglError ggconfig_write_value_at_key(const char *key, const char *value) {
                     relation_insert(id, parent_id);
                 }
             }
-            if (*c == 0) { /* finished so time to insert/update the value */
-
-                if (value_is_present_for_id(id)) {
-                    return_value = value_update(key, value);
-                } else {
-                    return_value = value_insert(key, value);
-                }
-            }
         }
         parent_id = id;
         depth_count++;
-        parent_key[path_index++] = *c;
-    } while (*c);
+        parent_key[path_index++] = *c++;
+    }
+    id = path_insert(key);
+    relation_insert(id, parent_id);
+    GGL_LOGI("ggconfig_insert", "time to insert/update %s", key);
+    if (value_is_present_for_key(key)) {
+        return_value = value_update(key, value);
+    } else {
+        return_value = value_insert(key, value);
+    }
 
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
 
