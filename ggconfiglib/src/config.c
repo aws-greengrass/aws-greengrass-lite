@@ -369,7 +369,7 @@ GglError ggconfig_get_value_from_key(
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         *value_buffer_length = snprintf(
             value_buffer,
-            *value_buffer_length,
+            (size_t) *value_buffer_length,
             "%s",
             sqlite3_column_text(stmt, 0)
         );
