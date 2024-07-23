@@ -25,15 +25,15 @@ key-value pairs described by the parameters listed in their respective sections.
 
 ### send_fleet_status_update
 
-The send_fleet_status_update allows other components to trigger 
-gg-fleet-statusd to send a fleet status update to IoT Core.
+The send_fleet_status_update allows other components to trigger gg-fleet-statusd
+to send a fleet status update to IoT Core.
 
-- [gg-fleet-statusd-send_fleet_status_update-1] `trigger` is a required 
-parameter of type buffer
-  - [gg-fleet-statusd-send_fleet_status_update-1.1] `trigger` describes the 
-  event causing the update
-  - [gg-fleet-statusd-send_fleet_status_update-1.2] `trigger` can hold the 
-  following values:
+- [gg-fleet-statusd-send_fleet_status_update-1] `trigger` is a required
+  parameter of type buffer
+  - [gg-fleet-statusd-send_fleet_status_update-1.1] `trigger` describes the
+    event causing the update
+  - [gg-fleet-statusd-send_fleet_status_update-1.2] `trigger` can hold the
+    following values:
     - `LOCAL_DEPLOYMENT`
     - `THING_DEPLOYMENT`
     - `THING_GROUP_DEPLOYMENT`
