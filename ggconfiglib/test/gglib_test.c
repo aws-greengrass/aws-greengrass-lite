@@ -1,9 +1,9 @@
-#include "../src/ggconfig.h"
-#include "ggl/object.h"
 #include <assert.h>
 #include <ggl/buffer.h>
+#include <ggl/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/object.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdio.h>

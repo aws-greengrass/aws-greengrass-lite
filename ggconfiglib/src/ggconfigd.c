@@ -45,24 +45,26 @@ static void rpc_read(GglMap params, GglResponseHandle *handle) {
     /* do a sqlite read operation */
     /* component/key */
     /* append component & key */
-    unsigned long length = msg.component.len + msg.key.len + 1;
-    {
-        GglBuffer value;
-        uint8_t buffer[length];
-        GglBuffer component_key = { .data = buffer, .len = length };
-        memcpy(&buffer[0], msg.component.data, msg.component.len);
-        buffer[msg.component.len] = '/';
-        memcpy(&buffer[msg.component.len + 1], msg.key.data, msg.key.len);
+    GglBuffer value;
+    GglBuffer component_key;
+    const unsigned long length = msg.component.len + msg.key.len + 1;
+    component_key.data = malloc(length);
+    component_key.len = length;
+    memcpy(component_key.data, msg.component.data, msg.component.len);
+    component_key.data[msg.component.len] = '/';
+    memcpy(
+        &component_key.data[msg.component.len + 1], msg.key.data, msg.key.len
+    );
 
-        if (ggconfig_get_value_from_key(&component_key, &value) == GGL_ERR_OK) {
-            GglObject return_value = { .type = GGL_TYPE_BUF, .buf = value };
-            /* use the data and then free it*/
-            ggl_respond(handle, GGL_ERR_OK, return_value);
-            free(value.data);
-            return;
-        }
+    if (ggconfig_get_value_from_key(&component_key, &value) == GGL_ERR_OK) {
+        GglObject return_value = { .type = GGL_TYPE_BUF, .buf = value };
+        /* use the data and then free it*/
+        ggl_respond(handle, GGL_ERR_OK, return_value);
+        free(value.data);
+    } else {
+        ggl_respond(handle, GGL_ERR_FAILURE, GGL_OBJ_NULL());
     }
-    ggl_respond(handle, GGL_ERR_FAILURE, GGL_OBJ_NULL())
+    free(component_key.data);
 }
 
 static void rpc_write(GglMap params, GglResponseHandle *handle) {
@@ -98,18 +100,18 @@ static void rpc_write(GglMap params, GglResponseHandle *handle) {
     }
 
     unsigned long length = msg.component.len + msg.key.len + 1;
-    {
-        GglBuffer value;
-        uint8_t buffer[length];
-        GglBuffer component_key = { .data = buffer, .len = length };
-        memcpy(&buffer[0], msg.component.data, msg.component.len);
-        buffer[msg.component.len] = '/';
-        memcpy(&buffer[msg.component.len + 1], msg.key.data, msg.key.len);
+    GglBuffer component_key;
+    component_key.data = malloc(length);
+    component_key.len = length;
+    memcpy(&component_key.data[0], msg.component.data, msg.component.len);
+    component_key.data[msg.component.len] = '/';
+    memcpy(
+        &component_key.data[msg.component.len + 1], msg.key.data, msg.key.len
+    );
 
-        GglError ret = ggconfig_write_value_at_key(&component_key, &msg.value);
+    GglError ret = ggconfig_write_value_at_key(&component_key, &msg.value);
 
-        ggl_respond(handle, ret, GGL_OBJ_NULL());
-    }
+    ggl_respond(handle, ret, GGL_OBJ_NULL());
 }
 
 void ggl_receive_callback(
