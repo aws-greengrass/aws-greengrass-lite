@@ -4,3 +4,4 @@
 
 ggconfiglib_LIBS := ggl-lib
 ggconfiglib_PKGS := sqlite3
+ggconfiglib_BIN := ggconfigd
