@@ -2,12 +2,10 @@
 #include "ggl/client.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
-#include "ggl/map.h"
 #include "ggl/object.h"
 #include <assert.h>
-#include <string.h>
 #include <stddef.h>
-#include <stdio.h>
+#include <stdint.h>
 
 static void test_insert(
     GglBuffer component, GglBuffer test_key, GglBuffer test_value
