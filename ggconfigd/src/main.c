@@ -4,28 +4,25 @@
  */
 
 #include "ggconfig.h"
-#include "ggl/error.h"
 #include "ggl/object.h"
 #include "ggl/server.h"
-#include <argp.h>
 #include <stdlib.h>
 
-static char doc[] = "ggconfigd -- configuration management";
-static struct argp_option opts[] = { { 0 } };
+void exit_cleanup(void);
 
-static error_t arg_parser(int key, char *arg, struct argp_state *state) {
-    return ARGP_ERR_UNKNOWN;
+void exit_cleanup(void) {
+    ggconfig_close();
 }
-static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 
 int main(int argc, char **argv) {
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    argp_parse(&argp, argc, argv, 0, 0, 0);
+    (void) argc;
+    (void) argv;
+
+    atexit(exit_cleanup);
 
     ggconfig_open();
 
     ggl_listen(GGL_STR("/aws/ggl/ggconfigd"), NULL);
 
-    /* move this to onexit */
-    ggconfig_close();
+    return 0;
 }
