@@ -17,10 +17,10 @@ typedef struct {
     GglBuffer component;
     GglBuffer key;
     GglBuffer value;
-} configMsg;
+} ConfigMsg;
 
 static void rpc_read(GglMap params, GglResponseHandle *handle) {
-    configMsg msg = { 0 };
+    ConfigMsg msg = { 0 };
 
     GglObject *val;
 
@@ -47,9 +47,9 @@ static void rpc_read(GglMap params, GglResponseHandle *handle) {
     /* append component & key */
     GglBuffer value;
     GglBuffer component_key;
-    const unsigned long length = msg.component.len + msg.key.len + 1;
-    component_key.data = malloc(length);
-    component_key.len = length;
+    const unsigned long LENGTH = msg.component.len + msg.key.len + 1;
+    component_key.data = malloc(LENGTH);
+    component_key.len = LENGTH;
     memcpy(component_key.data, msg.component.data, msg.component.len);
     component_key.data[msg.component.len] = '/';
     memcpy(
@@ -68,7 +68,7 @@ static void rpc_read(GglMap params, GglResponseHandle *handle) {
 }
 
 static void rpc_write(GglMap params, GglResponseHandle *handle) {
-    configMsg msg = { 0 };
+    ConfigMsg msg = { 0 };
 
     GglObject *val;
 
