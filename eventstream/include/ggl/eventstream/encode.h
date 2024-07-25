@@ -8,7 +8,7 @@
 
 /*! AWS EventStream message encoding. */
 
-#include "eventstream_types.h"
+#include "types.h"
 #include <ggl/error.h>
 #include <ggl/object.h>
 
@@ -17,7 +17,8 @@ GglError eventstream_encode(
     GglBuffer *buf,
     const EventStreamHeader *headers,
     size_t header_count,
-    GglBuffer payload
+    GglError (*payload_writer)(GglBuffer *buf, void *payload),
+    void *payload
 );
 
 #endif

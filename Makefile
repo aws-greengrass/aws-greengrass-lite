@@ -23,7 +23,7 @@ compile_commands.json:
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
 
 CPPFLAGS += -D_FORTIFY_SOURCE=2
-CFLAGS += -std=gnu11 -pedantic -Wall -Wextra -Wvla -Wshadow -Wformat=2 \
+CFLAGS += -std=gnu11 -Wall -Wextra -Wvla -Wshadow -Wformat=2 \
 		-Wmissing-prototypes -Wstrict-prototypes -Wold-style-definition \
 		-Wunused -Wundef -Wconversion -Wredundant-decls -Wdate-time \
 		-Wstack-protector -Wframe-larger-than=512 \
@@ -82,7 +82,7 @@ $$($1_OBJS) $$($1_DEPS): $1/ggl.mk
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += $$($1_CPPFLAGS)
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += $$(call include_flags,$1)
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += \
-		$$(subst -Ideps,-isystem deps,$$(call include_flags,$$($1_LIBS)))
+		$$(subst -I,-isystem ,$$(call include_flags,$$($1_LIBS)))
 ifdef $1_PKGS
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += \
 		$$(subst -I,-isystem ,$$(shell pkg-config --cflags-only-I $$($1_PKGS)))

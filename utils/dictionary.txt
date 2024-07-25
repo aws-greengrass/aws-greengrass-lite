@@ -7,6 +7,7 @@ cpus
 DGGL
 EFAILURE
 EOK
+EPOLLIN
 execvpe
 Fssd
 ggconfig
@@ -16,6 +17,7 @@ ggconflib
 ggdeploymentd
 gghealthd
 gghttplib
+ggipcd
 gglite
 greengrassv
 htobe
