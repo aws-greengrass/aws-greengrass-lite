@@ -2,6 +2,7 @@
 #include "ggl/client.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
+#include "ggl/map.h"
 #include "ggl/object.h"
 #include <assert.h>
 #include <string.h>
@@ -13,7 +14,7 @@ static void test_insert(
 ) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
 
-    uint8_t big_buffer_for_bump[4096];
+    static uint8_t big_buffer_for_bump[4096];
     GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
@@ -26,7 +27,7 @@ static void test_insert(
     GglObject result;
 
     GglError error = ggl_call(
-        server, GGL_STR("rpc_write"), params, &the_allocator.alloc, &result
+        server, GGL_STR("write"), params, &the_allocator.alloc, &result
     );
 
     if (error != GGL_ERR_OK) {
@@ -37,7 +38,7 @@ static void test_insert(
 
 static void test_get(GglBuffer component, GglBuffer test_key) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
-    uint8_t big_buffer_for_bump[4096];
+    static uint8_t big_buffer_for_bump[4096];
     GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
@@ -49,10 +50,19 @@ static void test_get(GglBuffer component, GglBuffer test_key) {
     GglObject result;
 
     GglError error = ggl_call(
-        server, GGL_STR("rpc_read"), params, &the_allocator.alloc, &result
+        server, GGL_STR("read"), params, &the_allocator.alloc, &result
     );
     if (error != GGL_ERR_OK) {
         GGL_LOGE("test_get", "error %d", error);
+    } else {
+        if (result.type == GGL_TYPE_BUF) {
+            GGL_LOGI(
+                "test_get",
+                "read %.*s",
+                (int) result.buf.len,
+                (char *) result.buf.data
+            );
+        }
     }
 }
 

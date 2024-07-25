@@ -22,11 +22,10 @@ int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, 0);
 
-    //     ggconfig_open();
+    ggconfig_open();
 
     ggl_listen(GGL_STR("/aws/ggl/ggconfigd"), NULL);
 
-    /*
-     ggconfig_close();
-    */
+    /* move this to onexit */
+    ggconfig_close();
 }

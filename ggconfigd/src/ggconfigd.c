@@ -13,6 +13,10 @@
 #include <memory.h>
 #include <stdint.h>
 
+#define MAX_COMPONENT_SIZE 1024
+#define MAX_KEY_SIZE 1024
+#define MAX_VALUE_SIZE 1024
+
 typedef struct {
     GglBuffer component;
     GglBuffer key;
@@ -46,11 +50,13 @@ static void rpc_read(GglMap params, GglResponseHandle *handle) {
     /* component/key */
     /* append component & key */
     GglBuffer value;
+
+    unsigned long length = msg.component.len + msg.key.len + 1;
+    static uint8_t component_buffer[MAX_COMPONENT_SIZE];
     GglBuffer component_key;
-    const unsigned long LENGTH = msg.component.len + msg.key.len + 1;
-    component_key.data = malloc(LENGTH);
-    component_key.len = LENGTH;
-    memcpy(component_key.data, msg.component.data, msg.component.len);
+    component_key.data = component_buffer;
+    component_key.len = length;
+    memcpy(&component_key.data[0], msg.component.data, msg.component.len);
     component_key.data[msg.component.len] = '/';
     memcpy(
         &component_key.data[msg.component.len + 1], msg.key.data, msg.key.len
@@ -64,7 +70,6 @@ static void rpc_read(GglMap params, GglResponseHandle *handle) {
     } else {
         ggl_respond(handle, GGL_ERR_FAILURE, GGL_OBJ_NULL());
     }
-    free(component_key.data);
 }
 
 static void rpc_write(GglMap params, GglResponseHandle *handle) {
@@ -75,6 +80,12 @@ static void rpc_write(GglMap params, GglResponseHandle *handle) {
     if (ggl_map_get(params, GGL_STR("component"), &val)
         && (val->type == GGL_TYPE_BUF)) {
         msg.component = val->buf;
+        GGL_LOGI(
+            "rpc_write",
+            "component %.*s",
+            (int) msg.component.len,
+            (char *) msg.component.data
+        );
     } else {
         GGL_LOGE("rpc-handler", "write received invalid component argument.");
         ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
@@ -84,6 +95,9 @@ static void rpc_write(GglMap params, GglResponseHandle *handle) {
     if (ggl_map_get(params, GGL_STR("key"), &val)
         && (val->type == GGL_TYPE_BUF)) {
         msg.key = val->buf;
+        GGL_LOGI(
+            "rpc_write", "key %.*s", (int) msg.key.len, (char *) msg.key.data
+        );
     } else {
         GGL_LOGE("rpc-handler", "write received invalid key argument.");
         ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
@@ -92,7 +106,10 @@ static void rpc_write(GglMap params, GglResponseHandle *handle) {
 
     if (ggl_map_get(params, GGL_STR("value"), &val)
         && (val->type == GGL_TYPE_BUF)) {
-        msg.key = val->buf;
+        msg.value = val->buf;
+        GGL_LOGI(
+            "rpc_write", "value %.*s", (int) msg.key.len, (char *) msg.key.data
+        );
     } else {
         GGL_LOGE("rpc-handler", "write received invalid value argument.");
         ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
@@ -100,8 +117,9 @@ static void rpc_write(GglMap params, GglResponseHandle *handle) {
     }
 
     unsigned long length = msg.component.len + msg.key.len + 1;
+    static uint8_t component_buffer[MAX_COMPONENT_SIZE];
     GglBuffer component_key;
-    component_key.data = malloc(length);
+    component_key.data = component_buffer;
     component_key.len = length;
     memcpy(&component_key.data[0], msg.component.data, msg.component.len);
     component_key.data[msg.component.len] = '/';
