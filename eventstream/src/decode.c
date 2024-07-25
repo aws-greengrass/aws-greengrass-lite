@@ -17,25 +17,58 @@
 
 static uint32_t read_be_uint32(GglBuffer buf) {
     assert(buf.len == 4);
-    return ((uint32_t) buf.data[0] << 24) & ((uint32_t) buf.data[1] << 16)
-        & ((uint32_t) buf.data[2] << 8) & ((uint32_t) buf.data[3]);
+    return ((uint32_t) buf.data[0] << 24) | ((uint32_t) buf.data[1] << 16)
+        | ((uint32_t) buf.data[2] << 8) | ((uint32_t) buf.data[3]);
 }
 
-static int64_t read_be_int(GglBuffer buf) {
-    assert(buf.len <= 8);
+static int32_t read_be_int32(GglBuffer buf) {
+    assert(buf.len == 4);
+    uint32_t bytes = read_be_uint32(buf);
+    int32_t ret;
+    // memcpy necessary for well-defined type-punning
+    memcpy(&ret, &bytes, sizeof(ret));
+    return ret;
+}
 
-    // Account for sign extension
-    uint64_t bytes = UINT64_MAX;
-
-    for (size_t i = 0; i < buf.len; i++) {
-        bytes = (bytes << 8) & buf.data[i];
+GglError eventstream_decode_prelude(
+    GglBuffer buf, EventStreamPrelude *prelude
+) {
+    if (buf.len < 12) {
+        return GGL_ERR_RANGE;
     }
 
-    int64_t ret = 0;
-    // memcpy necessary for well-defined type-punning
-    memcpy(&ret, &bytes, sizeof(int64_t));
+    uint32_t crc = ggl_update_crc(0, ggl_buffer_substr(buf, 0, 8));
 
-    return ret;
+    uint32_t prelude_crc = read_be_uint32(ggl_buffer_substr(buf, 8, 12));
+
+    if (crc != prelude_crc) {
+        GGL_LOGE("eventstream", "Prelude CRC mismatch.");
+        return GGL_ERR_PARSE;
+    }
+
+    uint32_t message_len = read_be_uint32(ggl_buffer_substr(buf, 0, 4));
+    uint32_t headers_len = read_be_uint32(ggl_buffer_substr(buf, 4, 8));
+
+    // message must at least have 12 byte prelude and 4 byte message crc
+    if (message_len < 16) {
+        GGL_LOGE("eventstream", "Prelude's message length below valid range.");
+        return GGL_ERR_PARSE;
+    }
+
+    if (headers_len > message_len - 16) {
+        GGL_LOGE(
+            "eventstream",
+            "Prelude's header length does not fit in valid range."
+        );
+        return GGL_ERR_PARSE;
+    }
+
+    *prelude = (EventStreamPrelude) {
+        .data_len = message_len - 12,
+        .headers_len = headers_len,
+        .crc = ggl_update_crc(prelude_crc, ggl_buffer_substr(buf, 8, 12)),
+    };
+    return GGL_ERR_OK;
 }
 
 /** Removes next header from buffer */
@@ -114,62 +147,36 @@ static GglError count_headers(GglBuffer headers_buf, uint32_t *count) {
     return GGL_ERR_OK;
 }
 
-GglError eventstream_decode(GglBuffer buf, EventStreamMessage *msg) {
+GglError eventstream_decode(
+    const EventStreamPrelude *prelude,
+    GglBuffer data_section,
+    EventStreamMessage *msg
+) {
     assert(msg != NULL);
+    assert(data_section.len >= 4);
 
-    uint32_t crc = 0;
+    uint32_t crc = ggl_update_crc(
+        prelude->crc, ggl_buffer_substr(data_section, 0, data_section.len - 4)
+    );
 
-    // Prelude
+    uint32_t message_crc = read_be_uint32(
+        ggl_buffer_substr(data_section, data_section.len - 4, data_section.len)
+    );
 
-    // Must be large enough for 12 byte prelude and 4 byte message CRC
-    if (buf.len < 16) {
+    if (crc != message_crc) {
         GGL_LOGE(
-            "eventstream", "Buffer length less than minimum packet length."
+            "eventstream", "Message CRC mismatch %u %u.", crc, message_crc
         );
         return GGL_ERR_PARSE;
     }
 
-    crc = ggl_update_crc(crc, ggl_buffer_substr(buf, 0, 8));
+    GglBuffer headers_buf
+        = ggl_buffer_substr(data_section, 0, prelude->headers_len);
+    GglBuffer payload = ggl_buffer_substr(
+        data_section, prelude->headers_len, data_section.len - 4
+    );
 
-    uint32_t message_len = read_be_uint32(ggl_buffer_substr(buf, 0, 4));
-    uint32_t headers_len = read_be_uint32(ggl_buffer_substr(buf, 4, 8));
-    uint32_t prelude_crc = read_be_uint32(ggl_buffer_substr(buf, 8, 12));
-
-    if (crc != prelude_crc) {
-        GGL_LOGE("eventstream", "Prelude CRC mismatch.");
-        return GGL_ERR_PARSE;
-    }
-
-    if (buf.len != message_len) {
-        GGL_LOGE("eventstream", "Message length incorrect.");
-        return GGL_ERR_PARSE;
-    }
-
-    if (headers_len > (message_len - 16)) {
-        GGL_LOGE("eventstream", "Headers length does not fit within packet.");
-        return GGL_ERR_PARSE;
-    }
-
-    // Data
-
-    crc = ggl_update_crc(crc, ggl_buffer_substr(buf, 8, message_len - 4));
-
-    uint32_t message_crc
-        = read_be_uint32(ggl_buffer_substr(buf, message_len - 4, message_len));
-
-    if (crc != message_crc) {
-        GGL_LOGE("eventstream", "Message CRC mismatch.");
-        return GGL_ERR_PARSE;
-    }
-
-    uint32_t payload_len = message_len - 12 - headers_len - 4;
-
-    GglBuffer headers_buf = ggl_buffer_substr(buf, 12, 12 + headers_len);
-    GglBuffer payload
-        = ggl_buffer_substr(buf, 12 + headers_len, message_len - 4);
-
-    assert(headers_buf.len == headers_len);
-    assert(payload.len == payload_len);
+    assert(headers_buf.len == prelude->headers_len);
 
     uint32_t headers_count = 0;
     GglError err = count_headers(headers_buf, &headers_count);
@@ -196,6 +203,10 @@ GglError eventstream_header_next(
     assert(headers != NULL);
     assert(header != NULL);
 
+    if (headers->count < 1) {
+        return GGL_ERR_RANGE;
+    }
+
     uint8_t *pos = headers->pos;
     uint8_t header_name_len = pos[0];
     pos += 1;
@@ -214,8 +225,7 @@ GglError eventstream_header_next(
 
     switch (header_value_type) {
     case EVENTSTREAM_INT32:
-        value.int32
-            = (int32_t) read_be_int((GglBuffer) { .data = pos, .len = 4 });
+        value.int32 = read_be_int32((GglBuffer) { .data = pos, .len = 4 });
         pos += 4;
         break;
     case EVENTSTREAM_STRING: {
@@ -231,7 +241,7 @@ GglError eventstream_header_next(
     }
 
     headers->pos = pos;
-    headers->count += 1;
+    headers->count -= 1;
 
     *header = (EventStreamHeader) {
         .name = header_name,

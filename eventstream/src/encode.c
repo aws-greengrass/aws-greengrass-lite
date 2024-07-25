@@ -16,14 +16,34 @@
 #include <stdint.h>
 
 static void write_be_u32(uint32_t val, uint8_t *dest) {
-    dest[0] = val >> 24;
-    dest[1] = (val >> 16) & 0xFF;
-    dest[2] = (val >> 8) & 0xFF;
-    dest[3] = val & 0xFF;
+    dest[0] = (uint8_t) (val >> 24);
+    dest[1] = (uint8_t) ((val >> 16) & 0xFF);
+    dest[2] = (uint8_t) ((val >> 8) & 0xFF);
+    dest[3] = (uint8_t) (val & 0xFF);
 }
 
 static GglError header_encode(GglAlloc *alloc, EventStreamHeader header) {
     assert(alloc != NULL);
+
+    if (header.name.len > UINT8_MAX) {
+        GGL_LOGE("eventstream", "Header name field too long.");
+        return GGL_ERR_RANGE;
+    }
+
+    uint8_t *header_name_len_p = GGL_ALLOCN(alloc, uint8_t, 1);
+    if (header_name_len_p == NULL) {
+        GGL_LOGE("eventstream", "Insufficent buffer space to encode packet.");
+        return GGL_ERR_NOMEM;
+    }
+
+    *header_name_len_p = (uint8_t) header.name.len;
+
+    uint8_t *header_name_p = GGL_ALLOCN(alloc, uint8_t, header.name.len);
+    if (header_name_p == NULL) {
+        GGL_LOGE("eventstream", "Insufficent buffer space to encode packet.");
+        return GGL_ERR_NOMEM;
+    }
+    memcpy(header_name_p, header.name.data, header.name.len);
 
     uint8_t *header_value_type_p = GGL_ALLOCN(alloc, uint8_t, 1);
 
@@ -37,6 +57,12 @@ static GglError header_encode(GglAlloc *alloc, EventStreamHeader header) {
     switch (header.value.type) {
     case EVENTSTREAM_INT32: {
         uint8_t *ptr = GGL_ALLOCN(alloc, uint8_t, 4);
+        if (ptr == NULL) {
+            GGL_LOGE(
+                "eventstream", "Insufficent buffer space to encode packet."
+            );
+            return GGL_ERR_NOMEM;
+        }
         uint32_t val;
         memcpy(&val, &header.value.int32, 4);
         write_be_u32(val, ptr);
@@ -54,10 +80,22 @@ static GglError header_encode(GglAlloc *alloc, EventStreamHeader header) {
         uint16_t str_len = (uint16_t) str.len;
 
         uint8_t *ptr = GGL_ALLOCN(alloc, uint8_t, 2);
-        ptr[0] = str_len >> 8;
-        ptr[1] = str_len & 0xFF;
+        if (ptr == NULL) {
+            GGL_LOGE(
+                "eventstream", "Insufficent buffer space to encode packet."
+            );
+            return GGL_ERR_NOMEM;
+        }
+        ptr[0] = (uint8_t) (str_len >> 8);
+        ptr[1] = (uint8_t) (str_len & 0xFF);
 
         ptr = GGL_ALLOCN(alloc, uint8_t, str_len);
+        if (ptr == NULL) {
+            GGL_LOGE(
+                "eventstream", "Insufficent buffer space to encode packet."
+            );
+            return GGL_ERR_NOMEM;
+        }
         memcpy(ptr, str.data, str_len);
         break;
     }
@@ -109,7 +147,9 @@ GglError eventstream_encode(
         return GGL_ERR_NOMEM;
     }
 
-    memcpy(payload_p, payload.data, payload.len);
+    if (payload.len > 0) {
+        memcpy(payload_p, payload.data, payload.len);
+    }
 
     uint32_t message_len = 12 + headers_len + (uint32_t) payload.len + 4;
 

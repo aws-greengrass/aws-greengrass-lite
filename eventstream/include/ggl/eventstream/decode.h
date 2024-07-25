@@ -21,14 +21,29 @@ typedef struct {
 
 /** A parsed EventStream packet. */
 typedef struct {
+    uint32_t data_len;
+    uint32_t headers_len;
+    uint32_t crc;
+} EventStreamPrelude;
+
+/** A parsed EventStream packet. */
+typedef struct {
     EventStreamHeaderIter headers;
     GglBuffer payload;
 } EventStreamMessage;
 
-/** Parse an EventStream packet from a buffer.
+/** Parse an EventStream packet prelude from a buffer. */
+GglError eventstream_decode_prelude(GglBuffer buf, EventStreamPrelude *prelude);
+
+/** Parse an EventStream packet data section from a buffer.
+ * The buffer should contain the rest of the packet after the prelude.
  * Parsed struct representation holds references into the buffer.
  * Validates headers. */
-GglError eventstream_decode(GglBuffer buf, EventStreamMessage *msg);
+GglError eventstream_decode(
+    const EventStreamPrelude *prelude,
+    GglBuffer data_section,
+    EventStreamMessage *msg
+);
 
 /** Get the next header from an EventStreamHeaderIter.
  * Mutates the iter to refer to the rest of the headers.
