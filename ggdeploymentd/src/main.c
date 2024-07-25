@@ -4,6 +4,7 @@
  */
 
 #include "args.h"
+#include "deployment_queue.h"
 #include "ggl/error.h"
 #include "ggl/object.h"
 #include "ggl/server.h"
@@ -17,7 +18,7 @@ static struct argp_option opts[]
             { 0 } };
 
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {
-    IotcoredArgs *args = state->input;
+    GgdeploymentdArgs *args = state->input;
     switch (key) {
         case 'e':
             args->endpoint = arg;
@@ -42,11 +43,7 @@ int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
 
-    GglError ret = iotcored_mqtt_connect(&args);
+    deployment_queue_init();
 
-    if (ret != 0) {
-        return 1;
-    }
-
-    ggl_listen(GGL_STR("/aws/ggl/iotcored"), NULL);
+    ggl_listen(GGL_STR("/aws/ggl/ggdeploymentd"), NULL);
 }

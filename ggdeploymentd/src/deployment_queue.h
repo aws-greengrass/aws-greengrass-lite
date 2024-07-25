@@ -4,17 +4,13 @@
  */
 
 #include "localdeploy.h"
+#include "deployment_model.h"
 
 #ifndef GGDEPLOYMENTD_QUEUE_H
 #define GGDEPLOYMENTD_QUEUE_H
 
-/** Buffer length for the deployment queue.
- * Can be configured with `-DGGL_DEPLOYMENT_QUEUE_BUFFER_LEN=<N>`. */
-#ifndef GGL_DEPLOYMENT_QUEUE_BUFFER_LEN
-#define GGL_DEPLOYMENT_QUEUE_BUFFER_LEN (50 * sizeof(GgdeploymentdLocalDeployment))
-#endif
-
+void deployment_queue_init();
 bool deployment_queue_offer(GgdeploymentdLocalDeployment deployment);
 GgdeploymentdLocalDeployment deployment_queue_poll();
-void deployment_queue_clear();
-long deployment_queue_size();
+int deployment_queue_size();
+#endif
