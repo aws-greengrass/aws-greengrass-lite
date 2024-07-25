@@ -1,13 +1,13 @@
 /* gravel - Utilities for AWS IoT Core clients
-* Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
-* SPDX-License-Identifier: Apache-2.0
-*/
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
 #ifndef GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 #define GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 
-#include "ggl/object.h"
 #include "ggl/error.h"
+#include "ggl/object.h"
 
 typedef enum Trigger {
     STARTUP
@@ -30,8 +30,7 @@ typedef struct {
 
 } FleetStatusDetails;
 
-
-GglError publish_message(const char* thing_name);
+GglError publish_message(const char *thing_name);
 
 // TODO: uncomment below and implement for full fss functionality
 
@@ -40,6 +39,7 @@ GglError publish_message(const char* thing_name);
 // void upload_fleet_status_service_data(Trigger *trigger, GglList components);
 // void publish_message(FleetStatusDetails *fleetStatusDetails,
 //                      GglList *componentDetails, Trigger *trigger);
-//TODO: componentDetails needs to be its own object too, so this needs to be a ggl list of ggl objects?
+// TODO: componentDetails needs to be its own object too, so this needs to be a
+// ggl list of ggl objects?
 
 #endif // GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
