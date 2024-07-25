@@ -17,7 +17,8 @@ GglError eventstream_encode(
     GglBuffer *buf,
     const EventStreamHeader *headers,
     size_t header_count,
-    GglBuffer payload
+    GglError (*payload_writer)(GglBuffer *buf, void *payload),
+    void *payload
 );
 
 #endif

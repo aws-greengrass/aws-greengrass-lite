@@ -8,6 +8,7 @@
 #include "ggl/eventstream/types.h"
 #include <assert.h>
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -111,47 +112,56 @@ GglError eventstream_encode(
     GglBuffer *buf,
     const EventStreamHeader *headers,
     size_t header_count,
-    GglBuffer payload
+    GglError (*payload_writer)(GglBuffer *buf, void *payload),
+    void *payload
 ) {
     if (buf->len > UINT32_MAX) {
         buf->len = UINT32_MAX;
     }
 
-    GglBumpAlloc bump_alloc = ggl_bump_alloc_init(*buf);
-    GglAlloc *alloc = &bump_alloc.alloc;
+    GglBuffer buf_copy = *buf;
 
-    uint8_t *prelude = GGL_ALLOCN(alloc, uint8_t, 12);
-    if (prelude == NULL) {
+    if (buf_copy.len < 12) {
         GGL_LOGE("eventstream", "Insufficent buffer space to encode packet.");
         return GGL_ERR_NOMEM;
     }
+    uint8_t *prelude = buf_copy.data;
+    buf_copy = ggl_buffer_substr(buf_copy, 12, SIZE_MAX);
 
     uint8_t *message_len_p = prelude;
     uint8_t *headers_len_p = &prelude[4];
     uint8_t *prelude_crc_p = &prelude[8];
 
-    for (size_t i = 0; i < header_count; i++) {
-        GglError err = header_encode(alloc, headers[i]);
-        if (err != GGL_ERR_OK) {
-            return err;
-        }
-    }
+    uint32_t headers_len;
 
-    uint32_t headers_len = (uint32_t) bump_alloc.index - 12;
+    {
+        GglBumpAlloc bump_alloc = ggl_bump_alloc_init(buf_copy);
+
+        for (size_t i = 0; i < header_count; i++) {
+            GglError err = header_encode(&bump_alloc.alloc, headers[i]);
+            if (err != GGL_ERR_OK) {
+                return err;
+            }
+        }
+
+        headers_len = (uint32_t) bump_alloc.index;
+        buf_copy = ggl_buffer_substr(buf_copy, headers_len, SIZE_MAX);
+    }
 
     write_be_u32(headers_len, headers_len_p);
 
-    uint8_t *payload_p = GGL_ALLOCN(alloc, uint8_t, payload.len);
-    if (payload_p == NULL) {
-        GGL_LOGE("eventstream", "Insufficent buffer space to encode packet.");
-        return GGL_ERR_NOMEM;
+    GglBuffer payload_buf = buf_copy;
+    if (payload_writer == NULL) {
+        payload_buf.len = 0;
+    } else {
+        GglError err = payload_writer(&payload_buf, payload);
+        if (err != GGL_ERR_OK) {
+            return err;
+        }
+        buf_copy = ggl_buffer_substr(buf_copy, payload_buf.len, SIZE_MAX);
     }
 
-    if (payload.len > 0) {
-        memcpy(payload_p, payload.data, payload.len);
-    }
-
-    uint32_t message_len = 12 + headers_len + (uint32_t) payload.len + 4;
+    uint32_t message_len = 12 + headers_len + (uint32_t) payload_buf.len + 4;
 
     write_be_u32(message_len, message_len_p);
 
@@ -162,18 +172,18 @@ GglError eventstream_encode(
 
     uint32_t message_crc = ggl_update_crc(
         prelude_crc,
-        (GglBuffer) { .data = &prelude[8], .len = bump_alloc.index - 8 }
+        (GglBuffer) { .data = &prelude[8], .len = message_len - 8 - 4 }
     );
 
-    uint8_t *message_crc_p = GGL_ALLOCN(alloc, uint8_t, 4);
-    if (message_crc_p == NULL) {
+    if (buf_copy.len < 4) {
         GGL_LOGE("eventstream", "Insufficent buffer space to encode packet.");
         return GGL_ERR_NOMEM;
     }
+    uint8_t *message_crc_p = buf_copy.data;
 
     write_be_u32(message_crc, message_crc_p);
 
-    buf->len = bump_alloc.index;
+    buf->len = message_len;
 
     return GGL_ERR_OK;
 }
