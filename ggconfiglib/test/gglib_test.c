@@ -14,7 +14,7 @@ static void test_insert(
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
 
     uint8_t big_buffer_for_bump[4096];
-    GglBumpAlloc theAllocator
+    GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
     GglMap params = GGL_MAP(
@@ -26,7 +26,7 @@ static void test_insert(
     GglObject result;
 
     GglError error = ggl_call(
-        server, GGL_STR("rpc_write"), params, &theAllocator.alloc, &result
+        server, GGL_STR("rpc_write"), params, &the_allocator.alloc, &result
     );
 
     if (error != GGL_ERR_OK) {
@@ -38,7 +38,7 @@ static void test_insert(
 static void test_get(GglBuffer component, GglBuffer test_key) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
     uint8_t big_buffer_for_bump[4096];
-    GglBumpAlloc theAllocator
+    GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
     GglMap params = GGL_MAP(
@@ -49,8 +49,11 @@ static void test_get(GglBuffer component, GglBuffer test_key) {
     GglObject result;
 
     GglError error = ggl_call(
-        server, GGL_STR("rpc_read"), params, &theAllocator.alloc, &result
+        server, GGL_STR("rpc_read"), params, &the_allocator.alloc, &result
     );
+    if (error != GGL_ERR_OK) {
+        GGL_LOGE("test_get", "error %d", error);
+    }
 }
 
 int main(int argc, char **argv) {
