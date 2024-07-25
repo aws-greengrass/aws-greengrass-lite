@@ -6,6 +6,8 @@
 #include "fleet_status_service.h"
 #include "args.h"
 #include "ggl/client.h"
+#include "ggl/error.h"
+#include "ggl/object.h"
 #include "ggl/log.h"
 #include <string.h>
 
@@ -52,6 +54,7 @@ GglError publish_message(const char *thing_name) {
     strncat(topic, thing_name, MAX_THING_NAME_LEN);
     strncat(topic, TOPIC_END, TOPIC_SUFFIX_LEN);
 
+    // NOLINTNEXTLINE(clang-diagnostic-pointer-sign)
     GglBuffer topic_name = { .data = topic, .len = strlen(topic) };
 
     // build payload
@@ -60,6 +63,7 @@ GglError publish_message(const char *thing_name) {
     strncat(payload, thing_name, MAX_THING_NAME_LEN);
     strncat(payload, PAYLOAD_END, PAYLOAD_SUFFIX_LEN);
 
+    // NOLINTNEXTLINE(clang-diagnostic-pointer-sign)
     GglBuffer msg = { .data = payload, .len = strlen(payload) };
 
     GglError err = ggl_notify(
