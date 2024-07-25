@@ -8,7 +8,7 @@
 
 /*! AWS EventStream message encoding. */
 
-#include "eventstream_types.h"
+#include "types.h"
 #include <ggl/error.h>
 #include <ggl/object.h>
 

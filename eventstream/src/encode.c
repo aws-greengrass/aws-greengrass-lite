@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "eventstream_encode.h"
+#include "ggl/eventstream/encode.h"
 #include "crc32.h"
-#include "eventstream_types.h"
+#include "ggl/eventstream/types.h"
 #include <assert.h>
 #include <ggl/alloc.h>
 #include <ggl/bump_alloc.h>
