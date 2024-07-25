@@ -82,7 +82,7 @@ $$($1_OBJS) $$($1_DEPS): $1/ggl.mk
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += $$($1_CPPFLAGS)
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += $$(call include_flags,$1)
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += \
-		$$(subst -Ideps,-isystem deps,$$(call include_flags,$$($1_LIBS)))
+		$$(subst -I,-isystem ,$$(call include_flags,$$($1_LIBS)))
 ifdef $1_PKGS
 $$($1_OBJS) $$($1_DEPS): CPPFLAGS += \
 		$$(subst -I,-isystem ,$$(shell pkg-config --cflags-only-I $$($1_PKGS)))
