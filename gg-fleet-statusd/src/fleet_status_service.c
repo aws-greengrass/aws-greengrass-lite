@@ -7,8 +7,8 @@
 #include "args.h"
 #include "ggl/client.h"
 #include "ggl/error.h"
-#include "ggl/object.h"
 #include "ggl/log.h"
+#include "ggl/object.h"
 #include <string.h>
 
 FssdArgs *args;

@@ -6,6 +6,7 @@
 #include "args.h"
 #include "fleet_status_service.h"
 #include <argp.h>
+#include <stdio.h>
 
 static char doc[] = "gg-fleet-statusd -- Fleet Status Service for GG Lite";
 
