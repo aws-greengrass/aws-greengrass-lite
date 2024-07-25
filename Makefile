@@ -23,7 +23,7 @@ compile_commands.json:
 ifeq (,$(filter clean,$(MAKECMDGOALS)))
 
 CPPFLAGS += -D_FORTIFY_SOURCE=2
-CFLAGS += -std=gnu11 -pedantic -Wall -Wextra -Wvla -Wshadow -Wformat=2 \
+CFLAGS += -std=gnu11 -Wall -Wextra -Wvla -Wshadow -Wformat=2 \
 		-Wmissing-prototypes -Wstrict-prototypes -Wold-style-definition \
 		-Wunused -Wundef -Wconversion -Wredundant-decls -Wdate-time \
 		-Wstack-protector -Wframe-larger-than=512 \
