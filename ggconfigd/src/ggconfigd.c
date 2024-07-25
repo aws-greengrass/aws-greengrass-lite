@@ -10,7 +10,7 @@
 #include "ggl/map.h"
 #include "ggl/object.h"
 #include "ggl/server.h"
-#include <memory.h>
+#include <string.h>
 #include <stdint.h>
 
 #define MAX_COMPONENT_SIZE 1024
@@ -66,7 +66,6 @@ static void rpc_read(GglMap params, GglResponseHandle *handle) {
         GglObject return_value = { .type = GGL_TYPE_BUF, .buf = value };
         /* use the data and then free it*/
         ggl_respond(handle, GGL_ERR_OK, return_value);
-        free(value.data);
     } else {
         ggl_respond(handle, GGL_ERR_FAILURE, GGL_OBJ_NULL());
     }
