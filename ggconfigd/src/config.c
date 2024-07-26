@@ -164,7 +164,6 @@ static bool value_is_present_for_key(GglBuffer *key) {
     return return_value;
 }
 
-/* TODO check this query */
 static long long find_path_with_parent(GglBuffer *key) {
     sqlite3_stmt *find_element_stmt;
     long long id = 0;
