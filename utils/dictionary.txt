@@ -41,6 +41,7 @@ pname
 posix
 respfd
 rootca
+serde
 serverd
 sigv4
 statusd
