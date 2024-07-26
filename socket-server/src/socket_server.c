@@ -13,6 +13,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
@@ -262,6 +263,8 @@ GglError ggl_socket_server_listen(
     assert(client_pool->generations != NULL);
     assert(client_ready != NULL);
 
+    signal(SIGPIPE, SIG_IGN);
+
     if (client_pool->max_clients >= UINT16_MAX) {
         GGL_LOGE("socket-server", "Max clients larger than supported.");
         return GGL_ERR_FAILURE;
@@ -396,7 +399,9 @@ static GglError write_wrapper(
             return GGL_ERR_OK;
         }
         int err = errno;
-        GGL_LOGE("socket-server", "Failed to write to client: %d.", err);
+        if (errno != EPIPE) {
+            GGL_LOGE("socket-server", "Failed to write to client: %d.", err);
+        }
         return GGL_ERR_FAILURE;
     }
 
