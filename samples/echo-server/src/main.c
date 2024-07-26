@@ -3,34 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/buffer.h"
-#include "ggl/error.h"
-#include "ggl/log.h"
-#include "ggl/object.h"
-#include "ggl/server.h"
+#include <ggl/core_bus/server.h>
+#include <ggl/object.h>
+#include <stdbool.h>
 #include <stdlib.h>
 
-void ggl_receive_callback(
-    void *ctx, GglBuffer method, GglList params, GglResponseHandle *handle
-) {
+static void handle_echo(void *ctx, GglMap params, GglResponseHandle handle) {
     (void) ctx;
-
-    if ((params.len < 1) && (params.items[0].type != GGL_TYPE_MAP)) {
-        GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
-        ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
-        return;
-    }
-
-    GglMap param_map = params.items[0].map;
-
-    if (ggl_buffer_eq(method, GGL_STR("echo"))) {
-        ggl_respond(handle, 0, GGL_OBJ(param_map));
-        return;
-    }
-
-    ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
+    ggl_respond(handle, GGL_OBJ(params));
 }
 
 int main(void) {
-    ggl_listen(GGL_STR("/aws/ggl/echo-server"), NULL);
+    GglRpcMethodDesc handlers[] = {
+        { GGL_STR("echo"), false, handle_echo, NULL },
+    };
+    size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
+
+    ggl_listen(GGL_STR("/aws/ggl/echo-server"), handlers, handlers_len);
 }
