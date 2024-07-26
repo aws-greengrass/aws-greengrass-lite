@@ -4,7 +4,6 @@
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include <assert.h>
-#include <stddef.h>
 #include <stdint.h>
 
 static void test_insert(

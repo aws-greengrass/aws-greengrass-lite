@@ -5,7 +5,6 @@
 
 #include "ggconfig.h"
 #include "ggl/object.h"
-#include <assert.h>
 #include <ctype.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -13,7 +12,6 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
