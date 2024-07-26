@@ -12,6 +12,7 @@
 #include <string.h>
 #include <sys/epoll.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -100,6 +101,31 @@ static GglError client_data_ready(
     return GGL_ERR_OK;
 }
 
+static GglError create_parent_dirs(char *path) {
+    char *start = path;
+    for (char *end = path; *end != '\0'; end = &end[1]) {
+        if (*end == '/') {
+            if ((strncmp(start, "", (size_t) (end - start)) != 0)
+                && (strncmp(start, ".", (size_t) (end - start)) != 0)
+                && (strncmp(start, "..", (size_t) (end - start)) != 0)) {
+                *end = '\0';
+                int ret = mkdir(path, 0755);
+                *end = '/';
+                if ((ret != 0) && (errno != EEXIST)) {
+                    GGL_LOGE(
+                        "socket-server",
+                        "Failed to create parent directories of socket: %s.",
+                        path
+                    );
+                    return GGL_ERR_FAILURE;
+                }
+            }
+            start = end;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
 static GglError configure_socket(int socket_fd, const char *socket_path) {
     assert(socket_fd >= 0);
     assert(socket_path != NULL);
@@ -114,6 +140,11 @@ static GglError configure_socket(int socket_fd, const char *socket_path) {
     }
 
     memcpy(addr.sun_path, socket_path, path_len);
+
+    GglError ret = create_parent_dirs(addr.sun_path);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     if ((unlink(socket_path) == -1) && (errno != ENOENT)) {
         int err = errno;
