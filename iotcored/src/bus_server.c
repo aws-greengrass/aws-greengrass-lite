@@ -5,6 +5,7 @@
 
 #include "bus_server.h"
 #include "mqtt.h"
+#include "subscription_dispatch.h"
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -15,10 +16,12 @@
 #include <stdlib.h>
 
 static void rpc_publish(void *ctx, GglMap params, GglResponseHandle handle);
+static void rpc_subscribe(void *ctx, GglMap params, GglResponseHandle handle);
 
 void iotcored_start_server(void) {
     GglRpcMethodDesc handlers[] = {
         { GGL_STR("publish"), false, rpc_publish, NULL },
+        { GGL_STR("subscribe"), true, rpc_subscribe, NULL },
     };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
@@ -77,4 +80,56 @@ static void rpc_publish(void *ctx, GglMap params, GglResponseHandle handle) {
     }
 
     ggl_respond(handle, GGL_OBJ_NULL());
+}
+
+static void sub_close_callback(void *ctx, GglResponseHandle handle) {
+    (void) ctx;
+    iotcored_unregister_subscriptions(handle);
+}
+
+static void rpc_subscribe(void *ctx, GglMap params, GglResponseHandle handle) {
+    (void) ctx;
+
+    GGL_LOGD("rpc-handler", "Handling subscribe request.");
+
+    GglBuffer topic_filter = { 0 };
+    uint8_t qos = 0;
+
+    GglObject *val;
+
+    if (ggl_map_get(params, GGL_STR("topic_filter"), &val)
+        && (val->type == GGL_TYPE_BUF)) {
+        topic_filter = val->buf;
+        if (topic_filter.len > UINT16_MAX) {
+            GGL_LOGE("rpc-handler", "Topic filter too large.");
+            ggl_return_err(handle, GGL_ERR_RANGE);
+            return;
+        }
+    } else {
+        GGL_LOGE("rpc-handler", "Subscribe received invalid arguments.");
+        ggl_return_err(handle, GGL_ERR_INVALID);
+        return;
+    }
+
+    if (ggl_map_get(params, GGL_STR("qos"), &val)) {
+        if ((val->type != GGL_TYPE_I64) || (val->i64 < 0) || (val->i64 > 2)) {
+            GGL_LOGE("rpc-handler", "Payload received invalid arguments.");
+            ggl_return_err(handle, GGL_ERR_INVALID);
+            return;
+        }
+        qos = (uint8_t) val->i64;
+    }
+
+    GglError ret = iotcored_register_subscription(topic_filter, handle);
+    if (ret != GGL_ERR_OK) {
+        ggl_return_err(handle, ret);
+    }
+
+    ret = iotcored_mqtt_subscribe(topic_filter, qos);
+    if (ret != GGL_ERR_OK) {
+        iotcored_unregister_subscriptions(handle);
+        ggl_return_err(handle, ret);
+    }
+
+    ggl_sub_accept(handle, sub_close_callback, NULL);
 }

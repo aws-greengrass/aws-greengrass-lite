@@ -5,6 +5,7 @@ coremqtt
 coreutils
 cpus
 DGGL
+DIOTCORED
 EFAILURE
 EOK
 EPOLLIN
