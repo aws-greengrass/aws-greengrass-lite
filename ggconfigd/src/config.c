@@ -59,6 +59,7 @@ static GglError create_database(void) {
 GglError ggconfig_open(void) {
     GglError return_value = GGL_ERR_FAILURE;
     if (config_initialized == false) {
+        char *err_message = 0;
         // do configuration
         int rc = sqlite3_open(config_database_name, &config_database);
         if (rc) {
@@ -76,8 +77,7 @@ GglError ggconfig_open(void) {
             sqlite3_prepare_v2(
                 config_database,
                 "SELECT name FROM sqlite_master WHERE type = 'table' AND name "
-                "= "
-                "'pathTable';",
+                "='pathTable';",
                 -1,
                 &stmt,
                 NULL
@@ -88,8 +88,28 @@ GglError ggconfig_open(void) {
             } else {
                 return_value = create_database();
             }
-            config_initialized = true;
         }
+        // create a temporary table for subscriber data
+        rc = sqlite3_exec(
+            config_database,
+            "CREATE TEMPORARY TABLE subscriberTable("
+            "'pathid' INT UNIQUE NOT NULL,"
+            "'subscriber' TEXT, "
+            "FOREIGN KEY (pathid) REFERENCES "
+            "pathTable(pathid))",
+            NULL,
+            NULL,
+            &err_message
+        );
+        if (rc) {
+            GGL_LOGE(
+                "ggconfig_open",
+                "failed to create temporary table %s",
+                err_message
+            );
+            return_value = GGL_ERR_FAILURE;
+        }
+        config_initialized = true;
     } else {
         return_value = GGL_ERR_OK;
     }
@@ -545,13 +565,20 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
 GglError ggconfig_get_key_notification(
     GglBuffer *key, GglConfigCallback callback, void *parameter
 ) {
-    (void) key;
     (void) callback;
     (void) parameter;
 
     if (config_initialized == false) {
         return GGL_ERR_FAILURE;
     }
+
+    // ensure this key is present in the key path. Key does not require a value
+    if (get_path_id(key) == 0) {
+        create_key_path(key);
+    }
+
+    // insert the key & callback data into the subscriber database
+    // What needs to be stored to do the notification?
 
     return GGL_ERR_FAILURE;
 }
