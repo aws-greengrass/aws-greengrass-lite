@@ -2,6 +2,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggdeploymentd_LIBS := ggl-lib msgpack-rpc
+ggdeploymentd_LIBS := ggl-lib core-bus deps/core_mqtt
 ggdeploymentd_PKGS := openssl
 ggdeploymentd_BIN := ggdeploymentd

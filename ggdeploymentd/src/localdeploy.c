@@ -24,15 +24,3 @@ GglError ggdeploymentd_create_local_deployment(const GgdeploymentdLocalDeploymen
 
     return 0;
 }
-
-void ggl_receive_callback(
-    void *ctx, GglBuffer method, GglList params, GglResponseHandle *handle
-) {
-    (void) ctx;
-
-    if ((params.len < 1) || (params.items[0].type != GGL_TYPE_MAP)) {
-        GGL_LOGE("ggdeploymentd-corebus", "Received invalid arguments.");
-        ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
-        return;
-    }
-}

@@ -7,7 +7,8 @@
 #include "deployment_queue.h"
 #include "ggl/error.h"
 #include "ggl/object.h"
-#include "ggl/server.h"
+#include "ggl/log.h"
+#include <ggl/core_bus/server.h>
 #include <argp.h>
 #include <stdlib.h>
 
@@ -37,6 +38,14 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
 
 static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 
+static void create_local_deployment(void *ctx, GglMap params, GglResponseHandle handle);
+
+static void create_local_deployment(void *ctx, GglMap params, GglResponseHandle handle) {
+    (void) ctx;
+
+    GGL_LOGD("ggdeploymentd", "Handling CreateLocalDeployment request.");
+}
+
 int main(int argc, char **argv) {
     GgdeploymentdArgs args = { 0 };
 
@@ -45,5 +54,13 @@ int main(int argc, char **argv) {
 
     deployment_queue_init();
 
-    ggl_listen(GGL_STR("/aws/ggl/ggdeploymentd"), NULL);
+    GglRpcMethodDesc handlers[] = {
+        { GGL_STR("publish"), false, create_local_deployment, NULL }
+    };
+    size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
+
+    GglError ret
+        = ggl_listen(GGL_STR("/aws/ggl/ggdeploymentd"), handlers, handlers_len);
+
+    GGL_LOGE("ggdeploymentd", "Exiting with error %u.", (unsigned) ret);
 }
