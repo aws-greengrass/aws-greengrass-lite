@@ -87,7 +87,7 @@ GglError iotcored_tls_connect(const IotcoredArgs *args, IotcoredTlsCtx **ctx) {
     }
 
     if (SSL_get_verify_result(ssl) != X509_V_OK) {
-        GGL_LOGE("ssl", "Failed TLS handshake.");
+        GGL_LOGE("ssl", "Failed TLS server certificate verification.");
         return GGL_ERR_FAILURE;
     }
 

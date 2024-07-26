@@ -62,19 +62,16 @@ typedef struct GglKV {
     GglObject val;
 } GglKV;
 
-// statement expression needed as only way to tell if an expression is a string
-// literal is to assign it to a char array declaration. Note that a initializer
-// expression for array of char would also pass this, which is unfortunate.
+// The only way to guarantee a string literal is with assignment; this could be
+// done with a statement expression but those are not allowed at file context.
 
 /** Create buffer literal from a string literal. */
 #define GGL_STR(strlit) \
-    __extension__({ \
-        char temp[] __attribute__((unused)) = (strlit); \
-        (GglBuffer) { \
-            .data = (uint8_t *) (strlit), \
-            .len = sizeof(strlit) - 1U, \
-        }; \
-    })
+    _Generic( \
+        (&(strlit)), \
+        char(*)[]: ((GglBuffer) { .data = (uint8_t *) (strlit), \
+                                  .len = sizeof(strlit) - 1U }) \
+    )
 
 // generic function on pointer is to validate parameter is array and not ptr.
 // On systems where char == uint8_t, this won't warn on string literal.
