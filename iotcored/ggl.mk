@@ -2,6 +2,6 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-iotcored_LIBS := ggl-lib msgpack-rpc deps/core_mqtt
+iotcored_LIBS := ggl-lib core-bus deps/core_mqtt
 iotcored_PKGS := openssl
 iotcored_BIN := iotcored

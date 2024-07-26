@@ -281,6 +281,18 @@ GglError iotcored_mqtt_subscribe(GglBuffer topic_filter, uint8_t qos) {
     return 0;
 }
 
+bool iotcored_mqtt_topic_filter_match(GglBuffer topic_filter, GglBuffer topic) {
+    bool matches = false;
+    MQTTStatus_t result = MQTT_MatchTopic(
+        (char *) topic.data,
+        (uint16_t) topic.len,
+        (char *) topic_filter.data,
+        (uint16_t) topic_filter.len,
+        &matches
+    );
+    return (result == MQTTSuccess) && matches;
+}
+
 static void event_callback(
     MQTTContext_t *ctx,
     MQTTPacketInfo_t *packet_info,
@@ -303,6 +315,13 @@ static void event_callback(
             (int) publish->topicNameLength,
             publish->pTopicName
         );
+
+        IotcoredMsg msg = { .topic = { .data = (uint8_t *) publish->pTopicName,
+                                       .len = publish->topicNameLength },
+                            .payload = { .data = (uint8_t *) publish->pPayload,
+                                         .len = publish->payloadLength } };
+
+        iotcored_mqtt_receive(&msg);
     } else {
         /* Handle other packets. */
         switch (packet_info->type) {

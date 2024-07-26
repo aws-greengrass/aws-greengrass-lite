@@ -4,9 +4,8 @@
  */
 
 #include "args.h"
+#include "bus_server.h"
 #include "ggl/error.h"
-#include "ggl/object.h"
-#include "ggl/server.h"
 #include "mqtt.h"
 #include <argp.h>
 #include <stdlib.h>
@@ -67,5 +66,5 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    ggl_listen(GGL_STR("/aws/ggl/iotcored"), NULL);
+    iotcored_start_server();
 }

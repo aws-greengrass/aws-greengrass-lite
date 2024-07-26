@@ -2,4 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-msgpack-rpc_LIBS := ggl-lib
+core-bus_LIBS := ggl-lib socket-server eventstream

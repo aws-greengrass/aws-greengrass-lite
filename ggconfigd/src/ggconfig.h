@@ -18,3 +18,5 @@ GglError ggconfig_get_key_notification(
 
 GglError ggconfig_open(void);
 GglError ggconfig_close(void);
+
+void ggconfigd_start_server(void);

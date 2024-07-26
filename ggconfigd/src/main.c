@@ -4,8 +4,6 @@
  */
 
 #include "ggconfig.h"
-#include "ggl/object.h"
-#include "ggl/server.h"
 #include <stdlib.h>
 
 static void exit_cleanup(void) {
@@ -20,7 +18,7 @@ int main(int argc, char **argv) {
 
     ggconfig_open();
 
-    ggl_listen(GGL_STR("/aws/ggl/ggconfigd"), NULL);
+    ggconfigd_start_server();
 
     return 0;
 }

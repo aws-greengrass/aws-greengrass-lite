@@ -4,10 +4,10 @@
  */
 
 #include "ggconfig.h"
-#include "ggl/object.h"
 #include <ctype.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/object.h>
 #include <sqlite3.h>
 #include <string.h>
 #include <stdbool.h>

@@ -5,6 +5,7 @@ coremqtt
 coreutils
 cpus
 DGGL
+DIOTCORED
 EFAILURE
 EOK
 EPOLLIN
@@ -41,6 +42,7 @@ pname
 posix
 respfd
 rootca
+serde
 serverd
 sigv4
 statusd

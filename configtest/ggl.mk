@@ -1,2 +1,2 @@
-configtest_LIBS := ggl-lib msgpack-rpc
+configtest_LIBS := ggl-lib core-bus
 configtest_BIN := configtest
