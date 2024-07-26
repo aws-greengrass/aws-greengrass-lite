@@ -6,6 +6,7 @@
 #include "ggl/socket_server.h"
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/defer.h>
@@ -142,6 +143,8 @@ static void new_client_ready(
         return;
     }
 
+    fcntl(client_fd, F_SETFD, FD_CLOEXEC);
+
     // To prevent deadlocking on hanged client, add a timeout
     struct timeval timeout = { .tv_sec = 4 };
     setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
@@ -277,6 +280,8 @@ GglError ggl_socket_server_listen(
         return GGL_ERR_FAILURE;
     }
     GGL_DEFER(close, server_fd);
+
+    fcntl(server_fd, F_SETFD, FD_CLOEXEC);
 
     GglError ret = configure_socket(server_fd, socket_path);
     if (ret != GGL_ERR_OK) {
