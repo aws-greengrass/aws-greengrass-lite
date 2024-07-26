@@ -23,7 +23,7 @@ typedef struct {
     GglBuffer value;
 } ConfigMsg;
 
-static void rpc_read(void *ctx, GglMap params, GglResponseHandle handle) {
+static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     ConfigMsg msg = { 0 };
@@ -73,7 +73,7 @@ static void rpc_read(void *ctx, GglMap params, GglResponseHandle handle) {
     }
 }
 
-static void rpc_write(void *ctx, GglMap params, GglResponseHandle handle) {
+static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     ConfigMsg msg = { 0 };

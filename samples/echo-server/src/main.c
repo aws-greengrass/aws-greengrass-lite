@@ -6,9 +6,10 @@
 #include <ggl/core_bus/server.h>
 #include <ggl/object.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
-static void handle_echo(void *ctx, GglMap params, GglResponseHandle handle) {
+static void handle_echo(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     ggl_respond(handle, GGL_OBJ(params));
 }

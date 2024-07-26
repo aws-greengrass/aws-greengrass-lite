@@ -514,7 +514,7 @@ GglError ggl_subscribe(
     GglSubscribeCloseCallback on_close,
     void *ctx,
     GglError *error,
-    GglSubscription *subscription
+    uint32_t *handle
 ) {
     int conn = -1;
     GglError ret = interface_connect(interface, &conn);
@@ -524,9 +524,9 @@ GglError ggl_subscribe(
     GGL_DEFER(close, conn);
     fcntl(conn, F_SETFD, FD_CLOEXEC);
 
-    uint32_t handle;
+    uint32_t sub_handle;
     bool bool_ret = get_sub_handle(
-        &handle,
+        &sub_handle,
         (SubCallbacks) {
             .on_response = on_response,
             .on_close = on_close,
@@ -538,7 +538,7 @@ GglError ggl_subscribe(
         GGL_LOGE("core-bus-client", "Exceeded max subscriptions.");
         return GGL_ERR_NOMEM;
     }
-    GGL_DEFER(release_sub_handle, handle);
+    GGL_DEFER(release_sub_handle, sub_handle);
 
     {
         pthread_mutex_lock(&payload_array_mtx);
@@ -661,19 +661,19 @@ GglError ggl_subscribe(
     }
     pthread_detach(sub_thread);
 
-    GGL_DEFER_CANCEL(handle);
+    GGL_DEFER_CANCEL(sub_handle);
     GGL_DEFER_CANCEL(conn);
 
-    if (subscription != NULL) {
-        *subscription = handle;
+    if (handle != NULL) {
+        *handle = sub_handle;
     }
 
     return GGL_ERR_OK;
 }
 
-void ggl_client_sub_close(GglSubscription subscription) {
-    uint16_t index = (uint16_t) (subscription & UINT16_MAX);
-    uint16_t generation = (uint16_t) (subscription >> 16);
+void ggl_client_sub_close(uint32_t handle) {
+    uint16_t index = (uint16_t) (handle & UINT16_MAX);
+    uint16_t generation = (uint16_t) (handle >> 16);
 
     pthread_mutex_lock(&sub_state_mtx);
     GGL_DEFER(pthread_mutex_unlock, sub_state_mtx);
@@ -684,7 +684,7 @@ void ggl_client_sub_close(GglSubscription subscription) {
     }
 
     if (sub_callbacks[index].on_close != NULL) {
-        sub_callbacks[index].on_close(sub_callbacks[index].ctx, subscription);
+        sub_callbacks[index].on_close(sub_callbacks[index].ctx, handle);
     }
 
     close(sub_fd[index]);

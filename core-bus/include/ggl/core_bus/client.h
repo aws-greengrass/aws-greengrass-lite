@@ -27,18 +27,13 @@ GglError ggl_call(
     GglObject *result
 ) __attribute__((warn_unused_result));
 
-/** Opaque handle to a client subscription. */
-typedef uint32_t GglSubscription;
-
 /** Callback for new data on a subscription. */
 typedef void (*GglSubscribeCallback)(
-    void *ctx, GglSubscription subscription, GglObject data
+    void *ctx, uint32_t handle, GglObject data
 );
 
 /** Callback for whenever a subscription is closed. */
-typedef void (*GglSubscribeCloseCallback)(
-    void *ctx, GglSubscription subscription
-);
+typedef void (*GglSubscribeCloseCallback)(void *ctx, uint32_t handle);
 
 /** Make an Core Bus subscription to a stream of objects. */
 GglError ggl_subscribe(
@@ -49,10 +44,10 @@ GglError ggl_subscribe(
     GglSubscribeCloseCallback on_close,
     void *ctx,
     GglError *error,
-    GglSubscription *subscription
+    uint32_t *handle
 ) __attribute__((warn_unused_result));
 
 /** Close a client subscription handle. */
-void ggl_client_sub_close(GglSubscription subscription);
+void ggl_client_sub_close(uint32_t handle);
 
 #endif

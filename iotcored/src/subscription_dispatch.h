@@ -11,9 +11,9 @@
 #include <ggl/object.h>
 
 GglError iotcored_register_subscription(
-    GglBuffer topic_filter, GglResponseHandle handle
+    GglBuffer topic_filter, uint32_t handle
 );
 
-void iotcored_unregister_subscriptions(GglResponseHandle handle);
+void iotcored_unregister_subscriptions(uint32_t handle);
 
 #endif

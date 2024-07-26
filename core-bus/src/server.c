@@ -286,7 +286,7 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
     return ggl_serialize(*obj, buf);
 }
 
-void ggl_return_err(GglResponseHandle handle, GglError error) {
+void ggl_return_err(uint32_t handle, GglError error) {
     pthread_mutex_lock(&encode_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, encode_array_mtx);
 
@@ -305,7 +305,7 @@ void ggl_return_err(GglResponseHandle handle, GglError error) {
     ggl_socket_close(&client_pool, handle);
 }
 
-void ggl_respond(GglResponseHandle handle, GglObject value) {
+void ggl_respond(uint32_t handle, GglObject value) {
     CoreBusRequestType type = CORE_BUS_CALL;
     GglError ret
         = ggl_socket_with_index(read_request_type, &type, &client_pool, handle);
@@ -333,7 +333,7 @@ void ggl_respond(GglResponseHandle handle, GglObject value) {
 }
 
 void ggl_sub_accept(
-    GglResponseHandle handle, GglServerSubCloseCallback on_close, void *ctx
+    uint32_t handle, GglServerSubCloseCallback on_close, void *ctx
 ) {
     SubCleanupCallback cleanup = { .fn = on_close, .ctx = ctx };
 
@@ -365,6 +365,6 @@ void ggl_sub_accept(
     }
 }
 
-void ggl_server_sub_close(GglResponseHandle handle) {
+void ggl_server_sub_close(uint32_t handle) {
     ggl_socket_close(&client_pool, handle);
 }

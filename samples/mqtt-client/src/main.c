@@ -10,13 +10,13 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/utils.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
-static void subscribe_callback(
-    void *ctx, GglSubscription subscription, GglObject data
-) {
+static void subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     (void) ctx;
-    (void) subscription;
+    (void) handle;
 
     if (data.type != GGL_TYPE_MAP) {
         GGL_LOGE("mqtt-client", "Subscription response is not a map.");

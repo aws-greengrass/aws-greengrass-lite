@@ -30,7 +30,7 @@
 static size_t topic_filter_len[IOTCORED_MAX_SUBSCRIPTIONS] = { 0 };
 static uint8_t topic_filters[IOTCORED_MAX_SUBSCRIPTIONS]
                             [IOTCORED_MAX_TOPIC_FILTER_LEN];
-static GglResponseHandle handles[IOTCORED_MAX_SUBSCRIPTIONS];
+static uint32_t handles[IOTCORED_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static GglBuffer topic_filter_buf(size_t index) {
@@ -40,7 +40,7 @@ static GglBuffer topic_filter_buf(size_t index) {
 }
 
 GglError iotcored_register_subscription(
-    GglBuffer topic_filter, GglResponseHandle handle
+    GglBuffer topic_filter, uint32_t handle
 ) {
     if (topic_filter.len == 0) {
         GGL_LOGE(
@@ -70,7 +70,7 @@ GglError iotcored_register_subscription(
     return GGL_ERR_NOMEM;
 }
 
-void iotcored_unregister_subscriptions(GglResponseHandle handle) {
+void iotcored_unregister_subscriptions(uint32_t handle) {
     pthread_mutex_lock(&mtx);
     GGL_DEFER(pthread_mutex_unlock, mtx);
 
