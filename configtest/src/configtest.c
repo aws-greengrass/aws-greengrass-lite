@@ -39,8 +39,8 @@ static void test_get(GglBuffer component, GglBuffer test_key) {
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
     GglMap params = GGL_MAP(
-        { GGL_STR("component"), GGL_BUF(component) },
-        { GGL_STR("key"), GGL_BUF(test_key) },
+        { GGL_STR("component"), GGL_OBJ(component) },
+        { GGL_STR("key"), GGL_OBJ(test_key) },
     );
     GglObject result;
 

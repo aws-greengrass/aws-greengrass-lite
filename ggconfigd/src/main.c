@@ -8,9 +8,7 @@
 #include "ggl/server.h"
 #include <stdlib.h>
 
-void exit_cleanup(void);
-
-void exit_cleanup(void) {
+static void exit_cleanup(void) {
     ggconfig_close();
 }
 
