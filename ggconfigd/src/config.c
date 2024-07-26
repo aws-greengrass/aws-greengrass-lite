@@ -219,8 +219,8 @@ static long long get_parent_key_at_root(GglBuffer *key) {
     // get a pathid where the path is a root (first element of a path)
     sqlite3_prepare_v2(
         config_database,
-        "select pathid from pathTable where pathid not in (select "
-        "pathid from relationTable) and pathvalue = ?;",
+        "SELECT pathid FROM pathTable WHERE pathid NOT IN (SELECT "
+        "pathid FROM relationTable) AND pathvalue = ?;",
         -1,
         &root_check_stmt,
         NULL
@@ -250,7 +250,7 @@ static void relation_insert(long long id, long long parent) {
     sqlite3_stmt *relation_insert_stmt;
     sqlite3_prepare_v2(
         config_database,
-        "insert into relationTable(pathid,parentid) values (?,?);",
+        "INSERT INTO relationTable(pathid,parentid) VALUES (?,?);",
         -1,
         &relation_insert_stmt,
         NULL
@@ -363,37 +363,58 @@ static bool validate_key(GglBuffer *key) {
     return true;
 }
 
-GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
-    if (config_initialized == false) {
-        return GGL_ERR_FAILURE;
+static long long get_path_id(GglBuffer *key) {
+    sqlite3_stmt *find_element_stmt;
+    long long id = 0;
+    GGL_LOGI(
+        "get_path_id", "searching %.*s", (int) key->len, (char *) key->data
+    );
+    sqlite3_prepare_v2(
+        config_database,
+        "SELECT pathid FROM pathTable WHERE pathvalue = ?;",
+        -1,
+        &find_element_stmt,
+        NULL
+    );
+    // get the ID of this item after the parent
+    sqlite3_bind_text(
+        find_element_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
+    );
+    int rc = sqlite3_step(find_element_stmt);
+    GGL_LOGI("find_path_with_parent", "find element returned %d", rc);
+    if (rc == SQLITE_ROW) {
+        id = sqlite3_column_int(find_element_stmt, 0);
+        GGL_LOGI(
+            "get_path_id",
+            "found %.*s at %lld",
+            (int) key->len,
+            (char *) key->data,
+            id
+        );
+    } else {
+        GGL_LOGI(
+            "find_path_with_parent",
+            "%.*s not found",
+            (int) key->len,
+            (char *) key->data
+        );
     }
-    if (key == 0 || key->data == 0 || key->len == 0) {
-        return GGL_ERR_FAILURE;
-    }
-    if (validate_key(key) == false) {
-        return GGL_ERR_INVALID;
-    }
+    sqlite3_finalize(find_element_stmt);
+    return id;
+}
 
-    GglError return_value = GGL_ERR_FAILURE;
+static void create_key_path(GglBuffer *key) {
     long long id = 0;
     long long parent_id = 0;
     int depth_count = 0;
     {
         GglBuffer parent_key_buffer;
-        parent_key_buffer.data = malloc(key->len + 1);
+        parent_key_buffer.data = key->data;
         parent_key_buffer.len = 0;
-        memset(parent_key_buffer.data, 0, parent_key_buffer.len);
 
         sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
         for (size_t index = 0; index < key->len; index++) {
-            parent_key_buffer.data[index] = key->data[index];
             parent_key_buffer.len++;
-            GGL_LOGI(
-                "loop",
-                "%.*s",
-                (int) parent_key_buffer.len,
-                (char *) parent_key_buffer.data
-            );
             if (key->data[index + 1] == '/') {
                 if (depth_count == 0) { // root level of the key path
                     id = get_parent_key_at_root(&parent_key_buffer);
@@ -421,13 +442,30 @@ GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
             parent_id = id;
             depth_count++;
         }
-        free(parent_key_buffer.data);
     }
     id = find_path_with_parent(key);
     if (id == 0) {
         id = path_insert(key);
         relation_insert(id, parent_id);
     }
+}
+
+GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
+    GglError return_value = GGL_ERR_FAILURE;
+    if (config_initialized == false) {
+        return GGL_ERR_FAILURE;
+    }
+    if (key == 0 || key->data == 0 || key->len == 0) {
+        return GGL_ERR_FAILURE;
+    }
+    if (validate_key(key) == false) {
+        return GGL_ERR_INVALID;
+    }
+
+    if (get_path_id(key) == 0) {
+        create_key_path(key);
+    }
+
     GGL_LOGI(
         "ggconfig_insert",
         "time to insert/update %.*s",
@@ -441,6 +479,9 @@ GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
     }
 
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
+
+    // notify any subscribers for this key
+    // use a subscriber table.
 
     GGL_LOGI(
         "ggconfig_insert",
