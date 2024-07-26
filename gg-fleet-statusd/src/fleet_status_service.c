@@ -24,7 +24,7 @@ static const char TOPIC_END[] = "/greengrassv2/health/json";
 
 static const char PAYLOAD_START[]
     = "{\"ggcVersion\":\"2.13.0\",\"platform\":\"linux\",\"architecture\":"
-      "\"amd64\",\"thing\":\"";
+      "\"amd64\",\"runtime\":\"NucleusLite\",\"thing\":\"";
 static const char PAYLOAD_END[]
     = "\",\"sequenceNumber\":1,\"timestamp\":10,\"messageType\":\"COMPLETE\","
       "\"trigger\":\"NUCLEUS_LAUNCH\",\"overallDeviceStatus\":\"HEALTHY\","
