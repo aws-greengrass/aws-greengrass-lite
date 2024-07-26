@@ -1,9 +1,10 @@
-#include "ggl/bump_alloc.h"
-#include "ggl/client.h"
-#include "ggl/error.h"
-#include "ggl/log.h"
-#include "ggl/object.h"
 #include <assert.h>
+#include <ggl/bump_alloc.h>
+#include <ggl/core_bus/client.h>
+#include <ggl/error.h>
+#include <ggl/log.h>
+#include <ggl/object.h>
+#include <stddef.h>
 #include <stdint.h>
 
 static void test_insert(
@@ -23,7 +24,7 @@ static void test_insert(
     GglObject result;
 
     GglError error = ggl_call(
-        server, GGL_STR("write"), params, &the_allocator.alloc, &result
+        server, GGL_STR("write"), params, NULL, &the_allocator.alloc, &result
     );
 
     if (error != GGL_ERR_OK) {
@@ -45,7 +46,7 @@ static void test_get(GglBuffer component, GglBuffer test_key) {
     GglObject result;
 
     GglError error = ggl_call(
-        server, GGL_STR("read"), params, &the_allocator.alloc, &result
+        server, GGL_STR("read"), params, NULL, &the_allocator.alloc, &result
     );
     if (error != GGL_ERR_OK) {
         GGL_LOGE("test_get", "error %d", error);

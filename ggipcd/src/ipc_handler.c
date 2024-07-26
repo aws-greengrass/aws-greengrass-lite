@@ -7,7 +7,7 @@
 #include <ggl/alloc.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
-#include <ggl/client.h>
+#include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -79,6 +79,7 @@ static GglError handle_publish_to_iot_core(
         GGL_STR("/aws/ggl/iotcored"),
         GGL_STR("publish"),
         call_args,
+        NULL,
         alloc,
         &call_resp
     );

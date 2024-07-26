@@ -3,16 +3,36 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/buffer.h"
-#include "ggl/error.h"
-#include "ggl/log.h"
-#include "ggl/map.h"
-#include "ggl/object.h"
-#include "ggl/server.h"
+#include "bus_server.h"
 #include "mqtt.h"
+#include <ggl/core_bus/server.h>
+#include <ggl/error.h>
+#include <ggl/log.h>
+#include <ggl/map.h>
+#include <ggl/object.h>
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-static void rpc_publish(GglMap params, GglResponseHandle *handle) {
+static void rpc_publish(void *ctx, GglMap params, GglResponseHandle handle);
+
+void iotcored_start_server(void) {
+    GglRpcMethodDesc handlers[] = {
+        { GGL_STR("publish"), false, rpc_publish, NULL },
+    };
+    size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
+
+    GglError ret
+        = ggl_listen(GGL_STR("/aws/ggl/iotcored"), handlers, handlers_len);
+
+    GGL_LOGE("iotcored", "Exiting with error %u.", (unsigned) ret);
+}
+
+static void rpc_publish(void *ctx, GglMap params, GglResponseHandle handle) {
+    (void) ctx;
+
+    GGL_LOGD("rpc-handler", "Handling publish request.");
+
     IotcoredMsg msg = { 0 };
     uint8_t qos = 0;
 
@@ -23,20 +43,20 @@ static void rpc_publish(GglMap params, GglResponseHandle *handle) {
         GglBuffer topic = val->buf;
         if (topic.len > UINT16_MAX) {
             GGL_LOGE("rpc-handler", "Publish payload too large.");
-            ggl_respond(handle, GGL_ERR_RANGE, GGL_OBJ_NULL());
+            ggl_return_err(handle, GGL_ERR_RANGE);
             return;
         }
         msg.topic = topic;
     } else {
         GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
-        ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
+        ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
     if (ggl_map_get(params, GGL_STR("payload"), &val)) {
         if (val->type != GGL_TYPE_BUF) {
             GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
-            ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
+            ggl_return_err(handle, GGL_ERR_INVALID);
             return;
         }
         msg.payload = val->buf;
@@ -45,31 +65,16 @@ static void rpc_publish(GglMap params, GglResponseHandle *handle) {
     if (ggl_map_get(params, GGL_STR("qos"), &val)) {
         if ((val->type != GGL_TYPE_I64) || (val->i64 < 0) || (val->i64 > 2)) {
             GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
-            ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
+            ggl_return_err(handle, GGL_ERR_INVALID);
             return;
         }
         qos = (uint8_t) val->i64;
     }
 
     GglError ret = iotcored_mqtt_publish(&msg, qos);
-
-    ggl_respond(handle, ret, GGL_OBJ_NULL());
-}
-
-void ggl_receive_callback(
-    void *ctx, GglBuffer method, GglMap params, GglResponseHandle *handle
-) {
-    (void) ctx;
-
-    if (ggl_buffer_eq(method, GGL_STR("publish"))) {
-        rpc_publish(params, handle);
-    } else {
-        GGL_LOGE(
-            "rpc-handler",
-            "Received unknown command: %.*s.",
-            (int) method.len,
-            method.data
-        );
-        ggl_respond(handle, GGL_ERR_INVALID, GGL_OBJ_NULL());
+    if (ret != GGL_ERR_OK) {
+        ggl_return_err(handle, ret);
     }
+
+    ggl_respond(handle, GGL_OBJ_NULL());
 }

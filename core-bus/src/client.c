@@ -372,14 +372,18 @@ GglError ggl_call(
 
         while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
             if (ggl_buffer_eq(header.name, GGL_STR("error"))) {
-                *error = GGL_ERR_FAILURE;
+                if (error != NULL) {
+                    *error = GGL_ERR_FAILURE;
+                }
                 if (header.value.type != EVENTSTREAM_INT32) {
                     GGL_LOGE(
                         "core-bus-client", "Response error header not int."
                     );
                 } else {
                     // TODO: Handle unknown error value
-                    *error = (GglError) header.value.int32;
+                    if (error != NULL) {
+                        *error = (GglError) header.value.int32;
+                    }
                 }
                 return GGL_ERR_FAILURE;
             }

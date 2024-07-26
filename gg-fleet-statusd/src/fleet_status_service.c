@@ -5,11 +5,14 @@
 
 #include "fleet_status_service.h"
 #include "args.h"
-#include "ggl/client.h"
-#include "ggl/error.h"
-#include "ggl/log.h"
-#include "ggl/object.h"
+#include <ggl/core_bus/client.h>
+#include <ggl/defer.h>
+#include <ggl/error.h>
+#include <ggl/log.h>
+#include <ggl/object.h>
+#include <pthread.h>
 #include <string.h>
+#include <stdint.h>
 
 FssdArgs *args;
 static const char TOPIC_START[] = "$aws/things/";
@@ -42,8 +45,12 @@ static const char PAYLOAD_END[]
     (PAYLOAD_PREFIX_LEN + MAX_THING_NAME_LEN + PAYLOAD_SUFFIX_LEN)
 
 GglError publish_message(const char *thing_name) {
+    static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&mtx);
+    GGL_DEFER(pthread_mutex_unlock, mtx);
+
     // build topic name
-    char topic[TOPIC_BUFFER_LEN + 1] = { 0 };
+    static char topic[TOPIC_BUFFER_LEN + 1] = { 0 };
 
     if (strlen(thing_name) > MAX_THING_NAME_LEN) {
         GGL_LOGE("fss", "Thing name too long.");
@@ -54,17 +61,15 @@ GglError publish_message(const char *thing_name) {
     strncat(topic, thing_name, MAX_THING_NAME_LEN);
     strncat(topic, TOPIC_END, TOPIC_SUFFIX_LEN);
 
-    // NOLINTNEXTLINE(clang-diagnostic-pointer-sign)
-    GglBuffer topic_name = { .data = topic, .len = strlen(topic) };
+    GglBuffer topic_name = { .data = (uint8_t *) topic, .len = strlen(topic) };
 
     // build payload
-    char payload[PAYLOAD_BUFFER_LEN + 1] = { 0 };
+    static char payload[PAYLOAD_BUFFER_LEN + 1] = { 0 };
     strncat(payload, PAYLOAD_START, PAYLOAD_PREFIX_LEN);
     strncat(payload, thing_name, MAX_THING_NAME_LEN);
     strncat(payload, PAYLOAD_END, PAYLOAD_SUFFIX_LEN);
 
-    // NOLINTNEXTLINE(clang-diagnostic-pointer-sign)
-    GglBuffer msg = { .data = payload, .len = strlen(payload) };
+    GglBuffer msg = { .data = (uint8_t *) payload, .len = strlen(payload) };
 
     GglError err = ggl_notify(
         GGL_STR("/aws/ggl/iotcored"),

@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/client.h"
-#include "ggl/error.h"
-#include "ggl/log.h"
-#include "ggl/object.h"
 #include <errno.h>
+#include <ggl/core_bus/client.h>
+#include <ggl/error.h>
+#include <ggl/log.h>
+#include <ggl/object.h>
 
 int main(void) {
     GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");

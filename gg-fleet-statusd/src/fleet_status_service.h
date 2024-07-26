@@ -6,8 +6,8 @@
 #ifndef GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 #define GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 
-#include "ggl/error.h"
-#include "ggl/object.h"
+#include <ggl/error.h>
+#include <ggl/object.h>
 
 typedef enum Trigger {
     STARTUP
