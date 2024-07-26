@@ -5,12 +5,13 @@
 
 #include "localdeploy.h"
 #include "deployment_model.h"
+#include <stdint.h>
 
 #ifndef GGDEPLOYMENTD_QUEUE_H
 #define GGDEPLOYMENTD_QUEUE_H
 
-void deployment_queue_init();
+void deployment_queue_init(void);
 bool deployment_queue_offer(GgdeploymentdLocalDeployment deployment);
-GgdeploymentdLocalDeployment deployment_queue_poll();
-int deployment_queue_size();
+GgdeploymentdLocalDeployment deployment_queue_poll(void);
+uint8_t deployment_queue_size(void);
 #endif

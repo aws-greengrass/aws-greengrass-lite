@@ -5,22 +5,26 @@
 
 #include "deployment_queue.h"
 #include "ggl/log.h"
+#include "ggl/buffer.h"
 
 #ifndef GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE
 #define GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE 20
 #endif
 
+size_t deployment_queue_contains_deployment_id(GglBuffer deployment_id);
+bool should_replace_deployment_in_queue(GgdeploymentdLocalDeployment new_deployment, GgdeploymentdLocalDeployment existing_deployment);
+
 typedef struct {
     GgdeploymentdLocalDeployment deployments[GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE];
-    int front;
-    int back;
-    int size;
+    size_t front;
+    size_t back;
+    uint8_t size;
     bool initialized;
 } GgdeploymentdDeploymentQueue;
 
 static GgdeploymentdDeploymentQueue deployment_queue;
 
-void deployment_queue_init() {
+void deployment_queue_init(void) {
     if(deployment_queue.initialized) {
         GGL_LOGD(
             "deployment_queue",
@@ -29,21 +33,21 @@ void deployment_queue_init() {
         return;
     }
     deployment_queue.front = 0;
-    deployment_queue.back = -1;
+    deployment_queue.back = SIZE_MAX;
     deployment_queue.size = 0;
     deployment_queue.initialized = true;
 }
 
-int deployment_queue_size() {
+uint8_t deployment_queue_size(void) {
     return deployment_queue.size;
 }
 
-int deployment_queue_contains_deployment_id(GglBuffer deployment_id) {
+size_t deployment_queue_contains_deployment_id(GglBuffer deployment_id) {
     if(deployment_queue.size == 0) {
         return false;
     }
-    int count = deployment_queue.size;
-    int position = deployment_queue.front;
+    uint8_t count = deployment_queue.size;
+    size_t position = deployment_queue.front;
     while(count > 0) {
         if(ggl_buffer_eq(deployment_queue.deployments[position].deployment_id, deployment_id)) {
             return position;
@@ -51,7 +55,7 @@ int deployment_queue_contains_deployment_id(GglBuffer deployment_id) {
         position = (position + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
         count--;
     }
-    return -1;
+    return SIZE_MAX;
 }
 
 bool should_replace_deployment_in_queue(GgdeploymentdLocalDeployment new_deployment, GgdeploymentdLocalDeployment existing_deployment) {
@@ -70,7 +74,7 @@ bool should_replace_deployment_in_queue(GgdeploymentdLocalDeployment new_deploym
     return new_deployment.deployment_stage != DEFAULT;
 }
 
-bool offer(GgdeploymentdLocalDeployment deployment) {
+bool deployment_queue_offer(GgdeploymentdLocalDeployment deployment) {
     if(deployment_queue.size == GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE) {
         GGL_LOGD(
             "deployment_queue",
@@ -79,9 +83,9 @@ bool offer(GgdeploymentdLocalDeployment deployment) {
         return false;
     }
 
-    int deployment_id_position = deployment_queue_contains_deployment_id(deployment.deployment_id);
-    if(deployment_id_position == -1) {
-        deployment_queue.back = (deployment_queue.back + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
+    size_t deployment_id_position = deployment_queue_contains_deployment_id(deployment.deployment_id);
+    if(deployment_id_position == SIZE_MAX) {
+        deployment_queue.back = (deployment_queue.back == SIZE_MAX) ? 0 : (deployment_queue.back + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
         deployment_queue.deployments[deployment_queue.back] = deployment;
         deployment_queue.size++;
         return true;
@@ -95,13 +99,13 @@ bool offer(GgdeploymentdLocalDeployment deployment) {
     return false;
 }
 
-GgdeploymentdLocalDeployment deployment_queue_poll() {
+GgdeploymentdLocalDeployment deployment_queue_poll(void) {
     if(deployment_queue.size == 0) {
         GGL_LOGD(
             "deployment_queue",
             "Deployment queue is empty, there is no deployment to poll."
         );
-        GgdeploymentdLocalDeployment blank_deployment = {};
+        GgdeploymentdLocalDeployment blank_deployment;
         return blank_deployment;
     }
     GgdeploymentdLocalDeployment next_deployment = deployment_queue.deployments[deployment_queue.front];
