@@ -35,6 +35,8 @@
 #define IOTCORED_NETWORK_BUFFER_SIZE 5000
 #endif
 
+#define IOTCORED_MQTT_MAX_PUBLISH_RECORDS 10
+
 static uint32_t time_ms(void);
 static void event_callback(
     MQTTContext_t *ctx,
@@ -56,6 +58,11 @@ static NetworkContext_t net_ctx;
 static MQTTContext_t mqtt_ctx;
 
 static uint8_t network_buffer[IOTCORED_NETWORK_BUFFER_SIZE];
+
+static MQTTPubAckInfo_t
+    outgoing_publish_records[IOTCORED_MQTT_MAX_PUBLISH_RECORDS];
+static MQTTPubAckInfo_t
+    incoming_publish_records[IOTCORED_MQTT_MAX_PUBLISH_RECORDS];
 
 pthread_mutex_t *coremqtt_get_send_mtx(const MQTTContext_t *ctx) {
     (void) ctx;
@@ -162,6 +169,15 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
         event_callback,
         &(MQTTFixedBuffer_t) { .pBuffer = network_buffer,
                                .size = sizeof(network_buffer) }
+    );
+    assert(mqtt_ret == MQTTSuccess);
+
+    mqtt_ret = MQTT_InitStatefulQoS(
+        &mqtt_ctx,
+        outgoing_publish_records,
+        sizeof(outgoing_publish_records) / sizeof(*outgoing_publish_records),
+        incoming_publish_records,
+        sizeof(incoming_publish_records) / sizeof(*incoming_publish_records)
     );
     assert(mqtt_ret == MQTTSuccess);
 
