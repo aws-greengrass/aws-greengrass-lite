@@ -13,6 +13,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -24,6 +25,13 @@ static const int32_t FD_FREE = -0x55555556; /* Alternating bits for debugging */
 GGL_DEFINE_DEFER(
     unlock_pool_mtx, GglSocketPool *, pool, pthread_mutex_unlock(&(*pool)->mtx)
 )
+
+__attribute__((constructor)) static void ignore_sigpipe(void) {
+    // If SIGPIPE is not blocked, writing to a socket that the server has closed
+    // will result in this process being killed.
+    // This will protect calls of `ggl_socket_write`
+    signal(SIGPIPE, SIG_IGN);
+}
 
 void ggl_socket_pool_init(GglSocketPool *pool) {
     assert(pool != NULL);
@@ -187,13 +195,15 @@ static GglError write_wrapper(
             return GGL_ERR_OK;
         }
         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-            GGL_LOGE("socket", "write timed out on socket %d.", fd);
+            GGL_LOGE("socket", "Write timed out on socket %d.", fd);
             return GGL_ERR_FAILURE;
         }
-        int err = errno;
-        if (errno != EPIPE) {
-            GGL_LOGE("socket", "Failed to write to client: %d.", err);
+        if (errno == EPIPE) {
+            GGL_LOGE("socket", "Write failed to %d; peer closed socket.", fd);
+            return GGL_ERR_NOCONN;
         }
+        int err = errno;
+        GGL_LOGE("socket", "Failed to write to socket %d: %d.", fd, err);
         return GGL_ERR_FAILURE;
     }
 

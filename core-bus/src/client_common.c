@@ -30,6 +30,13 @@ uint8_t ggl_core_bus_client_payload_array[GGL_COREBUS_MAX_MSG_LEN];
 pthread_mutex_t ggl_core_bus_client_payload_array_mtx
     = PTHREAD_MUTEX_INITIALIZER;
 
+__attribute__((constructor)) static void ignore_sigpipe(void) {
+    // If SIGPIPE is not blocked, writing to a socket that the server has closed
+    // will result in this process being killed.
+    // This will protect calls of `write_exact`
+    signal(SIGPIPE, SIG_IGN);
+}
+
 static GglError read_exact(int fd, GglBuffer buf) {
     size_t read = 0;
 
@@ -55,10 +62,6 @@ static GglError read_exact(int fd, GglBuffer buf) {
 }
 
 static GglError write_exact(int fd, GglBuffer buf) {
-    // If SIGPIPE is not blocked, writing to a socket that the client has closed
-    // will result in this process being killed.
-    signal(SIGPIPE, SIG_IGN);
-
     size_t written = 0;
 
     while (written < buf.len) {
@@ -67,8 +70,19 @@ static GglError write_exact(int fd, GglBuffer buf) {
             if (errno == EINTR) {
                 continue;
             }
+            if (errno == EPIPE) {
+                GGL_LOGE(
+                    "socket", "Write failed to %d; server closed socket.", fd
+                );
+                return GGL_ERR_NOCONN;
+            }
             int err = errno;
-            GGL_LOGE("core-bus-client", "Failed to write to server: %d.", err);
+            GGL_LOGE(
+                "core-bus-client",
+                "Failed to write to server on %d: %d.",
+                fd,
+                err
+            );
             return GGL_ERR_FAILURE;
         }
         written += (size_t) ret;

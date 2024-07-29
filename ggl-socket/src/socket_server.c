@@ -13,7 +13,6 @@
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <signal.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -232,10 +231,6 @@ GglError ggl_socket_server_listen(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-
-    // If SIGPIPE is not blocked, writing to a socket that the client has closed
-    // will result in this process being killed.
-    signal(SIGPIPE, SIG_IGN);
 
     SocketServerCtx server_ctx = {
         .pool = pool,
