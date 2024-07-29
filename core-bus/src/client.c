@@ -93,7 +93,7 @@ static bool release_sub_handle(uint32_t handle) {
     GGL_DEFER(pthread_mutex_unlock, sub_state_mtx);
 
     if (generation != generations[index]) {
-        GGL_LOGD("socket-server", "Generation mismatch in %s.", __func__);
+        GGL_LOGD("socket-client", "Generation mismatch in %s.", __func__);
         return false;
     }
 
@@ -142,7 +142,7 @@ static GglError socket_read_protected(uint32_t handle, GglBuffer buf) {
         GGL_DEFER(pthread_mutex_unlock, sub_state_mtx);
 
         if (generation != generations[index]) {
-            GGL_LOGD("socket-server", "Generation mismatch in %s.", __func__);
+            GGL_LOGD("socket-client", "Generation mismatch in %s.", __func__);
             return GGL_ERR_NOCONN;
         }
 
@@ -224,7 +224,7 @@ static GglError interface_connect(GglBuffer interface, int *conn) {
     size_t path_len = strlen(socket_path);
 
     if (path_len >= sizeof(addr.sun_path)) {
-        GGL_LOGE("socket-server", "Socket path too long.");
+        GGL_LOGE("socket-client", "Socket path too long.");
         return GGL_ERR_FAILURE;
     }
 
@@ -232,7 +232,7 @@ static GglError interface_connect(GglBuffer interface, int *conn) {
 
     if (connect(sockfd, (const struct sockaddr *) &addr, sizeof(addr)) == -1) {
         int err = errno;
-        GGL_LOGW("socket-server", "Failed to connect to server: %d.", err);
+        GGL_LOGW("socket-client", "Failed to connect to server: %d.", err);
         return GGL_ERR_FAILURE;
     }
 
@@ -420,7 +420,7 @@ static void *subscription_thread(void *args) {
         GGL_DEFER(pthread_mutex_unlock, sub_state_mtx);
 
         if (generation != generations[index]) {
-            GGL_LOGD("socket-server", "Generation mismatch in %s.", __func__);
+            GGL_LOGD("socket-client", "Generation mismatch in %s.", __func__);
             return NULL;
         }
 
@@ -470,7 +470,7 @@ static void *subscription_thread(void *args) {
 
             if (generation != generations[index]) {
                 GGL_LOGD(
-                    "socket-server", "Generation mismatch in %s.", __func__
+                    "socket-client", "Generation mismatch in %s.", __func__
                 );
                 return NULL;
             }
@@ -679,7 +679,7 @@ void ggl_client_sub_close(uint32_t handle) {
     GGL_DEFER(pthread_mutex_unlock, sub_state_mtx);
 
     if (generation != generations[index]) {
-        GGL_LOGD("socket-server", "Generation mismatch in %s.", __func__);
+        GGL_LOGD("socket-client", "Generation mismatch in %s.", __func__);
         return;
     }
 

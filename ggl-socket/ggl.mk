@@ -2,4 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-socket-server_LIBS := ggl-lib
+ggl-socket_LIBS := ggl-lib
