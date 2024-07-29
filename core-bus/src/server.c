@@ -317,6 +317,11 @@ void ggl_respond(uint32_t handle, GglObject value) {
         return;
     }
 
+    if (type == GGL_CORE_BUS_NOTIFY) {
+        ggl_socket_handle_close(&pool, handle);
+        return;
+    }
+
     pthread_mutex_lock(&encode_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, encode_array_mtx);
 
