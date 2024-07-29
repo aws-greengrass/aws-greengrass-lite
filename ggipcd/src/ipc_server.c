@@ -18,6 +18,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/socket.h>
 #include <ggl/socket_server.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -75,15 +76,15 @@ static uint16_t client_generations[GGL_IPC_MAX_CLIENTS];
 
 static void reset_client_state(uint32_t handle, size_t index);
 
-static SocketServerClientPool client_pool = {
-    .max_clients = GGL_IPC_MAX_CLIENTS,
+static GglSocketPool pool = {
+    .max_fds = GGL_IPC_MAX_CLIENTS,
     .fds = client_fds,
     .generations = client_generations,
     .on_register = reset_client_state,
 };
 
 __attribute__((constructor)) static void init_client_pool(void) {
-    ggl_socket_server_pool_init(&client_pool);
+    ggl_socket_pool_init(&pool);
 }
 
 static void reset_client_state(uint32_t handle, size_t index) {
@@ -248,12 +249,12 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
         NULL
     );
 
-    ret = ggl_socket_write(&client_pool, handle, send_buffer);
+    ret = ggl_socket_write(&pool, handle, send_buffer);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    ret = ggl_socket_with_index(set_connected, NULL, &client_pool, handle);
+    ret = ggl_socket_with_index(set_connected, NULL, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -347,7 +348,7 @@ static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
         &send_buffer, resp_headers, resp_headers_len, payload_writer, &resp_obj
     );
 
-    return ggl_socket_write(&client_pool, handle, send_buffer);
+    return ggl_socket_write(&pool, handle, send_buffer);
 }
 
 static void get_conn_state(void *ctx, size_t index) {
@@ -362,7 +363,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
     assert(prelude_buf.len == 12);
 
-    GglError ret = ggl_socket_read(&client_pool, handle, prelude_buf);
+    GglError ret = ggl_socket_read(&pool, handle, prelude_buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -384,7 +385,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     GglBuffer data_section
         = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
 
-    ret = ggl_socket_read(&client_pool, handle, data_section);
+    ret = ggl_socket_read(&pool, handle, data_section);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -397,7 +398,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     }
 
     IpcConnState state = IPC_INIT;
-    ret = ggl_socket_with_index(get_conn_state, &state, &client_pool, handle);
+    ret = ggl_socket_with_index(get_conn_state, &state, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -414,7 +415,5 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 }
 
 GglError ggl_ipc_listen(const char *socket_path) {
-    return ggl_socket_server_listen(
-        socket_path, &client_pool, client_ready, NULL
-    );
+    return ggl_socket_server_listen(socket_path, &pool, client_ready, NULL);
 }

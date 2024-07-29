@@ -16,6 +16,7 @@
 #include <ggl/eventstream/types.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/socket.h>
 #include <ggl/socket_server.h>
 #include <pthread.h>
 #include <string.h>
@@ -41,8 +42,8 @@ typedef struct {
     void *ctx;
 } SubCleanupCallback;
 
-static pthread_mutex_t encode_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t encode_array[GGL_COREBUS_MAX_MSG_LEN];
+static pthread_mutex_t encode_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static CoreBusRequestType client_request_types[GGL_COREBUS_MAX_CLIENTS];
 static SubCleanupCallback subscription_cleanup[GGL_COREBUS_MAX_CLIENTS];
@@ -53,8 +54,8 @@ static void close_subscription(uint32_t handle, size_t index);
 static int32_t client_fds[GGL_COREBUS_MAX_CLIENTS];
 static uint16_t client_generations[GGL_COREBUS_MAX_CLIENTS];
 
-static SocketServerClientPool client_pool = {
-    .max_clients = GGL_COREBUS_MAX_CLIENTS,
+static GglSocketPool pool = {
+    .max_fds = GGL_COREBUS_MAX_CLIENTS,
     .fds = client_fds,
     .generations = client_generations,
     .on_register = reset_client_state,
@@ -62,7 +63,7 @@ static SocketServerClientPool client_pool = {
 };
 
 __attribute__((constructor)) static void init_client_pool(void) {
-    ggl_socket_server_pool_init(&client_pool);
+    ggl_socket_pool_init(&pool);
 }
 
 static void reset_client_state(uint32_t handle, size_t index) {
@@ -108,7 +109,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
     assert(prelude_buf.len == 12);
 
-    GglError ret = ggl_socket_read(&client_pool, handle, prelude_buf);
+    GglError ret = ggl_socket_read(&pool, handle, prelude_buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -122,7 +123,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
     if (prelude.data_len > recv_buffer.len) {
         GGL_LOGE(
-            "core-bus",
+            "core-bus-server",
             "EventStream packet does not fit in core bus buffer size."
         );
         ggl_return_err(handle, GGL_ERR_NOMEM);
@@ -132,7 +133,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     GglBuffer data_section
         = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
 
-    ret = ggl_socket_read(&client_pool, handle, data_section);
+    ret = ggl_socket_read(&pool, handle, data_section);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -218,7 +219,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         params = payload_obj.map;
     }
 
-    ret = ggl_socket_with_index(set_request_type, &type, &client_pool, handle);
+    ret = ggl_socket_with_index(set_request_type, &type, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -270,9 +271,7 @@ GglError ggl_listen(
 
     InterfaceCtx ctx = { .handlers = handlers, .handlers_len = handlers_len };
 
-    return ggl_socket_server_listen(
-        socket_path, &client_pool, client_ready, &ctx
-    );
+    return ggl_socket_server_listen(socket_path, &pool, client_ready, &ctx);
 }
 
 static GglError payload_writer(GglBuffer *buf, void *payload) {
@@ -297,18 +296,21 @@ void ggl_return_err(uint32_t handle, GglError error) {
     };
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
-    eventstream_encode(
+    GglError ret = eventstream_encode(
         &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
     );
 
-    ggl_socket_write(&client_pool, handle, send_buffer);
-    ggl_socket_close(&client_pool, handle);
+    if (ret == GGL_ERR_OK) {
+        ggl_socket_write(&pool, handle, send_buffer);
+    }
+
+    ggl_socket_close(&pool, handle);
 }
 
 void ggl_respond(uint32_t handle, GglObject value) {
     CoreBusRequestType type = CORE_BUS_CALL;
     GglError ret
-        = ggl_socket_with_index(read_request_type, &type, &client_pool, handle);
+        = ggl_socket_with_index(read_request_type, &type, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return;
     }
@@ -321,14 +323,18 @@ void ggl_respond(uint32_t handle, GglObject value) {
     EventStreamHeader resp_headers[] = {};
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
-    eventstream_encode(
+    ret = eventstream_encode(
         &send_buffer, resp_headers, resp_headers_len, payload_writer, &value
     );
+    if (ret != GGL_ERR_OK) {
+        ggl_socket_close(&pool, handle);
+        return;
+    }
 
-    ret = ggl_socket_write(&client_pool, handle, send_buffer);
+    ret = ggl_socket_write(&pool, handle, send_buffer);
 
     if ((ret != GGL_ERR_OK) || (type != CORE_BUS_SUBSCRIBE)) {
-        ggl_socket_close(&client_pool, handle);
+        ggl_socket_close(&pool, handle);
     }
 }
 
@@ -338,7 +344,7 @@ void ggl_sub_accept(
     SubCleanupCallback cleanup = { .fn = on_close, .ctx = ctx };
 
     GglError ret = ggl_socket_with_index(
-        set_subscription_cleanup, &cleanup, &client_pool, handle
+        set_subscription_cleanup, &cleanup, &pool, handle
     );
     if (ret != GGL_ERR_OK) {
         on_close(ctx, handle);
@@ -355,16 +361,19 @@ void ggl_sub_accept(
     };
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
-    eventstream_encode(
+    ret = eventstream_encode(
         &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
     );
-
-    ret = ggl_socket_write(&client_pool, handle, send_buffer);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_close(&client_pool, handle);
+        ggl_socket_close(&pool, handle);
+    }
+
+    ret = ggl_socket_write(&pool, handle, send_buffer);
+    if (ret != GGL_ERR_OK) {
+        ggl_socket_close(&pool, handle);
     }
 }
 
 void ggl_server_sub_close(uint32_t handle) {
-    ggl_socket_close(&client_pool, handle);
+    ggl_socket_close(&pool, handle);
 }
