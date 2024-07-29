@@ -28,7 +28,7 @@ GglError ggl_call(
 ) __attribute__((warn_unused_result));
 
 /** Callback for new data on a subscription. */
-typedef void (*GglSubscribeCallback)(
+typedef GglError (*GglSubscribeCallback)(
     void *ctx, uint32_t handle, GglObject data
 );
 

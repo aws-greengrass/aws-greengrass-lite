@@ -273,7 +273,10 @@ static GglError get_subscription_response(uint32_t handle) {
     }
 
     if (callbacks.on_response != NULL) {
-        callbacks.on_response(callbacks.ctx, handle, result);
+        ret = callbacks.on_response(callbacks.ctx, handle, result);
+        if (ret != GGL_ERR_OK) {
+            ggl_socket_close(&pool, handle);
+        }
     }
 
     return GGL_ERR_OK;

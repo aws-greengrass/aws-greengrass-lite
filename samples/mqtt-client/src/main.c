@@ -14,13 +14,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-static void subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
+static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     (void) ctx;
     (void) handle;
 
     if (data.type != GGL_TYPE_MAP) {
         GGL_LOGE("mqtt-client", "Subscription response is not a map.");
-        return;
+        return GGL_ERR_FAILURE;
     }
 
     GglBuffer topic = GGL_STR("");
@@ -32,24 +32,24 @@ static void subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             GGL_LOGE(
                 "mqtt-client", "Subscription response topic not a buffer."
             );
-            return;
+            return GGL_ERR_FAILURE;
         }
         topic = val->buf;
     } else {
         GGL_LOGE("mqtt-client", "Subscription response is missing topic.");
-        return;
+        return GGL_ERR_FAILURE;
     }
     if (ggl_map_get(data.map, GGL_STR("payload"), &val)) {
         if (val->type != GGL_TYPE_BUF) {
             GGL_LOGE(
                 "mqtt-client", "Subscription response payload not a buffer."
             );
-            return;
+            return GGL_ERR_FAILURE;
         }
         payload = val->buf;
     } else {
         GGL_LOGE("mqtt-client", "Subscription response is missing payload.");
-        return;
+        return GGL_ERR_FAILURE;
     }
 
     GGL_LOGI(
@@ -60,6 +60,8 @@ static void subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
         (int) payload.len,
         payload.data
     );
+
+    return GGL_ERR_OK;
 }
 
 int main(void) {
