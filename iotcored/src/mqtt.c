@@ -19,6 +19,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <transport_interface.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
@@ -49,7 +50,7 @@ struct NetworkContext {
 static pthread_t recv_thread;
 static pthread_t keepalive_thread;
 
-static bool ping_pending;
+static atomic_bool ping_pending;
 
 static NetworkContext_t net_ctx;
 
@@ -100,7 +101,7 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
             break;
         }
 
-        if (ping_pending) {
+        if (atomic_load(&ping_pending)) {
             GGL_LOGE(
                 "mqtt",
                 "Server did not respond to ping within Keep Alive period."
@@ -109,7 +110,7 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
         }
 
         GGL_LOGD("mqtt", "Sending pingreq.");
-        ping_pending = true;
+        atomic_store(&ping_pending, true);
         MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
 
         if (mqtt_ret != MQTTSuccess) {
@@ -199,7 +200,7 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
         return GGL_ERR_FAILURE;
     }
 
-    ping_pending = false;
+    atomic_store(&ping_pending, false);
     pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
     pthread_create(
         &keepalive_thread, NULL, mqtt_keepalive_thread_fn, &mqtt_ctx
@@ -351,7 +352,7 @@ static void event_callback(
             break;
         case MQTT_PACKET_TYPE_PINGRESP:
             GGL_LOGD("mqtt", "Received pingresp.");
-            ping_pending = false;
+            atomic_store(&ping_pending, false);
             break;
         default:
             GGL_LOGE(
