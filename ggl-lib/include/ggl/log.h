@@ -1,19 +1,18 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #ifndef GGL_LOG_H
 #define GGL_LOG_H
 
-/*! Logging interface */
+//! Logging interface
 
 #include <stdint.h>
 
-/** Logging interface implementation.
- * Do not call directly; use one of the macro wrappers.
- * Can be overridden by providing a non-weak definition.
- * Default implementation prints to stderr. */
+/// Logging interface implementation.
+/// Do not call directly; use one of the macro wrappers.
+/// Can be overridden by providing a non-weak definition.
+/// Default implementation prints to stderr.
 void ggl_log(
     uint32_t level,
     const char *file,
@@ -23,7 +22,7 @@ void ggl_log(
     ...
 ) __attribute__((format(printf, 5, 6)));
 
-/** No-op logging fn for enabling type checking disabled logging macros. */
+/// No-op logging fn for enabling type checking disabled logging macros.
 __attribute__((format(printf, 2, 3), always_inline)) static inline void
 ggl_log_disabled(const char *tag, const char *format, ...) {
     (void) tag;
@@ -37,8 +36,8 @@ ggl_log_disabled(const char *tag, const char *format, ...) {
 #define GGL_LOG_DEBUG 4
 #define GGL_LOG_TRACE 5
 
-/** Minimum log level to print.
- * Can be overridden from make using command line or environment. */
+/// Minimum log level to print.
+/// Can be overridden from make using command line or environment.
 #ifndef GGL_LOG_LEVEL
 #define GGL_LOG_LEVEL GGL_LOG_INFO
 #endif

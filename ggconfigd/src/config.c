@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ggconfig.h"
 #include <ctype.h>
@@ -21,7 +20,7 @@ static const char *config_database_name = "config.db";
 
 static GglError create_database(void) {
     GGL_LOGI("ggconfig_open", "creating the database");
-    /* create the initial table */
+    // create the initial table
     int result;
     char *err_message = 0;
 
@@ -60,7 +59,7 @@ static GglError create_database(void) {
 GglError ggconfig_open(void) {
     GglError return_value = GGL_ERR_FAILURE;
     if (config_initialized == false) {
-        /* do configuration */
+        // do configuration
         int rc = sqlite3_open(config_database_name, &config_database);
         if (rc) {
             GGL_LOGE(
@@ -114,8 +113,7 @@ static long long path_insert(GglBuffer *key) {
         &path_insert_stmt,
         NULL
     );
-    /* insert this element in the root level (as a path not in
-     * the relation )*/
+    // insert this element in the root level (as a path not in the relation )
     sqlite3_bind_text(
         path_insert_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
@@ -181,7 +179,7 @@ static long long find_path_with_parent(GglBuffer *key) {
         &find_element_stmt,
         NULL
     );
-    /* get the ID of this item after the parent */
+    // get the ID of this item after the parent
     sqlite3_bind_text(
         find_element_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
@@ -218,7 +216,7 @@ static long long get_parent_key_at_root(GglBuffer *key) {
         (int) key->len,
         (char *) key->data
     );
-    /* get a pathid where the path is a root (first element of a path) */
+    // get a pathid where the path is a root (first element of a path)
     sqlite3_prepare_v2(
         config_database,
         "select pathid from pathTable where pathid not in (select "
@@ -232,7 +230,7 @@ static long long get_parent_key_at_root(GglBuffer *key) {
         root_check_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
     rc = sqlite3_step(root_check_stmt);
-    if (rc == SQLITE_ROW) { /* exists as a root and here is the id */
+    if (rc == SQLITE_ROW) { // exists as a root and here is the id
         id = sqlite3_column_int(root_check_stmt, 0);
         GGL_LOGI(
             "get_parent_key_at_root",
@@ -353,9 +351,8 @@ static GglError value_update(GglBuffer *key, GglBuffer *value) {
 }
 
 static bool validate_key(GglBuffer *key) {
-    /* Verify that the path is alpha characters or / and nothing else */
-    if (!isalpha(key->data[0]
-        )) { /* make sure the path starts with a character */
+    // Verify that the path is alpha characters or / and nothing else
+    if (!isalpha(key->data[0])) { // make sure the path starts with a character
         return false;
     }
     for (size_t x = 0; x < key->len; x++) {
@@ -398,15 +395,15 @@ GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
                 (char *) parent_key_buffer.data
             );
             if (key->data[index + 1] == '/') {
-                if (depth_count == 0) { /* root level of the key path */
+                if (depth_count == 0) { // root level of the key path
                     id = get_parent_key_at_root(&parent_key_buffer);
                     if (id == 0) {
                         id = path_insert(&parent_key_buffer);
                     }
-                } else { /* all other key path levels */
+                } else { // all other key path levels
                     id = find_path_with_parent(&parent_key_buffer);
 
-                    /* if this id is not in the path, add it.*/
+                    // if this id is not in the path, add it.
                     if (id == 0) {
                         GGL_LOGI(
                             "ggconfig_write_value_at_key",
@@ -503,7 +500,7 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
     return return_value;
 }
 
-/* TODO: implement this */
+// TODO: implement this
 GglError ggconfig_get_key_notification(
     GglBuffer *key, GglConfigCallback callback, void *parameter
 ) {

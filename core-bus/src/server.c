@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/core_bus/server.h"
 #include "object_serde.h"
@@ -24,8 +23,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** Maximum number of core-bus connections.
- * Can be configured with `-DGGL_COREBUS_MAX_CLIENTS=<N>`. */
+/// Maximum number of core-bus connections.
+/// Can be configured with `-DGGL_COREBUS_MAX_CLIENTS=<N>`.
 #ifndef GGL_COREBUS_MAX_CLIENTS
 #define GGL_COREBUS_MAX_CLIENTS 100
 #endif

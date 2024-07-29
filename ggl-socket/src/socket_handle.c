@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/socket_handle.h"
 #include "ggl/socket.h"
@@ -17,7 +16,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static const int32_t FD_FREE = -0x55555556; /* Alternating bits for debugging */
+static const int32_t FD_FREE = -0x55555556; // Alternating bits for debugging
 
 GGL_DEFINE_DEFER(
     unlock_pool_mtx, GglSocketPool *, pool, pthread_mutex_unlock(&(*pool)->mtx)

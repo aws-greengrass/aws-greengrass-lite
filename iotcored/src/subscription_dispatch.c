@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "subscription_dispatch.h"
 #include "mqtt.h"
@@ -15,14 +14,14 @@
 #include <string.h>
 #include <stdint.h>
 
-/** Maximum size of MQTT topic filter supported.
- * Can be configured with `-DIOTCORED_MAX_TOPIC_FILTER_LEN=<N>`. */
+/// Maximum size of MQTT topic filter supported.
+/// Can be configured with `-DIOTCORED_MAX_TOPIC_FILTER_LEN=<N>`.
 #ifndef IOTCORED_MAX_TOPIC_FILTER_LEN
 #define IOTCORED_MAX_TOPIC_FILTER_LEN 128
 #endif
 
-/** Maximum number of MQTT subscriptions supported.
- * Can be configured with `-DIOTCORED_MAX_SUBSCRIPTIONS=<N>`. */
+/// Maximum number of MQTT subscriptions supported.
+/// Can be configured with `-DIOTCORED_MAX_SUBSCRIPTIONS=<N>`.
 #ifndef IOTCORED_MAX_SUBSCRIPTIONS
 #define IOTCORED_MAX_SUBSCRIPTIONS 128
 #endif

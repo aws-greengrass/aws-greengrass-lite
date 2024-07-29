@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/eventstream/decode.h"
 #include "crc32.h"
@@ -71,7 +70,7 @@ GglError eventstream_decode_prelude(
     return GGL_ERR_OK;
 }
 
-/** Removes next header from buffer */
+/// Removes next header from buffer
 static GglError take_header(GglBuffer *headers_buf) {
     assert(headers_buf != NULL);
 

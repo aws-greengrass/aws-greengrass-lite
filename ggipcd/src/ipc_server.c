@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ipc_server.h"
 #include "ipc_handler.h"
@@ -24,14 +23,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** Maximum size of eventstream packet.
- * Can be configured with `-DGGL_IPC_MAX_MSG_LEN=<N>`. */
+/// Maximum size of eventstream packet.
+/// Can be configured with `-DGGL_IPC_MAX_MSG_LEN=<N>`.
 #ifndef GGL_IPC_MAX_MSG_LEN
 #define GGL_IPC_MAX_MSG_LEN 10000
 #endif
 
-/** Maximum number of GG IPC clients.
- * Can be configured with `-DGGL_IPC_MAX_CLIENTS=<N>`. */
+/// Maximum number of GG IPC clients.
+/// Can be configured with `-DGGL_IPC_MAX_CLIENTS=<N>`.
 #ifndef GGL_IPC_MAX_CLIENTS
 #define GGL_IPC_MAX_CLIENTS 50
 #endif

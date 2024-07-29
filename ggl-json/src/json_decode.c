@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/json_decode.h"
 #include <assert.h>
@@ -166,7 +165,7 @@ static bool comb_result_val_fn(
         .parser_ctx = &(CombResultValCtx) { parser, type }, \
     }
 
-/** Need to disable manipulating return val while in nested objects. */
+/// Need to disable manipulating return val while in nested objects.
 #define COMB_NESTED(parser) \
     (Parser) { \
         .fn = comb_nested_fn, .parser_ctx = (parser), \
