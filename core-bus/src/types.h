@@ -22,9 +22,9 @@
     (sizeof(GGL_INTERFACE_SOCKET_PREFIX) - 1)
 
 typedef enum {
-    CORE_BUS_NOTIFY,
-    CORE_BUS_CALL,
-    CORE_BUS_SUBSCRIBE,
-} CoreBusRequestType;
+    GGL_CORE_BUS_NOTIFY,
+    GGL_CORE_BUS_CALL,
+    GGL_CORE_BUS_SUBSCRIBE,
+} GglCoreBusRequestType;
 
 #endif

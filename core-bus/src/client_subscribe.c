@@ -3,29 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "fcntl.h"
+#include "client_common.h"
 #include "ggl/core_bus/client.h"
 #include "object_serde.h"
-#include "sys/un.h"
 #include "types.h"
 #include <assert.h>
-#include <errno.h>
-#include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
-#include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/types.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket.h>
 #include <ggl/socket_epoll.h>
 #include <pthread.h>
-#include <signal.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -57,9 +51,6 @@ typedef struct {
     GglSubscribeCloseCallback on_close;
     void *ctx;
 } SubCallbacks;
-
-static uint8_t payload_array[GGL_COREBUS_MAX_MSG_LEN];
-static pthread_mutex_t payload_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static SubCallbacks sub_callbacks[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
 
@@ -128,210 +119,44 @@ static void get_sub_callbacks(void *ctx, size_t index) {
     *callbacks = sub_callbacks[index];
 }
 
-static GglError interface_connect(GglBuffer interface, int *conn) {
-    assert(conn != NULL);
-
-    char socket_path
-        [GGL_INTERFACE_SOCKET_PREFIX_LEN + GGL_INTERFACE_NAME_MAX_LEN + 1]
-        = GGL_INTERFACE_SOCKET_PREFIX;
-
-    if (interface.len > GGL_INTERFACE_NAME_MAX_LEN) {
-        GGL_LOGE("core-bus-client", "Interface name too long.");
-        return GGL_ERR_RANGE;
-    }
-
-    memcpy(
-        &socket_path[GGL_INTERFACE_SOCKET_PREFIX_LEN],
-        interface.data,
-        interface.len
-    );
-
-    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sockfd == -1) {
-        int err = errno;
-        GGL_LOGE("core-bus-client", "Failed to create socket: %d.", err);
-        return GGL_ERR_FATAL;
-    }
-    fcntl(sockfd, F_SETFD, FD_CLOEXEC);
-    GGL_DEFER(close, sockfd);
-
-    struct sockaddr_un addr = { .sun_family = AF_UNIX, .sun_path = { 0 } };
-
-    size_t path_len = strlen(socket_path);
-
-    if (path_len >= sizeof(addr.sun_path)) {
-        GGL_LOGE("socket-client", "Socket path too long.");
-        return GGL_ERR_FAILURE;
-    }
-
-    memcpy(addr.sun_path, socket_path, path_len);
-
-    if (connect(sockfd, (const struct sockaddr *) &addr, sizeof(addr)) == -1) {
-        int err = errno;
-        GGL_LOGW("socket-client", "Failed to connect to server: %d.", err);
-        return GGL_ERR_FAILURE;
-    }
-
-    GGL_DEFER_CANCEL(sockfd);
-    *conn = sockfd;
-    return GGL_ERR_OK;
-}
-
-static GglError write_exact(int fd, GglBuffer buf) {
-    // If SIGPIPE is not blocked, writing to a socket that the client has closed
-    // will result in this process being killed.
-    signal(SIGPIPE, SIG_IGN);
-
-    size_t written = 0;
-
-    while (written < buf.len) {
-        ssize_t ret = write(fd, &buf.data[written], buf.len - written);
-        if (ret < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            int err = errno;
-            GGL_LOGE("core-bus-client", "Failed to write to server: %d.", err);
-            return GGL_ERR_FAILURE;
-        }
-        written += (size_t) ret;
-    }
-
-    assert(written == buf.len);
-    return GGL_ERR_OK;
-}
-
-static GglError read_exact(int fd, GglBuffer buf) {
-    size_t read = 0;
-
-    while (read < buf.len) {
-        ssize_t ret = recv(fd, &buf.data[read], buf.len - read, MSG_WAITALL);
-        if (ret < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            int err = errno;
-            GGL_LOGE("core-bus-client", "Failed to recv from server: %d.", err);
-            return GGL_ERR_FAILURE;
-        }
-        if (ret == 0) {
-            GGL_LOGD("core-bus-client", "Socket closed by server.");
-            return GGL_ERR_NOCONN;
-        }
-        read += (size_t) ret;
-    }
-
-    assert(read == buf.len);
-    return GGL_ERR_OK;
-}
-
-static GglError payload_writer(GglBuffer *buf, void *payload) {
-    assert(buf != NULL);
-    assert(payload != NULL);
-
-    GglMap *map = payload;
-    return ggl_serialize(GGL_OBJ(*map), buf);
-}
-
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError make_subscribe_request(
-    int conn, GglBuffer method, GglMap params, GglError *server_error
+    GglBuffer interface,
+    GglBuffer method,
+    GglMap params,
+    GglError *error,
+    int *conn_fd
 ) {
-    {
-        pthread_mutex_lock(&payload_array_mtx);
-        GGL_DEFER(pthread_mutex_unlock, payload_array_mtx);
-
-        GglBuffer send_buffer = GGL_BUF(payload_array);
-
-        EventStreamHeader headers[] = {
-            { GGL_STR("method"), { EVENTSTREAM_STRING, .string = method } },
-            { GGL_STR("type"),
-              { EVENTSTREAM_INT32, .int32 = (int32_t) CORE_BUS_SUBSCRIBE } },
-        };
-        size_t headers_len = sizeof(headers) / sizeof(headers[0]);
-
-        GglError ret = eventstream_encode(
-            &send_buffer, headers, headers_len, payload_writer, &params
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        ret = write_exact(conn, send_buffer);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-    }
-
-    pthread_mutex_lock(&payload_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, payload_array_mtx);
-
-    GglBuffer recv_buffer = GGL_BUF(payload_array);
-    GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
-    assert(prelude_buf.len == 12);
-
-    GglError ret = read_exact(conn, prelude_buf);
+    int conn = -1;
+    GglError ret = ggl_client_send_message(
+        interface, GGL_CORE_BUS_SUBSCRIBE, method, params, &conn
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+    GGL_DEFER(close, conn);
 
-    EventStreamPrelude prelude;
-    ret = eventstream_decode_prelude(prelude_buf, &prelude);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
+    pthread_mutex_lock(&ggl_core_bus_client_payload_array_mtx);
+    GGL_DEFER(pthread_mutex_unlock, ggl_core_bus_client_payload_array_mtx);
 
-    if (prelude.data_len > recv_buffer.len) {
-        GGL_LOGE(
-            "core-bus",
-            "EventStream packet does not fit in core bus buffer size."
-        );
-        return GGL_ERR_NOMEM;
-    }
-
-    GglBuffer data_section
-        = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
-
-    ret = read_exact(conn, data_section);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    EventStreamMessage msg;
-
-    ret = eventstream_decode(&prelude, data_section, &msg);
+    GglBuffer recv_buffer = GGL_BUF(ggl_core_bus_client_payload_array);
+    EventStreamMessage msg = { 0 };
+    ret = ggl_client_get_response(
+        ggl_fd_reader, &conn, recv_buffer, error, &msg
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
     bool accepted = false;
 
-    {
-        EventStreamHeaderIter iter = msg.headers;
-        EventStreamHeader header;
+    EventStreamHeaderIter iter = msg.headers;
+    EventStreamHeader header;
 
-        while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
-            if (ggl_buffer_eq(header.name, GGL_STR("error"))) {
-                if (server_error != NULL) {
-                    *server_error = GGL_ERR_FAILURE;
-                }
-                if (header.value.type != EVENTSTREAM_INT32) {
-                    GGL_LOGE(
-                        "core-bus-client", "Response error header not int."
-                    );
-                } else {
-                    // TODO: Handle unknown error value
-                    if (server_error != NULL) {
-                        *server_error = (GglError) header.value.int32;
-                    }
-                }
-                return GGL_ERR_FAILURE;
-            }
-            if (ggl_buffer_eq(header.name, GGL_STR("accepted"))) {
-                if ((header.value.type == EVENTSTREAM_INT32)
-                    && (header.value.int32 == 1)) {
-                    accepted = true;
-                }
+    while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
+        if (ggl_buffer_eq(header.name, GGL_STR("accepted"))) {
+            if ((header.value.type == EVENTSTREAM_INT32)
+                && (header.value.int32 == 1)) {
+                accepted = true;
             }
         }
     }
@@ -344,6 +169,8 @@ static GglError make_subscribe_request(
         return GGL_ERR_FAILURE;
     }
 
+    GGL_DEFER_CANCEL(conn);
+    *conn_fd = conn;
     return GGL_ERR_OK;
 }
 
@@ -363,7 +190,8 @@ GglError ggl_subscribe(
     }
 
     int conn = -1;
-    GglError ret = interface_connect(interface, &conn);
+    GglError ret
+        = make_subscribe_request(interface, method, params, error, &conn);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -372,12 +200,6 @@ GglError ggl_subscribe(
     ret = ggl_socket_pool_register(&pool, conn, &sub_handle);
     if (ret != GGL_ERR_OK) {
         close(conn);
-        return ret;
-    }
-
-    ret = make_subscribe_request(conn, method, params, error);
-    if (ret != GGL_ERR_OK) {
-        ggl_socket_close(&pool, sub_handle);
         return ret;
     }
 
@@ -409,6 +231,11 @@ void ggl_client_sub_close(uint32_t handle) {
     ggl_socket_close(&pool, handle);
 }
 
+static GglError socket_handle_reader(void *ctx, GglBuffer buf) {
+    uint32_t *handle_ptr = ctx;
+    return ggl_socket_read(&pool, *handle_ptr, buf);
+}
+
 static GglError get_subscription_response(uint32_t handle) {
     // Need separate data array as sub resp callback may call core bus APIs
     static uint8_t sub_resp_payload_array[GGL_COREBUS_MAX_MSG_LEN];
@@ -419,38 +246,10 @@ static GglError get_subscription_response(uint32_t handle) {
     GGL_DEFER(pthread_mutex_unlock, sub_resp_payload_array_mtx);
 
     GglBuffer recv_buffer = GGL_BUF(sub_resp_payload_array);
-    GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
-    assert(prelude_buf.len == 12);
-
-    GglError ret = ggl_socket_read(&pool, handle, prelude_buf);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    EventStreamPrelude prelude;
-    ret = eventstream_decode_prelude(prelude_buf, &prelude);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    if (prelude.data_len > recv_buffer.len) {
-        GGL_LOGE(
-            "core-bus-client",
-            "EventStream packet does not fit in core bus buffer size."
-        );
-        return ret;
-    }
-
-    GglBuffer data_section
-        = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
-
-    ret = ggl_socket_read(&pool, handle, data_section);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-    EventStreamMessage msg;
-
-    ret = eventstream_decode(&prelude, data_section, &msg);
+    EventStreamMessage msg = { 0 };
+    GglError ret = ggl_client_get_response(
+        socket_handle_reader, &handle, recv_buffer, NULL, &msg
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }

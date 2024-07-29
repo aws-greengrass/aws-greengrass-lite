@@ -45,7 +45,7 @@ typedef struct {
 static uint8_t encode_array[GGL_COREBUS_MAX_MSG_LEN];
 static pthread_mutex_t encode_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static CoreBusRequestType client_request_types[GGL_COREBUS_MAX_CLIENTS];
+static GglCoreBusRequestType client_request_types[GGL_COREBUS_MAX_CLIENTS];
 static SubCleanupCallback subscription_cleanup[GGL_COREBUS_MAX_CLIENTS];
 
 static GglError reset_client_state(uint32_t handle, size_t index);
@@ -68,7 +68,7 @@ __attribute__((constructor)) static void init_client_pool(void) {
 
 static GglError reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
-    client_request_types[index] = CORE_BUS_CALL;
+    client_request_types[index] = GGL_CORE_BUS_CALL;
     subscription_cleanup[index].fn = NULL;
     subscription_cleanup[index].ctx = NULL;
     return GGL_ERR_OK;
@@ -82,12 +82,12 @@ static GglError close_subscription(uint32_t handle, size_t index) {
 }
 
 static void set_request_type(void *ctx, size_t index) {
-    CoreBusRequestType *type = ctx;
+    GglCoreBusRequestType *type = ctx;
     client_request_types[index] = *type;
 }
 
 static void get_request_type(void *ctx, size_t index) {
-    CoreBusRequestType *type = ctx;
+    GglCoreBusRequestType *type = ctx;
     *type = client_request_types[index];
 }
 
@@ -150,7 +150,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
     GglBuffer method = { 0 };
     bool method_set = false;
-    CoreBusRequestType type = CORE_BUS_CALL;
+    GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
     bool type_set = false;
 
     {
@@ -173,10 +173,10 @@ static GglError client_ready(void *ctx, uint32_t handle) {
                     return GGL_ERR_OK;
                 }
                 switch (header.value.int32) {
-                case CORE_BUS_NOTIFY:
-                case CORE_BUS_CALL:
-                case CORE_BUS_SUBSCRIBE:
-                    type = (CoreBusRequestType) header.value.int32;
+                case GGL_CORE_BUS_NOTIFY:
+                case GGL_CORE_BUS_CALL:
+                case GGL_CORE_BUS_SUBSCRIBE:
+                    type = (GglCoreBusRequestType) header.value.int32;
                     break;
                 default:
                     GGL_LOGE(
@@ -236,7 +236,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     for (size_t i = 0; i < interface->handlers_len; i++) {
         GglRpcMethodDesc *handler = &interface->handlers[i];
         if (ggl_buffer_eq(method, handler->name)) {
-            if (handler->is_subscription != (type == CORE_BUS_SUBSCRIBE)) {
+            if (handler->is_subscription != (type == GGL_CORE_BUS_SUBSCRIBE)) {
                 GGL_LOGE(
                     "core-bus-server", "Request type is unsupported for method."
                 );
@@ -310,7 +310,7 @@ void ggl_return_err(uint32_t handle, GglError error) {
 }
 
 void ggl_respond(uint32_t handle, GglObject value) {
-    CoreBusRequestType type = CORE_BUS_CALL;
+    GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
     GglError ret
         = ggl_socket_with_index(get_request_type, &type, &pool, handle);
     if (ret != GGL_ERR_OK) {
@@ -335,7 +335,7 @@ void ggl_respond(uint32_t handle, GglObject value) {
 
     ret = ggl_socket_write(&pool, handle, send_buffer);
 
-    if ((ret != GGL_ERR_OK) || (type != CORE_BUS_SUBSCRIBE)) {
+    if ((ret != GGL_ERR_OK) || (type != GGL_CORE_BUS_SUBSCRIBE)) {
         ggl_socket_close(&pool, handle);
     }
 }
