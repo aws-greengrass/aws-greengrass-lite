@@ -25,8 +25,8 @@ typedef struct {
     uint16_t max_fds;
     int *fds;
     uint16_t *generations;
-    void (*on_register)(uint32_t handle, size_t index);
-    void (*on_release)(uint32_t handle, size_t index);
+    GglError (*on_register)(uint32_t handle, size_t index);
+    GglError (*on_release)(uint32_t handle, size_t index);
     pthread_mutex_t mtx;
 } GglSocketPool;
 

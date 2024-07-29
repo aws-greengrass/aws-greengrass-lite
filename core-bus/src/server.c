@@ -48,8 +48,8 @@ static pthread_mutex_t encode_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 static CoreBusRequestType client_request_types[GGL_COREBUS_MAX_CLIENTS];
 static SubCleanupCallback subscription_cleanup[GGL_COREBUS_MAX_CLIENTS];
 
-static void reset_client_state(uint32_t handle, size_t index);
-static void close_subscription(uint32_t handle, size_t index);
+static GglError reset_client_state(uint32_t handle, size_t index);
+static GglError close_subscription(uint32_t handle, size_t index);
 
 static int32_t client_fds[GGL_COREBUS_MAX_CLIENTS];
 static uint16_t client_generations[GGL_COREBUS_MAX_CLIENTS];
@@ -66,17 +66,19 @@ __attribute__((constructor)) static void init_client_pool(void) {
     ggl_socket_pool_init(&pool);
 }
 
-static void reset_client_state(uint32_t handle, size_t index) {
+static GglError reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
     client_request_types[index] = CORE_BUS_CALL;
     subscription_cleanup[index].fn = NULL;
     subscription_cleanup[index].ctx = NULL;
+    return GGL_ERR_OK;
 }
 
-static void close_subscription(uint32_t handle, size_t index) {
+static GglError close_subscription(uint32_t handle, size_t index) {
     if (subscription_cleanup[index].fn != NULL) {
         subscription_cleanup[index].fn(subscription_cleanup[index].ctx, handle);
     }
+    return GGL_ERR_OK;
 }
 
 static void set_request_type(void *ctx, size_t index) {

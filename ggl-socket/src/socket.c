@@ -48,11 +48,17 @@ GglError ggl_socket_pool_register(
     for (uint16_t i = 0; i < pool->max_fds; i++) {
         if (pool->fds[i] == FD_FREE) {
             pool->fds[i] = fd;
-            *handle = (uint32_t) pool->generations[i] << 16 | i;
+            uint32_t new_handle = (uint32_t) pool->generations[i] << 16 | i;
 
             if (pool->on_register != NULL) {
-                pool->on_register(*handle, i);
+                GglError ret = pool->on_register(new_handle, i);
+                if (ret != GGL_ERR_OK) {
+                    pool->fds[i] = FD_FREE;
+                    return ret;
+                }
             }
+
+            *handle = new_handle;
 
             GGL_LOGD(
                 "socket",
@@ -83,14 +89,17 @@ GglError ggl_socket_pool_release(
         return GGL_ERR_NOENTRY;
     }
 
+    if (pool->on_release != NULL) {
+        GglError ret = pool->on_release(handle, index);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+
     *fd = pool->fds[index];
 
     pool->generations[index] += 1;
     pool->fds[index] = FD_FREE;
-
-    if (pool->on_release != NULL) {
-        pool->on_release(handle, index);
-    }
 
     GGL_LOGD(
         "socket",

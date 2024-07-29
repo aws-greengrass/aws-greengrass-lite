@@ -74,7 +74,7 @@ static IpcConnState client_states[GGL_IPC_MAX_CLIENTS] = { 0 };
 static int32_t client_fds[GGL_IPC_MAX_CLIENTS];
 static uint16_t client_generations[GGL_IPC_MAX_CLIENTS];
 
-static void reset_client_state(uint32_t handle, size_t index);
+static GglError reset_client_state(uint32_t handle, size_t index);
 
 static GglSocketPool pool = {
     .max_fds = GGL_IPC_MAX_CLIENTS,
@@ -87,9 +87,10 @@ __attribute__((constructor)) static void init_client_pool(void) {
     ggl_socket_pool_init(&pool);
 }
 
-static void reset_client_state(uint32_t handle, size_t index) {
+static GglError reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
     client_states[index] = IPC_INIT;
+    return GGL_ERR_OK;
 }
 
 static GglError get_common_headers(
