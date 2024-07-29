@@ -4,6 +4,7 @@
  */
 
 #include "client_common.h"
+#include "fcntl.h"
 #include "object_serde.h"
 #include "sys/un.h"
 #include "types.h"
@@ -118,6 +119,8 @@ static GglError interface_connect(GglBuffer interface, int *conn_fd) {
     }
     GGL_DEFER(close, sockfd);
 
+    fcntl(sockfd, F_SETFD, FD_CLOEXEC);
+
     struct sockaddr_un addr = { .sun_family = AF_UNIX, .sun_path = { 0 } };
 
     size_t path_len = strlen(socket_path);
@@ -134,6 +137,11 @@ static GglError interface_connect(GglBuffer interface, int *conn_fd) {
         GGL_LOGW("socket-client", "Failed to connect to server: %d.", err);
         return GGL_ERR_FAILURE;
     }
+
+    // To prevent deadlocking on hanged server, add a timeout
+    struct timeval timeout = { .tv_sec = 5 };
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
     GGL_DEFER_CANCEL(sockfd);
     *conn_fd = sockfd;
