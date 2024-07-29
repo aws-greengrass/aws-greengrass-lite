@@ -23,6 +23,8 @@ void IotBroker::initMqtt() {
         if(!builder)
             throw MqttBuilderException();
 
+        builder->WithCertificateAuthority(_thingInfo.rootCaPath.c_str());
+
         {
             auto connectOptions = std::make_shared<Aws::Crt::Mqtt5::ConnectPacket>();
             connectOptions->WithClientId(_thingInfo.thingName);
