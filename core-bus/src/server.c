@@ -327,12 +327,7 @@ void ggl_respond(uint32_t handle, GglObject value) {
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
 
-    EventStreamHeader resp_headers[] = {};
-    size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
-
-    ret = eventstream_encode(
-        &send_buffer, resp_headers, resp_headers_len, payload_writer, &value
-    );
+    ret = eventstream_encode(&send_buffer, NULL, 0, payload_writer, &value);
     if (ret != GGL_ERR_OK) {
         ggl_socket_handle_close(&pool, handle);
         return;
