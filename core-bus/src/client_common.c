@@ -4,12 +4,11 @@
  */
 
 #include "client_common.h"
-#include "fcntl.h"
 #include "object_serde.h"
-#include "sys/un.h"
 #include "types.h"
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
@@ -18,11 +17,11 @@
 #include <ggl/eventstream/types.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/socket.h>
 #include <pthread.h>
-#include <signal.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <unistd.h>
+#include <sys/un.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -30,68 +29,6 @@
 uint8_t ggl_core_bus_client_payload_array[GGL_COREBUS_MAX_MSG_LEN];
 pthread_mutex_t ggl_core_bus_client_payload_array_mtx
     = PTHREAD_MUTEX_INITIALIZER;
-
-__attribute__((constructor)) static void ignore_sigpipe(void) {
-    // If SIGPIPE is not blocked, writing to a socket that the server has closed
-    // will result in this process being killed.
-    // This will protect calls of `write_exact`
-    signal(SIGPIPE, SIG_IGN);
-}
-
-static GglError read_exact(int fd, GglBuffer buf) {
-    size_t read = 0;
-
-    while (read < buf.len) {
-        ssize_t ret = recv(fd, &buf.data[read], buf.len - read, MSG_WAITALL);
-        if (ret < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            int err = errno;
-            GGL_LOGE("core-bus-client", "Failed to recv from server: %d.", err);
-            return GGL_ERR_FAILURE;
-        }
-        if (ret == 0) {
-            GGL_LOGD("core-bus-client", "Socket closed by server.");
-            return GGL_ERR_NOCONN;
-        }
-        read += (size_t) ret;
-    }
-
-    assert(read == buf.len);
-    return GGL_ERR_OK;
-}
-
-static GglError write_exact(int fd, GglBuffer buf) {
-    size_t written = 0;
-
-    while (written < buf.len) {
-        ssize_t ret = write(fd, &buf.data[written], buf.len - written);
-        if (ret < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            if (errno == EPIPE) {
-                GGL_LOGE(
-                    "socket", "Write failed to %d; server closed socket.", fd
-                );
-                return GGL_ERR_NOCONN;
-            }
-            int err = errno;
-            GGL_LOGE(
-                "core-bus-client",
-                "Failed to write to server on %d: %d.",
-                fd,
-                err
-            );
-            return GGL_ERR_FAILURE;
-        }
-        written += (size_t) ret;
-    }
-
-    assert(written == buf.len);
-    return GGL_ERR_OK;
-}
 
 static GglError interface_connect(GglBuffer interface, int *conn_fd) {
     assert(conn_fd != NULL);
@@ -188,7 +125,7 @@ GglError ggl_client_send_message(
         return ret;
     }
 
-    ret = write_exact(conn, send_buffer);
+    ret = ggl_write_exact(conn, send_buffer);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -200,7 +137,7 @@ GglError ggl_client_send_message(
 
 GglError ggl_fd_reader(void *ctx, GglBuffer buf) {
     int *fd_ptr = ctx;
-    return read_exact(*fd_ptr, buf);
+    return ggl_read_exact(*fd_ptr, buf);
 }
 
 GglError ggl_client_get_response(
