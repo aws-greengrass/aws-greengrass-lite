@@ -5,6 +5,7 @@
 
 #include "ggl/socket_server.h"
 #include "ggl/socket.h"
+#include "ggl/socket_epoll.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -14,34 +15,12 @@
 #include <ggl/log.h>
 #include <signal.h>
 #include <string.h>
-#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-static GglError add_epoll_watch(int epoll_fd, int target_fd, uint64_t data) {
-    assert(epoll_fd >= 0);
-    assert(target_fd >= 0);
-
-    struct epoll_event event = { .events = EPOLLIN, .data = { .u64 = data } };
-
-    int err = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, target_fd, &event);
-    if (err == -1) {
-        err = errno;
-        GGL_LOGE(
-            "socket-server",
-            "Failed to add epoll watch for %d: %d.",
-            target_fd,
-            err
-        );
-        return GGL_ERR_FAILURE;
-    }
-    return GGL_ERR_OK;
-}
 
 static void new_client_available(
     GglSocketPool *pool, int epoll_fd, int socket_fd
@@ -82,7 +61,7 @@ static void new_client_available(
         return;
     }
 
-    ret = add_epoll_watch(epoll_fd, client_fd, handle);
+    ret = ggl_socket_epoll_add(epoll_fd, client_fd, handle);
     if (ret != GGL_ERR_OK) {
         ggl_socket_close(pool, handle);
         GGL_LOGE(
@@ -182,6 +161,39 @@ static GglError configure_server_socket(int socket_fd, const char *path) {
     return GGL_ERR_OK;
 }
 
+typedef struct {
+    GglSocketPool *pool;
+    int epoll_fd;
+    int server_fd;
+    GglError (*client_ready)(void *ctx, uint32_t handle);
+    void *ctx;
+} SocketServerCtx;
+
+// server_fd's data must be out of range of handle (uint32_t)
+static const uint64_t SERVER_FD_DATA = UINT64_MAX;
+
+static GglError epoll_fd_ready(void *epoll_ctx, uint64_t data) {
+    SocketServerCtx *server_ctx = epoll_ctx;
+
+    if (data == SERVER_FD_DATA) {
+        new_client_available(
+            server_ctx->pool, server_ctx->epoll_fd, server_ctx->server_fd
+        );
+    } else if (data <= UINT32_MAX) {
+        client_data_ready(
+            server_ctx->pool,
+            (uint32_t) data,
+            server_ctx->client_ready,
+            server_ctx->ctx
+        );
+    } else {
+        GGL_LOGE("socket-server", "Invalid data returned from epoll.");
+        return GGL_ERR_FAILURE;
+    }
+
+    return GGL_ERR_OK;
+}
+
 GglError ggl_socket_server_listen(
     const char *path,
     GglSocketPool *pool,
@@ -194,9 +206,12 @@ GglError ggl_socket_server_listen(
     assert(pool->generations != NULL);
     assert(client_ready != NULL);
 
-    // If SIGPIPE is not blocked, writing to a socket that the client has closed
-    // will result in this process being killed.
-    signal(SIGPIPE, SIG_IGN);
+    int epoll_fd;
+    GglError ret = ggl_socket_epoll_create(&epoll_fd);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    GGL_DEFER(close, epoll_fd);
 
     int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (server_fd == -1) {
@@ -208,53 +223,27 @@ GglError ggl_socket_server_listen(
 
     fcntl(server_fd, F_SETFD, FD_CLOEXEC);
 
-    GglError ret = configure_server_socket(server_fd, path);
+    ret = configure_server_socket(server_fd, path);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    int epoll_fd = epoll_create1(EPOLL_CLOEXEC);
-    if (epoll_fd == -1) {
-        int err = errno;
-        GGL_LOGE("socket-server", "Failed to create epoll fd: %d.", err);
-        return GGL_ERR_FAILURE;
-    }
-    GGL_DEFER(close, epoll_fd);
-
-    // server_fd's data must be out of range of handle (uint32_t)
-    static const uint64_t SERVER_FD_DATA = UINT64_MAX;
-    ret = add_epoll_watch(epoll_fd, server_fd, SERVER_FD_DATA);
+    ret = ggl_socket_epoll_add(epoll_fd, server_fd, SERVER_FD_DATA);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    struct epoll_event events[10];
+    // If SIGPIPE is not blocked, writing to a socket that the client has closed
+    // will result in this process being killed.
+    signal(SIGPIPE, SIG_IGN);
 
-    while (true) {
-        int ready = epoll_wait(
-            epoll_fd, events, sizeof(events) / sizeof(*events), -1
-        );
+    SocketServerCtx server_ctx = {
+        .pool = pool,
+        .epoll_fd = epoll_fd,
+        .server_fd = server_fd,
+        .client_ready = client_ready,
+        .ctx = ctx,
+    };
 
-        if (ready == -1) {
-            int err = errno;
-            GGL_LOGE("socket-server", "Failed to wait on epoll: %d.", err);
-            return GGL_ERR_FAILURE;
-        }
-
-        for (int i = 0; i < ready; i++) {
-            uint64_t event_data = events[i].data.u64;
-            if (event_data == SERVER_FD_DATA) {
-                new_client_available(pool, epoll_fd, server_fd);
-            } else if (event_data <= UINT32_MAX) {
-                client_data_ready(
-                    pool, (uint32_t) event_data, client_ready, ctx
-                );
-            } else {
-                GGL_LOGE("socket-server", "Invalid data returned from epoll.");
-                return GGL_ERR_FAILURE;
-            }
-        }
-    }
-
-    return GGL_ERR_FAILURE;
+    return ggl_socket_epoll_run(epoll_fd, epoll_fd_ready, &server_ctx);
 }
