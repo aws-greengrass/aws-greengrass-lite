@@ -18,6 +18,7 @@ static bool config_initialized = false;
 static sqlite3 *config_database;
 static const char *config_database_name = "config.db";
 
+/// create the database to the correct schema
 static GglError create_database(void) {
     GGL_LOGI("ggconfig_open", "creating the database");
     // create the initial table
@@ -38,6 +39,7 @@ static GglError create_database(void) {
           "'timeStamp' TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
           "foreign key(pathid) references pathTable(pathid) );"
           "CREATE TABLE version('version' TEXT DEFAULT '0.1');"
+          "INSERT INTO version(version) VALUES (0.1);"
           "CREATE TRIGGER update_Timestamp_Trigger"
           "AFTER UPDATE On valueTable BEGIN "
           "UPDATE valueTable SET timeStamp = CURRENT_TIMESTAMP WHERE "
@@ -455,7 +457,9 @@ static void create_key_path(GglBuffer *key) {
                             parent_id
                         );
                         id = path_insert(&parent_key_buffer);
-                        relation_insert(id, parent_id);
+                        if (parent_id) {
+                            relation_insert(id, parent_id);
+                        }
                     }
                 }
             }
