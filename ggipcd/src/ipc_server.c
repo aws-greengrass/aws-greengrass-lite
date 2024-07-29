@@ -73,7 +73,7 @@ static IpcConnState client_states[GGL_IPC_MAX_CLIENTS] = { 0 };
 static int32_t client_fds[GGL_IPC_MAX_CLIENTS];
 static uint16_t client_generations[GGL_IPC_MAX_CLIENTS];
 
-static void reset_client_state(ClientHandle handle, size_t index);
+static void reset_client_state(uint32_t handle, size_t index);
 
 static SocketServerClientPool client_pool = {
     .max_clients = GGL_IPC_MAX_CLIENTS,
@@ -86,7 +86,7 @@ __attribute__((constructor)) static void init_client_pool(void) {
     ggl_socket_server_pool_init(&client_pool);
 }
 
-static void reset_client_state(ClientHandle handle, size_t index) {
+static void reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
     client_states[index] = IPC_INIT;
 }
@@ -167,7 +167,7 @@ static void set_connected(void *ctx, size_t index) {
     client_states[index] = IPC_CONNECTED;
 }
 
-static GglError handle_conn_init(ClientHandle handle, EventStreamMessage *msg) {
+static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
     EsCommonHeaders common_headers;
     GglError ret = get_common_headers(msg, &common_headers);
     if (ret != GGL_ERR_OK) {
@@ -261,7 +261,7 @@ static GglError handle_conn_init(ClientHandle handle, EventStreamMessage *msg) {
     return GGL_ERR_OK;
 }
 
-static GglError handle_operation(ClientHandle handle, EventStreamMessage *msg) {
+static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
     EsCommonHeaders common_headers;
     GglError ret = get_common_headers(msg, &common_headers);
     if (ret != GGL_ERR_OK) {
@@ -355,7 +355,7 @@ static void get_conn_state(void *ctx, size_t index) {
     *state = client_states[index];
 }
 
-static GglError client_ready(void *ctx, ClientHandle handle) {
+static GglError client_ready(void *ctx, uint32_t handle) {
     (void) ctx;
 
     GglBuffer recv_buffer = GGL_BUF(payload_array);

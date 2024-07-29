@@ -14,16 +14,14 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef uint32_t ClientHandle;
-
 /** Pool of memory for one or more servers to use for clients.
  * `fds` and `generations` should be set to arrays of length `max_clients`. */
 typedef struct {
     size_t max_clients;
     int32_t *fds;
     uint16_t *generations;
-    void (*on_register)(ClientHandle handle, size_t index);
-    void (*on_release)(ClientHandle handle, size_t index);
+    void (*on_register)(uint32_t handle, size_t index);
+    void (*on_release)(uint32_t handle, size_t index);
 } SocketServerClientPool;
 
 /** Initialize the memory of a `SocketServerClientPool`.
@@ -37,28 +35,26 @@ void ggl_socket_server_pool_init(SocketServerClientPool *client_pool);
 GglError ggl_socket_server_listen(
     const char *socket_path,
     SocketServerClientPool *client_pool,
-    GglError (*client_ready)(void *ctx, ClientHandle handle),
+    GglError (*client_ready)(void *ctx, uint32_t handle),
     void *ctx
 );
 
 /** Read exact amount of data from a socket-server client. */
 GglError ggl_socket_read(
-    SocketServerClientPool *client_pool, ClientHandle handle, GglBuffer buf
+    SocketServerClientPool *client_pool, uint32_t handle, GglBuffer buf
 );
 /** Write exact amount of data to a socket-server client. */
 GglError ggl_socket_write(
-    SocketServerClientPool *client_pool, ClientHandle handle, GglBuffer buf
+    SocketServerClientPool *client_pool, uint32_t handle, GglBuffer buf
 );
 /** Close a socket-server client. */
-GglError ggl_socket_close(
-    SocketServerClientPool *client_pool, ClientHandle handle
-);
+GglError ggl_socket_close(SocketServerClientPool *client_pool, uint32_t handle);
 /** Runs action with index, with state mutex held. */
 GglError ggl_socket_with_index(
     void (*action)(void *ctx, size_t index),
     void *ctx,
     SocketServerClientPool *client_pool,
-    ClientHandle handle
+    uint32_t handle
 );
 
 #endif

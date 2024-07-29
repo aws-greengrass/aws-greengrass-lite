@@ -257,7 +257,7 @@ static GglError configure_socket(int socket_fd, const char *socket_path) {
 GglError ggl_socket_server_listen(
     const char *socket_path,
     SocketServerClientPool *client_pool,
-    GglError (*client_ready)(void *ctx, ClientHandle handle),
+    GglError (*client_ready)(void *ctx, uint32_t handle),
     void *ctx
 ) {
     assert(socket_path != NULL);
@@ -334,7 +334,7 @@ GglError ggl_socket_server_listen(
 }
 
 static GglError recv_wrapper(
-    SocketServerClientPool *client_pool, ClientHandle handle, GglBuffer *rest
+    SocketServerClientPool *client_pool, uint32_t handle, GglBuffer *rest
 ) {
     uint16_t index = (uint16_t) (handle & UINT16_MAX);
     uint16_t generation = (uint16_t) (handle >> 16);
@@ -368,7 +368,7 @@ static GglError recv_wrapper(
 }
 
 GglError ggl_socket_read(
-    SocketServerClientPool *client_pool, ClientHandle handle, GglBuffer buf
+    SocketServerClientPool *client_pool, uint32_t handle, GglBuffer buf
 ) {
     GglBuffer rest = buf;
 
@@ -383,7 +383,7 @@ GglError ggl_socket_read(
 }
 
 static GglError write_wrapper(
-    SocketServerClientPool *client_pool, ClientHandle handle, GglBuffer *rest
+    SocketServerClientPool *client_pool, uint32_t handle, GglBuffer *rest
 ) {
     uint16_t index = (uint16_t) (handle & UINT16_MAX);
     uint16_t generation = (uint16_t) (handle >> 16);
@@ -415,7 +415,7 @@ static GglError write_wrapper(
 }
 
 GglError ggl_socket_write(
-    SocketServerClientPool *client_pool, ClientHandle handle, GglBuffer buf
+    SocketServerClientPool *client_pool, uint32_t handle, GglBuffer buf
 ) {
     GglBuffer rest = buf;
 
@@ -430,7 +430,7 @@ GglError ggl_socket_write(
 }
 
 GglError ggl_socket_close(
-    SocketServerClientPool *client_pool, ClientHandle handle
+    SocketServerClientPool *client_pool, uint32_t handle
 ) {
     int client_fd = -1;
     bool released = release_client_fd(client_pool, handle, &client_fd);
@@ -444,7 +444,7 @@ GglError ggl_socket_with_index(
     void (*action)(void *ctx, size_t index),
     void *ctx,
     SocketServerClientPool *client_pool,
-    ClientHandle handle
+    uint32_t handle
 ) {
     uint16_t index = (uint16_t) (handle & UINT16_MAX);
     uint16_t generation = (uint16_t) (handle >> 16);

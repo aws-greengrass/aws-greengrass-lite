@@ -47,8 +47,8 @@ static uint8_t encode_array[GGL_COREBUS_MAX_MSG_LEN];
 static CoreBusRequestType client_request_types[GGL_COREBUS_MAX_CLIENTS];
 static SubCleanupCallback subscription_cleanup[GGL_COREBUS_MAX_CLIENTS];
 
-static void reset_client_state(ClientHandle handle, size_t index);
-static void close_subscription(ClientHandle handle, size_t index);
+static void reset_client_state(uint32_t handle, size_t index);
+static void close_subscription(uint32_t handle, size_t index);
 
 static int32_t client_fds[GGL_COREBUS_MAX_CLIENTS];
 static uint16_t client_generations[GGL_COREBUS_MAX_CLIENTS];
@@ -65,14 +65,14 @@ __attribute__((constructor)) static void init_client_pool(void) {
     ggl_socket_server_pool_init(&client_pool);
 }
 
-static void reset_client_state(ClientHandle handle, size_t index) {
+static void reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
     client_request_types[index] = CORE_BUS_CALL;
     subscription_cleanup[index].fn = NULL;
     subscription_cleanup[index].ctx = NULL;
 }
 
-static void close_subscription(ClientHandle handle, size_t index) {
+static void close_subscription(uint32_t handle, size_t index) {
     if (subscription_cleanup[index].fn != NULL) {
         subscription_cleanup[index].fn(subscription_cleanup[index].ctx, handle);
     }
@@ -95,7 +95,7 @@ static void set_subscription_cleanup(void *ctx, size_t index) {
 
 // TODO: Split this function up
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-static GglError client_ready(void *ctx, ClientHandle handle) {
+static GglError client_ready(void *ctx, uint32_t handle) {
     InterfaceCtx *interface = ctx;
 
     static pthread_mutex_t client_handler_mtx = PTHREAD_MUTEX_INITIALIZER;
