@@ -96,7 +96,9 @@ GglError ggl_socket_pool_release(
         }
     }
 
-    *fd = pool->fds[index];
+    if (fd != NULL) {
+        *fd = pool->fds[index];
+    }
 
     pool->generations[index] += 1;
     pool->fds[index] = FD_FREE;

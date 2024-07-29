@@ -86,7 +86,7 @@ static void set_request_type(void *ctx, size_t index) {
     client_request_types[index] = *type;
 }
 
-static void read_request_type(void *ctx, size_t index) {
+static void get_request_type(void *ctx, size_t index) {
     CoreBusRequestType *type = ctx;
     *type = client_request_types[index];
 }
@@ -312,7 +312,7 @@ void ggl_return_err(uint32_t handle, GglError error) {
 void ggl_respond(uint32_t handle, GglObject value) {
     CoreBusRequestType type = CORE_BUS_CALL;
     GglError ret
-        = ggl_socket_with_index(read_request_type, &type, &pool, handle);
+        = ggl_socket_with_index(get_request_type, &type, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return;
     }

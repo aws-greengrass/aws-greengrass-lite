@@ -36,7 +36,7 @@
 #define GGL_IPC_MAX_CLIENTS 50
 #endif
 
-#define PAYLOAD_JSON_MAX_SUBOBJECTS 50
+#define PAYLOAD_MAX_SUBOBJECTS 50
 
 static_assert(
     GGL_IPC_MAX_MSG_LEN >= 16, "Minimum EventStream packet size is 16."
@@ -134,8 +134,7 @@ static GglError get_common_headers(
 static GglError deserialize_payload(GglBuffer payload, GglMap *out) {
     GglObject obj;
 
-    static uint8_t
-        json_decode_mem[PAYLOAD_JSON_MAX_SUBOBJECTS * sizeof(GglObject)];
+    static uint8_t json_decode_mem[PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject)];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(json_decode_mem));
 
     GglError ret = ggl_json_decode_destructive(payload, &balloc.alloc, &obj);
@@ -313,7 +312,7 @@ static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
         return ret;
     }
 
-    static uint8_t resp_mem[PAYLOAD_JSON_MAX_SUBOBJECTS * sizeof(GglObject)];
+    static uint8_t resp_mem[PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject)];
     GglBumpAlloc buff_alloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
 
     GglBuffer resp_service_model_type = { 0 };
