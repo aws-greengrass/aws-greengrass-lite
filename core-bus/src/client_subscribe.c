@@ -16,8 +16,8 @@
 #include <ggl/eventstream/types.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <ggl/socket.h>
 #include <ggl/socket_epoll.h>
+#include <ggl/socket_handle.h>
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
@@ -203,7 +203,7 @@ GglError ggl_subscribe(
         return ret;
     }
 
-    ggl_socket_with_index(
+    ggl_with_socket_handle_index(
         set_sub_callbacks,
         &(SubCallbacks) {
             .on_response = on_response,
@@ -216,7 +216,7 @@ GglError ggl_subscribe(
 
     ret = ggl_socket_epoll_add(epoll_fd, conn, sub_handle);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_close(&pool, sub_handle);
+        ggl_socket_handle_close(&pool, sub_handle);
         return ret;
     }
 
@@ -228,12 +228,12 @@ GglError ggl_subscribe(
 }
 
 void ggl_client_sub_close(uint32_t handle) {
-    ggl_socket_close(&pool, handle);
+    ggl_socket_handle_close(&pool, handle);
 }
 
 static GglError socket_handle_reader(void *ctx, GglBuffer buf) {
     uint32_t *handle_ptr = ctx;
-    return ggl_socket_read(&pool, *handle_ptr, buf);
+    return ggl_socket_handle_read(&pool, *handle_ptr, buf);
 }
 
 static GglError get_subscription_response(uint32_t handle) {
@@ -267,7 +267,9 @@ static GglError get_subscription_response(uint32_t handle) {
     }
 
     SubCallbacks callbacks = { 0 };
-    ret = ggl_socket_with_index(get_sub_callbacks, &callbacks, &pool, handle);
+    ret = ggl_with_socket_handle_index(
+        get_sub_callbacks, &callbacks, &pool, handle
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -275,7 +277,7 @@ static GglError get_subscription_response(uint32_t handle) {
     if (callbacks.on_response != NULL) {
         ret = callbacks.on_response(callbacks.ctx, handle, result);
         if (ret != GGL_ERR_OK) {
-            ggl_socket_close(&pool, handle);
+            ggl_socket_handle_close(&pool, handle);
         }
     }
 
@@ -292,7 +294,7 @@ static GglError sub_fd_ready(void *ctx, uint64_t data) {
 
     GglError ret = get_subscription_response(handle);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_close(&pool, handle);
+        ggl_socket_handle_close(&pool, handle);
     }
 
     return GGL_ERR_OK;

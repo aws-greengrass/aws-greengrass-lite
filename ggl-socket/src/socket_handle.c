@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "ggl/socket.h"
+#include "ggl/socket_handle.h"
 #include <assert.h>
 #include <errno.h>
 #include <ggl/alloc.h>
@@ -160,7 +160,9 @@ static GglError recv_wrapper(
     return GGL_ERR_OK;
 }
 
-GglError ggl_socket_read(GglSocketPool *pool, uint32_t handle, GglBuffer buf) {
+GglError ggl_socket_handle_read(
+    GglSocketPool *pool, uint32_t handle, GglBuffer buf
+) {
     GglBuffer rest = buf;
 
     while (rest.len > 0) {
@@ -211,7 +213,9 @@ static GglError write_wrapper(
     return GGL_ERR_OK;
 }
 
-GglError ggl_socket_write(GglSocketPool *pool, uint32_t handle, GglBuffer buf) {
+GglError ggl_socket_handle_write(
+    GglSocketPool *pool, uint32_t handle, GglBuffer buf
+) {
     GglBuffer rest = buf;
 
     while (rest.len > 0) {
@@ -224,7 +228,7 @@ GglError ggl_socket_write(GglSocketPool *pool, uint32_t handle, GglBuffer buf) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_socket_close(GglSocketPool *pool, uint32_t handle) {
+GglError ggl_socket_handle_close(GglSocketPool *pool, uint32_t handle) {
     int fd = -1;
 
     GglError ret = ggl_socket_pool_release(pool, handle, &fd);
@@ -235,7 +239,7 @@ GglError ggl_socket_close(GglSocketPool *pool, uint32_t handle) {
     return ret;
 }
 
-GglError ggl_socket_with_index(
+GglError ggl_with_socket_handle_index(
     void (*action)(void *ctx, size_t index),
     void *ctx,
     GglSocketPool *pool,

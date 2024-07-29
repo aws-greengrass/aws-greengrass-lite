@@ -18,7 +18,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <ggl/socket.h>
+#include <ggl/socket_handle.h>
 #include <ggl/socket_server.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -249,12 +249,12 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
         NULL
     );
 
-    ret = ggl_socket_write(&pool, handle, send_buffer);
+    ret = ggl_socket_handle_write(&pool, handle, send_buffer);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    ret = ggl_socket_with_index(set_connected, NULL, &pool, handle);
+    ret = ggl_with_socket_handle_index(set_connected, NULL, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -348,7 +348,7 @@ static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
         &send_buffer, resp_headers, resp_headers_len, payload_writer, &resp_obj
     );
 
-    return ggl_socket_write(&pool, handle, send_buffer);
+    return ggl_socket_handle_write(&pool, handle, send_buffer);
 }
 
 static void get_conn_state(void *ctx, size_t index) {
@@ -363,7 +363,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
     assert(prelude_buf.len == 12);
 
-    GglError ret = ggl_socket_read(&pool, handle, prelude_buf);
+    GglError ret = ggl_socket_handle_read(&pool, handle, prelude_buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -385,7 +385,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     GglBuffer data_section
         = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
 
-    ret = ggl_socket_read(&pool, handle, data_section);
+    ret = ggl_socket_handle_read(&pool, handle, data_section);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -398,7 +398,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     }
 
     IpcConnState state = IPC_INIT;
-    ret = ggl_socket_with_index(get_conn_state, &state, &pool, handle);
+    ret = ggl_with_socket_handle_index(get_conn_state, &state, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

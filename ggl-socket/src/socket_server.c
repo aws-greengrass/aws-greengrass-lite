@@ -4,8 +4,8 @@
  */
 
 #include "ggl/socket_server.h"
-#include "ggl/socket.h"
 #include "ggl/socket_epoll.h"
+#include "ggl/socket_handle.h"
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -62,7 +62,7 @@ static void new_client_available(
 
     ret = ggl_socket_epoll_add(epoll_fd, client_fd, handle);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_close(pool, handle);
+        ggl_socket_handle_close(pool, handle);
         GGL_LOGE(
             "socket-server",
             "Failed to register client %d with epoll.",
@@ -82,7 +82,7 @@ static void client_data_ready(
 
     GglError ret = client_ready(ctx, handle);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_close(pool, handle);
+        ggl_socket_handle_close(pool, handle);
     }
 }
 

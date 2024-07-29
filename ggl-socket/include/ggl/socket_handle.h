@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef GGL_SOCKET_H
-#define GGL_SOCKET_H
+#ifndef GGL_SOCKET_HANDLE_H
+#define GGL_SOCKET_HANDLE_H
 
 /*! Common library for managing unix sockets */
 
@@ -47,18 +47,22 @@ GglError ggl_socket_pool_register(
 GglError ggl_socket_pool_release(GglSocketPool *pool, uint32_t handle, int *fd);
 
 /** Read exact amount of data from a socket. */
-GglError ggl_socket_read(GglSocketPool *pool, uint32_t handle, GglBuffer buf);
+GglError ggl_socket_handle_read(
+    GglSocketPool *pool, uint32_t handle, GglBuffer buf
+);
 
 /** Write exact amount of data to a socket. */
-GglError ggl_socket_write(GglSocketPool *pool, uint32_t handle, GglBuffer buf);
+GglError ggl_socket_handle_write(
+    GglSocketPool *pool, uint32_t handle, GglBuffer buf
+);
 
 /** Close a socket. */
-GglError ggl_socket_close(GglSocketPool *pool, uint32_t handle);
+GglError ggl_socket_handle_close(GglSocketPool *pool, uint32_t handle);
 
 /** Run a callback with access to the state index.
  * This can be used for managing additional state arrays kept in sync with the
  * socket pool state. */
-GglError ggl_socket_with_index(
+GglError ggl_with_socket_handle_index(
     void (*action)(void *ctx, size_t index),
     void *ctx,
     GglSocketPool *pool,

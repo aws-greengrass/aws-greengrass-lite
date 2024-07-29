@@ -8,7 +8,7 @@
 
 /*! Event driven server listening on a unix socket */
 
-#include "socket.h"
+#include "socket_handle.h"
 #include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
