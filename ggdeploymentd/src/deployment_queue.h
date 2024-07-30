@@ -11,7 +11,7 @@
 #define GGDEPLOYMENTD_QUEUE_H
 
 void deployment_queue_init(void);
-bool deployment_queue_offer(GgdeploymentdLocalDeployment deployment);
-GgdeploymentdLocalDeployment deployment_queue_poll(void);
+bool deployment_queue_offer(GgdeploymentdDeployment deployment);
+GgdeploymentdDeployment deployment_queue_poll(void);
 uint8_t deployment_queue_size(void);
 #endif

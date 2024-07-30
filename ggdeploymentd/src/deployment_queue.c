@@ -12,10 +12,10 @@
 #endif
 
 size_t deployment_queue_contains_deployment_id(GglBuffer deployment_id);
-bool should_replace_deployment_in_queue(GgdeploymentdLocalDeployment new_deployment, GgdeploymentdLocalDeployment existing_deployment);
+bool should_replace_deployment_in_queue(GgdeploymentdDeployment new_deployment, GgdeploymentdDeployment existing_deployment);
 
 typedef struct {
-    GgdeploymentdLocalDeployment deployments[GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE];
+    GgdeploymentdDeployment deployments[GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE];
     size_t front;
     size_t back;
     uint8_t size;
@@ -58,7 +58,7 @@ size_t deployment_queue_contains_deployment_id(GglBuffer deployment_id) {
     return SIZE_MAX;
 }
 
-bool should_replace_deployment_in_queue(GgdeploymentdLocalDeployment new_deployment, GgdeploymentdLocalDeployment existing_deployment) {
+bool should_replace_deployment_in_queue(GgdeploymentdDeployment new_deployment, GgdeploymentdDeployment existing_deployment) {
     // If the enqueued deployment is already in progress (Non DEFAULT state), then it can not be replaced.
     if(existing_deployment.deployment_stage != DEFAULT) {
         return false;
@@ -74,7 +74,7 @@ bool should_replace_deployment_in_queue(GgdeploymentdLocalDeployment new_deploym
     return new_deployment.deployment_stage != DEFAULT;
 }
 
-bool deployment_queue_offer(GgdeploymentdLocalDeployment deployment) {
+bool deployment_queue_offer(GgdeploymentdDeployment deployment) {
     if(deployment_queue.size == GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE) {
         GGL_LOGD(
             "deployment_queue",
@@ -99,16 +99,16 @@ bool deployment_queue_offer(GgdeploymentdLocalDeployment deployment) {
     return false;
 }
 
-GgdeploymentdLocalDeployment deployment_queue_poll(void) {
+GgdeploymentdDeployment deployment_queue_poll(void) {
     if(deployment_queue.size == 0) {
         GGL_LOGD(
             "deployment_queue",
             "Deployment queue is empty, there is no deployment to poll."
         );
-        GgdeploymentdLocalDeployment blank_deployment;
+        GgdeploymentdDeployment blank_deployment;
         return blank_deployment;
     }
-    GgdeploymentdLocalDeployment next_deployment = deployment_queue.deployments[deployment_queue.front];
+    GgdeploymentdDeployment next_deployment = deployment_queue.deployments[deployment_queue.front];
     deployment_queue.front = (deployment_queue.front + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
     deployment_queue.size--;
     return next_deployment;
