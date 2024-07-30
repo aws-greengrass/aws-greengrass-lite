@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "localdeploy.h"
 #include "deployment_model.h"
 #include <stdint.h>
 

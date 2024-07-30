@@ -88,11 +88,13 @@ bool deployment_queue_offer(GgdeploymentdDeployment deployment) {
         deployment_queue.back = (deployment_queue.back == SIZE_MAX) ? 0 : (deployment_queue.back + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
         deployment_queue.deployments[deployment_queue.back] = deployment;
         deployment_queue.size++;
+        GGL_LOGD("deployment_queue", "Added a new deployment to the queue.");
         return true;
     }
     else {
         if(should_replace_deployment_in_queue(deployment, deployment_queue.deployments[deployment_id_position])){
             deployment_queue.deployments[deployment_id_position] = deployment;
+            GGL_LOGD("deployment_queue", "Replaced existing deployment in queue with updated deployment.");
             return true;
         }
     }

@@ -63,8 +63,7 @@ typedef struct {
 } GgdeploymentdDeploymentDocument;
 
 typedef struct {
-    GgdeploymentdDeploymentDocument deployment_document_obj;
-    GglBuffer deployment_document;
+    GgdeploymentdDeploymentDocument deployment_document;
     GglBuffer deployment_id;
     enum DeploymentStage deployment_stage;
     enum DeploymentType deployment_type;
