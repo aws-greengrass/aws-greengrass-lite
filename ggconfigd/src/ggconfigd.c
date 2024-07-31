@@ -138,6 +138,12 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     ggl_respond(handle, GGL_OBJ_NULL());
 }
 
+static void sub_close_callback(void *ctx, uint32_t handle) {
+    (void) ctx;
+    (void) handle;
+    GGL_LOGD("sub_close_callback", "closing callback for %d", handle);
+}
+
 static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
@@ -163,6 +169,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
     }
+    ggl_sub_accept(handle, sub_close_callback, NULL);
 }
 
 void ggconfigd_start_server(void) {
