@@ -113,7 +113,7 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
             "rpc_write", "value %.*s", (int) msg.key.len, (char *) msg.key.data
         );
     } else {
-        GGL_LOGE("rpc-handler", "write received invalid value argument.");
+        GGL_LOGE("rpc-write", "write received invalid value argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -138,11 +138,38 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     ggl_respond(handle, GGL_OBJ_NULL());
 }
 
+static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
+    (void) ctx;
+
+    ConfigMsg msg = { 0 };
+    GglObject *val;
+    GGL_LOGI("rpc-subscribe", "subscribing");
+    if (ggl_map_get(params, GGL_STR("key"), &val)
+        && (val->type == GGL_TYPE_BUF)) {
+        msg.key = val->buf;
+        GGL_LOGI(
+            "rpc_subscribe",
+            "key %.*s",
+            (int) msg.key.len,
+            (char *) msg.key.data
+        );
+    } else {
+        GGL_LOGE("rpc-subscribe", "subscribe received invalid key argument.");
+        ggl_return_err(handle, GGL_ERR_INVALID);
+        return;
+    }
+
+    GglError ret = ggconfig_get_key_notification(&msg.key, handle);
+    if (ret != GGL_ERR_OK) {
+        ggl_return_err(handle, ret);
+    }
+}
+
 void ggconfigd_start_server(void) {
-    GglRpcMethodDesc handlers[] = {
-        { GGL_STR("read"), false, rpc_read, NULL },
-        { GGL_STR("write"), false, rpc_write, NULL },
-    };
+    GglRpcMethodDesc handlers[]
+        = { { GGL_STR("read"), false, rpc_read, NULL },
+            { GGL_STR("write"), false, rpc_write, NULL },
+            { GGL_STR("subscribe"), true, rpc_subscribe, NULL } };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
     ggl_listen(GGL_STR("/aws/ggl/ggconfigd"), handlers, handlers_len);

@@ -4,6 +4,7 @@
 
 #include "ggconfig.h"
 #include <ctype.h>
+#include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -96,7 +97,7 @@ GglError ggconfig_open(void) {
             config_database,
             "CREATE TEMPORARY TABLE subscriberTable("
             "'pathid' INT UNIQUE NOT NULL,"
-            "'subscriber' TEXT, "
+            "'handle' INT, "
             "FOREIGN KEY (pathid) REFERENCES "
             "pathTable(pathid))",
             NULL,
@@ -425,7 +426,7 @@ static long long get_path_id(GglBuffer *key) {
     return id;
 }
 
-static void create_key_path(GglBuffer *key) {
+static long long create_key_path(GglBuffer *key) {
     long long id = 0;
     long long parent_id = 0;
     int depth_count = 0;
@@ -472,6 +473,7 @@ static void create_key_path(GglBuffer *key) {
         id = path_insert(key);
         relation_insert(id, parent_id);
     }
+    return id;
 }
 
 GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
@@ -506,6 +508,28 @@ GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
 
     // notify any subscribers for this key
     // use a subscriber table.
+    sqlite3_stmt *stmt;
+    sqlite3_prepare_v2(
+        config_database,
+        "SELECT handle FROM subscription_table as S LEFT JOIN pathTable as P "
+        "WHERE S.pathid = P.pathid AND P.pathvalue = ?;",
+        -1,
+        &stmt,
+        NULL
+    );
+    sqlite3_bind_text(
+        stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
+    );
+    int rc = 0;
+    while (rc != SQLITE_DONE) {
+        rc = sqlite3_step(stmt);
+        if (SQLITE_DONE != rc) {
+            long long handle = sqlite3_column_int64(stmt, 0);
+            GGL_LOGD("subscription", "Sending to %lld", handle);
+            ggl_respond((uint32_t) handle, GGL_OBJ(*value));
+        }
+    }
+    sqlite3_finalize(stmt);
 
     GGL_LOGI(
         "ggconfig_insert",
@@ -565,24 +589,41 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
     return return_value;
 }
 
-// TODO: implement this
-GglError ggconfig_get_key_notification(
-    GglBuffer *key, GglConfigCallback callback, void *parameter
-) {
-    (void) callback;
-    (void) parameter;
+GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle) {
+    long long key_id;
+    sqlite3_stmt *stmt;
 
     if (config_initialized == false) {
         return GGL_ERR_FAILURE;
     }
 
     // ensure this key is present in the key path. Key does not require a value
-    if (get_path_id(key) == 0) {
-        create_key_path(key);
+    key_id = get_path_id(key);
+    if (key_id == 0) {
+        key_id = create_key_path(key);
     }
-
-    // insert the key & callback data into the subscriber database
-    // What needs to be stored to do the notification?
+    GGL_LOGD(
+        "get_key_notification",
+        "Subscribing %d to %.*s",
+        handle,
+        (int) key->len,
+        (char *) key->data
+    );
+    // insert the key & handle data into the subscriber database
+    sqlite3_prepare_v2(
+        config_database,
+        "INSERT INTO subscriberTable(pathid, handle) VALUES (?,?);",
+        -1,
+        &stmt,
+        NULL
+    );
+    sqlite3_bind_int64(stmt, 1, key_id);
+    sqlite3_bind_int64(stmt, 2, handle);
+    int rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE) {
+        GGL_LOGE("get_key_notification", "%s", sqlite3_errmsg(config_database));
+    }
+    sqlite3_finalize(stmt);
 
     return GGL_ERR_FAILURE;
 }
