@@ -15,12 +15,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-static void create_local_deployment(
-    void *ctx, GglMap params, uint32_t handle
-) {
+static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    GGL_LOGI("ggdeploymentd", "Received create_local_deployment from core bus.");
+    GGL_LOGI(
+        "ggdeploymentd", "Received create_local_deployment from core bus."
+    );
 
     GgdeploymentdDeploymentDocument local_deployment_document = { 0 };
 

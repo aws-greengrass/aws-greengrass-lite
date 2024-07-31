@@ -149,8 +149,7 @@ GgdeploymentdDeployment deployment_queue_poll(void) {
         = (deployment_queue.front + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
     deployment_queue.size--;
     GGL_LOGI(
-        "deployment_queue",
-        "Removed a deployment from the front of the queue."
+        "deployment_queue", "Removed a deployment from the front of the queue."
     );
     pthread_cond_signal(&deployment_queue.not_full);
     pthread_mutex_unlock(&deployment_queue.mutex);
