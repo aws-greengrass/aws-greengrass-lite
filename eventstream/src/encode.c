@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/eventstream/encode.h"
 #include "crc32.h"
@@ -14,6 +13,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 static void write_be_u32(uint32_t val, uint8_t *dest) {
@@ -115,6 +115,8 @@ GglError eventstream_encode(
     GglError (*payload_writer)(GglBuffer *buf, void *payload),
     void *payload
 ) {
+    assert((headers == NULL) ? (header_count == 0) : true);
+
     if (buf->len > UINT32_MAX) {
         buf->len = UINT32_MAX;
     }
@@ -132,9 +134,9 @@ GglError eventstream_encode(
     uint8_t *headers_len_p = &prelude[4];
     uint8_t *prelude_crc_p = &prelude[8];
 
-    uint32_t headers_len;
+    uint32_t headers_len = 0;
 
-    {
+    if (headers != NULL) {
         GglBumpAlloc bump_alloc = ggl_bump_alloc_init(buf_copy);
 
         for (size_t i = 0; i < header_count; i++) {

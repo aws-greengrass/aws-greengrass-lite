@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include <errno.h>
 #include <ggl/core_bus/client.h>
@@ -10,17 +9,17 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/utils.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
-static void subscribe_callback(
-    void *ctx, GglSubscription subscription, GglObject data
-) {
+static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     (void) ctx;
-    (void) subscription;
+    (void) handle;
 
     if (data.type != GGL_TYPE_MAP) {
         GGL_LOGE("mqtt-client", "Subscription response is not a map.");
-        return;
+        return GGL_ERR_FAILURE;
     }
 
     GglBuffer topic = GGL_STR("");
@@ -32,24 +31,24 @@ static void subscribe_callback(
             GGL_LOGE(
                 "mqtt-client", "Subscription response topic not a buffer."
             );
-            return;
+            return GGL_ERR_FAILURE;
         }
         topic = val->buf;
     } else {
         GGL_LOGE("mqtt-client", "Subscription response is missing topic.");
-        return;
+        return GGL_ERR_FAILURE;
     }
     if (ggl_map_get(data.map, GGL_STR("payload"), &val)) {
         if (val->type != GGL_TYPE_BUF) {
             GGL_LOGE(
                 "mqtt-client", "Subscription response payload not a buffer."
             );
-            return;
+            return GGL_ERR_FAILURE;
         }
         payload = val->buf;
     } else {
         GGL_LOGE("mqtt-client", "Subscription response is missing payload.");
-        return;
+        return GGL_ERR_FAILURE;
     }
 
     GGL_LOGI(
@@ -60,6 +59,8 @@ static void subscribe_callback(
         (int) payload.len,
         payload.data
     );
+
+    return GGL_ERR_OK;
 }
 
 int main(void) {

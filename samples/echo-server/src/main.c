@@ -1,14 +1,14 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include <ggl/core_bus/server.h>
 #include <ggl/object.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
-static void handle_echo(void *ctx, GglMap params, GglResponseHandle handle) {
+static void handle_echo(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     ggl_respond(handle, GGL_OBJ(params));
 }

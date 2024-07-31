@@ -1,7 +1,6 @@
-/* gravel - Utilities for AWS IoT Core clients
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "fleet_status_service.h"
 #include "args.h"
@@ -27,7 +26,7 @@ static const char TOPIC_END[] = "/greengrassv2/health/json";
 
 static const char PAYLOAD_START[]
     = "{\"ggcVersion\":\"2.13.0\",\"platform\":\"linux\",\"architecture\":"
-      "\"amd64\",\"thing\":\"";
+      "\"amd64\",\"runtime\":\"NucleusLite\",\"thing\":\"";
 static const char PAYLOAD_END[]
     = "\",\"sequenceNumber\":1,\"timestamp\":10,\"messageType\":\"COMPLETE\","
       "\"trigger\":\"NUCLEUS_LAUNCH\",\"overallDeviceStatus\":\"HEALTHY\","

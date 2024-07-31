@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ggconfig.h"
 #include <ggl/core_bus/server.h>
@@ -23,7 +22,7 @@ typedef struct {
     GglBuffer value;
 } ConfigMsg;
 
-static void rpc_read(void *ctx, GglMap params, GglResponseHandle handle) {
+static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     ConfigMsg msg = { 0 };
@@ -48,9 +47,9 @@ static void rpc_read(void *ctx, GglMap params, GglResponseHandle handle) {
         return;
     }
 
-    /* do a sqlite read operation */
-    /* component/key */
-    /* append component & key */
+    // do a sqlite read operation
+    // component/key
+    // append component & key
     GglBuffer value;
 
     unsigned long length = msg.component.len + msg.key.len + 1;
@@ -66,14 +65,14 @@ static void rpc_read(void *ctx, GglMap params, GglResponseHandle handle) {
 
     if (ggconfig_get_value_from_key(&component_key, &value) == GGL_ERR_OK) {
         GglObject return_value = { .type = GGL_TYPE_BUF, .buf = value };
-        /* use the data and then free it*/
+        // use the data and then free it
         ggl_respond(handle, return_value);
     } else {
         ggl_return_err(handle, GGL_ERR_FAILURE);
     }
 }
 
-static void rpc_write(void *ctx, GglMap params, GglResponseHandle handle) {
+static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     ConfigMsg msg = { 0 };

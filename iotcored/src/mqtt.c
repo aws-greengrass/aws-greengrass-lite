@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "mqtt.h"
 #include "args.h"
@@ -19,6 +18,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <transport_interface.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
@@ -35,6 +35,8 @@
 #define IOTCORED_NETWORK_BUFFER_SIZE 5000
 #endif
 
+#define IOTCORED_MQTT_MAX_PUBLISH_RECORDS 10
+
 static uint32_t time_ms(void);
 static void event_callback(
     MQTTContext_t *ctx,
@@ -49,13 +51,18 @@ struct NetworkContext {
 static pthread_t recv_thread;
 static pthread_t keepalive_thread;
 
-static bool ping_pending;
+static atomic_bool ping_pending;
 
 static NetworkContext_t net_ctx;
 
 static MQTTContext_t mqtt_ctx;
 
 static uint8_t network_buffer[IOTCORED_NETWORK_BUFFER_SIZE];
+
+static MQTTPubAckInfo_t
+    outgoing_publish_records[IOTCORED_MQTT_MAX_PUBLISH_RECORDS];
+static MQTTPubAckInfo_t
+    incoming_publish_records[IOTCORED_MQTT_MAX_PUBLISH_RECORDS];
 
 pthread_mutex_t *coremqtt_get_send_mtx(const MQTTContext_t *ctx) {
     (void) ctx;
@@ -100,7 +107,7 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
             break;
         }
 
-        if (ping_pending) {
+        if (atomic_load(&ping_pending)) {
             GGL_LOGE(
                 "mqtt",
                 "Server did not respond to ping within Keep Alive period."
@@ -109,7 +116,7 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
         }
 
         GGL_LOGD("mqtt", "Sending pingreq.");
-        ping_pending = true;
+        atomic_store(&ping_pending, true);
         MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
 
         if (mqtt_ret != MQTTSuccess) {
@@ -165,6 +172,15 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
     );
     assert(mqtt_ret == MQTTSuccess);
 
+    mqtt_ret = MQTT_InitStatefulQoS(
+        &mqtt_ctx,
+        outgoing_publish_records,
+        sizeof(outgoing_publish_records) / sizeof(*outgoing_publish_records),
+        incoming_publish_records,
+        sizeof(incoming_publish_records) / sizeof(*incoming_publish_records)
+    );
+    assert(mqtt_ret == MQTTSuccess);
+
     GglError ret = iotcored_tls_connect(args, &net_ctx.tls_ctx);
     if (ret != 0) {
         return ret;
@@ -199,7 +215,7 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
         return GGL_ERR_FAILURE;
     }
 
-    ping_pending = false;
+    atomic_store(&ping_pending, false);
     pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
     pthread_create(
         &keepalive_thread, NULL, mqtt_keepalive_thread_fn, &mqtt_ctx
@@ -323,7 +339,7 @@ static void event_callback(
 
         iotcored_mqtt_receive(&msg);
     } else {
-        /* Handle other packets. */
+        // Handle other packets.
         switch (packet_info->type) {
         case MQTT_PACKET_TYPE_PUBACK:
             GGL_LOGD(
@@ -351,7 +367,7 @@ static void event_callback(
             break;
         case MQTT_PACKET_TYPE_PINGRESP:
             GGL_LOGD("mqtt", "Received pingresp.");
-            ping_pending = false;
+            atomic_store(&ping_pending, false);
             break;
         default:
             GGL_LOGE(

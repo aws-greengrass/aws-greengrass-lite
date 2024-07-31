@@ -36,33 +36,21 @@ Any data is permitted in a value. The data that goes in, is returned when read.
 
 Write a value to the indicated key. Create the keypath and key as required.
 
+| Parameter name | Parameter Description                                                            |
+| -------------- | -------------------------------------------------------------------------------- |
+| component      | The name of the component. Used as the first entry in the key path               |
+| key            | The keypath that is appended to the component name and addresses a piece of data |
+| value          | The data value written to the component/key                                      |
+
 ### read
 
 Read a value from the indicated key. If the key/keypath are not found, return an
 error.
 
-### ipc_write
-
-Handle the IPC configuration write command with the IPC parameters. IPC
-parameters include:
-
-1. component name
-2. complete keypath
-3. value to store at the keypath.
-
-All keys stored with ipc_write will be internally mapped to the following
-keypath: `ipc/<component>/<keypath> = <value>`
-
-### ipc_read
-
-Handle the IPC configuration read command with the IPC paramameters. IPC
-parameters include:
-
-1. component name
-2. complete keypath
-
-The internal keypath will be generated from the supplied parameters and the
-value stored will be returned.
+| Parameter name | Parameter Description                                                            |
+| -------------- | -------------------------------------------------------------------------------- |
+| component      | The name of the component. Used as the first entry in the key path               |
+| key            | The keypath that is appended to the component name and addresses a piece of data |
 
 > NOTE Can a partial path be requested that will return ALL the data below it?
 > If so, what is the data format for this combined request?
@@ -102,5 +90,3 @@ conflicts.
 ## MERGE RULES
 
 ## KEY NAME RULES
-
-##

@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/core_bus/server.h"
 #include "object_serde.h"
@@ -16,6 +15,7 @@
 #include <ggl/eventstream/types.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/socket_handle.h>
 #include <ggl/socket_server.h>
 #include <pthread.h>
 #include <string.h>
@@ -23,8 +23,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/** Maximum number of core-bus connections.
- * Can be configured with `-DGGL_COREBUS_MAX_CLIENTS=<N>`. */
+/// Maximum number of core-bus connections.
+/// Can be configured with `-DGGL_COREBUS_MAX_CLIENTS=<N>`.
 #ifndef GGL_COREBUS_MAX_CLIENTS
 #define GGL_COREBUS_MAX_CLIENTS 100
 #endif
@@ -41,20 +41,20 @@ typedef struct {
     void *ctx;
 } SubCleanupCallback;
 
-static pthread_mutex_t encode_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t encode_array[GGL_COREBUS_MAX_MSG_LEN];
+static pthread_mutex_t encode_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static CoreBusRequestType client_request_types[GGL_COREBUS_MAX_CLIENTS];
+static GglCoreBusRequestType client_request_types[GGL_COREBUS_MAX_CLIENTS];
 static SubCleanupCallback subscription_cleanup[GGL_COREBUS_MAX_CLIENTS];
 
-static void reset_client_state(ClientHandle handle, size_t index);
-static void close_subscription(ClientHandle handle, size_t index);
+static GglError reset_client_state(uint32_t handle, size_t index);
+static GglError close_subscription(uint32_t handle, size_t index);
 
 static int32_t client_fds[GGL_COREBUS_MAX_CLIENTS];
 static uint16_t client_generations[GGL_COREBUS_MAX_CLIENTS];
 
-static SocketServerClientPool client_pool = {
-    .max_clients = GGL_COREBUS_MAX_CLIENTS,
+static GglSocketPool pool = {
+    .max_fds = GGL_COREBUS_MAX_CLIENTS,
     .fds = client_fds,
     .generations = client_generations,
     .on_register = reset_client_state,
@@ -62,29 +62,31 @@ static SocketServerClientPool client_pool = {
 };
 
 __attribute__((constructor)) static void init_client_pool(void) {
-    ggl_socket_server_pool_init(&client_pool);
+    ggl_socket_pool_init(&pool);
 }
 
-static void reset_client_state(ClientHandle handle, size_t index) {
+static GglError reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
-    client_request_types[index] = CORE_BUS_CALL;
+    client_request_types[index] = GGL_CORE_BUS_CALL;
     subscription_cleanup[index].fn = NULL;
     subscription_cleanup[index].ctx = NULL;
+    return GGL_ERR_OK;
 }
 
-static void close_subscription(ClientHandle handle, size_t index) {
+static GglError close_subscription(uint32_t handle, size_t index) {
     if (subscription_cleanup[index].fn != NULL) {
         subscription_cleanup[index].fn(subscription_cleanup[index].ctx, handle);
     }
+    return GGL_ERR_OK;
 }
 
 static void set_request_type(void *ctx, size_t index) {
-    CoreBusRequestType *type = ctx;
+    GglCoreBusRequestType *type = ctx;
     client_request_types[index] = *type;
 }
 
-static void read_request_type(void *ctx, size_t index) {
-    CoreBusRequestType *type = ctx;
+static void get_request_type(void *ctx, size_t index) {
+    GglCoreBusRequestType *type = ctx;
     *type = client_request_types[index];
 }
 
@@ -95,7 +97,8 @@ static void set_subscription_cleanup(void *ctx, size_t index) {
 
 // TODO: Split this function up
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-static GglError client_ready(void *ctx, ClientHandle handle) {
+static GglError client_ready(void *ctx, uint32_t handle) {
+    GGL_LOGD("core-bus-server", "Handling client data for handle %d.", handle);
     InterfaceCtx *interface = ctx;
 
     static pthread_mutex_t client_handler_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -108,7 +111,7 @@ static GglError client_ready(void *ctx, ClientHandle handle) {
     GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
     assert(prelude_buf.len == 12);
 
-    GglError ret = ggl_socket_read(&client_pool, handle, prelude_buf);
+    GglError ret = ggl_socket_handle_read(&pool, handle, prelude_buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -122,7 +125,7 @@ static GglError client_ready(void *ctx, ClientHandle handle) {
 
     if (prelude.data_len > recv_buffer.len) {
         GGL_LOGE(
-            "core-bus",
+            "core-bus-server",
             "EventStream packet does not fit in core bus buffer size."
         );
         ggl_return_err(handle, GGL_ERR_NOMEM);
@@ -132,7 +135,7 @@ static GglError client_ready(void *ctx, ClientHandle handle) {
     GglBuffer data_section
         = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
 
-    ret = ggl_socket_read(&client_pool, handle, data_section);
+    ret = ggl_socket_handle_read(&pool, handle, data_section);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -147,7 +150,7 @@ static GglError client_ready(void *ctx, ClientHandle handle) {
 
     GglBuffer method = { 0 };
     bool method_set = false;
-    CoreBusRequestType type = CORE_BUS_CALL;
+    GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
     bool type_set = false;
 
     {
@@ -170,10 +173,10 @@ static GglError client_ready(void *ctx, ClientHandle handle) {
                     return GGL_ERR_OK;
                 }
                 switch (header.value.int32) {
-                case CORE_BUS_NOTIFY:
-                case CORE_BUS_CALL:
-                case CORE_BUS_SUBSCRIBE:
-                    type = (CoreBusRequestType) header.value.int32;
+                case GGL_CORE_BUS_NOTIFY:
+                case GGL_CORE_BUS_CALL:
+                case GGL_CORE_BUS_SUBSCRIBE:
+                    type = (GglCoreBusRequestType) header.value.int32;
                     break;
                 default:
                     GGL_LOGE(
@@ -218,7 +221,8 @@ static GglError client_ready(void *ctx, ClientHandle handle) {
         params = payload_obj.map;
     }
 
-    ret = ggl_socket_with_index(set_request_type, &type, &client_pool, handle);
+    GGL_LOGT("core-bus-server", "Setting request type.");
+    ret = ggl_with_socket_handle_index(set_request_type, &type, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -233,7 +237,7 @@ static GglError client_ready(void *ctx, ClientHandle handle) {
     for (size_t i = 0; i < interface->handlers_len; i++) {
         GglRpcMethodDesc *handler = &interface->handlers[i];
         if (ggl_buffer_eq(method, handler->name)) {
-            if (handler->is_subscription != (type == CORE_BUS_SUBSCRIBE)) {
+            if (handler->is_subscription != (type == GGL_CORE_BUS_SUBSCRIBE)) {
                 GGL_LOGE(
                     "core-bus-server", "Request type is unsupported for method."
                 );
@@ -245,6 +249,13 @@ static GglError client_ready(void *ctx, ClientHandle handle) {
             return GGL_ERR_OK;
         }
     }
+
+    GGL_LOGW(
+        "core-bus-server",
+        "No handler for method %.*s.",
+        (int) method.len,
+        method.data
+    );
 
     ggl_return_err(handle, GGL_ERR_NOENTRY);
     return GGL_ERR_OK;
@@ -270,9 +281,7 @@ GglError ggl_listen(
 
     InterfaceCtx ctx = { .handlers = handlers, .handlers_len = handlers_len };
 
-    return ggl_socket_server_listen(
-        socket_path, &client_pool, client_ready, &ctx
-    );
+    return ggl_socket_server_listen(socket_path, &pool, client_ready, &ctx);
 }
 
 static GglError payload_writer(GglBuffer *buf, void *payload) {
@@ -286,7 +295,7 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
     return ggl_serialize(*obj, buf);
 }
 
-void ggl_return_err(GglResponseHandle handle, GglError error) {
+void ggl_return_err(uint32_t handle, GglError error) {
     pthread_mutex_lock(&encode_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, encode_array_mtx);
 
@@ -297,19 +306,35 @@ void ggl_return_err(GglResponseHandle handle, GglError error) {
     };
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
-    eventstream_encode(
+    GglError ret = eventstream_encode(
         &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
     );
 
-    ggl_socket_write(&client_pool, handle, send_buffer);
-    ggl_socket_close(&client_pool, handle);
+    if (ret == GGL_ERR_OK) {
+        ggl_socket_handle_write(&pool, handle, send_buffer);
+    }
+
+    ggl_socket_handle_close(&pool, handle);
 }
 
-void ggl_respond(GglResponseHandle handle, GglObject value) {
-    CoreBusRequestType type = CORE_BUS_CALL;
+void ggl_respond(uint32_t handle, GglObject value) {
+    GGL_LOGT("core-bus-server", "Responding to %d.", handle);
+
+    GGL_LOGT("core-bus-server", "Retrieving request type for %d.", handle);
+    GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
     GglError ret
-        = ggl_socket_with_index(read_request_type, &type, &client_pool, handle);
+        = ggl_with_socket_handle_index(get_request_type, &type, &pool, handle);
     if (ret != GGL_ERR_OK) {
+        return;
+    }
+
+    if (type == GGL_CORE_BUS_NOTIFY) {
+        GGL_LOGT(
+            "core-bus-server",
+            "Skipping response and closing notify %d.",
+            handle
+        );
+        ggl_socket_handle_close(&pool, handle);
         return;
     }
 
@@ -318,27 +343,34 @@ void ggl_respond(GglResponseHandle handle, GglObject value) {
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
 
-    EventStreamHeader resp_headers[] = {};
-    size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
-
-    eventstream_encode(
-        &send_buffer, resp_headers, resp_headers_len, payload_writer, &value
-    );
-
-    ret = ggl_socket_write(&client_pool, handle, send_buffer);
-
-    if ((ret != GGL_ERR_OK) || (type != CORE_BUS_SUBSCRIBE)) {
-        ggl_socket_close(&client_pool, handle);
+    ret = eventstream_encode(&send_buffer, NULL, 0, payload_writer, &value);
+    if (ret != GGL_ERR_OK) {
+        ggl_socket_handle_close(&pool, handle);
+        return;
     }
+
+    ret = ggl_socket_handle_write(&pool, handle, send_buffer);
+    if (ret != GGL_ERR_OK) {
+        ggl_socket_handle_close(&pool, handle);
+    }
+
+    if (type != GGL_CORE_BUS_SUBSCRIBE) {
+        GGL_LOGT("core-bus-server", "Closing call %d.", handle);
+        ggl_socket_handle_close(&pool, handle);
+    }
+
+    GGL_LOGT("core-bus-server", "Sent response to %d.", handle);
 }
 
 void ggl_sub_accept(
-    GglResponseHandle handle, GglServerSubCloseCallback on_close, void *ctx
+    uint32_t handle, GglServerSubCloseCallback on_close, void *ctx
 ) {
+    GGL_LOGT("core-bus-server", "Accepting subscription %d.", handle);
     SubCleanupCallback cleanup = { .fn = on_close, .ctx = ctx };
 
-    GglError ret = ggl_socket_with_index(
-        set_subscription_cleanup, &cleanup, &client_pool, handle
+    GGL_LOGT("core-bus-server", "Setting close callback for %d.", handle);
+    GglError ret = ggl_with_socket_handle_index(
+        set_subscription_cleanup, &cleanup, &pool, handle
     );
     if (ret != GGL_ERR_OK) {
         on_close(ctx, handle);
@@ -355,16 +387,25 @@ void ggl_sub_accept(
     };
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
-    eventstream_encode(
+    ret = eventstream_encode(
         &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
     );
-
-    ret = ggl_socket_write(&client_pool, handle, send_buffer);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_close(&client_pool, handle);
+        ggl_socket_handle_close(&pool, handle);
+        return;
     }
+
+    ret = ggl_socket_handle_write(&pool, handle, send_buffer);
+    if (ret != GGL_ERR_OK) {
+        ggl_socket_handle_close(&pool, handle);
+        return;
+    }
+
+    GGL_LOGT(
+        "core-bus-server", "Successfully accepted subscription %d.", handle
+    );
 }
 
-void ggl_server_sub_close(GglResponseHandle handle) {
-    ggl_socket_close(&client_pool, handle);
+void ggl_server_sub_close(uint32_t handle) {
+    ggl_socket_handle_close(&pool, handle);
 }

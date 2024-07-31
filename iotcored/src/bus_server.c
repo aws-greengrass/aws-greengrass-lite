@@ -1,7 +1,6 @@
-/* aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "bus_server.h"
 #include "mqtt.h"
@@ -15,8 +14,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-static void rpc_publish(void *ctx, GglMap params, GglResponseHandle handle);
-static void rpc_subscribe(void *ctx, GglMap params, GglResponseHandle handle);
+static void rpc_publish(void *ctx, GglMap params, uint32_t handle);
+static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle);
 
 void iotcored_start_server(void) {
     GglRpcMethodDesc handlers[] = {
@@ -31,7 +30,7 @@ void iotcored_start_server(void) {
     GGL_LOGE("iotcored", "Exiting with error %u.", (unsigned) ret);
 }
 
-static void rpc_publish(void *ctx, GglMap params, GglResponseHandle handle) {
+static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     GGL_LOGD("rpc-handler", "Handling publish request.");
@@ -82,12 +81,12 @@ static void rpc_publish(void *ctx, GglMap params, GglResponseHandle handle) {
     ggl_respond(handle, GGL_OBJ_NULL());
 }
 
-static void sub_close_callback(void *ctx, GglResponseHandle handle) {
+static void sub_close_callback(void *ctx, uint32_t handle) {
     (void) ctx;
     iotcored_unregister_subscriptions(handle);
 }
 
-static void rpc_subscribe(void *ctx, GglMap params, GglResponseHandle handle) {
+static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     GGL_LOGD("rpc-handler", "Handling subscribe request.");
