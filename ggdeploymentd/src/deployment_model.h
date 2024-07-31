@@ -74,6 +74,6 @@ typedef struct {
 
 typedef struct {
     enum DeploymentStatus deployment_status;
-} GgdeploymentDeploymentResult;
+} GgdeploymentdDeploymentResult;
 
 #endif
