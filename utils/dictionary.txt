@@ -15,6 +15,7 @@ ggconfig
 ggconfigd
 ggconfiglib
 ggconflib
+Ggdeployment
 ggdeploymentd
 gghealthd
 gghttplib

@@ -52,14 +52,15 @@ typedef struct {
     GglMap component_to_run_with_info;
     GglBuffer group_name;
     GglBuffer deployment_id;
-    uint64_t timestamp;
+    int64_t timestamp;
     GglBuffer configuration_arn;
     GglList required_capabilities;
     GglBuffer on_behalf_of;
     GglBuffer parent_group_name;
     GglBuffer failure_handling_policy;
     GgdeploymentdComponentUpdatePolicy component_update_policy;
-    GgdeploymentdDeploymentConfigValidationPolicy deployment_config_validation_policy;
+    GgdeploymentdDeploymentConfigValidationPolicy
+        deployment_config_validation_policy;
 } GgdeploymentdDeploymentDocument;
 
 typedef struct {
