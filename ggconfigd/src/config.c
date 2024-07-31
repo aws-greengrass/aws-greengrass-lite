@@ -95,8 +95,8 @@ GglError ggconfig_open(void) {
         // create a temporary table for subscriber data
         rc = sqlite3_exec(
             config_database,
-            "CREATE TEMPORARY TABLE subscriberTable("
-            "'pathid' INT UNIQUE NOT NULL,"
+            "CREATE TABLE subscriberTable("
+            "'pathid' INT NOT NULL,"
             "'handle' INT, "
             "FOREIGN KEY (pathid) REFERENCES "
             "pathTable(pathid))",
@@ -521,10 +521,13 @@ GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
         stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
     int rc = 0;
-    while (rc != SQLITE_DONE) {
+    while (rc == SQLITE_ROW) {
         rc = sqlite3_step(stmt);
         if (SQLITE_DONE != rc) {
             long long handle = sqlite3_column_int64(stmt, 0);
+            if (handle == 0) {
+                GGL_LOGE("subscription", "strange handle");
+            }
             GGL_LOGD("subscription", "Sending to %lld", handle);
             ggl_respond((uint32_t) handle, GGL_OBJ(*value));
         }
@@ -604,12 +607,14 @@ GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle) {
     }
     GGL_LOGD(
         "get_key_notification",
-        "Subscribing %d to %.*s",
-        handle,
+        "Subscribing %d:%d to %.*s",
+        handle && 0xFFFF0000 >> 16,
+        handle && 0x0000FFFF,
         (int) key->len,
         (char *) key->data
     );
     // insert the key & handle data into the subscriber database
+    GGL_LOGT("get_key_notification", "INSERT %lld, %d", key_id, handle);
     sqlite3_prepare_v2(
         config_database,
         "INSERT INTO subscriberTable(pathid, handle) VALUES (?,?);",
@@ -620,8 +625,10 @@ GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle) {
     sqlite3_bind_int64(stmt, 1, key_id);
     sqlite3_bind_int64(stmt, 2, handle);
     int rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        GGL_LOGE("get_key_notification", "%s", sqlite3_errmsg(config_database));
+    if (SQLITE_DONE != rc) {
+        GGL_LOGE(
+            "get_key_notification", "%d %s", rc, sqlite3_errmsg(config_database)
+        );
     }
     sqlite3_finalize(stmt);
 
