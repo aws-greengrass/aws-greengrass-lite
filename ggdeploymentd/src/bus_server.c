@@ -16,11 +16,7 @@
 #include <stdlib.h>
 
 static void create_local_deployment(
-    void *ctx, GglMap params, GglResponseHandle handle
-);
-
-static void create_local_deployment(
-    void *ctx, GglMap params, GglResponseHandle handle
+    void *ctx, GglMap params, uint32_t handle
 ) {
     (void) ctx;
 
