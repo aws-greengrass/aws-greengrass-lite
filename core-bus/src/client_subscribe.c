@@ -163,7 +163,7 @@ static GglError make_subscribe_request(
     if (!accepted) {
         GGL_LOGE(
             "core-bus-client",
-            "Response for subscription not accepted or error."
+            "Non-error subscription response missing accepted header."
         );
         return GGL_ERR_FAILURE;
     }
@@ -189,19 +189,32 @@ GglError ggl_subscribe(
     }
 
     int conn = -1;
+    GGL_LOGT(
+        "core-bus-client",
+        "Subscribing to %.*s:%.*s.",
+        (int) interface.len,
+        interface.data,
+        (int) method.len,
+        method.data
+    );
     GglError ret
         = make_subscribe_request(interface, method, params, error, &conn);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
+    GGL_LOGT(
+        "core-bus-client", "Registering subscription fd with socket pool."
+    );
     uint32_t sub_handle = 0;
     ret = ggl_socket_pool_register(&pool, conn, &sub_handle);
     if (ret != GGL_ERR_OK) {
         close(conn);
+        GGL_LOGW("core-bus-client", "Max subscriptions exceeded.");
         return ret;
     }
 
+    GGL_LOGT("core-bus-client", "Setting subscription callbacks.");
     ggl_with_socket_handle_index(
         set_sub_callbacks,
         &(SubCallbacks) {
@@ -223,6 +236,7 @@ GglError ggl_subscribe(
         *handle = sub_handle;
     }
 
+    GGL_LOGT("core-bus-client", "Subscription success.");
     return GGL_ERR_OK;
 }
 
@@ -236,6 +250,8 @@ static GglError socket_handle_reader(void *ctx, GglBuffer buf) {
 }
 
 static GglError get_subscription_response(uint32_t handle) {
+    GGL_LOGD("core-bus-client", "Handling incoming subscription response.");
+
     // Need separate data array as sub resp callback may call core bus APIs
     static uint8_t sub_resp_payload_array[GGL_COREBUS_MAX_MSG_LEN];
     static pthread_mutex_t sub_resp_payload_array_mtx
@@ -266,6 +282,7 @@ static GglError get_subscription_response(uint32_t handle) {
     }
 
     SubCallbacks callbacks = { 0 };
+    GGL_LOGT("core-bus-client", "Retrieving subscription callbacks.");
     ret = ggl_with_socket_handle_index(
         get_sub_callbacks, &callbacks, &pool, handle
     );
@@ -274,11 +291,23 @@ static GglError get_subscription_response(uint32_t handle) {
     }
 
     if (callbacks.on_response != NULL) {
+        GGL_LOGT("core-bus-client", "Calling subscription response callback.");
+
         ret = callbacks.on_response(callbacks.ctx, handle, result);
         if (ret != GGL_ERR_OK) {
             ggl_socket_handle_close(&pool, handle);
+
+            GGL_LOGT(
+                "core-bus-client",
+                "Subscription response callback returned error."
+            );
         }
     }
+
+    GGL_LOGT(
+        "core-bus-client",
+        "Successfully handled incoming subscription response."
+    );
 
     return GGL_ERR_OK;
 }

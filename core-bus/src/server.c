@@ -98,6 +98,7 @@ static void set_subscription_cleanup(void *ctx, size_t index) {
 // TODO: Split this function up
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError client_ready(void *ctx, uint32_t handle) {
+    GGL_LOGD("core-bus-server", "Handling client data for handle %d.", handle);
     InterfaceCtx *interface = ctx;
 
     static pthread_mutex_t client_handler_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -220,6 +221,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         params = payload_obj.map;
     }
 
+    GGL_LOGT("core-bus-server", "Setting request type.");
     ret = ggl_with_socket_handle_index(set_request_type, &type, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -247,6 +249,13 @@ static GglError client_ready(void *ctx, uint32_t handle) {
             return GGL_ERR_OK;
         }
     }
+
+    GGL_LOGW(
+        "core-bus-server",
+        "No handler for method %.*s.",
+        (int) method.len,
+        method.data
+    );
 
     ggl_return_err(handle, GGL_ERR_NOENTRY);
     return GGL_ERR_OK;
@@ -309,6 +318,9 @@ void ggl_return_err(uint32_t handle, GglError error) {
 }
 
 void ggl_respond(uint32_t handle, GglObject value) {
+    GGL_LOGT("core-bus-server", "Responding to %d.", handle);
+
+    GGL_LOGT("core-bus-server", "Retrieving request type for %d.", handle);
     GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
     GglError ret
         = ggl_with_socket_handle_index(get_request_type, &type, &pool, handle);
@@ -317,6 +329,11 @@ void ggl_respond(uint32_t handle, GglObject value) {
     }
 
     if (type == GGL_CORE_BUS_NOTIFY) {
+        GGL_LOGT(
+            "core-bus-server",
+            "Skipping response and closing notify %d.",
+            handle
+        );
         ggl_socket_handle_close(&pool, handle);
         return;
     }
@@ -333,17 +350,25 @@ void ggl_respond(uint32_t handle, GglObject value) {
     }
 
     ret = ggl_socket_handle_write(&pool, handle, send_buffer);
-
-    if ((ret != GGL_ERR_OK) || (type != GGL_CORE_BUS_SUBSCRIBE)) {
+    if (ret != GGL_ERR_OK) {
         ggl_socket_handle_close(&pool, handle);
     }
+
+    if (type != GGL_CORE_BUS_SUBSCRIBE) {
+        GGL_LOGT("core-bus-server", "Closing call %d.", handle);
+        ggl_socket_handle_close(&pool, handle);
+    }
+
+    GGL_LOGT("core-bus-server", "Sent response to %d.", handle);
 }
 
 void ggl_sub_accept(
     uint32_t handle, GglServerSubCloseCallback on_close, void *ctx
 ) {
+    GGL_LOGT("core-bus-server", "Accepting subscription %d.", handle);
     SubCleanupCallback cleanup = { .fn = on_close, .ctx = ctx };
 
+    GGL_LOGT("core-bus-server", "Setting close callback for %d.", handle);
     GglError ret = ggl_with_socket_handle_index(
         set_subscription_cleanup, &cleanup, &pool, handle
     );
@@ -367,12 +392,18 @@ void ggl_sub_accept(
     );
     if (ret != GGL_ERR_OK) {
         ggl_socket_handle_close(&pool, handle);
+        return;
     }
 
     ret = ggl_socket_handle_write(&pool, handle, send_buffer);
     if (ret != GGL_ERR_OK) {
         ggl_socket_handle_close(&pool, handle);
+        return;
     }
+
+    GGL_LOGT(
+        "core-bus-server", "Successfully accepted subscription %d.", handle
+    );
 }
 
 void ggl_server_sub_close(uint32_t handle) {

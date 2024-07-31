@@ -186,6 +186,7 @@ GglError ggl_client_get_response(
 
     while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
         if (ggl_buffer_eq(header.name, GGL_STR("error"))) {
+            GGL_LOGW("core-bus-client", "Server responded with an error.");
             if (error != NULL) {
                 *error = GGL_ERR_FAILURE;
             }

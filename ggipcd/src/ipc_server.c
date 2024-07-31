@@ -168,6 +168,8 @@ static void set_connected(void *ctx, size_t index) {
 }
 
 static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
+    GGL_LOGD("ipc-server", "Handling connect for %d.", handle);
+
     EsCommonHeaders common_headers;
     GglError ret = get_common_headers(msg, &common_headers);
     if (ret != GGL_ERR_OK) {
@@ -253,11 +255,14 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
         return ret;
     }
 
+    GGL_LOGT("ipc-server", "Setting %d as connected.", handle);
+
     ret = ggl_with_socket_handle_index(set_connected, NULL, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
+    GGL_LOGT("ipc-server", "Successfully connected %d.", handle);
     return GGL_ERR_OK;
 }
 
@@ -396,6 +401,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         return ret;
     }
 
+    GGL_LOGT("ipc-server", "Retrieving connection state for %d.", handle);
     IpcConnState state = IPC_INIT;
     ret = ggl_with_socket_handle_index(get_conn_state, &state, &pool, handle);
     if (ret != GGL_ERR_OK) {

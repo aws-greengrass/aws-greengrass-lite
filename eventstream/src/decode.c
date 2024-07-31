@@ -154,6 +154,8 @@ GglError eventstream_decode(
     assert(msg != NULL);
     assert(data_section.len >= 4);
 
+    GGL_LOGT("eventstream", "Decoding eventstream message.");
+
     uint32_t crc = ggl_update_crc(
         prelude->crc, ggl_buffer_substr(data_section, 0, data_section.len - 4)
     );
@@ -192,6 +194,34 @@ GglError eventstream_decode(
         .headers = header_iter,
         .payload = payload,
     };
+
+    // Print out headers at trace level
+    EventStreamHeader header;
+    while (eventstream_header_next(&header_iter, &header) == GGL_ERR_OK) {
+        switch (header.value.type) {
+        case EVENTSTREAM_INT32:
+            GGL_LOGT(
+                "eventstream",
+                "Header: \"%.*s\" => %d",
+                (int) header.name.len,
+                header.name.data,
+                header.value.int32
+            );
+            break;
+        case EVENTSTREAM_STRING:
+            GGL_LOGT(
+                "eventstream",
+                "Header: \"%.*s\" => \"%.*s\"",
+                (int) header.name.len,
+                header.name.data,
+                (int) header.value.string.len,
+                header.value.string.data
+            );
+            break;
+        }
+    }
+
+    GGL_LOGT("eventstream", "Successfully decoded eventstream message.");
 
     return GGL_ERR_OK;
 }
