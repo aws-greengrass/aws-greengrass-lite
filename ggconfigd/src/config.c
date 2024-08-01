@@ -578,7 +578,7 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
         const unsigned char *value_string = sqlite3_column_text(stmt, 0);
         unsigned long value_length
             = (unsigned long) sqlite3_column_bytes(stmt, 0);
-        unsigned char *string_buffer = malloc(value_length);
+        static unsigned char string_buffer[MAX_VALUE_SIZE];
         value_buffer->data = string_buffer;
         memcpy(string_buffer, value_string, value_length);
         value_buffer->len = value_length;
@@ -592,7 +592,6 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
         if (sqlite3_step(stmt) != SQLITE_DONE) {
             GGL_LOGE("ggconfig_get", "%s", sqlite3_errmsg(config_database));
             return_value = GGL_ERR_FAILURE;
-            free(string_buffer);
             value_buffer->data = NULL;
             value_buffer->len = 0;
         } else {

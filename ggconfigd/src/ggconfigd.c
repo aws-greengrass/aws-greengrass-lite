@@ -12,10 +12,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define MAX_COMPONENT_SIZE 1024
-#define MAX_KEY_SIZE 1024
-#define MAX_VALUE_SIZE 1024
-
 typedef struct {
     GglBuffer component;
     GglBuffer key;
