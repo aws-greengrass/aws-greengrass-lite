@@ -92,17 +92,19 @@ the following requirements.
      deployment handling.
 5. [ggdeploymentd-5] The deployment service may notify components and get
    confirmation to move forward with the deployment.
-   - [ggdeploymentd-5.1] The SubscribeToComponentUpdates IPC command is
-     supported and the deployment service notifies components about updates if
-     configured to do so.
-   - [ggdeploymentd-5.2] The DeferComponentUpdates IPC command is supported and
-     the deployment service defers a component update if notified.
-   - [ggdeploymentd-5.3] The SubscribeToValidateConfigurationUpdates IPC command
-     is supported and the deployment service notifies components about updates
-     to the component configuration.
-   - [ggdeploymentd-5.4] The SendConfigurationValidityReport IPC command is
-     supported and the deployment fails if a component notifies that the
-     configuration is not valid.
+   - [ggdeploymentd-5.1] Functionality on the core bus is exposed that handles
+     SubscribeToComponentUpdates IPC commands from the IPC daemon, and the
+     deployment service notifies components about updates if configured to do
+     so.
+   - [ggdeploymentd-5.2] Functionality on the core bus is exposed that handles
+     DeferComponentUpdates IPC commands from the IPC daemon, and the deployment
+     service defers a component update if notified.
+   - [ggdeploymentd-5.3] Functionality on the core bus is exposed that handles
+     SubscribeToValidateConfigurationUpdates IPC commands, and the deployment
+     service notifies components about updates to the component configuration.
+   - [ggdeploymentd-5.4] Functionality on the core bus is exposed that handles
+     SendConfigurationValidityReport IPC commands, and the deployment fails if a
+     component notifies that the configuration is not valid.
 6. [ggdeploymentd-6] Other components may make a request on the core bus and IPC
    to get the status of a deployment.
 7. [ggdeploymentd-7] Other components may make a request on the core bus and IPC
@@ -127,8 +129,8 @@ key-value pairs described by the parameters listed in their respective sections.
 
 ### create_local_deployment
 
-The create_local_deployment call adds functionality for the
-CreateLocalDeployment IPC command. This command creates or updates a local
+The create_local_deployment call provides functionality equivalent to the
+CreateLocalDeployment GG IPC command. This command creates or updates a local
 deployment and can specify deployment parameters.
 
 - [ggdeploymentd-bus-createlocaldeployment-1] recipe_directory_path is an
@@ -185,20 +187,10 @@ deployment and can specify deployment parameters.
   - [ggdeploymentd-bus-createlocaldeployment-7.1] group_name is the name of the
     thing group for the deployment to target.
 
-### cancel_local_deployment
-
-Currently, cancelling deployments is not in scope of Greengrass Lite. The
-deployment daemon should acknowledge this IPC request but do nothing with it.
-
-- [ggdeploymentd-bus-cancellocaldeployment-1] deployment_id is a required
-  parameter of type buffer.
-  - [ggdeploymentd-bus-cancellocaldeployment-1.1] deployment_id is the ID of the
-    local deployment to cancel.
-
 ### get_local_deployment_status
 
-The get_local_deployment_status call adds functionality for the
-GetLocalDeploymentStatus IPC command. It returns the status of a local
+The get_local_deployment_status call provides functionality equivalent to the
+GetLocalDeploymentStatus GG IPC command. It returns the status of a local
 deployment.
 
 - [ggdeploymentd-bus-getlocaldeploymentstatus-1] deployment_id is a required
@@ -208,15 +200,16 @@ deployment.
 
 ### list_local_deployments
 
-The list_local_deployments call adds functionality for the ListLocalDeployments
-IPC command. It returns the status of the last 10 local deployments.
+The list_local_deployments call provides functionality equivalent to the
+ListLocalDeployments GG IPC command. It returns the status of the last 10 local
+deployments.
 
 - [ggdeploymentd-bus-listlocaldeployments-1] This call has no parameters.
 
 ### subscribe_to_component_updates
 
-The subscribe_to_component_updates call adds functionality for the
-SubscribeToComponentUpdates IPC command. A component making this call will be
+The subscribe_to_component_updates call provides functionality equivalent to the
+SubscribeToComponentUpdates GG IPC command. A component making this call will be
 notified before the deployment service updates the component. Components will
 not be notified of any updates during a local deployment.
 
@@ -224,9 +217,10 @@ not be notified of any updates during a local deployment.
 
 ### defer_component_update
 
-The defer_component_update call adds functionality for the DeferComponentUpdate
-IPC command. A component making this call will let the deployment service know
-to defer the component update for the specified amount of time.
+The defer_component_update call provides functionality equivalent to the
+DeferComponentUpdate GG IPC command. A component making this call will let the
+deployment service know to defer the component update for the specified amount
+of time.
 
 - [ggdeploymentd-bus-defercomponentupdate-1] deployment_id is a required
   parameter of type buffer.
@@ -246,21 +240,21 @@ to defer the component update for the specified amount of time.
 
 ### subscribe_to_validate_configuration_updates
 
-The subscribe_to_validate_configuration_updates call adds functionality for the
-SubscribeToValidateConfigurationUpdates IPC command. A component making this
-call will be notified before the deployment service updates the component
-configuration. Components will not be notified of any configuration changes
-during a local deployment.
+The subscribe_to_validate_configuration_updates call provides functionality
+equivalent to the SubscribeToValidateConfigurationUpdates GG IPC command. A
+component making this call will be notified before the deployment service
+updates the component configuration. Components will not be notified of any
+configuration changes during a local deployment.
 
 - [ggdeploymentd-bus-subscribetovalidateconfigurationupdates-1] This call has no
   parameters.
 
 ### send_configuration_validity_report
 
-The send_configuration_validity_report call adds functionality for the
-SendConfigurationValidityReport IPC command. A component making this call will
-notify the deployment service that the configuration changes is either valid or
-invalid.
+The send_configuration_validity_report call provides functionality equivalent to
+the SendConfigurationValidityReport GG IPC command. A component making this call
+will notify the deployment service that the configuration changes is either
+valid or invalid.
 
 - [ggdeploymentd-bus-sendconfigurationvalidityreport-1]
   configuration_validity_report is a required parameter of type map.
