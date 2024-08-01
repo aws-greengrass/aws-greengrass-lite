@@ -12,8 +12,7 @@
 static char doc[] = "ggdeploymentd -- Greengrass Lite Deployment Daemon";
 
 static struct argp_option opts[]
-    = { { "endpoint", 'e', "address", 0, "AWS IoT Core endpoint", 0 },
-        { 0 } };
+    = { { "endpoint", 'e', "address", 0, "AWS IoT Core endpoint", 0 }, { 0 } };
 
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {
     GgdeploymentdArgs *args = state->input;
@@ -43,7 +42,7 @@ int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
 
-    deployment_queue_init();
+    ggl_deployment_queue_init();
 
     ggdeploymentd_start_server();
 }

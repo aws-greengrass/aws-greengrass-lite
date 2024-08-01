@@ -5,6 +5,7 @@
 #include "deployment_queue.h"
 #include "deployment_model.h"
 #include <ggl/buffer.h>
+#include <ggl/defer.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
@@ -98,7 +99,7 @@ bool should_replace_deployment_in_queue(
     return new_deployment.deployment_stage != GGDEPLOYMENT_DEFAULT;
 }
 
-bool ggl_deployment_queue_offer(GgdeploymentdDeployment* deployment) {
+bool ggl_deployment_queue_offer(GgdeploymentdDeployment *deployment) {
     pthread_mutex_lock(&deployment_queue_mtx);
     GGL_DEFER(pthread_mutex_unlock, deployment_queue_mtx);
 
@@ -109,7 +110,7 @@ bool ggl_deployment_queue_offer(GgdeploymentdDeployment* deployment) {
     size_t deployment_id_position
         = deployment_queue_contains_deployment_id(deployment->deployment_id);
     if (deployment_id_position == SIZE_MAX) {
-        deployment_queue.back = (deployment_queue.back  == SIZE_MAX)
+        deployment_queue.back = (deployment_queue.back == SIZE_MAX)
             ? 0
             : (deployment_queue.back + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
         deployment_queue.deployments[deployment_queue.back] = *deployment;
