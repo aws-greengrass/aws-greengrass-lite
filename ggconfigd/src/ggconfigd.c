@@ -156,7 +156,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
             (char *) msg.component.data
         );
     } else {
-        GGL_LOGE("rpc_subscribe", "write received invalid component argument.");
+        GGL_LOGE("rpc_subscribe", "subscribe received invalid component argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
