@@ -580,7 +580,7 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
         const unsigned char *value_string = sqlite3_column_text(stmt, 0);
         unsigned long value_length
             = (unsigned long) sqlite3_column_bytes(stmt, 0);
-        static unsigned char string_buffer[MAX_VALUE_SIZE];
+        static unsigned char string_buffer[GGCONFIGD_MAX_VALUE_SIZE];
         value_buffer->data = string_buffer;
         memcpy(string_buffer, value_string, value_length);
         value_buffer->len = value_length;

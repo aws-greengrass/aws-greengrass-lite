@@ -49,7 +49,7 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     GglBuffer value;
 
     unsigned long length = msg.component.len + msg.key.len + 1;
-    static uint8_t component_buffer[MAX_COMPONENT_SIZE];
+    static uint8_t component_buffer[GGCONFIGD_MAX_COMPONENT_SIZE];
     GglBuffer component_key;
     component_key.data = component_buffer;
     component_key.len = length;
@@ -115,7 +115,7 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     }
 
     unsigned long length = msg.component.len + msg.key.len + 1;
-    static uint8_t component_buffer[MAX_COMPONENT_SIZE];
+    static uint8_t component_buffer[GGCONFIGD_MAX_COMPONENT_SIZE];
     GglBuffer component_key;
     component_key.data = component_buffer;
     component_key.len = length;
@@ -176,7 +176,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
     unsigned long length = msg.component.len + msg.key.len + 1;
-    static uint8_t component_buffer[MAX_COMPONENT_SIZE];
+    static uint8_t component_buffer[GGCONFIGD_MAX_COMPONENT_SIZE];
     GglBuffer component_key;
     component_key.data = component_buffer;
     component_key.len = length;
