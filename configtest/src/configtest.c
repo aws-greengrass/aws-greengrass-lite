@@ -68,7 +68,7 @@ static GglError subscription_callback(
 ) {
     (void) ctx;
     (void) data;
-    GGL_LOGI("subscription callback", "called for handle %d", handle);
+    GGL_LOGI("configtest", "Subscription callback called for handle %d.", handle);
     if (data.type == GGL_TYPE_BUF) {
         GGL_LOGI(
             "subscription callback",
