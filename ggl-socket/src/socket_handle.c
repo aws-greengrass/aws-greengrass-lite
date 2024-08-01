@@ -17,11 +17,17 @@
 #include <stdint.h>
 
 // Handles are 32 bits, with the high 16 bits being a generation counter, and
-// the low 16 bits being an index. The generation counter is incremented on
-// close, to prevent reuse.
+// the low 16 bits being an offset index. The generation counter is incremented
+// on close, to prevent reuse.
 //
 // Use of the index and generation count must be done with a mutex held to
 // prevent concurrent incrementing of the generation counter.
+//
+// The index is offset by 1 in order to ensure 0 is not a valid handle,
+// preventing a zero-initialized handle from accidentally working. Since the
+// array length (pool->max_fds) is in the range [0, UINT16_MAX], valid indices
+// are in the range [0, UINT16_MAX - 1]. Thus incrementing the index will not
+// overflow a uint16_t.
 
 static const int32_t FD_FREE = -0x55555556; // Alternating bits for debugging
 
@@ -32,7 +38,8 @@ GGL_DEFINE_DEFER(
 static GglError validate_handle(
     GglSocketPool *pool, uint32_t handle, uint16_t *index, const char *location
 ) {
-    uint16_t handle_index = (uint16_t) (handle & UINT16_MAX);
+    // Underflow ok; UINT16_MAX will fail bounds check
+    uint16_t handle_index = (uint16_t) (handle & UINT16_MAX) - 1U;
     uint16_t handle_generation = (uint16_t) (handle >> 16);
 
     if (handle_index >= pool->max_fds) {
@@ -84,7 +91,8 @@ GglError ggl_socket_pool_register(
     for (uint16_t i = 0; i < pool->max_fds; i++) {
         if (pool->fds[i] == FD_FREE) {
             pool->fds[i] = fd;
-            uint32_t new_handle = (uint32_t) pool->generations[i] << 16 | i;
+            uint32_t new_handle
+                = (uint32_t) pool->generations[i] << 16 | (i + 1U);
 
             if (pool->on_register != NULL) {
                 GglError ret = pool->on_register(new_handle, i);
