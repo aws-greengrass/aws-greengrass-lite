@@ -113,6 +113,7 @@ bool ggl_deployment_queue_offer(GgdeploymentdDeployment *deployment) {
         deployment_queue.back = (deployment_queue.back == SIZE_MAX)
             ? 0
             : (deployment_queue.back + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
+        // TODO: Make a deep copy of the deployment
         deployment_queue.deployments[deployment_queue.back] = *deployment;
         deployment_queue.size++;
         GGL_LOGI("deployment_queue", "Added a new deployment to the queue.");
@@ -122,6 +123,7 @@ bool ggl_deployment_queue_offer(GgdeploymentdDeployment *deployment) {
     if (should_replace_deployment_in_queue(
             *deployment, deployment_queue.deployments[deployment_id_position]
         )) {
+        // TODO: Make a deep copy of the deployment
         deployment_queue.deployments[deployment_id_position] = *deployment;
         GGL_LOGI(
             "deployment_queue",
