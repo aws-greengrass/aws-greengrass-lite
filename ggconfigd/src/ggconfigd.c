@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggconfigd.h"
+#include <ggl/buffer.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -156,7 +157,9 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
             (char *) msg.component.data
         );
     } else {
-        GGL_LOGE("rpc_subscribe", "subscribe received invalid component argument.");
+        GGL_LOGE(
+            "rpc_subscribe", "subscribe received invalid component argument."
+        );
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -177,7 +180,8 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     }
     size_t length = msg.component.len + msg.key.len + 1;
     static uint8_t component_buffer[GGCONFIGD_MAX_COMPONENT_SIZE];
-    GglBuffer component_key = ggl_buf_substr(GGL_BUF(component_buffer), 0, length);
+    GglBuffer component_key
+        = ggl_buffer_substr(GGL_BUF(component_buffer), 0, length);
     memcpy(&component_key.data[0], msg.component.data, msg.component.len);
     component_key.data[msg.component.len] = '/';
     memcpy(
