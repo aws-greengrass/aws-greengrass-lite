@@ -1,0 +1,26 @@
+---
+RecipeFormatVersion: '2020-01-25'
+ComponentName: com.example.HelloWorld
+ComponentVersion: '1.0.0'
+ComponentDescription: My first AWS IoT Greengrass component.
+ComponentPublisher: Amazon
+ComponentDependencies:
+  aws.greengrass.TokenExchangeService:
+    VersionRequirement: ">=2.0.0 <3.0.0"
+    DependencyType: "HARD"
+  AceZwaveMw:
+    VersionRequirement: ">=1.0.0 <2.0.0"
+    DependencyType: "HARD"
+ComponentConfiguration:
+  DefaultConfiguration:
+    Message: world
+Manifests:
+  - Platform:
+      os: linux
+    Lifecycle:
+      run: python3 -u hello_world.py
+  - Platform:
+      os: windows
+    Lifecycle:
+      run: |
+        py -3 -u hello_world.py
