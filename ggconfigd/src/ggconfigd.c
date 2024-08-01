@@ -149,7 +149,22 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
 
     ConfigMsg msg = { 0 };
     GglObject *val;
-    GGL_LOGI("rpc-subscribe", "subscribing");
+    GGL_LOGI("rpc_subscribe", "subscribing");
+    if (ggl_map_get(params, GGL_STR("component"), &val)
+        && (val->type == GGL_TYPE_BUF)) {
+        msg.component = val->buf;
+        GGL_LOGI(
+            "rpc_subscribe",
+            "component %.*s",
+            (int) msg.component.len,
+            (char *) msg.component.data
+        );
+    } else {
+        GGL_LOGE("rpc_subscribe", "write received invalid component argument.");
+        ggl_return_err(handle, GGL_ERR_INVALID);
+        return;
+    }
+
     if (ggl_map_get(params, GGL_STR("key"), &val)
         && (val->type == GGL_TYPE_BUF)) {
         msg.key = val->buf;
@@ -160,12 +175,22 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
             (char *) msg.key.data
         );
     } else {
-        GGL_LOGE("rpc-subscribe", "subscribe received invalid key argument.");
+        GGL_LOGE("rpc_subscribe", "write received invalid key argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
+    unsigned long length = msg.component.len + msg.key.len + 1;
+    static uint8_t component_buffer[MAX_COMPONENT_SIZE];
+    GglBuffer component_key;
+    component_key.data = component_buffer;
+    component_key.len = length;
+    memcpy(&component_key.data[0], msg.component.data, msg.component.len);
+    component_key.data[msg.component.len] = '/';
+    memcpy(
+        &component_key.data[msg.component.len + 1], msg.key.data, msg.key.len
+    );
 
-    GglError ret = ggconfig_get_key_notification(&msg.key, handle);
+    GglError ret = ggconfig_get_key_notification(&component_key, handle);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
     }

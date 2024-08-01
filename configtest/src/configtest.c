@@ -69,6 +69,16 @@ static GglError subscription_callback(
     (void) ctx;
     (void) data;
     GGL_LOGI("subscription callback", "called for handle %d", handle);
+    if (data.type == GGL_TYPE_BUF) {
+        GGL_LOGI(
+            "subscription callback",
+            "read %.*s",
+            (int) data.buf.len,
+            (char *) data.buf.data
+        );
+    } else {
+        GGL_LOGE("subscription callback", "expected a buffer");
+    }
     return GGL_ERR_OK;
 }
 
@@ -118,6 +128,10 @@ int main(int argc, char **argv) {
         GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("another big value")
     );
     test_subscribe(GGL_STR("component"), GGL_STR("foo/bar"));
+    test_insert(GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("big value"));
+    test_insert(
+        GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("the biggest value")
+    );
     test_insert(GGL_STR("component"), GGL_STR("bar/foo"), GGL_STR("value2"));
     test_insert(GGL_STR("component"), GGL_STR("foo/baz"), GGL_STR("value"));
     test_insert(GGL_STR("global"), GGL_STR("global"), GGL_STR("value"));
