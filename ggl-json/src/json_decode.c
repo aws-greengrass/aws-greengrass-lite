@@ -632,44 +632,6 @@ static GglError decode_json_str(GglBuffer content, GglObject *obj) {
     return GGL_ERR_OK;
 }
 
-static bool mult_overflow_int64(int64_t a, int64_t b) {
-    return b == 0 ? false
-        : b > 0   ? ((a > INT64_MAX / b) || (a < INT64_MIN / b))
-                  : ((a < INT64_MAX / b) || (a > INT64_MIN / b));
-}
-
-static bool add_overflow_int64(int64_t a, int64_t b) {
-    return b > 0 ? (a > INT64_MAX - b) : (a < INT64_MIN - b);
-}
-
-static bool str_to_int64(GglBuffer str, int64_t *value) {
-    int64_t ret = 0;
-    int64_t sign = 1;
-    size_t i = 0;
-
-    if ((str.len >= 1) && (str.data[0] == '-')) {
-        i = 1;
-        sign = -1;
-    }
-
-    for (; i < str.len; i++) {
-        uint8_t c = str.data[i];
-
-        if (mult_overflow_int64(ret, 10U)) {
-            return false;
-        }
-        ret *= 10;
-
-        if (add_overflow_int64(ret, sign * (c - '0'))) {
-            return false;
-        }
-        ret += sign * (c - '0');
-    }
-
-    *value = ret;
-    return true;
-}
-
 static GglError decode_json_number(GglBuffer content, GglObject *obj) {
     GglBuffer buf = content;
 
@@ -684,10 +646,10 @@ static GglError decode_json_number(GglBuffer content, GglObject *obj) {
 
     if (!has_frac_part && !has_exp_part) {
         int64_t val;
-        result = str_to_int64(content, &val);
-        if (!result) {
+        GglError parse_ret = ggl_str_to_int64(content, &val);
+        if (parse_ret != GGL_ERR_OK) {
             GGL_LOGE("json", "JSON integer out of range of int64_t.");
-            return GGL_ERR_RANGE;
+            return parse_ret;
         }
         *obj = GGL_OBJ_I64(val);
         return GGL_ERR_OK;
