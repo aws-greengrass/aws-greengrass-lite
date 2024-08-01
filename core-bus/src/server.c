@@ -366,15 +366,18 @@ void ggl_sub_accept(
     uint32_t handle, GglServerSubCloseCallback on_close, void *ctx
 ) {
     GGL_LOGT("core-bus-server", "Accepting subscription %d.", handle);
-    SubCleanupCallback cleanup = { .fn = on_close, .ctx = ctx };
 
-    GGL_LOGT("core-bus-server", "Setting close callback for %d.", handle);
-    GglError ret = ggl_with_socket_handle_index(
-        set_subscription_cleanup, &cleanup, &pool, handle
-    );
-    if (ret != GGL_ERR_OK) {
-        on_close(ctx, handle);
-        return;
+    if (on_close != NULL) {
+        SubCleanupCallback cleanup = { .fn = on_close, .ctx = ctx };
+
+        GGL_LOGT("core-bus-server", "Setting close callback for %d.", handle);
+        GglError ret = ggl_with_socket_handle_index(
+            set_subscription_cleanup, &cleanup, &pool, handle
+        );
+        if (ret != GGL_ERR_OK) {
+            on_close(ctx, handle);
+            return;
+        }
     }
 
     pthread_mutex_lock(&encode_array_mtx);
@@ -387,7 +390,7 @@ void ggl_sub_accept(
     };
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
-    ret = eventstream_encode(
+    GglError ret = eventstream_encode(
         &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
     );
     if (ret != GGL_ERR_OK) {
