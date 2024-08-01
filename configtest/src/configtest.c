@@ -4,7 +4,6 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <openssl/ssl.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
