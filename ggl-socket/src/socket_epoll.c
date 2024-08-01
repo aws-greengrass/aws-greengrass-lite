@@ -55,6 +55,10 @@ GglError ggl_socket_epoll_run(
         );
 
         if (ready == -1) {
+            if (errno == EINTR) {
+                GGL_LOGT("socket-epoll", "epoll_wait interrupted.");
+                continue;
+            }
             int err = errno;
             GGL_LOGE("socket-epoll", "Failed to wait on epoll: %d.", err);
             return GGL_ERR_FAILURE;
