@@ -68,7 +68,9 @@ static GglError subscription_callback(
 ) {
     (void) ctx;
     (void) data;
-    GGL_LOGI("configtest", "Subscription callback called for handle %d.", handle);
+    GGL_LOGI(
+        "configtest", "Subscription callback called for handle %d.", handle
+    );
     if (data.type == GGL_TYPE_BUF) {
         GGL_LOGI(
             "subscription callback",
@@ -108,6 +110,7 @@ static void test_subscribe(GglBuffer component, GglBuffer key) {
     );
     if (error != GGL_ERR_OK) {
         GGL_LOGE("test_subscribe", "error %d", error);
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
         exit(1);
     } else {
         GGL_LOGI(
