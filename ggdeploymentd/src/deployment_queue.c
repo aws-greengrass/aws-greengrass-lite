@@ -34,9 +34,9 @@ typedef struct {
 } GgdeploymentdDeploymentQueue;
 
 static GgdeploymentdDeploymentQueue deployment_queue;
-static pthread_mutex_t deployment_queue_mtx;
+static pthread_mutex_t deployment_queue_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-void ggl_deployment_queue_init(void) {
+__attribute__((constructor)) static void init_deployment_queue(void) {
     if (deployment_queue.initialized) {
         GGL_LOGD(
             "deployment_queue",
@@ -48,7 +48,6 @@ void ggl_deployment_queue_init(void) {
     deployment_queue.back = SIZE_MAX;
     deployment_queue.size = 0;
     deployment_queue.initialized = true;
-    pthread_mutex_init(&deployment_queue_mtx, NULL);
     pthread_cond_init(&deployment_queue.not_empty, NULL);
     pthread_cond_init(&deployment_queue.not_full, NULL);
 }

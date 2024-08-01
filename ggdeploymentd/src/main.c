@@ -4,9 +4,11 @@
 
 #include "args.h"
 #include "bus_server.h"
+#include "deployment_handler.h"
 #include "deployment_queue.h"
 #include <argp.h>
 #include <ggl/log.h>
+#include <pthread.h>
 #include <stdlib.h>
 
 static char doc[] = "ggdeploymentd -- Greengrass Lite Deployment Daemon";
@@ -42,7 +44,12 @@ int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
 
-    ggl_deployment_queue_init();
+    pthread_t ptid;
+    pthread_create(&ptid, NULL, &ggl_deployment_handler_start, NULL);
 
     ggdeploymentd_start_server();
+
+    // TODO: Maybe instead of waiting for the other thread, just consider
+    // ggdeploymentd errored if the main thread reaches this point.
+    pthread_join(ptid, NULL);
 }

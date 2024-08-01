@@ -8,10 +8,6 @@
 #ifndef GGDEPLOYMENTD_QUEUE_H
 #define GGDEPLOYMENTD_QUEUE_H
 
-/// Initializes the deployment queue as an empty queue with no content. Should
-/// only be called once, and subsequent calls will not do anything.
-void ggl_deployment_queue_init(void);
-
 /// Attempts to add a deployment into the queue. If the deployment ID does not
 /// exist already in the queue, then add the deployment to the end of the queue.
 /// If there is an existing deployment in the queue with the same ID, then
