@@ -35,7 +35,7 @@ typedef struct {
 static GgdeploymentdDeploymentQueue deployment_queue;
 static pthread_mutex_t deployment_queue_mtx;
 
-void deployment_queue_init(void) {
+void ggl_deployment_queue_init(void) {
     if (deployment_queue.initialized) {
         GGL_LOGD(
             "deployment_queue",
@@ -47,12 +47,12 @@ void deployment_queue_init(void) {
     deployment_queue.back = SIZE_MAX;
     deployment_queue.size = 0;
     deployment_queue.initialized = true;
-    pthread_mutex_init(&deployment_queue.mutex, NULL);
+    pthread_mutex_init(&deployment_queue_mtx, NULL);
     pthread_cond_init(&deployment_queue.not_empty, NULL);
     pthread_cond_init(&deployment_queue.not_full, NULL);
 }
 
-uint8_t deployment_queue_size(void) {
+uint8_t ggl_deployment_queue_size(void) {
     return deployment_queue.size;
 }
 
@@ -81,24 +81,24 @@ bool should_replace_deployment_in_queue(
 ) {
     // If the enqueued deployment is already in progress (Non DEFAULT state),
     // then it can not be replaced.
-    if (existing_deployment.deployment_stage != DEFAULT) {
+    if (existing_deployment.deployment_stage != GGDEPLOYMENT_DEFAULT) {
         return false;
     }
 
     // If the enqueued deployment is of type SHADOW, then replace it.
     // If the offered deployment is cancelled, then replace the enqueued with
     // the offered one
-    if (new_deployment.deployment_type == SHADOW
+    if (new_deployment.deployment_type == GGDEPLOYMENT_SHADOW
         || new_deployment.is_cancelled) {
         return true;
     }
 
     // If the offered deployment is in non DEFAULT stage, then replace the
     // enqueued with the offered one.
-    return new_deployment.deployment_stage != DEFAULT;
+    return new_deployment.deployment_stage != GGDEPLOYMENT_DEFAULT;
 }
 
-bool deployment_queue_offer(GgdeploymentdDeployment deployment) {
+bool ggl_deployment_queue_offer(GgdeploymentdDeployment* deployment) {
     pthread_mutex_lock(&deployment_queue_mtx);
     GGL_DEFER(pthread_mutex_unlock, deployment_queue_mtx);
 
@@ -107,21 +107,21 @@ bool deployment_queue_offer(GgdeploymentdDeployment deployment) {
     }
 
     size_t deployment_id_position
-        = deployment_queue_contains_deployment_id(deployment.deployment_id);
+        = deployment_queue_contains_deployment_id(deployment->deployment_id);
     if (deployment_id_position == SIZE_MAX) {
-        deployment_queue.back = (deployment_queue.back == SIZE_MAX)
+        deployment_queue.back = (deployment_queue.back  == SIZE_MAX)
             ? 0
             : (deployment_queue.back + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
-        deployment_queue.deployments[deployment_queue.back] = deployment;
+        deployment_queue.deployments[deployment_queue.back] = *deployment;
         deployment_queue.size++;
         GGL_LOGI("deployment_queue", "Added a new deployment to the queue.");
         pthread_cond_signal(&deployment_queue.not_empty);
         return true;
     }
     if (should_replace_deployment_in_queue(
-            deployment, deployment_queue.deployments[deployment_id_position]
+            *deployment, deployment_queue.deployments[deployment_id_position]
         )) {
-        deployment_queue.deployments[deployment_id_position] = deployment;
+        deployment_queue.deployments[deployment_id_position] = *deployment;
         GGL_LOGI(
             "deployment_queue",
             "Replaced existing deployment in queue with updated deployment."
@@ -136,10 +136,10 @@ bool deployment_queue_offer(GgdeploymentdDeployment deployment) {
     return false;
 }
 
-GgdeploymentdDeployment deployment_queue_poll(void) {
-    pthread_mutex_lock(&deployment_queue.mutex);
+GgdeploymentdDeployment ggl_deployment_queue_poll(void) {
+    pthread_mutex_lock(&deployment_queue_mtx);
     if (deployment_queue.size == 0) {
-        pthread_cond_wait(&deployment_queue.not_empty, &deployment_queue.mutex);
+        pthread_cond_wait(&deployment_queue.not_empty, &deployment_queue_mtx);
     }
     GgdeploymentdDeployment next_deployment
         = deployment_queue.deployments[deployment_queue.front];
@@ -150,6 +150,6 @@ GgdeploymentdDeployment deployment_queue_poll(void) {
         "deployment_queue", "Removed a deployment from the front of the queue."
     );
     pthread_cond_signal(&deployment_queue.not_full);
-    pthread_mutex_unlock(&deployment_queue.mutex);
+    pthread_mutex_unlock(&deployment_queue_mtx);
     return next_deployment;
 }
