@@ -171,7 +171,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
             (char *) msg.key.data
         );
     } else {
-        GGL_LOGE("rpc_subscribe", "write received invalid key argument.");
+        GGL_LOGE("rpc_subscribe", "Received invalid key argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
