@@ -3,5 +3,4 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ggdeploymentd_LIBS := ggl-lib core-bus
-ggdeploymentd_PKGS := openssl
 ggdeploymentd_BIN := ggdeploymentd
