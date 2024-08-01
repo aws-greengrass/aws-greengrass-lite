@@ -5,6 +5,7 @@
 #ifndef IOTCORED_BUS_SERVER_H
 #define IOTCORED_BUS_SERVER_H
 
-void iotcored_start_server(void);
+#include "args.h"
+void iotcored_start_server(IotcoredArgs *args);
 
 #endif

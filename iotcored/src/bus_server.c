@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "bus_server.h"
+#include "args.h"
 #include "mqtt.h"
 #include "subscription_dispatch.h"
 #include <ggl/core_bus/server.h>
@@ -10,6 +11,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -17,15 +19,20 @@
 static void rpc_publish(void *ctx, GglMap params, uint32_t handle);
 static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle);
 
-void iotcored_start_server(void) {
+void iotcored_start_server(IotcoredArgs *args) {
     GglRpcMethodDesc handlers[] = {
         { GGL_STR("publish"), false, rpc_publish, NULL },
         { GGL_STR("subscribe"), true, rpc_subscribe, NULL },
     };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
-    GglError ret
-        = ggl_listen(GGL_STR("/aws/ggl/iotcored"), handlers, handlers_len);
+    GglBuffer interface = GGL_STR("/aws/ggl/iotcored");
+
+    if (args->interface_name != NULL) {
+        interface = (GglBuffer) { .data = (uint8_t *) args->interface_name,
+                                  .len = strlen(args->interface_name) };
+    }
+    GglError ret = ggl_listen(interface, handlers, handlers_len);
 
     GGL_LOGE("iotcored", "Exiting with error %u.", (unsigned) ret);
 }

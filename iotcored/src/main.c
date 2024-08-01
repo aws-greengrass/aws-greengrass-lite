@@ -11,17 +11,22 @@
 
 static char doc[] = "iotcored -- MQTT spooler for AWS IoT Core";
 
-static struct argp_option opts[]
-    = { { "endpoint", 'e', "address", 0, "AWS IoT Core endpoint", 0 },
-        { "id", 'i', "name", 0, "MQTT client identifier", 0 },
-        { "rootca", 'r', "path", 0, "Path to AWS IoT Core CA PEM", 0 },
-        { "cert", 'c', "path", 0, "Path to client certificate", 0 },
-        { "key", 'k', "path", 0, "Path to key for client certificate", 0 },
-        { 0 } };
+static struct argp_option opts[] = {
+    { "interface_name", 'n', "name", 0, "Override core bus interface name", 0 },
+    { "endpoint", 'e', "address", 0, "AWS IoT Core endpoint", 0 },
+    { "id", 'i', "name", 0, "MQTT client identifier", 0 },
+    { "rootca", 'r', "path", 0, "Path to AWS IoT Core CA PEM", 0 },
+    { "cert", 'c', "path", 0, "Path to client certificate", 0 },
+    { "key", 'k', "path", 0, "Path to key for client certificate", 0 },
+    { 0 }
+};
 
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {
     IotcoredArgs *args = state->input;
     switch (key) {
+    case 'n':
+        args->interface_name = arg;
+        break;
     case 'e':
         args->endpoint = arg;
         break;
@@ -65,5 +70,5 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    iotcored_start_server();
+    iotcored_start_server(&args);
 }

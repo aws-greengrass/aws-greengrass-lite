@@ -6,6 +6,7 @@
 #define IOTCORED_ARGS_H
 
 typedef struct {
+    char *interface_name;
     char *endpoint;
     char *id;
     char *rootca;
