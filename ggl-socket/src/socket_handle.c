@@ -35,6 +35,11 @@ static GglError validate_handle(
     uint16_t handle_index = (uint16_t) (handle & UINT16_MAX);
     uint16_t handle_generation = (uint16_t) (handle >> 16);
 
+    if (handle_index >= pool->max_fds) {
+        GGL_LOGE("socket", "Invalid handle %u in %s.", handle, location);
+        return GGL_ERR_INVALID;
+    }
+
     if (handle_generation != pool->generations[handle_index]) {
         GGL_LOGD(
             "socket",
