@@ -54,6 +54,7 @@ typedef struct {
 static SubCallbacks sub_callbacks[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
 
 static GglError reset_sub_state(uint32_t handle, size_t index);
+static GglError call_close_callback(uint32_t handle, size_t index);
 
 static int sub_fds[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
 static uint16_t sub_generations[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
@@ -63,6 +64,7 @@ GglSocketPool pool = {
     .fds = sub_fds,
     .generations = sub_generations,
     .on_register = reset_sub_state,
+    .on_release = call_close_callback,
 };
 
 __attribute__((constructor)) static void init_sub_pool(void) {
@@ -116,6 +118,28 @@ static void set_sub_callbacks(void *ctx, size_t index) {
 static void get_sub_callbacks(void *ctx, size_t index) {
     SubCallbacks *callbacks = ctx;
     *callbacks = sub_callbacks[index];
+}
+
+static GglError call_close_callback(uint32_t handle, size_t index) {
+    (void) index;
+    GGL_LOGT("core-bus-client", "Calling subscription close callback.");
+
+    GGL_LOGT("core-bus-client", "Retrieving subscription callbacks.");
+    SubCallbacks callbacks = { 0 };
+    GglError ret = ggl_with_socket_handle_index(
+        get_sub_callbacks, &callbacks, &pool, handle
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    if (callbacks.on_close != NULL) {
+        GGL_LOGT("core-bus-client", "Calling subscription close callback.");
+
+        callbacks.on_close(callbacks.ctx, handle);
+    }
+
+    return GGL_ERR_OK;
 }
 
 static GglError make_subscribe_request(
