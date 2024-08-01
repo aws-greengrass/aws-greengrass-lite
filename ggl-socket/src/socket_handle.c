@@ -71,6 +71,12 @@ void ggl_socket_pool_init(GglSocketPool *pool) {
     for (size_t i = 0; i < pool->max_fds; i++) {
         pool->fds[i] = FD_FREE;
     }
+
+    // TODO: handle mutex init failure?
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+    pthread_mutex_init(&pool->mtx, &attr);
 }
 
 GglError ggl_socket_pool_register(
