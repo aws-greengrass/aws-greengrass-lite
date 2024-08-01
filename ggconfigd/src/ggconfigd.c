@@ -177,9 +177,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     }
     size_t length = msg.component.len + msg.key.len + 1;
     static uint8_t component_buffer[GGCONFIGD_MAX_COMPONENT_SIZE];
-    GglBuffer component_key;
-    component_key.data = component_buffer;
-    component_key.len = length;
+    GglBuffer component_key = ggl_buf_substr(GGL_BUF(component_buffer), 0, length);
     memcpy(&component_key.data[0], msg.component.data, msg.component.len);
     component_key.data[msg.component.len] = '/';
     memcpy(
