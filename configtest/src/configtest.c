@@ -7,6 +7,7 @@
 #include <openssl/ssl.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 static void test_insert(
     GglBuffer component, GglBuffer test_key, GglBuffer test_value
