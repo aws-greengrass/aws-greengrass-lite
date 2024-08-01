@@ -16,11 +16,33 @@
 #include <stddef.h>
 #include <stdint.h>
 
+// Handles are 32 bits, with the high 16 bits being a generation counter, and
+// the low 16 bits being an index. The generation counter is incremented on
+// close, to prevent reuse.
+//
+// Use of the index and generation count must be done with a mutex held to
+// prevent concurrent incrementing of the generation counter.
+
 static const int32_t FD_FREE = -0x55555556; // Alternating bits for debugging
 
 GGL_DEFINE_DEFER(
     unlock_pool_mtx, GglSocketPool *, pool, pthread_mutex_unlock(&(*pool)->mtx)
 )
+
+static GglError validate_handle(
+    GglSocketPool *pool, uint32_t handle, uint16_t *index, const char *location
+) {
+    uint16_t handle_index = (uint16_t) (handle & UINT16_MAX);
+    uint16_t handle_generation = (uint16_t) (handle >> 16);
+
+    if (handle_generation != pool->generations[handle_index]) {
+        GGL_LOGD("socket", "Generation mismatch in %s.", location);
+        return GGL_ERR_NOENTRY;
+    }
+
+    *index = handle_index;
+    return GGL_ERR_OK;
+}
 
 void ggl_socket_pool_init(GglSocketPool *pool) {
     assert(pool != NULL);
@@ -75,19 +97,17 @@ GglError ggl_socket_pool_register(
 GglError ggl_socket_pool_release(
     GglSocketPool *pool, uint32_t handle, int *fd
 ) {
-    uint16_t index = (uint16_t) (handle & UINT16_MAX);
-    uint16_t generation = (uint16_t) (handle >> 16);
-
     pthread_mutex_lock(&pool->mtx);
     GGL_DEFER(unlock_pool_mtx, pool);
 
-    if (generation != pool->generations[index]) {
-        GGL_LOGD("socket", "Generation mismatch in %s.", __func__);
-        return GGL_ERR_NOENTRY;
+    uint16_t index = 0;
+    GglError ret = validate_handle(pool, handle, &index, __func__);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     if (pool->on_release != NULL) {
-        GglError ret = pool->on_release(handle, index);
+        ret = pool->on_release(handle, index);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -97,16 +117,16 @@ GglError ggl_socket_pool_release(
         *fd = pool->fds[index];
     }
 
-    pool->generations[index] += 1;
-    pool->fds[index] = FD_FREE;
-
     GGL_LOGD(
         "socket",
         "Releasing fd %d at index %u, generation %u.",
-        *fd,
+        pool->fds[index],
         index,
-        generation
+        pool->generations[index]
     );
+
+    pool->generations[index] += 1;
+    pool->fds[index] = FD_FREE;
 
     return GGL_ERR_OK;
 }
@@ -116,19 +136,17 @@ GglError ggl_socket_handle_read(
 ) {
     GglBuffer rest = buf;
 
-    uint16_t index = (uint16_t) (handle & UINT16_MAX);
-    uint16_t generation = (uint16_t) (handle >> 16);
-
     while (rest.len > 0) {
         pthread_mutex_lock(&pool->mtx);
         GGL_DEFER(unlock_pool_mtx, pool);
 
-        if (generation != pool->generations[index]) {
-            GGL_LOGD("socket", "Generation mismatch in %s.", __func__);
-            return GGL_ERR_NOENTRY;
+        uint16_t index = 0;
+        GglError ret = validate_handle(pool, handle, &index, __func__);
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
 
-        GglError ret = ggl_read(pool->fds[index], &rest);
+        ret = ggl_read(pool->fds[index], &rest);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -142,19 +160,17 @@ GglError ggl_socket_handle_write(
 ) {
     GglBuffer rest = buf;
 
-    uint16_t index = (uint16_t) (handle & UINT16_MAX);
-    uint16_t generation = (uint16_t) (handle >> 16);
-
     while (rest.len > 0) {
         pthread_mutex_lock(&pool->mtx);
         GGL_DEFER(unlock_pool_mtx, pool);
 
-        if (generation != pool->generations[index]) {
-            GGL_LOGD("socket", "Generation mismatch in %s.", __func__);
-            return GGL_ERR_NOENTRY;
+        uint16_t index = 0;
+        GglError ret = validate_handle(pool, handle, &index, __func__);
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
 
-        GglError ret = ggl_write(pool->fds[index], &rest);
+        ret = ggl_write(pool->fds[index], &rest);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -180,15 +196,13 @@ GglError ggl_with_socket_handle_index(
     GglSocketPool *pool,
     uint32_t handle
 ) {
-    uint16_t index = (uint16_t) (handle & UINT16_MAX);
-    uint16_t generation = (uint16_t) (handle >> 16);
-
     pthread_mutex_lock(&pool->mtx);
     GGL_DEFER(unlock_pool_mtx, pool);
 
-    if (generation != pool->generations[index]) {
-        GGL_LOGD("socket", "Generation mismatch in %s.", __func__);
-        return GGL_ERR_NOENTRY;
+    uint16_t index = 0;
+    GglError ret = validate_handle(pool, handle, &index, __func__);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     action(ctx, index);
