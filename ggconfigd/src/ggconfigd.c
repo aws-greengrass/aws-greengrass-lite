@@ -175,7 +175,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
-    unsigned long length = msg.component.len + msg.key.len + 1;
+    size_t length = msg.component.len + msg.key.len + 1;
     static uint8_t component_buffer[GGCONFIGD_MAX_COMPONENT_SIZE];
     GglBuffer component_key;
     component_key.data = component_buffer;
