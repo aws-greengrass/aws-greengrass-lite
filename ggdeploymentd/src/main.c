@@ -12,7 +12,7 @@
 static char doc[] = "ggdeploymentd -- Greengrass Lite Deployment Daemon";
 
 static struct argp_option opts[]
-    = { { "endpoint", 'e', "address", 0, "AWS IoT Core Dataplane endpoint", 0 },
+    = { { "endpoint", 'e', "address", 0, "AWS IoT Core endpoint", 0 },
         { 0 } };
 
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {

@@ -28,12 +28,12 @@ typedef struct {
     size_t back;
     uint8_t size;
     bool initialized;
-    pthread_mutex_t mutex;
     pthread_cond_t not_empty;
     pthread_cond_t not_full;
 } GgdeploymentdDeploymentQueue;
 
 static GgdeploymentdDeploymentQueue deployment_queue;
+static pthread_mutex_t deployment_queue_mtx;
 
 void deployment_queue_init(void) {
     if (deployment_queue.initialized) {
@@ -99,9 +99,11 @@ bool should_replace_deployment_in_queue(
 }
 
 bool deployment_queue_offer(GgdeploymentdDeployment deployment) {
-    pthread_mutex_lock(&deployment_queue.mutex);
+    pthread_mutex_lock(&deployment_queue_mtx);
+    GGL_DEFER(pthread_mutex_unlock, deployment_queue_mtx);
+
     while (deployment_queue.size == GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE) {
-        pthread_cond_wait(&deployment_queue.not_full, &deployment_queue.mutex);
+        pthread_cond_wait(&deployment_queue.not_full, &deployment_queue_mtx);
     }
 
     size_t deployment_id_position
@@ -114,7 +116,6 @@ bool deployment_queue_offer(GgdeploymentdDeployment deployment) {
         deployment_queue.size++;
         GGL_LOGI("deployment_queue", "Added a new deployment to the queue.");
         pthread_cond_signal(&deployment_queue.not_empty);
-        pthread_mutex_unlock(&deployment_queue.mutex);
         return true;
     }
     if (should_replace_deployment_in_queue(
@@ -125,7 +126,6 @@ bool deployment_queue_offer(GgdeploymentdDeployment deployment) {
             "deployment_queue",
             "Replaced existing deployment in queue with updated deployment."
         );
-        pthread_mutex_unlock(&deployment_queue.mutex);
         return true;
     }
     GGL_LOGI(
@@ -133,7 +133,6 @@ bool deployment_queue_offer(GgdeploymentdDeployment deployment) {
         "Did not add the deployment to the queue, as it shares an ID with an "
         "existing deployment that is not in a replaceable state."
     );
-    pthread_mutex_unlock(&deployment_queue.mutex);
     return false;
 }
 

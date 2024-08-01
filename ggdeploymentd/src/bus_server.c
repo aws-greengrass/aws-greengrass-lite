@@ -18,7 +18,7 @@
 static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    GGL_LOGI(
+    GGL_LOGD(
         "ggdeploymentd", "Received create_local_deployment from core bus."
     );
 
