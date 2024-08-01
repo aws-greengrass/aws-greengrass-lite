@@ -32,12 +32,6 @@
 // ggl_subscribe is used by the binary, and the thread is only created in
 // binaries using ggl_subscribe functionality.
 
-/// Maximum number of core-bus connections.
-/// Can be configured with `-DGGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS=<N>`.
-#ifndef GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS
-#define GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS 50
-#endif
-
 #define PAYLOAD_MAX_SUBOBJECTS 50
 
 static_assert(

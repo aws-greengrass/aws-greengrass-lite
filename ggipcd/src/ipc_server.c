@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/core_bus/client.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
@@ -68,17 +69,23 @@ static int32_t client_fds[GGL_IPC_MAX_CLIENTS];
 static uint16_t client_generations[GGL_IPC_MAX_CLIENTS];
 
 static GglError reset_client_state(uint32_t handle, size_t index);
+static GglError release_subscriptions_for_conn(uint32_t handle, size_t index);
 
 static GglSocketPool pool = {
     .max_fds = GGL_IPC_MAX_CLIENTS,
     .fds = client_fds,
     .generations = client_generations,
     .on_register = reset_client_state,
+    .on_release = release_subscriptions_for_conn,
 };
 
 __attribute__((constructor)) static void init_client_pool(void) {
     ggl_socket_pool_init(&pool);
 }
+
+static GglIpcSubscriptionCtx
+    subscription_ctx_array[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
+static pthread_mutex_t subscription_ctx_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static GglError reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
@@ -419,4 +426,56 @@ GglError ggl_ipc_response_send(
     }
 
     return ggl_socket_handle_write(&pool, handle, resp_buffer);
+}
+
+GglError ggl_ipc_get_subscription_ctx(
+    GglIpcSubscriptionCtx **ctx, uint32_t resp_handle
+) {
+    assert(resp_handle != 0);
+
+    pthread_mutex_lock(&subscription_ctx_mtx);
+    GGL_DEFER(pthread_mutex_unlock, subscription_ctx_mtx);
+
+    for (size_t i = 0; i <= GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
+        if (subscription_ctx_array[i].resp_handle == 0) {
+            subscription_ctx_array[i].resp_handle = resp_handle;
+            *ctx = &subscription_ctx_array[i];
+            return GGL_ERR_OK;
+        }
+    }
+
+    GGL_LOGE("ipc-server", "Exceeded maximum tracked subscriptions.");
+    return GGL_ERR_NOMEM;
+}
+
+void ggl_ipc_release_subscription_ctx(GglIpcSubscriptionCtx *ctx) {
+    GglIpcSubscriptionCtx *sub_ctx = ctx;
+
+    pthread_mutex_lock(&subscription_ctx_mtx);
+    GGL_DEFER(pthread_mutex_unlock, subscription_ctx_mtx);
+
+    *sub_ctx = (GglIpcSubscriptionCtx) { 0 };
+}
+
+static GglError release_subscriptions_for_conn(uint32_t handle, size_t index) {
+    (void) index; // This is pool index, not in subscription array
+
+    for (size_t i = 0; i < GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
+        uint32_t recv_handle = 0;
+
+        {
+            pthread_mutex_lock(&subscription_ctx_mtx);
+            GGL_DEFER(pthread_mutex_unlock, subscription_ctx_mtx);
+
+            if (subscription_ctx_array[i].resp_handle == handle) {
+                recv_handle = subscription_ctx_array[i].recv_handle;
+            }
+        }
+
+        if (recv_handle != 0) {
+            ggl_client_sub_close(recv_handle);
+        }
+    }
+
+    return GGL_ERR_OK;
 }

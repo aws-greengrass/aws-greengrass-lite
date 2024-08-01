@@ -26,4 +26,18 @@ GglError ggl_ipc_response_send(
     GglObject response
 );
 
+typedef struct {
+    uint32_t resp_handle;
+    int32_t stream_id;
+    uint32_t recv_handle;
+} GglIpcSubscriptionCtx;
+
+/// Claim a subscription context
+GglError ggl_ipc_get_subscription_ctx(
+    GglIpcSubscriptionCtx **ctx, uint32_t resp_handle
+);
+
+/// Cleanup for subscription context, for ggl_subscribe on_close
+void ggl_ipc_release_subscription_ctx(GglIpcSubscriptionCtx *ctx);
+
 #endif
