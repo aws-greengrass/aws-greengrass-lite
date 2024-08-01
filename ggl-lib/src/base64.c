@@ -3,7 +3,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/base64.h"
+#include "ggl/alloc.h"
 #include "ggl/buffer.h"
+#include "ggl/error.h"
 #include "ggl/object.h"
 #include <string.h>
 #include <stdbool.h>
@@ -107,4 +109,29 @@ bool ggl_base64_decode_in_place(GglBuffer *target) {
     }
     target->len = (size_t) (out.data - target->data);
     return true;
+}
+
+static const uint8_t BASE64_TABLE[]
+    = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+GglError ggl_base64_encode(GglBuffer buf, GglAlloc *alloc, GglBuffer *result) {
+    size_t base64_len = ((buf.len + 2) / 3) * 4;
+    uint8_t *mem = GGL_ALLOCN(alloc, uint8_t, base64_len);
+    if (mem == NULL) {
+        return GGL_ERR_NOMEM;
+    }
+
+    for (size_t i = 0, j = 0; i < buf.len;) {
+        uint32_t chunk = (unsigned) (i < buf.len ? buf.data[i++] : 0) << 16;
+        chunk += (unsigned) (i < buf.len ? buf.data[i++] : 0) << 8;
+        chunk += (unsigned) (i < buf.len ? buf.data[i++] : 0);
+
+        mem[j++] = BASE64_TABLE[chunk >> 18];
+        mem[j++] = BASE64_TABLE[(chunk >> 12) & 0x3F];
+        mem[j++] = BASE64_TABLE[(chunk >> 6) & 0x3F];
+        mem[j++] = BASE64_TABLE[chunk & 0x3F];
+    }
+
+    *result = (GglBuffer) { .data = mem, .len = base64_len };
+    return GGL_ERR_OK;
 }

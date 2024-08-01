@@ -7,10 +7,15 @@
 
 //! Base64 utilities
 
-#include "ggl/object.h"
+#include "alloc.h"
+#include "error.h"
+#include "object.h"
 #include <stdbool.h>
 
 /// Convert a base64 buffer to its decoded data in place.
 bool ggl_base64_decode_in_place(GglBuffer *target);
+
+/// Encode a buffer into base64.
+GglError ggl_base64_encode(GglBuffer buf, GglAlloc *alloc, GglBuffer *result);
 
 #endif
