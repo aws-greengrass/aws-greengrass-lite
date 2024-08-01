@@ -54,11 +54,20 @@ static GglError handle_publish_to_iot_core(
     if (!found) {
         qos = 0;
     } else {
-        if (val->type != GGL_TYPE_I64) {
-            GGL_LOGE("PublishToIoTCore", "qos not an int.");
+        if (val->type == GGL_TYPE_I64) {
+            qos = val->i64;
+        } else if (val->type == GGL_TYPE_BUF) {
+            GglError ret = ggl_str_to_int64(val->buf, &qos);
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "PublishToIoTCore", "Failed to parse qos string value."
+                );
+                return ret;
+            }
+        } else {
+            GGL_LOGE("PublishToIoTCore", "qos not an valid type.");
             return GGL_ERR_INVALID;
         }
-        qos = val->i64;
     }
 
     bool decoded = ggl_base64_decode_in_place(&payload);
