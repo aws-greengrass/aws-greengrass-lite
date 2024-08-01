@@ -532,9 +532,10 @@ GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
         switch (rc) {
         case SQLITE_DONE:
             GGL_LOGI("subscription", "DONE");
+            break;
         case SQLITE_ROW: {
             long long handle = sqlite3_column_int64(stmt, 0);
-            GGL_LOGI("subscription", "Sending to %lld", handle);
+            GGL_LOGI("subscription", "Sending to %lld, %08llx", handle, handle);
             ggl_respond((uint32_t) handle, GGL_OBJ(*value));
         } break;
         default:
