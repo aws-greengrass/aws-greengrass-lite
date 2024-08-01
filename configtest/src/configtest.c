@@ -128,13 +128,10 @@ int main(int argc, char **argv) {
         GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("another big value")
     );
     test_subscribe(GGL_STR("component"), GGL_STR("foo/bar"));
-<<<<<<< HEAD
     test_insert(GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("big value"));
     test_insert(
         GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("the biggest value")
     );
-=======
->>>>>>> aee751b83248d913fe7f78dd659d229ac1af9c51
     test_insert(GGL_STR("component"), GGL_STR("bar/foo"), GGL_STR("value2"));
     test_insert(GGL_STR("component"), GGL_STR("foo/baz"), GGL_STR("value"));
     test_insert(GGL_STR("global"), GGL_STR("global"), GGL_STR("value"));
