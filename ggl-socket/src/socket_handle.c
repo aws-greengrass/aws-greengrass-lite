@@ -36,7 +36,12 @@ static GglError validate_handle(
     uint16_t handle_generation = (uint16_t) (handle >> 16);
 
     if (handle_generation != pool->generations[handle_index]) {
-        GGL_LOGD("socket", "Generation mismatch in %s.", location);
+        GGL_LOGD(
+            "socket",
+            "Generation mismatch for handle %d in %s.",
+            handle,
+            location
+        );
         return GGL_ERR_NOENTRY;
     }
 
@@ -49,6 +54,8 @@ void ggl_socket_pool_init(GglSocketPool *pool) {
     assert(pool->fds != NULL);
     assert(pool->generations != NULL);
 
+    GGL_LOGT("socket", "Initializing socket pool %p.", pool);
+
     for (size_t i = 0; i < pool->max_fds; i++) {
         pool->fds[i] = FD_FREE;
     }
@@ -57,7 +64,12 @@ void ggl_socket_pool_init(GglSocketPool *pool) {
 GglError ggl_socket_pool_register(
     GglSocketPool *pool, int fd, uint32_t *handle
 ) {
+    assert(handle != NULL);
+
+    GGL_LOGT("socket", "Registering fd %d in pool %p.", fd, pool);
+
     if (fd < 0) {
+        GGL_LOGE("socket", "%s received invalid fd: %d.", __func__, fd);
         return GGL_ERR_INVALID;
     }
 
@@ -73,6 +85,7 @@ GglError ggl_socket_pool_register(
                 GglError ret = pool->on_register(new_handle, i);
                 if (ret != GGL_ERR_OK) {
                     pool->fds[i] = FD_FREE;
+                    GGL_LOGE("socket", "Pool on_register callback failed.");
                     return ret;
                 }
             }
@@ -81,22 +94,26 @@ GglError ggl_socket_pool_register(
 
             GGL_LOGD(
                 "socket",
-                "Registered fd %d at index %u, generation %u.",
+                "Registered fd %d at index %u, generation %u with handle %u.",
                 fd,
                 i,
-                pool->generations[i]
+                pool->generations[i],
+                new_handle
             );
 
             return GGL_ERR_OK;
         }
     }
 
+    GGL_LOGE("socket", "Pool maximum fds exceeded.");
     return GGL_ERR_NOMEM;
 }
 
 GglError ggl_socket_pool_release(
     GglSocketPool *pool, uint32_t handle, int *fd
 ) {
+    GGL_LOGT("socket", "Releasing handle %u in pool %p.", handle, pool);
+
     pthread_mutex_lock(&pool->mtx);
     GGL_DEFER(unlock_pool_mtx, pool);
 
@@ -109,6 +126,14 @@ GglError ggl_socket_pool_release(
     if (pool->on_release != NULL) {
         ret = pool->on_release(handle, index);
         if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "socket",
+                "Pool on_release callback failed for fd %d, index %u, "
+                "generation %u.",
+                pool->fds[index],
+                index,
+                pool->generations[index]
+            );
             return ret;
         }
     }
@@ -134,6 +159,14 @@ GglError ggl_socket_pool_release(
 GglError ggl_socket_handle_read(
     GglSocketPool *pool, uint32_t handle, GglBuffer buf
 ) {
+    GGL_LOGT(
+        "socket",
+        "Reading %zu bytes from handle %u in pool %p.",
+        buf.len,
+        handle,
+        pool
+    );
+
     GglBuffer rest = buf;
 
     while (rest.len > 0) {
@@ -152,12 +185,21 @@ GglError ggl_socket_handle_read(
         }
     }
 
+    GGL_LOGT("socket", "Read from %u successful.", handle);
     return GGL_ERR_OK;
 }
 
 GglError ggl_socket_handle_write(
     GglSocketPool *pool, uint32_t handle, GglBuffer buf
 ) {
+    GGL_LOGT(
+        "socket",
+        "Writing %zu bytes to handle %u in pool %p.",
+        buf.len,
+        handle,
+        pool
+    );
+
     GglBuffer rest = buf;
 
     while (rest.len > 0) {
@@ -176,10 +218,13 @@ GglError ggl_socket_handle_write(
         }
     }
 
+    GGL_LOGT("socket", "Write to %u successful.", handle);
     return GGL_ERR_OK;
 }
 
 GglError ggl_socket_handle_close(GglSocketPool *pool, uint32_t handle) {
+    GGL_LOGT("socket", "Closing handle %u in pool %p.", handle, pool);
+
     int fd = -1;
 
     GglError ret = ggl_socket_pool_release(pool, handle, &fd);
@@ -187,6 +232,7 @@ GglError ggl_socket_handle_close(GglSocketPool *pool, uint32_t handle) {
         close(fd);
     }
 
+    GGL_LOGT("socket", "Close of %u successful.", handle);
     return ret;
 }
 
@@ -196,6 +242,10 @@ GglError ggl_with_socket_handle_index(
     GglSocketPool *pool,
     uint32_t handle
 ) {
+    GGL_LOGT(
+        "socket", "In %s with handle %u in pool %p.", __func__, handle, pool
+    );
+
     pthread_mutex_lock(&pool->mtx);
     GGL_DEFER(unlock_pool_mtx, pool);
 
@@ -207,5 +257,12 @@ GglError ggl_with_socket_handle_index(
 
     action(ctx, index);
 
+    GGL_LOGT(
+        "socket",
+        "Successfully completed %s with handle %u in pool %p.",
+        __func__,
+        handle,
+        pool
+    );
     return GGL_ERR_OK;
 }
