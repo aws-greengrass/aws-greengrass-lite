@@ -2,7 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggconfig.h"
+#include "ggconfigd.h"
 #include <stdlib.h>
 
 static void exit_cleanup(void) {

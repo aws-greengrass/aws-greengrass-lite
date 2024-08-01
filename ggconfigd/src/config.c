@@ -2,7 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggconfig.h"
+#include "ggconfigd.h"
 #include <ctype.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
