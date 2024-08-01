@@ -10,11 +10,7 @@
 #include <ggl/object.h>
 
 GglError ggl_ipc_handle_operation(
-    GglBuffer operation,
-    GglMap args,
-    GglAlloc *alloc,
-    GglBuffer *service_model_type,
-    GglObject *response
+    GglBuffer operation, GglMap args, uint32_t handle, int32_t stream_id
 );
 
 #endif

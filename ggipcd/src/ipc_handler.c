@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ipc_handler.h"
+#include "ipc_server.h"
 #include <ggl/alloc.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
+#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -16,13 +18,8 @@
 #include <stdlib.h>
 
 static GglError handle_publish_to_iot_core(
-    GglMap args,
-    GglAlloc *alloc,
-    GglBuffer *service_model_type,
-    GglObject *response
+    GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
-    *service_model_type = GGL_STR("aws.greengrass#PublishToIoTCoreResponse");
-
     GglBuffer topic;
     GglBuffer payload;
     int64_t qos;
@@ -95,24 +92,21 @@ static GglError handle_publish_to_iot_core(
         return ret;
     }
 
-    *response = GGL_OBJ_MAP();
-    return GGL_ERR_OK;
+    return ggl_ipc_response_send(
+        handle,
+        stream_id,
+        GGL_STR("aws.greengrass#PublishToIoTCoreResponse"),
+        GGL_OBJ_MAP()
+    );
 }
 
 GglError ggl_ipc_handle_operation(
-    GglBuffer operation,
-    GglMap args,
-    GglAlloc *alloc,
-    GglBuffer *service_model_type,
-    GglObject *response
+    GglBuffer operation, GglMap args, uint32_t handle, int32_t stream_id
 ) {
     struct {
         GglBuffer operation;
         GglError (*handler)(
-            GglMap args,
-            GglAlloc *alloc,
-            GglBuffer *service_model_type,
-            GglObject *response
+            GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
         );
     } handler_table[] = {
         { GGL_STR("aws.greengrass#PublishToIoTCore"),
@@ -123,8 +117,14 @@ GglError ggl_ipc_handle_operation(
 
     for (size_t i = 0; i < handler_count; i++) {
         if (ggl_buffer_eq(operation, handler_table[i].operation)) {
+            static uint8_t core_bus_resp_mem
+                [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
+                 + GGL_IPC_MAX_MSG_LEN];
+            GglBumpAlloc balloc
+                = ggl_bump_alloc_init(GGL_BUF(core_bus_resp_mem));
+
             return handler_table[i].handler(
-                args, alloc, service_model_type, response
+                args, handle, stream_id, &balloc.alloc
             );
         }
     }

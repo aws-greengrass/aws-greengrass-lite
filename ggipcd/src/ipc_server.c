@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
@@ -19,23 +20,16 @@
 #include <ggl/object.h>
 #include <ggl/socket_handle.h>
 #include <ggl/socket_server.h>
+#include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-/// Maximum size of eventstream packet.
-/// Can be configured with `-DGGL_IPC_MAX_MSG_LEN=<N>`.
-#ifndef GGL_IPC_MAX_MSG_LEN
-#define GGL_IPC_MAX_MSG_LEN 10000
-#endif
 
 /// Maximum number of GG IPC clients.
 /// Can be configured with `-DGGL_IPC_MAX_CLIENTS=<N>`.
 #ifndef GGL_IPC_MAX_CLIENTS
 #define GGL_IPC_MAX_CLIENTS 50
 #endif
-
-#define PAYLOAD_MAX_SUBOBJECTS 50
 
 static_assert(
     GGL_IPC_MAX_MSG_LEN >= 16, "Minimum EventStream packet size is 16."
@@ -133,7 +127,8 @@ static GglError get_common_headers(
 static GglError deserialize_payload(GglBuffer payload, GglMap *out) {
     GglObject obj;
 
-    static uint8_t json_decode_mem[PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject)];
+    static uint8_t
+        json_decode_mem[GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject)];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(json_decode_mem));
 
     GglError ret = ggl_json_decode_destructive(payload, &balloc.alloc, &obj);
@@ -316,43 +311,9 @@ static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
         return ret;
     }
 
-    static uint8_t resp_mem[PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject)];
-    GglBumpAlloc buff_alloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
-
-    GglBuffer resp_service_model_type = { 0 };
-    GglObject resp_obj = { 0 };
-
-    ret = ggl_ipc_handle_operation(
-        operation,
-        payload_data,
-        &buff_alloc.alloc,
-        &resp_service_model_type,
-        &resp_obj
+    return ggl_ipc_handle_operation(
+        operation, payload_data, handle, common_headers.stream_id
     );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    GglBuffer send_buffer = GGL_BUF(payload_array);
-
-    EventStreamHeader resp_headers[] = {
-        { GGL_STR(":message-type"),
-          { EVENTSTREAM_INT32, .int32 = ES_APPLICATION_MESSAGE } },
-        { GGL_STR(":message-flags"), { EVENTSTREAM_INT32, .int32 = 0 } },
-        { GGL_STR(":stream-id"),
-          { EVENTSTREAM_INT32, .int32 = common_headers.stream_id } },
-        { GGL_STR(":content-type"),
-          { EVENTSTREAM_STRING, .string = GGL_STR("application/json") } },
-        { GGL_STR("service-model-type"),
-          { EVENTSTREAM_STRING, .string = resp_service_model_type } },
-    };
-    size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
-
-    eventstream_encode(
-        &send_buffer, resp_headers, resp_headers_len, payload_writer, &resp_obj
-    );
-
-    return ggl_socket_handle_write(&pool, handle, send_buffer);
 }
 
 static void get_conn_state(void *ctx, size_t index) {
@@ -421,4 +382,41 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
 GglError ggl_ipc_listen(const char *socket_path) {
     return ggl_socket_server_listen(socket_path, &pool, client_ready, NULL);
+}
+
+GglError ggl_ipc_response_send(
+    uint32_t handle,
+    int32_t stream_id,
+    GglBuffer service_model_type,
+    GglObject response
+) {
+    static uint8_t resp_array[GGL_IPC_MAX_MSG_LEN];
+    static pthread_mutex_t resp_array_mtx = PTHREAD_MUTEX_INITIALIZER;
+
+    pthread_mutex_lock(&resp_array_mtx);
+    GGL_DEFER(pthread_mutex_unlock, resp_array_mtx);
+    GglBuffer resp_buffer = GGL_BUF(resp_array);
+
+    EventStreamHeader resp_headers[] = {
+        { GGL_STR(":message-type"),
+          { EVENTSTREAM_INT32, .int32 = ES_APPLICATION_MESSAGE } },
+        { GGL_STR(":message-flags"), { EVENTSTREAM_INT32, .int32 = 0 } },
+        { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = stream_id } },
+
+        { GGL_STR(":content-type"),
+          { EVENTSTREAM_STRING, .string = GGL_STR("application/json") } },
+        { GGL_STR("service-model-type"),
+          { EVENTSTREAM_STRING, .string = service_model_type } },
+    };
+    const size_t RESP_HEADERS_LEN
+        = sizeof(resp_headers) / sizeof(resp_headers[0]);
+
+    GglError ret = eventstream_encode(
+        &resp_buffer, resp_headers, RESP_HEADERS_LEN, payload_writer, &response
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    return ggl_socket_handle_write(&pool, handle, resp_buffer);
 }
