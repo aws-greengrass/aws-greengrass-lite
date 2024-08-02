@@ -138,6 +138,8 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
 }
 
 void ggdeploymentd_start_server(void) {
+    GGL_LOGI("ggdeploymentd", "Starting ggdeploymentd core bus server.");
+
     GglRpcMethodDesc handlers[] = { { GGL_STR("create_local_deployment"),
                                       false,
                                       create_local_deployment,
