@@ -12,6 +12,7 @@
 #include <ggl/object.h>
 #include <pthread.h>
 #include <string.h>
+#include <stddef.h>
 #include <stdint.h>
 
 /// Maximum size of MQTT topic filter supported.

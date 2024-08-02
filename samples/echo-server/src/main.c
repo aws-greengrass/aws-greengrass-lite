@@ -5,6 +5,7 @@
 #include <ggl/core_bus/server.h>
 #include <ggl/object.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 

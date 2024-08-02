@@ -12,6 +12,7 @@
 #include <openssl/ssl.h>
 #include <openssl/types.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdlib.h>
 
 struct IotcoredTlsCtx {

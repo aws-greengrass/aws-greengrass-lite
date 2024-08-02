@@ -8,6 +8,7 @@
 #include "ggl/object.h"
 #include <string.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2) {
