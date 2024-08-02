@@ -8,6 +8,7 @@
 //! Generic dynamic object representation.
 
 #include "alloc.h"
+#include <ggl/error.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -168,5 +169,8 @@ typedef struct GglKV {
         double: (GglObject) { .type = GGL_TYPE_F64, \
                               .f64 = GGL_FORCE(double, (__VA_ARGS__)) } \
     )
+
+/// Modifies an object's references to point to copies in alloc
+GglError ggl_obj_deep_copy(GglObject *obj, GglAlloc *alloc);
 
 #endif
