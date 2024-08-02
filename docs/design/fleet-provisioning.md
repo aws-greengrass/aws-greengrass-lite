@@ -46,5 +46,6 @@ the new set of
 
 - thing name,
 - private-certificate path
-- device certificate's path will updated to the database, concluding the
-  provisioning process.
+- device certificate's path
+
+will updated to the database, concluding the provisioning process.
