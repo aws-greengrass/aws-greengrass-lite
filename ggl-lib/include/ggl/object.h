@@ -7,6 +7,7 @@
 
 //! Generic dynamic object representation.
 
+#include "alloc.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -150,7 +151,7 @@ typedef struct GglKV {
     _Generic((value), type: (value), default: (type) { 0 })
 // NOLINTEND(bugprone-macro-parentheses)
 
-/// Create object literal from buffer, list, or map.
+/// Create object literal from any contained type.
 #define GGL_OBJ(...) \
     _Generic( \
         (__VA_ARGS__), \
@@ -159,7 +160,13 @@ typedef struct GglKV {
         GglList: (GglObject) { .type = GGL_TYPE_LIST, \
                                .list = GGL_FORCE(GglList, (__VA_ARGS__)) }, \
         GglMap: (GglObject) { .type = GGL_TYPE_MAP, \
-                              .map = GGL_FORCE(GglMap, (__VA_ARGS__)) } \
+                              .map = GGL_FORCE(GglMap, (__VA_ARGS__)) }, \
+        bool: (GglObject) { .type = GGL_TYPE_BOOLEAN, \
+                            .boolean = GGL_FORCE(bool, (__VA_ARGS__)) }, \
+        int64_t: (GglObject) { .type = GGL_TYPE_I64, \
+                               .i64 = GGL_FORCE(int64_t, (__VA_ARGS__)) }, \
+        double: (GglObject) { .type = GGL_TYPE_F64, \
+                              .f64 = GGL_FORCE(double, (__VA_ARGS__)) } \
     )
 
 #endif
