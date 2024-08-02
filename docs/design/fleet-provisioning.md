@@ -42,5 +42,9 @@ was successful and /rejected if it failed. More can be found
 [here](https://docs.aws.amazon.com/iot/latest/developerguide/fleet-provision-api.html).
 
 The same process will be repeated for Registering the thing as well. Once, done
-the new set of thing name, private-certificate and device certificate's path
-will updated to the database, concluding the provisioning process.
+the new set of
+
+- thing name,
+- private-certificate path
+- device certificate's path will updated to the database, concluding the
+  provisioning process.
