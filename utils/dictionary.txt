@@ -26,6 +26,7 @@ gglite
 greengrassv
 htobe
 iotcored
+libyaml
 LOGD
 LOGE
 LOGI

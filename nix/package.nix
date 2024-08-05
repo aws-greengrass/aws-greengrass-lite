@@ -6,12 +6,13 @@
 , openssl
 , argp-standalone
 , sqlite
+, libyaml
 , defaultMeta
 }:
 stdenv.mkDerivation {
   name = "aws-greengrass-lite";
   src = ggl-util.fixedSrc;
   nativeBuildInputs = [ pkg-config cmake ninja ];
-  buildInputs = [ openssl argp-standalone sqlite.dev ];
+  buildInputs = [ openssl argp-standalone sqlite.dev libyaml.dev ];
   meta = defaultMeta;
 }

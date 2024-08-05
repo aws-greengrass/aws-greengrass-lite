@@ -7,6 +7,7 @@
 , openssl
 , argp-standalone
 , sqlite
+, libyaml
 , ...
 }:
 let
@@ -17,7 +18,7 @@ ggl-util.llvmStdenv.mkDerivation {
   name = "check-clang-tidy";
   src = ggl-util.fixedSrc;
   nativeBuildInputs = [ pkg-config clang-tools ];
-  buildInputs = [ openssl argp-standalone sqlite.dev ];
+  buildInputs = [ openssl argp-standalone sqlite.dev libyaml.dev ];
   buildPhase = ''
     ${cmake}/bin/cmake -B build -D CMAKE_BUILD_TYPE=Debug
     clang-tidy -p build --warnings-as-errors='*' ${toString c-files}
