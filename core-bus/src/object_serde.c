@@ -440,7 +440,7 @@ GglError ggl_serialize(GglObject obj, GglBuffer *buf) {
         }
 
         if (level->type == HANDLING_OBJ) {
-            GglError ret = write_obj(&mem.alloc, &state, obj);
+            GglError ret = write_obj(&mem.alloc, &state, *level->obj_next);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
