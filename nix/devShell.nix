@@ -4,4 +4,5 @@ pkgs: {
     git
     git-secrets
   ];
+  env.NIX_HARDENING_ENABLE = "";
 }

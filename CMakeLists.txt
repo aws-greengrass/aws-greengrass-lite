@@ -83,7 +83,7 @@ set(CMAKE_C_FLAGS_MINSIZEREL "")
 
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
-add_cflags($<$<CONFIG:Debug>:-Og>)
+add_cflags($<$<CONFIG:Debug>:-O0>)
 add_cflags($<$<CONFIG:MinSizeRel>:-Oz>)
 add_cflags($<$<CONFIG:Release,RelWithDebInfo>:-O3>)
 
@@ -114,6 +114,8 @@ add_cflags(
   -fstack-protector-strong
   -fstack-clash-protection)
 
+try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
+
 add_cflags($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
 try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
                  -ftrivial-auto-var-init=pattern)
@@ -123,7 +125,7 @@ add_cflags($<$<CONFIG:Debug>:-fsanitize=undefined>)
 try_add_cflag_if(function-sections $<NOT:$<CONFIG:DEBUG>> -ffunction-sections)
 try_add_cflag_if(data-sections $<NOT:$<CONFIG:DEBUG>> -fdata-sections)
 
-add_compile_definitions(_FORTIFY_SOURCE=2)
+add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>)
 
 add_link_options($<$<NOT:$<CONFIG:DEBUG>>:-pie>)
 
