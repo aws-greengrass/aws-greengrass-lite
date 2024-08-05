@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "bus_server.h"
-#include "args.h"
+#include "iotcored.h"
 #include "mqtt.h"
 #include "subscription_dispatch.h"
 #include <ggl/core_bus/server.h>

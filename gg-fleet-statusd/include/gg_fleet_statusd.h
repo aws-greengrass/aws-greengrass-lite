@@ -2,11 +2,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef IOTCORED_BUS_SERVER_H
-#define IOTCORED_BUS_SERVER_H
+#ifndef GG_FLEET_STATUSD_H
+#define GG_FLEET_STATUSD_H
 
-#include "iotcored.h"
+#include <ggl/error.h>
 
-void iotcored_start_server(IotcoredArgs *args);
+typedef struct {
+    char *thing_name;
+} FssdArgs;
+
+GglError run_gg_fleet_statusd(FssdArgs *args);
 
 #endif

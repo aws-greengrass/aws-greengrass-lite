@@ -28,6 +28,8 @@ jobs:
             check: editorconfig
           - name: spelling
             check: spelling
+          - name: cmake-lint
+            check: cmake-lint
     name: Check ${{ matrix.name }}
     runs-on: ubuntu-latest
     steps:

@@ -2,11 +2,15 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef IOTCORED_BUS_SERVER_H
-#define IOTCORED_BUS_SERVER_H
+#ifndef GGIPCD_H
+#define GGIPCD_H
 
-#include "iotcored.h"
+#include <ggl/error.h>
 
-void iotcored_start_server(IotcoredArgs *args);
+typedef struct {
+    char *socket_path;
+} GglIpcArgs;
+
+GglError run_ggipcd(GglIpcArgs *args);
 
 #endif
