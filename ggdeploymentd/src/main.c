@@ -38,7 +38,6 @@ static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 
 int main(int argc, char **argv) {
     GGL_LOGI("ggdeploymentd", "Started ggdeploymentd process.");
-
     GgdeploymentdArgs args = { 0 };
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)

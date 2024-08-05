@@ -18,12 +18,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static void ggl_deployment_listen(void);
+static void handle_deployment(GgdeploymentdDeployment);
+static GglError load_recipe(GglBuffer recipe_dir);
+static GglError load_artifact(GglBuffer artifact_dir);
+static GglError read_recipe(char *recipe_path, Recipe *recipe);
+static GglError parse_recipe(GglMap recipe_map, Recipe *recipe);
+
 bool shutdown = false;
 
 void *ggl_deployment_handler_start(void *ctx) {
     (void) ctx;
-    // do setup to make this thread safe
-    listen();
+    ggl_deployment_listen();
     return NULL;
 }
 
@@ -32,22 +38,20 @@ void ggl_deployment_handler_stop(void) {
     // handle shutting down the thread
 }
 
-void listen(void) {
+static void ggl_deployment_listen(void) {
     while (!shutdown) {
         GgdeploymentdDeployment deployment = ggl_deployment_queue_poll();
-
-        // TODO: check if deployment is zero initialized. if it is the queue was
-        // empty and we just continue
 
         GGL_LOGI(
             "deployment-handler",
             "Received deployment in the queue. Processing deployment."
         );
+
         handle_deployment(deployment);
     }
 }
 
-void handle_deployment(GgdeploymentdDeployment deployment) {
+static void handle_deployment(GgdeploymentdDeployment deployment) {
     if (deployment.deployment_stage == GGDEPLOYMENT_DEFAULT) {
         if (deployment.deployment_type == GGDEPLOYMENT_LOCAL) {
             GgdeploymentdDeploymentDocument deployment_doc
@@ -70,7 +74,7 @@ void handle_deployment(GgdeploymentdDeployment deployment) {
     }
 }
 
-GglError load_recipe(GglBuffer recipe_dir) {
+static GglError load_recipe(GglBuffer recipe_dir) {
     // open and iterate through the provided recipe directory
     struct dirent *entry;
     DIR *dir = opendir((char *) recipe_dir.data);
@@ -83,6 +87,7 @@ GglError load_recipe(GglBuffer recipe_dir) {
         return GGL_ERR_INVALID;
     }
 
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     while ((entry = readdir(dir)) != NULL) {
         // check that the entry is not another directory
         // note: d_type may not be available on all file systems, need to
@@ -113,7 +118,7 @@ GglError load_recipe(GglBuffer recipe_dir) {
     return GGL_ERR_OK;
 }
 
-GglError read_recipe(char *recipe_path, Recipe *recipe) {
+static GglError read_recipe(char *recipe_path, Recipe *recipe) {
     // open and read the contents of the recipe file path provided into a buffer
     FILE *file = fopen(recipe_path, "r");
     if (file == NULL) {
@@ -170,7 +175,7 @@ GglError read_recipe(char *recipe_path, Recipe *recipe) {
     return parse_err;
 }
 
-GglError parse_recipe(GglMap recipe_map, Recipe *recipe) {
+static GglError parse_recipe(GglMap recipe_map, Recipe *recipe) {
     GglObject *component_name;
     if (ggl_map_get(recipe_map, GGL_STR("ComponentName"), &component_name)) {
         if (component_name == NULL) {
@@ -211,7 +216,7 @@ GglError parse_recipe(GglMap recipe_map, Recipe *recipe) {
     return GGL_ERR_OK;
 }
 
-GglError load_artifact(GglBuffer artifact_dir) {
+static GglError load_artifact(GglBuffer artifact_dir) {
     (void) artifact_dir;
     return GGL_ERR_OK;
 }
