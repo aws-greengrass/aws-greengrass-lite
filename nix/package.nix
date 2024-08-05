@@ -14,5 +14,6 @@ stdenv.mkDerivation {
   src = ggl-util.fixedSrc;
   nativeBuildInputs = [ pkg-config cmake ninja ];
   buildInputs = [ openssl argp-standalone sqlite.dev libyaml.dev ];
+  cmakeFlags = [ "-DENABLE_WERROR=1" ];
   meta = defaultMeta;
 }

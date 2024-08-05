@@ -54,3 +54,4 @@ subscribetocomponentupdates
 tesd
 tlog
 unsuback
+WERROR

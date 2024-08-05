@@ -11,7 +11,7 @@ project(aws-greengrass-lite C)
 
 option(BUILD_TESTING "Build tests")
 
-option(CMAKE_COMPILE_WARNING_AS_ERROR "Compile warnings as errors")
+option(ENABLE_WERROR "Compile warnings as errors")
 
 set(GGL_LOG_LEVEL CACHE STRING "GGL log level")
 
@@ -90,6 +90,10 @@ add_cflags($<$<CONFIG:Release,RelWithDebInfo>:-O3>)
 add_cflags($<$<CONFIG:Debug,RelWithDebInfo>:-ggdb3>)
 
 add_cflags($<$<NOT:$<CONFIG:DEBUG>>:-fPIE>)
+
+if(ENABLE_WERROR)
+  add_cflags(-Werror)
+endif()
 
 add_cflags(
   -pthread
