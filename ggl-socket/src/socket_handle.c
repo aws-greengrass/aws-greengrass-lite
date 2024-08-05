@@ -39,7 +39,7 @@ static GglError validate_handle(
     GglSocketPool *pool, uint32_t handle, uint16_t *index, const char *location
 ) {
     // Underflow ok; UINT16_MAX will fail bounds check
-    uint16_t handle_index = (uint16_t) (handle & UINT16_MAX) - 1U;
+    uint16_t handle_index = (uint16_t) ((handle & UINT16_MAX) - 1U);
     uint16_t handle_generation = (uint16_t) (handle >> 16);
 
     if (handle_index >= pool->max_fds) {

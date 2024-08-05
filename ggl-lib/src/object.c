@@ -6,7 +6,9 @@
 #include "ggl/alloc.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
+#include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -72,4 +74,7 @@ GglError ggl_obj_deep_copy(GglObject *obj, GglAlloc *alloc) {
         return GGL_ERR_OK;
     }
     }
+
+    assert(false);
+    return GGL_ERR_FAILURE;
 }

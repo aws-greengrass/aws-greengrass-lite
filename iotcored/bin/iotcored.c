@@ -57,7 +57,7 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
 static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 
 int main(int argc, char **argv) {
-    IotcoredArgs args = { 0 };
+    static IotcoredArgs args = { 0 };
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);

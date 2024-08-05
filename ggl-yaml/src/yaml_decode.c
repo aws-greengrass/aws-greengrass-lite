@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/yaml_decode.h"
+#include "pthread.h"
 #include <assert.h>
 #include <ggl/alloc.h>
+#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -196,13 +198,20 @@ static GglError yaml_to_obj(
     case YAML_SEQUENCE_NODE:
         return yaml_sequence_to_obj(document, node, alloc, obj);
     }
+
+    GGL_LOGE("yaml", "Unexpected node type from libyaml.");
+    return GGL_ERR_FAILURE;
 }
 
 GglError ggl_yaml_decode(GglBuffer buf, GglAlloc *alloc, GglObject *obj) {
-    yaml_parser_t parser;
+    static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&mtx);
+    GGL_DEFER(pthread_mutex_unlock, mtx);
+
+    static yaml_parser_t parser;
     yaml_parser_initialize(&parser);
     yaml_parser_set_input_string(&parser, buf.data, buf.len);
-    yaml_document_t document;
+    static yaml_document_t document;
     yaml_parser_load(&parser, &document);
     yaml_node_t *root_node = yaml_document_get_root_node(&document);
 
