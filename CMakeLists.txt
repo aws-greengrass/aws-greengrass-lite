@@ -121,7 +121,7 @@ add_cflags($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
 try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
                  -ftrivial-auto-var-init=pattern)
 
-add_cflags($<$<CONFIG:Debug>:-fsanitize=undefined>)
+add_cflags($<$<CONFIG:Debug>:-fsanitize=undefined,address>)
 
 try_add_cflag_if(function-sections $<NOT:$<CONFIG:DEBUG>> -ffunction-sections)
 try_add_cflag_if(data-sections $<NOT:$<CONFIG:DEBUG>> -fdata-sections)
