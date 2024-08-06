@@ -8,7 +8,8 @@
 
 #include "ggl/object.h"
 
-// TODO: this is random for now, figure out size needed for mem allocation when decoding json
+// TODO: this is random for now, figure out size needed for mem allocation when
+// decoding json
 #define GGL_RECIPE_CONTENT_MAX_SIZE 128
 
 typedef struct {

@@ -7,16 +7,22 @@
 #include "deployment_queue.h"
 #include "recipe_model.h"
 #include <dirent.h>
+#include <errno.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define RECIPES "recipes"
+#define RECIPES_LEN (sizeof(RECIPES) - 1)
 
 static void ggl_deployment_listen(void);
 static void handle_deployment(GgdeploymentdDeployment);
@@ -24,6 +30,8 @@ static GglError load_recipe(GglBuffer recipe_dir);
 static GglError load_artifact(GglBuffer artifact_dir);
 static GglError read_recipe(char *recipe_path, Recipe *recipe);
 static GglError parse_recipe(GglMap recipe_map, Recipe *recipe);
+static GglError create_recipe_directory(Recipe *recipe, char *directory_path);
+static void create_directories(const char *path);
 
 bool shutdown = false;
 
@@ -109,6 +117,14 @@ static GglError load_recipe(GglBuffer recipe_dir) {
             if (read_err != GGL_ERR_OK) {
                 free(full_path);
                 return read_err;
+            }
+
+            char *directory_path;
+            GglError create_directory_err
+                = create_recipe_directory(&recipe, directory_path);
+            if (create_directory_err != GGL_ERR_OK) {
+                free(full_path);
+                return create_directory_err;
             }
 
             free(full_path);
@@ -214,6 +230,71 @@ static GglError parse_recipe(GglMap recipe_map, Recipe *recipe) {
     }
 
     return GGL_ERR_OK;
+}
+
+static GglError create_recipe_directory(Recipe *recipe, char *directory_path) {
+    // build path for the directory in gg lite which will store the recipe
+    // TODO: we need the root path, where to get it? placeholder for now
+    const char *root_path = "/home/ubuntu/ggl";
+    size_t full_path_size = strlen(root_path) + RECIPES_LEN
+        + recipe->component_name.len + recipe->component_version.len;
+    directory_path = malloc(full_path_size);
+    snprintf(
+        directory_path,
+        full_path_size,
+        "%s/%s/%s/%s",
+        root_path,
+        RECIPES,
+        (char *) recipe->component_name.data,
+        (char *) recipe->component_version.data
+    );
+
+    // check if the directory exists
+    struct stat st;
+    if (stat(directory_path, &st) != 0) {
+        if (errno == ENOENT) {
+            // directory does not exist, create it
+            create_directories(directory_path);
+        }
+    } else if (!S_ISDIR(st.st_mode)) {
+        GGL_LOGE(
+            "deployment-handler",
+            "Path for recipe directory already %s exists, but is not a "
+            "directory.",
+            directory_path
+        );
+        return GGL_ERR_INVALID;
+    } else {
+        GGL_LOGD(
+            "deployment-handler",
+            "Recipe directory %s already exists.",
+            directory_path
+        );
+    }
+
+    free(directory_path);
+    return GGL_ERR_OK;
+}
+
+static void create_directories(const char *path) {
+    char *tmp = malloc(sizeof(path));
+    char *p = NULL;
+    size_t len;
+
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    len = strlen(tmp);
+    if (tmp[len - 1] == '/') {
+        tmp[len - 1] = 0;
+    }
+    for (p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            mkdir(tmp, S_IRWXU);
+            *p = '/';
+        }
+    }
+    mkdir(tmp, S_IRWXU);
+    free(tmp);
 }
 
 static GglError load_artifact(GglBuffer artifact_dir) {
