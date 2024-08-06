@@ -23,12 +23,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/// Maximum number of core-bus connections.
-/// Can be configured with `-DGGL_COREBUS_MAX_CLIENTS=<N>`.
-#ifndef GGL_COREBUS_MAX_CLIENTS
-#define GGL_COREBUS_MAX_CLIENTS 100
-#endif
-
 #define PAYLOAD_VALUE_MAX_SUBOBJECTS 50
 
 typedef struct {
