@@ -23,6 +23,8 @@
 
 #define RECIPES "recipes"
 #define RECIPES_LEN (sizeof(RECIPES) - 1)
+#define JSON_EXTENSION ".json"
+#define JSON_EXTENSION_LEN (sizeof(JSON_EXTENSION) - 1)
 
 static void ggl_deployment_listen(void);
 static void handle_deployment(GgdeploymentdDeployment);
@@ -32,6 +34,7 @@ static GglError read_recipe(char *recipe_path, Recipe *recipe);
 static GglError parse_recipe(GglMap recipe_map, Recipe *recipe);
 static GglError create_recipe_directory(Recipe *recipe, char *directory_path);
 static void create_directories(const char *path);
+static GglError copy_file(const char *src_path, const char *dest_path);
 
 bool shutdown = false;
 
@@ -111,6 +114,8 @@ static GglError load_recipe(GglBuffer recipe_dir) {
                 (char *) recipe_dir.data,
                 entry->d_name
             );
+
+            // parse recipe into Recipe model
             Recipe recipe;
             GglError read_err = read_recipe(full_path, &recipe);
 
@@ -119,14 +124,44 @@ static GglError load_recipe(GglBuffer recipe_dir) {
                 return read_err;
             }
 
-            char *directory_path;
+            // create recipe directory if it does not exist
+            char *directory_path = NULL;
             GglError create_directory_err
                 = create_recipe_directory(&recipe, directory_path);
             if (create_directory_err != GGL_ERR_OK) {
+                free(directory_path);
                 free(full_path);
                 return create_directory_err;
             }
 
+            // build recipe file destination path
+            size_t recipe_file_name_size = recipe.component_name.len
+                + recipe.component_version.len + JSON_EXTENSION_LEN + 1;
+            char *recipe_file_dest_path
+                = malloc(sizeof(directory_path) + recipe_file_name_size);
+            snprintf(
+                recipe_file_dest_path,
+                sizeof(recipe_file_dest_path),
+                "%s/%s-%s%s",
+                directory_path,
+                (char *) recipe.component_name.data,
+                (char *) recipe.component_version.data,
+                JSON_EXTENSION
+            );
+
+            // copy the recipe from the path provided in the deployment doc to
+            // the device
+            GglError copy_file_err
+                = copy_file(full_path, recipe_file_dest_path);
+            if (copy_file_err != GGL_ERR_OK) {
+                free(directory_path);
+                free(recipe_file_dest_path);
+                free(full_path);
+                return copy_file_err;
+            }
+
+            free(directory_path);
+            free(recipe_file_dest_path);
             free(full_path);
         }
     }
@@ -272,7 +307,6 @@ static GglError create_recipe_directory(Recipe *recipe, char *directory_path) {
         );
     }
 
-    free(directory_path);
     return GGL_ERR_OK;
 }
 
@@ -295,6 +329,58 @@ static void create_directories(const char *path) {
     }
     mkdir(tmp, S_IRWXU);
     free(tmp);
+}
+
+static GglError copy_file(const char *src_path, const char *dest_path) {
+    FILE *src = fopen(src_path, "rb");
+    if (src == NULL) {
+        GGL_LOGE(
+            "deployment-handler", "Failed to open source file while copying."
+        );
+        return GGL_ERR_FAILURE;
+    }
+
+    FILE *dest = fopen(dest_path, "wb");
+    if (dest == NULL) {
+        GGL_LOGE(
+            "deployment-handler",
+            "Failed to open destination file while copying."
+        );
+        fclose(src);
+        return GGL_ERR_FAILURE;
+    }
+
+    fseek(src, 0, SEEK_END);
+    long file_size = ftell(src);
+    fseek(src, 0, SEEK_SET);
+
+    char *buff = malloc((size_t) file_size + 1);
+    if (buff == NULL) {
+        GGL_LOGE(
+            "deployment-handler",
+            "Failed to allocate memory to read recipe file."
+        );
+        fclose(src);
+        fclose(src);
+        fclose(dest);
+        return GGL_ERR_FAILURE;
+    }
+
+    size_t bytes;
+    while ((bytes = fread(buff, 1, sizeof(buff), src)) > 0) {
+        if (fwrite(buff, 1, bytes, dest) != bytes) {
+            GGL_LOGE(
+                "deployment-handler", "Error writing to destination file."
+            );
+            fclose(src);
+            fclose(dest);
+            return GGL_ERR_FAILURE;
+        }
+    }
+
+    fclose(src);
+    fclose(dest);
+    return GGL_ERR_OK;
 }
 
 static GglError load_artifact(GglBuffer artifact_dir) {
