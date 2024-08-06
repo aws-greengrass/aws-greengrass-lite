@@ -1,12 +1,28 @@
-#include "curl_util.h"
-#include <ggl/error.h>
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
+#include "ggl/gghttplib_utll.h"
 #include <ggl/log.h>
-#include <ggl/object.h>
-#include <time.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 static const char HEADER_KEY[] = "x-amzn-iot-thingname";
 
+/**
+ * @brief Writes the contents of a GglBuffer to a file.
+ *
+ * This function takes a file path and a GglBuffer as input, and writes the
+ * contents of the buffer to the specified file. If the file does not exist,
+ * it will be created. If the file already exists, it will be overwritten.
+ *
+ * @param file_path The path of the file to write the buffer contents to.
+ * @param ggl_buffer A pointer to the GglBuffer containing the data to be
+ * written.
+ *
+ * @return GGL_ERR_OK if the operation was successful, or GGL_ERR_FAILURE if an
+ *         error occurred.
+ */
 static GglError write_buffer_to_file(
     const char *file_path, const GglBuffer *ggl_buffer
 ) {
@@ -48,28 +64,32 @@ static GglError write_buffer_to_file(
     return GGL_ERR_OK;
 }
 
-static GglBuffer fetch_token(
-    const char *url_for_token, RequestBody request_body
+GglBuffer fetch_token(
+    const char *url_for_token,
+    const char *thing_name,
+    CertificateDetails certificate_details
 ) {
-    GglBuffer ggl_buffer;
+    GglBuffer ggl_buffer = { 0 };
+
     GGL_LOGI(
         "fetch_token",
         "Fetching token from credentials endpoint=%s, for iot thing=%s",
         url_for_token,
-        request_body.thing_name
+        thing_name
     );
 
-    GglError error = init_curl(url_for_token);
+    CurlData curl_data = { 0 };
+    GglError error = gghttplib_init_curl(&curl_data, url_for_token);
     if (error == GGL_ERR_OK) {
-        add_header(HEADER_KEY, request_body.thing_name);
-        add_certificate_data(request_body);
-        ggl_buffer = process_request();
+        gghttplib_add_header(&curl_data, HEADER_KEY, thing_name);
+        gghttplib_add_certificate_data(&curl_data, certificate_details);
+        ggl_buffer = gghttplib_process_request(&curl_data);
     }
 
     return ggl_buffer;
 }
 
-static void generic_download(
+void generic_download(
     const char *url_for_generic_download, const char *file_path
 ) {
     GGL_LOGI(
@@ -79,28 +99,11 @@ static void generic_download(
         file_path
     );
 
-    GglError error = init_curl(url_for_generic_download);
+    CurlData curl_data = { 0 };
+    GglError error = gghttplib_init_curl(&curl_data, url_for_generic_download);
     if (error == GGL_ERR_OK) {
-        GglBuffer ggl_buffer = process_request();
+        GglBuffer ggl_buffer = gghttplib_process_request(&curl_data);
         write_buffer_to_file(file_path, &ggl_buffer);
+        free(ggl_buffer.data);
     }
-}
-
-void http_with_tls(
-    const char *url,
-    const HttpMethod method,
-    const RequestBody *request_body,
-    const char *local_file_path,
-    GglBuffer *ggl_buffer
-) {
-    if (request_body == NULL) {
-        generic_download(url, local_file_path);
-    } else {
-        *ggl_buffer = fetch_token(url, *request_body);
-    }
-}
-
-int main(int argc, char **argv) {
-    // add the necessary logic here.
-    return 0;
 }
