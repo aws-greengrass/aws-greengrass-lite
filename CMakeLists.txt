@@ -10,6 +10,7 @@ project(aws-greengrass-lite C)
 #
 
 option(BUILD_TESTING "Build tests")
+option(BUILD_EXAMPLES "Build examples" TRUE)
 
 option(ENABLE_WERROR "Compile warnings as errors")
 
@@ -211,7 +212,10 @@ add_subdirectory(deps/core_mqtt)
 add_subdirectory(iotcored)
 add_subdirectory(ggdeploymentd)
 add_subdirectory(gg-fleet-statusd)
-add_subdirectory(samples/echo-server)
-add_subdirectory(samples/example-client)
-add_subdirectory(samples/mqtt-client)
-add_subdirectory(configtest)
+
+if(BUILD_EXAMPLES)
+  add_subdirectory(samples/echo-server)
+  add_subdirectory(samples/example-client)
+  add_subdirectory(samples/mqtt-client)
+  add_subdirectory(configtest)
+endif()
