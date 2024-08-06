@@ -25,6 +25,8 @@ gghttplib
 ggipcd
 gglib
 gglite
+ggpubsub
+ggpubsubd
 grault
 greengrassv
 htobe
