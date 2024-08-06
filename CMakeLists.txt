@@ -108,7 +108,7 @@ add_cflags(
   -Wredundant-decls
   -Wdate-time
   -Wstack-protector
-  -Wframe-larger-than=512
+  -Wframe-larger-than=1024
   -fvisibility=hidden
   -fno-semantic-interposition
   -fstack-protector-strong
