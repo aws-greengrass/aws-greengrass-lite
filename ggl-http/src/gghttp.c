@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "gghttp_utll.h"
+#include "ggl/object.h"
+#include "ggl/error.h"
 #include <ggl/log.h>
+#include <aio.h>
 #include <stdio.h>
 #include <stdlib.h>
 
