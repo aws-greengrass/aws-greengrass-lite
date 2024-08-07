@@ -212,6 +212,7 @@ add_subdirectory(deps/core_mqtt)
 add_subdirectory(iotcored)
 add_subdirectory(ggdeploymentd)
 add_subdirectory(gg-fleet-statusd)
+add_subdirectory(tesd)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
