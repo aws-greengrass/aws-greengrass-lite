@@ -5,7 +5,7 @@
 #ifndef GGHTTPLIB_UTIL_H
 #define GGHTTPLIB_UTIL_H
 
-#include "gghttplib.h"
+#include "ggl/http.h"
 
 typedef struct CurlData {
     CURL *curl;

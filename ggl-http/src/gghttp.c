@@ -2,7 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/gghttplib_utll.h"
+#include "gghttp_utll.h"
 #include <ggl/log.h>
 #include <stdio.h>
 #include <stdlib.h>
