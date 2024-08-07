@@ -3,10 +3,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "gghttp_utll.h"
-#include "ggl/object.h"
 #include "ggl/error.h"
+#include "ggl/http.h"
+#include "ggl/object.h"
+#include <curl/curl.h>
+#include <curl/easy.h>
 #include <ggl/log.h>
 #include <string.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #define MAX_HEADER_LENGTH 1000
@@ -86,6 +92,7 @@ void gghttplib_add_header(
     CurlData *curl_data, const char header_key[], const char *header_value
 ) {
     char header[MAX_HEADER_LENGTH];
+    // TODO:: use snprintf here
     sprintf(header, "%s: %s", header_key, header_value);
     curl_data->headers_list
         = curl_slist_append(curl_data->headers_list, header);

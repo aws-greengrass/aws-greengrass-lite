@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "gghttp_utll.h"
+#include "ggl/error.h"
 #include "ggl/http.h"
 #include "ggl/object.h"
-#include "ggl/error.h"
 #include <ggl/log.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 
 static const char HEADER_KEY[] = "x-amzn-iot-thingname";
 

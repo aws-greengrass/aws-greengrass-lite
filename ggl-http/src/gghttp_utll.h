@@ -6,6 +6,7 @@
 #define GGHTTPLIB_UTIL_H
 
 #include "ggl/http.h"
+#include <curl/curl.h>
 
 typedef struct CurlData {
     CURL *curl;
