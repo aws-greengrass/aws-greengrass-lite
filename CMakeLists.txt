@@ -212,6 +212,7 @@ add_subdirectory(ggipcd)
 add_subdirectory(ggconfigd)
 add_subdirectory(deps/core_mqtt)
 add_subdirectory(iotcored)
+add_subdirectory(gghttplibtest)
 add_subdirectory(ggdeploymentd)
 add_subdirectory(gg-fleet-statusd)
 
