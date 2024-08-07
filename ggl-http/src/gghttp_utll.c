@@ -119,7 +119,7 @@ GglBuffer gghttplib_process_request(CurlData *curl_data) {
     if (http_response_code != CURLE_OK) {
         GGL_LOGE(
             "process_request",
-            "curl_easy_perfom() failed: %s",
+            "curl_easy_perform() failed: %s",
             curl_easy_strerror(http_response_code)
         );
     }
