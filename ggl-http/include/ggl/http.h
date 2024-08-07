@@ -15,7 +15,6 @@ typedef struct CertificateDetails {
     char *gghttplib_root_ca_path;
 } CertificateDetails;
 
-
 /// @brief Fetches temporary AWS credentials.
 ///
 /// @param[in] url_for_token The aws IoT credentials endpoint URL.
@@ -28,8 +27,8 @@ typedef struct CertificateDetails {
 ///
 /// This function sends a request to the IoT credentials endpoint URL using the
 /// provided certificate and private keys details to authenticate the request.
-/// The response containing the temporary credentials from the server is expected
-/// to contain a token, which is returned as a GglBuffer object.
+/// The response containing the temporary credentials from the server is
+/// expected to contain a token, which is returned as a GglBuffer object.
 ///
 /// @note The called need to make sure that the paths of these certificates are
 /// accessible in general without special privileges.
@@ -42,9 +41,8 @@ GglBuffer fetch_token(
     CertificateDetails certificate_details
 );
 
-
-/// @brief Downloads the content from the specified URL and saves it to the given
-/// file path.
+/// @brief Downloads the content from the specified URL and saves it to the
+/// given file path.
 ///
 /// @param[in] url_for_generic_download The URL from which to fetch the content.
 /// @param[in] file_path The local path to the file where the downloaded content
@@ -57,8 +55,9 @@ GglBuffer fetch_token(
 /// @note This function assumes that the necessary permissions are granted to
 /// create or overwrite the file at the specified `file_path`.
 ///
-/// @warning This function does not perform any validation or sanitization of the
-/// input parameters. It is the responsibility of the caller to ensure that the
+/// @warning This function does not perform any validation or sanitization of
+/// the input parameters. It is the responsibility of the caller to ensure that
+/// the
 ///          provided `url_for_generic_download` and `file_path` are valid.
 void generic_download(
     const char *url_for_generic_download, const char *file_path
