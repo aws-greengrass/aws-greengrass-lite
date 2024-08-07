@@ -74,13 +74,15 @@ static const char *register_thing_success_url
 static const char *register_thing_url
     = "$aws/provisioning-templates/FleetTest/provision/json";
 
-static const char *certificate_response_url
+static const char certificate_response_url[]
     = "$aws/certificates/create-from-csr/json/accepted";
 
 static const char *cert_request_url = "$aws/certificates/create-from-csr/json";
 
 static const char *config_template_param_string
     = "{\"SerialNumber\": \"14ASSS55UUAA\"}";
+
+static GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
 
 void add_extra_backslash(char *str) {
     size_t string_length = strlen(str);
@@ -227,6 +229,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 }
 
 int request_thing_name() {
+    static uint8_t temp_payload_alloc2[2000] = { 0 };
 
     GglBuffer thing_request_buf = GGL_BUF(temp_payload_alloc2);
     static char *template_buffer[100000];
@@ -252,7 +255,7 @@ int request_thing_name() {
         { GGL_STR("parameters"),
            config_template_param_json_obj}
     );
-    ret_err_json = ggl_json_encode(thing_payload_obj, &thing_request_buf);
+    GglError ret_err_json = ggl_json_encode(thing_payload_obj, &thing_request_buf);
     if (ret_err_json != GGL_ERR_OK) {
         return GGL_ERR_PARSE;
     }
@@ -282,7 +285,7 @@ int request_thing_name() {
 
 int make_request(char *local_csr) {
     static uint8_t temp_payload_alloc[2000] = { 0 };
-    static uint8_t temp_payload_alloc2[2000] = { 0 };
+    
 
     GglBuffer csr_buf = GGL_BUF(temp_payload_alloc);
 
@@ -296,14 +299,12 @@ int make_request(char *local_csr) {
         return GGL_ERR_PARSE;
     }
 
-    GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
+    
 
     // Subscribe to csr success topic
     GglMap subscribe_args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ((GglBuffer) { .len = strlen(certificate_response_url),
-                                .data = (uint8_t *) certificate_response_url }
-          ) },
+          GGL_OBJ_STR(certificate_response_url) },
     );
 
     GglError ret = ggl_subscribe(
