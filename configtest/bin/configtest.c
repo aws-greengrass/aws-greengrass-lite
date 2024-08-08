@@ -144,7 +144,7 @@ valueToMerge = {
     "corge": true,
     "grault": false
 }
-timeStamp = "a fake time for now"
+timeStamp = 1723142212
 */
 static void test_write_object(void) {
     char json_path_string[] = "[\"foobar\"]";
@@ -164,7 +164,7 @@ static void test_write_object(void) {
     );
     GGL_LOGI("test_write_object", "json decode complete %d", error);
 
-    error = ggl_json_decode_destructive(
+    ggl_json_decode_destructive(
         test_value_json, &the_allocator.alloc, &test_value_object
     );
 

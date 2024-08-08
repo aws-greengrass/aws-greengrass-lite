@@ -261,7 +261,7 @@ static GglError process_map(
 
 static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
     /// Receive the following parameters
-    long long time_stamp;
+    long long time_stamp = 1;
     (void) ctx;
 
     GglObject *val;
@@ -307,8 +307,7 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
     if (ggl_map_get(params, GGL_STR("timeStamp"), &val)
         && (val->type == GGL_TYPE_I64)) {
         GGL_LOGI("rpc_write_object", "timeStamp %ld", val->i64);
-    } else {
-        time_stamp = 1; // TODO make a better default
+        time_stamp = val->i64;
     }
 
     if (ggl_map_get(params, GGL_STR("valueToMerge"), &val)
