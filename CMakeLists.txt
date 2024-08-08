@@ -178,7 +178,7 @@ function(ggl_init_module name)
     set(COMP_ARG_INCDIRS include)
   endif()
 
-  file(GLOB SRCS CONFIGURE_DEPENDS "${COMP_ARG_SRCDIR}/*.c")
+  file(GLOB_RECURSE SRCS CONFIGURE_DEPENDS "${COMP_ARG_SRCDIR}/*.c")
   list(LENGTH SRCS SRCS_LEN)
 
   if(NOT SRCS_LEN EQUAL 0)
