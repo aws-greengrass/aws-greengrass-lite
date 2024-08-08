@@ -133,7 +133,11 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
     new_deployment.deployment_type = GGDEPLOYMENT_LOCAL;
     new_deployment.is_cancelled = false;
 
-    ggl_deployment_queue_offer(&new_deployment);
+    GglError ret = ggl_deployment_queue_offer(&new_deployment);
+    if (ret != GGL_ERR_OK) {
+        ggl_return_err(handle, ret);
+        return;
+    }
 
     ggl_respond(handle, GGL_OBJ_NULL());
 }

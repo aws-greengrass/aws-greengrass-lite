@@ -4,8 +4,12 @@
 
 #include "deployment_queue.h"
 #include "deployment_model.h"
+#include <assert.h>
+#include <ggl/alloc.h>
 #include <ggl/buffer.h>
+#include <ggl/bump_alloc.h>
 #include <ggl/defer.h>
+#include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
@@ -17,14 +21,14 @@
 #define GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE 20
 #endif
 
-size_t deployment_queue_contains_deployment_id(GglBuffer deployment_id);
-bool should_replace_deployment_in_queue(
-    GgdeploymentdDeployment new_deployment,
-    GgdeploymentdDeployment existing_deployment
-);
+#ifndef GGDEPLOYMENTD_DEPLOYMENT_MEM_SIZE
+#define GGDEPLOYMENTD_DEPLOYMENT_MEM_SIZE 5000
+#endif
 
 typedef struct {
     GgdeploymentdDeployment deployments[GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE];
+    uint8_t deployment_mem[GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE]
+                          [GGDEPLOYMENTD_DEPLOYMENT_MEM_SIZE];
     size_t front;
     size_t back;
     uint8_t size;
@@ -57,7 +61,7 @@ uint8_t ggl_deployment_queue_size(void) {
     return deployment_queue.size;
 }
 
-size_t deployment_queue_contains_deployment_id(GglBuffer deployment_id) {
+static size_t deployment_queue_contains_deployment_id(GglBuffer deployment_id) {
     if (deployment_queue.size == 0) {
         return SIZE_MAX;
     }
@@ -76,7 +80,7 @@ size_t deployment_queue_contains_deployment_id(GglBuffer deployment_id) {
     return SIZE_MAX;
 }
 
-bool should_replace_deployment_in_queue(
+static bool should_replace_deployment_in_queue(
     GgdeploymentdDeployment new_deployment,
     GgdeploymentdDeployment existing_deployment
 ) {
@@ -99,7 +103,136 @@ bool should_replace_deployment_in_queue(
     return new_deployment.deployment_stage != GGDEPLOYMENT_DEFAULT;
 }
 
-bool ggl_deployment_queue_offer(GgdeploymentdDeployment *deployment) {
+static GglError deep_copy_deployment(
+    GgdeploymentdDeployment *location, GglAlloc *alloc
+) {
+    assert(location != NULL);
+
+    GGL_LOGD("deployment-queue", "Beginning deep copy of deployment");
+
+    GglObject obj = GGL_OBJ(location->deployment_id);
+    GglError ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_id = obj.buf;
+
+    obj = GGL_OBJ(location->error_stack);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->error_stack = obj.list;
+
+    obj = GGL_OBJ(location->error_types);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->error_types = obj.list;
+
+    obj = GGL_OBJ(location->deployment_document.recipe_directory_path);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.recipe_directory_path = obj.buf;
+
+    obj = GGL_OBJ(location->deployment_document.artifact_directory_path);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.artifact_directory_path = obj.buf;
+
+    obj = GGL_OBJ(location->deployment_document.root_component_versions_to_add);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.root_component_versions_to_add = obj.map;
+
+    obj = GGL_OBJ(location->deployment_document.root_components_to_remove);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.root_components_to_remove = obj.list;
+
+    obj = GGL_OBJ(location->deployment_document.component_to_configuration);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.component_to_configuration = obj.map;
+
+    obj = GGL_OBJ(location->deployment_document.component_to_run_with_info);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.component_to_run_with_info = obj.map;
+
+    obj = GGL_OBJ(location->deployment_document.group_name);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.group_name = obj.buf;
+
+    obj = GGL_OBJ(location->deployment_document.deployment_id);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.deployment_id = obj.buf;
+
+    obj = GGL_OBJ(location->deployment_document.configuration_arn);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.configuration_arn = obj.buf;
+
+    obj = GGL_OBJ(location->deployment_document.required_capabilities);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.required_capabilities = obj.list;
+
+    obj = GGL_OBJ(location->deployment_document.on_behalf_of);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.on_behalf_of = obj.buf;
+
+    obj = GGL_OBJ(location->deployment_document.parent_group_name);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.parent_group_name = obj.buf;
+
+    obj = GGL_OBJ(location->deployment_document.failure_handling_policy);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.failure_handling_policy = obj.buf;
+
+    obj = GGL_OBJ(location->deployment_document.component_update_policy.action);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    location->deployment_document.component_update_policy.action = obj.buf;
+
+    return GGL_ERR_OK;
+}
+
+GglError ggl_deployment_queue_offer(GgdeploymentdDeployment *deployment) {
     pthread_mutex_lock(&deployment_queue_mtx);
     GGL_DEFER(pthread_mutex_unlock, deployment_queue_mtx);
 
@@ -115,33 +248,53 @@ bool ggl_deployment_queue_offer(GgdeploymentdDeployment *deployment) {
             : (deployment_queue.back + 1) % GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE;
         // TODO: Make a deep copy of the deployment
         deployment_queue.deployments[deployment_queue.back] = *deployment;
+        GglBumpAlloc balloc = ggl_bump_alloc_init(
+            GGL_BUF(deployment_queue.deployment_mem[deployment_queue.back])
+        );
+        GglError ret = deep_copy_deployment(
+            &(deployment_queue.deployments[deployment_queue.back]),
+            &balloc.alloc
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
         deployment_queue.size++;
         GGL_LOGI("deployment_queue", "Added a new deployment to the queue.");
         pthread_cond_signal(&deployment_queue.not_empty);
-        return true;
+        return GGL_ERR_OK;
     }
     if (should_replace_deployment_in_queue(
             *deployment, deployment_queue.deployments[deployment_id_position]
         )) {
         // TODO: Make a deep copy of the deployment
         deployment_queue.deployments[deployment_id_position] = *deployment;
+        GglBumpAlloc balloc = ggl_bump_alloc_init(
+            GGL_BUF(deployment_queue.deployment_mem[deployment_id_position])
+        );
+        GglError ret = deep_copy_deployment(
+            &(deployment_queue.deployments[deployment_id_position]),
+            &balloc.alloc
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
         GGL_LOGI(
             "deployment_queue",
             "Replaced existing deployment in queue with updated deployment."
         );
-        return true;
+        return GGL_ERR_OK;
     }
     GGL_LOGI(
         "deployment_queue",
         "Did not add the deployment to the queue, as it shares an ID with an "
         "existing deployment that is not in a replaceable state."
     );
-    return false;
+    return GGL_ERR_INVALID;
 }
 
 GgdeploymentdDeployment ggl_deployment_queue_poll(void) {
     pthread_mutex_lock(&deployment_queue_mtx);
-    if (deployment_queue.size == 0) {
+    while (deployment_queue.size == 0) {
         pthread_cond_wait(&deployment_queue.not_empty, &deployment_queue_mtx);
     }
     GgdeploymentdDeployment next_deployment
