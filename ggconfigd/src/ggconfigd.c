@@ -233,9 +233,10 @@ static GglError process_map(
             // write the data to the DB
             // FIXME: Converting key list into a / list but final version will
             // be to send the list
+            // FIXME, the strnlen will go away with the above fixme
             char *path_string = print_key_path(&key_path->list);
             GglBuffer path_buffer
-                = { (uint8_t *) path_string, strnlen(path_string, 500) };
+                = { (uint8_t *) path_string, strnlen(path_string, 64) };
             uint8_t value_string[512] = { 0 };
             GglBuffer value_buffer = { value_string, sizeof(value_string) };
             error = ggl_json_encode(kv->val, &value_buffer);
