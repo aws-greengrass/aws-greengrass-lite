@@ -3,6 +3,7 @@
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
+#include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <stddef.h>
@@ -144,7 +145,7 @@ valueToMerge = {
     "corge": true,
     "grault": false
 }
-timeStamp = 1723142212
+timeStamp = "a fake time for now"
 */
 static void test_write_object(void) {
     char json_path_string[] = "[\"foobar\"]";
@@ -164,7 +165,7 @@ static void test_write_object(void) {
     );
     GGL_LOGI("test_write_object", "json decode complete %d", error);
 
-    ggl_json_decode_destructive(
+    error = ggl_json_decode_destructive(
         test_value_json, &the_allocator.alloc, &test_value_object
     );
 
@@ -190,6 +191,7 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
 
+    test_write_object();
     test_write_object();
     test_insert(
         GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("another big value")

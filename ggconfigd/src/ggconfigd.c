@@ -208,50 +208,64 @@ static char *print_key_path(GglList *key_path) {
     static char path_string[64] = { 0 };
     memset(path_string, 0, sizeof(path_string));
     for (size_t x = 0; x < key_path->len; x++) {
+        if (x > 0) {
+            strncat(path_string, "/ ", 1);
+        }
         strncat(
             path_string,
             (char *) key_path->items[x].buf.data,
             key_path->items[x].buf.len
         );
-        strncat(path_string, ": ", 1);
     }
     return path_string;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-static void process_map(GglObjVec *key_path, GglMap *the_map) {
+static GglError process_map(
+    GglObjVec *key_path, GglMap *the_map, long time_stamp
+) {
+    GglError error = GGL_ERR_OK;
     for (size_t x = 0; x < the_map->len; x++) {
         GglKV *kv = &the_map->pairs[x];
         ggl_obj_vec_push(key_path, GGL_OBJ(kv->key));
         if (kv->val.type == GGL_TYPE_MAP) {
-            process_map(key_path, &kv->val.map);
+            error = process_map(key_path, &kv->val.map, time_stamp);
+            if (error != GGL_ERR_OK) {
+                break;
+            }
         } else {
             // write the data to the DB
+            // FIXME: Converting key list into a / list but final version will
+            // be to send the list
             char *path_string = print_key_path(&key_path->list);
+            GglBuffer path_buffer
+                = { (uint8_t *) path_string, strnlen(path_string, 500) };
             uint8_t value_string[512] = { 0 };
             GglBuffer value_buffer = { value_string, sizeof(value_string) };
-            ggl_json_encode(kv->val, &value_buffer);
+            error = ggl_json_encode(kv->val, &value_buffer);
+            if (error != GGL_ERR_OK) {
+                break;
+            }
+            error = ggconfig_write_value_at_key(&path_buffer, &value_buffer);
+
             GGL_LOGI(
                 "fake_write",
-                "%s = %.*s",
+                "%s = %.*s %ld",
                 path_string,
                 (int) value_buffer.len,
-                (char *) value_buffer.data
+                (char *) value_buffer.data,
+                time_stamp
             );
         }
         ggl_obj_vec_pop(key_path, NULL);
     }
+    return error;
 }
 
 static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
     /// Receive the following parameters
-    /// component
-    /// keyPath
-    /// value
-    /// timestamp
+    long long time_stamp;
     (void) ctx;
-
-    ConfigMsg msg = { 0 };
 
     GglObject *val;
     GglObject object_list_memory[MAX_KEY_PATH_DEPTH] = { 0 };
@@ -261,12 +275,13 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
 
     if (ggl_map_get(params, GGL_STR("componentName"), &val)
         && (val->type == GGL_TYPE_BUF)) {
-        msg.component = val->buf;
+        // TODO: adjust the initial path with the component
+        ggl_obj_vec_push(&key_path, *val);
         GGL_LOGI(
             "rpc_write_object",
             "component %.*s",
-            (int) msg.component.len,
-            (char *) msg.component.data
+            (int) val->buf.len,
+            (char *) val->buf.data
         );
     } else {
         GGL_LOGE(
@@ -292,31 +307,22 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
+    if (ggl_map_get(params, GGL_STR("timeStamp"), &val)
+        && (val->type == GGL_TYPE_I64)) {
+        GGL_LOGI("rpc_write_object", "timeStamp %ld", val->i64);
+    } else {
+        time_stamp = 1; // TODO make a better default
+    }
+
     if (ggl_map_get(params, GGL_STR("valueToMerge"), &val)
         && (val->type == GGL_TYPE_MAP)) {
         GGL_LOGI("rpc_write_object", "valueToMerge is a Map");
-        process_map(&key_path, &val->map);
-    } else {
-        GGL_LOGE("rpc-write_object", "write received invalid value argument.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
+        GglError error = process_map(&key_path, &val->map, time_stamp);
+        ggl_return_err(handle, error);
         return;
     }
-    if (ggl_map_get(params, GGL_STR("timeStamp"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        msg.component = val->buf;
-        GGL_LOGI(
-            "rpc_write_object",
-            "value %.*s",
-            (int) msg.component.len,
-            (char *) msg.component.data
-        );
-    } else {
-        GGL_LOGE(
-            "rpc-write_object", "write received invalid timeStamp argument."
-        );
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
-    }
+    GGL_LOGE("rpc-write_object", "write received invalid value argument.");
+    ggl_return_err(handle, GGL_ERR_INVALID);
 }
 
 void ggconfigd_start_server(void) {
