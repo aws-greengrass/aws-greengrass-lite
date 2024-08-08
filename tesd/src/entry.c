@@ -11,30 +11,12 @@
 #include <ggl/object.h>
 #include <string.h>
 
-// static void test_insert(
-//     GglBuffer component, GglBuffer test_key, GglBuffer test_value
-// ) {
-//     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
-
-//     static uint8_t big_buffer_for_bump[4096];
-//     GglBumpAlloc the_allocator
-//         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
-//     GglMap params = GGL_MAP(
-//         { GGL_STR("component"), GGL_OBJ(component) },
-//         { GGL_STR("key"), GGL_OBJ(test_key) },
-//         { GGL_STR("value"), GGL_OBJ(test_value) }
-//     );
-//     GglObject result;
-
-//     GglError error = ggl_call(
-//         server, GGL_STR("write"), params, NULL, &the_allocator.alloc, &result
-//     );
-
-//     if (error != GGL_ERR_OK) {
-//         GGL_LOGE("ggconfig test", "insert failure");
-//     }
-// }
+static void get_value_from_db(
+    GglBuffer component,
+    GglBuffer test_key,
+    GglBumpAlloc the_allocator,
+    char *return_string
+);
 
 void get_value_from_db(
     GglBuffer component,
@@ -81,7 +63,6 @@ void get_value_from_db(
 }
 
 GglError run_tesd(void) {
-    GglMap packed_certs;
     static uint8_t big_buffer_for_bump[3048];
     static char rootca_as_string[512] = { 0 };
     static char cert_path_as_string[512] = { 0 };

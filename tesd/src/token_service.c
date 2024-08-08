@@ -16,10 +16,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define MAX_RESPONSE_BUFFER_LENGTH 5024
-#define BUMP_BUFF_SIZE 6096
-static uint8_t big_buffer_for_bump[BUMP_BUFF_SIZE];
-GglMap server_json_creds = { 0 };
+#define MAX_HTTP_RESPONSE_LENGTH 4096
+#define  MAX_HTTP_RESPONSE_SUB_OBJECTS 10
+static uint8_t http_response_decode_mem[MAX_HTTP_RESPONSE_SUB_OBJECTS * sizeof(GglObject)];
+static GglMap server_json_creds = { 0 };
 
 static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
     GglObject *creds;
@@ -96,7 +96,7 @@ GglError initiate_request(
     char *cert_endpoint
 ) {
     static char url_buf[2024] = { 0 };
-    static uint8_t response_buffer[MAX_RESPONSE_BUFFER_LENGTH] = { 0 };
+    static uint8_t response_buffer[MAX_HTTP_RESPONSE_LENGTH] = { 0 };
 
     strncat(url_buf, "https://", strlen("https://"));
     strncat(url_buf, (char *) cert_endpoint, strlen(cert_endpoint));
@@ -111,11 +111,11 @@ GglError initiate_request(
     GglBuffer buffer = GGL_BUF(response_buffer);
 
     fetch_token(url_buf, thing_name, certificate, &buffer);
-    GGL_LOGI("tesd", "The credentials received are: \n %s", buffer.data);
+    GGL_LOGI("tesd", "The credentials received are: %s", buffer.data);
 
     // Create a json object from the URL response
     GglObject json_cred_obj;
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(http_response_decode_mem));
     GglError ret
         = ggl_json_decode_destructive(buffer, &balloc.alloc, &json_cred_obj);
     if (ret != GGL_ERR_OK) {
