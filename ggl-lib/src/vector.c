@@ -1,5 +1,7 @@
 #include "ggl/vector.h"
+#include "ggl/error.h"
 #include "ggl/log.h"
+#include "ggl/object.h"
 
 GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
     if (vector->list.len + 1 >= vector->capacity) {
