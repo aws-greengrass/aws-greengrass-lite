@@ -20,7 +20,7 @@ GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_obj_vec_pop(GglObjVec *vector) {
+GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject * out) {
     if (vector->list.len == 0) {
         return GGL_ERR_RANGE;
     }
