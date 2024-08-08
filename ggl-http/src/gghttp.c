@@ -27,7 +27,7 @@ void fetch_token(
         url_for_token,
         thing_name
     );
- 
+
     GglError error = gghttplib_init_curl(&curl_data, url_for_token);
     if (error == GGL_ERR_OK) {
         gghttplib_add_header(&curl_data, HEADER_KEY, thing_name);
@@ -53,11 +53,12 @@ void generic_download(
     if (error == GGL_ERR_OK) {
         file_pointer = fopen(file_path, "wb");
 
-        GglError ret = gghttplib_process_request_with_file_pointer(&curl_data, file_pointer);
+        GglError ret = gghttplib_process_request_with_file_pointer(
+            &curl_data, file_pointer
+        );
 
         if (ret != GGL_ERR_OK) {
             return;
         }
-        
     }
 }

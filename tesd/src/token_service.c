@@ -6,23 +6,27 @@
 #include "ggl/http.h"
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #define MAX_RESPONSE_BUFFER_LENGTH 5024
-static uint8_t big_buffer_for_bump[4096];
+#define BUMP_BUFF_SIZE 6096
+static uint8_t big_buffer_for_bump[BUMP_BUFF_SIZE];
+GglMap server_json_creds = { 0 };
 
 static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
     GglObject *creds;
-    GglError ret = ggl_map_get(json_creds, GGL_STR("credentials"), &creds);
+    bool ret = ggl_map_get(json_creds, GGL_STR("credentials"), &creds);
 
-    if (ret != GGL_ERR_OK) {
-        return ret;
+    if (!ret) {
+        return GGL_ERR_INVALID;
     }
 
     if (creds->type != GGL_TYPE_MAP) {
@@ -43,6 +47,44 @@ static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
 
     *out_json = creds->map;
     return GGL_ERR_OK;
+}
+
+static void rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
+    (void) ctx;
+    GGL_LOGD("request_credentials", "Handling token publish request.");
+
+    GglObject *val;
+
+    if (ggl_map_get(params, GGL_STR("authz_token"), &val)
+        && (val->type == GGL_TYPE_BUF)) {
+        GglBuffer authz_token = val->buf;
+        if (authz_token.len > UINT16_MAX) {
+            GGL_LOGE("request_credentials", "Publish payload too large.");
+            ggl_return_err(handle, GGL_ERR_RANGE);
+            return;
+        }
+
+    } else {
+        GGL_LOGE("request_credentials", "Publish received invalid arguments.");
+        ggl_return_err(handle, GGL_ERR_INVALID);
+        return;
+    }
+
+    ggl_respond(handle, GGL_OBJ(server_json_creds));
+}
+
+static void start_tes_core_bus_server(void) {
+    // Server handler
+    GglRpcMethodDesc handlers[] = {
+        { GGL_STR("request_credentials"), false, rpc_request_creds, NULL },
+    };
+    size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
+
+    GglBuffer interface = GGL_STR("/aws/ggl/tesd");
+
+    GglError ret = ggl_listen(interface, handlers, handlers_len);
+
+    GGL_LOGE("tesd", "Exiting with error %u.", (unsigned) ret);
 }
 
 GglError initiate_request(
@@ -77,18 +119,19 @@ GglError initiate_request(
     GglError ret
         = ggl_json_decode_destructive(buffer, &balloc.alloc, &json_cred_obj);
     if (ret != GGL_ERR_OK) {
-        return  ret;
+        return ret;
     }
 
     if (json_cred_obj.type != GGL_TYPE_MAP) {
         return GGL_ERR_FAILURE;
     }
 
-    GglMap server_json_creds = { 0 };
     ret = create_map_for_server(json_cred_obj.map, &server_json_creds);
 
+    start_tes_core_bus_server();
+
     if (ret != GGL_ERR_OK) {
-        return  ret;
+        return ret;
     }
 
     return GGL_ERR_OK;

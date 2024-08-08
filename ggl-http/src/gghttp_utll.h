@@ -59,7 +59,6 @@ void gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 );
 
-
 /// @brief Processes an HTTP request using the provided cURL data.
 ///
 /// This function sets up the CURL handle with the necessary options, performs
@@ -70,7 +69,6 @@ void gghttplib_add_certificate_data(
 /// @return A GglBuffer struct containing the response data from the HTTP
 /// request.
 void gghttplib_process_request(CurlData *curl_data, GglBuffer *response_buffer);
-
 
 /// @brief Processes an HTTP request using the provided cURL data.
 ///

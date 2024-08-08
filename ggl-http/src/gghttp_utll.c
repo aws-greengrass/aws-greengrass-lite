@@ -28,15 +28,14 @@
 /// @param[in] size The size of each element in the response data.
 /// @param[in] nmemb The number of elements in the response data.
 /// @param[in] output_buffer A pointer to the GglBuffer struct where the
-/// response
-///                      data will be stored.
+/// response data will be stored.
 ///
 /// @return The number of bytes written to the output buffer.
 static size_t write_response_to_buffer(
     void *response_data, size_t size, size_t nmemb, void *output_buffer_void
 ) {
     size_t size_of_response_data = size * nmemb;
-    GglBuffer * output_buffer = output_buffer_void;
+    GglBuffer *output_buffer = output_buffer_void;
 
     if (output_buffer != NULL && output_buffer->len >= size_of_response_data) {
         memcpy(output_buffer->data, response_data, size_of_response_data);
