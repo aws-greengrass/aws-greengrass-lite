@@ -4,6 +4,7 @@ argp
 clientfd
 coremqtt
 coreutils
+corge
 cpus
 DGGL
 DIOTCORED
@@ -23,6 +24,7 @@ gghttplib
 ggipcd
 gglib
 gglite
+grault
 greengrassv
 htobe
 iotcored
