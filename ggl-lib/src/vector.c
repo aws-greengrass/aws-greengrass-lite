@@ -24,7 +24,9 @@ GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject * out) {
     if (vector->list.len == 0) {
         return GGL_ERR_RANGE;
     }
-    GglObject *last_item = &vector->list.items[vector->list.len - 1];
+    if(out != NULL) {
+        *out= vector->list.items[vector->list.len - 1];
+    }
     if (last_item->type == GGL_TYPE_BUF) {
         GGL_LOGI(
             "ggl_obj_vec_push",
