@@ -1,8 +1,6 @@
 { ggl-util
 , default
 }:
-(default.overrideAttrs {
-  preConfigure = "";
-}).override {
+default.override {
   stdenv = ggl-util.llvmStdenv;
 }

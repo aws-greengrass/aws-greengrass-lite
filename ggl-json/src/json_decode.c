@@ -463,11 +463,11 @@ static bool hex_char_to_byte(uint8_t *c) {
         return true;
     }
     if ((*c >= 'A') && (*c <= 'F')) {
-        *c = *c - 'A' + 10;
+        *c = (uint8_t) (*c - 'A' + 10);
         return true;
     }
     if ((*c >= 'a') && (*c <= 'f')) {
-        *c = *c - 'a' + 10;
+        *c = (uint8_t) (*c - 'a' + 10);
         return true;
     }
     return false;

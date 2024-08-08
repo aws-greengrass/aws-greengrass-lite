@@ -23,7 +23,8 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
         "ggdeploymentd", "Received create_local_deployment from core bus."
     );
 
-    GgdeploymentdDeploymentDocument local_deployment_document = { 0 };
+    // Core bus server is single-threaded
+    static GgdeploymentdDeploymentDocument local_deployment_document = { 0 };
 
     GglObject *val;
 

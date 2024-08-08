@@ -15,6 +15,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/yaml_decode.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -246,8 +247,8 @@ static GglError read_recipe(char *recipe_path, Recipe *recipe) {
     GglObject val;
 
     static uint8_t
-        json_decode_mem[GGL_RECIPE_CONTENT_MAX_SIZE * sizeof(GglObject)];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(json_decode_mem));
+        decode_mem[GGL_RECIPE_CONTENT_MAX_SIZE * sizeof(GglObject)];
+    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(decode_mem));
 
     // parse depending on file type
     GglError decode_err;
@@ -255,7 +256,7 @@ static GglError read_recipe(char *recipe_path, Recipe *recipe) {
         decode_err
             = ggl_json_decode_destructive(recipe_content, &balloc.alloc, &val);
     } else {
-        // TODO use yaml parsing here
+        decode_err = ggl_yaml_decode(recipe_content, &balloc.alloc, &val);
     }
     free(buff);
 

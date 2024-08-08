@@ -5,7 +5,7 @@
 #ifndef GGDEPLOYMENTD_DEPLOYMENTMODEL_H
 #define GGDEPLOYMENTD_DEPLOYMENTMODEL_H
 
-#include "args.h"
+#include "ggdeploymentd.h"
 #include "ggl/error.h"
 #include "ggl/object.h"
 

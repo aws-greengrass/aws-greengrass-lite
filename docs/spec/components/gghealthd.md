@@ -18,6 +18,17 @@ updates.
 
 ## Core Bus API
 
+### Common Error Codes
+
+| Error Code         | Reason                                          |
+| ------------------ | ----------------------------------------------- |
+| GGL_ERR_INVALID    | Parameter validation failed                     |
+| GGL_ERR_NOMEM      | Allocation failed                               |
+| GGL_ERR_NOENTRY(1) | Component not in config                         |
+| GGL_ERR_NOENTRY(2) | No such method                                  |
+| GGL_ERR_NOCONN     | Unable to contact Orchestrator                  |
+| GGL_ERR_FATAL      | Protocol or permissions error with Orchestrator |
+
 ### get_status
 
 Retrieves the lifecycle state of the requested component.
@@ -73,36 +84,35 @@ Retrieves the lifecycle state of the requested component.
 - [gghealthd-bus-get-status-error-5] `GGL_ERR_FATAL` shall be returned in the
   event that `gghealthd` is not permitted to view a component's status.
 
-### list_status
+### get_health
 
-Retrieves the lifecycle states of all Greengrass components in the active
-config. This API is intended to be used by processes which report deployment and
-core device status updates.
+Measures the Core Device health status. This is taken by retrieving component
+statuses for all root components in the Greengrass config. If any are broken,
+then the device is unhealthy, else healthy.
 
 #### Parameters
 
-- [gghealthd-bus-list-status-1] All parameters shall be ignored.
+- [gghealthd-bus-get-health-1] All parameters shall be ignored.
 
 #### Response
 
-- [gghealthd-bus-list-status-resp-1] The response shall be a list where each
-  element is a map with the response schema specified in the `get_status`
-  response.
+- [gghealthd-bus-get-health-resp-1] The response shall be a map with the
+  following schema:
+  - [gghealthd-bus-get-health-resp-1.1] Required key "health" shall be in the
+    map with the value type Buffer
+  - [gghealthd-bus-get-health-resp-1.2] The allowed values for key "health"
+    shall be "UNHEALTHY" and "HEALTHY"
 
 #### Errors
 
-- [gghealthd-bus-list-status-error-1] `GGL_ERR_NOCONN` shall be returned if
+- [gghealthd-bus-get-health-error-1] `GGL_ERR_NOCONN` shall be returned if
   gghealthd is unable to establish a connection with the orchestrator.
-- [gghealthd-bus-list-status-error-2] `GGL_ERR_FATAL` shall be returned for any
+- [gghealthd-bus-get-health-error-2] `GGL_ERR_FATAL` shall be returned for any
   `gghealthd` internal `gghealthd` error in communication with the orchestrator.
   A possible reason for this return is a mismatched orchestrator version for
   which `gghealthd` was not developed.
-- [gghealthd-bus-list-status-error-3] `GGL_ERR_FATAL` shall be returned in the
-  event that `gghealthd` is not permitted to view a component's status.
-  - [gghealthd-bus-list-status-error-3.1] In the event of `GGL_ERR_FATAL`,
-    `gghealthd` shall still provide the response to the best of its ability. All
-    components which `gghealthd` cannot examine shall be marked `BROKEN` (i.e.
-    this will flag the Greengrass Core Device as Unhealthy).
+- [gghealthd-bus-get-health-error-3] `GGL_ERR_FATAL` shall be returned in the
+  event that `gghealthd` is not permitted to view a root component's status.
 
 ### update_status
 
@@ -153,3 +163,34 @@ which allow component-managed state transitions over IPC.
   version for which `gghealthd` was not developed.
 - [gghealthd-bus-update-status-error-5] `GGL_ERR_FATAL` shall be returned in the
   event that `gghealthd` is not permitted to update another component's status.
+
+### subscribe_to_deployment_updates
+
+This subscription is intended to be used by `ggdeploymentd` to signal an ongoing
+deployment for which it awaits the result. This API sends a response when all
+components succeed or any fail.
+
+[gghealthd-bus-deployment-updates-1] `gghealthd` shall respond with the result
+of a deployment within 10 seconds of the final root component status update
+becoming available.
+
+#### Response
+
+- [gghealthd-bus-deployment_updates-resp-1] The response shall be a map with the
+  following schema:
+  - [gghealthd-bus-deployment_updates-resp-1.1] Required key "result" shall be
+    in the map with the value type Buffer
+  - [gghealthd-bus-deployment_updates-resp-1.2] The allowed values for key
+    "result" shall be "SUCCESS" and "FAILURE"
+
+#### Errors
+
+- [gghealthd-bus-deployment-updates-error-1] `GGL_ERR_NOCONN` shall be returned
+  if gghealthd is unable to establish a connection with the orchestrator.
+- [gghealthd-bus-deployment-updates-error-2] `GGL_ERR_FATAL` shall be returned
+  for any `gghealthd` internal `gghealthd` error in communication with the
+  orchestrator. A possible reason for this return is a mismatched orchestrator
+  version for which `gghealthd` was not developed.
+- [gghealthd-bus-deployment-updates-error-3] `GGL_ERR_FATAL` shall be returned
+  in the event that `gghealthd` is not permitted to view a root component's
+  status.

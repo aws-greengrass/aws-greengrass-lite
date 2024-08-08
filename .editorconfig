@@ -9,7 +9,7 @@ trim_trailing_whitespace = true
 insert_final_newline = true
 max_line_length = 80
 
-[{*.{nix,yml,yaml,json},flake.lock}]
+[{*.{nix,yml,yaml,json,cmake},flake.lock,CMakeLists.txt}]
 indent_size = 2
 
 [{Makefile,*.mk}]

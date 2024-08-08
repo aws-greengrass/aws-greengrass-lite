@@ -1,3 +1,4 @@
+aarch64
 ALLOCN
 argp
 clientfd
@@ -25,6 +26,7 @@ gglite
 greengrassv
 htobe
 iotcored
+libyaml
 LOGD
 LOGE
 LOGI
@@ -52,3 +54,4 @@ subscribetocomponentupdates
 tesd
 tlog
 unsuback
+WERROR

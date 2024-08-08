@@ -7,8 +7,8 @@ final: prev: {
         filtered-src = lib.fileset.toSource {
           root = src;
           fileset = lib.fileset.fileFilter
-            (file: lib.elem file.name [ "Makefile" ".clang-tidy" ] ||
-              lib.any file.hasExt [ "c" "h" "mk" ])
+            (file: lib.elem file.name [ "CMakeLists.txt" ".clang-tidy" ] ||
+              lib.any file.hasExt [ "c" "h" "cmake" ])
             src;
         };
 
