@@ -11,14 +11,7 @@ GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
     if (vector->list.len >= vector->capacity) {
         return GGL_ERR_NOMEM;
     }
-    if (object.type == GGL_TYPE_BUF) {
-        GGL_LOGI(
-            "ggl_obj_vec_push",
-            "Inserting BUF %.*s",
-            (int) object.buf.len,
-            (char *) object.buf.data
-        );
-    }
+    GGL_LOGT("ggl_obj_vec", "Pushed to %p.", vector);
     vector->list.items[vector->list.len] = object;
     vector->list.len++;
     return GGL_ERR_OK;
@@ -31,7 +24,7 @@ GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out) {
     if (out != NULL) {
         *out = vector->list.items[vector->list.len - 1];
     }
-    GGL_LOGT("ggl_obj_vec_push", "popped from %p", vector);
+    GGL_LOGT("ggl_obj_vec", "Popped from %p.", vector);
 
     vector->list.len--;
     return GGL_ERR_OK;
