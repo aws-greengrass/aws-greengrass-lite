@@ -9,12 +9,12 @@
 #include <ggl/object.h>
 
 GglError initiate_request(
-    char* root_ca,
-    char* cert_path,
-    char* key_path,
-    char* thing_name,
-    char* role_alias,
-    char* cert_endpoint
+    char *root_ca,
+    char *cert_path,
+    char *key_path,
+    char *thing_name,
+    char *role_alias,
+    char *cert_endpoint
 );
 
 #endif

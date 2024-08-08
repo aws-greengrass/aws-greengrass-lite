@@ -5,7 +5,8 @@
 #include "tesd.h"
 #include <ggl/error.h>
 
-static char doc[] = "tesd -- Token Exchange Service for AWS credential desperse management";
+static char doc[]
+    = "tesd -- Token Exchange Service for AWS credential desperse management";
 
 int main(void) {
     GglError ret = run_tesd();
