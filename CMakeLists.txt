@@ -113,8 +113,6 @@ add_cflags(
   -Wredundant-decls
   -Wdate-time
   -Wstack-protector
-  # debug builds have larger frame sizes
-  $<$<NOT:$<CONFIG:DEBUG>>:-Wframe-larger-than=1024>
   -fvisibility=hidden
   -fno-semantic-interposition
   -fstack-protector-strong
