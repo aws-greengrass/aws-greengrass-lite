@@ -37,7 +37,7 @@ void fetch_token(
     const char *url_for_token,
     const char *thing_name,
     CertificateDetails certificate_details,
-    GglBuffer *buf
+    GglBuffer *buffer
 );
 
 /// @brief Downloads the content from the specified URL and saves it to the

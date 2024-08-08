@@ -10,6 +10,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
+#include <stdint.h>
 
 static void get_value_from_db(
     GglBuffer component,
@@ -73,39 +74,6 @@ GglError run_tesd(void) {
 
     GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
-    // test_insert(
-    //     GGL_STR("system"),
-    //     GGL_STR("rootCaPath"),
-    //     GGL_STR("/home/ubuntu/repo/Creds/fleetClaim/AmazonRootCA1.pem")
-    // );
-
-    // test_insert(
-    //     GGL_STR("system"),
-    //     GGL_STR("privateKeyPath"),
-    //     GGL_STR("/home/ubuntu/repo/Creds/rawalGammaDevice/private.pem.key")
-    // );
-
-    // test_insert(
-    //     GGL_STR("system"),
-    //     GGL_STR("certificateFilePath"),
-    //     GGL_STR("/home/ubuntu/repo/Creds/rawalGammaDevice/certificate.pem.crt")
-    // );
-
-    // test_insert(
-    //     GGL_STR("system"), GGL_STR("thingName"), GGL_STR("rawalGammaDevice")
-    // );
-    // test_insert(
-    //     GGL_STR("nucleus"),
-    //     GGL_STR("configuration/iotRoleAlias"),
-    //     GGL_STR("GreengrassV2GammaTokenExchangeRoleAlias")
-    // );
-
-    // test_insert(
-    //     GGL_STR("nucleus"),
-    //     GGL_STR("configuration/iotCredEndpoint"),
-    //     GGL_STR("c2fj26n8iep3iy.credentials.gamma.us-east-1.iot.amazonaws.com")
-    // );
 
     // Fetch
     get_value_from_db(

@@ -17,8 +17,9 @@
 #include <stdint.h>
 
 #define MAX_HTTP_RESPONSE_LENGTH 4096
-#define  MAX_HTTP_RESPONSE_SUB_OBJECTS 10
-static uint8_t http_response_decode_mem[MAX_HTTP_RESPONSE_SUB_OBJECTS * sizeof(GglObject)];
+#define MAX_HTTP_RESPONSE_SUB_OBJECTS 10
+static uint8_t
+    http_response_decode_mem[MAX_HTTP_RESPONSE_SUB_OBJECTS * sizeof(GglObject)];
 static GglMap server_json_creds = { 0 };
 
 static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
@@ -88,9 +89,9 @@ static void start_tes_core_bus_server(void) {
 }
 
 GglError initiate_request(
-    char *root_ca,
-    char *cert_path,
-    char *key_path,
+    const char *root_ca,
+    const char *cert_path,
+    const char *key_path,
     char *thing_name,
     char *role_alias,
     char *cert_endpoint
@@ -115,7 +116,8 @@ GglError initiate_request(
 
     // Create a json object from the URL response
     GglObject json_cred_obj;
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(http_response_decode_mem));
+    GglBumpAlloc balloc
+        = ggl_bump_alloc_init(GGL_BUF(http_response_decode_mem));
     GglError ret
         = ggl_json_decode_destructive(buffer, &balloc.alloc, &json_cred_obj);
     if (ret != GGL_ERR_OK) {

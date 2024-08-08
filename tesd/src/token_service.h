@@ -9,9 +9,9 @@
 #include <ggl/object.h>
 
 GglError initiate_request(
-    char *root_ca,
-    char *cert_path,
-    char *key_path,
+    const char *root_ca,
+    const char *cert_path,
+    const char *key_path,
     char *thing_name,
     char *role_alias,
     char *cert_endpoint

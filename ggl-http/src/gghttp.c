@@ -7,9 +7,7 @@
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <ggl/log.h>
-#include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 static const char HEADER_KEY[] = "x-amzn-iot-thingname";
 
