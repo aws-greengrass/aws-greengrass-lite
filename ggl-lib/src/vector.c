@@ -4,7 +4,7 @@
 #include "ggl/object.h"
 
 GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
-    if (vector->list.len + 1 >= vector->capacity) {
+    if (vector->list.len >= vector->capacity) {
         return GGL_ERR_NOMEM;
     }
     if (object.type == GGL_TYPE_BUF) {
