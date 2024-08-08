@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ipc_server.h"
-#include "ipc_handler.h"
+#include "ipc_dispatch.h"
 #include <assert.h>
 #include <errno.h>
 #include <ggl/buffer.h>
