@@ -8,6 +8,7 @@
 #include "recipe_model.h"
 #include <dirent.h>
 #include <errno.h>
+#include <ggl/alloc.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
@@ -21,22 +22,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define ARTIFACTS "artifacts"
 #define RECIPES "recipes"
-#define RECIPES_LEN (sizeof(RECIPES) - 1)
 #define JSON_EXTENSION ".json"
-#define JSON_EXTENSION_LEN (sizeof(JSON_EXTENSION) - 1)
+#define EXTENSION_LEN (sizeof(JSON_EXTENSION) - 1)
+#define YAML_EXTENSION ".yaml"
 
 static void ggl_deployment_listen(void);
 static void handle_deployment(GgdeploymentdDeployment);
-static GglError load_recipe(GglBuffer recipe_dir);
-static GglError load_artifact(GglBuffer artifact_dir);
+static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe);
+static GglError copy_artifacts(GglBuffer artifact_dir, Recipe *recipe);
 static GglError read_recipe(char *recipe_path, Recipe *recipe);
 static GglError parse_recipe(GglMap recipe_map, Recipe *recipe);
-static GglError create_recipe_directory(Recipe *recipe, char *directory_path);
-static void create_directories(const char *path);
+static GglError create_component_directory(Recipe *recipe, char **directory_path, char *type);
+static void create_directories(const char *path, size_t path_size);
 static GglError copy_file(const char *src_path, const char *dest_path);
-
 bool shutdown = false;
+bool recipe_is_json = false;
 
 void *ggl_deployment_handler_start(void *ctx) {
     (void) ctx;
@@ -67,25 +69,28 @@ static void handle_deployment(GgdeploymentdDeployment deployment) {
         if (deployment.deployment_type == GGDEPLOYMENT_LOCAL) {
             GgdeploymentdDeploymentDocument deployment_doc
                 = deployment.deployment_document;
+            Recipe recipe;
             if (deployment_doc.recipe_directory_path.len != 0) {
-                load_recipe(deployment_doc.recipe_directory_path);
+                load_recipe(deployment_doc.recipe_directory_path, &recipe);
             }
             if (deployment_doc.artifact_directory_path.len != 0) {
-                load_artifact(deployment_doc.artifact_directory_path);
+                copy_artifacts(deployment_doc.artifact_directory_path, &recipe);
             }
         }
 
         if (deployment.deployment_type == GGDEPLOYMENT_IOT_JOBS) {
             // not yet supported
+            GGL_LOGE("deployment-handler", "IoT Jobs deployments are not currently supported.");
         }
 
         if (deployment.deployment_type == GGDEPLOYMENT_SHADOW) {
             // not yet supported
+            GGL_LOGE("deployment-handler", "Shadow deployments are not currently supported.");
         }
     }
 }
 
-static GglError load_recipe(GglBuffer recipe_dir) {
+static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe) {
     // open and iterate through the provided recipe directory
     struct dirent *entry;
     DIR *dir = opendir((char *) recipe_dir.data);
@@ -101,11 +106,16 @@ static GglError load_recipe(GglBuffer recipe_dir) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     while ((entry = readdir(dir)) != NULL) {
         // check that the entry is not another directory
-        // note: d_type may not be available on all file systems, need to
-        // research further
         if (entry->d_type != DT_DIR) {
+            // determine if recipe is in json or yaml format
+            size_t filename_len = strlen(entry->d_name);
+            if(filename_len > EXTENSION_LEN && strcmp(entry->d_name + filename_len - EXTENSION_LEN, YAML_EXTENSION) == 0) {
+                recipe_is_json = true;
+            }
+
             // build full path to recipe file
-            size_t path_size = sizeof(recipe_dir.data) + sizeof(entry->d_name);
+            size_t path_size = strlen((char *) recipe_dir.data) + filename_len + 2;
+            GGL_LOGI("test", "path size: %zu", path_size);
             char *full_path = malloc(path_size);
             snprintf(
                 full_path,
@@ -116,8 +126,7 @@ static GglError load_recipe(GglBuffer recipe_dir) {
             );
 
             // parse recipe into Recipe model
-            Recipe recipe;
-            GglError read_err = read_recipe(full_path, &recipe);
+            GglError read_err = read_recipe(full_path, recipe);
 
             if (read_err != GGL_ERR_OK) {
                 free(full_path);
@@ -127,7 +136,7 @@ static GglError load_recipe(GglBuffer recipe_dir) {
             // create recipe directory if it does not exist
             char *directory_path = NULL;
             GglError create_directory_err
-                = create_recipe_directory(&recipe, directory_path);
+                = create_component_directory(recipe, &directory_path, RECIPES);
             if (create_directory_err != GGL_ERR_OK) {
                 free(directory_path);
                 free(full_path);
@@ -135,19 +144,24 @@ static GglError load_recipe(GglBuffer recipe_dir) {
             }
 
             // build recipe file destination path
-            size_t recipe_file_name_size = recipe.component_name.len
-                + recipe.component_version.len + JSON_EXTENSION_LEN + 1;
+            // this is the path to the directory plus the recipe file name
+            // the recipe file name follows the format componentName-componentVersion.json
+            size_t recipe_file_name_size = recipe->component_name.len
+                + recipe->component_version.len + EXTENSION_LEN + 1;
             char *recipe_file_dest_path
-                = malloc(sizeof(directory_path) + recipe_file_name_size);
-            snprintf(
-                recipe_file_dest_path,
-                sizeof(recipe_file_dest_path),
-                "%s/%s-%s%s",
-                directory_path,
-                (char *) recipe.component_name.data,
-                (char *) recipe.component_version.data,
-                JSON_EXTENSION
-            );
+                = malloc(strlen(directory_path) + recipe_file_name_size);
+            recipe_file_dest_path[0] = '\0';
+
+            strncat(recipe_file_dest_path, directory_path, strlen(directory_path));
+            strncat(recipe_file_dest_path, "/", 1);
+            strncat(recipe_file_dest_path, (char *) recipe->component_name.data, recipe->component_name.len);
+            strncat(recipe_file_dest_path, "-", 1);
+            strncat(recipe_file_dest_path, (char *) recipe->component_version.data, recipe->component_version.len);
+            if(recipe_is_json) {
+                strncat(recipe_file_dest_path, JSON_EXTENSION, EXTENSION_LEN);
+            } else {
+                strncat(recipe_file_dest_path, YAML_EXTENSION, EXTENSION_LEN);
+            }
 
             // copy the recipe from the path provided in the deployment doc to
             // the device
@@ -206,12 +220,19 @@ static GglError read_recipe(char *recipe_path, Recipe *recipe) {
     GglBuffer recipe_content
         = { .data = (uint8_t *) buff, .len = (size_t) file_size };
     GglObject val;
+
     static uint8_t
         json_decode_mem[GGL_RECIPE_CONTENT_MAX_SIZE * sizeof(GglObject)];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(json_decode_mem));
 
-    GglError decode_err
-        = ggl_json_decode_destructive(recipe_content, &balloc.alloc, &val);
+    // parse depending on file type
+    GglError decode_err;
+    if(recipe_is_json) {
+        decode_err
+            = ggl_json_decode_destructive(recipe_content, &balloc.alloc, &val);
+    } else {
+        //TODO use yaml parsing here
+    }
     free(buff);
 
     if (decode_err != GGL_ERR_OK) {
@@ -267,55 +288,57 @@ static GglError parse_recipe(GglMap recipe_map, Recipe *recipe) {
     return GGL_ERR_OK;
 }
 
-static GglError create_recipe_directory(Recipe *recipe, char *directory_path) {
-    // build path for the directory in gg lite which will store the recipe
+static GglError create_component_directory(Recipe *recipe, char **directory_path, char *type) {
+    // build path for the requested directory
+    // type parameter determines if we create directories for component recipes or artifacts
     // TODO: we need the root path, where to get it? placeholder for now
     const char *root_path = "/home/ubuntu/ggl";
-    size_t full_path_size = strlen(root_path) + RECIPES_LEN
-        + recipe->component_name.len + recipe->component_version.len;
-    directory_path = malloc(full_path_size);
-    snprintf(
-        directory_path,
-        full_path_size,
-        "%s/%s/%s/%s",
-        root_path,
-        RECIPES,
-        (char *) recipe->component_name.data,
-        (char *) recipe->component_version.data
-    );
+    size_t full_path_size = strlen(root_path) + strlen(type)
+        + recipe->component_name.len + recipe->component_version.len + 4;
+    *directory_path = malloc(full_path_size);
+    *directory_path[0] = '\0';
+
+    strncat(*directory_path, root_path, strlen(root_path));
+    strncat(*directory_path, "/", 1);
+    strncat(*directory_path, type, strlen(type));
+    strncat(*directory_path, "/", 1);
+    strncat(*directory_path, (char *) recipe->component_name.data, recipe->component_name.len);
+    strncat(*directory_path, "/", 1);
+    strncat(*directory_path, (char *) recipe->component_version.data, recipe->component_version.len);
 
     // check if the directory exists
     struct stat st;
-    if (stat(directory_path, &st) != 0) {
+    if (stat(*directory_path, &st) != 0) {
         if (errno == ENOENT) {
             // directory does not exist, create it
-            create_directories(directory_path);
+            create_directories(*directory_path, full_path_size);
         }
     } else if (!S_ISDIR(st.st_mode)) {
         GGL_LOGE(
             "deployment-handler",
-            "Path for recipe directory already %s exists, but is not a "
+            "Path %s already exists, but is not a "
             "directory.",
-            directory_path
+            *directory_path
         );
         return GGL_ERR_INVALID;
     } else {
         GGL_LOGD(
             "deployment-handler",
-            "Recipe directory %s already exists.",
-            directory_path
+            "Directory %s already exists.",
+            *directory_path
         );
     }
 
     return GGL_ERR_OK;
 }
 
-static void create_directories(const char *path) {
-    char *tmp = malloc(sizeof(path));
+static void create_directories(const char *path, size_t path_size) {
+    char *tmp = malloc(path_size);
+    tmp[0] = '\0';
     char *p = NULL;
     size_t len;
 
-    snprintf(tmp, sizeof(tmp), "%s", path);
+    snprintf(tmp, path_size, "%s", path);
     len = strlen(tmp);
     if (tmp[len - 1] == '/') {
         tmp[len - 1] = 0;
@@ -383,7 +406,63 @@ static GglError copy_file(const char *src_path, const char *dest_path) {
     return GGL_ERR_OK;
 }
 
-static GglError load_artifact(GglBuffer artifact_dir) {
+static GglError copy_artifacts(GglBuffer artifact_dir, Recipe *recipe) {
+    // NOTE: we currently do not support unzipping artifacts. This method assumes all artifact files are available in the artifact directory path provided in the deployment.
     (void) artifact_dir;
+
+    // create the artifacts directory for the component
+    char *directory_path = NULL;
+    GglError create_directory_err = create_component_directory(recipe, &directory_path, ARTIFACTS);
+
+    if(create_directory_err != GGL_ERR_OK) {
+        free(directory_path);
+        return create_directory_err;
+    }
+
+    // open and iterate through the provided artifacts directory
+    struct dirent *entry;
+    DIR *dir = opendir((char *) artifact_dir.data);
+
+    if(dir == NULL) {
+        GGL_LOGE("deployment-handler", "Deployment document contains invalid artifact directory path.");
+        return GGL_ERR_INVALID;
+    }
+
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    while((entry = readdir(dir)) != NULL) {
+        // check that the entry is not another directory
+        if(entry->d_type != DT_DIR) {
+            // build the full path to the file for both the source and destination directories
+            size_t filename_len = strlen(entry->d_name);
+            size_t src_file_path_size = strlen((char *) artifact_dir.data) + filename_len + 1;
+            size_t dest_file_path_size = strlen(directory_path) + filename_len + 1;
+
+            char *src_file_path = malloc(src_file_path_size);
+            src_file_path[0] = '\0';
+            strncat(src_file_path, (char *) artifact_dir.data, artifact_dir.len);
+            strncat(src_file_path, "/", 1);
+            strncat(src_file_path, entry->d_name, filename_len);
+
+            char *dest_file_path = malloc(dest_file_path_size);
+            dest_file_path[0] = '\0';
+            strncat(dest_file_path, directory_path, strlen(directory_path));
+            strncat(dest_file_path, "/", 1);
+            strncat(dest_file_path, entry->d_name, filename_len);
+
+            GglError copy_file_err = copy_file(src_file_path, dest_file_path);
+
+            if(copy_file_err != GGL_ERR_OK) {
+                free(dest_file_path);
+                free(src_file_path);
+                free(directory_path);
+                return copy_file_err;
+            }
+
+            free(src_file_path);
+            free(dest_file_path);
+        }
+    }
+
+    free(directory_path);
     return GGL_ERR_OK;
 }
