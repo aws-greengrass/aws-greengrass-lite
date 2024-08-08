@@ -10,9 +10,9 @@
 #include <ggl/error.h>
 
 typedef struct CertificateDetails {
-    char *gghttplib_cert_path;
-    char *gghttplib_p_key_path;
-    char *gghttplib_root_ca_path;
+    const char *gghttplib_cert_path;
+    const char *gghttplib_p_key_path;
+    const char *gghttplib_root_ca_path;
 } CertificateDetails;
 
 /// @brief Fetches temporary AWS credentials.
