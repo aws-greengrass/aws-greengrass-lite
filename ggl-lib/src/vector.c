@@ -1,3 +1,7 @@
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "ggl/vector.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
@@ -20,21 +24,15 @@ GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject * out) {
+GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out) {
     if (vector->list.len == 0) {
         return GGL_ERR_RANGE;
     }
-    if(out != NULL) {
-        *out= vector->list.items[vector->list.len - 1];
+    if (out != NULL) {
+        *out = vector->list.items[vector->list.len - 1];
     }
-    if (last_item->type == GGL_TYPE_BUF) {
-        GGL_LOGI(
-            "ggl_obj_vec_push",
-            "Popping BUF %.*s",
-            (int) last_item->buf.len,
-            (char *) last_item->buf.data
-        );
-    }
+    GGL_LOGT("ggl_obj_vec_push", "popped from %p", vector);
+
     vector->list.len--;
     return GGL_ERR_OK;
 }

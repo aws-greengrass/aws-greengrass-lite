@@ -22,6 +22,6 @@ typedef struct {
                               .capacity = (sizeof(__VA_ARGS__)/sizeof(*(__VA_ARGS__))) }))
 
 GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object);
-GglError ggl_obj_vec_pop(GglObjVec *vector);
+GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out);
 
 #endif
