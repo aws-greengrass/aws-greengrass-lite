@@ -2,4 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(gghttplib LIBS ggl-lib PkgConfig::libcurl)
+ggl_init_module(ggl-http LIBS ggl-lib PkgConfig::libcurl)

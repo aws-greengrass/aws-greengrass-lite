@@ -59,17 +59,30 @@ void gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 );
 
-/**
- * @brief Processes an HTTP request using the provided cURL data.
- *
- * This function sets up the CURL handle with the necessary options, performs
- * the HTTP request, and writes the response to a buffer.
- *
- * @param[in] curl_data A pointer to the CurlData struct containing the cURL
- * handle and other request data.
- * @return A GglBuffer struct containing the response data from the HTTP
- * request.
- */
-GglBuffer gghttplib_process_request(CurlData *curl_data);
+
+/// @brief Processes an HTTP request using the provided cURL data.
+///
+/// This function sets up the CURL handle with the necessary options, performs
+/// the HTTP request, and writes the response to a buffer.
+///
+/// @param[in] curl_data A pointer to the CurlData struct containing the cURL
+/// handle and other request data.
+/// @return A GglBuffer struct containing the response data from the HTTP
+/// request.
+void gghttplib_process_request(CurlData *curl_data, GglBuffer *response_buffer);
+
+
+/// @brief Processes an HTTP request using the provided cURL data.
+///
+/// This function sets up the CURL handle with the necessary options, performs
+/// the HTTP request, and writes the response to a file pointer.
+///
+/// @param[in] curl_data A pointer to the CurlData struct containing the cURL
+/// handle and other request data.
+/// @param[in] file_pointer A file pointer to the write the data to
+/// @return A GglError for success status report
+GglError gghttplib_process_request_with_file_pointer(
+    CurlData *curl_data, FILE *file_pointer
+);
 
 #endif

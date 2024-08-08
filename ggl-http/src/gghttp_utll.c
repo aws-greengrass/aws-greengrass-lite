@@ -17,47 +17,37 @@
 
 #define MAX_HEADER_LENGTH 1000
 
-/**
- * @brief Callback function to write the HTTP response data to a buffer.
- *
- * This function is used as a callback by CURL to handle the response data
- * received from an HTTP request. It reallocates memory for the output buffer
- * and copies the response data into the buffer.This function will be called
- * multiple times when a new data is fetched via libcurl.
- *
- * @param[in] response_data A pointer to the response data received from CURL.
- * @param[in] size The size of each element in the response data.
- * @param[in] nmemb The number of elements in the response data.
- * @param[in] output_buffer A pointer to the GglBuffer struct where the response
- *                      data will be stored.
- *
- * @return The number of bytes written to the output buffer.
- */
-
+/// @brief Callback function to write the HTTP response data to a buffer.
+///
+/// This function is used as a callback by CURL to handle the response data
+/// received from an HTTP request. It reallocates memory for the output buffer
+/// and copies the response data into the buffer.This function will be called
+/// multiple times when a new data is fetched via libcurl.
+///
+/// @param[in] response_data A pointer to the response data received from CURL.
+/// @param[in] size The size of each element in the response data.
+/// @param[in] nmemb The number of elements in the response data.
+/// @param[in] output_buffer A pointer to the GglBuffer struct where the
+/// response
+///                      data will be stored.
+///
+/// @return The number of bytes written to the output buffer.
 static size_t write_response_to_buffer(
-    void *response_data, size_t size, size_t nmemb, GglBuffer *output_buffer
+    void *response_data, size_t size, size_t nmemb, void *output_buffer_void
 ) {
     size_t size_of_response_data = size * nmemb;
-    uint8_t *ptr = NULL;
+    GglBuffer * output_buffer = output_buffer_void;
 
-    ptr = realloc(
-        output_buffer->data, output_buffer->len + size_of_response_data + 1
-    );
-
-    if (ptr != NULL) {
-        output_buffer->data = ptr;
-        memcpy(
-            output_buffer->data + output_buffer->len,
-            response_data,
-            size_of_response_data
-        );
-        output_buffer->len += size_of_response_data;
-        output_buffer->data[output_buffer->len] = 0;
+    if (output_buffer != NULL && output_buffer->len >= size_of_response_data) {
+        memcpy(output_buffer->data, response_data, size_of_response_data);
+        output_buffer->len = size_of_response_data;
     } else {
         GGL_LOGE(
-            "write_response_to_buffer",
-            "Failed to allocate memory to the ptr pointer"
+            "gg_http_util",
+            "Invalid memory space provided. Required size: %ld",
+            size_of_response_data
         );
+        return 0;
     }
 
     return size_of_response_data;
@@ -112,16 +102,16 @@ void gghttplib_add_certificate_data(
     );
 }
 
-GglBuffer gghttplib_process_request(CurlData *curl_data) {
-    GglBuffer response_buffer = { 0 };
-
+void gghttplib_process_request(
+    CurlData *curl_data, GglBuffer *response_buffer
+) {
     curl_easy_setopt(
         curl_data->curl, CURLOPT_HTTPHEADER, curl_data->headers_list
     );
     curl_easy_setopt(
         curl_data->curl, CURLOPT_WRITEFUNCTION, write_response_to_buffer
     );
-    curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, &response_buffer);
+    curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, response_buffer);
 
     CURLcode http_response_code = curl_easy_perform(curl_data->curl);
 
@@ -134,5 +124,22 @@ GglBuffer gghttplib_process_request(CurlData *curl_data) {
     }
 
     gghttplib_destroy_curl(curl_data);
-    return response_buffer;
+}
+
+GglError gghttplib_process_request_with_file_pointer(
+    CurlData *curl_data, FILE *file_pointer
+) {
+    CURLcode ret = CURLE_OK;
+    GglError return_code = GGL_ERR_OK;
+
+    curl_easy_setopt(curl_data, CURLOPT_WRITEFUNCTION, NULL);
+    curl_easy_setopt(curl_data, CURLOPT_WRITEDATA, file_pointer);
+
+    ret = curl_easy_perform(curl_data);
+    if (ret != CURLE_OK) {
+        return_code = GGL_ERR_FATAL;
+    }
+    curl_easy_cleanup(curl_data);
+
+    return return_code;
 }
