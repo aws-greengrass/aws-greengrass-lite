@@ -246,9 +246,9 @@ static GglError process_map(
             }
             error = ggconfig_write_value_at_key(&path_buffer, &value_buffer);
 
-            GGL_LOGI(
-                "fake_write",
-                "%s = %.*s %ld",
+            GGL_LOGT(
+                "rpc_write_object:process_map",
+                "writing %s = %.*s %ld",
                 path_string,
                 (int) value_buffer.len,
                 (char *) value_buffer.data,
@@ -275,9 +275,9 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         && (val->type == GGL_TYPE_BUF)) {
         // TODO: adjust the initial path with the component
         ggl_obj_vec_push(&key_path, *val);
-        GGL_LOGI(
+        GGL_LOGT(
             "rpc_write_object",
-            "component %.*s",
+            "found component %.*s",
             (int) val->buf.len,
             (char *) val->buf.data
         );
@@ -295,6 +295,8 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         for (size_t x = 0; x < list->len; x++) {
             if (ggl_obj_vec_push(&key_path, list->items[x]) != GGL_ERR_OK) {
                 GGL_LOGE("rpc_write_object", "Error pushing to the keypath");
+                ggl_return_err(handle, GGL_ERR_INVALID);
+                return;
             }
         }
     } else {
@@ -305,15 +307,17 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
+    //! TODO: should timestamp a required field?  Currently defaulting to 1 (1
+    //! second after the dawn of time)
     if (ggl_map_get(params, GGL_STR("timeStamp"), &val)
         && (val->type == GGL_TYPE_I64)) {
-        GGL_LOGI("rpc_write_object", "timeStamp %ld", val->i64);
+        GGL_LOGT("rpc_write_object", "timeStamp %ld", val->i64);
         time_stamp = val->i64;
     }
 
     if (ggl_map_get(params, GGL_STR("valueToMerge"), &val)
         && (val->type == GGL_TYPE_MAP)) {
-        GGL_LOGI("rpc_write_object", "valueToMerge is a Map");
+        GGL_LOGT("rpc_write_object", "valueToMerge is a Map");
         GglError error = process_map(&key_path, &val->map, time_stamp);
         if (error != GGL_ERR_OK) {
             ggl_return_err(handle, error);
