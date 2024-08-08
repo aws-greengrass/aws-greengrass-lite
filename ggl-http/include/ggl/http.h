@@ -10,9 +10,9 @@
 #include <ggl/error.h>
 
 typedef struct CertificateDetails {
-    char *gghttplib_cert_path;
-    char *gghttplib_p_key_path;
-    char *gghttplib_root_ca_path;
+    const char *gghttplib_cert_path;
+    const char *gghttplib_p_key_path;
+    const char *gghttplib_root_ca_path;
 } CertificateDetails;
 
 /// @brief Fetches temporary AWS credentials.
@@ -22,8 +22,9 @@ typedef struct CertificateDetails {
 /// fetched.
 /// @param[in] certificate_details The certificate and private kye details to be
 /// used for authentication.
+/// @param[in] GglBuffer containing the fetched token.
 ///
-/// @return GglBuffer containing the fetched token.
+/// @return void
 ///
 /// This function sends a request to the IoT credentials endpoint URL using the
 /// provided certificate and private keys details to authenticate the request.
@@ -32,13 +33,11 @@ typedef struct CertificateDetails {
 ///
 /// @note The called need to make sure that the paths of these certificates are
 /// accessible in general without special privileges.
-///
-/// @note The caller is responsible for freeing the memory associated with the
-///       returned GglBuffer object -> data member.
-GglBuffer fetch_token(
+void fetch_token(
     const char *url_for_token,
     const char *thing_name,
-    CertificateDetails certificate_details
+    CertificateDetails certificate_details,
+    GglBuffer *buffer
 );
 
 /// @brief Downloads the content from the specified URL and saves it to the

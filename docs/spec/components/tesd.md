@@ -62,9 +62,9 @@ key-value pairs described by the parameters listed in their respective sections.
 The request method will return back to the caller temporary IoT Core session
 credentials.
 
-- [tesd-bus-request_credentials-1] `token` is an optional parameter of type
-  buffer.
-  - [tesd-bus-request_credentials-1.1] `token` can contain an unique token
+- [tesd-bus-request_credentials-1] `authz_token` is an optional parameter of
+  type buffer.
+  - [tesd-bus-request_credentials-1.1] `authz_token` can contain an unique token
     identifier which will be validated before retrieval.
 - [iotcored-bus-request_credentials-2] The method response is a map containing
   `access_key_id`, `secret_access_key`, `token`, and `expiration` keys, all of
