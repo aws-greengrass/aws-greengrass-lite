@@ -17,9 +17,12 @@ typedef struct {
 } GglObjVec;
 
 #define GGL_OBJ_VEC(...) \
-    _Generic((&(__VA_ARGS__)), GglObject(*)[] \
-             : ((GglObjVec) { .list = {.items = (__VA_ARGS__), .len = 0}), \
-                              .capacity = (sizeof(__VA_ARGS__)/sizeof(*(__VA_ARGS__))) }))
+    _Generic( \
+        (&(__VA_ARGS__)), \
+        GglObject(*)[]: ((GglObjVec \
+        ) { .list = { .items = (__VA_ARGS__), .len = 0 }, \
+            .capacity = (sizeof(__VA_ARGS__) / sizeof(GglObject)) }) \
+    )
 
 GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object);
 GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out);
