@@ -21,7 +21,7 @@ GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
 }
 
 GglError ggl_obj_vec_pop(GglObjVec *vector) {
-    if (vector->list.len <= 0) {
+    if (vector->list.len == 0) {
         return GGL_ERR_RANGE;
     }
     GglObject *last_item = &vector->list.items[vector->list.len - 1];
