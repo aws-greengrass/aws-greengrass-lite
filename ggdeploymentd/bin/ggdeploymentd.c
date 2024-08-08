@@ -2,14 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-<<<<<<< HEAD:ggdeploymentd/src/main.c
-#include "args.h"
-#include "bus_server.h"
-#include "deployment_handler.h"
-#include "deployment_queue.h"
-=======
 #include "ggdeploymentd.h"
->>>>>>> main:ggdeploymentd/bin/ggdeploymentd.c
 #include <argp.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
