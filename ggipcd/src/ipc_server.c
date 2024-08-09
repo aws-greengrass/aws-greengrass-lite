@@ -457,6 +457,27 @@ void ggl_ipc_release_subscription_ctx(GglIpcSubscriptionCtx *ctx) {
     *sub_ctx = (GglIpcSubscriptionCtx) { 0 };
 }
 
+GglError ggl_ipc_subscription_ctx_set_recv_handle(
+    GglIpcSubscriptionCtx *ctx, uint32_t resp_handle, uint32_t recv_handle
+) {
+    assert(resp_handle != 0);
+    assert(recv_handle != 0);
+
+    pthread_mutex_lock(&subscription_ctx_mtx);
+    GGL_DEFER(pthread_mutex_unlock, subscription_ctx_mtx);
+
+    if (ctx->resp_handle == resp_handle) {
+        ctx->recv_handle = recv_handle;
+        return GGL_ERR_OK;
+    }
+
+    GGL_LOGE(
+        "ipc-server",
+        "Setting recv handle for subscription failed; already released."
+    );
+    return GGL_ERR_FAILURE;
+}
+
 static GglError release_subscriptions_for_conn(uint32_t handle, size_t index) {
     (void) index; // This is pool index, not in subscription array
 

@@ -40,4 +40,9 @@ GglError ggl_ipc_get_subscription_ctx(
 /// Cleanup for subscription context, for ggl_subscribe on_close
 void ggl_ipc_release_subscription_ctx(GglIpcSubscriptionCtx *ctx);
 
+/// Set the recv handle for a subscription context
+GglError ggl_ipc_subscription_ctx_set_recv_handle(
+    GglIpcSubscriptionCtx *ctx, uint32_t resp_handle, uint32_t recv_handle
+);
+
 #endif
