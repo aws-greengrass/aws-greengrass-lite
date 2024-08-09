@@ -130,7 +130,5 @@ GglError run_tesd(void) {
         return ret;
     }
 
-    // iotcored_start_server(args);
-
     return GGL_ERR_FAILURE;
 }
