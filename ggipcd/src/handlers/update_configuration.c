@@ -5,8 +5,6 @@
 #include "../ipc_server.h"
 #include "handlers.h"
 #include <ggl/alloc.h>
-#include <ggl/base64.h>
-#include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -14,7 +12,6 @@
 #include <ggl/object.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 GglError handle_update_configuration(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
