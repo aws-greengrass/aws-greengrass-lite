@@ -139,7 +139,7 @@ try_add_link_option(compress-debug-sections-zlib
                     LINKER:--compress-debug-sections=zlib)
 
 try_add_link_option_if(gc-sections $<NOT:$<CONFIG:DEBUG>> LINKER:--gc-sections)
-try_add_link_option_if(strip-all $<NOT:$<CONFIG:DEBUG>> LINKER:-s)
+try_add_link_option_if(strip-all $<CONFIG:Release,MinSizeRel> LINKER:-s)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
