@@ -16,7 +16,10 @@ int main(void) {
     static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
 
     GglMap args
-        = GGL_MAP({ GGL_STR("recipe_directory_path"), GGL_OBJ_STR("aaa") });
+        = GGL_MAP(
+            { GGL_STR("recipe_directory_path"), GGL_OBJ_STR("/home/ubuntu/recipes") },
+            { GGL_STR("artifact_directory_path"), GGL_OBJ_STR("/home/ubuntu/artifacts")}
+        );
 
     GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));
     GglObject result;
