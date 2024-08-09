@@ -7,18 +7,14 @@
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
-#include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <ggl/vector.h>
 #include <ggl/vector.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
-#define MAX_KEY_PATH_DEPTH 25
 
 #define MAX_KEY_PATH_DEPTH 25
 
@@ -237,20 +233,22 @@ static GglError process_map(
             // write the data to the DB
             // FIXME: Converting key list into a / list but final version will
             // be to send the list
+            // FIXME, the strnlen will go away with the above fixme
             char *path_string = print_key_path(&key_path->list);
-            GglBuffer path_buffer
-                = { (uint8_t *) path_string, strnlen(path_string, 500) };
+            GglBuffer path_buffer = { .data = (uint8_t *) path_string,
+                                      .len = strnlen(path_string, 64) };
             uint8_t value_string[512] = { 0 };
-            GglBuffer value_buffer = { value_string, sizeof(value_string) };
+            GglBuffer value_buffer
+                = { .data = value_string, .len = sizeof(value_string) };
             error = ggl_json_encode(kv->val, &value_buffer);
             if (error != GGL_ERR_OK) {
                 break;
             }
             error = ggconfig_write_value_at_key(&path_buffer, &value_buffer);
 
-            GGL_LOGI(
-                "fake_write",
-                "%s = %.*s %ld",
+            GGL_LOGT(
+                "rpc_write_object:process_map",
+                "writing %s = %.*s %ld",
                 path_string,
                 (int) value_buffer.len,
                 (char *) value_buffer.data,
@@ -277,9 +275,9 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         && (val->type == GGL_TYPE_BUF)) {
         // TODO: adjust the initial path with the component
         ggl_obj_vec_push(&key_path, *val);
-        GGL_LOGI(
+        GGL_LOGT(
             "rpc_write_object",
-            "component %.*s",
+            "found component %.*s",
             (int) val->buf.len,
             (char *) val->buf.data
         );
@@ -297,6 +295,8 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         for (size_t x = 0; x < list->len; x++) {
             if (ggl_obj_vec_push(&key_path, list->items[x]) != GGL_ERR_OK) {
                 GGL_LOGE("rpc_write_object", "Error pushing to the keypath");
+                ggl_return_err(handle, GGL_ERR_INVALID);
+                return;
             }
         }
     } else {
@@ -316,7 +316,7 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
 
     if (ggl_map_get(params, GGL_STR("valueToMerge"), &val)
         && (val->type == GGL_TYPE_MAP)) {
-        GGL_LOGI("rpc_write_object", "valueToMerge is a Map");
+        GGL_LOGT("rpc_write_object", "valueToMerge is a Map");
         GglError error = process_map(&key_path, &val->map, time_stamp);
         if(error != GGL_ERR_OK){
             ggl_return_err(handle, error);
