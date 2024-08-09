@@ -16,6 +16,7 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/yaml_decode.h>
+#include <assert.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -100,9 +101,13 @@ static void handle_deployment(GgdeploymentdDeployment deployment) {
 }
 
 static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe) {
+    assert(recipe_dir.data[recipe_dir.len - 1] == '\0');
+
     // open and iterate through the provided recipe directory
     struct dirent *entry;
     DIR *dir = opendir((char *) recipe_dir.data);
+
+    GGL_LOGI("test-depl-handler", "%.*s", (int) recipe_dir.len, (char*) recipe_dir.data);
 
     if (dir == NULL) {
         GGL_LOGE(
@@ -121,10 +126,11 @@ static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe) {
             if (filename_len > EXTENSION_LEN
                 && strcmp(
                        entry->d_name + filename_len - EXTENSION_LEN,
-                       YAML_EXTENSION
+                       JSON_EXTENSION
                    ) == 0) {
                 recipe_is_json = true;
             }
+            // TODO: Check that if it isn't a JSON, then it must be a YAML. It must support both .yml and .yaml.
 
             // build full path to recipe file
             size_t path_size
@@ -162,7 +168,7 @@ static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe) {
             // the recipe file name follows the format
             // componentName-componentVersion.json
             size_t recipe_file_name_size = recipe->component_name.len
-                + recipe->component_version.len + EXTENSION_LEN + 1;
+                + recipe->component_version.len + EXTENSION_LEN + 10;
             char *recipe_file_dest_path
                 = malloc(strlen(directory_path) + recipe_file_name_size);
             recipe_file_dest_path[0] = '\0';
@@ -478,9 +484,9 @@ static GglError copy_artifacts(GglBuffer artifact_dir, Recipe *recipe) {
             // destination directories
             size_t filename_len = strlen(entry->d_name);
             size_t src_file_path_size
-                = strlen((char *) artifact_dir.data) + filename_len + 1;
+                = strlen((char *) artifact_dir.data) + filename_len + 10;
             size_t dest_file_path_size
-                = strlen(directory_path) + filename_len + 1;
+                = strlen(directory_path) + filename_len + 10;
 
             char *src_file_path = malloc(src_file_path_size);
             src_file_path[0] = '\0';
