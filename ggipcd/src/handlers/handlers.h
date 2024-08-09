@@ -28,5 +28,7 @@ void ggl_ipc_subscription_on_close(void *ctx, uint32_t handle);
 GglIpcHandler handle_publish_to_iot_core;
 GglIpcHandler handle_subscribe_to_iot_core;
 GglIpcHandler handle_update_configuration;
+GglIpcHandler handle_publish_to_topic;
+GglIpcHandler handle_subscribe_to_topic;
 
 #endif

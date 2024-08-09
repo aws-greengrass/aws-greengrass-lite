@@ -10,6 +10,7 @@ corge
 cpus
 DGGL
 DIOTCORED
+dont
 EFAILURE
 EOK
 EPOLLIN
@@ -26,6 +27,8 @@ gghttplib
 ggipcd
 gglib
 gglite
+ggpubsub
+ggpubsubd
 grault
 greengrasscoreipc
 greengrassv

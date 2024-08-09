@@ -85,8 +85,11 @@ set(CMAKE_C_FLAGS_MINSIZEREL "")
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
 add_cflags($<$<CONFIG:Debug>:-O0>)
-add_cflags($<$<CONFIG:MinSizeRel>:-Oz>)
 add_cflags($<$<CONFIG:Release,RelWithDebInfo>:-O3>)
+try_add_cflag_if(Oz $<CONFIG:MinSizeRel> -Oz)
+if(NOT compiler_has_Oz)
+  add_cflags($<$<CONFIG:MinSizeRel>:-Os>)
+endif()
 
 add_cflags($<$<CONFIG:Debug,RelWithDebInfo>:-ggdb3>)
 
@@ -139,7 +142,7 @@ try_add_link_option(compress-debug-sections-zlib
                     LINKER:--compress-debug-sections=zlib)
 
 try_add_link_option_if(gc-sections $<NOT:$<CONFIG:DEBUG>> LINKER:--gc-sections)
-try_add_link_option_if(strip-all $<NOT:$<CONFIG:DEBUG>> LINKER:-s)
+try_add_link_option_if(strip-all $<CONFIG:Release,MinSizeRel> LINKER:-s)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
@@ -210,6 +213,7 @@ add_subdirectory(ggipcd)
 add_subdirectory(ggconfigd)
 add_subdirectory(deps/core_mqtt)
 add_subdirectory(iotcored)
+add_subdirectory(ggpubsubd)
 add_subdirectory(ggdeploymentd)
 add_subdirectory(gg-fleet-statusd)
 add_subdirectory(tesd)

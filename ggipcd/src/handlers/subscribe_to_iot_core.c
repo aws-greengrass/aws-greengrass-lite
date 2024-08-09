@@ -169,7 +169,7 @@ GglError handle_subscribe_to_iot_core(
         return ret;
     }
 
-    ctx->recv_handle = recv_handle;
+    (void) ggl_ipc_subscription_ctx_set_recv_handle(ctx, handle, recv_handle);
 
     return ggl_ipc_response_send(
         handle,
