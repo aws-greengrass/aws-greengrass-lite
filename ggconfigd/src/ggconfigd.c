@@ -264,7 +264,7 @@ static GglError process_map(
 
 static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
     /// Receive the following parameters
-    long long time_stamp;
+    long long time_stamp = 1;
     (void) ctx;
 
     GglObject *val;
@@ -307,7 +307,7 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
-    if (ggl_map_get(params, GGL_STR("timeStamp"), &val)
+    if (ggl_map_get(params, GGL_STR("timestamp"), &val)
         && (val->type == GGL_TYPE_I64)) {
         GGL_LOGI("rpc_write_object", "timeStamp %ld", val->i64);
     } else {
@@ -318,7 +318,11 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         && (val->type == GGL_TYPE_MAP)) {
         GGL_LOGI("rpc_write_object", "valueToMerge is a Map");
         GglError error = process_map(&key_path, &val->map, time_stamp);
-        ggl_return_err(handle, error);
+        if(error != GGL_ERR_OK){
+            ggl_return_err(handle, error);
+        } else {
+            ggl_respond(handle,GGL_OBJ_NULL());
+        }
         return;
     }
     GGL_LOGE("rpc-write_object", "write received invalid value argument.");
@@ -329,8 +333,6 @@ void ggconfigd_start_server(void) {
     GglRpcMethodDesc handlers[]
         = { { GGL_STR("read"), false, rpc_read, NULL },
             { GGL_STR("write"), false, rpc_write, NULL },
-            { GGL_STR("subscribe"), true, rpc_subscribe, NULL },
-            { GGL_STR("write_object"), false, rpc_write_object, NULL } };
             { GGL_STR("subscribe"), true, rpc_subscribe, NULL },
             { GGL_STR("write_object"), false, rpc_write_object, NULL } };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
