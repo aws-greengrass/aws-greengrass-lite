@@ -102,6 +102,20 @@ static bool should_replace_deployment_in_queue(
     return new_deployment.deployment_stage != GGDEPLOYMENT_DEFAULT;
 }
 
+static GglError null_terminate_buffer(GglBuffer *buf, GglAlloc *alloc) {
+    uint8_t* mem = GGL_ALLOCN(alloc, uint8_t, buf->len + 1);
+    if (mem == NULL) {
+        GGL_LOGE("deployment-queue", "Failed to allocate memory for copying buffer.");
+        return GGL_ERR_NOMEM;
+    }
+
+    memcpy(mem, buf->data, buf->len);
+    mem[buf->len] = '\0';
+    buf->data = mem;
+    buf->len += 1;
+    return GGL_ERR_OK;
+}
+
 static GglError deep_copy_deployment(
     GgdeploymentdDeployment *location, GglAlloc *alloc
 ) {
@@ -130,19 +144,15 @@ static GglError deep_copy_deployment(
     }
     location->error_types = obj.list;
 
-    obj = GGL_OBJ(location->deployment_document.recipe_directory_path);
-    ret = ggl_obj_deep_copy(&obj, alloc);
+    ret = null_terminate_buffer(&location->deployment_document.recipe_directory_path, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    location->deployment_document.recipe_directory_path = obj.buf;
 
-    obj = GGL_OBJ(location->deployment_document.artifact_directory_path);
-    ret = ggl_obj_deep_copy(&obj, alloc);
+    ret = null_terminate_buffer(&location->deployment_document.artifact_directory_path, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    location->deployment_document.artifact_directory_path = obj.buf;
 
     obj = GGL_OBJ(location->deployment_document.root_component_versions_to_add);
     ret = ggl_obj_deep_copy(&obj, alloc);
