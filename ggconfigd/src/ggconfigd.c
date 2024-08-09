@@ -318,10 +318,10 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         && (val->type == GGL_TYPE_MAP)) {
         GGL_LOGT("rpc_write_object", "valueToMerge is a Map");
         GglError error = process_map(&key_path, &val->map, time_stamp);
-        if(error != GGL_ERR_OK){
+        if (error != GGL_ERR_OK) {
             ggl_return_err(handle, error);
         } else {
-            ggl_respond(handle,GGL_OBJ_NULL());
+            ggl_respond(handle, GGL_OBJ_NULL());
         }
         return;
     }
