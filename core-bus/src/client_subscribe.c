@@ -246,6 +246,9 @@ GglError ggl_subscribe(
 
     ret = ggl_socket_epoll_add(epoll_fd, conn, sub_handle);
     if (ret != GGL_ERR_OK) {
+        ggl_with_socket_handle_index(
+            set_sub_callbacks, &(SubCallbacks) { 0 }, &pool, sub_handle
+        );
         ggl_socket_handle_close(&pool, sub_handle);
         return ret;
     }
