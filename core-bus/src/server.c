@@ -296,6 +296,8 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
 }
 
 void ggl_return_err(uint32_t handle, GglError error) {
+    assert(error != GGL_ERR_OK); // Returning error ok is invalid
+
     pthread_mutex_lock(&encode_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, encode_array_mtx);
 
