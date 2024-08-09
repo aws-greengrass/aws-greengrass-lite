@@ -28,6 +28,7 @@ static const struct {
     { GGL_STR("aws.greengrass#SubscribeToIoTCore"),
       handle_subscribe_to_iot_core },
     { GGL_STR("aws.greengrass#PublishToTopic"), handle_publish_to_topic },
+    { GGL_STR("aws.greengrass#SubscribeToTopic"), handle_subscribe_to_topic },
 };
 
 static const size_t HANDLER_COUNT
