@@ -2,8 +2,8 @@ aarch64
 ALLOCN
 argp
 awsiotsdk
-clientv
 clientfd
+clientv
 coremqtt
 coreutils
 corge
