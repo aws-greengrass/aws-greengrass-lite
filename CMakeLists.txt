@@ -85,8 +85,11 @@ set(CMAKE_C_FLAGS_MINSIZEREL "")
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
 add_cflags($<$<CONFIG:Debug>:-O0>)
-add_cflags($<$<CONFIG:MinSizeRel>:-Oz>)
 add_cflags($<$<CONFIG:Release,RelWithDebInfo>:-O3>)
+try_add_cflag_if(Oz $<CONFIG:MinSizeRel> -Oz)
+if(NOT compiler_has_Oz)
+  add_cflags($<$<CONFIG:MinSizeRel>:-Os>)
+endif()
 
 add_cflags($<$<CONFIG:Debug,RelWithDebInfo>:-ggdb3>)
 
