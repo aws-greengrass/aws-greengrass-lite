@@ -1,14 +1,10 @@
 { src
 , lib
 , ggl-util
+, ggl-clang
 , pkg-config
 , cmake
 , clang-tools
-, openssl
-, curl
-, argp-standalone
-, sqlite
-, libyaml
 , ...
 }:
 let
@@ -19,7 +15,7 @@ let
     name = "clang-tidy-build-dir";
     src = ggl-util.fixedSrc;
     nativeBuildInputs = [ pkg-config clang-tools ];
-    buildInputs = [ openssl curl argp-standalone sqlite.dev libyaml.dev ];
+    inherit (ggl-clang) buildInputs;
     buildPhase = ''
       ${cmake}/bin/cmake -B $out -D CMAKE_BUILD_TYPE=Debug
       rm $out/CMakeFiles/CMakeConfigureLog.yaml
@@ -34,7 +30,7 @@ let
     name = "clang-tidy-${file}";
     src = ggl-util.fixedSrc;
     nativeBuildInputs = [ pkg-config clang-tools ];
-    buildInputs = [ openssl curl argp-standalone sqlite.dev libyaml.dev ];
+    inherit (ggl-clang) buildInputs;
     buildPhase = ''
       clang-tidy -p ${build-dir} --quiet --warnings-as-errors='*' ${file}
       touch $out
