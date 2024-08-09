@@ -509,13 +509,14 @@ GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value) {
 
     // notify any subscribers for this key
 
-    // TODO: read this comment copied from the JAVA and ensure this implements a similar functionality
-    // A subscriber is told what Topic changed, but must look in the Topic
-    // to get the new value.  There is no "old value" provided, although the publish framework
-    // endeavors to suppress notifying when the new value is the same as the old value.
-    // Subscribers do not necessarily get notified on every change.  If a sequence of changes
-    // happen in rapid succession, they may be collapsed into one notification.  This usually
-    // happens when a compound change occurs.
+    // TODO: read this comment copied from the JAVA and ensure this implements a
+    // similar functionality A subscriber is told what Topic changed, but must
+    // look in the Topic to get the new value.  There is no "old value"
+    // provided, although the publish framework endeavors to suppress notifying
+    // when the new value is the same as the old value. Subscribers do not
+    // necessarily get notified on every change.  If a sequence of changes
+    // happen in rapid succession, they may be collapsed into one notification.
+    // This usually happens when a compound change occurs.
 
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(
