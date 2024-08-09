@@ -1,4 +1,4 @@
-{ lib, pkgs, ggl-util, moduleArgs, ... }: {
+{ lib, pkgs, gglUtil, moduleArgs, ... }: {
   imports = [ (moduleArgs.config.devShell pkgs) ];
-  stdenv = lib.mkForce ggl-util.llvmStdenv;
+  stdenv = lib.mkForce gglUtil.llvmStdenv;
 }

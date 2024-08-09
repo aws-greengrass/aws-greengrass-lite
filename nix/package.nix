@@ -1,4 +1,4 @@
-{ ggl-util
+{ gglUtil
 , stdenv
 , pkg-config
 , cmake
@@ -12,10 +12,10 @@
 }:
 stdenv.mkDerivation {
   name = "aws-greengrass-lite";
-  src = ggl-util.fixedSrc;
+  src = gglUtil.filteredSrc;
   nativeBuildInputs = [ pkg-config cmake ninja ];
   buildInputs = [ openssl curl argp-standalone sqlite.dev libyaml.dev ];
   cmakeBuildType = "MinSizeRel";
-  cmakeFlags = [ "-DENABLE_WERROR=1" ];
+  cmakeFlags = gglUtil.fetchContentFlags ++ [ "-DENABLE_WERROR=1" ];
   meta = defaultMeta;
 }

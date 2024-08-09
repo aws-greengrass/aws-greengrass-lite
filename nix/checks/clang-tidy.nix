@@ -1,6 +1,6 @@
 { src
 , lib
-, ggl-util
+, gglUtil
 , ggl-clang
 , pkg-config
 , cmake
@@ -11,13 +11,14 @@ let
   c-files = map (p: lib.removePrefix ((toString src) + "/") (toString p))
     (lib.fileset.toList (lib.fileset.fileFilter (file: file.hasExt "c") src));
 
-  build-dir = ggl-util.llvmStdenv.mkDerivation {
+  build-dir = gglUtil.llvmStdenv.mkDerivation {
     name = "clang-tidy-build-dir";
-    src = ggl-util.fixedSrc;
+    src = gglUtil.filteredSrc;
     nativeBuildInputs = [ pkg-config clang-tools ];
     inherit (ggl-clang) buildInputs;
     buildPhase = ''
-      ${cmake}/bin/cmake -B $out -D CMAKE_BUILD_TYPE=Debug
+      ${cmake}/bin/cmake -B $out -D CMAKE_BUILD_TYPE=Debug \
+        ${toString gglUtil.fetchContentFlags}
       rm $out/CMakeFiles/CMakeConfigureLog.yaml
     '';
     dontPatch = true;
@@ -26,9 +27,9 @@ let
     dontFixup = true;
   };
 
-  check-clang-tidy = file: ggl-util.llvmStdenv.mkDerivation {
+  check-clang-tidy = file: gglUtil.llvmStdenv.mkDerivation {
     name = "clang-tidy-${file}";
-    src = ggl-util.fixedSrc;
+    src = gglUtil.filteredSrc;
     nativeBuildInputs = [ pkg-config clang-tools ];
     inherit (ggl-clang) buildInputs;
     buildPhase = ''
@@ -41,7 +42,7 @@ let
     dontFixup = true;
   };
 in
-ggl-util.llvmStdenv.mkDerivation {
+gglUtil.llvmStdenv.mkDerivation {
   name = "check-clang-tidy";
   buildInputs = map check-clang-tidy c-files;
   installPhase = "touch $out";

@@ -155,6 +155,32 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
 
 #
+# FetchContent deps
+#
+
+set(FETCHCONTENT_QUIET FALSE)
+include(FetchContent)
+
+file(READ fc_deps.json FC_DEPS_JSON)
+string(JSON FC_DEPS_COUNT LENGTH "${FC_DEPS_JSON}")
+math(EXPR FC_DEPS_INDEX_MAX "${FC_DEPS_COUNT} - 1")
+
+foreach(index RANGE ${FC_DEPS_INDEX_MAX})
+  string(JSON dep_name MEMBER "${FC_DEPS_JSON}" ${index})
+  string(JSON dep_url GET "${FC_DEPS_JSON}" "${dep_name}" url)
+  string(JSON dep_rev GET "${FC_DEPS_JSON}" "${dep_name}" rev)
+  fetchcontent_declare(
+    "${dep_name}"
+    GIT_REPOSITORY "${dep_url}"
+    GIT_TAG "${dep_rev}")
+  string(TOLOWER "${dep_name}" dep_name_lower)
+  fetchcontent_getproperties(${dep_name})
+  if(NOT ${dep_name_lower}_POPULATED)
+    fetchcontent_populate(${dep_name})
+  endif()
+endforeach()
+
+#
 # System deps
 #
 

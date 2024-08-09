@@ -1,6 +1,6 @@
-{ ggl-util
+{ gglUtil
 , default
 }:
 default.override {
-  stdenv = ggl-util.llvmStdenv;
+  stdenv = gglUtil.llvmStdenv;
 }
