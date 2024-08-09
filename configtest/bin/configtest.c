@@ -144,8 +144,8 @@ valueToMerge = {
     "corge": true,
     "grault": false
 }
-
-timeStamp = 1723142212
+timestamp = 1723142212
+*/
 
 static void test_write_object(void) {
     char json_path_string[] = "[\"foobar\"]";
