@@ -26,12 +26,12 @@ GglError ggl_ipc_handle_operation(
     struct {
         GglBuffer operation;
         GglIpcHandler *handler;
-    } handler_table[] = {
-        { GGL_STR("aws.greengrass#PublishToIoTCore"),
-          handle_publish_to_iot_core },
-        { GGL_STR("aws.greengrass#SubscribeToIoTCore"),
-          handle_subscribe_to_iot_core },
-    };
+    } handler_table[] = { { GGL_STR("aws.greengrass#PublishToIoTCore"),
+                            handle_publish_to_iot_core },
+                          { GGL_STR("aws.greengrass#SubscribeToIoTCore"),
+                            handle_subscribe_to_iot_core },
+                          { GGL_STR("aws.greengrass#UpdateConfiguration"),
+                            handle_update_configuration } };
 
     size_t handler_count = sizeof(handler_table) / sizeof(handler_table[0]);
 

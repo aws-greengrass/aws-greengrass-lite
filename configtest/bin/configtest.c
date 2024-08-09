@@ -178,7 +178,7 @@ static void test_write_object(void) {
         { GGL_STR("componentName"), GGL_OBJ(GGL_STR("component")) },
         { GGL_STR("keyPath"), test_key_path_object },
         { GGL_STR("valueToMerge"), test_value_object },
-        { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
+        { GGL_STR("timestamp"), GGL_OBJ_I64(1723142212) }
     );
     error = ggl_notify(
         GGL_STR("/aws/ggl/ggconfigd"), GGL_STR("write_object"), params
