@@ -3,6 +3,7 @@
 , gglUtil
 , ggl-clang
 , pkg-config
+, bear
 , cmake
 , clang-tools
 , ...
