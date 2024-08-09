@@ -273,6 +273,8 @@ GglError ggl_listen(
         interface.len
     );
 
+    GGL_LOGD("core-bus", "Listening on socket %s.", socket_path);
+
     InterfaceCtx ctx = { .handlers = handlers, .handlers_len = handlers_len };
 
     return ggl_socket_server_listen(socket_path, &pool, client_ready, &ctx);
