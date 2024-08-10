@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   run-checks:
+    # To run all of the below checks locally, run `nix flake check -L`
     timeout-minutes: 60
     strategy:
       fail-fast: false
