@@ -5,6 +5,7 @@
 #ifndef GGL_IPC_SERVER_H
 #define GGL_IPC_SERVER_H
 
+#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdint.h>
@@ -26,23 +27,20 @@ GglError ggl_ipc_response_send(
     GglObject response
 );
 
-typedef struct {
-    uint32_t resp_handle;
-    int32_t stream_id;
-    uint32_t recv_handle;
-} GglIpcSubscriptionCtx;
-
-/// Claim a subscription context
-GglError ggl_ipc_get_subscription_ctx(
-    GglIpcSubscriptionCtx **ctx, uint32_t resp_handle
+/// Callback for whenever a subscription is closed.
+typedef GglError (*GglIpcSubscribeCallback)(
+    GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
 );
 
-/// Cleanup for subscription context, for ggl_subscribe on_close
-void ggl_ipc_release_subscription_ctx(GglIpcSubscriptionCtx *ctx);
-
-/// Set the recv handle for a subscription context
-GglError ggl_ipc_subscription_ctx_set_recv_handle(
-    GglIpcSubscriptionCtx *ctx, uint32_t resp_handle, uint32_t recv_handle
-);
+/// Wrapper around ggl_subscribe for IPC handlers.
+GglError ggl_ipc_bind_subscription(
+    uint32_t resp_handle,
+    int32_t stream_id,
+    GglBuffer interface,
+    GglBuffer method,
+    GglMap params,
+    GglIpcSubscribeCallback on_response,
+    GglError *error
+) __attribute__((warn_unused_result));
 
 #endif

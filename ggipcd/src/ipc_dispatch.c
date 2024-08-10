@@ -8,17 +8,10 @@
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <pthread.h>
 #include <stdint.h>
-
-uint8_t ggl_ipc_handler_resp_mem
-    [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
-     + GGL_IPC_MAX_MSG_LEN];
-pthread_mutex_t ggl_ipc_handler_resp_mem_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static const struct {
     GglBuffer operation;
@@ -39,10 +32,10 @@ GglError ggl_ipc_handle_operation(
 ) {
     for (size_t i = 0; i < HANDLER_COUNT; i++) {
         if (ggl_buffer_eq(operation, HANDLER_TABLE[i].operation)) {
-            pthread_mutex_lock(&ggl_ipc_handler_resp_mem_mtx);
-            GGL_DEFER(pthread_mutex_unlock, ggl_ipc_handler_resp_mem_mtx);
-            GglBumpAlloc balloc
-                = ggl_bump_alloc_init(GGL_BUF(ggl_ipc_handler_resp_mem));
+            static uint8_t resp_mem
+                [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
+                 + GGL_IPC_MAX_MSG_LEN];
+            GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
 
             return HANDLER_TABLE[i].handler(
                 args, handle, stream_id, &balloc.alloc
@@ -52,10 +45,4 @@ GglError ggl_ipc_handle_operation(
 
     GGL_LOGW("ipc-server", "Unhandled operation requested.");
     return GGL_ERR_NOENTRY;
-}
-
-void ggl_ipc_subscription_on_close(void *ctx, uint32_t handle) {
-    GglIpcSubscriptionCtx *sub_ctx = ctx;
-    (void) handle;
-    ggl_ipc_release_subscription_ctx(sub_ctx);
 }

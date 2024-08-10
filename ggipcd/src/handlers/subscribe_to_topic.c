@@ -6,7 +6,6 @@
 #include "handlers.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
-#include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -16,10 +15,9 @@
 #include <stdlib.h>
 
 static GglError subscribe_to_topic_callback(
-    void *ctx, uint32_t recv_handle, GglObject data
+    GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
 ) {
-    GglIpcSubscriptionCtx *sub_ctx = ctx;
-    (void) recv_handle;
+    (void) alloc;
 
     if (data.type != GGL_TYPE_MAP) {
         GGL_LOGE("SubscribeToTopic", "Subscription response not a map.");
@@ -92,8 +90,8 @@ static GglError subscribe_to_topic_callback(
     );
 
     GglError ret = ggl_ipc_response_send(
-        sub_ctx->resp_handle,
-        sub_ctx->stream_id,
+        resp_handle,
+        stream_id,
         GGL_STR("aws.greengrass#SubscriptionResponseMessage"),
         response
     );
@@ -128,31 +126,18 @@ GglError handle_subscribe_to_topic(
     GglMap call_args
         = GGL_MAP({ GGL_STR("topic_filter"), GGL_OBJ(topic_filter) });
 
-    GglIpcSubscriptionCtx *ctx = NULL;
-    GglError ret = ggl_ipc_get_subscription_ctx(&ctx, handle);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    ctx->stream_id = stream_id;
-
-    uint32_t recv_handle = 0;
-    ret = ggl_subscribe(
+    GglError ret = ggl_ipc_bind_subscription(
+        handle,
+        stream_id,
         GGL_STR("pubsub"),
         GGL_STR("subscribe"),
         call_args,
         subscribe_to_topic_callback,
-        ggl_ipc_subscription_on_close,
-        ctx,
-        NULL,
-        &recv_handle
+        NULL
     );
     if (ret != GGL_ERR_OK) {
-        ggl_ipc_release_subscription_ctx(ctx);
         return ret;
     }
-
-    (void) ggl_ipc_subscription_ctx_set_recv_handle(ctx, handle, recv_handle);
 
     return ggl_ipc_response_send(
         handle,
