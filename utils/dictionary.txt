@@ -61,6 +61,7 @@ statusd
 stdenv
 subscribetocomponentupdates
 svcuid
+svcuids
 tesd
 tlog
 unsuback

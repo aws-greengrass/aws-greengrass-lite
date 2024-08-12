@@ -16,6 +16,8 @@ option(ENABLE_WERROR "Compile warnings as errors")
 
 set(GGL_LOG_LEVEL CACHE STRING "GGL log level")
 
+option(GGL_IPC_AUTH_DISABLE "Put IPC authentication in debug mode")
+
 #
 # Misc
 #
@@ -138,6 +140,9 @@ try_add_cflag_if(function-sections $<NOT:$<CONFIG:Debug>> -ffunction-sections)
 try_add_cflag_if(data-sections $<NOT:$<CONFIG:Debug>> -fdata-sections)
 
 add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>)
+if(GGL_IPC_AUTH_DISABLE)
+  add_compile_definitions(GGL_IPC_AUTH_DISABLE)
+endif()
 
 add_link_options($<$<NOT:$<CONFIG:Debug>>:-pie>)
 
@@ -241,6 +246,7 @@ add_subdirectory(ggl-json)
 add_subdirectory(ggl-yaml)
 add_subdirectory(core-bus)
 add_subdirectory(ggipcd)
+add_subdirectory(ggipc-auth)
 add_subdirectory(ggconfigd)
 add_subdirectory(deps/core_mqtt)
 add_subdirectory(iotcored)
