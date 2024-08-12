@@ -329,8 +329,9 @@ static GglError create_component_directory(
     // type parameter determines if we create directories for component recipes
     // or artifacts
     const char *root_path = "/";
-    size_t full_path_size = strlen(root_path) + strlen(type)
-    // NOLINTNEXTLINE(clang-analyzer-core.UndefinedBinaryOperatorResult)
+    size_t full_path_size = strlen(root_path)
+        + strlen(type)
+        // NOLINTNEXTLINE(clang-analyzer-core.UndefinedBinaryOperatorResult)
         + recipe->component_name.len + recipe->component_version.len + 4;
     *directory_path = malloc(full_path_size);
     *directory_path[0] = '\0';
