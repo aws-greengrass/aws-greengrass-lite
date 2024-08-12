@@ -254,7 +254,9 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
         if (ggl_map_get(
                 thing_payload_json_obj.map, GGL_STR("thingName"), &val
             )) {
-            save_value_to_db(GGL_OBJ_STR("system"), GGL_OBJ_STR("thingName"), *val);
+            save_value_to_db(
+                GGL_OBJ_STR("system"), GGL_OBJ_STR("thingName"), *val
+            );
         }
 
     } else {

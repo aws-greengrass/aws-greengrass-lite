@@ -71,19 +71,19 @@ void generate_key_files(EVP_PKEY *pkey, X509_REQ *req) {
     generate_keys(&pkey);
 
     // Save private key
-    FILE *pkey_file = fopen("private_key.pem", "wb");
+    FILE *pkey_file = fopen("./private_key.pem", "wb");
     PEM_write_PrivateKey(pkey_file, pkey, NULL, NULL, 0, NULL, NULL);
     fclose(pkey_file);
 
     // Save public key
-    FILE *pubkey_file = fopen("public_key.pem", "wb");
+    FILE *pubkey_file = fopen("./public_key.pem", "wb");
     PEM_write_PUBKEY(pubkey_file, pkey);
     fclose(pubkey_file);
 
     generate_csr(pkey, &req);
 
     // Save CSR
-    FILE *csr_file = fopen("csr.pem", "wb");
+    FILE *csr_file = fopen("./csr.pem", "wb");
     PEM_write_X509_REQ(csr_file, req);
     fclose(csr_file);
 }
