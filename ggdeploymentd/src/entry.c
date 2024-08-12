@@ -4,11 +4,11 @@
 
 #include "bus_server.h"
 #include "deployment_handler.h"
-#include "deployment_queue.h"
 #include "ggdeploymentd.h"
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <pthread.h>
+#include <stdlib.h>
 
 GglError run_ggdeploymentd(GgdeploymentdArgs *args) {
     (void) args;

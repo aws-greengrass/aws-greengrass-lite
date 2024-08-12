@@ -473,6 +473,7 @@ static GglError copy_artifacts(GglBuffer artifact_dir, Recipe *recipe) {
             "deployment-handler",
             "Deployment document contains invalid artifact directory path."
         );
+        free(directory_path);
         return GGL_ERR_INVALID;
     }
 

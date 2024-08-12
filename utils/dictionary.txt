@@ -5,6 +5,7 @@ clientfd
 coremqtt
 coreutils
 cpus
+depl
 DGGL
 DIOTCORED
 EFAILURE
@@ -43,6 +44,7 @@ parentid
 pkgs
 pname
 posix
+ptid
 respfd
 rootca
 serde
