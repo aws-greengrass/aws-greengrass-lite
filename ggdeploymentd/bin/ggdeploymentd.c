@@ -6,7 +6,6 @@
 #include <argp.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <pthread.h>
 #include <stdlib.h>
 
 static char doc[] = "ggdeploymentd -- Greengrass Lite Deployment Daemon";

@@ -13,11 +13,11 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 #ifndef GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE
 #define GGDEPLOYMENTD_DEPLOYMENT_QUEUE_SIZE 20
@@ -105,9 +105,11 @@ static bool should_replace_deployment_in_queue(
 }
 
 static GglError null_terminate_buffer(GglBuffer *buf, GglAlloc *alloc) {
-    uint8_t* mem = GGL_ALLOCN(alloc, uint8_t, buf->len + 1);
+    uint8_t *mem = GGL_ALLOCN(alloc, uint8_t, buf->len + 1);
     if (mem == NULL) {
-        GGL_LOGE("deployment-queue", "Failed to allocate memory for copying buffer.");
+        GGL_LOGE(
+            "deployment-queue", "Failed to allocate memory for copying buffer."
+        );
         return GGL_ERR_NOMEM;
     }
 
@@ -146,12 +148,16 @@ static GglError deep_copy_deployment(
     }
     location->error_types = obj.list;
 
-    ret = null_terminate_buffer(&location->deployment_document.recipe_directory_path, alloc);
+    ret = null_terminate_buffer(
+        &location->deployment_document.recipe_directory_path, alloc
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    ret = null_terminate_buffer(&location->deployment_document.artifact_directory_path, alloc);
+    ret = null_terminate_buffer(
+        &location->deployment_document.artifact_directory_path, alloc
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }

@@ -6,6 +6,7 @@
 #include "deployment_model.h"
 #include "deployment_queue.h"
 #include "recipe_model.h"
+#include <assert.h>
 #include <dirent.h>
 #include <errno.h>
 #include <ggl/alloc.h>
@@ -16,7 +17,6 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/yaml_decode.h>
-#include <assert.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -52,7 +52,6 @@ void *ggl_deployment_handler_start(void *ctx) {
 
 void ggl_deployment_handler_stop(void) {
     shutdown = true;
-    // handle shutting down the thread
 }
 
 static void ggl_deployment_listen(void) {
@@ -107,7 +106,12 @@ static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe) {
     struct dirent *entry;
     DIR *dir = opendir((char *) recipe_dir.data);
 
-    GGL_LOGI("test-depl-handler", "%.*s", (int) recipe_dir.len, (char*) recipe_dir.data);
+    GGL_LOGI(
+        "test-depl-handler",
+        "%.*s",
+        (int) recipe_dir.len,
+        (char *) recipe_dir.data
+    );
 
     if (dir == NULL) {
         GGL_LOGE(
@@ -130,7 +134,7 @@ static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe) {
                    ) == 0) {
                 recipe_is_json = true;
             }
-            // TODO: Check that if it isn't a JSON, then it must be a YAML. It must support both .yml and .yaml.
+            // TODO: support .yml and .yaml, currently only .yaml supported
 
             // build full path to recipe file
             size_t path_size
@@ -252,8 +256,7 @@ static GglError read_recipe(char *recipe_path, Recipe *recipe) {
         = { .data = (uint8_t *) buff, .len = (size_t) file_size };
     GglObject val;
 
-    static uint8_t
-        decode_mem[GGL_RECIPE_CONTENT_MAX_SIZE * sizeof(GglObject)];
+    static uint8_t decode_mem[GGL_RECIPE_CONTENT_MAX_SIZE * sizeof(GglObject)];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(decode_mem));
 
     // parse depending on file type
@@ -325,8 +328,7 @@ static GglError create_component_directory(
     // build path for the requested directory
     // type parameter determines if we create directories for component recipes
     // or artifacts
-    // TODO: we need the root path, where to get it? placeholder for now
-    const char *root_path = "/home/ubuntu/ggl";
+    const char *root_path = "/";
     size_t full_path_size = strlen(root_path) + strlen(type)
         + recipe->component_name.len + recipe->component_version.len + 4;
     *directory_path = malloc(full_path_size);
@@ -425,7 +427,6 @@ static GglError copy_file(const char *src_path, const char *dest_path) {
             "deployment-handler",
             "Failed to allocate memory to read recipe file."
         );
-        fclose(src);
         fclose(src);
         fclose(dest);
         return GGL_ERR_FAILURE;

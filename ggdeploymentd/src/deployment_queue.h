@@ -8,12 +8,12 @@
 #ifndef GGDEPLOYMENTD_QUEUE_H
 #define GGDEPLOYMENTD_QUEUE_H
 
-/// @brief Attempts to add a deployment into the queue. If the deployment ID does not
-/// exist already in the queue, then add the deployment to the end of the queue.
-/// If there is an existing deployment in the queue with the same ID, then
-/// replace it if the deployment is in a replaceable state. Otherwise, do not
-/// add the deployment to the queue and return false. If the queue is full, wait
-/// until there is space to add the deployment to the queue.
+/// @brief Attempts to add a deployment into the queue. If the deployment ID
+/// does not exist already in the queue, then add the deployment to the end of
+/// the queue. If there is an existing deployment in the queue with the same ID,
+/// then replace it if the deployment is in a replaceable state. Otherwise, do
+/// not add the deployment to the queue and return false. If the queue is full,
+/// wait until there is space to add the deployment to the queue.
 ///
 /// @param deployment a pointer to a GgdeploymentdDeployment to be copied into
 /// the queue
