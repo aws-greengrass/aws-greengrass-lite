@@ -2,6 +2,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-fleetProvision_LIBS := ggl-lib ggl-json core-bus ggl-socket
-fleetProvision_PKGS := openssl
-fleetProvision_BIN := fleetProvision
+ggl_init_module(fleet-provision LIBS ggl-lib core-bus ggl-json ggl-socket
+                                     PkgConfig::openssl)

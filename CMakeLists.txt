@@ -244,6 +244,7 @@ add_subdirectory(ggdeploymentd)
 add_subdirectory(gg-fleet-statusd)
 add_subdirectory(tesd)
 add_subdirectory(tesd-test)
+add_subdirectory(fleet-provisioning)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)

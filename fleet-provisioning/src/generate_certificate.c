@@ -86,7 +86,4 @@ void generate_key_files(EVP_PKEY *pkey, X509_REQ *req) {
     FILE *csr_file = fopen("csr.pem", "wb");
     PEM_write_X509_REQ(csr_file, req);
     fclose(csr_file);
-
-    EVP_PKEY_free(pkey);
-    X509_REQ_free(req);
 }
