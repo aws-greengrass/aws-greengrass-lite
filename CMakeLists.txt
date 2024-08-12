@@ -41,6 +41,11 @@ unset(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES)
 # Compiler options
 #
 
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(WARNING "CMAKE_BUILD_TYPE not set, using MinSizeRel.")
+  set(CMAKE_BUILD_TYPE MinSizeRel)
+endif()
+
 # Enable a compiler option for compile and link
 macro(add_cflags)
   add_compile_options(${ARGN})
