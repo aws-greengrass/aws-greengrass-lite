@@ -28,9 +28,11 @@ GglBuffer ggl_buffer_substr(GglBuffer buf, size_t start, size_t end) {
 }
 
 static bool mult_overflow_int64(int64_t a, int64_t b) {
-    return b == 0 ? false
-        : b > 0   ? ((a > INT64_MAX / b) || (a < INT64_MIN / b))
-                  : ((a < INT64_MAX / b) || (a > INT64_MIN / b));
+    if (b == 0) {
+        return false;
+    }
+    return b > 0 ? ((a > INT64_MAX / b) || (a < INT64_MIN / b))
+                 : ((a < INT64_MAX / b) || (a > INT64_MIN / b));
 }
 
 static bool add_overflow_int64(int64_t a, int64_t b) {

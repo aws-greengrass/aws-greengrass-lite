@@ -11,6 +11,12 @@
 
 //! Core Bus server interface
 
+/// Maximum number of core-bus connections.
+/// Can be configured with `-DGGL_COREBUS_MAX_CLIENTS=<N>`.
+#ifndef GGL_COREBUS_MAX_CLIENTS
+#define GGL_COREBUS_MAX_CLIENTS 100
+#endif
+
 /// Function that receives client invocations of a method.
 /// The handle must be used return an error or respond.
 /// The handle may be saved to defer responding or continue use past this call.

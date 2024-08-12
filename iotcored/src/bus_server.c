@@ -84,6 +84,7 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     GglError ret = iotcored_mqtt_publish(&msg, qos);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
+        return;
     }
 
     ggl_respond(handle, GGL_OBJ_NULL());
@@ -130,12 +131,14 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     GglError ret = iotcored_register_subscription(topic_filter, handle);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
+        return;
     }
 
     ret = iotcored_mqtt_subscribe(topic_filter, qos);
     if (ret != GGL_ERR_OK) {
         iotcored_unregister_subscriptions(handle);
         ggl_return_err(handle, ret);
+        return;
     }
 
     ggl_sub_accept(handle, sub_close_callback, NULL);

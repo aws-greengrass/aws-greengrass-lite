@@ -15,11 +15,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/// Maximum size of MQTT topic filter supported.
-/// Can be configured with `-DIOTCORED_MAX_TOPIC_FILTER_LEN=<N>`.
-#ifndef IOTCORED_MAX_TOPIC_FILTER_LEN
-#define IOTCORED_MAX_TOPIC_FILTER_LEN 128
-#endif
+/// Maximum size of MQTT topic for AWS IoT.
+/// Basic ingest topics can be longer but can't be subscribed to.
+/// This is a limit for topic lengths that we may receive publishes on.
+/// https://docs.aws.amazon.com/general/latest/gr/iot-core.html#limits_iot
+#define AWS_IOT_MAX_TOPIC_SIZE 256
 
 /// Maximum number of MQTT subscriptions supported.
 /// Can be configured with `-DIOTCORED_MAX_SUBSCRIPTIONS=<N>`.
@@ -29,7 +29,7 @@
 
 static size_t topic_filter_len[IOTCORED_MAX_SUBSCRIPTIONS] = { 0 };
 static uint8_t topic_filters[IOTCORED_MAX_SUBSCRIPTIONS]
-                            [IOTCORED_MAX_TOPIC_FILTER_LEN];
+                            [AWS_IOT_MAX_TOPIC_SIZE];
 static uint32_t handles[IOTCORED_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 
@@ -48,7 +48,7 @@ GglError iotcored_register_subscription(
         );
         return GGL_ERR_INVALID;
     }
-    if (topic_filter.len > IOTCORED_MAX_TOPIC_FILTER_LEN) {
+    if (topic_filter.len > AWS_IOT_MAX_TOPIC_SIZE) {
         GGL_LOGE(
             "subscriptions", "Topic filter larger than configured maximum."
         );
