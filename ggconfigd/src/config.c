@@ -379,11 +379,6 @@ static bool validate_key(GglBuffer *key) {
     if (!isalpha(key->data[0])) { // make sure the path starts with a character
         return false;
     }
-    for (size_t x = 0; x < key->len; x++) {
-        if (!isalpha(key->data[x]) && key->data[x] != '/') {
-            return false;
-        }
-    }
     return true;
 }
 
