@@ -19,8 +19,8 @@
 #include <ggl/yaml_decode.h>
 #include <string.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -31,7 +31,7 @@
 #define YAML_EXTENSION ".yaml"
 
 static void ggl_deployment_listen(void);
-static void handle_deployment(GgdeploymentdDeployment);
+static void handle_deployment(GgdeploymentdDeployment deployment);
 static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe);
 static GglError copy_artifacts(GglBuffer artifact_dir, Recipe *recipe);
 static GglError read_recipe(char *recipe_path, Recipe *recipe);
