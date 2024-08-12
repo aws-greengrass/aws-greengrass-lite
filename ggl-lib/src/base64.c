@@ -96,19 +96,26 @@ static bool base64_decode_segment(
     return true;
 }
 
-bool ggl_base64_decode_in_place(GglBuffer *target) {
-    if ((target->len % 4) != 0) {
+bool ggl_base64_decode(GglBuffer base64, GglBuffer *target) {
+    if ((base64.len % 4) != 0) {
+        return false;
+    }
+    if (target->len < ((base64.len / 4) * 3)) {
         return false;
     }
     GglBuffer out = *target;
-    for (size_t i = 0; i < target->len; i += 4) {
-        bool ret = base64_decode_segment(&target->data[i], &out);
+    for (size_t i = 0; i < base64.len; i += 4) {
+        bool ret = base64_decode_segment(&base64.data[i], &out);
         if (!ret) {
             return false;
         }
     }
     target->len = (size_t) (out.data - target->data);
     return true;
+}
+
+bool ggl_base64_decode_in_place(GglBuffer *target) {
+    return ggl_base64_decode(*target, target);
 }
 
 static const uint8_t BASE64_TABLE[]
