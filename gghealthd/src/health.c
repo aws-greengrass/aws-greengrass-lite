@@ -17,16 +17,12 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define SEMVER_MAX_LEN 64
 #define SERVICE_PREFIX "ggl."
 #define SERVICE_PREFIX_LEN (sizeof(SERVICE_PREFIX) - 1U)
-#define INSTALL_SERVICE_SUFFIX "_install.service"
-#define INSTALL_SERVICE_SUFFIX_LEN (sizeof(INSTALL_SERVICE_SUFFIX) - 1U)
-#define RUN_SERVICE_SUFFIX "_run.service"
-#define RUN_SERVICE_SUFFIX_LEN (sizeof(RUN_SERVICE_SUFFIX) - 1U)
+#define SERVICE_SUFFIX ".service"
+#define SERVICE_SUFFIX_LEN (sizeof(SERVICE_SUFFIX) - 1U)
 #define SERVICE_NAME_MAX_LEN \
-    (SERVICE_PREFIX_LEN + INSTALL_SERVICE_SUFFIX_LEN + SEMVER_MAX_LEN \
-     + COMPONENT_NAME_MAX_LEN)
+    (SERVICE_PREFIX_LEN + COMPONENT_NAME_MAX_LEN + SERVICE_SUFFIX_LEN)
 
 // destinations
 #define DEFAULT_DESTINATION "org.freedesktop.systemd1"
@@ -48,6 +44,26 @@ GGL_DEFINE_DEFER(
 GGL_DEFINE_DEFER(
     sd_bus_message_unrefp, sd_bus_message *, msg, sd_bus_message_unrefp(msg)
 )
+
+static GglError translate_dbus_call_error(int error) {
+    if (error >= 0) {
+        return GGL_ERR_OK;
+    }
+    switch (error) {
+    case -ENOTCONN:
+    case -ECONNRESET:
+        return GGL_ERR_NOCONN;
+    case -ENOMEM:
+        return GGL_ERR_NOMEM;
+    case -ENOENT:
+        return GGL_ERR_NOENTRY;
+    case -EPERM:
+    case -EINVAL:
+        return GGL_ERR_FATAL;
+    default:
+        return GGL_ERR_FAILURE;
+    }
+}
 
 static pthread_mutex_t connect_time_mutex = PTHREAD_MUTEX_INITIALIZER;
 static struct timespec first_connect_attempt;
@@ -132,9 +148,7 @@ static GglError get_unit_path(
     );
 
     if (ret < 0) {
-        if (-ret == ENOENT) {
-            return GGL_ERR_NOENTRY;
-        }
+        *reply = NULL;
         GGL_LOGE(
             "gghealthd",
             "Unable to find Component (errno=%d) (name=%s) (message=%s)",
@@ -142,8 +156,8 @@ static GglError get_unit_path(
             error.name,
             error.message
         );
-        *reply = NULL;
-        return GGL_ERR_FATAL;
+
+        return translate_dbus_call_error(ret);
     }
 
     return GGL_ERR_OK;
@@ -155,6 +169,8 @@ static GglError get_component_result(
     assert((bus != NULL) && (unit_path != NULL) && (status != NULL));
     uint64_t timestamp = 0;
     sd_bus_error error = SD_BUS_ERROR_NULL;
+    GGL_DEFER(sd_bus_error_free, error);
+
     int ret = sd_bus_get_property_trivial(
         bus,
         DEFAULT_DESTINATION,
@@ -174,12 +190,12 @@ static GglError get_component_result(
             error.name,
             error.message
         );
-        return GGL_ERR_FATAL;
+        return translate_dbus_call_error(ret);
     }
 
-    // component has not run
+    // if a component has not run, it is installed
     if (timestamp == 0) {
-        return GGL_ERR_NOENTRY;
+        *status = GGL_STR("INSTALLED");
     }
 
     char *result = NULL;
@@ -199,7 +215,7 @@ static GglError get_component_result(
             "Unable to retrieve D-Bus Unit Result property (errno=%d)",
             -ret
         );
-        return GGL_ERR_FATAL;
+        return translate_dbus_call_error(ret);
     }
 
     GglBuffer result_buffer
@@ -254,7 +270,9 @@ static GglError get_property_string(
     return GGL_ERR_OK;
 }
 
-static GglError get_pid(sd_bus *bus, const char *component_name, int *pid) {
+static GglError get_component_pid(
+    sd_bus *bus, const char *component_name, int *pid
+) {
     // TODO: there are MAIN_PID and CONTROL_PID properties. MAIN_PID is probably
     // sufficient for sd_pid_notify. Components probably won't have more than
     // one active processes.
@@ -264,95 +282,46 @@ static GglError get_pid(sd_bus *bus, const char *component_name, int *pid) {
     );
     GGL_DEFER(free, pid_string);
     if (err != GGL_ERR_OK) {
-        GGL_LOGE(
-            "gghealthd", "Unable to acquire pid"
-
-        );
+        GGL_LOGE("gghealthd", "Unable to acquire pid");
         *pid = 0;
-    } else {
-        *pid = atoi(pid_string);
-        if (*pid <= 0) {
-            return GGL_ERR_NOENTRY;
-        }
+        return err;
     }
+
+    *pid = atoi(pid_string);
+    if (*pid <= 0) {
+        return GGL_ERR_NOENTRY;
+    }
+
     return GGL_ERR_OK;
 }
 
-static GglError get_install_service_name(
-    GglBuffer component_name, GglBuffer version, GglBuffer qualified_name
+static GglError get_service_name(
+    GglBuffer component_name, GglBuffer *qualified_name
 ) {
     assert(
-        (component_name.data != NULL) && (version.data != NULL)
-        && (qualified_name.data != NULL)
+        (component_name.data != NULL) && (qualified_name != NULL)
+        && (qualified_name->data != NULL)
     );
-    assert(qualified_name.len > SERVICE_NAME_MAX_LEN);
-
-    if (version.len > SEMVER_MAX_LEN) {
-        GGL_LOGE("gghealthd", "semantic version too long");
-        return GGL_ERR_RANGE;
-    }
+    assert(qualified_name->len > SERVICE_NAME_MAX_LEN);
     if (component_name.len > COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("gghealthd", "component name too long");
         return GGL_ERR_RANGE;
     }
 
-    qualified_name.data[0] = '\0';
+    qualified_name->data[0] = '\0';
     strncat(
-        (char *) qualified_name.data, SERVICE_PREFIX, SERVICE_PREFIX_LEN + 1
+        (char *) qualified_name->data, SERVICE_PREFIX, SERVICE_PREFIX_LEN + 1U
     );
     strncat(
-        (char *) qualified_name.data,
-        (const char *) component_name.data,
-        component_name.len + 1
-    );
-    strncat(
-        (char *) qualified_name.data, (const char *) version.data, version.len
-    );
-    strncat(
-        (char *) qualified_name.data,
-        INSTALL_SERVICE_SUFFIX,
-        INSTALL_SERVICE_SUFFIX_LEN + 1
-    );
-    return GGL_ERR_OK;
-}
-
-static GglError get_run_service_name(
-    GglBuffer component_name, GglBuffer version, GglBuffer qualified_name
-) {
-    assert(
-        (component_name.data != NULL) && (version.data != NULL)
-        && (qualified_name.data != NULL)
-    );
-    assert(qualified_name.len > SERVICE_NAME_MAX_LEN);
-
-    if (version.len > SEMVER_MAX_LEN) {
-        GGL_LOGE("gghealthd", "semantic version too long");
-        return GGL_ERR_RANGE;
-    }
-    if (component_name.len > COMPONENT_NAME_MAX_LEN) {
-        GGL_LOGE("gghealthd", "component name too long");
-        return GGL_ERR_RANGE;
-    }
-
-    qualified_name.data[0] = '\0';
-    strncat(
-        (char *) qualified_name.data, SERVICE_PREFIX, SERVICE_PREFIX_LEN + 1U
-    );
-    strncat(
-        (char *) qualified_name.data,
+        (char *) qualified_name->data,
         (const char *) component_name.data,
         component_name.len + 1U
     );
     strncat(
-        (char *) qualified_name.data,
-        (const char *) version.data,
-        version.len + 1U
+        (char *) qualified_name->data, SERVICE_SUFFIX, SERVICE_SUFFIX_LEN + 1U
     );
-    strncat(
-        (char *) qualified_name.data,
-        RUN_SERVICE_SUFFIX,
-        RUN_SERVICE_SUFFIX_LEN + 1U
-    );
+    qualified_name->len
+        = SERVICE_PREFIX_LEN + component_name.len + SERVICE_SUFFIX_LEN + 1U;
     return GGL_ERR_OK;
 }
 
@@ -361,6 +330,7 @@ static GglError get_active_state(
 ) {
     assert((bus != NULL) && (unit_path != NULL) && (active_state != NULL));
     sd_bus_error error = SD_BUS_ERROR_NULL;
+    GGL_DEFER(sd_bus_error_free, error);
     int ret = sd_bus_get_property_string(
         bus,
         DEFAULT_DESTINATION,
@@ -372,29 +342,9 @@ static GglError get_active_state(
     );
     if (ret < 0) {
         GGL_LOGE("gghealthd", "Failed to read active state");
-        return GGL_ERR_FATAL;
+        return translate_dbus_call_error(ret);
     }
     return GGL_ERR_OK;
-}
-
-static GglError get_install_status(
-    sd_bus *bus, const char *qualified_name, GglBuffer *status
-) {
-    assert((bus != NULL) && (qualified_name != NULL) && (status != NULL));
-    sd_bus_message *reply = NULL;
-    GGL_DEFER(sd_bus_message_unrefp, reply);
-    GglError err = get_unit_path(bus, qualified_name, &reply);
-    if (err != GGL_ERR_OK) {
-        return err;
-    }
-    char *unit_path = NULL;
-    int ret = sd_bus_message_read_basic(reply, 'o', &unit_path);
-    if (ret < 0) {
-        GGL_LOGE("gghealthd", "failed to read unit path");
-        return GGL_ERR_FATAL;
-    }
-
-    return get_component_result(bus, unit_path, status);
 }
 
 static GglError get_run_status(
@@ -448,11 +398,6 @@ static GglError get_run_status(
 
     // disambiguate `failed` and `inactive`
     err = get_component_result(bus, unit_path, status);
-    // if a component has not run, it is installed
-    if (err == GGL_ERR_NOENTRY) {
-        *status = GGL_STR("INSTALLED");
-        return GGL_ERR_OK;
-    }
     return err;
 }
 
@@ -487,29 +432,14 @@ GglError gghealthd_get_status(GglBuffer component_name, GglBuffer *status) {
         return err;
     }
 
-    // check if component exists in config
-    uint8_t version_buffer[SEMVER_MAX_LEN] = { 0 };
-    GglBuffer version = GGL_BUF(version_buffer);
-    err = get_component_version(component_name, &version);
+    // only relay lifecycle state for configured components
+    err = verify_component_exists(component_name);
     if (err != GGL_ERR_OK) {
         return err;
     }
 
-    // Checks install and run scripts. Install may not exist, so check both
     uint8_t qualified_name[SERVICE_NAME_MAX_LEN + 1] = { 0 };
-    err = get_install_service_name(
-        component_name, version, GGL_BUF(qualified_name)
-    );
-    if (err != GGL_ERR_OK) {
-        return err;
-    }
-    err = get_install_status(bus, (const char *) qualified_name, status);
-    if ((err != GGL_ERR_OK) || !ggl_buffer_eq(*status, GGL_STR("FINISHED"))) {
-        return err;
-    }
-    err = get_run_service_name(
-        component_name, version, GGL_BUF(qualified_name)
-    );
+    err = get_service_name(component_name, &GGL_BUF(qualified_name));
     if (err != GGL_ERR_OK) {
         return err;
     }
@@ -534,18 +464,14 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
         return GGL_ERR_INVALID;
     }
 
-    uint8_t version_buffer[SEMVER_MAX_LEN] = { 0 };
-    GglBuffer version = GGL_BUF(version_buffer);
     uint8_t qualified_name[SERVICE_NAME_MAX_LEN + 1] = { 0 };
 
-    GglError err = get_component_version(component_name, &version);
+    GglError err = verify_component_exists(component_name);
     if (err != GGL_ERR_OK) {
         return err;
     }
 
-    err = get_run_service_name(
-        component_name, version, GGL_BUF(qualified_name)
-    );
+    err = get_service_name(component_name, &GGL_BUF(qualified_name));
     if (err != GGL_ERR_OK) {
         return err;
     }
@@ -562,7 +488,7 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
     }
 
     int pid = 0;
-    err = get_pid(bus, (const char *) qualified_name, &pid);
+    err = get_component_pid(bus, (const char *) qualified_name, &pid);
     if (err != GGL_ERR_OK) {
         return err;
     }

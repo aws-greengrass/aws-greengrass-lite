@@ -3,7 +3,7 @@
 
 #include <ggl/error.h>
 #include <ggl/object.h>
-GglError get_component_version(GglBuffer component_name, GglBuffer *version);
+GglError verify_component_exists(GglBuffer component_name);
 
 GglError get_root_component_list(GglAlloc *alloc, GglList *component_list);
 

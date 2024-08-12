@@ -1,11 +1,12 @@
 #include "bus_client.h"
-#include <assert.h>
 #include <ggl/alloc.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
+#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <pthread.h>
 #include <string.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -15,8 +16,21 @@
 #define KEY_PREFIX_LEN (sizeof(KEY_PREFIX) - 1U)
 #define KEY_SUFFIX_LEN (sizeof(KEY_SUFFIX) - 1U)
 
-GglError get_component_version(GglBuffer component_name, GglBuffer *version) {
-    assert(version != NULL);
+static pthread_mutex_t bump_alloc_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Check a component's version field in ggconfigd for proof of existence
+GglError verify_component_exists(GglBuffer component_name) {
+    if ((component_name.data == NULL) || (component_name.len == 0)
+        || (component_name.len > 128U)) {
+        return GGL_ERR_RANGE;
+    }
+
+    int ret = pthread_mutex_lock(&bump_alloc_mutex);
+    if (ret < 0) {
+        return GGL_ERR_FAILURE;
+    }
+    GGL_DEFER(pthread_mutex_unlock, bump_alloc_mutex);
+
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
     static uint8_t bump_buffer[4096];
     GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(bump_buffer));
@@ -61,7 +75,7 @@ GglError get_component_version(GglBuffer component_name, GglBuffer *version) {
         return GGL_ERR_NOENTRY;
     }
     if (result.type == GGL_TYPE_BUF) {
-        GGL_LOGI(
+        GGL_LOGT(
             "gghealthd",
             "read %.*s",
             (int) result.buf.len,
