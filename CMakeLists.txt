@@ -93,7 +93,7 @@ endif()
 
 add_cflags($<$<CONFIG:Debug,RelWithDebInfo>:-ggdb3>)
 
-add_cflags($<$<NOT:$<CONFIG:DEBUG>>:-fPIE>)
+add_cflags($<$<NOT:$<CONFIG:Debug>>:-fPIE>)
 
 if(ENABLE_WERROR)
   add_cflags(-Werror)
@@ -129,19 +129,19 @@ try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
 
 add_cflags($<$<CONFIG:Debug>:-fsanitize=undefined,address>)
 
-try_add_cflag_if(function-sections $<NOT:$<CONFIG:DEBUG>> -ffunction-sections)
-try_add_cflag_if(data-sections $<NOT:$<CONFIG:DEBUG>> -fdata-sections)
+try_add_cflag_if(function-sections $<NOT:$<CONFIG:Debug>> -ffunction-sections)
+try_add_cflag_if(data-sections $<NOT:$<CONFIG:Debug>> -fdata-sections)
 
 add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>)
 
-add_link_options($<$<NOT:$<CONFIG:DEBUG>>:-pie>)
+add_link_options($<$<NOT:$<CONFIG:Debug>>:-pie>)
 
 add_link_options(LINKER:-z,relro,-z,now,-z,noexecstack LINKER:--as-needed
                  LINKER:--enable-new-dtags,--hash-style=gnu)
 try_add_link_option(compress-debug-sections-zlib
                     LINKER:--compress-debug-sections=zlib)
 
-try_add_link_option_if(gc-sections $<NOT:$<CONFIG:DEBUG>> LINKER:--gc-sections)
+try_add_link_option_if(gc-sections $<NOT:$<CONFIG:Debug>> LINKER:--gc-sections)
 try_add_link_option_if(strip-all $<CONFIG:Release,MinSizeRel> LINKER:-s)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
