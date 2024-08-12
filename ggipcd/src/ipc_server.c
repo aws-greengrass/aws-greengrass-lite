@@ -6,6 +6,7 @@
 #include "ipc_dispatch.h"
 #include <assert.h>
 #include <errno.h>
+#include <ggipc/auth.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
@@ -58,12 +59,7 @@ static const int32_t ES_FLAGS_MASK = 3;
 
 static uint8_t payload_array[GGL_IPC_MAX_MSG_LEN];
 
-typedef enum {
-    IPC_INIT,
-    IPC_CONNECTED,
-} IpcConnState;
-
-static IpcConnState client_states[GGL_IPC_MAX_CLIENTS] = { 0 };
+static GglBuffer client_names[GGL_IPC_MAX_CLIENTS];
 
 static int32_t client_fds[GGL_IPC_MAX_CLIENTS];
 static uint16_t client_generations[GGL_IPC_MAX_CLIENTS];
@@ -90,7 +86,7 @@ static pthread_mutex_t subs_state_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static GglError reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
-    client_states[index] = IPC_INIT;
+    client_names[index] = (GglBuffer) { 0 };
     return GGL_ERR_OK;
 }
 
@@ -165,9 +161,11 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
     return ggl_json_encode(*obj, buf);
 }
 
-static void set_connected(void *ctx, size_t index) {
-    (void) ctx;
-    client_states[index] = IPC_CONNECTED;
+static void set_conn_name(void *ctx, size_t index) {
+    GglBuffer *component_name = ctx;
+    assert(component_name->len > 0);
+
+    client_names[index] = *component_name;
 }
 
 static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
@@ -232,10 +230,22 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
 
     GGL_LOGD(
         "ipc-server",
-        "Client connected with token %.*s.",
+        "Client connecting with token %.*s.",
         (int) auth_token.len,
         auth_token.data
     );
+
+    GglBuffer component_name = { 0 };
+    ret = ggl_ipc_auth_get_component_name(auth_token, &component_name);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "ipc-server",
+            "Client with token %.*s failed authentication.",
+            (int) auth_token.len,
+            auth_token.data
+        );
+        return ret;
+    }
 
     GglBuffer send_buffer = GGL_BUF(payload_array);
 
@@ -260,12 +270,19 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
 
     GGL_LOGT("ipc-server", "Setting %d as connected.", handle);
 
-    ret = ggl_with_socket_handle_index(set_connected, NULL, &pool, handle);
+    ret = ggl_with_socket_handle_index(
+        set_conn_name, &component_name, &pool, handle
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    GGL_LOGT("ipc-server", "Successfully connected %d.", handle);
+    GGL_LOGD(
+        "ipc-server",
+        "Successful connection from component %.*s.",
+        (int) component_name.len,
+        component_name.data
+    );
     return GGL_ERR_OK;
 }
 
@@ -324,9 +341,17 @@ static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
     );
 }
 
-static void get_conn_state(void *ctx, size_t index) {
-    IpcConnState *state = ctx;
-    *state = client_states[index];
+static void get_conn_name(void *ctx, size_t index) {
+    GglBuffer *name = ctx;
+    *name = client_names[index];
+}
+
+GglError ggl_ipc_get_component_name(
+    uint32_t handle, GglBuffer *component_name
+) {
+    return ggl_with_socket_handle_index(
+        get_conn_name, component_name, &pool, handle
+    );
 }
 
 static GglError client_ready(void *ctx, uint32_t handle) {
@@ -371,21 +396,17 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     }
 
     GGL_LOGT("ipc-server", "Retrieving connection state for %d.", handle);
-    IpcConnState state = IPC_INIT;
-    ret = ggl_with_socket_handle_index(get_conn_state, &state, &pool, handle);
+    GglBuffer component_name = { 0 };
+    ret = ggl_ipc_get_component_name(handle, &component_name);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    switch (state) {
-    case IPC_INIT:
+    if (component_name.len == 0) {
         return handle_conn_init(handle, &msg);
-    case IPC_CONNECTED:
-        return handle_operation(handle, &msg);
     }
 
-    assert(false);
-    return GGL_ERR_FAILURE;
+    return handle_operation(handle, &msg);
 }
 
 GglError ggl_ipc_listen(const char *socket_path) {

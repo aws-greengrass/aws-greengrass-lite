@@ -12,6 +12,9 @@
 #include "object.h"
 #include <stdbool.h>
 
+/// Convert a base64 buffer to its decoded data.
+bool ggl_base64_decode(GglBuffer base64, GglBuffer *target);
+
 /// Convert a base64 buffer to its decoded data in place.
 bool ggl_base64_decode_in_place(GglBuffer *target);
 

@@ -101,6 +101,7 @@ static GglError json_write_buf(GglBuffer str, GglBuffer *buf) {
                 GGL_LOGE("json", "Insufficient buffer space to encode json.");
                 return GGL_ERR_NOMEM;
             }
+            *buf = ggl_buffer_substr(*buf, (size_t) ret_len, SIZE_MAX);
         } else {
             ret = buf_write((GglBuffer) { .data = &byte, .len = 1 }, buf);
             if (ret != GGL_ERR_OK) {

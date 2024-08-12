@@ -16,6 +16,8 @@ option(ENABLE_WERROR "Compile warnings as errors")
 
 set(GGL_LOG_LEVEL CACHE STRING "GGL log level")
 
+option(GGL_IPC_AUTH_DISABLE "Put IPC authentication in debug mode")
+
 #
 # Misc
 #
@@ -40,6 +42,11 @@ unset(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES)
 #
 # Compiler options
 #
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(WARNING "CMAKE_BUILD_TYPE not set, using MinSizeRel.")
+  set(CMAKE_BUILD_TYPE MinSizeRel)
+endif()
 
 # Enable a compiler option for compile and link
 macro(add_cflags)
@@ -93,7 +100,7 @@ endif()
 
 add_cflags($<$<CONFIG:Debug,RelWithDebInfo>:-ggdb3>)
 
-add_cflags($<$<NOT:$<CONFIG:DEBUG>>:-fPIE>)
+add_cflags($<$<NOT:$<CONFIG:Debug>>:-fPIE>)
 
 if(ENABLE_WERROR)
   add_cflags(-Werror)
@@ -129,19 +136,22 @@ try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
 
 add_cflags($<$<CONFIG:Debug>:-fsanitize=undefined,address>)
 
-try_add_cflag_if(function-sections $<NOT:$<CONFIG:DEBUG>> -ffunction-sections)
-try_add_cflag_if(data-sections $<NOT:$<CONFIG:DEBUG>> -fdata-sections)
+try_add_cflag_if(function-sections $<NOT:$<CONFIG:Debug>> -ffunction-sections)
+try_add_cflag_if(data-sections $<NOT:$<CONFIG:Debug>> -fdata-sections)
 
 add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>)
+if(GGL_IPC_AUTH_DISABLE)
+  add_compile_definitions(GGL_IPC_AUTH_DISABLE)
+endif()
 
-add_link_options($<$<NOT:$<CONFIG:DEBUG>>:-pie>)
+add_link_options($<$<NOT:$<CONFIG:Debug>>:-pie>)
 
 add_link_options(LINKER:-z,relro,-z,now,-z,noexecstack LINKER:--as-needed
                  LINKER:--enable-new-dtags,--hash-style=gnu)
 try_add_link_option(compress-debug-sections-zlib
                     LINKER:--compress-debug-sections=zlib)
 
-try_add_link_option_if(gc-sections $<NOT:$<CONFIG:DEBUG>> LINKER:--gc-sections)
+try_add_link_option_if(gc-sections $<NOT:$<CONFIG:Debug>> LINKER:--gc-sections)
 try_add_link_option_if(strip-all $<CONFIG:Release,MinSizeRel> LINKER:-s)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
@@ -236,6 +246,7 @@ add_subdirectory(ggl-json)
 add_subdirectory(ggl-yaml)
 add_subdirectory(core-bus)
 add_subdirectory(ggipcd)
+add_subdirectory(ggipc-auth)
 add_subdirectory(ggconfigd)
 add_subdirectory(deps/core_mqtt)
 add_subdirectory(iotcored)
@@ -243,7 +254,7 @@ add_subdirectory(ggpubsubd)
 add_subdirectory(ggdeploymentd)
 add_subdirectory(gg-fleet-statusd)
 add_subdirectory(tesd)
-add_subdirectory(tesd-test)
+add_subdirectory(fleet-provisioning)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
@@ -251,4 +262,5 @@ if(BUILD_EXAMPLES)
   add_subdirectory(samples/mqtt-client)
   add_subdirectory(samples/deployment-client)
   add_subdirectory(configtest)
+  add_subdirectory(tesd-test)
 endif()

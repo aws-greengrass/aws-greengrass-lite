@@ -18,14 +18,19 @@
 
 #define GGL_IPC_PAYLOAD_MAX_SUBOBJECTS 50
 
+/// Start the GG-IPC server on a given socket
 GglError ggl_ipc_listen(const char *socket_path);
 
+/// Send an EventStream packet to an IPC client.
 GglError ggl_ipc_response_send(
     uint32_t handle,
     int32_t stream_id,
     GglBuffer service_model_type,
     GglObject response
 );
+
+/// Get the component name associated with a client.
+GglError ggl_ipc_get_component_name(uint32_t handle, GglBuffer *component_name);
 
 /// Callback for whenever a subscription is closed.
 typedef GglError (*GglIpcSubscribeCallback)(

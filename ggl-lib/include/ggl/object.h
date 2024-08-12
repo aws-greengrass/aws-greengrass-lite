@@ -71,7 +71,9 @@ typedef struct GglKV {
     _Generic( \
         (&(strlit)), \
         char(*)[]: ((GglBuffer) { .data = (uint8_t *) (strlit), \
-                                  .len = sizeof(strlit) - 1U }) \
+                                  .len = sizeof(strlit) - 1U }), \
+        const char(*)[]: ((GglBuffer) { .data = (uint8_t *) (strlit), \
+                                        .len = sizeof(strlit) - 1U }) \
     )
 
 // generic function on pointer is to validate parameter is array and not ptr.
