@@ -12,15 +12,14 @@
 GglError run_fleet_prov(void) {
     EVP_PKEY *pkey = NULL;
     X509_REQ *csr_req = NULL;
-    BIO *b64= NULL;
+    BIO *b64 = NULL;
     BUF_MEM *bptr = NULL;
 
     generate_key_files(pkey, csr_req);
 
     FILE *fp;
-    
 
-    static char csr_buf[2048]={0};
+    static char csr_buf[2048] = { 0 };
     BIO_read(b64, (void *) csr_buf, (int) cert_length);
 
     GGL_LOGI(
@@ -32,7 +31,6 @@ GglError run_fleet_prov(void) {
 
     sleep(30);
     make_request(csr_buf);
-    
 
     EVP_PKEY_free(pkey);
     X509_REQ_free(csr_req);
