@@ -7,24 +7,17 @@
 #include <ggl/alloc.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
-#include <ggl/core_bus/client.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 static GglError subscribe_to_iot_core_callback(
-    void *ctx, uint32_t recv_handle, GglObject data
+    GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
 ) {
-    GglIpcSubscriptionCtx *sub_ctx = ctx;
-    (void) recv_handle;
-
     GglBuffer topic;
     GglBuffer payload;
 
@@ -62,13 +55,8 @@ static GglError subscribe_to_iot_core_callback(
     }
     payload = val->buf;
 
-    pthread_mutex_lock(&ggl_ipc_handler_resp_mem_mtx);
-    GGL_DEFER(pthread_mutex_unlock, ggl_ipc_handler_resp_mem_mtx);
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init(GGL_BUF(ggl_ipc_handler_resp_mem));
-
     GglBuffer base64_payload;
-    GglError ret = ggl_base64_encode(payload, &balloc.alloc, &base64_payload);
+    GglError ret = ggl_base64_encode(payload, alloc, &base64_payload);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "SubscribeToIoTCore",
@@ -85,8 +73,8 @@ static GglError subscribe_to_iot_core_callback(
                         ) });
 
     ret = ggl_ipc_response_send(
-        sub_ctx->resp_handle,
-        sub_ctx->stream_id,
+        resp_handle,
+        stream_id,
         GGL_STR("aws.greengrass#IoTCoreMessage"),
         response
     );
@@ -145,31 +133,18 @@ GglError handle_subscribe_to_iot_core(
         { GGL_STR("qos"), GGL_OBJ_I64(qos) },
     );
 
-    GglIpcSubscriptionCtx *ctx = NULL;
-    GglError ret = ggl_ipc_get_subscription_ctx(&ctx, handle);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    ctx->stream_id = stream_id;
-
-    uint32_t recv_handle = 0;
-    ret = ggl_subscribe(
+    GglError ret = ggl_ipc_bind_subscription(
+        handle,
+        stream_id,
         GGL_STR("/aws/ggl/iotcored"),
         GGL_STR("subscribe"),
         call_args,
         subscribe_to_iot_core_callback,
-        ggl_ipc_subscription_on_close,
-        ctx,
-        NULL,
-        &recv_handle
+        NULL
     );
     if (ret != GGL_ERR_OK) {
-        ggl_ipc_release_subscription_ctx(ctx);
         return ret;
     }
-
-    ctx->recv_handle = recv_handle;
 
     return ggl_ipc_response_send(
         handle,

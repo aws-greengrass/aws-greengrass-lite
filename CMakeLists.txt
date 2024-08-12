@@ -85,8 +85,11 @@ set(CMAKE_C_FLAGS_MINSIZEREL "")
 set(CMAKE_COLOR_DIAGNOSTICS ON)
 
 add_cflags($<$<CONFIG:Debug>:-O0>)
-add_cflags($<$<CONFIG:MinSizeRel>:-Oz>)
 add_cflags($<$<CONFIG:Release,RelWithDebInfo>:-O3>)
+try_add_cflag_if(Oz $<CONFIG:MinSizeRel> -Oz)
+if(NOT compiler_has_Oz)
+  add_cflags($<$<CONFIG:MinSizeRel>:-Os>)
+endif()
 
 add_cflags($<$<CONFIG:Debug,RelWithDebInfo>:-ggdb3>)
 
@@ -113,8 +116,6 @@ add_cflags(
   -Wredundant-decls
   -Wdate-time
   -Wstack-protector
-  # debug builds have larger frame sizes
-  $<$<NOT:$<CONFIG:DEBUG>>:-Wframe-larger-than=1024>
   -fvisibility=hidden
   -fno-semantic-interposition
   -fstack-protector-strong
@@ -141,7 +142,7 @@ try_add_link_option(compress-debug-sections-zlib
                     LINKER:--compress-debug-sections=zlib)
 
 try_add_link_option_if(gc-sections $<NOT:$<CONFIG:DEBUG>> LINKER:--gc-sections)
-try_add_link_option_if(strip-all $<NOT:$<CONFIG:DEBUG>> LINKER:-s)
+try_add_link_option_if(strip-all $<CONFIG:Release,MinSizeRel> LINKER:-s)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
@@ -152,6 +153,32 @@ set(CMAKE_C_CREATE_STATIC_LIBRARY_IPO
 
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+
+#
+# FetchContent deps
+#
+
+set(FETCHCONTENT_QUIET FALSE)
+include(FetchContent)
+
+file(READ fc_deps.json FC_DEPS_JSON)
+string(JSON FC_DEPS_COUNT LENGTH "${FC_DEPS_JSON}")
+math(EXPR FC_DEPS_INDEX_MAX "${FC_DEPS_COUNT} - 1")
+
+foreach(index RANGE ${FC_DEPS_INDEX_MAX})
+  string(JSON dep_name MEMBER "${FC_DEPS_JSON}" ${index})
+  string(JSON dep_url GET "${FC_DEPS_JSON}" "${dep_name}" url)
+  string(JSON dep_rev GET "${FC_DEPS_JSON}" "${dep_name}" rev)
+  fetchcontent_declare(
+    "${dep_name}"
+    GIT_REPOSITORY "${dep_url}"
+    GIT_TAG "${dep_rev}")
+  string(TOLOWER "${dep_name}" dep_name_lower)
+  fetchcontent_getproperties(${dep_name})
+  if(NOT ${dep_name_lower}_POPULATED)
+    fetchcontent_populate(${dep_name})
+  endif()
+endforeach()
 
 #
 # System deps
@@ -212,8 +239,11 @@ add_subdirectory(ggipcd)
 add_subdirectory(ggconfigd)
 add_subdirectory(deps/core_mqtt)
 add_subdirectory(iotcored)
+add_subdirectory(ggpubsubd)
 add_subdirectory(ggdeploymentd)
 add_subdirectory(gg-fleet-statusd)
+add_subdirectory(tesd)
+add_subdirectory(tesd-test)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)

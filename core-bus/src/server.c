@@ -23,12 +23,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/// Maximum number of core-bus connections.
-/// Can be configured with `-DGGL_COREBUS_MAX_CLIENTS=<N>`.
-#ifndef GGL_COREBUS_MAX_CLIENTS
-#define GGL_COREBUS_MAX_CLIENTS 100
-#endif
-
 #define PAYLOAD_VALUE_MAX_SUBOBJECTS 50
 
 typedef struct {
@@ -279,6 +273,8 @@ GglError ggl_listen(
         interface.len
     );
 
+    GGL_LOGD("core-bus", "Listening on socket %s.", socket_path);
+
     InterfaceCtx ctx = { .handlers = handlers, .handlers_len = handlers_len };
 
     return ggl_socket_server_listen(socket_path, &pool, client_ready, &ctx);
@@ -296,6 +292,8 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
 }
 
 void ggl_return_err(uint32_t handle, GglError error) {
+    assert(error != GGL_ERR_OK); // Returning error ok is invalid
+
     pthread_mutex_lock(&encode_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, encode_array_mtx);
 

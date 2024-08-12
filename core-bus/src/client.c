@@ -15,6 +15,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 GglError ggl_notify(GglBuffer interface, GglBuffer method, GglMap params) {
     int conn_fd = -1;
@@ -57,10 +58,12 @@ GglError ggl_call(
         return ret;
     }
 
-    ret = ggl_deserialize(alloc, true, msg.payload, result);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("core-bus-client", "Failed to decode response payload.");
-        return ret;
+    if (result != NULL) {
+        ret = ggl_deserialize(alloc, true, msg.payload, result);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("core-bus-client", "Failed to decode response payload.");
+            return ret;
+        }
     }
 
     return GGL_ERR_OK;

@@ -2,4 +2,6 @@ build/
 .direnv/
 .cache/
 result
+result-*
 compile_commands.json
+*.db
