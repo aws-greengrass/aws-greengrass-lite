@@ -10,7 +10,6 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <sys/time.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -114,15 +113,20 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
         local_deployment_document.group_name = val->buf;
     }
 
+    if (ggl_map_get(params, GGL_STR("timestamp"), &val)) {
+        if (val->type != GGL_TYPE_I64) {
+            GGL_LOGE(
+                "ggdeploymentd",
+                "CreateLocalDeployment received invalid arguments."
+            );
+            ggl_return_err(handle, GGL_ERR_INVALID);
+            return;
+        }
+        local_deployment_document.timestamp = val->i64;
+    }
+
     // TODO: Revisit and see if local deployment should have a different value
     local_deployment_document.deployment_id = GGL_STR("LOCAL");
-
-    struct timeval time;
-    gettimeofday(&time, NULL);
-    int64_t millis_from_seconds = (int64_t) (time.tv_sec) * 1000;
-    int64_t millis_from_microseconds = (time.tv_usec / 1000);
-    local_deployment_document.timestamp
-        = millis_from_seconds + millis_from_microseconds;
 
     // TODO: Add remaining fields for cloud deployments
 
