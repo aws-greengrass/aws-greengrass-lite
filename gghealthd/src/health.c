@@ -413,14 +413,11 @@ GglError gghealthd_get_status(GglBuffer component_name, GglBuffer *status) {
     GglError err = open_bus(&bus);
 
     if (ggl_buffer_eq(component_name, GGL_STR("gghealthd"))) {
-        pthread_mutex_lock(&connect_time_mutex);
-        GglError connect_status = get_connect_error();
-        pthread_mutex_unlock(&connect_time_mutex);
-        if (connect_status == GGL_ERR_OK) {
+        if (err == GGL_ERR_OK) {
             *status = GGL_STR("RUNNING");
-        } else if (connect_status == GGL_ERR_NOCONN) {
+        } else if (err == GGL_ERR_NOCONN) {
             *status = GGL_STR("ERRORED");
-        } else if (connect_status == GGL_ERR_FATAL) {
+        } else if (err == GGL_ERR_FATAL) {
             *status = GGL_STR("BROKEN");
         }
         // successfully report own status even if unable to connect to
