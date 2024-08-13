@@ -14,87 +14,73 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define CREATE_LOCAL_DEPLOYMENT "CreateLocalDeployment"
-#define ARTIFACT_DIRECTORY_PATH "artifactDirectoryPath"
-#define RECIPE_DIRECTORY_PATH "recipeDirectoryPath"
-#define ROOT_COMPONENT_VERSIONS_TO_ADD "rootComponentVersionsToAdd"
-#define ROOT_COMPONENTS_TO_REMOVE "rootComponentsToRemove"
-#define COMPONENT_TO_CONFIGURATION "componentToConfiguration"
-#define COMPONENT_TO_RUN_WITH_INFO "componentToRunWithInfo"
-#define GROUP_NAME "groupName"
-#define TIMESTAMP "timestamp"
-
 GglError handle_create_local_deployment(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
     (void) alloc;
 
     GglObject *val = NULL;
-    bool found = ggl_map_get(args, GGL_STR(RECIPE_DIRECTORY_PATH), &val);
+    bool found = ggl_map_get(args, GGL_STR("recipeDirectoryPath"), &val);
     if (found && (val->type != GGL_TYPE_BUF)) {
         GGL_LOGE(
-            CREATE_LOCAL_DEPLOYMENT, "%s not a string.", RECIPE_DIRECTORY_PATH
+            "CreateLocalDeployment", "recipeDirectoryPath not a string."
         );
         return GGL_ERR_INVALID;
     }
     GglBuffer recipe_directory_path = val->buf;
 
-    found = ggl_map_get(args, GGL_STR(ARTIFACT_DIRECTORY_PATH), &val);
+    found = ggl_map_get(args, GGL_STR("artifactDirectoryPath"), &val);
     if (found && (val->type != GGL_TYPE_BUF)) {
         GGL_LOGE(
-            CREATE_LOCAL_DEPLOYMENT, "%s not a string.", ARTIFACT_DIRECTORY_PATH
+            "CreateLocalDeployment", "artifactDirectoryPath not a string."
         );
         return GGL_ERR_INVALID;
     }
     GglBuffer artifact_directory_path = val->buf;
 
-    found = ggl_map_get(args, GGL_STR(ROOT_COMPONENT_VERSIONS_TO_ADD), &val);
+    found = ggl_map_get(args, GGL_STR("rootComponentVersionsToAdd"), &val);
     if (found && (val->type != GGL_TYPE_MAP)) {
         GGL_LOGE(
-            CREATE_LOCAL_DEPLOYMENT,
-            "%s must be provided a map.",
-            ROOT_COMPONENT_VERSIONS_TO_ADD
+            "CreateLocalDeployment",
+            "rootComponentVersionsToAdd must be provided a map.",
         );
         return GGL_ERR_INVALID;
     }
     GglMap component_to_version_map = val->map;
 
-    found = ggl_map_get(args, GGL_STR(ROOT_COMPONENTS_TO_REMOVE), &val);
+    found = ggl_map_get(args, GGL_STR("rootComponentsToRemove"), &val);
     if (found && (val->type != GGL_TYPE_LIST)) {
         GGL_LOGE(
-            CREATE_LOCAL_DEPLOYMENT,
-            "%s must be provided a list.",
-            ROOT_COMPONENTS_TO_REMOVE
+            "CreateLocalDeployment",
+            "rootComponentsToRemove must be provided a list.",
         );
         return GGL_ERR_INVALID;
     }
     GglMap root_components_to_remove = val->list;
 
-    found = ggl_map_get(args, GGL_STR(COMPONENT_TO_CONFIGURATION), &val);
+    found = ggl_map_get(args, GGL_STR("componentToConfiguration"), &val);
     if (found && (val->type != GGL_TYPE_MAP)) {
         GGL_LOGE(
-            CREATE_LOCAL_DEPLOYMENT,
-            "%s must be provided a map.",
-            COMPONENT_TO_CONFIGURATION
+            "CreateLocalDeployment",
+            "componentToConfiguration must be provided a map.",
         );
         return GGL_ERR_INVALID;
     }
     GglMap component_to_configuration = val->map;
 
-    found = ggl_map_get(args, GGL_STR(COMPONENT_TO_RUN_WITH_INFO), &val);
+    found = ggl_map_get(args, GGL_STR("componentToRunWithInfo"), &val);
     if (found && (val->type != GGL_TYPE_MAP)) {
         GGL_LOGE(
-            CREATE_LOCAL_DEPLOYMENT,
-            "%s must be provided a map.",
-            COMPONENT_TO_RUN_WITH_INFO
+            "CreateLocalDeployment",
+            "componentToRunWithInfo must be provided a map.",
         );
         return GGL_ERR_INVALID;
     }
     GglMap component_to_run_with_info = val->map;
 
-    found = ggl_map_get(args, GGL_STR(GROUP_NAME), &val);
+    found = ggl_map_get(args, GGL_STR("groupName"), &val);
     if (found && (val->type != GGL_TYPE_BUF)) {
-        GGL_LOGE(CREATE_LOCAL_DEPLOYMENT, "%s not a string.", GROUP_NAME);
+        GGL_LOGE("CreateLocalDeployment", "groupName not a string.");
         return GGL_ERR_INVALID;
     }
     GglBuffer group_name = val->buf;
@@ -104,18 +90,18 @@ GglError handle_create_local_deployment(
     // TODO: add deployment id
 
     GglMap call_args = GGL_MAP(
-        { GGL_STR(RECIPE_DIRECTORY_PATH), GGL_OBJ(recipe_directory_path) },
-        { GGL_STR(ARTIFACT_DIRECTORY_PATH), GGL_OBJ(artifact_directory_path) },
-        { GGL_STR(ROOT_COMPONENT_VERSIONS_TO_ADD),
+        { GGL_STR("recipeDirectoryPath"), GGL_OBJ(recipe_directory_path) },
+        { GGL_STR("artifactDirectoryPath"), GGL_OBJ(artifact_directory_path) },
+        { GGL_STR("rootComponentVersionsToAdd"),
           GGL_OBJ(component_to_version_map) },
-        { GGL_STR(ROOT_COMPONENTS_TO_REMOVE),
+        { GGL_STR("rootComponentsToRemove"),
           GGL_OBJ(root_components_to_remove) },
-        { GGL_STR(COMPONENT_TO_CONFIGURATION),
+        { GGL_STR("componentToConfiguration"),
           GGL_OBJ(component_to_configuration) },
-        { GGL_STR(COMPONENT_TO_RUN_WITH_INFO),
+        { GGL_STR("componentToRunWithInfo"),
           GGL_OBJ(component_to_run_with_info) },
-        { GGL_STR(GROUP_NAME), GGL_OBJ(group_name) },
-        { GGL_STR(TIMESTAMP), timestamp }
+        { GGL_STR("groupName"), GGL_OBJ(group_name) },
+        { GGL_STR("timestamp"), GGL_OBJ(timestamp) }
     );
 
     GglObject call_resp;
