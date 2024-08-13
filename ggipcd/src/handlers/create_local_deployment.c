@@ -92,7 +92,11 @@ GglError handle_create_local_deployment(
         GglBuffer group_name = val->buf;
     }
 
-    int64_t timestamp = (int64_t) time(NULL) * 1000;
+    struct timeval time;
+    gettimeofday(&time, NULL);
+    int64_t millis_from_seconds = (int64_t) (time.tv_sec) * 1000;
+    int64_t millis_from_microseconds = (time.tv_usec / 1000);
+    int64_t timestamp = millis_from_seconds + millis_from_microseconds;
 
     // TODO: add deployment id and remove from bus server
 
