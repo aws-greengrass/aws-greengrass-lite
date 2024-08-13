@@ -22,7 +22,8 @@ static const struct {
       handle_subscribe_to_iot_core },
     { GGL_STR("aws.greengrass#PublishToTopic"), handle_publish_to_topic },
     { GGL_STR("aws.greengrass#SubscribeToTopic"), handle_subscribe_to_topic },
-    { GGL_STR("aws.greengrass#CreateLocalDeployment"), handle_create_local_deployment }
+    { GGL_STR("aws.greengrass#CreateLocalDeployment"),
+      handle_create_local_deployment }
 };
 
 static const size_t HANDLER_COUNT

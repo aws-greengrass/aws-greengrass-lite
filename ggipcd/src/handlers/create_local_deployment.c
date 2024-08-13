@@ -22,9 +22,7 @@ GglError handle_create_local_deployment(
     GglObject *val = NULL;
     bool found = ggl_map_get(args, GGL_STR("recipeDirectoryPath"), &val);
     if (found && (val->type != GGL_TYPE_BUF)) {
-        GGL_LOGE(
-            "CreateLocalDeployment", "recipeDirectoryPath not a string."
-        );
+        GGL_LOGE("CreateLocalDeployment", "recipeDirectoryPath not a string.");
         return GGL_ERR_INVALID;
     }
     GglBuffer recipe_directory_path = val->buf;
