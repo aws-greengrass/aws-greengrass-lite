@@ -260,13 +260,7 @@ static GglError process_map(
                 break;
             }
         } else {
-            // write the data to the DB
-            // FIXME: Converting key list into a / list but final version will
-            // be to send the list
-            // FIXME, the strnlen will go away with the above fixme
             char *path_string = print_key_path(&key_path->list);
-            GglBuffer path_buffer = { .data = (uint8_t *) path_string,
-                                      .len = strnlen(path_string, 64) };
             uint8_t value_string[512] = { 0 };
             GglBuffer value_buffer
                 = { .data = value_string, .len = sizeof(value_string) };
@@ -274,7 +268,7 @@ static GglError process_map(
             if (error != GGL_ERR_OK) {
                 break;
             }
-            error = ggconfig_write_value_at_key(&path_buffer, &value_buffer);
+            error = ggconfig_write_value_at_key(&key_path->list, &value_buffer);
 
             GGL_LOGT(
                 "rpc_write_object:process_map",

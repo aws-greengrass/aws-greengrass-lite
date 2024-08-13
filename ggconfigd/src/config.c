@@ -46,7 +46,7 @@ static GglError create_database(void) {
     const char *create_query
         = "CREATE TABLE keyTable('keyid' INTEGER PRIMARY KEY "
           "AUTOINCREMENT unique not null,"
-          "'keyvalue' TEXT NOT NULL UNIQUE COLLATE NOCASE  );"
+          "'keyvalue' TEXT NOT NULL COLLATE NOCASE  );"
           "CREATE TABLE relationTable( 'keyid' INT UNIQUE NOT NULL, "
           "'parentid' INT NOT NULL,"
           "primary key ( keyid ),"
@@ -204,26 +204,32 @@ static bool value_is_present_for_key(int64_t key_id) {//todo-krickar GglList *ke
 }
 
 //todo-krickar update key parameter to GglObjVec of buffers
-static long long find_key_with_parent(GglBuffer *key) {
+static long long find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     sqlite3_stmt *find_element_stmt;
     long long id = 0;
     GGL_LOGI(
         "find_key_with_parent",
-        "searching %.*s",
+        "searching for key %.*s with parent id %d",
         (int) key->len,
-        (char *) key->data
+        (char *) key->data,
+        parent_key_id
     );
     sqlite3_prepare_v2(
         config_database,
-        "SELECT keyid FROM keyTable WHERE keyid IN (SELECT keyid FROM "
-        "relationTable) AND keyvalue = ?;",
+        "SELECT kt.keyid"
+        "FROM keyTable kt"
+        "INNER JOIN relationTable rt"
+        "ON kt.keyid = rt.keyid"
+        "WHERE kt.keyvalue = ? AND rt.parentid = ?;",
         -1,
         &find_element_stmt,
         NULL
     );
-    // get the ID of this item after the parent
     sqlite3_bind_text(
         find_element_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
+    );
+    sqlite3_bind_int64(
+        find_element_stmt, 2, parent_key_id
     );
     int rc = sqlite3_step(find_element_stmt);
     GGL_LOGI("find_key_with_parent", "find element returned %d", rc);
@@ -231,17 +237,19 @@ static long long find_key_with_parent(GglBuffer *key) {
         id = sqlite3_column_int(find_element_stmt, 0);
         GGL_LOGI(
             "find_key_with_parent",
-            "found %.*s at %lld",
+            "found key %.*s with parent id %d at %lld",
             (int) key->len,
             (char *) key->data,
+            parent_key_id,
             id
         );
     } else {
         GGL_LOGI(
             "find_key_with_parent",
-            "%.*s not found",
+            "key %.*s with parent id %d not found",
             (int) key->len,
-            (char *) key->data
+            (char *) key->data,
+            parent_key_id
         );
     }
     sqlite3_finalize(find_element_stmt);
@@ -249,12 +257,12 @@ static long long find_key_with_parent(GglBuffer *key) {
 }
 
 //todo-krickar update key parameter to GglObjVec of buffers
-static long long get_parent_key_at_root(GglBuffer *key) {
+static long long get_or_create_key_at_root(GglBuffer *key) {
     sqlite3_stmt *root_check_stmt;
     long long id = 0;
     int rc = 0;
     GGL_LOGI(
-        "get_parent_key_at_root",
+        "get_or_create_key_at_root",
         "Found %.*s",
         (int) key->len,
         (char *) key->data
@@ -276,7 +284,7 @@ static long long get_parent_key_at_root(GglBuffer *key) {
     if (rc == SQLITE_ROW) { // exists as a root and here is the id
         id = sqlite3_column_int(root_check_stmt, 0);
         GGL_LOGI(
-            "get_parent_key_at_root",
+            "get_or_create_key_at_root",
             "Found %.*s at %lld",
             (int) key->len,
             (char *) key->data,
@@ -402,12 +410,12 @@ static bool validate_key(GglBuffer *key) {
     return true;
 }
 
-static long long get_key_id(GglList *key_list) {
+static long long get_key_id(GglList *key_path) {
     sqlite3_stmt *find_element_stmt;
     long long id = 0;
     GGL_LOGI(
         "get_key_id", "searching for %s",
-        print_key_path(key_list)
+        print_key_path(key_path)
     );
 
     //todo-krickar verify the keypath parameter length is at least one. If exactly one, call+return from get_parent_key_at_root. If more than one, proceed here.
@@ -463,8 +471,8 @@ static long long get_key_id(GglList *key_list) {
         NULL
     );
 
-    for (size_t index = 0; index < key_list->len; index++) {
-        GglBuffer *key = (GglBuffer *) &key_list->items[index].buf;
+    for (size_t index = 0; index < key_path->len; index++) {
+        GglBuffer *key = (GglBuffer *) &key_path->items[index].buf;
         sqlite3_bind_text(
             find_element_stmt,
             index + 1,
@@ -474,12 +482,12 @@ static long long get_key_id(GglList *key_list) {
         );
     }
 
-    for (size_t index = key_list->len; index <= 24; index++) {
+    for (size_t index = key_path->len; index <= 24; index++) {
         sqlite3_bind_null(find_element_stmt, index + 1);
     }
 
-    sqlite3_bind_int(find_element_stmt, 26, key_list->len);
-    sqlite3_bind_int(find_element_stmt, 27, key_list->len);
+    sqlite3_bind_int(find_element_stmt, 26, key_path->len);
+    sqlite3_bind_int(find_element_stmt, 27, key_path->len);
 
     int rc = sqlite3_step(find_element_stmt);
     GGL_LOGI("get_key_id", "find element returned %d", rc);
@@ -488,47 +496,37 @@ static long long get_key_id(GglList *key_list) {
         GGL_LOGI(
             "get_key_id",
             "found id for %s: %d",
-            print_key_path(key_list),
+            print_key_path(key_path),
             id
         );
     } else {
         GGL_LOGI(
             "get_key_id",
             "id not found for %s",
-            print_key_path(key_list)
+            print_key_path(key_path)
         );
     }
     sqlite3_finalize(find_element_stmt);
     return id;
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers
-static long long create_key_path(GglList *key) {
-    long long id = 0;
-    long long parent_id = 0;
-    {
-        for (size_t index = 0; index < key->len; index++) {
-            GglBuffer parent_key_buffer = key->items[index].buf;
-            if (index == 0){
-                id = get_parent_key_at_root(&parent_key_buffer);
-            } else {
-                id = find_key_with_parent(&parent_key_buffer);
-            }
-
-            id = key_insert(&parent_key_buffer);
-            if (parent_id) {
-                relation_insert(id, parent_id);
-            }
-
-            parent_id = id;
+static long long create_key_path(GglList *key_path) {
+    GglBuffer root_key_buffer = key_path->items[0].buf;
+    long long parent_key_id = get_or_create_key_at_root(&root_key_buffer);
+    long long current_key_id = parent_key_id;
+    for (size_t index = 1; index < key_path->len; index++) {
+        GglBuffer current_key_buffer = key_path->items[index].buf;
+        current_key_id = find_key_with_parent(&current_key_buffer, parent_key_id);
+        if (current_key_id == 0) { // not found
+            current_key_id = key_insert(&current_key_buffer);
+            relation_insert(current_key_id, parent_key_id);
         }
+        parent_key_id = current_key_id;
     }
-    return id;
+    return current_key_id;
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers
-//todo-krickar check if transaction begin/end structure can be refactored
-GglError ggconfig_write_value_at_key(GglList *key_list, GglBuffer *value) {
+GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     GglError return_value = GGL_ERR_FAILURE;
     if (config_initialized == false) {
         return GGL_ERR_FAILURE;
@@ -536,15 +534,15 @@ GglError ggconfig_write_value_at_key(GglList *key_list, GglBuffer *value) {
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    int id = get_key_id(key_list);
+    int id = get_key_id(key_path);
     if (id == 0) {
-        id = create_key_path(key_list);
+        id = create_key_path(key_path);
     }
 
     GGL_LOGI(
         "ggconfig_write_value_at_key",
         "time to insert/update %s",
-        print_key_path(key_list)
+        print_key_path(key_path)
     );
     if (value_is_present_for_key(id)) {
         return_value = value_update(id, value);
@@ -606,7 +604,7 @@ GglError ggconfig_write_value_at_key(GglList *key_list, GglBuffer *value) {
     GGL_LOGI(
         "ggconfig_write_value_at_key",
         "finished with %s",
-        print_key_path(key_list)
+        print_key_path(key_path)
     );
 
     return return_value;
