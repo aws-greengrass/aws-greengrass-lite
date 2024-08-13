@@ -112,7 +112,7 @@ GglError handle_create_local_deployment(
         &call_resp
     );
 
-    if (ret !+GGL_ERR_OK) {
+    if (ret != GGL_ERR_OK) {
         GGL_LOGE("CreateLocalDeployment", "Failed to create local deployment.");
         return ret;
     }
