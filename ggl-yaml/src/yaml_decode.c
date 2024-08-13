@@ -32,15 +32,7 @@ static GglError yaml_node_to_buf(
     uint8_t *value = node->data.scalar.value;
     size_t len = strlen((char *) value);
 
-    uint8_t *copy_mem = GGL_ALLOCN(alloc, uint8_t, len);
-    if (copy_mem == NULL) {
-        GGL_LOGE("yaml", "Insufficent memory to decode yaml.");
-        return GGL_ERR_NOMEM;
-    }
-
-    memcpy(copy_mem, value, len);
-
-    *buf = (GglBuffer) { .data = copy_mem, .len = len };
+    *buf = (GglBuffer) { .data = value, .len = len };
     return GGL_ERR_OK;
 }
 
