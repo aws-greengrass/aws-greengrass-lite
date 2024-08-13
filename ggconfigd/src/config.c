@@ -166,17 +166,15 @@ static long long key_insert(GglBuffer *key) {
     return id;
 }
 
-//todo-krickar update key parameter to GglList of buffers
-static bool value_is_present_for_key(int64_t key_id) {//todo-krickar GglList *keyPath) {
+// todo-krickar update key parameter to GglList of buffers
+static bool value_is_present_for_key(int64_t key_id
+) { // todo-krickar GglList *keyPath) {
     sqlite3_stmt *find_value_stmt;
     bool return_value = false;
-    GGL_LOGI(
-        "value_is_present_for_key",
-        "checking id %d",
-        key_id
-    );
+    GGL_LOGI("value_is_present_for_key", "checking id %d", key_id);
 
-    //todo-krickar fix query to first find the keyid for the keyPath, then find the value for that keyId
+    // todo-krickar fix query to first find the keyid for the keyPath, then find
+    // the value for that keyId
     sqlite3_prepare_v2(
         config_database,
         "SELECT keyid FROM valueTable where keyid = ?;",
@@ -184,25 +182,19 @@ static bool value_is_present_for_key(int64_t key_id) {//todo-krickar GglList *ke
         &find_value_stmt,
         NULL
     );
-    sqlite3_bind_int64(
-        find_value_stmt, 1, key_id
-    );
+    sqlite3_bind_int64(find_value_stmt, 1, key_id);
     int rc = sqlite3_step(find_value_stmt);
     if (rc == SQLITE_ROW) {
         long long pid = sqlite3_column_int(find_value_stmt, 0);
         if (pid) {
-            GGL_LOGI(
-                "value_is_present_for_key",
-                "id %d is present",
-                key_id
-            );
+            GGL_LOGI("value_is_present_for_key", "id %d is present", key_id);
             return_value = true;
         }
     }
     return return_value;
 }
 
-//todo-krickar update key parameter to GglList of buffers
+// todo-krickar update key parameter to GglList of buffers
 static long long find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     sqlite3_stmt *find_element_stmt;
     long long id = 0;
@@ -215,11 +207,11 @@ static long long find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     );
     sqlite3_prepare_v2(
         config_database,
-        "SELECT kt.keyid"
-        "FROM keyTable kt"
-        "INNER JOIN relationTable rt"
-        "ON kt.keyid = rt.keyid"
-        "WHERE kt.keyvalue = ? AND rt.parentid = ?;",
+        "SELECT kt.keyid "
+        "FROM keyTable kt "
+        "LEFT JOIN relationTable rt "
+        "WHERE kt.keyid = rt.keyid AND "
+        "kt.keyvalue = ? AND rt.parentid = ?;",
         -1,
         &find_element_stmt,
         NULL
@@ -227,9 +219,7 @@ static long long find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     sqlite3_bind_text(
         find_element_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
-    sqlite3_bind_int64(
-        find_element_stmt, 2, parent_key_id
-    );
+    sqlite3_bind_int64(find_element_stmt, 2, parent_key_id);
     int rc = sqlite3_step(find_element_stmt);
     GGL_LOGI("find_key_with_parent", "find element returned %d", rc);
     if (rc == SQLITE_ROW) {
@@ -255,7 +245,7 @@ static long long find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     return id;
 }
 
-//todo-krickar update key parameter to GglList of buffers
+// todo-krickar update key parameter to GglList of buffers
 static long long get_or_create_key_at_root(GglBuffer *key) {
     sqlite3_stmt *root_check_stmt;
     long long id = 0;
@@ -336,9 +326,7 @@ static GglError value_insert(int64_t key_id, GglBuffer *value) {
         &value_insert_stmt,
         NULL
     );
-    sqlite3_bind_int64(
-        value_insert_stmt, 1, key_id
-    );
+    sqlite3_bind_int64(value_insert_stmt, 1, key_id);
     sqlite3_bind_text(
         value_insert_stmt,
         2,
@@ -379,9 +367,7 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
         (int) value->len,
         SQLITE_STATIC
     );
-    sqlite3_bind_int64(
-        update_value_stmt, 2, key_id
-    );
+    sqlite3_bind_int64(update_value_stmt, 2, key_id);
     int rc = sqlite3_step(update_value_stmt);
     GGL_LOGI("ggconfig_insert", "%d", rc);
     if (rc == SQLITE_DONE || rc == SQLITE_OK) {
@@ -398,7 +384,7 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     return return_value;
 }
 
-//todo-krickar update key parameter to GglList of buffers
+// todo-krickar update key parameter to GglList of buffers
 static bool validate_key(GglBuffer *key) {
     // Verify that the path is alpha characters or / and nothing else
     if (!isalpha(key->data[0])) { // make sure the path starts with a character
@@ -410,12 +396,11 @@ static bool validate_key(GglBuffer *key) {
 static long long get_key_id(GglList *key_path) {
     sqlite3_stmt *find_element_stmt;
     long long id = 0;
-    GGL_LOGI(
-        "get_key_id", "searching for %s",
-        print_key_path(key_path)
-    );
+    GGL_LOGI("get_key_id", "searching for %s", print_key_path(key_path));
 
-    //todo-krickar verify the keypath parameter length is at least one. If exactly one, call+return from get_parent_key_at_root. If more than one, proceed here.
+    // todo-krickar verify the keypath parameter length is at least one. If
+    // exactly one, call+return from get_parent_key_at_root. If more than one,
+    // proceed here.
     sqlite3_prepare_v2(
         config_database,
         "WITH RECURSIVE path_cte(current_key_id, depth) AS ("
@@ -491,17 +476,10 @@ static long long get_key_id(GglList *key_path) {
     if (rc == SQLITE_ROW) {
         id = sqlite3_column_int(find_element_stmt, 0);
         GGL_LOGI(
-            "get_key_id",
-            "found id for %s: %d",
-            print_key_path(key_path),
-            id
+            "get_key_id", "found id for %s: %d", print_key_path(key_path), id
         );
     } else {
-        GGL_LOGI(
-            "get_key_id",
-            "id not found for %s",
-            print_key_path(key_path)
-        );
+        GGL_LOGI("get_key_id", "id not found for %s", print_key_path(key_path));
     }
     sqlite3_finalize(find_element_stmt);
     return id;
@@ -513,7 +491,8 @@ static long long create_key_path(GglList *key_path) {
     long long current_key_id = parent_key_id;
     for (size_t index = 1; index < key_path->len; index++) {
         GglBuffer current_key_buffer = key_path->items[index].buf;
-        current_key_id = find_key_with_parent(&current_key_buffer, parent_key_id);
+        current_key_id
+            = find_key_with_parent(&current_key_buffer, parent_key_id);
         if (current_key_id == 0) { // not found
             current_key_id = key_insert(&current_key_buffer);
             relation_insert(current_key_id, parent_key_id);
@@ -588,8 +567,8 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     //         break;
     //     case SQLITE_ROW: {
     //         long long handle = sqlite3_column_int64(stmt, 0);
-    //         GGL_LOGI("subscription", "Sending to %lld, %08llx", handle, handle);
-    //         ggl_respond((uint32_t) handle, GGL_OBJ(*value));
+    //         GGL_LOGI("subscription", "Sending to %lld, %08llx", handle,
+    //         handle); ggl_respond((uint32_t) handle, GGL_OBJ(*value));
     //     } break;
     //     default:
     //         GGL_LOGI("subscription", "RC %d", rc);
@@ -608,7 +587,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     return return_value;
 }
 
-//todo-krickar update key parameter to GglList of buffers
+// todo-krickar update key parameter to GglList of buffers
 GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
     sqlite3_stmt *stmt;
     GglError return_value = GGL_ERR_FAILURE;
@@ -657,7 +636,7 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
     return return_value;
 }
 
-//todo-krickar update key parameter to GglList of buffers?
+// todo-krickar update key parameter to GglList of buffers?
 GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle) {
     long long key_id;
     sqlite3_stmt *stmt;
