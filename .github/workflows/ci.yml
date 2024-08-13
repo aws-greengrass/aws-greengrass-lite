@@ -2,6 +2,8 @@ name: CI
 
 on:
   push:
+    branches:
+      - main
   workflow_dispatch:
   pull_request:
 
@@ -11,6 +13,7 @@ concurrency:
 
 jobs:
   run-checks:
+    # To run all of the below checks locally, run `nix flake check -L`
     timeout-minutes: 60
     strategy:
       fail-fast: false
@@ -19,13 +22,17 @@ jobs:
           - name: build with GCC
             check: packages-default
           - name: build with Clang
-            check: packages-gravel-clang
+            check: packages-ggl-clang
           - name: clang-tidy
             check: clang-tidy
           - name: editorconfig
             check: editorconfig
           - name: spelling
             check: spelling
+          - name: cmake-lint
+            check: cmake-lint
+          - name: shellcheck
+            check: shellcheck
     name: Check ${{ matrix.name }}
     runs-on: ubuntu-latest
     steps:

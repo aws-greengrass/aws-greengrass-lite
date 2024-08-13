@@ -1,25 +1,26 @@
-/* gravel - Utilities for AWS IoT Core clients
- * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
- * SPDX-License-Identifier: Apache-2.0
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "mqtt.h"
-#include "args.h"
-#include "gravel/log.h"
-#include "gravel/object.h"
-#include "gravel/utils.h"
+#include "ggl/error.h"
+#include "ggl/log.h"
+#include "ggl/object.h"
+#include "ggl/utils.h"
+#include "iotcored.h"
 #include "tls.h"
 #include <assert.h>
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
 #include <core_mqtt_serializer.h>
-#include <errno.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
 #include <transport_interface.h>
+#include <stdatomic.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
 
@@ -35,6 +36,8 @@
 #define IOTCORED_NETWORK_BUFFER_SIZE 5000
 #endif
 
+#define IOTCORED_MQTT_MAX_PUBLISH_RECORDS 10
+
 static uint32_t time_ms(void);
 static void event_callback(
     MQTTContext_t *ctx,
@@ -49,13 +52,18 @@ struct NetworkContext {
 static pthread_t recv_thread;
 static pthread_t keepalive_thread;
 
-static bool ping_pending;
+static atomic_bool ping_pending;
 
 static NetworkContext_t net_ctx;
 
 static MQTTContext_t mqtt_ctx;
 
 static uint8_t network_buffer[IOTCORED_NETWORK_BUFFER_SIZE];
+
+static MQTTPubAckInfo_t
+    outgoing_publish_records[IOTCORED_MQTT_MAX_PUBLISH_RECORDS];
+// TODO: Remove once no longer needed by coreMQTT
+static MQTTPubAckInfo_t incoming_publish_record;
 
 pthread_mutex_t *coremqtt_get_send_mtx(const MQTTContext_t *ctx) {
     (void) ctx;
@@ -81,7 +89,7 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
         MQTTStatus_t mqtt_ret = MQTT_ReceiveLoop(ctx);
 
         if ((mqtt_ret != MQTTSuccess) && (mqtt_ret != MQTTNeedMoreBytes)) {
-            GRAVEL_LOGE("mqtt", "Error in receive loop, closing connection.");
+            GGL_LOGE("mqtt", "Error in receive loop, closing connection.");
             pthread_cancel(keepalive_thread);
             iotcored_tls_cleanup(
                 ctx->transportInterface.pNetworkContext->tls_ctx
@@ -95,25 +103,25 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
     MQTTContext_t *ctx = arg;
 
     while (true) {
-        int err = gravel_sleep(IOTCORED_KEEP_ALIVE_PERIOD);
-        if (err != 0) {
+        GglError err = ggl_sleep(IOTCORED_KEEP_ALIVE_PERIOD);
+        if (err != GGL_ERR_OK) {
             break;
         }
 
-        if (ping_pending) {
-            GRAVEL_LOGE(
+        if (atomic_load(&ping_pending)) {
+            GGL_LOGE(
                 "mqtt",
                 "Server did not respond to ping within Keep Alive period."
             );
             break;
         }
 
-        GRAVEL_LOGD("mqtt", "Sending pingreq.");
-        ping_pending = true;
+        GGL_LOGD("mqtt", "Sending pingreq.");
+        atomic_store(&ping_pending, true);
         MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
 
         if (mqtt_ret != MQTTSuccess) {
-            GRAVEL_LOGE("mqtt", "Sending pingreq failed.");
+            GGL_LOGE("mqtt", "Sending pingreq failed.");
             break;
         }
     }
@@ -128,11 +136,11 @@ static int32_t transport_recv(
 ) {
     size_t bytes = bytes_to_recv < INT32_MAX ? bytes_to_recv : INT32_MAX;
 
-    GravelBuffer buf = { .data = buffer, .len = bytes };
+    GglBuffer buf = { .data = buffer, .len = bytes };
 
-    int ret = iotcored_tls_read(network_context->tls_ctx, &buf);
+    GglError ret = iotcored_tls_read(network_context->tls_ctx, &buf);
 
-    return (ret == 0) ? (int32_t) buf.len : -1;
+    return (ret == GGL_ERR_OK) ? (int32_t) buf.len : -1;
 }
 
 static int32_t transport_send(
@@ -140,15 +148,15 @@ static int32_t transport_send(
 ) {
     size_t bytes = bytes_to_send < INT32_MAX ? bytes_to_send : INT32_MAX;
 
-    int ret = iotcored_tls_write(
+    GglError ret = iotcored_tls_write(
         network_context->tls_ctx,
-        (GravelBuffer) { .data = (void *) buffer, .len = bytes }
+        (GglBuffer) { .data = (void *) buffer, .len = bytes }
     );
 
-    return (ret == 0) ? (int32_t) bytes : -1;
+    return (ret == GGL_ERR_OK) ? (int32_t) bytes : -1;
 }
 
-int iotcored_mqtt_connect(const IotcoredArgs *args) {
+GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
     TransportInterface_t transport = {
         .pNetworkContext = &net_ctx,
         .recv = transport_recv,
@@ -165,14 +173,24 @@ int iotcored_mqtt_connect(const IotcoredArgs *args) {
     );
     assert(mqtt_ret == MQTTSuccess);
 
-    int ret = iotcored_tls_connect(args, &net_ctx.tls_ctx);
+    mqtt_ret = MQTT_InitStatefulQoS(
+        &mqtt_ctx,
+        outgoing_publish_records,
+        sizeof(outgoing_publish_records) / sizeof(*outgoing_publish_records),
+        &incoming_publish_record,
+        1
+    );
+    assert(mqtt_ret == MQTTSuccess);
+
+    GglError ret = iotcored_tls_connect(args, &net_ctx.tls_ctx);
     if (ret != 0) {
         return ret;
     }
 
     size_t id_len = strlen(args->id);
     if (id_len > UINT16_MAX) {
-        return E2BIG;
+        GGL_LOGE("mqtt", "Client ID too long.");
+        return GGL_ERR_CONFIG;
     }
 
     MQTTConnectInfo_t conn_info = {
@@ -192,24 +210,24 @@ int iotcored_mqtt_connect(const IotcoredArgs *args) {
     );
 
     if (mqtt_ret != MQTTSuccess) {
-        GRAVEL_LOGE(
+        GGL_LOGE(
             "mqtt", "Connection failed: %s", MQTT_Status_strerror(mqtt_ret)
         );
-        return EIO;
+        return GGL_ERR_FAILURE;
     }
 
-    ping_pending = false;
+    atomic_store(&ping_pending, false);
     pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
     pthread_create(
         &keepalive_thread, NULL, mqtt_keepalive_thread_fn, &mqtt_ctx
     );
 
-    GRAVEL_LOGI("mqtt", "Successfully connected.");
+    GGL_LOGI("mqtt", "Successfully connected.");
 
     return 0;
 }
 
-int iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
+GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
     assert(msg != NULL);
 
     MQTTStatus_t result = MQTT_Publish(
@@ -225,7 +243,7 @@ int iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
     );
 
     if (result != MQTTSuccess) {
-        GRAVEL_LOGE(
+        GGL_LOGE(
             "mqtt",
             "%s to %.*s failed: %s",
             "Publish",
@@ -233,10 +251,10 @@ int iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
             msg->topic.data,
             MQTT_Status_strerror(result)
         );
-        return EIO;
+        return GGL_ERR_FAILURE;
     }
 
-    GRAVEL_LOGD(
+    GGL_LOGD(
         "mqtt",
         "Publish sent on: %.*s",
         (int) (uint16_t) msg->topic.len,
@@ -246,7 +264,7 @@ int iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
     return 0;
 }
 
-int iotcored_mqtt_subscribe(GravelBuffer topic_filter, uint8_t qos) {
+GglError iotcored_mqtt_subscribe(GglBuffer topic_filter, uint8_t qos) {
     MQTTStatus_t result = MQTT_Subscribe(
         &mqtt_ctx,
         &(MQTTSubscribeInfo_t) {
@@ -259,7 +277,7 @@ int iotcored_mqtt_subscribe(GravelBuffer topic_filter, uint8_t qos) {
     );
 
     if (result != MQTTSuccess) {
-        GRAVEL_LOGE(
+        GGL_LOGE(
             "mqtt",
             "%s to %.*s failed: %s",
             "Subscribe",
@@ -267,10 +285,10 @@ int iotcored_mqtt_subscribe(GravelBuffer topic_filter, uint8_t qos) {
             topic_filter.data,
             MQTT_Status_strerror(result)
         );
-        return EIO;
+        return GGL_ERR_FAILURE;
     }
 
-    GRAVEL_LOGD(
+    GGL_LOGD(
         "mqtt",
         "Publish sent on: %.*s",
         (int) (uint16_t) topic_filter.len,
@@ -278,6 +296,18 @@ int iotcored_mqtt_subscribe(GravelBuffer topic_filter, uint8_t qos) {
     );
 
     return 0;
+}
+
+bool iotcored_mqtt_topic_filter_match(GglBuffer topic_filter, GglBuffer topic) {
+    bool matches = false;
+    MQTTStatus_t result = MQTT_MatchTopic(
+        (char *) topic.data,
+        (uint16_t) topic.len,
+        (char *) topic_filter.data,
+        (uint16_t) topic_filter.len,
+        &matches
+    );
+    return (result == MQTTSuccess) && matches;
 }
 
 static void event_callback(
@@ -295,18 +325,25 @@ static void event_callback(
         assert(deserialized_info->pPublishInfo != NULL);
         MQTTPublishInfo_t *publish = deserialized_info->pPublishInfo;
 
-        GRAVEL_LOGD(
+        GGL_LOGD(
             "mqtt",
             "Received publish id %u on topic %.*s.",
             deserialized_info->packetIdentifier,
             (int) publish->topicNameLength,
             publish->pTopicName
         );
+
+        IotcoredMsg msg = { .topic = { .data = (uint8_t *) publish->pTopicName,
+                                       .len = publish->topicNameLength },
+                            .payload = { .data = (uint8_t *) publish->pPayload,
+                                         .len = publish->payloadLength } };
+
+        iotcored_mqtt_receive(&msg);
     } else {
-        /* Handle other packets. */
+        // Handle other packets.
         switch (packet_info->type) {
         case MQTT_PACKET_TYPE_PUBACK:
-            GRAVEL_LOGD(
+            GGL_LOGD(
                 "mqtt",
                 "Received %s id %u.",
                 "puback",
@@ -314,7 +351,7 @@ static void event_callback(
             );
             break;
         case MQTT_PACKET_TYPE_SUBACK:
-            GRAVEL_LOGD(
+            GGL_LOGD(
                 "mqtt",
                 "Received %s id %u.",
                 "suback",
@@ -322,7 +359,7 @@ static void event_callback(
             );
             break;
         case MQTT_PACKET_TYPE_UNSUBACK:
-            GRAVEL_LOGD(
+            GGL_LOGD(
                 "mqtt",
                 "Received %s id %u.",
                 "unsuback",
@@ -330,11 +367,11 @@ static void event_callback(
             );
             break;
         case MQTT_PACKET_TYPE_PINGRESP:
-            GRAVEL_LOGD("mqtt", "Received pingresp.");
-            ping_pending = false;
+            GGL_LOGD("mqtt", "Received pingresp.");
+            atomic_store(&ping_pending, false);
             break;
         default:
-            GRAVEL_LOGE(
+            GGL_LOGE(
                 "mqtt", "Received unknown packet type %02x.", packet_info->type
             );
         }

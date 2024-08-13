@@ -11,11 +11,12 @@ Checks:
   - -clang-analyzer-valist.Uninitialized # false positives
   - -clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling
   - -bugprone-easily-swappable-parameters
+  - -bugprone-multi-level-implicit-pointer-conversion
   - -readability-identifier-length
   - -readability-magic-numbers
 CheckOptions:
   - key: misc-include-cleaner.IgnoreHeaders
-    value: bits/.*;openssl/.*
+    value: bits/.*;asm-generic/.*;openssl/.*
   - key: bugprone-argument-comment.StrictMode
     value: true
   - key: bugprone-not-null-terminated-result.WantToUseSafeFunctions

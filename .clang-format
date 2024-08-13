@@ -3,7 +3,6 @@ Language: Cpp
 BasedOnStyle: WebKit
 AlignAfterOpenBracket: BlockIndent
 AlignEscapedNewlines: DontAlign
-AllowShortCaseLabelsOnASingleLine: true
 AllowShortEnumsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
 AllowShortIfStatementsOnASingleLine: WithoutElse
@@ -24,4 +23,5 @@ PointerAlignment: Right
 QualifierAlignment: Left
 SeparateDefinitionBlocks: Always
 SpaceAfterCStyleCast: true
+PenaltyReturnTypeOnItsOwnLine: 240
 ...

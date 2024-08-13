@@ -1,0 +1,19 @@
+{
+  "format": {
+    "autosort": true,
+    "command_case": "lower"
+  },
+  "lint": {
+    "disabled_codes": ["C0103", "E1120"]
+  },
+  "additional_commands": {
+    "ggl_init_module": {
+      "pargs": 1,
+      "kwargs": {
+        "SRCDIR": "1",
+        "INCDIRS": "*",
+        "LIBS": "*"
+      }
+    }
+  }
+}

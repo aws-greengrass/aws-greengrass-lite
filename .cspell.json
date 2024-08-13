@@ -9,5 +9,5 @@
     }
   ],
   "dictionaries": ["project"],
-  "ignorePaths": ["**/*.mk", "**/Makefile"]
+  "ignorePaths": ["**/CMakeLists.txt"]
 }
