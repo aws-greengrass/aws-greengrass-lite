@@ -19,5 +19,6 @@ GglIpcHandler handle_subscribe_to_iot_core;
 GglIpcHandler handle_update_configuration;
 GglIpcHandler handle_publish_to_topic;
 GglIpcHandler handle_subscribe_to_topic;
+GglIpcHandler handle_create_local_deployment;
 
 #endif
