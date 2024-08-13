@@ -62,8 +62,8 @@ static uint8_t network_buffer[IOTCORED_NETWORK_BUFFER_SIZE];
 
 static MQTTPubAckInfo_t
     outgoing_publish_records[IOTCORED_MQTT_MAX_PUBLISH_RECORDS];
-static MQTTPubAckInfo_t
-    incoming_publish_records[IOTCORED_MQTT_MAX_PUBLISH_RECORDS];
+// TODO: Remove once no longer needed by coreMQTT
+static MQTTPubAckInfo_t incoming_publish_record;
 
 pthread_mutex_t *coremqtt_get_send_mtx(const MQTTContext_t *ctx) {
     (void) ctx;
@@ -177,8 +177,8 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
         &mqtt_ctx,
         outgoing_publish_records,
         sizeof(outgoing_publish_records) / sizeof(*outgoing_publish_records),
-        incoming_publish_records,
-        sizeof(incoming_publish_records) / sizeof(*incoming_publish_records)
+        &incoming_publish_record,
+        1
     );
     assert(mqtt_ret == MQTTSuccess);
 
