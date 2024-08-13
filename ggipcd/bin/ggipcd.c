@@ -5,7 +5,6 @@
 #include "ggipcd.h"
 #include <argp.h>
 #include <ggl/error.h>
-#include <stdlib.h>
 
 static char doc[] = "ggipcd -- Greengrass IPC server for Greengrass Lite";
 
@@ -21,10 +20,6 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
         args->socket_path = arg;
         break;
     case ARGP_KEY_END:
-        if (args->socket_path == NULL) {
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            argp_usage(state);
-        }
         break;
     default:
         return ARGP_ERR_UNKNOWN;
