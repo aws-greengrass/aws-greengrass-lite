@@ -1,7 +1,7 @@
 ---
-RecipeFormatVersion: '2020-01-25'
+RecipeFormatVersion: "2020-01-25"
 ComponentName: com.example.HelloWorld
-ComponentVersion: '1.0.0'
+ComponentVersion: "1.0.0"
 ComponentDescription: My first AWS IoT Greengrass component.
 ComponentPublisher: Amazon
 ComponentDependencies:
@@ -18,9 +18,15 @@ Manifests:
   - Platform:
       os: linux
     Lifecycle:
+      INSTALL: |
+        PY run this
+        py test this as well
       run: python3 -u hello_world.py
   - Platform:
       os: windows
     Lifecycle:
+      install: |
+        py run this
+        py test this as well
       run: |
         py -3 -u hello_world.py
