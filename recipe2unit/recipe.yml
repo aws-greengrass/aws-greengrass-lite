@@ -8,7 +8,7 @@ ComponentDependencies:
   aws.greengrass.TokenExchangeService:
     VersionRequirement: ">=2.0.0 <3.0.0"
     DependencyType: "HARD"
-  AceZwaveMw:
+  AcewaveMw:
     VersionRequirement: ">=1.0.0 <2.0.0"
     DependencyType: "HARD"
 ComponentConfiguration:
