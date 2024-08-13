@@ -130,7 +130,7 @@ def getCommandArgs():
     fileName = ""
 
     # Long options
-    long_options = ["Help", "recpie-path="]
+    long_options = ["Help", "recipe-path="]
 
     try:
         # Parsing argument
@@ -141,10 +141,10 @@ def getCommandArgs():
             if currentArgument in ("-h", "--Help"):
                 print("Displaying Help")
                 print(
-                    "-r / ----recpie-path <path to a recpie> | Provide path to the recpie file that needs to be processed"
+                    "-r / ----recipe-path <path to a recipe> | Provide path to the recipe file that needs to be processed"
                 )
 
-            elif currentArgument in ("-r", "--recpie-path"):
+            elif currentArgument in ("-r", "--recipe-path"):
                 fileName = currentValue
 
     except getopt.error as err:
