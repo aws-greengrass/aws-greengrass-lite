@@ -166,11 +166,10 @@ static long long key_insert(GglBuffer *key) {
     return id;
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers
+//todo-krickar update key parameter to GglList of buffers
 static bool value_is_present_for_key(int64_t key_id) {//todo-krickar GglList *keyPath) {
     sqlite3_stmt *find_value_stmt;
     bool return_value = false;
-    // todo-krickar update log to print out keyPath
     GGL_LOGI(
         "value_is_present_for_key",
         "checking id %d",
@@ -203,7 +202,7 @@ static bool value_is_present_for_key(int64_t key_id) {//todo-krickar GglList *ke
     return return_value;
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers
+//todo-krickar update key parameter to GglList of buffers
 static long long find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     sqlite3_stmt *find_element_stmt;
     long long id = 0;
@@ -256,7 +255,7 @@ static long long find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     return id;
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers
+//todo-krickar update key parameter to GglList of buffers
 static long long get_or_create_key_at_root(GglBuffer *key) {
     sqlite3_stmt *root_check_stmt;
     long long id = 0;
@@ -327,7 +326,6 @@ static void relation_insert(long long id, long long parent) {
     sqlite3_finalize(relation_insert_stmt);
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers
 static GglError value_insert(int64_t key_id, GglBuffer *value) {
     sqlite3_stmt *value_insert_stmt;
     GglError return_value = GGL_ERR_FAILURE;
@@ -363,7 +361,6 @@ static GglError value_insert(int64_t key_id, GglBuffer *value) {
     return return_value;
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers
 static GglError value_update(int64_t key_id, GglBuffer *value) {
     sqlite3_stmt *update_value_stmt;
     GglError return_value = GGL_ERR_FAILURE;
@@ -401,7 +398,7 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     return return_value;
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers
+//todo-krickar update key parameter to GglList of buffers
 static bool validate_key(GglBuffer *key) {
     // Verify that the path is alpha characters or / and nothing else
     if (!isalpha(key->data[0])) { // make sure the path starts with a character
@@ -563,6 +560,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     // happen in rapid succession, they may be collapsed into one notification.
     // This usually happens when a compound change occurs.
 
+    // todo-krickar add back in
     // sqlite3_stmt *stmt;
     // sqlite3_prepare_v2(
     //     config_database,
@@ -610,7 +608,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     return return_value;
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers
+//todo-krickar update key parameter to GglList of buffers
 GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
     sqlite3_stmt *stmt;
     GglError return_value = GGL_ERR_FAILURE;
@@ -659,7 +657,7 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
     return return_value;
 }
 
-//todo-krickar update key parameter to GglObjVec of buffers?
+//todo-krickar update key parameter to GglList of buffers?
 GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle) {
     long long key_id;
     sqlite3_stmt *stmt;
