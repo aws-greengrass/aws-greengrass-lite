@@ -10,7 +10,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <time.h>
+#include <sys/time.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -40,7 +40,7 @@ GglError handle_create_local_deployment(
     if (found && (val->type != GGL_TYPE_MAP)) {
         GGL_LOGE(
             "CreateLocalDeployment",
-            "rootComponentVersionsToAdd must be provided a map.",
+            "rootComponentVersionsToAdd must be provided a map."
         );
         return GGL_ERR_INVALID;
     }
@@ -50,17 +50,17 @@ GglError handle_create_local_deployment(
     if (found && (val->type != GGL_TYPE_LIST)) {
         GGL_LOGE(
             "CreateLocalDeployment",
-            "rootComponentsToRemove must be provided a list.",
+            "rootComponentsToRemove must be provided a list."
         );
         return GGL_ERR_INVALID;
     }
-    GglMap root_components_to_remove = val->list;
+    GglList root_components_to_remove = val->list;
 
     found = ggl_map_get(args, GGL_STR("componentToConfiguration"), &val);
     if (found && (val->type != GGL_TYPE_MAP)) {
         GGL_LOGE(
             "CreateLocalDeployment",
-            "componentToConfiguration must be provided a map.",
+            "componentToConfiguration must be provided a map."
         );
         return GGL_ERR_INVALID;
     }
@@ -70,7 +70,7 @@ GglError handle_create_local_deployment(
     if (found && (val->type != GGL_TYPE_MAP)) {
         GGL_LOGE(
             "CreateLocalDeployment",
-            "componentToRunWithInfo must be provided a map.",
+            "componentToRunWithInfo must be provided a map."
         );
         return GGL_ERR_INVALID;
     }
