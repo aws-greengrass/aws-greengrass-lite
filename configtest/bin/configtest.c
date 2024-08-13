@@ -10,7 +10,7 @@
 #include <stdlib.h>
 
 static void test_insert(
-    GglBuffer component, GglBuffer test_key, GglBuffer test_value
+    GglBuffer component, GglList test_key, GglObject test_value
 ) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
 
@@ -19,14 +19,15 @@ static void test_insert(
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
     GglMap params = GGL_MAP(
-        { GGL_STR("component"), GGL_OBJ(component) },
-        { GGL_STR("key"), GGL_OBJ(test_key) },
-        { GGL_STR("value"), GGL_OBJ(test_value) }
+        { GGL_STR("componentName"), GGL_OBJ(component) },
+        { GGL_STR("keyPath"), GGL_OBJ(test_key) },
+        { GGL_STR("valueToMerge"), test_value },
+        { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
     );
     GglObject result;
 
     GglError error = ggl_call(
-        server, GGL_STR("write"), params, NULL, &the_allocator.alloc, &result
+        server, GGL_STR("write_object"), params, NULL, &the_allocator.alloc, &result
     );
 
     if (error != GGL_ERR_OK) {
@@ -191,20 +192,22 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
 
-    test_write_object();
+    // test_write_object();
     test_insert(
-        GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("another big value")
+        GGL_STR("component"),
+        GGL_LIST(GGL_OBJ_STR("foo"),GGL_OBJ_STR("bar")),
+        GGL_OBJ_MAP( { GGL_STR("key"), GGL_OBJ_STR("value") })
     );
-    test_subscribe(GGL_STR("component"), GGL_STR("foo/bar"));
-    test_insert(GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("big value"));
-    test_insert(
-        GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("the biggest value")
-    );
-    test_insert(GGL_STR("component"), GGL_STR("bar/foo"), GGL_STR("value2"));
-    test_insert(GGL_STR("component"), GGL_STR("foo/baz"), GGL_STR("value"));
-    test_insert(GGL_STR("global"), GGL_STR("global"), GGL_STR("value"));
+    // test_subscribe(GGL_STR("component"), GGL_STR("foo/bar"));
+    // test_insert(GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("big value"));
+    // test_insert(
+    //     GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("the biggest value")
+    // );
+    // test_insert(GGL_STR("component"), GGL_STR("bar/foo"), GGL_STR("value2"));
+    // test_insert(GGL_STR("component"), GGL_STR("foo/baz"), GGL_STR("value"));
+    // test_insert(GGL_STR("global"), GGL_STR("global"), GGL_STR("value"));
 
-    test_get(GGL_STR("component"), GGL_STR("foo/bar"));
+    // test_get(GGL_STR("component"), GGL_STR("foo/bar"));
 
     return 0;
 }

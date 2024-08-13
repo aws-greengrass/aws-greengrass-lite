@@ -54,6 +54,36 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     // append component & key
     GglBuffer value;
 
+    GglBuffer object_list_memory[MAX_KEY_PATH_DEPTH] = { 0 };
+    GglList object_list = {
+        .items = object_list_memory,
+        .len = 0
+    };
+    GglObjVec key_path = {
+        .list = object_list,
+        .capacity = MAX_KEY_PATH_DEPTH
+    };
+
+    GglObject component_obj = {
+        .type = GGL_TYPE_BUF,
+        .buf = msg.component
+    };
+    ggl_obj_vec_push(&key_path, component_obj);
+
+    size_t start = 0;
+    for (size_t i = 0; i < msg.key.len; i++) {
+        if (msg.key.data[i] == '/') {
+            GglObject key_obj = {
+                .type = GGL_TYPE_BUF,
+                .buf = {
+                    .data = msg.key.data + start,
+                    .len = i - start
+                }
+            }; // todo-krickar make sure '\0' is appended, if needed
+            start = i + 1;
+        }
+    }
+
     unsigned long length = msg.component.len + msg.key.len + 1;
     static uint8_t component_buffer[GGCONFIGD_MAX_COMPONENT_SIZE];
     GglBuffer component_key;

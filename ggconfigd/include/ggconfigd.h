@@ -11,7 +11,7 @@
 /// function.
 typedef void GglConfigCallback(void *parameter);
 
-GglError ggconfig_write_value_at_key(GglBuffer *key, GglBuffer *value);
+GglError ggconfig_write_value_at_key(GglList *key_list, GglBuffer *value);
 
 GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer);
 GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle);
