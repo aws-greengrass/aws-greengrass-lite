@@ -175,4 +175,7 @@ typedef struct GglKV {
 /// Modifies an object's references to point to copies in alloc
 GglError ggl_obj_deep_copy(GglObject *obj, GglAlloc *alloc);
 
+/// Modifies an object's buffer references to point to copies in alloc
+GglError ggl_obj_buffer_copy(GglObject *obj, GglAlloc *alloc);
+
 #endif

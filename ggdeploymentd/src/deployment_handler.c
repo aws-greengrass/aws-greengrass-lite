@@ -265,7 +265,8 @@ static GglError read_recipe(char *recipe_path, Recipe *recipe) {
         decode_err
             = ggl_json_decode_destructive(recipe_content, &balloc.alloc, &val);
     } else {
-        decode_err = ggl_yaml_decode(recipe_content, &balloc.alloc, &val);
+        decode_err
+            = ggl_yaml_decode_destructive(recipe_content, &balloc.alloc, &val);
     }
     free(buff);
 

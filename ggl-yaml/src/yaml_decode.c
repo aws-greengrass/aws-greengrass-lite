@@ -6,6 +6,7 @@
 #include "pthread.h"
 #include <assert.h>
 #include <ggl/alloc.h>
+#include <ggl/bump_alloc.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -195,7 +196,9 @@ static GglError yaml_to_obj(
     return GGL_ERR_FAILURE;
 }
 
-GglError ggl_yaml_decode(GglBuffer buf, GglAlloc *alloc, GglObject *obj) {
+GglError ggl_yaml_decode_destructive(
+    GglBuffer buf, GglAlloc *alloc, GglObject *obj
+) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_lock(&mtx);
     GGL_DEFER(pthread_mutex_unlock, mtx);
@@ -208,6 +211,11 @@ GglError ggl_yaml_decode(GglBuffer buf, GglAlloc *alloc, GglObject *obj) {
     yaml_node_t *root_node = yaml_document_get_root_node(&document);
 
     GglError ret = yaml_to_obj(&document, root_node, alloc, obj);
+
+    if (ret != GGL_ERR_OK) {
+        GglBumpAlloc balloc = ggl_bump_alloc_init(buf);
+        ret = ggl_obj_buffer_copy(obj, &balloc.alloc);
+    }
 
     yaml_document_delete(&document);
     yaml_parser_delete(&parser);

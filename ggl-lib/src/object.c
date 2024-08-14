@@ -82,15 +82,79 @@ GglError ggl_obj_deep_copy(GglObject *obj, GglAlloc *alloc) {
     case GGL_TYPE_NULL:
     case GGL_TYPE_BOOLEAN:
     case GGL_TYPE_I64:
-    case GGL_TYPE_F64: {
+    case GGL_TYPE_F64:
         return GGL_ERR_OK;
-    }
     case GGL_TYPE_BUF:
         return deep_copy_buf(&obj->buf, alloc);
     case GGL_TYPE_LIST:
         return deep_copy_list(&obj->list, alloc);
     case GGL_TYPE_MAP:
         return deep_copy_map(&obj->map, alloc);
+    }
+
+    assert(false);
+    return GGL_ERR_FAILURE;
+}
+
+static GglError buffer_copy_buf(GglBuffer *buf, GglAlloc *alloc) {
+    if (buf->len == 0) {
+        return GGL_ERR_OK;
+    }
+    uint8_t *new_mem = GGL_ALLOCN(alloc, uint8_t, buf->len);
+    if (new_mem == NULL) {
+        GGL_LOGE("object", "Insufficient memory when copying buffers.");
+        return GGL_ERR_NOMEM;
+    }
+    memcpy(new_mem, buf->data, buf->len);
+    buf->data = new_mem;
+    return GGL_ERR_OK;
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+static GglError buffer_copy_list(GglList *list, GglAlloc *alloc) {
+    for (size_t i = 0; i < list->len; i++) {
+        GglError ret = ggl_obj_buffer_copy(&list->items[i], alloc);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+static GglError buffer_copy_map(GglMap *map, GglAlloc *alloc) {
+    for (size_t i = 0; i < map->len; i++) {
+        GglKV *kv = &map->pairs[i];
+        uint8_t *mem = GGL_ALLOCN(alloc, uint8_t, kv->key.len);
+        if (mem == NULL) {
+            GGL_LOGE("object", "Insufficient memory when copying buffers.");
+            return GGL_ERR_NOMEM;
+        }
+        memcpy(mem, kv->key.data, kv->key.len);
+        kv->key.data = mem;
+
+        GglError ret = ggl_obj_buffer_copy(&kv->val, alloc);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+GglError ggl_obj_buffer_copy(GglObject *obj, GglAlloc *alloc) {
+    switch (obj->type) {
+    case GGL_TYPE_NULL:
+    case GGL_TYPE_BOOLEAN:
+    case GGL_TYPE_I64:
+    case GGL_TYPE_F64:
+        return GGL_ERR_OK;
+    case GGL_TYPE_BUF:
+        return buffer_copy_buf(&obj->buf, alloc);
+    case GGL_TYPE_LIST:
+        return buffer_copy_list(&obj->list, alloc);
+    case GGL_TYPE_MAP:
+        return buffer_copy_map(&obj->map, alloc);
     }
 
     assert(false);

@@ -12,7 +12,10 @@
 #include <ggl/object.h>
 
 /// Reads a YAML doc from a buffer as a GglObject.
-/// Result obj will contain allocations from alloc.
-GglError ggl_yaml_decode(GglBuffer buf, GglAlloc *alloc, GglObject *obj);
+/// Result obj will contain allocations from alloc and buf.
+/// buf value is overwritten.
+GglError ggl_yaml_decode_destructive(
+    GglBuffer buf, GglAlloc *alloc, GglObject *obj
+);
 
 #endif

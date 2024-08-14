@@ -78,7 +78,8 @@ int main(int argc, char **argv) {
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(decode_mem));
 
     GglObject config_obj;
-    GglError ret = ggl_yaml_decode(config_file, &balloc.alloc, &config_obj);
+    GglError ret
+        = ggl_yaml_decode_destructive(config_file, &balloc.alloc, &config_obj);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("main", "Failed to parse config file.");
         return 1;
