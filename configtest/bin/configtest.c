@@ -132,10 +132,7 @@ static void test_subscribe(GglBuffer component, GglList key) {
         exit(1);
     } else {
         GGL_LOGI(
-            "test_subscribe",
-            "Success %s : %d",
-            print_key_path(&key),
-            handle
+            "test_subscribe", "Success %s : %d", print_key_path(&key), handle
         );
     }
 }
@@ -197,9 +194,7 @@ static void test_write_object(void) {
         { GGL_STR("valueToMerge"), test_value_object },
         { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
     );
-    error = ggl_notify(
-        GGL_STR("/aws/ggl/ggconfigd"), GGL_STR("write"), params
-    );
+    error = ggl_notify(GGL_STR("/aws/ggl/ggconfigd"), GGL_STR("write"), params);
     GGL_LOGI("test_write_object", "test complete %d", error);
 }
 
@@ -214,9 +209,15 @@ int main(int argc, char **argv) {
         GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value") })
     );
-    test_get(GGL_STR("component"), GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key")));
+    test_get(
+        GGL_STR("component"),
+        GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key"))
+    );
 
-    test_subscribe(GGL_STR("component"), GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key")));
+    test_subscribe(
+        GGL_STR("component"),
+        GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key"))
+    );
     test_insert(
         GGL_STR("component"),
         GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")),

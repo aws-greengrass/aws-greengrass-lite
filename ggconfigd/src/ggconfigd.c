@@ -44,9 +44,7 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
             (char *) val->buf.data
         );
     } else {
-        GGL_LOGE(
-            "rpc_read", "read received invalid component argument."
-        );
+        GGL_LOGE("rpc_read", "read received invalid component argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -62,9 +60,7 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
             }
         }
     } else {
-        GGL_LOGE(
-            "rpc_read", "read received invalid keyPath argument."
-        );
+        GGL_LOGE("rpc_read", "read received invalid keyPath argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -96,7 +92,9 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         = { .list = object_list, .capacity = MAX_KEY_PATH_DEPTH };
 
     GGL_LOGI("rpc_subscribe", "subscribing");
-    if (ggl_map_get(params, GGL_STR("componentName"), &val) //todo-krickar component->componentName, key->keyPath, etc
+    if (ggl_map_get(
+            params, GGL_STR("componentName"), &val
+        ) // todo-krickar component->componentName, key->keyPath, etc
         && (val->type == GGL_TYPE_BUF)) {
         // TODO: adjust the initial path with the component
         ggl_obj_vec_push(&key_path, *val);
@@ -107,9 +105,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
             (char *) val->buf.data
         );
     } else {
-        GGL_LOGE(
-            "rpc_subscribe", "read received invalid component argument."
-        );
+        GGL_LOGE("rpc_subscribe", "read received invalid component argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -125,9 +121,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
             }
         }
     } else {
-        GGL_LOGE(
-            "rpc_subscribe", "read received invalid keyPath argument."
-        );
+        GGL_LOGE("rpc_subscribe", "read received invalid keyPath argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -215,9 +209,7 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
             (char *) val->buf.data
         );
     } else {
-        GGL_LOGE(
-            "rpc_write", "write received invalid component argument."
-        );
+        GGL_LOGE("rpc_write", "write received invalid component argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -233,9 +225,7 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
             }
         }
     } else {
-        GGL_LOGE(
-            "rpc_write", "write received invalid keyPath argument."
-        );
+        GGL_LOGE("rpc_write", "write received invalid keyPath argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -266,7 +256,7 @@ void ggconfigd_start_server(void) {
     GglRpcMethodDesc handlers[]
         = { { GGL_STR("read"), false, rpc_read, NULL },
             { GGL_STR("write"), false, rpc_write, NULL },
-            { GGL_STR("subscribe"), true, rpc_subscribe, NULL }};
+            { GGL_STR("subscribe"), true, rpc_subscribe, NULL } };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
     ggl_listen(GGL_STR("/aws/ggl/ggconfigd"), handlers, handlers_len);

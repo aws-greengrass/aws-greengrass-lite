@@ -380,8 +380,10 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
 
 // todo-krickar this should be called somewhere
 static bool validate_key(GglList *key_path) {
-    // todo-krickar validate key_path is valid format? (e.g. contains at least one buffer, and that buffer contains at least one character)
-    if (!isalpha(key_path->items[0].buf.data[0])) { // make sure the path starts with a character
+    // todo-krickar validate key_path is valid format? (e.g. contains at least
+    // one buffer, and that buffer contains at least one character)
+    if (!isalpha(key_path->items[0].buf.data[0]
+        )) { // make sure the path starts with a character
         return false;
     }
     return true;
@@ -540,9 +542,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
         &stmt,
         NULL
     );
-    sqlite3_bind_int64(
-        stmt, 1, id
-    );
+    sqlite3_bind_int64(stmt, 1, id);
     int rc = 0;
     GGL_LOGI(
         "ggconfig_write_value_at_key",
@@ -558,8 +558,8 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
             break;
         case SQLITE_ROW: {
             long long handle = sqlite3_column_int64(stmt, 0);
-            GGL_LOGI("subscription", "Sending to %lld, %08llx", handle,
-            handle); ggl_respond((uint32_t) handle, GGL_OBJ(*value));
+            GGL_LOGI("subscription", "Sending to %lld, %08llx", handle, handle);
+            ggl_respond((uint32_t) handle, GGL_OBJ(*value));
         } break;
         default:
             GGL_LOGI("subscription", "RC %d", rc);
@@ -578,7 +578,9 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     return return_value;
 }
 
-GglError ggconfig_get_value_from_key(GglList *key_path, GglBuffer *value_buffer) {
+GglError ggconfig_get_value_from_key(
+    GglList *key_path, GglBuffer *value_buffer
+) {
     sqlite3_stmt *stmt;
     GglError return_value = GGL_ERR_FAILURE;
 
@@ -596,9 +598,7 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglBuffer *value_buffer)
         &stmt,
         NULL
     );
-    sqlite3_bind_int64(
-        stmt, 1, key_id
-    );
+    sqlite3_bind_int64(stmt, 1, key_id);
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         const unsigned char *value_string = sqlite3_column_text(stmt, 0);
         unsigned long value_length
@@ -612,7 +612,10 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglBuffer *value_buffer)
             "ggconfig_get",
             "%.*s",
             (int) value_buffer->len,
-            (char *) value_buffer->data //TODO: is there risk of logging sensitive values stored in config here? Or does config not store sensitive values?
+            (char *)
+                value_buffer->data // TODO: is there risk of logging sensitive
+                                   // values stored in config here? Or does
+                                   // config not store sensitive values?
         );
         if (sqlite3_step(stmt) != SQLITE_DONE) {
             GGL_LOGE("ggconfig_get", "%s", sqlite3_errmsg(config_database));

@@ -88,20 +88,29 @@ Merge the specified log file, preferring the newest data where there are
 conflicts.
 
 ## IPC API
-The following commands are a part of the IPC command set and supported by ggconfigd.
+
+The following commands are a part of the IPC command set and supported by
+ggconfigd.
 
 ### GetConfiguration
 
-Gets a configuration value for a component on the core device. You specify the key path for which to get a configuration value.
+Gets a configuration value for a component on the core device. You specify the
+key path for which to get a configuration value.
 
 #### Parameters
-> componentName (optional) : The name of the component.  If no name is provided, the default is the callers name.
-> keyPath : The keyPath to the configuration value.  The keypath is a list where each entry in order is a value in the path.
-example: ["mqtt","port"] will return the value for `mqtt/port`.  All values below the identified point in the keyPath will be returned in a single `GglObject`.  If the parameter is an empty list, all values for tthe componet will be returned.
+
+> componentName (optional) : The name of the component. If no name is provided,
+> the default is the callers name. keyPath : The keyPath to the configuration
+> value. The keypath is a list where each entry in order is a value in the path.
+> example: ["mqtt","port"] will return the value for `mqtt/port`. All values
+> below the identified point in the keyPath will be returned in a single
+> `GglObject`. If the parameter is an empty list, all values for tthe componet
+> will be returned.
 
 #### Response
-> componentName : The name of the component
-> value : The requested configuration as an object.
+
+> componentName : The name of the component value : The requested configuration
+> as an object.
 
 ### UpdateConfiguration
 
@@ -155,9 +164,9 @@ CREATE TABLE keyTable('keyid' INTEGER PRIMARY KEY AUTOINCREMENT unique not null,
                       'keyvalue' TEXT NOT NULL UNIQUE COLLATE NOCASE  );
 ```
 
-The keyTable keeps a list of every key in the system. The path
-'foo/bar/baz' will result in 3 entries into the key table: 'foo', 'bar' and
-'baz' with three different id's.
+The keyTable keeps a list of every key in the system. The path 'foo/bar/baz'
+will result in 3 entries into the key table: 'foo', 'bar' and 'baz' with three
+different id's.
 
 ### Relationship Table
 
@@ -173,6 +182,7 @@ The relationship table allows the keys to keep track of their parents in the
 hierarchy. This allows a query such as:
 
 // TODO-krickar: update with new query
+
 ```SQL
 SELECT V.value FROM relationTable R LEFT JOIN valueTable V LEFT JOIN keyTable K WHERE
   K.keyid = V.keyid AND K.keyid = R.keyid AND keyvalue = 'baz';
