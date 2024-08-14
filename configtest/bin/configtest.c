@@ -244,5 +244,11 @@ int main(int argc, char **argv) {
     //     GGL_OBJ_STR("value")  //TODO: Should something like this be possible?
     // );
 
+    // TODO: verify If you have a subscriber on /foo and write
+    // /foo/bar/baz = {"alpha":"data","bravo":"data","charlie":"data"}
+    // , it should only signal the notification once.
+
+    // TODO: if a notified process writes to /foo/<someplace> we can trigger an infinite update loop?
+
     return 0;
 }
