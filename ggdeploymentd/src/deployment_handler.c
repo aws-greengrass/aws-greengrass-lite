@@ -73,11 +73,23 @@ static void handle_deployment(GgdeploymentdDeployment deployment) {
             GgdeploymentdDeploymentDocument deployment_doc
                 = deployment.deployment_document;
             Recipe recipe;
-            if (deployment_doc.recipe_directory_path.len != 0) {
-                load_recipe(deployment_doc.recipe_directory_path, &recipe);
+            if (deployment_doc.recipe_directory_path.len == 0) {
+                return;
             }
+
+            GglError ret
+                = load_recipe(deployment_doc.recipe_directory_path, &recipe);
+            if (ret != GGL_ERR_OK) {
+                return;
+            }
+
             if (deployment_doc.artifact_directory_path.len != 0) {
-                copy_artifacts(deployment_doc.artifact_directory_path, &recipe);
+                ret = copy_artifacts(
+                    deployment_doc.artifact_directory_path, &recipe
+                );
+                if (ret != GGL_ERR_OK) {
+                    return;
+                }
             }
         }
 
@@ -215,7 +227,7 @@ static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe) {
         }
     }
 
-    return GGL_ERR_OK;
+    return GGL_ERR_FAILURE;
 }
 
 static GglError read_recipe(char *recipe_path, Recipe *recipe) {
@@ -330,9 +342,7 @@ static GglError create_component_directory(
     // type parameter determines if we create directories for component recipes
     // or artifacts
     const char *root_path = "/";
-    size_t full_path_size = strlen(root_path)
-        + strlen(type)
-        // NOLINTNEXTLINE(clang-analyzer-core.UndefinedBinaryOperatorResult)
+    size_t full_path_size = strlen(root_path) + strlen(type)
         + recipe->component_name.len + recipe->component_version.len + 4;
     *directory_path = malloc(full_path_size);
     *directory_path[0] = '\0';
