@@ -539,44 +539,44 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     // happen in rapid succession, they may be collapsed into one notification.
     // This usually happens when a compound change occurs.
 
-    // todo-krickar add back in
-    // sqlite3_stmt *stmt;
-    // sqlite3_prepare_v2(
-    //     config_database,
-    //     "SELECT handle FROM subscriberTable S LEFT JOIN keyTable K "
-    //     "WHERE S.keyid = K.keyid AND K.keyvalue = ?;",
-    //     -1,
-    //     &stmt,
-    //     NULL
-    // );
-    // sqlite3_bind_text(
-    //     stmt, 1, (char *) key_list->data, (int) key_list->len, SQLITE_STATIC
-    // );
-    // int rc = 0;
-    // GGL_LOGI(
-    //     "ggconfig_write_value_at_key",
-    //     "subscription loop for %.*s",
-    //     (int) key_list->len,
-    //     (char *) key_list->data
-    // );
-    // do {
-    //     rc = sqlite3_step(stmt);
-    //     switch (rc) {
-    //     case SQLITE_DONE:
-    //         GGL_LOGI("subscription", "DONE");
-    //         break;
-    //     case SQLITE_ROW: {
-    //         long long handle = sqlite3_column_int64(stmt, 0);
-    //         GGL_LOGI("subscription", "Sending to %lld, %08llx", handle,
-    //         handle); ggl_respond((uint32_t) handle, GGL_OBJ(*value));
-    //     } break;
-    //     default:
-    //         GGL_LOGI("subscription", "RC %d", rc);
-    //         break;
-    //     }
-    // } while (rc == SQLITE_ROW);
+    sqlite3_stmt *stmt;
+    sqlite3_prepare_v2(
+        config_database,
+        "SELECT handle FROM subscriberTable S "
+        "LEFT JOIN keyTable K "
+        "WHERE S.keyid = K.keyid AND K.keyid = ?;",
+        -1,
+        &stmt,
+        NULL
+    );
+    sqlite3_bind_int64(
+        stmt, 1, id
+    );
+    int rc = 0;
+    GGL_LOGI(
+        "ggconfig_write_value_at_key",
+        "subscription loop for %s at id %d",
+        print_key_path(key_path),
+        id
+    );
+    do {
+        rc = sqlite3_step(stmt);
+        switch (rc) {
+        case SQLITE_DONE:
+            GGL_LOGI("subscription", "DONE");
+            break;
+        case SQLITE_ROW: {
+            long long handle = sqlite3_column_int64(stmt, 0);
+            GGL_LOGI("subscription", "Sending to %lld, %08llx", handle,
+            handle); ggl_respond((uint32_t) handle, GGL_OBJ(*value));
+        } break;
+        default:
+            GGL_LOGI("subscription", "RC %d", rc);
+            break;
+        }
+    } while (rc == SQLITE_ROW);
 
-    // sqlite3_finalize(stmt);
+    sqlite3_finalize(stmt);
 
     GGL_LOGI(
         "ggconfig_write_value_at_key",
