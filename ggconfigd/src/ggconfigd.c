@@ -332,9 +332,9 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
 void ggconfigd_start_server(void) {
     GglRpcMethodDesc handlers[]
         = { { GGL_STR("read"), false, rpc_read, NULL },
-            { GGL_STR("write"), false, rpc_write, NULL }, // todo-krickar clean up this handler, in favor of write_object?
+            { GGL_STR("write"), false, rpc_write, NULL },
             { GGL_STR("subscribe"), true, rpc_subscribe, NULL },
-            { GGL_STR("write_object"), false, rpc_write_object, NULL } };
+            { GGL_STR("write_object"), false, rpc_write_object, NULL } };  // todo-krickar clean up this handler, in favor of write. But keep the working logic
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
     ggl_listen(GGL_STR("/aws/ggl/ggconfigd"), handlers, handlers_len);
