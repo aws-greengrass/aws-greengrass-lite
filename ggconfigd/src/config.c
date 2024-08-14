@@ -587,8 +587,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     return return_value;
 }
 
-// todo-krickar update key parameter to GglList of buffers
-GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
+GglError ggconfig_get_value_from_key(GglList *key_path, GglBuffer *value_buffer) {
     sqlite3_stmt *stmt;
     GglError return_value = GGL_ERR_FAILURE;
 
@@ -596,17 +595,18 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
         return GGL_ERR_FAILURE;
     }
 
+    sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    int64_t key_id = get_key_id(key_path);
     sqlite3_prepare_v2(
         config_database,
-        "SELECT V.value FROM keyTable K LEFT JOIN valueTable V WHERE "
-        "K.keyid "
-        "= V.keyid AND K.keyvalue = ?;",
+        "SELECT value FROM valueTable"
+        "WHERE keyid = ?;",
         -1,
         &stmt,
         NULL
     );
-    sqlite3_bind_text(
-        stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
+    sqlite3_bind_int64(
+        stmt, 1, key_id
     );
     if (sqlite3_step(stmt) != SQLITE_DONE) {
         const unsigned char *value_string = sqlite3_column_text(stmt, 0);
@@ -621,7 +621,7 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
             "ggconfig_get",
             "%.*s",
             (int) value_buffer->len,
-            (char *) value_buffer->data
+            (char *) value_buffer->data //todo-krickar is there risk of logging sensitive values stored in config here? Or does config never store sensitive values?
         );
         if (sqlite3_step(stmt) != SQLITE_DONE) {
             GGL_LOGE("ggconfig_get", "%s", sqlite3_errmsg(config_database));
@@ -632,6 +632,7 @@ GglError ggconfig_get_value_from_key(GglBuffer *key, GglBuffer *value_buffer) {
             return_value = GGL_ERR_OK;
         }
     }
+    sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
     sqlite3_finalize(stmt);
     return return_value;
 }

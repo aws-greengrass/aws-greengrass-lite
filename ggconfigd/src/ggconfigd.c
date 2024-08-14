@@ -27,75 +27,51 @@ typedef struct {
 static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    ConfigMsg msg = { 0 };
-
     GglObject *val;
+    GglObject object_list_memory[MAX_KEY_PATH_DEPTH] = { 0 };
+    GglList object_list = { .items = object_list_memory, .len = 0 };
+    GglObjVec key_path
+        = { .list = object_list, .capacity = MAX_KEY_PATH_DEPTH };
 
-    if (ggl_map_get(params, GGL_STR("component"), &val)
+    if (ggl_map_get(params, GGL_STR("componentName"), &val)
         && (val->type == GGL_TYPE_BUF)) {
-        msg.component = val->buf;
+        // TODO: adjust the initial path with the component
+        ggl_obj_vec_push(&key_path, *val);
+        GGL_LOGT(
+            "rpc_read",
+            "found component %.*s",
+            (int) val->buf.len,
+            (char *) val->buf.data
+        );
     } else {
-        GGL_LOGE("rpc-handler", "read received invalid component argument.");
+        GGL_LOGE(
+            "rpc-read", "read received invalid component argument."
+        );
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
-    if (ggl_map_get(params, GGL_STR("key"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        msg.key = val->buf;
+    if (ggl_map_get(params, GGL_STR("keyPath"), &val)
+        && (val->type == GGL_TYPE_LIST)) {
+        GglList *list = &val->list;
+        for (size_t x = 0; x < list->len; x++) {
+            if (ggl_obj_vec_push(&key_path, list->items[x]) != GGL_ERR_OK) {
+                GGL_LOGE("rpc_read", "Error pushing to the keypath");
+                ggl_return_err(handle, GGL_ERR_INVALID);
+                return;
+            }
+        }
     } else {
-        GGL_LOGE("rpc-handler", "read received invalid key argument.");
+        GGL_LOGE(
+            "rpc-read", "read received invalid keyPath argument."
+        );
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
-    // do a sqlite read operation
-    // component/key
-    // append component & key
     GglBuffer value;
 
-    GglBuffer object_list_memory[MAX_KEY_PATH_DEPTH] = { 0 };
-    GglList object_list = {
-        .items = object_list_memory,
-        .len = 0
-    };
-    GglObjVec key_path = {
-        .list = object_list,
-        .capacity = MAX_KEY_PATH_DEPTH
-    };
-
-    GglObject component_obj = {
-        .type = GGL_TYPE_BUF,
-        .buf = msg.component
-    };
-    ggl_obj_vec_push(&key_path, component_obj);
-
-    size_t start = 0;
-    for (size_t i = 0; i < msg.key.len; i++) {
-        if (msg.key.data[i] == '/') {
-            GglObject key_obj = {
-                .type = GGL_TYPE_BUF,
-                .buf = {
-                    .data = msg.key.data + start,
-                    .len = i - start
-                }
-            }; // todo-krickar make sure '\0' is appended, if needed
-            start = i + 1;
-        }
-    }
-
-    unsigned long length = msg.component.len + msg.key.len + 1;
-    static uint8_t component_buffer[GGCONFIGD_MAX_COMPONENT_SIZE];
-    GglBuffer component_key;
-    component_key.data = component_buffer;
-    component_key.len = length;
-    memcpy(&component_key.data[0], msg.component.data, msg.component.len);
-    component_key.data[msg.component.len] = '/';
-    memcpy(
-        &component_key.data[msg.component.len + 1], msg.key.data, msg.key.len
-    );
-
-    if (ggconfig_get_value_from_key(&component_key, &value) == GGL_ERR_OK) {
+    if (ggconfig_get_value_from_key(&key_path, &value) == GGL_ERR_OK) {
         GglObject return_value = { .type = GGL_TYPE_BUF, .buf = value };
         // use the data and then free it
         ggl_respond(handle, return_value);
@@ -356,7 +332,7 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
 void ggconfigd_start_server(void) {
     GglRpcMethodDesc handlers[]
         = { { GGL_STR("read"), false, rpc_read, NULL },
-            { GGL_STR("write"), false, rpc_write, NULL },
+            { GGL_STR("write"), false, rpc_write, NULL }, // todo-krickar clean up this handler, in favor of write_object?
             { GGL_STR("subscribe"), true, rpc_subscribe, NULL },
             { GGL_STR("write_object"), false, rpc_write_object, NULL } };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
