@@ -5,6 +5,7 @@
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <string.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>

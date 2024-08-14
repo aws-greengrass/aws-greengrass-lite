@@ -67,7 +67,7 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
 
     GglBuffer value;
 
-    if (ggconfig_get_value_from_key(&key_path, &value) == GGL_ERR_OK) {
+    if (ggconfig_get_value_from_key(&(key_path.list), &value) == GGL_ERR_OK) {
         GglObject return_value = { .type = GGL_TYPE_BUF, .buf = value };
         // use the data and then free it
         ggl_respond(handle, return_value);
@@ -126,7 +126,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
-    GglError ret = ggconfig_get_key_notification(&key_path, handle);
+    GglError ret = ggconfig_get_key_notification(&(key_path.list), handle);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
     }
@@ -189,7 +189,7 @@ static GglError process_map(
 
 static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     /// Receive the following parameters
-    long long time_stamp = 1;
+    int64_t time_stamp = 1;
     (void) ctx;
 
     GglObject *val;
