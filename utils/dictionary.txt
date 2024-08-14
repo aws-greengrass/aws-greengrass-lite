@@ -36,6 +36,7 @@ greengrasscoreipc
 greengrassv
 htobe
 iotcored
+keyid
 libyaml
 LOGD
 LOGE

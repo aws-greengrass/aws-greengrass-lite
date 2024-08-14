@@ -104,7 +104,7 @@ key path for which to get a configuration value.
 > value. The keypath is a list where each entry in order is a value in the path.
 > example: ["mqtt","port"] will return the value for `mqtt/port`. All values
 > below the identified point in the keyPath will be returned in a single
-> `GglObject`. If the parameter is an empty list, all values for tthe componet
+> `GglObject`. If the parameter is an empty list, all values for the componet
 > will be returned.
 
 #### Response
@@ -181,7 +181,7 @@ CREATE TABLE relationTable( 'keyid' INT UNIQUE NOT NULL,
 The relationship table allows the keys to keep track of their parents in the
 hierarchy. This allows a query such as:
 
-// TODO-krickar: update with new query
+// TODO: update with new query
 
 ```SQL
 SELECT V.value FROM relationTable R LEFT JOIN valueTable V LEFT JOIN keyTable K WHERE

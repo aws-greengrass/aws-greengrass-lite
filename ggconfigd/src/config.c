@@ -378,9 +378,9 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     return return_value;
 }
 
-// todo-krickar this should be called somewhere
+// TODO: this should be called somewhere
 static bool validate_key(GglList *key_path) {
-    // todo-krickar validate key_path is valid format? (e.g. contains at least
+    // TODO: validate key_path is valid format? (e.g. contains at least
     // one buffer, and that buffer contains at least one character)
     if (!isalpha(key_path->items[0].buf.data[0]
         )) { // make sure the path starts with a character

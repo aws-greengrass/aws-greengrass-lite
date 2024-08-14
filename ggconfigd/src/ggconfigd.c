@@ -94,7 +94,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     GGL_LOGI("rpc_subscribe", "subscribing");
     if (ggl_map_get(
             params, GGL_STR("componentName"), &val
-        ) // todo-krickar component->componentName, key->keyPath, etc
+        )
         && (val->type == GGL_TYPE_BUF)) {
         // TODO: adjust the initial path with the component
         ggl_obj_vec_push(&key_path, *val);
