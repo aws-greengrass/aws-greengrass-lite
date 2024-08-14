@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
 
-    // test_write_object();
+    test_write_object();
 
     test_insert(
         GGL_STR("component"),
@@ -200,7 +200,6 @@ int main(int argc, char **argv) {
         GGL_OBJ_MAP( { GGL_STR("key"), GGL_OBJ_STR("value") })
     );
     test_get(GGL_STR("component"), GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key")));
-
 
     // test_subscribe(GGL_STR("component"), GGL_STR("foo/bar"));
     // test_insert(GGL_STR("component"), GGL_STR("foo/bar"), GGL_STR("big value"));

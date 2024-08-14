@@ -166,15 +166,11 @@ static long long key_insert(GglBuffer *key) {
     return id;
 }
 
-// todo-krickar update key parameter to GglList of buffers
-static bool value_is_present_for_key(int64_t key_id
-) { // todo-krickar GglList *keyPath) {
+static bool value_is_present_for_key(int64_t key_id) {
     sqlite3_stmt *find_value_stmt;
     bool return_value = false;
     GGL_LOGI("value_is_present_for_key", "checking id %d", key_id);
 
-    // todo-krickar fix query to first find the keyid for the keyPath, then find
-    // the value for that keyId
     sqlite3_prepare_v2(
         config_database,
         "SELECT keyid FROM valueTable where keyid = ?;",
@@ -194,7 +190,6 @@ static bool value_is_present_for_key(int64_t key_id
     return return_value;
 }
 
-// todo-krickar update key parameter to GglList of buffers
 static long long find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     sqlite3_stmt *find_element_stmt;
     long long id = 0;
@@ -245,7 +240,6 @@ static long long find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     return id;
 }
 
-// todo-krickar update key parameter to GglList of buffers
 static long long get_or_create_key_at_root(GglBuffer *key) {
     sqlite3_stmt *root_check_stmt;
     long long id = 0;
@@ -384,10 +378,10 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     return return_value;
 }
 
-// todo-krickar update key parameter to GglList of buffers
-static bool validate_key(GglBuffer *key) {
-    // Verify that the path is alpha characters or / and nothing else
-    if (!isalpha(key->data[0])) { // make sure the path starts with a character
+// todo-krickar this should be called somewhere
+static bool validate_key(GglList *key_path) {
+    // todo-krickar validate key_path is valid format? (e.g. contains at least one buffer, and that buffer contains at least one character)
+    if (!isalpha(key_path->items[0].buf.data[0])) { // make sure the path starts with a character
         return false;
     }
     return true;
@@ -398,9 +392,6 @@ static long long get_key_id(GglList *key_path) {
     long long id = 0;
     GGL_LOGI("get_key_id", "searching for %s", print_key_path(key_path));
 
-    // todo-krickar verify the keypath parameter length is at least one. If
-    // exactly one, call+return from get_parent_key_at_root. If more than one,
-    // proceed here.
     sqlite3_prepare_v2(
         config_database,
         "WITH RECURSIVE path_cte(current_key_id, depth) AS ( "
@@ -621,7 +612,7 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglBuffer *value_buffer)
             "ggconfig_get",
             "%.*s",
             (int) value_buffer->len,
-            (char *) value_buffer->data //todo-krickar is there risk of logging sensitive values stored in config here? Or does config never store sensitive values?
+            (char *) value_buffer->data //TODO: is there risk of logging sensitive values stored in config here? Or does config not store sensitive values?
         );
         if (sqlite3_step(stmt) != SQLITE_DONE) {
             GGL_LOGE("ggconfig_get", "%s", sqlite3_errmsg(config_database));
@@ -637,8 +628,7 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglBuffer *value_buffer)
     return return_value;
 }
 
-// todo-krickar update key parameter to GglList of buffers?
-GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle) {
+GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     long long key_id;
     sqlite3_stmt *stmt;
     GglError return_value = GGL_ERR_FAILURE;
@@ -647,19 +637,19 @@ GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle) {
         return GGL_ERR_FAILURE;
     }
 
+    sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
     // ensure this key is present in the key path. Key does not require a
     // value
-    key_id = get_key_id(key);
+    key_id = get_key_id(key_path);
     if (key_id == 0) {
-        key_id = create_key_path(key);
+        key_id = create_key_path(key_path);
     }
     GGL_LOGD(
         "get_key_notification",
-        "Subscribing %d:%d to %.*s",
+        "Subscribing %d:%d to %s",
         handle && 0xFFFF0000 >> 16,
         handle && 0x0000FFFF,
-        (int) key->len,
-        (char *) key->data
+        print_key_path(key_path)
     );
     // insert the key & handle data into the subscriber database
     GGL_LOGI("get_key_notification", "INSERT %lld, %d", key_id, handle);
@@ -673,6 +663,7 @@ GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle) {
     sqlite3_bind_int64(stmt, 1, key_id);
     sqlite3_bind_int64(stmt, 2, handle);
     int rc = sqlite3_step(stmt);
+    sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
     if (SQLITE_DONE != rc) {
         GGL_LOGE(
             "get_key_notification", "%d %s", rc, sqlite3_errmsg(config_database)

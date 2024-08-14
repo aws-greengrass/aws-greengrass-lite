@@ -80,72 +80,6 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     }
 }
 
-static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
-    (void) ctx;
-
-    ConfigMsg msg = { 0 };
-
-    GglObject *val;
-
-    if (ggl_map_get(params, GGL_STR("component"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        msg.component = val->buf;
-        GGL_LOGI(
-            "rpc_write",
-            "component %.*s",
-            (int) msg.component.len,
-            (char *) msg.component.data
-        );
-    } else {
-        GGL_LOGE("rpc-handler", "write received invalid component argument.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
-    }
-
-    if (ggl_map_get(params, GGL_STR("key"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        msg.key = val->buf;
-        GGL_LOGI(
-            "rpc_write", "key %.*s", (int) msg.key.len, (char *) msg.key.data
-        );
-    } else {
-        GGL_LOGE("rpc-handler", "write received invalid key argument.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
-    }
-
-    if (ggl_map_get(params, GGL_STR("value"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        msg.value = val->buf;
-        GGL_LOGI(
-            "rpc_write", "value %.*s", (int) msg.key.len, (char *) msg.key.data
-        );
-    } else {
-        GGL_LOGE("rpc-write", "write received invalid value argument.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
-    }
-
-    unsigned long length = msg.component.len + msg.key.len + 1;
-    static uint8_t component_buffer[GGCONFIGD_MAX_COMPONENT_SIZE];
-    GglBuffer component_key;
-    component_key.data = component_buffer;
-    component_key.len = length;
-    memcpy(&component_key.data[0], msg.component.data, msg.component.len);
-    component_key.data[msg.component.len] = '/';
-    memcpy(
-        &component_key.data[msg.component.len + 1], msg.key.data, msg.key.len
-    );
-
-    GglError ret = ggconfig_write_value_at_key(&component_key, &msg.value);
-
-    if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
-    }
-    ggl_respond(handle, GGL_OBJ_NULL());
-}
-
 static void sub_close_callback(void *ctx, uint32_t handle) {
     (void) ctx;
     (void) handle;
@@ -247,7 +181,7 @@ static GglError process_map(
             error = ggconfig_write_value_at_key(&key_path->list, &value_buffer);
 
             GGL_LOGT(
-                "rpc_write_object:process_map",
+                "rpc_write:process_map",
                 "writing %s = %.*s %ld",
                 path_string,
                 (int) value_buffer.len,
@@ -260,7 +194,7 @@ static GglError process_map(
     return error;
 }
 
-static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
+static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     /// Receive the following parameters
     long long time_stamp = 1;
     (void) ctx;
@@ -276,14 +210,14 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         // TODO: adjust the initial path with the component
         ggl_obj_vec_push(&key_path, *val);
         GGL_LOGT(
-            "rpc_write_object",
+            "rpc_write",
             "found component %.*s",
             (int) val->buf.len,
             (char *) val->buf.data
         );
     } else {
         GGL_LOGE(
-            "rpc-write_object", "write received invalid component argument."
+            "rpc_write", "write received invalid component argument."
         );
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
@@ -294,14 +228,14 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         GglList *list = &val->list;
         for (size_t x = 0; x < list->len; x++) {
             if (ggl_obj_vec_push(&key_path, list->items[x]) != GGL_ERR_OK) {
-                GGL_LOGE("rpc_write_object", "Error pushing to the keypath");
+                GGL_LOGE("rpc_write", "Error pushing to the keypath");
                 ggl_return_err(handle, GGL_ERR_INVALID);
                 return;
             }
         }
     } else {
         GGL_LOGE(
-            "rpc-write_object", "write received invalid keyPath argument."
+            "rpc_write", "write received invalid keyPath argument."
         );
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
@@ -309,14 +243,14 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
 
     if (ggl_map_get(params, GGL_STR("timestamp"), &val)
         && (val->type == GGL_TYPE_I64)) {
-        GGL_LOGI("rpc_write_object", "timeStamp %ld", val->i64);
+        GGL_LOGI("rpc_write", "timeStamp %ld", val->i64);
     } else {
         time_stamp = 1; // TODO make a better default
     }
 
     if (ggl_map_get(params, GGL_STR("valueToMerge"), &val)
         && (val->type == GGL_TYPE_MAP)) {
-        GGL_LOGT("rpc_write_object", "valueToMerge is a Map");
+        GGL_LOGT("rpc_write", "valueToMerge is a Map");
         GglError error = process_map(&key_path, &val->map, time_stamp);
         if (error != GGL_ERR_OK) {
             ggl_return_err(handle, error);
@@ -325,7 +259,7 @@ static void rpc_write_object(void *ctx, GglMap params, uint32_t handle) {
         }
         return;
     }
-    GGL_LOGE("rpc-write_object", "write received invalid value argument.");
+    GGL_LOGE("rpc_write", "write received invalid value argument.");
     ggl_return_err(handle, GGL_ERR_INVALID);
 }
 
@@ -333,8 +267,7 @@ void ggconfigd_start_server(void) {
     GglRpcMethodDesc handlers[]
         = { { GGL_STR("read"), false, rpc_read, NULL },
             { GGL_STR("write"), false, rpc_write, NULL },
-            { GGL_STR("subscribe"), true, rpc_subscribe, NULL },
-            { GGL_STR("write_object"), false, rpc_write_object, NULL } };  // todo-krickar clean up this handler, in favor of write. But keep the working logic
+            { GGL_STR("subscribe"), true, rpc_subscribe, NULL }};
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
     ggl_listen(GGL_STR("/aws/ggl/ggconfigd"), handlers, handlers_len);
