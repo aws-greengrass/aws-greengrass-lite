@@ -18,7 +18,7 @@ static void *bump_alloc_alloc(GglAlloc *alloc, size_t size, size_t alignment) {
         GGL_LOGD("ggl-lib", "[%p] Need %zu padding.", (void *) alloc, pad);
     }
 
-    if (idx + size >= ctx->buf.len) {
+    if (idx + size > ctx->buf.len) {
         return NULL;
     }
 
