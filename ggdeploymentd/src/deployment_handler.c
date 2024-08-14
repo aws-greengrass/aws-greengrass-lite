@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <dirent.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <ggl/alloc.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
@@ -18,6 +19,7 @@
 #include <ggl/object.h>
 #include <ggl/yaml_decode.h>
 #include <string.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -151,7 +153,6 @@ static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe) {
             // build full path to recipe file
             size_t path_size
                 = strlen((char *) recipe_dir.data) + filename_len + 2;
-            GGL_LOGI("test", "path size: %zu", path_size);
             char *full_path = malloc(path_size);
             snprintf(
                 full_path,
@@ -231,41 +232,32 @@ static GglError load_recipe(GglBuffer recipe_dir, Recipe *recipe) {
 }
 
 static GglError read_recipe(char *recipe_path, Recipe *recipe) {
-    // open and read the contents of the recipe file path provided into a buffer
-    FILE *file = fopen(recipe_path, "r");
-    if (file == NULL) {
-        GGL_LOGE("deployment-handler", "Recipe file path invalid.");
-        return GGL_ERR_INVALID;
-    }
+    assert(recipe_path != NULL);
 
-    fseek(file, 0, SEEK_END);
-    long file_size = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    char *buff = malloc((size_t) file_size + 1);
-    if (buff == NULL) {
-        GGL_LOGE(
-            "deployment-handler",
-            "Failed to allocate memory to read recipe file."
-        );
-        fclose(file);
+    int fd = open(recipe_path, O_RDONLY);
+    if (fd == -1) {
+        GGL_LOGE("deployment-handler", "Failed to open recipe file.");
         return GGL_ERR_FAILURE;
     }
 
-    size_t bytes_read = fread(buff, 1, (size_t) file_size, file);
-    if (bytes_read < (size_t) file_size) {
-        GGL_LOGE("deployment-handler", "Failed to read recipe file.");
-        fclose(file);
-        free(buff);
+    struct stat st;
+    if (fstat(fd, &st) == -1) {
+        GGL_LOGE("deployment-handler", "Failed to get config file info.");
         return GGL_ERR_FAILURE;
     }
 
-    buff[file_size] = '\0';
-    fclose(file);
+    size_t file_size = (size_t) st.st_size;
+    // FIXME: Fix leak of this address space
+    uint8_t *file_str
+        = mmap(NULL, file_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
+    if (file_str == MAP_FAILED) {
+        GGL_LOGE("main", "Failed to load recipe file.");
+        return GGL_ERR_FAILURE;
+    }
 
     // buff now contains file contents, parse into Recipe struct
-    GglBuffer recipe_content
-        = { .data = (uint8_t *) buff, .len = (size_t) file_size };
+    GglBuffer recipe_content = { .data = file_str, .len = file_size };
     GglObject val;
 
     static uint8_t decode_mem[GGL_RECIPE_CONTENT_MAX_SIZE * sizeof(GglObject)];
@@ -280,7 +272,6 @@ static GglError read_recipe(char *recipe_path, Recipe *recipe) {
         decode_err
             = ggl_yaml_decode_destructive(recipe_content, &balloc.alloc, &val);
     }
-    free(buff);
 
     if (decode_err != GGL_ERR_OK) {
         return decode_err;
@@ -341,7 +332,8 @@ static GglError create_component_directory(
     // build path for the requested directory
     // type parameter determines if we create directories for component recipes
     // or artifacts
-    const char *root_path = "/";
+
+    const char *root_path = "/var/lib/aws-greengrass-v2";
     size_t full_path_size = strlen(root_path) + strlen(type)
         + recipe->component_name.len + recipe->component_version.len + 4;
     *directory_path = malloc(full_path_size);
