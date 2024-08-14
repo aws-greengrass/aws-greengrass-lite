@@ -167,7 +167,10 @@ static void set_conn_component(void *ctx, size_t index) {
 }
 
 static GglError complete_conn_init(
-    uint32_t handle, GglComponentHandle component_handle, GglBuffer svcuid
+    uint32_t handle,
+    GglComponentHandle component_handle,
+    bool send_svcuid,
+    GglBuffer svcuid
 ) {
     GGL_LOGT("ipc-server", "Setting %d as connected.", handle);
 
@@ -190,7 +193,7 @@ static GglError complete_conn_init(
             { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 0 } },
             { GGL_STR("svcuid"), { EVENTSTREAM_STRING, .string = svcuid } },
         },
-        4,
+        send_svcuid ? 4 : 3,
         payload_writer,
         NULL
     );
@@ -222,7 +225,7 @@ static GglError handle_authentication_request(uint32_t handle) {
         return ret;
     }
 
-    return complete_conn_init(handle, component_handle, svcuid);
+    return complete_conn_init(handle, component_handle, true, svcuid);
 }
 
 static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
@@ -318,7 +321,9 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
         return ret;
     }
 
-    return complete_conn_init(handle, component_handle, auth_token);
+    return complete_conn_init(
+        handle, component_handle, false, (GglBuffer) { 0 }
+    );
 }
 
 static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
