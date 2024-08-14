@@ -22,6 +22,7 @@ Manifests:
         PY run this
         py test this as well
       run: python3 -u hello_world.py
+      startUp: python3 -u hello_world_startup.py
   - Platform:
       os: windows
     Lifecycle:

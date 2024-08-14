@@ -1,6 +1,5 @@
 import getopt
 import yaml
-import json
 import os
 import sys
 
@@ -42,19 +41,9 @@ def fillUnitSection(yaml_data):
     return unit_content
 
 
-def create_the_script_json_file(lifecycle, componentName):
-    try:
-        with open(("./%s.json" % (componentName)), "w") as f:
-            json.dump(lifecycle, f)
-        print(componentName + ".json file generated successfully.")
-
-    except Exception as error:
-        print(str(error))
-
-
-def fetch_script_section(lifecycle):
+def fetch_script_section(lifecycle, phase):
     global isRoot
-    runSection = lifecycle.get("run", "")
+    runSection = lifecycle.get(phase, "")
     execCommand = ""
 
     if isinstance(runSection, str):
@@ -67,7 +56,7 @@ def fetch_script_section(lifecycle):
     return execCommand
 
 
-def create_the_bash_script_run_file(script_section, filename):
+def create_the_bash_script_file(script_section, filename):
     try:
         with open(filename, "w") as f:
             f.write(script_section)
@@ -85,9 +74,7 @@ def fillServiceSection(yaml_data):
 
     # | "%t"	| Runtime directory root  |	This is either /run/ (for the system manager) or the path "$XDG_RUNTIME_DIR" resolves to (for user managers).
     unit_content += "WorkingDirectory= %t/" + yaml_data["componentname"] + "\n"
-    bash_script_file_name = (
-        "ggl." + yaml_data["componentname"] + ".RunBashScript"
-    )
+    bash_script_file_name = "ggl." + yaml_data["componentname"] + ".script."
 
     platforms = yaml_data["manifests"]
     for platform in platforms:
@@ -102,15 +89,24 @@ def fillServiceSection(yaml_data):
                 lifecycleSection = yaml_data["lifecycle"]
                 lifecycleSection = lifecycleSection.get(platformSelection, {})
 
-            create_the_script_json_file(
-                lifecycleSection, yaml_data["componentname"]
+            create_the_bash_script_file(
+                fetch_script_section(lifecycleSection, "install"),
+                bash_script_file_name + "install",
             )
 
-            if lifecycleSection.get("run", "") == "":
-                return ""
+            run_phase_selection = ""
 
-            create_the_bash_script_run_file(
-                fetch_script_section(lifecycleSection), bash_script_file_name
+            if lifecycleSection.get("startup", "") != "":
+                run_phase_selection = "startup"
+            else:
+                if lifecycleSection.get("run", "") != "":
+                    run_phase_selection = "run"
+                else:
+                    return ""
+
+            create_the_bash_script_file(
+                fetch_script_section(lifecycleSection, run_phase_selection),
+                bash_script_file_name + run_phase_selection,
             )
 
             unit_content += (
@@ -120,6 +116,7 @@ def fillServiceSection(yaml_data):
                 + os.getcwd()
                 + "/"
                 + bash_script_file_name
+                + run_phase_selection
                 + "\n"
             )
             if isRoot:
@@ -210,7 +207,7 @@ def main():
     unitComponentName = yaml_data["componentname"]
 
     if systemd_unit != "":
-        with open(("./ggl%s.service" % unitComponentName), "w") as f:
+        with open(("./ggl.%s.service" % unitComponentName), "w") as f:
             f.write(systemd_unit)
         print(
             (
