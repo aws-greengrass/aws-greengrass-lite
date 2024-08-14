@@ -10,12 +10,14 @@
 //! This module implements an interface for a GG-IPC server to validate received
 //! SVCUID tokens, and a means for components to obtain SVCUID tokens.
 
+#include <sys/types.h>
+#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 
-/// Gets the component name associated with an SVCUID.
-GglError ggl_ipc_auth_get_component_name(
-    GglBuffer svcuid, GglBuffer *component_name
+/// Authenticate a client and get its component name.
+GglError ggl_ipc_auth_lookup_name(
+    pid_t pid, GglAlloc *alloc, GglBuffer *component_name
 );
 
 #endif

@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ipc_server.h"
+#include "ipc_components.h"
 #include "ipc_dispatch.h"
 #include "ipc_subscriptions.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
-#include <ggipc/auth.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/defer.h>
@@ -59,7 +60,7 @@ static const int32_t ES_FLAGS_MASK = 3;
 
 static uint8_t payload_array[GGL_IPC_MAX_MSG_LEN];
 
-static GglBuffer client_names[GGL_IPC_MAX_CLIENTS];
+static GglComponentHandle client_components[GGL_IPC_MAX_CLIENTS];
 
 static GglError reset_client_state(uint32_t handle, size_t index);
 static GglError release_client_subscriptions(uint32_t handle, size_t index);
@@ -78,7 +79,7 @@ __attribute__((constructor)) static void init_client_pool(void) {
 
 static GglError reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
-    client_names[index] = (GglBuffer) { 0 };
+    client_components[index] = 0;
     return GGL_ERR_OK;
 }
 
@@ -158,11 +159,70 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
     return ggl_json_encode(*obj, buf);
 }
 
-static void set_conn_name(void *ctx, size_t index) {
-    GglBuffer *component_name = ctx;
-    assert(component_name->len > 0);
+static void set_conn_component(void *ctx, size_t index) {
+    GglComponentHandle *component_handle = ctx;
+    assert(*component_handle != 0);
 
-    client_names[index] = *component_name;
+    client_components[index] = *component_handle;
+}
+
+static GglError complete_conn_init(
+    uint32_t handle, GglComponentHandle component_handle, GglBuffer svcuid
+) {
+    GGL_LOGT("ipc-server", "Setting %d as connected.", handle);
+
+    GglError ret = ggl_with_socket_handle_index(
+        set_conn_component, &component_handle, &pool, handle
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    GglBuffer send_buffer = GGL_BUF(payload_array);
+
+    eventstream_encode(
+        &send_buffer,
+        (EventStreamHeader[]) {
+            { GGL_STR(":message-type"),
+              { EVENTSTREAM_INT32, .int32 = ES_CONNECT_ACK } },
+            { GGL_STR(":message-flags"),
+              { EVENTSTREAM_INT32, .int32 = ES_CONNECTION_ACCEPTED } },
+            { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 0 } },
+            { GGL_STR("svcuid"), { EVENTSTREAM_STRING, .string = svcuid } },
+        },
+        4,
+        payload_writer,
+        NULL
+    );
+
+    ret = ggl_socket_handle_write(&pool, handle, send_buffer);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    GGL_LOGD("ipc-server", "Successful connection.");
+    return GGL_ERR_OK;
+}
+
+static GglError handle_authentication_request(uint32_t handle) {
+    GGL_LOGD("ipc-server", "Client %d requesting svcuid.", handle);
+
+    pid_t pid = 0;
+    GglError ret = ggl_socket_handle_get_peer_pid(&pool, handle, &pid);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    GglComponentHandle component_handle = 0;
+    uint8_t svcuid_buf[GGL_IPC_SVCUID_LEN];
+    GglBuffer svcuid = GGL_BUF(svcuid_buf);
+    ret = ggl_ipc_components_register(pid, &component_handle, &svcuid);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("ipc-server", "Client %d failed authentication.", handle);
+        return ret;
+    }
+
+    return complete_conn_init(handle, component_handle, svcuid);
 }
 
 static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
@@ -187,6 +247,8 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
         return GGL_ERR_INVALID;
     }
 
+    bool request_auth = false;
+
     {
         EventStreamHeaderIter iter = msg->headers;
         EventStreamHeader header;
@@ -203,8 +265,20 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
                     );
                     return GGL_ERR_INVALID;
                 }
+            } else if (ggl_buffer_eq(header.name, GGL_STR("authenticate"))) {
+                if (header.value.type != EVENTSTREAM_INT32) {
+                    GGL_LOGE("ipc-server", "request_svcuid header not an int.");
+                    return GGL_ERR_INVALID;
+                }
+                if (header.value.int32 == 1) {
+                    request_auth = true;
+                }
             }
         }
+    }
+
+    if (request_auth) {
+        return handle_authentication_request(handle);
     }
 
     GglMap payload_data = { 0 };
@@ -232,8 +306,8 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
         auth_token.data
     );
 
-    GglBuffer component_name = { 0 };
-    ret = ggl_ipc_auth_get_component_name(auth_token, &component_name);
+    GglComponentHandle component_handle = 0;
+    ret = ggl_ipc_components_get_handle(auth_token, &component_handle);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "ipc-server",
@@ -244,43 +318,7 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
         return ret;
     }
 
-    GglBuffer send_buffer = GGL_BUF(payload_array);
-
-    eventstream_encode(
-        &send_buffer,
-        (EventStreamHeader[]) {
-            { GGL_STR(":message-type"),
-              { EVENTSTREAM_INT32, .int32 = ES_CONNECT_ACK } },
-            { GGL_STR(":message-flags"),
-              { EVENTSTREAM_INT32, .int32 = ES_CONNECTION_ACCEPTED } },
-            { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 0 } },
-        },
-        3,
-        payload_writer,
-        NULL
-    );
-
-    ret = ggl_socket_handle_write(&pool, handle, send_buffer);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    GGL_LOGT("ipc-server", "Setting %d as connected.", handle);
-
-    ret = ggl_with_socket_handle_index(
-        set_conn_name, &component_name, &pool, handle
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    GGL_LOGD(
-        "ipc-server",
-        "Successful connection from component %.*s.",
-        (int) component_name.len,
-        component_name.data
-    );
-    return GGL_ERR_OK;
+    return complete_conn_init(handle, component_handle, auth_token);
 }
 
 static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
@@ -338,17 +376,24 @@ static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
     );
 }
 
-static void get_conn_name(void *ctx, size_t index) {
-    GglBuffer *name = ctx;
-    *name = client_names[index];
+static void get_conn_component(void *ctx, size_t index) {
+    GglComponentHandle *handle = ctx;
+    *handle = client_components[index];
 }
 
 GglError ggl_ipc_get_component_name(
     uint32_t handle, GglBuffer *component_name
 ) {
-    return ggl_with_socket_handle_index(
-        get_conn_name, component_name, &pool, handle
+    GglComponentHandle component_handle;
+    GglError ret = ggl_with_socket_handle_index(
+        get_conn_component, &component_handle, &pool, handle
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    *component_name = ggl_ipc_components_get_name(component_handle);
+    return GGL_ERR_OK;
 }
 
 static GglError client_ready(void *ctx, uint32_t handle) {
@@ -393,13 +438,15 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     }
 
     GGL_LOGT("ipc-server", "Retrieving connection state for %d.", handle);
-    GglBuffer component_name = { 0 };
-    ret = ggl_ipc_get_component_name(handle, &component_name);
+    GglComponentHandle component_handle = 0;
+    ret = ggl_with_socket_handle_index(
+        get_conn_component, &component_handle, &pool, handle
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    if (component_name.len == 0) {
+    if (component_handle == 0) {
         return handle_conn_init(handle, &msg);
     }
 
