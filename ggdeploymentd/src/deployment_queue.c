@@ -105,6 +105,11 @@ static bool should_replace_deployment_in_queue(
 }
 
 static GglError null_terminate_buffer(GglBuffer *buf, GglAlloc *alloc) {
+    if (buf->len == 0) {
+        *buf = (GglBuffer) { .data = (uint8_t *) "", .len = 1 };
+        return GGL_ERR_OK;
+    }
+
     uint8_t *mem = GGL_ALLOCN(alloc, uint8_t, buf->len + 1);
     if (mem == NULL) {
         GGL_LOGE(
