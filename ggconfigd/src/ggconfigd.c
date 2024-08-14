@@ -24,6 +24,8 @@ typedef struct {
     GglBuffer value;
 } ConfigMsg;
 
+// TODO: to validate key paths, verify they are well-formed utf-8 code units
+
 static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
@@ -92,9 +94,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         = { .list = object_list, .capacity = MAX_KEY_PATH_DEPTH };
 
     GGL_LOGI("rpc_subscribe", "subscribing");
-    if (ggl_map_get(
-            params, GGL_STR("componentName"), &val
-        )
+    if (ggl_map_get(params, GGL_STR("componentName"), &val)
         && (val->type == GGL_TYPE_BUF)) {
         // TODO: adjust the initial path with the component
         ggl_obj_vec_push(&key_path, *val);

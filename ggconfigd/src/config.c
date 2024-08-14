@@ -378,17 +378,6 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     return return_value;
 }
 
-// TODO: this should be called somewhere
-static bool validate_key(GglList *key_path) {
-    // TODO: validate key_path is valid format? (e.g. contains at least
-    // one buffer, and that buffer contains at least one character)
-    if (!isalpha(key_path->items[0].buf.data[0]
-        )) { // make sure the path starts with a character
-        return false;
-    }
-    return true;
-}
-
 static int64_t get_key_id(GglList *key_path) {
     sqlite3_stmt *find_element_stmt;
     int64_t id = 0;
@@ -450,7 +439,7 @@ static int64_t get_key_id(GglList *key_path) {
         GglBuffer *key = (GglBuffer *) &key_path->items[index].buf;
         sqlite3_bind_text(
             find_element_stmt,
-            index + 1,
+            (int) index + 1,
             (char *) key->data,
             (int) key->len,
             SQLITE_STATIC
@@ -458,11 +447,11 @@ static int64_t get_key_id(GglList *key_path) {
     }
 
     for (size_t index = key_path->len; index <= 24; index++) {
-        sqlite3_bind_null(find_element_stmt, index + 1);
+        sqlite3_bind_null(find_element_stmt, (int) index + 1);
     }
 
-    sqlite3_bind_int(find_element_stmt, 26, key_path->len);
-    sqlite3_bind_int(find_element_stmt, 27, key_path->len);
+    sqlite3_bind_int(find_element_stmt, 26, (int) key_path->len);
+    sqlite3_bind_int(find_element_stmt, 27, (int) key_path->len);
 
     int rc = sqlite3_step(find_element_stmt);
     GGL_LOGI("get_key_id", "find element returned %d", rc);
@@ -558,7 +547,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
             break;
         case SQLITE_ROW: {
             uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 0);
-            GGL_LOGI("subscription", "Sending to %ld", handle);
+            GGL_LOGI("subscription", "Sending to %u", handle);
             ggl_respond(handle, GGL_OBJ(*value));
         } break;
         default:
