@@ -13,7 +13,7 @@ typedef void GglConfigCallback(void *parameter);
 
 GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value);
 GglError ggconfig_get_value_from_key(GglList *key_path, GglBuffer *value_buffer);
-GglError ggconfig_get_key_notification(GglBuffer *key, uint32_t handle);
+GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle);
 GglError ggconfig_open(void);
 GglError ggconfig_close(void);
 
