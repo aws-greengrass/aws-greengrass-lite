@@ -22,7 +22,7 @@ __attribute__((constructor)) static void ignore_sigpipe(void) {
 }
 
 GglError ggl_read(int fd, GglBuffer *buf) {
-    ssize_t ret = recv(fd, buf->data, buf->len, MSG_WAITALL);
+    ssize_t ret = read(fd, buf->data, buf->len);
     if (ret < 0) {
         if (errno == EINTR) {
             return GGL_ERR_OK;
