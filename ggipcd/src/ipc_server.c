@@ -4,12 +4,12 @@
 
 #include "ipc_server.h"
 #include "ipc_dispatch.h"
+#include "ipc_subscriptions.h"
 #include <assert.h>
 #include <errno.h>
 #include <ggipc/auth.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/core_bus/client.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
@@ -61,33 +61,30 @@ static uint8_t payload_array[GGL_IPC_MAX_MSG_LEN];
 
 static GglBuffer client_names[GGL_IPC_MAX_CLIENTS];
 
-static int32_t client_fds[GGL_IPC_MAX_CLIENTS];
-static uint16_t client_generations[GGL_IPC_MAX_CLIENTS];
-
 static GglError reset_client_state(uint32_t handle, size_t index);
-static GglError release_subscriptions_for_conn(uint32_t handle, size_t index);
+static GglError release_client_subscriptions(uint32_t handle, size_t index);
 
 static GglSocketPool pool = {
     .max_fds = GGL_IPC_MAX_CLIENTS,
-    .fds = client_fds,
-    .generations = client_generations,
+    .fds = (int32_t[GGL_IPC_MAX_CLIENTS]) { 0 },
+    .generations = (uint16_t[GGL_IPC_MAX_CLIENTS]) { 0 },
     .on_register = reset_client_state,
-    .on_release = release_subscriptions_for_conn,
+    .on_release = release_client_subscriptions,
 };
 
 __attribute__((constructor)) static void init_client_pool(void) {
     ggl_socket_pool_init(&pool);
 }
 
-static uint32_t subs_resp_handle[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
-static int32_t subs_stream_id[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
-static uint32_t subs_recv_handle[GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS];
-static pthread_mutex_t subs_state_mtx = PTHREAD_MUTEX_INITIALIZER;
-
 static GglError reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
     client_names[index] = (GglBuffer) { 0 };
     return GGL_ERR_OK;
+}
+
+static GglError release_client_subscriptions(uint32_t handle, size_t index) {
+    (void) index;
+    return ggl_ipc_release_subscriptions_for_conn(handle);
 }
 
 static GglError get_common_headers(
@@ -448,182 +445,4 @@ GglError ggl_ipc_response_send(
     }
 
     return ggl_socket_handle_write(&pool, handle, resp_buffer);
-}
-
-static GglError init_subs_index(
-    uint32_t resp_handle, int32_t stream_id, size_t *index
-) {
-    assert(resp_handle != 0);
-
-    pthread_mutex_lock(&subs_state_mtx);
-    GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
-
-    for (size_t i = 0; i <= GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
-        if (subs_resp_handle[i] == 0) {
-            subs_resp_handle[i] = resp_handle;
-            subs_stream_id[i] = stream_id;
-            *index = i;
-            return GGL_ERR_OK;
-        }
-    }
-
-    GGL_LOGE("ipc-server", "Exceeded maximum tracked subscriptions.");
-    return GGL_ERR_NOMEM;
-}
-
-static void release_subs_index(size_t index, uint32_t resp_handle) {
-    pthread_mutex_lock(&subs_state_mtx);
-    GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
-
-    if (subs_resp_handle[index] == resp_handle) {
-        subs_resp_handle[index] = 0;
-        subs_stream_id[index] = 0;
-        subs_recv_handle[index] = 0;
-    } else {
-        GGL_LOGD(
-            "ipc-server",
-            "Releasing subscription state failed; already released."
-        );
-    }
-}
-
-static GglError subs_set_recv_handle(
-    size_t index, uint32_t resp_handle, uint32_t recv_handle
-) {
-    assert(resp_handle != 0);
-    assert(recv_handle != 0);
-
-    pthread_mutex_lock(&subs_state_mtx);
-    GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
-
-    if (subs_resp_handle[index] == resp_handle) {
-        subs_recv_handle[index] = recv_handle;
-        return GGL_ERR_OK;
-    }
-
-    GGL_LOGD(
-        "ipc-server",
-        "Setting subscription recv handle failed; state already released."
-    );
-    return GGL_ERR_FAILURE;
-}
-
-static GglError subscription_on_response(
-    void *ctx, uint32_t recv_handle, GglObject data
-) {
-    GglIpcSubscribeCallback on_response = ctx;
-
-    uint32_t resp_handle = 0;
-    int32_t stream_id = -1;
-    bool found = false;
-
-    {
-        pthread_mutex_lock(&subs_state_mtx);
-        GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
-        for (size_t i = 0; i < GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
-            if (recv_handle == subs_recv_handle[i]) {
-                found = true;
-                resp_handle = subs_resp_handle[i];
-                stream_id = subs_stream_id[i];
-                break;
-            }
-        }
-    }
-
-    if (!found) {
-        GGL_LOGD("ipc-server", "Received response on released subscription.");
-        return GGL_ERR_FAILURE;
-    }
-
-    static uint8_t resp_mem
-        [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
-         + GGL_IPC_MAX_MSG_LEN];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
-
-    return on_response(data, resp_handle, stream_id, &balloc.alloc);
-}
-
-static void subscription_on_close(void *ctx, uint32_t recv_handle) {
-    (void) ctx;
-    uint32_t resp_handle = 0;
-    bool found = false;
-    size_t index = 0;
-
-    {
-        pthread_mutex_lock(&subs_state_mtx);
-        GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
-        for (size_t i = 0; i < GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
-            if (recv_handle == subs_recv_handle[i]) {
-                found = true;
-                resp_handle = subs_resp_handle[i];
-                index = i;
-                break;
-            }
-        }
-    }
-
-    if (!found) {
-        GGL_LOGD("ipc-server", "Already released subscription closed.");
-        return;
-    }
-    release_subs_index(index, resp_handle);
-}
-
-GglError ggl_ipc_bind_subscription(
-    uint32_t resp_handle,
-    int32_t stream_id,
-    GglBuffer interface,
-    GglBuffer method,
-    GglMap params,
-    GglIpcSubscribeCallback on_response,
-    GglError *error
-) {
-    size_t subs_index = 0;
-    GglError ret = init_subs_index(resp_handle, stream_id, &subs_index);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    uint32_t recv_handle = 0;
-    ret = ggl_subscribe(
-        interface,
-        method,
-        params,
-        subscription_on_response,
-        subscription_on_close,
-        on_response,
-        error,
-        &recv_handle
-    );
-    if (ret != GGL_ERR_OK) {
-        release_subs_index(subs_index, resp_handle);
-        return ret;
-    }
-
-    (void) subs_set_recv_handle(subs_index, resp_handle, recv_handle);
-
-    return GGL_ERR_OK;
-}
-
-static GglError release_subscriptions_for_conn(uint32_t handle, size_t index) {
-    (void) index; // This is pool index, not in subscription array
-
-    for (size_t i = 0; i < GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
-        uint32_t recv_handle = 0;
-
-        {
-            pthread_mutex_lock(&subs_state_mtx);
-            GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
-
-            if (subs_resp_handle[i] == handle) {
-                recv_handle = subs_recv_handle[i];
-            }
-        }
-
-        if (recv_handle != 0) {
-            ggl_client_sub_close(recv_handle);
-        }
-    }
-
-    return GGL_ERR_OK;
 }

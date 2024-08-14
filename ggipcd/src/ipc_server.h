@@ -32,20 +32,4 @@ GglError ggl_ipc_response_send(
 /// Get the component name associated with a client.
 GglError ggl_ipc_get_component_name(uint32_t handle, GglBuffer *component_name);
 
-/// Callback for whenever a subscription is closed.
-typedef GglError (*GglIpcSubscribeCallback)(
-    GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
-);
-
-/// Wrapper around ggl_subscribe for IPC handlers.
-GglError ggl_ipc_bind_subscription(
-    uint32_t resp_handle,
-    int32_t stream_id,
-    GglBuffer interface,
-    GglBuffer method,
-    GglMap params,
-    GglIpcSubscribeCallback on_response,
-    GglError *error
-) __attribute__((warn_unused_result));
-
 #endif
