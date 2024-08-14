@@ -49,10 +49,10 @@ def fetch_script_section(lifecycle, phase):
     if isinstance(runSection, str):
         execCommand = runSection
     else:
-        scriptSection = runSection.get("Script", "")
+        scriptSection = runSection.get("script", "")
         execCommand = scriptSection
         if runSection.get("requiresprivilege", ""):
-            isRoot = True
+            isRoot = runSection.get("requiresprivilege", "")
     return execCommand
 
 
@@ -119,6 +119,9 @@ def fillServiceSection(yaml_data):
                 + run_phase_selection
                 + "\n"
             )
+            if run_phase_selection == "startup":
+                unit_content += "RemainAfterExit=true\n"
+                unit_content += "Type=oneshot\n"
             if isRoot:
                 unit_content += "User=root\n"
                 unit_content += "Group=root\n"
