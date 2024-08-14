@@ -48,6 +48,19 @@ GglError ggl_ipc_auth_lookup_name(
 
     name = ggl_buffer_substr(name, 0, name.len - ext.len);
 
+    GglBuffer prefix = GGL_STR("ggl.");
+    if (!ggl_buffer_eq(ggl_buffer_substr(name, 0, prefix.len), prefix)) {
+        GGL_LOGE(
+            "ipc-auth",
+            "Service for pid %d (%s) does not have ggl component prefix.",
+            pid,
+            unit_name
+        );
+        return GGL_ERR_NOENTRY;
+    }
+
+    name = ggl_buffer_substr(name, prefix.len, SIZE_MAX);
+
     uint8_t *component_name_buf = GGL_ALLOCN(alloc, uint8_t, name.len);
     if (component_name_buf == NULL) {
         GGL_LOGE(
