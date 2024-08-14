@@ -33,7 +33,7 @@ GglError handle_create_local_deployment(
             );
             return GGL_ERR_INVALID;
         }
-        GglKV recipe_dir_kv = { .key = GGL_STR("recipeDirectoryPath"),
+        GglKV recipe_dir_kv = { .key = GGL_STR("recipe_directory_path"),
                                 .val = *recipe_directory_path };
         found_args[found_args_index] = recipe_dir_kv;
         found_args_index++;
@@ -50,7 +50,7 @@ GglError handle_create_local_deployment(
             );
             return GGL_ERR_INVALID;
         }
-        GglKV artifacts_dir_kv = { .key = GGL_STR("artifactsDirectoryPath"),
+        GglKV artifacts_dir_kv = { .key = GGL_STR("artifact_directory_path"),
                                    .val = *artifacts_directory_path };
         found_args[found_args_index] = artifacts_dir_kv;
         found_args_index++;
@@ -69,7 +69,7 @@ GglError handle_create_local_deployment(
             return GGL_ERR_INVALID;
         }
         GglKV component_to_version_kv
-            = { .key = GGL_STR("rootComponentVersionsToAdd"),
+            = { .key = GGL_STR("root_component_versions_to_add"),
                 .val = *component_to_version_map };
         found_args[found_args_index] = component_to_version_kv;
         found_args_index++;
@@ -88,7 +88,7 @@ GglError handle_create_local_deployment(
             return GGL_ERR_INVALID;
         }
         GglKV root_components_remove_kv
-            = { .key = GGL_STR("rootComponentsToRemove"),
+            = { .key = GGL_STR("root_components_to_remove"),
                 .val = *root_components_to_remove };
         found_args[found_args_index] = root_components_remove_kv;
         found_args_index++;
@@ -107,7 +107,7 @@ GglError handle_create_local_deployment(
             return GGL_ERR_INVALID;
         }
         GglKV component_to_configuration_kv
-            = { .key = GGL_STR("componentToConfiguration"),
+            = { .key = GGL_STR("component_to_configuration"),
                 .val = *component_to_configuration };
         found_args[found_args_index] = component_to_configuration_kv;
         found_args_index++;
@@ -126,7 +126,7 @@ GglError handle_create_local_deployment(
             return GGL_ERR_INVALID;
         }
         GglKV component_to_run_with_info_kv
-            = { .key = GGL_STR("componentToRunWithInfo"),
+            = { .key = GGL_STR("component_to_run_with_info"),
                 .val = *component_to_run_with_info };
         found_args[found_args_index] = component_to_run_with_info_kv;
         found_args_index++;
@@ -141,7 +141,7 @@ GglError handle_create_local_deployment(
             return GGL_ERR_INVALID;
         }
         GglKV group_name_kv
-            = { .key = GGL_STR("groupName"), .val = *group_name };
+            = { .key = GGL_STR("group_name"), .val = *group_name };
         found_args[found_args_index] = group_name_kv;
         found_args_index++;
     }
