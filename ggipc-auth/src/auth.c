@@ -49,7 +49,7 @@ GglError ggl_ipc_auth_get_component_name(
 #ifndef GGL_IPC_AUTH_DISABLE
     // Match decoded SVCUID and return match's name
 
-    if (svcuid.len != (((size_t) SVCUID_BYTES / 4) * 3)) {
+    if (svcuid.len != (((size_t) SVCUID_BYTES / 3) * 4)) {
         GGL_LOGE("ipc-auth", "svcuid is invalid length.");
         return GGL_ERR_INVALID;
     }
