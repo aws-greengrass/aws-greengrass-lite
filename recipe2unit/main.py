@@ -2,9 +2,9 @@ import getopt
 import yaml
 import os
 import sys
+from env_var import EnvironmentVariables
 
 global isRoot
-
 global recipe_runner_path
 
 
@@ -129,13 +129,65 @@ def fillServiceSection(yaml_data):
     return unit_content
 
 
+def add_environment_variables(environment_var: EnvironmentVariables):
+    unit_content = ""
+
+    unit_content += (
+        'Environment="AWS_IOT_THING_NAME=' + environment_var.thing_name + '"\n'
+    )
+
+    if len(environment_var.aws_region) != 0:
+        unit_content += (
+            'Environment="AWS_REGION=' + environment_var.aws_region + '"\n'
+        )
+        unit_content += (
+            'Environment="AWS_DEFAULT_REGION='
+            + environment_var.aws_region
+            + '"\n'
+        )
+
+    if len(environment_var.ggc_version) != 0:
+        unit_content += (
+            'Environment="GGC_VERSION=' + environment_var.ggc_version + '"\n'
+        )
+
+    if len(environment_var.gg_root_ca_path) != 0:
+        unit_content += (
+            'Environment="GG_ROOT_CA_PATH='
+            + environment_var.gg_root_ca_path
+            + '"\n'
+        )
+
+    unit_content += (
+        'Environment="AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT='
+        + environment_var.socket_path
+        + '"\n'
+    )
+
+    if len(environment_var.aws_container_auth_token) != 0:
+        unit_content += (
+            'Environment="AWS_CONTAINER_AUTHORIZATION_TOKEN='
+            + environment_var.aws_container_auth_token
+            + '"\n'
+        )
+
+    if len(environment_var.aws_container_cred_url) != 0:
+        unit_content += (
+            'Environment="AWS_CONTAINER_CREDENTIALS_FULL_URI='
+            + environment_var.aws_container_cred_url
+            + '"\n'
+        )
+
+    return unit_content
+
+
 def fillInstallSection(yaml_data):
     unit_content = "\n[Install]\n"
     unit_content += "WantedBy=GreengrassCore.target\n"
     return unit_content
 
 
-def generate_systemd_unit(yaml_data):
+def generate_systemd_unit(yaml_data, environment_var: EnvironmentVariables):
     unit_content = ""
 
     unit_content += fillUnitSection(yaml_data)
@@ -145,6 +197,8 @@ def generate_systemd_unit(yaml_data):
         return ""
 
     unit_content += serviceSection
+    unit_content += add_environment_variables(environment_var)
+
     unit_content += fillInstallSection(yaml_data)
 
     return unit_content
@@ -152,15 +206,27 @@ def generate_systemd_unit(yaml_data):
 
 def getCommandArgs():
     argumentList = sys.argv[1:]
+    env_var = EnvironmentVariables()
 
     # Options
-    options = "hr:"
+    options = "hr:e:s:t:g:n:o:a:u:"
 
     fileName = ""
     recipeRunnerPath = ""
 
     # Long options
-    long_options = ["Help", "recipe-path=", "recipe-runner-path="]
+    long_options = [
+        "Help",
+        "recipe-path=",
+        "recipe-runner-path=",
+        "socket-path=",
+        "thing_name=",
+        "aws-region=",
+        "ggc-version=",
+        "rootca-path=",
+        "auth-token=",
+        "cred-url=",
+    ]
 
     try:
         # Parsing argument
@@ -180,12 +246,31 @@ def getCommandArgs():
                 fileName = currentValue
             elif currentArgument in ("-e", "--recipe-runner-path"):
                 recipeRunnerPath = currentValue
+            elif currentArgument in ("-s", "--socket-path"):
+                env_var.socket_path = currentValue
+            elif currentArgument in ("-t", "--thing-name"):
+                env_var.thing_name = currentValue
+
+            elif currentArgument in ("-g", "--aws-region"):
+                env_var.aws_region = currentValue
+
+            elif currentArgument in ("-n", "--ggc-version"):
+                env_var.ggc_version = currentValue
+
+            elif currentArgument in ("-o", "--rootca-path"):
+                env_var.gg_root_ca_path = currentValue
+
+            elif currentArgument in ("-a", "--auth-token"):
+                env_var.aws_container_auth_token = currentValue
+
+            elif currentArgument in ("-u", "--cred-url"):
+                env_var.aws_container_auth_token = currentValue
 
     except getopt.error as err:
         # output error, and return with an error code
         print(str(err))
 
-    return (fileName, recipeRunnerPath)
+    return (fileName, recipeRunnerPath, env_var)
 
 
 def main():
@@ -194,10 +279,16 @@ def main():
 
     isRoot = False
 
-    file_path, recipe_runner_path = getCommandArgs()
+    file_path, recipe_runner_path, environment_var = getCommandArgs()
 
-    if file_path == "" or recipe_runner_path == "":
-        print("Error: file path or  recipe runner path not provided")
+    if (
+        len(file_path) == 0
+        or len(recipe_runner_path) == 0
+        or len(environment_var.thing_name) == 0
+        or len(environment_var.socket_path) == 0
+    ):
+        print("Error: Necessary parameters are not set")
+        return
 
     unitComponentName = ""
 
@@ -206,7 +297,7 @@ def main():
 
     # yaml_data = CaseInsensitiveDict(load_data)
     yaml_data = lower_keys(load_data)
-    systemd_unit = generate_systemd_unit(yaml_data)
+    systemd_unit = generate_systemd_unit(yaml_data, environment_var)
     unitComponentName = yaml_data["componentname"]
 
     if systemd_unit != "":
