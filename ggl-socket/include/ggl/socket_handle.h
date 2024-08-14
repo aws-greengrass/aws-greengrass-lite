@@ -7,6 +7,7 @@
 
 //! Common library for managing unix sockets
 
+#include <sys/types.h>
 #include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -57,6 +58,11 @@ GglError ggl_socket_handle_write(
 
 /// Close a socket.
 GglError ggl_socket_handle_close(GglSocketPool *pool, uint32_t handle);
+
+/// Get pid of socket peer.
+GglError ggl_socket_handle_get_peer_pid(
+    GglSocketPool *pool, uint32_t handle, pid_t *pid
+);
 
 /// Run a callback with access to the state index.
 /// This can be used for managing additional state arrays kept in sync with the

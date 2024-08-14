@@ -2,6 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+// NOLINTNEXTLINE(readability-identifier-naming)
+#define _GNU_SOURCE
+
 #include "ggl/socket_handle.h"
 #include "ggl/socket.h"
 #include <assert.h>
@@ -11,6 +14,7 @@
 #include <ggl/object.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <unistd.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -252,6 +256,40 @@ GglError ggl_socket_handle_close(GglSocketPool *pool, uint32_t handle) {
 
     GGL_LOGT("socket", "Close of %u successful.", handle);
     return ret;
+}
+
+GglError ggl_socket_handle_get_peer_pid(
+    GglSocketPool *pool, uint32_t handle, pid_t *pid
+) {
+    GGL_LOGT(
+        "socket", "Getting peer pid for handle %u in pool %p.", handle, pool
+    );
+
+    pthread_mutex_lock(&pool->mtx);
+    GGL_DEFER(unlock_pool_mtx, pool);
+
+    uint16_t index = 0;
+    GglError ret = validate_handle(pool, handle, &index, __func__);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    struct ucred ucred;
+    socklen_t ucred_len = sizeof(ucred);
+    if ((getsockopt(
+             pool->fds[index], SOL_SOCKET, SO_PEERCRED, &ucred, &ucred_len
+         )
+         != 0)
+        || (ucred_len != sizeof(ucred))) {
+        GGL_LOGE(
+            "ipc-auth", "Failed to get peer cred for fd %d.", pool->fds[index]
+        );
+        return GGL_ERR_FAILURE;
+    }
+
+    *pid = ucred.pid;
+    GGL_LOGT("socket", "Get pid for %u successful (%d).", handle, ucred.pid);
+    return GGL_ERR_OK;
 }
 
 GglError ggl_with_socket_handle_index(
