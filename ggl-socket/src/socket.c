@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/socket.h"
+#include <sys/types.h>
 #include <errno.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
@@ -10,7 +11,6 @@
 #include <ggl/object.h>
 #include <signal.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <stddef.h>
 #include <stdint.h>

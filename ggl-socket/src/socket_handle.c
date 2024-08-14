@@ -5,7 +5,6 @@
 #include "ggl/socket_handle.h"
 #include "ggl/socket.h"
 #include <assert.h>
-#include <ggl/alloc.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>

@@ -1,11 +1,11 @@
 #include "fleet-provision.h"
 #include "fleet-provisioning.h"
 #include "generate_certificate.h"
+#include <sys/types.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <openssl/pem.h>
 #include <string.h>
-#include <sys/types.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

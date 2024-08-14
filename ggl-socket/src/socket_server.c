@@ -8,7 +8,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <ggl/alloc.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
