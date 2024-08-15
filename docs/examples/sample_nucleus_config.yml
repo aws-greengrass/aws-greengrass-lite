@@ -1,0 +1,65 @@
+---
+system:
+  privateKeyPath: "..."
+  certificateFilePath: "..."
+  rootCaPath: "..."
+  rootpath: "."
+  thingName: "GGC-test"
+services:
+  aws.greengrass.Nucleus-Lite:
+    componentType: "NUCLEUS"
+    configuration:
+      awsRegion: "us-west-2"
+      componentStoreMaxSizeBytes: "10000000000"
+      deploymentPollingFrequencySeconds: "15"
+      deploymentOnStart:
+        path: ""
+      envStage: "prod"
+      fleetStatus:
+        periodicStatusPublishIntervalSeconds: 86400
+      greengrassDataPlanePort: "8443"
+      httpClient: {}
+      iotCredEndpoint: "..."
+      iotDataEndpoint: "..."
+      iotRoleAlias: "GreengrassV2TokenExchangeRoleAlias"
+      logging:
+        level: "DEBUG"
+      mqtt:
+        spooler: {}
+      networkProxy:
+        proxy: {}
+      platformOverride: {}
+      runWithDefault:
+        posixUser: "ggc_user:ggc_group"
+      telemetry: {}
+    dependencies: []
+  aws.greengrass.fleet_provisioning:
+    configuration:
+      iotDataEndpoint: "..."
+      iotCredEndpoint: ""
+      claimKeyPath: "..."
+      claimCertPath: "..."
+      deviceId: ""
+      templateName: "..."
+      templateParams: "..."
+      csrPath: ""
+      mqttPort: 80
+      proxyUrl: ""
+      proxyUsername: ""
+      proxyPassword: ""
+  DeploymentService:
+    dependencies: []
+    version: "0.0.0"
+  FleetStatusService:
+    dependencies: []
+    version: "0.0.0"
+  main:
+    dependencies:
+      - "aws.greengrass.Nucleus-Lite"
+    lifecycle: {}
+  TelemetryAgent:
+    dependencies: []
+    version: "0.0.0"
+  UpdateSystemPolicyService:
+    dependencies: []
+    version: "0.0.0"
