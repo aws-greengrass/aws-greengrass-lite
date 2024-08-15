@@ -68,7 +68,7 @@ GglError handle_get_configuration(
     return ggl_ipc_response_send(
         handle,
         stream_id,
-        GGL_STR("aws.greengrass#UpdateConfigurationResponse"),
+        GGL_STR("aws.greengrass#GetConfigurationResponse"),
         call_resp
     );
 }
