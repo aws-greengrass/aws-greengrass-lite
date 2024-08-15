@@ -13,7 +13,7 @@
 /// @param component_name_object The component name to add to the key path
 /// @param key_path_object  the key path to modify
 /// @return a new key path that includes the component name
-GglObject *make_key_path_object(
+GglObject *ggl_make_key_path_object(
     GglObject *component_name_object, GglObject *key_path_object
 );
 
