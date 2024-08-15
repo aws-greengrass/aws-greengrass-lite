@@ -17,7 +17,6 @@
 GglError handle_update_configuration(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
-#if GGL_LOG_LEVEL == GGL_LOG_TRACE
     for (size_t x = 0; x < args.len; x++) {
         GglKV *kv = &args.pairs[x];
         GglBuffer *key = &kv->key;
@@ -28,7 +27,6 @@ GglError handle_update_configuration(
             (char *) key->data
         );
     }
-#endif
 
     GglObject *key_path_object;
     bool found = ggl_map_get(args, GGL_STR("keyPath"), &key_path_object);
