@@ -260,6 +260,7 @@ add_subdirectory(gg-fleet-statusd)
 add_subdirectory(tesd)
 add_subdirectory(fleet-provisioning)
 add_subdirectory(ggl-config-init)
+add_subdirectory(recipe-runner)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)

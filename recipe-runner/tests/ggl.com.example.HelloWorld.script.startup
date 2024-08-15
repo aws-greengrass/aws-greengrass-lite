@@ -1,0 +1,2 @@
+touch /home/ubuntu/repo/new_test/aws-greengrass-lite/recipe-runner/tests/test.cpp
+touch /home/ubuntu/repo/new_test/aws-greengrass-lite/recipe-runner/tests/test2.cpp

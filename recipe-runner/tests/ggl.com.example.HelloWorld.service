@@ -1,0 +1,15 @@
+[Unit]
+Description=My first AWS IoT Greengrass component.
+
+[Service]
+WorkingDirectory=/home/ubuntu/com.example.HelloWorld
+ExecStart=/home/ubuntu/repo/new_test/aws-greengrass-lite/build/bin/recipe-runner -p /home/ubuntu/repo/new_test/aws-greengrass-lite/recipe-runner/tests/ggl.com.example.HelloWorld.script.startup -n com.example.HelloWorld
+RemainAfterExit=true
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+Environment="AWS_IOT_THING_NAME=RawalA"
+Environment="AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT=/home/ubuntu/repo/new_test/aws-greengrass-lite/gg-ipc.socket"
+
+[Install]
+WantedBy=GreengrassCore.target
