@@ -65,7 +65,8 @@ int main(int argc, char **argv) {
     }
 
     size_t file_size = (size_t) st.st_size;
-    uint8_t *file_str = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
+    uint8_t *file_str
+        = mmap(NULL, file_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     // NOLINTNEXTLINE(performance-no-int-to-ptr)
     if (file_str == MAP_FAILED) {
         GGL_LOGE("main", "Failed to load config file.");
