@@ -41,6 +41,7 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
           { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECT } },
         { GGL_STR(":message-flags"), { EVENTSTREAM_INT32, .int32 = 0 } },
         { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 0 } },
+        { GGL_STR("authenticate"), { EVENTSTREAM_INT32, .int32 = 1 } },
         { GGL_STR(":version"),
           { EVENTSTREAM_STRING, .string = GGL_STR("0.1.0") } },
     };
