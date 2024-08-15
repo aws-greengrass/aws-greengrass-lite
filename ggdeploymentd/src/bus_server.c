@@ -10,11 +10,11 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <uuid/uuid.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <uuid/uuid.h>
 
 static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
@@ -129,9 +129,9 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
     // TODO: Revisit and see if local deployment should have a different value
     uuid_t binuuid;
     uuid_generate_random(binuuid);
-    char uuid[37];
-    uuid_unparse(binuuid, uuid);
-    local_deployment_document.deployment_id = GGL_STR(uuid);
+    GglBuffer uuid = { .len = 37 };
+    uuid_unparse(binuuid, (char *) uuid.data);
+    local_deployment_document.deployment_id = uuid;
 
     // TODO: Add remaining fields for cloud deployments
 

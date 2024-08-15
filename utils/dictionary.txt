@@ -39,6 +39,7 @@ htobe
 iotcored
 keyid
 libyaml
+libuuid
 LOGD
 LOGE
 LOGI
