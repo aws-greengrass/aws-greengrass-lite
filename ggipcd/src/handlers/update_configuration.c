@@ -5,14 +5,12 @@
 #include "../ipc_server.h"
 #include "handlers.h"
 #include "make_key_path_object.h"
-#include <assert.h>
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <ggl/vector.h>
 #include <stdbool.h>
 #include <stdint.h>
 
