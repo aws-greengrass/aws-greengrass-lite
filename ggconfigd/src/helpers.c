@@ -14,7 +14,7 @@
 /// @param key_path a list of buffers that will be rendered into a null
 /// terminated string has a fixed maximum length and will end in /... if it is
 /// too small.
-/// @return a staticaly allocated path_string suitable for debug printing
+/// @return a statically allocated path_string suitable for debug printing
 char *print_key_path(GglList *key_path) {
     static char path_string[PATH_STRING_MAX_SIZE] = { 0 };
     size_t string_length = 0;
