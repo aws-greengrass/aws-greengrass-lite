@@ -24,6 +24,7 @@
 #include <ggl/socket_handle.h>
 #include <ggl/socket_server.h>
 #include <pthread.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -459,7 +460,13 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 }
 
 GglError ggl_ipc_listen(const char *socket_path) {
-    return ggl_socket_server_listen(socket_path, &pool, client_ready, NULL);
+    return ggl_socket_server_listen(
+        (GglBuffer) { .data = (uint8_t *) socket_path,
+                      .len = strlen(socket_path) },
+        &pool,
+        client_ready,
+        NULL
+    );
 }
 
 GglError ggl_ipc_response_send(
