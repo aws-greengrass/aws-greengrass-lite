@@ -19,7 +19,7 @@
 /// closes the socket.
 /// If `client_ready` returns an error, the connection will be cleaned up.
 GglError ggl_socket_server_listen(
-    const char *path,
+    GglBuffer path,
     GglSocketPool *pool,
     GglError (*client_ready)(void *ctx, uint32_t handle),
     void *ctx

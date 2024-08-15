@@ -26,6 +26,7 @@ GGDEPLOYMENT
 ggdeploymentd
 gghealthd
 gghttplib
+ggipc
 ggipcd
 gglib
 gglite

@@ -11,6 +11,7 @@
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/object.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -109,32 +110,30 @@ static GglError create_parent_dirs(char *path) {
     return GGL_ERR_OK;
 }
 
-static GglError configure_server_socket(int socket_fd, const char *path) {
+static GglError configure_server_socket(int socket_fd, GglBuffer path) {
     assert(socket_fd >= 0);
-    assert(path != NULL);
 
     struct sockaddr_un addr = { .sun_family = AF_UNIX, .sun_path = { 0 } };
 
-    size_t path_len = strlen(path);
-
-    if (path_len >= sizeof(addr.sun_path)) {
+    // TODO: Handle long paths by creating socket in temp dir and moving
+    if (path.len >= sizeof(addr.sun_path)) {
         GGL_LOGE(
             "socket-server",
             "Socket path too long (len %lu, max %lu).",
-            path_len,
+            path.len,
             sizeof(addr.sun_path) - 1
         );
         return GGL_ERR_FAILURE;
     }
 
-    memcpy(addr.sun_path, path, path_len);
+    memcpy(addr.sun_path, path.data, path.len);
 
     GglError ret = create_parent_dirs(addr.sun_path);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    if ((unlink(path) == -1) && (errno != ENOENT)) {
+    if ((unlink(addr.sun_path) == -1) && (errno != ENOENT)) {
         int err = errno;
         GGL_LOGE("socket-server", "Failed to unlink server socket: %d.", err);
         return GGL_ERR_FAILURE;
@@ -192,12 +191,11 @@ static GglError epoll_fd_ready(void *epoll_ctx, uint64_t data) {
 }
 
 GglError ggl_socket_server_listen(
-    const char *path,
+    GglBuffer path,
     GglSocketPool *pool,
     GglError (*client_ready)(void *ctx, uint32_t handle),
     void *ctx
 ) {
-    assert(path != NULL);
     assert(pool != NULL);
     assert(pool->fds != NULL);
     assert(pool->generations != NULL);

@@ -17,6 +17,7 @@
 #include <ggl/object.h>
 #include <ggl/socket_handle.h>
 #include <ggl/socket_server.h>
+#include <ggl/vector.h>
 #include <pthread.h>
 #include <string.h>
 #include <stdbool.h>
@@ -258,26 +259,30 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 GglError ggl_listen(
     GglBuffer interface, GglRpcMethodDesc *handlers, size_t handlers_len
 ) {
-    char socket_path
-        [GGL_INTERFACE_SOCKET_PREFIX_LEN + GGL_INTERFACE_NAME_MAX_LEN + 1]
+    uint8_t socket_path_buf
+        [GGL_INTERFACE_SOCKET_PREFIX_LEN + GGL_INTERFACE_NAME_MAX_LEN]
         = GGL_INTERFACE_SOCKET_PREFIX;
+    GglByteVec socket_path
+        = { .buf = { .data = socket_path_buf,
+                     .len = GGL_INTERFACE_SOCKET_PREFIX_LEN },
+            .capacity = sizeof(socket_path_buf) };
 
-    if (interface.len > GGL_INTERFACE_NAME_MAX_LEN) {
+    GglError ret = ggl_byte_vec_append(&socket_path, interface);
+    if (ret != GGL_ERR_OK) {
         GGL_LOGE("core-bus", "Interface name too long.");
         return GGL_ERR_RANGE;
     }
 
-    memcpy(
-        &socket_path[GGL_INTERFACE_SOCKET_PREFIX_LEN],
-        interface.data,
-        interface.len
+    GGL_LOGD(
+        "core-bus",
+        "Listening on socket %.*s.",
+        (int) socket_path.buf.len,
+        socket_path.buf.data
     );
-
-    GGL_LOGD("core-bus", "Listening on socket %s.", socket_path);
 
     InterfaceCtx ctx = { .handlers = handlers, .handlers_len = handlers_len };
 
-    return ggl_socket_server_listen(socket_path, &pool, client_ready, &ctx);
+    return ggl_socket_server_listen(socket_path.buf, &pool, client_ready, &ctx);
 }
 
 static GglError payload_writer(GglBuffer *buf, void *payload) {
