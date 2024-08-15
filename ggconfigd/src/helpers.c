@@ -2,6 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "helpers.h"
 #include <ggl/object.h>
 #include <string.h>
 #include <stddef.h>
