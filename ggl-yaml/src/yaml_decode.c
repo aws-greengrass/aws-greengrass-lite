@@ -212,7 +212,7 @@ GglError ggl_yaml_decode_destructive(
 
     GglError ret = yaml_to_obj(&document, root_node, alloc, obj);
 
-    if (ret != GGL_ERR_OK) {
+    if (ret == GGL_ERR_OK) {
         GglBumpAlloc balloc = ggl_bump_alloc_init(buf);
         ret = ggl_obj_buffer_copy(obj, &balloc.alloc);
     }
