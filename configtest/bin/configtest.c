@@ -34,7 +34,7 @@ static void test_insert(GglList test_key, GglObject test_value) {
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
     GglMap params = GGL_MAP(
-        { GGL_STR("keyPath"), GGL_OBJ(test_key) },
+        { GGL_STR("key_path"), GGL_OBJ(test_key) },
         { GGL_STR("valueToMerge"), test_value },
         { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
     );
@@ -56,7 +56,7 @@ static void test_get(GglList test_key_path) {
     GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
-    GglMap params = GGL_MAP({ GGL_STR("keyPath"), GGL_OBJ(test_key_path) }, );
+    GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(test_key_path) }, );
     GglObject result;
 
     GglError error = ggl_call(
@@ -106,7 +106,7 @@ static void subscription_close(void *ctx, unsigned int handle) {
 static void test_subscribe(GglList key) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
 
-    GglMap params = GGL_MAP({ GGL_STR("keyPath"), GGL_OBJ(key) }, );
+    GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key) }, );
     uint32_t handle;
     GglError error = ggl_subscribe(
         server,
@@ -132,7 +132,7 @@ static void test_subscribe(GglList key) {
 /*
 test case for test_write_object
 component = "component"
-keyPath = ["foobar"]
+key_path = ["foobar"]
 valueToMerge = {
     "foo": {
         "bar": {
@@ -181,7 +181,7 @@ static void test_write_object(void) {
     }
 
     GglMap params = GGL_MAP(
-        { GGL_STR("keyPath"), test_key_path_object },
+        { GGL_STR("key_path"), test_key_path_object },
         { GGL_STR("valueToMerge"), test_value_object },
         { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
     );

@@ -34,23 +34,23 @@ Any data is permitted in a value. The data that goes in, is returned when read.
 
 ### write
 
-Write a value to the indicated key. Create the keypath and key as required.
+Write a value to the indicated key. Create the key_path and key as required.
 
-| Parameter name | Parameter Description                                                            |
-| -------------- | -------------------------------------------------------------------------------- |
-| component      | The name of the component. Used as the first entry in the key path               |
-| key            | The keypath that is appended to the component name and addresses a piece of data |
-| value          | The data value written to the component/key                                      |
+| Parameter name | Parameter Description                                                             |
+| -------------- | --------------------------------------------------------------------------------- |
+| component      | The name of the component. Used as the first entry in the key path                |
+| key            | The key_path that is appended to the component name and addresses a piece of data |
+| value          | The data value written to the component/key                                       |
 
 ### read
 
-Read a value from the indicated key. If the key/keypath are not found, return an
-error.
+Read a value from the indicated key. If the key/key_path are not found, return
+an error.
 
-| Parameter name | Parameter Description                                                            |
-| -------------- | -------------------------------------------------------------------------------- |
-| component      | The name of the component. Used as the first entry in the key path               |
-| key            | The keypath that is appended to the component name and addresses a piece of data |
+| Parameter name | Parameter Description                                                             |
+| -------------- | --------------------------------------------------------------------------------- |
+| component      | The name of the component. Used as the first entry in the key path                |
+| key            | The key_path that is appended to the component name and addresses a piece of data |
 
 > NOTE Can a partial path be requested that will return ALL the data below it?
 > If so, what is the data format for this combined request?
@@ -100,10 +100,10 @@ key path for which to get a configuration value.
 #### Parameters
 
 > componentName (optional) : The name of the component. If no name is provided,
-> the default is the callers name. keyPath : The keyPath to the configuration
-> value. The keypath is a list where each entry in order is a value in the path.
-> example: ["mqtt","port"] will return the value for `mqtt/port`. All values
-> below the identified point in the keyPath will be returned in a single
+> the default is the callers name. key_path : The key_path to the configuration
+> value. The key_path is a list where each entry in order is a value in the
+> path. example: ["mqtt","port"] will return the value for `mqtt/port`. All
+> values below the identified point in the key_path will be returned in a single
 > `GglObject`. If the parameter is an empty list, all values for the componet
 > will be returned.
 

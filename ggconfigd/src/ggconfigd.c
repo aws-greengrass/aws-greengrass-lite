@@ -29,11 +29,11 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     GglObject *val;
     GglList *key_list;
 
-    if (ggl_map_get(params, GGL_STR("keyPath"), &val)
+    if (ggl_map_get(params, GGL_STR("key_path"), &val)
         && (val->type == GGL_TYPE_LIST)) {
         key_list = &val->list;
     } else {
-        GGL_LOGE("rpc_read", "read received invalid keyPath argument.");
+        GGL_LOGE("rpc_read", "read received invalid key_path argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -63,11 +63,11 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
 
     GGL_LOGI("rpc_subscribe", "subscribing");
 
-    if (ggl_map_get(params, GGL_STR("keyPath"), &val)
+    if (ggl_map_get(params, GGL_STR("key_path"), &val)
         && (val->type == GGL_TYPE_LIST)) {
         key_list = &val->list;
     } else {
-        GGL_LOGE("rpc_subscribe", "read received invalid keyPath argument.");
+        GGL_LOGE("rpc_subscribe", "read received invalid key_path argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -144,18 +144,18 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     GglObjVec key_path
         = { .list = object_list, .capacity = MAX_KEY_PATH_DEPTH };
 
-    if (ggl_map_get(params, GGL_STR("keyPath"), &val)
+    if (ggl_map_get(params, GGL_STR("key_path"), &val)
         && (val->type == GGL_TYPE_LIST)) {
         GglList *list = &val->list;
         for (size_t x = 0; x < list->len; x++) {
             if (ggl_obj_vec_push(&key_path, list->items[x]) != GGL_ERR_OK) {
-                GGL_LOGE("rpc_write", "Error pushing to the keypath");
+                GGL_LOGE("rpc_write", "Error pushing to the key_path");
                 ggl_return_err(handle, GGL_ERR_INVALID);
                 return;
             }
         }
     } else {
-        GGL_LOGE("rpc_write", "write received invalid keyPath argument.");
+        GGL_LOGE("rpc_write", "write received invalid key_path argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
