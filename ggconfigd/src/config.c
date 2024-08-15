@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggconfigd.h"
-#include <ctype.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
