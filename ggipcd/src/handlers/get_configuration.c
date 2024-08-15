@@ -4,6 +4,7 @@
 
 #include "../ipc_server.h"
 #include "handlers.h"
+#include "make_key_path_object.h"
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -12,11 +13,6 @@
 #include <ggl/object.h>
 #include <stdbool.h>
 #include <stdint.h>
-
-// make_key_path_object is in update_configuration.c
-extern GglObject *make_key_path_object(
-    GglObject *component_name_object, GglObject *key_path_object
-);
 
 GglError handle_get_configuration(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
@@ -46,7 +42,7 @@ GglError handle_get_configuration(
 
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"),
-          *make_key_path_object(&component_name_object, key_path_object) },
+          *ggl_make_key_path_object(&component_name_object, key_path_object) },
     );
 
     GglError error;

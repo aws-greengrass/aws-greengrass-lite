@@ -67,7 +67,7 @@ GglError handle_update_configuration(
     }
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"),
-          *make_key_path_object(&component_name_object, key_path_object) },
+          *ggl_make_key_path_object(&component_name_object, key_path_object) },
         { GGL_STR("value"), *value_to_merge_object },
         { GGL_STR("timestamp"), *time_stamp_object }
     );

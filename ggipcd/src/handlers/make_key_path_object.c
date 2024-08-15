@@ -8,7 +8,7 @@
 #include <ggl/vector.h>
 #include <stddef.h>
 
-GglObject *make_key_path_object(
+GglObject *ggl_make_key_path_object(
     GglObject *component_name_object, GglObject *key_path_object
 ) {
     assert(key_path_object->list.len + 2 < MAXIMUM_KEY_PATH_DEPTH);
