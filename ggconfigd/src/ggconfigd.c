@@ -80,7 +80,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
 }
 
 static char *print_key_path(GglList *key_path) {
-    static char path_string[64] = { 0 };
+    static char path_string[1024] = { 0 };
     memset(path_string, 0, sizeof(path_string));
     for (size_t x = 0; x < key_path->len; x++) {
         if (x > 0) {
@@ -102,21 +102,40 @@ static GglError process_map(
     GglError error = GGL_ERR_OK;
     for (size_t x = 0; x < the_map->len; x++) {
         GglKV *kv = &the_map->pairs[x];
+        GGL_LOGT(
+            "rpc_write:process_map",
+            "preparing %ld, %.*s",
+            x,
+            (int) kv->key.len,
+            (char *) kv->key.data
+        );
+
         ggl_obj_vec_push(key_path, GGL_OBJ(kv->key));
+        GGL_LOGT("rpc_write:process_map", "pushed the key");
         if (kv->val.type == GGL_TYPE_MAP) {
+            GGL_LOGT("rpc_write:process_map", "value is a map");
             error = process_map(key_path, &kv->val.map, time_stamp);
             if (error != GGL_ERR_OK) {
                 break;
             }
         } else {
+            GGL_LOGT("rpc_write:process_map", "value is NOT a map");
             char *path_string = print_key_path(&key_path->list);
-            uint8_t value_string[512] = { 0 };
+            uint8_t value_string[1024] = { 0 };
             GglBuffer value_buffer
                 = { .data = value_string, .len = sizeof(value_string) };
+            GGL_LOGT("rpc_write:process_map", "starting json encode");
             error = ggl_json_encode(kv->val, &value_buffer);
             if (error != GGL_ERR_OK) {
+                GGL_LOGT(
+                    "rpc_write:process_map",
+                    "json encode failure %.*s",
+                    (int) kv->key.len,
+                    (char *) kv->key.data
+                );
                 break;
             }
+            GGL_LOGT("rpc_write:process_map", "writing the value");
             error = ggconfig_write_value_at_key(&key_path->list, &value_buffer);
 
             GGL_LOGT(

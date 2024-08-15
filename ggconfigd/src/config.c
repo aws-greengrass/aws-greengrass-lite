@@ -20,7 +20,7 @@ static sqlite3 *config_database;
 static const char *config_database_name = "config.db";
 
 static char *print_key_path(GglList *key_path) {
-    static char path_string[64] = { 0 };
+    static char path_string[1024] = { 0 };
     memset(path_string, 0, sizeof(path_string));
     for (size_t x = 0; x < key_path->len; x++) {
         if (x > 0) {
