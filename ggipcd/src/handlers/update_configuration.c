@@ -4,18 +4,47 @@
 
 #include "../ipc_server.h"
 #include "handlers.h"
+#include <assert.h>
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+#define MAXIMUM_KEY_PATH_DEPTH 100
+GglObject *make_key_path_object(
+    GglObject *component_name_object, GglObject *key_path_object
+);
+
+/// @brief Combine the component name and key path and return a new key path
+/// @param component_name_object The component name to add to the key path
+/// @param key_path_object  the key path to modify
+/// @return a new key path that includes the component name
+GglObject *make_key_path_object(
+    GglObject *component_name_object, GglObject *key_path_object
+) {
+    assert(key_path_object->list.len + 2 < MAXIMUM_KEY_PATH_DEPTH);
+    static GglObject objects[MAXIMUM_KEY_PATH_DEPTH];
+    static GglList path_list = { .items = objects, .len = 0 };
+    static GglObject path_list_object
+        = { .type = GGL_TYPE_LIST, .list = &path_list };
+    GglObjVec path = { .list = path_list, .capacity = MAXIMUM_KEY_PATH_DEPTH };
+    ggl_obj_vec_push(&path, GGL_OBJ_STR("services"));
+    ggl_obj_vec_push(&path, *component_name_object);
+    for (size_t index = 0; index < key_path_object->list.len; index++) {
+        ggl_obj_vec_push(&path, key_path_object->list.items[index]);
+    }
+    return &path_list_object;
+}
 
 GglError handle_update_configuration(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
+#if GGL_LOG_LEVEL == TRACE
     for (size_t x = 0; x < args.len; x++) {
         GglKV *kv = &args.pairs[x];
         GglBuffer *key = &kv->key;
@@ -26,6 +55,7 @@ GglError handle_update_configuration(
             (char *) key->data
         );
     }
+#endif
 
     GglObject *key_path_object;
     bool found = ggl_map_get(args, GGL_STR("keyPath"), &key_path_object);
@@ -64,17 +94,17 @@ GglError handle_update_configuration(
     }
 
     GglMap params = GGL_MAP(
-        { GGL_STR("componentName"), component_name_object },
-        { GGL_STR("keyPath"), *key_path_object },
-        { GGL_STR("valueToMerge"), *value_to_merge_object },
-        { GGL_STR("timeStamp"), *time_stamp_object }
+        { GGL_STR("key_path"),
+          *make_key_path(&component_name_object, key_path_object) },
+        { GGL_STR("value"), *value_to_merge_object },
+        { GGL_STR("timestamp"), *time_stamp_object }
     );
 
     GglError error;
     GglObject call_resp;
     GglError ret = ggl_call(
         GGL_STR("/aws/ggl/ggconfigd"),
-        GGL_STR("write_object"),
+        GGL_STR("write"),
         params,
         &error,
         alloc,
