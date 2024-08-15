@@ -21,7 +21,7 @@ extern GglObject *make_key_path_object(
 GglError handle_get_configuration(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
-#if GGL_LOG_LEVEL == TRACE
+#if GGL_LOG_LEVEL == GGL_LOG_TRACE
     for (size_t x = 0; x < args.len; x++) {
         GglKV *kv = &args.pairs[x];
         GglBuffer *key = &kv->key;

@@ -23,7 +23,10 @@ static const struct {
     { GGL_STR("aws.greengrass#PublishToTopic"), handle_publish_to_topic },
     { GGL_STR("aws.greengrass#SubscribeToTopic"), handle_subscribe_to_topic },
     { GGL_STR("aws.greengrass#CreateLocalDeployment"),
-      handle_create_local_deployment }
+      handle_create_local_deployment },
+    { GGL_STR("aws.greengrass#GetConfiguration"), handle_get_configuration },
+    { GGL_STR("aws.greengrass#UpdateConfiguration"),
+      handle_update_configuration }
 };
 
 static const size_t HANDLER_COUNT
