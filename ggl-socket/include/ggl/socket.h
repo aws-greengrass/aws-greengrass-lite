@@ -24,4 +24,7 @@ GglError ggl_write(int fd, GglBuffer *buf);
 /// Wrapper for writing full buffer to socket.
 GglError ggl_write_exact(int fd, GglBuffer buf);
 
+/// Connect to a socket and return the fd
+GglError ggl_connect(GglBuffer path, int *fd);
+
 #endif

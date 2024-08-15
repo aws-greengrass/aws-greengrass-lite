@@ -5,12 +5,16 @@
 #include "ggl/socket.h"
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <ggl/buffer.h>
+#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <signal.h>
+#include <string.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <unistd.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -90,5 +94,48 @@ GglError ggl_write_exact(int fd, GglBuffer buf) {
         }
     }
 
+    return GGL_ERR_OK;
+}
+
+GglError ggl_connect(GglBuffer path, int *fd) {
+    struct sockaddr_un addr = { .sun_family = AF_UNIX, .sun_path = { 0 } };
+
+    // TODO: Use symlinks to handle long paths
+    if (path.len >= sizeof(addr.sun_path)) {
+        GGL_LOGE("socket", "Socket path too long.");
+        return GGL_ERR_FAILURE;
+    }
+
+    memcpy(addr.sun_path, path.data, path.len);
+
+    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sockfd == -1) {
+        int err = errno;
+        GGL_LOGE("socket", "Failed to create socket: %d.", err);
+        return GGL_ERR_FATAL;
+    }
+    GGL_DEFER(close, sockfd);
+
+    fcntl(sockfd, F_SETFD, FD_CLOEXEC);
+
+    if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
+        int err = errno;
+        GGL_LOGW(
+            "socket",
+            "Failed to connect to server (%.*s): %d.",
+            (int) path.len,
+            path.data,
+            err
+        );
+        return GGL_ERR_FAILURE;
+    }
+
+    // To prevent deadlocking on hanged server, add a timeout
+    struct timeval timeout = { .tv_sec = 5 };
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+
+    GGL_DEFER_CANCEL(sockfd);
+    *fd = sockfd;
     return GGL_ERR_OK;
 }

@@ -6,8 +6,6 @@
 #include "object_serde.h"
 #include "types.h"
 #include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
@@ -17,6 +15,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket.h>
+#include <ggl/vector.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/socket.h>
@@ -32,56 +31,21 @@ pthread_mutex_t ggl_core_bus_client_payload_array_mtx
 static GglError interface_connect(GglBuffer interface, int *conn_fd) {
     assert(conn_fd != NULL);
 
-    char socket_path
-        [GGL_INTERFACE_SOCKET_PREFIX_LEN + GGL_INTERFACE_NAME_MAX_LEN + 1]
+    uint8_t socket_path_buf
+        [GGL_INTERFACE_SOCKET_PREFIX_LEN + GGL_INTERFACE_NAME_MAX_LEN]
         = GGL_INTERFACE_SOCKET_PREFIX;
+    GglByteVec socket_path
+        = { .buf = { .data = socket_path_buf,
+                     .len = GGL_INTERFACE_SOCKET_PREFIX_LEN },
+            .capacity = sizeof(socket_path_buf) };
 
-    if (interface.len > GGL_INTERFACE_NAME_MAX_LEN) {
+    GglError ret = ggl_byte_vec_append(&socket_path, interface);
+    if (ret != GGL_ERR_OK) {
         GGL_LOGE("core-bus-client", "Interface name too long.");
         return GGL_ERR_RANGE;
     }
 
-    memcpy(
-        &socket_path[GGL_INTERFACE_SOCKET_PREFIX_LEN],
-        interface.data,
-        interface.len
-    );
-
-    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (sockfd == -1) {
-        int err = errno;
-        GGL_LOGE("core-bus-client", "Failed to create socket: %d.", err);
-        return GGL_ERR_FATAL;
-    }
-    GGL_DEFER(close, sockfd);
-
-    fcntl(sockfd, F_SETFD, FD_CLOEXEC);
-
-    struct sockaddr_un addr = { .sun_family = AF_UNIX, .sun_path = { 0 } };
-
-    size_t path_len = strlen(socket_path);
-
-    if (path_len >= sizeof(addr.sun_path)) {
-        GGL_LOGE("socket-client", "Socket path too long.");
-        return GGL_ERR_FAILURE;
-    }
-
-    memcpy(addr.sun_path, socket_path, path_len);
-
-    if (connect(sockfd, (const struct sockaddr *) &addr, sizeof(addr)) == -1) {
-        int err = errno;
-        GGL_LOGW("socket-client", "Failed to connect to server: %d.", err);
-        return GGL_ERR_FAILURE;
-    }
-
-    // To prevent deadlocking on hanged server, add a timeout
-    struct timeval timeout = { .tv_sec = 5 };
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
-
-    GGL_DEFER_CANCEL(sockfd);
-    *conn_fd = sockfd;
-    return GGL_ERR_OK;
+    return ggl_connect(socket_path.buf, conn_fd);
 }
 
 static GglError payload_writer(GglBuffer *buf, void *payload) {
