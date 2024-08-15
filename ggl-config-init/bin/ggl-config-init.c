@@ -87,7 +87,8 @@ int main(int argc, char **argv) {
     }
 
     GglMap args = GGL_MAP(
-        { GGL_STR("key"), GGL_OBJ_LIST() }, { GGL_STR("value"), config_obj }
+        { GGL_STR("key_path"), GGL_OBJ_LIST() },
+        { GGL_STR("value"), config_obj }
     );
 
     ret = ggl_call(
