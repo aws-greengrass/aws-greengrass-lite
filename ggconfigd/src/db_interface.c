@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggconfigd.h"
+#include "helpers.h"
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -18,22 +19,6 @@
 static bool config_initialized = false;
 static sqlite3 *config_database;
 static const char *config_database_name = "config.db";
-
-static char *print_key_path(GglList *key_path) {
-    static char path_string[1024] = { 0 };
-    memset(path_string, 0, sizeof(path_string));
-    for (size_t x = 0; x < key_path->len; x++) {
-        if (x > 0) {
-            strncat(path_string, "/ ", 1);
-        }
-        strncat(
-            path_string,
-            (char *) key_path->items[x].buf.data,
-            key_path->items[x].buf.len
-        );
-    }
-    return path_string;
-}
 
 /// create the database to the correct schema
 static GglError create_database(void) {

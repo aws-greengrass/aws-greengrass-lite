@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggconfigd.h"
+#include "helpers.h"
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
@@ -77,22 +78,6 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         ggl_return_err(handle, ret);
     }
     ggl_sub_accept(handle, sub_close_callback, NULL);
-}
-
-static char *print_key_path(GglList *key_path) {
-    static char path_string[1024] = { 0 };
-    memset(path_string, 0, sizeof(path_string));
-    for (size_t x = 0; x < key_path->len; x++) {
-        if (x > 0) {
-            strncat(path_string, "/ ", 1);
-        }
-        strncat(
-            path_string,
-            (char *) key_path->items[x].buf.data,
-            key_path->items[x].buf.len
-        );
-    }
-    return path_string;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
