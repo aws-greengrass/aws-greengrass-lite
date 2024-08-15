@@ -15,6 +15,7 @@
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
+#include <ggl/eventstream/rpc.h>
 #include <ggl/eventstream/types.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
@@ -38,26 +39,6 @@
 static_assert(
     GGL_IPC_MAX_MSG_LEN >= 16, "Minimum EventStream packet size is 16."
 );
-
-typedef enum {
-    ES_APPLICATION_MESSAGE = 0,
-    ES_APPLICATION_ERROR = 1,
-    ES_CONNECT = 4,
-    ES_CONNECT_ACK = 5,
-} EsMessageType;
-
-typedef enum {
-    ES_CONNECTION_ACCEPTED = 1,
-    ES_TERMINATE_STREAM = 2,
-} EsMessageFlags;
-
-typedef struct {
-    int32_t stream_id;
-    int32_t message_type;
-    int32_t message_flags;
-} EsCommonHeaders;
-
-static const int32_t ES_FLAGS_MASK = 3;
 
 static uint8_t payload_array[GGL_IPC_MAX_MSG_LEN];
 
@@ -87,44 +68,6 @@ static GglError reset_client_state(uint32_t handle, size_t index) {
 static GglError release_client_subscriptions(uint32_t handle, size_t index) {
     (void) index;
     return ggl_ipc_release_subscriptions_for_conn(handle);
-}
-
-static GglError get_common_headers(
-    EventStreamMessage *msg, EsCommonHeaders *out
-) {
-    int32_t message_type = -1;
-    int32_t message_flags = 0;
-    int32_t stream_id = 0;
-
-    EventStreamHeaderIter iter = msg->headers;
-    EventStreamHeader header;
-
-    while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
-        if (ggl_buffer_eq(header.name, GGL_STR(":message-type"))) {
-            if (header.value.type != EVENTSTREAM_INT32) {
-                GGL_LOGE("ipc-server", ":message-type header not Int32.");
-                return GGL_ERR_INVALID;
-            }
-            message_type = header.value.int32;
-        } else if (ggl_buffer_eq(header.name, GGL_STR(":message-flags"))) {
-            if (header.value.type != EVENTSTREAM_INT32) {
-                GGL_LOGE("ipc-server", ":message-flags header not Int32.");
-                return GGL_ERR_INVALID;
-            }
-            message_flags = header.value.int32;
-        } else if (ggl_buffer_eq(header.name, GGL_STR(":stream-id"))) {
-            if (header.value.type != EVENTSTREAM_INT32) {
-                GGL_LOGE("ipc-server", ":stream-id header not Int32.");
-                return GGL_ERR_INVALID;
-            }
-            stream_id = header.value.int32;
-        }
-    }
-
-    out->message_type = message_type;
-    out->message_flags = message_flags;
-    out->stream_id = stream_id;
-    return GGL_ERR_OK;
 }
 
 static GglError deserialize_payload(GglBuffer payload, GglMap *out) {
@@ -188,9 +131,9 @@ static GglError complete_conn_init(
         &send_buffer,
         (EventStreamHeader[]) {
             { GGL_STR(":message-type"),
-              { EVENTSTREAM_INT32, .int32 = ES_CONNECT_ACK } },
+              { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECT_ACK } },
             { GGL_STR(":message-flags"),
-              { EVENTSTREAM_INT32, .int32 = ES_CONNECTION_ACCEPTED } },
+              { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECTION_ACCEPTED } },
             { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 0 } },
             { GGL_STR("svcuid"), { EVENTSTREAM_STRING, .string = svcuid } },
         },
@@ -232,13 +175,13 @@ static GglError handle_authentication_request(uint32_t handle) {
 static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
     GGL_LOGD("ipc-server", "Handling connect for %d.", handle);
 
-    EsCommonHeaders common_headers;
-    GglError ret = get_common_headers(msg, &common_headers);
+    EventStreamCommonHeaders common_headers;
+    GglError ret = eventstream_get_common_headers(msg, &common_headers);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    if (common_headers.message_type != ES_CONNECT) {
+    if (common_headers.message_type != EVENTSTREAM_CONNECT) {
         GGL_LOGE("ipc-server", "Client initial message not of type connect.");
         return GGL_ERR_INVALID;
     }
@@ -246,7 +189,7 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
         GGL_LOGE("ipc-server", "Connect message has non-zero :stream-id.");
         return GGL_ERR_INVALID;
     }
-    if ((common_headers.message_flags & ES_FLAGS_MASK) != 0) {
+    if ((common_headers.message_flags & EVENTSTREAM_FLAGS_MASK) != 0) {
         GGL_LOGE("ipc-server", "Connect message has flags set.");
         return GGL_ERR_INVALID;
     }
@@ -328,13 +271,13 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
 }
 
 static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
-    EsCommonHeaders common_headers;
-    GglError ret = get_common_headers(msg, &common_headers);
+    EventStreamCommonHeaders common_headers;
+    GglError ret = eventstream_get_common_headers(msg, &common_headers);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    if (common_headers.message_type != ES_APPLICATION_MESSAGE) {
+    if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
         GGL_LOGE("ipc-server", "Client sent unhandled message type.");
         return GGL_ERR_INVALID;
     }
@@ -342,7 +285,7 @@ static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
         GGL_LOGE("ipc-server", "Application message has zero :stream-id.");
         return GGL_ERR_INVALID;
     }
-    if ((common_headers.message_flags & ES_FLAGS_MASK) != 0) {
+    if ((common_headers.message_flags & EVENTSTREAM_FLAGS_MASK) != 0) {
         GGL_LOGE("ipc-server", "Client request has flags set.");
         return GGL_ERR_INVALID;
     }
@@ -484,7 +427,7 @@ GglError ggl_ipc_response_send(
 
     EventStreamHeader resp_headers[] = {
         { GGL_STR(":message-type"),
-          { EVENTSTREAM_INT32, .int32 = ES_APPLICATION_MESSAGE } },
+          { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_APPLICATION_MESSAGE } },
         { GGL_STR(":message-flags"), { EVENTSTREAM_INT32, .int32 = 0 } },
         { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = stream_id } },
 
