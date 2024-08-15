@@ -42,4 +42,19 @@ typedef struct {
 
 GglError ggl_kv_vec_push(GglKVVec *vector, GglKV kv);
 
+typedef struct {
+    GglBuffer buf;
+    size_t capacity;
+} GglByteVec;
+
+#define GGL_BYTE_VEC(...) \
+    _Generic( \
+        (&(__VA_ARGS__)), \
+        uint8_t(*)[]: ((GglByteVec) { .buf \
+                                      = { .data = (__VA_ARGS__), .len = 0 }, \
+                                      .capacity = sizeof(__VA_ARGS__) }) \
+    )
+
+GglError ggl_byte_vec_append(GglByteVec *vector, GglBuffer buf);
+
 #endif

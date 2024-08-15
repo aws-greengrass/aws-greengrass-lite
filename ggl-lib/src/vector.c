@@ -6,6 +6,7 @@
 #include "ggl/error.h"
 #include "ggl/log.h"
 #include "ggl/object.h"
+#include <string.h>
 #include <stdlib.h>
 
 GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
@@ -38,5 +39,15 @@ GglError ggl_kv_vec_push(GglKVVec *vector, GglKV kv) {
     GGL_LOGT("ggl_kv_vec", "Pushed to %p.", vector);
     vector->map.pairs[vector->map.len] = kv;
     vector->map.len++;
+    return GGL_ERR_OK;
+}
+
+GglError ggl_byte_vec_append(GglByteVec *vector, GglBuffer buf) {
+    if (vector->capacity - vector->buf.len < buf.len) {
+        return GGL_ERR_NOMEM;
+    }
+    GGL_LOGT("ggl_byte_vec", "Appended to %p.", vector);
+    memcpy(&vector->buf.data[vector->buf.len], buf.data, buf.len);
+    vector->buf.len += buf.len;
     return GGL_ERR_OK;
 }
