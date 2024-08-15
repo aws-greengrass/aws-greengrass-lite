@@ -36,11 +36,11 @@ GglError handle_get_configuration(
     GglObject *key_path_object;
     bool found = ggl_map_get(args, GGL_STR("keyPath"), &key_path_object);
     if (!found) {
-        GGL_LOGE("UpdateConfiguration", "Missing keyPath.");
+        GGL_LOGE("GetConfiguration", "Missing keyPath.");
         return GGL_ERR_INVALID;
     }
     if (key_path_object->type != GGL_TYPE_LIST) {
-        GGL_LOGE("UpdateConfiguration", "keyPath is not a List.");
+        GGL_LOGE("GetConfiguration", "keyPath is not a List.");
         return GGL_ERR_INVALID;
     }
 
