@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggconfigd.h"
-#include <ggl/buffer.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
