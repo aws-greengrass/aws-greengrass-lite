@@ -201,6 +201,28 @@ int main(int argc, char **argv) {
         ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value") })
     );
+    // TODO: FIXME: We currently allow a key to be both a value (leaf) and a parent node.
+    // This should not be allowed.
+    // e.g. add a constraint/check/logic to make sure that never happens during write
+    // test_insert(
+    //     GGL_LIST(
+    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key")
+    //     ),
+    //     GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value") })
+    // );
+    // test_get(GGL_LIST(
+    //     GGL_OBJ_STR("component"),
+    //     GGL_OBJ_STR("foo"),
+    //     GGL_OBJ_STR("bar"),
+    //     GGL_OBJ_STR("key")
+    // ));
+    // test_get(GGL_LIST(
+    //     GGL_OBJ_STR("component"),
+    //     GGL_OBJ_STR("foo"),
+    //     GGL_OBJ_STR("bar"),
+    //     GGL_OBJ_STR("key"),
+    //     GGL_OBJ_STR("subkey")
+    // ));
     test_get(GGL_LIST(
         GGL_OBJ_STR("component"),
         GGL_OBJ_STR("foo"),
