@@ -69,5 +69,6 @@ svcuids
 tesd
 tlog
 unsuback
+uuid
 WERROR
 xlink

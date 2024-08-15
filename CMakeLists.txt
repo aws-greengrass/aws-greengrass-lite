@@ -201,6 +201,7 @@ pkg_search_module(libcurl REQUIRED IMPORTED_TARGET libcurl)
 pkg_search_module(sqlite3 REQUIRED IMPORTED_TARGET sqlite3)
 pkg_search_module(yaml REQUIRED IMPORTED_TARGET yaml-0.1)
 pkg_search_module(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
+pkg_search_module(uuid REQUIRED IMPORTED_TARGET uuid)
 
 #
 # Add components
