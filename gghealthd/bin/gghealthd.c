@@ -1,6 +1,6 @@
-/* ggl - Utilities for AWS IoT Core clients
- * Copyright (C) 2024 Amazon.com, Inc. or its affiliates
- */
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "bus_server.h"
 #include <ggl/error.h>
