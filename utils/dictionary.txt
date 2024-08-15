@@ -38,8 +38,8 @@ greengrassv
 htobe
 iotcored
 keyid
-libyaml
 libuuid
+libyaml
 LOGD
 LOGE
 LOGI
