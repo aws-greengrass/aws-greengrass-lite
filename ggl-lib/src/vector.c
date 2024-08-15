@@ -30,3 +30,13 @@ GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out) {
     vector->list.len--;
     return GGL_ERR_OK;
 }
+
+GglError ggl_kv_vec_push(GglKVVec *vector, GglKV kv) {
+    if (vector->map.len >= vector->capacity) {
+        return GGL_ERR_NOMEM;
+    }
+    GGL_LOGT("ggl_kv_vec", "Pushed to %p.", vector);
+    vector->map.pairs[vector->map.len] = kv;
+    vector->map.len++;
+    return GGL_ERR_OK;
+}
