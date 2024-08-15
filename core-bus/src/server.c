@@ -23,7 +23,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define PAYLOAD_VALUE_MAX_SUBOBJECTS 50
+#define PAYLOAD_VALUE_MAX_SUBOBJECTS 200
 
 typedef struct {
     GglRpcMethodDesc *handlers;
