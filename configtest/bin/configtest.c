@@ -35,7 +35,7 @@ static void test_insert(GglList test_key, GglObject test_value) {
 
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"), GGL_OBJ(test_key) },
-        { GGL_STR("valueToMerge"), test_value },
+        { GGL_STR("value"), test_value },
         { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
     );
     GglObject result;
@@ -133,7 +133,7 @@ static void test_subscribe(GglList key) {
 test case for test_write_object
 component = "component"
 key_path = ["foobar"]
-valueToMerge = {
+value = {
     "foo": {
         "bar": {
             "baz": [
@@ -182,7 +182,7 @@ static void test_write_object(void) {
 
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"), test_key_path_object },
-        { GGL_STR("valueToMerge"), test_value_object },
+        { GGL_STR("value"), test_value_object },
         { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
     );
     error = ggl_notify(GGL_STR("/aws/ggl/ggconfigd"), GGL_STR("write"), params);

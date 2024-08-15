@@ -167,9 +167,9 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
         time_stamp = 1; // TODO make a better default
     }
 
-    if (ggl_map_get(params, GGL_STR("valueToMerge"), &val)
+    if (ggl_map_get(params, GGL_STR("value"), &val)
         && (val->type == GGL_TYPE_MAP)) {
-        GGL_LOGT("rpc_write", "valueToMerge is a Map");
+        GGL_LOGT("rpc_write", "value is a Map");
         GglError error = process_map(&key_path, &val->map, time_stamp);
         if (error != GGL_ERR_OK) {
             ggl_return_err(handle, error);
