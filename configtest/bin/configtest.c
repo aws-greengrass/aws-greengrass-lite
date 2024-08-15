@@ -26,9 +26,7 @@ static char *print_key_path(GglList *key_path) {
     return path_string;
 }
 
-static void test_insert(
-    GglBuffer component, GglList test_key, GglObject test_value
-) {
+static void test_insert(GglList test_key, GglObject test_value) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
 
     static uint8_t big_buffer_for_bump[4096];
@@ -36,7 +34,6 @@ static void test_insert(
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
     GglMap params = GGL_MAP(
-        { GGL_STR("componentName"), GGL_OBJ(component) },
         { GGL_STR("keyPath"), GGL_OBJ(test_key) },
         { GGL_STR("valueToMerge"), test_value },
         { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
@@ -53,16 +50,13 @@ static void test_insert(
     }
 }
 
-static void test_get(GglBuffer component, GglList test_key_path) {
+static void test_get(GglList test_key_path) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
     static uint8_t big_buffer_for_bump[4096];
     GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
-    GglMap params = GGL_MAP(
-        { GGL_STR("componentName"), GGL_OBJ(component) },
-        { GGL_STR("keyPath"), GGL_OBJ(test_key_path) },
-    );
+    GglMap params = GGL_MAP({ GGL_STR("keyPath"), GGL_OBJ(test_key_path) }, );
     GglObject result;
 
     GglError error = ggl_call(
@@ -109,13 +103,10 @@ static void subscription_close(void *ctx, unsigned int handle) {
     GGL_LOGI("subscription close", "called");
 }
 
-static void test_subscribe(GglBuffer component, GglList key) {
+static void test_subscribe(GglList key) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
 
-    GglMap params = GGL_MAP(
-        { GGL_STR("componentName"), GGL_OBJ(component) },
-        { GGL_STR("keyPath"), GGL_OBJ(key) },
-    );
+    GglMap params = GGL_MAP({ GGL_STR("keyPath"), GGL_OBJ(key) }, );
     uint32_t handle;
     GglError error = ggl_subscribe(
         server,
@@ -162,7 +153,7 @@ timestamp = 1723142212
 */
 
 static void test_write_object(void) {
-    char json_path_string[] = "[\"foobar\"]";
+    char json_path_string[] = "[\"component\",\"foobar\"]";
     char json_value_string[]
         = "{\"foo\":{\"bar\":{\"baz\":[ 1,2,3,4],\"qux\":1},\"quux\""
           ": \"string\" },\"corge\" : true, \"grault\" : false}";
@@ -190,7 +181,6 @@ static void test_write_object(void) {
     }
 
     GglMap params = GGL_MAP(
-        { GGL_STR("componentName"), GGL_OBJ(GGL_STR("component")) },
         { GGL_STR("keyPath"), test_key_path_object },
         { GGL_STR("valueToMerge"), test_value_object },
         { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
@@ -206,37 +196,42 @@ int main(int argc, char **argv) {
     test_write_object();
 
     test_insert(
-        GGL_STR("component"),
-        GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")),
+        GGL_LIST(
+            GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value") })
     );
-    test_get(
-        GGL_STR("component"),
-        GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key"))
-    );
+    test_get(GGL_LIST(
+        GGL_OBJ_STR("component"),
+        GGL_OBJ_STR("foo"),
+        GGL_OBJ_STR("bar"),
+        GGL_OBJ_STR("key")
+    ));
 
-    test_subscribe(
-        GGL_STR("component"),
-        GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key"))
-    );
+    test_subscribe(GGL_LIST(
+        GGL_OBJ_STR("component"),
+        GGL_OBJ_STR("foo"),
+        GGL_OBJ_STR("bar"),
+        GGL_OBJ_STR("key")
+    ));
     test_insert(
-        GGL_STR("component"),
-        GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")),
+        GGL_LIST(
+            GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("big value") })
     );
     test_insert(
-        GGL_STR("component"),
-        GGL_LIST(GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")),
+        GGL_LIST(
+            GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("the biggest value") })
     );
     test_insert(
-        GGL_STR("component"),
-        GGL_LIST(GGL_OBJ_STR("bar")),
+        GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("bar")),
         GGL_OBJ_MAP({ GGL_STR("foo"), GGL_OBJ_STR("value2") })
     );
     test_insert(
-        GGL_STR("component"),
-        GGL_LIST(GGL_OBJ_STR("foo")),
+        GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("foo")),
         GGL_OBJ_MAP({ GGL_STR("baz"), GGL_OBJ_STR("value") })
     );
     // test_insert(

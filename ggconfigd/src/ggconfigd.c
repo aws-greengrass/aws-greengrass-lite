@@ -23,43 +23,15 @@ typedef struct {
     GglBuffer value;
 } ConfigMsg;
 
-// TODO: to validate key paths, verify they are well-formed utf-8 code units
-
 static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     GglObject *val;
-    GglObject object_list_memory[MAX_KEY_PATH_DEPTH] = { 0 };
-    GglList object_list = { .items = object_list_memory, .len = 0 };
-    GglObjVec key_path
-        = { .list = object_list, .capacity = MAX_KEY_PATH_DEPTH };
-
-    if (ggl_map_get(params, GGL_STR("componentName"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        // TODO: adjust the initial path with the component
-        ggl_obj_vec_push(&key_path, *val);
-        GGL_LOGT(
-            "rpc_read",
-            "found component %.*s",
-            (int) val->buf.len,
-            (char *) val->buf.data
-        );
-    } else {
-        GGL_LOGE("rpc_read", "read received invalid component argument.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
-    }
+    GglList *key_list;
 
     if (ggl_map_get(params, GGL_STR("keyPath"), &val)
         && (val->type == GGL_TYPE_LIST)) {
-        GglList *list = &val->list;
-        for (size_t x = 0; x < list->len; x++) {
-            if (ggl_obj_vec_push(&key_path, list->items[x]) != GGL_ERR_OK) {
-                GGL_LOGE("rpc_read", "Error pushing to the keypath");
-                ggl_return_err(handle, GGL_ERR_INVALID);
-                return;
-            }
-        }
+        key_list = &val->list;
     } else {
         GGL_LOGE("rpc_read", "read received invalid keyPath argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
@@ -68,7 +40,7 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
 
     GglBuffer value;
 
-    if (ggconfig_get_value_from_key(&(key_path.list), &value) == GGL_ERR_OK) {
+    if (ggconfig_get_value_from_key(key_list, &value) == GGL_ERR_OK) {
         GglObject return_value = { .type = GGL_TYPE_BUF, .buf = value };
         // use the data and then free it
         ggl_respond(handle, return_value);
@@ -87,45 +59,20 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     GglObject *val;
-    GglObject object_list_memory[MAX_KEY_PATH_DEPTH] = { 0 };
-    GglList object_list = { .items = object_list_memory, .len = 0 };
-    GglObjVec key_path
-        = { .list = object_list, .capacity = MAX_KEY_PATH_DEPTH };
+    GglList *key_list;
 
     GGL_LOGI("rpc_subscribe", "subscribing");
-    if (ggl_map_get(params, GGL_STR("componentName"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        // TODO: adjust the initial path with the component
-        ggl_obj_vec_push(&key_path, *val);
-        GGL_LOGT(
-            "rpc_subscribe",
-            "found component %.*s",
-            (int) val->buf.len,
-            (char *) val->buf.data
-        );
-    } else {
-        GGL_LOGE("rpc_subscribe", "read received invalid component argument.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
-    }
 
     if (ggl_map_get(params, GGL_STR("keyPath"), &val)
         && (val->type == GGL_TYPE_LIST)) {
-        GglList *list = &val->list;
-        for (size_t x = 0; x < list->len; x++) {
-            if (ggl_obj_vec_push(&key_path, list->items[x]) != GGL_ERR_OK) {
-                GGL_LOGE("rpc_subscribe", "Error pushing to the keypath");
-                ggl_return_err(handle, GGL_ERR_INVALID);
-                return;
-            }
-        }
+        key_list = &val->list;
     } else {
         GGL_LOGE("rpc_subscribe", "read received invalid keyPath argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
-    GglError ret = ggconfig_get_key_notification(&(key_path.list), handle);
+    GglError ret = ggconfig_get_key_notification(key_list, handle);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
     }
@@ -196,22 +143,6 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     GglList object_list = { .items = object_list_memory, .len = 0 };
     GglObjVec key_path
         = { .list = object_list, .capacity = MAX_KEY_PATH_DEPTH };
-
-    if (ggl_map_get(params, GGL_STR("componentName"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        // TODO: adjust the initial path with the component
-        ggl_obj_vec_push(&key_path, *val);
-        GGL_LOGT(
-            "rpc_write",
-            "found component %.*s",
-            (int) val->buf.len,
-            (char *) val->buf.data
-        );
-    } else {
-        GGL_LOGE("rpc_write", "write received invalid component argument.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
-    }
 
     if (ggl_map_get(params, GGL_STR("keyPath"), &val)
         && (val->type == GGL_TYPE_LIST)) {

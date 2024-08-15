@@ -56,12 +56,7 @@ static GglError create_database(void) {
           "'timeStamp' TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
           "foreign key(keyid) references keyTable(keyid) );"
           "CREATE TABLE version('version' TEXT DEFAULT '0.1');"
-          "INSERT INTO version(version) VALUES (0.1);"
-          "CREATE TRIGGER update_Timestamp_Trigger"
-          "AFTER UPDATE On valueTable BEGIN "
-          "UPDATE valueTable SET timeStamp = CURRENT_TIMESTAMP WHERE "
-          "keyid = NEW.keyid;"
-          "END;";
+          "INSERT INTO version(version) VALUES (0.1);";
 
     result
         = sqlite3_exec(config_database, create_query, NULL, NULL, &err_message);
@@ -309,6 +304,7 @@ static void relation_insert(int64_t id, int64_t parent) {
     sqlite3_finalize(relation_insert_stmt);
 }
 
+// TODO: add timestamp to the insert
 static GglError value_insert(int64_t key_id, GglBuffer *value) {
     sqlite3_stmt *value_insert_stmt;
     GglError return_value = GGL_ERR_FAILURE;
