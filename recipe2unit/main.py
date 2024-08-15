@@ -70,10 +70,13 @@ def fillServiceSection(yaml_data):
     global recipe_runner_path
 
     unit_content = "[Service]\n"
-    unit_content += "Type=simple\n"
 
     # | "%t"	| Runtime directory root  |	This is either /run/ (for the system manager) or the path "$XDG_RUNTIME_DIR" resolves to (for user managers).
-    unit_content += "WorkingDirectory= %t/" + yaml_data["componentname"] + "\n"
+    unit_content += (
+        "WorkingDirectory=/var/lib/aws-greengrass-v2/work/"
+        + yaml_data["componentname"]
+        + "\n"
+    )
     bash_script_file_name = "ggl." + yaml_data["componentname"] + ".script."
 
     platforms = yaml_data["manifests"]
@@ -122,6 +125,9 @@ def fillServiceSection(yaml_data):
             if run_phase_selection == "startup":
                 unit_content += "RemainAfterExit=true\n"
                 unit_content += "Type=oneshot\n"
+            else:
+                unit_content += "Type=exec\n"
+
             if isRoot:
                 unit_content += "User=root\n"
                 unit_content += "Group=root\n"
