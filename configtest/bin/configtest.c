@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
 
-    // test_write_object();
+    test_write_object();
 
     test_insert(
         GGL_LIST(
