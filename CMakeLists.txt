@@ -128,6 +128,7 @@ add_cflags(
   -fstack-protector-strong)
 
 try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
+try_add_cflag(stack-clash-protection -fstack-clash-protection)
 
 add_cflags($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
 try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
