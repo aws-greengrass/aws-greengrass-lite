@@ -46,7 +46,7 @@ static GglError copy_file(const char *src_path, const char *dest_path);
 bool shutdown = false;
 bool recipe_is_json = false;
 
-void *ggl_deployment_handler_start(void *ctx) {
+void *ggl_deployment_handler_thread(void *ctx) {
     (void) ctx;
     ggl_deployment_listen();
     return NULL;

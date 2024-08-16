@@ -8,7 +8,7 @@
 #include <ggl/error.h>
 #include <ggl/object.h>
 
-void *ggl_deployment_handler_start(void *ctx);
+void *ggl_deployment_handler_thread(void *ctx);
 void ggl_deployment_handler_stop(void);
 
 #endif

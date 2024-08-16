@@ -14,10 +14,10 @@ GglError run_ggdeploymentd(void) {
     GGL_LOGI("ggdeploymentd", "Started ggdeploymentd process.");
 
     pthread_t ptid;
-    pthread_create(&ptid, NULL, &ggl_deployment_handler_start, NULL);
+    pthread_create(&ptid, NULL, &ggl_deployment_handler_thread, NULL);
+    pthread_detach(ptid);
 
     ggdeploymentd_start_server();
 
-    pthread_join(ptid, NULL);
     return GGL_ERR_OK;
 }
