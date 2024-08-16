@@ -10,8 +10,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-GglError run_ggdeploymentd(GgdeploymentdArgs *args) {
-    (void) args;
+GglError run_ggdeploymentd(void) {
     GGL_LOGI("ggdeploymentd", "Started ggdeploymentd process.");
 
     pthread_t ptid;

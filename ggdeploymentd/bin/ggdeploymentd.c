@@ -5,25 +5,20 @@
 #include "ggdeploymentd.h"
 #include <argp.h>
 #include <ggl/error.h>
-#include <ggl/log.h>
-#include <stdlib.h>
+#include <stddef.h>
 
-static char doc[] = "ggdeploymentd -- Greengrass Lite Deployment Daemon";
+static char doc[] = "ggdeploymentd -- Greengrass Lite deployment daemon";
 
-static struct argp_option opts[]
-    = { { "endpoint", 'e', "address", 0, "AWS IoT Core endpoint", 0 }, { 0 } };
+static struct argp_option opts[] = {
+    { 0 },
+};
 
+// NOLINTNEXTLINE(readability-non-const-parameter)
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {
-    GgdeploymentdArgs *args = state->input;
+    (void) arg;
+    (void) state;
     switch (key) {
-    case 'e':
-        args->endpoint = arg;
-        break;
     case ARGP_KEY_END:
-        if (args->endpoint == NULL) {
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            argp_usage(state);
-        }
         break;
     default:
         return ARGP_ERR_UNKNOWN;
@@ -34,13 +29,10 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
 static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 
 int main(int argc, char **argv) {
-    GGL_LOGI("ggdeploymentd", "Started ggdeploymentd process.");
-    GgdeploymentdArgs args = { 0 };
-
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    argp_parse(&argp, argc, argv, 0, 0, &args);
+    argp_parse(&argp, argc, argv, 0, 0, NULL);
 
-    GglError ret = run_ggdeploymentd(&args);
+    GglError ret = run_ggdeploymentd();
     if (ret != GGL_ERR_OK) {
         return 1;
     }

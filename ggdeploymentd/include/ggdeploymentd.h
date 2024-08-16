@@ -7,10 +7,6 @@
 
 #include <ggl/error.h>
 
-typedef struct {
-    char *endpoint;
-} GgdeploymentdArgs;
-
-GglError run_ggdeploymentd(GgdeploymentdArgs *args);
+GglError run_ggdeploymentd(void);
 
 #endif
