@@ -1,10 +1,10 @@
 ---
 system:
-  privateKeyPath: "..."
-  certificateFilePath: "..."
-  rootCaPath: "..."
-  rootpath: "."
-  thingName: "GGC-test"
+  privateKeyPath: "/var/lib/aws-greengrass-v2/device.key"
+  certificateFilePath: "/var/lib/aws-greengrass-v2/device.pem"
+  rootCaPath: "/var/lib/aws-greengrass-v2/AmazonRootCA1.pem"
+  rootpath: "/var/lib/aws-greengrass-v2"
+  thingName: "ExampleGGDevice"
 services:
   aws.greengrass.Nucleus-Lite:
     componentType: "NUCLEUS"
