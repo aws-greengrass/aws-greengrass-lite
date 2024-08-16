@@ -40,7 +40,8 @@ static_assert(
     GGL_IPC_MAX_MSG_LEN >= 16, "Minimum EventStream packet size is 16."
 );
 
-static uint8_t payload_array[GGL_IPC_MAX_MSG_LEN];
+static uint8_t resp_array[GGL_IPC_MAX_MSG_LEN];
+static pthread_mutex_t resp_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static GglComponentHandle client_components[GGL_IPC_MAX_CLIENTS];
 
@@ -125,10 +126,12 @@ static GglError complete_conn_init(
         return ret;
     }
 
-    GglBuffer send_buffer = GGL_BUF(payload_array);
+    pthread_mutex_lock(&resp_array_mtx);
+    GGL_DEFER(pthread_mutex_unlock, resp_array_mtx);
+    GglBuffer resp_buffer = GGL_BUF(resp_array);
 
     eventstream_encode(
-        &send_buffer,
+        &resp_buffer,
         (EventStreamHeader[]) {
             { GGL_STR(":message-type"),
               { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECT_ACK } },
@@ -142,7 +145,7 @@ static GglError complete_conn_init(
         NULL
     );
 
-    ret = ggl_socket_handle_write(&pool, handle, send_buffer);
+    ret = ggl_socket_handle_write(&pool, handle, resp_buffer);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -348,6 +351,7 @@ GglError ggl_ipc_get_component_name(
 static GglError client_ready(void *ctx, uint32_t handle) {
     (void) ctx;
 
+    static uint8_t payload_array[GGL_IPC_MAX_MSG_LEN];
     GglBuffer recv_buffer = GGL_BUF(payload_array);
     GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
     assert(prelude_buf.len == 12);
@@ -418,9 +422,6 @@ GglError ggl_ipc_response_send(
     GglBuffer service_model_type,
     GglObject response
 ) {
-    static uint8_t resp_array[GGL_IPC_MAX_MSG_LEN];
-    static pthread_mutex_t resp_array_mtx = PTHREAD_MUTEX_INITIALIZER;
-
     pthread_mutex_lock(&resp_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, resp_array_mtx);
     GglBuffer resp_buffer = GGL_BUF(resp_array);
