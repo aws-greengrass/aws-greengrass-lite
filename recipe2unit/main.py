@@ -31,7 +31,7 @@ def fillUnitSection(yaml_data):
     unit_content = "[Unit]\n"
     unit_content += "Description=" + yaml_data["componentdescription"] + "\n"
 
-    dependencies = yaml_data["componentdependencies"]
+    dependencies = yaml_data.get("componentdependencies")
 
     if dependencies:
         dependencyParser(unit_content, dependencies)
@@ -218,10 +218,11 @@ def getCommandArgs():
     env_var = EnvironmentVariables()
 
     # Options
-    options = "hr:e:s:t:g:n:o:a:u:c:b:"
+    options = "hr:e:s:t:g:n:o:a:u:c:b:p"
 
     fileName = ""
     recipeRunnerPath = ""
+    artifactPath = ""
 
     # Long options
     long_options = [
@@ -237,6 +238,7 @@ def getCommandArgs():
         "cred-url=",
         "user=",
         "group=",
+        "artifact-path="
     ]
 
     try:
@@ -275,19 +277,22 @@ def getCommandArgs():
                 env_var.aws_container_auth_token = currentValue
 
             elif currentArgument in ("-u", "--cred-url"):
-                env_var.aws_container_auth_token = currentValue
+                env_var.aws_container_cred_url = currentValue
 
             elif currentArgument in ("-c", "--user"):
-                env_var.aws_container_auth_token = currentValue
+                env_var.user = currentValue
 
             elif currentArgument in ("-b", "--group"):
-                env_var.aws_container_auth_token = currentValue
+                env_var.group = currentValue
+
+            elif currentArgument in ("-p", "--artifact-path"):
+                artifactPath = currentValue
 
     except getopt.error as err:
         # output error, and return with an error code
         print(str(err))
 
-    return (fileName, recipeRunnerPath, env_var)
+    return (fileName, recipeRunnerPath, env_var, artifactPath)
 
 
 def main():
@@ -296,11 +301,12 @@ def main():
 
     isRoot = False
 
-    file_path, recipe_runner_path, environment_var = getCommandArgs()
+    file_path, recipe_runner_path, environment_var, artifact_path = getCommandArgs()
 
     if (
         len(file_path) == 0
         or len(recipe_runner_path) == 0
+        or len(artifact_path) == 0
         or len(environment_var.thing_name) == 0
         or len(environment_var.socket_path) == 0
         or len(environment_var.user) == 0
@@ -308,20 +314,21 @@ def main():
     ):
         print("Error: Necessary parameters are not set")
         print(
-            "file_path:(%s), \nrunner_path:(%s), \nthingName:(%s), \nsocket_path:(%s), \nuser:(%s), \ngroup:(%s)"
-            % file_path,
+            "file_path:(%s), \nrunner_path:(%s), \nartifact_path: (%s), \nthingName:(%s), \nsocket_path:(%s), \nuser:(%s), \ngroup:(%s)"
+            % (file_path,
             recipe_runner_path,
+            artifact_path,
             environment_var.thing_name,
             environment_var.socket_path,
             environment_var.user,
-            environment_var.group,
+            environment_var.group)
         )
         return
 
     unitComponentName = ""
 
     with open(file_path, "r") as f:
-        load_data = yaml.safe_load(f)
+        load_data = yaml.safe_load(f.read().replace("{artifacts:path}", artifact_path))
 
     # yaml_data = CaseInsensitiveDict(load_data)
     yaml_data = lower_keys(load_data)
