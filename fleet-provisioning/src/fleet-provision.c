@@ -39,22 +39,6 @@ static const char *certificate_response_reject_url
 
 static const char *cert_request_url = "$aws/certificates/create-from-csr/json";
 
-// Static Function Declaration
-static int set_global_values(void);
-static int request_thing_name(GglObject *cert_owner_gg_obj);
-static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data);
-static void get_value_from_db(
-    GglBuffer component,
-    GglBuffer test_key,
-    GglBumpAlloc the_allocator,
-    char *return_string
-);
-static void save_value_to_db(
-    GglObject component, GglObject key, GglObject value
-);
-
-// End Static Function Declaration
-
 static void get_value_from_db(
     GglBuffer component,
     GglBuffer test_key,
@@ -90,183 +74,6 @@ static void get_value_from_db(
             );
         }
     }
-}
-
-static void save_value_to_db(
-    GglObject component, GglObject key, GglObject value
-) {
-    static uint8_t big_buffer_transfer_for_bump[256] = { 0 };
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_transfer_for_bump));
-
-    GglMap params = GGL_MAP(
-        { GGL_STR("component"), component },
-        { GGL_STR("key"), key },
-        { GGL_STR("value"), value }
-    );
-    GglObject result;
-
-    GglError error = ggl_call(
-        ggconfigd, GGL_STR("write"), params, NULL, &the_allocator.alloc, &result
-    );
-
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE("ggconfig test", "insert failure");
-    }
-}
-
-// TODO: Refactor this function
-//  NOLINTNEXTLINE(readability-function-cognitive-complexity)
-static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
-    (void) ctx;
-    (void) handle;
-
-    if (data.type != GGL_TYPE_MAP) {
-        GGL_LOGE("fleet-provisioning", "Subscription response is not a map.");
-        return GGL_ERR_FAILURE;
-    }
-
-    GglBuffer topic = GGL_STR("");
-    GglBuffer payload = GGL_STR("");
-
-    GglObject *val;
-    if (ggl_map_get(data.map, GGL_STR("topic"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "fleet-provisioning",
-                "Subscription response topic not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        topic = val->buf;
-    } else {
-        GGL_LOGE(
-            "fleet-provisioning", "Subscription response is missing topic."
-        );
-        return GGL_ERR_FAILURE;
-    }
-    if (ggl_map_get(data.map, GGL_STR("payload"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "fleet-provisioning",
-                "Subscription response payload not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        payload = val->buf;
-    } else {
-        GGL_LOGE(
-            "fleet-provisioning", "Subscription response is missing payload."
-        );
-        return GGL_ERR_FAILURE;
-    }
-
-    if (strncmp((char *) topic.data, certificate_response_url, topic.len)
-        == 0) {
-        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
-        memcpy(global_cert_owenership, payload.data, payload.len);
-
-        GglBuffer response_buffer = (GglBuffer
-        ) { .data = (uint8_t *) global_cert_owenership, .len = payload.len };
-
-        ggl_json_decode_destructive(
-            response_buffer, &balloc.alloc, &csr_payload_json_obj
-        );
-
-        if (csr_payload_json_obj.type != GGL_TYPE_MAP) {
-            return GGL_ERR_FAILURE;
-        }
-
-        if (ggl_map_get(
-                csr_payload_json_obj.map, GGL_STR("certificatePem"), &val
-            )) {
-            if (val->type != GGL_TYPE_BUF) {
-                return GGL_ERR_PARSE;
-            }
-            int fd = open(
-                "./certificate.crt",
-                O_WRONLY | O_CREAT | O_CLOEXEC,
-                S_IRUSR | S_IWUSR
-            );
-            if (fd < 0) {
-                int err = errno;
-                GGL_LOGE(
-                    "fleet-provisioning",
-                    "Failed to open certificate for writing: %d",
-                    err
-                );
-                return GGL_ERR_FAILURE;
-            }
-
-            GglError ret = ggl_write_exact(fd, val->buf);
-            close(fd);
-            if (ret != GGL_ERR_OK) {
-                return ret;
-            }
-
-            // Now find and save the value of certificateOwnershipToken
-            if (ggl_map_get(
-                    csr_payload_json_obj.map,
-                    GGL_STR("certificateOwnershipToken"),
-                    &val
-                )) {
-                if (val->type != GGL_TYPE_BUF) {
-                    return GGL_ERR_PARSE;
-                }
-                memcpy(global_cert_owenership, val->buf.data, val->buf.len);
-
-                GGL_LOGI(
-                    "fleet-provisioning",
-                    "Global Certificate Ownership Val %.*s",
-                    (int) val->buf.len,
-                    global_cert_owenership
-                );
-
-                // Now that we have a certificate make a call to register a
-                // thing based on that certificate
-                request_thing_name(val);
-            }
-        }
-    } else if (strncmp(
-            (char *) topic.data, global_register_thing_accept_url, topic.len
-        )
-        == 0) {
-        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
-        memcpy(global_thing_response_buf, payload.data, payload.len);
-
-        GglBuffer response_buffer = (GglBuffer
-        ) { .data = (uint8_t *) global_thing_response_buf, .len = payload.len };
-        GglObject thing_payload_json_obj;
-
-        ggl_json_decode_destructive(
-            response_buffer, &balloc.alloc, &thing_payload_json_obj
-        );
-        if (thing_payload_json_obj.type != GGL_TYPE_MAP) {
-            return GGL_ERR_FAILURE;
-        }
-
-        if (ggl_map_get(
-                thing_payload_json_obj.map, GGL_STR("thingName"), &val
-            )) {
-            save_value_to_db(
-                GGL_OBJ_STR("system"), GGL_OBJ_STR("thingName"), *val
-            );
-        }
-
-    } else {
-        GGL_LOGI(
-            "fleet-provisioning",
-            "Got message from IoT Core; topic: %.*s, payload: %.*s.",
-            (int) topic.len,
-            topic.data,
-            (int) payload.len,
-            payload.data
-        );
-    }
-
-    return GGL_ERR_OK;
 }
 
 static int request_thing_name(GglObject *cert_owner_gg_obj) {
@@ -411,6 +218,183 @@ static int set_global_values(void) {
         (int) strlen(template_param_buffer_alloc),
         template_param_buffer_alloc
     );
+    return GGL_ERR_OK;
+}
+
+static void save_value_to_db(GglList key_path, GglObject value) {
+    static uint8_t big_buffer_transfer_for_bump[256] = { 0 };
+    GglBumpAlloc the_allocator
+        = ggl_bump_alloc_init(GGL_BUF(big_buffer_transfer_for_bump));
+
+    GglMap params = GGL_MAP(
+        { GGL_STR("key_path"), GGL_OBJ(key_path) },
+        { GGL_STR("value"), value },
+        { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
+    );
+    GglObject result;
+
+    GglError error = ggl_call(
+        ggconfigd, GGL_STR("write"), params, NULL, &the_allocator.alloc, &result
+    );
+
+    if (error != GGL_ERR_OK) {
+        GGL_LOGE("fleet-provisioning", "insert failure");
+    }
+}
+
+// TODO: Refactor this function
+//  NOLINTNEXTLINE(readability-function-cognitive-complexity)
+static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
+    (void) ctx;
+    (void) handle;
+
+    if (data.type != GGL_TYPE_MAP) {
+        GGL_LOGE("fleet-provisioning", "Subscription response is not a map.");
+        return GGL_ERR_FAILURE;
+    }
+
+    GglBuffer topic = GGL_STR("");
+    GglBuffer payload = GGL_STR("");
+
+    GglObject *val;
+    if (ggl_map_get(data.map, GGL_STR("topic"), &val)) {
+        if (val->type != GGL_TYPE_BUF) {
+            GGL_LOGE(
+                "fleet-provisioning",
+                "Subscription response topic not a buffer."
+            );
+            return GGL_ERR_FAILURE;
+        }
+        topic = val->buf;
+    } else {
+        GGL_LOGE(
+            "fleet-provisioning", "Subscription response is missing topic."
+        );
+        return GGL_ERR_FAILURE;
+    }
+    if (ggl_map_get(data.map, GGL_STR("payload"), &val)) {
+        if (val->type != GGL_TYPE_BUF) {
+            GGL_LOGE(
+                "fleet-provisioning",
+                "Subscription response payload not a buffer."
+            );
+            return GGL_ERR_FAILURE;
+        }
+        payload = val->buf;
+    } else {
+        GGL_LOGE(
+            "fleet-provisioning", "Subscription response is missing payload."
+        );
+        return GGL_ERR_FAILURE;
+    }
+
+    if (strncmp((char *) topic.data, certificate_response_url, topic.len)
+        == 0) {
+        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+
+        memcpy(global_cert_owenership, payload.data, payload.len);
+
+        GglBuffer response_buffer = (GglBuffer
+        ) { .data = (uint8_t *) global_cert_owenership, .len = payload.len };
+
+        ggl_json_decode_destructive(
+            response_buffer, &balloc.alloc, &csr_payload_json_obj
+        );
+
+        if (csr_payload_json_obj.type != GGL_TYPE_MAP) {
+            return GGL_ERR_FAILURE;
+        }
+
+        if (ggl_map_get(
+                csr_payload_json_obj.map, GGL_STR("certificatePem"), &val
+            )) {
+            if (val->type != GGL_TYPE_BUF) {
+                return GGL_ERR_PARSE;
+            }
+            int fd = open(
+                "./certificate.crt",
+                O_WRONLY | O_CREAT | O_CLOEXEC,
+                S_IRUSR | S_IWUSR
+            );
+            if (fd < 0) {
+                int err = errno;
+                GGL_LOGE(
+                    "fleet-provisioning",
+                    "Failed to open certificate for writing: %d",
+                    err
+                );
+                return GGL_ERR_FAILURE;
+            }
+
+            GglError ret = ggl_write_exact(fd, val->buf);
+            close(fd);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+
+            // Now find and save the value of certificateOwnershipToken
+            if (ggl_map_get(
+                    csr_payload_json_obj.map,
+                    GGL_STR("certificateOwnershipToken"),
+                    &val
+                )) {
+                if (val->type != GGL_TYPE_BUF) {
+                    return GGL_ERR_PARSE;
+                }
+                memcpy(global_cert_owenership, val->buf.data, val->buf.len);
+
+                GGL_LOGI(
+                    "fleet-provisioning",
+                    "Global Certificate Ownership Val %.*s",
+                    (int) val->buf.len,
+                    global_cert_owenership
+                );
+
+                // Now that we have a certificate make a call to register a
+                // thing based on that certificate
+                request_thing_name(val);
+            }
+        }
+    } else if (strncmp(
+            (char *) topic.data, global_register_thing_accept_url, topic.len
+        )
+        == 0) {
+        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+
+        memcpy(global_thing_response_buf, payload.data, payload.len);
+
+        GglBuffer response_buffer = (GglBuffer
+        ) { .data = (uint8_t *) global_thing_response_buf, .len = payload.len };
+        GglObject thing_payload_json_obj;
+
+        ggl_json_decode_destructive(
+            response_buffer, &balloc.alloc, &thing_payload_json_obj
+        );
+        if (thing_payload_json_obj.type != GGL_TYPE_MAP) {
+            return GGL_ERR_FAILURE;
+        }
+
+        if (ggl_map_get(
+                thing_payload_json_obj.map, GGL_STR("thingName"), &val
+            )) {
+            save_value_to_db(
+                GGL_LIST(GGL_OBJ_STR("system")),
+                GGL_OBJ_MAP(GGL_STR("thingName"), *val)
+            );
+        }
+    }
+
+    else {
+        GGL_LOGI(
+            "fleet-provisioning",
+            "Got message from IoT Core; topic: %.*s, payload: %.*s.",
+            (int) topic.len,
+            topic.data,
+            (int) payload.len,
+            payload.data
+        );
+    }
+
     return GGL_ERR_OK;
 }
 
