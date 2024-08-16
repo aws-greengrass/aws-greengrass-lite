@@ -4,7 +4,7 @@
   "dictionaryDefinitions": [
     {
       "name": "project",
-      "path": "utils/dictionary.txt",
+      "path": "misc/dictionary.txt",
       "addWords": true
     }
   ],
