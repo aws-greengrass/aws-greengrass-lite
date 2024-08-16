@@ -6,6 +6,14 @@
 #define GGCONFIGD_MAX_KEY_SIZE 1024
 #define GGCONFIGD_MAX_VALUE_SIZE 1024
 
+// "PER_REQUEST" means the maximum number of keys or values that can be
+// returned in a single read request. This is not the maximum number of
+// things that can be stored in the system.
+#define GGCONFIGD_MAX_KVS_PER_MAP_PER_REQUEST 128
+#define GGCONFIGD_MAX_MAPS_PER_REQUEST 256
+#define GGCONFIGD_MAX_KEYS_PER_REQUEST 512
+#define GGCONFIGD_MAX_VALUES_PER_REQUEST 256
+
 /// The ggconfig_Callback_t will be called with the stored parameter when the
 /// key is written. The keyvalue can be read with the getValueFromKey()
 /// function.

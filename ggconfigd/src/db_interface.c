@@ -4,10 +4,13 @@
 
 #include "ggconfigd.h"
 #include "helpers.h"
+#include "ggl/alloc.h"
+#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <sqlite3.h>
 #include <string.h>
 #include <stdbool.h>
@@ -547,72 +550,205 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     return return_value;
 }
 
-
-
-GglError ggconfig_get_value_from_key(
-    GglList *key_path, GglObject *value
+/// read_key_recursive will read the map or buffer at key_id and store it into value.
+/// The buffer params are the static memory which can be used for nested data within value.
+GglError read_key_recursive(
+    int64_t key_id,
+    GglObject *value,
+    GglAlloc *alloc
 ) {
-    sqlite3_stmt *stmt;
     GglError return_value = GGL_ERR_FAILURE;
 
-    if (config_initialized == false) {
-        return GGL_ERR_FAILURE;
-    }
+    sqlite3_stmt *stmt;
     GGL_LOGI(
-        "ggconfig_get_value_from_key",
-        "starting request for key: %s",
-        print_key_path(key_path)
+        "read_key_recursive",
+        "reading key id %ld",
+        key_id
     );
-    sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
-    int64_t key_id = get_key_id(key_path);
 
-    // if the key is a leaf, return the buffer
+    // check value first
     sqlite3_prepare_v2(
         config_database,
-        "SELECT value FROM valueTable "
-        "WHERE keyid = ?;",
+        "SELECT value FROM valueTable WHERE keyid = ?;",
         -1,
         &stmt,
         NULL
     );
     sqlite3_bind_int64(stmt, 1, key_id);
-
     int rc = sqlite3_step(stmt);
     GGL_LOGI(
-        "ggconfig_get_value_from_key",
-        "select value for id %ld returned %d",
+        "read_key_recursive",
+        "select value for key id %ld returned %d",
         key_id,
         rc
     );
-    if (rc == SQLITE_ROW) {
-        const unsigned char *value_string = sqlite3_column_text(stmt, 0);
-        unsigned long value_length
-            = (unsigned long) sqlite3_column_bytes(stmt, 0);
-        static unsigned char string_buffer[GGCONFIGD_MAX_VALUE_SIZE];
+    // TODO: These if/else are getting massive and nested, should probably extract functions
+    if (rc == SQLITE_ROW) { // if a value was found for key_id
+        const uint8_t *value_string = sqlite3_column_text(stmt, 0);
+        unsigned long value_length = (unsigned long) sqlite3_column_bytes(stmt, 0);
+        uint8_t *string_buffer = GGL_ALLOCN(alloc, uint8_t, value_length);
+        if (!string_buffer){
+            GGL_LOGE(
+                "read_key_recursive",
+                "no more memory to allocate value for key id %ld",
+                key_id
+            );
+            sqlite3_finalize(stmt);
+            return GGL_ERR_NOMEM;
+        }
+        value->type = GGL_TYPE_BUF;
         value->buf.data = string_buffer;
         memcpy(string_buffer, value_string, value_length);
         value->buf.len = value_length;
 
         GGL_LOGI(
-            "ggconfig_get_value_from_key",
-            "%.*s",
+            "read_key_recursive",
+            "value read: %.*s",
             (int) value->buf.len,
             (char *)
                 value->buf.data // TODO: is there risk of logging sensitive
-                                   // values stored in config here? Or does
-                                   // config not store sensitive values?
+                                // values stored in config here? Or does
+                                // config not store sensitive values?
         );
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            GGL_LOGE("ggconfig_get_value_from_key", "%s", sqlite3_errmsg(config_database));
+            GGL_LOGE("read_key_recursive", "%s", sqlite3_errmsg(config_database));
             return_value = GGL_ERR_FAILURE;
             value->buf.data = NULL;
             value->buf.len = 0;
         } else {
             return_value = GGL_ERR_OK;
         }
+    } else { // if no value was found for key_id
+        sqlite3_finalize(stmt);
+
+        // check for children
+        sqlite3_prepare_v2(
+            config_database,
+            "select k.keyId, k.keyvalue from "
+            "relationTable r inner join keyTable k on r.keyId = k.keyId "
+            "WHERE r.parentid = ?;",
+            -1,
+            &stmt,
+            NULL
+        );
+        sqlite3_bind_int64(stmt, 1, key_id);
+        size_t children_count = 0;
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            children_count++;
+        }
+        if (children_count == 0) {
+            GGL_LOGE(
+                "read_key_recursive",
+                "no value or children keys found for key id %ld",
+                key_id
+            );
+            return_value = GGL_ERR_FAILURE;
+        } else { // There are one or more children, i.e. this is a map
+            GGL_LOGI(
+                "read_key_recursive",
+                "the number of children keys for key id %ld is %d",
+                key_id,
+                children_count
+            );
+
+            // allocate a kv vector with capacity children_count for this map
+            GglKV *kvs = GGL_ALLOCN(alloc, GglKV, children_count);
+            if (!kvs) {
+                GGL_LOGE(
+                    "read_key_recursive",
+                    "no more memory to allocate kvs for key id %ld",
+                    key_id
+                );
+                sqlite3_finalize(stmt);
+                return GGL_ERR_NOMEM;
+            }
+            GglKVVec kv_buffer_vec = {
+                .map = (GglMap){.pairs = kvs, .len = 0},
+                .capacity = children_count
+            };
+
+            sqlite3_reset(stmt);
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                int64_t child_id = sqlite3_column_int64(stmt, 0);
+                const uint8_t *child_name_string = sqlite3_column_text(stmt, 1);
+                unsigned long child_name_length = (unsigned long) sqlite3_column_bytes(stmt, 1);
+                // allocate a key name buffer
+                uint8_t *child_key_name = GGL_ALLOCN(alloc, uint8_t, child_name_length);
+                if (!child_key_name){
+                    GGL_LOGE(
+                        "read_key_recursive",
+                        "no more memory to allocate value for key id %ld",
+                        key_id
+                    );
+                    sqlite3_finalize(stmt);
+                    return GGL_ERR_NOMEM;
+                }
+                memcpy(child_key_name, child_name_string, child_name_length);
+
+                GglBuffer child_key_name_buffer = {.data = child_key_name, .len = child_name_length};
+                GglKV new_kv = {.key = child_key_name_buffer};
+
+                read_key_recursive(
+                    child_id,
+                    &new_kv.val,
+                    alloc
+                );
+
+                GglError error = ggl_kv_vec_push(&kv_buffer_vec, new_kv);
+                if (error != GGL_ERR_OK) {
+                    GGL_LOGE("read_key_recursive", "error pushing kv");
+                    return error;
+                }
+            }
+
+            value->type = GGL_TYPE_MAP;
+            value->map = kv_buffer_vec.map;
+
+            return_value = GGL_ERR_OK;
+        }
     }
-    sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
     sqlite3_finalize(stmt);
+
+    return return_value;
+}
+
+GglError ggconfig_get_value_from_key(
+    GglList *key_path, GglObject *value
+) {
+    if (config_initialized == false) {
+        return GGL_ERR_FAILURE;
+    }
+
+    GglError return_value = GGL_ERR_FAILURE;
+
+    // TODO: Reduce size?
+    static uint8_t key_value_memory[1024 * 1024];
+    GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(key_value_memory));
+
+    sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
+    GGL_LOGI(
+        "ggconfig_get_value_from_key",
+        "starting request for key: %s",
+        print_key_path(key_path)
+    );
+    int64_t key_id = get_key_id(key_path);
+
+    if (key_id == 0) {
+        GGL_LOGI(
+            "ggconfig_get_value_from_key",
+            "key not found for %s",
+            print_key_path(key_path)
+        );
+        return_value = GGL_ERR_NOENTRY;
+    } else {
+        return_value = read_key_recursive(
+            key_id,
+            value,
+            &bumper.alloc
+        );
+    }
+
+    sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
     return return_value;
 }
 

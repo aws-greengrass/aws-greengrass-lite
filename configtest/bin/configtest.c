@@ -201,14 +201,24 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
 
-    // test_write_object();
+    test_write_object();
 
-    test_insert(
-        GGL_LIST(
-            GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
-        ),
-        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") })
-    );
+    // test_insert(
+    //     GGL_LIST(
+    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+    //     ),
+    //     GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") })
+    // );
+
+    test_get(GGL_LIST(
+        GGL_OBJ_STR("component")
+        ,GGL_OBJ_STR("foobar")
+        // ,GGL_OBJ_STR("foo")
+        // ,GGL_OBJ_STR("bar")
+        // ,GGL_OBJ_STR("baz")
+    ));
+
+
     // TODO: FIXME: We currently allow a key to be both a value (leaf) and a parent node.
     // This should not be allowed.
     // e.g. add a constraint/check/logic to make sure that never happens during write
@@ -218,12 +228,12 @@ int main(int argc, char **argv) {
     //     ),
     //     GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value2") })
     // );
-    test_get(GGL_LIST( // should return value1 in a buffer
-        GGL_OBJ_STR("component"),
-        GGL_OBJ_STR("foo"),
-        GGL_OBJ_STR("bar"),
-        GGL_OBJ_STR("key")
-    ));
+    // test_get(GGL_LIST( // should return value1 in a buffer
+    //     GGL_OBJ_STR("component"),
+    //     GGL_OBJ_STR("foo"),
+    //     GGL_OBJ_STR("bar"),
+    //     GGL_OBJ_STR("key")
+    // ));
     // test_get(GGL_LIST(
     //     GGL_OBJ_STR("component"),
     //     GGL_OBJ_STR("foo"),
@@ -231,10 +241,10 @@ int main(int argc, char **argv) {
     //     GGL_OBJ_STR("key"),
     //     GGL_OBJ_STR("subkey")
     // ));
-    test_get(GGL_LIST( // should return bar:{key:value1} in a map
-        GGL_OBJ_STR("component"),
-        GGL_OBJ_STR("foo")
-    ));
+    // test_get(GGL_LIST( // should return bar:{key:value1} in a map
+    //     GGL_OBJ_STR("component"),
+    //     GGL_OBJ_STR("foo")
+    // ));
 
     // test_subscribe(GGL_LIST(
     //     GGL_OBJ_STR("component"),
