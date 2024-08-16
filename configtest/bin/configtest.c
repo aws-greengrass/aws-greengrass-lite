@@ -68,10 +68,18 @@ static void test_get(GglList test_key_path) {
         if (result.type == GGL_TYPE_BUF) {
             GGL_LOGI(
                 "test_get",
-                "read %.*s",
+                "got buffer: %.*s",
                 (int) result.buf.len,
                 (char *) result.buf.data
             );
+        } else if (result.type == GGL_TYPE_MAP) {
+            GGL_LOGI(
+                "test_get",
+                "got map with size: %d", // TODO: Print out map contents too
+                (int) result.map.len
+            );
+        } else {
+            GGL_LOGE("test_get", "unexpected type %d", result.type);
         }
     }
 }
@@ -193,29 +201,29 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
 
-    test_write_object();
+    // test_write_object();
 
     test_insert(
         GGL_LIST(
             GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
-        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value") })
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") })
     );
     // TODO: FIXME: We currently allow a key to be both a value (leaf) and a parent node.
     // This should not be allowed.
     // e.g. add a constraint/check/logic to make sure that never happens during write
-    // test_insert(
+    // test_insert( // This insert should fail after already setting component/foo/bar/key = value1
     //     GGL_LIST(
     //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key")
     //     ),
-    //     GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value") })
+    //     GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value2") })
     // );
-    // test_get(GGL_LIST(
-    //     GGL_OBJ_STR("component"),
-    //     GGL_OBJ_STR("foo"),
-    //     GGL_OBJ_STR("bar"),
-    //     GGL_OBJ_STR("key")
-    // ));
+    test_get(GGL_LIST( // should return value1 in a buffer
+        GGL_OBJ_STR("component"),
+        GGL_OBJ_STR("foo"),
+        GGL_OBJ_STR("bar"),
+        GGL_OBJ_STR("key")
+    ));
     // test_get(GGL_LIST(
     //     GGL_OBJ_STR("component"),
     //     GGL_OBJ_STR("foo"),
@@ -223,39 +231,38 @@ int main(int argc, char **argv) {
     //     GGL_OBJ_STR("key"),
     //     GGL_OBJ_STR("subkey")
     // ));
-    test_get(GGL_LIST(
+    test_get(GGL_LIST( // should return bar:{key:value1} in a map
         GGL_OBJ_STR("component"),
-        GGL_OBJ_STR("foo"),
-        GGL_OBJ_STR("bar"),
-        GGL_OBJ_STR("key")
+        GGL_OBJ_STR("foo")
     ));
 
-    test_subscribe(GGL_LIST(
-        GGL_OBJ_STR("component"),
-        GGL_OBJ_STR("foo"),
-        GGL_OBJ_STR("bar"),
-        GGL_OBJ_STR("key")
-    ));
-    test_insert(
-        GGL_LIST(
-            GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
-        ),
-        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("big value") })
-    );
-    test_insert(
-        GGL_LIST(
-            GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
-        ),
-        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("the biggest value") })
-    );
-    test_insert(
-        GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("bar")),
-        GGL_OBJ_MAP({ GGL_STR("foo"), GGL_OBJ_STR("value2") })
-    );
-    test_insert(
-        GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("foo")),
-        GGL_OBJ_MAP({ GGL_STR("baz"), GGL_OBJ_STR("value") })
-    );
+    // test_subscribe(GGL_LIST(
+    //     GGL_OBJ_STR("component"),
+    //     GGL_OBJ_STR("foo"),
+    //     GGL_OBJ_STR("bar"),
+    //     GGL_OBJ_STR("key")
+    // ));
+    // test_insert(
+    //     GGL_LIST(
+    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+    //     ),
+    //     GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("big value") })
+    // );
+    // test_insert(
+    //     GGL_LIST(
+    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+    //     ),
+    //     GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("the biggest value") })
+    // );
+    // test_insert(
+    //     GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("bar")),
+    //     GGL_OBJ_MAP({ GGL_STR("foo"), GGL_OBJ_STR("value2") })
+    // );
+    // test_insert(
+    //     GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("foo")),
+    //     GGL_OBJ_MAP({ GGL_STR("baz"), GGL_OBJ_STR("value") })
+    // );
+
     // test_insert(
     //     GGL_STR("global"),
     //     GGL_LIST(GGL_OBJ_STR("global")),

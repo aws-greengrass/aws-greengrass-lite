@@ -43,20 +43,23 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
-    GglBuffer value;
-
+    GglObject value;
     if (ggconfig_get_value_from_key(key_list, &value) == GGL_ERR_OK) {
-        static uint8_t big_memory[MAXIMUM_VALUE_LENGTH];
-        GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(big_memory));
-        GglObject return_value;
-        ggl_json_decode_destructive(value, &bumper.alloc, &return_value);
-        GGL_LOGT(
-            "rpc_read",
-            "Read %.*s",
-            (int) return_value.buf.len,
-            (char *) return_value.buf.data
-        );
-        ggl_respond(handle, return_value);
+        // TODO: Decode json returned
+        // static uint8_t big_memory[MAXIMUM_VALUE_LENGTH];
+        // GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(big_memory));
+        // GglObject return_value;
+        // ggl_json_decode_destructive(value, &bumper.alloc, &return_value);
+        // GGL_LOGT(
+        //     "rpc_read",
+        //     "Read %.*s",
+        //     (int) return_value.buf.len,
+        //     (char *) return_value.buf.data
+        // );
+        // ggl_respond(handle, return_value);
+
+        // use the data and then free it
+        ggl_respond(handle, value);
     } else {
         ggl_return_err(handle, GGL_ERR_FAILURE);
     }

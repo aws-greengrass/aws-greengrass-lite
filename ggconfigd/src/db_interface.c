@@ -547,8 +547,10 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     return return_value;
 }
 
+
+
 GglError ggconfig_get_value_from_key(
-    GglList *key_path, GglBuffer *value_buffer
+    GglList *key_path, GglObject *value
 ) {
     sqlite3_stmt *stmt;
     GglError return_value = GGL_ERR_FAILURE;
@@ -556,9 +558,15 @@ GglError ggconfig_get_value_from_key(
     if (config_initialized == false) {
         return GGL_ERR_FAILURE;
     }
-
+    GGL_LOGI(
+        "ggconfig_get_value_from_key",
+        "starting request for key: %s",
+        print_key_path(key_path)
+    );
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
     int64_t key_id = get_key_id(key_path);
+
+    // if the key is a leaf, return the buffer
     sqlite3_prepare_v2(
         config_database,
         "SELECT value FROM valueTable "
@@ -568,29 +576,37 @@ GglError ggconfig_get_value_from_key(
         NULL
     );
     sqlite3_bind_int64(stmt, 1, key_id);
-    if (sqlite3_step(stmt) != SQLITE_DONE) {
+
+    int rc = sqlite3_step(stmt);
+    GGL_LOGI(
+        "ggconfig_get_value_from_key",
+        "select value for id %ld returned %d",
+        key_id,
+        rc
+    );
+    if (rc == SQLITE_ROW) {
         const unsigned char *value_string = sqlite3_column_text(stmt, 0);
         unsigned long value_length
             = (unsigned long) sqlite3_column_bytes(stmt, 0);
         static unsigned char string_buffer[GGCONFIGD_MAX_VALUE_SIZE];
-        value_buffer->data = string_buffer;
+        value->buf.data = string_buffer;
         memcpy(string_buffer, value_string, value_length);
-        value_buffer->len = value_length;
+        value->buf.len = value_length;
 
         GGL_LOGI(
-            "ggconfig_get",
+            "ggconfig_get_value_from_key",
             "%.*s",
-            (int) value_buffer->len,
+            (int) value->buf.len,
             (char *)
-                value_buffer->data // TODO: is there risk of logging sensitive
+                value->buf.data // TODO: is there risk of logging sensitive
                                    // values stored in config here? Or does
                                    // config not store sensitive values?
         );
         if (sqlite3_step(stmt) != SQLITE_DONE) {
-            GGL_LOGE("ggconfig_get", "%s", sqlite3_errmsg(config_database));
+            GGL_LOGE("ggconfig_get_value_from_key", "%s", sqlite3_errmsg(config_database));
             return_value = GGL_ERR_FAILURE;
-            value_buffer->data = NULL;
-            value_buffer->len = 0;
+            value->buf.data = NULL;
+            value->buf.len = 0;
         } else {
             return_value = GGL_ERR_OK;
         }
