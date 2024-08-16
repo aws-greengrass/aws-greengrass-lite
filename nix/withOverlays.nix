@@ -20,6 +20,7 @@ in
           "CMakeLists.txt"
           ".clang-tidy"
           "fc_deps.json"
+          "run_nucleus"
         ] ||
         lib.any file.hasExt [ "c" "h" "cmake" ])
         src;

@@ -1,0 +1,16 @@
+#!/bin/sh
+trap "exit" INT TERM
+trap "kill 0" EXIT
+
+bin_dir="$(dirname -- "$0")"
+
+"${bin_dir}"/ggconfigd &
+sleep 1
+"${bin_dir}"/iotcored &
+"${bin_dir}"/ggpubsubd &
+"${bin_dir}"/ggdeploymentd &
+"${bin_dir}"/ggipcd &
+sleep 1
+"${bin_dir}"/gg-fleet-statusd &
+
+wait

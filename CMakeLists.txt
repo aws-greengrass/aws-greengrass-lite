@@ -271,4 +271,9 @@ if(BUILD_EXAMPLES)
   add_subdirectory(samples/status-monitor-client)
   add_subdirectory(configtest)
   add_subdirectory(tesd-test)
+
+  add_custom_target(
+    run_nucleus ALL
+    COMMAND cp "${CMAKE_SOURCE_DIR}/misc/run_nucleus" "${CMAKE_BINARY_DIR}/bin"
+    COMMENT "Nucleus run script for testing")
 endif()
