@@ -175,14 +175,12 @@ static GglError handle_authentication_request(uint32_t handle) {
     return complete_conn_init(handle, component_handle, true, svcuid);
 }
 
-static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
+static GglError handle_conn_init(
+    uint32_t handle,
+    EventStreamMessage *msg,
+    EventStreamCommonHeaders common_headers
+) {
     GGL_LOGD("ipc-server", "Handling connect for %d.", handle);
-
-    EventStreamCommonHeaders common_headers;
-    GglError ret = eventstream_get_common_headers(msg, &common_headers);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
 
     if (common_headers.message_type != EVENTSTREAM_CONNECT) {
         GGL_LOGE("ipc-server", "Client initial message not of type connect.");
@@ -232,7 +230,7 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
     }
 
     GglMap payload_data = { 0 };
-    ret = deserialize_payload(msg->payload, &payload_data);
+    GglError ret = deserialize_payload(msg->payload, &payload_data);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -273,19 +271,44 @@ static GglError handle_conn_init(uint32_t handle, EventStreamMessage *msg) {
     );
 }
 
-static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
-    EventStreamCommonHeaders common_headers;
-    GglError ret = eventstream_get_common_headers(msg, &common_headers);
+static GglError send_stream_error(uint32_t handle, int32_t stream_id) {
+    GGL_LOGE(
+        "ipc-server", "Sending error on client %u stream %d.", handle, stream_id
+    );
+
+    pthread_mutex_lock(&resp_array_mtx);
+    GGL_DEFER(pthread_mutex_unlock, resp_array_mtx);
+    GglBuffer resp_buffer = GGL_BUF(resp_array);
+
+    // TODO: Match classic error response
+    EventStreamHeader resp_headers[] = {
+        { GGL_STR(":message-type"),
+          { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_APPLICATION_ERROR } },
+        { GGL_STR(":message-flags"),
+          { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_TERMINATE_STREAM } },
+        { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = stream_id } },
+
+    };
+    const size_t RESP_HEADERS_LEN
+        = sizeof(resp_headers) / sizeof(resp_headers[0]);
+
+    GglError ret = eventstream_encode(
+        &resp_buffer, resp_headers, RESP_HEADERS_LEN, NULL, NULL
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
+    return ggl_socket_handle_write(&pool, handle, resp_buffer);
+}
+
+static GglError handle_stream_operation(
+    uint32_t handle,
+    EventStreamMessage *msg,
+    EventStreamCommonHeaders common_headers
+) {
     if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
         GGL_LOGE("ipc-server", "Client sent unhandled message type.");
-        return GGL_ERR_INVALID;
-    }
-    if (common_headers.stream_id == 0) {
-        GGL_LOGE("ipc-server", "Application message has zero :stream-id.");
         return GGL_ERR_INVALID;
     }
     if ((common_headers.message_flags & EVENTSTREAM_FLAGS_MASK) != 0) {
@@ -318,7 +341,7 @@ static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
     }
 
     GglMap payload_data = { 0 };
-    ret = deserialize_payload(msg->payload, &payload_data);
+    GglError ret = deserialize_payload(msg->payload, &payload_data);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -326,6 +349,28 @@ static GglError handle_operation(uint32_t handle, EventStreamMessage *msg) {
     return ggl_ipc_handle_operation(
         operation, payload_data, handle, common_headers.stream_id
     );
+}
+
+static GglError handle_operation(
+    uint32_t handle,
+    EventStreamMessage *msg,
+    EventStreamCommonHeaders common_headers
+) {
+    if (common_headers.stream_id == 0) {
+        GGL_LOGE("ipc-server", "Application message has zero :stream-id.");
+        return GGL_ERR_INVALID;
+    }
+
+    GglError ret = handle_stream_operation(handle, msg, common_headers);
+    if (ret == GGL_ERR_FATAL) {
+        return GGL_ERR_FAILURE;
+    }
+
+    if (ret != GGL_ERR_OK) {
+        return send_stream_error(handle, common_headers.stream_id);
+    }
+
+    return GGL_ERR_OK;
 }
 
 static void get_conn_component(void *ctx, size_t index) {
@@ -390,6 +435,12 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         return ret;
     }
 
+    EventStreamCommonHeaders common_headers;
+    ret = eventstream_get_common_headers(&msg, &common_headers);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
     GGL_LOGT("ipc-server", "Retrieving connection state for %d.", handle);
     GglComponentHandle component_handle = 0;
     ret = ggl_with_socket_handle_index(
@@ -400,10 +451,10 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     }
 
     if (component_handle == 0) {
-        return handle_conn_init(handle, &msg);
+        return handle_conn_init(handle, &msg, common_headers);
     }
 
-    return handle_operation(handle, &msg);
+    return handle_operation(handle, &msg, common_headers);
 }
 
 GglError ggl_ipc_listen(const char *socket_path) {
