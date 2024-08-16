@@ -1,5 +1,6 @@
 build/
 build-*/
+run/
 .direnv/
 .cache/
 result

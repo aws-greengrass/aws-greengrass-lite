@@ -39,6 +39,7 @@ greengrassv
 htobe
 iotcored
 keyid
+libsystemd
 libuuid
 libyaml
 LOGD
@@ -53,6 +54,7 @@ NOCONN
 NOENTRY
 NOLINTNEXTLINE
 NOMEM
+nproc
 parentid
 pkgs
 pname

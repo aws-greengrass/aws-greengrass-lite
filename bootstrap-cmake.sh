@@ -18,4 +18,4 @@ cmake_url=https://github.com/Kitware/CMake/releases/download/v${cmake_version}/$
 
 curl -s -L "${cmake_url}" | tar xz -C build/cmake/
 
-"./build/cmake/${cmake_name}/bin/cmake" -B build
+"./build/cmake/${cmake_name}/bin/cmake" -B build -D CMAKE_BUILD_TYPE=MinSizeRel
