@@ -7,10 +7,6 @@
 
 #include <ggl/error.h>
 
-typedef struct {
-    char *thing_name;
-} FssdArgs;
-
-GglError run_gg_fleet_statusd(FssdArgs *args);
+GglError run_gg_fleet_statusd(void);
 
 #endif
