@@ -12,14 +12,13 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <sys/time.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
 GglError handle_create_local_deployment(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
-    (void) alloc;
-
     GGL_MAP_FOREACH(pair, args) {
         if (ggl_buffer_eq(pair->key, GGL_STR("recipeDirectoryPath"))) {
             pair->key = GGL_STR("recipe_directory_path");
@@ -49,13 +48,14 @@ GglError handle_create_local_deployment(
         }
     }
 
+    GglObject result;
     GglError ret = ggl_call(
         GGL_STR("/aws/ggl/ggdeploymentd"),
         GGL_STR("create_local_deployment"),
         args,
         NULL,
-        NULL,
-        NULL
+        alloc,
+        &result
     );
 
     if (ret != GGL_ERR_OK) {
@@ -63,10 +63,28 @@ GglError handle_create_local_deployment(
         return ret;
     }
 
+    if (result.type != GGL_TYPE_MAP) {
+        GGL_LOGE("CreateLocalDeployment", "Response not a map.");
+        return GGL_ERR_FAILURE;
+    }
+
+    GglObject *val = NULL;
+    bool found = ggl_map_get(result.map, GGL_STR("deployment_id"), &val);
+    if (!found) {
+        GGL_LOGE("CreateLocalDeployment", "Response missing deployment_id.");
+        return GGL_ERR_FAILURE;
+    }
+    if (val->type != GGL_TYPE_BUF) {
+        GGL_LOGE(
+            "CreateLocalDeployment", "Response deployment_id not a string."
+        );
+        return GGL_ERR_FAILURE;
+    }
+
     return ggl_ipc_response_send(
         handle,
         stream_id,
-        GGL_STR("aws.greengrass#CreateLocalDeployment"),
-        GGL_OBJ_MAP()
+        GGL_STR("aws.greengrass#CreateLocalDeploymentResponse"),
+        GGL_OBJ_MAP({ GGL_STR("deploymentId"), GGL_OBJ(val->buf) })
     );
 }

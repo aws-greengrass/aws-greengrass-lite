@@ -8,7 +8,10 @@
 #include <ggl/error.h>
 #include <ggl/object.h>
 
+typedef struct {
+    int root_path_fd;
+} GglDeploymentHandlerThreadArgs;
+
 void *ggl_deployment_handler_thread(void *ctx);
-void ggl_deployment_handler_stop(void);
 
 #endif

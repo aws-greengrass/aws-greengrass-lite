@@ -3,14 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "bus_server.h"
-#include "deployment_model.h"
 #include "deployment_queue.h"
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/map.h>
 #include <ggl/object.h>
-#include <uuid/uuid.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -19,136 +16,19 @@
 static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    GGL_LOGD(
+    GGL_LOGT(
         "ggdeploymentd", "Received create_local_deployment from core bus."
     );
 
-    // Core bus server is single-threaded
-    static GgdeploymentdDeploymentDocument local_deployment_document = { 0 };
+    GglBuffer id = GGL_BUF((uint8_t[36]) { 0 });
 
-    GglObject *val;
-
-    if (ggl_map_get(params, GGL_STR("recipe_directory_path"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "CreateLocalDeployment received invalid arguments."
-            );
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
-        }
-        local_deployment_document.recipe_directory_path = val->buf;
-    }
-
-    if (ggl_map_get(params, GGL_STR("artifact_directory_path"), &val)) {
-        // TODO: Validate format of artifact path string is:
-        // /path/to/artifact/folder/component-name/component-version/artifacts
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "CreateLocalDeployment received invalid arguments."
-            );
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
-        }
-        local_deployment_document.artifact_directory_path = val->buf;
-    }
-
-    if (ggl_map_get(params, GGL_STR("root_component_versions_to_add"), &val)) {
-        if (val->type != GGL_TYPE_MAP) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "CreateLocalDeployment received invalid arguments."
-            );
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
-        }
-        local_deployment_document.root_component_versions_to_add = val->map;
-    }
-
-    if (ggl_map_get(params, GGL_STR("root_components_to_remove"), &val)) {
-        if (val->type != GGL_TYPE_LIST) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "CreateLocalDeployment received invalid arguments."
-            );
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
-        }
-        local_deployment_document.root_components_to_remove = val->list;
-    }
-
-    if (ggl_map_get(params, GGL_STR("component_to_configuration"), &val)) {
-        if (val->type != GGL_TYPE_MAP) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "CreateLocalDeployment received invalid arguments."
-            );
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
-        }
-        local_deployment_document.component_to_configuration = val->map;
-    }
-
-    if (ggl_map_get(params, GGL_STR("component_to_run_with_info"), &val)) {
-        if (val->type != GGL_TYPE_MAP) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "CreateLocalDeployment received invalid arguments."
-            );
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
-        }
-        local_deployment_document.component_to_run_with_info = val->map;
-    }
-
-    if (ggl_map_get(params, GGL_STR("group_name"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "CreateLocalDeployment received invalid arguments."
-            );
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
-        }
-        local_deployment_document.group_name = val->buf;
-    }
-
-    if (ggl_map_get(params, GGL_STR("timestamp"), &val)) {
-        if (val->type != GGL_TYPE_I64) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "CreateLocalDeployment received invalid arguments."
-            );
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
-        }
-        local_deployment_document.timestamp = val->i64;
-    }
-
-    // TODO: Revisit and see if local deployment should have a different value
-    uuid_t binuuid;
-    uuid_generate_random(binuuid);
-    GglBuffer uuid = { .len = 37 };
-    uuid_unparse(binuuid, (char *) uuid.data);
-    local_deployment_document.deployment_id = uuid;
-
-    // TODO: Add remaining fields for cloud deployments
-
-    GgdeploymentdDeployment new_deployment = { 0 };
-    new_deployment.deployment_document = local_deployment_document;
-    new_deployment.deployment_id = local_deployment_document.deployment_id;
-    new_deployment.deployment_stage = GGDEPLOYMENT_DEFAULT;
-    new_deployment.deployment_type = GGDEPLOYMENT_LOCAL;
-    new_deployment.is_cancelled = false;
-
-    GglError ret = ggl_deployment_queue_offer(&new_deployment);
+    GglError ret = ggl_deployment_enqueue(params, &id);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
         return;
     }
 
-    ggl_respond(handle, GGL_OBJ_NULL());
+    ggl_respond(handle, GGL_OBJ_MAP({ GGL_STR("deployment_id"), GGL_OBJ(id) }));
 }
 
 void ggdeploymentd_start_server(void) {

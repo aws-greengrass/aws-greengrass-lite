@@ -3,33 +3,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "deployment_model.h"
-#include <stdint.h>
+#include <ggl/object.h>
 
 #ifndef GGDEPLOYMENTD_QUEUE_H
 #define GGDEPLOYMENTD_QUEUE_H
 
-/// @brief Attempts to add a deployment into the queue. If the deployment ID
-/// does not exist already in the queue, then add the deployment to the end of
-/// the queue. If there is an existing deployment in the queue with the same ID,
-/// then replace it if the deployment is in a replaceable state. Otherwise, do
-/// not add the deployment to the queue and return false. If the queue is full,
-/// wait until there is space to add the deployment to the queue.
+/// Attempts to add a deployment into the queue.
 ///
-/// @param deployment a pointer to a GgdeploymentdDeployment to be copied into
-/// the queue
-///
-/// @return GglError with the result of the operation attempt
-GglError ggl_deployment_queue_offer(GgdeploymentdDeployment *deployment);
+/// If the deployment ID does not exist already in the queue, then add the
+/// deployment to the end of the queue. If there is an existing deployment in
+/// the queue with the same ID, then replace it if the deployment is in a
+/// replaceable state. Otherwise, do not add the deployment to the queue and
+/// return an error.
+GglError ggl_deployment_enqueue(GglMap deployment_doc, GglBuffer *id);
 
-/// @brief Poll the deployment queue for the next deployment. Wait until a
-/// deployment is available if the queue is empty.
+/// Get the deployment queue for the next deployment.
 ///
-/// @return A GgdeploymentdDeployment struct containing the deployment details
-GgdeploymentdDeployment ggl_deployment_queue_poll(void);
+/// Blocks until a deployment is available if the queue is empty.
+GglError ggl_deployment_dequeue(GglDeployment **deployment);
 
-/// @brief Returns the current size of the deployment queue.
-///
-/// @return A uint8_t for the current deployment queue size
-uint8_t ggl_deployment_queue_size(void);
+/// Release a dequeued deployment
+void ggl_deployment_release(GglDeployment *deployment);
 
 #endif
