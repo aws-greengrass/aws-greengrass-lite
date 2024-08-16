@@ -11,3 +11,5 @@ class EnvironmentVariables:
     socket_path: Optional[str] = ""
     aws_container_auth_token: Optional[str] = ""
     aws_container_cred_url: Optional[str] = ""
+    user: Optional[str] = ""
+    group: Optional[str] = ""

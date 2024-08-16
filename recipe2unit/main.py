@@ -65,7 +65,7 @@ def create_the_bash_script_file(script_section, filename):
         print(str(error))
 
 
-def fillServiceSection(yaml_data):
+def fillServiceSection(yaml_data, env_var: EnvironmentVariables):
     global isRoot
     global recipe_runner_path
 
@@ -131,6 +131,9 @@ def fillServiceSection(yaml_data):
             if isRoot:
                 unit_content += "User=root\n"
                 unit_content += "Group=root\n"
+            else:
+                unit_content += "User=" + env_var.user + "\n"
+                unit_content += "Group=" + env_var.group + "\n"
 
     return unit_content
 
@@ -197,7 +200,7 @@ def generate_systemd_unit(yaml_data, environment_var: EnvironmentVariables):
     unit_content = ""
 
     unit_content += fillUnitSection(yaml_data)
-    serviceSection = fillServiceSection(yaml_data)
+    serviceSection = fillServiceSection(yaml_data, environment_var)
 
     if serviceSection == "":
         return ""
@@ -215,7 +218,7 @@ def getCommandArgs():
     env_var = EnvironmentVariables()
 
     # Options
-    options = "hr:e:s:t:g:n:o:a:u:"
+    options = "hr:e:s:t:g:n:o:a:u:c:b:"
 
     fileName = ""
     recipeRunnerPath = ""
@@ -232,6 +235,8 @@ def getCommandArgs():
         "rootca-path=",
         "auth-token=",
         "cred-url=",
+        "user=",
+        "group=",
     ]
 
     try:
@@ -272,6 +277,12 @@ def getCommandArgs():
             elif currentArgument in ("-u", "--cred-url"):
                 env_var.aws_container_auth_token = currentValue
 
+            elif currentArgument in ("-c", "--user"):
+                env_var.aws_container_auth_token = currentValue
+
+            elif currentArgument in ("-b", "--group"):
+                env_var.aws_container_auth_token = currentValue
+
     except getopt.error as err:
         # output error, and return with an error code
         print(str(err))
@@ -292,8 +303,19 @@ def main():
         or len(recipe_runner_path) == 0
         or len(environment_var.thing_name) == 0
         or len(environment_var.socket_path) == 0
+        or len(environment_var.user) == 0
+        or len(environment_var.group) == 0
     ):
         print("Error: Necessary parameters are not set")
+        print(
+            "file_path:(%s), \nrunner_path:(%s), \nthingName:(%s), \nsocket_path:(%s), \nuser:(%s), \ngroup:(%s)"
+            % file_path,
+            recipe_runner_path,
+            environment_var.thing_name,
+            environment_var.socket_path,
+            environment_var.user,
+            environment_var.group,
+        )
         return
 
     unitComponentName = ""
