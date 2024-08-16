@@ -379,7 +379,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             )) {
             save_value_to_db(
                 GGL_LIST(GGL_OBJ_STR("system")),
-                GGL_OBJ_MAP(GGL_STR("thingName"), *val)
+                GGL_OBJ_MAP({ GGL_STR("thingName"), *val })
             );
         }
     }
