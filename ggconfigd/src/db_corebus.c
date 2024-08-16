@@ -19,7 +19,8 @@
 #include <stdint.h>
 
 #define MAX_KEY_PATH_DEPTH 25
-#define MAXIMUM_VALUE_LENGTH 4096
+#define MAX_SUBOBJECTS 25
+#define MAXIMUM_VALUE_LENGTH (sizeof(GglObject) * MAX_SUBOBJECTS)
 
 typedef struct {
     GglBuffer component;
