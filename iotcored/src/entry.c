@@ -21,7 +21,7 @@
 #define MAXIMUM_ROOTCA_PATH 512
 
 static GglError collect_a_string(
-    GglObject *config_path, char *string, size_t string_length
+    GglObject *config_path, const char *string, size_t string_length
 ) {
     GglError error;
     GglObject call_resp;

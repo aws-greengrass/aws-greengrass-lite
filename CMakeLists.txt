@@ -125,8 +125,7 @@ add_cflags(
   -Wstack-protector
   -fvisibility=hidden
   -fno-semantic-interposition
-  -fstack-protector-strong
-  -fstack-clash-protection)
+  -fstack-protector-strong)
 
 try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
 

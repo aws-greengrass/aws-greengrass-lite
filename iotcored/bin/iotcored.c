@@ -5,7 +5,6 @@
 #include "iotcored.h"
 #include <argp.h>
 #include <ggl/error.h>
-#include <stdlib.h>
 
 static char doc[] = "iotcored -- MQTT spooler for AWS IoT Core";
 
