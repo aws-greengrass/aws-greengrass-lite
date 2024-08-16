@@ -38,6 +38,7 @@ greengrasscoreipc
 greengrassv
 htobe
 iotcored
+ipcbridged
 keyid
 libuuid
 libyaml
