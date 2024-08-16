@@ -49,6 +49,12 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
         GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(big_memory));
         GglObject return_value;
         ggl_json_decode_destructive(value, &bumper.alloc, &return_value);
+        GGL_LOGT(
+            "rpc_read",
+            "Read %.*s",
+            (int) return_value.buf.len,
+            (char *) return_value.buf.data
+        );
         ggl_respond(handle, return_value);
     } else {
         ggl_return_err(handle, GGL_ERR_FAILURE);
