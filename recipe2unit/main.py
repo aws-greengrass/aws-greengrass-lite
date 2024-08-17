@@ -1,6 +1,7 @@
 import getopt
 import yaml
 import os
+import stat
 import sys
 from env_var import EnvironmentVariables
 
@@ -60,12 +61,14 @@ def create_the_bash_script_file(script_section, filename):
     try:
         with open(filename, "w") as f:
             f.write(script_section)
+        st = os.stat(filename)
+        os.chmod(filename, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         print(filename + " script file generated successfully.")
     except Exception as error:
         print(str(error))
 
 
-def fillServiceSection(yaml_data, env_var: EnvironmentVariables):
+def fillServiceSection(yaml_data, env_var: EnvironmentVariables, root_dir):
     global isRoot
     global recipe_runner_path
 
@@ -73,10 +76,16 @@ def fillServiceSection(yaml_data, env_var: EnvironmentVariables):
 
     # | "%t"	| Runtime directory root  |	This is either /run/ (for the system manager) or the path "$XDG_RUNTIME_DIR" resolves to (for user managers).
     unit_content += (
-        "WorkingDirectory=/var/lib/aws-greengrass-v2/work/"
+        "WorkingDirectory="
+        + root_dir
+        + "/work/"
         + yaml_data["componentname"]
         + "\n"
     )
+    try:
+        os.makedirs(root_dir + "/work/" + yaml_data["componentname"])
+    except FileExistsError:
+        pass
     bash_script_file_name = "ggl." + yaml_data["componentname"] + ".script."
 
     platforms = yaml_data["manifests"]
@@ -114,7 +123,9 @@ def fillServiceSection(yaml_data, env_var: EnvironmentVariables):
 
             unit_content += (
                 "ExecStart="
-                + recipe_runner_path
+                + os.path.abspath(recipe_runner_path)
+                + " -n "
+                + yaml_data["componentname"]
                 + " -p "
                 + os.getcwd()
                 + "/"
@@ -196,11 +207,11 @@ def fillInstallSection(yaml_data):
     return unit_content
 
 
-def generate_systemd_unit(yaml_data, environment_var: EnvironmentVariables):
+def generate_systemd_unit(yaml_data, environment_var: EnvironmentVariables, root_dir):
     unit_content = ""
 
     unit_content += fillUnitSection(yaml_data)
-    serviceSection = fillServiceSection(yaml_data, environment_var)
+    serviceSection = fillServiceSection(yaml_data, environment_var, root_dir)
 
     if serviceSection == "":
         return ""
@@ -218,11 +229,12 @@ def getCommandArgs():
     env_var = EnvironmentVariables()
 
     # Options
-    options = "hr:e:s:t:g:n:o:a:u:c:b:p"
+    options = "hr:e:s:t:g:n:o:a:u:c:b:p:r:"
 
     fileName = ""
     recipeRunnerPath = ""
     artifactPath = ""
+    rootDir = ""
 
     # Long options
     long_options = [
@@ -238,7 +250,8 @@ def getCommandArgs():
         "cred-url=",
         "user=",
         "group=",
-        "artifact-path="
+        "artifact-path=",
+        "root-dir="
     ]
 
     try:
@@ -288,11 +301,14 @@ def getCommandArgs():
             elif currentArgument in ("-p", "--artifact-path"):
                 artifactPath = currentValue
 
+            elif currentArgument in ("-r", "--root-dir"):
+                rootDir = currentValue
+
     except getopt.error as err:
         # output error, and return with an error code
         print(str(err))
 
-    return (fileName, recipeRunnerPath, env_var, artifactPath)
+    return (fileName, recipeRunnerPath, env_var, artifactPath, rootDir)
 
 
 def main():
@@ -301,7 +317,7 @@ def main():
 
     isRoot = False
 
-    file_path, recipe_runner_path, environment_var, artifact_path = getCommandArgs()
+    file_path, recipe_runner_path, environment_var, artifact_path, root_dir = getCommandArgs()
 
     if (
         len(file_path) == 0
@@ -311,17 +327,19 @@ def main():
         or len(environment_var.socket_path) == 0
         or len(environment_var.user) == 0
         or len(environment_var.group) == 0
+        or len(root_dir) == 0
     ):
         print("Error: Necessary parameters are not set")
         print(
-            "file_path:(%s), \nrunner_path:(%s), \nartifact_path: (%s), \nthingName:(%s), \nsocket_path:(%s), \nuser:(%s), \ngroup:(%s)"
+            "file_path:(%s), \nrunner_path:(%s), \nartifact_path: (%s), \nthingName:(%s), \nsocket_path:(%s), \nuser:(%s), \ngroup:(%s), \nrootDir: (%s)"
             % (file_path,
             recipe_runner_path,
             artifact_path,
             environment_var.thing_name,
             environment_var.socket_path,
             environment_var.user,
-            environment_var.group)
+            environment_var.group,
+            root_dir)
         )
         return
 
@@ -332,7 +350,7 @@ def main():
 
     # yaml_data = CaseInsensitiveDict(load_data)
     yaml_data = lower_keys(load_data)
-    systemd_unit = generate_systemd_unit(yaml_data, environment_var)
+    systemd_unit = generate_systemd_unit(yaml_data, environment_var, root_dir)
     unitComponentName = yaml_data["componentname"]
 
     if systemd_unit != "":
@@ -346,7 +364,7 @@ def main():
         )
     else:
         print(
-            "Skiped Generating unit file as, No Linux platform's run section found in the YAML data."
+            "Skipped Generating unit file as, No Linux platform's run section found in the YAML data."
         )
 
 
