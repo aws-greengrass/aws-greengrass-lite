@@ -47,7 +47,7 @@ static GglError update_thing_name(void) {
     return GGL_ERR_OK;
 }
 
-GglError run_gg_fleet_statusd() {
+GglError run_gg_fleet_statusd(void) {
     update_thing_name();
     publish_message(thing_name);
     return GGL_ERR_FAILURE;
