@@ -13,24 +13,11 @@
 #include <stdint.h>
 
 static void get_value_from_db(
-    GglBuffer component,
-    GglBuffer test_key,
-    GglBumpAlloc the_allocator,
-    char *return_string
-);
-
-void get_value_from_db(
-    GglBuffer component,
-    GglBuffer test_key,
-    GglBumpAlloc the_allocator,
-    char *return_string
+    GglList key_path, GglBumpAlloc the_allocator, char *return_string
 ) {
     GglBuffer config_server = GGL_STR("/aws/ggl/ggconfigd");
 
-    GglMap params = GGL_MAP(
-        { GGL_STR("component"), GGL_OBJ(component) },
-        { GGL_STR("key"), GGL_OBJ(test_key) },
-    );
+    GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key_path) }, );
     GglObject result;
 
     GglError error = ggl_call(
@@ -42,13 +29,7 @@ void get_value_from_db(
         &result
     );
     if (error != GGL_ERR_OK) {
-        GGL_LOGE(
-            "tesd",
-            "%.*s read failed. Error %d",
-            (int) component.len,
-            component.data,
-            error
-        );
+        GGL_LOGE("tesd", "read failed. Error %d", error);
     } else {
         memcpy(return_string, result.buf.data, result.buf.len);
 
@@ -77,43 +58,47 @@ GglError run_tesd(void) {
 
     // Fetch
     get_value_from_db(
-        GGL_STR("system"),
-        GGL_STR("rootCaPath"),
+        GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("rootCaPath")),
         the_allocator,
         rootca_as_string
     );
 
     get_value_from_db(
-        GGL_STR("system"),
-        GGL_STR("certificateFilePath"),
+        GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("certificateFilePath")),
         the_allocator,
         cert_path_as_string
     );
 
     get_value_from_db(
-        GGL_STR("system"),
-        GGL_STR("privateKeyPath"),
+        GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("privateKeyPath")),
         the_allocator,
         key_path_as_string
     );
 
     get_value_from_db(
-        GGL_STR("system"),
-        GGL_STR("thingName"),
+        GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("thingName")),
         the_allocator,
         thing_name_as_string
     );
 
     get_value_from_db(
-        GGL_STR("nucleus"),
-        GGL_STR("configuration/iotRoleAlias"),
+        GGL_LIST(
+            GGL_OBJ_STR("services"),
+            GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
+            GGL_OBJ_STR("configuration"),
+            GGL_OBJ_STR("iotRoleAlias")
+        ),
         the_allocator,
         role_alias_as_string
     );
 
     get_value_from_db(
-        GGL_STR("nucleus"),
-        GGL_STR("configuration/iotCredEndpoint"),
+        GGL_LIST(
+            GGL_OBJ_STR("services"),
+            GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
+            GGL_OBJ_STR("configuration"),
+            GGL_OBJ_STR("iotCredEndpoint")
+        ),
         the_allocator,
         cert_endpoint_as_string
     );
