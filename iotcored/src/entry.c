@@ -37,7 +37,7 @@ static GglError collect_a_string(GglList *config_path, GglBuffer *memory) {
         &call_resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("run_iotcored", "Config read of a string failed.");
+        GGL_LOGE("run_iotcored", "Config read of string failed.");
         return GGL_ERR_FATAL;
     }
     if (call_resp.type != GGL_TYPE_BUF) {
@@ -87,7 +87,7 @@ GglError run_iotcored(IotcoredArgs *args) {
         if (error != GGL_ERR_OK) {
             return GGL_ERR_FATAL;
         }
-        args->cert = (char *) endpoint;
+        args->endpoint = (char *) endpoint;
     }
 
     if (args->id == NULL) {
@@ -98,7 +98,7 @@ GglError run_iotcored(IotcoredArgs *args) {
         if (error != GGL_ERR_OK) {
             return GGL_ERR_FATAL;
         }
-        args->cert = (char *) thingname;
+        args->id = (char *) thingname;
     }
 
     if (args->key == NULL) {
@@ -109,7 +109,7 @@ GglError run_iotcored(IotcoredArgs *args) {
         if (error != GGL_ERR_OK) {
             return GGL_ERR_FATAL;
         }
-        args->cert = (char *) key_path;
+        args->key = (char *) key_path;
     }
 
     if (args->rootca == NULL) {
@@ -121,7 +121,7 @@ GglError run_iotcored(IotcoredArgs *args) {
         if (error != GGL_ERR_OK) {
             return GGL_ERR_FATAL;
         }
-        args->cert = (char *) rootca_path;
+        args->rootca = (char *) rootca_path;
     }
 
     GglError ret = iotcored_mqtt_connect(args);
