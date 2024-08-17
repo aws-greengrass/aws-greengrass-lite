@@ -7,6 +7,6 @@
 
 #include <ggl/error.h>
 
-GglError run_ggdeploymentd(void);
+GglError run_ggdeploymentd(const char *bin_path);
 
 #endif

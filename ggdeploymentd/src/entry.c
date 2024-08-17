@@ -56,7 +56,7 @@ static GglError update_root_path(void) {
     return GGL_ERR_OK;
 }
 
-GglError run_ggdeploymentd(void) {
+GglError run_ggdeploymentd(const char *bin_path) {
     GGL_LOGI("ggdeploymentd", "Started ggdeploymentd process.");
 
     GglError ret = update_root_path();
@@ -71,7 +71,9 @@ GglError run_ggdeploymentd(void) {
         return ret;
     }
 
-    GglDeploymentHandlerThreadArgs args = { .root_path_fd = root_path_fd };
+    GglDeploymentHandlerThreadArgs args = { .root_path_fd = root_path_fd,
+                                            .root_path = root_path,
+                                            .bin_path = bin_path };
 
     pthread_t ptid;
     pthread_create(&ptid, NULL, &ggl_deployment_handler_thread, &args);
