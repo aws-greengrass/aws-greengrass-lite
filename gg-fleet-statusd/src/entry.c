@@ -10,6 +10,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <stddef.h>
+#include <stdint.h>
 
 static GglBuffer thing_name;
 
