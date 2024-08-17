@@ -125,6 +125,7 @@ static void rpc_request_formatted_creds(
     void *ctx, GglMap params, uint32_t handle
 ) {
     (void) ctx;
+    (void) params;
     GGL_LOGD(
         "request_credentials_formatted",
         "Handling token publish request for TES server."

@@ -202,6 +202,7 @@ pkg_search_module(sqlite3 REQUIRED IMPORTED_TARGET sqlite3)
 pkg_search_module(yaml REQUIRED IMPORTED_TARGET yaml-0.1)
 pkg_search_module(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
 pkg_search_module(uuid REQUIRED IMPORTED_TARGET uuid)
+pkg_search_module(libevent REQUIRED IMPORTED_TARGET libevent)
 
 #
 # Add components
@@ -262,6 +263,7 @@ add_subdirectory(tesd)
 add_subdirectory(fleet-provisioning)
 add_subdirectory(ggl-config-init)
 add_subdirectory(recipe-runner)
+add_subdirectory(tes-serverd)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
