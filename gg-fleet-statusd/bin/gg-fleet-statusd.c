@@ -5,40 +5,12 @@
 #include "gg_fleet_statusd.h"
 #include <argp.h>
 #include <ggl/error.h>
-#include <stdio.h>
-
-static char doc[] = "gg-fleet-statusd -- Fleet Status Service for GG Lite";
-
-static struct argp_option opts[]
-    = { { "thingName", 't', "name", 0, "Thing Name", 0 }, { 0 } };
-
-static error_t arg_parser(int key, char *arg, struct argp_state *state) {
-    FssdArgs *args = state->input;
-    switch (key) {
-    case 't':
-        args->thing_name = arg;
-        break;
-    case ARGP_KEY_END:
-        if (args->thing_name == NULL) {
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            argp_usage(state);
-        }
-        break;
-    default:
-        return ARGP_ERR_UNKNOWN;
-    }
-    return 0;
-}
-
-static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 
 int main(int argc, char **argv) {
-    FssdArgs args = { 0 };
+    (void) argc;
+    (void) argv;
 
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    argp_parse(&argp, argc, argv, 0, 0, &args);
-
-    GglError ret = run_gg_fleet_statusd(&args);
+    GglError ret = run_gg_fleet_statusd();
     if (ret != GGL_ERR_OK) {
         return 1;
     }

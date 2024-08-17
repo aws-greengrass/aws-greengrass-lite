@@ -4,9 +4,9 @@
 
 #include "fleet_status_service.h"
 #include "gg_fleet_statusd.h"
-#include <ggl/error.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
+#include <ggl/error.h>
 #include <ggl/log.h>
 
 static GglBuffer thing_name;
@@ -37,7 +37,9 @@ static GglError update_thing_name(void) {
         return GGL_ERR_OK;
     }
     if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE("gg-fleet-statusd", "Configuration thing name is not a string.");
+        GGL_LOGE(
+            "gg-fleet-statusd", "Configuration thing name is not a string."
+        );
         return GGL_ERR_INVALID;
     }
 
