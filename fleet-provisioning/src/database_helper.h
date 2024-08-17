@@ -9,7 +9,7 @@
 #include <ggl/object.h>
 
 void get_value_from_db(
-    GglList key_path, GglBumpAlloc the_allocator, char *return_string
+    GglList key_path, GglAlloc *the_allocator, char *return_string
 );
 void save_value_to_db(GglList key_path, GglObject value);
 #endif
