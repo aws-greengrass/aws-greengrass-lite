@@ -17,8 +17,11 @@ dont
 EFAILURE
 EOK
 EPOLLIN
+evbuffer
+evhttp
 execvpe
 Fssd
+gencb
 ggconfig
 ggconfigd
 ggconfiglib

@@ -125,27 +125,11 @@ static void rpc_request_formatted_creds(
     void *ctx, GglMap params, uint32_t handle
 ) {
     (void) ctx;
+    (void) params;
     GGL_LOGD(
         "request_credentials_formatted",
         "Handling token publish request for TES server."
     );
-
-    GglObject *val;
-
-    if (ggl_map_get(params, GGL_STR("authz_token"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        GglBuffer authz_token = val->buf;
-        if (authz_token.len > UINT16_MAX) {
-            GGL_LOGE("request_credentials", "Publish payload too large.");
-            ggl_return_err(handle, GGL_ERR_RANGE);
-            return;
-        }
-
-    } else {
-        GGL_LOGE("request_credentials", "Publish received invalid arguments.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
-    }
 
     GglBuffer buffer = request_token_from_aws();
 
