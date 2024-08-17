@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "fleet_status_service.h"
-#include "gg_fleet_statusd.h"
 #include <ggl/core_bus/client.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
