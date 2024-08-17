@@ -8,6 +8,8 @@
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/object.h>
+#include <stddef.h>
 
 static GglBuffer thing_name;
 
