@@ -34,10 +34,7 @@ static GglError update_thing_name(void) {
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("gg-fleet-statusd", "Failed to get thing name from config.");
-        if ((ret == GGL_ERR_NOMEM) || (ret == GGL_ERR_FATAL)) {
-            return ret;
-        }
-        return GGL_ERR_OK;
+        return ret;
     }
     if (resp.type != GGL_TYPE_BUF) {
         GGL_LOGE(
