@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "gg_fleet_statusd.h"
-#include <argp.h>
 #include <ggl/error.h>
 
 int main(int argc, char **argv) {
