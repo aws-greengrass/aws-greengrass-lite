@@ -1,3 +1,7 @@
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "generate_certificate.h"
 #include <ggl/log.h>
 #include <openssl/bn.h>
@@ -6,6 +10,7 @@
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
+#include <string.h>
 #include <stdio.h>
 
 #define KEY_LENGTH 2048
@@ -66,7 +71,13 @@ static void generate_csr(EVP_PKEY *pkey, X509_REQ **req) {
     X509_NAME_free(name);
 }
 
-void generate_key_files(EVP_PKEY *pkey, X509_REQ *req) {
+void generate_key_files(
+    EVP_PKEY *pkey,
+    X509_REQ *req,
+    char *private_file_path,
+    char *public_file_path,
+    char *csr_file_path
+) {
     OpenSSL_add_all_algorithms();
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
 
@@ -76,21 +87,20 @@ void generate_key_files(EVP_PKEY *pkey, X509_REQ *req) {
         GGL_LOGE("fleet-provisioning", "Failed to Generate Certificate");
         return;
     }
-
     // Save private key
-    FILE *pkey_file = fopen("./private_key.pem", "wb");
+    FILE *pkey_file = fopen(private_file_path, "wb");
     PEM_write_PrivateKey(pkey_file, pkey, NULL, NULL, 0, NULL, NULL);
     fclose(pkey_file);
 
     // Save public key
-    FILE *pubkey_file = fopen("./public_key.pem", "wb");
+    FILE *pubkey_file = fopen(public_file_path, "wb");
     PEM_write_PUBKEY(pubkey_file, pkey);
     fclose(pubkey_file);
 
     generate_csr(pkey, &req);
 
     // Save CSR
-    FILE *csr_file = fopen("./csr.pem", "wb");
+    FILE *csr_file = fopen(csr_file_path, "wb");
     PEM_write_X509_REQ(csr_file, req);
     fclose(csr_file);
 }

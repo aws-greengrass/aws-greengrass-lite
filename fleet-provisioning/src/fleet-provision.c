@@ -1,4 +1,9 @@
+// aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+
 #include "fleet-provision.h"
+#include "database_helper.h"
 #include <asm-generic/errno.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -27,9 +32,9 @@ static char template_param_buffer_alloc[TEMPLATE_PARAM_BUFFER_SIZE];
 
 static uint8_t big_buffer_for_bump[4096];
 GglObject csr_payload_json_obj;
+char *global_cert_file_path;
 
 static GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
-static GglBuffer ggconfigd = GGL_STR("/aws/ggl/ggconfigd");
 
 static const char *certificate_response_url
     = "$aws/certificates/create-from-csr/json/accepted";
@@ -38,43 +43,6 @@ static const char *certificate_response_reject_url
     = "$aws/certificates/create-from-csr/json/rejected";
 
 static const char *cert_request_url = "$aws/certificates/create-from-csr/json";
-
-static void get_value_from_db(
-    GglBuffer component,
-    GglBuffer test_key,
-    GglBumpAlloc the_allocator,
-    char *return_string
-) {
-    GglMap params = GGL_MAP(
-        { GGL_STR("component"), GGL_OBJ(component) },
-        { GGL_STR("key"), GGL_OBJ(test_key) },
-    );
-    GglObject result;
-
-    GglError error = ggl_call(
-        ggconfigd, GGL_STR("read"), params, NULL, &the_allocator.alloc, &result
-    );
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE(
-            "fleet-provisioning",
-            "%.*s read failed. Error %d",
-            (int) component.len,
-            component.data,
-            error
-        );
-    } else {
-        memcpy(return_string, result.buf.data, result.buf.len);
-
-        if (result.type == GGL_TYPE_BUF) {
-            GGL_LOGI(
-                "fleet-provisioning",
-                "read value: %.*s",
-                (int) result.buf.len,
-                (char *) result.buf.data
-            );
-        }
-    }
-}
 
 static int request_thing_name(GglObject *cert_owner_gg_obj) {
     static uint8_t temp_payload_alloc2[2000] = { 0 };
@@ -157,9 +125,13 @@ static int set_global_values(void) {
 
     // Fetch Template Name from db
     get_value_from_db(
-        GGL_STR("fleet-provisioning"),
-        GGL_STR("templateName"),
-        the_allocator,
+        GGL_LIST(
+            GGL_OBJ_STR("services"),
+            GGL_OBJ_STR("aws.greengrass.fleet_provisioning"),
+            GGL_OBJ_STR("configuration"),
+            GGL_OBJ_STR("templateName")
+        ),
+        &the_allocator.alloc,
         template_name_local_buf
     );
 
@@ -191,24 +163,24 @@ static int set_global_values(void) {
         global_register_thing_url,
         strlen(global_register_thing_url)
     );
-    strncat(
-        global_register_thing_accept_url, "/accepted\0", strlen("/accepted\0")
-    );
+    strncat(global_register_thing_accept_url, "/accepted", strlen("/accepted"));
     // Add failure suffix
     strncat(
         global_register_thing_reject_url,
         global_register_thing_url,
         strlen(global_register_thing_url)
     );
-    strncat(
-        global_register_thing_reject_url, "/rejected\0", strlen("/accepted\0")
-    );
+    strncat(global_register_thing_reject_url, "/rejected", strlen("/accepted"));
 
     // Fetch Template Parameters
     get_value_from_db(
-        GGL_STR("fleet-provisioning"),
-        GGL_STR("templateParams"),
-        the_allocator,
+        GGL_LIST(
+            GGL_OBJ_STR("services"),
+            GGL_OBJ_STR("aws.greengrass.fleet_provisioning"),
+            GGL_OBJ_STR("configuration"),
+            GGL_OBJ_STR("templateParams")
+        ),
+        &the_allocator.alloc,
         template_param_buffer_alloc
     );
 
@@ -219,27 +191,6 @@ static int set_global_values(void) {
         template_param_buffer_alloc
     );
     return GGL_ERR_OK;
-}
-
-static void save_value_to_db(GglList key_path, GglObject value) {
-    static uint8_t big_buffer_transfer_for_bump[256] = { 0 };
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_transfer_for_bump));
-
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"), GGL_OBJ(key_path) },
-        { GGL_STR("value"), value },
-        { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
-    );
-    GglObject result;
-
-    GglError error = ggl_call(
-        ggconfigd, GGL_STR("write"), params, NULL, &the_allocator.alloc, &result
-    );
-
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE("fleet-provisioning", "insert failure");
-    }
 }
 
 // TODO: Refactor this function
@@ -312,7 +263,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 return GGL_ERR_PARSE;
             }
             int fd = open(
-                "./certificate.crt",
+                global_cert_file_path,
                 O_WRONLY | O_CREAT | O_CLOEXEC,
                 S_IRUSR | S_IWUSR
             );
@@ -328,6 +279,15 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
             GglError ret = ggl_write_exact(fd, val->buf);
             close(fd);
+
+            save_value_to_db(
+                GGL_LIST(GGL_OBJ_STR("system")),
+                GGL_OBJ_MAP({ GGL_STR("certificateFilePath"),
+                              GGL_OBJ((GglBuffer
+                              ) { .data = (uint8_t *) global_cert_file_path,
+                                  .len = strlen(global_cert_file_path) }) })
+            );
+
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
@@ -381,6 +341,8 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 GGL_LIST(GGL_OBJ_STR("system")),
                 GGL_OBJ_MAP({ GGL_STR("thingName"), *val })
             );
+
+            // Stop iotcored here
         }
     }
 
@@ -398,8 +360,10 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     return GGL_ERR_OK;
 }
 
-int make_request(char *csr_as_string) {
+int make_request(char *csr_as_string, char *cert_file_path) {
     int ret_db = set_global_values();
+    global_cert_file_path = cert_file_path;
+    // memcpy(global_cert_file_path, cert_file_path, strlen(cert_file_path))
 
     if (ret_db != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;

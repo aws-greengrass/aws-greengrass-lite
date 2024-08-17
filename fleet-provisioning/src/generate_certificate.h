@@ -9,6 +9,12 @@
 #include <openssl/types.h>
 #include <openssl/x509.h>
 
-void generate_key_files(EVP_PKEY *pkey, X509_REQ *req);
+void generate_key_files(
+    EVP_PKEY *pkey,
+    X509_REQ *req,
+    char *private_file_path,
+    char *public_file_path,
+    char *csr_file_path
+);
 
 #endif
