@@ -31,7 +31,7 @@ static const char PAYLOAD_END[]
       "\"components\":[]}";
 #define PAYLOAD_PREFIX \
     "{\"ggcVersion\":\"2.13.0\",\"platform\":\"linux\",\"architecture\":" \
-    "\"amd64\",\"thing\":\""
+    "\"amd64\",\"runtime\":\"NucleusLite\",\"thing\":\""
 #define PAYLOAD_PREFIX_LEN (sizeof(PAYLOAD_PREFIX) - 1)
 #define PAYLOAD_SUFFIX \
     "\",\"sequenceNumber\":1,\"timestamp\":10,\"messageType\":\"COMPLETE\"," \
