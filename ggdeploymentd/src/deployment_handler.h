@@ -10,6 +10,8 @@
 
 typedef struct {
     int root_path_fd;
+    GglBuffer root_path;
+    const char *bin_path;
 } GglDeploymentHandlerThreadArgs;
 
 void *ggl_deployment_handler_thread(void *ctx);

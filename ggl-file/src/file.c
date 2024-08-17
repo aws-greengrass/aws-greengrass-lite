@@ -282,7 +282,7 @@ static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
     GGL_DEFER(close, source_subdir_fd);
 
     int dest_subdir_fd
-        = open_or_mkdir_at(dest_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDWR);
+        = open_or_mkdir_at(dest_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDONLY);
     if (dest_subdir_fd < 0) {
         int err = errno;
         GGL_LOGE("file", "Err %d while opening dir: %s", err, name);

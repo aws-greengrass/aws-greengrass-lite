@@ -127,7 +127,7 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
         doc->recipe_directory_path = val->buf;
     }
 
-    if (ggl_map_get(args, GGL_STR("artifact_directory_path"), &val)) {
+    if (ggl_map_get(args, GGL_STR("artifacts_directory_path"), &val)) {
         if (val->type != GGL_TYPE_BUF) {
             GGL_LOGE("ggdeploymentd", "Received invalid argument.");
             return GGL_ERR_INVALID;
