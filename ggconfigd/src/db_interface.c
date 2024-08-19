@@ -642,7 +642,7 @@ GglError read_key_recursive(int64_t key_id, GglObject *value, GglAlloc *alloc) {
         } else { // There are one or more children, i.e. this is a map
             GGL_LOGI(
                 "read_key_recursive",
-                "the number of children keys for key id %ld is %d",
+                "the number of children keys for key id %ld is %ld",
                 key_id,
                 children_count
             );
