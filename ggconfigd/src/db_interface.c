@@ -553,7 +553,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
 /// read_key_recursive will read the map or buffer at key_id and store it into
 /// value. The buffer params are the static memory which can be used for nested
 /// data within value.
-GglError read_key_recursive(int64_t key_id, GglObject *value, GglAlloc *alloc) {
+static GglError read_key_recursive(int64_t key_id, GglObject *value, GglAlloc *alloc) {
     GglError return_value = GGL_ERR_FAILURE;
 
     sqlite3_stmt *stmt;
