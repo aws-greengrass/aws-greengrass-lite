@@ -211,20 +211,20 @@ int main(int argc, char **argv) {
     // );
 
     test_get(GGL_LIST(
-        GGL_OBJ_STR("component")
-        ,GGL_OBJ_STR("foobar")
+        GGL_OBJ_STR("component"), GGL_OBJ_STR("foobar")
         // ,GGL_OBJ_STR("foo")
         // ,GGL_OBJ_STR("bar")
         // ,GGL_OBJ_STR("baz")
     ));
 
-
-    // TODO: FIXME: We currently allow a key to be both a value (leaf) and a parent node.
-    // This should not be allowed.
-    // e.g. add a constraint/check/logic to make sure that never happens during write
-    // test_insert( // This insert should fail after already setting component/foo/bar/key = value1
+    // TODO: FIXME: We currently allow a key to be both a value (leaf) and a
+    // parent node. This should not be allowed. e.g. add a
+    // constraint/check/logic to make sure that never happens during write
+    // test_insert( // This insert should fail after already setting
+    // component/foo/bar/key = value1
     //     GGL_LIST(
-    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"), GGL_OBJ_STR("key")
+    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"),
+    //         GGL_OBJ_STR("key")
     //     ),
     //     GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value2") })
     // );
