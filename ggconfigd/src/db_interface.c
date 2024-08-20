@@ -416,7 +416,7 @@ static int64_t get_key_id(GglList *key_path) {
     );
 
     for (size_t index = 0; index < key_path->len; index++) {
-        GglBuffer *key = (GglBuffer *) &key_path->items[index].buf;
+        GglBuffer *key = &key_path->items[index].buf;
         sqlite3_bind_text(
             find_element_stmt,
             (int) index + 1,

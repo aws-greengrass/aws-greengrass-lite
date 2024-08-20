@@ -189,9 +189,9 @@ GglError initiate_request(
     static char url_buf[2024] = { 0 };
 
     strncat(url_buf, "https://", strlen("https://"));
-    strncat(url_buf, (char *) cert_endpoint, strlen(cert_endpoint));
+    strncat(url_buf, cert_endpoint, strlen(cert_endpoint));
     strncat(url_buf, "/role-aliases/", strlen("/role-aliases/"));
-    strncat(url_buf, (char *) role_alias, strlen(role_alias));
+    strncat(url_buf, role_alias, strlen(role_alias));
     strncat(url_buf, "/credentials\0", strlen("/credentials\0"));
 
     memcpy(global_cred_details.root_ca_path, root_ca, strlen(root_ca));
