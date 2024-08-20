@@ -598,13 +598,11 @@ static GglError read_key_recursive(
         memcpy(string_buffer, value_string, value_length);
         value->buf.len = value_length;
 
-        GGL_LOGI(
+        GGL_LOGD(
             "read_key_recursive",
             "value read: %.*s",
             (int) value->buf.len,
-            (char *) value->buf.data // TODO: is there risk of logging sensitive
-                                     // values stored in config here? Or does
-                                     // config not store sensitive values?
+            (char *) value->buf.data
         );
         if (sqlite3_step(stmt) != SQLITE_DONE) {
             GGL_LOGE(
