@@ -117,12 +117,12 @@ static void compare_objects(GglObject expected, GglObject result) {
                 (int) expected.list.len,
                 (int) result.list.len
             );
-            for (int i = 0; i < expected.list.len; i++) {
-                GglObject expected_item = expected.list.items[i];
-                GglObject result_item = result.list.items[i];
-                compare_objects(expected_item, result_item);
-            }
             return;
+        }
+        for (int i = 0; i < expected.list.len; i++) {
+            GglObject expected_item = expected.list.items[i];
+            GglObject result_item = result.list.items[i];
+            compare_objects(expected_item, result_item);
         }
         break;
     case GGL_TYPE_MAP:
@@ -150,7 +150,8 @@ static void compare_objects(GglObject expected, GglObject result) {
                         expected_key.len
                     )
                     == 0) {
-                    GglObject result_item = result.map.pairs[i].val;
+                    found = true;
+                    GglObject result_item = result.map.pairs[j].val;
                     compare_objects(expected_val, result_item);
                     break;
                 }
@@ -310,12 +311,16 @@ int main(int argc, char **argv) {
 
     test_write_object();
 
-    // test_insert(
-    //     GGL_LIST(
-    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
-    //     ),
-    //     GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") })
-    // );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component"),
+            GGL_OBJ_STR("foobar"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("qux")
+        ),
+        GGL_OBJ_I64(1)
+    );
 
     test_get(
         GGL_LIST(
@@ -325,9 +330,51 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("bar"),
             GGL_OBJ_STR("baz")
         ),
-        GGL_OBJ_LIST(1, 2, 3, 4)
+        GGL_OBJ_LIST(
+            GGL_OBJ_I64(1), GGL_OBJ_I64(2), GGL_OBJ_I64(3), GGL_OBJ_I64(4)
+        )
     );
 
+    test_get(
+        GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("foobar"), ),
+        GGL_OBJ_MAP(
+            (GglKV) { .key = GGL_STR("foo"),
+                      .val = GGL_OBJ_MAP(
+                          (GglKV) { .key = GGL_STR("bar"),
+                                    .val = GGL_OBJ_MAP(
+                                        (GglKV) { .key = GGL_STR("qux"),
+                                                  .val = GGL_OBJ_I64(1) },
+                                        (GglKV) { .key = GGL_STR("baz"),
+                                                  .val = GGL_OBJ_LIST(
+                                                      GGL_OBJ_I64(1),
+                                                      GGL_OBJ_I64(2),
+                                                      GGL_OBJ_I64(3),
+                                                      GGL_OBJ_I64(4)
+                                                  ) }
+                                    ) },
+                          (GglKV) { .key = GGL_STR("quux"),
+                                    .val = GGL_OBJ_STR("string") }
+                      ) },
+            (GglKV) { .key = GGL_STR("corge"), .val = GGL_OBJ_BOOL(true) },
+            (GglKV) { .key = GGL_STR("grault"), .val = GGL_OBJ_BOOL(false) },
+        )
+    );
+
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") })
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_STR("value1")
+    );
     // TODO: FIXME: We currently allow a key to be both a value (leaf) and a
     // parent node. This should not be allowed. e.g. add a
     // constraint/check/logic to make sure that never happens during write
@@ -339,12 +386,6 @@ int main(int argc, char **argv) {
     //     ),
     //     GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value2") })
     // );
-    // test_get(GGL_LIST( // should return value1 in a buffer
-    //     GGL_OBJ_STR("component"),
-    //     GGL_OBJ_STR("foo"),
-    //     GGL_OBJ_STR("bar"),
-    //     GGL_OBJ_STR("key")
-    // ));
     // test_get(GGL_LIST(
     //     GGL_OBJ_STR("component"),
     //     GGL_OBJ_STR("foo"),
@@ -357,6 +398,7 @@ int main(int argc, char **argv) {
     //     GGL_OBJ_STR("foo")
     // ));
 
+    // TODO: Fix subscriber tests + logic
     // test_subscribe(GGL_LIST(
     //     GGL_OBJ_STR("component"),
     //     GGL_OBJ_STR("foo"),
