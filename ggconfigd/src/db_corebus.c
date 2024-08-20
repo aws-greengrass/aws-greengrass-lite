@@ -30,18 +30,18 @@ typedef struct {
 
 /// Given a GglObject of (possibly nested) GglMaps and/or GglBuffer(s),
 /// decode all the GglBuffers from json to their appropriate GGL object types.
-static GglError decode_object_destructive(GglObject *obj, GglBumpAlloc *alloc) {
+static GglError decode_object_destructive(GglObject *obj, GglBumpAlloc *bumpAlloc) {
     GglError return_err = GGL_ERR_FAILURE;
     if (obj->type == GGL_TYPE_BUF) {
         GGL_LOGD(
             "decode_object_destructive",
             "given buffer to decode: %.*s",
-            obj->buf.len,
+            (int) obj->buf.len,
             obj->buf.data
         );
         GglObject return_object;
         GglError json_decode_err
-            = ggl_json_decode_destructive(obj->buf, alloc, &return_object);
+            = ggl_json_decode_destructive(obj->buf, &(bumpAlloc->alloc), &return_object);
         if (json_decode_err != GGL_ERR_OK) {
             GGL_LOGE(
                 "decode_object_destructive",
@@ -88,9 +88,9 @@ static GglError decode_object_destructive(GglObject *obj, GglBumpAlloc *alloc) {
             "given map to decode with length: %d",
             (int) obj->map.len
         );
-        for (int i = 0; i < obj->map.len; i++) {
+        for (size_t i = 0; i < obj->map.len; i++) {
             GglError decode_err
-                = decode_object_destructive(&(obj->map.pairs[i].val), alloc);
+                = decode_object_destructive(&(obj->map.pairs[i].val), bumpAlloc);
             if (decode_err != GGL_ERR_OK) {
                 GGL_LOGE(
                     "decode_object_destructive",
