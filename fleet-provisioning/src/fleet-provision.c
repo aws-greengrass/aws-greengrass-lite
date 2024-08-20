@@ -316,9 +316,11 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             }
         }
     } else if (strncmp(
-            (char *) topic.data, global_register_thing_accept_url, topic.len
-        )
-        == 0) {
+                   (char *) topic.data,
+                   global_register_thing_accept_url,
+                   topic.len
+               )
+               == 0) {
         GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
         memcpy(global_thing_response_buf, payload.data, payload.len);

@@ -18,8 +18,8 @@
 #define GGL_DEFER_PRIV(fn, var, ...) \
     GglDeferArgType__##fn ggl_defer_check_type__##var __attribute__((unused)) \
     = var; \
-    __attribute__((cleanup(ggl_defer__##fn))) \
-    GglDeferRecord__##fn ggl_defer_record__##var \
+    __attribute__((cleanup(ggl_defer__##fn)) \
+    ) GglDeferRecord__##fn ggl_defer_record__##var \
         = { (GglDeferArgType__##fn *) &var, __VA_ARGS__ }; \
     static void (*const ggl_defer_fn__##var)(GglDeferRecord__##fn *) \
         __attribute__((unused)) \
