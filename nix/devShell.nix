@@ -7,6 +7,7 @@ in
     clang-tools
     git
     git-secrets
+    gdb
     poetry
   ]) ++ [
     (poetry2nix.mkPoetryEnv {
