@@ -2,17 +2,11 @@
 #include "ggl/object.h"
 #include "stdlib.h"
 
-#define GGCONFIGD_MAX_COMPONENT_SIZE 1024
-#define GGCONFIGD_MAX_KEY_SIZE 1024
-#define GGCONFIGD_MAX_VALUE_SIZE 1024
-
-// "PER_REQUEST" means the maximum number of keys or values that can be
-// returned in a single read request. This is not the maximum number of
-// things that can be stored in the system.
-#define GGCONFIGD_MAX_KVS_PER_MAP_PER_REQUEST 128
-#define GGCONFIGD_MAX_MAPS_PER_REQUEST 256
-#define GGCONFIGD_MAX_KEYS_PER_REQUEST 512
-#define GGCONFIGD_MAX_VALUES_PER_REQUEST 256
+// TODO: Reduce default sizes?
+// TODO: Make these configurable?
+#define GGCONFIGD_MAX_DB_READ_BYTES 786432 // 768 KiB
+// TODO: we could save this static memory by having json decoding done as we read each object in the db_interface layer
+#define GGCONFIGD_MAX_OBJECT_DECODE_BYTES 524288 // 512 KiB
 
 /// The ggconfig_Callback_t will be called with the stored parameter when the
 /// key is written. The keyvalue can be read with the getValueFromKey()

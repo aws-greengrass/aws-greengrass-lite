@@ -28,6 +28,94 @@ typedef struct {
     GglBuffer value;
 } ConfigMsg;
 
+/// Given a GglObject of (possibly nested) GglMaps and/or GglBuffer(s),
+/// decode all the GglBuffers from json to their appropriate GGL object types.
+static GglError decode_object_destructive(GglObject *obj, GglBumpAlloc *alloc) {
+    GglError return_err = GGL_ERR_FAILURE;
+    if (obj->type == GGL_TYPE_BUF) {
+        GGL_LOGD(
+            "decode_object_destructive",
+            "given buffer to decode: %.*s",
+            obj->buf.len,
+            obj->buf.data
+        );
+        GglObject return_object;
+        GglError json_decode_err
+            = ggl_json_decode_destructive(obj->buf, alloc, &return_object);
+        if (json_decode_err != GGL_ERR_OK) {
+            GGL_LOGE(
+                "decode_object_destructive",
+                "decode json failed with error code: %d",
+                (int) json_decode_err
+            );
+            return GGL_ERR_FAILURE;
+        }
+
+        obj->type = return_object.type;
+        switch (return_object.type) {
+        case GGL_TYPE_BOOLEAN:
+            obj->boolean = return_object.boolean;
+            return_err = GGL_ERR_OK;
+            break;
+        case GGL_TYPE_I64:
+            obj->i64 = return_object.i64;
+            return_err = GGL_ERR_OK;
+            break;
+        case GGL_TYPE_F64:
+            obj->f64 = return_object.f64;
+            return_err = GGL_ERR_OK;
+            break;
+        case GGL_TYPE_BUF:
+            obj->buf = return_object.buf;
+            return_err = GGL_ERR_OK;
+            break;
+        case GGL_TYPE_LIST:
+            obj->list = return_object.list;
+            return_err = GGL_ERR_OK;
+            break;
+        default:
+            GGL_LOGE(
+                "decode_object_destructive",
+                "decoded unexpected type: %d",
+                (int) return_object.type
+            );
+            return_err = GGL_ERR_FAILURE;
+            break;
+        }
+    } else if (obj->type == GGL_TYPE_MAP) {
+        GGL_LOGD(
+            "decode_object_destructive",
+            "given map to decode with length: %d",
+            (int) obj->map.len
+        );
+        for (int i = 0; i < obj->map.len; i++) {
+            GglError decode_err
+                = decode_object_destructive(&(obj->map.pairs[i].val), alloc);
+            if (decode_err != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "decode_object_destructive",
+                    "decode map value at index %d and key %.*s failed with "
+                    "error code: %d",
+                    i,
+                    (int) obj->map.pairs[i].key.len,
+                    obj->map.pairs[i].key.data,
+                    (int) decode_err
+                );
+                return decode_err;
+            }
+        }
+        return_err = GGL_ERR_OK;
+    } else {
+        GGL_LOGE(
+            "decode_object_destructive",
+            "given unexpected type to decode: %d",
+            (int) obj->type
+        );
+        return_err = GGL_ERR_FAILURE;
+    }
+    return return_err;
+}
+
 static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
@@ -45,20 +133,10 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
 
     GglObject value;
     if (ggconfig_get_value_from_key(key_list, &value) == GGL_ERR_OK) {
-        // TODO: Decode json returned
-        // static uint8_t big_memory[MAXIMUM_VALUE_LENGTH];
-        // GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(big_memory));
-        // GglObject return_value;
-        // ggl_json_decode_destructive(value, &bumper.alloc, &return_value);
-        // GGL_LOGT(
-        //     "rpc_read",
-        //     "Read %.*s",
-        //     (int) return_value.buf.len,
-        //     (char *) return_value.buf.data
-        // );
-        // ggl_respond(handle, return_value);
-
-        // use the data and then free it
+        static uint8_t object_decode_memory[GGCONFIGD_MAX_OBJECT_DECODE_BYTES];
+        GglBumpAlloc object_alloc
+            = ggl_bump_alloc_init(GGL_BUF(object_decode_memory));
+        decode_object_destructive(&value, &object_alloc);
         ggl_respond(handle, value);
     } else {
         ggl_return_err(handle, GGL_ERR_FAILURE);

@@ -715,8 +715,7 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
 
     GglError return_value = GGL_ERR_FAILURE;
 
-    // TODO: Reduce size?
-    static uint8_t key_value_memory[1024 * 1024];
+    static uint8_t key_value_memory[GGCONFIGD_MAX_DB_READ_BYTES];
     GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(key_value_memory));
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
