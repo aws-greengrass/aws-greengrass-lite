@@ -6,6 +6,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -50,6 +51,7 @@ static void test_insert(GglList test_key, GglObject test_value) {
     }
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
 static void compare_objects(GglObject expected, GglObject result) {
     switch (expected.type) {
     case GGL_TYPE_BOOLEAN:
@@ -73,7 +75,7 @@ static void compare_objects(GglObject expected, GglObject result) {
         }
         if (result.i64 != expected.i64) {
             GGL_LOGE(
-                "test_get", "expected %lld got %lld", expected.i64, result.i64
+                "test_get", "expected %ld got %ld", expected.i64, result.i64
             );
         }
         break;
@@ -93,7 +95,12 @@ static void compare_objects(GglObject expected, GglObject result) {
             GGL_LOGE("test_get", "expected buffer, got %d", result.type);
             return;
         }
-        if (strncmp(result.buf.data, expected.buf.data, result.buf.len) != 0) {
+        if (strncmp(
+                (const char *) result.buf.data,
+                (const char *) expected.buf.data,
+                result.buf.len
+            )
+            != 0) {
             GGL_LOGE(
                 "test_get",
                 "expected %.*s got %.*s",
@@ -119,7 +126,7 @@ static void compare_objects(GglObject expected, GglObject result) {
             );
             return;
         }
-        for (int i = 0; i < expected.list.len; i++) {
+        for (size_t i = 0; i < expected.list.len; i++) {
             GglObject expected_item = expected.list.items[i];
             GglObject result_item = result.list.items[i];
             compare_objects(expected_item, result_item);
@@ -139,14 +146,14 @@ static void compare_objects(GglObject expected, GglObject result) {
             );
             return;
         }
-        for (int i = 0; i < expected.map.len; i++) {
+        for (size_t i = 0; i < expected.map.len; i++) {
             GglBuffer expected_key = expected.map.pairs[i].key;
             GglObject expected_val = expected.map.pairs[i].val;
             bool found = false;
             for (int j = 0; j < result.map.len; j++) {
                 if (strncmp(
-                        expected_key.data,
-                        result.map.pairs[j].key.data,
+                        (const char *) expected_key.data,
+                        (const char *) result.map.pairs[j].key.data,
                         expected_key.len
                     )
                     == 0) {
@@ -399,12 +406,12 @@ int main(int argc, char **argv) {
     // ));
 
     // TODO: Fix subscriber tests + logic
-    // test_subscribe(GGL_LIST(
-    //     GGL_OBJ_STR("component"),
-    //     GGL_OBJ_STR("foo"),
-    //     GGL_OBJ_STR("bar"),
-    //     GGL_OBJ_STR("key")
-    // ));
+    test_subscribe(GGL_LIST(
+        GGL_OBJ_STR("component"),
+        GGL_OBJ_STR("foo"),
+        GGL_OBJ_STR("bar"),
+        GGL_OBJ_STR("key")
+    ));
     // test_insert(
     //     GGL_LIST(
     //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
