@@ -5,7 +5,8 @@
 // TODO: Reduce default sizes?
 // TODO: Make these configurable?
 #define GGCONFIGD_MAX_DB_READ_BYTES 786432 // 768 KiB
-// TODO: we could save this static memory by having json decoding done as we read each object in the db_interface layer
+// TODO: we could save this static memory by having json decoding done as we
+// read each object in the db_interface layer
 #define GGCONFIGD_MAX_OBJECT_DECODE_BYTES 524288 // 512 KiB
 
 /// The ggconfig_Callback_t will be called with the stored parameter when the
