@@ -127,6 +127,8 @@ add_cflags(
   -fno-semantic-interposition
   -fstack-protector-strong)
 
+try_add_cflag(Wenum-int-mismatch -Wenum-int-mismatch)
+
 try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
 try_add_cflag(stack-clash-protection -fstack-clash-protection)
 
