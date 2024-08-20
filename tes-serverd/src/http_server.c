@@ -134,7 +134,19 @@ GglError http_server(void) {
         return GGL_ERR_FATAL;
     }
 
-    memcpy(url_address, user_address.buf.data, user_address.buf.len - 6);
+    if (user_address.buf.data[0] == 'h') {
+        memcpy(
+            url_address, user_address.buf.data + 7, user_address.buf.len - 6 - 7
+        );
+    } else {
+        GGL_LOGE(
+            "tes-serverd",
+            "The parameter tesCredUrl url can only is prefixed with http:\\ or "
+            "with just the ip address(example: 127.0.0.1:8080/), any other "
+            "combination is not supported."
+        );
+        return 1;
+    }
     memcpy(port_as_string, user_address.buf.data + user_address.buf.len - 5, 5);
     port = (uint16_t) atoi(port_as_string);
 
