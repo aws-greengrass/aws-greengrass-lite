@@ -62,7 +62,8 @@ def create_the_bash_script_file(script_section, filename):
         with open(filename, "w") as f:
             f.write(script_section)
         st = os.stat(filename)
-        os.chmod(filename, st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+        os.chmod(filename,
+                 st.st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
         print(filename + " script file generated successfully.")
     except Exception as error:
         print(str(error))
@@ -75,13 +76,8 @@ def fillServiceSection(yaml_data, env_var: EnvironmentVariables, root_dir):
     unit_content = "[Service]\n"
 
     # | "%t"	| Runtime directory root  |	This is either /run/ (for the system manager) or the path "$XDG_RUNTIME_DIR" resolves to (for user managers).
-    unit_content += (
-        "WorkingDirectory="
-        + root_dir
-        + "/work/"
-        + yaml_data["componentname"]
-        + "\n"
-    )
+    unit_content += ("WorkingDirectory=" + root_dir + "/work/" +
+                     yaml_data["componentname"] + "\n")
     try:
         os.makedirs(root_dir + "/work/" + yaml_data["componentname"])
     except FileExistsError:
@@ -121,18 +117,11 @@ def fillServiceSection(yaml_data, env_var: EnvironmentVariables, root_dir):
                 bash_script_file_name + run_phase_selection,
             )
 
-            unit_content += (
-                "ExecStart="
-                + os.path.abspath(recipe_runner_path)
-                + " -n "
-                + yaml_data["componentname"]
-                + " -p "
-                + os.getcwd()
-                + "/"
-                + bash_script_file_name
-                + run_phase_selection
-                + "\n"
-            )
+            unit_content += ("ExecStart=" +
+                             os.path.abspath(recipe_runner_path) + " -n " +
+                             yaml_data["componentname"] + " -p " +
+                             os.getcwd() + "/" + bash_script_file_name +
+                             run_phase_selection + "\n")
             if run_phase_selection == "startup":
                 unit_content += "RemainAfterExit=true\n"
                 unit_content += "Type=oneshot\n"
@@ -152,51 +141,34 @@ def fillServiceSection(yaml_data, env_var: EnvironmentVariables, root_dir):
 def add_environment_variables(environment_var: EnvironmentVariables):
     unit_content = ""
 
-    unit_content += (
-        'Environment="AWS_IOT_THING_NAME=' + environment_var.thing_name + '"\n'
-    )
+    unit_content += ('Environment="AWS_IOT_THING_NAME=' +
+                     environment_var.thing_name + '"\n')
 
     if len(environment_var.aws_region) != 0:
-        unit_content += (
-            'Environment="AWS_REGION=' + environment_var.aws_region + '"\n'
-        )
-        unit_content += (
-            'Environment="AWS_DEFAULT_REGION='
-            + environment_var.aws_region
-            + '"\n'
-        )
+        unit_content += ('Environment="AWS_REGION=' +
+                         environment_var.aws_region + '"\n')
+        unit_content += ('Environment="AWS_DEFAULT_REGION=' +
+                         environment_var.aws_region + '"\n')
 
     if len(environment_var.ggc_version) != 0:
-        unit_content += (
-            'Environment="GGC_VERSION=' + environment_var.ggc_version + '"\n'
-        )
+        unit_content += ('Environment="GGC_VERSION=' +
+                         environment_var.ggc_version + '"\n')
 
     if len(environment_var.gg_root_ca_path) != 0:
-        unit_content += (
-            'Environment="GG_ROOT_CA_PATH='
-            + environment_var.gg_root_ca_path
-            + '"\n'
-        )
+        unit_content += ('Environment="GG_ROOT_CA_PATH=' +
+                         environment_var.gg_root_ca_path + '"\n')
 
     unit_content += (
-        'Environment="AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT='
-        + environment_var.socket_path
-        + '"\n'
-    )
+        'Environment="AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT=' +
+        environment_var.socket_path + '"\n')
 
     if len(environment_var.aws_container_auth_token) != 0:
-        unit_content += (
-            'Environment="AWS_CONTAINER_AUTHORIZATION_TOKEN='
-            + environment_var.aws_container_auth_token
-            + '"\n'
-        )
+        unit_content += ('Environment="AWS_CONTAINER_AUTHORIZATION_TOKEN=' +
+                         environment_var.aws_container_auth_token + '"\n')
 
     if len(environment_var.aws_container_cred_url) != 0:
-        unit_content += (
-            'Environment="AWS_CONTAINER_CREDENTIALS_FULL_URI='
-            + environment_var.aws_container_cred_url
-            + '"\n'
-        )
+        unit_content += ('Environment="AWS_CONTAINER_CREDENTIALS_FULL_URI=' +
+                         environment_var.aws_container_cred_url + '"\n')
 
     return unit_content
 
@@ -207,7 +179,8 @@ def fillInstallSection(yaml_data):
     return unit_content
 
 
-def generate_systemd_unit(yaml_data, environment_var: EnvironmentVariables, root_dir):
+def generate_systemd_unit(yaml_data, environment_var: EnvironmentVariables,
+                          root_dir):
     unit_content = ""
 
     unit_content += fillUnitSection(yaml_data)
@@ -238,19 +211,9 @@ def getCommandArgs():
 
     # Long options
     long_options = [
-        "Help",
-        "recipe-path=",
-        "recipe-runner-path=",
-        "socket-path=",
-        "thing_name=",
-        "aws-region=",
-        "ggc-version=",
-        "rootca-path=",
-        "auth-token=",
-        "cred-url=",
-        "user=",
-        "group=",
-        "artifact-path=",
+        "Help", "recipe-path=", "recipe-runner-path=", "socket-path=",
+        "thing_name=", "aws-region=", "ggc-version=", "rootca-path=",
+        "auth-token=", "cred-url=", "user=", "group=", "artifact-path=",
         "root-dir="
     ]
 
@@ -317,36 +280,27 @@ def main():
 
     isRoot = False
 
-    file_path, recipe_runner_path, environment_var, artifact_path, root_dir = getCommandArgs()
+    file_path, recipe_runner_path, environment_var, artifact_path, root_dir = getCommandArgs(
+    )
 
-    if (
-        len(file_path) == 0
-        or len(recipe_runner_path) == 0
-        or len(artifact_path) == 0
-        or len(environment_var.thing_name) == 0
-        or len(environment_var.socket_path) == 0
-        or len(environment_var.user) == 0
-        or len(environment_var.group) == 0
-        or len(root_dir) == 0
-    ):
+    if (len(file_path) == 0 or len(recipe_runner_path) == 0
+            or len(artifact_path) == 0 or len(environment_var.thing_name) == 0
+            or len(environment_var.socket_path) == 0
+            or len(environment_var.user) == 0
+            or len(environment_var.group) == 0 or len(root_dir) == 0):
         print("Error: Necessary parameters are not set")
         print(
             "file_path:(%s), \nrunner_path:(%s), \nartifact_path: (%s), \nthingName:(%s), \nsocket_path:(%s), \nuser:(%s), \ngroup:(%s), \nrootDir: (%s)"
-            % (file_path,
-            recipe_runner_path,
-            artifact_path,
-            environment_var.thing_name,
-            environment_var.socket_path,
-            environment_var.user,
-            environment_var.group,
-            root_dir)
-        )
+            % (file_path, recipe_runner_path, artifact_path,
+               environment_var.thing_name, environment_var.socket_path,
+               environment_var.user, environment_var.group, root_dir))
         return
 
     unitComponentName = ""
 
     with open(file_path, "r") as f:
-        load_data = yaml.safe_load(f.read().replace("{artifacts:path}", artifact_path))
+        load_data = yaml.safe_load(f.read().replace("{artifacts:path}",
+                                                    artifact_path))
 
     # yaml_data = CaseInsensitiveDict(load_data)
     yaml_data = lower_keys(load_data)
@@ -356,12 +310,8 @@ def main():
     if systemd_unit != "":
         with open(("./ggl.%s.service" % unitComponentName), "w") as f:
             f.write(systemd_unit)
-        print(
-            (
-                "Systemd's ggl.%s.service unit file generated successfully."
-                % unitComponentName
-            )
-        )
+        print(("Systemd's ggl.%s.service unit file generated successfully." %
+               unitComponentName))
     else:
         print(
             "Skipped Generating unit file as, No Linux platform's run section found in the YAML data."

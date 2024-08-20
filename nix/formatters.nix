@@ -1,4 +1,4 @@
-{ llvmPackages, cmake-format, ... }:
+{ llvmPackages, cmake-format, yapf, ... }:
 let
   fmt-c = "${llvmPackages.clang-unwrapped}/bin/clang-format -i";
   fmt-cmake = "${cmake-format}/bin/cmake-format -i";
@@ -8,4 +8,5 @@ in
   "*.h" = fmt-c;
   "*.cmake" = fmt-cmake;
   "CMakeLists.txt" = fmt-cmake;
+  "*.py" = "${yapf}/bin/yapf -i";
 }

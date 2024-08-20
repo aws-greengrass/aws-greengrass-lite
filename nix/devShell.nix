@@ -1,8 +1,18 @@
-pkgs: {
-  packages = with pkgs; [
+pkgs:
+let
+  poetry2nix = pkgs.inputs.poetry2nix.lib.mkPoetry2Nix { inherit pkgs; };
+in
+{
+  packages = (with pkgs; [
     clang-tools
     git
     git-secrets
+    poetry
+  ]) ++ [
+    (poetry2nix.mkPoetryEnv {
+      projectDir = pkgs.src + "/misc";
+      preferWheels = true;
+    })
   ];
   env.NIX_HARDENING_ENABLE = "";
 }
