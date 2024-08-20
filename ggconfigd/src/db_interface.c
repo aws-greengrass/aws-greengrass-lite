@@ -48,7 +48,7 @@ static GglError create_database(void) {
 
     result
         = sqlite3_exec(config_database, create_query, NULL, NULL, &err_message);
-    if (result) {
+    if (result != SQLITE_OK) {
         if (err_message) {
             GGL_LOGI("GGCONFIG", "%d %s", result, err_message);
             sqlite3_free(err_message);
