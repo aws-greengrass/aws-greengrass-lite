@@ -26,9 +26,9 @@ void ggl_free(GglAlloc *alloc, void *ptr);
 
 /// Allocate a `type` from an allocator.
 #define GGL_ALLOC(alloc, type) \
-    (type *) ggl_alloc(alloc, sizeof(type), alignof(type))
+    (typeof(type) *) ggl_alloc(alloc, sizeof(type), alignof(type))
 /// Allocate `n` units of `type` from an allocator.
 #define GGL_ALLOCN(alloc, type, n) \
-    (type *) ggl_alloc(alloc, (n) * sizeof(type), alignof(type))
+    (typeof(type) *) ggl_alloc(alloc, (n) * sizeof(type), alignof(type))
 
 #endif
