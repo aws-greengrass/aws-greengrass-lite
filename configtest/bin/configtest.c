@@ -51,6 +51,7 @@ static void test_insert(GglList test_key, GglObject test_value) {
     }
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 // NOLINTNEXTLINE(misc-no-recursion)
 static void compare_objects(GglObject expected, GglObject result) {
     switch (expected.type) {
@@ -196,7 +197,6 @@ static void test_get(GglList test_key_path, GglObject expected) {
         return;
     }
     compare_objects(expected, result);
-    return;
 }
 
 static GglError subscription_callback(
