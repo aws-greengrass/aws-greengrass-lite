@@ -148,7 +148,6 @@ static int64_t key_insert(GglBuffer *key) {
     return id;
 }
 
-// TODO: deprecate and replace with read_value_at_key() == GGL_ERR_OK , GGL_ERR_NOENTRY, etc?
 static bool value_is_present_for_key(int64_t key_id) {
     sqlite3_stmt *find_value_stmt;
     bool return_value = false;
@@ -552,7 +551,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     return return_value;
 }
 
-GglError read_value_at_key(int64_t key_id, GglObject *value, GglAlloc *alloc) {
+static GglError read_value_at_key(int64_t key_id, GglObject *value, GglAlloc *alloc) {
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(
         config_database,
