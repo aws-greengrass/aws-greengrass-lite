@@ -51,7 +51,63 @@ static void test_insert(GglList test_key, GglObject test_value) {
     }
 }
 
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+static void compare_objects(GglObject expected, GglObject result);
+
+static void compare_lists(GglList expected, GglList result) {
+    if (result.len != expected.len) {
+        GGL_LOGE(
+            "test_get",
+            "expected list of length %d got %d",
+            (int) expected.len,
+            (int) result.len
+        );
+        return;
+    }
+    for (size_t i = 0; i < expected.len; i++) {
+        GglObject expected_item = expected.items[i];
+        GglObject result_item = result.items[i];
+        compare_objects(expected_item, result_item);
+    }
+}
+
+static void compare_maps(GglMap expected, GglMap result) {
+    if (result.len != expected.len) {
+        GGL_LOGE(
+            "test_get",
+            "expected map of length %d got %d",
+            (int) expected.len,
+            (int) result.len
+        );
+        return;
+    }
+    for (size_t i = 0; i < expected.len; i++) {
+        GglBuffer expected_key = expected.pairs[i].key;
+        GglObject expected_val = expected.pairs[i].val;
+        bool found = false;
+        for (size_t j = 0; j < result.len; j++) {
+            if (strncmp(
+                    (const char *) expected_key.data,
+                    (const char *) result.pairs[j].key.data,
+                    expected_key.len
+                )
+                == 0) {
+                found = true;
+                GglObject result_item = result.pairs[j].val;
+                compare_objects(expected_val, result_item);
+                break;
+            }
+        }
+        if (!found) {
+            GGL_LOGE(
+                "test_get",
+                "expected key %.*s not found",
+                (int) expected_key.len,
+                (char *) expected_key.data
+            );
+        }
+    }
+}
+
 // NOLINTNEXTLINE(misc-no-recursion)
 static void compare_objects(GglObject expected, GglObject result) {
     switch (expected.type) {
@@ -118,61 +174,14 @@ static void compare_objects(GglObject expected, GglObject result) {
             GGL_LOGE("test_get", "expected list, got %d", result.type);
             return;
         }
-        if (result.list.len != expected.list.len) {
-            GGL_LOGE(
-                "test_get",
-                "expected list of length %d got %d",
-                (int) expected.list.len,
-                (int) result.list.len
-            );
-            return;
-        }
-        for (size_t i = 0; i < expected.list.len; i++) {
-            GglObject expected_item = expected.list.items[i];
-            GglObject result_item = result.list.items[i];
-            compare_objects(expected_item, result_item);
-        }
+        compare_lists(expected.list, result.list);
         break;
     case GGL_TYPE_MAP:
         if (result.type != GGL_TYPE_MAP) {
             GGL_LOGE("test_get", "expected map, got %d", result.type);
             return;
         }
-        if (result.map.len != expected.map.len) {
-            GGL_LOGE(
-                "test_get",
-                "expected map of length %d got %d",
-                (int) expected.map.len,
-                (int) result.map.len
-            );
-            return;
-        }
-        for (size_t i = 0; i < expected.map.len; i++) {
-            GglBuffer expected_key = expected.map.pairs[i].key;
-            GglObject expected_val = expected.map.pairs[i].val;
-            bool found = false;
-            for (size_t j = 0; j < result.map.len; j++) {
-                if (strncmp(
-                        (const char *) expected_key.data,
-                        (const char *) result.map.pairs[j].key.data,
-                        expected_key.len
-                    )
-                    == 0) {
-                    found = true;
-                    GglObject result_item = result.map.pairs[j].val;
-                    compare_objects(expected_val, result_item);
-                    break;
-                }
-            }
-            if (!found) {
-                GGL_LOGE(
-                    "test_get",
-                    "expected key %.*s not found",
-                    (int) expected_key.len,
-                    (char *) expected_key.data
-                );
-            }
-        }
+        compare_maps(expected.map, result.map);
         break;
     default:
         GGL_LOGE("test_get", "unexpected type %d", expected.type);
