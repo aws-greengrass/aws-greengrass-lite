@@ -32,7 +32,7 @@ typedef struct {
 /// decode all the GglBuffers from json to their appropriate GGL object types.
 // NOLINTNEXTLINE(misc-no-recursion)
 static GglError decode_object_destructive(
-    GglObject *obj, GglBumpAlloc *bumpAlloc
+    GglObject *obj, GglBumpAlloc *bump_alloc
 ) {
     GglError return_err = GGL_ERR_FAILURE;
     if (obj->type == GGL_TYPE_BUF) {
@@ -44,7 +44,7 @@ static GglError decode_object_destructive(
         );
         GglObject return_object;
         GglError json_decode_err = ggl_json_decode_destructive(
-            obj->buf, &(bumpAlloc->alloc), &return_object
+            obj->buf, &(bump_alloc->alloc), &return_object
         );
         if (json_decode_err != GGL_ERR_OK) {
             GGL_LOGE(
@@ -94,14 +94,14 @@ static GglError decode_object_destructive(
         );
         for (size_t i = 0; i < obj->map.len; i++) {
             GglError decode_err = decode_object_destructive(
-                &(obj->map.pairs[i].val), bumpAlloc
+                &(obj->map.pairs[i].val), bump_alloc
             );
             if (decode_err != GGL_ERR_OK) {
                 GGL_LOGE(
                     "decode_object_destructive",
                     "decode map value at index %d and key %.*s failed with "
                     "error code: %d",
-                    i,
+                    (int) i,
                     (int) obj->map.pairs[i].key.len,
                     obj->map.pairs[i].key.data,
                     (int) decode_err
