@@ -150,7 +150,7 @@ static void compare_objects(GglObject expected, GglObject result) {
             GglBuffer expected_key = expected.map.pairs[i].key;
             GglObject expected_val = expected.map.pairs[i].val;
             bool found = false;
-            for (int j = 0; j < result.map.len; j++) {
+            for (size_t j = 0; j < result.map.len; j++) {
                 if (strncmp(
                         (const char *) expected_key.data,
                         (const char *) result.map.pairs[j].key.data,
