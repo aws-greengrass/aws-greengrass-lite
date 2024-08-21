@@ -30,6 +30,7 @@ typedef struct {
 
 /// Given a GglObject of (possibly nested) GglMaps and/or GglBuffer(s),
 /// decode all the GglBuffers from json to their appropriate GGL object types.
+// NOLINTNEXTLINE(misc-no-recursion)
 static GglError decode_object_destructive(
     GglObject *obj, GglBumpAlloc *bumpAlloc
 ) {
