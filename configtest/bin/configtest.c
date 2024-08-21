@@ -53,6 +53,7 @@ static void test_insert(GglList test_key, GglObject test_value) {
 
 static void compare_objects(GglObject expected, GglObject result);
 
+// NOLINTNEXTLINE(misc-no-recursion)
 static void compare_lists(GglList expected, GglList result) {
     if (result.len != expected.len) {
         GGL_LOGE(
@@ -70,6 +71,7 @@ static void compare_lists(GglList expected, GglList result) {
     }
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
 static void compare_maps(GglMap expected, GglMap result) {
     if (result.len != expected.len) {
         GGL_LOGE(
