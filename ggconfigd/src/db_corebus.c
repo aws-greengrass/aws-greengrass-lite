@@ -30,7 +30,9 @@ typedef struct {
 
 /// Given a GglObject of (possibly nested) GglMaps and/or GglBuffer(s),
 /// decode all the GglBuffers from json to their appropriate GGL object types.
-static GglError decode_object_destructive(GglObject *obj, GglBumpAlloc *bumpAlloc) {
+static GglError decode_object_destructive(
+    GglObject *obj, GglBumpAlloc *bumpAlloc
+) {
     GglError return_err = GGL_ERR_FAILURE;
     if (obj->type == GGL_TYPE_BUF) {
         GGL_LOGD(
@@ -40,8 +42,9 @@ static GglError decode_object_destructive(GglObject *obj, GglBumpAlloc *bumpAllo
             obj->buf.data
         );
         GglObject return_object;
-        GglError json_decode_err
-            = ggl_json_decode_destructive(obj->buf, &(bumpAlloc->alloc), &return_object);
+        GglError json_decode_err = ggl_json_decode_destructive(
+            obj->buf, &(bumpAlloc->alloc), &return_object
+        );
         if (json_decode_err != GGL_ERR_OK) {
             GGL_LOGE(
                 "decode_object_destructive",
@@ -89,8 +92,9 @@ static GglError decode_object_destructive(GglObject *obj, GglBumpAlloc *bumpAllo
             (int) obj->map.len
         );
         for (size_t i = 0; i < obj->map.len; i++) {
-            GglError decode_err
-                = decode_object_destructive(&(obj->map.pairs[i].val), bumpAlloc);
+            GglError decode_err = decode_object_destructive(
+                &(obj->map.pairs[i].val), bumpAlloc
+            );
             if (decode_err != GGL_ERR_OK) {
                 GGL_LOGE(
                     "decode_object_destructive",
@@ -130,6 +134,8 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
+
+    GGL_LOGI("rpc_read", "reading key %s", print_key_path(key_list));
 
     GglObject value;
     if (ggconfig_get_value_from_key(key_list, &value) == GGL_ERR_OK) {

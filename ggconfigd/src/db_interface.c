@@ -127,7 +127,7 @@ GglError ggconfig_close(void) {
 static int64_t key_insert(GglBuffer *key) {
     sqlite3_stmt *key_insert_stmt;
     int64_t id = 0;
-    GGL_LOGI("key_insert", "insert %.*s", (int) key->len, (char *) key->data);
+    GGL_LOGD("key_insert", "insert %.*s", (int) key->len, (char *) key->data);
     sqlite3_prepare_v2(
         config_database,
         "INSERT INTO keyTable(keyvalue) VALUES (?);",
@@ -139,9 +139,9 @@ static int64_t key_insert(GglBuffer *key) {
     sqlite3_bind_text(
         key_insert_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
-    sqlite3_step(key_insert_stmt);
+    sqlite3_step(key_insert_stmt); // TODO: error handling if the insert fails
     id = sqlite3_last_insert_rowid(config_database);
-    GGL_LOGI(
+    GGL_LOGD(
         "key_insert", "insert %.*s result: %ld", (int) key->len, key->data, id
     );
     sqlite3_finalize(key_insert_stmt);
@@ -151,7 +151,7 @@ static int64_t key_insert(GglBuffer *key) {
 static bool value_is_present_for_key(int64_t key_id) {
     sqlite3_stmt *find_value_stmt;
     bool return_value = false;
-    GGL_LOGI("value_is_present_for_key", "checking id %ld", key_id);
+    GGL_LOGD("value_is_present_for_key", "checking id %ld", key_id);
 
     sqlite3_prepare_v2(
         config_database,
@@ -165,7 +165,7 @@ static bool value_is_present_for_key(int64_t key_id) {
     if (rc == SQLITE_ROW) {
         int64_t pid = sqlite3_column_int(find_value_stmt, 0);
         if (pid) {
-            GGL_LOGI("value_is_present_for_key", "id %ld is present", key_id);
+            GGL_LOGD("value_is_present_for_key", "id %ld is present", key_id);
             return_value = true;
         }
     }
@@ -175,7 +175,7 @@ static bool value_is_present_for_key(int64_t key_id) {
 static int64_t find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     sqlite3_stmt *find_element_stmt;
     int64_t id = 0;
-    GGL_LOGI(
+    GGL_LOGD(
         "find_key_with_parent",
         "searching for key %.*s with parent id %ld",
         (int) key->len,
@@ -198,10 +198,10 @@ static int64_t find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     );
     sqlite3_bind_int64(find_element_stmt, 2, parent_key_id);
     int rc = sqlite3_step(find_element_stmt);
-    GGL_LOGI("find_key_with_parent", "find element returned %d", rc);
+    GGL_LOGD("find_key_with_parent", "find element returned %d", rc);
     if (rc == SQLITE_ROW) {
         id = sqlite3_column_int(find_element_stmt, 0);
-        GGL_LOGI(
+        GGL_LOGD(
             "find_key_with_parent",
             "found key %.*s with parent id %ld at %ld",
             (int) key->len,
@@ -210,7 +210,7 @@ static int64_t find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
             id
         );
     } else {
-        GGL_LOGI(
+        GGL_LOGD(
             "find_key_with_parent",
             "key %.*s with parent id %ld not found",
             (int) key->len,
@@ -226,9 +226,9 @@ static int64_t get_or_create_key_at_root(GglBuffer *key) {
     sqlite3_stmt *root_check_stmt;
     int64_t id = 0;
     int rc = 0;
-    GGL_LOGI(
+    GGL_LOGD(
         "get_or_create_key_at_root",
-        "Found %.*s",
+        "Checking %.*s",
         (int) key->len,
         (char *) key->data
     );
@@ -248,7 +248,7 @@ static int64_t get_or_create_key_at_root(GglBuffer *key) {
     rc = sqlite3_step(root_check_stmt);
     if (rc == SQLITE_ROW) { // exists as a root and here is the id
         id = sqlite3_column_int(root_check_stmt, 0);
-        GGL_LOGI(
+        GGL_LOGD(
             "get_or_create_key_at_root",
             "Found %.*s at %ld",
             (int) key->len,
@@ -275,7 +275,7 @@ static void relation_insert(int64_t id, int64_t parent) {
     sqlite3_bind_int64(relation_insert_stmt, 2, parent);
     int rc = sqlite3_step(relation_insert_stmt);
     if (rc == SQLITE_DONE || rc == SQLITE_OK) {
-        GGL_LOGI(
+        GGL_LOGD(
             "relation_insert",
             "relation insert successful key:%ld, "
             "parent:%ld",
@@ -313,11 +313,11 @@ static GglError value_insert(int64_t key_id, GglBuffer *value) {
     );
     int rc = sqlite3_step(value_insert_stmt);
     if (rc == SQLITE_DONE || rc == SQLITE_OK) {
-        GGL_LOGI("ggconfig_insert", "value insert successful");
+        GGL_LOGD("value_insert", "value insert successful");
         return_value = GGL_ERR_OK;
     } else {
         GGL_LOGE(
-            "ggconfig_insert",
+            "value_insert",
             "value insert fail : %s",
             sqlite3_errmsg(config_database)
         );
@@ -346,13 +346,13 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     );
     sqlite3_bind_int64(update_value_stmt, 2, key_id);
     int rc = sqlite3_step(update_value_stmt);
-    GGL_LOGI("ggconfig_insert", "%d", rc);
+    GGL_LOGD("value_update", "%d", rc);
     if (rc == SQLITE_DONE || rc == SQLITE_OK) {
-        GGL_LOGI("ggconfig_insert", "value update successful");
+        GGL_LOGD("value_update", "value update successful");
         return_value = GGL_ERR_OK;
     } else {
         GGL_LOGE(
-            "ggconfig_insert",
+            "value_update",
             "value update fail : %s",
             sqlite3_errmsg(config_database)
         );
@@ -364,7 +364,7 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
 static int64_t get_key_id(GglList *key_path) {
     sqlite3_stmt *find_element_stmt;
     int64_t id = 0;
-    GGL_LOGI("get_key_id", "searching for %s", print_key_path(key_path));
+    GGL_LOGD("get_key_id", "searching for %s", print_key_path(key_path));
 
     sqlite3_prepare_v2(
         config_database,
@@ -437,14 +437,14 @@ static int64_t get_key_id(GglList *key_path) {
     sqlite3_bind_int(find_element_stmt, 27, (int) key_path->len);
 
     int rc = sqlite3_step(find_element_stmt);
-    GGL_LOGI("get_key_id", "find element returned %d", rc);
+    GGL_LOGD("get_key_id", "find element returned %d", rc);
     if (rc == SQLITE_ROW) {
         id = sqlite3_column_int(find_element_stmt, 0);
-        GGL_LOGI(
+        GGL_LOGD(
             "get_key_id", "found id for %s: %ld", print_key_path(key_path), id
         );
     } else {
-        GGL_LOGI("get_key_id", "id not found for %s", print_key_path(key_path));
+        GGL_LOGD("get_key_id", "id not found for %s", print_key_path(key_path));
     }
     sqlite3_finalize(find_element_stmt);
     return id;
@@ -473,6 +473,12 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
         return GGL_ERR_FAILURE;
     }
 
+    GGL_LOGI(
+        "ggconfig_write_value_at_key",
+        "starting request to insert/update key: %s",
+        print_key_path(key_path)
+    );
+
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
     int64_t id = get_key_id(key_path);
@@ -480,11 +486,6 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
         id = create_key_path(key_path);
     }
 
-    GGL_LOGI(
-        "ggconfig_write_value_at_key",
-        "time to insert/update %s",
-        print_key_path(key_path)
-    );
     if (value_is_present_for_key(id)) {
         return_value = value_update(id, value);
     } else {
@@ -516,7 +517,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     );
     sqlite3_bind_int64(stmt, 1, id);
     int rc = 0;
-    GGL_LOGI(
+    GGL_LOGD(
         "ggconfig_write_value_at_key",
         "subscription loop for %s at id %ld",
         print_key_path(key_path),
@@ -526,22 +527,22 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
         rc = sqlite3_step(stmt);
         switch (rc) {
         case SQLITE_DONE:
-            GGL_LOGI("subscription", "DONE");
+            GGL_LOGD("subscription", "DONE");
             break;
         case SQLITE_ROW: {
             uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 0);
-            GGL_LOGI("subscription", "Sending to %u", handle);
+            GGL_LOGD("subscription", "Sending to %u", handle);
             ggl_respond(handle, GGL_OBJ(*value));
         } break;
         default:
-            GGL_LOGI("subscription", "RC %d", rc);
+            GGL_LOGD("subscription", "RC %d", rc);
             break;
         }
     } while (rc == SQLITE_ROW);
 
     sqlite3_finalize(stmt);
 
-    GGL_LOGI(
+    GGL_LOGD(
         "ggconfig_write_value_at_key",
         "finished with %s",
         print_key_path(key_path)
@@ -559,7 +560,7 @@ static GglError read_key_recursive(
     GglError return_value = GGL_ERR_FAILURE;
 
     sqlite3_stmt *stmt;
-    GGL_LOGI("read_key_recursive", "reading key id %ld", key_id);
+    GGL_LOGD("read_key_recursive", "reading key id %ld", key_id);
 
     // check value first
     sqlite3_prepare_v2(
@@ -571,7 +572,7 @@ static GglError read_key_recursive(
     );
     sqlite3_bind_int64(stmt, 1, key_id);
     int rc = sqlite3_step(stmt);
-    GGL_LOGI(
+    GGL_LOGD(
         "read_key_recursive",
         "select value for key id %ld returned %d",
         key_id,
@@ -640,7 +641,7 @@ static GglError read_key_recursive(
             );
             return_value = GGL_ERR_FAILURE;
         } else { // There are one or more children, i.e. this is a map
-            GGL_LOGI(
+            GGL_LOGD(
                 "read_key_recursive",
                 "the number of children keys for key id %ld is %ld",
                 key_id,
@@ -755,15 +756,15 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     if (key_id == 0) {
         key_id = create_key_path(key_path);
     }
-    GGL_LOGD(
-        "get_key_notification",
+    GGL_LOGI(
+        "ggconfig_get_key_notification",
         "Subscribing %d:%d to %s",
         handle && 0xFFFF0000 >> 16,
         handle && 0x0000FFFF,
         print_key_path(key_path)
     );
     // insert the key & handle data into the subscriber database
-    GGL_LOGI("get_key_notification", "INSERT %ld, %d", key_id, handle);
+    GGL_LOGD("ggconfig_get_key_notification", "INSERT %ld, %d", key_id, handle);
     sqlite3_prepare_v2(
         config_database,
         "INSERT INTO subscriberTable(keyid, handle) VALUES (?,?);",
@@ -777,10 +778,13 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
     if (SQLITE_DONE != rc) {
         GGL_LOGE(
-            "get_key_notification", "%d %s", rc, sqlite3_errmsg(config_database)
+            "ggconfig_get_key_notification",
+            "%d %s",
+            rc,
+            sqlite3_errmsg(config_database)
         );
     } else {
-        GGL_LOGT("get_key_notification", "Success");
+        GGL_LOGT("ggconfig_get_key_notification", "Success");
         return_value = GGL_ERR_OK;
     }
     sqlite3_finalize(stmt);
