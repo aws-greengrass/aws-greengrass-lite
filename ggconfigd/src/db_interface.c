@@ -551,7 +551,9 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     return return_value;
 }
 
-static GglError read_value_at_key(int64_t key_id, GglObject *value, GglAlloc *alloc) {
+static GglError read_value_at_key(
+    int64_t key_id, GglObject *value, GglAlloc *alloc
+) {
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(
         config_database,
@@ -563,18 +565,14 @@ static GglError read_value_at_key(int64_t key_id, GglObject *value, GglAlloc *al
     sqlite3_bind_int64(stmt, 1, key_id);
     int rc = sqlite3_step(stmt);
     GGL_LOGD(
-        "read_value_at_key",
-        "read value for key id %ld returned %d",
-        key_id,
-        rc
+        "read_value_at_key", "read value for key id %ld returned %d", key_id, rc
     );
     if (rc != SQLITE_ROW) {
         sqlite3_finalize(stmt);
         return GGL_ERR_NOENTRY;
     }
     const uint8_t *value_string = sqlite3_column_text(stmt, 0);
-    unsigned long value_length
-        = (unsigned long) sqlite3_column_bytes(stmt, 0);
+    unsigned long value_length = (unsigned long) sqlite3_column_bytes(stmt, 0);
     uint8_t *string_buffer = GGL_ALLOCN(alloc, uint8_t, value_length);
     if (!string_buffer) {
         GGL_LOGE(
@@ -597,9 +595,7 @@ static GglError read_value_at_key(int64_t key_id, GglObject *value, GglAlloc *al
         (char *) value->buf.data
     );
     if (sqlite3_step(stmt) != SQLITE_DONE) {
-        GGL_LOGE(
-            "read_value_at_key", "%s", sqlite3_errmsg(config_database)
-        );
+        GGL_LOGE("read_value_at_key", "%s", sqlite3_errmsg(config_database));
         sqlite3_finalize(stmt);
         return GGL_ERR_FAILURE;
     }
@@ -664,15 +660,15 @@ static GglError read_key_recursive(
         sqlite3_finalize(read_children_stmt);
         return GGL_ERR_NOMEM;
     }
-    GglKVVec kv_buffer_vec
-        = { .map = (GglMap) { .pairs = kv_buffer, .len = 0 },
-            .capacity = children_count };
+    GglKVVec kv_buffer_vec = { .map = (GglMap) { .pairs = kv_buffer, .len = 0 },
+                               .capacity = children_count };
 
     // read the children
     sqlite3_reset(read_children_stmt);
     while (sqlite3_step(read_children_stmt) == SQLITE_ROW) {
         int64_t child_key_id = sqlite3_column_int64(read_children_stmt, 0);
-        const uint8_t *child_key_name = sqlite3_column_text(read_children_stmt, 1);
+        const uint8_t *child_key_name
+            = sqlite3_column_text(read_children_stmt, 1);
         unsigned long child_key_name_length
             = (unsigned long) sqlite3_column_bytes(read_children_stmt, 1);
         uint8_t *child_key_name_memory
