@@ -613,8 +613,6 @@ static GglError read_value_at_key(int64_t key_id, GglObject *value, GglAlloc *al
 static GglError read_key_recursive(
     int64_t key_id, GglObject *value, GglAlloc *alloc
 ) {
-    GglError return_value = GGL_ERR_FAILURE;
-
     GGL_LOGD("read_key_recursive", "reading key id %ld", key_id);
 
     if (value_is_present_for_key(key_id)) {
