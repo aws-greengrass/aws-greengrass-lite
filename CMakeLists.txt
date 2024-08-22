@@ -266,6 +266,7 @@ add_subdirectory(fleet-provisioning)
 add_subdirectory(ggl-config-init)
 add_subdirectory(recipe-runner)
 add_subdirectory(tes-serverd)
+add_subdirectory(ggl-exec)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
