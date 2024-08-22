@@ -13,11 +13,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define MAX_WRITE_BUFFER_SIZE 10000
+static GglBuffer config_server = GGL_STR("/aws/ggl/ggconfigd");
+
 void get_value_from_db(
     GglList key_path, GglAlloc *the_allocator, char *return_string
 ) {
-    GglBuffer config_server = GGL_STR("/aws/ggl/ggconfigd");
-
     GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key_path) }, );
     GglObject result;
 
@@ -25,13 +26,13 @@ void get_value_from_db(
         config_server, GGL_STR("read"), params, NULL, the_allocator, &result
     );
     if (error != GGL_ERR_OK) {
-        GGL_LOGE("fleet-provisioning", "read failed. Error %d", error);
+        GGL_LOGE("database-helper", "read failed. Error %d", error);
     } else {
         memcpy(return_string, result.buf.data, result.buf.len);
 
         if (result.type == GGL_TYPE_BUF) {
             GGL_LOGI(
-                "tesd",
+                "database-helper",
                 "read value: %.*s",
                 (int) result.buf.len,
                 (char *) result.buf.data
@@ -40,9 +41,8 @@ void get_value_from_db(
     }
 }
 
-void save_value_to_db(GglList key_path, GglObject value) {
-    static uint8_t big_buffer_transfer_for_bump[256] = { 0 };
-    GglBuffer ggconfigd = GGL_STR("/aws/ggl/ggconfigd");
+GglError save_value_to_db(GglList key_path, GglObject value) {
+    static uint8_t big_buffer_transfer_for_bump[MAX_WRITE_BUFFER_SIZE] = { 0 };
 
     GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_transfer_for_bump));
@@ -55,10 +55,17 @@ void save_value_to_db(GglList key_path, GglObject value) {
     GglObject result;
 
     GglError error = ggl_call(
-        ggconfigd, GGL_STR("write"), params, NULL, &the_allocator.alloc, &result
+        config_server,
+        GGL_STR("write"),
+        params,
+        NULL,
+        &the_allocator.alloc,
+        &result
     );
-
     if (error != GGL_ERR_OK) {
-        GGL_LOGE("fleet-provisioning", "insert failure");
+        GGL_LOGE("database-helper", "insert failure");
+        return error;
     }
+
+    return GGL_ERR_OK;
 }

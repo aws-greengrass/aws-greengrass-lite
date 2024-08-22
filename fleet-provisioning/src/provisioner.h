@@ -2,15 +2,18 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#ifndef FLEET_PROVISION_H
-#define FLEET_PROVISION_H
+#ifndef PROVISIONER_H
+#define PROVISIONER_H
 
+#include <sys/types.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
 
-int make_request(char *csr_as_string, char *cert_file_path);
+GglError make_request(
+    char *csr_as_string, char *cert_file_path, pid_t iotcored_pid
+);
 
 #endif

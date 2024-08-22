@@ -41,6 +41,7 @@ greengrasscoreipc
 greengrassv
 htobe
 iotcored
+iotcoredfleet
 keyid
 libsystemd
 libuuid

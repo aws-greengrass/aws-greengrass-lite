@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ggl_init_module(fleet-provision LIBS ggl-lib core-bus ggl-json ggl-socket
-                                     PkgConfig::openssl)
+                                     ggl-exec PkgConfig::openssl)

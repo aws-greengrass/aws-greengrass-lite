@@ -8,12 +8,13 @@
 #include <errno.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/utils.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-GglError exec_command(char *args[], pid_t *child_pid) {
+GglError exec_command_with_child_wait(char *args[], pid_t *child_pid) {
     GglError return_status = GGL_ERR_OK;
 
     // Fork so that parent can live after execvp
@@ -58,12 +59,40 @@ GglError exec_command(char *args[], pid_t *child_pid) {
     return return_status;
 }
 
+GglError exec_command_without_child_wait(char *args[], pid_t *child_pid) {
+    GglError return_status = GGL_ERR_OK;
+
+    // Fork so that parent can live after execvp
+    pid_t pid = fork();
+
+    if (pid == -1) { // Something went wrong
+        GGL_LOGE("exec-lib", "Error, Unable to fork");
+        return_status = GGL_ERR_FAILURE;
+
+    } else if (pid == 0) { // Child process: execute the script
+        // char *exec_args[] = { "bash", args->file_path, NULL };
+        execvp(args[0], args);
+
+        // If execvpe returns, it must have failed
+        GGL_LOGE("exec-lib", "Error: execvpe returned unexpectedly");
+        return_status = GGL_ERR_FAILURE;
+
+    } else { // Parent process: returns without waiting
+
+        *child_pid = pid; // Store the child process ID
+
+        // Add a slight delay
+        ggl_sleep(5);
+    }
+    return return_status;
+}
+
 GglError exec_kill_process(pid_t process_id) {
     // Send the SIGTERM signal to the process
 
-    // NOLINTBEGIN(concurrency-mt-unsafe)
+    // NOLINTBEGIN(concurrency-mt-unsafe, readability-else-after-return)
     if (kill(process_id, SIGTERM) == -1) {
-        GGL_LOGI(
+        GGL_LOGE(
             "exec-lib",
             "Failed to kill the process id %d : %s errno:%d.",
             process_id,
@@ -72,7 +101,52 @@ GglError exec_kill_process(pid_t process_id) {
         );
         return GGL_ERR_FAILURE;
     }
-    // NOLINTEND(concurrency-mt-unsafe)
 
+    int status;
+    pid_t wait_pid;
+
+    // Wait for the process to terminate
+    do {
+        wait_pid = waitpid(process_id, &status, 0);
+        if (wait_pid == -1) {
+            if (errno == ECHILD) {
+                GGL_LOGE(
+                    "exec-lib",
+                    "Process %d has already terminated.\n",
+                    process_id
+                );
+                break;
+            } else {
+                GGL_LOGE(
+                    "exec-lib",
+                    "Error waiting for process %d: %s (errno: %d)\n",
+                    process_id,
+                    strerror(errno),
+                    errno
+                );
+                break;
+            }
+        }
+
+        if (WIFEXITED(status)) {
+            GGL_LOGE(
+                "exec-lib",
+                "Process %d exited with status %d.\n",
+                process_id,
+                WEXITSTATUS(status)
+            );
+        } else if (WIFSIGNALED(status)) {
+            GGL_LOGE(
+                "exec-lib",
+                "Process %d was killed by signal %d.\n",
+                process_id,
+                WTERMSIG(status)
+            );
+        }
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+
+    GGL_LOGI("exec-lib", "Process %d has terminated.\n", process_id);
+
+    // NOLINTEND(concurrency-mt-unsafe, readability-else-after-return)
     return GGL_ERR_OK;
 }
