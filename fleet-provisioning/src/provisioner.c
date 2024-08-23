@@ -2,7 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "fleet-provision.h"
+#include "provisioner.h"
 #include "database_helper.h"
 #include <asm-generic/errno.h>
 #include <errno.h>
@@ -10,6 +10,7 @@
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
+#include <ggl/exec.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -29,12 +30,13 @@ static char global_register_thing_url[128] = { 0 };
 static char global_register_thing_accept_url[128] = { 0 };
 static char global_register_thing_reject_url[128] = { 0 };
 static char template_param_buffer_alloc[TEMPLATE_PARAM_BUFFER_SIZE];
+static pid_t global_iotcored_pid;
 
 static uint8_t big_buffer_for_bump[4096];
 GglObject csr_payload_json_obj;
 char *global_cert_file_path;
 
-static GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
+static GglBuffer iotcored = GGL_STR("iotcoredfleet");
 
 static const char *certificate_response_url
     = "$aws/certificates/create-from-csr/json/accepted";
@@ -116,12 +118,13 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
     return GGL_ERR_OK;
 }
 
-static int set_global_values(void) {
+static int set_global_values(pid_t iotcored_pid) {
     GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
     static char *template_url_prefix = "$aws/provisioning-templates/";
     static char template_name_local_buf[128] = { 0 };
+    global_iotcored_pid = iotcored_pid;
 
     // Fetch Template Name from db
     get_value_from_db(
@@ -345,6 +348,13 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             );
 
             // Stop iotcored here
+            GGL_LOGI(
+                "fleet-provisioning",
+                "Process Complete, Your device is now provisioned"
+            );
+            exec_kill_process(global_iotcored_pid);
+
+            // TODO: Find a way to terminate cleanly with iotcored
         }
     }
 
@@ -362,11 +372,12 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     return GGL_ERR_OK;
 }
 
-int make_request(char *csr_as_string, char *cert_file_path) {
-    int ret_db = set_global_values();
+GglError make_request(
+    char *csr_as_string, char *cert_file_path, pid_t iotcored_pid
+) {
     global_cert_file_path = cert_file_path;
-    // memcpy(global_cert_file_path, cert_file_path, strlen(cert_file_path))
 
+    int ret_db = set_global_values(iotcored_pid);
     if (ret_db != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;
     }
@@ -395,11 +406,12 @@ int make_request(char *csr_as_string, char *cert_file_path) {
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "fleet-provisioning",
-            "Failed to send notify message to %.*s",
+            "Failed to send notify message to %.*s, Error: %d",
             (int) iotcored.len,
-            iotcored.data
+            iotcored.data,
+            EPROTO
         );
-        return EPROTO;
+        return GGL_ERR_FAILURE;
     }
     GGL_LOGI(
         "fleet-provisioning", "Successfully set csr accepted subscription."
@@ -429,11 +441,12 @@ int make_request(char *csr_as_string, char *cert_file_path) {
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "fleet-provisioning",
-            "Failed to send notify message to %.*s",
+            "Failed to send notify message to %.*s, Error: %d",
             (int) iotcored.len,
-            iotcored.data
+            iotcored.data,
+            EPROTO
         );
-        return EPROTO;
+        return GGL_ERR_FAILURE;
     }
     GGL_LOGI(
         "fleet-provisioning", "Successfully set csr rejected subscription."
@@ -463,11 +476,12 @@ int make_request(char *csr_as_string, char *cert_file_path) {
     if (return_thing_sub != GGL_ERR_OK) {
         GGL_LOGE(
             "fleet-provisioning",
-            "Failed to send thing accepted notify message to %.*s",
+            "Failed to send thing accepted notify message to %.*s, Error: %d",
             (int) iotcored.len,
-            iotcored.data
+            iotcored.data,
+            EPROTO
         );
-        return EPROTO;
+        return GGL_ERR_FAILURE;
     }
     GGL_LOGI(
         "fleet-provisioning", "Successfully set thing accepted subscription."
@@ -506,11 +520,12 @@ int make_request(char *csr_as_string, char *cert_file_path) {
     if (ret_publish != 0) {
         GGL_LOGE(
             "fleet-provisioning",
-            "Failed to send notify message to %.*s",
+            "Failed to send notify message to %.*s, Error:%d",
             (int) iotcored.len,
-            iotcored.data
+            iotcored.data,
+            EPROTO
         );
-        return EPROTO;
+        return GGL_ERR_FAILURE;
     }
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
