@@ -17,3 +17,4 @@ Bug Fixes:
 Known Issues:
 
 - Fleet Provisioning does not terminate even after provisioning is complete
+- iotcored may have TLS issues. Let us know if you experience problems
