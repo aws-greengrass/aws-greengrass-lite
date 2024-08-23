@@ -12,7 +12,7 @@ Features:
 
 Bug Fixes:
 
-- Fixed the bug to TES_server and now supports `http://` prefix in config
+- TES_server will now support `http://` prefix in config
 
 Known Issues:
 
