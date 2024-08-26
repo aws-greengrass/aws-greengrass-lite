@@ -1,4 +1,4 @@
-## 2024-08-23
+## 2024-08-26
 
 - Please install fresh, or delete the configuration store config.db file
   (located at the ggconfigd service working directory). This is to avoid
@@ -16,5 +16,7 @@ Bug Fixes:
 
 Known Issues:
 
-- Fleet Provisioning does not terminate even after provisioning is complete
-- iotcored may have TLS issues. Let us know if you experience problems
+- Fleet Provisioning does not terminate even after provisioning is complete will
+  fix in future
+- If using Fleet Provisioning provide the `iotCredEndpoint` within the
+  `Nucleus-Lite`'s config scope
