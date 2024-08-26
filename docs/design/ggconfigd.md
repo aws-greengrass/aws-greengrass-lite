@@ -58,8 +58,8 @@ CREATE TABLE valueTable( 'keyid' INT UNIQUE NOT NULL,
                          foreign key(keyid) references keyTable(keyid) );
 ```
 
-The value table keeps the actual value stored at a key with a time stamp and a
-link to the key. The Timestamp is automatically created when a row is inserted.
+The value table keeps the actual value stored at a key with a timestamp and a
+link to the key. The timestamp is automatically created when a row is inserted.
 An update trigger will update the timestamp automatically when the value is
 updated. If an update specifically includes the timestamp the update trigger
 will overwrite the value.
