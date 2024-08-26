@@ -185,6 +185,7 @@ GglError ggl_deployment_enqueue(GglMap deployment_doc, GglBuffer *id) {
         return ret;
     }
 
+    // TODO: make a GglByteVec
     if (id != NULL) {
         if (new.deployment_id.len > id->len) {
             GGL_LOGD(

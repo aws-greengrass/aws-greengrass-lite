@@ -2,8 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#define _GNU_SOURCE
-
 #include "bus_server.h"
 #include "deployment_handler.h"
 #include "ggdeploymentd.h"
@@ -56,6 +54,12 @@ static GglError update_root_path(void) {
     return GGL_ERR_OK;
 }
 
+static void *job_listener_thread(void *ctx) {
+    (void) ctx;
+    listen_for_jobs_deployments();
+    return NULL;
+}
+
 GglError run_ggdeploymentd(const char *bin_path) {
     GGL_LOGI("ggdeploymentd", "Started ggdeploymentd process.");
 
@@ -76,7 +80,7 @@ GglError run_ggdeploymentd(const char *bin_path) {
                                             .bin_path = bin_path };
 
     pthread_t ptid_jobs;
-    pthread_create(&ptid_jobs, NULL, &listen_for_jobs_deployments, &args);
+    pthread_create(&ptid_jobs, NULL, &job_listener_thread, &args);
     pthread_detach(ptid_jobs);
 
     pthread_t ptid_handler;

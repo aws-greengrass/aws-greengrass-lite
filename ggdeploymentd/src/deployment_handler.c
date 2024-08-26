@@ -5,6 +5,7 @@
 #include "deployment_handler.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
+#include "iot_jobs_listener.h"
 #include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/bump_alloc.h>
@@ -592,9 +593,18 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 
         GGL_LOGI("deployment-handler", "Processing incoming deployment.");
 
+        update_current_jobs_deployment(
+            deployment->deployment_id, GGL_STR("IN_PROGRESS")
+        );
+
         handle_deployment(deployment, args);
 
         GGL_LOGD("deployment-handler", "Completed deployment.");
+
+        // TODO: need error details from handle_deployment
+        update_current_jobs_deployment(
+            deployment->deployment_id, GGL_STR("SUCCEEDED")
+        );
 
         ggl_deployment_release(deployment);
     }
