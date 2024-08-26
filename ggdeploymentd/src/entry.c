@@ -2,9 +2,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#define _GNU_SOURCE
+
 #include "bus_server.h"
 #include "deployment_handler.h"
 #include "ggdeploymentd.h"
+#include "iot_jobs_listener.h"
 #include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/bump_alloc.h>
@@ -72,9 +75,13 @@ GglError run_ggdeploymentd(const char *bin_path) {
                                             .root_path = root_path,
                                             .bin_path = bin_path };
 
-    pthread_t ptid;
-    pthread_create(&ptid, NULL, &ggl_deployment_handler_thread, &args);
-    pthread_detach(ptid);
+    pthread_t ptid_jobs;
+    pthread_create(&ptid_jobs, NULL, &listen_for_jobs_deployments, &args);
+    pthread_detach(ptid_jobs);
+
+    pthread_t ptid_handler;
+    pthread_create(&ptid_handler, NULL, &ggl_deployment_handler_thread, &args);
+    pthread_detach(ptid_handler);
 
     ggdeploymentd_start_server();
 
