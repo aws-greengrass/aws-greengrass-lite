@@ -127,6 +127,7 @@ static int set_global_values(pid_t iotcored_pid) {
     global_iotcored_pid = iotcored_pid;
 
     // Fetch Template Name from db
+    // TODO: Use args passed from entry.c
     get_value_from_db(
         GGL_LIST(
             GGL_OBJ_STR("services"),
@@ -176,6 +177,7 @@ static int set_global_values(pid_t iotcored_pid) {
     strncat(global_register_thing_reject_url, "/rejected", strlen("/accepted"));
 
     // Fetch Template Parameters
+    // TODO: Use args passed from entry.c
     get_value_from_db(
         GGL_LIST(
             GGL_OBJ_STR("services"),

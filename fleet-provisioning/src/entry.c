@@ -140,6 +140,21 @@ static GglError fetch_from_db(FleetProvArgs *args, GglAlloc *the_allocator) {
         }
 
         args->data_endpoint = data_endpoint;
+
+        GglError ret_save = save_value_to_db(
+            GGL_LIST(
+                GGL_OBJ_STR("services"),
+                GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
+                GGL_OBJ_STR("configuration")
+            ),
+            GGL_OBJ_MAP({ GGL_STR("iotDataEndpoint"),
+                          GGL_OBJ((GglBuffer
+                          ) { .data = (uint8_t *) args->data_endpoint,
+                              .len = strlen(args->data_endpoint) }) })
+        );
+        if (ret_save != GGL_ERR_OK) {
+            return ret_save;
+        }
     }
 
     if (args->template_name == NULL) {
