@@ -1,6 +1,6 @@
 # Design for the `ggconfigd` SQLITE implementation
 
-Implmenting the [ggconfigd spec](../spec/components/ggconfigd.md), the current
+Implementing the [ggconfigd spec](../spec/components/ggconfigd.md), the current
 ggconfigd implementation uses a relational database (sqlite) to persist the
 configuration.
 
