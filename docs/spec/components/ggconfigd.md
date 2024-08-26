@@ -218,7 +218,7 @@ future changes demand an update to the schema, the version will allow a
 migration algorithm to be created that will update the schema to any future
 schema.
 
-### Appendix Other hierarchical map techniques
+### Other hierarchical map techniques
 
 Mapping methods include[^1]:
 
@@ -236,3 +236,25 @@ Mapping methods include[^1]:
 Each of these comes with complexities. The adjacency list is small while keeping
 the child query, key insert and key delete easy. Query of subtrees is not in the
 GG API.
+
+### Validation of operations / Preserving data integrity
+
+Several rules must be enforced on the data inserted into the database so that a
+corrupt state does not form. This often involves cross-checking data that is
+inserted into multiple tables in related inserts(such as a transaction); in such
+cases multiple possible solutions were explored:
+
+- SQL Checks / Constraints don't work because the expression can't contain a
+  subquery, and a subquery is needed to get information from another table, and
+  this type of check needs information joined from two tables.
+- SQL Triggers don't work for validating this either because we need to validate
+  the state of things after multiple inserts in different tables have happened.
+  But a trigger is defined for operations that happen on one table- not multiple
+  tables.
+- SQL Stored Procedures are a common solution to a problem like this, where the
+  stored procedure abstracts the multiple table operations into a single
+  procedure call. However SQLITE3 doesn't support stored procedures.
+- We believe the only remaining option is doing this type of rule enforcement in
+  the C code. We use the transactions to abort a series of operations if one of
+  the inserts fails for some reason, or if at any point we detect that the
+  transaction would corrupt the db.
