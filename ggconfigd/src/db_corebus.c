@@ -22,12 +22,6 @@
 #define MAX_SUBOBJECTS 25
 #define MAXIMUM_VALUE_LENGTH (sizeof(GglObject) * MAX_SUBOBJECTS)
 
-typedef struct {
-    GglBuffer component;
-    GglBuffer key;
-    GglBuffer value;
-} ConfigMsg;
-
 /// Given a GglObject of (possibly nested) GglMaps and/or GglBuffer(s),
 /// decode all the GglBuffers from json to their appropriate GGL object types.
 // NOLINTNEXTLINE(misc-no-recursion)
