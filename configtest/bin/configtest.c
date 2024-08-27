@@ -26,7 +26,9 @@ static char *print_key_path(GglList *key_path) {
     return path_string;
 }
 
-static void test_insert(GglList test_key, GglObject test_value) {
+static void test_insert(
+    GglList test_key, GglObject test_value, GglError expected_result
+) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
 
     static uint8_t big_buffer_for_bump[4096];
@@ -44,8 +46,14 @@ static void test_insert(GglList test_key, GglObject test_value) {
         server, GGL_STR("write"), params, NULL, &the_allocator.alloc, &result
     );
 
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE("ggconfig test", "insert failure");
+    if (error != expected_result) {
+        GGL_LOGE(
+            "test_insert",
+            "insert of key %s expected result %d but got %d",
+            print_key_path(&test_key),
+            (int) expected_result,
+            (int) error
+        );
         assert(0);
     }
 }
@@ -190,7 +198,11 @@ static void compare_objects(GglObject expected, GglObject result) {
     }
 }
 
-static void test_get(GglList test_key_path, GglObject expected) {
+// TODO: make expected_object optional? Because if we expect failure then the
+// object is ignored and should not be required.
+static void test_get(
+    GglList test_key_path, GglObject expected_object, GglError expected_result
+) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
     static uint8_t big_buffer_for_bump[4096];
     GglBumpAlloc the_allocator
@@ -202,11 +214,18 @@ static void test_get(GglList test_key_path, GglObject expected) {
     GglError error = ggl_call(
         server, GGL_STR("read"), params, NULL, &the_allocator.alloc, &result
     );
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE("test_get", "error %d", error);
+    if (error != expected_result) {
+        GGL_LOGE(
+            "test_get",
+            "get key %s expected result %d but got %d",
+            print_key_path(&test_key_path),
+            (int) expected_result,
+            (int) error
+        );
+        assert(0);
         return;
     }
-    compare_objects(expected, result);
+    compare_objects(expected_object, result);
 }
 
 static GglError subscription_callback(
@@ -327,7 +346,6 @@ int main(int argc, char **argv) {
     (void) argv;
 
     test_write_object();
-
     test_get(
         GGL_LIST(
             GGL_OBJ_STR("component"),
@@ -336,9 +354,9 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("bar"),
             GGL_OBJ_STR("qux")
         ),
-        GGL_OBJ_I64(1)
+        GGL_OBJ_I64(1),
+        GGL_ERR_OK
     );
-
     test_get(
         GGL_LIST(
             GGL_OBJ_STR("component"),
@@ -349,9 +367,9 @@ int main(int argc, char **argv) {
         ),
         GGL_OBJ_LIST(
             GGL_OBJ_I64(1), GGL_OBJ_I64(2), GGL_OBJ_I64(3), GGL_OBJ_I64(4)
-        )
+        ),
+        GGL_ERR_OK
     );
-
     test_get(
         GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("foobar"), ),
         GGL_OBJ_MAP(
@@ -374,14 +392,16 @@ int main(int argc, char **argv) {
                       ) },
             (GglKV) { .key = GGL_STR("corge"), .val = GGL_OBJ_BOOL(true) },
             (GglKV) { .key = GGL_STR("grault"), .val = GGL_OBJ_BOOL(false) },
-        )
+        ),
+        GGL_ERR_OK
     );
 
     test_insert(
         GGL_LIST(
             GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
-        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") })
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        GGL_ERR_OK
     );
     test_get(
         GGL_LIST(
@@ -390,30 +410,45 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("bar"),
             GGL_OBJ_STR("key")
         ),
-        GGL_OBJ_STR("value1")
+        GGL_OBJ_STR("value1"),
+        GGL_ERR_OK
     );
-    // TODO: FIXME: We currently allow a key to be both a value (leaf) and a
-    // parent node. This should not be allowed. e.g. add a
-    // constraint/check/logic to make sure that never happens during write
-    // test_insert( // This insert should fail after already setting
-    // component/foo/bar/key = value1
-    //     GGL_LIST(
-    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar"),
-    //         GGL_OBJ_STR("key")
-    //     ),
-    //     GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value2") })
-    // );
-    // test_get(GGL_LIST(
-    //     GGL_OBJ_STR("component"),
-    //     GGL_OBJ_STR("foo"),
-    //     GGL_OBJ_STR("bar"),
-    //     GGL_OBJ_STR("key"),
-    //     GGL_OBJ_STR("subkey")
-    // ));
-    // test_get(GGL_LIST( // should return bar:{key:value1} in a map
-    //     GGL_OBJ_STR("component"),
-    //     GGL_OBJ_STR("foo")
-    // ));
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value2") }),
+        GGL_ERR_FAILURE // expect failure because `component/foo/bar/key` is
+                        // already a value, so it should not also be a parent of
+                        // a subkey
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key"),
+            GGL_OBJ_STR("subkey")
+        ),
+        GGL_OBJ_STR("Ignored value- this argument would ideally be optional"),
+        GGL_ERR_FAILURE // expect failure because `component/foo/bar/key/subkey`
+                        // should not have been set after the previous insert
+                        // failed
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_STR("value1"), // `component/foo/bar/key` should still be value1
+                               // after the previous insert failed
+        GGL_ERR_OK
+    );
 
     // TODO: Fix subscriber tests + logic
     test_subscribe(GGL_LIST(
