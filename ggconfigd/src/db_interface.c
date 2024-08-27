@@ -59,7 +59,7 @@ static GglError create_database(void) {
 }
 
 GglError ggconfig_open(void) {
-    GglError return_value = GGL_ERR_FAILURE;
+    GglError return_err = GGL_ERR_FAILURE;
     if (config_initialized == false) {
         char *err_message = 0;
         // do configuration
@@ -70,7 +70,7 @@ GglError ggconfig_open(void) {
                 "Cannot open the configuration database: %s",
                 sqlite3_errmsg(config_database)
             );
-            return_value = GGL_ERR_FAILURE;
+            return_err = GGL_ERR_FAILURE;
         } else {
             GGL_LOGI("GGCONFIG", "Config database Opened");
 
@@ -86,9 +86,9 @@ GglError ggconfig_open(void) {
             );
             if (sqlite3_step(stmt) == SQLITE_ROW) {
                 GGL_LOGI("ggconfig_open", "found keyTable");
-                return_value = GGL_ERR_OK;
+                return_err = GGL_ERR_OK;
             } else {
-                return_value = create_database();
+                return_err = create_database();
             }
         }
         // create a temporary table for subscriber data
@@ -109,13 +109,13 @@ GglError ggconfig_open(void) {
                 "failed to create temporary table %s",
                 err_message
             );
-            return_value = GGL_ERR_FAILURE;
+            return_err = GGL_ERR_FAILURE;
         }
         config_initialized = true;
     } else {
-        return_value = GGL_ERR_OK;
+        return_err = GGL_ERR_OK;
     }
-    return return_value;
+    return return_err;
 }
 
 GglError ggconfig_close(void) {
@@ -318,7 +318,7 @@ static GglError relation_insert(int64_t id, int64_t parent) {
 // TODO: add timestamp to the insert
 static GglError value_insert(int64_t key_id, GglBuffer *value) {
     sqlite3_stmt *value_insert_stmt;
-    GglError return_value = GGL_ERR_FAILURE;
+    GglError return_err = GGL_ERR_FAILURE;
     sqlite3_prepare_v2(
         config_database,
         "INSERT INTO valueTable(keyid,value) VALUES (?,?);",
@@ -337,7 +337,7 @@ static GglError value_insert(int64_t key_id, GglBuffer *value) {
     int rc = sqlite3_step(value_insert_stmt);
     if (rc == SQLITE_DONE || rc == SQLITE_OK) {
         GGL_LOGD("value_insert", "value insert successful");
-        return_value = GGL_ERR_OK;
+        return_err = GGL_ERR_OK;
     } else {
         GGL_LOGE(
             "value_insert",
@@ -346,12 +346,12 @@ static GglError value_insert(int64_t key_id, GglBuffer *value) {
         );
     }
     sqlite3_finalize(value_insert_stmt);
-    return return_value;
+    return return_err;
 }
 
 static GglError value_update(int64_t key_id, GglBuffer *value) {
     sqlite3_stmt *update_value_stmt;
-    GglError return_value = GGL_ERR_FAILURE;
+    GglError return_err = GGL_ERR_FAILURE;
 
     sqlite3_prepare_v2(
         config_database,
@@ -372,7 +372,7 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     GGL_LOGD("value_update", "%d", rc);
     if (rc == SQLITE_DONE || rc == SQLITE_OK) {
         GGL_LOGD("value_update", "value update successful");
-        return_value = GGL_ERR_OK;
+        return_err = GGL_ERR_OK;
     } else {
         GGL_LOGE(
             "value_update",
@@ -381,7 +381,7 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
         );
     }
     sqlite3_finalize(update_value_stmt);
-    return return_value;
+    return return_err;
 }
 
 static int64_t get_key_id(GglList *key_path) {
@@ -524,7 +524,7 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
 }
 
 GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
-    GglError return_value = GGL_ERR_FAILURE;
+    GglError return_err = GGL_ERR_FAILURE;
     if (config_initialized == false) {
         return GGL_ERR_FAILURE;
     }
@@ -547,15 +547,15 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
                 print_key_path(key_path),
                 (int) err
             );
-            // TODO: Call SQL rollback on the transaction?
+            sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
             return err;
         }
     }
 
     if (value_is_present_for_key(id)) {
-        return_value = value_update(id, value);
+        return_err = value_update(id, value);
     } else {
-        return_value = value_insert(id, value);
+        return_err = value_insert(id, value);
     }
 
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
@@ -614,7 +614,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
         print_key_path(key_path)
     );
 
-    return return_value;
+    return return_err;
 }
 
 static GglError read_value_at_key(
@@ -774,7 +774,7 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
         return GGL_ERR_FAILURE;
     }
 
-    GglError return_value = GGL_ERR_FAILURE;
+    GglError return_err = GGL_ERR_FAILURE;
 
     static uint8_t key_value_memory[GGCONFIGD_MAX_DB_READ_BYTES];
     GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(key_value_memory));
@@ -793,19 +793,19 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
             "key not found for %s",
             print_key_path(key_path)
         );
-        return_value = GGL_ERR_NOENTRY;
+        return_err = GGL_ERR_NOENTRY;
     } else {
-        return_value = read_key_recursive(key_id, value, &bumper.alloc);
+        return_err = read_key_recursive(key_id, value, &bumper.alloc);
     }
 
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
-    return return_value;
+    return return_err;
 }
 
 GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     int64_t key_id;
     sqlite3_stmt *stmt;
-    GglError return_value = GGL_ERR_FAILURE;
+    GglError return_err = GGL_ERR_FAILURE;
 
     if (config_initialized == false) {
         return GGL_ERR_FAILURE;
@@ -824,7 +824,7 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
                 print_key_path(key_path),
                 (int) err
             );
-            // TODO: Call SQL rollback on the transaction?
+            sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
             return err;
         }
     }
@@ -857,9 +857,9 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
         );
     } else {
         GGL_LOGT("ggconfig_get_key_notification", "Success");
-        return_value = GGL_ERR_OK;
+        return_err = GGL_ERR_OK;
     }
     sqlite3_finalize(stmt);
 
-    return return_value;
+    return return_err;
 }
