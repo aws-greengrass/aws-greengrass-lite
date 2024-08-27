@@ -115,3 +115,31 @@ cases multiple possible solutions were explored:
   the C code. We use the transactions to abort a series of operations if one of
   the inserts fails for some reason, or if at any point we detect that the
   transaction would corrupt the db.
+
+### Preventing Duplicate Keys in the DB
+
+A duplicate key is defined as when there are two or more keys (e.g. separate
+`keyid`s) which have the same `keyvalue` (see keyTable) as well as the same
+`parentid` (see relationTable). The DB schema itself does not prevent this, for
+reasons described in
+[Validation of operations / Preserving data integrity](#Validation-of-operations-/-Preserving-data-integrity).
+The C code prevents this as follows:
+
+1. We ignore any possibility of external modifications or corruptions of the db,
+   we assume ggconfigd (and only one instance of ggconfigd) is the only thing
+   accessing the db.
+1. Duplicates can only be introduced during write
+   (`ggconfig_write_value_at_key`).
+1. `ggconfig_write_value_at_key` uses a transaction to make its operation
+   atomic, so there are no concurrency concerns within its transaction.
+1. `ggconfig_write_value_at_key` only creates a key if it doesn't exist.
+1. Therefore duplicate keys can not be introduced.
+
+We could add a redundant check inside of `ggconfig_write_value_at_key`, where it
+queries the db to check for duplicates before it completes a write transaction.
+The value from doing this is that it would prevent future problems as the code
+evolves, if one of the premises for why duplicates can't exist now are broken
+unknowingly. But the downside is it's not strictly necessary for now and would
+have some kind of an impact on performance, doing an extra query involving
+joining the key and relation tables together. For these reasons we don't have
+such a check currently.
