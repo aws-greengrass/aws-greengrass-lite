@@ -225,7 +225,9 @@ static void test_get(
         assert(0);
         return;
     }
-    compare_objects(expected_object, result);
+    if (expected_result == GGL_ERR_OK) {
+        compare_objects(expected_object, result);
+    }
 }
 
 static GglError subscription_callback(
@@ -345,6 +347,7 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
 
+    // Test to ensure recursive/object write and read works
     test_write_object();
     test_get(
         GGL_LIST(
@@ -396,16 +399,17 @@ int main(int argc, char **argv) {
         GGL_ERR_OK
     );
 
+    // Test to ensure a key which is a value can't become a parent as well
     test_insert(
         GGL_LIST(
-            GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+            GGL_OBJ_STR("component1"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
         GGL_ERR_OK
     );
     test_get(
         GGL_LIST(
-            GGL_OBJ_STR("component"),
+            GGL_OBJ_STR("component1"),
             GGL_OBJ_STR("foo"),
             GGL_OBJ_STR("bar"),
             GGL_OBJ_STR("key")
@@ -415,7 +419,7 @@ int main(int argc, char **argv) {
     );
     test_insert(
         GGL_LIST(
-            GGL_OBJ_STR("component"),
+            GGL_OBJ_STR("component1"),
             GGL_OBJ_STR("foo"),
             GGL_OBJ_STR("bar"),
             GGL_OBJ_STR("key")
@@ -427,7 +431,7 @@ int main(int argc, char **argv) {
     );
     test_get(
         GGL_LIST(
-            GGL_OBJ_STR("component"),
+            GGL_OBJ_STR("component1"),
             GGL_OBJ_STR("foo"),
             GGL_OBJ_STR("bar"),
             GGL_OBJ_STR("key"),
@@ -440,7 +444,7 @@ int main(int argc, char **argv) {
     );
     test_get(
         GGL_LIST(
-            GGL_OBJ_STR("component"),
+            GGL_OBJ_STR("component1"),
             GGL_OBJ_STR("foo"),
             GGL_OBJ_STR("bar"),
             GGL_OBJ_STR("key")
@@ -450,9 +454,50 @@ int main(int argc, char **argv) {
         GGL_ERR_OK
     );
 
+    // Test to ensure a key which is a parent can't become a value as well
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component2"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value1") }),
+        GGL_ERR_OK
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component2"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key"),
+            GGL_OBJ_STR("subkey")
+        ),
+        GGL_OBJ_STR("value1"),
+        GGL_ERR_OK
+    );
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component2"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        GGL_ERR_FAILURE
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component2"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value1") }),
+        GGL_ERR_OK
+    );
+
+    // Test to ensure subscribers and notifications work
     // TODO: Fix subscriber tests + logic
     test_subscribe(GGL_LIST(
-        GGL_OBJ_STR("component"),
+        GGL_OBJ_STR("component3"),
         GGL_OBJ_STR("foo"),
         GGL_OBJ_STR("bar"),
         GGL_OBJ_STR("key")
