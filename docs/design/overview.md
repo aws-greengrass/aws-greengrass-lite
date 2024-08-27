@@ -7,7 +7,7 @@ enable a system to be composable by daemon selection.
 
 ## Daemon List
 
-GG Daemons are small programs that run to provide a specific funcationality to
+GG Daemons are small programs that run to provide a specific functionality to
 greengrass.
 
 | Daemon           | Provided functionality                                                                                   |
