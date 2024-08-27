@@ -124,7 +124,7 @@ GglError ggconfig_close(void) {
     return GGL_ERR_OK;
 }
 
-static int64_t key_insert(GglBuffer *key) {
+static GglError key_insert(GglBuffer *key, int64_t *id_output) {
     sqlite3_stmt *key_insert_stmt;
     int64_t id = 0;
     GGL_LOGD("key_insert", "insert %.*s", (int) key->len, (char *) key->data);
@@ -139,13 +139,22 @@ static int64_t key_insert(GglBuffer *key) {
     sqlite3_bind_text(
         key_insert_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
-    sqlite3_step(key_insert_stmt); // TODO: error handling if the insert fails
+    if (sqlite3_step(key_insert_stmt) != SQLITE_DONE) {
+        GGL_LOGE(
+            "key_insert",
+            "failed to insert key: %.*s",
+            (int) key->len,
+            (char *) key->data
+        );
+        return GGL_ERR_FAILURE;
+    }
     id = sqlite3_last_insert_rowid(config_database);
     GGL_LOGD(
         "key_insert", "insert %.*s result: %ld", (int) key->len, key->data, id
     );
     sqlite3_finalize(key_insert_stmt);
-    return id;
+    *id_output = id;
+    return GGL_ERR_OK;
 }
 
 static bool value_is_present_for_key(int64_t key_id) {
@@ -222,7 +231,7 @@ static int64_t find_key_with_parent(GglBuffer *key, int64_t parent_key_id) {
     return id;
 }
 
-static int64_t get_or_create_key_at_root(GglBuffer *key) {
+static GglError get_or_create_key_at_root(GglBuffer *key, int64_t *id_output) {
     sqlite3_stmt *root_check_stmt;
     int64_t id = 0;
     int rc = 0;
@@ -255,14 +264,25 @@ static int64_t get_or_create_key_at_root(GglBuffer *key) {
             (char *) key->data,
             id
         );
-    } else {
-        id = key_insert(key);
+    } else { // we need to create the key at root, and get the id
+        GglError err = key_insert(key, &id);
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE(
+                "get_or_create_key_at_root",
+                "failed to insert key %.*s with error %d",
+                (int) key->len,
+                (char *) key->data,
+                (int) err
+            );
+            return GGL_ERR_FAILURE;
+        }
     }
     sqlite3_finalize(root_check_stmt);
-    return id;
+    *id_output = id;
+    return GGL_ERR_OK;
 }
 
-static void relation_insert(int64_t id, int64_t parent) {
+static GglError relation_insert(int64_t id, int64_t parent) {
     sqlite3_stmt *relation_insert_stmt;
     sqlite3_prepare_v2(
         config_database,
@@ -288,8 +308,11 @@ static void relation_insert(int64_t id, int64_t parent) {
             "relation insert fail: %s",
             sqlite3_errmsg(config_database)
         );
+        sqlite3_finalize(relation_insert_stmt);
+        return GGL_ERR_FAILURE;
     }
     sqlite3_finalize(relation_insert_stmt);
+    return GGL_ERR_OK;
 }
 
 // TODO: add timestamp to the insert
@@ -450,21 +473,54 @@ static int64_t get_key_id(GglList *key_path) {
     return id;
 }
 
-static int64_t create_key_path(GglList *key_path) {
+static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
     GglBuffer root_key_buffer = key_path->items[0].buf;
-    int64_t parent_key_id = get_or_create_key_at_root(&root_key_buffer);
+    int64_t parent_key_id;
+    GglError err = get_or_create_key_at_root(&root_key_buffer, &parent_key_id);
+    if (err != GGL_ERR_OK) {
+        GGL_LOGE(
+            "create_key_path",
+            "failed to get or create root key: %.*s with error %d",
+            (int) root_key_buffer.len,
+            (char *) root_key_buffer.data,
+            (int) err
+        );
+        return err;
+    }
     int64_t current_key_id = parent_key_id;
     for (size_t index = 1; index < key_path->len; index++) {
         GglBuffer current_key_buffer = key_path->items[index].buf;
         current_key_id
             = find_key_with_parent(&current_key_buffer, parent_key_id);
-        if (current_key_id == 0) { // not found
-            current_key_id = key_insert(&current_key_buffer);
-            relation_insert(current_key_id, parent_key_id);
+        if (current_key_id == 0) { // not found, so we need to create it
+            err = key_insert(&current_key_buffer, &current_key_id);
+            if (err != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "create_key_path",
+                    "failed to insert key %.*s with error %d",
+                    (int) current_key_buffer.len,
+                    (char *) current_key_buffer.data,
+                    (int) err
+                );
+                return err;
+            }
+            err = relation_insert(current_key_id, parent_key_id);
+            if (err != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "create_key_path",
+                    "failed to insert relation for key id %ld with parent %ld "
+                    "and error %d",
+                    current_key_id,
+                    parent_key_id,
+                    (int) err
+                );
+                return err;
+            }
         }
         parent_key_id = current_key_id;
     }
-    return current_key_id;
+    *key_id_output = current_key_id;
+    return GGL_ERR_OK;
 }
 
 GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
@@ -483,7 +539,17 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
 
     int64_t id = get_key_id(key_path);
     if (id == 0) {
-        id = create_key_path(key_path);
+        GglError err = create_key_path(key_path, &id);
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE(
+                "ggconfig_write_value_at_key",
+                "failed to create key path %s with error %d",
+                print_key_path(key_path),
+                (int) err
+            );
+            // TODO: Call SQL rollback on the transaction?
+            return err;
+        }
     }
 
     if (value_is_present_for_key(id)) {
@@ -750,7 +816,17 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     // value
     key_id = get_key_id(key_path);
     if (key_id == 0) {
-        key_id = create_key_path(key_path);
+        GglError err = create_key_path(key_path, &key_id);
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE(
+                "ggconfig_get_key_notification",
+                "failed to create key path %s with error %d",
+                print_key_path(key_path),
+                (int) err
+            );
+            // TODO: Call SQL rollback on the transaction?
+            return err;
+        }
     }
     GGL_LOGI(
         "ggconfig_get_key_notification",
