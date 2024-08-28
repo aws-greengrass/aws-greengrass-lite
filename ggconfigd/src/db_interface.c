@@ -381,6 +381,10 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     return return_err;
 }
 
+// TODO: For functions like this which return a value rather than GglError, or
+// otherwise don't have error checking for unexpected SQLite Result Codes, we
+// should put that result code checking in. Because sql failure should not imply
+// a result one way or another.
 static int64_t get_key_id(GglList *key_path) {
     sqlite3_stmt *find_element_stmt;
     int64_t id = 0;
@@ -470,6 +474,11 @@ static int64_t get_key_id(GglList *key_path) {
     return id;
 }
 
+// create_key_path assumes that the entire key_path does not already exist in
+// the database (i.e. at least one key needs to be created). Behavior is
+// undefined if the key_path fully exists already. Thus it should only be used
+// within a transaction and after checking that the key_path does not fully
+// exist.
 static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
     GglBuffer root_key_buffer = key_path->items[0].buf;
     int64_t parent_key_id;
@@ -484,6 +493,17 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
         );
         return err;
     }
+    if (value_is_present_for_key(parent_key_id)) {
+        GGL_LOGE(
+            "create_key_path",
+            "value already present for root key %.*s with id %ld",
+            (int) root_key_buffer.len,
+            (char *) root_key_buffer.data,
+            parent_key_id
+        );
+        return GGL_ERR_FAILURE;
+    }
+
     int64_t current_key_id = parent_key_id;
     for (size_t index = 1; index < key_path->len; index++) {
         GglBuffer current_key_buffer = key_path->items[index].buf;
@@ -513,6 +533,17 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
                 );
                 return err;
             }
+        } else { // the key already exists
+            if (value_is_present_for_key(current_key_id)) {
+                GGL_LOGE(
+                    "create_key_path",
+                    "value already present for key %.*s with id %ld",
+                    (int) current_key_buffer.len,
+                    (char *) current_key_buffer.data,
+                    parent_key_id
+                );
+                return GGL_ERR_FAILURE;
+            }
         }
         parent_key_id = current_key_id;
     }
@@ -520,45 +551,41 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
     return GGL_ERR_OK;
 }
 
-GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
+static GglError child_is_present_for_key(
+    int64_t key_id, bool *child_is_present_output
+) {
+    sqlite3_stmt *child_check_stmt;
     GglError return_err = GGL_ERR_FAILURE;
-    if (config_initialized == false) {
-        return GGL_ERR_FAILURE;
-    }
 
-    GGL_LOGI(
-        "ggconfig_write_value_at_key",
-        "starting request to insert/update key: %s",
-        print_key_path(key_path)
+    sqlite3_prepare_v2(
+        config_database,
+        "SELECT 1 FROM relationTable WHERE parentid = ? LIMIT 1;",
+        -1,
+        &child_check_stmt,
+        NULL
     );
-
-    sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
-
-    int64_t id = get_key_id(key_path);
-    if (id == 0) {
-        GglError err = create_key_path(key_path, &id);
-        if (err != GGL_ERR_OK) {
-            GGL_LOGE(
-                "ggconfig_write_value_at_key",
-                "failed to create key path %s with error %d",
-                print_key_path(key_path),
-                (int) err
-            );
-            sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
-            return err;
-        }
-    }
-
-    if (value_is_present_for_key(id)) {
-        return_err = value_update(id, value);
+    sqlite3_bind_int64(child_check_stmt, 1, key_id);
+    int rc = sqlite3_step(child_check_stmt);
+    if (rc == SQLITE_ROW) {
+        *child_is_present_output = true;
+        return_err = GGL_ERR_OK;
+    } else if (rc == SQLITE_DONE) {
+        *child_is_present_output = false;
+        return_err = GGL_ERR_OK;
     } else {
-        return_err = value_insert(id, value);
+        GGL_LOGE(
+            "child_is_present_for_key",
+            "child check fail : %s",
+            sqlite3_errmsg(config_database)
+        );
+        return_err = GGL_ERR_FAILURE;
     }
 
-    sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
+    sqlite3_finalize(child_check_stmt);
+    return return_err;
+}
 
-    // notify any subscribers for this key
-
+static GglError notify_subscribers_for_key(int64_t key_id, GglBuffer *value) {
     // TODO: read this comment copied from the JAVA and ensure this implements a
     // similar functionality A subscriber is told what Topic changed, but must
     // look in the Topic to get the new value.  There is no "old value"
@@ -578,40 +605,112 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
         &stmt,
         NULL
     );
-    sqlite3_bind_int64(stmt, 1, id);
+    sqlite3_bind_int64(stmt, 1, key_id);
     int rc = 0;
     GGL_LOGD(
-        "ggconfig_write_value_at_key",
-        "subscription loop for %s at id %ld",
-        print_key_path(key_path),
-        id
+        "notify_subscribers_for_key",
+        "subscription loop for key with id %ld",
+        key_id
     );
     do {
         rc = sqlite3_step(stmt);
         switch (rc) {
         case SQLITE_DONE:
-            GGL_LOGD("subscription", "DONE");
+            GGL_LOGD("notify_subscribers_for_key", "DONE");
             break;
         case SQLITE_ROW: {
             uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 0);
-            GGL_LOGD("subscription", "Sending to %u", handle);
+            GGL_LOGD("notify_subscribers_for_key", "Sending to %u", handle);
             ggl_respond(handle, GGL_OBJ(*value));
         } break;
         default:
-            GGL_LOGD("subscription", "RC %d", rc);
+            GGL_LOGD(
+                "notify_subscribers_for_key", "RC %d", rc
+            ); // TODO: Check for error codes and return appropriate error
             break;
         }
     } while (rc == SQLITE_ROW);
 
     sqlite3_finalize(stmt);
+    return GGL_ERR_OK;
+}
 
-    GGL_LOGD(
+GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
+    if (config_initialized == false) {
+        return GGL_ERR_FAILURE;
+    }
+
+    GGL_LOGI(
         "ggconfig_write_value_at_key",
-        "finished with %s",
+        "starting request to insert/update key: %s",
         print_key_path(key_path)
     );
 
-    return return_err;
+    sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
+
+    int64_t id = get_key_id(key_path);
+    if (id == 0) { // if the key doesn't exist already
+        GglError err = create_key_path(key_path, &id);
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE(
+                "ggconfig_write_value_at_key",
+                "failed to create key path %s with error %d",
+                print_key_path(key_path),
+                (int) err
+            );
+            sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
+            return err;
+        }
+
+        value_insert(id, value);
+        sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
+        notify_subscribers_for_key(id, value);
+        return GGL_ERR_OK;
+    }
+
+    bool child_is_present;
+    GglError err = child_is_present_for_key(id, &child_is_present);
+    if (err != GGL_ERR_OK) {
+        GGL_LOGE(
+            "ggconfig_write_value_at_key",
+            "failed to check for child presence for key %s with id %ld with "
+            "error %d",
+            print_key_path(key_path),
+            id,
+            (int) err
+        );
+        sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
+        return err;
+    }
+    if (child_is_present) {
+        GGL_LOGE(
+            "ggconfig_write_value_at_key",
+            "key %s with id %ld is a map with one or more children, so it can "
+            "not also store a value",
+            print_key_path(key_path),
+            id
+        );
+        sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
+        return GGL_ERR_FAILURE;
+    }
+
+    // we now know that the key already exists and does not have a child.
+    // Therefore, it stores a value currently.
+    err = value_update(id, value);
+    if (err != GGL_ERR_OK) {
+        GGL_LOGE(
+            "ggconfig_write_value_at_key",
+            "failed to update value for key %s with id %ld with error %d",
+            print_key_path(key_path),
+            id,
+            (int) err
+        );
+        sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
+        return err;
+    }
+    sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
+    notify_subscribers_for_key(id, value);
+    return GGL_ERR_OK;
 }
 
 static GglError read_value_at_key(
