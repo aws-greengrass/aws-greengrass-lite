@@ -15,12 +15,13 @@ This project uses the following third party library dependencies:
 - libyaml
 - libsystemd
 - libuuid
+- libevent
 
 On Ubuntu, these can be installed with:
 
 ```sh
 sudo apt install libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
-  libsystemd-dev uuid-dev
+  libsystemd-dev uuid-dev libevent-dev
 ```
 
 ## Build tools
