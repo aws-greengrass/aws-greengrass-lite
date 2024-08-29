@@ -1,5 +1,4 @@
 ---
-HeaderFilterRegex: ^[^/]
 FormatStyle: file
 UseColor: true
 Checks:
