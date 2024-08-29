@@ -26,6 +26,8 @@
 
 static uint8_t payload_array[GGL_IPC_MAX_MSG_LEN];
 
+// TODO: Refactor this function
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
     int conn = -1;
     GglError ret = ggl_connect(socket_path, &conn);
@@ -121,17 +123,21 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
                 return GGL_ERR_INVALID;
             }
 
-            if (svcuid->len < header.value.string.len) {
-                GGL_LOGE(
-                    "ggipc-client", "Insufficient buffer space for svcuid."
-                );
-                return GGL_ERR_NOMEM;
-            }
+            if (svcuid != NULL) {
+                if (svcuid->len < header.value.string.len) {
+                    GGL_LOGE(
+                        "ggipc-client", "Insufficient buffer space for svcuid."
+                    );
+                    return GGL_ERR_NOMEM;
+                }
 
-            memcpy(
-                svcuid->data, header.value.string.data, header.value.string.len
-            );
-            svcuid->len = header.value.string.len;
+                memcpy(
+                    svcuid->data,
+                    header.value.string.data,
+                    header.value.string.len
+                );
+                svcuid->len = header.value.string.len;
+            }
 
             if (fd != NULL) {
                 GGL_DEFER_CANCEL(conn);
