@@ -7,7 +7,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ggipc/auth.h>
-#include <ggl/alloc.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
@@ -16,10 +15,7 @@
 #include <ggl/object.h>
 #include <ggl/socket.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 

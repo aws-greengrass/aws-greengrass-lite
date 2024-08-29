@@ -14,9 +14,7 @@
 #include <ggl/object.h>
 #include <string.h>
 #include <systemd/sd-login.h>
-#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 GglError ggl_ipc_auth_lookup_name(
     pid_t pid, GglAlloc *alloc, GglBuffer *component_name

@@ -4,13 +4,12 @@
 
 #include "generate_certificate.h"
 #include <ggl/log.h>
-#include <openssl/bn.h>
-#include <openssl/err.h>
+#include <openssl/asn1.h>
+#include <openssl/crypto.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509.h>
-#include <string.h>
 #include <stdio.h>
 
 #define KEY_LENGTH 2048

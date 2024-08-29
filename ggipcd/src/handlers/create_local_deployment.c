@@ -11,7 +11,6 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <sys/time.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

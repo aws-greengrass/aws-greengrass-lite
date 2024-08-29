@@ -9,7 +9,6 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <time.h>
-#include <stddef.h>
 #include <stdint.h>
 
 int main(void) {

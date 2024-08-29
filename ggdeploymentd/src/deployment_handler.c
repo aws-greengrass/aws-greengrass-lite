@@ -7,6 +7,7 @@
 #include "deployment_handler.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
+#include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
@@ -17,14 +18,10 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 static GglError merge_dir_to(

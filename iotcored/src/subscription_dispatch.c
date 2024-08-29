@@ -4,6 +4,7 @@
 
 #include "subscription_dispatch.h"
 #include "mqtt.h"
+#include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/defer.h>
@@ -12,7 +13,6 @@
 #include <ggl/object.h>
 #include <pthread.h>
 #include <string.h>
-#include <stddef.h>
 #include <stdint.h>
 
 /// Maximum size of MQTT topic for AWS IoT.

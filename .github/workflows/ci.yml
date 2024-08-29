@@ -25,6 +25,8 @@ jobs:
             check: packages-ggl-clang
           - name: clang-tidy
             check: clang-tidy
+          - name: header includes
+            check: iwyu
           - name: editorconfig
             check: editorconfig
           - name: spelling

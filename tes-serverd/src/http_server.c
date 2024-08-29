@@ -1,5 +1,4 @@
 #include "http_server.h"
-#include <sys/types.h>
 #include <event2/buffer.h>
 #include <event2/event.h>
 #include <event2/http.h>
@@ -10,10 +9,10 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
-#include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
+
+struct evhttp_request;
 
 static void request_handler(struct evhttp_request *req, void *arg);
 

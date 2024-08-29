@@ -9,7 +9,6 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

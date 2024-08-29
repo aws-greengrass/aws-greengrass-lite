@@ -10,7 +10,6 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #define MAX_WRITE_BUFFER_SIZE 10000

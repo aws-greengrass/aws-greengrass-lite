@@ -5,6 +5,7 @@
 #include "ggl/core_bus/server.h"
 #include "object_serde.h"
 #include "types.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
@@ -19,7 +20,6 @@
 #include <ggl/socket_server.h>
 #include <ggl/vector.h>
 #include <pthread.h>
-#include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

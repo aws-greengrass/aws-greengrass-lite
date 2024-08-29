@@ -11,7 +11,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;

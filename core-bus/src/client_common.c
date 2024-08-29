@@ -17,12 +17,8 @@
 #include <ggl/socket.h>
 #include <ggl/vector.h>
 #include <pthread.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 uint8_t ggl_core_bus_client_payload_array[GGL_COREBUS_MAX_MSG_LEN];
 pthread_mutex_t ggl_core_bus_client_payload_array_mtx

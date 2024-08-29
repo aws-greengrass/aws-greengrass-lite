@@ -15,7 +15,6 @@
 #include <ggl/object.h>
 #include <ggl/socket.h>
 #include <string.h>
-#include <stddef.h>
 #include <stdint.h>
 
 /// Maximum size of eventstream packet.

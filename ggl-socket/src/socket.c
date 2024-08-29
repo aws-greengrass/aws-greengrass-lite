@@ -14,9 +14,9 @@
 #include <signal.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <sys/un.h>
 #include <unistd.h>
-#include <stddef.h>
 #include <stdint.h>
 
 __attribute__((constructor)) static void ignore_sigpipe(void) {

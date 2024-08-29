@@ -9,5 +9,9 @@
     }
   ],
   "dictionaries": ["project"],
-  "ignorePaths": ["**/CMakeLists.txt", "**/pyproject.toml"]
+  "ignorePaths": [
+    "**/CMakeLists.txt",
+    "**/pyproject.toml",
+    "**/iwyu_mappings.yml"
+  ]
 }

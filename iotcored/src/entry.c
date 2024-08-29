@@ -11,7 +11,6 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #define MAXIMUM_CERT_PATH 512

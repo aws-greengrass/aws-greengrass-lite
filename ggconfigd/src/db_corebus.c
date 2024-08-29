@@ -13,7 +13,6 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
-#include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

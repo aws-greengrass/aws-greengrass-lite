@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggpubsubd.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
@@ -13,9 +14,7 @@
 #include <ggl/object.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 // Matches AWS IoT topic length
 #define GGL_PUBSUB_MAX_TOPIC_LENGTH 256

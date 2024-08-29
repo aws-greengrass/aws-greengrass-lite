@@ -7,7 +7,6 @@
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include <string.h>
-#include <stdlib.h>
 
 GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
     if (vector->list.len >= vector->capacity) {

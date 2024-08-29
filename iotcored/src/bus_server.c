@@ -13,9 +13,7 @@
 #include <ggl/object.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 static void rpc_publish(void *ctx, GglMap params, uint32_t handle);
 static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle);

@@ -7,7 +7,6 @@
 #include <ggl/error.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stddef.h>
 
 static char doc[] = "ggdeploymentd -- Greengrass Lite deployment daemon";
 

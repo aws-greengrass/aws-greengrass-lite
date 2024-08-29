@@ -4,6 +4,7 @@
 
 #include "ipc_subscriptions.h"
 #include "ipc_server.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>

@@ -13,9 +13,8 @@ Checks:
   - -bugprone-multi-level-implicit-pointer-conversion
   - -readability-identifier-length
   - -readability-magic-numbers
+  - -misc-include-cleaner
 CheckOptions:
-  - key: misc-include-cleaner.IgnoreHeaders
-    value: bits/.*;asm-generic/.*;openssl/.*;sys/.*
   - key: bugprone-argument-comment.StrictMode
     value: true
   - key: bugprone-not-null-terminated-result.WantToUseSafeFunctions

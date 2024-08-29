@@ -4,7 +4,6 @@
 
 #include "provisioner.h"
 #include "database_helper.h"
-#include <asm-generic/errno.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/bump_alloc.h>

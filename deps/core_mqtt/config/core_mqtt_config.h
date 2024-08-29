@@ -7,7 +7,8 @@
 #define CORE_MQTT_CONFIG_H
 
 #include "core_mqtt.h"
-#include <pthread.h>
+#include <sys/types.h>
+#include <pthread.h> // IWYU pragma: keep
 
 pthread_mutex_t *coremqtt_get_send_mtx(const MQTTContext_t *ctx);
 pthread_mutex_t *coremqtt_get_state_mtx(const MQTTContext_t *ctx);

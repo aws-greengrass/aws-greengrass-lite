@@ -27,7 +27,6 @@
 #include <pthread.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 /// Maximum number of GG IPC clients.

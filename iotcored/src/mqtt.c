@@ -9,6 +9,7 @@
 #include "ggl/utils.h"
 #include "iotcored.h"
 #include "tls.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
@@ -16,11 +17,9 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
-#include <time.h>
 #include <transport_interface.h>
 #include <stdatomic.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <stdnoreturn.h>
 

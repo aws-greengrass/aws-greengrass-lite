@@ -6,7 +6,6 @@
 #include "ggl/alloc.h"
 #include "ggl/log.h"
 #include "ggl/object.h"
-#include <stdlib.h>
 
 static void *bump_alloc_alloc(GglAlloc *alloc, size_t size, size_t alignment) {
     GglBumpAlloc *ctx = (GglBumpAlloc *) alloc;

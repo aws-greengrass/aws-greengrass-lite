@@ -13,12 +13,12 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <openssl/pem.h>
+#include <openssl/evp.h>
+#include <openssl/types.h>
+#include <openssl/x509.h>
 #include <string.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #define MAX_PATH_LENGTH 4096
 #define MAX_TEMPLATE_LEN 129

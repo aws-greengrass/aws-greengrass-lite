@@ -5,7 +5,6 @@
 #include "helpers.h"
 #include <ggl/object.h>
 #include <string.h>
-#include <stddef.h>
 
 #define PATH_STRING_MAX_SIZE 1024
 

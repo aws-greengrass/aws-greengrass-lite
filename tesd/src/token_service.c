@@ -14,7 +14,6 @@
 #include <ggl/object.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #define MAX_HTTP_RESPONSE_LENGTH 4096

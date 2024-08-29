@@ -7,12 +7,9 @@
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <curl/curl.h>
-#include <curl/easy.h>
 #include <ggl/log.h>
 #include <string.h>
-#include <stddef.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #define MAX_HEADER_LENGTH 1000
 

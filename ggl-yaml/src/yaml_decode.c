@@ -4,6 +4,7 @@
 
 #include "ggl/yaml_decode.h"
 #include "pthread.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <ggl/alloc.h>
 #include <ggl/bump_alloc.h>

@@ -11,7 +11,6 @@
 #include <ggl/utils.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     (void) ctx;

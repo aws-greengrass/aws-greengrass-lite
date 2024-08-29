@@ -12,6 +12,7 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 GglError handle_get_configuration(

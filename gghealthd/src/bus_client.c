@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "bus_client.h"
+#include <sys/types.h>
 #include <ggl/alloc.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
@@ -12,7 +13,6 @@
 #include <ggl/object.h>
 #include <pthread.h>
 #include <string.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #define KEY_PREFIX "component/"

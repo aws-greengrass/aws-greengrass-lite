@@ -4,6 +4,7 @@
 
 #include "deployment_queue.h"
 #include "deployment_model.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
@@ -17,9 +18,7 @@
 #include <string.h>
 #include <uuid/uuid.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #ifndef DEPLOYMENT_QUEUE_SIZE
 #define DEPLOYMENT_QUEUE_SIZE 10

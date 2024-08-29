@@ -14,10 +14,7 @@
 #include <sqlite3.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 static bool config_initialized = false;
 static sqlite3 *config_database;

@@ -1,6 +1,7 @@
 
 #include "health.h"
 #include "bus_client.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
 #include <ggl/buffer.h>

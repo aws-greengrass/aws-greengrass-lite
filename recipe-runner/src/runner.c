@@ -11,11 +11,8 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
-#include <sys/socket.h>
-#include <sys/un.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

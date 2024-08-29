@@ -6,6 +6,7 @@
 #define FLEET_PROV_DATABASE_HELPER_H
 
 #include <ggl/alloc.h>
+#include <ggl/error.h>
 #include <ggl/object.h>
 
 void get_value_from_db(

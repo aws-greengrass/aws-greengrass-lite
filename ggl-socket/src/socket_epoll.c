@@ -7,7 +7,6 @@
 #include <errno.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <string.h>
 #include <sys/epoll.h>
 #include <stdbool.h>
 #include <stddef.h>

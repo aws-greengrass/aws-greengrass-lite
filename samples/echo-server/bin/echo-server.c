@@ -7,7 +7,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 static void handle_echo(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;

@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stddef.h>
 #include <stdint.h>
 
 // Socket management using generational indices to invalidate use of dangling

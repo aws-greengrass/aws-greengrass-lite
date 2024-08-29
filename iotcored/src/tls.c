@@ -11,9 +11,9 @@
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/types.h>
+#include <openssl/x509.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdlib.h>
 
 struct IotcoredTlsCtx {
     SSL_CTX *ssl_ctx;

@@ -42,6 +42,7 @@ greengrassv
 htobe
 iotcored
 iotcoredfleet
+iwyu
 keyid
 libsystemd
 libuuid
@@ -81,5 +82,6 @@ unrefp
 unsuback
 uuid
 WERROR
+Xiwyu
 xlink
 yapf

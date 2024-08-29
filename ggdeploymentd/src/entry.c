@@ -7,6 +7,7 @@
 #include "bus_server.h"
 #include "deployment_handler.h"
 #include "ggdeploymentd.h"
+#include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>

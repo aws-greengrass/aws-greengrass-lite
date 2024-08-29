@@ -5,7 +5,6 @@
 #include "ggl/alloc.h"
 #include "ggl/log.h"
 #include <assert.h>
-#include <stdlib.h>
 
 void *ggl_alloc(GglAlloc *alloc, size_t size, size_t alignment) {
     assert((alloc != NULL) && (alloc->ALLOC != NULL));

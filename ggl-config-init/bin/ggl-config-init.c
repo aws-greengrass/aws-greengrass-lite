@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "sys/stat.h"
 #include <argp.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -13,7 +12,7 @@
 #include <ggl/object.h>
 #include <ggl/yaml_decode.h>
 #include <sys/mman.h>
-#include <time.h>
+#include <sys/stat.h>
 #include <stddef.h>
 #include <stdint.h>
 

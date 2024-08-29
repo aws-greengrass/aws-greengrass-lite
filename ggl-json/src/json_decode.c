@@ -13,7 +13,6 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 // Parses JSON using a parser-combinator strategy

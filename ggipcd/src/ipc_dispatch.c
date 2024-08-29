@@ -5,12 +5,12 @@
 #include "ipc_dispatch.h"
 #include "handlers/handlers.h"
 #include "ipc_server.h"
-#include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <stddef.h>
 #include <stdint.h>
 
 static const struct {
