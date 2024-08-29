@@ -22,7 +22,7 @@ CheckOptions:
     value: false
   # `__` in middle of identifer only reserved in C++
   - key: bugprone-reserved-identifier.AllowedIdentifiers
-    value: '[^_].*'
+    value: "[^_].*"
   - key: readability-function-cognitive-complexity.DescribeBasicIncrements
     value: false
   - key: readability-function-cognitive-complexity.IgnoreMacros
