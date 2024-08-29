@@ -132,6 +132,9 @@ try_add_cflag(Wenum-int-mismatch -Wenum-int-mismatch)
 try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
 try_add_cflag(stack-clash-protection -fstack-clash-protection)
 
+try_add_cflag_if(file-prefix-map $<NOT:$<CONFIG:Debug>>
+                 "-ffile-prefix-map=${CMAKE_CURRENT_LIST_DIR}=.")
+
 add_cflags($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
 try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
                  -ftrivial-auto-var-init=pattern)
@@ -165,6 +168,9 @@ set(CMAKE_C_CREATE_STATIC_LIBRARY_IPO
 
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
+
+set(ENV{SOURCE_DATE_EPOCH} "0")
+set(ENV{ZERO_AR_DATE} "1")
 
 #
 # FetchContent deps
@@ -222,6 +228,13 @@ function(ggl_init_module name)
 
   file(GLOB_RECURSE SRCS CONFIGURE_DEPENDS "${COMP_ARG_SRCDIR}/*.c")
   list(LENGTH SRCS SRCS_LEN)
+
+  foreach(src ${SRCS})
+    set_property(
+      SOURCE ${src}
+      APPEND_STRING
+      PROPERTY COMPILE_FLAGS "-frandom-seed=${src}")
+  endforeach()
 
   if(NOT SRCS_LEN EQUAL 0)
     add_library(${name} STATIC ${SRCS})
