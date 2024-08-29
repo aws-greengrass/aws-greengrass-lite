@@ -7,13 +7,9 @@ implementation of the interface logs to stderr.
 
 - [logging-1] The maximum logging level can be configured at compile time in
   order to reduce binary size.
-- [logging-2] The logging functionality can be swapped out at compile time by
-  providing a non-weak definition for the logging implementation function.
-- [logging-3] The logging functionality can be swapped out at runtime though
-  LD_PRELOAD on systems that support that mechanism.
-- [logging-4] The default logging implementation logs all compile-time enabled
+- [logging-2] The default logging implementation logs all compile-time enabled
   log levels to stdout.
-- [logging-5] Logging macro usages report syntax and usage warnings even when
+- [logging-3] Logging macro usages report syntax and usage warnings even when
   the logging level is disabled at compile time.
 
 ## Compilation Macros

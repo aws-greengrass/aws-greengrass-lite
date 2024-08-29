@@ -12,7 +12,7 @@
 
 static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-__attribute__((weak)) void ggl_log(
+void ggl_log(
     uint32_t level,
     const char *file,
     int line,
