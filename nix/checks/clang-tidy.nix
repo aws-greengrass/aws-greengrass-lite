@@ -13,9 +13,11 @@ let
     nativeBuildInputs = [ clang-tools ];
     inherit (ggl-clang) buildInputs;
     buildPhase = ''
+      set -eo pipefail
       clang-tidy -p ${clangBuildDir} --quiet --warnings-as-errors='*' \
         --header-filter='^${escapeRegex (toString filteredSrc)}"}' \
-        ${filteredSrc}/${file}
+        ${filteredSrc}/${file} |\
+        sed 's|${filteredSrc}/||'
       touch $out
     '';
     dontUnpack = true;

@@ -20,7 +20,8 @@ let
         -Xiwyu --error -Xiwyu --check_also="${filteredSrc}/*" \
         -Xiwyu --mapping_file=${src}/misc/iwyu_mappings.yml |\
         { grep error: || true; } |\
-        sed 's|\(.*\)error:\(.*\)|'$white'\1'$red'error:'$white'\2'$clear'|'
+        sed 's|\(.*\)error:\(.*\)|'$white'\1'$red'error:'$white'\2'$clear'|' |\
+        sed 's|${filteredSrc}/||'
       touch $out
     '';
     dontUnpack = true;
