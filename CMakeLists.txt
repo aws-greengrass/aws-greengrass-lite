@@ -280,6 +280,7 @@ add_subdirectory(ggl-config-init)
 add_subdirectory(recipe-runner)
 add_subdirectory(tes-serverd)
 add_subdirectory(ggl-exec)
+add_subdirectory(recipe2unit)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
