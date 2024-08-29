@@ -7,6 +7,8 @@
 
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 //! Core Bus server interface

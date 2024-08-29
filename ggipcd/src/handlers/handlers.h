@@ -8,7 +8,7 @@
 #include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
-#include <pthread.h>
+#include <stdint.h>
 
 typedef GglError GglIpcHandler(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc

@@ -2,11 +2,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "deployment_model.h"
-#include <ggl/object.h>
-
 #ifndef GGDEPLOYMENTD_QUEUE_H
 #define GGDEPLOYMENTD_QUEUE_H
+
+#include "deployment_model.h"
+#include <ggl/error.h>
+#include <ggl/object.h>
 
 /// Attempts to add a deployment into the queue.
 ///

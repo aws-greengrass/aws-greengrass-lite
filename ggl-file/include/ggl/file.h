@@ -7,6 +7,7 @@
 
 //! File system functionality
 
+#include <ggl/error.h>
 #include <ggl/object.h>
 
 /// Open a directory, creating it if needed

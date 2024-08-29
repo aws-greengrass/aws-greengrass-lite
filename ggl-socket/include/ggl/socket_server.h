@@ -8,10 +8,8 @@
 //! Event driven server listening on a unix socket
 
 #include "socket_handle.h"
-#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
-#include <stdbool.h>
 #include <stdint.h>
 
 /// Run a server listening on `path`.

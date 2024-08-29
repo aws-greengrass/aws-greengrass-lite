@@ -8,11 +8,8 @@
 //! Common library for managing unix sockets
 
 #include <sys/types.h>
-#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
-#include <pthread.h>
-#include <stdbool.h>
 #include <stdint.h>
 
 // Socket management using generational indices to invalidate use of dangling

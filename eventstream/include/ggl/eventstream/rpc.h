@@ -9,7 +9,6 @@
 
 #include "decode.h"
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stdint.h>
 
 /// `:message-type` header values

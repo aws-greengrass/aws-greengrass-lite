@@ -7,7 +7,6 @@
 
 //! JSON encoding
 
-#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 

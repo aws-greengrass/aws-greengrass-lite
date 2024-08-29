@@ -7,7 +7,6 @@
 
 //! AWS EventStream message data types.
 
-#include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdint.h>
 

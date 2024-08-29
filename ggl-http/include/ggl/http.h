@@ -5,9 +5,7 @@
 #ifndef GGHTTPLIB_H
 #define GGHTTPLIB_H
 
-#include "ggl/object.h"
-#include <curl/curl.h>
-#include <ggl/error.h>
+#include <ggl/object.h>
 
 typedef struct CertificateDetails {
     const char *gghttplib_cert_path;

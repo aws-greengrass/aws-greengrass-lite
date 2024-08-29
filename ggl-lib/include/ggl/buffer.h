@@ -10,6 +10,8 @@
 #include "object.h"
 #include <ggl/error.h>
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 /// Returns whether two buffers have identical content.
 bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2);

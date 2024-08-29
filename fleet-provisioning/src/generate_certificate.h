@@ -5,7 +5,6 @@
 #ifndef FLEET_PROV_GENERATE_CERTIFICATE_H
 #define FLEET_PROV_GENERATE_CERTIFICATE_H
 
-#include <ggl/error.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
 

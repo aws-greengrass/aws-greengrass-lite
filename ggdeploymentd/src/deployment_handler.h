@@ -5,7 +5,6 @@
 #ifndef GGDEPLOYMENTD_DEPLOYMENT_HANDLER_H
 #define GGDEPLOYMENTD_DEPLOYMENT_HANDLER_H
 
-#include <ggl/error.h>
 #include <ggl/object.h>
 
 typedef struct {

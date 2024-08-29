@@ -10,6 +10,7 @@
 #include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdbool.h>
 
 /// Serialize an object into a buffer.
 GglError ggl_serialize(GglObject obj, GglBuffer *buf);

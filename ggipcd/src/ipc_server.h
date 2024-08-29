@@ -5,7 +5,6 @@
 #ifndef GGL_IPC_SERVER_H
 #define GGL_IPC_SERVER_H
 
-#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdint.h>

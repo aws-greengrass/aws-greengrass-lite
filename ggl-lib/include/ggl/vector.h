@@ -9,7 +9,7 @@
 
 #include "error.h"
 #include "object.h"
-#include <unistd.h>
+#include <stddef.h>
 
 typedef struct {
     GglList list;

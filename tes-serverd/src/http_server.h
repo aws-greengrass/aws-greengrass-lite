@@ -5,7 +5,6 @@
 #ifndef TES_HTTP_SERVER_H
 #define TES_HTTP_SERVER_H
 
-#include <event2/http.h>
 #include <ggl/error.h>
 
 GglError http_server(void);

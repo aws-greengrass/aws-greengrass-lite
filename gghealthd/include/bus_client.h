@@ -1,6 +1,7 @@
 #ifndef GGHEALTHD_BUS_H
 #define GGHEALTHD_BUS_H
 
+#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 

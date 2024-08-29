@@ -5,9 +5,9 @@
 #ifndef IOTCORED_SUBSCRIPTION_DISPATCH_H
 #define IOTCORED_SUBSCRIPTION_DISPATCH_H
 
-#include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdint.h>
 
 GglError iotcored_register_subscription(
     GglBuffer topic_filter, uint32_t handle

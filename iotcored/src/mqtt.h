@@ -8,6 +8,7 @@
 #include "iotcored.h"
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 typedef struct {

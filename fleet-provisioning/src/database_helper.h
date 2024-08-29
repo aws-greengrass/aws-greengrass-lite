@@ -5,7 +5,7 @@
 #ifndef FLEET_PROV_DATABASE_HELPER_H
 #define FLEET_PROV_DATABASE_HELPER_H
 
-#include <ggl/bump_alloc.h>
+#include <ggl/alloc.h>
 #include <ggl/object.h>
 
 void get_value_from_db(
