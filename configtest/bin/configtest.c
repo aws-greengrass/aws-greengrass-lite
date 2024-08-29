@@ -8,7 +8,6 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 static char *print_key_path(GglList *key_path) {
     static char path_string[64] = { 0 };
@@ -257,7 +256,7 @@ static void subscription_close(void *ctx, unsigned int handle) {
     GGL_LOGI("subscription close", "called");
 }
 
-static void test_subscribe(GglList key) {
+static void test_subscribe(GglList key, GglError expected_response) {
     GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
 
     GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key) }, );
@@ -272,13 +271,23 @@ static void test_subscribe(GglList key) {
         NULL, // TODO: this must be tested
         &handle
     );
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE("test_subscribe", "error %d", error);
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        exit(1);
-    } else {
+    if (error != expected_response) {
+        GGL_LOGE(
+            "test_subscribe",
+            "subscribe key %s expected result %d but got %d",
+            print_key_path(&key),
+            (int) expected_response,
+            (int) error
+        );
+        assert(0);
+        return;
+    }
+    if (error == GGL_ERR_OK) {
         GGL_LOGI(
-            "test_subscribe", "Success %s : %d", print_key_path(&key), handle
+            "test_subscribe",
+            "Success! key: %s handle: %d",
+            print_key_path(&key),
+            handle
         );
     }
 }
@@ -494,26 +503,45 @@ int main(int argc, char **argv) {
         GGL_ERR_OK
     );
 
+    // Test to ensure you can't subscribe to a key which doesn't exist
+    test_subscribe(
+        GGL_LIST(
+            GGL_OBJ_STR("component3"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_ERR_FAILURE
+    );
+
     // Test to ensure subscribers and notifications work
-    // TODO: Fix subscriber tests + logic
-    test_subscribe(GGL_LIST(
-        GGL_OBJ_STR("component3"),
-        GGL_OBJ_STR("foo"),
-        GGL_OBJ_STR("bar"),
-        GGL_OBJ_STR("key")
-    ));
-    // test_insert(
-    //     GGL_LIST(
-    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
-    //     ),
-    //     GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("big value") })
-    // );
-    // test_insert(
-    //     GGL_LIST(
-    //         GGL_OBJ_STR("component"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
-    //     ),
-    //     GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("the biggest value") })
-    // );
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component3"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("big value") }),
+        GGL_ERR_OK
+    );
+    test_subscribe(
+        GGL_LIST(
+            GGL_OBJ_STR("component3"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_ERR_OK
+    );
+    // TODO: Add in automated verification of the subscription callback in
+    // response to these inserts. For now, check the logs manually (you should
+    // see `I[subscription callback] (..): read "the biggest value"`)
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component3"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("the biggest value") }),
+        GGL_ERR_OK
+    );
+
     // test_insert(
     //     GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("bar")),
     //     GGL_OBJ_MAP({ GGL_STR("foo"), GGL_OBJ_STR("value2") })

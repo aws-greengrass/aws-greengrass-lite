@@ -912,17 +912,13 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     // value
     key_id = get_key_id(key_path);
     if (key_id == 0) {
-        GglError err = create_key_path(key_path, &key_id);
-        if (err != GGL_ERR_OK) {
-            GGL_LOGE(
-                "ggconfig_get_key_notification",
-                "failed to create key path %s with error %d",
-                print_key_path(key_path),
-                (int) err
-            );
-            sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
-            return err;
-        }
+        GGL_LOGE(
+            "ggconfig_get_key_notification",
+            "key %s does not exist",
+            print_key_path(key_path)
+        );
+        sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
+        return GGL_ERR_FAILURE;
     }
     GGL_LOGI(
         "ggconfig_get_key_notification",
