@@ -305,7 +305,7 @@ static GglError relation_insert(int64_t id, int64_t parent) {
             "relation insert fail: %s",
             sqlite3_errmsg(config_database)
         );
-        sqlite3_finalize(relation_insert_stmt);
+        sqlite3_finalize(relation_insert_stmt); // TODO: Use GGL_DEFER to finalize in situations like this
         return GGL_ERR_FAILURE;
     }
     sqlite3_finalize(relation_insert_stmt);
