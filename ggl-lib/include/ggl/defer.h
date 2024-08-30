@@ -10,6 +10,7 @@
 #include "alloc.h"
 #include <sys/types.h>
 #include <pthread.h>
+#include <sqlite3.h>
 #include <unistd.h>
 #include <stdlib.h>
 
@@ -64,6 +65,11 @@ GGL_DEFINE_DEFER(free, void *, p, free(*p))
 /// Enable defer for unlocking mutexes.
 GGL_DEFINE_DEFER(
     pthread_mutex_unlock, pthread_mutex_t, mut, pthread_mutex_unlock(mut)
+)
+
+/// Enable defer for finalizing sql statements
+GGL_DEFINE_DEFER(
+    sqlite3_finalize, sqlite3_stmt *, stmt, sqlite3_finalize(*stmt)
 )
 
 /// Enable defer for `ggl_free`
