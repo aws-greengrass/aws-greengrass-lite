@@ -542,6 +542,33 @@ int main(int argc, char **argv) {
         GGL_ERR_OK
     );
 
+    // Test to ensure you are notified for children and grandchildren key
+    // updates
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component4"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        GGL_ERR_OK
+    );
+    test_subscribe(GGL_LIST(GGL_OBJ_STR("component4")), GGL_ERR_OK);
+    // Should see `I[subscription callback] (..): read "value2"`) // TODO: fix
+    // this as it currently doesn't call back
+    test_insert(
+        GGL_LIST(GGL_OBJ_STR("component4")),
+        GGL_OBJ_MAP({ GGL_STR("baz"), GGL_OBJ_STR("value2") }),
+        GGL_ERR_OK
+    );
+    // Should see `I[subscription callback] (..): read "value3"`) // TODO: fix
+    // this as it currently doesn't call back
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component4"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("baz"), GGL_OBJ_STR("value3") }),
+        GGL_ERR_OK
+    );
+
     // test_insert(
     //     GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("bar")),
     //     GGL_OBJ_MAP({ GGL_STR("foo"), GGL_OBJ_STR("value2") })
