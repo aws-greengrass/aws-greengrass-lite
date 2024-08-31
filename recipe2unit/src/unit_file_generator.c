@@ -5,6 +5,7 @@
 #include "unit_file_generator.h"
 #include "ggl/recipe2unit.h"
 #include <ggl/error.h>
+#include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
@@ -114,19 +115,142 @@ static GglError fill_unit_section(
 
     if (ggl_map_get(recipe_obj.map, GGL_STR("componentdependencies"), &val)) {
         if ((val->type == GGL_TYPE_MAP) || (val->type == GGL_TYPE_LIST)) {
-            dependency_parser(val, concat_unit_vector);
+            return dependency_parser(val, concat_unit_vector);
         }
     }
 
     return GGL_ERR_OK;
 }
 
+static GglError lifecycle_selection(
+    GglObject *selection_obj,
+    GglObject recipe_obj,
+    GglObject *selected_lifecycle_object
+) {
+    GglObject *val;
+    for (size_t selection_index = 0; selection_index < selection_obj->list.len;
+         selection_index++) {
+        if ((strncmp(
+                 (char *) selection_obj->list.items[selection_index].buf.data,
+                 "all",
+                 selection_obj->list.items[selection_index].buf.len
+             )
+             == 0)
+            || (strncmp(
+                    (char *) selection_obj->list.items[selection_index]
+                        .buf.data,
+                    "linux",
+                    selection_obj->list.items[selection_index].buf.len
+                )
+                == 0)) {
+            GglObject *global_lifecycle;
+            // Fetch the global Lifecycle object and match the
+            // name with the first occurrence of selection
+            if (ggl_map_get(
+                    recipe_obj.map, GGL_STR("lifecycle"), &global_lifecycle
+                )) {
+                if (global_lifecycle->type != GGL_TYPE_MAP) {
+                    return GGL_ERR_INVALID;
+                }
+                if (ggl_map_get(
+                        global_lifecycle->map, GGL_STR("linux"), &val
+                    )) {
+                    if (val->type != GGL_TYPE_MAP) {
+                        GGL_LOGE(
+                            "recipe2unit", "Invalid Global Linux lifecycle"
+                        );
+                        return GGL_ERR_INVALID;
+                    }
+                    selected_lifecycle_object = val;
+                }
+            }
+        }
+    }
+    (void) selected_lifecycle_object;
+    return GGL_ERR_OK;
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+static GglError manifest_selection(
+    GglObject manifest_obj,
+    GglObject recipe_obj,
+    GglObject *selected_lifecycle_object
+) {
+    GglObject *val;
+    if (ggl_map_get(manifest_obj.map, GGL_STR("platform"), &val)) {
+        if (val->type == GGL_TYPE_MAP) {
+            if (ggl_map_get(val->map, GGL_STR("os"), &val)) {
+                if (val->type != GGL_TYPE_BUF) {
+                    GGL_LOGE("recipe2unit", "Platform OS invalid input");
+                    return GGL_ERR_INVALID;
+                }
+                if (strncmp((char *) val->buf.data, "linux", val->buf.len) == 0
+                    || strncmp((char *) val->buf.data, "*", val->buf.len)
+                        == 0) {
+                    if (ggl_map_get(
+                            manifest_obj.map, GGL_STR("lifecycle"), &val
+                        )) {
+                        if (val->type != GGL_TYPE_MAP) {
+                            return GGL_ERR_INVALID;
+                        }
+                        // if linux lifecycle is found return the object
+                        selected_lifecycle_object = val;
+                        (void) selected_lifecycle_object;
+                    } else if (ggl_map_get(
+                                   val->map, GGL_STR("selections"), &val
+                               )) {
+                        if (val->type != GGL_TYPE_LIST) {
+                            return GGL_ERR_INVALID;
+                        }
+                        return lifecycle_selection(
+                            val, recipe_obj, selected_lifecycle_object
+                        );
+                    } else {
+                        GGL_LOGE(
+                            "recipe2unit",
+                            "Neither Lifecycle or Selection data provided"
+                        );
+                        return GGL_ERR_INVALID;
+                    }
+                } else {
+                    // If the current platform isn't linux then just proceed to
+                    // next and mark current cycle success
+                    return GGL_ERR_OK;
+                }
+            }
+        } else {
+            return GGL_ERR_INVALID;
+        }
+    } else {
+        GGL_LOGE("recipe2unit", "Platform not provided");
+        return GGL_ERR_INVALID;
+    }
+    return GGL_ERR_OK;
+}
+
+static GglError fetch_script_section(
+    GglObject selected_lifecycle, GglBuffer selected_phase, const bool *is_root
+) {
+    (void) selected_lifecycle;
+    (void) selected_phase;
+    (void) is_root;
+
+    GGL_LOGI(
+        "recipe2unit",
+        "Install: %*.s",
+        (int) selected_lifecycle.map.pairs[0].key.len,
+        selected_lifecycle.map.pairs[0].key.data
+    );
+
+    return GGL_ERR_OK;
+};
+
 static GglError fill_service_section(
     GglObject recipe_obj, GglByteVec *out, Recipe2UnitArgs *args
 ) {
     bool is_root = false;
-    (void) is_root;
-    (void) recipe_obj;
+    GglObject *val;
+    GglObject selected_lifecycle = { 0 };
 
     GglError ret = ggl_byte_vec_append(out, GGL_STR("[Service]\n"));
     if (ret != GGL_ERR_OK) {
@@ -145,6 +269,35 @@ static GglError fill_service_section(
     );
     if (ret != GGL_ERR_OK) {
         return ret;
+    }
+
+    if (ggl_map_get(recipe_obj.map, GGL_STR("manifests"), &val)) {
+        if (val->type == GGL_TYPE_LIST) {
+            for (size_t platform_index = 0;
+                 platform_index < recipe_obj.list.len;
+                 platform_index++) {
+                ret = manifest_selection(
+                    val->list.items[platform_index],
+                    recipe_obj,
+                    &selected_lifecycle
+                );
+                if (ret != GGL_ERR_OK) {
+                    return ret;
+                }
+                // If a lifecycle is successfully selected then look no futher
+                if (selected_lifecycle.type == GGL_TYPE_MAP) {
+                    break;
+                }
+            }
+
+            fetch_script_section(
+                selected_lifecycle, GGL_STR("install"), &is_root
+            );
+
+        } else {
+            GGL_LOGI("recipe2unit", "Invalid Manifest within the recipe file.");
+            return GGL_ERR_INVALID;
+        }
     }
 
     return GGL_ERR_OK;
