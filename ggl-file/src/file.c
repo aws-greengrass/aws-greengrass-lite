@@ -138,6 +138,23 @@ static bool split_path_first_comp(
     return false;
 }
 
+/// Splits buffer to part before last `/` and part after
+static bool split_path_last_comp(
+    GglBuffer path, GglBuffer *prefix, GglBuffer *comp
+) {
+    for (size_t i = path.len; i > 0; i--) {
+        if (path.data[i - 1] == '/') {
+            *prefix = ggl_buffer_substr(path, 0, i - 1);
+            *comp = ggl_buffer_substr(path, i, SIZE_MAX);
+            return true;
+        }
+    }
+
+    *comp = path;
+    *prefix = ggl_buffer_substr(path, 0, 0);
+    return false;
+}
+
 static void strip_trailing_slashes(GglBuffer *path) {
     while ((path->len >= 1) && (path->data[path->len - 1] == '/')) {
         path->len -= 1;
@@ -263,6 +280,54 @@ GglError ggl_dir_openat(int dirfd, GglBuffer path, int flags, int *fd) {
         GGL_LOGE("file", "Err %d while opening path: %s", err, path_comp_buf);
         return GGL_ERR_FAILURE;
     }
+    return GGL_ERR_OK;
+}
+
+GglError ggl_file_openat(
+    int dirfd, GglBuffer path, int flags, mode_t mode, int *fd
+) {
+    int cur_fd;
+    GglBuffer file = path;
+    GglBuffer dir;
+    if (split_path_last_comp(path, &dir, &file)) {
+        GglError ret = ggl_dir_openat(dirfd, dir, O_PATH, &cur_fd);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    } else {
+        // Make a copy of dirfd, so we can close it
+        cur_fd = openat(dirfd, ".", O_CLOEXEC | O_DIRECTORY | O_PATH);
+        if (cur_fd < 0) {
+            int err = errno;
+            GGL_LOGE(
+                "file",
+                "Err %d while opening path: %.*s",
+                err,
+                (int) path.len,
+                path.data
+            );
+            return GGL_ERR_FAILURE;
+        }
+    }
+    GGL_DEFER(close, cur_fd);
+
+    if (file.len > MAX_PATH_COMPONENT_LENGTH) {
+        return GGL_ERR_NOMEM;
+    }
+
+    pthread_mutex_lock(&path_comp_buf_mtx);
+    GGL_DEFER(pthread_mutex_unlock, path_comp_buf_mtx);
+
+    memcpy(path_comp_buf, file.data, file.len);
+    path_comp_buf[file.len] = '\0';
+
+    *fd = openat(cur_fd, path_comp_buf, O_CLOEXEC | flags, mode);
+    if (*fd < 0) {
+        int err = errno;
+        GGL_LOGE("file", "Err %d while opening file: %s", err, path_comp_buf);
+        return GGL_ERR_FAILURE;
+    }
+
     return GGL_ERR_OK;
 }
 
