@@ -2,10 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#define _GNU_SOURCE
-
 #include "component_manager.h"
 #include "component_model.h"
+#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -15,56 +14,90 @@
 
 #define LOCAL_DEPLOYMENT "LOCAL_DEPLOYMENT"
 
-static GglError find_active_version(
+static void find_active_version(
     GglBuffer package_name, ComponentIdentifier *component
 ) {
-    // TODO: how can we find active components running on the device? need to
-    // return the active version of the provided package currently running if it
-    // exists
-
-    // update: we can check the config for the service name of the component
-    // can also poll the config for the component's version
-    // if it's there we're happy if not then there isn't an active version running
-
     GglMap params = GGL_MAP(
-        { GGL_STR("component_name"), GGL_OBJ(package_name) }
+        { GGL_STR("key_path"),
+          GGL_OBJ_LIST(GGL_OBJ_STR("services"), GGL_OBJ(package_name)) }
     );
 
     static uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
 
+    // check the config to see if the provided package name is already a running
+    // service
     GglObject resp;
     GglError ret = ggl_call(
-        GGL_STR("/aws/ggl/gghealthd"),
-        GGL_STR("get_status"),
+        GGL_STR("/aws/ggl/ggconfigd"),
+        GGL_STR("read"),
         params,
         NULL,
         &balloc.alloc,
         &resp
     );
-    if(ret == GGL_ERR_OK) {
-        if(resp.type != GGL_TYPE_MAP) {
-            GGL_LOGD("component-manager", "Received invalid response while searching for active versions of %s. No running component satisfies the requirement.", package_name.data);
-            return ret;
-        }
-        GglObject *val;
-        if(ggl_map_get(resp.map, GGL_STR("lifecycle_state"), &val)) {
-            if(val->type != GGL_TYPE_BUF) {
-                GGL_LOGE("component-manager", "Received invalid lifecycle state response, expected buffer.");
-                return GGL_ERR_INVALID;
-            }
-            if(val->buf.data == "NEW") {
-                
-            }
-        } else {
-            GGL_LOGD("component-manager", "No running component satisfies the requirement.");
-        }
-
-    } else {
-        GGL_LOGE("component-manager", "Encountered error while searching for active versions of %s. No running component satisfies the requirement.", package_name.data);
-        return ret;
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGW(
+            "component-manager",
+            "No active running version of %s found.",
+            package_name.data
+        );
+        return;
     }
-    return GGL_ERR_OK;
+    if (resp.type != GGL_TYPE_BUF) {
+        GGL_LOGW(
+            "component-manager",
+            "Configuration package name is not a string. Assuming no active "
+            "version of %s found.",
+            package_name.data
+        );
+        return;
+    }
+
+    // find the version of the active running component
+    GglObject version_resp;
+    GglMap version_params = GGL_MAP(
+        { GGL_STR("key_path"),
+          GGL_OBJ_LIST(GGL_OBJ_STR("services"), resp, GGL_OBJ_STR("version")) }
+    );
+    static uint8_t version_resp_mem[128] = { 0 };
+    GglBumpAlloc version_balloc
+        = ggl_bump_alloc_init(GGL_BUF(version_resp_mem));
+
+    GglError version_ret = ggl_call(
+        GGL_STR("/aws/ggl/ggconfigd"),
+        GGL_STR("read"),
+        version_params,
+        NULL,
+        &version_balloc.alloc,
+        &version_resp
+    );
+    if (version_ret != GGL_ERR_OK) {
+        // TODO: should we error out here? component is in service config but
+        // does not have a version key listed. realistically this should not
+        // happen
+        GGL_LOGW(
+            "component-manager",
+            "Unable to retrieve version of %s. Assuming no active version "
+            "found.",
+            package_name.data
+        );
+        return;
+    }
+    if (version_resp.type != GGL_TYPE_BUF) {
+        // same as above
+        GGL_LOGW(
+            "component-manager",
+            "Configuration version is not a string. Assuming no active version "
+            "of %s found.",
+            package_name.data
+        );
+        return;
+    }
+
+    // active component found, update the ComponentIdentifier
+    component->name = resp.buf;
+    component->version = version_resp.buf;
 }
 
 static GglError merge_version_requirements(
@@ -168,15 +201,12 @@ ComponentMetadata resolve_component_version(
         );
         resolved_component = local_candidate;
     } else {
+        // TODO: if we find a local version, skip negotiating with the cloud
+        // if there is no local version and cloud negotiation fails, fail the deployment
+
         // negotiate with cloud
-
-        // TODO: need to check if the device is properly configured to talk to
-        // the cloud
-        //       follow up to see if we have something similar to
-        //       deviceConfiguration.isDeviceConfiguredToTalkToCloud in java
-        negotiate_version_with_cloud(component_name, version_requirements, local_candidate);
-
-        // if the device is not able to talk to the cloud we would use the local
-        // candidate if present otherwise fail
+        negotiate_version_with_cloud(
+            component_name, version_requirements, local_candidate
+        );
     }
 }
