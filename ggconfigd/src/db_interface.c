@@ -17,6 +17,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/// Enable defer for finalizing sql statements
+GGL_DEFINE_DEFER(
+    sqlite3_finalize, sqlite3_stmt *, stmt, sqlite3_finalize(*stmt)
+)
+
 static bool config_initialized = false;
 static sqlite3 *config_database;
 static const char *config_database_name = "config.db";
