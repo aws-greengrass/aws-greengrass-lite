@@ -26,8 +26,6 @@ static const char AWS_SVCUID_NAME[] = "SVCUID=";
 static uint8_t payload_array[GGL_MAX_SVCUID_LEN];
 static char svc_buffer[128] = {};
 
-extern char **environ;
-
 pid_t child_pid = -1; // To store child process ID
 
 GglError get_file_content(const char *file_path, char *return_value) {

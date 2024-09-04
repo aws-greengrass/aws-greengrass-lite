@@ -2,8 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#define _GNU_SOURCE
-
 #include "deployment_handler.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"

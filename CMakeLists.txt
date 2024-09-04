@@ -144,7 +144,10 @@ add_cflags($<$<CONFIG:Debug>:-fsanitize=undefined,address>)
 try_add_cflag_if(function-sections $<NOT:$<CONFIG:Debug>> -ffunction-sections)
 try_add_cflag_if(data-sections $<NOT:$<CONFIG:Debug>> -fdata-sections)
 
+add_compile_definitions(_GNU_SOURCE)
+
 add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>)
+
 if(GGL_IPC_AUTH_DISABLE)
   add_compile_definitions(GGL_IPC_AUTH_DISABLE)
 endif()

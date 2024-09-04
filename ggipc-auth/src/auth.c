@@ -2,9 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// NOLINTNEXTLINE(readability-identifier-naming)
-#define _GNU_SOURCE
-
 #include "ggipc/auth.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
