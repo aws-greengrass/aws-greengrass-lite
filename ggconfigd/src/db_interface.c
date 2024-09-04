@@ -306,13 +306,6 @@ static GglError get_or_create_key_at_root(GglBuffer *key, int64_t *id_output) {
                                     // create the key and get the id
         GglError err = key_insert(key, &id);
         if (err != GGL_ERR_OK) {
-            GGL_LOGE(
-                "get_or_create_key_at_root",
-                "failed to insert key %.*s with error %d",
-                (int) key->len,
-                (char *) key->data,
-                (int) err
-            );
             return GGL_ERR_FAILURE;
         }
     } else {
@@ -546,13 +539,6 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
     int64_t parent_key_id;
     GglError err = get_or_create_key_at_root(&root_key_buffer, &parent_key_id);
     if (err != GGL_ERR_OK) {
-        GGL_LOGE(
-            "create_key_path",
-            "failed to get or create root key: %.*s with error %d",
-            (int) root_key_buffer.len,
-            (char *) root_key_buffer.data,
-            (int) err
-        );
         return err;
     }
     bool value_is_present_for_root_key;
@@ -591,25 +577,10 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
         if (err == GGL_ERR_NOENTRY) {
             err = key_insert(&current_key_buffer, &current_key_id);
             if (err != GGL_ERR_OK) {
-                GGL_LOGE(
-                    "create_key_path",
-                    "failed to insert key %.*s with error %d",
-                    (int) current_key_buffer.len,
-                    (char *) current_key_buffer.data,
-                    (int) err
-                );
                 return err;
             }
             err = relation_insert(current_key_id, parent_key_id);
             if (err != GGL_ERR_OK) {
-                GGL_LOGE(
-                    "create_key_path",
-                    "failed to insert relation for key id %ld with parent %ld "
-                    "and error %d",
-                    current_key_id,
-                    parent_key_id,
-                    (int) err
-                );
                 return err;
             }
         } else if (err == GGL_ERR_OK) { // the key exists and we got the id
@@ -638,15 +609,6 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
                 return GGL_ERR_FAILURE;
             }
         } else {
-            GGL_LOGE(
-                "create_key_path",
-                "failed to find key named %.*s with parent id %ld due to error "
-                "%d",
-                (int) current_key_buffer.len,
-                (char *) current_key_buffer.data,
-                parent_key_id,
-                (int) err
-            );
             return err;
         }
         parent_key_id = current_key_id;
@@ -760,14 +722,6 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
     if (err == GGL_ERR_NOENTRY) {
         err = create_key_path(key_path, &id);
         if (err != GGL_ERR_OK) {
-            GGL_LOGE( // TODO: Should these log at info level, for example the
-                      // case where a key on the key_path is already a value and
-                      // can't be made into a map?
-                "ggconfig_write_value_at_key",
-                "failed to create key path %s with error %d",
-                print_key_path(key_path),
-                (int) err
-            );
             sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
             return err;
         }
@@ -918,12 +872,6 @@ static GglError read_key_recursive(
     bool value_is_present;
     GglError err = value_is_present_for_key(key_id, &value_is_present);
     if (err != GGL_ERR_OK) {
-        GGL_LOGE(
-            "read_key_recursive",
-            "failed to check for value for key id %ld with error %d",
-            key_id,
-            (int) err
-        );
         return err;
     }
     if (value_is_present) {
@@ -1005,7 +953,7 @@ static GglError read_key_recursive(
 
         GglError error = ggl_kv_vec_push(&kv_buffer_vec, child_kv);
         if (error != GGL_ERR_OK) {
-            GGL_LOGE("read_key_recursive", "error pushing kv");
+            GGL_LOGE("read_key_recursive", "error pushing kv with error %d", (int) error);
             return error;
         }
     }
@@ -1041,12 +989,6 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
         return GGL_ERR_NOENTRY;
     }
     if (err != GGL_ERR_OK) {
-        GGL_LOGE(
-            "ggconfig_get_value_from_key",
-            "failed to get key id for key path %s with error %d",
-            print_key_path(key_path),
-            (int) err
-        );
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
         return err;
     }
@@ -1078,12 +1020,6 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
         return GGL_ERR_NOENTRY;
     }
     if (err != GGL_ERR_OK) {
-        GGL_LOGE(
-            "ggconfig_get_key_notification",
-            "failed to get key id for key path %s with error %d",
-            print_key_path(key_path),
-            (int) err
-        );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
     }
