@@ -94,7 +94,7 @@ Return a list of previous snapshots and dates.
 
 ## Component Configuration IPC API
 
-See [the Component Configuration IPC API spec](../ipc/component-config.md).
+See [the supported IPC commands in the README](../../../README.md).
 
 ## Implementation
 
