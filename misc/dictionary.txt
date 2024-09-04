@@ -61,6 +61,7 @@ NOLINTNEXTLINE
 NOMEM
 nproc
 parentid
+pidfd
 pkgs
 pname
 posix
