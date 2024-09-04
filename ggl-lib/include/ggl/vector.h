@@ -51,10 +51,12 @@ typedef struct {
 #define GGL_BYTE_VEC(...) \
     _Generic( \
         (&(__VA_ARGS__)), \
-        uint8_t(*)[]: ((GglByteVec) { .buf \
-                                      = { .data = (__VA_ARGS__), .len = 0 }, \
-                                      .capacity = sizeof(__VA_ARGS__) }) \
+        uint8_t(*)[]: GGL_BYTE_VEC_UNCHECKED(__VA_ARGS__), \
+        char(*)[]: GGL_BYTE_VEC_UNCHECKED(__VA_ARGS__) \
     )
+#define GGL_BYTE_VEC_UNCHECKED(...) \
+    ((GglByteVec) { .buf = { .data = (uint8_t *) (__VA_ARGS__), .len = 0 }, \
+                    .capacity = sizeof(__VA_ARGS__) })
 
 GglByteVec ggl_byte_vec_init(GglBuffer buf);
 GglError ggl_byte_vec_push(GglByteVec *vector, uint8_t byte);
