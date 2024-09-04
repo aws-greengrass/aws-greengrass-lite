@@ -14,6 +14,9 @@ Checks:
   - -readability-identifier-length
   - -readability-magic-numbers
   - -misc-include-cleaner
+  # Unnecessary and slow
+  - -bugprone-sizeof-container # C++ only
+  - -bugprone-multiple-statement-macro # We require braces for conditionals
 CheckOptions:
   - key: bugprone-argument-comment.StrictMode
     value: true
