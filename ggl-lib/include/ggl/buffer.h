@@ -13,6 +13,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/// Convert null-terminated string to buffer
+GglBuffer ggl_buffer_from_null_term(char *str);
+
 /// Returns whether two buffers have identical content.
 bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2);
 

@@ -11,6 +11,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+GglBuffer ggl_buffer_from_null_term(char *str) {
+    return (GglBuffer) { .data = (uint8_t *) str, .len = strlen(str) };
+}
+
 bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2) {
     if (buf1.len == buf2.len) {
         return memcmp(buf1.data, buf2.data, buf1.len) == 0;
