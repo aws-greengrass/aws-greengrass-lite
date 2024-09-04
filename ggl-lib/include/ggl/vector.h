@@ -10,6 +10,7 @@
 #include "error.h"
 #include "object.h"
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct {
     GglList list;
@@ -55,6 +56,12 @@ typedef struct {
                                       .capacity = sizeof(__VA_ARGS__) }) \
     )
 
+GglByteVec ggl_byte_vec_init(GglBuffer buf);
+GglError ggl_byte_vec_push(GglByteVec *vector, uint8_t byte);
+void ggl_byte_vec_chain_push(GglError *err, GglByteVec *vector, uint8_t byte);
 GglError ggl_byte_vec_append(GglByteVec *vector, GglBuffer buf);
+void ggl_byte_vec_chain_append(
+    GglError *err, GglByteVec *vector, GglBuffer buf
+);
 
 #endif
