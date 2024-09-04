@@ -958,7 +958,11 @@ static GglError read_key_recursive(
 
         GglError error = ggl_kv_vec_push(&kv_buffer_vec, child_kv);
         if (error != GGL_ERR_OK) {
-            GGL_LOGE("read_key_recursive", "error pushing kv with error %d", (int) error);
+            GGL_LOGE(
+                "read_key_recursive",
+                "error pushing kv with error %d",
+                (int) error
+            );
             return error;
         }
     }
