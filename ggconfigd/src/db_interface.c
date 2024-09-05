@@ -254,7 +254,7 @@ static GglError find_key_with_parent(
         return GGL_ERR_OK;
     }
     if (rc == SQLITE_DONE) {
-        GGL_LOGD(
+        GGL_LOGI(
             "find_key_with_parent",
             "key %.*s with parent id %ld not found",
             (int) key->len,
@@ -386,7 +386,8 @@ static GglError value_insert(int64_t key_id, GglBuffer *value) {
     } else {
         GGL_LOGE(
             "value_insert",
-            "value insert fail : %s",
+            "value insert fail with rc %d and error %s",
+            rc,
             sqlite3_errmsg(config_database)
         );
         return_err = GGL_ERR_FAILURE;
@@ -415,14 +416,14 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     );
     sqlite3_bind_int64(update_value_stmt, 2, key_id);
     int rc = sqlite3_step(update_value_stmt);
-    GGL_LOGD("value_update", "%d", rc);
     if (rc == SQLITE_DONE || rc == SQLITE_OK) {
         GGL_LOGD("value_update", "value update successful");
         return_err = GGL_ERR_OK;
     } else {
         GGL_LOGE(
             "value_update",
-            "value update fail : %s",
+            "value update fail with rc %d and error %s",
+            rc,
             sqlite3_errmsg(config_database)
         );
         return_err = GGL_ERR_FAILURE;
@@ -430,13 +431,10 @@ static GglError value_update(int64_t key_id, GglBuffer *value) {
     return return_err;
 }
 
-// TODO: For functions like this which return a value rather than GglError, or
-// otherwise don't have error checking for unexpected SQLite Result Codes, we
-// should put that result code checking in. Because sql failure should not imply
-// a result one way or another.
-static GglError get_key_id(GglList *key_path, int64_t *key_id_output) {
-    int64_t id = 0;
-    GGL_LOGD("get_key_id", "searching for %s", print_key_path(key_path));
+// key_ids_output must point to an empty GglObjVec with capacity
+// MAX_KEY_PATH_DEPTH
+static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
+    GGL_LOGD("get_key_ids", "searching for %s", print_key_path(key_path));
 
     sqlite3_stmt *find_element_stmt;
     sqlite3_prepare_v2(
@@ -483,9 +481,8 @@ static GglError get_key_id(GglList *key_path, int64_t *key_id_output) {
         "    ) "
         "    AND pc.depth < ? "
         ") "
-        "SELECT current_key_id AS final_key_id "
-        "FROM path_cte "
-        "LIMIT 1 offset (? - 1); ",
+        "SELECT current_key_id AS key_id "
+        "FROM path_cte ",
         -1,
         &find_element_stmt,
         NULL
@@ -508,29 +505,40 @@ static GglError get_key_id(GglList *key_path, int64_t *key_id_output) {
     }
 
     sqlite3_bind_int(find_element_stmt, 26, (int) key_path->len);
-    sqlite3_bind_int(find_element_stmt, 27, (int) key_path->len);
 
-    int rc = sqlite3_step(find_element_stmt);
-    GGL_LOGD("get_key_id", "find element returned %d", rc);
-    if (rc == SQLITE_ROW) {
+    for (size_t i = 0; i < key_path->len; i++) {
+        int rc = sqlite3_step(find_element_stmt);
+        if (rc == SQLITE_DONE) {
+            GGL_LOGI(
+                "get_key_ids",
+                "id not found for key %d in %s",
+                (int) i,
+                print_key_path(key_path)
+            );
+            return GGL_ERR_NOENTRY;
+        }
+        if (rc != SQLITE_ROW) {
+            GGL_LOGE(
+                "get_key_ids",
+                "get key id for key %d in %s fail: %s",
+                (int) i,
+                print_key_path(key_path),
+                sqlite3_errmsg(config_database)
+            );
+            return GGL_ERR_FAILURE;
+        }
+        int64_t id = sqlite3_column_int(find_element_stmt, 0);
         GGL_LOGD(
-            "get_key_id", "found id for %s: %ld", print_key_path(key_path), id
+            "get_key_ids",
+            "found id for key %d in %s: %ld",
+            (int) i,
+            print_key_path(key_path),
+            id
         );
-        *key_id_output = sqlite3_column_int(find_element_stmt, 0);
-        return GGL_ERR_OK;
+        ggl_obj_vec_push(key_ids_output, GGL_OBJ_I64(id));
     }
-    if (rc == SQLITE_DONE) {
-        GGL_LOGD("get_key_id", "id not found for %s", print_key_path(key_path));
-        *key_id_output = 0;
-        return GGL_ERR_NOENTRY;
-    }
-    GGL_LOGE(
-        "get_key_id",
-        "get key id for key %s fail: %s",
-        print_key_path(key_path),
-        sqlite3_errmsg(config_database)
-    );
-    return GGL_ERR_FAILURE;
+
+    return GGL_ERR_OK;
 }
 
 // create_key_path assumes that the entire key_path does not already exist in
@@ -722,8 +730,11 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
+    GglObject ids_array[MAX_KEY_PATH_DEPTH];
+    GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
+                      .capacity = MAX_KEY_PATH_DEPTH };
     int64_t id;
-    GglError err = get_key_id(key_path, &id);
+    GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
         err = create_key_path(key_path, &id);
         if (err != GGL_ERR_OK) {
@@ -755,7 +766,7 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
     }
-
+    id = ids.list.items[ids.list.len - 1].i64;
     bool child_is_present;
     err = child_is_present_for_key(id, &child_is_present);
     if (err != GGL_ERR_OK) {
@@ -824,11 +835,19 @@ static GglError read_value_at_key(
     GGL_DEFER(sqlite3_finalize, stmt);
     sqlite3_bind_int64(stmt, 1, key_id);
     int rc = sqlite3_step(stmt);
-    GGL_LOGD(
-        "read_value_at_key", "read value for key id %ld returned %d", key_id, rc
-    );
-    if (rc != SQLITE_ROW) {
+    if (rc == SQLITE_DONE) {
+        GGL_LOGI("read_value_at_key", "no value found for key id %ld", key_id);
         return GGL_ERR_NOENTRY;
+    }
+    if (rc != SQLITE_ROW) {
+        GGL_LOGE(
+            "read_value_at_key",
+            "failed to read value for key id %ld with rc %d and error %s",
+            key_id,
+            rc,
+            sqlite3_errmsg(config_database)
+        );
+        return GGL_ERR_FAILURE;
     }
     const uint8_t *value_string = sqlite3_column_text(stmt, 0);
     unsigned long value_length = (unsigned long) sqlite3_column_bytes(stmt, 0);
@@ -852,17 +871,6 @@ static GglError read_value_at_key(
         (int) value->buf.len,
         (char *) value->buf.data
     );
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
-        GGL_LOGE(
-            "read_value_at_key",
-            "Expected sql statement to be done but instead got rc %d with "
-            "error %s",
-            rc,
-            sqlite3_errmsg(config_database)
-        );
-        return GGL_ERR_FAILURE;
-    }
     return GGL_ERR_OK;
 }
 
@@ -986,14 +994,11 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
         "starting request for key: %s",
         print_key_path(key_path)
     );
-    int64_t key_id;
-    GglError err = get_key_id(key_path, &key_id);
+    GglObject ids_array[MAX_KEY_PATH_DEPTH];
+    GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
+                      .capacity = MAX_KEY_PATH_DEPTH };
+    GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
-        GGL_LOGI(
-            "ggconfig_get_value_from_key",
-            "key not found for %s",
-            print_key_path(key_path)
-        );
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
         return GGL_ERR_NOENTRY;
     }
@@ -1001,14 +1006,13 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
         return err;
     }
-
+    int64_t key_id = ids.list.items[ids.list.len - 1].i64;
     err = read_key_recursive(key_id, value, &bumper.alloc);
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
     return err;
 }
 
 GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
-    int64_t key_id;
     GglError return_err = GGL_ERR_FAILURE;
 
     if (config_initialized == false) {
@@ -1018,13 +1022,11 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
     // ensure this key is present in the key path. Key does not require a
     // value
-    GglError err = get_key_id(key_path, &key_id);
+    GglObject ids_array[MAX_KEY_PATH_DEPTH];
+    GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
+                      .capacity = MAX_KEY_PATH_DEPTH };
+    GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
-        GGL_LOGI(
-            "ggconfig_get_key_notification",
-            "key %s does not exist",
-            print_key_path(key_path)
-        );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return GGL_ERR_NOENTRY;
     }
@@ -1032,6 +1034,7 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
     }
+    int64_t key_id = ids.list.items[ids.list.len - 1].i64;
 
     GGL_LOGI(
         "ggconfig_get_key_notification",
