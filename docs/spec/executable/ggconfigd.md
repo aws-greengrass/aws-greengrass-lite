@@ -22,7 +22,7 @@ import/export and basic read/write access to the key/value store.
 ## Data Model
 
 The greengrass datamodel is a hierarchical key/value store. Keys are in the form
-of paths: `root/path/key = value`. Keys / Paths are case insensitive (though
+of paths: `root/path/key = value`. Keys/paths are case insensitive (though
 they may be stored internally with case).
 
 Any data is permitted in a value. The data that goes in, is returned when read.
