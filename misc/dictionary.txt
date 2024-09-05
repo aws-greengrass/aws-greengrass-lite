@@ -16,6 +16,7 @@ DIOTCORED
 dont
 EFAILURE
 EOK
+epoll
 EPOLLIN
 evbuffer
 evhttp

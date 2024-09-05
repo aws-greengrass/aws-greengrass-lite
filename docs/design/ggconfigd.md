@@ -1,6 +1,6 @@
 # Design for the `ggconfigd` SQLITE implementation
 
-Implementing the [ggconfigd spec](../spec/components/ggconfigd.md), the current
+Implementing the [ggconfigd spec](../spec/components/ggconfigd.md), the
 ggconfigd implementation uses a relational database (sqlite) to persist the
 configuration.
 
@@ -12,8 +12,30 @@ components can link against this library including the ggconfigd component.
 
 ## Data model
 
-The datamodel for gg config is a hierarchical key-value store. Each config key
-is "owned" by a component. All values are stored as strings.
+The datamodel for gg config is a hierarchical key-value store. All values are
+stored as json-encoded strings.
+
+The structure of the configuration hierarchy is as follows:
+
+```
+[]                      # configuration root (not part of a key path)
+├─ system/                # system configuration section
+|  ├─ rootPath              # system configuration values set at startup
+|  ├─ thingName
+|  ├─ rootCaPath
+|  └─ certificateFilePath
+└─ services/              # component-specific configurations
+   ├─ Nucleus-Lite/         # A reserved component section shared by GG-Lite core components
+   │  ├─ iotRoleAlias
+   │  ├─ iotDataEndpoint
+   |  ├─ iotCredEndpoint
+   |  └─ ...
+   ├─ user-component-1      # An example user component section
+   │  ├─ user-config-a        # An example user configuration value
+   │  └─ user-config-b
+   └─ user-component-2
+      └─ user-config-c
+```
 
 ## Mapping the Datamodel to a relational database (sqlite)
 
@@ -34,7 +56,7 @@ CREATE TABLE keyTable('keyid' INTEGER PRIMARY KEY AUTOINCREMENT unique not null,
 
 The keyTable keeps a list of every key in the system. The path 'foo/bar/baz'
 will result in 3 entries into the key table: 'foo', 'bar' and 'baz' with three
-different id's.
+different ids.
 
 ### Relationship Table
 
@@ -63,6 +85,10 @@ link to the key. The timestamp is automatically created when a row is inserted.
 An update trigger will update the timestamp automatically when the value is
 updated. If an update specifically includes the timestamp the update trigger
 will overwrite the value.
+
+> NOTE: The timestamp details will likely be updated soon, in that it will be
+> either provided by the caller or have a default generated in the db_interface
+> layer. The database should not generate the timestamp itself.
 
 ### Version Table
 
@@ -143,3 +169,66 @@ unknowingly. But the downside is it's not strictly necessary for now and would
 have some kind of an impact on performance, doing an extra query involving
 joining the key and relation tables together. For these reasons we don't have
 such a check currently.
+
+### (Not) Preventing Notification <-> Write Infinite Loops
+
+Consider the case where a component A has subscribed to key 1. Component A, upon
+seeing any notification for key 1, is coded to update key 1 in some way. This
+causes an infinite loop. In general, this is an error in the component's logic,
+and as such we do not mitigate it.
+
+The situation could be helped in the future by preventing a component from
+notifying itself on any changes it makes. This is a change to the ggconfigd and
+component config IPC spec that could be made after consideration of if it would
+break customers. It is technically a breaking change, even if we don't see a use
+case for it.
+
+### Grouping Notifications
+
+Grouping notifications is part of the config IPC design, in that one
+notification can contain one or many ConfigurationUpdateEvents. Some potential
+benefits of doing this are 1. to prevent a configuration update storm, where
+updates trigger more updates and clog the notification and update throughput,
+and 2. preventing a backlog of notifications that a subscriber has to process
+one by one when they could process them more efficiently if received as a group.
+Currently notification grouping doesn't happen, and all notifications are sent
+for a single write that took place.
+
+Some options for implementing notification grouping are:
+
+1. Have a separate task which sends out notifications. This would be separate
+   from the write handler, which currently sends out notifications as part of a
+   write operation.
+1. See how the V2 Classic nucleus does it, and do something similar.
+
+### Suppressing Notifications when the value is written to but has not changed
+
+If a value is written to the config, but its value doesn't change (although the
+timestamp may be updated), there is no reason that a subscriber cares about this
+event. Removing notifications for these events helps prevent unnecessary
+notifications and reactions to unnecessary notifications. Currently we don't
+have this suppression functionality, but it could be added in the future.
+
+### Subscription behavior for keys which become deleted
+
+In GG Classic, if a key is deleted (e.g. via reset config paths during
+deployment), then all subscriptions to that key are also deleted. Even if the
+key is re-created later, the previous subscriptions are gone and they will not
+be notified anymore. This is an undesirable situation for component writers to
+have to deal with. The ideal from a component writer perspective would be that
+subscriptions can be preserved across periods of key deletion (and perhaps that
+you can also subscribe to a key which doesn't exist- because it could exist in
+the future).
+
+1. Send a notification for keys that are deleted, then subscribers have to
+   re-subscribe and can try periodically (similar to mqtt). A problem to solve
+   with this is that the SubscribeToConfigurationUpdate IPC response
+   (ConfigurationUpdateEvents) doesn't have fields to indicate such an event
+   currently.
+2. Allow keys to exist "for subscriber tracking only".
+   - A. Have a parallel subscriberKeyTable which is a superset of the actual
+     keyTable. Anything added to the actual keyTable will have a mapping to the
+     subscriberKeyTable. This would allow subscriptions to be created for
+     non-existent keys or maintained for keys which become non-existent.
+   - B. Have a temp table for pending subscriptions in addition to the active
+     subscriptions
