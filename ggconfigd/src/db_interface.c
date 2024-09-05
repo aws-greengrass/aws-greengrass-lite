@@ -663,7 +663,7 @@ static GglError child_is_present_for_key(
     return return_err;
 }
 
-static GglError notify_subscribers_for_key(int64_t key_id, GglBuffer *value) {
+static GglError notify_single_key(int64_t key_id, GglBuffer *value) {
     // TODO: read this comment copied from the JAVA and ensure this implements a
     // similar functionality A subscriber is told what Topic changed, but must
     // look in the Topic to get the new value.  There is no "old value"
@@ -687,24 +687,26 @@ static GglError notify_subscribers_for_key(int64_t key_id, GglBuffer *value) {
     sqlite3_bind_int64(stmt, 1, key_id);
     int rc = 0;
     GGL_LOGD(
-        "notify_subscribers_for_key",
-        "subscription loop for key with id %ld",
-        key_id
+        "notify_single_key", "subscription loop for key with id %ld", key_id
     );
     do {
         rc = sqlite3_step(stmt);
         switch (rc) {
         case SQLITE_DONE:
-            GGL_LOGD("notify_subscribers_for_key", "DONE");
+            GGL_LOGD("notify_single_key", "DONE");
             break;
         case SQLITE_ROW: {
             uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 0);
-            GGL_LOGD("notify_subscribers_for_key", "Sending to %u", handle);
-            ggl_respond(handle, GGL_OBJ(*value));
+            GGL_LOGD("notify_single_key", "Sending to %u", handle);
+            ggl_respond(
+                handle, GGL_OBJ(*value)
+            ); // TODO: Why do we respond with an object containing the json
+               // serialized value that was updated at the leaf? Shouldn't we
+               // respond with what key was updated and with what value?
         } break;
         default:
             GGL_LOGE(
-                "notify_subscribers_for_key",
+                "notify_single_key",
                 "Unexpected rc %d while getting ids to notify with error: %s",
                 rc,
                 sqlite3_errmsg(config_database)
@@ -715,6 +717,17 @@ static GglError notify_subscribers_for_key(int64_t key_id, GglBuffer *value) {
     } while (rc == SQLITE_ROW);
 
     return GGL_ERR_OK;
+}
+
+static GglError notify_multiple_keys(GglObjVec key_ids, GglBuffer *value) {
+    GglError return_err = GGL_ERR_OK;
+    for (size_t i = 0; i < key_ids.list.len; i++) {
+        GglError err = notify_single_key(key_ids.list.items[i].i64, value);
+        if (err != GGL_ERR_OK) {
+            return_err = GGL_ERR_FAILURE;
+        }
+    }
+    return return_err;
 }
 
 GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
@@ -744,11 +757,12 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
 
         value_insert(id, value);
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
-        err = notify_subscribers_for_key(id, value);
+        err = notify_multiple_keys(ids, value);
         if (err != GGL_ERR_OK) {
             GGL_LOGE(
                 "ggconfig_write_value_at_key",
-                "failed to notify all subscribers about update for key %s with "
+                "failed to notify all subscribers about update for key path %s "
+                "with "
                 "error %d",
                 print_key_path(key_path),
                 (int) err
@@ -808,11 +822,12 @@ GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value) {
         return err;
     }
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
-    err = notify_subscribers_for_key(id, value);
+
+    err = notify_multiple_keys(ids, value);
     if (err != GGL_ERR_OK) {
         GGL_LOGE(
             "ggconfig_write_value_at_key",
-            "failed to notify all subscribers about update for key %s with "
+            "failed to notify subscribers about update for key path %s with "
             "error %d",
             print_key_path(key_path),
             (int) err
