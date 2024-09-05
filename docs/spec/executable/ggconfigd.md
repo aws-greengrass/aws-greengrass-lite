@@ -17,7 +17,7 @@ import/export and basic read/write access to the key/value store.
 - [ggconfigd-6] `ggconfigd` shall provide corebus interfaces for IPC access of
   configuration data.
 - _[ggconfigd-7] `ggconfigd` shall provide a mechanism to upgrade the datastore
-  to newer versions._
+  to newer versions.
 
 ## Data Model
 
