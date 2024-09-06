@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <errno.h>
-#include <ggl/core_bus/client.h>
+#include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/utils.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -16,94 +16,44 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     (void) ctx;
     (void) handle;
 
-    if (data.type != GGL_TYPE_MAP) {
-        GGL_LOGE("mqtt-client", "Subscription response is not a map.");
-        return GGL_ERR_FAILURE;
-    }
+    GglBuffer *topic;
+    GglBuffer *payload;
 
-    GglBuffer topic = GGL_STR("");
-    GglBuffer payload = GGL_STR("");
-
-    GglObject *val;
-    if (ggl_map_get(data.map, GGL_STR("topic"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "mqtt-client", "Subscription response topic not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        topic = val->buf;
-    } else {
-        GGL_LOGE("mqtt-client", "Subscription response is missing topic.");
-        return GGL_ERR_FAILURE;
-    }
-    if (ggl_map_get(data.map, GGL_STR("payload"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "mqtt-client", "Subscription response payload not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        payload = val->buf;
-    } else {
-        GGL_LOGE("mqtt-client", "Subscription response is missing payload.");
-        return GGL_ERR_FAILURE;
+    GglError ret
+        = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     GGL_LOGI(
         "mqtt-client",
         "Got message from IoT Core; topic: %.*s, payload: %.*s.",
-        (int) topic.len,
-        topic.data,
-        (int) payload.len,
-        payload.data
+        (int) topic->len,
+        topic->data,
+        (int) payload->len,
+        payload->data
     );
 
     return GGL_ERR_OK;
 }
 
 int main(void) {
-    GglBuffer iotcored = GGL_STR("aws_iot_mqtt");
-
-    GglMap subscribe_args
-        = GGL_MAP({ GGL_STR("topic_filter"), GGL_OBJ_STR("hello") }, );
-
-    GglError ret = ggl_subscribe(
-        iotcored,
-        GGL_STR("subscribe"),
-        subscribe_args,
-        subscribe_callback,
-        NULL,
-        NULL,
-        NULL,
-        NULL
+    GglError ret = ggl_aws_iot_mqtt_subscribe(
+        &GGL_STR("hello"), 1, 0, subscribe_callback, NULL, NULL, NULL
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "mqtt-client",
-            "Failed to send notify message to %.*s",
-            (int) iotcored.len,
-            iotcored.data
-        );
+        GGL_LOGE("mqtt-client", "Failed to send subscription");
         return EPROTO;
     }
     GGL_LOGI("mqtt-client", "Successfully sent subscription.");
 
     ggl_sleep(1);
 
-    GglMap publish_args = GGL_MAP(
-        { GGL_STR("topic"), GGL_OBJ_STR("hello") },
-        { GGL_STR("payload"), GGL_OBJ_STR("hello world") },
+    ret = ggl_aws_iot_mqtt_publish(
+        GGL_STR("hello"), GGL_STR("hello world"), 0, false
     );
-
-    ret = ggl_notify(iotcored, GGL_STR("publish"), publish_args);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "mqtt-client",
-            "Failed to send notify message to %.*s",
-            (int) iotcored.len,
-            iotcored.data
-        );
+        GGL_LOGE("mqtt-client", "Failed to send publish.");
         return EPROTO;
     }
     GGL_LOGI("mqtt-client", "Sent MQTT publish.");
