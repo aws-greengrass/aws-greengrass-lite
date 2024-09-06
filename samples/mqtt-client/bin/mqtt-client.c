@@ -63,7 +63,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 }
 
 int main(void) {
-    GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
+    GglBuffer iotcored = GGL_STR("aws_iot_mqtt");
 
     GglMap subscribe_args
         = GGL_MAP({ GGL_STR("topic_filter"), GGL_OBJ_STR("hello") }, );

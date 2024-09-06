@@ -80,7 +80,7 @@ GglError handle_publish_to_iot_core(
 
     GglObject call_resp;
     GglError ret = ggl_call(
-        GGL_STR("/aws/ggl/iotcored"),
+        GGL_STR("aws_iot_mqtt"),
         GGL_STR("publish"),
         call_args,
         NULL,

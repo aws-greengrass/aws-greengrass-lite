@@ -137,7 +137,7 @@ GglError handle_subscribe_to_iot_core(
     GglError ret = ggl_ipc_bind_subscription(
         handle,
         stream_id,
-        GGL_STR("/aws/ggl/iotcored"),
+        GGL_STR("aws_iot_mqtt"),
         GGL_STR("subscribe"),
         call_args,
         subscribe_to_iot_core_callback,

@@ -70,7 +70,7 @@ GglError publish_message(GglBuffer thing_name) {
     GglBuffer msg = { .data = (uint8_t *) payload, .len = strlen(payload) };
 
     GglError err = ggl_notify(
-        GGL_STR("/aws/ggl/iotcored"),
+        GGL_STR("aws_iot_mqtt"),
         GGL_STR("publish"),
         GGL_MAP(
             { GGL_STR("topic"), GGL_OBJ(topic_name) },

@@ -25,7 +25,7 @@ void iotcored_start_server(IotcoredArgs *args) {
     };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
-    GglBuffer interface = GGL_STR("/aws/ggl/iotcored");
+    GglBuffer interface = GGL_STR("aws_iot_mqtt");
 
     if (args->interface_name != NULL) {
         interface = (GglBuffer) { .data = (uint8_t *) args->interface_name,
