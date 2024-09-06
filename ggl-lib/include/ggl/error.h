@@ -37,6 +37,8 @@ typedef enum GglError {
     GGL_ERR_CONFIG,
     /// Received remote error
     GGL_ERR_REMOTE,
+    /// Expected non-ok status
+    GGL_ERR_EXPECTED,
 } GglError;
 
 #endif
