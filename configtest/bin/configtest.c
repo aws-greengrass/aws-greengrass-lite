@@ -382,28 +382,25 @@ int main(int argc, char **argv) {
         ),
         GGL_ERR_OK
     );
+
+    GglObject bar = GGL_OBJ_MAP(
+        { GGL_STR("qux"), GGL_OBJ_I64(1) },
+        { GGL_STR("baz"),
+          GGL_OBJ_LIST(
+              GGL_OBJ_I64(1), GGL_OBJ_I64(2), GGL_OBJ_I64(3), GGL_OBJ_I64(4)
+          ) }
+    );
+
+    GglObject foo = GGL_OBJ_MAP(
+        { GGL_STR("bar"), bar }, { GGL_STR("quux"), GGL_OBJ_STR("string") }
+    );
+
     test_get(
         GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("foobar"), ),
         GGL_OBJ_MAP(
-            (GglKV) { .key = GGL_STR("foo"),
-                      .val = GGL_OBJ_MAP(
-                          (GglKV) { .key = GGL_STR("bar"),
-                                    .val = GGL_OBJ_MAP(
-                                        (GglKV) { .key = GGL_STR("qux"),
-                                                  .val = GGL_OBJ_I64(1) },
-                                        (GglKV) { .key = GGL_STR("baz"),
-                                                  .val = GGL_OBJ_LIST(
-                                                      GGL_OBJ_I64(1),
-                                                      GGL_OBJ_I64(2),
-                                                      GGL_OBJ_I64(3),
-                                                      GGL_OBJ_I64(4)
-                                                  ) }
-                                    ) },
-                          (GglKV) { .key = GGL_STR("quux"),
-                                    .val = GGL_OBJ_STR("string") }
-                      ) },
-            (GglKV) { .key = GGL_STR("corge"), .val = GGL_OBJ_BOOL(true) },
-            (GglKV) { .key = GGL_STR("grault"), .val = GGL_OBJ_BOOL(false) },
+            { GGL_STR("foo"), foo },
+            { GGL_STR("corge"), GGL_OBJ_BOOL(true) },
+            { GGL_STR("grault"), GGL_OBJ_BOOL(false) },
         ),
         GGL_ERR_OK
     );
