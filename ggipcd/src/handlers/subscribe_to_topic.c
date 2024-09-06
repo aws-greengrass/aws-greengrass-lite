@@ -81,13 +81,14 @@ static GglError subscribe_to_topic_callback(
     }
     GglBuffer message = val->buf;
 
+    GglObject inner = GGL_OBJ_MAP(
+        { GGL_STR("message"), GGL_OBJ(message) },
+        { GGL_STR("context"),
+          GGL_OBJ_MAP({ GGL_STR("topic"), GGL_OBJ(topic) }) }
+    );
+
     GglObject response = GGL_OBJ_MAP(
-        { is_json ? GGL_STR("jsonMessage") : GGL_STR("binaryMessage"),
-          GGL_OBJ_MAP(
-              { GGL_STR("message"), GGL_OBJ(message) },
-              { GGL_STR("context"),
-                GGL_OBJ_MAP({ GGL_STR("topic"), GGL_OBJ(topic) }) }
-          ) }
+        { is_json ? GGL_STR("jsonMessage") : GGL_STR("binaryMessage"), inner }
     );
 
     GglError ret = ggl_ipc_response_send(

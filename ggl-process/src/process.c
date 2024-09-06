@@ -21,6 +21,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+// Glibc 2.2.5 to 2.35 do not provide P_PIDFD
+// Yocto Kirkstone uses Glibc 2.35
+#define P_PIDFD 3
+
 static pid_t sys_clone3(struct clone_args *args) {
     return (pid_t) syscall(SYS_clone3, args, sizeof(struct clone_args));
 }
