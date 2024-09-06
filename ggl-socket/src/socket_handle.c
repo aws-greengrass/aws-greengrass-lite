@@ -288,7 +288,7 @@ GglError ggl_socket_handle_get_peer_pid(
     return GGL_ERR_OK;
 }
 
-GglError ggl_with_socket_handle_index(
+GglError ggl_socket_handle_protected(
     void (*action)(void *ctx, size_t index),
     void *ctx,
     GglSocketPool *pool,

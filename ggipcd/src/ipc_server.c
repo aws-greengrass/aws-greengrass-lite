@@ -118,7 +118,7 @@ static GglError complete_conn_init(
 ) {
     GGL_LOGT("ipc-server", "Setting %d as connected.", handle);
 
-    GglError ret = ggl_with_socket_handle_index(
+    GglError ret = ggl_socket_handle_protected(
         set_conn_component, &component_handle, &pool, handle
     );
     if (ret != GGL_ERR_OK) {
@@ -381,7 +381,7 @@ GglError ggl_ipc_get_component_name(
     uint32_t handle, GglBuffer *component_name
 ) {
     GglComponentHandle component_handle;
-    GglError ret = ggl_with_socket_handle_index(
+    GglError ret = ggl_socket_handle_protected(
         get_conn_component, &component_handle, &pool, handle
     );
     if (ret != GGL_ERR_OK) {
@@ -442,7 +442,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
     GGL_LOGT("ipc-server", "Retrieving connection state for %d.", handle);
     GglComponentHandle component_handle = 0;
-    ret = ggl_with_socket_handle_index(
+    ret = ggl_socket_handle_protected(
         get_conn_component, &component_handle, &pool, handle
     );
     if (ret != GGL_ERR_OK) {

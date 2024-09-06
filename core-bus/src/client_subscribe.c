@@ -119,7 +119,7 @@ static GglError call_close_callback(uint32_t handle, size_t index) {
 
     GGL_LOGT("core-bus-client", "Retrieving subscription callbacks.");
     SubCallbacks callbacks = { 0 };
-    GglError ret = ggl_with_socket_handle_index(
+    GglError ret = ggl_socket_handle_protected(
         get_sub_callbacks, &callbacks, &pool, handle
     );
     if (ret != GGL_ERR_OK) {
@@ -232,7 +232,7 @@ GglError ggl_subscribe(
     }
 
     GGL_LOGT("core-bus-client", "Setting subscription callbacks.");
-    ggl_with_socket_handle_index(
+    ggl_socket_handle_protected(
         set_sub_callbacks,
         &(SubCallbacks) {
             .on_response = on_response,
@@ -245,7 +245,7 @@ GglError ggl_subscribe(
 
     ret = ggl_socket_epoll_add(epoll_fd, conn, sub_handle);
     if (ret != GGL_ERR_OK) {
-        ggl_with_socket_handle_index(
+        ggl_socket_handle_protected(
             set_sub_callbacks, &(SubCallbacks) { 0 }, &pool, sub_handle
         );
         ggl_socket_handle_close(&pool, sub_handle);
@@ -267,6 +267,32 @@ void ggl_client_sub_close(uint32_t handle) {
 static GglError socket_handle_reader(void *ctx, GglBuffer buf) {
     uint32_t *handle_ptr = ctx;
     return ggl_socket_handle_read(&pool, *handle_ptr, buf);
+}
+
+typedef struct {
+    uint32_t handle;
+    GglObject data;
+    GglError ret;
+} OnResponseCallbackArgs;
+
+static void call_on_response_callback(void *ctx, size_t index) {
+    OnResponseCallbackArgs *args = ctx;
+    args->ret = GGL_ERR_OK;
+    if (sub_callbacks[index].on_response != NULL) {
+        GGL_LOGT("core-bus-client", "Calling subscription response callback.");
+
+        args->ret = sub_callbacks[index].on_response(
+            sub_callbacks[index].ctx, args->handle, args->data
+        );
+        if (args->ret != GGL_ERR_OK) {
+            ggl_socket_handle_close(&pool, args->handle);
+
+            GGL_LOGT(
+                "core-bus-client",
+                "Subscription response callback returned error."
+            );
+        }
+    }
 }
 
 static GglError get_subscription_response(uint32_t handle) {
@@ -301,27 +327,13 @@ static GglError get_subscription_response(uint32_t handle) {
         return ret;
     }
 
-    SubCallbacks callbacks = { 0 };
-    GGL_LOGT("core-bus-client", "Retrieving subscription callbacks.");
-    ret = ggl_with_socket_handle_index(
-        get_sub_callbacks, &callbacks, &pool, handle
+    // User callback must not run during/after a subscription close
+    OnResponseCallbackArgs args = { .handle = handle, .data = result };
+    ret = ggl_socket_handle_protected(
+        call_on_response_callback, &args, &pool, handle
     );
-    if (ret != GGL_ERR_OK) {
+    if ((ret != GGL_ERR_OK) || (args.ret != GGL_ERR_OK)) {
         return ret;
-    }
-
-    if (callbacks.on_response != NULL) {
-        GGL_LOGT("core-bus-client", "Calling subscription response callback.");
-
-        ret = callbacks.on_response(callbacks.ctx, handle, result);
-        if (ret != GGL_ERR_OK) {
-            ggl_socket_handle_close(&pool, handle);
-
-            GGL_LOGT(
-                "core-bus-client",
-                "Subscription response callback returned error."
-            );
-        }
     }
 
     GGL_LOGT(

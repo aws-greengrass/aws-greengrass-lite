@@ -62,10 +62,10 @@ GglError ggl_socket_handle_get_peer_pid(
     GglSocketPool *pool, uint32_t handle, pid_t *pid
 );
 
-/// Run a callback with access to the state index.
+/// Run action with handle protected and access to the state index.
 /// This can be used for managing additional state arrays kept in sync with the
-/// socket pool state.
-GglError ggl_with_socket_handle_index(
+/// socket pool state or to protect the action from concurrent cleanup.
+GglError ggl_socket_handle_protected(
     void (*action)(void *ctx, size_t index),
     void *ctx,
     GglSocketPool *pool,

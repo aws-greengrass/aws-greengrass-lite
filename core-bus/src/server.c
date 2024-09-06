@@ -217,7 +217,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     }
 
     GGL_LOGT("core-bus-server", "Setting request type.");
-    ret = ggl_with_socket_handle_index(set_request_type, &type, &pool, handle);
+    ret = ggl_socket_handle_protected(set_request_type, &type, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -326,7 +326,7 @@ void ggl_respond(uint32_t handle, GglObject value) {
     GGL_LOGT("core-bus-server", "Retrieving request type for %d.", handle);
     GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
     GglError ret
-        = ggl_with_socket_handle_index(get_request_type, &type, &pool, handle);
+        = ggl_socket_handle_protected(get_request_type, &type, &pool, handle);
     if (ret != GGL_ERR_OK) {
         return;
     }
@@ -374,7 +374,7 @@ void ggl_sub_accept(
         SubCleanupCallback cleanup = { .fn = on_close, .ctx = ctx };
 
         GGL_LOGT("core-bus-server", "Setting close callback for %d.", handle);
-        GglError ret = ggl_with_socket_handle_index(
+        GglError ret = ggl_socket_handle_protected(
             set_subscription_cleanup, &cleanup, &pool, handle
         );
         if (ret != GGL_ERR_OK) {
