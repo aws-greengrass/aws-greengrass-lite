@@ -285,5 +285,5 @@ void ggconfigd_start_server(void) {
             { GGL_STR("subscribe"), true, rpc_subscribe, NULL } };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
-    ggl_listen(GGL_STR("/aws/ggl/ggconfigd"), handlers, handlers_len);
+    ggl_listen(GGL_STR("gg_config"), handlers, handlers_len);
 }

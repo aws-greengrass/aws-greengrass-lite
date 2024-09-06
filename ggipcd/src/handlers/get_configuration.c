@@ -49,12 +49,7 @@ GglError handle_get_configuration(
     GglError error;
     GglObject call_resp;
     GglError ret = ggl_call(
-        GGL_STR("/aws/ggl/ggconfigd"),
-        GGL_STR("read"),
-        params,
-        &error,
-        alloc,
-        &call_resp
+        GGL_STR("gg_config"), GGL_STR("read"), params, &error, alloc, &call_resp
     );
     if (ret != GGL_ERR_OK) {
         return ret;

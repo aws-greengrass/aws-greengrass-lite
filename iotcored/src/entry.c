@@ -28,7 +28,7 @@ static GglError collect_a_string(GglList *config_path, GglBuffer *memory) {
 
     GglObject call_resp;
     GglError ret = ggl_call(
-        GGL_STR("/aws/ggl/ggconfigd"),
+        GGL_STR("gg_config"),
         GGL_STR("read"),
         params,
         NULL,

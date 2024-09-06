@@ -35,7 +35,7 @@ GglError verify_component_exists(GglBuffer component_name) {
     }
     GGL_DEFER(pthread_mutex_unlock, bump_alloc_mutex);
 
-    GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
+    GglBuffer server = GGL_STR("gg_config");
     static uint8_t bump_buffer[4096];
     GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(bump_buffer));
 

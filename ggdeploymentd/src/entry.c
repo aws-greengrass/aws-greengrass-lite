@@ -32,7 +32,7 @@ static GglError update_root_path(void) {
 
     GglObject resp;
     GglError ret = ggl_call(
-        GGL_STR("/aws/ggl/ggconfigd"),
+        GGL_STR("gg_config"),
         GGL_STR("read"),
         params,
         NULL,

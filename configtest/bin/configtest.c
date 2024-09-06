@@ -28,7 +28,7 @@ static char *print_key_path(GglList *key_path) {
 static void test_insert(
     GglList test_key, GglObject test_value, GglError expected_result
 ) {
-    GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
+    GglBuffer server = GGL_STR("gg_config");
 
     static uint8_t big_buffer_for_bump[4096];
     GglBumpAlloc the_allocator
@@ -202,7 +202,7 @@ static void compare_objects(GglObject expected, GglObject result) {
 static void test_get(
     GglList test_key_path, GglObject expected_object, GglError expected_result
 ) {
-    GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
+    GglBuffer server = GGL_STR("gg_config");
     static uint8_t big_buffer_for_bump[4096];
     GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
@@ -257,7 +257,7 @@ static void subscription_close(void *ctx, unsigned int handle) {
 }
 
 static void test_subscribe(GglList key, GglError expected_response) {
-    GglBuffer server = GGL_STR("/aws/ggl/ggconfigd");
+    GglBuffer server = GGL_STR("gg_config");
 
     GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key) }, );
     uint32_t handle;
@@ -348,7 +348,7 @@ static void test_write_object(void) {
         { GGL_STR("value"), test_value_object },
         { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
     );
-    error = ggl_notify(GGL_STR("/aws/ggl/ggconfigd"), GGL_STR("write"), params);
+    error = ggl_notify(GGL_STR("gg_config"), GGL_STR("write"), params);
     GGL_LOGI("test_write_object", "test complete %d", error);
 }
 

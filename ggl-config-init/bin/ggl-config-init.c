@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
     );
 
     ret = ggl_call(
-        GGL_STR("/aws/ggl/ggconfigd"), GGL_STR("write"), args, NULL, NULL, NULL
+        GGL_STR("gg_config"), GGL_STR("write"), args, NULL, NULL, NULL
     );
 
     if (ret != GGL_ERR_OK) {

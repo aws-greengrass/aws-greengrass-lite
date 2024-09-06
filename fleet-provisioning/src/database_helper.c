@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 #define MAX_WRITE_BUFFER_SIZE 10000
-static GglBuffer config_server = GGL_STR("/aws/ggl/ggconfigd");
+static GglBuffer config_server = GGL_STR("gg_config");
 
 void get_value_from_db(
     GglList key_path, GglAlloc *the_allocator, char *return_string

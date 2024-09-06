@@ -15,7 +15,7 @@
 static void get_value_from_db(
     GglList key_path, GglBumpAlloc the_allocator, char *return_string
 ) {
-    GglBuffer config_server = GGL_STR("/aws/ggl/ggconfigd");
+    GglBuffer config_server = GGL_STR("gg_config");
 
     GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key_path) }, );
     GglObject result;
