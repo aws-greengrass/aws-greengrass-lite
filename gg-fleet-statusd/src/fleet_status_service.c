@@ -7,6 +7,7 @@
 #include <ggl/core_bus/client.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
+#include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
@@ -23,18 +24,7 @@
 #define TOPIC_BUFFER_LEN \
     (TOPIC_PREFIX_LEN + MAX_THING_NAME_LEN + TOPIC_SUFFIX_LEN)
 
-#define PAYLOAD_PREFIX \
-    "{\"ggcVersion\":\"2.13.0\",\"platform\":\"linux\",\"architecture\":" \
-    "\"amd64\",\"runtime\":\"NucleusLite\",\"thing\":\""
-#define PAYLOAD_PREFIX_LEN (sizeof(PAYLOAD_PREFIX) - 1)
-#define PAYLOAD_SUFFIX \
-    "\",\"sequenceNumber\":1,\"timestamp\":10,\"messageType\":\"COMPLETE\"," \
-    "\"trigger\":\"NUCLEUS_LAUNCH\",\"overallDeviceStatus\":\"HEALTHY\"," \
-    "\"components\":[]}"
-#define PAYLOAD_SUFFIX_LEN (sizeof(PAYLOAD_SUFFIX) - 1)
-
-#define PAYLOAD_BUFFER_LEN \
-    (PAYLOAD_PREFIX_LEN + MAX_THING_NAME_LEN + PAYLOAD_SUFFIX_LEN)
+#define PAYLOAD_BUFFER_LEN 5000
 
 GglError publish_message(GglBuffer thing_name) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -56,12 +46,24 @@ GglError publish_message(GglBuffer thing_name) {
         return ret;
     }
 
+    GglObject payload_obj = GGL_OBJ_MAP(
+        { GGL_STR("ggcVersion"), GGL_OBJ_STR("3.13.0") },
+        { GGL_STR("platform"), GGL_OBJ_STR("linux") },
+        { GGL_STR("architecture"), GGL_OBJ_STR("amd64") },
+        { GGL_STR("runtime"), GGL_OBJ_STR("NucleusLite") },
+        { GGL_STR("thing"), GGL_OBJ(thing_name) },
+        { GGL_STR("sequenceNumber"), GGL_OBJ_I64(1) },
+        { GGL_STR("timestamp"), GGL_OBJ_I64(10) },
+        { GGL_STR("messageType"), GGL_OBJ_STR("COMPLETE") },
+        { GGL_STR("trigger"), GGL_OBJ_STR("NUCLEUS_LAUNCH") },
+        { GGL_STR("overallDeviceStatus"), GGL_OBJ_STR("HEALTHY") },
+        { GGL_STR("components"), GGL_OBJ_LIST() }
+    );
+
     // build payload
     static uint8_t payload_buf[PAYLOAD_BUFFER_LEN];
-    GglByteVec payload_vec = GGL_BYTE_VEC(payload_buf);
-    ret = ggl_byte_vec_append(&topic_vec, GGL_STR(PAYLOAD_PREFIX));
-    ggl_byte_vec_chain_append(&ret, &topic_vec, thing_name);
-    ggl_byte_vec_chain_append(&ret, &topic_vec, GGL_STR(PAYLOAD_SUFFIX));
+    GglBuffer payload = GGL_BUF(payload_buf);
+    ret = ggl_json_encode(payload_obj, &payload);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -71,7 +73,7 @@ GglError publish_message(GglBuffer thing_name) {
         GGL_STR("publish"),
         GGL_MAP(
             { GGL_STR("topic"), GGL_OBJ(topic_vec.buf) },
-            { GGL_STR("payload"), GGL_OBJ(payload_vec.buf) }
+            { GGL_STR("payload"), GGL_OBJ(payload) }
         )
     );
     if (ret != GGL_ERR_OK) {
