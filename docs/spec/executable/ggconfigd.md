@@ -6,8 +6,7 @@ import/export and basic read/write access to the key/value store.
 
 - [ggconfigd-1] `ggconfigd` shall maintain a key/value database of configuration
   data.
-- [ggconfigd-2] `ggconfigd` shall provide corebus interfaces for read/write of
-  configuration data.
+- [ggconfigd-2] `ggconfigd` shall provide the `gg_config` core-bus interface.
 - [ggconfigd-3] `ggconfigd` shall provide corebus interfaces for snapshots and
   rollback to support deployments.
 - [ggconfigd-4] `ggconfigd` shall provide corebus interfaces for tlog
@@ -27,41 +26,7 @@ may be stored internally with case).
 
 Any data is permitted in a value. The data that goes in, is returned when read.
 
-## Core Bus API
-
-### write
-
-Write a value to the indicated key. Create the key_path and key as required.
-
-| Parameter name | Parameter Description                                                                           |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| key_path       | The key_path is a list where each entry in order is a single level in the configuration object. |
-| value          | The configuration object to merge at the location that you specify in key_path.                 |
-| timestamp      | The current Unix epoch time in milliseconds, to resolve concurrent updates to the key.          |
-
-If the key in the component configuration has a greater timestamp than the
-timestamp in the request, then the request makes no change.
-
-If there is a request to write an object with multiple keys, and some of the
-keys in the component configuration have a greater timestamp than those keys in
-the request, then those keys will be ignored while the other keys are written.
-
-### read
-
-Read a value from the indicated key. If the key is not found, return an error.
-
-| Parameter name | Parameter Description                                                                           |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| key_path       | The key_path is a list where each entry in order is a single level in the configuration object. |
-
-### subscribe
-
-Subscribe to updates when the indicated key changes. If the key is not found,
-return an error.
-
-| Parameter name | Parameter Description                                                                           |
-| -------------- | ----------------------------------------------------------------------------------------------- |
-| key_path       | The key_path is a list where each entry in order is a single level in the configuration object. |
+## Future Core Bus APIs
 
 ### snapshot
 
