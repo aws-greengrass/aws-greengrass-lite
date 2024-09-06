@@ -7,10 +7,11 @@
 
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stddef.h>
 #include <stdint.h>
 
-GglError iotcored_register_subscription(
-    GglBuffer topic_filter, uint32_t handle
+GglError iotcored_register_subscriptions(
+    GglBuffer *topic_filters, size_t count, uint32_t handle
 );
 
 void iotcored_unregister_subscriptions(uint32_t handle);

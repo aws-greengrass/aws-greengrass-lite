@@ -28,45 +28,63 @@
 #endif
 
 static size_t topic_filter_len[IOTCORED_MAX_SUBSCRIPTIONS] = { 0 };
-static uint8_t topic_filters[IOTCORED_MAX_SUBSCRIPTIONS]
-                            [AWS_IOT_MAX_TOPIC_SIZE];
+static uint8_t sub_topic_filters[IOTCORED_MAX_SUBSCRIPTIONS]
+                                [AWS_IOT_MAX_TOPIC_SIZE];
 static uint32_t handles[IOTCORED_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static GglBuffer topic_filter_buf(size_t index) {
     return ggl_buffer_substr(
-        GGL_BUF(topic_filters[index]), 0, topic_filter_len[index]
+        GGL_BUF(sub_topic_filters[index]), 0, topic_filter_len[index]
     );
 }
 
-GglError iotcored_register_subscription(
-    GglBuffer topic_filter, uint32_t handle
+GglError iotcored_register_subscriptions(
+    GglBuffer *topic_filters, size_t count, uint32_t handle
 ) {
-    if (topic_filter.len == 0) {
-        GGL_LOGE(
-            "subscriptions", "Attempted to register a 0 length topic filter."
-        );
-        return GGL_ERR_INVALID;
+    for (size_t i = 0; i < count; i++) {
+        if (topic_filters[i].len == 0) {
+            GGL_LOGE(
+                "subscriptions",
+                "Attempted to register a 0 length topic filter."
+            );
+            return GGL_ERR_INVALID;
+        }
     }
-    if (topic_filter.len > AWS_IOT_MAX_TOPIC_SIZE) {
-        GGL_LOGE(
-            "subscriptions", "Topic filter larger than configured maximum."
-        );
-        return GGL_ERR_RANGE;
+    for (size_t i = 0; i < count; i++) {
+        if (topic_filters[i].len > AWS_IOT_MAX_TOPIC_SIZE) {
+            GGL_LOGE("subscriptions", "Topic filter exceeds max length.");
+            return GGL_ERR_RANGE;
+        }
     }
 
     pthread_mutex_lock(&mtx);
     GGL_DEFER(pthread_mutex_unlock, mtx);
 
+    size_t filter_index = 0;
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (topic_filter_len[i] == 0) {
-            topic_filter_len[i] = topic_filter.len;
-            memcpy(topic_filters[i], topic_filter.data, topic_filter.len);
+            topic_filter_len[i] = topic_filters[filter_index].len;
+            memcpy(
+                sub_topic_filters[i],
+                topic_filters[filter_index].data,
+                topic_filters[filter_index].len
+            );
             handles[i] = handle;
-            return GGL_ERR_OK;
+            filter_index += 1;
+            if (filter_index == count) {
+                return GGL_ERR_OK;
+            }
         }
     }
     GGL_LOGE("subscriptions", "Configured maximum subscriptions exceeded.");
+
+    for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
+        if (handles[i] == handle) {
+            topic_filter_len[i] = 0;
+        }
+    }
+
     return GGL_ERR_NOMEM;
 }
 
