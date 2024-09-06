@@ -158,7 +158,7 @@ GglError ggl_client_get_response(
                     *error = (GglError) header.value.int32;
                 }
             }
-            return GGL_ERR_FAILURE;
+            return GGL_ERR_REMOTE;
         }
     }
 
