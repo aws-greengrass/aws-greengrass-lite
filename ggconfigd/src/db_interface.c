@@ -571,7 +571,7 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
         return err;
     }
     if (value_is_present_for_root_key) {
-        GGL_LOGE(
+        GGL_LOGW(
             "create_key_path",
             "value already present for root key %.*s with id %ld",
             (int) root_key_buffer.len,
@@ -612,7 +612,7 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
                 return err;
             }
             if (value_is_present) {
-                GGL_LOGE(
+                GGL_LOGW(
                     "create_key_path",
                     "value already present for key %.*s with id %ld",
                     (int) current_key_buffer.len,
