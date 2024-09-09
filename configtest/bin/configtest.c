@@ -73,9 +73,10 @@ static void test_insert(
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
             "test_insert",
-            "insert of key %s did not expect error but got error %d",
+            "insert of key %s did not expect error but got error %d and remote error %d",
             print_key_path(&test_key),
-            (int) error
+            (int) error,
+            (int) remote_error
         );
         assert(0);
     }
@@ -263,9 +264,10 @@ static void test_get(
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
             "test_insert",
-            "insert of key %s did not expect error but got error %d",
+            "insert of key %s did not expect error but got error %d and remote error %d",
             print_key_path(&test_key_path),
-            (int) error
+            (int) error,
+            (int) remote_error
         );
         assert(0);
     }
@@ -341,9 +343,10 @@ static void test_subscribe(GglList key, GglError expected_response) {
     if (expected_response == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
             "test_insert",
-            "insert of key %s did not expect error but got error %d",
+            "insert of key %s did not expect error but got error %d and remote error %d",
             print_key_path(&key),
-            (int) error
+            (int) error,
+            (int) remote_error
         );
         assert(0);
     }
