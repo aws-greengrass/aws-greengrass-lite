@@ -423,6 +423,13 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
 
+    // Test to ensure getting a key which doesn't exist works
+    test_get(
+        GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("nonexistent")),
+        GGL_OBJ_MAP(),
+        GGL_ERR_NOENTRY
+    );
+
     // Test to ensure recursive/object write and read works
     test_write_object();
     test_get(
