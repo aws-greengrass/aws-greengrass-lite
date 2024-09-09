@@ -11,6 +11,9 @@
 #include <ggl/error.h>
 #include <ggl/object.h>
 
+/// Make a call to an AWS IoT MQTT API.
+/// Sends request on topic and waits for response on topic/(accepted|rejected).
+/// Responses will be filtered according to clientToken.
 GglError ggl_aws_iot_call(
     GglBuffer topic, GglObject payload, GglAlloc *alloc, GglObject *result
 );

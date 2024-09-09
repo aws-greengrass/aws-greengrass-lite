@@ -14,6 +14,7 @@
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <pthread.h>
@@ -33,10 +34,47 @@
 typedef struct {
     pthread_mutex_t *mtx;
     pthread_cond_t *cond;
+    GglBuffer *client_token;
     GglAlloc *alloc;
     GglObject *result;
     GglError ret;
 } CallbackCtx;
+
+static GglError get_client_token(GglObject payload, GglBuffer **client_token) {
+    *client_token = NULL;
+    if (payload.type != GGL_TYPE_MAP) {
+        return GGL_ERR_OK;
+    }
+    GglObject *found;
+    if (!ggl_map_get(payload.map, GGL_STR("clientToken"), &found)) {
+        return GGL_ERR_OK;
+    }
+    if (found->type != GGL_TYPE_BUF) {
+        GGL_LOGE("iot_core_call", "Invalid clientToken type.");
+        return GGL_ERR_INVALID;
+    }
+    *client_token = &found->buf;
+    return GGL_ERR_OK;
+}
+
+static bool match_client_token(GglObject payload, GglBuffer *client_token) {
+    GglBuffer *payload_client_token = NULL;
+
+    GglError ret = get_client_token(payload, &payload_client_token);
+    if (ret != GGL_ERR_OK) {
+        return false;
+    }
+
+    if ((client_token == NULL) && (payload_client_token == NULL)) {
+        return true;
+    }
+
+    if ((client_token == NULL) || (payload_client_token == NULL)) {
+        return false;
+    }
+
+    return ggl_buffer_eq(*client_token, *payload_client_token);
+}
 
 static GglError subscription_callback(
     void *ctx, uint32_t handle, GglObject data
@@ -60,6 +98,11 @@ static GglError subscription_callback(
         GGL_LOGE("iot_core_call", "Failed to decode response payload.");
         *(call_ctx->result) = GGL_OBJ_NULL();
         decoded = false;
+    }
+
+    if (!match_client_token(*call_ctx->result, call_ctx->client_token)) {
+        // Skip this message
+        return GGL_ERR_OK;
     }
 
     if (ggl_buffer_has_suffix(*topic, GGL_STR("/accepted"))) {
@@ -121,10 +164,16 @@ GglError ggl_aws_iot_call(
     CallbackCtx ctx = {
         .mtx = &notify_mtx,
         .cond = &notify_cond,
+        .client_token = NULL,
         .alloc = alloc,
         .result = result,
         .ret = GGL_ERR_FAILURE,
     };
+
+    ret = get_client_token(payload, &ctx.client_token);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     GglBuffer sub_topics[2] = { accepted_topic.buf, rejected_topic.buf };
     uint32_t sub_handle = 0;
