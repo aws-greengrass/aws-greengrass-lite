@@ -131,14 +131,15 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     GGL_LOGI("rpc_read", "reading key %s", print_key_path(key_list));
 
     GglObject value;
-    if (ggconfig_get_value_from_key(key_list, &value) == GGL_ERR_OK) {
+    GglError err = ggconfig_get_value_from_key(key_list, &value);
+    if (err != GGL_ERR_OK) {
+        ggl_return_err(handle, err);
+    } else {
         static uint8_t object_decode_memory[GGCONFIGD_MAX_OBJECT_DECODE_BYTES];
         GglBumpAlloc object_alloc
             = ggl_bump_alloc_init(GGL_BUF(object_decode_memory));
         decode_object_destructive(&value, &object_alloc);
         ggl_respond(handle, value);
-    } else {
-        ggl_return_err(handle, GGL_ERR_FAILURE);
     }
 }
 

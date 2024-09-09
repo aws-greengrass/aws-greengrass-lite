@@ -41,17 +41,42 @@ static void test_insert(
     );
     GglObject result;
 
+    GglError remote_error = GGL_ERR_OK;
     GglError error = ggl_call(
-        server, GGL_STR("write"), params, NULL, &the_allocator.alloc, &result
+        server,
+        GGL_STR("write"),
+        params,
+        &remote_error,
+        &the_allocator.alloc,
+        &result
     );
 
-    if (error != expected_result) {
+    if (expected_result != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
         GGL_LOGE(
             "test_insert",
-            "insert of key %s expected result %d but got %d",
+            "insert of key %s expected error %d but there was not a remote "
+            "error",
+            print_key_path(&test_key),
+            (int) expected_result
+        );
+        assert(0);
+    }
+    if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
+        GGL_LOGE(
+            "test_insert",
+            "insert of key %s did not expect error but got error %d",
+            print_key_path(&test_key),
+            (int) error
+        );
+        assert(0);
+    }
+    if (remote_error != expected_result) {
+        GGL_LOGE(
+            "test_insert",
+            "insert of key %s expected remote error %d but got %d",
             print_key_path(&test_key),
             (int) expected_result,
-            (int) error
+            (int) remote_error
         );
         assert(0);
     }
@@ -197,8 +222,6 @@ static void compare_objects(GglObject expected, GglObject result) {
     }
 }
 
-// TODO: make expected_object optional? Because if we expect failure then the
-// object is ignored and should not be required.
 static void test_get(
     GglList test_key_path, GglObject expected_object, GglError expected_result
 ) {
@@ -210,16 +233,40 @@ static void test_get(
     GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(test_key_path) }, );
     GglObject result;
 
+    GglError remote_error = GGL_ERR_OK;
     GglError error = ggl_call(
-        server, GGL_STR("read"), params, NULL, &the_allocator.alloc, &result
+        server,
+        GGL_STR("read"),
+        params,
+        &remote_error,
+        &the_allocator.alloc,
+        &result
     );
-    if (error != expected_result) {
+    if (expected_result != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
+        GGL_LOGE(
+            "test_insert",
+            "get key %s expected result %d but there was not a remote error",
+            print_key_path(&test_key_path),
+            (int) expected_result
+        );
+        assert(0);
+    }
+    if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
+        GGL_LOGE(
+            "test_insert",
+            "insert of key %s did not expect error but got error %d",
+            print_key_path(&test_key_path),
+            (int) error
+        );
+        assert(0);
+    }
+    if (remote_error != expected_result) {
         GGL_LOGE(
             "test_get",
             "get key %s expected result %d but got %d",
             print_key_path(&test_key_path),
             (int) expected_result,
-            (int) error
+            (int) remote_error
         );
         assert(0);
         return;
@@ -261,6 +308,7 @@ static void test_subscribe(GglList key, GglError expected_response) {
 
     GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key) }, );
     uint32_t handle;
+    GglError remote_error = GGL_ERR_OK;
     GglError error = ggl_subscribe(
         server,
         GGL_STR("subscribe"),
@@ -268,10 +316,29 @@ static void test_subscribe(GglList key, GglError expected_response) {
         subscription_callback,
         subscription_close,
         NULL,
-        NULL, // TODO: this must be tested
+        &remote_error,
         &handle
     );
-    if (error != expected_response) {
+    if (expected_response != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
+        GGL_LOGE(
+            "test_insert",
+            "subscribe key %s expected result %d but there was not a remote "
+            "error",
+            print_key_path(&key),
+            (int) expected_response
+        );
+        assert(0);
+    }
+    if (expected_response == GGL_ERR_OK && error != GGL_ERR_OK) {
+        GGL_LOGE(
+            "test_insert",
+            "insert of key %s did not expect error but got error %d",
+            print_key_path(&key),
+            (int) error
+        );
+        assert(0);
+    }
+    if (remote_error != expected_response) {
         GGL_LOGE(
             "test_subscribe",
             "subscribe key %s expected result %d but got %d",
@@ -444,9 +511,9 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("subkey")
         ),
         GGL_OBJ_STR("Ignored value- this argument would ideally be optional"),
-        GGL_ERR_FAILURE // expect failure because `component/foo/bar/key/subkey`
-                        // should not have been set after the previous insert
-                        // failed
+        GGL_ERR_NOENTRY // expect NOENTRY failure because
+                        // `component/foo/bar/key/subkey` should not have exist
+                        // or have been set after the previous insert failed
     );
     test_get(
         GGL_LIST(
@@ -508,7 +575,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("bar"),
             GGL_OBJ_STR("key")
         ),
-        GGL_ERR_FAILURE
+        GGL_ERR_NOENTRY
     );
 
     // Test to ensure subscribers and notifications work
