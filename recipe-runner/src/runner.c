@@ -18,13 +18,6 @@
 #include <stdlib.h>
 
 #define MAX_SCRIPT_LENGTH 10000
-#define GGL_MAX_SVCUID_LEN 128
-
-static const char AWS_SOCKET_PATH_NAME[]
-    = "AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT";
-static const char AWS_SVCUID_NAME[] = "SVCUID=";
-static uint8_t payload_array[GGL_MAX_SVCUID_LEN];
-static char svc_buffer[128] = {};
 
 pid_t child_pid = -1; // To store child process ID
 
@@ -58,7 +51,9 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     // Get the SocketPath from Environment Variable
     // NOLINTBEGIN(concurrency-mt-unsafe)
-    char *socket_path = getenv(AWS_SOCKET_PATH_NAME);
+
+    char *socket_path
+        = getenv("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT");
 
     if (socket_path == NULL) {
         GGL_LOGE("recipe-runner", "SocketPath environment not set....");
@@ -67,26 +62,35 @@ GglError runner(const RecipeRunnerArgs *args) {
     // NOLINTEND(concurrency-mt-unsafe)
 
     // Fetch the SVCUID
-    int conn = -1;
-    GglBuffer svc_uuid = GGL_BUF(payload_array);
-    ggipc_connect_auth(
+
+    // Includes null-termination
+    static char svcuid_env_buf[GGL_IPC_MAX_SVCUID_LEN + sizeof("SVCUID=")]
+        = "SVCUID=";
+
+    GglBuffer svcuid
+        = { .data = (uint8_t *) &svcuid_env_buf[sizeof("SVCUID=") - 1],
+            .len = GGL_IPC_MAX_SVCUID_LEN };
+    GglError ret = ggipc_connect_auth(
         ((GglBuffer) { .data = (uint8_t *) socket_path,
                        .len = strlen(socket_path) }),
-        &svc_uuid,
-        &conn
+        &svcuid,
+        NULL
     );
-    strncat(svc_buffer, AWS_SVCUID_NAME, strlen(AWS_SVCUID_NAME));
-    strncat(svc_buffer, (char *) svc_uuid.data, svc_uuid.len);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    svcuid.data[svcuid.len] = '\0';
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    int set_env_status = putenv(svc_buffer);
+    int set_env_status = putenv(svcuid_env_buf);
 
     if (set_env_status == -1) {
         GGL_LOGE("recipe-runner", "Failed to set SVCUID environment variable");
     }
 
     // Fetch the bash script content to memory
-    GglError ret = get_file_content(args->file_path, script);
+    ret = get_file_content(args->file_path, script);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

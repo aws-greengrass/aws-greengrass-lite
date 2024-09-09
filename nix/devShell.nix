@@ -16,4 +16,7 @@ in
     })
   ];
   env.NIX_HARDENING_ENABLE = "";
+  shellHook = ''
+    export MAKEFLAGS=-j$(nproc)
+  '';
 }

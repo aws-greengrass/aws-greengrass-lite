@@ -12,6 +12,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -185,16 +186,23 @@ GglError initiate_request(
     char *role_alias,
     char *cert_endpoint
 ) {
-    static char url_buf[2024] = { 0 };
+    GglByteVec url_vec = GGL_BYTE_VEC(global_cred_details.url);
 
-    strncat(url_buf, "https://", strlen("https://"));
-    strncat(url_buf, cert_endpoint, strlen(cert_endpoint));
-    strncat(url_buf, "/role-aliases/", strlen("/role-aliases/"));
-    strncat(url_buf, role_alias, strlen(role_alias));
-    strncat(url_buf, "/credentials\0", strlen("/credentials\0"));
+    GglError ret = ggl_byte_vec_append(&url_vec, GGL_STR("https://"));
+    ggl_byte_vec_chain_append(
+        &ret, &url_vec, ggl_buffer_from_null_term(cert_endpoint)
+    );
+    ggl_byte_vec_chain_append(&ret, &url_vec, GGL_STR("/role-aliases/"));
+    ggl_byte_vec_chain_append(
+        &ret, &url_vec, ggl_buffer_from_null_term(role_alias)
+    );
+    ggl_byte_vec_chain_append(&ret, &url_vec, GGL_STR("/credentials\0"));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("tesd", "Failed to construct request URL.");
+        return ret;
+    }
 
     memcpy(global_cred_details.root_ca_path, root_ca, strlen(root_ca));
-    memcpy(global_cred_details.url, url_buf, strlen(url_buf));
     memcpy(global_cred_details.key_path, key_path, strlen(key_path));
     memcpy(global_cred_details.thing_name, thing_name, strlen(thing_name));
     memcpy(global_cred_details.role_alias, role_alias, strlen(role_alias));
