@@ -51,6 +51,7 @@ timestamp is greater or equal to the existing timestamp
     to compare against existing values.
   - [gg-config-write-params-3.2] If the value is older than an existing key it
     would overwrite, then the old value is kept instead.
+  - [gg-config-write-params-3.3] If not provided, the current time is used.
 
 ### Response
 
@@ -76,7 +77,7 @@ with `key_path`.
 ### Response
 
 - [gg-config-subscribe-resp-1] Subscription responses are sent on each update.
-  - [gg-config-subscribe-resp-1.1] The response value the key path which was
+  - [gg-config-subscribe-resp-1.1] The response value is the key path which was
     updated. This may be a child of the `key_path` parameter.
 - [gg-config-subscribe-resp-1] The method will return an error if the
   subscripion is not set up.
