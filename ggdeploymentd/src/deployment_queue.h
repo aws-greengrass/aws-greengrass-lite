@@ -8,6 +8,7 @@
 #include "deployment_model.h"
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 
 /// Attempts to add a deployment into the queue.
 ///
@@ -16,7 +17,7 @@
 /// the queue with the same ID, then replace it if the deployment is in a
 /// replaceable state. Otherwise, do not add the deployment to the queue and
 /// return an error.
-GglError ggl_deployment_enqueue(GglMap deployment_doc, GglBuffer *id);
+GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id);
 
 /// Get the deployment queue for the next deployment.
 ///

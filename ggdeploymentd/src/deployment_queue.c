@@ -14,6 +14,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <pthread.h>
 #include <string.h>
 #include <uuid/uuid.h>
@@ -175,7 +176,7 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_deployment_enqueue(GglMap deployment_doc, GglBuffer *id) {
+GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id) {
     pthread_mutex_lock(&queue_mtx);
     GGL_DEFER(pthread_mutex_unlock, queue_mtx);
 
@@ -185,18 +186,12 @@ GglError ggl_deployment_enqueue(GglMap deployment_doc, GglBuffer *id) {
         return ret;
     }
 
-    // TODO: make a GglByteVec
     if (id != NULL) {
-        if (new.deployment_id.len > id->len) {
-            GGL_LOGD(
-                "deployment_queue",
-                "Insufficient memory to return deployment id."
-            );
-            return GGL_ERR_NOMEM;
+        ret = ggl_byte_vec_append(id, new.deployment_id);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("deployment_queue", "insufficient id length");
+            return ret;
         }
-
-        memcpy(id->data, new.deployment_id.data, new.deployment_id.len);
-        id->len = new.deployment_id.len;
     }
 
     new.state = GGL_DEPLOYMENT_QUEUED;

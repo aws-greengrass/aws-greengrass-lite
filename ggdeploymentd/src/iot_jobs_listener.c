@@ -386,12 +386,12 @@ static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
     ggl_byte_vec_append(&current_job_id, job_id);
     current_deployment_id = GGL_BYTE_VEC(current_deployment_id_buf);
     current_deployment_id.buf.len = current_deployment_id.capacity;
-    int64_t retries = 1;
 
+    // TODO: backoff algorithm
     GglError ret = GGL_ERR_OK;
+    int64_t retries = 1;
     while ((ret
-            = ggl_deployment_enqueue(deployment_doc, &current_deployment_id.buf)
-           )
+            = ggl_deployment_enqueue(deployment_doc, &current_deployment_id))
            == GGL_ERR_BUSY) {
         int64_t sleep_for = 1 << MIN(7, retries);
         ggl_sleep(sleep_for);
@@ -458,7 +458,8 @@ static GglError process_job_execution(GglMap job_execution) {
             GGL_LOGE("jobs-listener", "Job document not found.");
             return GGL_ERR_INVALID;
         }
-        return enqueue_job(deployment_doc->map, job_id->buf);
+        (void) enqueue_job(deployment_doc->map, job_id->buf);
+        break;
     }
     default:
         break;
