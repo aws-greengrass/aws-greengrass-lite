@@ -26,8 +26,6 @@ GglList resolve_dependencies(GglDeployment *deployment) {
     GGL_LOGD("dependency-resolver", "Starting dependency resolution.");
     // {component_name -> {dependent_component_name -> version_constraint}}
     GglMap component_name_to_version_constraints;
-
-    //
     GglList target_components_to_resolve;
 
     // GglKVVec kv_buffer_vec = { .map = (GglMap) { .pairs = kv_buffer, .len = 0

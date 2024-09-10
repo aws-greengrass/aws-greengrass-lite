@@ -202,7 +202,8 @@ ComponentMetadata resolve_component_version(
         resolved_component = local_candidate;
     } else {
         // TODO: if we find a local version, skip negotiating with the cloud
-        // if there is no local version and cloud negotiation fails, fail the deployment
+        // if there is no local version and cloud negotiation fails, fail the
+        // deployment
 
         // negotiate with cloud
         negotiate_version_with_cloud(
