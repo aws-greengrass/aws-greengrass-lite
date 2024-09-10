@@ -582,14 +582,16 @@ static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
 // undefined if the key_path fully exists already. Thus it should only be used
 // within a transaction and after checking that the key_path does not fully
 // exist.
-// TODO: break up function, it's getting gross. Convert the loop to do while?
-static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
+// key_ids_output must point to an empty GglObjVec with capacity
+// MAX_KEY_PATH_DEPTH
+static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
     GglBuffer root_key_buffer = key_path->items[0].buf;
     int64_t parent_key_id;
     GglError err = get_or_create_key_at_root(&root_key_buffer, &parent_key_id);
     if (err != GGL_ERR_OK) {
         return err;
     }
+    ggl_obj_vec_push(key_ids_output, GGL_OBJ_I64(parent_key_id));
     bool value_is_present_for_root_key;
     err = value_is_present_for_key(
         parent_key_id, &value_is_present_for_root_key
@@ -660,9 +662,9 @@ static GglError create_key_path(GglList *key_path, int64_t *key_id_output) {
         } else {
             return err;
         }
+        ggl_obj_vec_push(key_ids_output, GGL_OBJ_I64(current_key_id));
         parent_key_id = current_key_id;
     }
-    *key_id_output = current_key_id;
     return GGL_ERR_OK;
 }
 
@@ -699,7 +701,9 @@ static GglError child_is_present_for_key(
     return return_err;
 }
 
-static GglError notify_single_key(int64_t key_id, GglBuffer *value) {
+static GglError notify_single_key(
+    int64_t notify_key_id, GglList *changed_key_path
+) {
     // TODO: read this comment copied from the JAVA and ensure this implements a
     // similar functionality A subscriber is told what Topic changed, but must
     // look in the Topic to get the new value.  There is no "old value"
@@ -720,10 +724,13 @@ static GglError notify_single_key(int64_t key_id, GglBuffer *value) {
         NULL
     );
     GGL_DEFER(sqlite3_finalize, stmt);
-    sqlite3_bind_int64(stmt, 1, key_id);
+    sqlite3_bind_int64(stmt, 1, notify_key_id);
     int rc = 0;
     GGL_LOGD(
-        "notify_single_key", "subscription loop for key with id %ld", key_id
+        "notify_single_key",
+        "notifying subscribers on key with id %ld that key %s has changed",
+        notify_key_id,
+        print_key_path(changed_key_path)
     );
     do {
         rc = sqlite3_step(stmt);
@@ -734,17 +741,15 @@ static GglError notify_single_key(int64_t key_id, GglBuffer *value) {
         case SQLITE_ROW: {
             uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 0);
             GGL_LOGD("notify_single_key", "Sending to %u", handle);
-            ggl_respond(
-                handle, GGL_OBJ(*value)
-            ); // TODO: Why do we respond with an object containing the json
-               // serialized value that was updated at the leaf? Shouldn't we
-               // respond with what key was updated and with what value?
+            ggl_respond(handle, GGL_OBJ(*changed_key_path));
         } break;
         default:
             GGL_LOGE(
                 "notify_single_key",
-                "Unexpected rc %d while getting ids to notify with error: %s",
+                "Unexpected rc %d while getting handles to notify for key with "
+                "id %ld with error: %s",
                 rc,
+                notify_key_id,
                 sqlite3_errmsg(config_database)
             );
             return GGL_ERR_FAILURE;
@@ -755,10 +760,12 @@ static GglError notify_single_key(int64_t key_id, GglBuffer *value) {
     return GGL_ERR_OK;
 }
 
-static GglError notify_multiple_keys(GglObjVec key_ids, GglBuffer *value) {
+// Given a key path and the ids of the keys in that path, notify each key along
+// the path that the value at the tip of the key path has changed
+static GglError notify_nested_key(GglList *key_path, GglObjVec key_ids) {
     GglError return_err = GGL_ERR_OK;
     for (size_t i = 0; i < key_ids.list.len; i++) {
-        GglError err = notify_single_key(key_ids.list.items[i].i64, value);
+        GglError err = notify_single_key(key_ids.list.items[i].i64, key_path);
         if (err != GGL_ERR_OK) {
             return_err = GGL_ERR_FAILURE;
         }
@@ -784,24 +791,25 @@ GglError ggconfig_write_value_at_key(
     GglObject ids_array[MAX_KEY_PATH_DEPTH];
     GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
                       .capacity = MAX_KEY_PATH_DEPTH };
-    int64_t id;
+    int64_t last_key_id;
     GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
-        err = create_key_path(key_path, &id);
+        ids.list.len = 0; // Reset the ids vector to be populated fresh
+        err = create_key_path(key_path, &ids);
         if (err != GGL_ERR_OK) {
             sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
             return err;
         }
 
-        value_insert(id, value, timestamp);
+        last_key_id = ids.list.items[ids.list.len - 1].i64;
+        value_insert(last_key_id, value, timestamp);
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
-        err = notify_multiple_keys(ids, value);
+        err = notify_nested_key(key_path, ids);
         if (err != GGL_ERR_OK) {
             GGL_LOGE(
                 "ggconfig_write_value_at_key",
                 "failed to notify all subscribers about update for key path %s "
-                "with "
-                "error %d",
+                "with error %d",
                 print_key_path(key_path),
                 (int) err
             );
@@ -818,28 +826,28 @@ GglError ggconfig_write_value_at_key(
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
     }
-    id = ids.list.items[ids.list.len - 1].i64;
+    last_key_id = ids.list.items[ids.list.len - 1].i64;
     bool child_is_present;
-    err = child_is_present_for_key(id, &child_is_present);
+    err = child_is_present_for_key(last_key_id, &child_is_present);
     if (err != GGL_ERR_OK) {
         GGL_LOGE(
             "ggconfig_write_value_at_key",
             "failed to check for child presence for key %s with id %ld with "
             "error %d",
             print_key_path(key_path),
-            id,
+            last_key_id,
             (int) err
         );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
     }
     if (child_is_present) {
-        GGL_LOGI(
+        GGL_LOGW(
             "ggconfig_write_value_at_key",
             "key %s with id %ld is a map with one or more children, so it can "
             "not also store a value",
             print_key_path(key_path),
-            id
+            last_key_id
         );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return GGL_ERR_FAILURE;
@@ -849,13 +857,13 @@ GglError ggconfig_write_value_at_key(
     // Therefore, it stores a value currently.
 
     int64_t existing_timestamp;
-    err = value_get_timestamp(id, &existing_timestamp);
+    err = value_get_timestamp(last_key_id, &existing_timestamp);
     if (err != GGL_ERR_OK) {
         GGL_LOGE(
             "ggconfig_write_value_at_key",
             "failed to get timestamp for key %s with id %ld with error %d",
             print_key_path(key_path),
-            id,
+            last_key_id,
             (int) err
         );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
@@ -874,13 +882,13 @@ GglError ggconfig_write_value_at_key(
         return GGL_ERR_OK;
     }
 
-    err = value_update(id, value, timestamp);
+    err = value_update(last_key_id, value, timestamp);
     if (err != GGL_ERR_OK) {
         GGL_LOGE(
             "ggconfig_write_value_at_key",
             "failed to update value for key %s with id %ld with error %d",
             print_key_path(key_path),
-            id,
+            last_key_id,
             (int) err
         );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
@@ -888,7 +896,7 @@ GglError ggconfig_write_value_at_key(
     }
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
 
-    err = notify_multiple_keys(ids, value);
+    err = notify_nested_key(key_path, ids);
     if (err != GGL_ERR_OK) {
         GGL_LOGE(
             "ggconfig_write_value_at_key",

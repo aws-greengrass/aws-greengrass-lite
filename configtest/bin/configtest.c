@@ -73,7 +73,8 @@ static void test_insert(
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
             "test_insert",
-            "insert of key %s did not expect error but got error %d and remote error %d",
+            "insert of key %s did not expect error but got error %d and remote "
+            "error %d",
             print_key_path(&test_key),
             (int) error,
             (int) remote_error
@@ -264,7 +265,8 @@ static void test_get(
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
             "test_insert",
-            "insert of key %s did not expect error but got error %d and remote error %d",
+            "insert of key %s did not expect error but got error %d and remote "
+            "error %d",
             print_key_path(&test_key_path),
             (int) error,
             (int) remote_error
@@ -295,15 +297,12 @@ static GglError subscription_callback(
     GGL_LOGI(
         "configtest", "Subscription callback called for handle %d.", handle
     );
-    if (data.type == GGL_TYPE_BUF) {
+    if (data.type == GGL_TYPE_LIST) {
         GGL_LOGI(
-            "subscription callback",
-            "read %.*s",
-            (int) data.buf.len,
-            (char *) data.buf.data
+            "subscription callback", "read %s", print_key_path(&data.list)
         );
     } else {
-        GGL_LOGE("subscription callback", "expected a buffer");
+        GGL_LOGE("subscription callback", "expected a list ");
     }
     return GGL_ERR_OK;
 }
@@ -343,7 +342,8 @@ static void test_subscribe(GglList key, GglError expected_response) {
     if (expected_response == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
             "test_insert",
-            "insert of key %s did not expect error but got error %d and remote error %d",
+            "insert of key %s did not expect error but got error %d and remote "
+            "error %d",
             print_key_path(&key),
             (int) error,
             (int) remote_error
@@ -620,7 +620,7 @@ int main(int argc, char **argv) {
     );
     // TODO: Add in automated verification of the subscription callback in
     // response to these inserts. For now, check the logs manually (you should
-    // see `I[subscription callback] (..): read "the biggest value"`)
+    // see `I[subscription callback] (..): read component3/foo/bar/key`)
     test_insert(
         GGL_LIST(
             GGL_OBJ_STR("component3"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
@@ -641,14 +641,14 @@ int main(int argc, char **argv) {
         GGL_ERR_OK
     );
     test_subscribe(GGL_LIST(GGL_OBJ_STR("component4")), GGL_ERR_OK);
-    // Should see `I[subscription callback] (..): read "value2"`)
+    // Should see `I[subscription callback] (..): read component4/baz`)
     test_insert(
         GGL_LIST(GGL_OBJ_STR("component4")),
         GGL_OBJ_MAP({ GGL_STR("baz"), GGL_OBJ_STR("value2") }),
         -1,
         GGL_ERR_OK
     );
-    // Should see `I[subscription callback] (..): read "value3"`)
+    // Should see `I[subscription callback] (..): read component4/foo/bar/baz`)
     test_insert(
         GGL_LIST(
             GGL_OBJ_STR("component4"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
@@ -840,6 +840,7 @@ int main(int argc, char **argv) {
     // TODO: verify If you have a subscriber on /foo and write
     // /foo/bar/baz = {"alpha":"data","bravo":"data","charlie":"data"}
     // , it should only signal the notification once.
+    // This behavior needs to be implemented first.
 
     return 0;
 }
