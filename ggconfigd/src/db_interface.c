@@ -451,7 +451,7 @@ static GglError value_get_timestamp(
     sqlite3_bind_int64(get_timestamp_stmt, 1, id);
     int rc = sqlite3_step(get_timestamp_stmt);
     if (rc == SQLITE_ROW) {
-        int64_t timestamp = sqlite3_column_int(get_timestamp_stmt, 0);
+        int64_t timestamp = sqlite3_column_int64(get_timestamp_stmt, 0);
         *existing_timestamp_output = timestamp;
         return GGL_ERR_OK;
     }

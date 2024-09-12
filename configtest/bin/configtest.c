@@ -25,8 +25,12 @@ static char *print_key_path(GglList *key_path) {
     return path_string;
 }
 
+// a timestamp of -1 means no timestamp will be sent
 static void test_insert(
-    GglList test_key, GglObject test_value, GglError expected_result
+    GglList test_key,
+    GglObject test_value,
+    int64_t timestamp,
+    GglError expected_result
 ) {
     GglBuffer server = GGL_STR("gg_config");
 
@@ -37,8 +41,13 @@ static void test_insert(
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"), GGL_OBJ(test_key) },
         { GGL_STR("value"), test_value },
-        { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
+        { GGL_STR("timestamp"), GGL_OBJ_I64(timestamp) }
     );
+    if (timestamp < 0) {
+        params.len -= 1;
+    }
+
+    // NOLINTNEXTLINE(clang-analyzer-optin.cplusplus.VirtualCall)
     GglObject result;
 
     GglError remote_error = GGL_ERR_OK;
@@ -412,8 +421,7 @@ static void test_write_object(void) {
 
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"), test_key_path_object },
-        { GGL_STR("value"), test_value_object },
-        { GGL_STR("timeStamp"), GGL_OBJ_I64(1723142212) }
+        { GGL_STR("value"), test_value_object }
     );
     error = ggl_notify(GGL_STR("gg_config"), GGL_STR("write"), params);
     GGL_LOGI("test_write_object", "test complete %d", error);
@@ -485,6 +493,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("component1"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        -1,
         GGL_ERR_OK
     );
     test_get(
@@ -505,6 +514,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("key")
         ),
         GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value2") }),
+        -1,
         GGL_ERR_FAILURE // expect failure because `component/foo/bar/key` is
                         // already a value, so it should not also be a parent of
                         // a subkey
@@ -543,6 +553,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("key")
         ),
         GGL_OBJ_MAP({ GGL_STR("subkey"), GGL_OBJ_STR("value1") }),
+        -1,
         GGL_ERR_OK
     );
     test_get(
@@ -561,6 +572,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("component2"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        -1,
         GGL_ERR_FAILURE
     );
     test_get(
@@ -591,6 +603,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("component3"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("big value") }),
+        -1,
         GGL_ERR_OK
     );
     test_subscribe(
@@ -610,6 +623,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("component3"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("the biggest value") }),
+        -1,
         GGL_ERR_OK
     );
 
@@ -620,6 +634,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("component4"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        -1,
         GGL_ERR_OK
     );
     test_subscribe(GGL_LIST(GGL_OBJ_STR("component4")), GGL_ERR_OK);
@@ -627,6 +642,7 @@ int main(int argc, char **argv) {
     test_insert(
         GGL_LIST(GGL_OBJ_STR("component4")),
         GGL_OBJ_MAP({ GGL_STR("baz"), GGL_OBJ_STR("value2") }),
+        -1,
         GGL_ERR_OK
     );
     // Should see `I[subscription callback] (..): read "value3"`)
@@ -635,6 +651,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("component4"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
         GGL_OBJ_MAP({ GGL_STR("baz"), GGL_OBJ_STR("value3") }),
+        -1,
         GGL_ERR_OK
     );
 
@@ -644,6 +661,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("component5"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
         GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        -1,
         GGL_ERR_OK
     );
     test_insert(
@@ -651,6 +669,7 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("component5"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
         ),
         GGL_OBJ_MAP({ GGL_STR("KEY"), GGL_OBJ_STR("value2") }),
+        -1,
         GGL_ERR_OK
     );
     test_get(
@@ -659,6 +678,142 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("foo"),
             GGL_OBJ_STR("bar"),
             GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_STR("value2"),
+        GGL_ERR_OK
+    );
+
+    // Test to ensure writes with older timestamps than the existing value are
+    // ignored
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component6"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        1720000000001,
+        GGL_ERR_OK
+    );
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component6"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value2") }),
+        1720000000000,
+        GGL_ERR_OK
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component6"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_STR("value1"),
+        GGL_ERR_OK
+    );
+
+    // Test to ensure writes with identical timestamps overwrite the existing
+    // value
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component7"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        1720000000001,
+        GGL_ERR_OK
+    );
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component7"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value2") }),
+        1720000000001,
+        GGL_ERR_OK
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component7"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_STR("value2"),
+        GGL_ERR_OK
+    );
+
+    // Test to ensure writes with newer timestamps overwrite the existing value
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component8"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
+        1720000000001,
+        GGL_ERR_OK
+    );
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component8"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value2") }),
+        1720000000002,
+        GGL_ERR_OK
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component8"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_STR("value2"),
+        GGL_ERR_OK
+    );
+
+    // Test to ensure some values in an object can be merged while others are
+    // ignored due to timestamps
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component9"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key1"), GGL_OBJ_STR("value1") }),
+        1720000000000,
+        GGL_ERR_OK
+    );
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component9"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP({ GGL_STR("key2"), GGL_OBJ_STR("value2") }),
+        1720000000002,
+        GGL_ERR_OK
+    );
+    test_insert(
+        GGL_LIST(
+            GGL_OBJ_STR("component9"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
+        ),
+        GGL_OBJ_MAP(
+            { GGL_STR("key1"), GGL_OBJ_STR("value3") },
+            { GGL_STR("key2"), GGL_OBJ_STR("value4") }
+        ),
+        1720000000001,
+        GGL_ERR_OK
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component9"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key1")
+        ),
+        GGL_OBJ_STR("value3"),
+        GGL_ERR_OK
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component9"),
+            GGL_OBJ_STR("foo"),
+            GGL_OBJ_STR("bar"),
+            GGL_OBJ_STR("key2")
         ),
         GGL_OBJ_STR("value2"),
         GGL_ERR_OK
