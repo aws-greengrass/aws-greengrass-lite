@@ -93,7 +93,7 @@ void gghttplib_add_certificate_data(
         curl_data->curl, CURLOPT_SSLKEY, request_data.gghttplib_p_key_path
     );
     curl_easy_setopt(
-        curl_data->curl, CURLOPT_CAPATH, request_data.gghttplib_root_ca_path
+        curl_data->curl, CURLOPT_CAINFO, request_data.gghttplib_root_ca_path
     );
 }
 
