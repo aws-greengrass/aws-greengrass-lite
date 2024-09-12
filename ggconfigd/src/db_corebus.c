@@ -4,7 +4,6 @@
 
 #include "ggconfigd.h"
 #include "helpers.h"
-#include <time.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
@@ -14,8 +13,8 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <time.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #define MAX_SUBOBJECTS 25
@@ -215,7 +214,9 @@ static GglError process_map(
                 break;
             }
             GGL_LOGT("rpc_write:process_map", "writing the value");
-            error = ggconfig_write_value_at_key(&key_path->list, &value_buffer, timestamp);
+            error = ggconfig_write_value_at_key(
+                &key_path->list, &value_buffer, timestamp
+            );
 
             GGL_LOGT(
                 "rpc_write:process_map",
@@ -260,12 +261,16 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
 
     if (ggl_map_get(params, GGL_STR("timestamp"), &val)
         && (val->type == GGL_TYPE_I64)) {
-        GGL_LOGI("rpc_write", "timeStamp %ld", val->i64);
+        timestamp = val->i64;
+        GGL_LOGD("rpc_write", "timestamp %ld", timestamp);
     } else {
         struct timespec now;
         clock_gettime(CLOCK_REALTIME, &now);
-        int64_t now_msec = (int64_t)now.tv_sec * 1000 + now.tv_nsec / 1000000;
+        int64_t now_msec = (int64_t) now.tv_sec * 1000 + now.tv_nsec / 1000000;
         timestamp = now_msec;
+        GGL_LOGD(
+            "rpc_write", "no timestamp was provided, using %ld", timestamp
+        );
     }
 
     if (ggl_map_get(params, GGL_STR("value"), &val)
