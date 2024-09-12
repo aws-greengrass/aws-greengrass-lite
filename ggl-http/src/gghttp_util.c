@@ -7,7 +7,9 @@
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <curl/curl.h>
+#include <ggl/buffer.h>
 #include <ggl/log.h>
+#include <ggl/vector.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -95,6 +97,60 @@ void gghttplib_add_certificate_data(
     curl_easy_setopt(
         curl_data->curl, CURLOPT_CAINFO, request_data.gghttplib_root_ca_path
     );
+}
+
+GglError gghttplib_add_sigv4_credential(
+    CurlData *curl_data, SigV4Details request_data
+) {
+    GglError err = GGL_ERR_OK;
+    // scope to reduce stack size
+    {
+        // TODO: tune length based on longest-possible string
+        // e.g. "aws:amz:us-gov-east-1:lambda" (30 characters)
+        char sigv4_param[32];
+        GglByteVec vector = GGL_BYTE_VEC(sigv4_param);
+        ggl_byte_vec_chain_append(&err, &vector, GGL_STR("aws:amz:"));
+        ggl_byte_vec_chain_append(
+            &err, &vector, ggl_buffer_from_null_term(request_data.aws_region)
+        );
+        ggl_byte_vec_chain_append(&err, &vector, GGL_STR(":"));
+        ggl_byte_vec_chain_append(
+            &err, &vector, ggl_buffer_from_null_term(request_data.aws_service)
+        );
+        ggl_byte_vec_chain_append(&err, &vector, GGL_STR("\0"));
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE("sigv4", "sigv4_param too small");
+            return GGL_ERR_FAILURE;
+        }
+        curl_easy_setopt(curl_data->curl, CURLOPT_AWS_SIGV4, sigv4_param);
+    }
+
+    // scope to reduce stack size
+    {
+        // "<128-chars>:<128-chars>"
+        char sigv4_usrpwd[258];
+        GglByteVec vector = GGL_BYTE_VEC(sigv4_usrpwd);
+        ggl_byte_vec_chain_append(
+            &err, &vector, ggl_buffer_from_null_term(request_data.access_key_id)
+        );
+        ggl_byte_vec_chain_append(&err, &vector, GGL_STR(":"));
+        ggl_byte_vec_chain_append(
+            &err,
+            &vector,
+            ggl_buffer_from_null_term(request_data.secret_access_key)
+        );
+        ggl_byte_vec_chain_append(&err, &vector, GGL_STR("\0"));
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE("sigv4", "sigv4_usrpwd too small");
+            return GGL_ERR_FAILURE;
+        }
+        curl_easy_setopt(curl_data->curl, CURLOPT_USERPWD, sigv4_usrpwd);
+    }
+
+    gghttplib_add_header(
+        curl_data, "x-amz-security-token", request_data.session_token
+    );
+    return GGL_ERR_OK;
 }
 
 void gghttplib_process_request(

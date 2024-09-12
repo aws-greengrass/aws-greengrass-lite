@@ -62,6 +62,20 @@ void gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 );
 
+/// @brief Adds AWS Signature Version 4 to the CURL handle.
+///
+/// This function sets the access key id, secret access key, session token
+/// for SigV4 the CURL handle
+///
+/// @param[in] curl_data A pointer to the CurlData struct containing the cURL
+/// handle.
+/// @param[in] request_data a SigV4Details struct containing the relevant
+/// temporary credentials, vended by the IoT Credentials endpoint.
+/// @return If the CURL data cannot be created, GGL_ERR_NOMEM, else GGL_ERR_OK
+GglError gghttplib_add_sigv4_credential(
+    CurlData *curl_data, SigV4Details request_data
+);
+
 /// @brief Processes an HTTP request using the provided cURL data.
 ///
 /// This function sets up the CURL handle with the necessary options, performs
