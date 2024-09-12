@@ -18,7 +18,7 @@
 
 #define MAX_KEY_PATH_DEPTH 25
 
-GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value);
+GglError ggconfig_write_value_at_key(GglList *key_path, GglBuffer *value, int64_t timestamp);
 GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value);
 GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle);
 GglError ggconfig_open(void);
