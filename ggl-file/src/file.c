@@ -59,11 +59,10 @@ static int openat_wrapper(
 }
 
 /// Atomically copy a file (if source/dest on same fs).
+/// `name` must not include `/`.
 static GglError copy_file(const char *name, int source_fd, int dest_fd) {
     pthread_mutex_lock(&path_comp_buf_mtx);
     GGL_DEFER(pthread_mutex_unlock, path_comp_buf_mtx);
-
-    // TODO: Ensure name has no path components
 
     // For atomic writes, one must write to temp file and use rename which
     // atomically moves and replaces a file as long as the source and
@@ -213,39 +212,38 @@ GglError ggl_dir_open(GglBuffer path, int flags, int *fd) {
     if (path.len == 0) {
         return GGL_ERR_INVALID;
     }
-    if (path.data[0] != '/') {
-        return GGL_ERR_UNSUPPORTED;
+
+    bool absolute = false;
+    GglBuffer rel_path = path;
+
+    if (path.data[0] == '/') {
+        absolute = true;
+        rel_path = ggl_buffer_substr(path, 1, SIZE_MAX);
     }
 
-    GglBuffer rest = ggl_buffer_substr(path, 1, SIZE_MAX);
     // Handle cases like `////`
-    strip_trailing_slashes(&rest);
+    strip_trailing_slashes(&rel_path);
 
-    if (rest.len == 0) {
+    if (rel_path.len == 0) {
+        if (!absolute) {
+            return GGL_ERR_INVALID;
+        }
         // Path is `/`
         *fd = open("/", O_CLOEXEC | O_DIRECTORY | flags);
         if (*fd < 0) {
-            int err = errno;
-            GGL_LOGE(
-                "file",
-                "Err %d while opening path: %.*s",
-                err,
-                (int) path.len,
-                path.data
-            );
+            GGL_LOGE("file", "Err %d while opening /", errno);
             return GGL_ERR_FAILURE;
         }
         return GGL_ERR_OK;
     }
 
-    int root_fd = open("/", O_CLOEXEC | O_DIRECTORY | O_PATH);
-    if (root_fd < 0) {
-        int err = errno;
-        GGL_LOGE("file", "Err %d while opening /", err);
+    int base_fd = open(absolute ? "/" : ".", O_CLOEXEC | O_DIRECTORY | O_PATH);
+    if (base_fd < 0) {
+        GGL_LOGE("file", "Err %d while opening /", errno);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, root_fd);
-    return ggl_dir_openat(root_fd, rest, flags, fd);
+    GGL_DEFER(ggl_close, base_fd);
+    return ggl_dir_openat(base_fd, rel_path, flags, fd);
 }
 
 GglError ggl_dir_openat(int dirfd, GglBuffer path, int flags, int *fd) {
