@@ -10,7 +10,6 @@
 #include "alloc.h"
 #include <sys/types.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <stdlib.h>
 
 /// Run clean up for `fn` when this falls out of scope.
@@ -54,9 +53,6 @@
 // NOLINTEND(bugprone-macro-parentheses)
 
 // Common deferred functions
-
-/// Enable defer for closing file descriptors.
-GGL_DEFINE_DEFER(close, int, fd, if (*fd >= 0) close(*fd))
 
 /// Enable defer for freeing system allocated pointers.
 GGL_DEFINE_DEFER(free, void *, p, free(*p))

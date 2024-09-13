@@ -10,10 +10,10 @@
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -25,7 +25,7 @@ GglError ggl_notify(GglBuffer interface, GglBuffer method, GglMap params) {
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    close(conn_fd);
+    ggl_close(conn_fd);
     return GGL_ERR_OK;
 }
 
@@ -44,7 +44,7 @@ GglError ggl_call(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(close, conn);
+    GGL_DEFER(ggl_close, conn);
 
     pthread_mutex_lock(&ggl_core_bus_client_payload_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, ggl_core_bus_client_payload_array_mtx);

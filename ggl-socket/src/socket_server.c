@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
@@ -47,7 +48,7 @@ static void new_client_available(
     uint32_t handle = 0;
     GglError ret = ggl_socket_pool_register(pool, client_fd, &handle);
     if (ret != GGL_ERR_OK) {
-        close(client_fd);
+        ggl_close(client_fd);
         GGL_LOGW(
             "socket-server",
             "Closed new client %d due to max clients reached.",
@@ -203,7 +204,7 @@ GglError ggl_socket_server_listen(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(close, epoll_fd);
+    GGL_DEFER(ggl_close, epoll_fd);
 
     int server_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (server_fd == -1) {
@@ -211,7 +212,7 @@ GglError ggl_socket_server_listen(
         GGL_LOGE("socket-server", "Failed to create socket: %d.", err);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(close, server_fd);
+    GGL_DEFER(ggl_close, server_fd);
 
     ret = configure_server_socket(server_fd, path);
     if (ret != GGL_ERR_OK) {

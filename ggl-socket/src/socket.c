@@ -8,6 +8,7 @@
 #include <ggl/buffer.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <signal.h>
@@ -113,7 +114,7 @@ GglError ggl_connect(GglBuffer path, int *fd) {
         GGL_LOGE("socket", "Failed to create socket: %d.", err);
         return GGL_ERR_FATAL;
     }
-    GGL_DEFER(close, sockfd);
+    GGL_DEFER(ggl_close, sockfd);
 
     if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         int err = errno;

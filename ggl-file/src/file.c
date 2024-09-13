@@ -27,6 +27,18 @@ static pthread_mutex_t path_comp_buf_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 GGL_DEFINE_DEFER(closedir, DIR *, dirp, if (*dirp != NULL) closedir(*dirp))
 
+GglError ggl_close(int fd) {
+    // Do not loop on EINTR
+    // Posix states that after an interrupted close, the state of the file
+    // descriptor is unspecified. On Linux and most other systems, the fd is
+    // released even if close failed with EINTR.
+    int ret = close(fd);
+    if ((ret == 0) || (errno == EINTR)) {
+        return GGL_ERR_OK;
+    }
+    return GGL_ERR_FAILURE;
+}
+
 GglError ggl_fsync(int fd) {
     int ret;
     do {
@@ -65,7 +77,7 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
         GGL_LOGE("file", "Err %d while opening %s.", err, name);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(close, old_fd);
+    GGL_DEFER(ggl_close, old_fd);
 
     // Open target temp file
     int new_fd = openat(
@@ -79,7 +91,7 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
         GGL_LOGE("file", "Err %d while opening %s.", err, name);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(close, new_fd);
+    GGL_DEFER(ggl_close, new_fd);
 
     struct stat stat;
     if (fstat(old_fd, &stat) != 0) {
@@ -216,7 +228,7 @@ GglError ggl_dir_open(GglBuffer path, int flags, int *fd) {
         GGL_LOGE("file", "Err %d while opening /", err);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(close, root_fd);
+    GGL_DEFER(ggl_close, root_fd);
     return ggl_dir_openat(root_fd, rest, flags, fd);
 }
 
@@ -243,7 +255,7 @@ GglError ggl_dir_openat(int dirfd, GglBuffer path, int flags, int *fd) {
         );
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(close, cur_fd);
+    GGL_DEFER(ggl_close, cur_fd);
 
     pthread_mutex_lock(&path_comp_buf_mtx);
     GGL_DEFER(pthread_mutex_unlock, path_comp_buf_mtx);
@@ -273,7 +285,7 @@ GglError ggl_dir_openat(int dirfd, GglBuffer path, int flags, int *fd) {
         }
 
         // swap cur_fd
-        close(cur_fd);
+        ggl_close(cur_fd);
         cur_fd = new_fd;
     }
 
@@ -322,7 +334,7 @@ GglError ggl_file_openat(
             return GGL_ERR_FAILURE;
         }
     }
-    GGL_DEFER(close, cur_fd);
+    GGL_DEFER(ggl_close, cur_fd);
 
     if (file.len > MAX_PATH_COMPONENT_LENGTH) {
         return GGL_ERR_NOMEM;
@@ -354,7 +366,7 @@ static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
         GGL_LOGE("file", "Err %d while opening dir: %s", err, name);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(close, source_subdir_fd);
+    GGL_DEFER(ggl_close, source_subdir_fd);
 
     int dest_subdir_fd
         = open_or_mkdir_at(dest_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDONLY);
@@ -363,7 +375,7 @@ static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
         GGL_LOGE("file", "Err %d while opening dir: %s", err, name);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(close, dest_subdir_fd);
+    GGL_DEFER(ggl_close, dest_subdir_fd);
 
     return ggl_copy_dir(source_subdir_fd, dest_subdir_fd);
 }
@@ -382,7 +394,7 @@ GglError ggl_copy_dir(int source_fd, int dest_fd) {
     DIR *source_dir = fdopendir(source_fd_copy);
     if (source_dir == NULL) {
         GGL_LOGE("file", "Failed to open dir.");
-        close(source_fd_copy);
+        ggl_close(source_fd_copy);
         return GGL_ERR_FAILURE;
     }
     // Also closes source_fd_copy

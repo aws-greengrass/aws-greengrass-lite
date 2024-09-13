@@ -11,6 +11,7 @@
 #include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/rpc.h>
 #include <ggl/eventstream/types.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket.h>
@@ -33,7 +34,7 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(close, conn);
+    GGL_DEFER(ggl_close, conn);
 
     GglBuffer send_buffer = GGL_BUF(payload_array);
 
