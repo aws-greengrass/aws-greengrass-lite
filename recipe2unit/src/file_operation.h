@@ -17,5 +17,6 @@ GglError deserialize_file_content(
 );
 
 GglError open_file(char *file_path, GglBuffer *recipe_obj);
+GglError write_to_file_executable(char *filename, GglBuffer write_data);
 
 #endif

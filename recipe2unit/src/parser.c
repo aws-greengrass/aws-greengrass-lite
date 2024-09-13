@@ -8,6 +8,7 @@
 #include "validate_args.h"
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
+#include <ggl/log.h>
 #include <ggl/object.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -36,6 +37,11 @@ GglError convert_to_unit(Recipe2UnitArgs *args) {
     );
     if (ret != GGL_ERR_OK) {
         return ret;
+    }
+
+    if (recipe_obj.type != GGL_TYPE_MAP) {
+        GGL_LOGE("recipe2unit", "Invalid recipe format provided");
+        return GGL_ERR_FAILURE;
     }
 
     static uint8_t unit_file_buffer[MAX_UNIT_FILE_BUF_SIZE];

@@ -42,11 +42,6 @@ GglError validate_args(Recipe2UnitArgs *args) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT("recipe2unit", "AWS Container cred url %s", args->group);
-    if (strlen(args->group) == 0) {
-        return GGL_ERR_NOENTRY;
-    }
-
     GGL_LOGT("recipe2unit", "recipe_path: %s", args->recipe_path);
     if (strlen(args->recipe_path) == 0) {
         return GGL_ERR_NOENTRY;
@@ -64,6 +59,10 @@ GglError validate_args(Recipe2UnitArgs *args) {
 
     GGL_LOGT("recipe2unit", "user: %s", args->user);
     if (strlen(args->user) == 0) {
+        return GGL_ERR_NOENTRY;
+    }
+    GGL_LOGT("recipe2unit", "group: %s", args->group);
+    if (strlen(args->group) == 0) {
         return GGL_ERR_NOENTRY;
     }
 
