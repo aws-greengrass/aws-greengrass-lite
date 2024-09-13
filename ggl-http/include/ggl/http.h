@@ -13,6 +13,14 @@ typedef struct CertificateDetails {
     const char *gghttplib_root_ca_path;
 } CertificateDetails;
 
+typedef struct SigV4Details {
+    char *aws_region;
+    char *aws_service;
+    char *access_key_id;
+    char *secret_access_key;
+    const char *session_token;
+} SigV4Details;
+
 /// @brief Fetches temporary AWS credentials.
 ///
 /// @param[in] url_for_token The aws IoT credentials endpoint URL.
