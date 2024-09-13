@@ -11,6 +11,9 @@
 #include <ggl/error.h>
 #include <ggl/object.h>
 
+/// Call fsync on an file/dir, handling EINTR
+GglError ggl_fsync(int fd);
+
 /// Open a directory, creating it if needed
 GglError ggl_dir_open(GglBuffer path, int flags, int *fd);
 

@@ -27,19 +27,20 @@ static pthread_mutex_t path_comp_buf_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 GGL_DEFINE_DEFER(closedir, DIR *, dirp, if (*dirp != NULL) closedir(*dirp))
 
-/// Call fsync, looping when interrupted by signal.
-static int fsync_wrapper(int fd) {
+GglError ggl_fsync(int fd) {
     int ret;
     do {
         ret = fsync(fd);
-    } while ((ret < 0) && (errno == EINTR));
-    return ret;
+    } while ((ret != 0) && (errno == EINTR));
+    return (ret == 0) ? GGL_ERR_OK : GGL_ERR_FAILURE;
 }
 
 /// Atomically copy a file (if source/dest on same fs).
 static GglError copy_file(const char *name, int source_fd, int dest_fd) {
     pthread_mutex_lock(&path_comp_buf_mtx);
     GGL_DEFER(pthread_mutex_unlock, path_comp_buf_mtx);
+
+    // TODO: Ensure name has no path components
 
     // For atomic writes, one must write to temp file and use rename which
     // atomically moves and replaces a file as long as the source and
@@ -104,17 +105,25 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
 
     // If we call rename without first calling fsync, the data may not be
     // flushed, and system interruption could result in a corrupted target file
-    (void) fsync_wrapper(new_fd);
+    GglError ret = ggl_fsync(new_fd);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("file", "Err %d while fsync on %s.", errno, name);
+        return ret;
+    }
 
     GGL_DEFER_FORCE(new_fd);
 
     // Perform the rename to the target location
-    int ret_int = renameat(dest_fd, path_comp_buf, dest_fd, name);
-    if (ret_int < 0) {
-        int err = errno;
-        GGL_LOGE("file", "Err %d while moving %s.", err, name);
+    int err = renameat(dest_fd, path_comp_buf, dest_fd, name);
+    if (err != 0) {
+        GGL_LOGE("file", "Err %d while moving %s.", errno, name);
         return GGL_ERR_FAILURE;
     }
+
+    // If this fails, file has been moved but failed to write inode for the
+    // directory. In this case the file may be overwritten so returning a
+    // failure could be more error-prone for the caller.
+    (void) ggl_fsync(dest_fd);
 
     return GGL_ERR_OK;
 }
@@ -161,8 +170,14 @@ static void strip_trailing_slashes(GglBuffer *path) {
 
 /// Open a directory, creating it if needed
 static int open_or_mkdir_at(int dirfd, const char *pathname, int flags) {
-    (void) mkdirat(dirfd, pathname, 0700);
-    return openat(dirfd, pathname, flags);
+    int mkdir_ret = mkdirat(dirfd, pathname, 0700);
+    int fd = openat(dirfd, pathname, flags);
+    if ((mkdir_ret == 0) && (fd >= 0)) {
+        // These fail for O_PATH
+        (void) ggl_fsync(fd);
+        (void) ggl_fsync(dirfd);
+    }
+    return fd;
 }
 
 /// Get fd for an absolute path to a dir
@@ -405,7 +420,7 @@ GglError ggl_copy_dir(int source_fd, int dest_fd) {
     }
 
     // Flush directory entries to disk (Must not be O_PATH)
-    (void) fsync_wrapper(dest_fd);
+    (void) ggl_fsync(dest_fd);
 
     return GGL_ERR_OK;
 }
