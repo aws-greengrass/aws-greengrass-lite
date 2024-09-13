@@ -5,7 +5,6 @@
 #include "ggl/socket.h"
 #include <sys/types.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
@@ -108,15 +107,13 @@ GglError ggl_connect(GglBuffer path, int *fd) {
 
     memcpy(addr.sun_path, path.data, path.len);
 
-    int sockfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (sockfd == -1) {
         int err = errno;
         GGL_LOGE("socket", "Failed to create socket: %d.", err);
         return GGL_ERR_FATAL;
     }
     GGL_DEFER(close, sockfd);
-
-    fcntl(sockfd, F_SETFD, FD_CLOEXEC);
 
     if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         int err = errno;
