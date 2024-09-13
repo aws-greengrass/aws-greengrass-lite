@@ -14,6 +14,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -64,7 +65,7 @@ GglError run_ggdeploymentd(const char *bin_path) {
     }
 
     int root_path_fd;
-    ret = ggl_dir_open(root_path, O_PATH, &root_path_fd);
+    ret = ggl_dir_open(root_path, O_PATH, false, &root_path_fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("ggdeploymentd", "Failed to open root_path.");
         return ret;

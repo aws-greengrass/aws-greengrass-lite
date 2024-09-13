@@ -11,6 +11,7 @@
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdbool.h>
 
 /// Call close on a fd, handling EINTR
 GglError ggl_close(int fd);
@@ -22,10 +23,14 @@ GGL_DEFINE_DEFER(ggl_close, int, fd, if (*fd >= 0) ggl_close(*fd))
 GglError ggl_fsync(int fd);
 
 /// Open a directory, creating it if needed
-GglError ggl_dir_open(GglBuffer path, int flags, int *fd);
+GglError ggl_dir_open(GglBuffer path, int flags, bool create, int *fd);
 
 /// Open a directory under dirfd, creating it if needed
-GglError ggl_dir_openat(int dirfd, GglBuffer path, int flags, int *fd);
+/// If create is true tries calling mkdir for missing dirs, and dirfd must not
+/// be O_PATH.
+GglError ggl_dir_openat(
+    int dirfd, GglBuffer path, int flags, bool create, int *fd
+);
 
 /// Open a file under dirfd
 GglError ggl_file_openat(

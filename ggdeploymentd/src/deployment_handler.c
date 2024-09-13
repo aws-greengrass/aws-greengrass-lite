@@ -26,14 +26,14 @@ static GglError merge_dir_to(
     GglBuffer source, int root_path_fd, GglBuffer subdir
 ) {
     int source_fd;
-    GglError ret = ggl_dir_open(source, O_PATH, &source_fd);
+    GglError ret = ggl_dir_open(source, O_PATH, false, &source_fd);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     GGL_DEFER(ggl_close, source_fd);
 
     int dest_fd;
-    ret = ggl_dir_openat(root_path_fd, subdir, O_PATH, &dest_fd);
+    ret = ggl_dir_openat(root_path_fd, subdir, O_RDONLY, true, &dest_fd);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
