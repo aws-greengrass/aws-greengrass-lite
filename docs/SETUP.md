@@ -85,3 +85,32 @@ following steps will install needed dependencies on ubuntu:
 - Install python pip using `sudo apt install python3-pip`
 - Install script requirements using
   `python3 -m pip install -r ./recipe2unit_python/requirements`
+
+## Performing a local deployment
+
+To do a local deployment with the Greengrass Lite CLI, you will need a directory
+with the component's recipe and a directory with the component's artifacts. See
+the Greengrass component documentation for writing your own Greengrass
+component.
+
+Assuming you place these in `~/sample-component`, and that your component has a
+single artifact named `hello_world.py`, the layout should be similar to the
+following:
+
+```
+~/sample-component
+├── artifacts
+│   └── com.example.SampleComponent
+│       └── 1.0.0
+│           └── hello_world.py
+└── recipes
+    └── com.example.SampleComponent-1.0.0.yaml
+```
+
+With the above, you can start a local deployment with:
+
+```sh
+./build/bin/ggl-cli deploy --recipe-dir ~/sample-component/recipes \
+  --artifacts-dir ~/sample-component/artifacts \
+  --add-component SampleComponent=1.0.0
+```

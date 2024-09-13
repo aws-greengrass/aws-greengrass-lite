@@ -7,9 +7,9 @@
 #include "ggl/socket_handle.h"
 #include <assert.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
@@ -26,7 +26,7 @@ static void new_client_available(
     assert(epoll_fd >= 0);
     assert(socket_fd >= 0);
 
-    int client_fd = accept(socket_fd, NULL, NULL);
+    int client_fd = accept4(socket_fd, NULL, NULL, SOCK_CLOEXEC);
     if (client_fd == -1) {
         int err = errno;
         GGL_LOGE(
@@ -40,8 +40,6 @@ static void new_client_available(
 
     GGL_LOGD("socket-server", "Accepted new client %d.", client_fd);
 
-    fcntl(client_fd, F_SETFD, FD_CLOEXEC);
-
     // To prevent deadlocking on hanged client, add a timeout
     struct timeval timeout = { .tv_sec = 5 };
     setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
@@ -50,7 +48,7 @@ static void new_client_available(
     uint32_t handle = 0;
     GglError ret = ggl_socket_pool_register(pool, client_fd, &handle);
     if (ret != GGL_ERR_OK) {
-        close(client_fd);
+        ggl_close(client_fd);
         GGL_LOGW(
             "socket-server",
             "Closed new client %d due to max clients reached.",
@@ -206,17 +204,15 @@ GglError ggl_socket_server_listen(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(close, epoll_fd);
+    GGL_DEFER(ggl_close, epoll_fd);
 
-    int server_fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    int server_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (server_fd == -1) {
         int err = errno;
         GGL_LOGE("socket-server", "Failed to create socket: %d.", err);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(close, server_fd);
-
-    fcntl(server_fd, F_SETFD, FD_CLOEXEC);
+    GGL_DEFER(ggl_close, server_fd);
 
     ret = configure_server_socket(server_fd, path);
     if (ret != GGL_ERR_OK) {

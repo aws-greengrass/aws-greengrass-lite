@@ -10,6 +10,7 @@
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/exec.h>
+#include <ggl/file.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -18,7 +19,6 @@
 #include <ggl/socket.h>
 #include <ggl/utils.h>
 #include <string.h>
-#include <unistd.h>
 #include <stdint.h>
 
 #define TEMPLATE_PARAM_BUFFER_SIZE 10000
@@ -282,7 +282,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             }
 
             GglError ret = ggl_write_exact(fd, val->buf);
-            close(fd);
+            ggl_close(fd);
 
             save_value_to_db(
                 GGL_LIST(GGL_OBJ_STR("system")),

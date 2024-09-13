@@ -14,6 +14,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -41,10 +42,7 @@ static GglError update_root_path(void) {
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("ggdeploymentd", "Failed to get root path from config.");
-        if ((ret == GGL_ERR_NOMEM) || (ret == GGL_ERR_FATAL)) {
-            return ret;
-        }
-        return GGL_ERR_OK;
+        return ret;
     }
     if (resp.type != GGL_TYPE_BUF) {
         GGL_LOGE("ggdeploymentd", "Configuration root path is not a string.");
@@ -64,7 +62,7 @@ GglError run_ggdeploymentd(const char *bin_path) {
     }
 
     int root_path_fd;
-    ret = ggl_dir_open(root_path, O_PATH, &root_path_fd);
+    ret = ggl_dir_open(root_path, O_PATH, false, &root_path_fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("ggdeploymentd", "Failed to open root_path.");
         return ret;

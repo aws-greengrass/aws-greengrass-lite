@@ -7,11 +7,11 @@
 #include <assert.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
 #include <sys/socket.h>
-#include <unistd.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -247,7 +247,7 @@ GglError ggl_socket_handle_close(GglSocketPool *pool, uint32_t handle) {
 
     GglError ret = ggl_socket_pool_release(pool, handle, &fd);
     if (ret == GGL_ERR_OK) {
-        close(fd);
+        ggl_close(fd);
     }
 
     GGL_LOGT("socket", "Close of %u successful.", handle);

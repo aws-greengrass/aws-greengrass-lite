@@ -142,7 +142,7 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
         doc->root_component_versions_to_add = val->map;
     }
 
-    if (ggl_map_get(args, GGL_STR("root_component_versions_to_remove"), &val)) {
+    if (ggl_map_get(args, GGL_STR("root_components_to_remove"), &val)) {
         if (val->type != GGL_TYPE_LIST) {
             GGL_LOGE("ggdeploymentd", "Received invalid argument.");
             return GGL_ERR_INVALID;

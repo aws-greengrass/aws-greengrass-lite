@@ -14,12 +14,12 @@
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/types.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket_epoll.h>
 #include <ggl/socket_handle.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -149,7 +149,7 @@ static GglError make_subscribe_request(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(close, conn);
+    GGL_DEFER(ggl_close, conn);
 
     pthread_mutex_lock(&ggl_core_bus_client_payload_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, ggl_core_bus_client_payload_array_mtx);
@@ -226,7 +226,7 @@ GglError ggl_subscribe(
     uint32_t sub_handle = 0;
     ret = ggl_socket_pool_register(&pool, conn, &sub_handle);
     if (ret != GGL_ERR_OK) {
-        close(conn);
+        ggl_close(conn);
         GGL_LOGW("core-bus-client", "Max subscriptions exceeded.");
         return ret;
     }

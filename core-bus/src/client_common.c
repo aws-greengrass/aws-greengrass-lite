@@ -12,6 +12,7 @@
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/types.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket.h>
@@ -64,7 +65,7 @@ GglError ggl_client_send_message(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(close, conn);
+    GGL_DEFER(ggl_close, conn);
 
     pthread_mutex_lock(&ggl_core_bus_client_payload_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, ggl_core_bus_client_payload_array_mtx);

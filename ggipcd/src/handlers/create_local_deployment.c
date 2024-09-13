@@ -11,7 +11,6 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -62,21 +61,8 @@ GglError handle_create_local_deployment(
         return ret;
     }
 
-    if (result.type != GGL_TYPE_MAP) {
-        GGL_LOGE("CreateLocalDeployment", "Response not a map.");
-        return GGL_ERR_FAILURE;
-    }
-
-    GglObject *val = NULL;
-    bool found = ggl_map_get(result.map, GGL_STR("deployment_id"), &val);
-    if (!found) {
-        GGL_LOGE("CreateLocalDeployment", "Response missing deployment_id.");
-        return GGL_ERR_FAILURE;
-    }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "CreateLocalDeployment", "Response deployment_id not a string."
-        );
+    if (result.type != GGL_TYPE_BUF) {
+        GGL_LOGE("CreateLocalDeployment", "Response not a string.");
         return GGL_ERR_FAILURE;
     }
 
@@ -84,6 +70,6 @@ GglError handle_create_local_deployment(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#CreateLocalDeploymentResponse"),
-        GGL_OBJ_MAP({ GGL_STR("deploymentId"), GGL_OBJ(val->buf) })
+        GGL_OBJ_MAP({ GGL_STR("deploymentId"), result })
     );
 }

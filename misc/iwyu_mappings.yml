@@ -6,6 +6,7 @@
 - symbol: ["PROT_READ", "private", "<sys/mman.h>", "public"]
 - symbol: ["PROT_WRITE", "private", "<sys/mman.h>", "public"]
 - symbol: ["P_PIDFD", "private", "<sys/wait.h>", "public"]
+- symbol: ["SOCK_CLOEXEC", "private", "<sys/socket.h>", "public"]
 - symbol: ["SOCK_STREAM", "private", "<sys/socket.h>", "public"]
 - symbol: ["SOL_SOCKET", "private", "<sys/socket.h>", "public"]
 - symbol: ["SO_PEERCRED", "private", "<sys/socket.h>", "public"]
