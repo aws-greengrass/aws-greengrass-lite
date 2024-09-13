@@ -694,6 +694,10 @@ GglError update_current_jobs_deployment(
 
     if (ggl_buffer_eq(status, GGL_STR("SUCCEEDED"))) {
         // TODO: hack
+        // Update messages can arrive at IoT Core out-of-order
+        // Which causes them to be rejected for version mismatch
+        // SUCCEEDED with Version 2 will be rejected if no
+        // update with Version 1 is first accepted
         ggl_sleep(10);
     }
 
