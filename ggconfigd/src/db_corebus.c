@@ -173,6 +173,9 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     ggl_sub_accept(handle, sub_close_callback, NULL);
 }
 
+// TODO: This processing of maps should probably happen in the db_interface
+// layer so that merges can be made atomic. Currently it's possible for a subset
+// of the writes in a merge to fail while the rest succeed.
 // NOLINTNEXTLINE(misc-no-recursion)
 static GglError process_map(
     GglObjVec *key_path, GglMap *the_map, int64_t timestamp
