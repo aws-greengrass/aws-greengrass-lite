@@ -42,10 +42,7 @@ static GglError update_root_path(void) {
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("ggdeploymentd", "Failed to get root path from config.");
-        if ((ret == GGL_ERR_NOMEM) || (ret == GGL_ERR_FATAL)) {
-            return ret;
-        }
-        return GGL_ERR_OK;
+        return ret;
     }
     if (resp.type != GGL_TYPE_BUF) {
         GGL_LOGE("ggdeploymentd", "Configuration root path is not a string.");
