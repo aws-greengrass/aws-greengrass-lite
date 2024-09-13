@@ -134,7 +134,12 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
         return ret;
     }
 
-    GGL_DEFER_FORCE(new_fd);
+    GGL_DEFER_CANCEL(new_fd);
+    ret = ggl_close(new_fd);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("file", "Err %d while closing %s.", errno, name);
+        return ret;
+    }
 
     // Perform the rename to the target location
     int err = renameat(dest_fd, path_comp_buf, dest_fd, name);
