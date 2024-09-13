@@ -47,6 +47,17 @@ GglError ggl_fsync(int fd) {
     return (ret == 0) ? GGL_ERR_OK : GGL_ERR_FAILURE;
 }
 
+/// Call openat, looping when interrupted by signal.
+static int openat_wrapper(
+    int dirfd, const char *pathname, int flags, mode_t mode
+) {
+    int ret;
+    do {
+        ret = openat(dirfd, pathname, flags, mode);
+    } while ((ret < 0) && (errno == EINTR));
+    return ret;
+}
+
 /// Atomically copy a file (if source/dest on same fs).
 static GglError copy_file(const char *name, int source_fd, int dest_fd) {
     pthread_mutex_lock(&path_comp_buf_mtx);
@@ -71,7 +82,7 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
     path_comp_buf[name_len + 2] = '\0';
 
     // Open file in source dir
-    int old_fd = openat(source_fd, name, O_CLOEXEC | O_RDONLY);
+    int old_fd = openat_wrapper(source_fd, name, O_CLOEXEC | O_RDONLY, 0);
     if (old_fd < 0) {
         int err = errno;
         GGL_LOGE("file", "Err %d while opening %s.", err, name);
@@ -80,7 +91,7 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
     GGL_DEFER(ggl_close, old_fd);
 
     // Open target temp file
-    int new_fd = openat(
+    int new_fd = openat_wrapper(
         dest_fd,
         path_comp_buf,
         O_CLOEXEC | O_WRONLY | O_TRUNC | O_CREAT,
@@ -183,7 +194,7 @@ static void strip_trailing_slashes(GglBuffer *path) {
 /// Open a directory, creating it if needed
 static int open_or_mkdir_at(int dirfd, const char *pathname, int flags) {
     int mkdir_ret = mkdirat(dirfd, pathname, 0700);
-    int fd = openat(dirfd, pathname, flags);
+    int fd = openat_wrapper(dirfd, pathname, flags, 0);
     if ((mkdir_ret == 0) && (fd >= 0)) {
         // These fail for O_PATH
         (void) ggl_fsync(fd);
@@ -243,7 +254,8 @@ GglError ggl_dir_openat(int dirfd, GglBuffer path, int flags, int *fd) {
     // single path component for null termination
 
     // Make a copy of dirfd, so we can close it
-    int cur_fd = openat(dirfd, ".", O_CLOEXEC | O_DIRECTORY | O_PATH);
+    int cur_fd
+        = openat_wrapper(dirfd, ".", O_CLOEXEC | O_DIRECTORY | O_PATH, 0);
     if (cur_fd < 0) {
         int err = errno;
         GGL_LOGE(
@@ -321,7 +333,8 @@ GglError ggl_file_openat(
         }
     } else {
         // Make a copy of dirfd, so we can close it
-        cur_fd = openat(dirfd, ".", O_CLOEXEC | O_DIRECTORY | O_PATH);
+        cur_fd
+            = openat_wrapper(dirfd, ".", O_CLOEXEC | O_DIRECTORY | O_PATH, 0);
         if (cur_fd < 0) {
             int err = errno;
             GGL_LOGE(
@@ -346,7 +359,7 @@ GglError ggl_file_openat(
     memcpy(path_comp_buf, file.data, file.len);
     path_comp_buf[file.len] = '\0';
 
-    *fd = openat(cur_fd, path_comp_buf, O_CLOEXEC | flags, mode);
+    *fd = openat_wrapper(cur_fd, path_comp_buf, O_CLOEXEC | flags, mode);
     if (*fd < 0) {
         int err = errno;
         GGL_LOGE("file", "Err %d while opening file: %s", err, path_comp_buf);
@@ -359,8 +372,9 @@ GglError ggl_file_openat(
 /// Recursively copy a subdirectory.
 // NOLINTNEXTLINE(misc-no-recursion)
 static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
-    int source_subdir_fd
-        = openat(source_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDONLY);
+    int source_subdir_fd = openat_wrapper(
+        source_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDONLY, 0
+    );
     if (source_subdir_fd < 0) {
         int err = errno;
         GGL_LOGE("file", "Err %d while opening dir: %s", err, name);
@@ -384,7 +398,7 @@ static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
 GglError ggl_copy_dir(int source_fd, int dest_fd) {
     // We need to copy source_fd as fdopendir takes ownership of it
     int source_fd_copy
-        = openat(source_fd, ".", O_CLOEXEC | O_DIRECTORY | O_RDONLY);
+        = openat_wrapper(source_fd, ".", O_CLOEXEC | O_DIRECTORY | O_RDONLY, 0);
     if (source_fd_copy < 0) {
         int err = errno;
         GGL_LOGE("file", "Err %d while opening dir.", err);
