@@ -27,7 +27,7 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
-    ggl_respond(handle, GGL_OBJ_MAP({ GGL_STR("deployment_id"), GGL_OBJ(id) }));
+    ggl_respond(handle, GGL_OBJ(id));
 }
 
 void ggdeploymentd_start_server(void) {
