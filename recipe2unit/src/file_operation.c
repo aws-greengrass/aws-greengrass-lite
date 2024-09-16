@@ -4,15 +4,19 @@
 
 #include "file_operation.h"
 #include <fcntl.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/socket.h>
 #include <ggl/yaml_decode.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 // NOLINTNEXTLINE(misc-no-recursion)
 static void ggl_key_to_lower(GglObject object_object_to_lower) {
@@ -126,5 +130,33 @@ GglError open_file(char *file_path, GglBuffer *recipe_obj) {
 
     *recipe_obj = (GglBuffer) { .data = file_str, .len = file_size };
 
+    return GGL_ERR_OK;
+}
+
+GglError write_to_file_executable(
+    char *directory_path, GglBuffer filename, GglBuffer write_data
+) {
+    int root_dir_fd;
+    GglError ret = ggl_dir_open(
+        ggl_buffer_from_null_term(directory_path), O_PATH, true, &root_dir_fd
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("recipe2unit", "Failed to open dir");
+        return GGL_ERR_FAILURE;
+    }
+
+    int script_as_file;
+    ret = ggl_file_openat(
+        root_dir_fd, filename, O_CREAT | O_WRONLY, 0700, &script_as_file
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("recipe2unit", "Failed to open file at the dir");
+        return GGL_ERR_FAILURE;
+    }
+    ret = ggl_write_exact(script_as_file, write_data);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("recipe2unit", "Failed to write run script section to file");
+        return GGL_ERR_FAILURE;
+    }
     return GGL_ERR_OK;
 }
