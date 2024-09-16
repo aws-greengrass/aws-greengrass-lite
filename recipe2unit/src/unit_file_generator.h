@@ -10,7 +10,7 @@
 #include <ggl/object.h>
 
 GglError generate_systemd_unit(
-    GglObject recipe_obj, GglBuffer *unit_file_buffer, Recipe2UnitArgs *args
+    GglMap recipe_map, GglBuffer *unit_file_buffer, Recipe2UnitArgs *args
 );
 
 #endif

@@ -15,8 +15,8 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 // NOLINTNEXTLINE(misc-no-recursion)
 static void ggl_key_to_lower(GglObject object_object_to_lower) {

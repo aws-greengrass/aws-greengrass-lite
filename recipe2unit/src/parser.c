@@ -48,7 +48,7 @@ GglError convert_to_unit(Recipe2UnitArgs *args) {
     GglBuffer response_buffer = (GglBuffer
     ) { .data = (uint8_t *) unit_file_buffer, .len = MAX_UNIT_FILE_BUF_SIZE };
 
-    ret = generate_systemd_unit(recipe_obj, &response_buffer, args);
+    ret = generate_systemd_unit(recipe_obj.map, &response_buffer, args);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
