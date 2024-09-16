@@ -452,6 +452,33 @@ GglError ggl_file_openat(
     return GGL_ERR_OK;
 }
 
+/// Open a file.
+GglError ggl_file_open(GglBuffer path, int flags, mode_t mode, int *fd) {
+    if (path.len == 0) {
+        return GGL_ERR_INVALID;
+    }
+
+    bool absolute = false;
+    GglBuffer rel_path = path;
+
+    if (path.data[0] == '/') {
+        absolute = true;
+        rel_path = ggl_buffer_substr(path, 1, SIZE_MAX);
+    }
+
+    if (rel_path.len == 0) {
+        return GGL_ERR_INVALID;
+    }
+
+    int base_fd = open(absolute ? "/" : ".", O_CLOEXEC | O_DIRECTORY | O_PATH);
+    if (base_fd < 0) {
+        GGL_LOGE("file", "Err %d while opening /", errno);
+        return GGL_ERR_FAILURE;
+    }
+    GGL_DEFER(ggl_close, base_fd);
+    return ggl_file_openat(base_fd, rel_path, flags, mode, fd);
+}
+
 /// Recursively copy a subdirectory.
 // NOLINTNEXTLINE(misc-no-recursion)
 static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
