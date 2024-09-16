@@ -16,7 +16,7 @@ GglError run_recipe2unit_test(void) {
     args.root_dir = root_dir;
     args.user = "ubuntu";
     args.group = "ubuntu";
-    args.recipe_runner_path = "/home/recpierunner";
+    args.recipe_runner_path = "/home/reciperunner";
     args.socket_path = "home/test/socket";
     args.aws_container_auth_token = "AAAAAAAA";
     args.ggc_version = "1.0.0";
