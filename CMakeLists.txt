@@ -145,6 +145,8 @@ try_add_cflag_if(function-sections $<NOT:$<CONFIG:Debug>> -ffunction-sections)
 try_add_cflag_if(data-sections $<NOT:$<CONFIG:Debug>> -fdata-sections)
 
 add_compile_definitions(_GNU_SOURCE)
+# build ggl-http with obsoleted cURL code removed
+add_compile_definitions(CURL_NO_OLDIES)
 
 add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>)
 
