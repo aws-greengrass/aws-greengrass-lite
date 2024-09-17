@@ -30,59 +30,67 @@ static void ggl_string_to_lower(GglBuffer object_object_to_lower) {
     }
 }
 
-// TODO: Refactor it
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+static GglError parse_dependency_type(
+    GglKV component_dependency, GglByteVec *out
+) {
+    GglObject *val;
+    if (component_dependency.val.type != GGL_TYPE_MAP) {
+        GGL_LOGE(
+            "recipe2unit",
+            "Any information provided under[ComponentDependencies] section "
+            "only supports a key value map type."
+        );
+        return GGL_ERR_INVALID;
+    }
+    if (ggl_map_get(
+            component_dependency.val.map, GGL_STR("dependencytype"), &val
+        )) {
+        if (val->type != GGL_TYPE_BUF) {
+            return GGL_ERR_PARSE;
+        }
+        ggl_string_to_lower(val->buf);
+
+        if (strncmp((char *) val->buf.data, "hard", val->buf.len) == 0) {
+            GglError ret = ggl_byte_vec_append(out, GGL_STR("After=ggl."));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_byte_vec_append(out, component_dependency.key);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_byte_vec_append(out, GGL_STR(".service\n"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+        } else {
+            GglError ret = ggl_byte_vec_append(out, GGL_STR("Wants=ggl."));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_byte_vec_append(out, component_dependency.key);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_byte_vec_append(out, GGL_STR(".service\n"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+        }
+    }
+    return GGL_ERR_OK;
+}
+
 static GglError dependency_parser(GglObject *dependency_obj, GglByteVec *out) {
     if (dependency_obj->type != GGL_TYPE_MAP) {
         return GGL_ERR_INVALID;
     }
     for (size_t count = 0; count < dependency_obj->map.len; count++) {
         if (dependency_obj->map.pairs[count].val.type == GGL_TYPE_MAP) {
-            GglObject *val;
-            if (ggl_map_get(
-                    dependency_obj->map.pairs[count].val.map,
-                    GGL_STR("dependencytype"),
-                    &val
-                )) {
-                if (val->type != GGL_TYPE_BUF) {
-                    return GGL_ERR_PARSE;
-                }
-                ggl_string_to_lower(val->buf);
-
-                if (strncmp((char *) val->buf.data, "hard", val->buf.len)
-                    == 0) {
-                    GglError ret
-                        = ggl_byte_vec_append(out, GGL_STR("After=ggl."));
-                    if (ret != GGL_ERR_OK) {
-                        return ret;
-                    }
-                    ret = ggl_byte_vec_append(
-                        out, dependency_obj->map.pairs[count].key
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        return ret;
-                    }
-                    ret = ggl_byte_vec_append(out, GGL_STR(".service\n"));
-                    if (ret != GGL_ERR_OK) {
-                        return ret;
-                    }
-                } else {
-                    GglError ret
-                        = ggl_byte_vec_append(out, GGL_STR("Wants=ggl."));
-                    if (ret != GGL_ERR_OK) {
-                        return ret;
-                    }
-                    ret = ggl_byte_vec_append(
-                        out, dependency_obj->map.pairs[count].key
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        return ret;
-                    }
-                    ret = ggl_byte_vec_append(out, GGL_STR(".service\n"));
-                    if (ret != GGL_ERR_OK) {
-                        return ret;
-                    }
-                }
+            GglError ret
+                = parse_dependency_type(dependency_obj->map.pairs[count], out);
+            if (ret != GGL_ERR_OK) {
+                return ret;
             }
         }
         // TODO: deal with version, look conflictsWith
@@ -375,6 +383,89 @@ static GglError concat_inital_strings(
     return GGL_ERR_OK;
 }
 
+static GglError select_linux_manifest(
+    GglMap recipe_map, GglObject *val, GglMap *selected_lifecycle_map
+) {
+    GglObject selected_lifecycle_object = { 0 };
+    for (size_t platform_index = 0; platform_index < val->list.len;
+         platform_index++) {
+        if (val->list.items[platform_index].type != GGL_TYPE_MAP) {
+            GGL_LOGE(
+                "recipe2unit", "Provided manifest section is in invalid format."
+            );
+            return GGL_ERR_INVALID;
+        }
+        GglError ret = manifest_selection(
+            val->list.items[platform_index].map,
+            recipe_map,
+            &selected_lifecycle_object
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+        // If a lifecycle is successfully selected then look no futher
+        if (selected_lifecycle_object.type == GGL_TYPE_MAP) {
+            break;
+        }
+    }
+    if (selected_lifecycle_object.type != GGL_TYPE_MAP) {
+        GGL_LOGE("recipe2unit", "No lifecycle was found for linux");
+        return GGL_ERR_FAILURE;
+    }
+
+    *selected_lifecycle_map = selected_lifecycle_object.map;
+
+    return GGL_ERR_OK;
+}
+
+static GglError update_unit_file_buffer(
+    GglByteVec *out,
+    GglByteVec exec_start_section_vec,
+    GglByteVec script_name_vec,
+    char *arg_user,
+    char *arg_group,
+    bool is_root
+) {
+    GglError ret = ggl_byte_vec_append(out, GGL_STR("ExecStart="));
+    ggl_byte_vec_chain_append(&ret, out, exec_start_section_vec.buf);
+    ggl_byte_vec_chain_append(&ret, out, script_name_vec.buf);
+    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "recipe2unit", "Failed to write ExecStart portion of unit files"
+        );
+        return ret;
+    }
+
+    if (is_root) {
+        ret = ggl_byte_vec_append(out, GGL_STR("User=root\n"));
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("Group=root\n"));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    } else {
+        ret = ggl_byte_vec_append(out, GGL_STR("User="));
+        ggl_byte_vec_chain_append(
+            &ret,
+            out,
+            (GglBuffer) { .data = (uint8_t *) arg_user,
+                          .len = strlen(arg_user) }
+        );
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("\nGroup="));
+        ggl_byte_vec_chain_append(
+            &ret,
+            out,
+            (GglBuffer) { .data = (uint8_t *) arg_group,
+                          .len = strlen(arg_group) }
+        );
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
 // TODO: Refactor it
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError manifest_builder(
@@ -384,39 +475,18 @@ static GglError manifest_builder(
     GglByteVec exec_start_section_vec,
     Recipe2UnitArgs *args
 ) {
-    GglObject *val;
-    GglObject selected_script = { 0 };
-    GglObject selected_lifecycle_object = { 0 };
     bool is_root = false;
 
+    GglObject *val;
     if (ggl_map_get(recipe_map, GGL_STR("manifests"), &val)) {
         if (val->type == GGL_TYPE_LIST) {
-            for (size_t platform_index = 0; platform_index < val->list.len;
-                 platform_index++) {
-                if (val->list.items[platform_index].type != GGL_TYPE_MAP) {
-                    GGL_LOGE(
-                        "recipe2unit",
-                        "Provided manifest section is in invalid format."
-                    );
-                    return GGL_ERR_INVALID;
-                }
-                GglError ret = manifest_selection(
-                    val->list.items[platform_index].map,
-                    recipe_map,
-                    &selected_lifecycle_object
-                );
-                if (ret != GGL_ERR_OK) {
-                    return ret;
-                }
-                // If a lifecycle is successfully selected then look no futher
-                if (selected_lifecycle_object.type == GGL_TYPE_MAP) {
-                    break;
-                }
-            }
+            GglMap selected_lifecycle_map = { 0 };
 
-            if (selected_lifecycle_object.type != GGL_TYPE_MAP) {
-                GGL_LOGE("recipe2unit", "No lifecycle was found for linux");
-                return GGL_ERR_FAILURE;
+            GglError ret = select_linux_manifest(
+                recipe_map, val, &selected_lifecycle_map
+            );
+            if (ret != GGL_ERR_OK) {
+                return ret;
             }
 
             //****************************************************************
@@ -425,16 +495,14 @@ static GglError manifest_builder(
             GglBuffer lifecycle_script_selection = { 0 };
             GglObject *selection_made;
             if (ggl_map_get(
-                    selected_lifecycle_object.map,
-                    GGL_STR("startup"),
-                    &selection_made
+                    selected_lifecycle_map, GGL_STR("startup"), &selection_made
                 )) {
                 if (selection_made->type == GGL_TYPE_LIST) {
                     GGL_LOGE("recipe2unit", "Startup is a list type");
                     return GGL_ERR_INVALID;
                 }
                 lifecycle_script_selection = GGL_STR("startup");
-                GglError ret = ggl_byte_vec_append(
+                ret = ggl_byte_vec_append(
                     out, GGL_STR("RemainAfterExit=true\n")
                 );
                 ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=oneshot\n"));
@@ -446,7 +514,7 @@ static GglError manifest_builder(
                 }
 
             } else if (ggl_map_get(
-                           selected_lifecycle_object.map,
+                           selected_lifecycle_map,
                            GGL_STR("run"),
                            &selection_made
                        )) {
@@ -454,7 +522,7 @@ static GglError manifest_builder(
                     return GGL_ERR_INVALID;
                 }
                 lifecycle_script_selection = GGL_STR("run");
-                GglError ret = ggl_byte_vec_append(out, GGL_STR("Type=exec\n"));
+                ret = ggl_byte_vec_append(out, GGL_STR("Type=exec\n"));
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE(
                         "recipe2unit", "Failed to add unit type information"
@@ -466,8 +534,9 @@ static GglError manifest_builder(
                 return GGL_ERR_OK;
             }
 
-            GglError ret = fetch_script_section(
-                selected_lifecycle_object.map,
+            GglObject selected_script = { 0 };
+            ret = fetch_script_section(
+                selected_lifecycle_map,
                 lifecycle_script_selection,
                 &is_root,
                 &selected_script
@@ -504,43 +573,20 @@ static GglError manifest_builder(
                 return ret;
             }
 
-            ggl_byte_vec_chain_append(&ret, out, GGL_STR("ExecStart="));
-            ggl_byte_vec_chain_append(&ret, out, exec_start_section_vec.buf);
-            ggl_byte_vec_chain_append(&ret, out, script_name_vec.buf);
-            ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
+            ret = update_unit_file_buffer(
+                out,
+                exec_start_section_vec,
+                script_name_vec,
+                args->user,
+                args->group,
+                is_root
+            );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
                     "recipe2unit",
                     "Failed to write ExecStart portion of unit files"
                 );
                 return ret;
-            }
-
-            if (is_root) {
-                ret = ggl_byte_vec_append(out, GGL_STR("User=root\n"));
-                ggl_byte_vec_chain_append(&ret, out, GGL_STR("Group=root\n"));
-                if (ret != GGL_ERR_OK) {
-                    return ret;
-                }
-            } else {
-                ret = ggl_byte_vec_append(out, GGL_STR("User="));
-                ggl_byte_vec_chain_append(
-                    &ret,
-                    out,
-                    (GglBuffer) { .data = (uint8_t *) args->user,
-                                  .len = strlen(args->user) }
-                );
-                ggl_byte_vec_chain_append(&ret, out, GGL_STR("\nGroup="));
-                ggl_byte_vec_chain_append(
-                    &ret,
-                    out,
-                    (GglBuffer) { .data = (uint8_t *) args->group,
-                                  .len = strlen(args->group) }
-                );
-                ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
-                if (ret != GGL_ERR_OK) {
-                    return ret;
-                }
             }
 
         } else {
