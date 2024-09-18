@@ -5,7 +5,10 @@
 #include "unit_file_generator.h"
 #include "file_operation.h"
 #include "ggl/recipe2unit.h"
+#include <ggl/alloc.h>
+#include <ggl/bump_alloc.h>
 #include <ggl/error.h>
+#include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -18,6 +21,7 @@
 
 #define FILENAME_BUFFER_LEN 1024
 #define WORKING_DIR_LEN 4096
+#define MAX_SCRIPT_SIZE 10000
 
 static void ggl_string_to_lower(GglBuffer object_object_to_lower) {
     for (size_t key_count = 0; key_count < object_object_to_lower.len;
@@ -30,6 +34,8 @@ static void ggl_string_to_lower(GglBuffer object_object_to_lower) {
     }
 }
 
+/// Parses [DependencyType] portion of recipe and updates the unit file
+/// buffer(out) with dependency information appropriately
 static GglError parse_dependency_type(
     GglKV component_dependency, GglByteVec *out
 ) {
@@ -241,59 +247,63 @@ static GglError manifest_selection(
     return GGL_ERR_OK;
 }
 
+static GglError parse_requiresprivilege_section(
+    bool *is_root, GglMap lifecycle_step
+) {
+    GglObject *key_object;
+    if (ggl_map_get(
+            lifecycle_step, GGL_STR("requiresprivilege"), &key_object
+        )) {
+        if (key_object->type != GGL_TYPE_BUF) {
+            GGL_LOGE(
+                "recipe2unit",
+                "requiresprivilege needs to be a (true/false) value"
+            );
+            return GGL_ERR_INVALID;
+        }
+        ggl_string_to_lower(key_object->buf);
+
+        // TODO: Check if 0 and 1 are valid
+        if (strncmp((char *) key_object->buf.data, "true", key_object->buf.len)
+            == 0) {
+            *is_root = true;
+        } else if (strncmp(
+                       (char *) key_object->buf.data,
+                       "false",
+                       key_object->buf.len
+                   )
+                   == 0) {
+            *is_root = false;
+        } else {
+            GGL_LOGE(
+                "recipe2unit",
+                "requiresprivilege needs to be a"
+                "(true/false) value"
+            );
+            return GGL_ERR_INVALID;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
 static GglError fetch_script_section(
     GglMap selected_lifecycle,
     GglBuffer selected_phase,
     bool *is_root,
-    GglObject *selected_script
+    GglBuffer *selected_script_as_buf
 ) {
-    (void) selected_lifecycle;
-    (void) selected_phase;
-
     GglObject *val;
-
     if (ggl_map_get(selected_lifecycle, selected_phase, &val)) {
         if (val->type == GGL_TYPE_BUF) {
-            *selected_script = *val;
+            *selected_script_as_buf = val->buf;
         } else if (val->type == GGL_TYPE_MAP) {
             GglObject *key_object;
 
-            if (ggl_map_get(
-                    val->map, GGL_STR("requiresprivilege"), &key_object
-                )) {
-                if (key_object->type != GGL_TYPE_BUF) {
-                    GGL_LOGE(
-                        "recipe2unit",
-                        "requiresprivilege needs to be a boolean value"
-                    );
-                    return GGL_ERR_INVALID;
-                }
-                ggl_string_to_lower(key_object->buf);
-
-                // TODO: Check if 0 and 1 are valid
-                if (strncmp(
-                        (char *) key_object->buf.data,
-                        "true",
-                        key_object->buf.len
-                    )
-                    == 0) {
-                    *is_root = true;
-                } else if (strncmp(
-                               (char *) key_object->buf.data,
-                               "false",
-                               key_object->buf.len
-                           )
-                           == 0) {
-                    *is_root = false;
-                } else {
-                    GGL_LOGE(
-                        "recipe2unit",
-                        "requiresprivilege needs to be a boolean value "
-                        "(true/false)"
-                    );
-                    return GGL_ERR_INVALID;
-                }
+            GglError ret = parse_requiresprivilege_section(is_root, val->map);
+            if (ret != GGL_ERR_OK) {
+                return ret;
             }
+
             if (ggl_map_get(val->map, GGL_STR("script"), &key_object)) {
                 if (key_object->type != GGL_TYPE_BUF) {
                     GGL_LOGE(
@@ -302,7 +312,7 @@ static GglError fetch_script_section(
                     );
                     return GGL_ERR_INVALID;
                 }
-                *selected_script = *key_object;
+                *selected_script_as_buf = key_object->buf;
             }
         } else {
             GGL_LOGE(
@@ -418,13 +428,38 @@ static GglError select_linux_manifest(
     return GGL_ERR_OK;
 }
 
+static GglError add_set_env_to_unit(GglMap set_env_as_map, GglByteVec *out) {
+    for (size_t env_var_count = 0; env_var_count < set_env_as_map.len;
+         env_var_count++) {
+        if (set_env_as_map.pairs[env_var_count].val.type != GGL_TYPE_BUF) {
+            GGL_LOGE(
+                "recipe2unit",
+                "Invalid environment var's value, value must be a string"
+            );
+            return GGL_ERR_INVALID;
+        }
+
+        GglError ret = ggl_byte_vec_append(out, GGL_STR("Environment=\""));
+        ggl_byte_vec_chain_append(
+            &ret, out, set_env_as_map.pairs[env_var_count].key
+        );
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("="));
+        ggl_byte_vec_chain_append(
+            &ret, out, set_env_as_map.pairs[env_var_count].val.buf
+        );
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
+    }
+    return GGL_ERR_OK;
+}
+
 static GglError update_unit_file_buffer(
     GglByteVec *out,
     GglByteVec exec_start_section_vec,
     GglByteVec script_name_vec,
     char *arg_user,
     char *arg_group,
-    bool is_root
+    bool is_root,
+    GglMap set_env_as_map
 ) {
     GglError ret = ggl_byte_vec_append(out, GGL_STR("ExecStart="));
     ggl_byte_vec_chain_append(&ret, out, exec_start_section_vec.buf);
@@ -463,6 +498,98 @@ static GglError update_unit_file_buffer(
             return ret;
         }
     }
+
+    if (set_env_as_map.len != 0) {
+        ret = add_set_env_to_unit(set_env_as_map, out);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "recipe2unit",
+                "Failed to write setenv's environment portion to unit "
+                "files"
+            );
+            return ret;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
+static GglError parse_install_section(
+    GglMap selected_lifecycle_map,
+    GglMap set_env_as_map,
+    GglMap *out_install_map,
+    GglAlloc *allocator
+) {
+    GglObject *install_section;
+    if (ggl_map_get(
+            selected_lifecycle_map, GGL_STR("install"), &install_section
+        )) {
+        if (install_section->type != GGL_TYPE_MAP) {
+            GGL_LOGE(
+                "recipe2unit", "install section isn't formatted correctly"
+            );
+            return GGL_ERR_INVALID;
+        }
+
+        GglBuffer selected_script = { 0 };
+        bool is_root = false;
+        GglError ret = fetch_script_section(
+            selected_lifecycle_map,
+            GGL_STR("install"),
+            &is_root,
+            &selected_script
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("recipe2unit", "Cannot parse install script section");
+            return GGL_ERR_FAILURE;
+        }
+
+        GglObject out_object = GGL_OBJ_MAP(
+            { GGL_STR("requiresprivilege"), GGL_OBJ_BOOL(is_root) },
+            { GGL_STR("script"), GGL_OBJ(selected_script) },
+            { GGL_STR("set_env"), GGL_OBJ(set_env_as_map) }
+        );
+
+        ret = ggl_obj_deep_copy(&out_object, allocator);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+        *out_install_map = out_object.map;
+
+    } else {
+        GGL_LOGI("recipe2unit", "No install section found within the recipe");
+    }
+    return GGL_ERR_OK;
+}
+
+static GglError create_standardized_install_file(
+    GglByteVec script_name_prefix_vec,
+    GglMap standardized_install_map,
+    char *root_dir
+) {
+    static uint8_t json_buf[MAX_SCRIPT_SIZE];
+    GglBuffer install_json_payload = GGL_BUF(json_buf);
+    GglError ret = ggl_json_encode(
+        GGL_OBJ(standardized_install_map), &install_json_payload
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    static uint8_t script_name_buf[FILENAME_BUFFER_LEN];
+    GglByteVec script_name_vec = GGL_BYTE_VEC(script_name_buf);
+    ret = ggl_byte_vec_append(&script_name_vec, script_name_prefix_vec.buf);
+    ggl_byte_vec_chain_append(&ret, &script_name_vec, GGL_STR("install.json"));
+    if (ret != GGL_ERR_OK) {
+        return GGL_ERR_FAILURE;
+    }
+
+    ret = write_to_file(
+        root_dir, script_name_vec.buf, install_json_payload, 0400
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("recipe2unit", "Failed to create and write the script file");
+        return ret;
+    }
     return GGL_ERR_OK;
 }
 
@@ -488,6 +615,47 @@ static GglError manifest_builder(
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
+
+            // TODO: There is a case when setenv might ve provided at individual
+            // lifecycle step level which should override the global setenv
+            GglObject *selected_set_env_as_obj = { 0 };
+            GglMap set_env_as_map = { 0 };
+            if (ggl_map_get(
+                    selected_lifecycle_map,
+                    GGL_STR("setenv"),
+                    &selected_set_env_as_obj
+                )) {
+                if (selected_set_env_as_obj->type != GGL_TYPE_MAP) {
+                    GGL_LOGE(
+                        "recipe2unit",
+                        "setenv section needs to be a dictionary map type"
+                    );
+                    return GGL_ERR_INVALID;
+                }
+                set_env_as_map = selected_set_env_as_obj->map;
+            } else {
+                GGL_LOGE(
+                    "recipe2unit",
+                    "setenv section not found within the linux lifecycle"
+                );
+            }
+
+            static uint8_t big_buffer_for_bump[MAX_SCRIPT_SIZE];
+            GglBumpAlloc the_allocator
+                = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+            GglMap standardized_install_map = { 0 };
+            ret = parse_install_section(
+                selected_lifecycle_map,
+                set_env_as_map,
+                &standardized_install_map,
+                &the_allocator.alloc
+            );
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = create_standardized_install_file(
+                script_name_prefix_vec, standardized_install_map, args->root_dir
+            );
 
             //****************************************************************
             // Note: Everything below this should only deal with run or startup
@@ -534,7 +702,7 @@ static GglError manifest_builder(
                 return GGL_ERR_OK;
             }
 
-            GglObject selected_script = { 0 };
+            GglBuffer selected_script = { 0 };
             ret = fetch_script_section(
                 selected_lifecycle_map,
                 lifecycle_script_selection,
@@ -563,8 +731,8 @@ static GglError manifest_builder(
                 return GGL_ERR_FAILURE;
             }
 
-            ret = write_to_file_executable(
-                args->root_dir, script_name_vec.buf, selected_script.buf
+            ret = write_to_file(
+                args->root_dir, script_name_vec.buf, selected_script, 0700
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
@@ -579,7 +747,8 @@ static GglError manifest_builder(
                 script_name_vec,
                 args->user,
                 args->group,
-                is_root
+                is_root,
+                set_env_as_map
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
