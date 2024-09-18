@@ -133,8 +133,8 @@ GglError open_file(char *file_path, GglBuffer *recipe_obj) {
     return GGL_ERR_OK;
 }
 
-GglError write_to_file_executable(
-    char *directory_path, GglBuffer filename, GglBuffer write_data
+GglError write_to_file(
+    char *directory_path, GglBuffer filename, GglBuffer write_data, int mode
 ) {
     int root_dir_fd;
     GglError ret = ggl_dir_open(
@@ -146,8 +146,13 @@ GglError write_to_file_executable(
     }
 
     int script_as_file;
+
     ret = ggl_file_openat(
-        root_dir_fd, filename, O_CREAT | O_WRONLY, 0700, &script_as_file
+        root_dir_fd,
+        filename,
+        O_CREAT | O_WRONLY,
+        (mode_t) mode,
+        &script_as_file
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("recipe2unit", "Failed to open file at the dir");
@@ -155,7 +160,7 @@ GglError write_to_file_executable(
     }
     ret = ggl_write_exact(script_as_file, write_data);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe2unit", "Failed to write run script section to file");
+        GGL_LOGE("recipe2unit", "Write to file failed");
         return GGL_ERR_FAILURE;
     }
     return GGL_ERR_OK;
