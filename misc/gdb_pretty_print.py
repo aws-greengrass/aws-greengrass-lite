@@ -73,7 +73,7 @@ class GglObjectPrinter:
         self.__key = None
         match str(val["type"]):
             case "GGL_TYPE_BOOLEAN":
-                self.__key = "bool"
+                self.__key = "boolean"
             case "GGL_TYPE_I64":
                 self.__key = "i64"
             case "GGL_TYPE_F64":
