@@ -3,6 +3,7 @@
 // SPDX - License - Identifier : Apache - 2.0
 
 #include "file_operation.h"
+#include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>

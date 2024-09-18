@@ -8,7 +8,7 @@
 
 GglError run_recipe2unit_test(void) {
     Recipe2UnitArgs args = { 0 };
-    char recipe_path[] = "./recipe2unit_python/recipe.yml";
+    char recipe_path[] = "./recipe2unit-test/sample/recipe.yml";
     char root_dir[] = ".";
 
     args.gg_root_ca_path = "/home/test/rootCA.pem";
