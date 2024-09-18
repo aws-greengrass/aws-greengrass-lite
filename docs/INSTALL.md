@@ -32,11 +32,12 @@ To build the project, you will need the following build dependencies:
 - CMake (at least version 3.25)
 - Make or Ninja
 - pkg-config
+- git
 
 On Ubuntu, these can be installed with:
 
 ```sh
-sudo apt install build-essential pkg-config cmake
+sudo apt install build-essential pkg-config cmake git
 ```
 
 If your system's cmake is too old, you may need to build or download a newer
