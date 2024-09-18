@@ -13,7 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#define MAX_HEADER_LENGTH 1000
+#define MAX_HEADER_LENGTH 1024
 
 /// @brief Callback function to write the HTTP response data to a buffer.
 ///
@@ -75,14 +75,28 @@ GglError gghttplib_init_curl(CurlData *curl_data, const char *url) {
     return error;
 }
 
-void gghttplib_add_header(
-    CurlData *curl_data, const char header_key[], const char *header_value
+GglError gghttplib_add_header(
+    CurlData *curl_data, GglBuffer header_key, GglBuffer header_value
 ) {
-    char header[MAX_HEADER_LENGTH];
-    // TODO:: use snprintf here
-    sprintf(header, "%s: %s", header_key, header_value);
-    curl_data->headers_list
+    static char header[MAX_HEADER_LENGTH];
+    GglByteVec header_vec = GGL_BYTE_VEC(header);
+    GglError err = GGL_ERR_OK;
+    // x-header-key: header-value
+    ggl_byte_vec_chain_append(&err, &header_vec, header_key);
+    ggl_byte_vec_chain_push(&err, &header_vec, ':');
+    ggl_byte_vec_chain_push(&err, &header_vec, ' ');
+    ggl_byte_vec_chain_append(&err, &header_vec, header_value);
+    ggl_byte_vec_chain_push(&err, &header_vec, '\0');
+    if (err == GGL_ERR_OK) {
+        return err;
+    }
+    struct curl_slist *new_head
         = curl_slist_append(curl_data->headers_list, header);
+    if (new_head == NULL) {
+        return GGL_ERR_FAILURE;
+    }
+    curl_data->headers_list = new_head;
+    return GGL_ERR_OK;
 }
 
 void gghttplib_add_certificate_data(
@@ -110,17 +124,13 @@ GglError gghttplib_add_sigv4_credential(
         char sigv4_param[32];
         GglByteVec vector = GGL_BYTE_VEC(sigv4_param);
         ggl_byte_vec_chain_append(&err, &vector, GGL_STR("aws:amz:"));
-        ggl_byte_vec_chain_append(
-            &err, &vector, ggl_buffer_from_null_term(request_data.aws_region)
-        );
-        ggl_byte_vec_chain_append(&err, &vector, GGL_STR(":"));
-        ggl_byte_vec_chain_append(
-            &err, &vector, ggl_buffer_from_null_term(request_data.aws_service)
-        );
-        ggl_byte_vec_chain_append(&err, &vector, GGL_STR("\0"));
+        ggl_byte_vec_chain_append(&err, &vector, request_data.aws_region);
+        ggl_byte_vec_chain_push(&err, &vector, ':');
+        ggl_byte_vec_chain_append(&err, &vector, request_data.aws_service);
+        ggl_byte_vec_chain_push(&err, &vector, '\0');
         if (err != GGL_ERR_OK) {
             GGL_LOGE("sigv4", "sigv4_param too small");
-            return GGL_ERR_FAILURE;
+            return err;
         }
         curl_easy_setopt(curl_data->curl, CURLOPT_AWS_SIGV4, sigv4_param);
     }
@@ -130,27 +140,22 @@ GglError gghttplib_add_sigv4_credential(
         // "<128-chars>:<128-chars>"
         char sigv4_usrpwd[258];
         GglByteVec vector = GGL_BYTE_VEC(sigv4_usrpwd);
+        ggl_byte_vec_chain_append(&err, &vector, request_data.access_key_id);
+        ggl_byte_vec_chain_push(&err, &vector, ':');
         ggl_byte_vec_chain_append(
-            &err, &vector, ggl_buffer_from_null_term(request_data.access_key_id)
+            &err, &vector, request_data.secret_access_key
         );
-        ggl_byte_vec_chain_append(&err, &vector, GGL_STR(":"));
-        ggl_byte_vec_chain_append(
-            &err,
-            &vector,
-            ggl_buffer_from_null_term(request_data.secret_access_key)
-        );
-        ggl_byte_vec_chain_append(&err, &vector, GGL_STR("\0"));
+        ggl_byte_vec_chain_push(&err, &vector, '\0');
         if (err != GGL_ERR_OK) {
             GGL_LOGE("sigv4", "sigv4_usrpwd too small");
-            return GGL_ERR_FAILURE;
+            return err;
         }
         curl_easy_setopt(curl_data->curl, CURLOPT_USERPWD, sigv4_usrpwd);
     }
 
-    gghttplib_add_header(
-        curl_data, "x-amz-security-token", request_data.session_token
+    return gghttplib_add_header(
+        curl_data, GGL_STR("x-amz-security-token"), request_data.session_token
     );
-    return GGL_ERR_OK;
 }
 
 void gghttplib_process_request(
@@ -180,17 +185,22 @@ void gghttplib_process_request(
 GglError gghttplib_process_request_with_file_pointer(
     CurlData *curl_data, FILE *file_pointer
 ) {
-    CURLcode ret = CURLE_OK;
+    curl_easy_setopt(
+        curl_data->curl, CURLOPT_HTTPHEADER, curl_data->headers_list
+    );
+    curl_easy_setopt(curl_data->curl, CURLOPT_WRITEFUNCTION, NULL);
+    curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, file_pointer);
+
     GglError return_code = GGL_ERR_OK;
-
-    curl_easy_setopt(curl_data, CURLOPT_WRITEFUNCTION, NULL);
-    curl_easy_setopt(curl_data, CURLOPT_WRITEDATA, file_pointer);
-
-    ret = curl_easy_perform(curl_data);
+    CURLcode ret = curl_easy_perform(curl_data->curl);
     if (ret != CURLE_OK) {
-        return_code = GGL_ERR_FATAL;
+        GGL_LOGE(
+            "process_request",
+            "curl_easy_perform() failed: %s",
+            curl_easy_strerror(ret)
+        );
+        return_code = GGL_ERR_FAILURE;
     }
-    curl_easy_cleanup(curl_data);
-
+    gghttplib_destroy_curl(curl_data);
     return return_code;
 }

@@ -13,12 +13,20 @@ typedef struct CertificateDetails {
     const char *gghttplib_root_ca_path;
 } CertificateDetails;
 
+/// AWS Service information and temporary credentials
+///
+/// Use fetch_token() to retrieve id, key, and token
 typedef struct SigV4Details {
-    char *aws_region;
-    char *aws_service;
-    char *access_key_id;
-    char *secret_access_key;
-    const char *session_token;
+    /// AWS region code (e.g. "us-east-2")
+    GglBuffer aws_region;
+    /// AWS service endpoint name (e.g. "s3" or "lambda")
+    GglBuffer aws_service;
+    /// Temporary AWS ID
+    GglBuffer access_key_id;
+    /// Temporary AWS Key
+    GglBuffer secret_access_key;
+    /// Temporary AWS Token
+    GglBuffer session_token;
 } SigV4Details;
 
 /// @brief Fetches temporary AWS credentials.
@@ -41,7 +49,7 @@ typedef struct SigV4Details {
 /// accessible in general without special privileges.
 void fetch_token(
     const char *url_for_token,
-    const char *thing_name,
+    GglBuffer thing_name,
     CertificateDetails certificate_details,
     GglBuffer *buffer
 );

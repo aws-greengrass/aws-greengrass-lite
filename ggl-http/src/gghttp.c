@@ -9,11 +9,9 @@
 #include <ggl/log.h>
 #include <stdio.h>
 
-static const char HEADER_KEY[] = "x-amzn-iot-thingname";
-
 void fetch_token(
     const char *url_for_token,
-    const char *thing_name,
+    GglBuffer thing_name,
     CertificateDetails certificate_details,
     GglBuffer *buffer
 ) {
@@ -21,14 +19,17 @@ void fetch_token(
 
     GGL_LOGI(
         "fetch_token",
-        "Fetching token from credentials endpoint=%s, for iot thing=%s",
+        "Fetching token from credentials endpoint=%s, for iot thing=%.*s",
         url_for_token,
-        thing_name
+        (int) thing_name.len,
+        thing_name.data
     );
 
     GglError error = gghttplib_init_curl(&curl_data, url_for_token);
     if (error == GGL_ERR_OK) {
-        gghttplib_add_header(&curl_data, HEADER_KEY, thing_name);
+        gghttplib_add_header(
+            &curl_data, GGL_STR("x-amzn-iot-thingname"), thing_name
+        );
         gghttplib_add_certificate_data(&curl_data, certificate_details);
         gghttplib_process_request(&curl_data, buffer);
     }
@@ -43,20 +44,42 @@ void generic_download(
         url_for_generic_download,
         file_path
     );
+    FILE *file_pointer = fopen(file_path, "wb");
 
     CurlData curl_data = { 0 };
-    FILE *file_pointer;
-
     GglError error = gghttplib_init_curl(&curl_data, url_for_generic_download);
     if (error == GGL_ERR_OK) {
-        file_pointer = fopen(file_path, "wb");
-
-        GglError ret = gghttplib_process_request_with_file_pointer(
+        error = gghttplib_process_request_with_file_pointer(
             &curl_data, file_pointer
         );
-
-        if (ret != GGL_ERR_OK) {
-            return;
-        }
     }
+
+    fclose(file_pointer);
+}
+
+void sigv4_download(
+    const char *url_for_sigv4_download,
+    const char *file_path,
+    SigV4Details sigv4_details
+) {
+    GGL_LOGI(
+        "sigv4_download",
+        "downloading content from %s and storing to %s",
+        url_for_sigv4_download,
+        file_path
+    );
+    FILE *file_pointer = fopen(file_path, "wb");
+
+    CurlData curl_data = { 0 };
+    GglError error = gghttplib_init_curl(&curl_data, url_for_sigv4_download);
+    if (error == GGL_ERR_OK) {
+        error = gghttplib_add_sigv4_credential(&curl_data, sigv4_details);
+    }
+    if (error == GGL_ERR_OK) {
+        error = gghttplib_process_request_with_file_pointer(
+            &curl_data, file_pointer
+        );
+    }
+
+    fclose(file_pointer);
 }

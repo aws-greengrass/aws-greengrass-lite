@@ -48,7 +48,7 @@ static GglBuffer request_token_from_aws(void) {
 
     fetch_token(
         global_cred_details.url,
-        global_cred_details.thing_name,
+        ggl_buffer_from_null_term(global_cred_details.thing_name),
         certificate,
         &buffer
     );

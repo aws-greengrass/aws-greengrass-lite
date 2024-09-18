@@ -42,9 +42,11 @@ GglError gghttplib_init_curl(CurlData *curl_data, const char *url);
  * headers list.
  * @param[in] header_key The key of the header to be added.
  * @param[in] header_value The value of the header to be added.
+ * @return GGL_ERR_OK on success, else an error value on failure
+ * @note curl_data is unmodified on failure.
  */
-void gghttplib_add_header(
-    CurlData *curl_data, const char header_key[], const char *header_value
+GglError gghttplib_add_header(
+    CurlData *curl_data, GglBuffer header_key, GglBuffer header_value
 );
 
 /**
