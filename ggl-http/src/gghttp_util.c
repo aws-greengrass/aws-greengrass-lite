@@ -7,13 +7,25 @@
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <curl/curl.h>
-#include <ggl/buffer.h>
 #include <ggl/log.h>
 #include <ggl/vector.h>
 #include <string.h>
 #include <stdio.h>
 
 #define MAX_HEADER_LENGTH 1024
+
+static GglError translate_curl_code(CURLcode code) {
+    switch (code) {
+    case CURLE_OK:
+        return GGL_ERR_OK;
+    case CURLE_AGAIN:
+        return GGL_ERR_RETRY;
+    case CURLE_URL_MALFORMAT:
+        return GGL_ERR_PARSE;
+    default:
+        return GGL_ERR_REMOTE;
+    }
+}
 
 /// @brief Callback function to write the HTTP response data to a buffer.
 ///
@@ -87,7 +99,7 @@ GglError gghttplib_add_header(
     ggl_byte_vec_chain_push(&err, &header_vec, ' ');
     ggl_byte_vec_chain_append(&err, &header_vec, header_value);
     ggl_byte_vec_chain_push(&err, &header_vec, '\0');
-    if (err == GGL_ERR_OK) {
+    if (err != GGL_ERR_OK) {
         return err;
     }
     struct curl_slist *new_head
@@ -158,7 +170,7 @@ GglError gghttplib_add_sigv4_credential(
     );
 }
 
-void gghttplib_process_request(
+GglError gghttplib_process_request(
     CurlData *curl_data, GglBuffer *response_buffer
 ) {
     curl_easy_setopt(
@@ -169,17 +181,19 @@ void gghttplib_process_request(
     );
     curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, response_buffer);
 
-    CURLcode http_response_code = curl_easy_perform(curl_data->curl);
+    CURLcode curl_error = curl_easy_perform(curl_data->curl);
 
-    if (http_response_code != CURLE_OK) {
+    if (curl_error != CURLE_OK) {
         GGL_LOGE(
             "process_request",
             "curl_easy_perform() failed: %s",
-            curl_easy_strerror(http_response_code)
+            curl_easy_strerror(curl_error)
         );
     }
 
     gghttplib_destroy_curl(curl_data);
+
+    return translate_curl_code(curl_error);
 }
 
 GglError gghttplib_process_request_with_file_pointer(
@@ -191,16 +205,14 @@ GglError gghttplib_process_request_with_file_pointer(
     curl_easy_setopt(curl_data->curl, CURLOPT_WRITEFUNCTION, NULL);
     curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, file_pointer);
 
-    GglError return_code = GGL_ERR_OK;
-    CURLcode ret = curl_easy_perform(curl_data->curl);
-    if (ret != CURLE_OK) {
+    CURLcode curl_error = curl_easy_perform(curl_data->curl);
+    if (curl_error != CURLE_OK) {
         GGL_LOGE(
             "process_request",
             "curl_easy_perform() failed: %s",
-            curl_easy_strerror(ret)
+            curl_easy_strerror(curl_error)
         );
-        return_code = GGL_ERR_FAILURE;
     }
     gghttplib_destroy_curl(curl_data);
-    return return_code;
+    return translate_curl_code(curl_error);
 }

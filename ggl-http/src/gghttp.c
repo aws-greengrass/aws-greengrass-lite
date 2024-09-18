@@ -9,7 +9,7 @@
 #include <ggl/log.h>
 #include <stdio.h>
 
-void fetch_token(
+GglError fetch_token(
     const char *url_for_token,
     GglBuffer thing_name,
     CertificateDetails certificate_details,
@@ -27,15 +27,19 @@ void fetch_token(
 
     GglError error = gghttplib_init_curl(&curl_data, url_for_token);
     if (error == GGL_ERR_OK) {
-        gghttplib_add_header(
+        error = gghttplib_add_header(
             &curl_data, GGL_STR("x-amzn-iot-thingname"), thing_name
         );
-        gghttplib_add_certificate_data(&curl_data, certificate_details);
-        gghttplib_process_request(&curl_data, buffer);
     }
+    if (error == GGL_ERR_OK) {
+        gghttplib_add_certificate_data(&curl_data, certificate_details);
+        error = gghttplib_process_request(&curl_data, buffer);
+    }
+
+    return error;
 }
 
-void generic_download(
+GglError generic_download(
     const char *url_for_generic_download, const char *file_path
 ) {
     GGL_LOGI(
@@ -44,7 +48,11 @@ void generic_download(
         url_for_generic_download,
         file_path
     );
+
     FILE *file_pointer = fopen(file_path, "wb");
+    if (file_pointer == NULL) {
+        return GGL_ERR_FAILURE;
+    }
 
     CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_generic_download);
@@ -55,9 +63,11 @@ void generic_download(
     }
 
     fclose(file_pointer);
+
+    return error;
 }
 
-void sigv4_download(
+GglError sigv4_download(
     const char *url_for_sigv4_download,
     const char *file_path,
     SigV4Details sigv4_details
@@ -69,6 +79,9 @@ void sigv4_download(
         file_path
     );
     FILE *file_pointer = fopen(file_path, "wb");
+    if (file_pointer == NULL) {
+        return GGL_ERR_FAILURE;
+    }
 
     CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_sigv4_download);
@@ -82,4 +95,6 @@ void sigv4_download(
     }
 
     fclose(file_pointer);
+
+    return error;
 }

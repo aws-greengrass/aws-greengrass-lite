@@ -87,7 +87,9 @@ GglError gghttplib_add_sigv4_credential(
 /// handle and other request data.
 /// @return A GglBuffer struct containing the response data from the HTTP
 /// request.
-void gghttplib_process_request(CurlData *curl_data, GglBuffer *response_buffer);
+GglError gghttplib_process_request(
+    CurlData *curl_data, GglBuffer *response_buffer
+);
 
 /// @brief Processes an HTTP request using the provided cURL data.
 ///

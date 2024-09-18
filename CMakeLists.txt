@@ -298,6 +298,7 @@ if(BUILD_EXAMPLES)
   add_subdirectory(samples/deployment-client)
   add_subdirectory(samples/status-monitor-client)
   add_subdirectory(configtest)
+  add_subdirectory(s3-get-test)
   add_subdirectory(tesd-test)
   add_subdirectory(recipe2unit-test)
 
