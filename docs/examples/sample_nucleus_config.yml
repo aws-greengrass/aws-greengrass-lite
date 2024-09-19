@@ -32,6 +32,7 @@ services:
       runWithDefault:
         posixUser: "ggc_user:ggc_group"
       telemetry: {}
+      tesCredUrl: "http://127.0.0.1:8080/"
     dependencies: []
   aws.greengrass.fleet_provisioning:
     configuration:
