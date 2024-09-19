@@ -182,7 +182,9 @@ GglError gghttplib_process_request(
     curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, response_buffer);
 
     CURLcode curl_error = curl_easy_perform(curl_data->curl);
-
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGI("process_request", "HTTP code: %ld", http_status_code);
     if (curl_error != CURLE_OK) {
         GGL_LOGE(
             "process_request",
@@ -192,6 +194,11 @@ GglError gghttplib_process_request(
     }
 
     gghttplib_destroy_curl(curl_data);
+
+    // TODO: propagate HTTP code up for deployment failure root causing
+    if (http_status_code < 200 || http_status_code > 299) {
+        return GGL_ERR_FAILURE;
+    }
 
     return translate_curl_code(curl_error);
 }
@@ -204,8 +211,13 @@ GglError gghttplib_process_request_with_file_pointer(
     );
     curl_easy_setopt(curl_data->curl, CURLOPT_WRITEFUNCTION, NULL);
     curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, file_pointer);
+    curl_easy_setopt(curl_data->curl, CURLOPT_FAILONERROR, 1L);
 
     CURLcode curl_error = curl_easy_perform(curl_data->curl);
+
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGI("process_request", "HTTP code: %ld", http_status_code);
     if (curl_error != CURLE_OK) {
         GGL_LOGE(
             "process_request",
@@ -214,5 +226,7 @@ GglError gghttplib_process_request_with_file_pointer(
         );
     }
     gghttplib_destroy_curl(curl_data);
+
+    // TODO: propagate HTTP code up for deployment failure root causing
     return translate_curl_code(curl_error);
 }
