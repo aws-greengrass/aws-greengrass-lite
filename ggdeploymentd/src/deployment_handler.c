@@ -1342,16 +1342,6 @@ static void handle_deployment(
                 return;
             }
 
-            char run_file_path[256] = { 0 };
-            strncat(run_file_path, "ggl.", strlen("ggl."));
-            strncat(run_file_path, (char *) pair->key.data, pair->key.len);
-            strncat(run_file_path, ".script.run", strlen(".script.run"));
-            open_ret = open(run_file_path, O_RDONLY | O_CLOEXEC);
-            if (open_ret < 0) {
-                GGL_LOGE("ggdeploymentd", "Could not find run file.");
-                return;
-            }
-
             char service_file_path[256] = { 0 };
             strncat(service_file_path, "ggl.", strlen("ggl."));
             strncat(service_file_path, (char *) pair->key.data, pair->key.len);
