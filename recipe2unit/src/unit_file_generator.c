@@ -23,6 +23,10 @@
 #define WORKING_DIR_LEN 4096
 #define MAX_SCRIPT_SIZE 10000
 
+static const char COMPONENT_NAME[] = "recipe2unit";
+static const char REQUIRES_PRIVILEGE[] = "requiresprivilege";
+static const char LIFECYCLE[] = "lifecycle";
+
 static void ggl_string_to_lower(GglBuffer object_object_to_lower) {
     for (size_t key_count = 0; key_count < object_object_to_lower.len;
          key_count++) {
@@ -42,7 +46,7 @@ static GglError parse_dependency_type(
     GglObject *val;
     if (component_dependency.val.type != GGL_TYPE_MAP) {
         GGL_LOGE(
-            "recipe2unit",
+            COMPONENT_NAME,
             "Any information provided under[ComponentDependencies] section "
             "only supports a key value map type."
         );
@@ -169,7 +173,7 @@ static GglError lifecycle_selection(
             // Fetch the global Lifecycle object and match the
             // name with the first occurrence of selection
             if (ggl_map_get(
-                    recipe_map, GGL_STR("lifecycle"), &global_lifecycle
+                    recipe_map, GGL_STR(LIFECYCLE), &global_lifecycle
                 )) {
                 if (global_lifecycle->type != GGL_TYPE_MAP) {
                     return GGL_ERR_INVALID;
@@ -179,7 +183,7 @@ static GglError lifecycle_selection(
                     )) {
                     if (val->type != GGL_TYPE_MAP) {
                         GGL_LOGE(
-                            "recipe2unit", "Invalid Global Linux lifecycle"
+                            COMPONENT_NAME, "Invalid Global Linux lifecycle"
                         );
                         return GGL_ERR_INVALID;
                     }
@@ -202,13 +206,13 @@ static GglError manifest_selection(
             // If OS is not provided then do nothing
             if (ggl_map_get(val->map, GGL_STR("os"), &val)) {
                 if (val->type != GGL_TYPE_BUF) {
-                    GGL_LOGE("recipe2unit", "Platform OS invalid input");
+                    GGL_LOGE(COMPONENT_NAME, "Platform OS invalid input");
                     return GGL_ERR_INVALID;
                 }
                 if (strncmp((char *) val->buf.data, "linux", val->buf.len) == 0
                     || strncmp((char *) val->buf.data, "*", val->buf.len)
                         == 0) {
-                    if (ggl_map_get(manifest_map, GGL_STR("lifecycle"), &val)) {
+                    if (ggl_map_get(manifest_map, GGL_STR(LIFECYCLE), &val)) {
                         if (val->type != GGL_TYPE_MAP) {
                             return GGL_ERR_INVALID;
                         }
@@ -226,7 +230,7 @@ static GglError manifest_selection(
                         );
                     } else {
                         GGL_LOGE(
-                            "recipe2unit",
+                            COMPONENT_NAME,
                             "Neither Lifecycle or Selection data provided"
                         );
                         return GGL_ERR_INVALID;
@@ -241,7 +245,7 @@ static GglError manifest_selection(
             return GGL_ERR_INVALID;
         }
     } else {
-        GGL_LOGE("recipe2unit", "Platform not provided");
+        GGL_LOGE(COMPONENT_NAME, "Platform not provided");
         return GGL_ERR_INVALID;
     }
     return GGL_ERR_OK;
@@ -251,12 +255,10 @@ static GglError parse_requiresprivilege_section(
     bool *is_root, GglMap lifecycle_step
 ) {
     GglObject *key_object;
-    if (ggl_map_get(
-            lifecycle_step, GGL_STR("requiresprivilege"), &key_object
-        )) {
+    if (ggl_map_get(lifecycle_step, GGL_STR(REQUIRES_PRIVILEGE), &key_object)) {
         if (key_object->type != GGL_TYPE_BUF) {
             GGL_LOGE(
-                "recipe2unit",
+                COMPONENT_NAME,
                 "requiresprivilege needs to be a (true/false) value"
             );
             return GGL_ERR_INVALID;
@@ -276,7 +278,7 @@ static GglError parse_requiresprivilege_section(
             *is_root = false;
         } else {
             GGL_LOGE(
-                "recipe2unit",
+                COMPONENT_NAME,
                 "requiresprivilege needs to be a"
                 "(true/false) value"
             );
@@ -307,7 +309,7 @@ static GglError fetch_script_section(
             if (ggl_map_get(val->map, GGL_STR("script"), &key_object)) {
                 if (key_object->type != GGL_TYPE_BUF) {
                     GGL_LOGE(
-                        "recipe2unit",
+                        COMPONENT_NAME,
                         "script section needs to be string buffer"
                     );
                     return GGL_ERR_INVALID;
@@ -316,7 +318,7 @@ static GglError fetch_script_section(
             }
         } else {
             GGL_LOGE(
-                "recipe2unit", "script section section is of invalid list type"
+                COMPONENT_NAME, "script section section is of invalid list type"
             );
             return GGL_ERR_INVALID;
         }
@@ -363,7 +365,7 @@ static GglError concat_inital_strings(
         // Get the current working directory
         char cwd[WORKING_DIR_LEN];
         if (getcwd(cwd, sizeof(cwd)) == NULL) {
-            GGL_LOGE("recipe2unit", "Failed to get current workingdirectory");
+            GGL_LOGE(COMPONENT_NAME, "Failed to get current workingdirectory");
             return GGL_ERR_FAILURE;
         }
 
@@ -401,7 +403,8 @@ static GglError select_linux_manifest(
          platform_index++) {
         if (val->list.items[platform_index].type != GGL_TYPE_MAP) {
             GGL_LOGE(
-                "recipe2unit", "Provided manifest section is in invalid format."
+                COMPONENT_NAME,
+                "Provided manifest section is in invalid format."
             );
             return GGL_ERR_INVALID;
         }
@@ -419,7 +422,7 @@ static GglError select_linux_manifest(
         }
     }
     if (selected_lifecycle_object.type != GGL_TYPE_MAP) {
-        GGL_LOGE("recipe2unit", "No lifecycle was found for linux");
+        GGL_LOGE(COMPONENT_NAME, "No lifecycle was found for linux");
         return GGL_ERR_FAILURE;
     }
 
@@ -433,7 +436,7 @@ static GglError add_set_env_to_unit(GglMap set_env_as_map, GglByteVec *out) {
          env_var_count++) {
         if (set_env_as_map.pairs[env_var_count].val.type != GGL_TYPE_BUF) {
             GGL_LOGE(
-                "recipe2unit",
+                COMPONENT_NAME,
                 "Invalid environment var's value, value must be a string"
             );
             return GGL_ERR_INVALID;
@@ -467,7 +470,7 @@ static GglError update_unit_file_buffer(
     ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "recipe2unit", "Failed to write ExecStart portion of unit files"
+            COMPONENT_NAME, "Failed to write ExecStart portion of unit files"
         );
         return ret;
     }
@@ -503,7 +506,7 @@ static GglError update_unit_file_buffer(
         ret = add_set_env_to_unit(set_env_as_map, out);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "recipe2unit",
+                COMPONENT_NAME,
                 "Failed to write setenv's environment portion to unit "
                 "files"
             );
@@ -525,7 +528,7 @@ static GglError parse_install_section(
         )) {
         if (install_section->type != GGL_TYPE_MAP) {
             GGL_LOGE(
-                "recipe2unit", "install section isn't formatted correctly"
+                COMPONENT_NAME, "install section isn't formatted correctly"
             );
             return GGL_ERR_INVALID;
         }
@@ -539,12 +542,12 @@ static GglError parse_install_section(
             &selected_script
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("recipe2unit", "Cannot parse install script section");
+            GGL_LOGE(COMPONENT_NAME, "Cannot parse install script section");
             return GGL_ERR_FAILURE;
         }
 
         GglObject out_object = GGL_OBJ_MAP(
-            { GGL_STR("requiresprivilege"), GGL_OBJ_BOOL(is_root) },
+            { GGL_STR(REQUIRES_PRIVILEGE), GGL_OBJ_BOOL(is_root) },
             { GGL_STR("script"), GGL_OBJ(selected_script) },
             { GGL_STR("set_env"), GGL_OBJ(set_env_as_map) }
         );
@@ -556,7 +559,7 @@ static GglError parse_install_section(
         *out_install_map = out_object.map;
 
     } else {
-        GGL_LOGI("recipe2unit", "No install section found within the recipe");
+        GGL_LOGI(COMPONENT_NAME, "No install section found within the recipe");
     }
     return GGL_ERR_OK;
 }
@@ -587,7 +590,7 @@ static GglError create_standardized_install_file(
         root_dir, script_name_vec.buf, install_json_payload, 0400
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe2unit", "Failed to create and write the script file");
+        GGL_LOGE(COMPONENT_NAME, "Failed to create and write the script file");
         return ret;
     }
     return GGL_ERR_OK;
@@ -627,7 +630,7 @@ static GglError manifest_builder(
                 )) {
                 if (selected_set_env_as_obj->type != GGL_TYPE_MAP) {
                     GGL_LOGE(
-                        "recipe2unit",
+                        COMPONENT_NAME,
                         "setenv section needs to be a dictionary map type"
                     );
                     return GGL_ERR_INVALID;
@@ -635,7 +638,7 @@ static GglError manifest_builder(
                 set_env_as_map = selected_set_env_as_obj->map;
             } else {
                 GGL_LOGE(
-                    "recipe2unit",
+                    COMPONENT_NAME,
                     "setenv section not found within the linux lifecycle"
                 );
             }
@@ -666,7 +669,7 @@ static GglError manifest_builder(
                     selected_lifecycle_map, GGL_STR("startup"), &selection_made
                 )) {
                 if (selection_made->type == GGL_TYPE_LIST) {
-                    GGL_LOGE("recipe2unit", "Startup is a list type");
+                    GGL_LOGE(COMPONENT_NAME, "Startup is a list type");
                     return GGL_ERR_INVALID;
                 }
                 lifecycle_script_selection = GGL_STR("startup");
@@ -676,7 +679,7 @@ static GglError manifest_builder(
                 ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=oneshot\n"));
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE(
-                        "recipe2unit", "Failed to add unit type information"
+                        COMPONENT_NAME, "Failed to add unit type information"
                     );
                     return GGL_ERR_FAILURE;
                 }
@@ -693,12 +696,12 @@ static GglError manifest_builder(
                 ret = ggl_byte_vec_append(out, GGL_STR("Type=exec\n"));
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE(
-                        "recipe2unit", "Failed to add unit type information"
+                        COMPONENT_NAME, "Failed to add unit type information"
                     );
                     return GGL_ERR_FAILURE;
                 }
             } else {
-                GGL_LOGI("recipe2unit", "No startup or run provided");
+                GGL_LOGI(COMPONENT_NAME, "No startup or run provided");
                 return GGL_ERR_OK;
             }
 
@@ -711,7 +714,7 @@ static GglError manifest_builder(
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
-                    "recipe2unit",
+                    COMPONENT_NAME,
                     "Cannot parse %.*s script section",
                     (int) lifecycle_script_selection.len,
                     lifecycle_script_selection.data
@@ -736,7 +739,7 @@ static GglError manifest_builder(
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
-                    "recipe2unit", "Failed to create and write the script file"
+                    COMPONENT_NAME, "Failed to create and write the script file"
                 );
                 return ret;
             }
@@ -752,14 +755,16 @@ static GglError manifest_builder(
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
-                    "recipe2unit",
+                    COMPONENT_NAME,
                     "Failed to write ExecStart portion of unit files"
                 );
                 return ret;
             }
 
         } else {
-            GGL_LOGI("recipe2unit", "Invalid Manifest within the recipe file.");
+            GGL_LOGI(
+                COMPONENT_NAME, "Invalid Manifest within the recipe file."
+            );
             return GGL_ERR_INVALID;
         }
     }
@@ -854,7 +859,7 @@ static GglError fill_environment_variables(
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "recipe2unit", "Failed to set environment variables to unit file"
+            COMPONENT_NAME, "Failed to set environment variables to unit file"
         );
         return ret;
     }
@@ -867,7 +872,7 @@ static GglError fill_install_section(GglByteVec *out) {
         &ret, out, GGL_STR("WantedBy=GreengrassCore.target\n")
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe2unit", "Failed to set Install section to unit file");
+        GGL_LOGE(COMPONENT_NAME, "Failed to set Install section to unit file");
         return ret;
     }
 
@@ -901,7 +906,7 @@ static GglError fill_service_section(
     );
 
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe2unit", "String Concat failed.");
+        GGL_LOGE(COMPONENT_NAME, "String Concat failed.");
         return ret;
     }
 

@@ -19,6 +19,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+static const char COMPONENT_NAME[] = "recipe2unit";
+
 // NOLINTNEXTLINE(misc-no-recursion)
 static void ggl_key_to_lower(GglObject object_object_to_lower) {
     if (object_object_to_lower.type == GGL_TYPE_MAP) {
@@ -142,7 +144,7 @@ GglError write_to_file(
         ggl_buffer_from_null_term(directory_path), O_PATH, true, &root_dir_fd
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe2unit", "Failed to open dir");
+        GGL_LOGE(COMPONENT_NAME, "Failed to open dir");
         return GGL_ERR_FAILURE;
     }
 
@@ -156,12 +158,12 @@ GglError write_to_file(
         &script_as_file
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe2unit", "Failed to open file at the dir");
+        GGL_LOGE(COMPONENT_NAME, "Failed to open file at the dir");
         return GGL_ERR_FAILURE;
     }
     ret = ggl_write_exact(script_as_file, write_data);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe2unit", "Write to file failed");
+        GGL_LOGE(COMPONENT_NAME, "Write to file failed");
         return GGL_ERR_FAILURE;
     }
     return GGL_ERR_OK;

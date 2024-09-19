@@ -16,6 +16,8 @@
 #define MAX_RECIPE_BUF_SIZE 256000
 #define MAX_UNIT_FILE_BUF_SIZE 2048
 
+static const char COMPONENT_NAME[] = "recipe2unit";
+
 GglError convert_to_unit(Recipe2UnitArgs *args) {
     GglError ret = validate_args(args);
     if (ret != GGL_ERR_OK) {
@@ -40,7 +42,7 @@ GglError convert_to_unit(Recipe2UnitArgs *args) {
     }
 
     if (recipe_obj.type != GGL_TYPE_MAP) {
-        GGL_LOGE("recipe2unit", "Invalid recipe format provided");
+        GGL_LOGE(COMPONENT_NAME, "Invalid recipe format provided");
         return GGL_ERR_FAILURE;
     }
 
