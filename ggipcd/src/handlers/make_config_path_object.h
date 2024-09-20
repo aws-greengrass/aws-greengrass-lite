@@ -9,7 +9,8 @@
 
 #define MAXIMUM_KEY_PATH_DEPTH 100
 
-/// @brief Combine the component name and key path and return a new configuration path
+/// @brief Combine the component name and key path and return a new
+/// configuration path
 /// @param component_name_object The component name
 /// @param key_path_object  the key path within the component configuration
 /// @return a configuration path to the given key path

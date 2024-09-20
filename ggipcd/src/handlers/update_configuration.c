@@ -41,7 +41,8 @@ GglError handle_update_configuration(
     }
     GglBuffer component_name_buffer;
     ggl_ipc_get_component_name(handle, &component_name_buffer);
-    GglObject *component_name_object = &(GglObject){.type = GGL_TYPE_BUF, .buf = component_name_buffer};
+    GglObject *component_name_object
+        = &(GglObject) { .type = GGL_TYPE_BUF, .buf = component_name_buffer };
     GGL_LOGT(
         "UpdateConfiguration",
         "Component Name : %.*s",
@@ -71,11 +72,13 @@ GglError handle_update_configuration(
         );
         return GGL_ERR_INVALID;
     };
-    // convert timestamp from sec in floating-point(with msec precision) to msec in integer
+    // convert timestamp from sec in floating-point(with msec precision) to msec
+    // in integer
     time_stamp_object->i64 = time_stamp_object->f64 * 1000;
     time_stamp_object->type = GGL_TYPE_I64;
     GGL_LOGT("UpdateConfiguration", "timestamp is %ld", time_stamp_object->i64);
-    GglObject *config_path_object = ggl_make_config_path_object(component_name_object, key_path_object);
+    GglObject *config_path_object
+        = ggl_make_config_path_object(component_name_object, key_path_object);
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"), *config_path_object },
         { GGL_STR("value"), *value_to_merge_object },
