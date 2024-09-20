@@ -3,11 +3,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "gghttp_util.h"
+#include "ggl/buffer.h"
 #include "ggl/error.h"
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <ggl/log.h>
+#include <ggl/vector.h>
+#include <stdint.h>
 #include <stdio.h>
+
+#define MAX_URI_LENGTH 2048
+#define HTTPS_PREFIX "https://"
 
 GglError fetch_token(
     const char *url_for_token,
@@ -97,4 +103,49 @@ GglError sigv4_download(
     fclose(file_pointer);
 
     return error;
+}
+
+void gg_dataplane_call(
+    char *endpoint,
+    char *port,
+    char *uri_path,
+    CertificateDetails certificate_details,
+    const uint8_t *body,
+    GglBuffer *response_buffer
+) {
+    CurlData curl_data = { 0 };
+
+    GGL_LOGI(
+        "dataplane_call",
+        "Preparing call to data endpoint provided as %s:%s/%s",
+        endpoint,
+        port,
+        uri_path
+    );
+
+    static uint8_t uri_buf[MAX_URI_LENGTH];
+    GglByteVec uri_vec = GGL_BYTE_VEC(uri_buf);
+    GglError ret = ggl_byte_vec_append(&uri_vec, GGL_STR(HTTPS_PREFIX));
+    ggl_byte_vec_chain_append(
+        &ret, &uri_vec, ggl_buffer_from_null_term(endpoint)
+    );
+    ggl_byte_vec_chain_append(&ret, &uri_vec, GGL_STR(":"));
+    ggl_byte_vec_chain_append(&ret, &uri_vec, ggl_buffer_from_null_term(port));
+    ggl_byte_vec_chain_append(&ret, &uri_vec, GGL_STR("/"));
+    ggl_byte_vec_chain_append(
+        &ret, &uri_vec, ggl_buffer_from_null_term(uri_path)
+    );
+
+    GglError error = gghttplib_init_curl(&curl_data, (char *) uri_vec.buf.data);
+
+    if (error == GGL_ERR_OK) {
+        gghttplib_add_header(
+            &curl_data, GGL_STR("Content-type"), GGL_STR("application/json")
+        );
+        gghttplib_add_certificate_data(&curl_data, certificate_details);
+        GGL_LOGD("dataplane_call", "Adding body to http request");
+        gghttplib_add_post_body(&curl_data, (char *) body);
+        GGL_LOGD("dataplane_call", "Sending request to dataplane endpoint");
+        gghttplib_process_request(&curl_data, response_buffer);
+    }
 }

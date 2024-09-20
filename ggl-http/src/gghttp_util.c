@@ -125,6 +125,10 @@ void gghttplib_add_certificate_data(
     );
 }
 
+void gghttplib_add_post_body(CurlData *curl_data, const char *body) {
+    curl_easy_setopt(curl_data->curl, CURLOPT_POSTFIELDS, body);
+}
+
 GglError gghttplib_add_sigv4_credential(
     CurlData *curl_data, SigV4Details request_data
 ) {

@@ -64,6 +64,17 @@ void gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 );
 
+/**
+ * @brief Adds a body to the CURL request, which also makes it a POST request.
+ *
+ * This function sets the CURL postfields field to the provided body.
+ *
+ * @param[in] curl_data A pointer to the CurlData struct containing the cURL
+ * handle.
+ * @param[in] body The content to be added to the request in the body.
+ */
+void gghttplib_add_post_body(CurlData *curl_data, const char *body);
+
 /// @brief Adds AWS Signature Version 4 to the CURL handle.
 ///
 /// This function sets the access key id, secret access key, session token

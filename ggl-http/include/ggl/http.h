@@ -7,6 +7,7 @@
 
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdint.h>
 
 typedef struct CertificateDetails {
     const char *gghttplib_cert_path;
@@ -106,6 +107,15 @@ GglError sigv4_download(
     const char *url_for_sigv4_download,
     const char *file_path,
     SigV4Details sigv4_details
+);
+
+void gg_dataplane_call(
+    char *endpoint,
+    char *port,
+    char *uri_path,
+    CertificateDetails certificate_details,
+    const uint8_t *body,
+    GglBuffer *response_buffer
 );
 
 #endif
