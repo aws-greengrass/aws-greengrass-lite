@@ -72,7 +72,7 @@ static uint8_t topic_scratch[256];
 
 static uint8_t subscription_thread_scratch[4096];
 
-// iotcored subscription handles
+// aws_iot_mqtt subscription handles
 static uint32_t next_job_handle;
 static uint32_t get_accepted_handle;
 static uint32_t get_rejected_handle;
@@ -147,7 +147,7 @@ static GglError get_thing_name(void) {
 
     GglObject resp;
     GglError ret = ggl_call(
-        GGL_STR("/aws/ggl/ggconfigd"),
+        GGL_STR("gg_config"),
         GGL_STR("read"),
         params,
         NULL,
@@ -226,7 +226,7 @@ static GglError deserialize_payload(
 static GglError update_job(
     GglBuffer job_id, GglBuffer job_status, int64_t *version
 ) {
-    GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
+    GglBuffer aws_iot_mqtt = GGL_STR("aws_iot_mqtt");
 
     pthread_mutex_lock(&topic_scratch_mutex);
     GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
@@ -274,7 +274,7 @@ static GglError update_job(
     );
     GGL_LOGW("jobs-listener", "%.*s", (int) payload.len, (char *) payload.data);
 
-    ret = ggl_notify(iotcored, GGL_STR("publish"), publish_args);
+    ret = ggl_notify(aws_iot_mqtt, GGL_STR("publish"), publish_args);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("jobs-listener", "Failed to publish on update job topic");
         return ret;
@@ -335,7 +335,7 @@ static GglError describe_rejected_callback(
 }
 
 static GglError describe_next_job(void) {
-    GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
+    GglBuffer aws_iot_mqtt = GGL_STR("aws_iot_mqtt");
 
     pthread_mutex_lock(&topic_scratch_mutex);
     GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
@@ -371,7 +371,7 @@ static GglError describe_next_job(void) {
         { GGL_STR("qos"), GGL_OBJ_I64(QOS_AT_LEAST_ONCE) }
     );
 
-    ret = ggl_notify(iotcored, GGL_STR("publish"), publish_args);
+    ret = ggl_notify(aws_iot_mqtt, GGL_STR("publish"), publish_args);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("jobs-listener", "Failed to publish on describe job topic");
         return ret;
@@ -385,7 +385,6 @@ static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
     current_job_id = GGL_BYTE_VEC(current_job_id_buf);
     ggl_byte_vec_append(&current_job_id, job_id);
     current_deployment_id = GGL_BYTE_VEC(current_deployment_id_buf);
-    current_deployment_id.buf.len = current_deployment_id.capacity;
 
     // TODO: backoff algorithm
     GglError ret = GGL_ERR_OK;
@@ -546,7 +545,7 @@ static GglError subscribe_to_format_topic(
     GglSubscribeCallback on_response,
     uint32_t *handle
 ) {
-    GglBuffer iotcored = GGL_STR("/aws/ggl/iotcored");
+    GglBuffer aws_iot_mqtt = GGL_STR("aws_iot_mqtt");
 
     topic.buf.len = 0;
     GglError ret = ggl_byte_vec_format(&topic, format, values);
@@ -555,7 +554,7 @@ static GglError subscribe_to_format_topic(
     }
 
     return ggl_subscribe(
-        iotcored,
+        aws_iot_mqtt,
         GGL_STR("subscribe"),
         GGL_MAP(
             { GGL_STR("topic_filter"), GGL_OBJ(topic.buf) },
