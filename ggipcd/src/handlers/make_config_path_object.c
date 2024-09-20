@@ -4,7 +4,6 @@
 
 #include "make_config_path_object.h"
 #include <assert.h>
-#include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <stddef.h>
