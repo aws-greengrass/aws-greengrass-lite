@@ -925,7 +925,7 @@ static GglError fill_environment_variables(
 static GglError fill_install_section(GglByteVec *out) {
     GglError ret = ggl_byte_vec_append(out, GGL_STR("\n[Install]\n"));
     ggl_byte_vec_chain_append(
-        &ret, out, GGL_STR("WantedBy=GreengrassCore.target\n")
+        &ret, out, GGL_STR("WantedBy=multi-user.target\n")
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(COMPONENT_NAME, "Failed to set Install section to unit file");
