@@ -4,7 +4,7 @@
 
 #include "../ipc_server.h"
 #include "handlers.h"
-#include "make_key_path_object.h"
+#include "make_config_path_object.h"
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -43,7 +43,7 @@ GglError handle_get_configuration(
 
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"),
-          *ggl_make_key_path_object(&component_name_object, key_path_object) },
+          *ggl_make_config_path_object(&component_name_object, key_path_object) },
     );
 
     GglError error;
