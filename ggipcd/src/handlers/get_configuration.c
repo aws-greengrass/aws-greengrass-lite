@@ -43,7 +43,9 @@ GglError handle_get_configuration(
 
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"),
-          *ggl_make_config_path_object(&component_name_object, key_path_object) },
+          *ggl_make_config_path_object(
+              &component_name_object, key_path_object
+          ) },
     );
 
     GglError error;

@@ -74,7 +74,7 @@ GglError handle_update_configuration(
     };
     // convert timestamp from sec in floating-point(with msec precision) to msec
     // in integer
-    time_stamp_object->i64 = time_stamp_object->f64 * 1000;
+    time_stamp_object->i64 = (int64_t) time_stamp_object->f64 * 1000;
     time_stamp_object->type = GGL_TYPE_I64;
     GGL_LOGT("UpdateConfiguration", "timestamp is %ld", time_stamp_object->i64);
     GglObject *config_path_object
