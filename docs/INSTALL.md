@@ -10,7 +10,7 @@ init system.
 This project uses the following third party library dependencies:
 
 - openssl
-- libcurl
+- libcurl >= 7.75
 - sqlite
 - libyaml
 - libsystemd
