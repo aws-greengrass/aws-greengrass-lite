@@ -82,9 +82,22 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
             return GGL_ERR_FAILURE;
         }
 
+        int fd = -1;
+        request_ret = ggl_file_open(
+            ggl_buffer_from_null_term(file_path),
+            O_CREAT | O_WRONLY | O_TRUNC,
+            0644,
+            &fd
+        );
+        if (request_ret != GGL_ERR_OK) {
+            return GGL_ERR_FAILURE;
+        }
+
+        FILE *file = fdopen(fd, "wb");
+
         request_ret = sigv4_download(
             url_buffer,
-            file_path,
+            file,
             (SigV4Details) {
                 .aws_region = ggl_buffer_from_null_term(region),
                 .aws_service = GGL_STR("s3"),

@@ -27,14 +27,16 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 static struct DeploymentConfiguration {
-    char port[16];
     char data_endpoint[128];
     char cert_path[128];
     char rootca_path[128];
     char pkey_path[128];
+    char region[24];
+    char port[16];
 } config;
 
 static GglError merge_dir_to(
@@ -90,7 +92,7 @@ static GglError get_thing_name(char **thing_name) {
     return GGL_ERR_OK;
 }
 
-static GglError get_region(char **region) {
+static GglError get_region(GglByteVec *region) {
     GglMap params = GGL_MAP({ GGL_STR("key_path"),
                               GGL_OBJ_LIST(
                                   GGL_OBJ_STR("services"),
@@ -99,7 +101,7 @@ static GglError get_region(char **region) {
                                   GGL_OBJ_STR("awsRegion")
                               ) });
 
-    static uint8_t resp_mem[128] = { 0 };
+    uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
         = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
 
@@ -121,9 +123,9 @@ static GglError get_region(char **region) {
         return GGL_ERR_INVALID;
     }
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *region = (char *) resp.buf.data;
-    return GGL_ERR_OK;
+    ggl_byte_vec_chain_append(&ret, region, resp.buf);
+    ggl_byte_vec_chain_push(&ret, region, '\0');
+    return ret;
 }
 
 static GglError get_root_ca_path(char **root_ca_path) {
@@ -419,6 +421,222 @@ static GglError get_rootca_path(GglByteVec *rootca_path) {
     return ret;
 }
 
+static GglError download_s3_artifact(
+    GglBuffer root_path,
+    GglBuffer component_name,
+    GglBuffer component_version,
+    GglBuffer region,
+    GglBuffer bucket,
+    GglBuffer key
+) {
+    // reverse-find the filename from the key
+    GglBuffer file_name = GGL_STR("");
+    for (size_t i = key.len; i > 0; --i) {
+        if (key.data[i - 1] == '/') {
+            file_name = ggl_buffer_substr(key, i, SIZE_MAX);
+            break;
+        }
+    }
+    if (file_name.len == 0) {
+        file_name = key;
+    }
+
+    static char url_for_download[512];
+    GglByteVec url_vec = GGL_BYTE_VEC(url_for_download);
+    GglError error = GGL_ERR_OK;
+    ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR("https://"));
+    ggl_byte_vec_chain_append(&error, &url_vec, bucket);
+    ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".s3."));
+    ggl_byte_vec_chain_append(&error, &url_vec, region);
+    ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".amazonaws.com/"));
+    ggl_byte_vec_chain_append(&error, &url_vec, key);
+    ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR("\0"));
+    if (error != GGL_ERR_OK) {
+        return error;
+    }
+
+    // TODO: rework into using directory openats (requires ggl-http change)
+    static char file_path[512];
+    GglByteVec file_vec = GGL_BYTE_VEC(file_path);
+    ggl_byte_vec_chain_append(&error, &file_vec, root_path);
+    ggl_byte_vec_chain_append(
+        &error, &file_vec, GGL_STR("/packages/artifacts/")
+    );
+    ggl_byte_vec_chain_append(&error, &file_vec, component_name);
+    ggl_byte_vec_chain_push(&error, &file_vec, '/');
+    ggl_byte_vec_chain_append(&error, &file_vec, component_version);
+    ggl_byte_vec_chain_push(&error, &file_vec, '/');
+    ggl_byte_vec_chain_append(&error, &file_vec, file_name);
+    ggl_byte_vec_chain_push(&error, &file_vec, '\0');
+    if (error != GGL_ERR_OK) {
+        return error;
+    }
+    file_vec.buf.len--;
+    int fd = -1;
+    error
+        = ggl_file_open(file_vec.buf, O_WRONLY | O_TRUNC | O_CREAT, 0644, &fd);
+    if (error != GGL_ERR_OK) {
+        return error;
+    }
+
+    FILE *file = fdopen(fd, "wb");
+    GGL_DEFER(fclose, file);
+
+    static uint8_t credentials_alloc[1500];
+    static GglBuffer tesd = GGL_STR("/aws/ggl/tesd");
+    GglObject result;
+    GglMap params = { 0 };
+    GglBumpAlloc credential_alloc
+        = ggl_bump_alloc_init(GGL_BUF(credentials_alloc));
+
+    // TODO: hoist out. Credentials should be good for an hour of s3 requests
+    error = ggl_call(
+        tesd,
+        GGL_STR("request_credentials"),
+        params,
+        NULL,
+        &credential_alloc.alloc,
+        &result
+    );
+    if (error != GGL_ERR_OK) {
+        return GGL_ERR_FAILURE;
+    }
+
+    GglObject *aws_access_key_id = NULL;
+    GglObject *aws_secret_access_key = NULL;
+    GglObject *aws_session_token = NULL;
+    if (!ggl_map_get(result.map, GGL_STR("accessKeyId"), &aws_access_key_id)) {
+        return GGL_ERR_FAILURE;
+    }
+    if (!ggl_map_get(
+            result.map, GGL_STR("secretAccessKey"), &aws_secret_access_key
+        )) {
+        return GGL_ERR_FAILURE;
+    }
+
+    if (!ggl_map_get(result.map, GGL_STR("sessionToken"), &aws_session_token)) {
+        return GGL_ERR_FAILURE;
+    }
+
+    sigv4_download(
+        url_for_download,
+        file,
+        (SigV4Details) { .access_key_id = aws_access_key_id->buf,
+                         .secret_access_key = aws_secret_access_key->buf,
+                         .aws_region = region,
+                         .aws_service = GGL_STR("s3"),
+                         .session_token = aws_session_token->buf }
+    );
+
+    return GGL_ERR_OK;
+}
+
+static GglError download_artifact(
+    GglBuffer root_path,
+    GglBuffer component_name,
+    GglBuffer component_version,
+    GglBuffer region,
+    GglObject uri
+) {
+    if (uri.type != GGL_TYPE_BUF) {
+        return GGL_ERR_INVALID;
+    }
+
+    size_t i = 0;
+    for (; i < uri.buf.len; ++i) {
+        if (uri.buf.data[i] == ':') {
+            break;
+        }
+    }
+    if (i == uri.buf.len) {
+        GGL_LOGE("ggdeploymentd", "Missing artifact URI scheme.");
+        return GGL_ERR_PARSE;
+    }
+    GglBuffer scheme = ggl_buffer_substr(uri.buf, 0, i);
+    // skip "://"
+    GglBuffer rest = ggl_buffer_substr(uri.buf, i + 3, SIZE_MAX);
+    if (rest.len == 0) {
+        GGL_LOGE("ggdeploymentd", "Artifact has no URI.");
+        return GGL_ERR_PARSE;
+    }
+
+    if (ggl_buffer_eq(scheme, GGL_STR("s3"))) {
+        for (i = 0; i < rest.len; ++i) {
+            if (rest.data[i] == '/') {
+                break;
+            }
+        }
+        if (i == rest.len) {
+            GGL_LOGE("ggdeploymentd", "Missing s3 key/bucket name.");
+            return GGL_ERR_PARSE;
+        }
+        GglBuffer bucket = ggl_buffer_substr(rest, 0, i);
+        GglBuffer key = ggl_buffer_substr(rest, i + 1, SIZE_MAX);
+        if (key.len == 0) {
+            GGL_LOGE("ggdeploymentd", "s3 key was empty.");
+        }
+        return download_s3_artifact(
+            root_path, component_name, component_version, region, bucket, key
+        );
+    }
+
+    GGL_LOGE("ggdeploymentd", "Unknown artifact URI scheme.");
+    return GGL_ERR_PARSE;
+}
+
+static GglError get_recipe_artifacts(
+    GglBuffer root_path,
+    GglBuffer component_name,
+    GglBuffer component_version,
+    GglBuffer region,
+    GglObject recipe_obj
+) {
+    if (recipe_obj.type != GGL_TYPE_MAP) {
+        return GGL_ERR_INVALID;
+    }
+    GglObject *cursor = NULL;
+    // TODO: use recipe-2-unit recipe parser for manifest selection
+    if (!ggl_map_get(recipe_obj.map, GGL_STR("Manifests"), &cursor)) {
+        GGL_LOGW("ggdeploymentd", "Manifests is missing");
+        return GGL_ERR_OK;
+    }
+    if (cursor->type != GGL_TYPE_LIST) {
+        return GGL_ERR_PARSE;
+    }
+    if (cursor->list.len == 0) {
+        GGL_LOGW("ggdeploymentd", "Manifests is empty");
+        return GGL_ERR_OK;
+    }
+    // FIXME: assumes first artifact is the right one
+    if (!ggl_map_get(
+            cursor->list.items[0].map, GGL_STR("Artifacts"), &cursor
+        )) {
+        return GGL_ERR_PARSE;
+    }
+    if (cursor->type != GGL_TYPE_LIST) {
+        return GGL_ERR_PARSE;
+    }
+
+    for (size_t i = 0; i < cursor->list.len; ++i) {
+        if (cursor->list.items[i].type != GGL_TYPE_MAP) {
+            return GGL_ERR_PARSE;
+        }
+        GglObject *uri_obj = NULL;
+        if (!ggl_map_get(cursor->list.items[i].map, GGL_STR("Uri"), &uri_obj)) {
+            GGL_LOGW("ggdeploymentd", "Skipping unsupported artifact");
+            continue;
+        }
+        GglError ret = download_artifact(
+            root_path, component_name, component_version, region, *uri_obj
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+
+    return GGL_ERR_OK;
+}
+
 // This will be refactored soon with recipe2unit in c, so ignore this warning
 // for now
 
@@ -524,6 +742,13 @@ static void handle_deployment(
         GglError ret = get_data_endpoint(&data_endpoint);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("ggdeploymentd", "Failed to get dataplane endpoint.");
+            return;
+        }
+
+        GglByteVec region = GGL_BYTE_VEC(config.region);
+        ret = get_region(&region);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("ggdeploymentd", "Failed to get region.");
             return;
         }
 
@@ -723,7 +948,13 @@ static void handle_deployment(
                     }
                 }
 
+                if (recipe_file_content->buf.len == 0) {
+                    GGL_LOGE("ggdeploymentd", "Recipe is empty.");
+                }
+
                 ggl_base64_decode_in_place(&(recipe_file_content->buf));
+                recipe_file_content->buf.data[recipe_file_content->buf.len]
+                    = '\0';
 
                 GGL_LOGD(
                     "ggdeploymentd",
@@ -775,7 +1006,7 @@ static void handle_deployment(
                 ret = ggl_file_openat(
                     root_dir_fd,
                     recipe_name_vec.buf,
-                    O_CREAT | O_WRONLY,
+                    O_CREAT | O_WRONLY | O_TRUNC,
                     (mode_t) 0644,
                     &fd
                 );
@@ -801,6 +1032,27 @@ static void handle_deployment(
                     "Saved recipe under the name %s",
                     recipe_name_vec.buf.data
                 );
+
+                static uint8_t recipe_obj_buf[4096];
+                GglObject recipe_obj = GGL_OBJ_NULL();
+                GglBumpAlloc alloc
+                    = ggl_bump_alloc_init(GGL_BUF(recipe_obj_buf));
+                ret = ggl_json_decode_destructive(
+                    recipe_file_content->buf, &alloc.alloc, &recipe_obj
+                );
+                if (ret == GGL_ERR_OK) {
+                    ret = get_recipe_artifacts(
+                        args->root_path,
+                        cloud_component_name->buf,
+                        cloud_component_version->buf,
+                        ggl_buffer_from_null_term(config.region),
+                        recipe_obj
+                    );
+                }
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("ggdeploymentd", "Failed to validate recipe");
+                    return;
+                }
 
                 // TODO: Replace with new recipe2unit c script/do not lazy copy
                 // paste
@@ -850,13 +1102,6 @@ static void handle_deployment(
                 ret = get_thing_name(&thing_name);
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE("ggdeploymentd", "Failed to get thing name.");
-                    return;
-                }
-
-                char *region = NULL;
-                ret = get_region(&region);
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("ggdeploymentd", "Failed to get region.");
                     return;
                 }
 
@@ -937,7 +1182,7 @@ static void handle_deployment(
                                              "-t",
                                              thing_name,
                                              "--aws-region",
-                                             region,
+                                             config.region,
                                              "--ggc-version",
                                              "0.0.1",
                                              "--rootca-path",
@@ -1195,7 +1440,7 @@ static void handle_deployment(
                 return;
             }
 
-            char *region = NULL;
+            GglByteVec region = GGL_BYTE_VEC(config.region);
             ret = get_region(&region);
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("ggdeploymentd", "Failed to get region.");
@@ -1270,7 +1515,7 @@ static void handle_deployment(
                                          "-t",
                                          thing_name,
                                          "--aws-region",
-                                         region,
+                                         config.region,
                                          "--ggc-version",
                                          "0.0.1",
                                          "--rootca-path",

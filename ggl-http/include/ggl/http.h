@@ -7,6 +7,7 @@
 
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdio.h>
 
 typedef struct CertificateDetails {
     const char *gghttplib_cert_path;
@@ -86,8 +87,7 @@ GglError generic_download(
 /// given file path. Uses temporary credentials.
 ///
 /// @param[in] url_for_generic_download The URL from which to fetch the content.
-/// @param[in] file_path The local path to the file where the downloaded content
-/// should be saved.
+/// @param[in] file File open for write in which response will be written to.
 /// @param[in] sigv4_details The sigv4 details used for REST API authentication
 ///
 /// This function makes a GET request to the specified URL to download the
@@ -103,9 +103,7 @@ GglError generic_download(
 ///
 /// @return error code on failure, GGL_ERR_OK on success
 GglError sigv4_download(
-    const char *url_for_sigv4_download,
-    const char *file_path,
-    SigV4Details sigv4_details
+    const char *url_for_sigv4_download, FILE *file, SigV4Details sigv4_details
 );
 
 GglError gg_dataplane_call(

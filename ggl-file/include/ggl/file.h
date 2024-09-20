@@ -12,12 +12,16 @@
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 /// Call close on a fd, handling EINTR
 GglError ggl_close(int fd);
 
 /// Enable defer for closing file descriptors.
 GGL_DEFINE_DEFER(ggl_close, int, fd, if (*fd >= 0) ggl_close(*fd))
+
+/// Enable defer for closing C file handles (e.g. opened by fdopen)
+GGL_DEFINE_DEFER(fclose, FILE *, fp, if (*fp != NULL) fclose(*fp));
 
 /// Call fsync on an file/dir, handling EINTR
 GglError ggl_fsync(int fd);
