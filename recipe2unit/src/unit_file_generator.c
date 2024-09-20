@@ -26,6 +26,7 @@
 static const char COMPONENT_NAME[] = "recipe2unit";
 static const char REQUIRES_PRIVILEGE[] = "requiresprivilege";
 static const char LIFECYCLE[] = "lifecycle";
+static const char ARCHITECTURE[] = "architecture";
 
 static void ggl_string_to_lower(GglBuffer object_object_to_lower) {
     for (size_t key_count = 0; key_count < object_object_to_lower.len;
@@ -195,6 +196,20 @@ static GglError lifecycle_selection(
     return GGL_ERR_OK;
 }
 
+static GglBuffer get_current_architecture(void) {
+    GglBuffer current_arch = { 0 };
+#if defined(__x86_64__)
+    current_arch = GGL_STR("amd64");
+#elif defined(__i386__)
+    current_arch = GGL_STR("x86");
+#elif defined(__aarch64__)
+    current_arch = GGL_STR("arm");
+#elif defined(__aarch64__)
+    current_arch = GGL_STR("aarch64");
+#endif
+    return current_arch;
+}
+
 // TODO: Refactor it
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError manifest_selection(
@@ -202,21 +217,51 @@ static GglError manifest_selection(
 ) {
     GglObject *val;
     if (ggl_map_get(manifest_map, GGL_STR("platform"), &val)) {
-        if (val->type == GGL_TYPE_MAP) {
-            // If OS is not provided then do nothing
-            if (ggl_map_get(val->map, GGL_STR("os"), &val)) {
-                if (val->type != GGL_TYPE_BUF) {
-                    GGL_LOGE(COMPONENT_NAME, "Platform OS invalid input");
+        if (val->type != GGL_TYPE_MAP) {
+            return GGL_ERR_INVALID;
+        }
+
+        // If OS is not provided then do nothing
+        if (ggl_map_get(val->map, GGL_STR("os"), &val)) {
+            if (val->type != GGL_TYPE_BUF) {
+                GGL_LOGE(
+                    COMPONENT_NAME,
+                    "Platform OS is invalid. It must be a string"
+                );
+                return GGL_ERR_INVALID;
+            }
+
+            GglObject *architecture_obj = { 0 };
+            // fetch architecture_obj
+            if (ggl_map_get(
+                    val->map, GGL_STR(ARCHITECTURE), &architecture_obj
+                )) {
+                if (val->type != GGL_TYPE_MAP) {
+                    GGL_LOGE(
+                        COMPONENT_NAME,
+                        "Platform architecture is invalid. It must be a string"
+                    );
                     return GGL_ERR_INVALID;
                 }
-                if (strncmp((char *) val->buf.data, "linux", val->buf.len) == 0
-                    || strncmp((char *) val->buf.data, "*", val->buf.len)
-                        == 0) {
+            }
+            GglBuffer curr_arch = get_current_architecture();
+
+            // Check if the current OS supported first
+            if ((strncmp((char *) val->buf.data, "linux", val->buf.len) == 0
+                 || strncmp((char *) val->buf.data, "*", val->buf.len) == 0)) {
+                // Then check if architecture is also supported
+                if (((architecture_obj->buf.len == 0)
+                     || (strncmp(
+                             (char *) architecture_obj->buf.data,
+                             (char *) curr_arch.data,
+                             architecture_obj->buf.len
+                         )
+                         == 0))) {
                     if (ggl_map_get(manifest_map, GGL_STR(LIFECYCLE), &val)) {
                         if (val->type != GGL_TYPE_MAP) {
                             return GGL_ERR_INVALID;
                         }
-                        // if linux lifecycle is found return the object
+                        // if linux lifecycle is present then return the object
                         *selected_lifecycle_object = *val;
 
                     } else if (ggl_map_get(
@@ -235,14 +280,13 @@ static GglError manifest_selection(
                         );
                         return GGL_ERR_INVALID;
                     }
-                } else {
-                    // If the current platform isn't linux then just proceed to
-                    // next and mark current cycle success
-                    return GGL_ERR_OK;
                 }
+
+            } else {
+                // If the current platform isn't linux then just proceed to
+                // next and mark current cycle success
+                return GGL_ERR_OK;
             }
-        } else {
-            return GGL_ERR_INVALID;
         }
     } else {
         GGL_LOGE(COMPONENT_NAME, "Platform not provided");
