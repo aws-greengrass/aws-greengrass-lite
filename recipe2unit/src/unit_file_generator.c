@@ -292,7 +292,8 @@ static GglError fetch_script_section(
     GglMap selected_lifecycle,
     GglBuffer selected_phase,
     bool *is_root,
-    GglBuffer *selected_script_as_buf
+    GglBuffer *selected_script_as_buf,
+    GglMap *set_env_as_map
 ) {
     GglObject *val;
     if (ggl_map_get(selected_lifecycle, selected_phase, &val)) {
@@ -316,6 +317,17 @@ static GglError fetch_script_section(
                 }
                 *selected_script_as_buf = key_object->buf;
             }
+
+            if (ggl_map_get(val->map, GGL_STR("setenv"), &key_object)) {
+                if (key_object->type != GGL_TYPE_MAP) {
+                    GGL_LOGE(
+                        COMPONENT_NAME, "set env needs to be a dictionary map"
+                    );
+                    return GGL_ERR_INVALID;
+                }
+                *set_env_as_map = key_object->map;
+            }
+
         } else {
             GGL_LOGE(
                 COMPONENT_NAME, "script section section is of invalid list type"
@@ -539,7 +551,8 @@ static GglError parse_install_section(
             selected_lifecycle_map,
             GGL_STR("install"),
             &is_root,
-            &selected_script
+            &selected_script,
+            &set_env_as_map
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(COMPONENT_NAME, "Cannot parse install script section");
@@ -619,8 +632,6 @@ static GglError manifest_builder(
                 return ret;
             }
 
-            // TODO: There is a case when setenv might ve provided at individual
-            // lifecycle step level which should override the global setenv
             GglObject *selected_set_env_as_obj = { 0 };
             GglMap set_env_as_map = { 0 };
             if (ggl_map_get(
@@ -710,7 +721,8 @@ static GglError manifest_builder(
                 selected_lifecycle_map,
                 lifecycle_script_selection,
                 &is_root,
-                &selected_script
+                &selected_script,
+                &set_env_as_map
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
