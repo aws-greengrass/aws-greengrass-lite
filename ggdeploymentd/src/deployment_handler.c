@@ -29,6 +29,14 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+static struct DeploymentConfiguration {
+    char port[16];
+    char data_endpoint[128];
+    char cert_path[128];
+    char rootca_path[128];
+    char pkey_path[128];
+} config;
+
 static GglError merge_dir_to(
     GglBuffer source, int root_path_fd, GglBuffer subdir
 ) {
@@ -229,7 +237,7 @@ static GglError get_posix_user(char **posix_user) {
     return GGL_ERR_OK;
 }
 
-static GglError get_data_endpoint(char **endpoint) {
+static GglError get_data_endpoint(GglByteVec *endpoint) {
     GglMap params = GGL_MAP({ GGL_STR("key_path"),
                               GGL_OBJ_LIST(
                                   GGL_OBJ_STR("services"),
@@ -264,12 +272,10 @@ static GglError get_data_endpoint(char **endpoint) {
         return GGL_ERR_INVALID;
     }
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *endpoint = (char *) resp.buf.data;
-    return GGL_ERR_OK;
+    return ggl_byte_vec_append(endpoint, resp.buf);
 }
 
-static GglError get_data_port(char **port) {
+static GglError get_data_port(GglByteVec *port) {
     GglMap params = GGL_MAP({ GGL_STR("key_path"),
                               GGL_OBJ_LIST(
                                   GGL_OBJ_STR("services"),
@@ -302,18 +308,16 @@ static GglError get_data_port(char **port) {
         return GGL_ERR_INVALID;
     }
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *port = (char *) resp.buf.data;
-    return GGL_ERR_OK;
+    return ggl_byte_vec_append(port, resp.buf);
 }
 
-static GglError get_private_key_path(char **pkey_path) {
+static GglError get_private_key_path(GglByteVec *pkey_path) {
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"),
           GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("privateKeyPath")) }
     );
 
-    static uint8_t resp_mem[128] = { 0 };
+    uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
         = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
 
@@ -339,12 +343,12 @@ static GglError get_private_key_path(char **pkey_path) {
         return GGL_ERR_INVALID;
     }
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *pkey_path = (char *) resp.buf.data;
-    return GGL_ERR_OK;
+    ggl_byte_vec_chain_append(&ret, pkey_path, resp.buf);
+    ggl_byte_vec_chain_push(&ret, pkey_path, '\0');
+    return ret;
 }
 
-static GglError get_cert_path(char **cert_path) {
+static GglError get_cert_path(GglByteVec *cert_path) {
     GglMap params = GGL_MAP({ GGL_STR("key_path"),
                               GGL_OBJ_LIST(
                                   GGL_OBJ_STR("system"),
@@ -377,12 +381,12 @@ static GglError get_cert_path(char **cert_path) {
         return GGL_ERR_INVALID;
     }
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *cert_path = (char *) resp.buf.data;
-    return GGL_ERR_OK;
+    ggl_byte_vec_chain_append(&ret, cert_path, resp.buf);
+    ggl_byte_vec_chain_push(&ret, cert_path, '\0');
+    return ret;
 }
 
-static GglError get_rootca_path(char **rootca_path) {
+static GglError get_rootca_path(GglByteVec *rootca_path) {
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"),
           GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("rootCaPath")) }
@@ -410,9 +414,9 @@ static GglError get_rootca_path(char **rootca_path) {
         return GGL_ERR_INVALID;
     }
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *rootca_path = (char *) resp.buf.data;
-    return GGL_ERR_OK;
+    ggl_byte_vec_chain_append(&ret, rootca_path, resp.buf);
+    ggl_byte_vec_chain_push(&ret, rootca_path, '\0');
+    return ret;
 }
 
 // This will be refactored soon with recipe2unit in c, so ignore this warning
@@ -452,10 +456,11 @@ static void handle_deployment(
 
     // TODO: Add dependency resolution process that will also check local store.
     if (deployment->cloud_root_components_to_add.len != 0) {
-        static uint8_t resolve_candidates_body_buf[2048];
+        static char resolve_candidates_body_buf[2048];
         GglByteVec body_vec = GGL_BYTE_VEC(resolve_candidates_body_buf);
-        GglError byte_vec_ret = ggl_byte_vec_append(
-            &body_vec, GGL_STR("{\"componentCandidates\": [")
+        GglError byte_vec_ret = GGL_ERR_OK;
+        ggl_byte_vec_chain_append(
+            &byte_vec_ret, &body_vec, GGL_STR("{\"componentCandidates\": [")
         );
 
         bool is_first = true;
@@ -482,9 +487,7 @@ static void handle_deployment(
             }
 
             if (!is_first) {
-                ggl_byte_vec_chain_append(
-                    &byte_vec_ret, &body_vec, GGL_STR(",")
-                );
+                ggl_byte_vec_chain_push(&byte_vec_ret, &body_vec, ',');
             }
             is_first = false;
 
@@ -513,38 +516,39 @@ static void handle_deployment(
             GGL_STR("],\"platform\": { \"attributes\": { \"os\" : \"linux\" "
                     "},\"name\": \"linux\"}}")
         );
+        ggl_byte_vec_chain_push(&byte_vec_ret, &body_vec, '\0');
 
         GGL_LOGD("ggdeploymentd", "Body for call: %s", body_vec.buf.data);
 
-        char *data_endpoint = NULL;
+        GglByteVec data_endpoint = GGL_BYTE_VEC(config.data_endpoint);
         GglError ret = get_data_endpoint(&data_endpoint);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("ggdeploymentd", "Failed to get dataplane endpoint.");
             return;
         }
 
-        char *port = NULL;
+        GglByteVec port = GGL_BYTE_VEC(config.port);
         ret = get_data_port(&port);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("ggdeploymentd", "Failed to get dataplane port.");
             return;
         }
 
-        char *pkey_path = NULL;
+        GglByteVec pkey_path = GGL_BYTE_VEC(config.pkey_path);
         ret = get_private_key_path(&pkey_path);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("ggdeploymentd", "Failed to get private key path.");
             return;
         }
 
-        char *cert_path = NULL;
+        GglByteVec cert_path = GGL_BYTE_VEC(config.cert_path);
         ret = get_cert_path(&cert_path);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("ggdeploymentd", "Failed to get certificate path.");
             return;
         }
 
-        char *rootca_path = NULL;
+        GglByteVec rootca_path = GGL_BYTE_VEC(config.rootca_path);
         ret = get_rootca_path(&rootca_path);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("ggdeploymentd", "Failed to get certificate path.");
@@ -552,27 +556,27 @@ static void handle_deployment(
         }
 
         CertificateDetails cert_details
-            = { .gghttplib_cert_path = cert_path,
-                .gghttplib_root_ca_path = rootca_path,
-                .gghttplib_p_key_path = pkey_path };
+            = { .gghttplib_cert_path = config.cert_path,
+                .gghttplib_root_ca_path = config.rootca_path,
+                .gghttplib_p_key_path = config.pkey_path };
 
-        uint8_t component_candidates_response_buf[16384] = { 0 };
-        memset(component_candidates_response_buf, '\0', 16384);
+        static uint8_t component_candidates_response_buf[16384] = { 0 };
         GglBuffer ggl_component_candidates_response_buf
             = GGL_BUF(component_candidates_response_buf);
 
         gg_dataplane_call(
-            data_endpoint,
-            port,
-            "greengrass/v2/resolveComponentCandidates",
+            data_endpoint.buf,
+            port.buf,
+            GGL_STR("greengrass/v2/resolveComponentCandidates"),
             cert_details,
-            body_vec.buf.data,
+            resolve_candidates_body_buf,
             &ggl_component_candidates_response_buf
         );
 
         GGL_LOGD(
             "ggdeploymentd",
-            "Received response from resolveComponentCandidates: %s",
+            "Received response from resolveComponentCandidates: %.*s",
+            (int) ggl_component_candidates_response_buf.len,
             ggl_component_candidates_response_buf.data
         );
 
@@ -723,7 +727,8 @@ static void handle_deployment(
 
                 GGL_LOGD(
                     "ggdeploymentd",
-                    "Decoded recipe data as: %s",
+                    "Decoded recipe data as: %.*s",
+                    (int) recipe_file_content->buf.len,
                     recipe_file_content->buf.data
                 );
 

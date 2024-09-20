@@ -3,13 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "gghttp_util.h"
-#include "ggl/buffer.h"
 #include "ggl/error.h"
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <ggl/log.h>
 #include <ggl/vector.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #define MAX_URI_LENGTH 2048
@@ -105,47 +103,53 @@ GglError sigv4_download(
     return error;
 }
 
-void gg_dataplane_call(
-    char *endpoint,
-    char *port,
-    char *uri_path,
+GglError gg_dataplane_call(
+    GglBuffer endpoint,
+    GglBuffer port,
+    GglBuffer uri_path,
     CertificateDetails certificate_details,
-    const uint8_t *body,
+    const char *body,
     GglBuffer *response_buffer
 ) {
     CurlData curl_data = { 0 };
 
     GGL_LOGI(
         "dataplane_call",
-        "Preparing call to data endpoint provided as %s:%s/%s",
-        endpoint,
-        port,
-        uri_path
+        "Preparing call to data endpoint provided as %.*s:%.*s/%.*s",
+        (int) endpoint.len,
+        endpoint.data,
+        (int) port.len,
+        port.data,
+        (int) uri_path.len,
+        uri_path.data
     );
 
-    static uint8_t uri_buf[MAX_URI_LENGTH];
+    static char uri_buf[MAX_URI_LENGTH];
     GglByteVec uri_vec = GGL_BYTE_VEC(uri_buf);
     GglError ret = ggl_byte_vec_append(&uri_vec, GGL_STR(HTTPS_PREFIX));
-    ggl_byte_vec_chain_append(
-        &ret, &uri_vec, ggl_buffer_from_null_term(endpoint)
-    );
-    ggl_byte_vec_chain_append(&ret, &uri_vec, GGL_STR(":"));
-    ggl_byte_vec_chain_append(&ret, &uri_vec, ggl_buffer_from_null_term(port));
-    ggl_byte_vec_chain_append(&ret, &uri_vec, GGL_STR("/"));
-    ggl_byte_vec_chain_append(
-        &ret, &uri_vec, ggl_buffer_from_null_term(uri_path)
-    );
+    ggl_byte_vec_chain_append(&ret, &uri_vec, endpoint);
+    ggl_byte_vec_chain_push(&ret, &uri_vec, ':');
+    ggl_byte_vec_chain_append(&ret, &uri_vec, port);
+    ggl_byte_vec_chain_push(&ret, &uri_vec, '/');
+    ggl_byte_vec_chain_append(&ret, &uri_vec, uri_path);
+    ggl_byte_vec_chain_push(&ret, &uri_vec, '\0');
+    if (ret != GGL_ERR_OK) {
+        return GGL_ERR_NOMEM;
+    }
 
-    GglError error = gghttplib_init_curl(&curl_data, (char *) uri_vec.buf.data);
+    ret = gghttplib_init_curl(&curl_data, uri_buf);
 
-    if (error == GGL_ERR_OK) {
-        gghttplib_add_header(
+    if (ret == GGL_ERR_OK) {
+        ret = gghttplib_add_header(
             &curl_data, GGL_STR("Content-type"), GGL_STR("application/json")
         );
+    }
+    if (ret == GGL_ERR_OK) {
         gghttplib_add_certificate_data(&curl_data, certificate_details);
         GGL_LOGD("dataplane_call", "Adding body to http request");
-        gghttplib_add_post_body(&curl_data, (char *) body);
+        gghttplib_add_post_body(&curl_data, body);
         GGL_LOGD("dataplane_call", "Sending request to dataplane endpoint");
-        gghttplib_process_request(&curl_data, response_buffer);
+        ret = gghttplib_process_request(&curl_data, response_buffer);
     }
+    return ret;
 }
