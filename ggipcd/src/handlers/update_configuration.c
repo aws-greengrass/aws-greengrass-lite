@@ -40,7 +40,10 @@ GglError handle_update_configuration(
         return GGL_ERR_INVALID;
     }
     GglBuffer component_name_buffer;
-    ggl_ipc_get_component_name(handle, &component_name_buffer);
+    GglError err = ggl_ipc_get_component_name(handle, &component_name_buffer);
+    if (err != GGL_ERR_OK) {
+        return err;
+    }
     GglObject *component_name_object
         = &(GglObject) { .type = GGL_TYPE_BUF, .buf = component_name_buffer };
     GGL_LOGT(
@@ -85,19 +88,21 @@ GglError handle_update_configuration(
         { GGL_STR("timestamp"), *time_stamp_object }
     );
 
-    GglError error;
-    GglObject call_resp;
-    GglError ret = ggl_call(
+    GglError remote_error;
+    err = ggl_call(
         GGL_STR("gg_config"),
         GGL_STR("write"),
         params,
-        &error,
+        &remote_error,
         alloc,
-        &call_resp
+        NULL
     );
-    if (ret != GGL_ERR_OK) {
-        return ret;
+    if (err != GGL_ERR_OK) {
+        return err;
     }
+    // TODO: handle remote_error
+    // TODO: return IPC errors:
+    // https://github.com/awslabs/smithy-iot-device-sdk-greengrass-ipc/blob/60966747302e17eb8cc6ddad972f90aa92ad38a7/greengrass-ipc-model/main.smithy#L82
 
     return ggl_ipc_response_send(
         handle,

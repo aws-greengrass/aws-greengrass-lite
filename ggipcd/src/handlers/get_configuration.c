@@ -39,28 +39,66 @@ GglError handle_get_configuration(
         return GGL_ERR_INVALID;
     }
 
-    GglObject component_name_object = GGL_OBJ_STR("component");
+    GglBuffer component_name_buffer;
+    GglObject component_name_object;
+    GglObject *component_name_object_ptr = &component_name_object;
+    found = ggl_map_get(
+        args, GGL_STR("componentName"), &component_name_object_ptr
+    );
+    if (found) {
+        if (key_path_object->type != GGL_TYPE_LIST) {
+            GGL_LOGE("GetConfiguration", "keyPath is not a List.");
+            return GGL_ERR_INVALID;
+        }
+    } else {
+        GglError err
+            = ggl_ipc_get_component_name(handle, &component_name_buffer);
+        if (err != GGL_ERR_OK) {
+            return err;
+        }
+        component_name_object.type = GGL_TYPE_BUF;
+        component_name_object.buf = component_name_buffer;
+        component_name_object_ptr = &component_name_object;
+    }
+    GGL_LOGT(
+        "GetConfiguration",
+        "Component Name : %.*s",
+        (int) component_name_object_ptr->buf.len,
+        (char *) component_name_object_ptr->buf.data
+    );
 
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"),
           *ggl_make_config_path_object(
-              &component_name_object, key_path_object
+              component_name_object_ptr, key_path_object
           ) },
     );
-
-    GglError error;
-    GglObject call_resp;
-    GglError ret = ggl_call(
-        GGL_STR("gg_config"), GGL_STR("read"), params, &error, alloc, &call_resp
+    GglError remote_error;
+    GglObject core_bus_response;
+    GglError err = ggl_call(
+        GGL_STR("gg_config"),
+        GGL_STR("read"),
+        params,
+        &remote_error,
+        alloc,
+        &core_bus_response
     );
-    if (ret != GGL_ERR_OK) {
-        return ret;
+    if (err != GGL_ERR_OK) {
+        return err;
     }
+    // TODO: handle remote_error
+    // TODO: return IPC errors:
+    // https://github.com/awslabs/smithy-iot-device-sdk-greengrass-ipc/blob/60966747302e17eb8cc6ddad972f90aa92ad38a7/greengrass-ipc-model/main.smithy#L74
+
+    GglObject response = GGL_OBJ_MAP(
+        { GGL_STR("componentName"), *component_name_object_ptr },
+        { GGL_STR("value"), core_bus_response }
+    );
 
     return ggl_ipc_response_send(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#GetConfigurationResponse"),
-        call_resp
+        response
     );
 }
