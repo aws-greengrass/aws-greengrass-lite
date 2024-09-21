@@ -4,9 +4,11 @@
 
 #include "ggl/map.h"
 #include "ggl/buffer.h"
+#include "ggl/error.h"
+#include "ggl/log.h"
 #include "ggl/object.h"
 #include <stdbool.h>
-#include <stdlib.h>
+#include <stddef.h>
 
 bool ggl_map_get(GglMap map, GglBuffer key, GglObject **result) {
     GGL_MAP_FOREACH(pair, map) {
@@ -21,4 +23,59 @@ bool ggl_map_get(GglMap map, GglBuffer key, GglObject **result) {
         *result = NULL;
     }
     return false;
+}
+
+GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
+    for (size_t i = 0; i < schema.entry_count; i++) {
+        GglMapSchemaEntry *entry = &schema.entries[i];
+        GglObject *value;
+        bool found = ggl_map_get(map, entry->key, &value);
+        if (!found) {
+            if (entry->required) {
+                GGL_LOGE(
+                    "map_validate",
+                    "Map missing required key %.*s.",
+                    (int) entry->key.len,
+                    entry->key.data
+                );
+                return GGL_ERR_NOENTRY;
+            }
+
+            GGL_LOGT(
+                "map_validate",
+                "Missing optional key %.*s.",
+                (int) entry->key.len,
+                entry->key.data
+            );
+            if (entry->value != NULL) {
+                *entry->value = NULL;
+            }
+            continue;
+        }
+
+        GGL_LOGT(
+            "map_validate",
+            "Found key %.*s.",
+            (int) entry->key.len,
+            entry->key.data
+        );
+
+        if (entry->type != GGL_TYPE_NULL) {
+            if (entry->type != value->type) {
+                GGL_LOGE(
+                    "map_validate",
+                    "Key %.*s is of invalid type.",
+                    (int) entry->key.len,
+                    entry->key.data
+                );
+                return GGL_ERR_PARSE;
+            }
+        }
+
+        if (entry->value != NULL) {
+            *entry->value = value;
+        }
+    }
+
+    return GGL_ERR_OK;
 }

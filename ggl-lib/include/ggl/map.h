@@ -7,8 +7,10 @@
 
 //! Map utilities
 
+#include "error.h"
 #include "object.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 // NOLINTBEGIN(bugprone-macro-parentheses)
 /// Loop over the KV pairs in a map.
@@ -21,5 +23,26 @@
 /// Returns whether the key was found in the map.
 /// If `result` is not NULL it is set to the found value or NULL.
 bool ggl_map_get(GglMap map, GglBuffer key, GglObject **result);
+
+typedef struct {
+    GglBuffer key;
+    bool required;
+    GglObjectType type;
+    GglObject **value;
+} GglMapSchemaEntry;
+
+typedef struct {
+    GglMapSchemaEntry *entries;
+    size_t entry_count;
+} GglMapSchema;
+
+#define GGL_MAP_SCHEMA(...) \
+    (GglMapSchema) { \
+        .entries = (GglMapSchemaEntry[]) { __VA_ARGS__ }, \
+        .entry_count = (sizeof((GglMapSchemaEntry[]) { __VA_ARGS__ })) \
+            / (sizeof(GglMapSchemaEntry)) \
+    }
+
+GglError ggl_map_validate(GglMap map, GglMapSchema schema);
 
 #endif
