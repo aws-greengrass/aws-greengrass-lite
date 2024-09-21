@@ -3,11 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "provisioner.h"
-#include "database_helper.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/exec.h>
 #include <ggl/file.h>
@@ -28,7 +28,8 @@ static char global_cert_owenership[10024];
 static char global_register_thing_url[128] = { 0 };
 static char global_register_thing_accept_url[128] = { 0 };
 static char global_register_thing_reject_url[128] = { 0 };
-static char template_param_buffer_alloc[TEMPLATE_PARAM_BUFFER_SIZE];
+static uint8_t template_param_mem[TEMPLATE_PARAM_BUFFER_SIZE];
+static GglBuffer template_param = GGL_BUF(template_param_mem);
 static pid_t global_iotcored_pid;
 
 static uint8_t big_buffer_for_bump[4096];
@@ -50,16 +51,10 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
 
     GglBuffer thing_request_buf = GGL_BUF(temp_payload_alloc2);
 
-    GglBuffer template_parameter_buffer
-        = (GglBuffer) { .data = (uint8_t *) template_param_buffer_alloc,
-                        .len = strlen(template_param_buffer_alloc) };
-
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
     GglObject config_template_param_json_obj;
     GglError json_status = ggl_json_decode_destructive(
-        template_parameter_buffer,
-        &balloc.alloc,
-        &config_template_param_json_obj
+        template_param, &balloc.alloc, &config_template_param_json_obj
     );
 
     if (json_status != GGL_ERR_OK
@@ -67,8 +62,8 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
         GGL_LOGI(
             "fleet-provisioning",
             "Provided Parameter is not in Json format: %.*s",
-            (int) strlen(template_param_buffer_alloc),
-            template_param_buffer_alloc
+            (int) template_param.len,
+            template_param.data
         );
         return GGL_ERR_PARSE;
     }
@@ -117,32 +112,24 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
     return GGL_ERR_OK;
 }
 
-static int set_global_values(pid_t iotcored_pid) {
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
+static GglError set_global_values(pid_t iotcored_pid) {
     static char *template_url_prefix = "$aws/provisioning-templates/";
-    static char template_name_local_buf[128] = { 0 };
     global_iotcored_pid = iotcored_pid;
 
     // Fetch Template Name from db
     // TODO: Use args passed from entry.c
-    get_value_from_db(
-        GGL_LIST(
-            GGL_OBJ_STR("services"),
-            GGL_OBJ_STR("aws.greengrass.fleet_provisioning"),
-            GGL_OBJ_STR("configuration"),
-            GGL_OBJ_STR("templateName")
-        ),
-        &the_allocator.alloc,
-        template_name_local_buf
+    static uint8_t template_name_mem[128];
+    GglBuffer template_name = GGL_BUF(template_name_mem);
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[4]) { GGL_STR("services"),
+                         GGL_STR("aws.greengrass.fleet_provisioning"),
+                         GGL_STR("configuration"),
+                         GGL_STR("templateName") },
+        4,
+        &template_name
     );
-
-    if (strlen(template_name_local_buf) == 0) {
-        GGL_LOGE(
-            "fleet-provisioning", "Failed to fetch template name from database"
-        );
-        return GGL_ERR_FAILURE;
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     strncat(
@@ -152,8 +139,8 @@ static int set_global_values(pid_t iotcored_pid) {
     );
     strncat(
         global_register_thing_url,
-        template_name_local_buf,
-        strlen(template_name_local_buf)
+        (char *) template_name.data,
+        template_name.len
     );
     strncat(
         global_register_thing_url, "/provision/json", strlen("/provision/json")
@@ -177,23 +164,18 @@ static int set_global_values(pid_t iotcored_pid) {
 
     // Fetch Template Parameters
     // TODO: Use args passed from entry.c
-    get_value_from_db(
-        GGL_LIST(
-            GGL_OBJ_STR("services"),
-            GGL_OBJ_STR("aws.greengrass.fleet_provisioning"),
-            GGL_OBJ_STR("configuration"),
-            GGL_OBJ_STR("templateParams")
-        ),
-        &the_allocator.alloc,
-        template_param_buffer_alloc
+    ret = ggl_gg_config_read_str(
+        (GglBuffer[4]) { GGL_STR("services"),
+                         GGL_STR("aws.greengrass.fleet_provisioning"),
+                         GGL_STR("configuration"),
+                         GGL_STR("templateParams") },
+        4,
+        &template_param
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
-    GGL_LOGD(
-        "fleet-provisioning",
-        "Template parameters Fetched: %.*s",
-        (int) strlen(template_param_buffer_alloc),
-        template_param_buffer_alloc
-    );
     return GGL_ERR_OK;
 }
 
@@ -283,15 +265,18 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
             GglError ret = ggl_write_exact(fd, val->buf);
             ggl_close(fd);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
 
-            save_value_to_db(
-                GGL_LIST(GGL_OBJ_STR("system")),
-                GGL_OBJ_MAP({ GGL_STR("certificateFilePath"),
-                              GGL_OBJ((GglBuffer
-                              ) { .data = (uint8_t *) global_cert_file_path,
-                                  .len = strlen(global_cert_file_path) }) })
+            ret = ggl_gg_config_write(
+                (GglBuffer[2]) { GGL_STR("system"),
+                                 GGL_STR("certificateFilePath") },
+                2,
+                GGL_OBJ((GglBuffer) { .data = (uint8_t *) global_cert_file_path,
+                                      .len = strlen(global_cert_file_path) }),
+                0
             );
-
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
@@ -343,10 +328,15 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
         if (ggl_map_get(
                 thing_payload_json_obj.map, GGL_STR("thingName"), &val
             )) {
-            save_value_to_db(
-                GGL_LIST(GGL_OBJ_STR("system")),
-                GGL_OBJ_MAP({ GGL_STR("thingName"), *val })
+            GglError ret = ggl_gg_config_write(
+                (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") },
+                2,
+                *val,
+                0
             );
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
 
             // Stop iotcored here
             GGL_LOGI(
@@ -378,8 +368,8 @@ GglError make_request(
 ) {
     global_cert_file_path = cert_file_path;
 
-    int ret_db = set_global_values(iotcored_pid);
-    if (ret_db != GGL_ERR_OK) {
+    GglError ret = set_global_values(iotcored_pid);
+    if (ret != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;
     }
 
@@ -394,7 +384,7 @@ GglError make_request(
                                 .len = strlen(certificate_response_url) }) },
     );
 
-    GglError ret = ggl_subscribe(
+    ret = ggl_subscribe(
         iotcored,
         GGL_STR("subscribe"),
         subscribe_args,

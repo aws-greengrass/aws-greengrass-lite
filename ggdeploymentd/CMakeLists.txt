@@ -11,4 +11,5 @@ ggl_init_module(
        ggl-json
        ggl-socket
        ggl-yaml
+       core-bus-gg-config
        PkgConfig::uuid)

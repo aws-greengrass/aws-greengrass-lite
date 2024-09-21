@@ -22,11 +22,11 @@
 #define MAX_PATH_LENGTH 512
 
 typedef struct {
-    char root_ca_path[MAX_PATH_LENGTH];
-    char cert_path[MAX_PATH_LENGTH];
-    char key_path[MAX_PATH_LENGTH];
-    char thing_name[128];
-    char role_alias[128];
+    char root_ca_path[MAX_PATH_LENGTH + 1];
+    char cert_path[MAX_PATH_LENGTH + 1];
+    char key_path[MAX_PATH_LENGTH + 1];
+    char thing_name[128 + 1];
+    char role_alias[128 + 1];
     char url[2048];
 } CredRequestT;
 
@@ -179,34 +179,30 @@ static void start_tes_core_bus_server(void) {
 }
 
 GglError initiate_request(
-    const char *root_ca,
-    const char *cert_path,
-    const char *key_path,
-    char *thing_name,
-    char *role_alias,
-    char *cert_endpoint
+    GglBuffer root_ca,
+    GglBuffer cert_path,
+    GglBuffer key_path,
+    GglBuffer thing_name,
+    GglBuffer role_alias,
+    GglBuffer cred_endpoint
 ) {
     GglByteVec url_vec = GGL_BYTE_VEC(global_cred_details.url);
 
     GglError ret = ggl_byte_vec_append(&url_vec, GGL_STR("https://"));
-    ggl_byte_vec_chain_append(
-        &ret, &url_vec, ggl_buffer_from_null_term(cert_endpoint)
-    );
+    ggl_byte_vec_chain_append(&ret, &url_vec, cred_endpoint);
     ggl_byte_vec_chain_append(&ret, &url_vec, GGL_STR("/role-aliases/"));
-    ggl_byte_vec_chain_append(
-        &ret, &url_vec, ggl_buffer_from_null_term(role_alias)
-    );
+    ggl_byte_vec_chain_append(&ret, &url_vec, role_alias);
     ggl_byte_vec_chain_append(&ret, &url_vec, GGL_STR("/credentials\0"));
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("tesd", "Failed to construct request URL.");
         return ret;
     }
 
-    memcpy(global_cred_details.root_ca_path, root_ca, strlen(root_ca));
-    memcpy(global_cred_details.key_path, key_path, strlen(key_path));
-    memcpy(global_cred_details.thing_name, thing_name, strlen(thing_name));
-    memcpy(global_cred_details.role_alias, role_alias, strlen(role_alias));
-    memcpy(global_cred_details.cert_path, cert_path, strlen(cert_path));
+    memcpy(global_cred_details.root_ca_path, root_ca.data, root_ca.len);
+    memcpy(global_cred_details.key_path, key_path.data, key_path.len);
+    memcpy(global_cred_details.thing_name, thing_name.data, thing_name.len);
+    memcpy(global_cred_details.role_alias, role_alias.data, role_alias.len);
+    memcpy(global_cred_details.cert_path, cert_path.data, cert_path.len);
 
     start_tes_core_bus_server();
 

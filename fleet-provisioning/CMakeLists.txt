@@ -10,4 +10,5 @@ ggl_init_module(
        ggl-file
        ggl-socket
        ggl-exec
+       core-bus-gg-config
        PkgConfig::openssl)

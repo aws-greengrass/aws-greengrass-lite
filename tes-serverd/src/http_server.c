@@ -4,6 +4,7 @@
 #include <event2/http.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -13,39 +14,6 @@
 #include <stdlib.h>
 
 struct evhttp_request;
-
-static void request_handler(struct evhttp_request *req, void *arg);
-
-static GglObject get_value_from_db(
-    GglList key_path, GglBumpAlloc the_allocator
-) {
-    GglBuffer config_server = GGL_STR("gg_config");
-
-    GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key_path) }, );
-    GglObject result = { 0 };
-
-    GglError error = ggl_call(
-        config_server,
-        GGL_STR("read"),
-        params,
-        NULL,
-        &the_allocator.alloc,
-        &result
-    );
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE("tesd", "read failed. Error %d", error);
-    } else {
-        if (result.type == GGL_TYPE_BUF) {
-            GGL_LOGI(
-                "tesd",
-                "read value: %.*s",
-                (int) result.buf.len,
-                (char *) result.buf.data
-            );
-        }
-    }
-    return result;
-}
 
 static GglObject fetch_creds(GglBumpAlloc the_allocator) {
     GglBuffer tesd = GGL_STR("/aws/ggl/tesd");
@@ -112,31 +80,26 @@ GglError http_server(void) {
     struct event_base *base;
     struct evhttp *http;
     struct evhttp_bound_socket *handle;
-    static uint8_t big_buffer_for_bump[128] = { 0 };
     static char url_address[64] = { 0 };
     static char port_as_string[8] = { 0 };
     static uint16_t port = 0000;
 
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
-    GglObject user_address = get_value_from_db(
-        GGL_LIST(
-            GGL_OBJ_STR("services"),
-            GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-            GGL_OBJ_STR("configuration"),
-            GGL_OBJ_STR("tesCredUrl")
-        ),
-        the_allocator
+    static uint8_t user_address_mem[128] = { 0 };
+    GglBuffer user_address = GGL_BUF(user_address_mem);
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[4]) { GGL_STR("services"),
+                         GGL_STR("aws.greengrass.Nucleus-Lite"),
+                         GGL_STR("configuration"),
+                         GGL_STR("tesCredUrl") },
+        4,
+        &user_address
     );
-    if (user_address.buf.len == 0) {
-        return GGL_ERR_FATAL;
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
-    if (user_address.buf.data[0] == 'h') {
-        memcpy(
-            url_address, user_address.buf.data + 7, user_address.buf.len - 6 - 7
-        );
+    if (user_address.data[0] == 'h') {
+        memcpy(url_address, user_address.data + 7, user_address.len - 6 - 7);
     } else {
         GGL_LOGE(
             "tes-serverd",
@@ -146,7 +109,7 @@ GglError http_server(void) {
         );
         return 1;
     }
-    memcpy(port_as_string, user_address.buf.data + user_address.buf.len - 5, 5);
+    memcpy(port_as_string, user_address.data + user_address.len - 5, 5);
     port = (uint16_t) atoi(port_as_string);
 
     // Create an event_base, which is the core of libevent

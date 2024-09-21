@@ -9,6 +9,7 @@
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
@@ -22,6 +23,8 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
+
+#define MAX_THING_NAME_LEN 128
 
 typedef enum QualityOfService {
     QOS_FIRE_AND_FORGET = 0,
@@ -58,8 +61,8 @@ typedef enum DeploymentStatusAction {
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #endif
 
-static uint8_t thing_name_buf[128];
-static GglByteVec thing_name;
+static uint8_t thing_name_mem[MAX_THING_NAME_LEN];
+static GglBuffer thing_name;
 
 static uint8_t current_job_id_buf[64];
 static GglByteVec current_job_id;
@@ -137,34 +140,19 @@ static GglError ggl_byte_vec_format(
 
 // Retrieve thingName from config
 static GglError get_thing_name(void) {
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("thingName")) }
-    );
+    thing_name = GGL_BUF(thing_name_mem);
 
-    uint8_t response_buffer[128 + 2 * sizeof(GglObject)] = { 0 };
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(response_buffer));
-
-    GglObject resp;
-    GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &resp
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") },
+        2,
+        &thing_name
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("jobs-listener", "Failed to get thing name from config.");
+        GGL_LOGE("jobs-listener", "Failed to read thingName from config.");
         return ret;
     }
-    if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE("jobs-listener", "Configuration thing name is not a string.");
-        return GGL_ERR_INVALID;
-    }
 
-    thing_name = GGL_BYTE_VEC(thing_name_buf);
-    return ggl_byte_vec_append(&thing_name, resp.buf);
+    return GGL_ERR_OK;
 }
 
 // Decode MQTT payload as JSON into GglObject representation
@@ -236,7 +224,7 @@ static GglError update_job(
     GglError ret = ggl_byte_vec_format(
         &topic,
         GGL_STR(UPDATE_JOB_TOPIC),
-        GGL_LIST(GGL_OBJ(thing_name.buf), GGL_OBJ(job_id))
+        GGL_LIST(GGL_OBJ(thing_name), GGL_OBJ(job_id))
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -344,7 +332,7 @@ static GglError describe_next_job(void) {
     GglError ret = ggl_byte_vec_format(
         &topic,
         GGL_STR(DESCRIBE_JOB_TOPIC),
-        GGL_LIST(GGL_OBJ(thing_name.buf), GGL_OBJ_STR(NEXT_JOB_LITERAL))
+        GGL_LIST(GGL_OBJ(thing_name), GGL_OBJ_STR(NEXT_JOB_LITERAL))
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -353,7 +341,7 @@ static GglError describe_next_job(void) {
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
     GglObject payload_object = GGL_OBJ_MAP(
         { GGL_STR("jobId"), GGL_OBJ_STR(NEXT_JOB_LITERAL) },
-        { GGL_STR("thingName"), GGL_OBJ(thing_name.buf) },
+        { GGL_STR("thingName"), GGL_OBJ(thing_name) },
         { GGL_STR("includeJobDocument"), GGL_OBJ_BOOL(true) }
     );
 
@@ -578,7 +566,7 @@ static GglError subscribe_to_next_job_topics(void) {
         GglError ret = subscribe_to_format_topic(
             topic,
             GGL_STR(NEXT_JOB_EXECUTION_CHANGED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name.buf)),
+            GGL_LIST(GGL_OBJ(thing_name)),
             next_job_execution_changed_callback,
             &next_job_handle
         );
@@ -591,7 +579,7 @@ static GglError subscribe_to_next_job_topics(void) {
         GglError ret = subscribe_to_format_topic(
             topic,
             GGL_STR(JOB_DESCRIBE_ACCEPTED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name.buf), GGL_OBJ_STR(NEXT_JOB_LITERAL)),
+            GGL_LIST(GGL_OBJ(thing_name), GGL_OBJ_STR(NEXT_JOB_LITERAL)),
             describe_accepted_callback,
             &get_accepted_handle
         );
@@ -604,7 +592,7 @@ static GglError subscribe_to_next_job_topics(void) {
         GglError ret = subscribe_to_format_topic(
             topic,
             GGL_STR(JOB_DESCRIBE_REJECTED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name.buf), GGL_OBJ_STR(NEXT_JOB_LITERAL)),
+            GGL_LIST(GGL_OBJ(thing_name), GGL_OBJ_STR(NEXT_JOB_LITERAL)),
             describe_rejected_callback,
             &get_rejected_handle
         );
@@ -617,7 +605,7 @@ static GglError subscribe_to_next_job_topics(void) {
         GglError ret = subscribe_to_format_topic(
             topic,
             GGL_STR(JOB_UPDATE_ACCEPTED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name.buf)),
+            GGL_LIST(GGL_OBJ(thing_name)),
             job_update_accepted_callback,
             &update_accepted_handle
         );
@@ -630,7 +618,7 @@ static GglError subscribe_to_next_job_topics(void) {
         GglError ret = subscribe_to_format_topic(
             topic,
             GGL_STR(JOB_UPDATE_REJECTED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name.buf)),
+            GGL_LIST(GGL_OBJ(thing_name)),
             job_update_rejected_callback,
             &update_rejected_handle
         );

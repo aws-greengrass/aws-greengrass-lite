@@ -12,6 +12,7 @@
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
@@ -60,182 +61,109 @@ static GglError merge_dir_to(
 }
 
 static GglError get_thing_name(char **thing_name) {
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("thingName")) }
-    );
+    static uint8_t resp_mem[129] = { 0 };
+    GglBuffer resp = GGL_BUF(resp_mem);
+    resp.len -= 1;
 
-    static uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
-
-    GglObject resp;
-    GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &resp
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") }, 2, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("ggdeploymentd", "Failed to get thing name from config.");
         return ret;
     }
-    if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE("ggdeploymentd", "Configuration thing name is not a string.");
-        return GGL_ERR_INVALID;
-    }
+    resp.data[resp.len] = '\0';
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *thing_name = (char *) resp.buf.data;
+    *thing_name = (char *) resp.data;
     return GGL_ERR_OK;
 }
 
 static GglError get_region(GglByteVec *region) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              GGL_OBJ_LIST(
-                                  GGL_OBJ_STR("services"),
-                                  GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-                                  GGL_OBJ_STR("configuration"),
-                                  GGL_OBJ_STR("awsRegion")
-                              ) });
+    static uint8_t resp_mem[129] = { 0 };
+    GglBuffer resp = GGL_BUF(resp_mem);
+    resp.len -= 1;
 
-    uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
-
-    GglObject resp;
-    GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[4]) { GGL_STR("services"),
+                         GGL_STR("aws.greengrass.Nucleus-Lite"),
+                         GGL_STR("configuration"),
+                         GGL_STR("awsRegion") },
+        4,
         &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("ggdeploymentd", "Failed to get region from config.");
         return ret;
     }
-    if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE("ggdeploymentd", "Configuration region is not a string.");
-        return GGL_ERR_INVALID;
-    }
+    resp.data[resp.len] = '\0';
 
-    ggl_byte_vec_chain_append(&ret, region, resp.buf);
+    ret = ggl_byte_vec_append(region, resp);
     ggl_byte_vec_chain_push(&ret, region, '\0');
     return ret;
 }
 
 static GglError get_root_ca_path(char **root_ca_path) {
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("rootCaPath")) }
-    );
+    static uint8_t resp_mem[129] = { 0 };
+    GglBuffer resp = GGL_BUF(resp_mem);
+    resp.len -= 1;
 
-    static uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
-
-    GglObject resp;
-    GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &resp
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("rootCaPath") }, 2, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("ggdeploymentd", "Failed to get rootCaPath from config.");
         return ret;
     }
-    if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE("ggdeploymentd", "Configuration rootCaPath is not a string.");
-        return GGL_ERR_INVALID;
-    }
+    resp.data[resp.len] = '\0';
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *root_ca_path = (char *) resp.buf.data;
+    *root_ca_path = (char *) resp.data;
     return GGL_ERR_OK;
 }
 
 static GglError get_tes_cred_url(char **tes_cred_url) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              GGL_OBJ_LIST(
-                                  GGL_OBJ_STR("services"),
-                                  GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-                                  GGL_OBJ_STR("configuration"),
-                                  GGL_OBJ_STR("tesCredUrl")
-                              ) });
+    static uint8_t resp_mem[129] = { 0 };
+    GglBuffer resp = GGL_BUF(resp_mem);
+    resp.len -= 1;
 
-    static uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
-
-    GglObject resp;
-    GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[4]) { GGL_STR("services"),
+                         GGL_STR("aws.greengrass.Nucleus-Lite"),
+                         GGL_STR("configuration"),
+                         GGL_STR("tesCredUrl") },
+        4,
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW(
-            "ggdeploymentd", "Failed to get tes credentials url from config."
-        );
+        GGL_LOGW("ggdeploymentd", "Failed to get tesCredUrl from config.");
         return ret;
     }
-    if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "ggdeploymentd",
-            "Configuration tes credentials url is not a string."
-        );
-        return GGL_ERR_INVALID;
-    }
+    resp.data[resp.len] = '\0';
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *tes_cred_url = (char *) resp.buf.data;
+    *tes_cred_url = (char *) resp.data;
     return GGL_ERR_OK;
 }
 
 static GglError get_posix_user(char **posix_user) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              GGL_OBJ_LIST(
-                                  GGL_OBJ_STR("services"),
-                                  GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-                                  GGL_OBJ_STR("configuration"),
-                                  GGL_OBJ_STR("runWithDefault"),
-                                  GGL_OBJ_STR("posixUser")
-                              ) });
+    static uint8_t resp_mem[129] = { 0 };
+    GglBuffer resp = GGL_BUF(resp_mem);
+    resp.len -= 1;
 
-    static uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
-
-    GglObject resp;
-    GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[5]) { GGL_STR("services"),
+                         GGL_STR("aws.greengrass.Nucleus-Lite"),
+                         GGL_STR("configuration"),
+                         GGL_STR("runWithDefault"),
+                         GGL_STR("posixUser") },
+        5,
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("ggdeploymentd", "Failed to get posix user from config.");
+        GGL_LOGW("ggdeploymentd", "Failed to get posixUser from config.");
         return ret;
     }
-    if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE("ggdeploymentd", "Configuration posix user is not a string.");
-        return GGL_ERR_INVALID;
-    }
+    resp.data[resp.len] = '\0';
 
-    resp.buf.data[resp.buf.len] = '\0';
-    *posix_user = (char *) resp.buf.data;
+    *posix_user = (char *) resp.data;
     return GGL_ERR_OK;
 }
 

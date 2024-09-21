@@ -2,14 +2,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "database_helper.h"
 #include "fleet-provisioning.h"
 #include "generate_certificate.h"
 #include "ggl/exec.h"
 #include "provisioner.h"
 #include <sys/types.h>
-#include <ggl/alloc.h>
-#include <ggl/bump_alloc.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -41,14 +39,7 @@ static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
     return ret;
 }
 
-static GglError fetch_from_db(FleetProvArgs *args, GglAlloc *the_allocator) {
-    static char claim_key_path[MAX_PATH_LENGTH] = { 0 };
-    static char claim_cert_path[MAX_PATH_LENGTH] = { 0 };
-    static char root_ca_path[MAX_PATH_LENGTH] = { 0 };
-    static char data_endpoint[MAX_ENDPOINT_LENGTH] = { 0 };
-    static char template_name[MAX_TEMPLATE_LEN] = { 0 };
-    static char template_parm[MAX_TEMPLATE_PARAM_LEN] = { 0 };
-
+static GglError fetch_from_db(FleetProvArgs *args) {
     if (args->claim_cert_path == NULL) {
         GGL_LOGD(
             "fleet-provisioning",
@@ -56,21 +47,22 @@ static GglError fetch_from_db(FleetProvArgs *args, GglAlloc *the_allocator) {
             "services/aws.greengrass.fleet_provisioning/configuration/"
             "claimCertPath"
         );
-        get_value_from_db(
-            GGL_LIST(
-                GGL_OBJ_STR("services"),
-                GGL_OBJ_STR("aws.greengrass.fleet_provisioning"),
-                GGL_OBJ_STR("configuration"),
-                GGL_OBJ_STR("claimCertPath")
-            ),
-            the_allocator,
-            claim_cert_path
+        static uint8_t claim_cert_path_mem[MAX_PATH_LENGTH + 1] = { 0 };
+        GglBuffer claim_cert_path = GGL_BUF(claim_cert_path_mem);
+        claim_cert_path.len -= 1;
+        GglError ret = ggl_gg_config_read_str(
+            (GglBuffer[4]) { GGL_STR("services"),
+                             GGL_STR("aws.greengrass.fleet_provisioning"),
+                             GGL_STR("configuration"),
+                             GGL_STR("claimCertPath") },
+            4,
+            &claim_cert_path
         );
-        if (strlen(claim_cert_path) == 0) {
-            return GGL_ERR_FATAL;
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
 
-        args->claim_cert_path = claim_cert_path;
+        args->claim_cert_path = (char *) claim_cert_path_mem;
     }
 
     if (args->claim_key_path == NULL) {
@@ -80,22 +72,22 @@ static GglError fetch_from_db(FleetProvArgs *args, GglAlloc *the_allocator) {
             "services/aws.greengrass.fleet_provisioning/configuration/"
             "claimKeyPath"
         );
-
-        get_value_from_db(
-            GGL_LIST(
-                GGL_OBJ_STR("services"),
-                GGL_OBJ_STR("aws.greengrass.fleet_provisioning"),
-                GGL_OBJ_STR("configuration"),
-                GGL_OBJ_STR("claimKeyPath")
-            ),
-            the_allocator,
-            claim_key_path
+        static uint8_t claim_key_path_mem[MAX_PATH_LENGTH + 1] = { 0 };
+        GglBuffer claim_key_path = GGL_BUF(claim_key_path_mem);
+        claim_key_path.len -= 1;
+        GglError ret = ggl_gg_config_read_str(
+            (GglBuffer[4]) { GGL_STR("services"),
+                             GGL_STR("aws.greengrass.fleet_provisioning"),
+                             GGL_STR("configuration"),
+                             GGL_STR("claimKeyPath") },
+            4,
+            &claim_key_path
         );
-        if (strlen(claim_key_path) == 0) {
-            return GGL_ERR_FATAL;
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
 
-        args->claim_key_path = claim_key_path;
+        args->claim_key_path = (char *) claim_key_path_mem;
     }
 
     if (args->root_ca_path == NULL) {
@@ -104,17 +96,19 @@ static GglError fetch_from_db(FleetProvArgs *args, GglAlloc *the_allocator) {
             "Requesting db for "
             "system/rootCaPath/"
         );
-
-        get_value_from_db(
-            GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("rootCaPath")),
-            the_allocator,
-            root_ca_path
+        static uint8_t root_ca_path_mem[MAX_PATH_LENGTH + 1] = { 0 };
+        GglBuffer root_ca_path = GGL_BUF(root_ca_path_mem);
+        root_ca_path.len -= 1;
+        GglError ret = ggl_gg_config_read_str(
+            (GglBuffer[2]) { GGL_STR("system"), GGL_STR("rootCaPath") },
+            2,
+            &root_ca_path
         );
-        if (strlen(root_ca_path) == 0) {
-            return GGL_ERR_FATAL;
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
 
-        args->root_ca_path = root_ca_path;
+        args->root_ca_path = (char *) root_ca_path_mem;
     }
 
     if (args->data_endpoint == NULL) {
@@ -124,36 +118,34 @@ static GglError fetch_from_db(FleetProvArgs *args, GglAlloc *the_allocator) {
             "services/aws.greengrass.fleet_provisioning/configuration/"
             "iotDataEndpoint"
         );
-
-        get_value_from_db(
-            GGL_LIST(
-                GGL_OBJ_STR("services"),
-                GGL_OBJ_STR("aws.greengrass.fleet_provisioning"),
-                GGL_OBJ_STR("configuration"),
-                GGL_OBJ_STR("iotDataEndpoint")
-            ),
-            the_allocator,
-            data_endpoint
+        static uint8_t data_endpoint_mem[MAX_ENDPOINT_LENGTH + 1] = { 0 };
+        GglBuffer data_endpoint = GGL_BUF(data_endpoint_mem);
+        data_endpoint.len -= 1;
+        GglError ret = ggl_gg_config_read_str(
+            (GglBuffer[4]) { GGL_STR("services"),
+                             GGL_STR("aws.greengrass.fleet_provisioning"),
+                             GGL_STR("configuration"),
+                             GGL_STR("iotDataEndpoint") },
+            4,
+            &data_endpoint
         );
-        if (strlen(data_endpoint) == 0) {
-            return GGL_ERR_FATAL;
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
 
-        args->data_endpoint = data_endpoint;
+        args->data_endpoint = (char *) data_endpoint_mem;
 
-        GglError ret_save = save_value_to_db(
-            GGL_LIST(
-                GGL_OBJ_STR("services"),
-                GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-                GGL_OBJ_STR("configuration")
-            ),
-            GGL_OBJ_MAP({ GGL_STR("iotDataEndpoint"),
-                          GGL_OBJ((GglBuffer
-                          ) { .data = (uint8_t *) args->data_endpoint,
-                              .len = strlen(args->data_endpoint) }) })
+        ret = ggl_gg_config_write(
+            (GglBuffer[4]) { GGL_STR("services"),
+                             GGL_STR("aws.greengrass.Nucleus-Lite"),
+                             GGL_STR("configuration"),
+                             GGL_STR("iotDataEndpoint") },
+            4,
+            GGL_OBJ(data_endpoint),
+            0
         );
-        if (ret_save != GGL_ERR_OK) {
-            return ret_save;
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
     }
 
@@ -164,22 +156,22 @@ static GglError fetch_from_db(FleetProvArgs *args, GglAlloc *the_allocator) {
             "services/aws.greengrass.fleet_provisioning/configuration/"
             "templateName"
         );
-
-        get_value_from_db(
-            GGL_LIST(
-                GGL_OBJ_STR("services"),
-                GGL_OBJ_STR("aws.greengrass.fleet_provisioning"),
-                GGL_OBJ_STR("configuration"),
-                GGL_OBJ_STR("templateName")
-            ),
-            the_allocator,
-            template_name
+        static uint8_t template_name_mem[MAX_TEMPLATE_LEN + 1] = { 0 };
+        GglBuffer template_name = GGL_BUF(template_name_mem);
+        template_name.len -= 1;
+        GglError ret = ggl_gg_config_read_str(
+            (GglBuffer[4]) { GGL_STR("services"),
+                             GGL_STR("aws.greengrass.fleet_provisioning"),
+                             GGL_STR("configuration"),
+                             GGL_STR("templateName") },
+            4,
+            &template_name
         );
-        if (strlen(template_name) == 0) {
-            return GGL_ERR_FATAL;
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
 
-        args->template_name = template_name;
+        args->template_name = (char *) template_name_mem;
     }
 
     if (args->template_parameters == NULL) {
@@ -189,33 +181,28 @@ static GglError fetch_from_db(FleetProvArgs *args, GglAlloc *the_allocator) {
             "services/aws.greengrass.fleet_provisioning/configuration/"
             "templateParams"
         );
-
-        get_value_from_db(
-            GGL_LIST(
-                GGL_OBJ_STR("services"),
-                GGL_OBJ_STR("aws.greengrass.fleet_provisioning"),
-                GGL_OBJ_STR("configuration"),
-                GGL_OBJ_STR("templateParams")
-            ),
-            the_allocator,
-            template_parm
+        static uint8_t template_params_mem[MAX_TEMPLATE_PARAM_LEN + 1] = { 0 };
+        GglBuffer template_params = GGL_BUF(template_params_mem);
+        template_params.len -= 1;
+        GglError ret = ggl_gg_config_read_str(
+            (GglBuffer[4]) { GGL_STR("services"),
+                             GGL_STR("aws.greengrass.fleet_provisioning"),
+                             GGL_STR("configuration"),
+                             GGL_STR("templateParams") },
+            4,
+            &template_params
         );
-        if (strlen(template_parm) == 0) {
-            return GGL_ERR_FATAL;
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
 
-        args->template_parameters = template_parm;
+        args->template_parameters = (char *) template_params_mem;
     }
     return GGL_ERR_OK;
 }
 
 GglError run_fleet_prov(FleetProvArgs *args) {
-    static uint8_t big_buffer_for_bump[4096];
-    static char root_dir[4096] = { 0 };
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
-    GglError ret = fetch_from_db(args, &the_allocator.alloc);
+    GglError ret = fetch_from_db(args);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -224,11 +211,14 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     X509_REQ *csr_req = NULL;
 
     GGL_LOGD("fleet-provisioning", "Requesting db for system/rootpath");
-    get_value_from_db(
-        GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("rootpath")),
-        &the_allocator.alloc,
-        root_dir
+    static uint8_t root_dir_mem[4096] = { 0 };
+    GglBuffer root_dir = GGL_BUF(root_dir_mem);
+    ret = ggl_gg_config_read_str(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("rootPath") }, 2, &root_dir
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     pid_t iotcored_pid = -1;
     ret = start_iotcored(args, &iotcored_pid);
@@ -241,10 +231,10 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     static char csr_file_path[4096] = { 0 };
     static char cert_file_path[4096] = { 0 };
 
-    strncat(private_file_path, root_dir, strlen(root_dir));
-    strncat(public_file_path, root_dir, strlen(root_dir));
-    strncat(csr_file_path, root_dir, strlen(root_dir));
-    strncat(cert_file_path, root_dir, strlen(root_dir));
+    strncat(private_file_path, (char *) root_dir.data, root_dir.len);
+    strncat(public_file_path, (char *) root_dir.data, root_dir.len);
+    strncat(csr_file_path, (char *) root_dir.data, root_dir.len);
+    strncat(cert_file_path, (char *) root_dir.data, root_dir.len);
 
     strncat(
         private_file_path, "/private_key.pem", strlen("/private_key.pem.key")
@@ -262,17 +252,14 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     EVP_PKEY_free(pkey);
     X509_REQ_free(csr_req);
 
-    ret = save_value_to_db(
-        GGL_LIST(GGL_OBJ_STR("system")),
-        GGL_OBJ_MAP({ GGL_STR("privateKeyPath"),
-                      GGL_OBJ((GglBuffer
-                      ) { .data = (uint8_t *) private_file_path,
-                          .len = strlen(private_file_path) }) })
+    ret = ggl_gg_config_write(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("privateKeyPath") },
+        2,
+        GGL_OBJ((GglBuffer) { .data = (uint8_t *) private_file_path,
+                              .len = strlen(private_file_path) }),
+        0
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "fleet-provisioning", "Something went wrong. Killing iotcored"
-        );
         exec_kill_process(iotcored_pid);
         return ret;
     }

@@ -4,112 +4,86 @@
 
 #include "tesd.h"
 #include "token_service.h"
-#include <ggl/bump_alloc.h>
-#include <ggl/core_bus/client.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
-#include <ggl/log.h>
 #include <ggl/object.h>
-#include <string.h>
 #include <stdint.h>
 
-static void get_value_from_db(
-    GglList key_path, GglBumpAlloc the_allocator, char *return_string
-) {
-    GglBuffer config_server = GGL_STR("gg_config");
-
-    GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key_path) }, );
-    GglObject result;
-
-    GglError error = ggl_call(
-        config_server,
-        GGL_STR("read"),
-        params,
-        NULL,
-        &the_allocator.alloc,
-        &result
-    );
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE("tesd", "read failed. Error %d", error);
-    } else {
-        memcpy(return_string, result.buf.data, result.buf.len);
-
-        if (result.type == GGL_TYPE_BUF) {
-            GGL_LOGI(
-                "tesd",
-                "read value: %.*s",
-                (int) result.buf.len,
-                (char *) result.buf.data
-            );
-        }
-    }
-}
-
 GglError run_tesd(void) {
-    static uint8_t big_buffer_for_bump[3048];
-    static char rootca_as_string[512] = { 0 };
-    static char cert_path_as_string[512] = { 0 };
-    static char key_path_as_string[512] = { 0 };
-    static char cert_endpoint_as_string[256] = { 0 };
-    static char role_alias_as_string[128] = { 0 };
-    static char thing_name_as_string[128] = { 0 };
-
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
-    // Fetch
-    get_value_from_db(
-        GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("rootCaPath")),
-        the_allocator,
-        rootca_as_string
+    static uint8_t rootca_path_mem[512] = { 0 };
+    GglBuffer rootca_path = GGL_BUF(rootca_path_mem);
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("rootCaPath") },
+        2,
+        &rootca_path
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
-    get_value_from_db(
-        GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("certificateFilePath")),
-        the_allocator,
-        cert_path_as_string
+    static uint8_t cert_path_mem[512] = { 0 };
+    GglBuffer cert_path = GGL_BUF(cert_path_mem);
+    ret = ggl_gg_config_read_str(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("certificateFilePath") },
+        2,
+        &cert_path
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
-    get_value_from_db(
-        GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("privateKeyPath")),
-        the_allocator,
-        key_path_as_string
+    static uint8_t key_path_mem[512] = { 0 };
+    GglBuffer key_path = GGL_BUF(key_path_mem);
+    ret = ggl_gg_config_read_str(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("privateKeyPath") },
+        2,
+        &key_path
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
-    get_value_from_db(
-        GGL_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("thingName")),
-        the_allocator,
-        thing_name_as_string
+    static uint8_t thing_name_mem[256] = { 0 };
+    GglBuffer thing_name = GGL_BUF(thing_name_mem);
+    ret = ggl_gg_config_read_str(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") },
+        2,
+        &thing_name
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
-    get_value_from_db(
-        GGL_LIST(
-            GGL_OBJ_STR("services"),
-            GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-            GGL_OBJ_STR("configuration"),
-            GGL_OBJ_STR("iotRoleAlias")
-        ),
-        the_allocator,
-        role_alias_as_string
+    static uint8_t role_alias_mem[128] = { 0 };
+    GglBuffer role_alias = GGL_BUF(role_alias_mem);
+    ret = ggl_gg_config_read_str(
+        (GglBuffer[4]) { GGL_STR("services"),
+                         GGL_STR("aws.greengrass.Nucleus-Lite"),
+                         GGL_STR("configuration"),
+                         GGL_STR("iotRoleAlias") },
+        4,
+        &role_alias
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
-    get_value_from_db(
-        GGL_LIST(
-            GGL_OBJ_STR("services"),
-            GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-            GGL_OBJ_STR("configuration"),
-            GGL_OBJ_STR("iotCredEndpoint")
-        ),
-        the_allocator,
-        cert_endpoint_as_string
+    static uint8_t cred_endpoint_mem[128] = { 0 };
+    GglBuffer cred_endpoint = GGL_BUF(cred_endpoint_mem);
+    ret = ggl_gg_config_read_str(
+        (GglBuffer[4]) { GGL_STR("services"),
+                         GGL_STR("aws.greengrass.Nucleus-Lite"),
+                         GGL_STR("configuration"),
+                         GGL_STR("iotCredEndpoint") },
+        4,
+        &cred_endpoint
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
-    GglError ret = initiate_request(
-        rootca_as_string,
-        cert_path_as_string,
-        key_path_as_string,
-        thing_name_as_string,
-        role_alias_as_string,
-        cert_endpoint_as_string
+    ret = initiate_request(
+        rootca_path, cert_path, key_path, thing_name, role_alias, cred_endpoint
     );
     if (ret != GGL_ERR_OK) {
         return ret;
