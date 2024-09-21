@@ -2,8 +2,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "../ipc_server.h"
-#include "handlers.h"
+#include "../../ipc_server.h"
+#include "pubsub.h"
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-GglError handle_publish_to_topic(
+GglError ggl_handle_publish_to_topic(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
     (void) alloc;

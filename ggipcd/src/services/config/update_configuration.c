@@ -2,8 +2,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "../ipc_server.h"
-#include "handlers.h"
+#include "../../ipc_server.h"
+#include "config.h"
 #include "make_config_path_object.h"
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
@@ -15,7 +15,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-GglError handle_update_configuration(
+GglError ggl_handle_update_configuration(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
     for (size_t x = 0; x < args.len; x++) {

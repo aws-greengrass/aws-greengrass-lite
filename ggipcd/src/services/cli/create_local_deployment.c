@@ -2,8 +2,8 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "../ipc_server.h"
-#include "handlers.h"
+#include "../../ipc_server.h"
+#include "cli.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-GglError handle_create_local_deployment(
+GglError ggl_handle_create_local_deployment(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
     GGL_MAP_FOREACH(pair, args) {

@@ -2,9 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "../ipc_server.h"
-#include "../ipc_subscriptions.h"
-#include "handlers.h"
+#include "../../ipc_server.h"
+#include "../../ipc_subscriptions.h"
+#include "pubsub.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
@@ -108,7 +108,7 @@ static GglError subscribe_to_topic_callback(
     return GGL_ERR_OK;
 }
 
-GglError handle_subscribe_to_topic(
+GglError ggl_handle_subscribe_to_topic(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
     (void) alloc;

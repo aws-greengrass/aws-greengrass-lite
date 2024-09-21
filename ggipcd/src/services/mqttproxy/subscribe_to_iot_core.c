@@ -2,9 +2,9 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "../ipc_server.h"
-#include "../ipc_subscriptions.h"
-#include "handlers.h"
+#include "../../ipc_server.h"
+#include "../../ipc_subscriptions.h"
+#include "mqttproxy.h"
 #include <ggl/alloc.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
@@ -63,7 +63,7 @@ static GglError subscribe_to_iot_core_callback(
     return GGL_ERR_OK;
 }
 
-GglError handle_subscribe_to_iot_core(
+GglError ggl_handle_subscribe_to_iot_core(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
     (void) alloc;
