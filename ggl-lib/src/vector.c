@@ -31,6 +31,20 @@ GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out) {
     return GGL_ERR_OK;
 }
 
+GglError ggl_obj_vec_append(GglObjVec *vector, GglList list) {
+    if (vector->capacity - vector->list.len < list.len) {
+        return GGL_ERR_NOMEM;
+    }
+    GGL_LOGT("ggl_obj_vec", "Appended to %p.", vector);
+    memcpy(
+        &vector->list.items[vector->list.len],
+        list.items,
+        list.len * sizeof(GglObject)
+    );
+    vector->list.len += list.len;
+    return GGL_ERR_OK;
+}
+
 GglError ggl_kv_vec_push(GglKVVec *vector, GglKV kv) {
     if (vector->map.len >= vector->capacity) {
         return GGL_ERR_NOMEM;
