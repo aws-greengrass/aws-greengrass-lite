@@ -11,4 +11,5 @@ ggl_init_module(
        ggl-socket
        ggl-exec
        core-bus-gg-config
+       core-bus-aws-iot-mqtt
        PkgConfig::openssl)

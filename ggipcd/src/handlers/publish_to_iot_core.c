@@ -7,7 +7,7 @@
 #include <ggl/alloc.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
-#include <ggl/core_bus/client.h>
+#include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -19,6 +19,8 @@
 GglError handle_publish_to_iot_core(
     GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
 ) {
+    (void) alloc;
+
     GglBuffer topic;
     GglBuffer payload;
     int64_t qos;
@@ -61,7 +63,11 @@ GglError handle_publish_to_iot_core(
                 return ret;
             }
         } else {
-            GGL_LOGE("PublishToIoTCore", "qos not an valid type.");
+            GGL_LOGE("PublishToIoTCore", "qos not a valid type.");
+            return GGL_ERR_INVALID;
+        }
+        if ((qos < 0) || (qos > 2)) {
+            GGL_LOGE("PublishToIoTCore", "qos not a valid value.");
             return GGL_ERR_INVALID;
         }
     }
@@ -72,21 +78,8 @@ GglError handle_publish_to_iot_core(
         return GGL_ERR_INVALID;
     }
 
-    GglMap call_args = GGL_MAP(
-        { GGL_STR("topic"), GGL_OBJ(topic) },
-        { GGL_STR("payload"), GGL_OBJ(payload) },
-        { GGL_STR("qos"), GGL_OBJ_I64(qos) },
-    );
-
-    GglObject call_resp;
-    GglError ret = ggl_call(
-        GGL_STR("aws_iot_mqtt"),
-        GGL_STR("publish"),
-        call_args,
-        NULL,
-        alloc,
-        &call_resp
-    );
+    GglError ret
+        = ggl_aws_iot_mqtt_publish(topic, payload, (uint8_t) qos, true);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

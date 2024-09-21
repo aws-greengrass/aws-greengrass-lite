@@ -8,6 +8,7 @@
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/defer.h>
@@ -159,53 +160,27 @@ static GglError get_thing_name(void) {
 static GglError deserialize_payload(
     GglAlloc *alloc, GglObject data, GglObject *json_object
 ) {
-    if (data.type != GGL_TYPE_MAP) {
-        GGL_LOGE("jobs-listener", "Subscription response is not a map.");
-        return GGL_ERR_FAILURE;
-    }
+    GglBuffer *topic;
+    GglBuffer *payload;
 
-    GglBuffer topic = GGL_STR("");
-    GglBuffer payload = GGL_STR("");
-
-    GglObject *val;
-    if (ggl_map_get(data.map, GGL_STR("topic"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "jobs-listener", "Subscription response topic not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        topic = val->buf;
-    } else {
-        GGL_LOGE("jobs-listener", "Subscription response is missing topic.");
-        return GGL_ERR_FAILURE;
-    }
-    if (ggl_map_get(data.map, GGL_STR("payload"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "jobs-listener", "Subscription response payload not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        payload = val->buf;
-    } else {
-        GGL_LOGE("jobs-listener", "Subscription response is missing payload.");
-        return GGL_ERR_FAILURE;
+    GglError ret
+        = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     GGL_LOGI(
         "jobs-listener",
         "Got message from IoT Core; topic: %.*s, payload: %.*s.",
-        (int) topic.len,
-        topic.data,
-        (int) payload.len,
-        payload.data
+        (int) topic->len,
+        topic->data,
+        (int) payload->len,
+        payload->data
     );
 
-    GglError ret = ggl_json_decode_destructive(payload, alloc, json_object);
-
+    ret = ggl_json_decode_destructive(*payload, alloc, json_object);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "failed to parse job doc JSON");
+        GGL_LOGE("jobs-listener", "Failed to parse job doc JSON.");
         return ret;
     }
     return GGL_ERR_OK;
@@ -214,8 +189,6 @@ static GglError deserialize_payload(
 static GglError update_job(
     GglBuffer job_id, GglBuffer job_status, int64_t *version
 ) {
-    GglBuffer aws_iot_mqtt = GGL_STR("aws_iot_mqtt");
-
     pthread_mutex_lock(&topic_scratch_mutex);
     GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
     GglByteVec topic = GGL_BYTE_VEC(topic_scratch);
@@ -255,14 +228,11 @@ static GglError update_job(
         return ret;
     }
 
-    GglMap publish_args = GGL_MAP(
-        { GGL_STR("topic"), GGL_OBJ(topic.buf) },
-        { GGL_STR("payload"), GGL_OBJ(payload) },
-        { GGL_STR("qos"), GGL_OBJ_I64(QOS_AT_LEAST_ONCE) }
-    );
     GGL_LOGW("jobs-listener", "%.*s", (int) payload.len, (char *) payload.data);
 
-    ret = ggl_notify(aws_iot_mqtt, GGL_STR("publish"), publish_args);
+    ret = ggl_aws_iot_mqtt_publish(
+        topic.buf, payload, QOS_AT_LEAST_ONCE, false
+    );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("jobs-listener", "Failed to publish on update job topic");
         return ret;
@@ -323,8 +293,6 @@ static GglError describe_rejected_callback(
 }
 
 static GglError describe_next_job(void) {
-    GglBuffer aws_iot_mqtt = GGL_STR("aws_iot_mqtt");
-
     pthread_mutex_lock(&topic_scratch_mutex);
     GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
     GglByteVec topic = GGL_BYTE_VEC(topic_scratch);
@@ -353,13 +321,9 @@ static GglError describe_next_job(void) {
         return ret;
     }
 
-    GglMap publish_args = GGL_MAP(
-        { GGL_STR("topic"), GGL_OBJ(topic.buf) },
-        { GGL_STR("payload"), GGL_OBJ(payload) },
-        { GGL_STR("qos"), GGL_OBJ_I64(QOS_AT_LEAST_ONCE) }
+    ret = ggl_aws_iot_mqtt_publish(
+        topic.buf, payload, QOS_AT_LEAST_ONCE, false
     );
-
-    ret = ggl_notify(aws_iot_mqtt, GGL_STR("publish"), publish_args);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("jobs-listener", "Failed to publish on describe job topic");
         return ret;
@@ -533,26 +497,14 @@ static GglError subscribe_to_format_topic(
     GglSubscribeCallback on_response,
     uint32_t *handle
 ) {
-    GglBuffer aws_iot_mqtt = GGL_STR("aws_iot_mqtt");
-
     topic.buf.len = 0;
     GglError ret = ggl_byte_vec_format(&topic, format, values);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    return ggl_subscribe(
-        aws_iot_mqtt,
-        GGL_STR("subscribe"),
-        GGL_MAP(
-            { GGL_STR("topic_filter"), GGL_OBJ(topic.buf) },
-            { GGL_STR("qos"), GGL_OBJ_I64(QOS_AT_LEAST_ONCE) }
-        ),
-        on_response,
-        NULL,
-        NULL,
-        NULL,
-        handle
+    return ggl_aws_iot_mqtt_subscribe(
+        &topic.buf, 1, QOS_AT_LEAST_ONCE, on_response, NULL, NULL, handle
     );
 }
 

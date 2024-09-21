@@ -4,7 +4,7 @@
 
 #include "fleet_status_service.h"
 #include <sys/types.h>
-#include <ggl/core_bus/client.h>
+#include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
@@ -12,6 +12,7 @@
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <pthread.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #define MAX_THING_NAME_LEN 128
@@ -68,14 +69,7 @@ GglError publish_message(GglBuffer thing_name) {
         return ret;
     }
 
-    ret = ggl_notify(
-        GGL_STR("aws_iot_mqtt"),
-        GGL_STR("publish"),
-        GGL_MAP(
-            { GGL_STR("topic"), GGL_OBJ(topic_vec.buf) },
-            { GGL_STR("payload"), GGL_OBJ(payload) }
-        )
-    );
+    ret = ggl_aws_iot_mqtt_publish(topic_vec.buf, payload, 0, false);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

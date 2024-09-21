@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -185,54 +186,23 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     (void) ctx;
     (void) handle;
 
-    if (data.type != GGL_TYPE_MAP) {
-        GGL_LOGE("fleet-provisioning", "Subscription response is not a map.");
-        return GGL_ERR_FAILURE;
+    GglBuffer *topic;
+    GglBuffer *payload;
+
+    GglError ret
+        = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
-    GglBuffer topic = GGL_STR("");
-    GglBuffer payload = GGL_STR("");
-
-    GglObject *val;
-    if (ggl_map_get(data.map, GGL_STR("topic"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "fleet-provisioning",
-                "Subscription response topic not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        topic = val->buf;
-    } else {
-        GGL_LOGE(
-            "fleet-provisioning", "Subscription response is missing topic."
-        );
-        return GGL_ERR_FAILURE;
-    }
-    if (ggl_map_get(data.map, GGL_STR("payload"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "fleet-provisioning",
-                "Subscription response payload not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        payload = val->buf;
-    } else {
-        GGL_LOGE(
-            "fleet-provisioning", "Subscription response is missing payload."
-        );
-        return GGL_ERR_FAILURE;
-    }
-
-    if (strncmp((char *) topic.data, certificate_response_url, topic.len)
+    if (strncmp((char *) topic->data, certificate_response_url, topic->len)
         == 0) {
         GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
-        memcpy(global_cert_owenership, payload.data, payload.len);
+        memcpy(global_cert_owenership, payload->data, payload->len);
 
         GglBuffer response_buffer = (GglBuffer
-        ) { .data = (uint8_t *) global_cert_owenership, .len = payload.len };
+        ) { .data = (uint8_t *) global_cert_owenership, .len = payload->len };
 
         ggl_json_decode_destructive(
             response_buffer, &balloc.alloc, &csr_payload_json_obj
@@ -242,6 +212,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             return GGL_ERR_FAILURE;
         }
 
+        GglObject *val;
         if (ggl_map_get(
                 csr_payload_json_obj.map, GGL_STR("certificatePem"), &val
             )) {
@@ -263,7 +234,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 return GGL_ERR_FAILURE;
             }
 
-            GglError ret = ggl_write_exact(fd, val->buf);
+            ret = ggl_write_exact(fd, val->buf);
             ggl_close(fd);
             if (ret != GGL_ERR_OK) {
                 return ret;
@@ -305,17 +276,18 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             }
         }
     } else if (strncmp(
-                   (char *) topic.data,
+                   (char *) topic->data,
                    global_register_thing_accept_url,
-                   topic.len
+                   topic->len
                )
                == 0) {
         GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
-        memcpy(global_thing_response_buf, payload.data, payload.len);
+        memcpy(global_thing_response_buf, payload->data, payload->len);
 
-        GglBuffer response_buffer = (GglBuffer
-        ) { .data = (uint8_t *) global_thing_response_buf, .len = payload.len };
+        GglBuffer response_buffer
+            = (GglBuffer) { .data = (uint8_t *) global_thing_response_buf,
+                            .len = payload->len };
         GglObject thing_payload_json_obj;
 
         ggl_json_decode_destructive(
@@ -325,10 +297,11 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             return GGL_ERR_FAILURE;
         }
 
+        GglObject *val;
         if (ggl_map_get(
                 thing_payload_json_obj.map, GGL_STR("thingName"), &val
             )) {
-            GglError ret = ggl_gg_config_write(
+            ret = ggl_gg_config_write(
                 (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") },
                 2,
                 *val,
@@ -347,16 +320,14 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
             // TODO: Find a way to terminate cleanly with iotcored
         }
-    }
-
-    else {
+    } else {
         GGL_LOGI(
             "fleet-provisioning",
             "Got message from IoT Core; topic: %.*s, payload: %.*s.",
-            (int) topic.len,
-            topic.data,
-            (int) payload.len,
-            payload.data
+            (int) topic->len,
+            topic->data,
+            (int) payload->len,
+            payload->data
         );
     }
 

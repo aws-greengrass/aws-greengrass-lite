@@ -8,6 +8,7 @@
 #include <ggl/alloc.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
+#include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -19,45 +20,17 @@
 static GglError subscribe_to_iot_core_callback(
     GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
 ) {
-    GglBuffer topic;
-    GglBuffer payload;
+    GglBuffer *topic;
+    GglBuffer *payload;
 
-    if (data.type != GGL_TYPE_MAP) {
-        GGL_LOGE("SubscribeToIoTCore", "Subscription response not a map.");
-        return GGL_ERR_FAILURE;
+    GglError ret
+        = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
-
-    GglObject *val = NULL;
-    bool found = ggl_map_get(data.map, GGL_STR("topic"), &val);
-    if (!found) {
-        GGL_LOGE("SubscribeToIoTCore", "Subscription response missing topic.");
-        return GGL_ERR_FAILURE;
-    }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "SubscribeToIoTCore", "Subscription response topic not a buffer."
-        );
-        return GGL_ERR_INVALID;
-    }
-    topic = val->buf;
-
-    found = ggl_map_get(data.map, GGL_STR("payload"), &val);
-    if (!found) {
-        GGL_LOGE(
-            "SubscribeToIoTCore", "Subscription response missing payload."
-        );
-        return GGL_ERR_FAILURE;
-    }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "SubscribeToIoTCore", "Subscription response payload not a buffer."
-        );
-        return GGL_ERR_INVALID;
-    }
-    payload = val->buf;
 
     GglBuffer base64_payload;
-    GglError ret = ggl_base64_encode(payload, alloc, &base64_payload);
+    ret = ggl_base64_encode(*payload, alloc, &base64_payload);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "SubscribeToIoTCore",
@@ -69,7 +42,7 @@ static GglError subscribe_to_iot_core_callback(
     GglObject response
         = GGL_OBJ_MAP({ GGL_STR("message"),
                         GGL_OBJ_MAP(
-                            { GGL_STR("topicName"), GGL_OBJ(topic) },
+                            { GGL_STR("topicName"), GGL_OBJ(*topic) },
                             { GGL_STR("payload"), GGL_OBJ(base64_payload) }
                         ) });
 
