@@ -22,13 +22,32 @@ bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2) {
     return false;
 }
 
-bool ggl_buffer_has_suffix(GglBuffer buf, GglBuffer suffix) {
-    if (suffix.len <= buf.len) {
-        return ggl_buffer_eq(
-            suffix, ggl_buffer_substr(buf, buf.len - suffix.len, buf.len)
-        );
+bool ggl_buffer_has_prefix(GglBuffer buf, GglBuffer prefix) {
+    if (prefix.len <= buf.len) {
+        return memcmp(buf.data, prefix.data, prefix.len) == 0;
     }
     return false;
+}
+
+bool ggl_buffer_has_suffix(GglBuffer buf, GglBuffer suffix) {
+    if (suffix.len <= buf.len) {
+        return memcmp(&buf.data[buf.len - suffix.len], suffix.data, suffix.len)
+            == 0;
+    }
+    return false;
+}
+
+bool ggl_buffer_contains(GglBuffer buf, GglBuffer substring, size_t *start) {
+    if (substring.len == 0) {
+        *start = 0;
+        return true;
+    }
+    uint8_t *ptr = memmem(buf.data, buf.len, substring.data, substring.len);
+    if (ptr == NULL) {
+        return false;
+    }
+    *start = (size_t) (ptr - buf.data);
+    return true;
 }
 
 GglBuffer ggl_buffer_substr(GglBuffer buf, size_t start, size_t end) {
