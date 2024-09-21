@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "../../ipc_server.h"
+#include "../../ipc_service.h"
 #include "cli.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
@@ -15,8 +16,14 @@
 #include <stdlib.h>
 
 GglError ggl_handle_create_local_deployment(
-    GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
+    const GglIpcOperationInfo *info,
+    GglMap args,
+    uint32_t handle,
+    int32_t stream_id,
+    GglAlloc *alloc
 ) {
+    (void) info;
+
     GGL_MAP_FOREACH(pair, args) {
         if (ggl_buffer_eq(pair->key, GGL_STR("recipeDirectoryPath"))) {
             pair->key = GGL_STR("recipe_directory_path");

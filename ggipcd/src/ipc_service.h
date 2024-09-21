@@ -10,8 +10,18 @@
 #include <ggl/object.h>
 #include <stdint.h>
 
+typedef struct {
+    GglBuffer component;
+    GglBuffer service;
+    GglBuffer operation;
+} GglIpcOperationInfo;
+
 typedef GglError GglIpcOperationHandler(
-    GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
+    const GglIpcOperationInfo *info,
+    GglMap args,
+    uint32_t handle,
+    int32_t stream_id,
+    GglAlloc *alloc
 );
 
 typedef struct {

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "../../ipc_server.h"
+#include "../../ipc_service.h"
 #include "../../ipc_subscriptions.h"
 #include "mqttproxy.h"
 #include <ggl/alloc.h>
@@ -64,9 +65,15 @@ static GglError subscribe_to_iot_core_callback(
 }
 
 GglError ggl_handle_subscribe_to_iot_core(
-    GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
+    const GglIpcOperationInfo *info,
+    GglMap args,
+    uint32_t handle,
+    int32_t stream_id,
+    GglAlloc *alloc
 ) {
     (void) alloc;
+    (void) info;
+
     GglBuffer topic_filter;
     int64_t qos;
 

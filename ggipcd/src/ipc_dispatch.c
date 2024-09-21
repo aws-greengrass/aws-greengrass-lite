@@ -33,13 +33,23 @@ GglError ggl_ipc_handle_operation(
             const GglIpcOperation *service_op = &service->operations[j];
 
             if (ggl_buffer_eq(operation, service_op->name)) {
+                GglIpcOperationInfo info = {
+                    .service = service->name,
+                    .operation = operation,
+                };
+                GglError ret
+                    = ggl_ipc_get_component_name(handle, &info.component);
+                if (ret != GGL_ERR_OK) {
+                    return ret;
+                }
+
                 static uint8_t resp_mem
                     [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
                      + GGL_IPC_MAX_MSG_LEN];
                 GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
 
                 return service_op->handler(
-                    args, handle, stream_id, &balloc.alloc
+                    &info, args, handle, stream_id, &balloc.alloc
                 );
             }
         }

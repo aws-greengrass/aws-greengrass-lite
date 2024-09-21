@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "../../ipc_server.h"
+#include "../../ipc_service.h"
 #include "config.h"
 #include "make_config_path_object.h"
 #include <ggl/alloc.h>
@@ -16,8 +17,14 @@
 #include <stdint.h>
 
 GglError ggl_handle_update_configuration(
-    GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
+    const GglIpcOperationInfo *info,
+    GglMap args,
+    uint32_t handle,
+    int32_t stream_id,
+    GglAlloc *alloc
 ) {
+    (void) info;
+
     for (size_t x = 0; x < args.len; x++) {
         GglKV *kv = &args.pairs[x];
         GglBuffer *key = &kv->key;

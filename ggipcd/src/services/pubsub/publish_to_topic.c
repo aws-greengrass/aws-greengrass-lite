@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "../../ipc_server.h"
+#include "../../ipc_service.h"
 #include "pubsub.h"
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
@@ -15,8 +16,13 @@
 #include <stdlib.h>
 
 GglError ggl_handle_publish_to_topic(
-    GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
+    const GglIpcOperationInfo *info,
+    GglMap args,
+    uint32_t handle,
+    int32_t stream_id,
+    GglAlloc *alloc
 ) {
+    (void) info;
     (void) alloc;
 
     GglObject *val = NULL;

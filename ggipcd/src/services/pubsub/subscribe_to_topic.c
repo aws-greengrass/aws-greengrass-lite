@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "../../ipc_server.h"
+#include "../../ipc_service.h"
 #include "../../ipc_subscriptions.h"
 #include "pubsub.h"
 #include <ggl/alloc.h>
@@ -109,9 +110,14 @@ static GglError subscribe_to_topic_callback(
 }
 
 GglError ggl_handle_subscribe_to_topic(
-    GglMap args, uint32_t handle, int32_t stream_id, GglAlloc *alloc
+    const GglIpcOperationInfo *info,
+    GglMap args,
+    uint32_t handle,
+    int32_t stream_id,
+    GglAlloc *alloc
 ) {
     (void) alloc;
+    (void) info;
 
     GglObject *val = NULL;
     bool found = ggl_map_get(args, GGL_STR("topic"), &val);
