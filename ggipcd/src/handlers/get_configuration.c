@@ -56,8 +56,7 @@ GglError handle_get_configuration(
         if (err != GGL_ERR_OK) {
             return err;
         }
-        component_name_object.type = GGL_TYPE_BUF;
-        component_name_object.buf = component_name_buffer;
+        component_name_object = GGL_OBJ(component_name_buffer);
         component_name_object_ptr = &component_name_object;
     }
     GGL_LOGT(
