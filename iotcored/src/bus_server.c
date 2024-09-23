@@ -41,45 +41,48 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
 
     GGL_LOGD("rpc-handler", "Handling publish request.");
 
-    IotcoredMsg msg = { 0 };
-    uint8_t qos = 0;
-
-    GglObject *val;
-
-    if (ggl_map_get(params, GGL_STR("topic"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        GglBuffer topic = val->buf;
-        if (topic.len > UINT16_MAX) {
-            GGL_LOGE("rpc-handler", "Publish payload too large.");
-            ggl_return_err(handle, GGL_ERR_RANGE);
-            return;
-        }
-        msg.topic = topic;
-    } else {
+    GglObject *topic_obj;
+    GglObject *payload_obj;
+    GglObject *qos_obj;
+    GglError ret = ggl_map_validate(
+        params,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("payload"), false, GGL_TYPE_BUF, &payload_obj },
+            { GGL_STR("qos"), false, GGL_TYPE_I64, &qos_obj },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
         GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
-    if (ggl_map_get(params, GGL_STR("payload"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
+    IotcoredMsg msg = { .topic = topic_obj->buf, .payload = { 0 } };
+
+    if (msg.topic.len > UINT16_MAX) {
+        GGL_LOGE("rpc-handler", "Publish topic too large.");
+        ggl_return_err(handle, GGL_ERR_RANGE);
+        return;
+    }
+
+    if (payload_obj != NULL) {
+        msg.payload = payload_obj->buf;
+    }
+
+    uint8_t qos = 0;
+
+    if (qos_obj != NULL) {
+        int64_t qos_val = qos_obj->i64;
+        if ((qos_val < 0) || (qos_val > 2)) {
+            GGL_LOGE("rpc-handler", "Publish received QoS out of range.");
             ggl_return_err(handle, GGL_ERR_INVALID);
             return;
         }
-        msg.payload = val->buf;
+        qos = (uint8_t) qos_val;
     }
 
-    if (ggl_map_get(params, GGL_STR("qos"), &val)) {
-        if ((val->type != GGL_TYPE_I64) || (val->i64 < 0) || (val->i64 > 2)) {
-            GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
-        }
-        qos = (uint8_t) val->i64;
-    }
-
-    GglError ret = iotcored_mqtt_publish(&msg, qos);
+    ret = iotcored_mqtt_publish(&msg, qos);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
         return;
@@ -100,10 +103,8 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
 
     static GglBuffer topic_filters[GGL_MQTT_MAX_SUBSCRIBE_FILTERS] = { 0 };
     size_t topic_filter_count = 0;
-    uint8_t qos = 0;
 
     GglObject *val;
-
     if (!ggl_map_get(params, GGL_STR("topic_filter"), &val)) {
         GGL_LOGE("rpc-handler", "Subscribe received invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
@@ -156,6 +157,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         }
     }
 
+    uint8_t qos = 0;
     if (ggl_map_get(params, GGL_STR("qos"), &val)) {
         if ((val->type != GGL_TYPE_I64) || (val->i64 < 0) || (val->i64 > 2)) {
             GGL_LOGE("rpc-handler", "Payload received invalid arguments.");

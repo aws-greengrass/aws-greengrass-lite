@@ -18,6 +18,7 @@
 #include <ggl/file.h>
 #include <ggl/http.h>
 #include <ggl/json_decode.h>
+#include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -433,16 +434,19 @@ static GglError download_s3_artifact(
     GglObject *aws_access_key_id = NULL;
     GglObject *aws_secret_access_key = NULL;
     GglObject *aws_session_token = NULL;
-    if (!ggl_map_get(result.map, GGL_STR("accessKeyId"), &aws_access_key_id)) {
-        return GGL_ERR_FAILURE;
-    }
-    if (!ggl_map_get(
-            result.map, GGL_STR("secretAccessKey"), &aws_secret_access_key
-        )) {
-        return GGL_ERR_FAILURE;
-    }
 
-    if (!ggl_map_get(result.map, GGL_STR("sessionToken"), &aws_session_token)) {
+    GglError ret = ggl_map_validate(
+        params,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("accessKeyId"), true, GGL_TYPE_BUF, &aws_access_key_id },
+            { GGL_STR("secretAccessKey"),
+              true,
+              GGL_TYPE_BUF,
+              &aws_secret_access_key },
+            { GGL_STR("sessionToken"), true, GGL_TYPE_BUF, &aws_session_token },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;
     }
 
@@ -585,9 +589,9 @@ static void handle_deployment(
         }
     }
 
-    if (deployment->artifact_directory_path.len != 0) {
+    if (deployment->artifacts_directory_path.len != 0) {
         GglError ret = merge_dir_to(
-            deployment->artifact_directory_path,
+            deployment->artifacts_directory_path,
             root_path_fd,
             GGL_STR("/packages/artifacts")
         );
@@ -775,25 +779,26 @@ static void handle_deployment(
             }
 
             GglObject *resolved_component_versions;
-            if (ggl_map_get(
+            if (!ggl_map_get(
                     json_candidates_response_obj.map,
                     GGL_STR("resolvedComponentVersions"),
                     &resolved_component_versions
                 )) {
-                if (resolved_component_versions->type != GGL_TYPE_LIST) {
-                    GGL_LOGE(
-                        "ggdeploymentd",
-                        "resolvedComponentVersions response is not a list."
-                    );
-                    return;
-                }
+                GGL_LOGE("ggdeploymentd", "Missing resolvedComponentVersions.");
+                return;
+            }
+            if (resolved_component_versions->type != GGL_TYPE_LIST) {
+                GGL_LOGE(
+                    "ggdeploymentd",
+                    "resolvedComponentVersions response is not a list."
+                );
+                return;
             }
 
-            for (size_t i = 0; i < resolved_component_versions->list.len; i++) {
-                GglObject resolved_version
-                    = resolved_component_versions->list.items[i];
-
-                if (resolved_version.type != GGL_TYPE_MAP) {
+            GGL_LIST_FOREACH(
+                resolved_version, resolved_component_versions->list
+            ) {
+                if (resolved_version->type != GGL_TYPE_MAP) {
                     GGL_LOGE(
                         "ggdeploymentd", "Resolved version is not of type map."
                     );
@@ -801,49 +806,36 @@ static void handle_deployment(
                 }
 
                 GglObject *cloud_component_name;
-                if (ggl_map_get(
-                        resolved_version.map,
-                        GGL_STR("componentName"),
-                        &cloud_component_name
-                    )) {
-                    if (cloud_component_name->type != GGL_TYPE_BUF) {
-                        GGL_LOGE(
-                            "ggdeploymentd",
-                            "Resolved cloud component name is not a buffer."
-                        );
-                        return;
-                    }
-                }
-
                 GglObject *cloud_component_version;
-                if (ggl_map_get(
-                        resolved_version.map,
-                        GGL_STR("componentVersion"),
-                        &cloud_component_version
-                    )) {
-                    if (cloud_component_version->type != GGL_TYPE_BUF) {
-                        GGL_LOGE(
-                            "ggdeploymentd",
-                            "Resolved cloud component version is not a buffer."
-                        );
-                        return;
-                    }
+                GglObject *vendor_guidance;
+                GglObject *recipe_file_content;
+
+                ret = ggl_map_validate(
+                    resolved_version->map,
+                    GGL_MAP_SCHEMA(
+                        { GGL_STR("componentName"),
+                          true,
+                          GGL_TYPE_BUF,
+                          &cloud_component_name },
+                        { GGL_STR("componentVersion"),
+                          true,
+                          GGL_TYPE_BUF,
+                          &cloud_component_version },
+                        { GGL_STR("vendorGuidance"),
+                          false,
+                          GGL_TYPE_BUF,
+                          &vendor_guidance },
+                        { GGL_STR("recipe"),
+                          true,
+                          GGL_TYPE_BUF,
+                          &recipe_file_content },
+                    )
+                );
+                if (ret != GGL_ERR_OK) {
+                    return;
                 }
 
-                GglObject *vendor_guidance;
-                if (ggl_map_get(
-                        resolved_version.map,
-                        GGL_STR("componentVersion"),
-                        &vendor_guidance
-                    )) {
-                    if (vendor_guidance->type != GGL_TYPE_BUF) {
-                        GGL_LOGE(
-                            "ggdeploymentd",
-                            "Resolved cloud component vendor guidance is not a "
-                            "buffer."
-                        );
-                        return;
-                    }
+                if (vendor_guidance != NULL) {
                     if (ggl_buffer_eq(
                             vendor_guidance->buf, GGL_STR("DISCONTINUED")
                         )) {
@@ -860,27 +852,11 @@ static void handle_deployment(
                     }
                 }
 
-                GglObject *recipe_file_content;
-                if (ggl_map_get(
-                        resolved_version.map,
-                        GGL_STR("recipe"),
-                        &recipe_file_content
-                    )) {
-                    if (recipe_file_content->type != GGL_TYPE_BUF) {
-                        GGL_LOGE(
-                            "ggdeploymentd",
-                            "Resolved cloud component recipe data is not a "
-                            "buffer."
-                        );
-                        return;
-                    }
-                }
-
                 if (recipe_file_content->buf.len == 0) {
                     GGL_LOGE("ggdeploymentd", "Recipe is empty.");
                 }
 
-                ggl_base64_decode_in_place(&(recipe_file_content->buf));
+                ggl_base64_decode_in_place(&recipe_file_content->buf);
                 recipe_file_content->buf.data[recipe_file_content->buf.len]
                     = '\0';
 

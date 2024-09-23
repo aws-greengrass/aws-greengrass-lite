@@ -27,50 +27,33 @@ GglError ggl_handle_publish_to_iot_core(
     (void) alloc;
     (void) info;
 
-    GglBuffer topic;
-    GglBuffer payload;
-    int64_t qos;
-
-    GglObject *val = NULL;
-    bool found = ggl_map_get(args, GGL_STR("topicName"), &val);
-    if (!found) {
-        GGL_LOGE("PublishToIoTCore", "Missing topicName.");
+    GglObject *topic_name_obj;
+    GglObject *payload_obj;
+    GglObject *qos_obj;
+    GglError ret = ggl_map_validate(
+        args,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("topicName"), true, GGL_TYPE_BUF, &topic_name_obj },
+            { GGL_STR("payload"), false, GGL_TYPE_BUF, &payload_obj },
+            { GGL_STR("qos"), false, GGL_TYPE_BUF, &qos_obj },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("PublishToIotCore", "Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE("PublishToIoTCore", "topicName not a string.");
-        return GGL_ERR_INVALID;
-    }
-    topic = val->buf;
 
-    found = ggl_map_get(args, GGL_STR("payload"), &val);
-    if (!found) {
-        payload = GGL_STR("");
-    } else {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE("PublishToIoTCore", "topicName not a string.");
-            return GGL_ERR_INVALID;
-        }
-        payload = val->buf;
+    GglBuffer payload = GGL_STR("");
+    if (payload_obj != NULL) {
+        payload = payload_obj->buf;
     }
 
-    found = ggl_map_get(args, GGL_STR("qos"), &val);
-    if (!found) {
-        qos = 0;
-    } else {
-        if (val->type == GGL_TYPE_I64) {
-            qos = val->i64;
-        } else if (val->type == GGL_TYPE_BUF) {
-            GglError ret = ggl_str_to_int64(val->buf, &qos);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE(
-                    "PublishToIoTCore", "Failed to parse qos string value."
-                );
-                return ret;
-            }
-        } else {
-            GGL_LOGE("PublishToIoTCore", "qos not a valid type.");
-            return GGL_ERR_INVALID;
+    int64_t qos = 0;
+    if (qos_obj != NULL) {
+        ret = ggl_str_to_int64(qos_obj->buf, &qos);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("PublishToIoTCore", "Failed to parse qos string value.");
+            return ret;
         }
         if ((qos < 0) || (qos > 2)) {
             GGL_LOGE("PublishToIoTCore", "qos not a valid value.");
@@ -84,8 +67,9 @@ GglError ggl_handle_publish_to_iot_core(
         return GGL_ERR_INVALID;
     }
 
-    GglError ret
-        = ggl_aws_iot_mqtt_publish(topic, payload, (uint8_t) qos, true);
+    ret = ggl_aws_iot_mqtt_publish(
+        topic_name_obj->buf, payload, (uint8_t) qos, true
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }

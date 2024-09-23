@@ -26,8 +26,10 @@ typedef struct {
     )
 
 GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object);
+void ggl_obj_vec_chain_push(GglError *err, GglObjVec *vector, GglObject object);
 GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out);
 GglError ggl_obj_vec_append(GglObjVec *vector, GglList list);
+void ggl_obj_vec_chain_append(GglError *err, GglObjVec *vector, GglList list);
 
 typedef struct {
     GglMap map;

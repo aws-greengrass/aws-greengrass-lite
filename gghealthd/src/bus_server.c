@@ -53,38 +53,34 @@ static void get_status(void *ctx, GglMap params, uint32_t handle) {
 
 static void update_status(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
-    GglObject *component_name = NULL;
-    bool found
-        = ggl_map_get(params, GGL_STR("component_name"), &component_name);
-    if (!found || (component_name->type != GGL_TYPE_BUF)) {
-        GGL_LOGE(
-            "rpc-handler", "Missing required GGL_TYPE_BUF `component_name`"
-        );
+    GglObject *component_name;
+    GglObject *state;
+    GglError ret = ggl_map_validate(
+        params,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("component_name"), true, GGL_TYPE_BUF, &component_name },
+            { GGL_STR("lifecycle_state"), true, GGL_TYPE_BUF, &state },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("rpc-handler", "update_status received invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
+
     if (component_name->buf.len > COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("rpc-handler", "`component_name` too long");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
 
-    GglObject *lifecycle_state = NULL;
-    found = ggl_map_get(params, GGL_STR("lifecycle_state"), &lifecycle_state);
-    if (!found || (component_name->type != GGL_TYPE_BUF)) {
-        GGL_LOGE(
-            "rpc-handler", "Missing required GGL_TYPE_BUF `lifecycle_state`"
-        );
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
-    }
-    if (lifecycle_state->buf.len > LIFECYCLE_STATE_MAX_LEN) {
+    if (state->buf.len > LIFECYCLE_STATE_MAX_LEN) {
         GGL_LOGE("rpc-handler", "`lifecycle_state` too long");
         ggl_return_err(handle, GGL_ERR_RANGE);
+        return;
     }
 
-    GglError error
-        = gghealthd_update_status(component_name->buf, lifecycle_state->buf);
+    GglError error = gghealthd_update_status(component_name->buf, state->buf);
     if (error == GGL_ERR_OK) {
         ggl_respond(handle, GGL_OBJ_NULL());
     } else {

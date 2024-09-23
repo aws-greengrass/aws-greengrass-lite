@@ -9,12 +9,13 @@
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
+#include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 
 GglError ggl_handle_update_configuration(
     const GglIpcOperationInfo *info,
@@ -24,88 +25,78 @@ GglError ggl_handle_update_configuration(
     GglAlloc *alloc
 ) {
     (void) info;
+    (void) alloc;
 
-    for (size_t x = 0; x < args.len; x++) {
-        GglKV *kv = &args.pairs[x];
-        GglBuffer *key = &kv->key;
-        GGL_LOGT(
-            "UpdateConfiguration",
-            "found arg key : %.*s",
-            (int) key->len,
-            (char *) key->data
-        );
-    }
-
-    GglObject *key_path_object;
-    bool found = ggl_map_get(args, GGL_STR("keyPath"), &key_path_object);
-    if (!found) {
-        GGL_LOGE("UpdateConfiguration", "Missing keyPath.");
-        return GGL_ERR_INVALID;
-    }
-    if (key_path_object->type != GGL_TYPE_LIST) {
-        GGL_LOGE("UpdateConfiguration", "keyPath is not a List.");
-        return GGL_ERR_INVALID;
-    }
-    GglBuffer component_name_buffer;
-    GglError err = ggl_ipc_get_component_name(handle, &component_name_buffer);
-    if (err != GGL_ERR_OK) {
-        return err;
-    }
-    GglObject *component_name_object
-        = &(GglObject) { .type = GGL_TYPE_BUF, .buf = component_name_buffer };
-    GGL_LOGT(
-        "UpdateConfiguration",
-        "Component Name : %.*s",
-        (int) component_name_buffer.len,
-        (char *) component_name_buffer.data
+    GglObject *key_path_obj;
+    GglObject *component_name_obj;
+    GglObject *value_to_merge_obj;
+    GglObject *timestamp_obj;
+    GglError ret = ggl_map_validate(
+        args,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("keyPath"), true, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("componentName"),
+              false,
+              GGL_TYPE_BUF,
+              &component_name_obj },
+            { GGL_STR("valueToMerge"),
+              true,
+              GGL_TYPE_NULL,
+              &value_to_merge_obj },
+            { GGL_STR("timestamp"), true, GGL_TYPE_F64, &timestamp_obj },
+        )
     );
-
-    GglObject *value_to_merge_object;
-    found = ggl_map_get(args, GGL_STR("valueToMerge"), &value_to_merge_object);
-    if (!found) {
-        GGL_LOGE("UpdateConfiguration", "Missing valueToMerge.");
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("GetConfiguration", "Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
-    // valueToMerge should be allowed to be ANY object
 
-    GglObject *time_stamp_object;
-    found = ggl_map_get(args, GGL_STR("timestamp"), &time_stamp_object);
-    if (!found) {
-        GGL_LOGE("UpdateConfiguration", "Missing timestamp.");
+    ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("GetConfiguration", "Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
-    if (time_stamp_object->type != GGL_TYPE_F64) {
-        GGL_LOGE(
-            "UpdateConfiguration",
-            "timestamp is %d not a F64",
-            time_stamp_object->type
-        );
-        return GGL_ERR_INVALID;
-    };
+
+    GglBuffer component_name;
+    if (component_name_obj != NULL) {
+        component_name = component_name_obj->buf;
+    } else {
+        ret = ggl_ipc_get_component_name(handle, &component_name);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+
     // convert timestamp from sec in floating-point(with msec precision) to msec
     // in integer
-    time_stamp_object->i64 = (int64_t) time_stamp_object->f64 * 1000;
-    time_stamp_object->type = GGL_TYPE_I64;
-    GGL_LOGT("UpdateConfiguration", "timestamp is %ld", time_stamp_object->i64);
-    GglObject *config_path_object
-        = ggl_make_config_path_object(component_name_object, key_path_object);
+    int64_t timestamp = (int64_t) timestamp_obj->f64 * 1000;
+    GGL_LOGT("UpdateConfiguration", "timestamp is %" PRId64, timestamp);
+
+    GglList full_key_path;
+    ret = ggl_make_config_path_object(
+        component_name, key_path_obj->list, &full_key_path
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
     GglMap params = GGL_MAP(
-        { GGL_STR("key_path"), *config_path_object },
-        { GGL_STR("value"), *value_to_merge_object },
-        { GGL_STR("timestamp"), *time_stamp_object }
+        { GGL_STR("key_path"), GGL_OBJ(full_key_path) },
+        { GGL_STR("value"), *value_to_merge_obj },
+        { GGL_STR("timestamp"), GGL_OBJ_I64(timestamp) }
     );
 
     GglError remote_error;
-    err = ggl_call(
+    ret = ggl_call(
         GGL_STR("gg_config"),
         GGL_STR("write"),
         params,
         &remote_error,
-        alloc,
+        NULL,
         NULL
     );
-    if (err != GGL_ERR_OK) {
-        return err;
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
     // TODO: handle remote_error
     // TODO: return IPC errors:

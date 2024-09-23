@@ -16,6 +16,7 @@
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <unistd.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -65,20 +66,25 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
         GglObject *aws_access_key_id = NULL;
         GglObject *aws_secret_access_key = NULL;
         GglObject *aws_session_token = NULL;
-        if (!ggl_map_get(
-                result.map, GGL_STR("accessKeyId"), &aws_access_key_id
-            )) {
-            return GGL_ERR_FAILURE;
-        }
-        if (!ggl_map_get(
-                result.map, GGL_STR("secretAccessKey"), &aws_secret_access_key
-            )) {
-            return GGL_ERR_FAILURE;
-        }
 
-        if (!ggl_map_get(
-                result.map, GGL_STR("sessionToken"), &aws_session_token
-            )) {
+        GglError ret = ggl_map_validate(
+            params,
+            GGL_MAP_SCHEMA(
+                { GGL_STR("accessKeyId"),
+                  true,
+                  GGL_TYPE_BUF,
+                  &aws_access_key_id },
+                { GGL_STR("secretAccessKey"),
+                  true,
+                  GGL_TYPE_BUF,
+                  &aws_secret_access_key },
+                { GGL_STR("sessionToken"),
+                  true,
+                  GGL_TYPE_BUF,
+                  &aws_session_token },
+            )
+        );
+        if (ret != GGL_ERR_OK) {
             return GGL_ERR_FAILURE;
         }
 

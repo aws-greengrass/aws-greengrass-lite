@@ -74,47 +74,39 @@ GglError ggl_handle_subscribe_to_iot_core(
     (void) alloc;
     (void) info;
 
-    GglBuffer topic_filter;
-    int64_t qos;
-
-    GglObject *val = NULL;
-    bool found = ggl_map_get(args, GGL_STR("topicName"), &val);
-    if (!found) {
-        GGL_LOGE("SubscribeToIoTCore", "Missing topicName.");
+    GglObject *topic_name_obj;
+    GglObject *qos_obj;
+    GglError ret = ggl_map_validate(
+        args,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("topicName"), true, GGL_TYPE_BUF, &topic_name_obj },
+            { GGL_STR("qos"), false, GGL_TYPE_BUF, &qos_obj },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("SubscribeToIoTCore", "Received invalid parameters.");
         return GGL_ERR_INVALID;
     }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE("SubscribeToIoTCore", "topicName not a string.");
-        return GGL_ERR_INVALID;
-    }
-    topic_filter = val->buf;
 
-    found = ggl_map_get(args, GGL_STR("qos"), &val);
-    if (!found) {
-        qos = 0;
-    } else {
-        if (val->type == GGL_TYPE_I64) {
-            qos = val->i64;
-        } else if (val->type == GGL_TYPE_BUF) {
-            GglError ret = ggl_str_to_int64(val->buf, &qos);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE(
-                    "SubscribeToIoTCore", "Failed to parse qos string value."
-                );
-                return ret;
-            }
-        } else {
-            GGL_LOGE("SubscribeToIoTCore", "qos not an valid type.");
+    int64_t qos = 0;
+    if (qos_obj != NULL) {
+        ret = ggl_str_to_int64(qos_obj->buf, &qos);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("SubscribeToIoTCore", "Failed to parse qos string value.");
+            return ret;
+        }
+        if ((qos < 0) || (qos > 2)) {
+            GGL_LOGE("SubscribeToIoTCore", "qos not a valid value.");
             return GGL_ERR_INVALID;
         }
     }
 
     GglMap call_args = GGL_MAP(
-        { GGL_STR("topic_filter"), GGL_OBJ(topic_filter) },
+        { GGL_STR("topic_filter"), *topic_name_obj },
         { GGL_STR("qos"), GGL_OBJ_I64(qos) },
     );
 
-    GglError ret = ggl_ipc_bind_subscription(
+    ret = ggl_ipc_bind_subscription(
         handle,
         stream_id,
         GGL_STR("aws_iot_mqtt"),

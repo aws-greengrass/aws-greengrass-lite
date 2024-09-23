@@ -25,89 +25,63 @@ GglError ggl_handle_publish_to_topic(
     (void) info;
     (void) alloc;
 
-    GglObject *val = NULL;
-    bool found = ggl_map_get(args, GGL_STR("topic"), &val);
-    if (!found) {
-        GGL_LOGE("PublishToTopic", "Missing topic.");
+    GglObject *topic;
+    GglObject *publish_message;
+    GglError ret = ggl_map_validate(
+        args,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic },
+            { GGL_STR("publishMessage"), true, GGL_TYPE_MAP, &publish_message },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("PublishToTopic", "Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE("PublishToTopic", "topic not a string.");
+
+    GglObject *json_message;
+    GglObject *binary_message;
+    ret = ggl_map_validate(
+        publish_message->map,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("jsonMessage"), false, GGL_TYPE_MAP, &json_message },
+            { GGL_STR("binaryMessage"), false, GGL_TYPE_MAP, &binary_message },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("PublishToTopic", "Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
-    GglBuffer topic = val->buf;
 
-    found = ggl_map_get(args, GGL_STR("publishMessage"), &val);
-    if (!found) {
-        GGL_LOGE("PublishToTopic", "Missing publishMessage.");
-        return GGL_ERR_INVALID;
-    }
-    if (val->type != GGL_TYPE_MAP) {
-        GGL_LOGE("PublishToTopic", "publishMessage not a map.");
-        return GGL_ERR_INVALID;
-    }
-    GglMap publish_message = val->map;
-
-    bool is_json;
-
-    found = ggl_map_get(publish_message, GGL_STR("jsonMessage"), &val);
-    if (found) {
-        found = ggl_map_get(publish_message, GGL_STR("binaryMessage"), NULL);
-        if (found) {
-            GGL_LOGE(
-                "PublishToTopic",
-                "publishMessage has both binaryMessage and jsonMessage."
-            );
-            return GGL_ERR_INVALID;
-        }
-
-        is_json = true;
-    } else {
-        found = ggl_map_get(publish_message, GGL_STR("binaryMessage"), &val);
-        if (!found) {
-            GGL_LOGE(
-                "PublishToTopic",
-                "publishMessage missing binaryMessage or jsonMessage."
-            );
-            return GGL_ERR_INVALID;
-        }
-
-        is_json = false;
-    }
-
-    if (val->type != GGL_TYPE_MAP) {
+    if ((json_message == NULL) == (binary_message == NULL)) {
         GGL_LOGE(
             "PublishToTopic",
-            "%sMessage not a map.",
-            is_json ? "json" : "binary"
+            "publishMessage must have exactly one of binaryMessage or "
+            "jsonMessage."
         );
         return GGL_ERR_INVALID;
     }
 
-    found = ggl_map_get(val->map, GGL_STR("message"), &val);
-    if (!found) {
-        GGL_LOGE(
-            "PublishToTopic",
-            "Missing message in %sMessage.",
-            is_json ? "json" : "binary"
-        );
-        return GGL_ERR_INVALID;
-    }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE("PublishToTopic", "message is not a string.");
-        return GGL_ERR_INVALID;
-    }
+    bool is_json = json_message != NULL;
 
-    GglBuffer message = val->buf;
+    GglObject *message;
+    ret = ggl_map_validate(
+        (is_json ? json_message : binary_message)->map,
+        GGL_MAP_SCHEMA({ GGL_STR("message"), true, GGL_TYPE_BUF, &message }, )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("PublishToTopic", "Received invalid paramters.");
+        return GGL_ERR_INVALID;
+    }
 
     GglMap call_args = GGL_MAP(
-        { GGL_STR("topic"), GGL_OBJ(topic) },
+        { GGL_STR("topic"), *topic },
         { GGL_STR("type"),
           is_json ? GGL_OBJ_STR("json") : GGL_OBJ_STR("base64") },
-        { GGL_STR("message"), GGL_OBJ(message) },
+        { GGL_STR("message"), *message },
     );
 
-    GglError ret = ggl_call(
+    ret = ggl_call(
         GGL_STR("pubsub"), GGL_STR("publish"), call_args, NULL, NULL, NULL
     );
     if (ret != GGL_ERR_OK) {

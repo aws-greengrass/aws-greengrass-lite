@@ -76,31 +76,26 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
         return GGL_ERR_FAILURE;
     }
 
-    GglObject *val;
-    if (ggl_map_get(data.map, GGL_STR("topic"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "aws_iot_mqtt", "Subscription response topic not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        *topic = &val->buf;
-    } else {
-        GGL_LOGE("aws_iot_mqtt", "Subscription response is missing topic.");
+    GglObject *topic_obj;
+    GglObject *payload_obj;
+    GglError ret = ggl_map_validate(
+        data.map,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("payload"), true, GGL_TYPE_BUF, &payload_obj },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("aws_iot_mqtt", "Received invalid subscription response.");
         return GGL_ERR_FAILURE;
     }
 
-    if (ggl_map_get(data.map, GGL_STR("payload"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE(
-                "aws_iot_mqtt", "Subscription response payload not a buffer."
-            );
-            return GGL_ERR_FAILURE;
-        }
-        *payload = &val->buf;
-    } else {
-        GGL_LOGE("aws_iot_mqtt", "Subscription response is missing payload.");
-        return GGL_ERR_FAILURE;
+    if (topic != NULL) {
+        *topic = &topic_obj->buf;
+    }
+
+    if (payload != NULL) {
+        *payload = &payload_obj->buf;
     }
 
     return GGL_ERR_OK;

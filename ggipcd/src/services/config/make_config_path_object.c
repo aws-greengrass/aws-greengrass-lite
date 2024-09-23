@@ -3,23 +3,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "make_config_path_object.h"
-#include <assert.h>
+#include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
-#include <stddef.h>
 
-GglObject *ggl_make_config_path_object(
-    GglObject *component_name_object, GglObject *key_path_object
+GglError ggl_make_config_path_object(
+    GglBuffer component_name, GglList key_path, GglList *result
 ) {
-    assert(key_path_object->list.len + 2 < MAXIMUM_KEY_PATH_DEPTH);
-    static GglObject objects[MAXIMUM_KEY_PATH_DEPTH];
-    GglObjVec path = GGL_OBJ_VEC(objects);
-    ggl_obj_vec_push(&path, GGL_OBJ_STR("services"));
-    ggl_obj_vec_push(&path, *component_name_object);
-    for (size_t index = 0; index < key_path_object->list.len; index++) {
-        ggl_obj_vec_push(&path, key_path_object->list.items[index]);
+    static GglObject full_key_path_mem[MAXIMUM_KEY_PATH_DEPTH];
+    GglObjVec full_key_path = GGL_OBJ_VEC(full_key_path_mem);
+
+    GglError ret = ggl_obj_vec_push(&full_key_path, GGL_OBJ_STR("services"));
+    ggl_obj_vec_chain_push(&ret, &full_key_path, GGL_OBJ(component_name));
+    ggl_obj_vec_chain_append(&ret, &full_key_path, key_path);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("config", "Key path too long.");
+        return ret;
     }
-    static GglObject path_object;
-    path_object = GGL_OBJ(path.list);
-    return &path_object;
+
+    *result = full_key_path.list;
+    return GGL_ERR_OK;
 }

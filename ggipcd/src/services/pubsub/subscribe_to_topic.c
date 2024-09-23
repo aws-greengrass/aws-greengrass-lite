@@ -26,32 +26,22 @@ static GglError subscribe_to_topic_callback(
         return GGL_ERR_FAILURE;
     }
 
-    GglObject *val = NULL;
-    bool found = ggl_map_get(data.map, GGL_STR("topic"), &val);
-    if (!found) {
-        GGL_LOGE("SubscribeToTopic", "Subscription response missing topic.");
+    GglObject *topic_obj;
+    GglObject *type_obj;
+    GglObject *message_obj;
+    GglError ret = ggl_map_validate(
+        data.map,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("type"), true, GGL_TYPE_BUF, &type_obj },
+            { GGL_STR("message"), true, GGL_TYPE_BUF, &message_obj },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("SubscribeToTopic", "Received invalid subscription response.");
         return GGL_ERR_FAILURE;
     }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "SubscribeToTopic", "Subscription response topic not a buffer."
-        );
-        return GGL_ERR_INVALID;
-    }
-    GglBuffer topic = val->buf;
-
-    found = ggl_map_get(data.map, GGL_STR("type"), &val);
-    if (!found) {
-        GGL_LOGE("SubscribeToTopic", "Subscription response missing type.");
-        return GGL_ERR_FAILURE;
-    }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "SubscribeToTopic", "Subscription response type not a buffer."
-        );
-        return GGL_ERR_INVALID;
-    }
-    GglBuffer type = val->buf;
+    GglBuffer type = type_obj->buf;
 
     bool is_json;
 
@@ -69,30 +59,16 @@ static GglError subscribe_to_topic_callback(
         return GGL_ERR_INVALID;
     }
 
-    found = ggl_map_get(data.map, GGL_STR("message"), &val);
-    if (!found) {
-        GGL_LOGE("SubscribeToTopic", "Subscription response missing message.");
-        return GGL_ERR_FAILURE;
-    }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "SubscribeToTopic", "Subscription response message not a buffer."
-        );
-        return GGL_ERR_INVALID;
-    }
-    GglBuffer message = val->buf;
-
     GglObject inner = GGL_OBJ_MAP(
-        { GGL_STR("message"), GGL_OBJ(message) },
-        { GGL_STR("context"),
-          GGL_OBJ_MAP({ GGL_STR("topic"), GGL_OBJ(topic) }) }
+        { GGL_STR("message"), *message_obj },
+        { GGL_STR("context"), GGL_OBJ_MAP({ GGL_STR("topic"), *topic_obj }) }
     );
 
     GglObject response = GGL_OBJ_MAP(
         { is_json ? GGL_STR("jsonMessage") : GGL_STR("binaryMessage"), inner }
     );
 
-    GglError ret = ggl_ipc_response_send(
+    ret = ggl_ipc_response_send(
         resp_handle,
         stream_id,
         GGL_STR("aws.greengrass#SubscriptionResponseMessage"),
@@ -119,22 +95,19 @@ GglError ggl_handle_subscribe_to_topic(
     (void) alloc;
     (void) info;
 
-    GglObject *val = NULL;
-    bool found = ggl_map_get(args, GGL_STR("topic"), &val);
-    if (!found) {
-        GGL_LOGE("SubscribeToTopic", "Missing topic.");
+    GglObject *topic_obj;
+    GglError ret = ggl_map_validate(
+        args,
+        GGL_MAP_SCHEMA({ GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj }, )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("SubscribeToTopic", "Received invalid parameters.");
         return GGL_ERR_INVALID;
     }
-    if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE("SubscribeToTopic", "topic not a string.");
-        return GGL_ERR_INVALID;
-    }
-    GglBuffer topic_filter = val->buf;
 
-    GglMap call_args
-        = GGL_MAP({ GGL_STR("topic_filter"), GGL_OBJ(topic_filter) });
+    GglMap call_args = GGL_MAP({ GGL_STR("topic_filter"), *topic_obj });
 
-    GglError ret = ggl_ipc_bind_subscription(
+    ret = ggl_ipc_bind_subscription(
         handle,
         stream_id,
         GGL_STR("pubsub"),

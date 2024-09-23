@@ -85,7 +85,7 @@ static GglError deep_copy_deployment(
         return ret;
     }
 
-    ret = null_terminate_buffer(&deployment->artifact_directory_path, alloc);
+    ret = null_terminate_buffer(&deployment->artifacts_directory_path, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -115,65 +115,79 @@ static GglError deep_copy_deployment(
 }
 
 static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
-    GglObject *val;
-
     *doc = (GglDeployment) { 0 };
 
-    if (ggl_map_get(args, GGL_STR("recipe_directory_path"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE("ggdeploymentd", "Received invalid argument.");
-            return GGL_ERR_INVALID;
-        }
-        doc->recipe_directory_path = val->buf;
+    GglObject *recipe_directory_path;
+    GglObject *artifacts_directory_path;
+    GglObject *root_component_versions_to_add;
+    GglObject *cloud_root_components_to_add;
+    GglObject *root_components_to_remove;
+    GglObject *component_to_configuration;
+    GglObject *deployment_id;
+
+    GglError ret = ggl_map_validate(
+        args,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("recipe_directory_path"),
+              false,
+              GGL_TYPE_BUF,
+              &recipe_directory_path },
+            { GGL_STR("artifacts_directory_path"),
+              false,
+              GGL_TYPE_BUF,
+              &artifacts_directory_path },
+            { GGL_STR("root_component_versions_to_add"),
+              false,
+              GGL_TYPE_MAP,
+              &root_component_versions_to_add },
+            { GGL_STR("components"),
+              false,
+              GGL_TYPE_MAP,
+              &cloud_root_components_to_add },
+            { GGL_STR("root_components_to_remove"),
+              false,
+              GGL_TYPE_LIST,
+              &root_components_to_remove },
+            { GGL_STR("component_to_configuration"),
+              false,
+              GGL_TYPE_MAP,
+              &component_to_configuration },
+            { GGL_STR("deployment_id"), false, GGL_TYPE_BUF, &deployment_id },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("ggdeploymentd", "Received invalid argument.");
+        return GGL_ERR_INVALID;
     }
 
-    if (ggl_map_get(args, GGL_STR("artifacts_directory_path"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE("ggdeploymentd", "Received invalid argument.");
-            return GGL_ERR_INVALID;
-        }
-        doc->artifact_directory_path = val->buf;
+    if (recipe_directory_path != NULL) {
+        doc->recipe_directory_path = recipe_directory_path->buf;
     }
 
-    if (ggl_map_get(args, GGL_STR("root_component_versions_to_add"), &val)) {
-        if (val->type != GGL_TYPE_MAP) {
-            GGL_LOGE("ggdeploymentd", "Received invalid argument.");
-            return GGL_ERR_INVALID;
-        }
-        doc->root_component_versions_to_add = val->map;
+    if (artifacts_directory_path != NULL) {
+        doc->artifacts_directory_path = artifacts_directory_path->buf;
+    }
+
+    if (root_component_versions_to_add != NULL) {
+        doc->root_component_versions_to_add
+            = root_component_versions_to_add->map;
     }
 
     // TODO: Refactor. This is a cloud deployment doc only field.
-    if (ggl_map_get(args, GGL_STR("components"), &val)) {
-        if (val->type != GGL_TYPE_MAP) {
-            GGL_LOGE("ggdeploymentd", "Received invalid argument.");
-            return GGL_ERR_INVALID;
-        }
-        doc->cloud_root_components_to_add = val->map;
+    if (cloud_root_components_to_add != NULL) {
+        doc->cloud_root_components_to_add = cloud_root_components_to_add->map;
     }
 
-    if (ggl_map_get(args, GGL_STR("root_components_to_remove"), &val)) {
-        if (val->type != GGL_TYPE_LIST) {
-            GGL_LOGE("ggdeploymentd", "Received invalid argument.");
-            return GGL_ERR_INVALID;
-        }
-        doc->root_components_to_remove = val->list;
+    if (root_components_to_remove != NULL) {
+        doc->root_components_to_remove = root_components_to_remove->list;
     }
 
-    if (ggl_map_get(args, GGL_STR("component_to_configuration"), &val)) {
-        if (val->type != GGL_TYPE_MAP) {
-            GGL_LOGE("ggdeploymentd", "Received invalid argument.");
-            return GGL_ERR_INVALID;
-        }
-        doc->component_to_configuration = val->map;
+    if (component_to_configuration != NULL) {
+        doc->component_to_configuration = component_to_configuration->map;
     }
 
-    if (ggl_map_get(args, GGL_STR("deployment_id"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
-            GGL_LOGE("ggdeploymentd", "Received invalid argument.");
-            return GGL_ERR_INVALID;
-        }
-        doc->deployment_id = val->buf;
+    if (deployment_id != NULL) {
+        doc->deployment_id = deployment_id->buf;
     } else {
         static uint8_t uuid_mem[37];
         uuid_t binuuid;

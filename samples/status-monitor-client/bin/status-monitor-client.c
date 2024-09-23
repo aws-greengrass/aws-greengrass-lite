@@ -40,18 +40,21 @@ int main(void) {
         }
 
         GglObject *component_name = NULL;
-        bool found = ggl_map_get(
-            result.map, GGL_STR("component_name"), &component_name
-        );
-        if (!found || (component_name->type != GGL_TYPE_BUF)) {
-            return EPROTO;
-        }
-
         GglObject *lifecycle_state = NULL;
-        found = ggl_map_get(
-            result.map, GGL_STR("lifecycle_state"), &lifecycle_state
+        GglError ret = ggl_map_validate(
+            result.map,
+            GGL_MAP_SCHEMA(
+                { GGL_STR("component_name"),
+                  true,
+                  GGL_TYPE_BUF,
+                  &component_name },
+                { GGL_STR("lifecycle_state"),
+                  true,
+                  GGL_TYPE_BUF,
+                  &lifecycle_state },
+            )
         );
-        if (!found || (lifecycle_state->type != GGL_TYPE_BUF)) {
+        if (ret != GGL_ERR_OK) {
             return EPROTO;
         }
 

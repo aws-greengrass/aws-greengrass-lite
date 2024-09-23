@@ -9,6 +9,7 @@
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
+#include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -116,61 +117,64 @@ static GglError decode_object_destructive(
 static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    GglObject *val;
-    GglList *key_list;
-
-    if (ggl_map_get(params, GGL_STR("key_path"), &val)
-        && (val->type == GGL_TYPE_LIST)) {
-        key_list = &val->list;
-    } else {
+    GglObject *key_path;
+    if (!ggl_map_get(params, GGL_STR("key_path"), &key_path)
+        || (key_path->type != GGL_TYPE_LIST)) {
         GGL_LOGE("rpc_read", "read received invalid key_path argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
-    GGL_LOGI("rpc_read", "reading key %s", print_key_path(key_list));
+    GglError ret = ggl_list_type_check(key_path->list, GGL_TYPE_BUF);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("rpc_read", "key_path elements must be strings.");
+        ggl_return_err(handle, GGL_ERR_RANGE);
+        return;
+    }
+
+    GGL_LOGD("rpc_read", "reading key %s", print_key_path(&key_path->list));
 
     GglObject value;
-    GglError err = ggconfig_get_value_from_key(key_list, &value);
+    GglError err = ggconfig_get_value_from_key(&key_path->list, &value);
     if (err != GGL_ERR_OK) {
         ggl_return_err(handle, err);
-    } else {
-        static uint8_t object_decode_memory[GGCONFIGD_MAX_OBJECT_DECODE_BYTES];
-        GglBumpAlloc object_alloc
-            = ggl_bump_alloc_init(GGL_BUF(object_decode_memory));
-        decode_object_destructive(&value, &object_alloc);
-        ggl_respond(handle, value);
+        return;
     }
-}
 
-static void sub_close_callback(void *ctx, uint32_t handle) {
-    (void) ctx;
-    (void) handle;
-    GGL_LOGD("sub_close_callback", "closing callback for %d", handle);
+    static uint8_t object_decode_memory[GGCONFIGD_MAX_OBJECT_DECODE_BYTES];
+    GglBumpAlloc object_alloc
+        = ggl_bump_alloc_init(GGL_BUF(object_decode_memory));
+    decode_object_destructive(&value, &object_alloc);
+
+    ggl_respond(handle, value);
 }
 
 static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    GglObject *val;
-    GglList *key_list;
+    GGL_LOGD("rpc_subscribe", "subscribing");
 
-    GGL_LOGI("rpc_subscribe", "subscribing");
-
-    if (ggl_map_get(params, GGL_STR("key_path"), &val)
-        && (val->type == GGL_TYPE_LIST)) {
-        key_list = &val->list;
-    } else {
+    GglObject *key_path;
+    if (!ggl_map_get(params, GGL_STR("key_path"), &key_path)
+        || (key_path->type != GGL_TYPE_LIST)) {
         GGL_LOGE("rpc_subscribe", "read received invalid key_path argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
-    GglError ret = ggconfig_get_key_notification(key_list, handle);
+    GglError ret = ggl_list_type_check(key_path->list, GGL_TYPE_BUF);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("rpc_subscribe", "key_path elements must be strings.");
+        ggl_return_err(handle, GGL_ERR_RANGE);
+        return;
+    }
+
+    ret = ggconfig_get_key_notification(&key_path->list, handle);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
     }
-    ggl_sub_accept(handle, sub_close_callback, NULL);
+
+    ggl_sub_accept(handle, NULL, NULL);
 }
 
 // TODO: This processing of maps should probably happen in the db_interface
@@ -236,59 +240,57 @@ static GglError process_map(
 }
 
 static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
-    /// Receive the following parameters
-    int64_t timestamp = 1;
     (void) ctx;
 
-    GglObject *val;
-    GglObject object_list_memory[MAX_KEY_PATH_DEPTH] = { 0 };
-    GglList object_list = { .items = object_list_memory, .len = 0 };
-    GglObjVec key_path
-        = { .list = object_list, .capacity = MAX_KEY_PATH_DEPTH };
-
-    if (ggl_map_get(params, GGL_STR("key_path"), &val)
-        && (val->type == GGL_TYPE_LIST)) {
-        GglList *list = &val->list;
-        for (size_t x = 0; x < list->len; x++) {
-            if (ggl_obj_vec_push(&key_path, list->items[x]) != GGL_ERR_OK) {
-                GGL_LOGE("rpc_write", "Error pushing to the key_path");
-                ggl_return_err(handle, GGL_ERR_INVALID);
-                return;
-            }
-        }
-    } else {
+    GglObject *key_path_obj;
+    GglObject *value_obj;
+    GglObject *timestamp_obj;
+    // TODO: write should accept any object for value.
+    GglError ret = ggl_map_validate(
+        params,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("key_path"), true, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("value"), true, GGL_TYPE_MAP, &value_obj },
+            { GGL_STR("timestamp"), false, GGL_TYPE_I64, &timestamp_obj },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
         GGL_LOGE("rpc_write", "write received invalid key_path argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
-    if (ggl_map_get(params, GGL_STR("timestamp"), &val)
-        && (val->type == GGL_TYPE_I64)) {
-        timestamp = val->i64;
-        GGL_LOGD("rpc_write", "timestamp %ld", timestamp);
+    ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("rpc_write", "key_path elements must be strings.");
+        ggl_return_err(handle, GGL_ERR_RANGE);
+        return;
+    }
+
+    GglObjVec key_path = GGL_OBJ_VEC((GglObject[MAX_KEY_PATH_DEPTH]) { 0 });
+    ret = ggl_obj_vec_append(&key_path, key_path_obj->list);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("rpc_write", "key_path too long.");
+        ggl_return_err(handle, GGL_ERR_RANGE);
+        return;
+    }
+
+    int64_t timestamp;
+    if (timestamp_obj != NULL) {
+        timestamp = timestamp_obj->i64;
     } else {
         struct timespec now;
         clock_gettime(CLOCK_REALTIME, &now);
-        int64_t now_msec = (int64_t) now.tv_sec * 1000 + now.tv_nsec / 1000000;
-        timestamp = now_msec;
-        GGL_LOGD(
-            "rpc_write", "no timestamp was provided, using %ld", timestamp
-        );
+        timestamp = (int64_t) now.tv_sec * 1000 + now.tv_nsec / 1000000;
     }
+    GGL_LOGD("rpc_write", "timestamp %ld.", timestamp);
 
-    if (ggl_map_get(params, GGL_STR("value"), &val)
-        && (val->type == GGL_TYPE_MAP)) {
-        GGL_LOGT("rpc_write", "value is a Map");
-        GglError error = process_map(&key_path, &val->map, timestamp);
-        if (error != GGL_ERR_OK) {
-            ggl_return_err(handle, error);
-        } else {
-            ggl_respond(handle, GGL_OBJ_NULL());
-        }
-        return;
+    GglError error = process_map(&key_path, &value_obj->map, timestamp);
+    if (error != GGL_ERR_OK) {
+        ggl_return_err(handle, error);
+    } else {
+        ggl_respond(handle, GGL_OBJ_NULL());
     }
-    GGL_LOGE("rpc_write", "write received invalid value argument.");
-    ggl_return_err(handle, GGL_ERR_INVALID);
 }
 
 void ggconfigd_start_server(void) {

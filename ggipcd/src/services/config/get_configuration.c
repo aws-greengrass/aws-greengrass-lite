@@ -9,6 +9,7 @@
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
+#include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -25,66 +26,53 @@ GglError ggl_handle_get_configuration(
 ) {
     (void) info;
 
-    for (size_t x = 0; x < args.len; x++) {
-        GglKV *kv = &args.pairs[x];
-        GglBuffer *key = &kv->key;
-        GGL_LOGT(
-            "GetConfiguration",
-            "found key : %.*s",
-            (int) key->len,
-            (char *) key->data
-        );
-    }
-    GglObject *key_path_object;
-    bool found = ggl_map_get(args, GGL_STR("keyPath"), &key_path_object);
-    if (!found) {
-        GGL_LOGE("GetConfiguration", "Missing keyPath.");
-        return GGL_ERR_INVALID;
-    }
-    if (key_path_object->type != GGL_TYPE_LIST) {
-        GGL_LOGE("GetConfiguration", "keyPath is not a List.");
+    GglObject *key_path_obj;
+    GglObject *component_name_obj;
+    GglBuffer component_name;
+    GglError ret = ggl_map_validate(
+        args,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("keyPath"), true, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("componentName"),
+              false,
+              GGL_TYPE_BUF,
+              &component_name_obj },
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("GetConfiguration", "Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
 
-    GglBuffer component_name_buffer;
-    GglObject component_name_object;
-    GglObject *component_name_object_ptr = &component_name_object;
-    found = ggl_map_get(
-        args, GGL_STR("componentName"), &component_name_object_ptr
-    );
-    if (found) {
-        if (key_path_object->type != GGL_TYPE_LIST) {
-            GGL_LOGE("GetConfiguration", "keyPath is not a List.");
-            return GGL_ERR_INVALID;
-        }
+    ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("GetConfiguration", "Received invalid paramters.");
+        return GGL_ERR_INVALID;
+    }
+
+    if (component_name_obj != NULL) {
+        component_name = component_name_obj->buf;
     } else {
-        GglError err
-            = ggl_ipc_get_component_name(handle, &component_name_buffer);
-        if (err != GGL_ERR_OK) {
-            return err;
+        ret = ggl_ipc_get_component_name(handle, &component_name);
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
-        component_name_object = GGL_OBJ(component_name_buffer);
-        component_name_object_ptr = &component_name_object;
     }
-    GGL_LOGT(
-        "GetConfiguration",
-        "Component Name : %.*s",
-        (int) component_name_object_ptr->buf.len,
-        (char *) component_name_object_ptr->buf.data
-    );
 
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          *ggl_make_config_path_object(
-              component_name_object_ptr, key_path_object
-          ) },
+    GglList full_key_path;
+    ret = ggl_make_config_path_object(
+        component_name, key_path_obj->list, &full_key_path
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
     GglError remote_error;
     GglObject core_bus_response;
     GglError err = ggl_call(
         GGL_STR("gg_config"),
         GGL_STR("read"),
-        params,
+        GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(full_key_path) }),
         &remote_error,
         alloc,
         &core_bus_response
@@ -96,15 +84,13 @@ GglError ggl_handle_get_configuration(
     // TODO: return IPC errors:
     // https://github.com/awslabs/smithy-iot-device-sdk-greengrass-ipc/blob/60966747302e17eb8cc6ddad972f90aa92ad38a7/greengrass-ipc-model/main.smithy#L74
 
-    GglObject response = GGL_OBJ_MAP(
-        { GGL_STR("componentName"), *component_name_object_ptr },
-        { GGL_STR("value"), core_bus_response }
-    );
-
     return ggl_ipc_response_send(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#GetConfigurationResponse"),
-        response
+        GGL_OBJ_MAP(
+            { GGL_STR("componentName"), GGL_OBJ(component_name) },
+            { GGL_STR("value"), core_bus_response }
+        )
     );
 }

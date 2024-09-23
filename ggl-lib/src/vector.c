@@ -18,6 +18,14 @@ GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
     return GGL_ERR_OK;
 }
 
+void ggl_obj_vec_chain_push(
+    GglError *err, GglObjVec *vector, GglObject object
+) {
+    if (*err == GGL_ERR_OK) {
+        *err = ggl_obj_vec_push(vector, object);
+    }
+}
+
 GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out) {
     if (vector->list.len == 0) {
         return GGL_ERR_RANGE;
@@ -43,6 +51,12 @@ GglError ggl_obj_vec_append(GglObjVec *vector, GglList list) {
     );
     vector->list.len += list.len;
     return GGL_ERR_OK;
+}
+
+void ggl_obj_vec_chain_append(GglError *err, GglObjVec *vector, GglList list) {
+    if (*err == GGL_ERR_OK) {
+        *err = ggl_obj_vec_append(vector, list);
+    }
 }
 
 GglError ggl_kv_vec_push(GglKVVec *vector, GglKV kv) {
