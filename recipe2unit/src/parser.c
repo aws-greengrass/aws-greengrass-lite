@@ -73,6 +73,11 @@ GglError convert_to_unit(Recipe2UnitArgs *args) {
         return ret;
     }
 
+    if (component_name == NULL) {
+        GGL_LOGE(COMPONENT_NAME, "Component name was NULL");
+        return GGL_ERR_FAILURE;
+    }
+
     static uint8_t file_name_array[MAX_COMPONENT_FILE_NAME];
     GglBuffer file_name_buffer = (GglBuffer
     ) { .data = (uint8_t *) file_name_array, .len = MAX_COMPONENT_FILE_NAME };
