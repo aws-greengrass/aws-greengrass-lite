@@ -7,7 +7,8 @@
 #include "config.h"
 #include "make_config_path_object.h"
 #include <ggl/alloc.h>
-#include <ggl/core_bus/client.h>
+#include <ggl/buffer.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
@@ -72,7 +73,7 @@ GglError ggl_handle_update_configuration(
     int64_t timestamp = (int64_t) timestamp_obj->f64 * 1000;
     GGL_LOGT("UpdateConfiguration", "timestamp is %" PRId64, timestamp);
 
-    GglList full_key_path;
+    GglBufList full_key_path;
     ret = ggl_make_config_path_object(
         component_name, key_path_obj->list, &full_key_path
     );
@@ -80,25 +81,12 @@ GglError ggl_handle_update_configuration(
         return ret;
     }
 
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"), GGL_OBJ(full_key_path) },
-        { GGL_STR("value"), *value_to_merge_obj },
-        { GGL_STR("timestamp"), GGL_OBJ_I64(timestamp) }
-    );
-
-    GglError remote_error;
-    ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("write"),
-        params,
-        &remote_error,
-        NULL,
-        NULL
+    ret = ggl_gg_config_write(
+        full_key_path.bufs, full_key_path.len, *value_to_merge_obj, timestamp
     );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    // TODO: handle remote_error
     // TODO: return IPC errors:
     // https://github.com/awslabs/smithy-iot-device-sdk-greengrass-ipc/blob/60966747302e17eb8cc6ddad972f90aa92ad38a7/greengrass-ipc-model/main.smithy#L82
 

@@ -7,7 +7,8 @@
 #include "config.h"
 #include "make_config_path_object.h"
 #include <ggl/alloc.h>
-#include <ggl/core_bus/client.h>
+#include <ggl/buffer.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
@@ -59,7 +60,7 @@ GglError ggl_handle_get_configuration(
         }
     }
 
-    GglList full_key_path;
+    GglBufList full_key_path;
     ret = ggl_make_config_path_object(
         component_name, key_path_obj->list, &full_key_path
     );
@@ -67,20 +68,13 @@ GglError ggl_handle_get_configuration(
         return ret;
     }
 
-    GglError remote_error;
-    GglObject core_bus_response;
-    GglError err = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(full_key_path) }),
-        &remote_error,
-        alloc,
-        &core_bus_response
+    GglObject read_value;
+    ret = ggl_gg_config_read(
+        full_key_path.bufs, full_key_path.len, alloc, &read_value
     );
-    if (err != GGL_ERR_OK) {
-        return err;
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
-    // TODO: handle remote_error
     // TODO: return IPC errors:
     // https://github.com/awslabs/smithy-iot-device-sdk-greengrass-ipc/blob/60966747302e17eb8cc6ddad972f90aa92ad38a7/greengrass-ipc-model/main.smithy#L74
 
@@ -90,7 +84,7 @@ GglError ggl_handle_get_configuration(
         GGL_STR("aws.greengrass#GetConfigurationResponse"),
         GGL_OBJ_MAP(
             { GGL_STR("componentName"), GGL_OBJ(component_name) },
-            { GGL_STR("value"), core_bus_response }
+            { GGL_STR("value"), read_value }
         )
     );
 }

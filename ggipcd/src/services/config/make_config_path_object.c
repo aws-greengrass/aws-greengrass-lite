@@ -8,19 +8,19 @@
 #include <ggl/vector.h>
 
 GglError ggl_make_config_path_object(
-    GglBuffer component_name, GglList key_path, GglList *result
+    GglBuffer component_name, GglList key_path, GglBufList *result
 ) {
-    static GglObject full_key_path_mem[MAXIMUM_KEY_PATH_DEPTH];
-    GglObjVec full_key_path = GGL_OBJ_VEC(full_key_path_mem);
+    static GglBuffer full_key_path_mem[MAXIMUM_KEY_PATH_DEPTH];
+    GglBufVec full_key_path = GGL_BUF_VEC(full_key_path_mem);
 
-    GglError ret = ggl_obj_vec_push(&full_key_path, GGL_OBJ_STR("services"));
-    ggl_obj_vec_chain_push(&ret, &full_key_path, GGL_OBJ(component_name));
-    ggl_obj_vec_chain_append(&ret, &full_key_path, key_path);
+    GglError ret = ggl_buf_vec_push(&full_key_path, GGL_STR("services"));
+    ggl_buf_vec_chain_push(&ret, &full_key_path, component_name);
+    ggl_buf_vec_chain_append_list(&ret, &full_key_path, key_path);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("config", "Key path too long.");
         return ret;
     }
 
-    *result = full_key_path.list;
+    *result = full_key_path.buf_list;
     return GGL_ERR_OK;
 }

@@ -9,5 +9,6 @@ ggl_init_module(
        eventstream
        ggl-json
        core-bus
+       core-bus-gg-config
        core-bus-aws-iot-mqtt
        ggipc-auth)
