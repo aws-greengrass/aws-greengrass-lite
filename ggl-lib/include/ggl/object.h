@@ -13,7 +13,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/// Union tag for `Ggl_Object`.
+/// Union tag for `GglObject`.
 typedef enum {
     GGL_TYPE_NULL = 0,
     GGL_TYPE_BOOLEAN,
@@ -30,13 +30,13 @@ typedef struct {
     size_t len;
 } GglBuffer;
 
-/// An array of `Ggl_Object`.
+/// An array of `GglObject`.
 typedef struct {
     struct GglObject *items;
     size_t len;
 } GglList;
 
-/// A map of UTF-8 strings to `Ggl_Object`s.
+/// A map of UTF-8 strings to `GglObject`s.
 typedef struct {
     struct GglKV *pairs;
     size_t len;
@@ -56,7 +56,7 @@ typedef struct GglObject {
     };
 } GglObject;
 
-/// A key-value pair used for `Ggl_Map`.
+/// A key-value pair used for `GglMap`.
 /// `key` must be an UTF-8 encoded string.
 typedef struct GglKV {
     GglBuffer key;

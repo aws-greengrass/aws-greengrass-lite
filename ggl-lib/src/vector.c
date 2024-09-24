@@ -4,6 +4,7 @@
 
 #include "ggl/vector.h"
 #include "ggl/error.h"
+#include "ggl/list.h"
 #include "ggl/log.h"
 #include "ggl/object.h"
 #include <string.h>
@@ -105,5 +106,42 @@ void ggl_byte_vec_chain_append(
 ) {
     if (*err == GGL_ERR_OK) {
         *err = ggl_byte_vec_append(vector, buf);
+    }
+}
+
+GglError ggl_buf_vec_push(GglBufVec *vector, GglBuffer buf) {
+    if (vector->buf_list.len >= vector->capacity) {
+        return GGL_ERR_NOMEM;
+    }
+    GGL_LOGT("ggl_buf_vec", "Pushed to %p.", vector);
+    vector->buf_list.bufs[vector->buf_list.len] = buf;
+    vector->buf_list.len++;
+    return GGL_ERR_OK;
+}
+
+void ggl_buf_vec_chain_push(GglError *err, GglBufVec *vector, GglBuffer buf) {
+    if (*err == GGL_ERR_OK) {
+        *err = ggl_buf_vec_push(vector, buf);
+    }
+}
+
+GglError ggl_buf_vec_append_list(GglBufVec *vector, GglList list) {
+    GGL_LIST_FOREACH(item, list) {
+        if (item->type != GGL_TYPE_BUF) {
+            return GGL_ERR_INVALID;
+        }
+        GglError ret = ggl_buf_vec_push(vector, item->buf);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
+void ggl_buf_vec_chain_append_list(
+    GglError *err, GglBufVec *vector, GglList list
+) {
+    if (*err == GGL_ERR_OK) {
+        *err = ggl_buf_vec_append_list(vector, list);
     }
 }
