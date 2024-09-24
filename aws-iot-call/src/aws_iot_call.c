@@ -175,11 +175,9 @@ GglError ggl_aws_iot_call(
         return ret;
     }
 
-    GglBuffer sub_topics[2] = { accepted_topic.buf, rejected_topic.buf };
     uint32_t sub_handle = 0;
     ret = ggl_aws_iot_mqtt_subscribe(
-        sub_topics,
-        2,
+        GGL_BUF_LIST(accepted_topic.buf, rejected_topic.buf),
         1,
         subscription_callback,
         subscription_close_callback,

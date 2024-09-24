@@ -4,31 +4,33 @@
 
 #include "ggl/core_bus/gg_config.h"
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define GGL_MAX_CONFIG_DEPTH 10
 
 GglError ggl_gg_config_read(
-    GglBuffer *key_path, size_t levels, GglAlloc *alloc, GglObject *result
+    GglBufList key_path, GglAlloc *alloc, GglObject *result
 ) {
-    if (levels > GGL_MAX_CONFIG_DEPTH) {
+    if (key_path.len > GGL_MAX_CONFIG_DEPTH) {
         GGL_LOGE("gg_config", "Key path depth exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
     GglObject path_obj[GGL_MAX_CONFIG_DEPTH] = { 0 };
-    for (size_t i = 0; i < levels; i++) {
-        path_obj[i] = GGL_OBJ(key_path[i]);
+    for (size_t i = 0; i < key_path.len; i++) {
+        path_obj[i] = GGL_OBJ(key_path.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ((GglList) { .items = path_obj, .len = levels }) },
+          GGL_OBJ((GglList) { .items = path_obj, .len = key_path.len }) },
     );
 
     GglError remote_err = GGL_ERR_OK;
@@ -43,14 +45,11 @@ GglError ggl_gg_config_read(
     return err;
 }
 
-GglError ggl_gg_config_read_str(
-    GglBuffer *key_path, size_t levels, GglBuffer *result
-) {
+GglError ggl_gg_config_read_str(GglBufList key_path, GglBuffer *result) {
     GglObject result_obj;
     GglBumpAlloc alloc = ggl_bump_alloc_init(*result);
 
-    GglError ret
-        = ggl_gg_config_read(key_path, levels, &alloc.alloc, &result_obj);
+    GglError ret = ggl_gg_config_read(key_path, &alloc.alloc, &result_obj);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -65,26 +64,26 @@ GglError ggl_gg_config_read_str(
 }
 
 GglError ggl_gg_config_write(
-    GglBuffer *key_path, size_t levels, GglObject value, int64_t timestamp
+    GglBufList key_path, GglObject value, int64_t timestamp
 ) {
     if (timestamp < 0) {
         GGL_LOGE("gg_config", "Timestamp is negative.");
         return GGL_ERR_UNSUPPORTED;
     }
 
-    if (levels > GGL_MAX_CONFIG_DEPTH) {
+    if (key_path.len > GGL_MAX_CONFIG_DEPTH) {
         GGL_LOGE("gg_config", "Key path depth exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
     GglObject path_obj[GGL_MAX_CONFIG_DEPTH] = { 0 };
-    for (size_t i = 0; i < levels; i++) {
-        path_obj[i] = GGL_OBJ(key_path[i]);
+    for (size_t i = 0; i < key_path.len; i++) {
+        path_obj[i] = GGL_OBJ(key_path.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ((GglList) { .items = path_obj, .len = levels }) },
+          GGL_OBJ((GglList) { .items = path_obj, .len = key_path.len }) },
         { GGL_STR("value"), value },
         { GGL_STR("timestamp"), GGL_OBJ_I64(timestamp) },
     );
@@ -102,26 +101,25 @@ GglError ggl_gg_config_write(
 }
 
 GglError ggl_gg_config_subscribe(
-    GglBuffer *key_path,
-    size_t levels,
+    GglBufList key_path,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,
     uint32_t *handle
 ) {
-    if (levels > GGL_MAX_CONFIG_DEPTH) {
+    if (key_path.len > GGL_MAX_CONFIG_DEPTH) {
         GGL_LOGE("gg_config", "Key path depth exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
     GglObject path_obj[GGL_MAX_CONFIG_DEPTH] = { 0 };
-    for (size_t i = 0; i < levels; i++) {
-        path_obj[i] = GGL_OBJ(key_path[i]);
+    for (size_t i = 0; i < key_path.len; i++) {
+        path_obj[i] = GGL_OBJ(key_path.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ((GglList) { .items = path_obj, .len = levels }) },
+          GGL_OBJ((GglList) { .items = path_obj, .len = key_path.len }) },
     );
 
     GglError remote_err = GGL_ERR_OK;

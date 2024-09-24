@@ -8,6 +8,7 @@
 #include "iot_jobs_listener.h"
 #include <sys/types.h>
 #include <fcntl.h>
+#include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
@@ -32,7 +33,7 @@ GglError run_ggdeploymentd(const char *bin_path) {
     static uint8_t root_path_mem[MAX_PATH_LENGTH] = { 0 };
     GglBuffer root_path = GGL_BUF(root_path_mem);
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("rootPath") }, 2, &root_path
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &root_path
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("ggdeploymentd", "Failed to get root path from config.");

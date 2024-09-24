@@ -5,6 +5,7 @@
 #include "bus_server.h"
 #include "iotcored.h"
 #include "mqtt.h"
+#include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -22,9 +23,7 @@ GglError run_iotcored(IotcoredArgs *args) {
         cert.len -= 1;
 
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[2]) { GGL_STR("system"),
-                             GGL_STR("certificateFilePath") },
-            2,
+            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("certificateFilePath")),
             &cert
         );
         if (ret != GGL_ERR_OK) {
@@ -39,11 +38,12 @@ GglError run_iotcored(IotcoredArgs *args) {
         endpoint.len -= 1;
 
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[4]) { GGL_STR("services"),
-                             GGL_STR("aws.greengrass.Nucleus-Lite"),
-                             GGL_STR("configuration"),
-                             GGL_STR("iotDataEndpoint") },
-            4,
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.Nucleus-Lite"),
+                GGL_STR("configuration"),
+                GGL_STR("iotDataEndpoint")
+            ),
             &endpoint
         );
         if (ret != GGL_ERR_OK) {
@@ -58,7 +58,7 @@ GglError run_iotcored(IotcoredArgs *args) {
         id.len -= 1;
 
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") }, 2, &id
+            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &id
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -72,9 +72,7 @@ GglError run_iotcored(IotcoredArgs *args) {
         key.len -= 1;
 
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[2]) { GGL_STR("system"), GGL_STR("privateKeyPath") },
-            2,
-            &key
+            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")), &key
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -88,9 +86,7 @@ GglError run_iotcored(IotcoredArgs *args) {
         rootca.len -= 1;
 
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[2]) { GGL_STR("system"), GGL_STR("rootCaPath") },
-            2,
-            &rootca
+            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")), &rootca
         );
         if (ret != GGL_ERR_OK) {
             return ret;

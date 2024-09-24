@@ -144,9 +144,7 @@ static GglError get_thing_name(void) {
     thing_name = GGL_BUF(thing_name_mem);
 
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") },
-        2,
-        &thing_name
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &thing_name
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("jobs-listener", "Failed to read thingName from config.");
@@ -504,7 +502,12 @@ static GglError subscribe_to_format_topic(
     }
 
     return ggl_aws_iot_mqtt_subscribe(
-        &topic.buf, 1, QOS_AT_LEAST_ONCE, on_response, NULL, NULL, handle
+        GGL_BUF_LIST(topic.buf),
+        QOS_AT_LEAST_ONCE,
+        on_response,
+        NULL,
+        NULL,
+        handle
     );
 }
 

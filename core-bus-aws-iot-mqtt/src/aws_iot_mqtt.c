@@ -3,12 +3,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/core_bus/aws_iot_mqtt.h"
+#include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define GGL_MQTT_MAX_SUBSCRIBE_FILTERS 10
@@ -32,27 +34,26 @@ GglError ggl_aws_iot_mqtt_publish(
 }
 
 GglError ggl_aws_iot_mqtt_subscribe(
-    GglBuffer *topic_filters,
-    size_t count,
+    GglBufList topic_filters,
     uint8_t qos,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,
     uint32_t *handle
 ) {
-    if (count > GGL_MQTT_MAX_SUBSCRIBE_FILTERS) {
+    if (topic_filters.len > GGL_MQTT_MAX_SUBSCRIBE_FILTERS) {
         GGL_LOGE("aws_iot_mqtt", "Topic filter count exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
     GglObject filters[GGL_MQTT_MAX_SUBSCRIBE_FILTERS] = { 0 };
-    for (size_t i = 0; i < count; i++) {
-        filters[i] = GGL_OBJ(topic_filters[i]);
+    for (size_t i = 0; i < topic_filters.len; i++) {
+        filters[i] = GGL_OBJ(topic_filters.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ((GglList) { .items = filters, .len = count }) },
+          GGL_OBJ((GglList) { .items = filters, .len = topic_filters.len }) },
         { GGL_STR("qos"), GGL_OBJ_I64(qos) }
     );
 

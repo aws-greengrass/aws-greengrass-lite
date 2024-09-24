@@ -67,7 +67,7 @@ static GglError get_thing_name(char **thing_name) {
     resp.len -= 1;
 
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") }, 2, &resp
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("ggdeploymentd", "Failed to get thing name from config.");
@@ -85,11 +85,12 @@ static GglError get_region(GglByteVec *region) {
     resp.len -= 1;
 
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[4]) { GGL_STR("services"),
-                         GGL_STR("aws.greengrass.Nucleus-Lite"),
-                         GGL_STR("configuration"),
-                         GGL_STR("awsRegion") },
-        4,
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.Nucleus-Lite"),
+            GGL_STR("configuration"),
+            GGL_STR("awsRegion")
+        ),
         &resp
     );
     if (ret != GGL_ERR_OK) {
@@ -109,7 +110,7 @@ static GglError get_root_ca_path(char **root_ca_path) {
     resp.len -= 1;
 
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("rootCaPath") }, 2, &resp
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")), &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("ggdeploymentd", "Failed to get rootCaPath from config.");
@@ -127,11 +128,12 @@ static GglError get_tes_cred_url(char **tes_cred_url) {
     resp.len -= 1;
 
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[4]) { GGL_STR("services"),
-                         GGL_STR("aws.greengrass.Nucleus-Lite"),
-                         GGL_STR("configuration"),
-                         GGL_STR("tesCredUrl") },
-        4,
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.Nucleus-Lite"),
+            GGL_STR("configuration"),
+            GGL_STR("tesCredUrl")
+        ),
         &resp
     );
     if (ret != GGL_ERR_OK) {
@@ -150,12 +152,13 @@ static GglError get_posix_user(char **posix_user) {
     resp.len -= 1;
 
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[5]) { GGL_STR("services"),
-                         GGL_STR("aws.greengrass.Nucleus-Lite"),
-                         GGL_STR("configuration"),
-                         GGL_STR("runWithDefault"),
-                         GGL_STR("posixUser") },
-        5,
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.Nucleus-Lite"),
+            GGL_STR("configuration"),
+            GGL_STR("runWithDefault"),
+            GGL_STR("posixUser")
+        ),
         &resp
     );
     if (ret != GGL_ERR_OK) {

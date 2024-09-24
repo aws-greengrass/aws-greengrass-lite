@@ -69,9 +69,7 @@ GglError ggl_handle_get_configuration(
     }
 
     GglObject read_value;
-    ret = ggl_gg_config_read(
-        full_key_path.bufs, full_key_path.len, alloc, &read_value
-    );
+    ret = ggl_gg_config_read(full_key_path, alloc, &read_value);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
