@@ -29,6 +29,7 @@ GglError ggl_ipc_response_send(
 );
 
 /// Get the component name associated with a client.
+/// component_name is an out parameter only.
 GglError ggl_ipc_get_component_name(uint32_t handle, GglBuffer *component_name);
 
 #endif

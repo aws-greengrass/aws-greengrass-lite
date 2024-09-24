@@ -7,6 +7,7 @@
 #include "ggl/exec.h"
 #include "provisioner.h"
 #include <sys/types.h>
+#include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -51,11 +52,12 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         GglBuffer claim_cert_path = GGL_BUF(claim_cert_path_mem);
         claim_cert_path.len -= 1;
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[4]) { GGL_STR("services"),
-                             GGL_STR("aws.greengrass.fleet_provisioning"),
-                             GGL_STR("configuration"),
-                             GGL_STR("claimCertPath") },
-            4,
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.fleet_provisioning"),
+                GGL_STR("configuration"),
+                GGL_STR("claimCertPath")
+            ),
             &claim_cert_path
         );
         if (ret != GGL_ERR_OK) {
@@ -76,11 +78,12 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         GglBuffer claim_key_path = GGL_BUF(claim_key_path_mem);
         claim_key_path.len -= 1;
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[4]) { GGL_STR("services"),
-                             GGL_STR("aws.greengrass.fleet_provisioning"),
-                             GGL_STR("configuration"),
-                             GGL_STR("claimKeyPath") },
-            4,
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.fleet_provisioning"),
+                GGL_STR("configuration"),
+                GGL_STR("claimKeyPath")
+            ),
             &claim_key_path
         );
         if (ret != GGL_ERR_OK) {
@@ -100,8 +103,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         GglBuffer root_ca_path = GGL_BUF(root_ca_path_mem);
         root_ca_path.len -= 1;
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[2]) { GGL_STR("system"), GGL_STR("rootCaPath") },
-            2,
+            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")),
             &root_ca_path
         );
         if (ret != GGL_ERR_OK) {
@@ -122,11 +124,12 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         GglBuffer data_endpoint = GGL_BUF(data_endpoint_mem);
         data_endpoint.len -= 1;
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[4]) { GGL_STR("services"),
-                             GGL_STR("aws.greengrass.fleet_provisioning"),
-                             GGL_STR("configuration"),
-                             GGL_STR("iotDataEndpoint") },
-            4,
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.fleet_provisioning"),
+                GGL_STR("configuration"),
+                GGL_STR("iotDataEndpoint")
+            ),
             &data_endpoint
         );
         if (ret != GGL_ERR_OK) {
@@ -136,11 +139,12 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         args->data_endpoint = (char *) data_endpoint_mem;
 
         ret = ggl_gg_config_write(
-            (GglBuffer[4]) { GGL_STR("services"),
-                             GGL_STR("aws.greengrass.Nucleus-Lite"),
-                             GGL_STR("configuration"),
-                             GGL_STR("iotDataEndpoint") },
-            4,
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.Nucleus-Lite"),
+                GGL_STR("configuration"),
+                GGL_STR("iotDataEndpoint")
+            ),
             GGL_OBJ(data_endpoint),
             0
         );
@@ -160,11 +164,12 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         GglBuffer template_name = GGL_BUF(template_name_mem);
         template_name.len -= 1;
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[4]) { GGL_STR("services"),
-                             GGL_STR("aws.greengrass.fleet_provisioning"),
-                             GGL_STR("configuration"),
-                             GGL_STR("templateName") },
-            4,
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.fleet_provisioning"),
+                GGL_STR("configuration"),
+                GGL_STR("templateName")
+            ),
             &template_name
         );
         if (ret != GGL_ERR_OK) {
@@ -185,11 +190,12 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         GglBuffer template_params = GGL_BUF(template_params_mem);
         template_params.len -= 1;
         GglError ret = ggl_gg_config_read_str(
-            (GglBuffer[4]) { GGL_STR("services"),
-                             GGL_STR("aws.greengrass.fleet_provisioning"),
-                             GGL_STR("configuration"),
-                             GGL_STR("templateParams") },
-            4,
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.fleet_provisioning"),
+                GGL_STR("configuration"),
+                GGL_STR("templateParams")
+            ),
             &template_params
         );
         if (ret != GGL_ERR_OK) {
@@ -214,7 +220,7 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     static uint8_t root_dir_mem[4096] = { 0 };
     GglBuffer root_dir = GGL_BUF(root_dir_mem);
     ret = ggl_gg_config_read_str(
-        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("rootPath") }, 2, &root_dir
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &root_dir
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -253,8 +259,7 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     X509_REQ_free(csr_req);
 
     ret = ggl_gg_config_write(
-        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("privateKeyPath") },
-        2,
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
         GGL_OBJ((GglBuffer) { .data = (uint8_t *) private_file_path,
                               .len = strlen(private_file_path) }),
         0

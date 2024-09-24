@@ -5,6 +5,7 @@
 #include "provisioner.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
@@ -122,11 +123,12 @@ static GglError set_global_values(pid_t iotcored_pid) {
     static uint8_t template_name_mem[128];
     GglBuffer template_name = GGL_BUF(template_name_mem);
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[4]) { GGL_STR("services"),
-                         GGL_STR("aws.greengrass.fleet_provisioning"),
-                         GGL_STR("configuration"),
-                         GGL_STR("templateName") },
-        4,
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.fleet_provisioning"),
+            GGL_STR("configuration"),
+            GGL_STR("templateName")
+        ),
         &template_name
     );
     if (ret != GGL_ERR_OK) {
@@ -166,11 +168,12 @@ static GglError set_global_values(pid_t iotcored_pid) {
     // Fetch Template Parameters
     // TODO: Use args passed from entry.c
     ret = ggl_gg_config_read_str(
-        (GglBuffer[4]) { GGL_STR("services"),
-                         GGL_STR("aws.greengrass.fleet_provisioning"),
-                         GGL_STR("configuration"),
-                         GGL_STR("templateParams") },
-        4,
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.fleet_provisioning"),
+            GGL_STR("configuration"),
+            GGL_STR("templateParams")
+        ),
         &template_param
     );
     if (ret != GGL_ERR_OK) {
@@ -241,9 +244,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             }
 
             ret = ggl_gg_config_write(
-                (GglBuffer[2]) { GGL_STR("system"),
-                                 GGL_STR("certificateFilePath") },
-                2,
+                GGL_BUF_LIST(GGL_STR("system"), GGL_STR("certificateFilePath")),
                 GGL_OBJ((GglBuffer) { .data = (uint8_t *) global_cert_file_path,
                                       .len = strlen(global_cert_file_path) }),
                 0
@@ -302,10 +303,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 thing_payload_json_obj.map, GGL_STR("thingName"), &val
             )) {
             ret = ggl_gg_config_write(
-                (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") },
-                2,
-                *val,
-                0
+                GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), *val, 0
             );
             if (ret != GGL_ERR_OK) {
                 return ret;

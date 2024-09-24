@@ -8,32 +8,29 @@
 //! gg_config core-bus interface wrapper
 
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
-#include <stddef.h>
 #include <stdint.h>
 
 /// Wrapper for core-bus `gg_config` `read`
 GglError ggl_gg_config_read(
-    GglBuffer *key_path, size_t levels, GglAlloc *alloc, GglObject *result
+    GglBufList key_path, GglAlloc *alloc, GglObject *result
 );
 
 /// Get string from core-bus `gg_config` `read`
 /// `result` must point to buffer with memory to read into
-GglError ggl_gg_config_read_str(
-    GglBuffer *key_path, size_t levels, GglBuffer *result
-);
+GglError ggl_gg_config_read_str(GglBufList key_path, GglBuffer *result);
 
 /// Wrapper for core-bus `gg_config` `write`
 GglError ggl_gg_config_write(
-    GglBuffer *key_path, size_t levels, GglObject value, int64_t timestamp
+    GglBufList key_path, GglObject value, int64_t timestamp
 );
 
 /// Wrapper for core-bus `gg_config` `subscribe`
 GglError ggl_gg_config_subscribe(
-    GglBuffer *key_path,
-    size_t levels,
+    GglBufList key_path,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,

@@ -54,6 +54,7 @@ LOGI
 LOGT
 LOGW
 mqtt
+mqttproxy
 mtls
 NOCASE
 NOCONN

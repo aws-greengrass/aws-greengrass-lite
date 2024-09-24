@@ -2,6 +2,7 @@
 #include <event2/buffer.h>
 #include <event2/event.h>
 #include <event2/http.h>
+#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
@@ -87,11 +88,12 @@ GglError http_server(void) {
     static uint8_t user_address_mem[128] = { 0 };
     GglBuffer user_address = GGL_BUF(user_address_mem);
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[4]) { GGL_STR("services"),
-                         GGL_STR("aws.greengrass.Nucleus-Lite"),
-                         GGL_STR("configuration"),
-                         GGL_STR("tesCredUrl") },
-        4,
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.Nucleus-Lite"),
+            GGL_STR("configuration"),
+            GGL_STR("tesCredUrl")
+        ),
         &user_address
     );
     if (ret != GGL_ERR_OK) {

@@ -13,6 +13,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/// An array of `GglBuffer`
+typedef struct {
+    GglBuffer *bufs;
+    size_t len;
+} GglBufList;
+
+/// Create buffer list literal from buffer literals.
+#define GGL_BUF_LIST(...) \
+    (GglBufList) { \
+        .bufs = (GglBuffer[]) { __VA_ARGS__ }, \
+        .len = (sizeof((GglBuffer[]) { __VA_ARGS__ })) / (sizeof(GglBuffer)) \
+    }
+
 /// Convert null-terminated string to buffer
 GglBuffer ggl_buffer_from_null_term(char *str);
 

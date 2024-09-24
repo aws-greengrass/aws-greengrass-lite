@@ -4,6 +4,7 @@
 
 #include "fleet_status_service.h"
 #include "gg_fleet_statusd.h"
+#include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -17,9 +18,7 @@ GglError run_gg_fleet_statusd(void) {
     GglBuffer thing_name = GGL_BUF(thing_name_mem);
 
     GglError ret = ggl_gg_config_read_str(
-        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") },
-        2,
-        &thing_name
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &thing_name
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("fleet_status", "Failed to read thingName from config.");

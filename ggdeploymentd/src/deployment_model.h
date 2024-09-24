@@ -15,7 +15,7 @@ typedef enum {
 typedef struct {
     GglBuffer deployment_id;
     GglBuffer recipe_directory_path;
-    GglBuffer artifact_directory_path;
+    GglBuffer artifacts_directory_path;
     GglMap root_component_versions_to_add;
     GglList root_components_to_remove;
     GglMap component_to_configuration;

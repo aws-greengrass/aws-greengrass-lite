@@ -9,6 +9,7 @@
 
 #include "error.h"
 #include "object.h"
+#include <ggl/buffer.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -26,8 +27,10 @@ typedef struct {
     )
 
 GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object);
+void ggl_obj_vec_chain_push(GglError *err, GglObjVec *vector, GglObject object);
 GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out);
 GglError ggl_obj_vec_append(GglObjVec *vector, GglList list);
+void ggl_obj_vec_chain_append(GglError *err, GglObjVec *vector, GglList list);
 
 typedef struct {
     GglMap map;
@@ -65,6 +68,26 @@ void ggl_byte_vec_chain_push(GglError *err, GglByteVec *vector, uint8_t byte);
 GglError ggl_byte_vec_append(GglByteVec *vector, GglBuffer buf);
 void ggl_byte_vec_chain_append(
     GglError *err, GglByteVec *vector, GglBuffer buf
+);
+
+typedef struct {
+    GglBufList buf_list;
+    size_t capacity;
+} GglBufVec;
+
+#define GGL_BUF_VEC(...) \
+    _Generic( \
+        (&(__VA_ARGS__)), \
+        GglBuffer(*)[]: ((GglBufVec \
+        ) { .buf_list = { .bufs = (__VA_ARGS__), .len = 0 }, \
+            .capacity = (sizeof(__VA_ARGS__) / sizeof(GglBuffer)) }) \
+    )
+
+GglError ggl_buf_vec_push(GglBufVec *vector, GglBuffer buf);
+void ggl_buf_vec_chain_push(GglError *err, GglBufVec *vector, GglBuffer buf);
+GglError ggl_buf_vec_append_list(GglBufVec *vector, GglList list);
+void ggl_buf_vec_chain_append_list(
+    GglError *err, GglBufVec *vector, GglList list
 );
 
 #endif

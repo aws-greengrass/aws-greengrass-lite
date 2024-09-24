@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ipc_dispatch.h"
-#include "handlers/handlers.h"
 #include "ipc_server.h"
+#include "ipc_service.h"
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
@@ -13,38 +13,45 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static const struct {
-    GglBuffer operation;
-    GglIpcHandler *handler;
-} HANDLER_TABLE[] = {
-    { GGL_STR("aws.greengrass#PublishToIoTCore"), handle_publish_to_iot_core },
-    { GGL_STR("aws.greengrass#SubscribeToIoTCore"),
-      handle_subscribe_to_iot_core },
-    { GGL_STR("aws.greengrass#PublishToTopic"), handle_publish_to_topic },
-    { GGL_STR("aws.greengrass#SubscribeToTopic"), handle_subscribe_to_topic },
-    { GGL_STR("aws.greengrass#CreateLocalDeployment"),
-      handle_create_local_deployment },
-    { GGL_STR("aws.greengrass#GetConfiguration"), handle_get_configuration },
-    { GGL_STR("aws.greengrass#UpdateConfiguration"),
-      handle_update_configuration }
+static const GglIpcService *const SERVICE_TABLE[] = {
+    &ggl_ipc_service_pubsub,
+    &ggl_ipc_service_mqttproxy,
+    &ggl_ipc_service_config,
+    &ggl_ipc_service_cli,
 };
 
-static const size_t HANDLER_COUNT
-    = sizeof(HANDLER_TABLE) / sizeof(HANDLER_TABLE[0]);
+static const size_t SERVICE_COUNT
+    = sizeof(SERVICE_TABLE) / sizeof(SERVICE_TABLE[0]);
 
 GglError ggl_ipc_handle_operation(
     GglBuffer operation, GglMap args, uint32_t handle, int32_t stream_id
 ) {
-    for (size_t i = 0; i < HANDLER_COUNT; i++) {
-        if (ggl_buffer_eq(operation, HANDLER_TABLE[i].operation)) {
-            static uint8_t resp_mem
-                [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
-                 + GGL_IPC_MAX_MSG_LEN];
-            GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
+    for (size_t i = 0; i < SERVICE_COUNT; i++) {
+        const GglIpcService *service = SERVICE_TABLE[i];
 
-            return HANDLER_TABLE[i].handler(
-                args, handle, stream_id, &balloc.alloc
-            );
+        for (size_t j = 0; j < service->operation_count; j++) {
+            const GglIpcOperation *service_op = &service->operations[j];
+
+            if (ggl_buffer_eq(operation, service_op->name)) {
+                GglIpcOperationInfo info = {
+                    .service = service->name,
+                    .operation = operation,
+                };
+                GglError ret
+                    = ggl_ipc_get_component_name(handle, &info.component);
+                if (ret != GGL_ERR_OK) {
+                    return ret;
+                }
+
+                static uint8_t resp_mem
+                    [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
+                     + GGL_IPC_MAX_MSG_LEN];
+                GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
+
+                return service_op->handler(
+                    &info, args, handle, stream_id, &balloc.alloc
+                );
+            }
         }
     }
 

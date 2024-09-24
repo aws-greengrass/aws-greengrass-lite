@@ -7,11 +7,11 @@
 
 //! aws_iot_mqtt core-bus interface wrapper
 
+#include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 /// Wrapper for core-bus `aws_iot_mqtt` `publish`
@@ -22,8 +22,7 @@ GglError ggl_aws_iot_mqtt_publish(
 
 /// Wrapper for core-bus `aws_iot_mqtt` `subscribe`
 GglError ggl_aws_iot_mqtt_subscribe(
-    GglBuffer *topic_filters,
-    size_t count,
+    GglBufList topic_filters,
     uint8_t qos,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,

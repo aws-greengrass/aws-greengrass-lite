@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <errno.h>
+#include <ggl/buffer.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -39,7 +40,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
 int main(void) {
     GglError ret = ggl_aws_iot_mqtt_subscribe(
-        &GGL_STR("hello"), 1, 0, subscribe_callback, NULL, NULL, NULL
+        GGL_BUF_LIST(GGL_STR("hello")), 0, subscribe_callback, NULL, NULL, NULL
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("mqtt-client", "Failed to send subscription");
