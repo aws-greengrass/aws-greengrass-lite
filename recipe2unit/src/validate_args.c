@@ -8,68 +8,73 @@
 #include <ggl/log.h>
 #include <string.h>
 
-static const char COMPONENT_NAME[] = "recipe2unit";
-
 GglError validate_args(Recipe2UnitArgs *args) {
+    if (args == NULL) {
+        return GGL_ERR_NOENTRY;
+    }
+
     GGL_LOGT(
-        COMPONENT_NAME,
+        "recipe2unit",
         "AWS Container auth token: %s",
         args->aws_container_auth_token
     );
-    if (strlen(args->aws_container_auth_token) == 0) {
+    if ((args->aws_container_auth_token == NULL)
+        || (strlen(args->aws_container_auth_token) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 
     GGL_LOGT(
-        COMPONENT_NAME,
+        "recipe2unit",
         "aws_container_cred_url: %s",
         args->aws_container_cred_url
     );
-    if (strlen(args->aws_container_cred_url) == 0) {
+    if ((args->aws_container_auth_token == NULL)
+        || (strlen(args->aws_container_auth_token) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT(COMPONENT_NAME, "aws_region: %s", args->aws_region);
-    if (strlen(args->aws_region) == 0) {
+    GGL_LOGT("recipe2unit", "aws_region: %s", args->aws_region);
+    if ((args->aws_region == NULL) || (strlen(args->aws_region) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT(COMPONENT_NAME, "gg_root_ca_path: %s", args->gg_root_ca_path);
-    if (strlen(args->gg_root_ca_path) == 0) {
+    GGL_LOGT("recipe2unit", "gg_root_ca_path: %s", args->gg_root_ca_path);
+    if ((args->gg_root_ca_path == NULL)
+        || (strlen(args->gg_root_ca_path) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT(COMPONENT_NAME, "ggc_version: %s", args->ggc_version);
-    if (strlen(args->ggc_version) == 0) {
+    GGL_LOGT("recipe2unit", "ggc_version: %s", args->ggc_version);
+    if ((args->ggc_version == NULL) || (strlen(args->ggc_version) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT(COMPONENT_NAME, "recipe_path: %s", args->recipe_path);
-    if (strlen(args->recipe_path) == 0) {
+    GGL_LOGT("recipe2unit", "recipe_path: %s", args->recipe_path);
+    if ((args->recipe_path == NULL) || (strlen(args->recipe_path) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT(COMPONENT_NAME, "thing_name: %s", args->thing_name);
-    if (strlen(args->thing_name) == 0) {
+    GGL_LOGT("recipe2unit", "thing_name: %s", args->thing_name);
+    if ((args->thing_name == NULL) || (strlen(args->thing_name) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT(COMPONENT_NAME, "socket_path: %s", args->socket_path);
-    if (strlen(args->socket_path) == 0) {
+    GGL_LOGT("recipe2unit", "socket_path: %s", args->socket_path);
+    if ((args->socket_path == NULL) || (strlen(args->socket_path) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT(COMPONENT_NAME, "user: %s", args->user);
-    if (strlen(args->user) == 0) {
+    GGL_LOGT("recipe2unit", "user: %s", args->user);
+    if ((args->user == NULL) || (strlen(args->user) == 0)) {
         return GGL_ERR_NOENTRY;
     }
-    GGL_LOGT(COMPONENT_NAME, "group: %s", args->group);
-    if (strlen(args->group) == 0) {
+    GGL_LOGT("recipe2unit", "group: %s", args->group);
+    if ((args->group == NULL) || (strlen(args->group) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT(COMPONENT_NAME, "root_dir: %s", args->root_dir);
-    if (strlen(args->root_dir) == 0) {
+    GGL_LOGT("recipe2unit", "root_dir: %s", args->root_dir);
+    if ((args->root_dir == NULL) || (strlen(args->root_dir) == 0)) {
         return GGL_ERR_NOENTRY;
     }
 

@@ -5,7 +5,9 @@
 #ifndef RECIPE_2_UNIT_H
 #define RECIPE_2_UNIT_H
 
+#include <ggl/bump_alloc.h>
 #include <ggl/error.h>
+#include <ggl/object.h>
 
 typedef struct {
     char *recipe_path;
@@ -22,6 +24,9 @@ typedef struct {
     char *root_dir;
 } Recipe2UnitArgs;
 
+GglError get_receipe_obj(
+    Recipe2UnitArgs *args, GglBumpAlloc *balloc, GglObject *recipe_obj
+);
 GglError convert_to_unit(Recipe2UnitArgs *args);
 
 #endif
