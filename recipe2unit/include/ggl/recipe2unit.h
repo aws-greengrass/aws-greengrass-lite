@@ -24,7 +24,7 @@ typedef struct {
     char *root_dir;
 } Recipe2UnitArgs;
 
-GglError get_receipe_obj(
+GglError get_recipe_obj(
     Recipe2UnitArgs *args, GglBumpAlloc *balloc, GglObject *recipe_obj
 );
 GglError convert_to_unit(Recipe2UnitArgs *args);

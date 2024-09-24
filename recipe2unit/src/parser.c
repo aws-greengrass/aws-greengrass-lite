@@ -21,7 +21,7 @@
 
 static const char COMPONENT_NAME[] = "recipe2unit";
 
-GglError get_receipe_obj(
+GglError get_recipe_obj(
     Recipe2UnitArgs *args, GglBumpAlloc *balloc, GglObject *recipe_obj
 ) {
     GglError ret = validate_args(args);
@@ -42,7 +42,7 @@ GglError get_receipe_obj(
         return ret;
     }
 
-    if (recipe_obj.type != GGL_TYPE_MAP) {
+    if (recipe_obj->type != GGL_TYPE_MAP) {
         GGL_LOGE(COMPONENT_NAME, "Invalid recipe format provided");
         return GGL_ERR_FAILURE;
     }
@@ -56,7 +56,7 @@ GglError convert_to_unit(Recipe2UnitArgs *args) {
     static uint8_t big_buffer_for_bump[MAX_RECIPE_BUF_SIZE];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
-    ret = get_receipe_obj(args, &balloc, &recipe_obj);
+    ret = get_recipe_obj(args, &balloc, &recipe_obj);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -65,7 +65,7 @@ GglError convert_to_unit(Recipe2UnitArgs *args) {
     GglBuffer response_buffer = (GglBuffer
     ) { .data = (uint8_t *) unit_file_buffer, .len = MAX_UNIT_FILE_BUF_SIZE };
 
-    GglObject *component_name;
+    GglObject *component_name = NULL;
 
     ret = generate_systemd_unit(
         recipe_obj.map, &response_buffer, args, component_name
