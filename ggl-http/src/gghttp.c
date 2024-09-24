@@ -7,13 +7,15 @@
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <ggl/log.h>
+#include <ggl/vector.h>
 #include <stdio.h>
 
-static const char HEADER_KEY[] = "x-amzn-iot-thingname";
+#define MAX_URI_LENGTH 2048
+#define HTTPS_PREFIX "https://"
 
-void fetch_token(
+GglError fetch_token(
     const char *url_for_token,
-    const char *thing_name,
+    GglBuffer thing_name,
     CertificateDetails certificate_details,
     GglBuffer *buffer
 ) {
@@ -21,20 +23,27 @@ void fetch_token(
 
     GGL_LOGI(
         "fetch_token",
-        "Fetching token from credentials endpoint=%s, for iot thing=%s",
+        "Fetching token from credentials endpoint=%s, for iot thing=%.*s",
         url_for_token,
-        thing_name
+        (int) thing_name.len,
+        thing_name.data
     );
 
     GglError error = gghttplib_init_curl(&curl_data, url_for_token);
     if (error == GGL_ERR_OK) {
-        gghttplib_add_header(&curl_data, HEADER_KEY, thing_name);
-        gghttplib_add_certificate_data(&curl_data, certificate_details);
-        gghttplib_process_request(&curl_data, buffer);
+        error = gghttplib_add_header(
+            &curl_data, GGL_STR("x-amzn-iot-thingname"), thing_name
+        );
     }
+    if (error == GGL_ERR_OK) {
+        gghttplib_add_certificate_data(&curl_data, certificate_details);
+        error = gghttplib_process_request(&curl_data, buffer);
+    }
+
+    return error;
 }
 
-void generic_download(
+GglError generic_download(
     const char *url_for_generic_download, const char *file_path
 ) {
     GGL_LOGI(
@@ -44,19 +53,90 @@ void generic_download(
         file_path
     );
 
-    CurlData curl_data = { 0 };
-    FILE *file_pointer;
+    FILE *file_pointer = fopen(file_path, "wb");
+    if (file_pointer == NULL) {
+        return GGL_ERR_FAILURE;
+    }
 
+    CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_generic_download);
     if (error == GGL_ERR_OK) {
-        file_pointer = fopen(file_path, "wb");
-
-        GglError ret = gghttplib_process_request_with_file_pointer(
+        error = gghttplib_process_request_with_file_pointer(
             &curl_data, file_pointer
         );
-
-        if (ret != GGL_ERR_OK) {
-            return;
-        }
     }
+
+    fclose(file_pointer);
+
+    return error;
+}
+
+GglError sigv4_download(
+    const char *url_for_sigv4_download, FILE *file, SigV4Details sigv4_details
+) {
+    GGL_LOGI(
+        "sigv4_download", "downloading content from %s", url_for_sigv4_download
+    );
+
+    CurlData curl_data = { 0 };
+    GglError error = gghttplib_init_curl(&curl_data, url_for_sigv4_download);
+    if (error == GGL_ERR_OK) {
+        error = gghttplib_add_sigv4_credential(&curl_data, sigv4_details);
+    }
+    if (error == GGL_ERR_OK) {
+        error = gghttplib_process_request_with_file_pointer(&curl_data, file);
+    }
+
+    return error;
+}
+
+GglError gg_dataplane_call(
+    GglBuffer endpoint,
+    GglBuffer port,
+    GglBuffer uri_path,
+    CertificateDetails certificate_details,
+    const char *body,
+    GglBuffer *response_buffer
+) {
+    CurlData curl_data = { 0 };
+
+    GGL_LOGI(
+        "dataplane_call",
+        "Preparing call to data endpoint provided as %.*s:%.*s/%.*s",
+        (int) endpoint.len,
+        endpoint.data,
+        (int) port.len,
+        port.data,
+        (int) uri_path.len,
+        uri_path.data
+    );
+
+    static char uri_buf[MAX_URI_LENGTH];
+    GglByteVec uri_vec = GGL_BYTE_VEC(uri_buf);
+    GglError ret = ggl_byte_vec_append(&uri_vec, GGL_STR(HTTPS_PREFIX));
+    ggl_byte_vec_chain_append(&ret, &uri_vec, endpoint);
+    ggl_byte_vec_chain_push(&ret, &uri_vec, ':');
+    ggl_byte_vec_chain_append(&ret, &uri_vec, port);
+    ggl_byte_vec_chain_push(&ret, &uri_vec, '/');
+    ggl_byte_vec_chain_append(&ret, &uri_vec, uri_path);
+    ggl_byte_vec_chain_push(&ret, &uri_vec, '\0');
+    if (ret != GGL_ERR_OK) {
+        return GGL_ERR_NOMEM;
+    }
+
+    ret = gghttplib_init_curl(&curl_data, uri_buf);
+
+    if (ret == GGL_ERR_OK) {
+        ret = gghttplib_add_header(
+            &curl_data, GGL_STR("Content-type"), GGL_STR("application/json")
+        );
+    }
+    if (ret == GGL_ERR_OK) {
+        gghttplib_add_certificate_data(&curl_data, certificate_details);
+        GGL_LOGD("dataplane_call", "Adding body to http request");
+        gghttplib_add_post_body(&curl_data, body);
+        GGL_LOGD("dataplane_call", "Sending request to dataplane endpoint");
+        ret = gghttplib_process_request(&curl_data, response_buffer);
+    }
+    return ret;
 }

@@ -6,14 +6,15 @@
 #define TOKEN_SERVICE_H
 
 #include <ggl/error.h>
+#include <ggl/object.h>
 
 GglError initiate_request(
-    const char *root_ca,
-    const char *cert_path,
-    const char *key_path,
-    char *thing_name,
-    char *role_alias,
-    char *cert_endpoint
+    GglBuffer root_ca,
+    GglBuffer cert_path,
+    GglBuffer key_path,
+    GglBuffer thing_name,
+    GglBuffer role_alias,
+    GglBuffer cred_endpoint
 );
 
 #endif

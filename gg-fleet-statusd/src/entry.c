@@ -4,51 +4,27 @@
 
 #include "fleet_status_service.h"
 #include "gg_fleet_statusd.h"
-#include <ggl/bump_alloc.h>
-#include <ggl/core_bus/client.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <stddef.h>
 #include <stdint.h>
 
-static GglBuffer thing_name;
-
-static GglError update_thing_name(void) {
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("thingName")) }
-    );
-
-    static uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
-
-    GglObject resp;
-    GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &resp
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGW("gg-fleet-statusd", "Failed to get thing name from config.");
-        return ret;
-    }
-    if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "gg-fleet-statusd", "Configuration thing name is not a string."
-        );
-        return GGL_ERR_INVALID;
-    }
-
-    thing_name = resp.buf;
-    return GGL_ERR_OK;
-}
+#define MAX_THING_NAME_LEN 128
 
 GglError run_gg_fleet_statusd(void) {
-    update_thing_name();
-    publish_message(thing_name);
-    return GGL_ERR_FAILURE;
+    static uint8_t thing_name_mem[MAX_THING_NAME_LEN] = { 0 };
+    GglBuffer thing_name = GGL_BUF(thing_name_mem);
+
+    GglError ret = ggl_gg_config_read_str(
+        (GglBuffer[2]) { GGL_STR("system"), GGL_STR("thingName") },
+        2,
+        &thing_name
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("fleet_status", "Failed to read thingName from config.");
+        return ret;
+    }
+
+    return publish_message(thing_name);
 }

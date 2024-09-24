@@ -18,10 +18,23 @@ Manifests:
   - Platform:
       os: linux
     Lifecycle:
-      INSTALL: |
-        PY run this
-        py test this as well
-      run: python3 -u hello_world.py
+      setEnv:
+        ID: "00000000-0000-0000-0000-000000000000"
+        ENV: "pre-qa"
+        URL: "https://test-api.us-east-1.amazonaws.com/Prod"
+        Instance: "S"
+      INSTALL:
+        RequiresPrivilege: true
+        script: |
+          PY run this
+          py test this as well
+        Timeout: 120
+      run:
+        RequiresPrivilege: false
+        script: |
+          python3 -u hello_world.py
+          python3 -c hello_world2.py
+        Timeout: 120
       startUp: python3 -u hello_world_startup.py
   - Platform:
       os: windows

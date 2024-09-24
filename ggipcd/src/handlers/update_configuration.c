@@ -4,7 +4,7 @@
 
 #include "../ipc_server.h"
 #include "handlers.h"
-#include "make_key_path_object.h"
+#include "make_config_path_object.h"
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -23,7 +23,7 @@ GglError handle_update_configuration(
         GglBuffer *key = &kv->key;
         GGL_LOGT(
             "UpdateConfiguration",
-            "found key : %.*s",
+            "found arg key : %.*s",
             (int) key->len,
             (char *) key->data
         );
@@ -39,8 +39,19 @@ GglError handle_update_configuration(
         GGL_LOGE("UpdateConfiguration", "keyPath is not a List.");
         return GGL_ERR_INVALID;
     }
-    GglObject component_name_object = GGL_OBJ_STR("component");
-    // TODO: get the calling component name
+    GglBuffer component_name_buffer;
+    GglError err = ggl_ipc_get_component_name(handle, &component_name_buffer);
+    if (err != GGL_ERR_OK) {
+        return err;
+    }
+    GglObject *component_name_object
+        = &(GglObject) { .type = GGL_TYPE_BUF, .buf = component_name_buffer };
+    GGL_LOGT(
+        "UpdateConfiguration",
+        "Component Name : %.*s",
+        (int) component_name_buffer.len,
+        (char *) component_name_buffer.data
+    );
 
     GglObject *value_to_merge_object;
     found = ggl_map_get(args, GGL_STR("valueToMerge"), &value_to_merge_object);
@@ -63,27 +74,35 @@ GglError handle_update_configuration(
             time_stamp_object->type
         );
         return GGL_ERR_INVALID;
-    }
+    };
+    // convert timestamp from sec in floating-point(with msec precision) to msec
+    // in integer
+    time_stamp_object->i64 = (int64_t) time_stamp_object->f64 * 1000;
+    time_stamp_object->type = GGL_TYPE_I64;
+    GGL_LOGT("UpdateConfiguration", "timestamp is %ld", time_stamp_object->i64);
+    GglObject *config_path_object
+        = ggl_make_config_path_object(component_name_object, key_path_object);
     GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          *ggl_make_key_path_object(&component_name_object, key_path_object) },
+        { GGL_STR("key_path"), *config_path_object },
         { GGL_STR("value"), *value_to_merge_object },
         { GGL_STR("timestamp"), *time_stamp_object }
     );
 
-    GglError error;
-    GglObject call_resp;
-    GglError ret = ggl_call(
+    GglError remote_error;
+    err = ggl_call(
         GGL_STR("gg_config"),
         GGL_STR("write"),
         params,
-        &error,
+        &remote_error,
         alloc,
-        &call_resp
+        NULL
     );
-    if (ret != GGL_ERR_OK) {
-        return ret;
+    if (err != GGL_ERR_OK) {
+        return err;
     }
+    // TODO: handle remote_error
+    // TODO: return IPC errors:
+    // https://github.com/awslabs/smithy-iot-device-sdk-greengrass-ipc/blob/60966747302e17eb8cc6ddad972f90aa92ad38a7/greengrass-ipc-model/main.smithy#L82
 
     return ggl_ipc_response_send(
         handle,

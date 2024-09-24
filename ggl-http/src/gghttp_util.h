@@ -42,9 +42,11 @@ GglError gghttplib_init_curl(CurlData *curl_data, const char *url);
  * headers list.
  * @param[in] header_key The key of the header to be added.
  * @param[in] header_value The value of the header to be added.
+ * @return GGL_ERR_OK on success, else an error value on failure
+ * @note curl_data is unmodified on failure.
  */
-void gghttplib_add_header(
-    CurlData *curl_data, const char header_key[], const char *header_value
+GglError gghttplib_add_header(
+    CurlData *curl_data, GglBuffer header_key, GglBuffer header_value
 );
 
 /**
@@ -61,6 +63,17 @@ void gghttplib_add_header(
 void gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 );
+
+/**
+ * @brief Adds a body to the CURL request, which also makes it a POST request.
+ *
+ * This function sets the CURL postfields field to the provided body.
+ *
+ * @param[in] curl_data A pointer to the CurlData struct containing the cURL
+ * handle.
+ * @param[in] body The content to be added to the request in the body.
+ */
+void gghttplib_add_post_body(CurlData *curl_data, const char *body);
 
 /// @brief Adds AWS Signature Version 4 to the CURL handle.
 ///
@@ -85,7 +98,9 @@ GglError gghttplib_add_sigv4_credential(
 /// handle and other request data.
 /// @return A GglBuffer struct containing the response data from the HTTP
 /// request.
-void gghttplib_process_request(CurlData *curl_data, GglBuffer *response_buffer);
+GglError gghttplib_process_request(
+    CurlData *curl_data, GglBuffer *response_buffer
+);
 
 /// @brief Processes an HTTP request using the provided cURL data.
 ///

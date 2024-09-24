@@ -145,6 +145,8 @@ try_add_cflag_if(function-sections $<NOT:$<CONFIG:Debug>> -ffunction-sections)
 try_add_cflag_if(data-sections $<NOT:$<CONFIG:Debug>> -fdata-sections)
 
 add_compile_definitions(_GNU_SOURCE)
+# build ggl-http with obsoleted cURL code removed
+add_compile_definitions(CURL_NO_OLDIES)
 
 add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>)
 
@@ -165,9 +167,24 @@ try_add_link_option_if(strip-all $<CONFIG:Release,MinSizeRel> LINKER:-s)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
-set(CMAKE_C_CREATE_STATIC_LIBRARY "<CMAKE_AR> rcs --thin <TARGET> <OBJECTS>")
+if(NOT DEFINED ar_thin_flag)
+  execute_process(COMMAND sh -c "${CMAKE_AR} --help | grep -- --thin"
+                  RESULT_VARIABLE ar_has_thin)
+  if(ar_has_thin EQUAL 0)
+    set(ar_thin_flag
+        "--thin"
+        CACHE INTERNAL "")
+  else()
+    set(ar_thin_flag
+        ""
+        CACHE INTERNAL "")
+  endif()
+endif()
+
+set(CMAKE_C_CREATE_STATIC_LIBRARY
+    "<CMAKE_AR> rcs ${ar_thin_flag} <TARGET> <OBJECTS>")
 set(CMAKE_C_CREATE_STATIC_LIBRARY_IPO
-    "\"${CMAKE_C_COMPILER_AR}\" rcs --thin <TARGET> <OBJECTS>")
+    "\"${CMAKE_C_COMPILER_AR}\" rcs ${ar_thin_flag} <TARGET> <OBJECTS>")
 
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
@@ -208,7 +225,7 @@ endforeach()
 find_package(PkgConfig REQUIRED)
 
 pkg_search_module(openssl REQUIRED IMPORTED_TARGET openssl)
-pkg_search_module(libcurl REQUIRED IMPORTED_TARGET libcurl)
+pkg_search_module(libcurl REQUIRED IMPORTED_TARGET libcurl>=7.86)
 pkg_search_module(sqlite3 REQUIRED IMPORTED_TARGET sqlite3)
 pkg_search_module(yaml REQUIRED IMPORTED_TARGET yaml-0.1)
 pkg_search_module(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
@@ -269,6 +286,7 @@ add_subdirectory(ggl-json)
 add_subdirectory(ggl-yaml)
 add_subdirectory(ggl-cli)
 add_subdirectory(core-bus)
+add_subdirectory(core-bus-gg-config)
 add_subdirectory(core-bus-aws-iot-mqtt)
 add_subdirectory(aws-iot-call)
 add_subdirectory(ggipcd)
@@ -296,6 +314,7 @@ if(BUILD_EXAMPLES)
   add_subdirectory(samples/deployment-client)
   add_subdirectory(samples/status-monitor-client)
   add_subdirectory(configtest)
+  add_subdirectory(s3-get-test)
   add_subdirectory(tesd-test)
   add_subdirectory(recipe2unit-test)
 

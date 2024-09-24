@@ -8,6 +8,7 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -19,7 +20,7 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
         "ggdeploymentd", "Received create_local_deployment from core bus."
     );
 
-    GglBuffer id = GGL_BUF((uint8_t[36]) { 0 });
+    GglByteVec id = GGL_BYTE_VEC((uint8_t[36]) { 0 });
 
     GglError ret = ggl_deployment_enqueue(params, &id);
     if (ret != GGL_ERR_OK) {
@@ -27,7 +28,7 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
-    ggl_respond(handle, GGL_OBJ(id));
+    ggl_respond(handle, GGL_OBJ(id.buf));
 }
 
 void ggdeploymentd_start_server(void) {

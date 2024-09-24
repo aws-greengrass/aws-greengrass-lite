@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ggl_init_module(tes-serverd LIBS ggl-lib ggl-json ggl-http core-bus
-                                 PkgConfig::libevent)
+                                 core-bus-gg-config PkgConfig::libevent)

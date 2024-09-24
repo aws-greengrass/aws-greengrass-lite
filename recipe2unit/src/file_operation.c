@@ -3,16 +3,23 @@
 // SPDX - License - Identifier : Apache - 2.0
 
 #include "file_operation.h"
+#include <sys/types.h>
 #include <fcntl.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/socket.h>
 #include <ggl/yaml_decode.h>
 #include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 #include <stdint.h>
+
+static const char COMPONENT_NAME[] = "recipe2unit";
 
 // NOLINTNEXTLINE(misc-no-recursion)
 static void ggl_key_to_lower(GglObject object_object_to_lower) {
@@ -126,5 +133,38 @@ GglError open_file(char *file_path, GglBuffer *recipe_obj) {
 
     *recipe_obj = (GglBuffer) { .data = file_str, .len = file_size };
 
+    return GGL_ERR_OK;
+}
+
+GglError write_to_file(
+    char *directory_path, GglBuffer filename, GglBuffer write_data, int mode
+) {
+    int root_dir_fd;
+    GglError ret = ggl_dir_open(
+        ggl_buffer_from_null_term(directory_path), O_PATH, true, &root_dir_fd
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(COMPONENT_NAME, "Failed to open dir");
+        return GGL_ERR_FAILURE;
+    }
+
+    int script_as_file;
+
+    ret = ggl_file_openat(
+        root_dir_fd,
+        filename,
+        O_CREAT | O_WRONLY,
+        (mode_t) mode,
+        &script_as_file
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(COMPONENT_NAME, "Failed to open file at the dir");
+        return GGL_ERR_FAILURE;
+    }
+    ret = ggl_write_exact(script_as_file, write_data);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(COMPONENT_NAME, "Write to file failed");
+        return GGL_ERR_FAILURE;
+    }
     return GGL_ERR_OK;
 }

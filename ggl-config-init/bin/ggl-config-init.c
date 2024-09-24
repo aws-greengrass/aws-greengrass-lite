@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/core_bus/client.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -85,15 +85,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    GglMap args = GGL_MAP(
-        { GGL_STR("key_path"), GGL_OBJ_LIST() },
-        { GGL_STR("value"), config_obj }
-    );
-
-    ret = ggl_call(
-        GGL_STR("gg_config"), GGL_STR("write"), args, NULL, NULL, NULL
-    );
-
+    ret = ggl_gg_config_write(NULL, 0, config_obj, 0);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("client", "Failed to update configuration: %d.", ret);
         return 1;

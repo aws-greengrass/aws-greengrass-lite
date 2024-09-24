@@ -20,6 +20,7 @@ typedef struct {
     GglList root_components_to_remove;
     GglMap component_to_configuration;
     GglDeploymentState state;
+    GglMap cloud_root_components_to_add;
 } GglDeployment;
 
 #endif

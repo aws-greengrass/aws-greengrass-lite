@@ -14,6 +14,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <pthread.h>
 #include <string.h>
 #include <uuid/uuid.h>
@@ -142,6 +143,15 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
         doc->root_component_versions_to_add = val->map;
     }
 
+    // TODO: Refactor. This is a cloud deployment doc only field.
+    if (ggl_map_get(args, GGL_STR("components"), &val)) {
+        if (val->type != GGL_TYPE_MAP) {
+            GGL_LOGE("ggdeploymentd", "Received invalid argument.");
+            return GGL_ERR_INVALID;
+        }
+        doc->cloud_root_components_to_add = val->map;
+    }
+
     if (ggl_map_get(args, GGL_STR("root_components_to_remove"), &val)) {
         if (val->type != GGL_TYPE_LIST) {
             GGL_LOGE("ggdeploymentd", "Received invalid argument.");
@@ -175,7 +185,7 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_deployment_enqueue(GglMap deployment_doc, GglBuffer *id) {
+GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id) {
     pthread_mutex_lock(&queue_mtx);
     GGL_DEFER(pthread_mutex_unlock, queue_mtx);
 
@@ -186,16 +196,11 @@ GglError ggl_deployment_enqueue(GglMap deployment_doc, GglBuffer *id) {
     }
 
     if (id != NULL) {
-        if (new.deployment_id.len > id->len) {
-            GGL_LOGD(
-                "deployment_queue",
-                "Insufficient memory to return deployment id."
-            );
-            return GGL_ERR_NOMEM;
+        ret = ggl_byte_vec_append(id, new.deployment_id);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("deployment_queue", "insufficient id length");
+            return ret;
         }
-
-        memcpy(id->data, new.deployment_id.data, new.deployment_id.len);
-        id->len = new.deployment_id.len;
     }
 
     new.state = GGL_DEPLOYMENT_QUEUED;

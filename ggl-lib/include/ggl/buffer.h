@@ -19,8 +19,15 @@ GglBuffer ggl_buffer_from_null_term(char *str);
 /// Returns whether two buffers have identical content.
 bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2);
 
+/// Returns whether the buffer has the given prefix.
+bool ggl_buffer_has_prefix(GglBuffer buf, GglBuffer prefix);
+
 /// Returns whether the buffer has the given suffix.
 bool ggl_buffer_has_suffix(GglBuffer buf, GglBuffer suffix);
+
+/// Returns whether the buffer contains the given substring.
+/// Outputs start and end index.
+bool ggl_buffer_contains(GglBuffer buf, GglBuffer substring, size_t *start);
 
 /// Returns substring of buffer from start to end.
 /// The result is the overlap between the start to end range and the input

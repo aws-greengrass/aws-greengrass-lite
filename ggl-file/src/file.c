@@ -417,7 +417,8 @@ GglError ggl_file_openat(
     GglBuffer file = path;
     GglBuffer dir;
     if (split_path_last_comp(path, &dir, &file)) {
-        GglError ret = ggl_dir_openat(dirfd, dir, O_PATH, false, &cur_fd);
+        bool create = (flags & O_CREAT) > 0;
+        GglError ret = ggl_dir_openat(dirfd, dir, O_PATH, create, &cur_fd);
         if (ret != GGL_ERR_OK) {
             return ret;
         }

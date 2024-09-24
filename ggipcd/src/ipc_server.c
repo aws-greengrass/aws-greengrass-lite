@@ -77,6 +77,13 @@ static GglError deserialize_payload(GglBuffer payload, GglMap *out) {
         json_decode_mem[GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject)];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(json_decode_mem));
 
+    GGL_LOGT(
+        "ipc-server",
+        "Deserializing payload %.*s",
+        (int) payload.len,
+        (char *) payload.data
+    );
+
     GglError ret = ggl_json_decode_destructive(payload, &balloc.alloc, &obj);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("ipc-server", "Failed to decode msg payload.");
