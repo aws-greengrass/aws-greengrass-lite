@@ -392,64 +392,63 @@ static GglError concat_inital_strings(
     Recipe2UnitArgs *args
 ) {
     GglError ret;
-    if (ggl_map_get(recipe_map, GGL_STR("componentname"), &component_name)) {
-        if (component_name->type != GGL_TYPE_BUF) {
-            return GGL_ERR_INVALID;
-        }
-
-        // build the script name prefix string
-        ret = ggl_byte_vec_append(script_name_prefix_vec, component_name->buf);
-        ggl_byte_vec_chain_append(
-            &ret, script_name_prefix_vec, GGL_STR(".script.")
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        // build the working directory string
-        ret = ggl_byte_vec_append(
-            working_dir_vec,
-            (GglBuffer) { .data = (uint8_t *) args->root_dir,
-                          .len = strlen(args->root_dir) }
-        );
-        ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work/"));
-        ggl_byte_vec_chain_append(&ret, working_dir_vec, component_name->buf);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        // Get the current working directory
-        char cwd[WORKING_DIR_LEN];
-        if (getcwd(cwd, sizeof(cwd)) == NULL) {
-            GGL_LOGE(COMPONENT_NAME, "Failed to get current workingdirectory");
-            return GGL_ERR_FAILURE;
-        }
-
-        // build the working directory string
-        ret = ggl_byte_vec_append(
-            exec_start_section_vec,
-            (GglBuffer) { .data = (uint8_t *) args->recipe_runner_path,
-                          .len = strlen(args->recipe_runner_path) }
-        );
-        ggl_byte_vec_chain_append(
-            &ret, exec_start_section_vec, GGL_STR(" -n ")
-        );
-        ggl_byte_vec_chain_append(
-            &ret, exec_start_section_vec, component_name->buf
-        );
-        ggl_byte_vec_chain_append(
-            &ret, exec_start_section_vec, GGL_STR(" -p ")
-        );
-        ggl_byte_vec_chain_append(
-            &ret,
-            exec_start_section_vec,
-            (GglBuffer) { .data = (uint8_t *) cwd, .len = strlen(cwd) }
-        );
-        ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR("/"));
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+    if (!ggl_map_get(recipe_map, GGL_STR("componentname"), &component_name)) {
+        return GGL_ERR_INVALID;
     }
+
+    if (component_name->type != GGL_TYPE_BUF) {
+        return GGL_ERR_INVALID;
+    }
+
+    // build the script name prefix string
+    ret = ggl_byte_vec_append(script_name_prefix_vec, component_name->buf);
+    ggl_byte_vec_chain_append(
+        &ret, script_name_prefix_vec, GGL_STR(".script.")
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    // build the working directory string
+    ret = ggl_byte_vec_append(
+        working_dir_vec,
+        (GglBuffer) { .data = (uint8_t *) args->root_dir,
+                      .len = strlen(args->root_dir) }
+    );
+    ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work/"));
+    ggl_byte_vec_chain_append(&ret, working_dir_vec, component_name->buf);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    // Get the current working directory
+    char cwd[WORKING_DIR_LEN];
+    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+        GGL_LOGE(COMPONENT_NAME, "Failed to get current workingdirectory");
+        return GGL_ERR_FAILURE;
+    }
+
+    // build the working directory string
+    ret = ggl_byte_vec_append(
+        exec_start_section_vec,
+        (GglBuffer) { .data = (uint8_t *) args->recipe_runner_path,
+                      .len = strlen(args->recipe_runner_path) }
+    );
+    ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -n "));
+    ggl_byte_vec_chain_append(
+        &ret, exec_start_section_vec, component_name->buf
+    );
+    ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -p "));
+    ggl_byte_vec_chain_append(
+        &ret,
+        exec_start_section_vec,
+        (GglBuffer) { .data = (uint8_t *) cwd, .len = strlen(cwd) }
+    );
+    ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR("/"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
     return GGL_ERR_OK;
 }
 
