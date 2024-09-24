@@ -2,6 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "../../ipc_authz.h"
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "cli.h"
@@ -22,8 +23,6 @@ GglError ggl_handle_create_local_deployment(
     int32_t stream_id,
     GglAlloc *alloc
 ) {
-    (void) info;
-
     GGL_MAP_FOREACH(pair, args) {
         if (ggl_buffer_eq(pair->key, GGL_STR("recipeDirectoryPath"))) {
             pair->key = GGL_STR("recipe_directory_path");
@@ -53,8 +52,15 @@ GglError ggl_handle_create_local_deployment(
         }
     }
 
+    GglError ret
+        = ggl_ipc_auth(info, GGL_STR(""), ggl_ipc_default_policy_matcher);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("CreateLocalDeployment", "IPC Operation not authorized.");
+        return GGL_ERR_INVALID;
+    }
+
     GglObject result;
-    GglError ret = ggl_call(
+    ret = ggl_call(
         GGL_STR("/aws/ggl/ggdeploymentd"),
         GGL_STR("create_local_deployment"),
         args,

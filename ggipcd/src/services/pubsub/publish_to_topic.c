@@ -2,6 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "../../ipc_authz.h"
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "pubsub.h"
@@ -22,7 +23,6 @@ GglError ggl_handle_publish_to_topic(
     int32_t stream_id,
     GglAlloc *alloc
 ) {
-    (void) info;
     (void) alloc;
 
     GglObject *topic;
@@ -71,6 +71,12 @@ GglError ggl_handle_publish_to_topic(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("PublishToTopic", "Received invalid paramters.");
+        return GGL_ERR_INVALID;
+    }
+
+    ret = ggl_ipc_auth(info, topic->buf, ggl_ipc_default_policy_matcher);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("PublishToTopic", "IPC Operation not authorized.");
         return GGL_ERR_INVALID;
     }
 

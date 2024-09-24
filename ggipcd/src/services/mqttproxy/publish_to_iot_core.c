@@ -2,6 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "../../ipc_authz.h"
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "mqttproxy.h"
@@ -25,7 +26,6 @@ GglError ggl_handle_publish_to_iot_core(
     GglAlloc *alloc
 ) {
     (void) alloc;
-    (void) info;
 
     GglObject *topic_name_obj;
     GglObject *payload_obj;
@@ -64,6 +64,12 @@ GglError ggl_handle_publish_to_iot_core(
     bool decoded = ggl_base64_decode_in_place(&payload);
     if (!decoded) {
         GGL_LOGE("PublishToIoTCore", "payload is not valid base64.");
+        return GGL_ERR_INVALID;
+    }
+
+    ret = ggl_ipc_auth(info, topic_name_obj->buf, ggl_ipc_mqtt_policy_matcher);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("PublishToIotCore", "IPC Operation not authorized.");
         return GGL_ERR_INVALID;
     }
 
