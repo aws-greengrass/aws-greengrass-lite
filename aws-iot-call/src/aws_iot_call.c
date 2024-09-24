@@ -142,20 +142,16 @@ GglError ggl_aws_iot_call(
     pthread_mutex_lock(&mem_mtx);
     GGL_DEFER(pthread_mutex_unlock, mem_mtx);
 
-    // TODO: Share memory for topics and encode
-    static uint8_t accepted_topic_mem[AWS_IOT_MAX_TOPIC_SIZE];
-    static uint8_t rejected_topic_mem[AWS_IOT_MAX_TOPIC_SIZE];
+    // TODO: Share memory for topic filter and encode
+    static uint8_t topic_filter_mem[AWS_IOT_MAX_TOPIC_SIZE];
     static uint8_t json_encode_mem[GGL_MAX_IOT_CORE_API_PAYLOAD_LEN];
 
-    GglByteVec accepted_topic = GGL_BYTE_VEC(accepted_topic_mem);
-    GglByteVec rejected_topic = GGL_BYTE_VEC(rejected_topic_mem);
+    GglByteVec topic_filter = GGL_BYTE_VEC(topic_filter_mem);
 
-    GglError ret = ggl_byte_vec_append(&accepted_topic, topic);
-    ggl_byte_vec_chain_append(&ret, &accepted_topic, GGL_STR("/accepted"));
-    ggl_byte_vec_chain_append(&ret, &rejected_topic, topic);
-    ggl_byte_vec_chain_append(&ret, &rejected_topic, GGL_STR("/rejected"));
+    GglError ret = ggl_byte_vec_append(&topic_filter, topic);
+    ggl_byte_vec_chain_append(&ret, &topic_filter, GGL_STR("/+"));
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("iot_core_call", "Failed to construct response topics.");
+        GGL_LOGE("iot_core_call", "Failed to construct response topic filter.");
         return ret;
     }
 
@@ -177,7 +173,7 @@ GglError ggl_aws_iot_call(
 
     uint32_t sub_handle = 0;
     ret = ggl_aws_iot_mqtt_subscribe(
-        GGL_BUF_LIST(accepted_topic.buf, rejected_topic.buf),
+        GGL_BUF_LIST(topic_filter.buf),
         1,
         subscription_callback,
         subscription_close_callback,
