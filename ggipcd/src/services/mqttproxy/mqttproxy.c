@@ -3,15 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "mqttproxy.h"
+#include "../../ipc_authz.h"
 #include "../../ipc_service.h"
-#include <ggl/error.h>
-#include <ggl/log.h>
 #include <ggl/object.h>
-#include <ggl/vector.h>
-#include <regex.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include <stdint.h>
 
 static GglIpcOperation operations[] = {
     {
@@ -30,86 +26,34 @@ GglIpcService ggl_ipc_service_mqttproxy = {
     .operation_count = sizeof(operations) / sizeof(*operations),
 };
 
-static bool get_regex(GglBuffer pattern, GglByteVec *regex) {
-    GglError ret = ggl_byte_vec_push(regex, '^');
-    if (ret != GGL_ERR_OK) {
-        return false;
-    }
-    bool in_escape = false;
-    for (size_t i = 0; i < pattern.len; i++) {
-        uint8_t c = pattern.data[i];
-        if (in_escape) {
-            if (c == (uint8_t) '}') {
-                in_escape = false;
-                continue;
-            }
-        } else {
-            if (c == (uint8_t) '*') {
-                ret = ggl_byte_vec_append(regex, GGL_STR(".*"));
-                if (ret != GGL_ERR_OK) {
-                    return false;
-                }
-                continue;
-            }
-            if ((c == (uint8_t) '$') && (i < pattern.len - 1)
-                && (pattern.data[i + 1] == (uint8_t) '{')) {
-                in_escape = true;
-                i += 1;
-                continue;
-            }
-        }
-
-        switch ((char) c) {
-        case '.':
-        case '[':
-        case ']':
-        case '*':
-        case '\\':
-            ret = ggl_byte_vec_push(regex, '\\');
-            ggl_byte_vec_chain_push(&ret, regex, c);
-            break;
+/// Matches topic or topic filter against topic filter
+/// i.e. `a/+/b` matches `a/#`
+static bool match_topic_filter(GglBuffer resource, GglBuffer filter) {
+    size_t i = 0;
+    size_t j = 0;
+    while (i < filter.len) {
+        switch (filter.data[i]) {
         case '+':
-            ret = ggl_byte_vec_append(regex, GGL_STR("[^/]*"));
+            while ((j < resource.len) && (resource.data[j] != '/')) {
+                j++;
+            }
             break;
         case '#':
-            ret = ggl_byte_vec_append(regex, GGL_STR(".*"));
-            break;
+            return true;
         default:
-            ret = ggl_byte_vec_push(regex, c);
+            if (filter.data[i] != resource.data[j]) {
+                return false;
+            }
+            j++;
         }
-        if (ret != GGL_ERR_OK) {
-            return false;
-        }
+        i++;
     }
-    ret = ggl_byte_vec_push(regex, '$');
-    ggl_byte_vec_chain_push(&ret, regex, '\0');
-    return ret == GGL_ERR_OK;
+    return j == resource.len;
 }
 
 bool ggl_ipc_mqtt_policy_matcher(
     GglBuffer request_resource, GglBuffer policy_resource
 ) {
-    GglByteVec regex_vec = GGL_BYTE_VEC((uint8_t[512]) { 0 });
-    bool ret = get_regex(policy_resource, &regex_vec);
-    if (!ret) {
-        return ret;
-    }
-
-    regex_t regex;
-    int err = regcomp(&regex, (char *) regex_vec.buf.data, REG_NOSUB);
-    if (err != 0) {
-        GGL_LOGE(
-            "mqttproxy", "Failed to compile regex: %s", regex_vec.buf.data
-        );
-        return false;
-    }
-    err = regexec(
-        &regex,
-        (char *) request_resource.data,
-        0,
-        &(regmatch_t) { .rm_so = 0, .rm_eo = (regoff_t) request_resource.len },
-        REG_STARTEND
-    );
-    regfree(&regex);
-    return err == 0;
+    return ggl_ipc_default_policy_matcher(request_resource, policy_resource)
+        || match_topic_filter(request_resource, policy_resource);
 }
