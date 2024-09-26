@@ -213,17 +213,20 @@ static GglBuffer get_current_architecture(void) {
 // TODO: Refactor it
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError manifest_selection(
-    GglMap manifest_map, GglMap recipe_map, GglObject *selected_lifecycle_object
+    const GglMap *manifest_map,
+    GglMap recipe_map,
+    GglObject **selected_lifecycle_object
 ) {
-    GglObject *val;
-    if (ggl_map_get(manifest_map, GGL_STR("platform"), &val)) {
-        if (val->type != GGL_TYPE_MAP) {
+    GglObject *platform;
+    GglObject *os;
+    if (ggl_map_get(*manifest_map, GGL_STR("platform"), &platform)) {
+        if (platform->type != GGL_TYPE_MAP) {
             return GGL_ERR_INVALID;
         }
 
         // If OS is not provided then do nothing
-        if (ggl_map_get(val->map, GGL_STR("os"), &val)) {
-            if (val->type != GGL_TYPE_BUF) {
+        if (ggl_map_get(platform->map, GGL_STR("os"), &os)) {
+            if (os->type != GGL_TYPE_BUF) {
                 GGL_LOGE(
                     COMPONENT_NAME,
                     "Platform OS is invalid. It must be a string"
@@ -234,9 +237,9 @@ static GglError manifest_selection(
             GglObject *architecture_obj = { 0 };
             // fetch architecture_obj
             if (ggl_map_get(
-                    val->map, GGL_STR(ARCHITECTURE), &architecture_obj
+                    platform->map, GGL_STR(ARCHITECTURE), &architecture_obj
                 )) {
-                if (val->type != GGL_TYPE_MAP) {
+                if (architecture_obj->type != GGL_TYPE_BUF) {
                     GGL_LOGE(
                         COMPONENT_NAME,
                         "Platform architecture is invalid. It must be a string"
@@ -244,39 +247,46 @@ static GglError manifest_selection(
                     return GGL_ERR_INVALID;
                 }
             }
+
             GglBuffer curr_arch = get_current_architecture();
 
             // Check if the current OS supported first
-            if ((strncmp((char *) val->buf.data, "linux", val->buf.len) == 0
-                 || strncmp((char *) val->buf.data, "*", val->buf.len) == 0)) {
+            if ((strncmp((char *) os->buf.data, "linux", os->buf.len) == 0
+                 || strncmp((char *) os->buf.data, "*", os->buf.len) == 0)) {
                 // Then check if architecture is also supported
-                if (((architecture_obj->buf.len == 0)
+                if (((architecture_obj == NULL)
+                     || (architecture_obj->buf.len == 0)
                      || (strncmp(
                              (char *) architecture_obj->buf.data,
                              (char *) curr_arch.data,
                              architecture_obj->buf.len
                          )
                          == 0))) {
-                    if (ggl_map_get(manifest_map, GGL_STR(LIFECYCLE), &val)) {
-                        if (val->type != GGL_TYPE_MAP) {
+                    GglObject *selections;
+                    if (ggl_map_get(
+                            *manifest_map,
+                            GGL_STR(LIFECYCLE),
+                            selected_lifecycle_object
+                        )) {
+                        if ((*selected_lifecycle_object)->type
+                            != GGL_TYPE_MAP) {
                             return GGL_ERR_INVALID;
                         }
-                        // if linux lifecycle is present then return the object
-                        *selected_lifecycle_object = *val;
-
                     } else if (ggl_map_get(
-                                   val->map, GGL_STR("selections"), &val
+                                   *manifest_map,
+                                   GGL_STR("selections"),
+                                   &selections
                                )) {
-                        if (val->type != GGL_TYPE_LIST) {
+                        if (selections->type != GGL_TYPE_LIST) {
                             return GGL_ERR_INVALID;
                         }
                         return lifecycle_selection(
-                            val, recipe_map, selected_lifecycle_object
+                            selections, recipe_map, *selected_lifecycle_object
                         );
                     } else {
                         GGL_LOGE(
                             COMPONENT_NAME,
-                            "Neither Lifecycle or Selection data provided"
+                            "Neither Lifecycle nor Selection data provided"
                         );
                         return GGL_ERR_INVALID;
                     }
@@ -383,25 +393,25 @@ static GglError fetch_script_section(
     return GGL_ERR_OK;
 };
 
-static GglError concat_inital_strings(
-    GglMap recipe_map,
+static GglError concat_initial_strings(
+    const GglMap *recipe_map,
     GglByteVec *script_name_prefix_vec,
     GglByteVec *working_dir_vec,
     GglByteVec *exec_start_section_vec,
-    GglObject *component_name,
+    GglObject **component_name,
     Recipe2UnitArgs *args
 ) {
     GglError ret;
-    if (!ggl_map_get(recipe_map, GGL_STR("componentname"), &component_name)) {
+    if (!ggl_map_get(*recipe_map, GGL_STR("componentname"), component_name)) {
         return GGL_ERR_INVALID;
     }
 
-    if (component_name->type != GGL_TYPE_BUF) {
+    if ((*component_name)->type != GGL_TYPE_BUF) {
         return GGL_ERR_INVALID;
     }
 
     // build the script name prefix string
-    ret = ggl_byte_vec_append(script_name_prefix_vec, component_name->buf);
+    ret = ggl_byte_vec_append(script_name_prefix_vec, (*component_name)->buf);
     ggl_byte_vec_chain_append(
         &ret, script_name_prefix_vec, GGL_STR(".script.")
     );
@@ -416,7 +426,7 @@ static GglError concat_inital_strings(
                       .len = strlen(args->root_dir) }
     );
     ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work/"));
-    ggl_byte_vec_chain_append(&ret, working_dir_vec, component_name->buf);
+    ggl_byte_vec_chain_append(&ret, working_dir_vec, (*component_name)->buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -436,7 +446,7 @@ static GglError concat_inital_strings(
     );
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -n "));
     ggl_byte_vec_chain_append(
-        &ret, exec_start_section_vec, component_name->buf
+        &ret, exec_start_section_vec, (*component_name)->buf
     );
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -p "));
     ggl_byte_vec_chain_append(
@@ -455,7 +465,7 @@ static GglError concat_inital_strings(
 static GglError select_linux_manifest(
     GglMap recipe_map, GglObject *val, GglMap *selected_lifecycle_map
 ) {
-    GglObject selected_lifecycle_object = { 0 };
+    GglObject *selected_lifecycle_object = NULL;
     for (size_t platform_index = 0; platform_index < val->list.len;
          platform_index++) {
         if (val->list.items[platform_index].type != GGL_TYPE_MAP) {
@@ -466,24 +476,31 @@ static GglError select_linux_manifest(
             return GGL_ERR_INVALID;
         }
         GglError ret = manifest_selection(
-            val->list.items[platform_index].map,
+            &val->list.items[platform_index].map,
             recipe_map,
             &selected_lifecycle_object
         );
         if (ret != GGL_ERR_OK) {
             return ret;
         }
+
+        if (selected_lifecycle_object == NULL) {
+            GGL_LOGE(COMPONENT_NAME, "No lifecycle was found for linux");
+            return GGL_ERR_FAILURE;
+        }
         // If a lifecycle is successfully selected then look no futher
-        if (selected_lifecycle_object.type == GGL_TYPE_MAP) {
+        if (selected_lifecycle_object->type == GGL_TYPE_MAP) {
             break;
         }
     }
-    if (selected_lifecycle_object.type != GGL_TYPE_MAP) {
+
+    if ((selected_lifecycle_object == NULL)
+        || (selected_lifecycle_object->type != GGL_TYPE_MAP)) {
         GGL_LOGE(COMPONENT_NAME, "No lifecycle was found for linux");
         return GGL_ERR_FAILURE;
     }
 
-    *selected_lifecycle_map = selected_lifecycle_object.map;
+    *selected_lifecycle_map = selected_lifecycle_object->map;
 
     return GGL_ERR_OK;
 }
@@ -828,101 +845,6 @@ static GglError manifest_builder(
     return GGL_ERR_OK;
 }
 
-static GglError fill_environment_variables(
-    GglByteVec *out, Recipe2UnitArgs *args
-) {
-    GglError ret = ggl_byte_vec_append(
-        out, GGL_STR("Environment=\"AWS_IOT_THING_NAME=")
-    );
-    ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        (GglBuffer) { (uint8_t *) args->thing_name, strlen(args->thing_name) }
-    );
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
-
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("Environment=\"AWS_REGION="));
-    ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        (GglBuffer) { (uint8_t *) args->aws_region, strlen(args->aws_region) }
-    );
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
-
-    ggl_byte_vec_chain_append(
-        &ret, out, GGL_STR("Environment=\"AWS_DEFAULT_REGION=")
-    );
-    ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        (GglBuffer) { (uint8_t *) args->aws_region, strlen(args->aws_region) }
-    );
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
-
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("Environment=\"GGC_VERSION="));
-    ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        (GglBuffer) { (uint8_t *) args->ggc_version, strlen(args->ggc_version) }
-    );
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
-
-    ggl_byte_vec_chain_append(
-        &ret, out, GGL_STR("Environment=\"GG_ROOT_CA_PATH=")
-    );
-    ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        (GglBuffer) { (uint8_t *) args->gg_root_ca_path,
-                      strlen(args->gg_root_ca_path) }
-    );
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
-
-    ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        GGL_STR(
-            "Environment=\"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT="
-        )
-    );
-    ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        (GglBuffer) { (uint8_t *) args->socket_path, strlen(args->socket_path) }
-    );
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
-
-    ggl_byte_vec_chain_append(
-        &ret, out, GGL_STR("Environment=\"AWS_CONTAINER_AUTHORIZATION_TOKEN=")
-    );
-    ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        (GglBuffer) { (uint8_t *) args->aws_container_auth_token,
-                      strlen(args->aws_container_auth_token) }
-    );
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
-
-    ggl_byte_vec_chain_append(
-        &ret, out, GGL_STR("Environment=\"AWS_CONTAINER_CREDENTIALS_FULL_URI=")
-    );
-    ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        (GglBuffer) { (uint8_t *) args->aws_container_cred_url,
-                      strlen(args->aws_container_cred_url) }
-    );
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
-
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            COMPONENT_NAME, "Failed to set environment variables to unit file"
-        );
-        return ret;
-    }
-    return GGL_ERR_OK;
-}
-
 static GglError fill_install_section(GglByteVec *out) {
     GglError ret = ggl_byte_vec_append(out, GGL_STR("\n[Install]\n"));
     ggl_byte_vec_chain_append(
@@ -937,10 +859,10 @@ static GglError fill_install_section(GglByteVec *out) {
 }
 
 static GglError fill_service_section(
-    GglMap recipe_map,
+    const GglMap *recipe_map,
     GglByteVec *out,
     Recipe2UnitArgs *args,
-    GglObject *component_name
+    GglObject **component_name
 ) {
     GglError ret = ggl_byte_vec_append(out, GGL_STR("[Service]\n"));
     if (ret != GGL_ERR_OK) {
@@ -957,7 +879,7 @@ static GglError fill_service_section(
     GglByteVec script_name_prefix_vec = GGL_BYTE_VEC(script_name_prefix_buf);
     ret = ggl_byte_vec_append(&script_name_prefix_vec, GGL_STR("ggl."));
 
-    ret = concat_inital_strings(
+    ret = concat_initial_strings(
         recipe_map,
         &script_name_prefix_vec,
         &working_dir_vec,
@@ -985,7 +907,7 @@ static GglError fill_service_section(
     }
 
     ret = manifest_builder(
-        recipe_map, out, script_name_prefix_vec, exec_start_section_vec, args
+        *recipe_map, out, script_name_prefix_vec, exec_start_section_vec, args
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -995,16 +917,16 @@ static GglError fill_service_section(
 }
 
 GglError generate_systemd_unit(
-    GglMap recipe_map,
+    const GglMap *recipe_map,
     GglBuffer *unit_file_buffer,
     Recipe2UnitArgs *args,
-    GglObject *component_name
+    GglObject **component_name
 ) {
     GglByteVec concat_unit_vector
         = { .buf = { .data = unit_file_buffer->data, .len = 0 },
             .capacity = unit_file_buffer->len };
 
-    GglError ret = fill_unit_section(recipe_map, &concat_unit_vector);
+    GglError ret = fill_unit_section(*recipe_map, &concat_unit_vector);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -1014,11 +936,6 @@ GglError generate_systemd_unit(
     ret = fill_service_section(
         recipe_map, &concat_unit_vector, args, component_name
     );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    ret = fill_environment_variables(&concat_unit_vector, args);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

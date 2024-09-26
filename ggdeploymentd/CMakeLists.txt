@@ -13,4 +13,5 @@ ggl_init_module(
        ggl-yaml
        core-bus-gg-config
        core-bus-aws-iot-mqtt
+       recipe2unit
        PkgConfig::uuid)

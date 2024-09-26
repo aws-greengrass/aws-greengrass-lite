@@ -6,7 +6,7 @@
 #include "ggl/recipe2unit.h"
 #include "unit_file_generator.h"
 #include "validate_args.h"
-#include <ggl/bump_alloc.h>
+#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -14,14 +14,13 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define MAX_RECIPE_BUF_SIZE 256000
 #define MAX_UNIT_FILE_BUF_SIZE 2048
 #define MAX_COMPONENT_FILE_NAME 1024
 
 static const char COMPONENT_NAME[] = "recipe2unit";
 
 GglError get_recipe_obj(
-    Recipe2UnitArgs *args, GglBumpAlloc *balloc, GglObject *recipe_obj
+    Recipe2UnitArgs *args, GglAlloc *alloc, GglObject *recipe_obj
 ) {
     GglError ret = validate_args(args);
     if (ret != GGL_ERR_OK) {
@@ -35,7 +34,7 @@ GglError get_recipe_obj(
     }
 
     ret = deserialize_file_content(
-        args->recipe_path, recipe_str_buf, &balloc->alloc, recipe_obj
+        args->recipe_path, recipe_str_buf, alloc, recipe_obj
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -49,13 +48,16 @@ GglError get_recipe_obj(
     return GGL_ERR_OK;
 }
 
-GglError convert_to_unit(Recipe2UnitArgs *args) {
+GglError convert_to_unit(
+    Recipe2UnitArgs *args,
+    GglAlloc *alloc,
+    GglObject *recipe_obj,
+    GglObject **component_name
+) {
     GglError ret;
-    GglObject recipe_obj;
-    static uint8_t big_buffer_for_bump[MAX_RECIPE_BUF_SIZE];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+    *component_name = NULL;
 
-    ret = get_recipe_obj(args, &balloc, &recipe_obj);
+    ret = get_recipe_obj(args, alloc, recipe_obj);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -64,16 +66,14 @@ GglError convert_to_unit(Recipe2UnitArgs *args) {
     GglBuffer response_buffer = (GglBuffer
     ) { .data = (uint8_t *) unit_file_buffer, .len = MAX_UNIT_FILE_BUF_SIZE };
 
-    GglObject *component_name = NULL;
-
     ret = generate_systemd_unit(
-        recipe_obj.map, &response_buffer, args, component_name
+        &recipe_obj->map, &response_buffer, args, component_name
     );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    if (component_name == NULL) {
+    if (*component_name == NULL) {
         GGL_LOGE(COMPONENT_NAME, "Component name was NULL");
         return GGL_ERR_FAILURE;
     }
@@ -87,7 +87,7 @@ GglError convert_to_unit(Recipe2UnitArgs *args) {
             .capacity = file_name_buffer.len };
 
     ret = ggl_byte_vec_append(&file_name_vector, GGL_STR("ggl."));
-    ggl_byte_vec_chain_append(&ret, &file_name_vector, component_name->buf);
+    ggl_byte_vec_chain_append(&ret, &file_name_vector, (*component_name)->buf);
     ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR(".service\0"));
     if (ret != GGL_ERR_OK) {
         return ret;

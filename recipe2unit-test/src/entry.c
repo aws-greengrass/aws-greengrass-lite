@@ -4,26 +4,27 @@
 
 #include "ggl/recipe2unit.h"
 #include "recipe2unit-test.h"
+#include <ggl/bump_alloc.h>
 #include <ggl/error.h>
+#include <ggl/object.h>
+#include <stdint.h>
 
 GglError run_recipe2unit_test(void) {
     Recipe2UnitArgs args = { 0 };
     char recipe_path[] = "./recipe2unit-test/sample/recipe.yml";
     char root_dir[] = ".";
 
-    args.gg_root_ca_path = "/home/test/rootCA.pem";
     args.recipe_path = recipe_path;
     args.root_dir = root_dir;
     args.user = "ubuntu";
     args.group = "ubuntu";
     args.recipe_runner_path = "/home/reciperunner";
-    args.socket_path = "home/test/socket";
-    args.aws_container_auth_token = "AAAAAAAA";
-    args.ggc_version = "1.0.0";
-    args.thing_name = "test";
-    args.aws_container_cred_url = "12.43.1.1";
-    args.aws_region = "us-west-2";
 
-    convert_to_unit(&args);
+    GglObject recipe_map;
+    GglObject *component_name;
+    static uint8_t big_buffer_for_bump[5000];
+    GglBumpAlloc bump_alloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+
+    convert_to_unit(&args, &bump_alloc.alloc, &recipe_map, &component_name);
     return GGL_ERR_OK;
 }

@@ -22,6 +22,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/recipe2unit.h>
 #include <ggl/socket.h>
 #include <ggl/vector.h>
 #include <string.h>
@@ -31,6 +32,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#define MAX_RECIPE_BUF_SIZE 256000
 
 static struct DeploymentConfiguration {
     char data_endpoint[128];
@@ -1078,75 +1081,77 @@ static void handle_deployment(
                     cloud_component_version->buf.len
                 );
 
-                char *recipe2unit_args[] = { "python3",
-                                             recipe2unit_path,
-                                             "-r",
-                                             recipe_path,
-                                             "--recipe-runner-path",
-                                             recipe_runner_path,
-                                             "--socket-path",
-                                             socket_path,
-                                             "-t",
-                                             thing_name,
-                                             "--aws-region",
-                                             config.region,
-                                             "--ggc-version",
-                                             "0.0.1",
-                                             "--rootca-path",
-                                             root_ca_path,
-                                             "--cred-url",
-                                             tes_cred_url,
-                                             "--user",
-                                             posix_user,
-                                             "--group",
-                                             group,
-                                             "--artifact-path",
-                                             artifact_path,
-                                             "--root-dir",
-                                             (char *) args->root_path.data };
+                Recipe2UnitArgs recipe2unit_args
+                    = { .recipe_path = recipe_path,
+                        .recipe_runner_path = recipe_runner_path,
+                        .user = posix_user,
+                        .group = group,
+                        .root_dir = (char *) args->root_path.data };
 
-                pid_t pid = fork();
+                GglObject recipe_buff_obj;
+                GglObject *component_name;
+                static uint8_t big_buffer_for_bump[MAX_RECIPE_BUF_SIZE];
+                GglBumpAlloc bump_alloc
+                    = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
-                if (pid == -1) {
-                    // Something went wrong
+                GglError err = convert_to_unit(
+                    &recipe2unit_args,
+                    &bump_alloc.alloc,
+                    &recipe_buff_obj,
+                    &component_name
+                );
 
-                    GGL_LOGE("ggdeploymentd", "Error, Unable to fork");
+                if (err != GGL_ERR_OK) {
                     return;
                 }
-                if (pid == 0) {
-                    // Child process: execute the script
-                    execvp("python3", recipe2unit_args);
 
-                    // If execvpe returns, it must have failed
-                    GGL_LOGE(
-                        "ggdeploymentd", "Error: execvp returned unexpectedly"
-                    );
-                    return;
-                }
-                // Parent process: wait for the child to finish
+                GglObject *intermediate_obj;
+                GglObject *default_config_obj;
 
-                int child_status;
-                if (waitpid(pid, &child_status, 0) == -1) {
-                    GGL_LOGE("ggdeploymentd", "Error, waitpid got hit");
-                    return;
-                }
-                if (WIFEXITED(child_status)) {
-                    if (WEXITSTATUS(child_status) != 0) {
+                if (ggl_map_get(
+                        recipe_buff_obj.map,
+                        GGL_STR("ComponentConfiguration"),
+                        &intermediate_obj
+                    )) {
+                    if (intermediate_obj->type != GGL_TYPE_MAP) {
                         GGL_LOGE(
-                            "ggdeploymentd", "Recipe to unit script failed"
+                            "Deployment Handler",
+                            "ComponentConfiguration is not a map type"
                         );
                         return;
                     }
-                    GGL_LOGI(
-                        "ggdeploymentd",
-                        "Recipe to unit script exited with child status "
-                        "%d\n",
-                        WEXITSTATUS(child_status)
-                    );
+
+                    if (ggl_map_get(
+                            intermediate_obj->map,
+                            GGL_STR("DefaultConfiguration"),
+                            &default_config_obj
+                        )) {
+                        ret = ggl_gg_config_write(
+                            GGL_BUF_LIST(
+                                GGL_STR("services"), component_name->buf
+                            ),
+                            *default_config_obj,
+                            0
+                        );
+
+                        if (ret != GGL_ERR_OK) {
+                            GGL_LOGE(
+                                "Deployment Handler",
+                                "Failed to send default config to ggconfigd."
+                            );
+                            return;
+                        }
+                    } else {
+                        GGL_LOGE(
+                            "Deployment Handler",
+                            "DefaultConfiguration not found in the recipe."
+                        );
+                        return;
+                    }
                 } else {
                     GGL_LOGE(
-                        "ggdeploymentd",
-                        "Recipe to unit script did not exit normally"
+                        "Deployment Handler",
+                        "ComponentConfiguration not found in the recipe"
                     );
                     return;
                 }
