@@ -232,6 +232,15 @@ pkg_search_module(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
 pkg_search_module(uuid REQUIRED IMPORTED_TARGET uuid)
 pkg_search_module(libevent REQUIRED IMPORTED_TARGET libevent)
 
+include(CheckCSourceCompiles)
+
+check_c_source_compiles(
+  "
+  #include <argp.h>
+  int main(void) { argp_parse(0, 0, 0, 0, 0, 0); }
+  "
+  has_argp)
+
 #
 # Add components
 #
@@ -271,6 +280,9 @@ function(ggl_init_module name)
       target_link_libraries(${bin_name}-bin PRIVATE ${name})
     endif()
     target_link_libraries(${bin_name}-bin PRIVATE ${COMP_ARG_LIBS})
+    if(NOT has_argp)
+      target_link_libraries(${bin_name}-bin PRIVATE argp)
+    endif()
     set_target_properties(${bin_name}-bin PROPERTIES OUTPUT_NAME ${bin_name})
     install(TARGETS ${bin_name}-bin)
   endforeach()
