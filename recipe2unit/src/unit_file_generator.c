@@ -270,6 +270,10 @@ static GglError manifest_selection(
                         )) {
                         if ((*selected_lifecycle_object)->type
                             != GGL_TYPE_MAP) {
+                            GGL_LOGE(
+                                COMPONENT_NAME,
+                                "Lifecycle object is not MAP type."
+                            );
                             return GGL_ERR_INVALID;
                         }
                     } else if (ggl_map_get(
@@ -425,8 +429,8 @@ static GglError concat_initial_strings(
         (GglBuffer) { .data = (uint8_t *) args->root_dir,
                       .len = strlen(args->root_dir) }
     );
-    ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work/"));
-    ggl_byte_vec_chain_append(&ret, working_dir_vec, (*component_name)->buf);
+    ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work"));
+    // ggl_byte_vec_chain_append(&ret, working_dir_vec, (*component_name)->buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -650,6 +654,7 @@ static GglError create_standardized_install_file(
         GGL_OBJ(standardized_install_map), &install_json_payload
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE(COMPONENT_NAME, "Failed to encode JSON.");
         return ret;
     }
 
@@ -658,14 +663,15 @@ static GglError create_standardized_install_file(
     ret = ggl_byte_vec_append(&script_name_vec, script_name_prefix_vec.buf);
     ggl_byte_vec_chain_append(&ret, &script_name_vec, GGL_STR("install.json"));
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE(COMPONENT_NAME, "Failed to append script details to vector.");
         return GGL_ERR_FAILURE;
     }
 
     ret = write_to_file(
-        root_dir, script_name_vec.buf, install_json_payload, 0400
+        root_dir, script_name_vec.buf, install_json_payload, 0700
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(COMPONENT_NAME, "Failed to create and write the script file");
+        GGL_LOGE(COMPONENT_NAME, "Failed to create and write the script file.");
         return ret;
     }
     return GGL_ERR_OK;
@@ -710,7 +716,7 @@ static GglError manifest_builder(
                 }
                 set_env_as_map = selected_set_env_as_obj->map;
             } else {
-                GGL_LOGE(
+                GGL_LOGI(
                     COMPONENT_NAME,
                     "setenv section not found within the linux lifecycle"
                 );
@@ -729,19 +735,29 @@ static GglError manifest_builder(
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
+
             ret = create_standardized_install_file(
                 script_name_prefix_vec, standardized_install_map, args->root_dir
             );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    COMPONENT_NAME,
+                    "Failed to create standardized install file."
+                );
+                return ret;
+            }
 
             //****************************************************************
             // Note: Everything below this should only deal with run or startup
             // ****************************************************************
             GglBuffer lifecycle_script_selection = { 0 };
-            GglObject *selection_made;
+            GglObject *startup_or_run_section;
             if (ggl_map_get(
-                    selected_lifecycle_map, GGL_STR("startup"), &selection_made
+                    selected_lifecycle_map,
+                    GGL_STR("startup"),
+                    &startup_or_run_section
                 )) {
-                if (selection_made->type == GGL_TYPE_LIST) {
+                if (startup_or_run_section->type == GGL_TYPE_LIST) {
                     GGL_LOGE(COMPONENT_NAME, "Startup is a list type");
                     return GGL_ERR_INVALID;
                 }
@@ -760,9 +776,13 @@ static GglError manifest_builder(
             } else if (ggl_map_get(
                            selected_lifecycle_map,
                            GGL_STR("run"),
-                           &selection_made
+                           &startup_or_run_section
                        )) {
-                if (selection_made->type != GGL_TYPE_MAP) {
+                if (startup_or_run_section->type == GGL_TYPE_LIST) {
+                    GGL_LOGE(
+                        COMPONENT_NAME,
+                        "'run' field in the lifecycle is of List type."
+                    );
                     return GGL_ERR_INVALID;
                 }
                 lifecycle_script_selection = GGL_STR("run");
@@ -903,7 +923,10 @@ static GglError fill_service_section(
     // Create the working directory if not existant
     struct stat st = { 0 };
     if (stat((char *) working_dir_vec.buf.data, &st) == -1) {
-        mkdir((char *) working_dir_vec.buf.data, 0700);
+        if (mkdir((char *) working_dir_vec.buf.data, 0700) == -1) {
+            GGL_LOGE(COMPONENT_NAME, "Failed to created working directory.");
+            return GGL_ERR_FAILURE;
+        }
     }
 
     ret = manifest_builder(

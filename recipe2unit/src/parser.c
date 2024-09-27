@@ -11,6 +11,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -86,7 +87,12 @@ GglError convert_to_unit(
         = { .buf = { .data = file_name_buffer.data, .len = 0 },
             .capacity = file_name_buffer.len };
 
-    ret = ggl_byte_vec_append(&file_name_vector, GGL_STR("ggl."));
+    GglBuffer root_dir_buffer = (GglBuffer
+    ) { .data = (uint8_t *) args->root_dir, .len = strlen(args->root_dir) };
+
+    ret = ggl_byte_vec_append(&file_name_vector, root_dir_buffer);
+    ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR("/"));
+    ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR("ggl."));
     ggl_byte_vec_chain_append(&ret, &file_name_vector, (*component_name)->buf);
     ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR(".service\0"));
     if (ret != GGL_ERR_OK) {

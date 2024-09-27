@@ -7,18 +7,22 @@
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <string.h>
 #include <stdint.h>
 
 GglError run_recipe2unit_test(void) {
     Recipe2UnitArgs args = { 0 };
     char recipe_path[] = "./recipe2unit-test/sample/recipe.yml";
     char root_dir[] = ".";
+    char recipe_runner_path[] = "/home/reciperunner";
 
-    args.recipe_path = recipe_path;
-    args.root_dir = root_dir;
+    memcpy(args.recipe_path, recipe_path, strlen(recipe_path));
+    memcpy(args.root_dir, recipe_path, strlen(root_dir));
     args.user = "ubuntu";
     args.group = "ubuntu";
-    args.recipe_runner_path = "/home/reciperunner";
+    memcpy(
+        args.recipe_runner_path, recipe_runner_path, strlen(recipe_runner_path)
+    );
 
     GglObject recipe_map;
     GglObject *component_name;

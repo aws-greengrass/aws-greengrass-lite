@@ -25,6 +25,7 @@
 #include <ggl/recipe2unit.h>
 #include <ggl/socket.h>
 #include <ggl/vector.h>
+#include <linux/limits.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -442,7 +443,7 @@ static GglError download_s3_artifact(
     GglObject *aws_session_token = NULL;
 
     GglError ret = ggl_map_validate(
-        params,
+        result.map,
         GGL_MAP_SCHEMA(
             { GGL_STR("accessKeyId"), true, GGL_TYPE_BUF, &aws_access_key_id },
             { GGL_STR("secretAccessKey"),
@@ -873,7 +874,7 @@ static void handle_deployment(
                     recipe_file_content->buf.data
                 );
 
-                static uint8_t recipe_name_buf[256];
+                static uint8_t recipe_name_buf[PATH_MAX];
                 GglByteVec recipe_name_vec = GGL_BYTE_VEC(recipe_name_buf);
                 ret = ggl_byte_vec_append(
                     &recipe_name_vec, cloud_component_name->buf
@@ -889,7 +890,7 @@ static void handle_deployment(
                     &ret, &recipe_name_vec, GGL_STR(".yaml")
                 );
 
-                static uint8_t recipe_dir_buf[256];
+                static uint8_t recipe_dir_buf[PATH_MAX];
                 GglByteVec recipe_dir_vec = GGL_BYTE_VEC(recipe_dir_buf);
                 ret = ggl_byte_vec_append(
                     &recipe_dir_vec,
@@ -966,7 +967,7 @@ static void handle_deployment(
 
                 // TODO: Replace with new recipe2unit c script/do not lazy copy
                 // paste
-                char recipe_path[256] = { 0 };
+                char recipe_path[PATH_MAX] = { 0 };
                 strncat(
                     recipe_path,
                     (char *) args->root_path.data,
@@ -990,7 +991,7 @@ static void handle_deployment(
                 );
                 strncat(recipe_path, ".yaml", strlen(".yaml"));
 
-                char recipe_runner_path[256] = { 0 };
+                char recipe_runner_path[PATH_MAX] = { 0 };
                 strncat(
                     recipe_runner_path, args->bin_path, strlen(args->bin_path)
                 );
@@ -998,7 +999,7 @@ static void handle_deployment(
                     recipe_runner_path, "recipe-runner", strlen("recipe-runner")
                 );
 
-                char socket_path[256] = { 0 };
+                char socket_path[PATH_MAX] = { 0 };
                 strncat(
                     socket_path,
                     (char *) args->root_path.data,
@@ -1058,7 +1059,7 @@ static void handle_deployment(
                     group = posix_user;
                 }
 
-                char artifact_path[256] = { 0 };
+                char artifact_path[PATH_MAX] = { 0 };
                 strncat(
                     artifact_path,
                     (char *) args->root_path.data,
@@ -1082,11 +1083,22 @@ static void handle_deployment(
                 );
 
                 Recipe2UnitArgs recipe2unit_args
-                    = { .recipe_path = recipe_path,
-                        .recipe_runner_path = recipe_runner_path,
-                        .user = posix_user,
-                        .group = group,
-                        .root_dir = (char *) args->root_path.data };
+                    = { .user = posix_user, .group = group };
+                memcpy(
+                    recipe2unit_args.recipe_path,
+                    recipe_path,
+                    strnlen(recipe_path, PATH_MAX)
+                );
+                memcpy(
+                    recipe2unit_args.recipe_runner_path,
+                    recipe_runner_path,
+                    strnlen(recipe_runner_path, PATH_MAX)
+                );
+                memcpy(
+                    recipe2unit_args.root_dir,
+                    args->root_path.data,
+                    args->root_path.len
+                );
 
                 GglObject recipe_buff_obj;
                 GglObject *component_name;
@@ -1110,7 +1122,7 @@ static void handle_deployment(
 
                 if (ggl_map_get(
                         recipe_buff_obj.map,
-                        GGL_STR("ComponentConfiguration"),
+                        GGL_STR("componentconfiguration"),
                         &intermediate_obj
                     )) {
                     if (intermediate_obj->type != GGL_TYPE_MAP) {
@@ -1123,7 +1135,7 @@ static void handle_deployment(
 
                     if (ggl_map_get(
                             intermediate_obj->map,
-                            GGL_STR("DefaultConfiguration"),
+                            GGL_STR("defaultconfiguration"),
                             &default_config_obj
                         )) {
                         ret = ggl_gg_config_write(
@@ -1142,39 +1154,21 @@ static void handle_deployment(
                             return;
                         }
                     } else {
-                        GGL_LOGE(
+                        GGL_LOGI(
                             "Deployment Handler",
                             "DefaultConfiguration not found in the recipe."
                         );
-                        return;
                     }
                 } else {
-                    GGL_LOGE(
+                    GGL_LOGI(
                         "Deployment Handler",
                         "ComponentConfiguration not found in the recipe"
                     );
-                    return;
                 }
 
-                char install_file_path[256] = { 0 };
-                strncat(install_file_path, "ggl.", strlen("ggl."));
-                strncat(
-                    install_file_path,
-                    (char *) cloud_component_name->buf.data,
-                    cloud_component_name->buf.len
-                );
-                strncat(
-                    install_file_path,
-                    ".script.install",
-                    strlen(".script.install")
-                );
-                int open_ret = open(install_file_path, O_RDONLY | O_CLOEXEC);
-                if (open_ret < 0) {
-                    GGL_LOGE("ggdeploymentd", "Could not find install file.");
-                    return;
-                }
+                // TODO: add install file processing logic here.
 
-                char service_file_path[256] = { 0 };
+                char service_file_path[PATH_MAX] = { 0 };
                 strncat(service_file_path, "ggl.", strlen("ggl."));
                 strncat(
                     service_file_path,
@@ -1182,59 +1176,24 @@ static void handle_deployment(
                     cloud_component_name->buf.len
                 );
                 strncat(service_file_path, ".service", strlen(".service"));
-                open_ret = open(service_file_path, O_RDONLY | O_CLOEXEC);
-                if (open_ret < 0) {
-                    GGL_LOGE("ggdeploymentd", "Could not find service file.");
-                    return;
-                }
 
-                char dot_slash_install[256] = { 0 };
-                strncat(dot_slash_install, "./", strlen("./"));
-                strncat(
-                    dot_slash_install,
-                    install_file_path,
-                    strlen(install_file_path)
-                );
-                // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                int system_ret = system(dot_slash_install);
-                if (WIFEXITED(system_ret)) {
-                    if (WEXITSTATUS(system_ret) != 0) {
-                        GGL_LOGE("ggdeploymentd", "Install script failed");
-                        return;
-                    }
-                    GGL_LOGI(
-                        "ggdeploymentd",
-                        "Install script exited with child status %d\n",
-                        WEXITSTATUS(system_ret)
-                    );
-                } else {
-                    GGL_LOGE(
-                        "ggdeploymentd", "Install script did not exit normally"
-                    );
-                    return;
-                }
-
-                char link_command[256] = { 0 };
+                char link_command[PATH_MAX] = { 0 };
                 strncat(
                     link_command,
                     "sudo systemctl link ",
                     strlen("sudo systemctl link ")
                 );
-                char cwd[256];
-                if (getcwd(cwd, sizeof(cwd)) == NULL) {
-                    GGL_LOGE(
-                        "ggdeploymentd",
-                        "Error getting current working directory."
-                    );
-                    return;
-                }
-                strncat(link_command, cwd, strlen(cwd));
+                strncat(
+                    link_command,
+                    (const char *) args->root_path.data,
+                    args->root_path.len
+                );
                 strncat(link_command, "/", strlen("/"));
                 strncat(
                     link_command, service_file_path, strlen(service_file_path)
                 );
                 // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                system_ret = system(link_command);
+                int system_ret = system(link_command);
                 if (WIFEXITED(system_ret)) {
                     if (WEXITSTATUS(system_ret) != 0) {
                         GGL_LOGE("ggdeploymentd", "systemctl link failed");
@@ -1252,7 +1211,7 @@ static void handle_deployment(
                     return;
                 }
 
-                char start_command[256] = { 0 };
+                char start_command[PATH_MAX] = { 0 };
                 strncat(
                     start_command,
                     "sudo systemctl start ",
@@ -1280,7 +1239,7 @@ static void handle_deployment(
                     return;
                 }
 
-                char enable_command[256] = { 0 };
+                char enable_command[PATH_MAX] = { 0 };
                 strncat(
                     enable_command,
                     "sudo systemctl enable ",
@@ -1319,7 +1278,7 @@ static void handle_deployment(
                 return;
             }
 
-            char recipe_path[256] = { 0 };
+            char recipe_path[PATH_MAX] = { 0 };
             strncat(
                 recipe_path, (char *) args->root_path.data, args->root_path.len
             );
@@ -1333,13 +1292,13 @@ static void handle_deployment(
             );
             strncat(recipe_path, ".yaml", strlen(".yaml"));
 
-            char recipe_runner_path[256] = { 0 };
+            char recipe_runner_path[PATH_MAX] = { 0 };
             strncat(recipe_runner_path, args->bin_path, strlen(args->bin_path));
             strncat(
                 recipe_runner_path, "recipe-runner", strlen("recipe-runner")
             );
 
-            char socket_path[256] = { 0 };
+            char socket_path[PATH_MAX] = { 0 };
             strncat(
                 socket_path, (char *) args->root_path.data, args->root_path.len
             );
@@ -1399,7 +1358,7 @@ static void handle_deployment(
                 group = posix_user;
             }
 
-            char artifact_path[256] = { 0 };
+            char artifact_path[PATH_MAX] = { 0 };
             strncat(
                 artifact_path,
                 (char *) args->root_path.data,
@@ -1487,59 +1446,20 @@ static void handle_deployment(
                 return;
             }
 
-            char install_file_path[256] = { 0 };
-            strncat(install_file_path, "ggl.", strlen("ggl."));
-            strncat(install_file_path, (char *) pair->key.data, pair->key.len);
-            strncat(
-                install_file_path, ".script.install", strlen(".script.install")
-            );
-            int open_ret = open(install_file_path, O_RDONLY | O_CLOEXEC);
-            if (open_ret < 0) {
-                GGL_LOGE("ggdeploymentd", "Could not find install file.");
-                return;
-            }
+            // TODO: add install file processing logic here.
 
-            char service_file_path[256] = { 0 };
+            char service_file_path[PATH_MAX] = { 0 };
             strncat(service_file_path, "ggl.", strlen("ggl."));
             strncat(service_file_path, (char *) pair->key.data, pair->key.len);
             strncat(service_file_path, ".service", strlen(".service"));
-            open_ret = open(service_file_path, O_RDONLY | O_CLOEXEC);
-            if (open_ret < 0) {
-                GGL_LOGE("ggdeploymentd", "Could not find service file.");
-                return;
-            }
 
-            char dot_slash_install[256] = { 0 };
-            strncat(dot_slash_install, "./", strlen("./"));
-            strncat(
-                dot_slash_install, install_file_path, strlen(install_file_path)
-            );
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            int system_ret = system(dot_slash_install);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("ggdeploymentd", "Install script failed");
-                    return;
-                }
-                GGL_LOGI(
-                    "ggdeploymentd",
-                    "Install script exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
-                );
-            } else {
-                GGL_LOGE(
-                    "ggdeploymentd", "Install script did not exit normally"
-                );
-                return;
-            }
-
-            char link_command[256] = { 0 };
+            char link_command[PATH_MAX] = { 0 };
             strncat(
                 link_command,
                 "sudo systemctl link ",
                 strlen("sudo systemctl link ")
             );
-            char cwd[256];
+            char cwd[PATH_MAX];
             if (getcwd(cwd, sizeof(cwd)) == NULL) {
                 GGL_LOGE(
                     "ggdeploymentd", "Error getting current working directory."
@@ -1550,7 +1470,7 @@ static void handle_deployment(
             strncat(link_command, "/", strlen("/"));
             strncat(link_command, service_file_path, strlen(service_file_path));
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system(link_command);
+            int system_ret = system(link_command);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
                     GGL_LOGE("ggdeploymentd", "systemctl link failed");
@@ -1568,7 +1488,7 @@ static void handle_deployment(
                 return;
             }
 
-            char start_command[256] = { 0 };
+            char start_command[PATH_MAX] = { 0 };
             strncat(
                 start_command,
                 "sudo systemctl start ",
@@ -1596,7 +1516,7 @@ static void handle_deployment(
                 return;
             }
 
-            char enable_command[256] = { 0 };
+            char enable_command[PATH_MAX] = { 0 };
             strncat(
                 enable_command,
                 "sudo systemctl enable ",

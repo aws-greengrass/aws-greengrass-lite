@@ -8,14 +8,14 @@
 #include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <linux/limits.h>
 
 typedef struct {
-    char *recipe_path;
-    char *recipe_runner_path;
-    // char *socket_path;
+    char recipe_path[PATH_MAX];
+    char recipe_runner_path[PATH_MAX];
     char *user;
     char *group;
-    char *root_dir;
+    char root_dir[PATH_MAX];
 } Recipe2UnitArgs;
 
 GglError get_recipe_obj(
