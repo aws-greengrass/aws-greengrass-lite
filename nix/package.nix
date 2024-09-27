@@ -1,4 +1,5 @@
-{ gglUtil
+{ lib
+, gglUtil
 , stdenv
 , pkg-config
 , cmake
@@ -11,14 +12,23 @@
 , sqlite
 , libyaml
 , dbus
-, systemd
+, systemdLibs
 , defaultMeta
 }:
 stdenv.mkDerivation {
   name = "aws-greengrass-lite";
   src = gglUtil.filteredSrc;
   nativeBuildInputs = [ pkg-config cmake ninja ];
-  buildInputs = [ openssl curl libuuid argp-standalone sqlite.dev libevent libyaml.dev dbus systemd ];
+  buildInputs = [
+    openssl
+    curl
+    libuuid
+    sqlite.dev
+    libevent
+    libyaml.dev
+    dbus
+    systemdLibs
+  ] ++ lib.optional (!stdenv.hostPlatform.isGnu) argp-standalone;
   cmakeBuildType = "MinSizeRel";
   cmakeFlags = gglUtil.fetchContentFlags ++ [ "-DENABLE_WERROR=1" ];
   meta = defaultMeta;
