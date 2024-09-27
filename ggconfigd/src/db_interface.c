@@ -28,12 +28,15 @@ static bool config_initialized = false;
 static sqlite3 *config_database;
 static const char *config_database_name = "config.db";
 
+static void sqlite_logger(void *ctx, int err_code, const char *str) {
+    (void) ctx;
+    (void) err_code;
+    GGL_LOGE("sqlite", "%s", str);
+}
+
 /// create the database to the correct schema
 static GglError create_database(void) {
-    GGL_LOGI("create_database", "creating the database");
-    // create the initial table
-    int result;
-    char *err_message = 0;
+    GGL_LOGI("create_database", "Initializing new configuration database.");
 
     const char *create_query
         = "CREATE TABLE keyTable('keyid' INTEGER PRIMARY KEY "
@@ -51,13 +54,9 @@ static GglError create_database(void) {
           "CREATE TABLE version('version' TEXT DEFAULT '0.1');"
           "INSERT INTO version(version) VALUES (0.1);";
 
-    result
-        = sqlite3_exec(config_database, create_query, NULL, NULL, &err_message);
+    int result = sqlite3_exec(config_database, create_query, NULL, NULL, NULL);
     if (result != SQLITE_OK) {
-        if (err_message) {
-            GGL_LOGI("GGCONFIG", "%d %s", result, err_message);
-            sqlite3_free(err_message);
-        }
+        GGL_LOGI("ggconfigd", "Error while creating database.");
         return GGL_ERR_FAILURE;
     }
     return GGL_ERR_OK;
@@ -66,9 +65,15 @@ static GglError create_database(void) {
 GglError ggconfig_open(void) {
     GglError return_err = GGL_ERR_FAILURE;
     if (config_initialized == false) {
+        int rc = sqlite3_config(SQLITE_CONFIG_LOG, sqlite_logger, NULL);
+        if (rc != SQLITE_OK) {
+            GGL_LOGE("ggconfiglib", "Failed to set sqlite3 logger.");
+            return GGL_ERR_FAILURE;
+        }
+
         char *err_message = 0;
         // do configuration
-        int rc = sqlite3_open(config_database_name, &config_database);
+        rc = sqlite3_open(config_database_name, &config_database);
         if (rc) {
             GGL_LOGE(
                 "ggconfiglib",
