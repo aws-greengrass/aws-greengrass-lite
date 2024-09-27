@@ -28,6 +28,7 @@
 #include <ggl/recipe2unit.h>
 #include <ggl/semver.h>
 #include <ggl/socket.h>
+#include <ggl/uri.h>
 #include <ggl/vector.h>
 #include <limits.h>
 #include <string.h>
@@ -360,65 +361,29 @@ static GglError get_rootca_path(GglByteVec *rootca_path) {
 }
 
 static GglError download_s3_artifact(
-    GglBuffer root_path,
-    GglBuffer component_name,
-    GglBuffer component_version,
-    GglBuffer region,
-    GglBuffer bucket,
-    GglBuffer key
+    GglBuffer region, GglBuffer bucket, GglBuffer key, int fd
 ) {
-    // reverse-find the filename from the key
-    GglBuffer file_name = GGL_STR("");
-    for (size_t i = key.len; i > 0; --i) {
-        if (key.data[i - 1] == '/') {
-            file_name = ggl_buffer_substr(key, i, SIZE_MAX);
-            break;
-        }
+    FILE *file = fdopen(fd, "wb");
+    if (file == NULL) {
+        return GGL_ERR_FAILURE;
     }
-    if (file_name.len == 0) {
-        file_name = key;
-    }
+    GGL_DEFER(fclose, file);
 
     static char url_for_download[512];
-    GglByteVec url_vec = GGL_BYTE_VEC(url_for_download);
-    GglError error = GGL_ERR_OK;
-    ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR("https://"));
-    ggl_byte_vec_chain_append(&error, &url_vec, bucket);
-    ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".s3."));
-    ggl_byte_vec_chain_append(&error, &url_vec, region);
-    ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".amazonaws.com/"));
-    ggl_byte_vec_chain_append(&error, &url_vec, key);
-    ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR("\0"));
-    if (error != GGL_ERR_OK) {
-        return error;
+    {
+        GglByteVec url_vec = GGL_BYTE_VEC(url_for_download);
+        GglError error = GGL_ERR_OK;
+        ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR("https://"));
+        ggl_byte_vec_chain_append(&error, &url_vec, bucket);
+        ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".s3."));
+        ggl_byte_vec_chain_append(&error, &url_vec, region);
+        ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".amazonaws.com/"));
+        ggl_byte_vec_chain_append(&error, &url_vec, key);
+        ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR("\0"));
+        if (error != GGL_ERR_OK) {
+            return error;
+        }
     }
-
-    // TODO: rework into using directory openats (requires ggl-http change)
-    static char file_path[512];
-    GglByteVec file_vec = GGL_BYTE_VEC(file_path);
-    ggl_byte_vec_chain_append(&error, &file_vec, root_path);
-    ggl_byte_vec_chain_append(
-        &error, &file_vec, GGL_STR("/packages/artifacts/")
-    );
-    ggl_byte_vec_chain_append(&error, &file_vec, component_name);
-    ggl_byte_vec_chain_push(&error, &file_vec, '/');
-    ggl_byte_vec_chain_append(&error, &file_vec, component_version);
-    ggl_byte_vec_chain_push(&error, &file_vec, '/');
-    ggl_byte_vec_chain_append(&error, &file_vec, file_name);
-    ggl_byte_vec_chain_push(&error, &file_vec, '\0');
-    if (error != GGL_ERR_OK) {
-        return error;
-    }
-    file_vec.buf.len--;
-    int fd = -1;
-    error
-        = ggl_file_open(file_vec.buf, O_WRONLY | O_TRUNC | O_CREAT, 0644, &fd);
-    if (error != GGL_ERR_OK) {
-        return error;
-    }
-
-    FILE *file = fdopen(fd, "wb");
-    GGL_DEFER(fclose, file);
 
     static uint8_t credentials_alloc[1500];
     static GglBuffer tesd = GGL_STR("/aws/ggl/tesd");
@@ -428,7 +393,7 @@ static GglError download_s3_artifact(
         = ggl_bump_alloc_init(GGL_BUF(credentials_alloc));
 
     // TODO: hoist out. Credentials should be good for an hour of s3 requests
-    error = ggl_call(
+    GglError error = ggl_call(
         tesd,
         GGL_STR("request_credentials"),
         params,
@@ -473,56 +438,57 @@ static GglError download_s3_artifact(
 }
 
 static GglError download_artifact(
-    GglBuffer root_path,
+    int artifacts_fd,
     GglBuffer component_name,
     GglBuffer component_version,
     GglBuffer region,
-    GglObject uri
+    GglBuffer uri
 ) {
-    if (uri.type != GGL_TYPE_BUF) {
-        return GGL_ERR_INVALID;
+    static uint8_t decode_buffer[512];
+    GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(decode_buffer));
+    GglUriInfo info = { 0 };
+    GglError err = gg_uri_parse(&alloc.alloc, uri, &info);
+    if (err != GGL_ERR_OK) {
+        return GGL_ERR_FAILURE;
     }
 
-    size_t i = 0;
-    for (; i < uri.buf.len; ++i) {
-        if (uri.buf.data[i] == ':') {
-            break;
-        }
-    }
-    if (i == uri.buf.len) {
-        GGL_LOGE("ggdeploymentd", "Missing artifact URI scheme.");
-        return GGL_ERR_PARSE;
-    }
-    GglBuffer scheme = ggl_buffer_substr(uri.buf, 0, i);
-    // skip "://"
-    GglBuffer rest = ggl_buffer_substr(uri.buf, i + 3, SIZE_MAX);
-    if (rest.len == 0) {
-        GGL_LOGE("ggdeploymentd", "Artifact has no URI.");
-        return GGL_ERR_PARSE;
-    }
-
-    if (ggl_buffer_eq(scheme, GGL_STR("s3"))) {
-        for (i = 0; i < rest.len; ++i) {
-            if (rest.data[i] == '/') {
-                break;
-            }
-        }
-        if (i == rest.len) {
-            GGL_LOGE("ggdeploymentd", "Missing s3 key/bucket name.");
-            return GGL_ERR_PARSE;
-        }
-        GglBuffer bucket = ggl_buffer_substr(rest, 0, i);
-        GglBuffer key = ggl_buffer_substr(rest, i + 1, SIZE_MAX);
-        if (key.len == 0) {
-            GGL_LOGE("ggdeploymentd", "s3 key was empty.");
-        }
-        return download_s3_artifact(
-            root_path, component_name, component_version, region, bucket, key
+    int version_fd = -1;
+    GGL_DEFER(ggl_close, version_fd);
+    {
+        int component_fd = -1;
+        err = ggl_dir_openat(
+            artifacts_fd, component_name, 0, true, &component_fd
         );
+        if (err != GGL_ERR_OK) {
+            return GGL_ERR_FAILURE;
+        }
+        err = ggl_dir_openat(
+            component_fd, component_version, 0, true, &version_fd
+        );
+        (void) ggl_close(component_fd);
+        if (err != GGL_ERR_OK) {
+            return GGL_ERR_FAILURE;
+        }
     }
 
-    GGL_LOGE("ggdeploymentd", "Unknown artifact URI scheme.");
-    return GGL_ERR_PARSE;
+    if (ggl_buffer_eq(info.scheme, GGL_STR("s3"))) {
+        int fd = -1;
+        err = ggl_file_openat(
+            version_fd, info.file, O_WRONLY | O_TRUNC | O_CREAT, 0644, &fd
+        );
+        if (err != GGL_ERR_OK) {
+            return GGL_ERR_FAILURE;
+        }
+        return download_s3_artifact(region, info.host, info.path, fd);
+    }
+
+    if (ggl_buffer_eq(info.scheme, GGL_STR("greengrass"))) { }
+    if (ggl_buffer_eq(info.scheme, GGL_STR("https"))) { }
+    GGL_LOGE(
+        "ggdeploymented",
+        "Unsupported scheme. Supported schemes are s3, greengrass, https."
+    );
+    return GGL_ERR_UNSUPPORTED;
 }
 
 static GglError get_recipe_artifacts(
@@ -558,6 +524,24 @@ static GglError get_recipe_artifacts(
         return GGL_ERR_PARSE;
     }
 
+    // ${root_path}/packages/artifacts
+    int artifacts_fd = -1;
+    {
+        int root_fd = -1;
+        GglError err = ggl_dir_open(root_path, 0, false, &root_fd);
+        if (err != GGL_ERR_OK) {
+            return GGL_ERR_FAILURE;
+        }
+        ggl_dir_openat(
+            root_fd, GGL_STR("/packages/artifacts"), 0, true, &artifacts_fd
+        );
+        close(root_fd);
+        if (err != GGL_ERR_OK) {
+            return GGL_ERR_FAILURE;
+        }
+    }
+    GGL_DEFER(ggl_close, artifacts_fd);
+
     for (size_t i = 0; i < cursor->list.len; ++i) {
         if (cursor->list.items[i].type != GGL_TYPE_MAP) {
             return GGL_ERR_PARSE;
@@ -567,11 +551,19 @@ static GglError get_recipe_artifacts(
             GGL_LOGW("ggdeploymentd", "Skipping unsupported artifact");
             continue;
         }
-        GglError ret = download_artifact(
-            root_path, component_name, component_version, region, *uri_obj
+        if (uri_obj->type != GGL_TYPE_BUF) {
+            GGL_LOGE("ggdeploymentd", "Uri is not a string");
+            return GGL_ERR_INVALID;
+        }
+        GglError err = download_artifact(
+            artifacts_fd,
+            component_name,
+            component_version,
+            region,
+            uri_obj->buf
         );
-        if (ret != GGL_ERR_OK) {
-            return ret;
+        if (err != GGL_ERR_OK) {
+            return err;
         }
     }
 

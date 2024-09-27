@@ -91,13 +91,13 @@ GglError gg_uri_parse(GglAlloc *alloc, GglBuffer uri, GglUriInfo *info) {
                              .malloc = ggl_uri_malloc,
                              .free = ggl_uri_free,
                              .userData = alloc };
-    const char *errorPos = NULL;
+    const char *error_pos = NULL;
 
     int uri_error = uriParseSingleUriExMmA(
         &result,
         (const char *) uri.data,
         (const char *) (&uri.data[uri.len]),
-        &errorPos,
+        &error_pos,
         &mem
     );
     if (uri_error != URI_SUCCESS) {
