@@ -29,6 +29,10 @@ static pid_t sys_clone3(struct clone_args *args) {
     return (pid_t) syscall(SYS_clone3, args, sizeof(struct clone_args));
 }
 
+static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
+    return (int) syscall(SYS_close_range, first, last, flags);
+}
+
 static int sys_pidfd_send_signal(
     int pidfd, int sig, siginfo_t *info, unsigned int flags
 ) {
@@ -49,7 +53,7 @@ GglError ggl_process_spawn(char *const argv[], int *handle) {
     pid_t pid = sys_clone3(&args);
 
     if (pid == 0) {
-        close_range(3, UINT_MAX, CLOSE_RANGE_UNSHARE);
+        sys_close_range(3, UINT_MAX, CLOSE_RANGE_UNSHARE);
 
         execvp(argv[0], argv);
 
