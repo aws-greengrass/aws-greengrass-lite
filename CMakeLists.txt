@@ -232,6 +232,7 @@ pkg_search_module(yaml REQUIRED IMPORTED_TARGET yaml-0.1)
 pkg_search_module(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
 pkg_search_module(uuid REQUIRED IMPORTED_TARGET uuid)
 pkg_search_module(libevent REQUIRED IMPORTED_TARGET libevent)
+pkg_search_module(liburiparser REQUIRED IMPORTED_TARGET liburiparser)
 
 include(CheckCSourceCompiles)
 

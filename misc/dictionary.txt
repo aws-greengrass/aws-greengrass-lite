@@ -87,6 +87,7 @@ tlog
 unarchived
 unrefp
 unsuback
+uriparser
 uuid
 WERROR
 Xiwyu

@@ -10,7 +10,6 @@
 #include <ggl/log.h>
 #include <ggl/vector.h>
 #include <string.h>
-#include <stdio.h>
 
 #define MAX_HEADER_LENGTH 1024
 

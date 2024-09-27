@@ -9,7 +9,6 @@
 #include <curl/curl.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
-#include <stdio.h>
 
 typedef struct CurlData {
     CURL *curl;
