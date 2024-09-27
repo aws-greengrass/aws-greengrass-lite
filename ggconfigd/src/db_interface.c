@@ -2,6 +2,7 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "embeds.h"
 #include "ggconfigd.h"
 #include "ggl/alloc.h"
 #include "helpers.h"
@@ -38,23 +39,9 @@ static void sqlite_logger(void *ctx, int err_code, const char *str) {
 static GglError create_database(void) {
     GGL_LOGI("create_database", "Initializing new configuration database.");
 
-    const char *create_query
-        = "CREATE TABLE keyTable('keyid' INTEGER PRIMARY KEY "
-          "AUTOINCREMENT unique not null,"
-          "'keyvalue' TEXT NOT NULL COLLATE NOCASE  );"
-          "CREATE TABLE relationTable( 'keyid' INT UNIQUE NOT NULL, "
-          "'parentid' INT NOT NULL,"
-          "primary key ( keyid ),"
-          "foreign key ( keyid ) references keyTable(keyid),"
-          "foreign key ( parentid ) references keyTable(keyid));"
-          "CREATE TABLE valueTable( 'keyid' INT UNIQUE NOT NULL,"
-          "'value' TEXT NOT NULL,"
-          "'timeStamp' INTEGER NOT NULL,"
-          "foreign key(keyid) references keyTable(keyid) );"
-          "CREATE TABLE version('version' TEXT DEFAULT '0.1');"
-          "INSERT INTO version(version) VALUES (0.1);";
-
-    int result = sqlite3_exec(config_database, create_query, NULL, NULL, NULL);
+    // create the initial table
+    int result
+        = sqlite3_exec(config_database, GGL_SQL_CREATE_DB, NULL, NULL, NULL);
     if (result != SQLITE_OK) {
         GGL_LOGI("ggconfigd", "Error while creating database.");
         return GGL_ERR_FAILURE;
@@ -86,12 +73,7 @@ GglError ggconfig_open(void) {
 
             sqlite3_stmt *stmt;
             sqlite3_prepare_v2(
-                config_database,
-                "SELECT name FROM sqlite_master WHERE type = 'table' AND name "
-                "='keyTable';",
-                -1,
-                &stmt,
-                NULL
+                config_database, GGL_SQL_CHECK_INITALIZED, -1, &stmt, NULL
             );
             GGL_DEFER(sqlite3_finalize, stmt);
             if (sqlite3_step(stmt) == SQLITE_ROW) {
@@ -103,15 +85,7 @@ GglError ggconfig_open(void) {
         }
         // create a temporary table for subscriber data
         rc = sqlite3_exec(
-            config_database,
-            "CREATE TEMPORARY TABLE subscriberTable("
-            "'keyid' INT NOT NULL,"
-            "'handle' INT, "
-            "FOREIGN KEY (keyid) REFERENCES "
-            "keyTable(keyid))",
-            NULL,
-            NULL,
-            &err_message
+            config_database, GGL_SQL_CREATE_SUB_TABLE, NULL, NULL, &err_message
         );
         if (rc) {
             GGL_LOGE(
@@ -138,11 +112,7 @@ static GglError key_insert(GglBuffer *key, int64_t *id_output) {
     GGL_LOGD("key_insert", "insert %.*s", (int) key->len, (char *) key->data);
     sqlite3_stmt *key_insert_stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "INSERT INTO keyTable(keyvalue) VALUES (?);",
-        -1,
-        &key_insert_stmt,
-        NULL
+        config_database, GGL_SQL_KEY_INSERT, -1, &key_insert_stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, key_insert_stmt);
     sqlite3_bind_text(
@@ -176,11 +146,7 @@ static GglError value_is_present_for_key(
 
     sqlite3_stmt *find_value_stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "SELECT keyid FROM valueTable where keyid = ?;",
-        -1,
-        &find_value_stmt,
-        NULL
+        config_database, GGL_SQL_VALUE_PRESENT, -1, &find_value_stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, find_value_stmt);
     sqlite3_bind_int64(find_value_stmt, 1, key_id);
@@ -231,11 +197,7 @@ static GglError find_key_with_parent(
     sqlite3_stmt *find_element_stmt;
     sqlite3_prepare_v2(
         config_database,
-        "SELECT kt.keyid "
-        "FROM keyTable kt "
-        "LEFT JOIN relationTable rt "
-        "WHERE kt.keyid = rt.keyid AND "
-        "kt.keyvalue = ? AND rt.parentid = ?;",
+        GGL_SQL_GET_KEY_WITH_PARENT,
         -1,
         &find_element_stmt,
         NULL
@@ -293,12 +255,7 @@ static GglError get_or_create_key_at_root(GglBuffer *key, int64_t *id_output) {
 
     sqlite3_stmt *root_check_stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "SELECT keyid FROM keyTable WHERE keyid NOT IN (SELECT "
-        "keyid FROM relationTable) AND keyvalue = ?;",
-        -1,
-        &root_check_stmt,
-        NULL
+        config_database, GGL_SQL_GET_ROOT_KEY, -1, &root_check_stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, root_check_stmt);
     sqlite3_bind_text(
@@ -338,7 +295,7 @@ static GglError relation_insert(int64_t id, int64_t parent) {
     sqlite3_stmt *relation_insert_stmt;
     sqlite3_prepare_v2(
         config_database,
-        "INSERT INTO relationTable(keyid,parentid) VALUES (?,?);",
+        GGL_SQL_INSERT_RELATION,
         -1,
         &relation_insert_stmt,
         NULL
@@ -372,11 +329,7 @@ static GglError value_insert(
     GglError return_err = GGL_ERR_FAILURE;
     sqlite3_stmt *value_insert_stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "INSERT INTO valueTable(keyid,value,timeStamp) VALUES (?,?,?);",
-        -1,
-        &value_insert_stmt,
-        NULL
+        config_database, GGL_SQL_VALUE_INSERT, -1, &value_insert_stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, value_insert_stmt);
     sqlite3_bind_int64(value_insert_stmt, 1, key_id);
@@ -411,11 +364,7 @@ static GglError value_update(
 
     sqlite3_stmt *update_value_stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "UPDATE valueTable SET value = ?, timeStamp = ? WHERE keyid = ?;",
-        -1,
-        &update_value_stmt,
-        NULL
+        config_database, GGL_SQL_VALUE_UPDATE, -1, &update_value_stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, update_value_stmt);
     sqlite3_bind_text(
@@ -448,11 +397,7 @@ static GglError value_get_timestamp(
 ) {
     sqlite3_stmt *get_timestamp_stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "SELECT timeStamp FROM valueTable WHERE keyid = ?;",
-        -1,
-        &get_timestamp_stmt,
-        NULL
+        config_database, GGL_SQL_GET_TIMESTAMP, -1, &get_timestamp_stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, get_timestamp_stmt);
     sqlite3_bind_int64(get_timestamp_stmt, 1, id);
@@ -481,54 +426,7 @@ static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
 
     sqlite3_stmt *find_element_stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "WITH RECURSIVE path_cte(current_key_id, depth) AS ( "
-        "    SELECT keyid, 1 "
-        "    FROM keyTable "
-        "    WHERE keyid NOT IN (SELECT keyid FROM relationTable) "
-        "        AND keyvalue = ? "
-        "    "
-        "    UNION ALL "
-        "    "
-        "    SELECT kt.keyid, pc.depth + 1 "
-        "    FROM path_cte pc "
-        "    JOIN relationTable rt ON pc.current_key_id = rt.parentid "
-        "    JOIN keyTable kt ON rt.keyid = kt.keyid "
-        "    WHERE kt.keyvalue = ( "
-        "        CASE pc.depth "
-        "            WHEN 1 THEN ? "
-        "            WHEN 2 THEN ? "
-        "            WHEN 3 THEN ? "
-        "            WHEN 4 THEN ? "
-        "            WHEN 5 THEN ? "
-        "            WHEN 6 THEN ? "
-        "            WHEN 7 THEN ? "
-        "            WHEN 8 THEN ? "
-        "            WHEN 9 THEN ? "
-        "            WHEN 10 THEN ? "
-        "            WHEN 11 THEN ? "
-        "            WHEN 12 THEN ? "
-        "            WHEN 13 THEN ? "
-        "            WHEN 14 THEN ? "
-        "            WHEN 15 THEN ? "
-        "            WHEN 16 THEN ? "
-        "            WHEN 17 THEN ? "
-        "            WHEN 18 THEN ? "
-        "            WHEN 19 THEN ? "
-        "            WHEN 20 THEN ? "
-        "            WHEN 21 THEN ? "
-        "            WHEN 22 THEN ? "
-        "            WHEN 23 THEN ? "
-        "            WHEN 24 THEN ? "
-        "        END "
-        "    ) "
-        "    AND pc.depth < ? "
-        ") "
-        "SELECT current_key_id AS key_id "
-        "FROM path_cte ",
-        -1,
-        &find_element_stmt,
-        NULL
+        config_database, GGL_SQL_FIND_ELEMENT, -1, &find_element_stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, find_element_stmt);
 
@@ -682,11 +580,7 @@ static GglError child_is_present_for_key(
 
     sqlite3_stmt *child_check_stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "SELECT 1 FROM relationTable WHERE parentid = ? LIMIT 1;",
-        -1,
-        &child_check_stmt,
-        NULL
+        config_database, GGL_SQL_HAS_CHILD, -1, &child_check_stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, child_check_stmt);
     sqlite3_bind_int64(child_check_stmt, 1, key_id);
@@ -722,13 +616,7 @@ static GglError notify_single_key(
 
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "SELECT handle FROM subscriberTable S "
-        "LEFT JOIN keyTable K "
-        "WHERE S.keyid = K.keyid AND K.keyid = ?;",
-        -1,
-        &stmt,
-        NULL
+        config_database, GGL_SQL_GET_SUBSCRIBERS, -1, &stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, stmt);
     sqlite3_bind_int64(stmt, 1, notify_key_id);
@@ -920,13 +808,7 @@ static GglError read_value_at_key(
     int64_t key_id, GglObject *value, GglAlloc *alloc
 ) {
     sqlite3_stmt *stmt;
-    sqlite3_prepare_v2(
-        config_database,
-        "SELECT value FROM valueTable WHERE keyid = ?;",
-        -1,
-        &stmt,
-        NULL
-    );
+    sqlite3_prepare_v2(config_database, GGL_SQL_READ_VALUE, -1, &stmt, NULL);
     GGL_DEFER(sqlite3_finalize, stmt);
     sqlite3_bind_int64(stmt, 1, key_id);
     int rc = sqlite3_step(stmt);
@@ -989,13 +871,7 @@ static GglError read_key_recursive(
     // at this point we know the key should be a map, because it's not a value
     sqlite3_stmt *read_children_stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "select k.keyId, k.keyvalue from "
-        "relationTable r inner join keyTable k on r.keyId = k.keyId "
-        "WHERE r.parentid = ?;",
-        -1,
-        &read_children_stmt,
-        NULL
+        config_database, GGL_SQL_GET_CHILDREN, -1, &read_children_stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, read_children_stmt);
     sqlite3_bind_int64(read_children_stmt, 1, key_id);
@@ -1142,11 +1018,7 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     GGL_LOGD("ggconfig_get_key_notification", "INSERT %ld, %d", key_id, handle);
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(
-        config_database,
-        "INSERT INTO subscriberTable(keyid, handle) VALUES (?,?);",
-        -1,
-        &stmt,
-        NULL
+        config_database, GGL_SQL_ADD_SUBSCRIPTION, -1, &stmt, NULL
     );
     GGL_DEFER(sqlite3_finalize, stmt);
     sqlite3_bind_int64(stmt, 1, key_id);
