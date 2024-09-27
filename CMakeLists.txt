@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 cmake_minimum_required(VERSION 3.25)
-project(aws-greengrass-lite C)
+project(aws-greengrass-lite C ASM)
 
 #
 # Options
@@ -255,7 +255,8 @@ function(ggl_init_module name)
     set(COMP_ARG_INCDIRS include)
   endif()
 
-  file(GLOB_RECURSE SRCS CONFIGURE_DEPENDS "${COMP_ARG_SRCDIR}/*.c")
+  file(GLOB_RECURSE SRCS CONFIGURE_DEPENDS "${COMP_ARG_SRCDIR}/*.c"
+       "${COMP_ARG_SRCDIR}/*.S")
   list(LENGTH SRCS SRCS_LEN)
 
   foreach(src ${SRCS})

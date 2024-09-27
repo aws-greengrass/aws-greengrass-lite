@@ -69,6 +69,7 @@ pname
 posix
 ptid
 respfd
+rodata
 rootca
 serde
 serverd

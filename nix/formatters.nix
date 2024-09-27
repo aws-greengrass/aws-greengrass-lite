@@ -10,5 +10,7 @@ in
   "*.cmake" = fmt-cmake;
   "CMakeLists.txt" = fmt-cmake;
   "*.py" = "${yapf}/bin/yapf -i";
+  "*.sql" = "${nodePackages.sql-formatter}/bin/sql-formatter --fix " +
+    "--config ${../.sql-formatter.json}";
   ".clang*" = fmt-yaml;
 }

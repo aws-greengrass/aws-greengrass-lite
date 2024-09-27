@@ -26,3 +26,5 @@ QualifierAlignment: Left
 SeparateDefinitionBlocks: Always
 SpaceAfterCStyleCast: true
 PenaltyReturnTypeOnItsOwnLine: 240
+WhitespaceSensitiveMacros:
+  - EMBED_FILE

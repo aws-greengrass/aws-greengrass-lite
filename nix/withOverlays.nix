@@ -22,7 +22,7 @@ in
           "fc_deps.json"
           "run_nucleus"
         ] ||
-        lib.any file.hasExt [ "c" "h" "cmake" ])
+        lib.any file.hasExt [ "c" "h" "S" "sql" "cmake" ])
         src;
     };
 
