@@ -14,8 +14,6 @@
 // For now, set to something slightly smaller than GGCONFIGD_MAX_DB_READ_BYTES
 #define GGCONFIGD_MAX_OBJECT_DECODE_BYTES 9000
 
-#define MAX_KEY_PATH_DEPTH 25
-
 GglError ggconfig_write_value_at_key(
     GglList *key_path, GglBuffer *value, int64_t timestamp
 );

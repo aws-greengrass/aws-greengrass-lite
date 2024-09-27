@@ -14,6 +14,8 @@
 #include <ggl/object.h>
 #include <stdint.h>
 
+#define GGL_MAX_CONFIG_DEPTH 10
+
 /// Wrapper for core-bus `gg_config` `read`
 GglError ggl_gg_config_read(
     GglBufList key_path, GglAlloc *alloc, GglObject *result

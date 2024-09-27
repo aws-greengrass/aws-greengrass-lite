@@ -13,8 +13,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define GGL_MAX_CONFIG_DEPTH 10
-
 GglError ggl_gg_config_read(
     GglBufList key_path, GglAlloc *alloc, GglObject *result
 ) {

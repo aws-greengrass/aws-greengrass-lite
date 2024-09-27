@@ -9,8 +9,6 @@
 #include <ggl/error.h>
 #include <ggl/object.h>
 
-#define MAXIMUM_KEY_PATH_DEPTH 10
-
 /// Combine the component name and key path and returns a new configuration path
 /// result uses static memory owned by this function which is valid until the
 /// next call. Not re-entrant.
