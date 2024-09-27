@@ -9,8 +9,6 @@
 #include <ggl/object.h>
 #include <stdint.h>
 
-// TODO: Pull this value from GGL_COREBUS_MAX_MSG_LEN
-#define GGCONFIGD_MAX_DB_READ_BYTES 10000
 // TODO: we could save this static memory by having json decoding done as we
 // read each object in the db_interface layer.
 // For now, set to something slightly smaller than GGCONFIGD_MAX_DB_READ_BYTES

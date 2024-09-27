@@ -4,6 +4,7 @@
 
 #include "client_common.h"
 #include "ggl/core_bus/client.h"
+#include "ggl/core_bus/constants.h"
 #include "object_serde.h"
 #include "types.h"
 #include <sys/types.h>

@@ -6,6 +6,7 @@
 #include "ggl/alloc.h"
 #include "helpers.h"
 #include <ggl/bump_alloc.h>
+#include <ggl/core_bus/constants.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
@@ -1073,7 +1074,7 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
         return GGL_ERR_FAILURE;
     }
 
-    static uint8_t key_value_memory[GGCONFIGD_MAX_DB_READ_BYTES];
+    static uint8_t key_value_memory[GGL_COREBUS_MAX_MSG_LEN];
     GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(key_value_memory));
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);

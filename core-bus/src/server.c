@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/core_bus/server.h"
+#include "ggl/core_bus/constants.h"
 #include "object_serde.h"
 #include "types.h"
 #include <sys/types.h>

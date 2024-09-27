@@ -5,12 +5,6 @@
 #ifndef GGL_COREBUS_TYPES_H
 #define GGL_COREBUS_TYPES_H
 
-/// Maximum size of core-bus packet.
-/// Can be configured with `-DGGL_IPC_MAX_MSG_LEN=<N>`.
-#ifndef GGL_COREBUS_MAX_MSG_LEN
-#define GGL_COREBUS_MAX_MSG_LEN 10000
-#endif
-
 /// Maximum length of name of core bus interface.
 #define GGL_INTERFACE_NAME_MAX_LEN 50
 
