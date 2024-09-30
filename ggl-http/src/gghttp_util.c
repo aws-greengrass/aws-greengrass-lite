@@ -8,6 +8,7 @@
 #include "ggl/object.h"
 #include <curl/curl.h>
 #include <ggl/log.h>
+#include <ggl/socket.h>
 #include <ggl/vector.h>
 #include <string.h>
 
@@ -21,6 +22,8 @@ static GglError translate_curl_code(CURLcode code) {
         return GGL_ERR_RETRY;
     case CURLE_URL_MALFORMAT:
         return GGL_ERR_PARSE;
+    case CURLE_ABORTED_BY_CALLBACK:
+        return GGL_ERR_FAILURE;
     default:
         return GGL_ERR_REMOTE;
     }
@@ -58,6 +61,33 @@ static size_t write_response_to_buffer(
         return 0;
     }
 
+    return size_of_response_data;
+}
+
+/// @brief Callback function to write the HTTP response data to a file
+/// descriptor.
+///
+/// This function is used as a callback by CURL to handle the response data
+/// received from an HTTP request. It write bytes received into the file
+/// descriptor.
+///
+/// @param[in] response_data A pointer to the response data received from CURL.
+/// @param[in] size The size of each element in the response data.
+/// @param[in] nmemb The number of elements in the response data.
+/// @param[in] fd A pointer to a file descriptor
+///
+/// @return The number of bytes written.
+static size_t write_response_to_fd(
+    void *response_data, size_t size, size_t nmemb, void *fd_void
+) {
+    size_t size_of_response_data = size * nmemb;
+    GglBuffer response_buffer
+        = (GglBuffer) { .data = response_data, .len = size_of_response_data };
+    int *fd = (int *) fd_void;
+    GglError err = ggl_write_exact(*fd, response_buffer);
+    if (err != GGL_ERR_OK) {
+        return 0;
+    }
     return size_of_response_data;
 }
 
@@ -206,14 +236,14 @@ GglError gghttplib_process_request(
     return translate_curl_code(curl_error);
 }
 
-GglError gghttplib_process_request_with_file_pointer(
-    CurlData *curl_data, FILE *file_pointer
-) {
+GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
     curl_easy_setopt(
         curl_data->curl, CURLOPT_HTTPHEADER, curl_data->headers_list
     );
-    curl_easy_setopt(curl_data->curl, CURLOPT_WRITEFUNCTION, NULL);
-    curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, file_pointer);
+    curl_easy_setopt(
+        curl_data->curl, CURLOPT_WRITEFUNCTION, write_response_to_fd
+    );
+    curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, (void *) &fd);
     curl_easy_setopt(curl_data->curl, CURLOPT_FAILONERROR, 1L);
 
     CURLcode curl_error = curl_easy_perform(curl_data->curl);

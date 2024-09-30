@@ -62,25 +62,20 @@ GglError fetch_token(
 /// given file path.
 ///
 /// @param[in] url_for_generic_download The URL from which to fetch the content.
-/// @param[in] file_path The local path to the file where the downloaded content
-/// should be saved.
+/// @param[in] fd The file descriptor where the downloaded content should be
+/// written to.
 ///
 /// This function makes a GET request to the specified URL to download the
 /// content.The downloaded content is then saved to the file specified by the
 /// `file_path` parameter.
 ///
-/// @note This function assumes that the necessary permissions are granted to
-/// create or overwrite the file at the specified `file_path`.
-///
 /// @warning This function does not perform any validation or sanitization of
 /// the input parameters. It is the responsibility of the caller to ensure that
 /// the
-///          provided `url_for_generic_download` and `file_path` are valid.
+///          provided `url_for_generic_download` and `fd` are valid.
 ///
 /// @return error code on failure, GGL_ERR_OK on success
-GglError generic_download(
-    const char *url_for_generic_download, const char *file_path
-);
+GglError generic_download(const char *url_for_generic_download, int fd);
 
 /// @brief Downloads the content from the specified URL and saves it to the
 /// given file path. Uses temporary credentials.
@@ -91,10 +86,7 @@ GglError generic_download(
 ///
 /// This function makes a GET request to the specified URL to download the
 /// content with the corresponding SigV4 headers. The downloaded content is then
-/// saved to the file specified by the `file_path` parameter.
-///
-/// @note This function assumes that the necessary permissions are granted to
-/// create or overwrite the file at the specified `file_path`.
+/// saved to the file specified by the `fd` parameter.
 ///
 /// @warning This function does not perform any validation or sanitization of
 /// the input parameters. It is the responsibility of the caller to ensure that
@@ -102,7 +94,7 @@ GglError generic_download(
 ///
 /// @return error code on failure, GGL_ERR_OK on success
 GglError sigv4_download(
-    const char *url_for_sigv4_download, FILE *file, SigV4Details sigv4_details
+    const char *url_for_sigv4_download, int fd, SigV4Details sigv4_details
 );
 
 GglError gg_dataplane_call(

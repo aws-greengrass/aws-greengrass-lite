@@ -99,11 +99,9 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
             return GGL_ERR_FAILURE;
         }
 
-        FILE *file = fdopen(fd, "wb");
-
         request_ret = sigv4_download(
             url_buffer,
-            file,
+            fd,
             (SigV4Details) {
                 .aws_region = ggl_buffer_from_null_term(region),
                 .aws_service = GGL_STR("s3"),

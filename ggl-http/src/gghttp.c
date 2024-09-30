@@ -43,36 +43,24 @@ GglError fetch_token(
     return error;
 }
 
-GglError generic_download(
-    const char *url_for_generic_download, const char *file_path
-) {
+GglError generic_download(const char *url_for_generic_download, int fd) {
     GGL_LOGI(
         "generic_download",
-        "downloading content from %s and storing to %s",
-        url_for_generic_download,
-        file_path
+        "downloading content from %s",
+        url_for_generic_download
     );
-
-    FILE *file_pointer = fopen(file_path, "wb");
-    if (file_pointer == NULL) {
-        return GGL_ERR_FAILURE;
-    }
 
     CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_generic_download);
     if (error == GGL_ERR_OK) {
-        error = gghttplib_process_request_with_file_pointer(
-            &curl_data, file_pointer
-        );
+        error = gghttplib_process_request_with_fd(&curl_data, fd);
     }
-
-    fclose(file_pointer);
 
     return error;
 }
 
 GglError sigv4_download(
-    const char *url_for_sigv4_download, FILE *file, SigV4Details sigv4_details
+    const char *url_for_sigv4_download, int fd, SigV4Details sigv4_details
 ) {
     GGL_LOGI(
         "sigv4_download", "downloading content from %s", url_for_sigv4_download
@@ -84,7 +72,7 @@ GglError sigv4_download(
         error = gghttplib_add_sigv4_credential(&curl_data, sigv4_details);
     }
     if (error == GGL_ERR_OK) {
-        error = gghttplib_process_request_with_file_pointer(&curl_data, file);
+        error = gghttplib_process_request_with_fd(&curl_data, fd);
     }
 
     return error;

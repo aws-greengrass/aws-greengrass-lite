@@ -104,14 +104,12 @@ GglError gghttplib_process_request(
 /// @brief Processes an HTTP request using the provided cURL data.
 ///
 /// This function sets up the CURL handle with the necessary options, performs
-/// the HTTP request, and writes the response to a file pointer.
+/// the HTTP request, and writes the response to a file descriptor.
 ///
 /// @param[in] curl_data A pointer to the CurlData struct containing the cURL
 /// handle and other request data.
-/// @param[in] file_pointer A file pointer to the write the data to
+/// @param[in] fd A file descriptor to the write the data to
 /// @return A GglError for success status report
-GglError gghttplib_process_request_with_file_pointer(
-    CurlData *curl_data, FILE *file_pointer
-);
+GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd);
 
 #endif
