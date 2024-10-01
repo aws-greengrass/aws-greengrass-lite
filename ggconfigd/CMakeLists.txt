@@ -4,5 +4,6 @@
 
 ggl_init_module(ggconfigd LIBS ggl-lib core-bus core-bus-gg-config ggl-json
                                PkgConfig::sqlite3)
+# the blank after GGL_COMP_DIR=${CMAKE_CURRENT_LIST_DIR} is important!
 target_compile_definitions(ggconfigd
-                           PRIVATE GGL_COMP_DIR=${CMAKE_CURRENT_LIST_DIR})
+                           PRIVATE GGL_COMP_DIR=${CMAKE_CURRENT_LIST_DIR} )
