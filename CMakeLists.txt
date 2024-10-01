@@ -319,6 +319,7 @@ add_subdirectory(recipe-runner)
 add_subdirectory(tes-serverd)
 add_subdirectory(ggl-exec)
 add_subdirectory(recipe2unit)
+add_subdirectory(ggl-semver)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
