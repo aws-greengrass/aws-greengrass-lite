@@ -320,6 +320,7 @@ add_subdirectory(tes-serverd)
 add_subdirectory(ggl-exec)
 add_subdirectory(recipe2unit)
 add_subdirectory(ggl-semver)
+add_subdirectory(semver-test)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
