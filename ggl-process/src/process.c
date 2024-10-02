@@ -39,9 +39,21 @@ __attribute__((constructor(101))) static void setup_sigalrm(void) {
     sigaction(SIGALRM, &act, NULL);
 }
 
+#ifdef SYS_close_range
 static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
     return (int) syscall(SYS_close_range, first, last, flags);
 }
+#else
+static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
+    (void) flags;
+    int max_fd = (int) sysconf(_SC_OPEN_MAX);
+    int range_last = (last < (unsigned) max_fd) ? (int) last : max_fd;
+    for (int i = (int) first; i < range_last; i++) {
+        close(i);
+    }
+    return 0;
+}
+#endif
 
 GglError ggl_process_spawn(char *const argv[], int *handle) {
     assert(argv[0] != NULL);
