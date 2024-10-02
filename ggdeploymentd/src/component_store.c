@@ -80,7 +80,7 @@ void find_available_component(
     }
 
     int root_path_fd;
-    ret = ggl_dir_open(root_path, O_PATH, &root_path_fd);
+    ret = ggl_dir_open(root_path, O_PATH, false, &root_path_fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGW(
             "component-store",
@@ -146,8 +146,8 @@ void find_available_component(
             size_t file_extension_len = 0;
             char *dot_pos = NULL;
             for (size_t i = strlen(entry->d_name); i > 0; i--) {
-                if (entry->d_name[i-1] == '.') {
-                    dot_pos = entry->d_name + i-1;
+                if (entry->d_name[i - 1] == '.') {
+                    dot_pos = entry->d_name + i - 1;
                     file_extension_len = strlen(dot_pos + 1);
                     break;
                 }

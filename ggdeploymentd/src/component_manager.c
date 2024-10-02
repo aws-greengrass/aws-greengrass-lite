@@ -122,7 +122,7 @@ static GglError find_best_candidate_locally(
     } else {
         GGL_LOGI(
             "component-manager",
-            "No running component satisfies the verison requirements. "
+            "No running component satisfies the version requirements. "
             "Searching in the local component store."
         );
         // TODO: double check that we should be checking the local deployment
@@ -133,7 +133,7 @@ static GglError find_best_candidate_locally(
             )) {
             GGL_LOGW(
                 "component-manager",
-                "Failed to find requirements for local deployment gorup."
+                "Failed to find requirements for local deployment group."
             );
             // return ok since we will proceed with cloud negotiation
             return GGL_ERR_OK;
@@ -155,7 +155,7 @@ static GglError find_best_candidate_locally(
 ComponentMetadata resolve_component_version(
     GglBuffer component_name, GglMap version_requirements
 ) {
-    // NOTE: verison_requirements is a map of groups to the version requirements
+    // NOTE: version_requirements is a map of groups to the version requirements
     // of the group ex: LOCAL_DEPLOYMENT -> >=1.0.0 <2.0.0
     //               group1 -> ==1.0.0
     GGL_LOGD("component-manager", "Resolving component version.");
