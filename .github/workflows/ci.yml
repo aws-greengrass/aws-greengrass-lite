@@ -23,8 +23,8 @@ jobs:
             check: packages-default
           - name: build with Clang
             check: packages-ggl-clang
-          - name: build with Musl
-            check: packages-ggl-musl
+          - name: cross-build for arm32 Musl
+            check: packages-ggl-musl-pi
           - name: clang-tidy
             check: clang-tidy
           - name: header includes
