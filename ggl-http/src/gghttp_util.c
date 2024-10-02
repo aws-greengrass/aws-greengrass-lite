@@ -53,7 +53,7 @@ static size_t write_response_to_buffer(
     } else {
         GGL_LOGE(
             "gg_http_util",
-            "Invalid memory space provided. Required size: %ld",
+            "Invalid memory space provided. Required size: %zu",
             size_of_response_data
         );
         return 0;

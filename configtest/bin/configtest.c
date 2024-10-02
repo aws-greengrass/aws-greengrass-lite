@@ -5,9 +5,9 @@
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stdint.h>
 
 static char *print_key_path(GglList *key_path) {
     static char path_string[64] = { 0 };
@@ -176,7 +176,10 @@ static void compare_objects(GglObject expected, GglObject result) {
         }
         if (result.i64 != expected.i64) {
             GGL_LOGE(
-                "test_get", "expected %ld got %ld", expected.i64, result.i64
+                "test_get",
+                "expected %" PRId64 " got %" PRId64,
+                expected.i64,
+                result.i64
             );
         }
         break;

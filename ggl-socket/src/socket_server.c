@@ -117,7 +117,7 @@ static GglError configure_server_socket(int socket_fd, GglBuffer path) {
     if (path.len >= sizeof(addr.sun_path)) {
         GGL_LOGE(
             "socket-server",
-            "Socket path too long (len %lu, max %lu).",
+            "Socket path too long (len %zu, max %zu).",
             path.len,
             sizeof(addr.sun_path) - 1
         );
