@@ -209,7 +209,7 @@ GglError ggl_aws_iot_call(
     gettimeofday(&now, NULL);
     struct timespec timeout = {
         .tv_sec = now.tv_sec + IOT_RESPONSE_TIMEOUT_S,
-        .tv_nsec = now.tv_usec * 1000,
+        .tv_nsec = (typeof(timeout.tv_nsec)) now.tv_usec * 1000,
     };
 
     int cont_ret;
