@@ -3,29 +3,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "component_store.h"
-#include "component_model.h"
-#include <sys/types.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/defer.h>
+#include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/semver.h>
-#include <ggl/vector.h>
 #include <string.h>
-#include <sys/stat.h>
+#include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #define MAX_PATH_LENGTH 128
 
 static GglBuffer root_path = GGL_STR("/var/lib/aws-greengrass-v2");
-
-GGL_DEFINE_DEFER(closedir, DIR *, dirp, if (*dirp != NULL) closedir(*dirp))
 
 static GglError update_root_path(void) {
     GglMap params = GGL_MAP(
@@ -61,10 +56,8 @@ static GglError update_root_path(void) {
     return GGL_ERR_OK;
 }
 
-void find_available_component(
-    GglBuffer component_name,
-    GglBuffer requirement,
-    ComponentIdentifier *component
+GglError find_available_component(
+    GglBuffer component_name, GglBuffer requirement, GglBuffer *version
 ) {
     GglError ret = update_root_path();
     if (ret != GGL_ERR_OK) {
@@ -75,7 +68,7 @@ void find_available_component(
             "Failed to retrieve root path. Assuming no local component "
             "available."
         );
-        return;
+        return GGL_ERR_NOENTRY;
     }
 
     int root_path_fd;
@@ -85,7 +78,7 @@ void find_available_component(
             "component-store",
             "Failed to open root_path. Assuming no local component available."
         );
-        return;
+        return GGL_ERR_NOENTRY;
     }
     GGL_DEFER(ggl_close, root_path_fd);
 
@@ -99,7 +92,7 @@ void find_available_component(
             "Failed to open recipe subdirectory. Assuming no local component "
             "available."
         );
-        return;
+        return GGL_ERR_NOENTRY;
     }
 
     // iterate through recipes in the directory to find the target component, if
@@ -111,7 +104,7 @@ void find_available_component(
             "Failed to open recipe directory. Assuming no local component "
             "available."
         );
-        return;
+        return GGL_ERR_NOENTRY;
     }
 
     struct dirent *entry;
@@ -165,9 +158,9 @@ void find_available_component(
 
             if (requirement_satisfied) {
                 // save the component information for the caller
-                component->name = recipe_component;
-                component->version = recipe_version;
+                *version = recipe_version;
             }
         }
     }
+    return GGL_ERR_OK;
 }

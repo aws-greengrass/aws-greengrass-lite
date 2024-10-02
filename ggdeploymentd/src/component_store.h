@@ -5,14 +5,11 @@
 #ifndef GGDEPLOYMENTD_COMPONENT_STORE_H
 #define GGDEPLOYMENTD_COMPONENT_STORE_H
 
-#include "component_model.h"
 #include <ggl/error.h>
 #include <ggl/object.h>
 
-void find_available_component(
-    GglBuffer component_name,
-    GglBuffer requirement,
-    ComponentIdentifier *component
+GglError find_available_component(
+    GglBuffer component_name, GglBuffer requirement, GglBuffer *version
 );
 
 #endif

@@ -5,11 +5,11 @@
 #ifndef GGDEPLOYMENTD_COMPONENT_MANAGER_H
 #define GGDEPLOYMENTD_COMPONENT_MANAGER_H
 
-#include "component_model.h"
+#include <ggl/error.h>
 #include <ggl/object.h>
 
-ComponentIdentifier *resolve_component_version(
-    GglBuffer component_name, GglMap version_requirements
+GglError resolve_component_version(
+    GglBuffer component_name, GglMap version_requirements, GglBuffer *version
 );
 
 #endif
