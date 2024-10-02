@@ -107,7 +107,7 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
             break;
         }
 
-        if (atomic_load(&ping_pending)) {
+        if (atomic_load_explicit(&ping_pending, memory_order_acquire)) {
             GGL_LOGE(
                 "mqtt",
                 "Server did not respond to ping within Keep Alive period."
@@ -116,7 +116,7 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
         }
 
         GGL_LOGD("mqtt", "Sending pingreq.");
-        atomic_store(&ping_pending, true);
+        atomic_store_explicit(&ping_pending, true, memory_order_release);
         MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
 
         if (mqtt_ret != MQTTSuccess) {
@@ -215,7 +215,7 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
         return GGL_ERR_FAILURE;
     }
 
-    atomic_store(&ping_pending, false);
+    atomic_store_explicit(&ping_pending, false, memory_order_release);
     pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
     pthread_create(
         &keepalive_thread, NULL, mqtt_keepalive_thread_fn, &mqtt_ctx
@@ -375,7 +375,7 @@ static void event_callback(
             break;
         case MQTT_PACKET_TYPE_PINGRESP:
             GGL_LOGD("mqtt", "Received pingresp.");
-            atomic_store(&ping_pending, false);
+            atomic_store_explicit(&ping_pending, false, memory_order_release);
             break;
         default:
             GGL_LOGE(
