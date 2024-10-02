@@ -8,6 +8,7 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -44,7 +45,7 @@ static GglError json_write_bool(bool b, GglBuffer *buf) {
 }
 
 static GglError json_write_i64(int64_t i64, GglBuffer *buf) {
-    int ret = snprintf((char *) buf->data, buf->len, "%ld", i64);
+    int ret = snprintf((char *) buf->data, buf->len, "%" PRId64, i64);
     if (ret < 0) {
         GGL_LOGE("json", "Error encoding json.");
         return GGL_ERR_FAILURE;

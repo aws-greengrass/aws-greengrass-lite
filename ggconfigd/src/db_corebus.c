@@ -15,9 +15,9 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <inttypes.h>
 #include <time.h>
 #include <stdbool.h>
-#include <stdint.h>
 
 #define MAX_SUBOBJECTS 25
 #define MAXIMUM_VALUE_LENGTH (sizeof(GglObject) * MAX_SUBOBJECTS)
@@ -190,10 +190,10 @@ static GglError process_map(
         GglKV *kv = &the_map->pairs[x];
         GGL_LOGT(
             "rpc_write:process_map",
-            "preparing %ld, %.*s",
+            "Preparing %zu, %.*s",
             x,
             (int) kv->key.len,
-            (char *) kv->key.data
+            kv->key.data
         );
 
         ggl_obj_vec_push(key_path, GGL_OBJ(kv->key));
@@ -205,33 +205,33 @@ static GglError process_map(
                 break;
             }
         } else {
-            GGL_LOGT("rpc_write:process_map", "value is NOT a map");
+            GGL_LOGT("rpc_write:process_map", "Value is not a map.");
             char *path_string = print_key_path(&key_path->list);
             uint8_t value_string[1024] = { 0 };
             GglBuffer value_buffer
                 = { .data = value_string, .len = sizeof(value_string) };
-            GGL_LOGT("rpc_write:process_map", "starting json encode");
+            GGL_LOGT("rpc_write:process_map", "Starting json encode.");
             error = ggl_json_encode(kv->val, &value_buffer);
             if (error != GGL_ERR_OK) {
                 GGL_LOGT(
                     "rpc_write:process_map",
-                    "json encode failure %.*s",
+                    "Json encode failure %.*s",
                     (int) kv->key.len,
-                    (char *) kv->key.data
+                    kv->key.data
                 );
                 break;
             }
-            GGL_LOGT("rpc_write:process_map", "writing the value");
+            GGL_LOGT("rpc_write:process_map", "Writing value.");
             error = ggconfig_write_value_at_key(
                 &key_path->list, &value_buffer, timestamp
             );
 
             GGL_LOGT(
                 "rpc_write:process_map",
-                "writing %s = %.*s %ld",
+                "Writing %s = %.*s %" PRId64,
                 path_string,
                 (int) value_buffer.len,
-                (char *) value_buffer.data,
+                value_buffer.data,
                 timestamp
             );
         }
@@ -284,7 +284,7 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
         clock_gettime(CLOCK_REALTIME, &now);
         timestamp = (int64_t) now.tv_sec * 1000 + now.tv_nsec / 1000000;
     }
-    GGL_LOGD("rpc_write", "timestamp %ld.", timestamp);
+    GGL_LOGD("rpc_write", "Timestamp %." PRId64, timestamp);
 
     GglError error = process_map(&key_path, &value_obj->map, timestamp);
     if (error != GGL_ERR_OK) {
