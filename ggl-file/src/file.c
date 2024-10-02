@@ -13,6 +13,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -32,8 +33,19 @@ GglError ggl_close(int fd) {
     // Posix states that after an interrupted close, the state of the file
     // descriptor is unspecified. On Linux and most other systems, the fd is
     // released even if close failed with EINTR.
+
+    sigset_t set;
+    sigfillset(&set);
+    sigset_t old_set;
+
+    pthread_sigmask(SIG_SETMASK, &set, &old_set);
+
     int ret = close(fd);
-    if ((ret == 0) || (errno == EINTR)) {
+    int err = errno;
+
+    pthread_sigmask(SIG_SETMASK, &old_set, NULL);
+
+    if ((ret == 0) || (err == EINTR)) {
         return GGL_ERR_OK;
     }
     return GGL_ERR_FAILURE;
