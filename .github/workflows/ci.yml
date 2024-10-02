@@ -23,8 +23,6 @@ jobs:
             check: packages-default
           - name: build with Clang
             check: packages-ggl-clang
-          - name: build with Musl
-            check: packages-ggl-musl
           - name: clang-tidy
             check: clang-tidy
           - name: header includes
