@@ -10,6 +10,7 @@ ggl_init_module(
        ggl-http
        ggl-json
        ggl-socket
+       ggl-semver
        ggl-yaml
        core-bus-gg-config
        core-bus-aws-iot-mqtt
