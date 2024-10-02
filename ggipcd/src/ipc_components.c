@@ -57,10 +57,7 @@ __attribute__((constructor)) static void init_urandom_fd(void) {
     if (random_fd == -1) {
         int err = errno;
         GGL_LOGE("ipc-server", "Failed to open /dev/random: %d.", err);
-        // exit() is not re-entrant and this is safe as long as no spawned
-        // thread can call exit()
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        exit(-1);
+        _Exit(1);
     }
 }
 
