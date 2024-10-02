@@ -508,11 +508,11 @@ static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
         GGL_LOGE(
             "create_key_path",
             "failed to check for value for root key %.*s with id %" PRId64
-            " with error %d",
+            " with error %s",
             (int) root_key_buffer.len,
             root_key_buffer.data,
             parent_key_id,
-            (int) err
+            ggl_strerror(err)
         );
         return err;
     }
@@ -549,11 +549,11 @@ static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
                 GGL_LOGE(
                     "create_key_path",
                     "failed to check for value for key %.*s with id %" PRId64
-                    " with error %d",
+                    " with error %s",
                     (int) current_key_buffer.len,
                     current_key_buffer.data,
                     current_key_id,
-                    (int) err
+                    ggl_strerror(err)
                 );
                 return err;
             }
@@ -708,9 +708,9 @@ GglError ggconfig_write_value_at_key(
             GGL_LOGE(
                 "ggconfig_write_value_at_key",
                 "Failed to notify all subscribers about update for key path %s "
-                "with error %d",
+                "with error %s",
                 print_key_path(key_path),
-                (int) err
+                ggl_strerror(err)
             );
         }
         return GGL_ERR_OK;
@@ -718,9 +718,9 @@ GglError ggconfig_write_value_at_key(
     if (err != GGL_ERR_OK) {
         GGL_LOGE(
             "ggconfig_write_value_at_key",
-            "Failed to get key id for key path %s with error %d",
+            "Failed to get key id for key path %s with error %s",
             print_key_path(key_path),
-            (int) err
+            ggl_strerror(err)
         );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
@@ -732,10 +732,10 @@ GglError ggconfig_write_value_at_key(
         GGL_LOGE(
             "ggconfig_write_value_at_key",
             "Failed to check for child presence for key %s with id %" PRId64
-            " with error %d",
+            " with error %s",
             print_key_path(key_path),
             last_key_id,
-            (int) err
+            ggl_strerror(err)
         );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
@@ -761,10 +761,10 @@ GglError ggconfig_write_value_at_key(
         GGL_LOGE(
             "ggconfig_write_value_at_key",
             "failed to get timestamp for key %s with id %" PRId64
-            " with error %d",
+            " with error %s",
             print_key_path(key_path),
             last_key_id,
-            (int) err
+            ggl_strerror(err)
         );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
@@ -787,10 +787,10 @@ GglError ggconfig_write_value_at_key(
         GGL_LOGE(
             "ggconfig_write_value_at_key",
             "failed to update value for key %s with id %" PRId64
-            " with error %d",
+            " with error %s",
             print_key_path(key_path),
             last_key_id,
-            (int) err
+            ggl_strerror(err)
         );
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
@@ -802,9 +802,9 @@ GglError ggconfig_write_value_at_key(
         GGL_LOGE(
             "ggconfig_write_value_at_key",
             "failed to notify subscribers about update for key path %s with "
-            "error %d",
+            "error %s",
             print_key_path(key_path),
-            (int) err
+            ggl_strerror(err)
         );
     }
     return GGL_ERR_OK;
@@ -944,14 +944,14 @@ static GglError read_key_recursive(
 
         read_key_recursive(child_key_id, &child_kv.val, alloc);
 
-        GglError error = ggl_kv_vec_push(&kv_buffer_vec, child_kv);
-        if (error != GGL_ERR_OK) {
+        err = ggl_kv_vec_push(&kv_buffer_vec, child_kv);
+        if (err != GGL_ERR_OK) {
             GGL_LOGE(
                 "read_key_recursive",
-                "error pushing kv with error %d",
-                (int) error
+                "error pushing kv with error %s",
+                ggl_strerror(err)
             );
-            return error;
+            return err;
         }
     }
 
