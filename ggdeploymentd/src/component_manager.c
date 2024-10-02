@@ -4,6 +4,7 @@
 
 #include "component_manager.h"
 #include "component_model.h"
+#include "component_store.h"
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
@@ -100,14 +101,6 @@ static void find_active_version(
     component->version = version_resp.buf;
 }
 
-static GglError merge_version_requirements(
-    GglMap version_requirements, GglBuffer *requirement
-) {
-    // TODO: figure out how to merge when there's multiple groups and
-    // requirements listed in the map. return a string of the final requirement
-    return GGL_ERR_OK;
-}
-
 static GglError find_best_candidate_locally(
     ComponentIdentifier *identifier,
     GglBuffer component_name,
@@ -117,14 +110,6 @@ static GglError find_best_candidate_locally(
         "component-manager",
         "Searching for the best local candidate on the device."
     );
-
-    GglBuffer *merged_requirements = NULL;
-    merge_version_requirements(version_requirements, merged_requirements);
-
-    if (merged_requirements == NULL) {
-        GGL_LOGE("component-manager", "Failed to merge version requiremtns.");
-        return GGL_ERR_FAILURE;
-    }
 
     ComponentIdentifier *active_component = NULL;
     find_active_version(component_name, active_component);
@@ -141,20 +126,21 @@ static GglError find_best_candidate_locally(
             "No running component satisfies the verison requirements. "
             "Searching in the local component store."
         );
-        // TODO: add component store logic
+        // TODO: double check that we should be checking the local deployment group here
+        GglObject *val;
+        if(!ggl_map_get(version_requirements, GGL_STR(LOCAL_DEPLOYMENT), &val)) {
+          GGL_LOGW("component-manager", "Failed to find requirements for local deployment gorup.");
+          // return ok since we will proceed with cloud negotiation
+          return GGL_ERR_OK;
+        }
+        if(val->type != GGL_TYPE_BUF) {
+          GGL_LOGW("component-manager", "Local deployment requirements not of type buffer.");
+          return GGL_ERR_OK;
+        }
+
+        find_available_component(component_name, val->buf, identifier);
     }
 
-    return GGL_ERR_OK;
-}
-
-static GglError negotiate_version_with_cloud(
-    GglBuffer component_name,
-    GglMap version_requirements,
-    ComponentIdentifier *local_candidate
-) {
-    if (local_candidate == NULL) {
-        // we use some aws sdk stuff here, check how to do that in c
-    }
     return GGL_ERR_OK;
 }
 
@@ -205,9 +191,9 @@ ComponentMetadata resolve_component_version(
         // if there is no local version and cloud negotiation fails, fail the
         // deployment
 
-        // negotiate with cloud
-        negotiate_version_with_cloud(
-            component_name, version_requirements, local_candidate
-        );
+        // TODO: negotiate with cloud here
+
+        GGL_LOGI("component-manager", "No local version found, negotiate with cloud.");
+
     }
 }

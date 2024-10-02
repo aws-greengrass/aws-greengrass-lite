@@ -15,6 +15,7 @@
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/semver.h>
 #include <ggl/vector.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -166,10 +167,13 @@ void find_available_component(
             );
 
             // TODO: check that the recipe version satisfies the requirement
+            bool requirement_satisfied = is_contain(recipe_version, requirement);
 
-            // save the component information for the caller
-            component->name = recipe_component;
-            component->version = recipe_version;
+            if (requirement_satisfied) {
+              // save the component information for the caller
+              component->name = recipe_component;
+              component->version = recipe_version;
+            }
         }
     }
 }

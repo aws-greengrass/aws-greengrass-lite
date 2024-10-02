@@ -596,9 +596,9 @@ static void handle_deployment(
         }
     }
 
-    if (deployment->artifacts_directory_path.len != 0) {
+    if (deployment->artifact_directory_path.len != 0) {
         GglError ret = merge_dir_to(
-            deployment->artifacts_directory_path,
+            deployment->artifact_directory_path,
             root_path_fd,
             GGL_STR("/packages/artifacts")
         );
