@@ -14,12 +14,11 @@
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <limits.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-#define MAX_PATH_LENGTH 256
 
 static void *job_listener_thread(void *ctx) {
     (void) ctx;
@@ -30,8 +29,9 @@ static void *job_listener_thread(void *ctx) {
 GglError run_ggdeploymentd(const char *bin_path) {
     GGL_LOGI("ggdeploymentd", "Started ggdeploymentd process.");
 
-    static uint8_t root_path_mem[MAX_PATH_LENGTH] = { 0 };
+    static uint8_t root_path_mem[PATH_MAX] = { 0 };
     GglBuffer root_path = GGL_BUF(root_path_mem);
+    root_path.len -= 1;
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &root_path
     );

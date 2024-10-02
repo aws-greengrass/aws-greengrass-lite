@@ -9,16 +9,16 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <limits.h>
 #include <string.h>
 #include <stdint.h>
 
-#define MAX_PATH_LEN 512
 #define MAX_ENDPOINT_LEN 128
 #define MAX_THINGNAME_LEN 128
 
 GglError run_iotcored(IotcoredArgs *args) {
     if (args->cert == NULL) {
-        static uint8_t cert_mem[MAX_PATH_LEN + 1] = { 0 };
+        static uint8_t cert_mem[PATH_MAX] = { 0 };
         GglBuffer cert = GGL_BUF(cert_mem);
         cert.len -= 1;
 
@@ -67,7 +67,7 @@ GglError run_iotcored(IotcoredArgs *args) {
     }
 
     if (args->key == NULL) {
-        static uint8_t key_mem[MAX_PATH_LEN + 1] = { 0 };
+        static uint8_t key_mem[PATH_MAX] = { 0 };
         GglBuffer key = GGL_BUF(key_mem);
         key.len -= 1;
 
@@ -81,7 +81,7 @@ GglError run_iotcored(IotcoredArgs *args) {
     }
 
     if (args->rootca == NULL) {
-        static uint8_t rootca_mem[MAX_PATH_LEN + 1] = { 0 };
+        static uint8_t rootca_mem[PATH_MAX] = { 0 };
         GglBuffer rootca = GGL_BUF(rootca_mem);
         rootca.len -= 1;
 

@@ -13,18 +13,18 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 
 #define MAX_HTTP_RESPONSE_LENGTH 4096
 #define MAX_HTTP_RESPONSE_SUB_OBJECTS 10
-#define MAX_PATH_LENGTH 512
 
 typedef struct {
-    char root_ca_path[MAX_PATH_LENGTH + 1];
-    char cert_path[MAX_PATH_LENGTH + 1];
-    char key_path[MAX_PATH_LENGTH + 1];
+    char root_ca_path[PATH_MAX];
+    char cert_path[PATH_MAX];
+    char key_path[PATH_MAX];
     char thing_name[128 + 1];
     char role_alias[128 + 1];
     char url[2048];

@@ -6,7 +6,7 @@
 #include "ggl/recipe2unit.h"
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <string.h>
 #include <stdlib.h>
 

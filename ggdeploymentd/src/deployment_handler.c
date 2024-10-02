@@ -25,7 +25,7 @@
 #include <ggl/recipe2unit.h>
 #include <ggl/socket.h>
 #include <ggl/vector.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <string.h>
 #include <sys/wait.h>
 #include <unistd.h>
