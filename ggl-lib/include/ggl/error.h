@@ -41,4 +41,6 @@ typedef enum GglError {
     GGL_ERR_EXPECTED,
 } GglError;
 
+const char *ggl_strerror(GglError err);
+
 #endif
