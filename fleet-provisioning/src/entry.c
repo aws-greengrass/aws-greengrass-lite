@@ -12,6 +12,7 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <limits.h>
 #include <openssl/evp.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
@@ -19,7 +20,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define MAX_PATH_LENGTH 4096
 #define MAX_TEMPLATE_LEN 129
 #define MAX_ENDPOINT_LENGTH 129
 #define MAX_TEMPLATE_PARAM_LEN 4096
@@ -48,7 +48,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
             "services/aws.greengrass.fleet_provisioning/configuration/"
             "claimCertPath"
         );
-        static uint8_t claim_cert_path_mem[MAX_PATH_LENGTH + 1] = { 0 };
+        static uint8_t claim_cert_path_mem[PATH_MAX] = { 0 };
         GglBuffer claim_cert_path = GGL_BUF(claim_cert_path_mem);
         claim_cert_path.len -= 1;
         GglError ret = ggl_gg_config_read_str(
@@ -74,7 +74,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
             "services/aws.greengrass.fleet_provisioning/configuration/"
             "claimKeyPath"
         );
-        static uint8_t claim_key_path_mem[MAX_PATH_LENGTH + 1] = { 0 };
+        static uint8_t claim_key_path_mem[PATH_MAX] = { 0 };
         GglBuffer claim_key_path = GGL_BUF(claim_key_path_mem);
         claim_key_path.len -= 1;
         GglError ret = ggl_gg_config_read_str(
@@ -99,7 +99,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
             "Requesting db for "
             "system/rootCaPath/"
         );
-        static uint8_t root_ca_path_mem[MAX_PATH_LENGTH + 1] = { 0 };
+        static uint8_t root_ca_path_mem[PATH_MAX] = { 0 };
         GglBuffer root_ca_path = GGL_BUF(root_ca_path_mem);
         root_ca_path.len -= 1;
         GglError ret = ggl_gg_config_read_str(
