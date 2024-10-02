@@ -78,10 +78,7 @@ __attribute__((constructor)) static void start_subscription_thread(void) {
             "core-bus-client",
             "Failed to create epoll for subscription responses."
         );
-        // exit() is not re-entrant and this is safe as long as no spawned
-        // thread can call exit()
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        exit(-1);
+        _Exit(1);
     }
 
     pthread_t sub_thread = { 0 };
@@ -90,10 +87,7 @@ __attribute__((constructor)) static void start_subscription_thread(void) {
         GGL_LOGE(
             "core-bus-client", "Failed to create subscription response thread."
         );
-        // exit() is not re-entrant and this is safe as long as no spawned
-        // thread can call exit()
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        exit(-1);
+        _Exit(1);
     }
     pthread_detach(sub_thread);
 }
