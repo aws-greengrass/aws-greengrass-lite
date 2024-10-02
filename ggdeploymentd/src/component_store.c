@@ -88,11 +88,11 @@ void find_available_component(
         );
         return;
     }
-    GGL_DEFER(close, root_path_fd);
+    GGL_DEFER(ggl_close, root_path_fd);
 
     int recipe_dir_fd;
     ret = ggl_dir_openat(
-        root_path_fd, GGL_STR("packages/recipes"), O_PATH, &recipe_dir_fd
+        root_path_fd, GGL_STR("packages/recipes"), O_PATH, false, &recipe_dir_fd
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW(
@@ -145,9 +145,9 @@ void find_available_component(
             // find the file extension length
             size_t file_extension_len = 0;
             char *dot_pos = NULL;
-            for (size_t i = strlen(entry->d_name) - 1; i >= 0; i--) {
-                if (entry->d_name[i] == '.') {
-                    dot_pos = entry->d_name + i;
+            for (size_t i = strlen(entry->d_name); i > 0; i--) {
+                if (entry->d_name[i-1] == '.') {
+                    dot_pos = entry->d_name + i-1;
                     file_extension_len = strlen(dot_pos + 1);
                     break;
                 }
