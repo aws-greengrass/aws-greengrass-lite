@@ -8,7 +8,7 @@
 #include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
-#include <linux/limits.h>
+#include <limits.h>
 
 typedef struct {
     char recipe_path[PATH_MAX];

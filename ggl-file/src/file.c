@@ -12,7 +12,9 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <limits.h>
 #include <pthread.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -20,9 +22,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define MAX_PATH_COMPONENT_LENGTH 256
-
-static char path_comp_buf[MAX_PATH_COMPONENT_LENGTH + 1];
+static char path_comp_buf[NAME_MAX + 1];
 static pthread_mutex_t path_comp_buf_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 GGL_DEFINE_DEFER(closedir, DIR *, dirp, if (*dirp != NULL) closedir(*dirp))
@@ -32,8 +32,19 @@ GglError ggl_close(int fd) {
     // Posix states that after an interrupted close, the state of the file
     // descriptor is unspecified. On Linux and most other systems, the fd is
     // released even if close failed with EINTR.
+
+    sigset_t set;
+    sigfillset(&set);
+    sigset_t old_set;
+
+    pthread_sigmask(SIG_SETMASK, &set, &old_set);
+
     int ret = close(fd);
-    if ((ret == 0) || (errno == EINTR)) {
+    int err = errno;
+
+    pthread_sigmask(SIG_SETMASK, &old_set, NULL);
+
+    if ((ret == 0) || (err == EINTR)) {
         return GGL_ERR_OK;
     }
     return GGL_ERR_FAILURE;
@@ -149,7 +160,7 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
     // Prefixing the name with `.~` to make it hidden and clear its a temp file.
     // TODO: Check for filesystem O_TMPFILE support and use that instead.
     size_t name_len = strlen(name);
-    if (name_len > MAX_PATH_COMPONENT_LENGTH - 2) {
+    if (name_len > NAME_MAX - 2) {
         return GGL_ERR_NOMEM;
     }
     memcpy(path_comp_buf, ".~", 2);
@@ -342,8 +353,8 @@ GglError ggl_dir_openat(
         if (comp.len == 0) {
             continue;
         }
-        if (comp.len > MAX_PATH_COMPONENT_LENGTH) {
-            return GGL_ERR_NOMEM;
+        if (comp.len > NAME_MAX) {
+            return GGL_ERR_RANGE;
         }
         memcpy(path_comp_buf, comp.data, comp.len);
         path_comp_buf[comp.len] = '\0';
@@ -381,7 +392,7 @@ GglError ggl_dir_openat(
 
     // Handle final path component (non-empty since trailing slashes stripped)
 
-    if (comp.len > MAX_PATH_COMPONENT_LENGTH) {
+    if (comp.len > NAME_MAX) {
         return GGL_ERR_NOMEM;
     }
     memcpy(path_comp_buf, comp.data, comp.len);
@@ -431,7 +442,7 @@ GglError ggl_file_openat(
     }
     GGL_DEFER(ggl_close, cur_fd);
 
-    if (file.len > MAX_PATH_COMPONENT_LENGTH) {
+    if (file.len > NAME_MAX) {
         return GGL_ERR_NOMEM;
     }
 

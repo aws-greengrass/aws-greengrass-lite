@@ -35,9 +35,9 @@ typedef struct {
     uint8_t operation_count;
 } GglIpcService;
 
-GglIpcService ggl_ipc_service_pubsub;
-GglIpcService ggl_ipc_service_mqttproxy;
-GglIpcService ggl_ipc_service_config;
-GglIpcService ggl_ipc_service_cli;
+extern GglIpcService ggl_ipc_service_pubsub;
+extern GglIpcService ggl_ipc_service_mqttproxy;
+extern GglIpcService ggl_ipc_service_config;
+extern GglIpcService ggl_ipc_service_cli;
 
 #endif
