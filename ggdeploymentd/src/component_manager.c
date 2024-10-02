@@ -86,7 +86,6 @@ static void find_active_version(
         return;
     }
     if (version_resp.type != GGL_TYPE_BUF) {
-        // same as above
         GGL_LOGW(
             "component-manager",
             "Configuration version is not a string. Assuming no active version "
@@ -126,16 +125,25 @@ static GglError find_best_candidate_locally(
             "No running component satisfies the verison requirements. "
             "Searching in the local component store."
         );
-        // TODO: double check that we should be checking the local deployment group here
+        // TODO: double check that we should be checking the local deployment
+        // group here
         GglObject *val;
-        if(!ggl_map_get(version_requirements, GGL_STR(LOCAL_DEPLOYMENT), &val)) {
-          GGL_LOGW("component-manager", "Failed to find requirements for local deployment gorup.");
-          // return ok since we will proceed with cloud negotiation
-          return GGL_ERR_OK;
+        if (!ggl_map_get(
+                version_requirements, GGL_STR(LOCAL_DEPLOYMENT), &val
+            )) {
+            GGL_LOGW(
+                "component-manager",
+                "Failed to find requirements for local deployment gorup."
+            );
+            // return ok since we will proceed with cloud negotiation
+            return GGL_ERR_OK;
         }
-        if(val->type != GGL_TYPE_BUF) {
-          GGL_LOGW("component-manager", "Local deployment requirements not of type buffer.");
-          return GGL_ERR_OK;
+        if (val->type != GGL_TYPE_BUF) {
+            GGL_LOGW(
+                "component-manager",
+                "Local deployment requirements not of type buffer."
+            );
+            return GGL_ERR_OK;
         }
 
         find_available_component(component_name, val->buf, identifier);
@@ -193,7 +201,8 @@ ComponentMetadata resolve_component_version(
 
         // TODO: negotiate with cloud here
 
-        GGL_LOGI("component-manager", "No local version found, negotiate with cloud.");
-
+        GGL_LOGI(
+            "component-manager", "No local version found, negotiate with cloud."
+        );
     }
 }

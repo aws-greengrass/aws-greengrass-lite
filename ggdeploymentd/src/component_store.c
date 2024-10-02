@@ -67,11 +67,6 @@ void find_available_component(
     GglBuffer requirement,
     ComponentIdentifier *component
 ) {
-    // check /packages/recipes under the root path
-    // iterate through all the recipes
-    // find a recipe that matches the component name
-    // parse that recipe to get the component version
-
     GglError ret = update_root_path();
     if (ret != GGL_ERR_OK) {
         // we do not error out here because we will negotiate with the cloud if
@@ -166,13 +161,13 @@ void find_available_component(
                 strlen(entry->d_name) - file_extension_len
             );
 
-            // TODO: check that the recipe version satisfies the requirement
-            bool requirement_satisfied = is_contain(recipe_version, requirement);
+            bool requirement_satisfied
+                = is_contain(recipe_version, requirement);
 
             if (requirement_satisfied) {
-              // save the component information for the caller
-              component->name = recipe_component;
-              component->version = recipe_version;
+                // save the component information for the caller
+                component->name = recipe_component;
+                component->version = recipe_version;
             }
         }
     }
