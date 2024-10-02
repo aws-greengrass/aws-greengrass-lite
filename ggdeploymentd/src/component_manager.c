@@ -5,13 +5,15 @@
 #include "component_manager.h"
 #include "component_model.h"
 #include "component_store.h"
-#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #define LOCAL_DEPLOYMENT "LOCAL_DEPLOYMENT"
 
@@ -118,6 +120,7 @@ static GglError find_best_candidate_locally(
             "component-manager",
             "Found running component which meets the version requirements."
         );
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
         identifier = active_component;
     } else {
         GGL_LOGI(
@@ -152,7 +155,7 @@ static GglError find_best_candidate_locally(
     return GGL_ERR_OK;
 }
 
-ComponentMetadata resolve_component_version(
+ComponentIdentifier *resolve_component_version(
     GglBuffer component_name, GglMap version_requirements
 ) {
     // NOTE: version_requirements is a map of groups to the version requirements
@@ -199,10 +202,13 @@ ComponentMetadata resolve_component_version(
         // if there is no local version and cloud negotiation fails, fail the
         // deployment
 
-        // TODO: negotiate with cloud here
+        // TODO: negotiate with cloud here. update component value from null to
+        // result from cloud negotiation
+        resolved_component = NULL;
 
         GGL_LOGI(
             "component-manager", "No local version found, negotiate with cloud."
         );
     }
+    return resolved_component;
 }
