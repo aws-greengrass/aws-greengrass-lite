@@ -72,19 +72,8 @@ and run `run_nucleus`:
 
 ```sh
 cd ./run
-export GGL_RECIPE_TO_UNIT_PATH=../recipe2unit_python/main.py
 ../build/bin/run_nucleus
 ```
-
-## Running Deployments (Temporary)
-
-There is a temporary dependency on a python script for deployments to work. The
-following steps will install needed dependencies on ubuntu:
-
-- Install python3 using `sudo apt install python3`
-- Install python pip using `sudo apt install python3-pip`
-- Install script requirements using
-  `python3 -m pip install -r ./recipe2unit_python/requirements`
 
 ## Performing a local deployment
 
