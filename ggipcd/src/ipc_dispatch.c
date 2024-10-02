@@ -28,9 +28,22 @@ GglError ggl_ipc_handle_operation(
 ) {
     for (size_t i = 0; i < SERVICE_COUNT; i++) {
         const GglIpcService *service = SERVICE_TABLE[i];
+        GGL_LOGT(
+            "ipc-server",
+            "Matching against service: %.*s.",
+            (int) service->name.len,
+            service->name.data
+        );
 
         for (size_t j = 0; j < service->operation_count; j++) {
             const GglIpcOperation *service_op = &service->operations[j];
+
+            GGL_LOGT(
+                "ipc-server",
+                "Matching against operation: %.*s.",
+                (int) service_op->name.len,
+                service_op->name.data
+            );
 
             if (ggl_buffer_eq(operation, service_op->name)) {
                 GglIpcOperationInfo info = {
@@ -55,6 +68,11 @@ GglError ggl_ipc_handle_operation(
         }
     }
 
-    GGL_LOGW("ipc-server", "Unhandled operation requested.");
+    GGL_LOGW(
+        "ipc-server",
+        "Unhandled operation requested: %.*s.",
+        (int) operation.len,
+        operation.data
+    );
     return GGL_ERR_NOENTRY;
 }
