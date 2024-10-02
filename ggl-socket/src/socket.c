@@ -19,7 +19,8 @@
 #include <unistd.h>
 #include <stdint.h>
 
-__attribute__((constructor)) static void ignore_sigpipe(void) {
+// Lowest allowed priority in order to run before threads are created.
+__attribute__((constructor(101))) static void ignore_sigpipe(void) {
     // If SIGPIPE is not blocked, writing to a socket that the server has closed
     // will result in this process being killed.
     signal(SIGPIPE, SIG_IGN);
