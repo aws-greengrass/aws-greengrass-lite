@@ -18,8 +18,6 @@
 #define MAX_UNIT_FILE_BUF_SIZE 2048
 #define MAX_COMPONENT_FILE_NAME 1024
 
-static const char COMPONENT_NAME[] = "recipe2unit";
-
 GglError get_recipe_obj(
     Recipe2UnitArgs *args, GglAlloc *alloc, GglObject *recipe_obj
 ) {
@@ -42,7 +40,7 @@ GglError get_recipe_obj(
     }
 
     if (recipe_obj->type != GGL_TYPE_MAP) {
-        GGL_LOGE(COMPONENT_NAME, "Invalid recipe format provided");
+        GGL_LOGE("recipe2unit", "Invalid recipe format provided");
         return GGL_ERR_FAILURE;
     }
 
@@ -75,7 +73,7 @@ GglError convert_to_unit(
     }
 
     if (*component_name == NULL) {
-        GGL_LOGE(COMPONENT_NAME, "Component name was NULL");
+        GGL_LOGE("recipe2unit", "Component name was NULL");
         return GGL_ERR_FAILURE;
     }
 

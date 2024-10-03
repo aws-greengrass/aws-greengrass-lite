@@ -7,11 +7,10 @@
 #include <ggl/error.h>
 #include <stdlib.h>
 
-static char doc[] = "recipe-runner -- Acts as a mediator that runs the ggl "
-                    "deployment's Script section";
+static char doc[] = "recipe-runner -- Launch a Greengrass recipe file";
 
 static struct argp_option opts[] = {
-    { "filepath", 'p', "path", 0, "Provide path to a bash script file", 0 },
+    { "filepath", 'p', "path", 0, "Provide path to a recipe file", 0 },
     { "component-name", 'n', "name", 0, "Name of the component being run", 0 },
     { 0 }
 };
