@@ -41,13 +41,13 @@ GglError ggl_handle_get_configuration(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("GetConfiguration", "Received invalid paramters.");
+        GGL_LOGE("GetConfiguration", "Received invalid parameters.");
         return GGL_ERR_INVALID;
     }
 
     ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("GetConfiguration", "Received invalid paramters.");
+        GGL_LOGE("GetConfiguration", "Received invalid parameters.");
         return GGL_ERR_INVALID;
     }
 

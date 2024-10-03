@@ -39,5 +39,6 @@ extern GglIpcService ggl_ipc_service_pubsub;
 extern GglIpcService ggl_ipc_service_mqttproxy;
 extern GglIpcService ggl_ipc_service_config;
 extern GglIpcService ggl_ipc_service_cli;
+extern GglIpcService ggl_ipc_service_private;
 
 #endif

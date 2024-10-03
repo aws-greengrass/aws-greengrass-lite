@@ -495,11 +495,14 @@ GglError ggl_ipc_response_send(
         { GGL_STR("service-model-type"),
           { EVENTSTREAM_STRING, .string = service_model_type } },
     };
-    const size_t RESP_HEADERS_LEN
-        = sizeof(resp_headers) / sizeof(resp_headers[0]);
+    size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
+
+    if (service_model_type.len == 0) {
+        resp_headers_len -= 1;
+    }
 
     GglError ret = eventstream_encode(
-        &resp_buffer, resp_headers, RESP_HEADERS_LEN, payload_writer, &response
+        &resp_buffer, resp_headers, resp_headers_len, payload_writer, &response
     );
     if (ret != GGL_ERR_OK) {
         return ret;
