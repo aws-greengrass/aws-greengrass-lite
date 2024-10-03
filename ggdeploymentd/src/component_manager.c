@@ -149,7 +149,7 @@ static GglError find_best_candidate_locally(
     return GGL_ERR_OK;
 }
 
-GglError resolve_component_version(
+bool resolve_component_version(
     GglBuffer component_name, GglMap version_requirements, GglBuffer *version
 ) {
     // NOTE: version_requirements is a map of groups to the version requirements
@@ -190,18 +190,7 @@ GglError resolve_component_version(
             "without negotiating with the cloud."
         );
         *version = local_version;
-    } else {
-        // TODO: if we find a local version, skip negotiating with the cloud
-        // if there is no local version and cloud negotiation fails, fail the
-        // deployment
-
-        // TODO: negotiate with cloud here. update component value from null to
-        // result from cloud negotiation
-
-        GGL_LOGI(
-            "component-manager", "No local version found, negotiate with cloud."
-        );
     }
 
-    return GGL_ERR_OK;
+    return local_candidate_found;
 }

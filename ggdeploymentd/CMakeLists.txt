@@ -9,8 +9,9 @@ ggl_init_module(
        ggl-file
        ggl-http
        ggl-json
-       ggl-socket
+       ggl-recipe
        ggl-semver
+       ggl-socket
        ggl-yaml
        core-bus-gg-config
        core-bus-aws-iot-mqtt

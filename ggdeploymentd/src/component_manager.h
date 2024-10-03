@@ -5,10 +5,10 @@
 #ifndef GGDEPLOYMENTD_COMPONENT_MANAGER_H
 #define GGDEPLOYMENTD_COMPONENT_MANAGER_H
 
-#include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdbool.h>
 
-GglError resolve_component_version(
+bool resolve_component_version(
     GglBuffer component_name, GglMap version_requirements, GglBuffer *version
 );
 

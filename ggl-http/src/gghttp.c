@@ -133,8 +133,10 @@ GglError gg_dataplane_call(
     }
     if (ret == GGL_ERR_OK) {
         gghttplib_add_certificate_data(&curl_data, certificate_details);
-        GGL_LOGD("dataplane_call", "Adding body to http request");
-        gghttplib_add_post_body(&curl_data, body);
+        if (body != NULL) {
+            GGL_LOGD("dataplane_call", "Adding body to http request");
+            gghttplib_add_post_body(&curl_data, body);
+        }
         GGL_LOGD("dataplane_call", "Sending request to dataplane endpoint");
         ret = gghttplib_process_request(&curl_data, response_buffer);
     }
