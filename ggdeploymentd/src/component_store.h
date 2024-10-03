@@ -12,7 +12,7 @@
 /// Populate a vector with each component name and version saved in the local
 /// recipe directory
 GglError retrieve_component_list(
-    int *fd, GglAlloc *alloc, GglMap *component_details
+    int *out_fd, GglAlloc *alloc, GglMap *component_details
 );
 
 GglError find_available_component(
