@@ -27,8 +27,6 @@
 #include <ggl/vector.h>
 #include <limits.h>
 #include <string.h>
-#include <sys/wait.h>
-#include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -607,9 +605,6 @@ static void handle_deployment(
             return;
         }
     }
-
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    char *recipe2unit_path = getenv("GGL_RECIPE_TO_UNIT_PATH");
 
     // TODO: Add dependency resolution process that will also check local store.
     if (deployment->cloud_root_components_to_add.len != 0) {
@@ -1375,81 +1370,97 @@ static void handle_deployment(
                 artifact_path, (char *) pair->val.buf.data, pair->val.buf.len
             );
 
-            char *recipe2unit_args[] = { "python3",
-                                         recipe2unit_path,
-                                         "-r",
-                                         recipe_path,
-                                         "--recipe-runner-path",
-                                         recipe_runner_path,
-                                         "--socket-path",
-                                         socket_path,
-                                         "-t",
-                                         thing_name,
-                                         "--aws-region",
-                                         config.region,
-                                         "--ggc-version",
-                                         "0.0.1",
-                                         "--rootca-path",
-                                         root_ca_path,
-                                         "--cred-url",
-                                         tes_cred_url,
-                                         "--user",
-                                         posix_user,
-                                         "--group",
-                                         group,
-                                         "--artifact-path",
-                                         artifact_path,
-                                         "--root-dir",
-                                         (char *) args->root_path.data };
+            Recipe2UnitArgs recipe2unit_args
+                = { .group = group, .user = posix_user };
+            GGL_LOGI("Deployment Handler", "Recipepath %s", recipe_path);
+            memcpy(
+                recipe2unit_args.recipe_path,
+                recipe_path,
+                strnlen(recipe_path, PATH_MAX)
+            );
+            memcpy(
+                recipe2unit_args.recipe_runner_path,
+                recipe_runner_path,
+                strnlen(recipe_runner_path, PATH_MAX)
+            );
+            memcpy(
+                recipe2unit_args.root_dir,
+                args->root_path.data,
+                args->root_path.len
+            );
 
-            pid_t pid = fork();
+            GglObject recipe_buff_obj;
+            GglObject *component_name;
+            static uint8_t big_buffer_for_bump[MAX_RECIPE_BUF_SIZE];
+            GglBumpAlloc bump_alloc
+                = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
-            if (pid == -1) {
-                // Something went wrong
+            GglError err = convert_to_unit(
+                &recipe2unit_args,
+                &bump_alloc.alloc,
+                &recipe_buff_obj,
+                &component_name
+            );
 
-                GGL_LOGE("ggdeploymentd", "Error, Unable to fork");
+            if (err != GGL_ERR_OK) {
                 return;
             }
-            if (pid == 0) {
-                // Child process: execute the script
-                execvp("python3", recipe2unit_args);
 
-                // If execvpe returns, it must have failed
-                GGL_LOGE(
-                    "ggdeploymentd", "Error: execvp returned unexpectedly"
-                );
-                return;
-            }
-            // Parent process: wait for the child to finish
+            GglObject *intermediate_obj;
+            GglObject *default_config_obj;
 
-            int child_status;
-            if (waitpid(pid, &child_status, 0) == -1) {
-                GGL_LOGE("ggdeploymentd", "Error, waitpid got hit");
-                return;
-            }
-            if (WIFEXITED(child_status)) {
-                if (WEXITSTATUS(child_status) != 0) {
-                    GGL_LOGE("ggdeploymentd", "Recipe to unit script failed");
+            if (ggl_map_get(
+                    recipe_buff_obj.map,
+                    GGL_STR("componentconfiguration"),
+                    &intermediate_obj
+                )) {
+                if (intermediate_obj->type != GGL_TYPE_MAP) {
+                    GGL_LOGE(
+                        "Deployment Handler",
+                        "ComponentConfiguration is not a map type"
+                    );
                     return;
                 }
-                GGL_LOGI(
-                    "ggdeploymentd",
-                    "Recipe to unit script exited with child status "
-                    "%d\n",
-                    WEXITSTATUS(child_status)
-                );
+
+                if (ggl_map_get(
+                        intermediate_obj->map,
+                        GGL_STR("defaultconfiguration"),
+                        &default_config_obj
+                    )) {
+                    ret = ggl_gg_config_write(
+                        GGL_BUF_LIST(GGL_STR("services"), component_name->buf),
+                        *default_config_obj,
+                        0
+                    );
+
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE(
+                            "Deployment Handler",
+                            "Failed to send default config to ggconfigd."
+                        );
+                        return;
+                    }
+                } else {
+                    GGL_LOGI(
+                        "Deployment Handler",
+                        "DefaultConfiguration not found in the recipe."
+                    );
+                }
             } else {
-                GGL_LOGE(
-                    "ggdeploymentd",
-                    "Recipe to unit script did not exit normally"
+                GGL_LOGI(
+                    "Deployment Handler",
+                    "ComponentConfiguration not found in the recipe"
                 );
-                return;
             }
 
             // TODO: add install file processing logic here.
 
             char service_file_path[PATH_MAX] = { 0 };
-            strncat(service_file_path, "ggl.", strlen("ggl."));
+            strncat(
+                service_file_path,
+                "ggl.com.example.",
+                strlen("ggl.com.example.")
+            );
             strncat(service_file_path, (char *) pair->key.data, pair->key.len);
             strncat(service_file_path, ".service", strlen(".service"));
 
@@ -1459,14 +1470,11 @@ static void handle_deployment(
                 "sudo systemctl link ",
                 strlen("sudo systemctl link ")
             );
-            char cwd[PATH_MAX];
-            if (getcwd(cwd, sizeof(cwd)) == NULL) {
-                GGL_LOGE(
-                    "ggdeploymentd", "Error getting current working directory."
-                );
-                return;
-            }
-            strncat(link_command, cwd, strlen(cwd));
+            strncat(
+                link_command,
+                (const char *) args->root_path.data,
+                args->root_path.len
+            );
             strncat(link_command, "/", strlen("/"));
             strncat(link_command, service_file_path, strlen(service_file_path));
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
