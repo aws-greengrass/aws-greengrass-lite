@@ -73,7 +73,7 @@ static bool process_version(
     return return_status;
 }
 
-bool is_contain(GglBuffer version, GglBuffer requirements_range) {
+bool is_in_range(GglBuffer version, GglBuffer requirements_range) {
     char *requirements_range_as_char = (char *) requirements_range.data;
 
     static uint8_t work_mem_buffer[MAX_VERSION_LEN];

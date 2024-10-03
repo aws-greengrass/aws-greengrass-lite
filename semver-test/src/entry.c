@@ -10,7 +10,7 @@
 #include <ggl/object.h>
 
 GglError run_semver_test(void) {
-    bool ret = is_contain(GGL_STR("1.1.0"), GGL_STR(">=2.1.0"));
+    bool ret = is_in_range(GGL_STR("1.1.0"), GGL_STR(">=2.1.0"));
     if (ret) {
         GGL_LOGI("SEMVER-test", "Satisfies requirement/s");
     } else {

@@ -144,6 +144,7 @@ GglError retrieve_component_list(
             strlen(entry->d_name) - file_extension_len
         );
 
+            
         GglKV component_info
             = { .key = recipe_component, .val = GGL_OBJ(recipe_version) };
         ggl_kv_vec_push(&components, component_info);
@@ -185,7 +186,7 @@ GglError find_available_component(
             GglBuffer component_version = pair->val.buf;
 
             // check if the version satisfies the requirement
-            if (is_contain(component_version, requirement)) {
+            if (is_in_range(component_version, requirement)) {
                 *version = component_version;
             }
         }

@@ -8,6 +8,6 @@
 #include <ggl/object.h>
 #include <stdbool.h>
 
-bool is_contain(GglBuffer version, GglBuffer requirements_range);
+bool is_in_range(GglBuffer version, GglBuffer requirements_range);
 
 #endif
