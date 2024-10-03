@@ -154,8 +154,8 @@ GglError retrieve_component_list(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    component_details = &obj.map;
-    fd = &recipe_dir_fd;
+    *component_details = obj.map;
+    *fd = recipe_dir_fd;
     return GGL_ERR_OK;
 }
 
@@ -186,7 +186,7 @@ GglError find_available_component(
 
             // check if the version satisfies the requirement
             if (is_contain(component_version, requirement)) {
-                version = &component_version;
+                *version = component_version;
             }
         }
     }
