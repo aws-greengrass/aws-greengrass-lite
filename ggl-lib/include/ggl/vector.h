@@ -69,6 +69,7 @@ GglError ggl_byte_vec_append(GglByteVec *vector, GglBuffer buf);
 void ggl_byte_vec_chain_append(
     GglError *err, GglByteVec *vector, GglBuffer buf
 );
+GglBuffer ggl_byte_vec_remaining_capacity(GglByteVec vector);
 
 typedef struct {
     GglBufList buf_list;

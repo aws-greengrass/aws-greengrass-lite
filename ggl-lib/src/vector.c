@@ -109,6 +109,11 @@ void ggl_byte_vec_chain_append(
     }
 }
 
+GglBuffer ggl_byte_vec_remaining_capacity(GglByteVec vector) {
+    return (GglBuffer) { .data = &vector.buf.data[vector.buf.len],
+                         .len = vector.capacity - vector.buf.len };
+}
+
 GglError ggl_buf_vec_push(GglBufVec *vector, GglBuffer buf) {
     if (vector->buf_list.len >= vector->capacity) {
         return GGL_ERR_NOMEM;
