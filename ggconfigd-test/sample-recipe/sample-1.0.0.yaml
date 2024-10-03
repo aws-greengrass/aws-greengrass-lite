@@ -1,0 +1,20 @@
+{
+  "RecipeFormatVersion": "2020-01-25",
+  "ComponentName": "com.example.sample",
+  "ComponentVersion": "1.0.0",
+  "ComponentType": "aws.greengrass.generic",
+  "ComponentDescription": "My first Greengrass component.",
+  "ComponentPublisher": "Me",
+  "ComponentConfiguration":
+    { "DefaultConfiguration": { "Message": "test-and-verify-the-world" } },
+  "Manifests":
+    [
+      {
+        "Platform": { "os": "linux" },
+        "Name": "Linux",
+        "Lifecycle": { "run": "echo hello world" },
+        "Artifacts": [],
+      },
+    ],
+  "Lifecycle": {},
+}

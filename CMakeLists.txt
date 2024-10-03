@@ -320,7 +320,6 @@ add_subdirectory(tes-serverd)
 add_subdirectory(ggl-exec)
 add_subdirectory(recipe2unit)
 add_subdirectory(ggl-semver)
-add_subdirectory(semver-test)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
@@ -332,6 +331,8 @@ if(BUILD_EXAMPLES)
   add_subdirectory(s3-get-test)
   add_subdirectory(tesd-test)
   add_subdirectory(recipe2unit-test)
+  add_subdirectory(ggconfigd-test)
+  add_subdirectory(semver-test)
 
   add_custom_target(
     run_nucleus ALL

@@ -946,17 +946,25 @@ static void handle_deployment(
                 ret = ggl_json_decode_destructive(
                     recipe_file_content->buf, &alloc.alloc, &recipe_obj
                 );
-                if (ret == GGL_ERR_OK) {
-                    ret = get_recipe_artifacts(
-                        args->root_path,
-                        cloud_component_name->buf,
-                        cloud_component_version->buf,
-                        ggl_buffer_from_null_term(config.region),
-                        recipe_obj
-                    );
-                }
                 if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("ggdeploymentd", "Failed to validate recipe");
+                    GGL_LOGE(
+                        "ggdeploymentd", "Failed to validate and decode recipe."
+                    );
+                    return;
+                }
+
+                ret = get_recipe_artifacts(
+                    args->root_path,
+                    cloud_component_name->buf,
+                    cloud_component_version->buf,
+                    ggl_buffer_from_null_term(config.region),
+                    recipe_obj
+                );
+
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE(
+                        "ggdeploymentd", "Failed to get artifacts from recipe."
+                    );
                     return;
                 }
 
@@ -1135,7 +1143,9 @@ static void handle_deployment(
                         )) {
                         ret = ggl_gg_config_write(
                             GGL_BUF_LIST(
-                                GGL_STR("services"), component_name->buf
+                                GGL_STR("services"),
+                                component_name->buf,
+                                GGL_STR("configuration")
                             ),
                             *default_config_obj,
                             0
@@ -1428,7 +1438,11 @@ static void handle_deployment(
                         &default_config_obj
                     )) {
                     ret = ggl_gg_config_write(
-                        GGL_BUF_LIST(GGL_STR("services"), component_name->buf),
+                        GGL_BUF_LIST(
+                            GGL_STR("services"),
+                            component_name->buf,
+                            GGL_STR("configuration")
+                        ),
                         *default_config_obj,
                         0
                     );

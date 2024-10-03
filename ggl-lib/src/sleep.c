@@ -16,7 +16,7 @@ GglError ggl_sleep(int64_t seconds) {
     while (nanosleep(&time, &remain) != 0) {
         if (errno != EINTR) {
             int err = errno;
-            GGL_LOGE("mqtt", "nanosleep failed: %d.", err);
+            GGL_LOGE("sleep", "nanosleep failed: %d.", err);
             return GGL_ERR_FAILURE;
         }
 
