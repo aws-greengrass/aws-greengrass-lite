@@ -12,6 +12,7 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/socket.h>
 #include <limits.h>
 #include <pthread.h>
 #include <signal.h>
@@ -519,6 +520,57 @@ static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
     GGL_DEFER(ggl_close, dest_subdir_fd);
 
     return ggl_copy_dir(source_subdir_fd, dest_subdir_fd);
+}
+
+/// Read file contents.
+GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content) {
+    GglBuffer buf = *content;
+    int fd;
+    GglError ret = ggl_file_openat(dirfd, path, O_RDONLY, 0, &fd);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "file",
+            "Err %d while opening file: %.*s",
+            errno,
+            (int) path.len,
+            path.data
+        );
+        return ret;
+    }
+    GGL_DEFER(ggl_close, fd);
+
+    struct stat info;
+    int sys_ret = fstat(fd, &info);
+    if (sys_ret != 0) {
+        GGL_LOGE(
+            "file",
+            "Err %d while calling fstat on file: %.*s",
+            errno,
+            (int) path.len,
+            path.data
+        );
+        return GGL_ERR_FAILURE;
+    }
+
+    size_t file_size = (size_t) info.st_size;
+
+    if (file_size > buf.len) {
+        GGL_LOGE(
+            "file",
+            "Insufficient memory for file %.*s.",
+            (int) path.len,
+            path.data
+        );
+        return GGL_ERR_NOMEM;
+    }
+
+    buf.len = file_size;
+
+    ret = ggl_read_exact(fd, buf);
+    if (ret == GGL_ERR_OK) {
+        *content = buf;
+    }
+    return ret;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)

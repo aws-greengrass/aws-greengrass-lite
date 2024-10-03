@@ -44,6 +44,9 @@ GglError ggl_file_openat(
 /// Open a file.
 GglError ggl_file_open(GglBuffer path, int flags, mode_t mode, int *fd);
 
+/// Read file contents.
+GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content);
+
 /// Copy directory contents recursively
 GglError ggl_copy_dir(int source_fd, int dest_fd);
 
