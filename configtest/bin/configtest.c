@@ -230,6 +230,12 @@ static void compare_objects(GglObject expected, GglObject result) {
         }
         compare_maps(expected.map, result.map);
         break;
+    case GGL_TYPE_NULL:
+        if (result.type != GGL_TYPE_NULL) {
+            GGL_LOGE("test_get", "expected null, got %d", result.type);
+            return;
+        }
+        break;
     default:
         GGL_LOGE("test_get", "unexpected type %d", expected.type);
         break;
@@ -822,6 +828,21 @@ int main(int argc, char **argv) {
             GGL_OBJ_STR("key2")
         ),
         GGL_OBJ_STR("value2"),
+        GGL_ERR_OK
+    );
+
+    // Test to ensure null types can be stored and retrieved
+    test_insert(
+        GGL_LIST(GGL_OBJ_STR("component10"), GGL_OBJ_STR("foo")),
+        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_NULL() }),
+        -1,
+        GGL_ERR_OK
+    );
+    test_get(
+        GGL_LIST(
+            GGL_OBJ_STR("component10"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("key")
+        ),
+        GGL_OBJ_NULL(),
         GGL_ERR_OK
     );
 

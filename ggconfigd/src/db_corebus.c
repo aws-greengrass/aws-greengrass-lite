@@ -71,6 +71,9 @@ static GglError decode_object_destructive(
             obj->list = return_object.list;
             return_err = GGL_ERR_OK;
             break;
+        case GGL_TYPE_NULL:
+            return_err = GGL_ERR_OK;
+            break;
         default:
             GGL_LOGE(
                 "decode_object_destructive",
