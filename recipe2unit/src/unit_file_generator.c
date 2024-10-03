@@ -13,6 +13,7 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <limits.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -27,6 +28,7 @@ static const char COMPONENT_NAME[] = "recipe2unit";
 static const char REQUIRES_PRIVILEGE[] = "requiresprivilege";
 static const char LIFECYCLE[] = "lifecycle";
 static const char ARCHITECTURE[] = "architecture";
+static const char IPC_SOCKET_REL_PATH[] = "/gg-ipc.socket";
 
 static void ggl_string_to_lower(GglBuffer object_object_to_lower) {
     for (size_t key_count = 0; key_count < object_object_to_lower.len;
@@ -597,6 +599,7 @@ static GglError update_unit_file_buffer(
 static GglError parse_install_section(
     GglMap selected_lifecycle_map,
     GglMap set_env_as_map,
+    char *root_dir,
     GglMap *out_install_map,
     GglAlloc *allocator
 ) {
@@ -624,11 +627,22 @@ static GglError parse_install_section(
             GGL_LOGE(COMPONENT_NAME, "Cannot parse install script section");
             return GGL_ERR_FAILURE;
         }
+        static uint8_t mem[PATH_MAX];
+        GglByteVec socketpath_vec = GGL_BYTE_VEC(mem);
+        ret = ggl_byte_vec_append(
+            &socketpath_vec,
+            (GglBuffer) { (uint8_t *) root_dir, strlen(root_dir) }
+        );
+        ggl_byte_vec_chain_append(
+            &ret, &socketpath_vec, GGL_STR(IPC_SOCKET_REL_PATH)
+        );
 
         GglObject out_object = GGL_OBJ_MAP(
             { GGL_STR(REQUIRES_PRIVILEGE), GGL_OBJ_BOOL(is_root) },
             { GGL_STR("script"), GGL_OBJ(selected_script) },
-            { GGL_STR("set_env"), GGL_OBJ(set_env_as_map) }
+            { GGL_STR("set_env"), GGL_OBJ(set_env_as_map) },
+            { GGL_STR("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"),
+              GGL_OBJ(socketpath_vec.buf) }
         );
 
         ret = ggl_obj_deep_copy(&out_object, allocator);
@@ -722,13 +736,14 @@ static GglError manifest_builder(
                 );
             }
 
-            static uint8_t big_buffer_for_bump[MAX_SCRIPT_SIZE];
+            static uint8_t big_buffer_for_bump[MAX_SCRIPT_SIZE + PATH_MAX];
             GglBumpAlloc the_allocator
                 = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
             GglMap standardized_install_map = { 0 };
             ret = parse_install_section(
                 selected_lifecycle_map,
                 set_env_as_map,
+                args->root_dir,
                 &standardized_install_map,
                 &the_allocator.alloc
             );
@@ -927,6 +942,24 @@ static GglError fill_service_section(
             GGL_LOGE(COMPONENT_NAME, "Failed to created working directory.");
             return GGL_ERR_FAILURE;
         }
+    }
+
+    // Add Env Var for GG_root path
+    ret = ggl_byte_vec_append(
+        out,
+        GGL_STR(
+            "Environment=\"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT="
+        )
+    );
+    ggl_byte_vec_chain_append(
+        &ret,
+        out,
+        (GglBuffer) { (uint8_t *) args->root_dir, strlen(args->root_dir) }
+    );
+    ggl_byte_vec_chain_append(&ret, out, GGL_STR(IPC_SOCKET_REL_PATH));
+    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     ret = manifest_builder(

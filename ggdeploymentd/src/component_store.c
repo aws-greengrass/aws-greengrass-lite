@@ -144,7 +144,6 @@ GglError retrieve_component_list(
             strlen(entry->d_name) - file_extension_len
         );
 
-            
         GglKV component_info
             = { .key = recipe_component, .val = GGL_OBJ(recipe_version) };
         ggl_kv_vec_push(&components, component_info);
