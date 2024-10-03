@@ -60,7 +60,7 @@ static GglError update_root_path(void) {
 }
 
 GglError retrieve_component_list(
-    int *fd, GglAlloc *alloc, GglMap *component_details
+    int *out_fd, GglAlloc *alloc, GglMap *component_details
 ) {
     GglError ret = update_root_path();
     if (ret != GGL_ERR_OK) {
@@ -155,7 +155,7 @@ GglError retrieve_component_list(
         return ret;
     }
     *component_details = obj.map;
-    *fd = recipe_dir_fd;
+    *out_fd = recipe_dir_fd;
     return GGL_ERR_OK;
 }
 
