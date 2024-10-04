@@ -15,7 +15,7 @@ Using TES requires setting up a few policies and roles in the cloud first.
             "Effect": "Allow",
             "Principal": {
                 "Service": [
-                    "credentials.iot.amazonaws.com",
+                    "credentials.iot.amazonaws.com"
                 ]
             },
             "Action": "sts:AssumeRole"
@@ -57,7 +57,5 @@ credentials when requested.
   certificate is. More can be found at
   `https://docs.aws.amazon.com/iot/latest/developerguide/attach-to-cert.html`
 
-Congratulations, now the only thing left is to make sure the role alias
-mentioned also matched with the GGLite's `nucleus_config.yml` as well as the
-correct credential endpoint is set within file and GG device will be able to
-vend TES credentials on demand.
+Once that is done, make sure the `iotRoleAlias` and `iotCredEndpoint` match the
+ones set in your `nucleus_config.yml`.

@@ -18,7 +18,7 @@ To configure Greengrass, you will need a config YAML file, in the same format as
 the Classic nucleus config. An example config file is available in
 [`doc/examples/sample_nucleus_config.yml`](examples/sample_nucleus_config.yml).
 If this is the first time you are creating a GG device, please follow the
-instruction in TES.md file.
+instruction in the [TES setup instructions](./TES.md).
 
 A working installation will require a thing certificate package.
 
