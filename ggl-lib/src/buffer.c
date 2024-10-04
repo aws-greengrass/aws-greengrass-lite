@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/buffer.h"
+#include "ggl/alloc.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
 #include "ggl/object.h"
@@ -108,5 +109,23 @@ GglError ggl_str_to_int64(GglBuffer str, int64_t *value) {
     }
 
     *value = ret;
+    return GGL_ERR_OK;
+}
+
+GglError ggl_buf_clone(GglBuffer buf, GglAlloc *alloc, GglBuffer *out) {
+    if (buf.len == 0) {
+        *out = (GglBuffer) { 0 };
+        return GGL_ERR_OK;
+    }
+    uint8_t *new_mem = GGL_ALLOCN(alloc, uint8_t, buf.len);
+    if (new_mem == NULL) {
+        GGL_LOGE(
+            "buffer", "Insufficient memory when cloning buffer into %p.", alloc
+        );
+        return GGL_ERR_NOMEM;
+    }
+    memcpy(new_mem, buf.data, buf.len);
+    out->data = new_mem;
+    out->len = buf.len;
     return GGL_ERR_OK;
 }
