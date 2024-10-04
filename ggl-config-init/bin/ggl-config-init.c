@@ -3,21 +3,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <argp.h>
-#include <assert.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/yaml_decode.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <stddef.h>
 #include <stdint.h>
 
-char *config_path = NULL;
+static char *config_path = NULL;
 
 static char doc[] = "ggl-config-init -- Update Greengrass Lite configuration";
 
@@ -50,37 +48,36 @@ int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, NULL);
 
-    assert(config_path != NULL);
+    if (config_path == NULL) {
+        GGL_LOGE("main", "Invalid config path.");
+        return 1;
+    }
 
-    int fd = open(config_path, O_RDONLY);
-    if (fd == -1) {
+    int fd = -1;
+    GglError ret = ggl_file_open(
+        ggl_buffer_from_null_term(config_path), O_RDONLY, 0, &fd
+    );
+    if (ret != GGL_ERR_OK) {
         GGL_LOGE("main", "Failed to open config file.");
         return 1;
     }
 
-    struct stat st;
-    if (fstat(fd, &st) == -1) {
-        GGL_LOGE("main", "Failed to get config file info.");
+    static uint8_t file_mem[8192];
+    GglBuffer config_file = GGL_BUF(file_mem);
+
+    ret = ggl_file_read_path(
+        ggl_buffer_from_null_term(config_path), &config_file
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("main", "Failed to read config file.");
         return 1;
     }
-
-    size_t file_size = (size_t) st.st_size;
-    uint8_t *file_str
-        = mmap(NULL, file_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
-    // NOLINTNEXTLINE(performance-no-int-to-ptr)
-    if (file_str == MAP_FAILED) {
-        GGL_LOGE("main", "Failed to load config file.");
-        return 1;
-    }
-
-    GglBuffer config_file = { .data = file_str, .len = file_size };
 
     static uint8_t decode_mem[500 * sizeof(GglObject)];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(decode_mem));
 
     GglObject config_obj;
-    GglError ret
-        = ggl_yaml_decode_destructive(config_file, &balloc.alloc, &config_obj);
+    ret = ggl_yaml_decode_destructive(config_file, &balloc.alloc, &config_obj);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("main", "Failed to parse config file.");
         return 1;
