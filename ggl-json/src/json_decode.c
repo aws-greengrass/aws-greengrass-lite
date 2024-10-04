@@ -670,10 +670,18 @@ static GglError take_json_val(GglBuffer *buf, GglAlloc *alloc, GglObject *obj);
 static GglError decode_json_array(
     GglBuffer content, size_t count, GglAlloc *alloc, GglObject *obj
 ) {
-    GglObject *items = GGL_ALLOCN(alloc, GglObject, count);
-    if (items == NULL) {
-        GGL_LOGE("json", "Insufficent memory to decode JSON.");
-        return GGL_ERR_NOMEM;
+    GglObject *items = NULL;
+    if (count > 0) {
+        if (alloc == NULL) {
+            GGL_LOGE("json", "Insufficent memory to decode JSON.");
+            return GGL_ERR_NOMEM;
+        }
+
+        items = GGL_ALLOCN(alloc, GglObject, count);
+        if (items == NULL) {
+            GGL_LOGE("json", "Insufficent memory to decode JSON.");
+            return GGL_ERR_NOMEM;
+        }
     }
 
     GglBuffer buf_copy = content;
@@ -700,10 +708,18 @@ static GglError decode_json_array(
 static GglError decode_json_object(
     GglBuffer content, size_t count, GglAlloc *alloc, GglObject *obj
 ) {
-    GglKV *pairs = GGL_ALLOCN(alloc, GglKV, count);
-    if (pairs == NULL) {
-        GGL_LOGE("json", "Insufficent memory to decode JSON.");
-        return GGL_ERR_NOMEM;
+    GglKV *pairs = NULL;
+    if (count > 0) {
+        if (alloc == NULL) {
+            GGL_LOGE("json", "Insufficent memory to decode JSON.");
+            return GGL_ERR_NOMEM;
+        }
+
+        pairs = GGL_ALLOCN(alloc, GglKV, count);
+        if (pairs == NULL) {
+            GGL_LOGE("json", "Insufficent memory to decode JSON.");
+            return GGL_ERR_NOMEM;
+        }
     }
 
     GglBuffer buf_copy = content;
