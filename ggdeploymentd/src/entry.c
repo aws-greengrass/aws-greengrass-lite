@@ -6,6 +6,7 @@
 #include "deployment_handler.h"
 #include "ggdeploymentd.h"
 #include "iot_jobs_listener.h"
+#include "sys/stat.h"
 #include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
@@ -28,6 +29,8 @@ static void *job_listener_thread(void *ctx) {
 
 GglError run_ggdeploymentd(const char *bin_path) {
     GGL_LOGI("ggdeploymentd", "Started ggdeploymentd process.");
+
+    umask(0);
 
     static uint8_t root_path_mem[PATH_MAX] = { 0 };
     GglBuffer root_path = GGL_BUF(root_path_mem);
