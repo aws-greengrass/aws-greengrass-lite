@@ -326,7 +326,7 @@ static void test_subscribe(GglList key, GglError expected_response) {
     GglBuffer server = GGL_STR("gg_config");
 
     GglMap params = GGL_MAP({ GGL_STR("key_path"), GGL_OBJ(key) }, );
-    uint32_t handle;
+    uint32_t handle = 0;
     GglError remote_error = GGL_ERR_OK;
     GglError error = ggl_subscribe(
         server,
