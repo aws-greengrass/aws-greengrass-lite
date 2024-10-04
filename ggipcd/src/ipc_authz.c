@@ -28,8 +28,12 @@ static GglError policy_match(
     GglError ret = ggl_map_validate(
         policy,
         GGL_MAP_SCHEMA(
-            { GGL_STR("operations"), true, GGL_TYPE_LIST, &operations_obj },
-            { GGL_STR("resources"), true, GGL_TYPE_LIST, &resources_obj },
+            { GGL_STR("operations"),
+              true,
+              true,
+              GGL_TYPE_LIST,
+              &operations_obj },
+            { GGL_STR("resources"), true, true, GGL_TYPE_LIST, &resources_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

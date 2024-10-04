@@ -33,9 +33,10 @@ GglError ggl_handle_get_configuration(
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("keyPath"), true, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("keyPath"), true, true, GGL_TYPE_LIST, &key_path_obj },
             { GGL_STR("componentName"),
               false,
+              true,
               GGL_TYPE_BUF,
               &component_name_obj },
         )

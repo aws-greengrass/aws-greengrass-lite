@@ -82,8 +82,8 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
     GglError ret = ggl_map_validate(
         data.map,
         GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
-            { GGL_STR("payload"), true, GGL_TYPE_BUF, &payload_obj },
+            { GGL_STR("topic"), true, true, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("payload"), true, true, GGL_TYPE_BUF, &payload_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

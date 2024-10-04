@@ -47,9 +47,9 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     GglError ret = ggl_map_validate(
         params,
         GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
-            { GGL_STR("payload"), false, GGL_TYPE_BUF, &payload_obj },
-            { GGL_STR("qos"), false, GGL_TYPE_I64, &qos_obj },
+            { GGL_STR("topic"), true, true, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("payload"), false, true, GGL_TYPE_BUF, &payload_obj },
+            { GGL_STR("qos"), false, true, GGL_TYPE_I64, &qos_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

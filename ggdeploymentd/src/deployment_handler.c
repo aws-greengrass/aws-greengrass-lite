@@ -447,12 +447,21 @@ static GglError download_s3_artifact(
     GglError ret = ggl_map_validate(
         result.map,
         GGL_MAP_SCHEMA(
-            { GGL_STR("accessKeyId"), true, GGL_TYPE_BUF, &aws_access_key_id },
+            { GGL_STR("accessKeyId"),
+              true,
+              true,
+              GGL_TYPE_BUF,
+              &aws_access_key_id },
             { GGL_STR("secretAccessKey"),
+              true,
               true,
               GGL_TYPE_BUF,
               &aws_secret_access_key },
-            { GGL_STR("sessionToken"), true, GGL_TYPE_BUF, &aws_session_token },
+            { GGL_STR("sessionToken"),
+              true,
+              true,
+              GGL_TYPE_BUF,
+              &aws_session_token },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -854,17 +863,24 @@ static GglError parse_dataplane_response_and_save_recipe(
             GGL_MAP_SCHEMA(
                 { GGL_STR("componentName"),
                   true,
+                  true,
                   GGL_TYPE_BUF,
                   &cloud_component_name },
                 { GGL_STR("componentVersion"),
+                  true,
                   true,
                   GGL_TYPE_BUF,
                   &cloud_component_version },
                 { GGL_STR("vendorGuidance"),
                   false,
+                  true,
                   GGL_TYPE_BUF,
                   &vendor_guidance },
-                { GGL_STR("recipe"), true, GGL_TYPE_BUF, &recipe_file_content },
+                { GGL_STR("recipe"),
+                  true,
+                  true,
+                  GGL_TYPE_BUF,
+                  &recipe_file_content },
             )
         );
         if (ret != GGL_ERR_OK) {
@@ -1120,6 +1136,7 @@ static GglError resolve_dependencies(
             GGL_MAP_SCHEMA(
                 { GGL_STR("ComponentDependencies"),
                   false,
+                  true,
                   GGL_TYPE_MAP,
                   &component_dependencies },
             )
@@ -1142,6 +1159,7 @@ static GglError resolve_dependencies(
                     GGL_MAP_SCHEMA(
                         { GGL_STR("VersionRequirement"),
                           true,
+                          true,
                           GGL_TYPE_BUF,
                           &dep_version_requirement },
                     )
@@ -1158,6 +1176,7 @@ static GglError resolve_dependencies(
                     GGL_MAP_SCHEMA(
                         { dependency->key,
                           false,
+                          true,
                           GGL_TYPE_BUF,
                           &already_resolved_version },
                     )
@@ -1191,6 +1210,7 @@ static GglError resolve_dependencies(
                         GGL_MAP_SCHEMA(
                             { dependency->key,
                               false,
+                              true,
                               GGL_TYPE_BUF,
                               &existing_requirements },
                         )

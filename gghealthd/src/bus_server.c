@@ -58,8 +58,12 @@ static void update_status(void *ctx, GglMap params, uint32_t handle) {
     GglError ret = ggl_map_validate(
         params,
         GGL_MAP_SCHEMA(
-            { GGL_STR("component_name"), true, GGL_TYPE_BUF, &component_name },
-            { GGL_STR("lifecycle_state"), true, GGL_TYPE_BUF, &state },
+            { GGL_STR("component_name"),
+              true,
+              true,
+              GGL_TYPE_BUF,
+              &component_name },
+            { GGL_STR("lifecycle_state"), true, true, GGL_TYPE_BUF, &state },
         )
     );
     if (ret != GGL_ERR_OK) {

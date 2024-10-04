@@ -27,6 +27,7 @@ bool ggl_map_get(GglMap map, GglBuffer key, GglObject **result);
 typedef struct {
     GglBuffer key;
     bool required;
+    bool validateType;
     GglObjectType type;
     GglObject **value;
 } GglMapSchemaEntry;

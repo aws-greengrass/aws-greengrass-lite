@@ -33,9 +33,9 @@ static GglError subscribe_to_topic_callback(
     GglError ret = ggl_map_validate(
         data.map,
         GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
-            { GGL_STR("type"), true, GGL_TYPE_BUF, &type_obj },
-            { GGL_STR("message"), true, GGL_TYPE_BUF, &message_obj },
+            { GGL_STR("topic"), true, true, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("type"), true, true, GGL_TYPE_BUF, &type_obj },
+            { GGL_STR("message"), true, true, GGL_TYPE_BUF, &message_obj },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -98,7 +98,9 @@ GglError ggl_handle_subscribe_to_topic(
     GglObject *topic_obj;
     GglError ret = ggl_map_validate(
         args,
-        GGL_MAP_SCHEMA({ GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj }, )
+        GGL_MAP_SCHEMA(
+            { GGL_STR("topic"), true, true, GGL_TYPE_BUF, &topic_obj },
+        )
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("SubscribeToTopic", "Received invalid parameters.");
