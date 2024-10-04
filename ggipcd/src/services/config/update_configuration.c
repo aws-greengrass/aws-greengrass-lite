@@ -35,18 +35,16 @@ GglError ggl_handle_update_configuration(
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("keyPath"), true, true, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("keyPath"), true, GGL_TYPE_LIST, &key_path_obj },
             { GGL_STR("componentName"),
               false,
-              true,
               GGL_TYPE_BUF,
               &component_name_obj },
             { GGL_STR("valueToMerge"),
               true,
-              true,
               GGL_TYPE_NULL,
               &value_to_merge_obj },
-            { GGL_STR("timestamp"), true, true, GGL_TYPE_F64, &timestamp_obj },
+            { GGL_STR("timestamp"), true, GGL_TYPE_F64, &timestamp_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

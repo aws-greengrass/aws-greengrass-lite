@@ -46,11 +46,9 @@ int main(void) {
             GGL_MAP_SCHEMA(
                 { GGL_STR("component_name"),
                   true,
-                  true,
                   GGL_TYPE_BUF,
                   &component_name },
                 { GGL_STR("lifecycle_state"),
-                  true,
                   true,
                   GGL_TYPE_BUF,
                   &lifecycle_state },

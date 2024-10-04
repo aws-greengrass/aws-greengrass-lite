@@ -33,9 +33,9 @@ GglError ggl_handle_publish_to_iot_core(
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("topicName"), true, true, GGL_TYPE_BUF, &topic_name_obj },
-            { GGL_STR("payload"), false, true, GGL_TYPE_BUF, &payload_obj },
-            { GGL_STR("qos"), false, true, GGL_TYPE_BUF, &qos_obj },
+            { GGL_STR("topicName"), true, GGL_TYPE_BUF, &topic_name_obj },
+            { GGL_STR("payload"), false, GGL_TYPE_BUF, &payload_obj },
+            { GGL_STR("qos"), false, GGL_TYPE_BUF, &qos_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

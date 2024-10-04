@@ -261,9 +261,9 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     GglError ret = ggl_map_validate(
         params,
         GGL_MAP_SCHEMA(
-            { GGL_STR("key_path"), true, true, GGL_TYPE_LIST, &key_path_obj },
-            { GGL_STR("value"), true, false, GGL_TYPE_NULL, &value_obj },
-            { GGL_STR("timestamp"), false, true, GGL_TYPE_I64, &timestamp_obj },
+            { GGL_STR("key_path"), true, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("value"), true, GGL_TYPE_NULL, &value_obj },
+            { GGL_STR("timestamp"), false, GGL_TYPE_I64, &timestamp_obj },
         )
     );
     if (ret != GGL_ERR_OK) {
