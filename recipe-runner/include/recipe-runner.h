@@ -9,6 +9,7 @@
 
 typedef struct {
     char *component_name;
+    char *component_version;
     char *file_path;
 } RecipeRunnerArgs;
 

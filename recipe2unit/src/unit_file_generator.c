@@ -412,6 +412,18 @@ static GglError concat_initial_strings(
         return GGL_ERR_INVALID;
     }
 
+    GglObject *component_version_obj;
+    if (!ggl_map_get(
+            *recipe_map, GGL_STR("componentversion"), &component_version_obj
+        )) {
+        return GGL_ERR_INVALID;
+    }
+
+    if (component_version_obj->type != GGL_TYPE_BUF) {
+        return GGL_ERR_INVALID;
+    }
+    GglBuffer component_version = component_version_obj->buf;
+
     // build the script name prefix string
     ret = ggl_byte_vec_append(script_name_prefix_vec, (*component_name)->buf);
     ggl_byte_vec_chain_append(
@@ -441,6 +453,8 @@ static GglError concat_initial_strings(
     ggl_byte_vec_chain_append(
         &ret, exec_start_section_vec, (*component_name)->buf
     );
+    ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -v "));
+    ggl_byte_vec_chain_append(&ret, exec_start_section_vec, component_version);
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -p "));
 
     GglBuffer cwd = ggl_byte_vec_remaining_capacity(*exec_start_section_vec);
