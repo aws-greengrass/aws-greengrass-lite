@@ -16,6 +16,7 @@ GglError ggl_make_config_path_object(
 
     GglError ret = ggl_buf_vec_push(&full_key_path, GGL_STR("services"));
     ggl_buf_vec_chain_push(&ret, &full_key_path, component_name);
+    ggl_buf_vec_chain_push(&ret, &full_key_path, GGL_STR("configuration"));
     ggl_buf_vec_chain_append_list(&ret, &full_key_path, key_path);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("config", "Key path too long.");

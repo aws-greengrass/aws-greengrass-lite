@@ -5,6 +5,8 @@
 #ifndef GGIPC_CLIENT_H
 #define GGIPC_CLIENT_H
 
+#include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 
@@ -17,5 +19,21 @@
 
 /// Connect to GG-IPC server, requesting an authentication token
 GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd);
+
+GglError ggipc_call(
+    int conn,
+    GglBuffer operation,
+    GglMap params,
+    GglAlloc *alloc,
+    GglObject *result
+) __attribute__((warn_unused_result));
+
+GglError ggipc_private_get_system_config(
+    int conn, GglBuffer key, GglBuffer *value
+);
+
+GglError ggipc_get_config_str(
+    int conn, GglBufList key_path, GglBuffer *component_name, GglBuffer *value
+);
 
 #endif
