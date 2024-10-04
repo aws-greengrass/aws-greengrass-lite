@@ -522,7 +522,6 @@ static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
     return ggl_copy_dir(source_subdir_fd, dest_subdir_fd);
 }
 
-/// Read file contents.
 GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content) {
     GglBuffer buf = *content;
     int fd;
@@ -571,6 +570,32 @@ GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content) {
         *content = buf;
     }
     return ret;
+}
+
+GglError ggl_file_read_path(GglBuffer path, GglBuffer *content) {
+    if (path.len == 0) {
+        return GGL_ERR_INVALID;
+    }
+
+    bool absolute = false;
+    GglBuffer rel_path = path;
+
+    if (path.data[0] == '/') {
+        absolute = true;
+        rel_path = ggl_buffer_substr(path, 1, SIZE_MAX);
+    }
+
+    if (rel_path.len == 0) {
+        return GGL_ERR_INVALID;
+    }
+
+    int base_fd = open(absolute ? "/" : ".", O_CLOEXEC | O_DIRECTORY | O_PATH);
+    if (base_fd < 0) {
+        GGL_LOGE("file", "Err %d while opening /", errno);
+        return GGL_ERR_FAILURE;
+    }
+    GGL_DEFER(ggl_close, base_fd);
+    return ggl_file_read_path_at(base_fd, rel_path, content);
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)

@@ -41,10 +41,13 @@ GglError ggl_file_openat(
     int dirfd, GglBuffer path, int flags, mode_t mode, int *fd
 );
 
-/// Open a file.
+/// Open a file
 GglError ggl_file_open(GglBuffer path, int flags, mode_t mode, int *fd);
 
-/// Read file contents.
+/// Read file contents
+GglError ggl_file_read_path(GglBuffer path, GglBuffer *content);
+
+/// Read file contents under dirfd
 GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content);
 
 /// Copy directory contents recursively
