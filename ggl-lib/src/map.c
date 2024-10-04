@@ -60,17 +60,15 @@ GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
             entry->key.data
         );
 
-        if (entry->validateType) {
-            if (entry->type != GGL_TYPE_NULL) {
-                if (entry->type != value->type) {
-                    GGL_LOGE(
-                        "map_validate",
-                        "Key %.*s is of invalid type.",
-                        (int) entry->key.len,
-                        entry->key.data
-                    );
-                    return GGL_ERR_PARSE;
-                }
+        if (entry->type != GGL_TYPE_NULL) {
+            if (entry->type != value->type) {
+                GGL_LOGE(
+                    "map_validate",
+                    "Key %.*s is of invalid type.",
+                    (int) entry->key.len,
+                    entry->key.data
+                );
+                return GGL_ERR_PARSE;
             }
         }
 

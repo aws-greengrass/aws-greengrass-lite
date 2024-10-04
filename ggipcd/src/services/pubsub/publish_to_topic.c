@@ -30,12 +30,8 @@ GglError ggl_handle_publish_to_topic(
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), true, true, GGL_TYPE_BUF, &topic },
-            { GGL_STR("publishMessage"),
-              true,
-              true,
-              GGL_TYPE_MAP,
-              &publish_message },
+            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic },
+            { GGL_STR("publishMessage"), true, GGL_TYPE_MAP, &publish_message },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -48,16 +44,8 @@ GglError ggl_handle_publish_to_topic(
     ret = ggl_map_validate(
         publish_message->map,
         GGL_MAP_SCHEMA(
-            { GGL_STR("jsonMessage"),
-              false,
-              true,
-              GGL_TYPE_MAP,
-              &json_message },
-            { GGL_STR("binaryMessage"),
-              false,
-              true,
-              GGL_TYPE_MAP,
-              &binary_message },
+            { GGL_STR("jsonMessage"), false, GGL_TYPE_MAP, &json_message },
+            { GGL_STR("binaryMessage"), false, GGL_TYPE_MAP, &binary_message },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -79,9 +67,7 @@ GglError ggl_handle_publish_to_topic(
     GglObject *message;
     ret = ggl_map_validate(
         (is_json ? json_message : binary_message)->map,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("message"), true, true, GGL_TYPE_BUF, &message },
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("message"), true, GGL_TYPE_BUF, &message }, )
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("PublishToTopic", "Received invalid paramters.");
