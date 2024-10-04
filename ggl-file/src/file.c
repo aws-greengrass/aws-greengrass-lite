@@ -527,7 +527,7 @@ GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content) {
     int fd;
     GglError ret = ggl_file_openat(dirfd, path, O_RDONLY, 0, &fd);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
+        GGL_LOGD(
             "file",
             "Err %d while opening file: %.*s",
             errno,
