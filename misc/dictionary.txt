@@ -57,6 +57,7 @@ mqtt
 mqttproxy
 mtls
 NOCASE
+noclear
 NOCONN
 NOENTRY
 NOLINTNEXTLINE
@@ -80,6 +81,7 @@ stdenv
 subscribetocomponentupdates
 svcuid
 svcuids
+sysv
 tesd
 tlog
 unrefp
