@@ -178,6 +178,42 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     ggl_sub_accept(handle, NULL, NULL);
 }
 
+static GglError process_nonmap(
+    GglObjVec *key_path, GglObject value, int64_t timestamp
+) {
+    char *path_string = print_key_path(&key_path->list);
+    uint8_t value_string[1024] = { 0 };
+    GglBuffer value_buffer
+        = { .data = value_string, .len = sizeof(value_string) };
+    GGL_LOGT("rpc_write:process_nonmap", "Starting json encode.");
+    GglError error = ggl_json_encode(value, &value_buffer);
+    if (error != GGL_ERR_OK) {
+        GGL_LOGE(
+            "rpc_write:process_nonmap",
+            "Json encode failed for key %s.",
+            print_key_path(&key_path->list)
+        );
+        return error;
+    }
+    GGL_LOGT("rpc_write:process_nonmap", "Writing value.");
+    error = ggconfig_write_value_at_key(
+        &key_path->list, &value_buffer, timestamp
+    );
+    if (error != GGL_ERR_OK) {
+        return error;
+    }
+
+    GGL_LOGT(
+        "rpc_write:process_nonmap",
+        "Wrote %s = %.*s %" PRId64,
+        path_string,
+        (int) value_buffer.len,
+        value_buffer.data,
+        timestamp
+    );
+    return GGL_ERR_OK;
+}
+
 // TODO: This processing of maps should probably happen in the db_interface
 // layer so that merges can be made atomic. Currently it's possible for a subset
 // of the writes in a merge to fail while the rest succeed.
@@ -206,34 +242,10 @@ static GglError process_map(
             }
         } else {
             GGL_LOGT("rpc_write:process_map", "Value is not a map.");
-            char *path_string = print_key_path(&key_path->list);
-            uint8_t value_string[1024] = { 0 };
-            GglBuffer value_buffer
-                = { .data = value_string, .len = sizeof(value_string) };
-            GGL_LOGT("rpc_write:process_map", "Starting json encode.");
-            error = ggl_json_encode(kv->val, &value_buffer);
+            error = process_nonmap(key_path, kv->val, timestamp);
             if (error != GGL_ERR_OK) {
-                GGL_LOGT(
-                    "rpc_write:process_map",
-                    "Json encode failure %.*s",
-                    (int) kv->key.len,
-                    kv->key.data
-                );
                 break;
             }
-            GGL_LOGT("rpc_write:process_map", "Writing value.");
-            error = ggconfig_write_value_at_key(
-                &key_path->list, &value_buffer, timestamp
-            );
-
-            GGL_LOGT(
-                "rpc_write:process_map",
-                "Writing %s = %.*s %" PRId64,
-                path_string,
-                (int) value_buffer.len,
-                value_buffer.data,
-                timestamp
-            );
         }
         ggl_obj_vec_pop(key_path, NULL);
     }
@@ -246,17 +258,16 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     GglObject *key_path_obj;
     GglObject *value_obj;
     GglObject *timestamp_obj;
-    // TODO: write should accept any object for value.
     GglError ret = ggl_map_validate(
         params,
         GGL_MAP_SCHEMA(
             { GGL_STR("key_path"), true, true, GGL_TYPE_LIST, &key_path_obj },
-            { GGL_STR("value"), true, true, GGL_TYPE_MAP, &value_obj },
+            { GGL_STR("value"), true, false, GGL_TYPE_NULL, &value_obj },
             { GGL_STR("timestamp"), false, true, GGL_TYPE_I64, &timestamp_obj },
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("rpc_write", "write received invalid key_path argument.");
+        GGL_LOGE("rpc_write", "write received one or more invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -286,12 +297,21 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     }
     GGL_LOGD("rpc_write", "Timestamp %." PRId64, timestamp);
 
-    GglError error = process_map(&key_path, &value_obj->map, timestamp);
-    if (error != GGL_ERR_OK) {
-        ggl_return_err(handle, error);
+    if (value_obj->type == GGL_TYPE_MAP) {
+        GglError error = process_map(&key_path, &value_obj->map, timestamp);
+        if (error != GGL_ERR_OK) {
+            ggl_return_err(handle, error);
+            return;
+        }
     } else {
-        ggl_respond(handle, GGL_OBJ_NULL());
+        GglError error = process_nonmap(&key_path, *value_obj, timestamp);
+        if (error != GGL_ERR_OK) {
+            ggl_return_err(handle, error);
+            return;
+        }
     }
+
+    ggl_respond(handle, GGL_OBJ_NULL());
 }
 
 void ggconfigd_start_server(void) {

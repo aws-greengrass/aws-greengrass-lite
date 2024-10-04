@@ -846,6 +846,32 @@ int main(int argc, char **argv) {
         GGL_ERR_OK
     );
 
+    // Test to write a buffer type directly
+    test_insert(
+        GGL_LIST(GGL_OBJ_STR("component11"), GGL_OBJ_STR("foo")),
+        GGL_OBJ_STR("buffer"),
+        -1,
+        GGL_ERR_OK
+    );
+    test_get(
+        GGL_LIST(GGL_OBJ_STR("component11"), GGL_OBJ_STR("foo")),
+        GGL_OBJ_STR("buffer"),
+        GGL_ERR_OK
+    );
+
+    // Test to write a null type directly
+    test_insert(
+        GGL_LIST(GGL_OBJ_STR("component12"), GGL_OBJ_STR("foo")),
+        GGL_OBJ_NULL(),
+        -1,
+        GGL_ERR_OK
+    );
+    test_get(
+        GGL_LIST(GGL_OBJ_STR("component12"), GGL_OBJ_STR("foo")),
+        GGL_OBJ_NULL(),
+        GGL_ERR_OK
+    );
+
     // test_insert(
     //     GGL_LIST(GGL_OBJ_STR("component"), GGL_OBJ_STR("bar")),
     //     GGL_OBJ_MAP({ GGL_STR("foo"), GGL_OBJ_STR("value2") })
