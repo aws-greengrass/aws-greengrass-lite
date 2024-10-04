@@ -698,7 +698,7 @@ static GglError get_device_thing_groups(GglBuffer *response) {
         &ret, &uri_path_vec, ggl_buffer_from_null_term(thing_name)
     );
     ggl_byte_vec_chain_append(&ret, &uri_path_vec, GGL_STR("/thingGroups"));
-    gg_dataplane_call(
+    ret = gg_dataplane_call(
         data_endpoint.buf,
         port.buf,
         uri_path_vec.buf,
@@ -706,6 +706,15 @@ static GglError get_device_thing_groups(GglBuffer *response) {
         NULL,
         response
     );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "ggdeploymentd",
+            "The listThingGroupsForCoreDevice call failed with response %.*s.",
+            (int) response->len,
+            response->data
+        );
+        return ret;
+    }
 
     GGL_LOGD(
         "ggdeploymentd",
@@ -734,7 +743,7 @@ static GglError generate_resolve_component_candidates_body(
     ggl_byte_vec_chain_append(
         &byte_vec_ret,
         body_vec,
-        GGL_STR("\",\"versionRequirements\": {\"💩\": \"")
+        GGL_STR("\",\"versionRequirements\": {\"requirements\": \"")
     );
     ggl_byte_vec_chain_append(&byte_vec_ret, body_vec, component_requirements);
     ggl_byte_vec_chain_append(&byte_vec_ret, body_vec, GGL_STR("\"}}"));
@@ -818,7 +827,7 @@ static GglError resolve_component_with_cloud(
             .gghttplib_root_ca_path = config.rootca_path,
             .gghttplib_p_key_path = config.pkey_path };
 
-    gg_dataplane_call(
+    ret = gg_dataplane_call(
         data_endpoint.buf,
         port.buf,
         GGL_STR("greengrass/v2/resolveComponentCandidates"),
@@ -826,6 +835,15 @@ static GglError resolve_component_with_cloud(
         resolve_candidates_body_buf,
         response
     );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "ggdeploymentd",
+            "Cloud resolution for the component failed with response %.*s.",
+            (int) response->len,
+            response->data
+        );
+        return ret;
+    }
 
     GGL_LOGD(
         "ggdeploymentd",
