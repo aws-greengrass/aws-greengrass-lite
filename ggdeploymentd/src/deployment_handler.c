@@ -1661,13 +1661,6 @@ static void handle_deployment(
                 return;
             }
 
-            char *tes_cred_url = NULL;
-            ret = get_tes_cred_url(&tes_cred_url);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to get tes credentials url.");
-                return;
-            }
-
             char *posix_user = NULL;
             ret = get_posix_user(&posix_user);
             if (ret != GGL_ERR_OK) {
@@ -1801,11 +1794,7 @@ static void handle_deployment(
             // TODO: add install file processing logic here.
 
             char service_file_path[PATH_MAX] = { 0 };
-            strncat(
-                service_file_path,
-                "ggl.com.example.",
-                strlen("ggl.com.example.")
-            );
+            strncat(service_file_path, "ggl.", strlen("ggl."));
             strncat(service_file_path, (char *) pair->key.data, pair->key.len);
             strncat(service_file_path, ".service", strlen(".service"));
 

@@ -5,10 +5,12 @@
 #include "unit_file_generator.h"
 #include "file_operation.h"
 #include "ggl/recipe2unit.h"
+#include <fcntl.h>
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -16,7 +18,6 @@
 #include <ggl/vector.h>
 #include <limits.h>
 #include <string.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -424,20 +425,11 @@ static GglError concat_initial_strings(
     ret = ggl_byte_vec_append(
         working_dir_vec, ggl_buffer_from_null_term(args->root_dir)
     );
-    ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work"));
-    // ggl_byte_vec_chain_append(&ret, working_dir_vec, (*component_name)->buf);
+    ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work/"));
+    ggl_byte_vec_chain_append(&ret, working_dir_vec, (*component_name)->buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GglBuffer cwd = ggl_byte_vec_remaining_capacity(*working_dir_vec);
-
-    // Get the current working directory
-    if (getcwd((char *) cwd.data, cwd.len) == NULL) {
-        GGL_LOGE("recipe2unit", "Failed to get current working directory.");
-        return GGL_ERR_FAILURE;
-    }
-    cwd.len = strlen((char *) cwd.data);
-    working_dir_vec->buf.len += cwd.len;
 
     // build the working directory string
     ret = ggl_byte_vec_append(
@@ -450,7 +442,16 @@ static GglError concat_initial_strings(
         &ret, exec_start_section_vec, (*component_name)->buf
     );
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -p "));
-    ggl_byte_vec_chain_append(&ret, exec_start_section_vec, cwd);
+
+    GglBuffer cwd = ggl_byte_vec_remaining_capacity(*exec_start_section_vec);
+    // Get the current working directory
+    if (getcwd((char *) cwd.data, cwd.len) == NULL) {
+        GGL_LOGE("recipe2unit", "Failed to get current working directory.");
+        return GGL_ERR_FAILURE;
+    }
+    cwd.len = strlen((char *) cwd.data);
+    exec_start_section_vec->buf.len += cwd.len;
+
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR("/"));
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -672,7 +673,7 @@ static GglError create_standardized_install_file(
     }
 
     ret = write_to_file(
-        root_dir, script_name_vec.buf, install_json_payload, 0700
+        root_dir, script_name_vec.buf, install_json_payload, 0600
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("recipe2unit", "Failed to create and write the script file.");
@@ -833,7 +834,7 @@ static GglError manifest_builder(
             }
 
             ret = write_to_file(
-                args->root_dir, script_name_vec.buf, selected_script, 0700
+                args->root_dir, script_name_vec.buf, selected_script, 0755
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
@@ -915,20 +916,20 @@ static GglError fill_service_section(
         return ret;
     }
 
-    ret = ggl_byte_vec_append(out, GGL_STR("WorkingDirectory="));
-    ggl_byte_vec_chain_append(&ret, out, working_dir_vec.buf);
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
+    // TODO: Working directory needs ownership changed
+    // ret = ggl_byte_vec_append(out, GGL_STR("WorkingDirectory="));
+    // ggl_byte_vec_chain_append(&ret, out, working_dir_vec.buf);
+    // ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
+    // if (ret != GGL_ERR_OK) {
+    //     return ret;
+    // }
 
     // Create the working directory if not existant
-    struct stat st = { 0 };
-    if (stat((char *) working_dir_vec.buf.data, &st) == -1) {
-        if (mkdir((char *) working_dir_vec.buf.data, 0700) == -1) {
-            GGL_LOGE("recipe2unit", "Failed to created working directory.");
-            return GGL_ERR_FAILURE;
-        }
+    int working_dir;
+    ret = ggl_dir_open(working_dir_vec.buf, O_PATH, true, &working_dir);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("recipe2unit", "Failed to created working directory.");
+        return GGL_ERR_FAILURE;
     }
 
     // Add Env Var for GG_root path

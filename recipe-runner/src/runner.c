@@ -6,7 +6,6 @@
 #include "ggipc/client.h"
 #include "recipe-runner.h"
 #include <sys/types.h>
-#include <errno.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -14,52 +13,23 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #define MAX_SCRIPT_LENGTH 10000
 
 pid_t child_pid = -1; // To store child process ID
 
-GglError get_file_content(const char *file_path, char *return_value) {
-    FILE *file = fopen(file_path, "r");
-    if (file == NULL) {
-        int err = errno;
-        GGL_LOGE("recipe-runner", "Error opening file: %d", err);
-        return GGL_ERR_INVALID;
-    }
-    // Get the file size
-    fseek(file, 0, SEEK_END);
-    size_t file_size = (size_t) ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    // Read the file into the content buffer
-    ulong value_read = fread(return_value, 1, file_size, file);
-    return_value[file_size] = '\0'; // Null-terminate the string
-
-    if (value_read != file_size) {
-        GGL_LOGE("recipe-runner", "Failed to read the complete file");
-        return GGL_ERR_PARSE;
-    }
-
-    fclose(file);
-    return GGL_ERR_OK;
-}
-
 GglError runner(const RecipeRunnerArgs *args) {
-    static char script[MAX_SCRIPT_LENGTH] = { 0 };
-
     // Get the SocketPath from Environment Variable
     // NOLINTBEGIN(concurrency-mt-unsafe)
-
     char *socket_path
         = getenv("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT");
+    // NOLINTEND(concurrency-mt-unsafe)
 
     if (socket_path == NULL) {
-        GGL_LOGE("recipe-runner", "SocketPath environment not set....");
+        GGL_LOGE("recipe-runner", "IPC socket path env var not set.");
         return GGL_ERR_FAILURE;
     }
-    // NOLINTEND(concurrency-mt-unsafe)
 
     // Fetch the SVCUID
 
@@ -89,12 +59,6 @@ GglError runner(const RecipeRunnerArgs *args) {
         GGL_LOGE("recipe-runner", "Failed to set SVCUID environment variable");
     }
 
-    // Fetch the bash script content to memory
-    ret = get_file_content(args->file_path, script);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
     // Fork so that parent can live after execvp
     pid_t pid = fork();
     GglError return_status = GGL_ERR_OK;
@@ -110,8 +74,8 @@ GglError runner(const RecipeRunnerArgs *args) {
         char *exec_args[] = { "bash", args->file_path, NULL };
         execvp("bash", exec_args);
 
-        // If execvpe returns, it must have failed
-        GGL_LOGE("recipe-runner", "Error: execvpe returned unexpectedly");
+        // If execvp returns, it must have failed
+        GGL_LOGE("recipe-runner", "Error: execvp returned unexpectedly");
         return_status = GGL_ERR_FATAL;
     } else {
         // Parent process: wait for the child to finish
