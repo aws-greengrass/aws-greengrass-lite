@@ -8,6 +8,7 @@
 //! Event driven server listening on a unix socket
 
 #include "socket_handle.h"
+#include <sys/types.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdint.h>
@@ -18,6 +19,7 @@
 /// If `client_ready` returns an error, the connection will be cleaned up.
 GglError ggl_socket_server_listen(
     GglBuffer path,
+    mode_t mode,
     GglSocketPool *pool,
     GglError (*client_ready)(void *ctx, uint32_t handle),
     void *ctx

@@ -283,7 +283,9 @@ GglError ggl_listen(
 
     InterfaceCtx ctx = { .handlers = handlers, .handlers_len = handlers_len };
 
-    return ggl_socket_server_listen(socket_path.buf, &pool, client_ready, &ctx);
+    return ggl_socket_server_listen(
+        socket_path.buf, 0700, &pool, client_ready, &ctx
+    );
 }
 
 static GglError payload_writer(GglBuffer *buf, void *payload) {

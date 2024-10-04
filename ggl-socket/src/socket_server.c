@@ -108,7 +108,9 @@ static GglError create_parent_dirs(char *path) {
     return GGL_ERR_OK;
 }
 
-static GglError configure_server_socket(int socket_fd, GglBuffer path) {
+static GglError configure_server_socket(
+    int socket_fd, GglBuffer path, mode_t mode
+) {
     assert(socket_fd >= 0);
 
     struct sockaddr_un addr = { .sun_family = AF_UNIX, .sun_path = { 0 } };
@@ -140,6 +142,11 @@ static GglError configure_server_socket(int socket_fd, GglBuffer path) {
     if (bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         int err = errno;
         GGL_LOGE("socket-server", "Failed to bind server socket: %d.", err);
+        return GGL_ERR_FAILURE;
+    }
+
+    if (chmod(addr.sun_path, mode) == -1) {
+        GGL_LOGE("socket-server", "Failed to chmod server socket: %d.", errno);
         return GGL_ERR_FAILURE;
     }
 
@@ -190,6 +197,7 @@ static GglError epoll_fd_ready(void *epoll_ctx, uint64_t data) {
 
 GglError ggl_socket_server_listen(
     GglBuffer path,
+    mode_t mode,
     GglSocketPool *pool,
     GglError (*client_ready)(void *ctx, uint32_t handle),
     void *ctx
@@ -214,7 +222,7 @@ GglError ggl_socket_server_listen(
     }
     GGL_DEFER(ggl_close, server_fd);
 
-    ret = configure_server_socket(server_fd, path);
+    ret = configure_server_socket(server_fd, path, mode);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

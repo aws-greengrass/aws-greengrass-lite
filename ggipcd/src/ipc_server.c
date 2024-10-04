@@ -467,6 +467,7 @@ GglError ggl_ipc_listen(const char *socket_path) {
     return ggl_socket_server_listen(
         (GglBuffer) { .data = (uint8_t *) socket_path,
                       .len = strlen(socket_path) },
+        0777,
         &pool,
         client_ready,
         NULL
