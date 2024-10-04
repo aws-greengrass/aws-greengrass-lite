@@ -46,6 +46,7 @@ iotcoredfleet
 iwyu
 keyid
 libsystemd
+liburiparser
 libuuid
 libyaml
 LOGD
