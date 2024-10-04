@@ -8,7 +8,7 @@ RUN apt-get -y install --no-install-recommends \
   && apt-get clean
 RUN apt-get -y install --no-install-recommends \
     libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
-    libsystemd-dev uuid-dev libevent-dev \
+    libsystemd-dev liburiparser-dev uuid-dev libevent-dev \
   && apt-get clean
 
 COPY ./getty-override.conf \
