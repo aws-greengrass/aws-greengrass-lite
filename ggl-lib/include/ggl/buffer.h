@@ -51,6 +51,9 @@ GglBuffer ggl_buffer_substr(GglBuffer buf, size_t start, size_t end);
 /// Parse an integer from a string
 GglError ggl_str_to_int64(GglBuffer str, int64_t *value);
 
+/// Modify a string to all lowercase
+void ggl_str_lower(GglBuffer str);
+
 /// Clone a buffer into an alloc
 GglError ggl_buf_clone(GglBuffer buf, GglAlloc *alloc, GglBuffer *out);
 

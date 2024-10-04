@@ -112,6 +112,15 @@ GglError ggl_str_to_int64(GglBuffer str, int64_t *value) {
     return GGL_ERR_OK;
 }
 
+void ggl_str_lower(GglBuffer str) {
+    for (size_t i = 0; i < str.len; i++) {
+        uint8_t *c = &str.data[i];
+        if ((*c >= (uint8_t) 'A') && (*c <= (uint8_t) 'Z')) {
+            *c += 'a' - 'A';
+        }
+    }
+}
+
 GglError ggl_buf_clone(GglBuffer buf, GglAlloc *alloc, GglBuffer *out) {
     if (buf.len == 0) {
         *out = (GglBuffer) { 0 };

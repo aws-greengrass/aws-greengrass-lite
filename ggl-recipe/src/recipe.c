@@ -6,11 +6,14 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/json_decode.h>
+#include <ggl/list.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <ggl/yaml_decode.h>
@@ -30,6 +33,20 @@ static GglError try_open_extension(
     }
 
     return ggl_file_read_path_at(recipe_dir, full.buf, content);
+}
+
+// NOLINTNEXTLINE(misc-no-recursion)
+static void lowercase_keys(GglObject obj) {
+    if (obj.type == GGL_TYPE_MAP) {
+        GGL_MAP_FOREACH(pair, obj.map) {
+            ggl_str_lower(pair->key);
+            lowercase_keys(pair->val);
+        }
+    } else if (obj.type == GGL_TYPE_LIST) {
+        GGL_LIST_FOREACH(elem, obj.list) {
+            lowercase_keys(*elem);
+        }
+    }
 }
 
 GglError ggl_recipe_get_from_file(
@@ -90,6 +107,8 @@ GglError ggl_recipe_get_from_file(
             return ret;
         }
     }
+
+    lowercase_keys(*recipe);
 
     return ggl_obj_buffer_copy(recipe, alloc);
 }
