@@ -123,6 +123,7 @@ add_cflags(
   -Wredundant-decls
   -Wdate-time
   -Wstack-protector
+  -fno-strict-aliasing
   -fvisibility=hidden
   -fno-semantic-interposition
   -fstack-protector-strong)
