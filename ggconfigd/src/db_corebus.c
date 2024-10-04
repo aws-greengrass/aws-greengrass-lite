@@ -19,9 +19,6 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define MAX_SUBOBJECTS 25
-#define MAXIMUM_VALUE_LENGTH (sizeof(GglObject) * MAX_SUBOBJECTS)
-
 /// Given a GglObject of (possibly nested) GglMaps and/or GglBuffer(s),
 /// decode all the GglBuffers from json to their appropriate GGL object types.
 // NOLINTNEXTLINE(misc-no-recursion)
