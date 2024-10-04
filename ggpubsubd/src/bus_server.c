@@ -114,6 +114,8 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
             }
         }
     }
+
+    ggl_respond(handle, GGL_OBJ_NULL());
 }
 
 static GglError register_subscription(

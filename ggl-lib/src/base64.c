@@ -86,7 +86,7 @@ static bool base64_decode_segment(
         }
     }
 
-    if (len >= target->len) {
+    if (len > target->len) {
         return false;
     }
 
