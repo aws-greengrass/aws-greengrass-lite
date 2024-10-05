@@ -15,6 +15,7 @@ services:
       iotRoleAlias: "GreengrassV2TokenExchangeRoleAlias"
       runWithDefault:
         posixUser: "ggc_user:ggc_group"
+      greengrassDataPlanePort: "8443"
       tesCredUrl: "http://127.0.0.1:8080/"
   # aws.greengrass.fleet_provisioning:
   #   configuration:
