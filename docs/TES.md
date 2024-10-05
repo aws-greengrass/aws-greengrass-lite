@@ -51,10 +51,10 @@ credentials when requested.
   `GreengrassV2TokenExchangeRoleAttachPolicy`
 - Policy effect: `Allow`, Policy action: `iot:AssumeRoleWithCertificate`, Policy
   resource: `[the role arn previously copied]`
+- Policy effect: `Allow`, Policy action: `greengrass:*`, Policy resource: `*`
 - Click on `Create`
 
-- Now all it is left is to attach this policy to wherever your device's
-  certificate is. More can be found at
+- Attach the policies to your device's certificate. More can be found at
   `https://docs.aws.amazon.com/iot/latest/developerguide/attach-to-cert.html`
 
 Once that is done, make sure the `iotRoleAlias` and `iotCredEndpoint` match the
