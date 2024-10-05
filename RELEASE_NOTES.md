@@ -1,3 +1,28 @@
+## 2024-10-04
+
+Features:
+
+- Cloud deployments now support dependencies.
+- First party component artifacts can now be downloaded.
+- IPC Authz policies are now enforced.
+- Recipe variables (other than configuration) can be used.
+- DefaultConfiguration from recipes is now applied.
+- Now builds against Musl and on 32-bit arm platforms.
+- Development container is available under `misc/container` for testing.
+
+Bug Fixes:
+
+- Now builds for older Linux kernels.
+- run_nucleus now runs TES.
+- Python is no longer needed.
+- Fixed bug with SVCUID validation when building with auth.
+
+Known Issues:
+
+- `ggl-config-init` crashes on some platforms (under investigation).
+- Errors are logged for sqlite and opening json files; these can be ignored.
+- GG user/group in config must be the same user Greengrass is running as.
+
 ## 2024-08-26
 
 - Please install fresh, or delete the configuration store config.db file
