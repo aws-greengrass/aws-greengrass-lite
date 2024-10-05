@@ -112,12 +112,6 @@ static void rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
-    GGL_LOGE(
-        "request_credentials",
-        "Received token, sessionToken: %.*s",
-        (int) creds->map.pairs[2].val.buf.len,
-        creds->map.pairs[2].val.buf.data
-    );
     ggl_respond(handle, *creds);
 }
 
