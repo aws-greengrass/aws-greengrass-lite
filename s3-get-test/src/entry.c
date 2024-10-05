@@ -67,8 +67,13 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
         GglObject *aws_secret_access_key = NULL;
         GglObject *aws_session_token = NULL;
 
+        if (result.type != GGL_TYPE_MAP) {
+            GGL_LOGE("s3-test", "Result not a map");
+            return GGL_ERR_FAILURE;
+        }
+
         GglError ret = ggl_map_validate(
-            params,
+            result.map,
             GGL_MAP_SCHEMA(
                 { GGL_STR("accessKeyId"),
                   true,
