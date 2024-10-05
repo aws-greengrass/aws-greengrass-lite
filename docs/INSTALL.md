@@ -34,11 +34,12 @@ To build the project, you will need the following build dependencies:
 - Make or Ninja
 - pkg-config
 - git
+- curl
 
 On Ubuntu, these can be installed with:
 
 ```sh
-sudo apt install build-essential pkg-config cmake git
+sudo apt install build-essential pkg-config cmake git curl
 ```
 
 If your system's cmake is too old, you may need to build or download a newer
