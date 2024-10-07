@@ -17,12 +17,13 @@ This project uses the following third party library dependencies:
 - liburiparser
 - libuuid
 - libevent
+- libzip
 
 On Ubuntu, these can be installed with:
 
 ```sh
 sudo apt install libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
-  libsystemd-dev liburiparser-dev uuid-dev libevent-dev
+  libsystemd-dev liburiparser-dev uuid-dev libevent-dev libzip-dev
 ```
 
 ## Build tools

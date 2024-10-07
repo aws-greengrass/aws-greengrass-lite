@@ -233,6 +233,7 @@ pkg_search_module(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
 pkg_search_module(uuid REQUIRED IMPORTED_TARGET uuid)
 pkg_search_module(libevent REQUIRED IMPORTED_TARGET libevent)
 pkg_search_module(liburiparser REQUIRED IMPORTED_TARGET liburiparser)
+pkg_search_module(libzip REQUIRED IMPORTED_TARGET libzip)
 
 include(CheckCSourceCompiles)
 
