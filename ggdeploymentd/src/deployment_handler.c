@@ -37,6 +37,8 @@
 #include <stdlib.h>
 
 #define MAX_RECIPE_BUF_SIZE 256000
+#define MAX_DECODE_BUF_LEN 4096
+#define MAX_PATH_LEN 512
 
 static struct DeploymentConfiguration {
     char data_endpoint[128];
@@ -553,12 +555,62 @@ static GglError find_artifacts_list(
     return GGL_ERR_OK;
 }
 
+// Get the unarchive type: NONE or ZIP
+static GglError get_artifact_unarchive_type(
+    GglBuffer unarchive_buf, bool *needs_unarchive
+) {
+    if (ggl_buffer_eq(unarchive_buf, GGL_STR("NONE"))) {
+        *needs_unarchive = false;
+    } else if (ggl_buffer_eq(unarchive_buf, GGL_STR("ZIP"))) {
+        *needs_unarchive = true;
+    } else {
+        GGL_LOGE("ggdeploymentd", "Unknown archive type");
+        return GGL_ERR_UNSUPPORTED;
+    }
+    return GGL_ERR_OK;
+}
+
+static GglError unarchive_artifact(
+    int component_store_fd,
+    GglBuffer zip_file,
+    mode_t mode,
+    int component_archive_store_fd
+) {
+    GglBuffer destination_dir = zip_file;
+    if (ggl_buffer_has_suffix(zip_file, GGL_STR(".zip"))) {
+        destination_dir = ggl_buffer_substr(
+            zip_file, 0, zip_file.len - (sizeof(".zip") - 1U)
+        );
+    }
+
+    GGL_LOGD(
+        "ggdeploymentd", "Unarchive %.*s", (int) zip_file.len, zip_file.data
+    );
+
+    int output_dir_fd;
+    GglError err = ggl_dir_openat(
+        component_archive_store_fd,
+        destination_dir,
+        O_PATH | O_RDONLY,
+        true,
+        &output_dir_fd
+    );
+    if (err != GGL_ERR_OK) {
+        return err;
+    }
+
+    // Unarchive the zip
+    return ggl_unarchive_zip(component_store_fd, zip_file, output_dir_fd, mode);
+}
+
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError get_recipe_artifacts(
     GglBuffer component_arn,
     TesCredentials tes_creds,
     CertificateDetails iot_creds,
     GglMap recipe,
-    int component_store_fd
+    int component_store_fd,
+    int component_archive_store_fd
 ) {
     GglList artifacts = { 0 };
     GglError error = find_artifacts_list(recipe, &artifacts);
@@ -567,36 +619,56 @@ static GglError get_recipe_artifacts(
     }
 
     for (size_t i = 0; i < artifacts.len; ++i) {
-        static uint8_t decode_buffer[1024];
+        uint8_t decode_buffer[MAX_DECODE_BUF_LEN];
         if (artifacts.items[i].type != GGL_TYPE_MAP) {
             return GGL_ERR_PARSE;
         }
         GglObject *uri_obj = NULL;
+        GglObject *unarchive_obj = NULL;
 
         GglError err = ggl_map_validate(
             artifacts.items[i].map,
-            GGL_MAP_SCHEMA({ GGL_STR("Uri"), true, GGL_TYPE_BUF, &uri_obj })
+            GGL_MAP_SCHEMA(
+                { GGL_STR("Uri"), true, GGL_TYPE_BUF, &uri_obj },
+                { GGL_STR("Unarchive"), false, GGL_TYPE_BUF, &unarchive_obj }
+            )
         );
         if (err != GGL_ERR_OK) {
             return GGL_ERR_PARSE;
         }
+
         GglUriInfo info = { 0 };
         {
             GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(decode_buffer));
             err = gg_uri_parse(&alloc.alloc, uri_obj->buf, &info);
+
             if (err != GGL_ERR_OK) {
                 return err;
             }
         }
 
+        bool needs_unarchive = false;
+        if (unarchive_obj != NULL) {
+            err = get_artifact_unarchive_type(
+                unarchive_obj->buf, &needs_unarchive
+            );
+            if (err != GGL_ERR_OK) {
+                return err;
+            }
+        }
+
+        // TODO: set permissions from recipe
+        mode_t mode = 0777;
         int artifact_fd = -1;
         err = ggl_file_openat(
             component_store_fd,
             info.file,
-            O_CREAT | O_WRONLY,
-            0644,
+            O_CREAT | O_WRONLY | O_TRUNC,
+            needs_unarchive ? 0644 : mode,
             &artifact_fd
         );
+        GGL_DEFER(ggl_close, artifact_fd);
+
         if (err != GGL_ERR_OK) {
             GGL_LOGE(
                 "ggdeployment", "Failed to create artifact file for write."
@@ -618,19 +690,27 @@ static GglError get_recipe_artifacts(
             );
         } else {
             GGL_LOGE("ggdeploymentd", "Unknown artifact URI scheme");
-            err = GGL_ERR_PARSE;
+            return GGL_ERR_PARSE;
         }
-
-        GglError close_error = ggl_close(artifact_fd);
-
         if (err != GGL_ERR_OK) {
             return err;
         }
-        if (close_error != GGL_ERR_OK) {
-            return close_error;
+
+        // Unarchive the ZIP file if needed
+        if (needs_unarchive) {
+            err = unarchive_artifact(
+                component_store_fd, info.file, mode, component_archive_store_fd
+            );
+            if (err != GGL_ERR_OK) {
+                return err;
+            }
+        }
+
+        err = ggl_fsync(artifact_fd);
+        if (err != GGL_ERR_OK) {
+            return err;
         }
     }
-
     return GGL_ERR_OK;
 }
 
@@ -1434,6 +1514,19 @@ static void handle_deployment(
             return;
         }
 
+        int artifact_archive_fd = -1;
+        ret = ggl_dir_openat(
+            root_path_fd,
+            GGL_STR("packages/artifacts-unarchived"),
+            O_PATH,
+            true,
+            &artifact_archive_fd
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("ggdeploymentd", "Failed to open archive store.");
+            return;
+        }
+
         GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
             int component_artifacts_fd = -1;
             open_component_artifacts_dir(
@@ -1441,6 +1534,13 @@ static void handle_deployment(
                 pair->key,
                 pair->val.buf,
                 &component_artifacts_fd
+            );
+            int component_archive_dir_fd = -1;
+            open_component_artifacts_dir(
+                artifact_archive_fd,
+                pair->key,
+                pair->val.buf,
+                &component_archive_dir_fd
             );
             GglObject recipe_obj;
             static uint8_t recipe_mem[8192] = { 0 };
@@ -1480,7 +1580,8 @@ static void handle_deployment(
                 tes_credentials,
                 iot_credentials,
                 recipe_obj.map,
-                component_artifacts_fd
+                component_artifacts_fd,
+                component_archive_dir_fd
             );
 
             if (ret != GGL_ERR_OK) {
