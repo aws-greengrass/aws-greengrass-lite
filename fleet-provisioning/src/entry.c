@@ -216,7 +216,7 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     EVP_PKEY *pkey = NULL;
     X509_REQ *csr_req = NULL;
 
-    GGL_LOGD("fleet-provisioning", "Requesting db for system/rootpath");
+    GGL_LOGD("fleet-provisioning", "Requesting db for system/rootPath");
     static uint8_t root_dir_mem[4096] = { 0 };
     GglBuffer root_dir = GGL_BUF(root_dir_mem);
     ret = ggl_gg_config_read_str(

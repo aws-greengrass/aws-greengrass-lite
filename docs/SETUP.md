@@ -7,10 +7,10 @@ Greengrass Lite executables will be available under `bin` in the build
 directory.
 
 When run, they may use the current working directory to store state. Use the
-directory you intend to use as the Greengrass rootpath.
+directory you intend to use as the Greengrass root path.
 
 The following examples assume you are using `./build` as the build directory,
-and `./run` as the Greengrass rootpath.
+and `./run` as the Greengrass root path.
 
 ## Configuring Greengrass
 
@@ -31,7 +31,7 @@ Configure the following in your config file
 - privateKeyPath: Path to private key for the Thing
 - certificateFilePath: Path to Thing certificate
 - thingName: Name of the Thing
-- rootpath: Absolute path to the Greengrass rootpath directory
+- rootPath: Absolute path to the Greengrass rootpath directory
 - awsRegion: The AWS region with the Thing
 - iotCredEndpoint: The IoT Core endpoint
 - iotDataEndpoint: The IoT Core endpoint
