@@ -15,6 +15,10 @@ static GglIpcOperation operations[] = {
         GGL_STR("aws.greengrass#UpdateConfiguration"),
         ggl_handle_update_configuration,
     },
+    {
+        GGL_STR("aws.greengrass#SubscribeToConfigurationUpdate"),
+        ggl_handle_subscribe_to_configuration_update,
+    },
 };
 
 GglIpcService ggl_ipc_service_config = {

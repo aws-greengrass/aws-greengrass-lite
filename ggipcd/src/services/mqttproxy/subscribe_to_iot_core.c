@@ -57,9 +57,9 @@ static GglError subscribe_to_iot_core_callback(
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "SubscribeToIoTCore",
-            "Failed to send subscription response; skipping."
+            "Failed to send subscription response with error %s; skipping.",
+            ggl_strerror(ret)
         );
-        return GGL_ERR_OK;
     }
 
     return GGL_ERR_OK;
