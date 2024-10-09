@@ -53,9 +53,4 @@ GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content);
 /// Copy directory contents recursively
 GglError ggl_copy_dir(int source_fd, int dest_fd);
 
-/// Unarchive the zip file from the source path to the destination path
-GglError ggl_unarchive_zip(
-    int source_dest_dir_fd, GglBuffer zip_path, int dest_dir_fd, mode_t mode
-);
-
 #endif

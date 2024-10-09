@@ -13,6 +13,7 @@ ggl_init_module(
        ggl-semver
        ggl-socket
        ggl-yaml
+       ggl-zip
        core-bus-gg-config
        core-bus-aws-iot-mqtt
        recipe2unit

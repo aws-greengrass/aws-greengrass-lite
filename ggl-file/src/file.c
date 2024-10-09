@@ -13,39 +13,20 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket.h>
-#include <inttypes.h>
 #include <limits.h>
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <zip.h>
-#include <zipconf.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-
-#define MAX_BUF_LEN 1024
 
 static char path_comp_buf[NAME_MAX + 1];
 static pthread_mutex_t path_comp_buf_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 GGL_DEFINE_DEFER(closedir, DIR *, dirp, if (*dirp != NULL) closedir(*dirp))
-
-GGL_DEFINE_DEFER(
-    zip_fclose,
-    zip_file_t *,
-    zip_entry,
-    if (*zip_entry != NULL) zip_fclose(*zip_entry)
-)
-
-GGL_DEFINE_DEFER(
-    zip_close,
-    zip_t *,
-    zip_archive,
-    if (*zip_archive != NULL) zip_close(*zip_archive)
-)
 
 GglError ggl_close(int fd) {
     // Do not loop on EINTR
@@ -670,95 +651,6 @@ GglError ggl_copy_dir(int source_fd, int dest_fd) {
     ret = ggl_fsync(dest_fd);
     if (ret != GGL_ERR_OK) {
         return ret;
-    }
-
-    return GGL_ERR_OK;
-}
-
-GglError ggl_unarchive_zip(
-    int source_dest_dir_fd, GglBuffer zip_path, int dest_dir_fd, mode_t mode
-) {
-    zip_t *zip;
-    {
-        int zip_fd;
-        GglError ret = ggl_file_openat(
-            source_dest_dir_fd, zip_path, O_RDONLY, 0, &zip_fd
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        int err;
-        zip = zip_fdopen(zip_fd, ZIP_RDONLY, &err);
-        if (zip == NULL) {
-            GGL_LOGE("file", "Failed to open zip file with error %d.", err);
-            return GGL_ERR_FAILURE;
-        }
-    }
-    GGL_DEFER(zip_close, zip);
-
-    zip_uint64_t num_entries = (zip_uint64_t) zip_get_num_entries(zip, 0);
-    for (zip_uint64_t i = 0; i < num_entries; i++) {
-        const char *name = zip_get_name(zip, i, 0);
-        if (name == NULL) {
-            int err = zip_error_code_zip(zip_get_error(zip));
-            GGL_LOGE(
-                "file",
-                "Failed to get the name of entry %" PRIu64 " with error %d.",
-                (uint64_t) i,
-                err
-            );
-            return GGL_ERR_FAILURE;
-        }
-
-        zip_file_t *entry = zip_fopen_index(zip, i, 0);
-        if (entry == NULL) {
-            int err = zip_error_code_zip(zip_get_error(zip));
-            GGL_LOGE(
-                "file",
-                "Failed to open file \"%s\" (index %" PRIu64
-                ") from zip with error %d.",
-                name,
-                i,
-                err
-            );
-            return GGL_ERR_FAILURE;
-        }
-        GGL_DEFER(zip_fclose, entry);
-
-        int dest_file_fd;
-        GglError ret = ggl_file_openat(
-            dest_dir_fd,
-            // const cast: name will not be modified
-            ggl_buffer_from_null_term((char *) name),
-            O_WRONLY | O_CREAT | O_TRUNC,
-            mode,
-            &dest_file_fd
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        GGL_DEFER(ggl_close, dest_file_fd);
-
-        GGL_LOGD("file", "Inflating %s.", name);
-        uint8_t read_buffer[32];
-        for (;;) {
-            zip_int64_t bytes_read
-                = zip_fread(entry, read_buffer, sizeof(read_buffer));
-            // end of file
-            if (bytes_read == 0) {
-                break;
-            }
-            if (bytes_read < 0) {
-                GGL_LOGE("file", "Failed to read from zip file.");
-                return GGL_ERR_FAILURE;
-            }
-            GglBuffer bytes = (GglBuffer) { .data = read_buffer,
-                                            .len = (size_t) bytes_read };
-            ret = ggl_write_exact(dest_file_fd, bytes);
-            if (ret != GGL_ERR_OK) {
-                return GGL_ERR_FAILURE;
-            }
-        }
     }
 
     return GGL_ERR_OK;

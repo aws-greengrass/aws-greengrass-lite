@@ -30,6 +30,7 @@
 #include <ggl/socket.h>
 #include <ggl/uri.h>
 #include <ggl/vector.h>
+#include <ggl/zip.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
@@ -38,7 +39,6 @@
 
 #define MAX_RECIPE_BUF_SIZE 256000
 #define MAX_DECODE_BUF_LEN 4096
-#define MAX_PATH_LEN 512
 
 static struct DeploymentConfiguration {
     char data_endpoint[128];
@@ -591,7 +591,7 @@ static GglError unarchive_artifact(
     GglError err = ggl_dir_openat(
         component_archive_store_fd,
         destination_dir,
-        O_PATH | O_RDONLY,
+        O_PATH,
         true,
         &output_dir_fd
     );
@@ -600,7 +600,7 @@ static GglError unarchive_artifact(
     }
 
     // Unarchive the zip
-    return ggl_unarchive_zip(component_store_fd, zip_file, output_dir_fd, mode);
+    return ggl_zip_unarchive(component_store_fd, zip_file, output_dir_fd, mode);
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
@@ -658,7 +658,7 @@ static GglError get_recipe_artifacts(
         }
 
         // TODO: set permissions from recipe
-        mode_t mode = 0777;
+        mode_t mode = 0755;
         int artifact_fd = -1;
         err = ggl_file_openat(
             component_store_fd,
