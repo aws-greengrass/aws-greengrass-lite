@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "deployment_handler.h"
+#include "component_manager.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
 #include "iot_jobs_listener.h"
@@ -1116,8 +1117,9 @@ static GglError resolve_dependencies(
         // it in this map.
 
         GglBuffer resolved_version = { 0 };
-        // bool found_local_candidate = resolve_component_version(pair->key,
-        // pair->val.buf, &resolved_version);
+        // bool found_local_candidate = resolve_component_version(
+        //     pair->key, pair->val.buf, &resolved_version
+        // );
         bool found_local_candidate = false;
         if (!found_local_candidate) {
             // Resolve with cloud and download recipe
@@ -1652,6 +1654,24 @@ static void handle_deployment(
                         GGL_LOGE(
                             "Deployment Handler",
                             "Failed to send default config to ggconfigd."
+                        );
+                        return;
+                    }
+
+                    // add component version to the config
+                    ret = ggl_gg_config_write(
+                        GGL_BUF_LIST(
+                            GGL_STR("services"),
+                            component_name->buf,
+                            GGL_STR("version")
+                        ),
+                        pair->val,
+                        0
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE(
+                            "Deployment Handler",
+                            "Failed to send component version to ggconfigd."
                         );
                         return;
                     }

@@ -9,7 +9,9 @@
 #include <stdbool.h>
 
 bool resolve_component_version(
-    GglBuffer component_name, GglMap version_requirements, GglBuffer *version
+    GglBuffer component_name,
+    GglBuffer version_requirement,
+    GglBuffer *resolved_version
 );
 
 #endif
