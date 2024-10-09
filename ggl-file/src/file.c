@@ -26,8 +26,6 @@
 static char path_comp_buf[NAME_MAX + 1];
 static pthread_mutex_t path_comp_buf_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-GGL_DEFINE_DEFER(closedir, DIR *, dirp, if (*dirp != NULL) closedir(*dirp))
-
 GglError ggl_close(int fd) {
     // Do not loop on EINTR
     // Posix states that after an interrupted close, the state of the file
