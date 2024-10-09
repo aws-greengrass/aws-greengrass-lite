@@ -14,7 +14,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-GglError exec_command_with_child_wait(char *args[], pid_t *child_pid) {
+GglError exec_command_with_child_wait(char *args[], pid_t *out_child_pid) {
     GglError return_status = GGL_ERR_OK;
 
     // Fork so that parent can live after execvp
@@ -34,7 +34,7 @@ GglError exec_command_with_child_wait(char *args[], pid_t *child_pid) {
 
     } else { // Parent process: wait for the child to finish
 
-        *child_pid = pid; // Store the child process ID
+        *out_child_pid = pid; // Store the child process ID
 
         int child_status;
         if (waitpid(pid, &child_status, 0) == -1) {
@@ -59,7 +59,7 @@ GglError exec_command_with_child_wait(char *args[], pid_t *child_pid) {
     return return_status;
 }
 
-GglError exec_command_without_child_wait(char *args[], pid_t *child_pid) {
+GglError exec_command_without_child_wait(char *args[], pid_t *out_child_pid) {
     GglError return_status = GGL_ERR_OK;
 
     // Fork so that parent can live after execvp
@@ -79,7 +79,7 @@ GglError exec_command_without_child_wait(char *args[], pid_t *child_pid) {
 
     } else { // Parent process: returns without waiting
 
-        *child_pid = pid; // Store the child process ID
+        *out_child_pid = pid; // Store the child process ID
 
         // Add a slight delay
         ggl_sleep(5);
