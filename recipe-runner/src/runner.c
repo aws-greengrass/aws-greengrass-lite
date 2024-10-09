@@ -56,6 +56,11 @@ GglError runner(const RecipeRunnerArgs *args) {
     if (sys_ret != 0) {
         GGL_LOGE("recipe-runner", "setenv failed: %d.", errno);
     }
+    sys_ret
+        = setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN", (char *) resp.data, true);
+    if (sys_ret != 0) {
+        GGL_LOGE("recipe-runner", "setenv failed: %d.", errno);
+    }
 
     resp = GGL_BUF(resp_mem);
     resp.len -= 1;
@@ -90,6 +95,30 @@ GglError runner(const RecipeRunnerArgs *args) {
     sys_ret = setenv("AWS_DEFAULT_REGION", (char *) resp.data, true);
     if (sys_ret != 0) {
         GGL_LOGE("recipe-runner", "setenv failed: %d.", errno);
+    }
+
+    resp = GGL_BUF(resp_mem);
+    resp.len -= 1;
+    ret = ggipc_get_config_str(
+        conn,
+        GGL_BUF_LIST(GGL_STR("tesCredUrl")),
+        &GGL_STR("aws.greengrass.Nucleus-Lite"),
+        &resp
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("recipe-runner", "Failed to get tesCredUrl from config.");
+        return ret;
+    }
+    resp.data[resp.len] = '\0';
+    sys_ret = setenv(
+        "AWS_CONTAINER_CREDENTIALS_FULL_URI", (char *) resp.data, true
+    );
+    if (sys_ret != 0) {
+        GGL_LOGE(
+            "recipe-runner",
+            "setenv AWS_CONTAINER_CREDENTIALS_FULL_URI failed: %d.",
+            errno
+        );
     }
 
     sys_ret = setenv("GGC_VERSION", "0.0.1", true);
