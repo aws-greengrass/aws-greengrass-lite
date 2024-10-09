@@ -5,15 +5,11 @@
 #include "component_manager.h"
 #include "component_store.h"
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
-#include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/map.h>
 #include <ggl/object.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 #define LOCAL_DEPLOYMENT "LOCAL_DEPLOYMENT"
