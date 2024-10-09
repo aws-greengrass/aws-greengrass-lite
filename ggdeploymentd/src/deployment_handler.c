@@ -698,6 +698,11 @@ static GglError get_device_thing_groups(GglBuffer *response) {
         &ret, &uri_path_vec, ggl_buffer_from_null_term(thing_name)
     );
     ggl_byte_vec_chain_append(&ret, &uri_path_vec, GGL_STR("/thingGroups"));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("ggdeploymentd", "Failed to create thing groups call uri.");
+        return ret;
+    }
+
     ret = gg_dataplane_call(
         data_endpoint.buf,
         port.buf,
@@ -989,6 +994,10 @@ static GglError parse_dataplane_response_and_save_recipe(
         // to a .yaml and relying on yaml being an almost-superset of
         // json.
         ggl_byte_vec_chain_append(&ret, &recipe_name_vec, GGL_STR(".yaml"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("ggdeploymentd", "Failed to create recipe file name.");
+            return ret;
+        }
 
         static uint8_t recipe_dir_buf[PATH_MAX];
         GglByteVec recipe_dir_vec = GGL_BYTE_VEC(recipe_dir_buf);
@@ -999,6 +1008,12 @@ static GglError parse_dataplane_response_and_save_recipe(
         ggl_byte_vec_chain_append(
             &ret, &recipe_dir_vec, GGL_STR("/packages/recipes/")
         );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "ggdeploymentd", "Failed to create recipe directory name."
+            );
+            return ret;
+        }
 
         // Write file
         int root_dir_fd = -1;
@@ -1295,6 +1310,14 @@ static GglError resolve_dependencies(
                         ggl_byte_vec_chain_append(
                             &ret, &new_req_vec, dep_version_requirement->buf
                         );
+                        if (ret != GGL_ERR_OK) {
+                            GGL_LOGE(
+                                "ggdeploymentd",
+                                "Failed to create new requirements for "
+                                "dependency version."
+                            );
+                            return ret;
+                        }
 
                         *existing_requirements = GGL_OBJ(new_req_vec.buf);
                     }
@@ -1491,33 +1514,38 @@ static void handle_deployment(
                 return;
             }
 
-            // TODO: Replace with new recipe2unit c script/do not lazy copy
-            // paste
-            char recipe_path[PATH_MAX] = { 0 };
-            strncat(
-                recipe_path, (char *) args->root_path.data, args->root_path.len
+            // FIXME: Don't only support yaml extensions.
+            static uint8_t recipe_path_buf[PATH_MAX];
+            GglByteVec recipe_path_vec = GGL_BYTE_VEC(recipe_path_buf);
+            ret = ggl_byte_vec_append(&recipe_path_vec, args->root_path);
+            ggl_byte_vec_chain_append(
+                &ret, &recipe_path_vec, GGL_STR("/packages/recipes/")
             );
-            strncat(
-                recipe_path, "/packages/recipes/", strlen("/packages/recipes/")
-            );
-            strncat(recipe_path, (char *) pair->key.data, pair->key.len);
-            strncat(recipe_path, "-", strlen("-"));
-            strncat(
-                recipe_path, (char *) pair->val.buf.data, pair->val.buf.len
-            );
-            strncat(recipe_path, ".yaml", strlen(".yaml"));
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->key);
+            ggl_byte_vec_chain_push(&ret, &recipe_path_vec, '-');
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->val.buf);
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, GGL_STR(".yaml"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("ggdeploymentd", "Failed to create recipe path.");
+                return;
+            }
 
-            char recipe_runner_path[PATH_MAX] = { 0 };
-            strncat(recipe_runner_path, args->bin_path, strlen(args->bin_path));
-            strncat(
-                recipe_runner_path, "recipe-runner", strlen("recipe-runner")
+            static uint8_t recipe_runner_path_buf[PATH_MAX];
+            GglByteVec recipe_runner_path_vec
+                = GGL_BYTE_VEC(recipe_runner_path_buf);
+            ret = ggl_byte_vec_append(
+                &recipe_runner_path_vec,
+                ggl_buffer_from_null_term((char *) args->bin_path)
             );
-
-            char socket_path[PATH_MAX] = { 0 };
-            strncat(
-                socket_path, (char *) args->root_path.data, args->root_path.len
+            ggl_byte_vec_chain_append(
+                &ret, &recipe_runner_path_vec, GGL_STR("recipe-runner")
             );
-            strncat(socket_path, "/gg-ipc.socket", strlen("/gg-ipc.socket"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd", "Failed to create recipe runner path."
+                );
+                return;
+            }
 
             char *thing_name = NULL;
             ret = get_thing_name(&thing_name);
@@ -1566,34 +1594,17 @@ static void handle_deployment(
                 group = posix_user;
             }
 
-            char artifact_path[PATH_MAX] = { 0 };
-            strncat(
-                artifact_path,
-                (char *) args->root_path.data,
-                args->root_path.len
-            );
-            strncat(
-                artifact_path,
-                "/packages/artifacts/",
-                strlen("/packages/artifacts/")
-            );
-            strncat(artifact_path, (char *) pair->key.data, pair->key.len);
-            strncat(artifact_path, "/", strlen("/"));
-            strncat(
-                artifact_path, (char *) pair->val.buf.data, pair->val.buf.len
-            );
-
             Recipe2UnitArgs recipe2unit_args
                 = { .user = posix_user, .group = group };
             memcpy(
                 recipe2unit_args.recipe_path,
-                recipe_path,
-                strnlen(recipe_path, PATH_MAX)
+                recipe_path_vec.buf.data,
+                recipe_path_vec.buf.len
             );
             memcpy(
                 recipe2unit_args.recipe_runner_path,
-                recipe_runner_path,
-                strnlen(recipe_runner_path, PATH_MAX)
+                recipe_runner_path_vec.buf.data,
+                recipe_runner_path_vec.buf.len
             );
             memcpy(
                 recipe2unit_args.root_dir,
@@ -1689,26 +1700,41 @@ static void handle_deployment(
 
             // TODO: add install file processing logic here.
 
-            char service_file_path[PATH_MAX] = { 0 };
-            strncat(service_file_path, "ggl.", strlen("ggl."));
-            strncat(service_file_path, (char *) pair->key.data, pair->key.len);
-            strncat(service_file_path, ".service", strlen(".service"));
+            static uint8_t service_file_path_buf[PATH_MAX];
+            GglByteVec service_file_path_vec
+                = GGL_BYTE_VEC(service_file_path_buf);
+            ret = ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
+            ggl_byte_vec_chain_append(&ret, &service_file_path_vec, pair->key);
+            ggl_byte_vec_chain_append(
+                &ret, &service_file_path_vec, GGL_STR(".service")
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd", "Failed to create service file path."
+                );
+                return;
+            }
 
-            char link_command[PATH_MAX] = { 0 };
-            strncat(
-                link_command,
-                "sudo systemctl link ",
-                strlen("sudo systemctl link ")
+            static uint8_t link_command_buf[PATH_MAX];
+            GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
+            ret = ggl_byte_vec_append(
+                &link_command_vec, GGL_STR("sudo systemctl link ")
             );
-            strncat(
-                link_command,
-                (const char *) args->root_path.data,
-                args->root_path.len
+            ggl_byte_vec_chain_append(&ret, &link_command_vec, args->root_path);
+            ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
+            ggl_byte_vec_chain_append(
+                &ret, &link_command_vec, service_file_path_vec.buf
             );
-            strncat(link_command, "/", strlen("/"));
-            strncat(link_command, service_file_path, strlen(service_file_path));
+            ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd", "Failed to create systemctl link command."
+                );
+                return;
+            }
+
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            int system_ret = system(link_command);
+            int system_ret = system((char *) link_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
                     GGL_LOGE("ggdeploymentd", "systemctl link failed");
@@ -1726,17 +1752,24 @@ static void handle_deployment(
                 return;
             }
 
-            char start_command[PATH_MAX] = { 0 };
-            strncat(
-                start_command,
-                "sudo systemctl start ",
-                strlen("sudo systemctl start ")
+            static uint8_t start_command_buf[PATH_MAX];
+            GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
+            ret = ggl_byte_vec_append(
+                &start_command_vec, GGL_STR("sudo systemctl start ")
             );
-            strncat(
-                start_command, service_file_path, strlen(service_file_path)
+            ggl_byte_vec_chain_append(
+                &ret, &start_command_vec, service_file_path_vec.buf
             );
+            ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd", "Failed to create systemctl start command."
+                );
+                return;
+            }
+
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system(start_command);
+            system_ret = system((char *) start_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
                     GGL_LOGE("ggdeploymentd", "systemctl start failed");
@@ -1754,17 +1787,25 @@ static void handle_deployment(
                 return;
             }
 
-            char enable_command[PATH_MAX] = { 0 };
-            strncat(
-                enable_command,
-                "sudo systemctl enable ",
-                strlen("sudo systemctl enable ")
+            static uint8_t enable_command_buf[PATH_MAX];
+            GglByteVec enable_command_vec = GGL_BYTE_VEC(enable_command_buf);
+            ret = ggl_byte_vec_append(
+                &enable_command_vec, GGL_STR("sudo systemctl enable ")
             );
-            strncat(
-                enable_command, service_file_path, strlen(service_file_path)
+            ggl_byte_vec_chain_append(
+                &ret, &enable_command_vec, service_file_path_vec.buf
             );
+            ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd",
+                    "Failed to create systemctl enable command."
+                );
+                return;
+            }
+
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system(enable_command);
+            system_ret = system((char *) enable_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
                     GGL_LOGE("ggdeploymentd", "systemctl enable failed");
@@ -1791,34 +1832,42 @@ static void handle_deployment(
                 return;
             }
 
-            char recipe_path[PATH_MAX] = { 0 };
-            strncat(
-                recipe_path, (char *) args->root_path.data, args->root_path.len
+            // FIXME: Don't only support yaml extensions.
+            static uint8_t recipe_path_buf[PATH_MAX];
+            GglByteVec recipe_path_vec = GGL_BYTE_VEC(recipe_path_buf);
+            GglError ret
+                = ggl_byte_vec_append(&recipe_path_vec, args->root_path);
+            ggl_byte_vec_chain_append(
+                &ret, &recipe_path_vec, GGL_STR("/packages/recipes/")
             );
-            strncat(
-                recipe_path, "/packages/recipes/", strlen("/packages/recipes/")
-            );
-            strncat(recipe_path, (char *) pair->key.data, pair->key.len);
-            strncat(recipe_path, "-", strlen("-"));
-            strncat(
-                recipe_path, (char *) pair->val.buf.data, pair->val.buf.len
-            );
-            strncat(recipe_path, ".yaml", strlen(".yaml"));
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->key);
+            ggl_byte_vec_chain_push(&ret, &recipe_path_vec, '-');
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->val.buf);
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, GGL_STR(".yaml"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("ggdeploymentd", "Failed to create recipe path.");
+                return;
+            }
 
-            char recipe_runner_path[PATH_MAX] = { 0 };
-            strncat(recipe_runner_path, args->bin_path, strlen(args->bin_path));
-            strncat(
-                recipe_runner_path, "recipe-runner", strlen("recipe-runner")
+            static uint8_t recipe_runner_path_buf[PATH_MAX];
+            GglByteVec recipe_runner_path_vec
+                = GGL_BYTE_VEC(recipe_runner_path_buf);
+            ret = ggl_byte_vec_append(
+                &recipe_runner_path_vec,
+                ggl_buffer_from_null_term((char *) args->bin_path)
             );
-
-            char socket_path[PATH_MAX] = { 0 };
-            strncat(
-                socket_path, (char *) args->root_path.data, args->root_path.len
+            ggl_byte_vec_chain_append(
+                &ret, &recipe_runner_path_vec, GGL_STR("recipe-runner")
             );
-            strncat(socket_path, "/gg-ipc.socket", strlen("/gg-ipc.socket"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd", "Failed to create recipe runner path."
+                );
+                return;
+            }
 
             char *thing_name = NULL;
-            GglError ret = get_thing_name(&thing_name);
+            ret = get_thing_name(&thing_name);
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("ggdeploymentd", "Failed to get thing name.");
                 return;
@@ -1864,35 +1913,20 @@ static void handle_deployment(
                 group = posix_user;
             }
 
-            char artifact_path[PATH_MAX] = { 0 };
-            strncat(
-                artifact_path,
-                (char *) args->root_path.data,
-                args->root_path.len
-            );
-            strncat(
-                artifact_path,
-                "/packages/artifacts/",
-                strlen("/packages/artifacts/")
-            );
-            strncat(artifact_path, (char *) pair->key.data, pair->key.len);
-            strncat(artifact_path, "/", strlen("/"));
-            strncat(
-                artifact_path, (char *) pair->val.buf.data, pair->val.buf.len
-            );
-
             Recipe2UnitArgs recipe2unit_args
                 = { .group = group, .user = posix_user };
-            GGL_LOGI("Deployment Handler", "Recipepath %s", recipe_path);
+            GGL_LOGI(
+                "Deployment Handler", "Recipe path %s", recipe_path_vec.buf.data
+            );
             memcpy(
                 recipe2unit_args.recipe_path,
-                recipe_path,
-                strnlen(recipe_path, PATH_MAX)
+                recipe_path_vec.buf.data,
+                recipe_path_vec.buf.len
             );
             memcpy(
                 recipe2unit_args.recipe_runner_path,
-                recipe_runner_path,
-                strnlen(recipe_runner_path, PATH_MAX)
+                recipe_runner_path_vec.buf.data,
+                recipe_runner_path_vec.buf.len
             );
             memcpy(
                 recipe2unit_args.root_dir,
@@ -1970,26 +2004,40 @@ static void handle_deployment(
 
             // TODO: add install file processing logic here.
 
-            char service_file_path[PATH_MAX] = { 0 };
-            strncat(service_file_path, "ggl.", strlen("ggl."));
-            strncat(service_file_path, (char *) pair->key.data, pair->key.len);
-            strncat(service_file_path, ".service", strlen(".service"));
+            static uint8_t service_file_path_buf[PATH_MAX];
+            GglByteVec service_file_path_vec
+                = GGL_BYTE_VEC(service_file_path_buf);
+            ret = ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
+            ggl_byte_vec_chain_append(&ret, &service_file_path_vec, pair->key);
+            ggl_byte_vec_chain_append(
+                &ret, &service_file_path_vec, GGL_STR(".service")
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd", "Failed to create service file path."
+                );
+                return;
+            }
 
-            char link_command[PATH_MAX] = { 0 };
-            strncat(
-                link_command,
-                "sudo systemctl link ",
-                strlen("sudo systemctl link ")
+            static uint8_t link_command_buf[PATH_MAX];
+            GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
+            ret = ggl_byte_vec_append(
+                &link_command_vec, GGL_STR("sudo systemctl link ")
             );
-            strncat(
-                link_command,
-                (const char *) args->root_path.data,
-                args->root_path.len
+            ggl_byte_vec_chain_append(&ret, &link_command_vec, args->root_path);
+            ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
+            ggl_byte_vec_chain_append(
+                &ret, &link_command_vec, service_file_path_vec.buf
             );
-            strncat(link_command, "/", strlen("/"));
-            strncat(link_command, service_file_path, strlen(service_file_path));
+            ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd", "Failed to create systemctl link command."
+                );
+                return;
+            }
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            int system_ret = system(link_command);
+            int system_ret = system((char *) link_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
                     GGL_LOGE("ggdeploymentd", "systemctl link failed");
@@ -2007,17 +2055,23 @@ static void handle_deployment(
                 return;
             }
 
-            char start_command[PATH_MAX] = { 0 };
-            strncat(
-                start_command,
-                "sudo systemctl start ",
-                strlen("sudo systemctl start ")
+            static uint8_t start_command_buf[PATH_MAX];
+            GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
+            ret = ggl_byte_vec_append(
+                &start_command_vec, GGL_STR("sudo systemctl start ")
             );
-            strncat(
-                start_command, service_file_path, strlen(service_file_path)
+            ggl_byte_vec_chain_append(
+                &ret, &start_command_vec, service_file_path_vec.buf
             );
+            ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd", "Failed to create systemctl start command."
+                );
+                return;
+            }
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system(start_command);
+            system_ret = system((char *) start_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
                     GGL_LOGE("ggdeploymentd", "systemctl start failed");
@@ -2035,17 +2089,24 @@ static void handle_deployment(
                 return;
             }
 
-            char enable_command[PATH_MAX] = { 0 };
-            strncat(
-                enable_command,
-                "sudo systemctl enable ",
-                strlen("sudo systemctl enable ")
+            static uint8_t enable_command_buf[PATH_MAX];
+            GglByteVec enable_command_vec = GGL_BYTE_VEC(enable_command_buf);
+            ret = ggl_byte_vec_append(
+                &enable_command_vec, GGL_STR("sudo systemctl enable ")
             );
-            strncat(
-                enable_command, service_file_path, strlen(service_file_path)
+            ggl_byte_vec_chain_append(
+                &ret, &enable_command_vec, service_file_path_vec.buf
             );
+            ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "ggdeploymentd",
+                    "Failed to create systemctl enable command."
+                );
+                return;
+            }
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system(enable_command);
+            system_ret = system((char *) enable_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
                     GGL_LOGE("ggdeploymentd", "systemctl enable failed");
