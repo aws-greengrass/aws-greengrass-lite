@@ -97,6 +97,13 @@ static GglError deep_copy_deployment(
     }
     deployment->root_component_versions_to_add = obj.map;
 
+    obj = GGL_OBJ(deployment->cloud_root_components_to_add);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    deployment->cloud_root_components_to_add = obj.map;
+
     obj = GGL_OBJ(deployment->root_components_to_remove);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
