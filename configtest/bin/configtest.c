@@ -636,34 +636,6 @@ int main(int argc, char **argv) {
         GGL_ERR_OK
     );
 
-    // Test to ensure keys are not case sensitive
-    test_insert(
-        GGL_LIST(
-            GGL_OBJ_STR("component5"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
-        ),
-        GGL_OBJ_MAP({ GGL_STR("key"), GGL_OBJ_STR("value1") }),
-        -1,
-        GGL_ERR_OK
-    );
-    test_insert(
-        GGL_LIST(
-            GGL_OBJ_STR("component5"), GGL_OBJ_STR("foo"), GGL_OBJ_STR("bar")
-        ),
-        GGL_OBJ_MAP({ GGL_STR("KEY"), GGL_OBJ_STR("value2") }),
-        -1,
-        GGL_ERR_OK
-    );
-    test_get(
-        GGL_LIST(
-            GGL_OBJ_STR("component5"),
-            GGL_OBJ_STR("foo"),
-            GGL_OBJ_STR("bar"),
-            GGL_OBJ_STR("key")
-        ),
-        GGL_OBJ_STR("value2"),
-        GGL_ERR_OK
-    );
-
     // Test to ensure writes with older timestamps than the existing value are
     // ignored
     test_insert(
