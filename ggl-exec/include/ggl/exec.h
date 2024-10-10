@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef GGL_EXEC__H
-#define GGL_EXEC__H
+#ifndef GGL_EXEC_H
+#define GGL_EXEC_H
 
 #include <sys/types.h>
 #include <ggl/error.h>
