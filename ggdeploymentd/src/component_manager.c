@@ -4,11 +4,14 @@
 
 #include "component_manager.h"
 #include "component_store.h"
+#include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <linux/limits.h>
+#include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -91,6 +94,11 @@ bool resolve_component_version(
         "without negotiating with the cloud.",
         (char *) component_name.data
     );
-    *resolved_version = local_version;
+
+    assert(local_version.len <= NAME_MAX);
+    memcpy(
+        resolved_version->data, &local_version.data, (size_t) &local_version.len
+    );
+    resolved_version->len = local_version.len;
     return true;
 }

@@ -33,6 +33,7 @@
 #include <ggl/vector.h>
 #include <ggl/zip.h>
 #include <limits.h>
+#include <linux/limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -1164,7 +1165,7 @@ static GglError resolve_dependencies(
         // We assume that we have not resolved a component yet if we are finding
         // it in this map.
 
-        GglBuffer resolved_version = { 0 };
+        GglBuffer resolved_version = { .len = NAME_MAX };
         bool found_local_candidate = resolve_component_version(
             pair->key, pair->val.buf, &resolved_version
         );
