@@ -100,7 +100,7 @@ GglError find_available_component(
             component_name_len++;
         }
         if (*dash_pos != '-') {
-            GGL_LOGW(
+            GGL_LOGD(
                 "Recipe file name formatted incorrectly. Continuing to next "
                 "file."
             );
