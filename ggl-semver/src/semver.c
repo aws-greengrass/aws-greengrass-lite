@@ -9,7 +9,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>

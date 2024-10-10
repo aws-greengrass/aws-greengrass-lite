@@ -10,7 +10,7 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -73,7 +73,7 @@ bool resolve_component_version(
     GGL_LOGD("Resolving component version.");
 
     // find best local candidate
-    GglBuffer local_version;
+    GglBuffer local_version = { .len = NAME_MAX };
     GglError ret = find_best_candidate_locally(
         component_name, version_requirement, &local_version
     );

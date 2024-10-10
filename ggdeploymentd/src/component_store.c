@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <dirent.h>
 #include <fcntl.h>
-#include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/defer.h>
@@ -15,7 +14,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/semver.h>
-#include <linux/limits.h>
+#include <limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
