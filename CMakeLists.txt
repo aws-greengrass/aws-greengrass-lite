@@ -268,6 +268,8 @@ function(ggl_init_module name)
       PROPERTY COMPILE_FLAGS "-frandom-seed=${src}")
   endforeach()
 
+  # TODO: Allow modules without src to be built, e.g. ggl-constants can delete
+  # src/dummy.c
   if(NOT SRCS_LEN EQUAL 0)
     add_library(${name} STATIC ${SRCS})
     target_compile_definitions(${name} PRIVATE "GGL_MODULE=(\"${name}\")")
@@ -327,6 +329,7 @@ add_subdirectory(tes-serverd)
 add_subdirectory(ggl-exec)
 add_subdirectory(recipe2unit)
 add_subdirectory(ggl-semver)
+add_subdirectory(ggl-constants)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)

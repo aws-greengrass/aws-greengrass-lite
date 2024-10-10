@@ -8,8 +8,8 @@
 #include "helpers.h"
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/constants.h>
 #include <ggl/core_bus/constants.h>
-#include <ggl/core_bus/gg_config.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
@@ -379,7 +379,7 @@ static GglError value_get_timestamp(
 }
 
 // key_ids_output must point to an empty GglObjVec with capacity
-// MAX_KEY_PATH_DEPTH
+// GGL_MAX_OBJECT_DEPTH
 static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
     GGL_LOGD("searching for %s", print_key_path(key_path));
 
@@ -400,11 +400,13 @@ static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
         );
     }
 
-    for (size_t index = key_path->len; index <= 24; index++) {
+    for (size_t index = key_path->len; index < GGL_MAX_OBJECT_DEPTH; index++) {
         sqlite3_bind_null(find_element_stmt, (int) index + 1);
     }
 
-    sqlite3_bind_int(find_element_stmt, 26, (int) key_path->len);
+    sqlite3_bind_int(
+        find_element_stmt, GGL_MAX_OBJECT_DEPTH + 1, (int) key_path->len
+    );
 
     for (size_t i = 0; i < key_path->len; i++) {
         int rc = sqlite3_step(find_element_stmt);
@@ -628,9 +630,9 @@ GglError ggconfig_write_value_at_key(
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    GglObject ids_array[GGL_MAX_CONFIG_DEPTH];
+    GglObject ids_array[GGL_MAX_OBJECT_DEPTH];
     GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
-                      .capacity = GGL_MAX_CONFIG_DEPTH };
+                      .capacity = GGL_MAX_OBJECT_DEPTH };
     int64_t last_key_id;
     GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
@@ -880,9 +882,9 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
     GGL_LOGI("starting request for key: %s", print_key_path(key_path));
-    GglObject ids_array[GGL_MAX_CONFIG_DEPTH];
+    GglObject ids_array[GGL_MAX_OBJECT_DEPTH];
     GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
-                      .capacity = GGL_MAX_CONFIG_DEPTH };
+                      .capacity = GGL_MAX_OBJECT_DEPTH };
     GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
@@ -908,9 +910,9 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
     // ensure this key is present in the key path. Key does not require a
     // value
-    GglObject ids_array[GGL_MAX_CONFIG_DEPTH];
+    GglObject ids_array[GGL_MAX_OBJECT_DEPTH];
     GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
-                      .capacity = GGL_MAX_CONFIG_DEPTH };
+                      .capacity = GGL_MAX_OBJECT_DEPTH };
     GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);

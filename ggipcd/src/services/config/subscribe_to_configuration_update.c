@@ -9,7 +9,7 @@
 #include "config_path_object.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
-#include <ggl/core_bus/gg_config.h>
+#include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
@@ -121,7 +121,7 @@ GglError ggl_handle_subscribe_to_configuration_update(
         return ret;
     }
 
-    GglObject config_path_obj[GGL_MAX_CONFIG_DEPTH] = { 0 };
+    GglObject config_path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < full_key_path.len; i++) {
         config_path_obj[i] = GGL_OBJ(full_key_path.bufs[i]);
     }

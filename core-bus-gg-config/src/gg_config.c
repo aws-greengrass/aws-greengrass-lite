@@ -6,6 +6,7 @@
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/constants.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -16,12 +17,12 @@
 GglError ggl_gg_config_read(
     GglBufList key_path, GglAlloc *alloc, GglObject *result
 ) {
-    if (key_path.len > GGL_MAX_CONFIG_DEPTH) {
+    if (key_path.len > GGL_MAX_OBJECT_DEPTH) {
         GGL_LOGE("Key path depth exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
-    GglObject path_obj[GGL_MAX_CONFIG_DEPTH] = { 0 };
+    GglObject path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < key_path.len; i++) {
         path_obj[i] = GGL_OBJ(key_path.bufs[i]);
     }
@@ -69,12 +70,12 @@ GglError ggl_gg_config_write(
         return GGL_ERR_UNSUPPORTED;
     }
 
-    if (key_path.len > GGL_MAX_CONFIG_DEPTH) {
+    if (key_path.len > GGL_MAX_OBJECT_DEPTH) {
         GGL_LOGE("Key path depth exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
-    GglObject path_obj[GGL_MAX_CONFIG_DEPTH] = { 0 };
+    GglObject path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < key_path.len; i++) {
         path_obj[i] = GGL_OBJ(key_path.bufs[i]);
     }
@@ -105,12 +106,12 @@ GglError ggl_gg_config_subscribe(
     void *ctx,
     uint32_t *handle
 ) {
-    if (key_path.len > GGL_MAX_CONFIG_DEPTH) {
+    if (key_path.len > GGL_MAX_OBJECT_DEPTH) {
         GGL_LOGE("Key path depth exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
-    GglObject path_obj[GGL_MAX_CONFIG_DEPTH] = { 0 };
+    GglObject path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < key_path.len; i++) {
         path_obj[i] = GGL_OBJ(key_path.bufs[i]);
     }

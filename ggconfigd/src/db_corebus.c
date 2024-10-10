@@ -6,7 +6,7 @@
 #include "helpers.h"
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/core_bus/gg_config.h>
+#include <ggl/constants.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
@@ -253,7 +253,7 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
-    GglObjVec key_path = GGL_OBJ_VEC((GglObject[GGL_MAX_CONFIG_DEPTH]) { 0 });
+    GglObjVec key_path = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
     ret = ggl_obj_vec_append(&key_path, key_path_obj->list);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("key_path too long.");

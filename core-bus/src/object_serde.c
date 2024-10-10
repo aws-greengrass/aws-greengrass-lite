@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <ggl/alloc.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -16,8 +17,6 @@
 static_assert(
     __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__, "host endian not supported"
 );
-
-#define CORE_BUS_MAX_NESTING_DEPTH 10
 
 typedef struct {
     enum {
@@ -34,12 +33,12 @@ typedef struct {
 } NestingLevel;
 
 typedef struct {
-    NestingLevel levels[CORE_BUS_MAX_NESTING_DEPTH];
+    NestingLevel levels[GGL_MAX_OBJECT_DEPTH];
     size_t level;
 } NestingState;
 
 static GglError push_parse_state(NestingState *state, NestingLevel level) {
-    if (state->level >= CORE_BUS_MAX_NESTING_DEPTH) {
+    if (state->level >= GGL_MAX_OBJECT_DEPTH) {
         GGL_LOGE("Packet object exceeded max nesting depth.");
         return GGL_ERR_RANGE;
     }

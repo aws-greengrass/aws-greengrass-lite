@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/constants.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
@@ -299,8 +300,7 @@ GglError ggipc_private_get_system_config(
 GglError ggipc_get_config_str(
     int conn, GglBufList key_path, GglBuffer *component_name, GglBuffer *value
 ) {
-    // TODO: Put GGL_MAX_CONFIG_DEPTH in shared place
-    GglObjVec path_vec = GGL_OBJ_VEC((GglObject[10]) { 0 });
+    GglObjVec path_vec = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
     GglError ret = GGL_ERR_OK;
     for (size_t i = 0; i < key_path.len; i++) {
         ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ(key_path.bufs[i]));

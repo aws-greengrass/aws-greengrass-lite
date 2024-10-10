@@ -38,16 +38,6 @@ WITH RECURSIVE
           WHEN 12 THEN ?
           WHEN 13 THEN ?
           WHEN 14 THEN ?
-          WHEN 15 THEN ?
-          WHEN 16 THEN ?
-          WHEN 17 THEN ?
-          WHEN 18 THEN ?
-          WHEN 19 THEN ?
-          WHEN 20 THEN ?
-          WHEN 21 THEN ?
-          WHEN 22 THEN ?
-          WHEN 23 THEN ?
-          WHEN 24 THEN ?
         END
       )
       AND pc.depth < ?
