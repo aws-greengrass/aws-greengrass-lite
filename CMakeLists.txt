@@ -133,8 +133,7 @@ try_add_cflag(Wenum-int-mismatch -Wenum-int-mismatch)
 try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
 try_add_cflag(stack-clash-protection -fstack-clash-protection)
 
-try_add_cflag_if(file-prefix-map $<NOT:$<CONFIG:Debug>>
-                 "-ffile-prefix-map=${CMAKE_CURRENT_LIST_DIR}=.")
+try_add_cflag(file-prefix-map "-ffile-prefix-map=${CMAKE_CURRENT_LIST_DIR}/=")
 
 add_cflags($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
 try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
@@ -271,6 +270,7 @@ function(ggl_init_module name)
 
   if(NOT SRCS_LEN EQUAL 0)
     add_library(${name} STATIC ${SRCS})
+    target_compile_definitions(${name} PRIVATE "GGL_MODULE=(\"${name}\")")
     target_include_directories(${name} PRIVATE ${COMP_ARG_INCDIRS})
     target_include_directories(${name} SYSTEM INTERFACE ${COMP_ARG_INCDIRS})
     target_link_libraries(${name} PRIVATE ${COMP_ARG_LIBS})
@@ -280,6 +280,8 @@ function(ggl_init_module name)
   foreach(bin ${BINS})
     get_filename_component(bin_name ${bin} NAME_WE)
     add_executable(${bin_name}-bin ${bin})
+    target_compile_definitions(${bin_name}-bin
+                               PRIVATE "GGL_MODULE=(\"${name}\")")
     if(NOT SRCS_LEN EQUAL 0)
       target_link_libraries(${bin_name}-bin PRIVATE ${name})
     endif()

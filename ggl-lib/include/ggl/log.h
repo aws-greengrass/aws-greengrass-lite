@@ -23,9 +23,8 @@ void ggl_log(
 ) __attribute__((format(printf, 5, 6)));
 
 /// No-op logging fn for enabling type checking disabled logging macros.
-__attribute__((format(printf, 2, 3), always_inline)) static inline void
-ggl_log_disabled(const char *tag, const char *format, ...) {
-    (void) tag;
+__attribute__((format(printf, 1, 2), always_inline)) static inline void
+ggl_log_disabled(const char *format, ...) {
     (void) format;
 }
 
@@ -46,7 +45,8 @@ ggl_log_disabled(const char *tag, const char *format, ...) {
 #define __FILE_NAME__ __FILE__
 #endif
 
-#define GGL_LOG(level, ...) ggl_log(level, __FILE_NAME__, __LINE__, __VA_ARGS__)
+#define GGL_LOG(level, ...) \
+    ggl_log(level, __FILE_NAME__, __LINE__, GGL_MODULE, __VA_ARGS__)
 
 #if GGL_LOG_LEVEL >= GGL_LOG_ERROR
 #define GGL_LOGE(...) GGL_LOG(GGL_LOG_ERROR, __VA_ARGS__)

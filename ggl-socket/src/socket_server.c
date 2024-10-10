@@ -29,16 +29,11 @@ static void new_client_available(
     int client_fd = accept4(socket_fd, NULL, NULL, SOCK_CLOEXEC);
     if (client_fd == -1) {
         int err = errno;
-        GGL_LOGE(
-            "socket-server",
-            "Failed to accept on socket %d: %d.",
-            socket_fd,
-            err
-        );
+        GGL_LOGE("Failed to accept on socket %d: %d.", socket_fd, err);
         return;
     }
 
-    GGL_LOGD("socket-server", "Accepted new client %d.", client_fd);
+    GGL_LOGD("Accepted new client %d.", client_fd);
 
     // To prevent deadlocking on hanged client, add a timeout
     struct timeval timeout = { .tv_sec = 5 };
@@ -49,22 +44,14 @@ static void new_client_available(
     GglError ret = ggl_socket_pool_register(pool, client_fd, &handle);
     if (ret != GGL_ERR_OK) {
         ggl_close(client_fd);
-        GGL_LOGW(
-            "socket-server",
-            "Closed new client %d due to max clients reached.",
-            client_fd
-        );
+        GGL_LOGW("Closed new client %d due to max clients reached.", client_fd);
         return;
     }
 
     ret = ggl_socket_epoll_add(epoll_fd, client_fd, handle);
     if (ret != GGL_ERR_OK) {
         ggl_socket_handle_close(pool, handle);
-        GGL_LOGE(
-            "socket-server",
-            "Failed to register client %d with epoll.",
-            client_fd
-        );
+        GGL_LOGE("Failed to register client %d with epoll.", client_fd);
         return;
     }
 }
@@ -95,7 +82,6 @@ static GglError create_parent_dirs(char *path) {
                 *end = '/';
                 if ((ret != 0) && (errno != EEXIST)) {
                     GGL_LOGE(
-                        "socket-server",
                         "Failed to create parent directories of socket: %s.",
                         path
                     );
@@ -118,7 +104,6 @@ static GglError configure_server_socket(
     // TODO: Handle long paths by creating socket in temp dir and moving
     if (path.len >= sizeof(addr.sun_path)) {
         GGL_LOGE(
-            "socket-server",
             "Socket path too long (len %zu, max %zu).",
             path.len,
             sizeof(addr.sun_path) - 1
@@ -135,27 +120,25 @@ static GglError configure_server_socket(
 
     if ((unlink(addr.sun_path) == -1) && (errno != ENOENT)) {
         int err = errno;
-        GGL_LOGE("socket-server", "Failed to unlink server socket: %d.", err);
+        GGL_LOGE("Failed to unlink server socket: %d.", err);
         return GGL_ERR_FAILURE;
     }
 
     if (bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         int err = errno;
-        GGL_LOGE("socket-server", "Failed to bind server socket: %d.", err);
+        GGL_LOGE("Failed to bind server socket: %d.", err);
         return GGL_ERR_FAILURE;
     }
 
     if (chmod(addr.sun_path, mode) == -1) {
-        GGL_LOGE("socket-server", "Failed to chmod server socket: %d.", errno);
+        GGL_LOGE("Failed to chmod server socket: %d.", errno);
         return GGL_ERR_FAILURE;
     }
 
     static const int MAX_SOCKET_BACKLOG = 10;
     if (listen(socket_fd, MAX_SOCKET_BACKLOG) == -1) {
         int err = errno;
-        GGL_LOGE(
-            "socket-server", "Failed to listen on server socket: %d.", err
-        );
+        GGL_LOGE("Failed to listen on server socket: %d.", err);
         return GGL_ERR_FAILURE;
     }
 
@@ -188,7 +171,7 @@ static GglError epoll_fd_ready(void *epoll_ctx, uint64_t data) {
             server_ctx->ctx
         );
     } else {
-        GGL_LOGE("socket-server", "Invalid data returned from epoll.");
+        GGL_LOGE("Invalid data returned from epoll.");
         return GGL_ERR_FAILURE;
     }
 
@@ -217,7 +200,7 @@ GglError ggl_socket_server_listen(
     int server_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (server_fd == -1) {
         int err = errno;
-        GGL_LOGE("socket-server", "Failed to create socket: %d.", err);
+        GGL_LOGE("Failed to create socket: %d.", err);
         return GGL_ERR_FAILURE;
     }
     GGL_DEFER(ggl_close, server_fd);

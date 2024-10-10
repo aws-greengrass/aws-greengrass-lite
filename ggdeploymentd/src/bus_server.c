@@ -16,9 +16,7 @@
 static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    GGL_LOGT(
-        "ggdeploymentd", "Received create_local_deployment from core bus."
-    );
+    GGL_LOGT("Received create_local_deployment from core bus.");
 
     GglByteVec id = GGL_BYTE_VEC((uint8_t[36]) { 0 });
 
@@ -32,7 +30,7 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
 }
 
 void ggdeploymentd_start_server(void) {
-    GGL_LOGI("ggdeploymentd", "Starting ggdeploymentd core bus server.");
+    GGL_LOGI("Starting ggdeploymentd core bus server.");
 
     GglRpcMethodDesc handlers[] = { { GGL_STR("create_local_deployment"),
                                       false,
@@ -43,5 +41,5 @@ void ggdeploymentd_start_server(void) {
     GglError ret
         = ggl_listen(GGL_STR("/aws/ggl/ggdeploymentd"), handlers, handlers_len);
 
-    GGL_LOGE("ggdeploymentd", "Exiting with error %u.", (unsigned) ret);
+    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
 }

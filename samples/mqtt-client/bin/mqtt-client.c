@@ -27,7 +27,6 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     }
 
     GGL_LOGI(
-        "mqtt-client",
         "Got message from IoT Core; topic: %.*s, payload: %.*s.",
         (int) topic->len,
         topic->data,
@@ -43,10 +42,10 @@ int main(void) {
         GGL_BUF_LIST(GGL_STR("hello")), 0, subscribe_callback, NULL, NULL, NULL
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("mqtt-client", "Failed to send subscription");
+        GGL_LOGE("Failed to send subscription");
         return EPROTO;
     }
-    GGL_LOGI("mqtt-client", "Successfully sent subscription.");
+    GGL_LOGI("Successfully sent subscription.");
 
     ggl_sleep(1);
 
@@ -54,10 +53,10 @@ int main(void) {
         GGL_STR("hello"), GGL_STR("hello world"), 0, false
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("mqtt-client", "Failed to send publish.");
+        GGL_LOGE("Failed to send publish.");
         return EPROTO;
     }
-    GGL_LOGI("mqtt-client", "Sent MQTT publish.");
+    GGL_LOGI("Sent MQTT publish.");
 
     ggl_sleep(5);
 }

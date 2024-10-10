@@ -28,10 +28,7 @@ static GglError decode_object_destructive(
     GglError return_err = GGL_ERR_FAILURE;
     if (obj->type == GGL_TYPE_BUF) {
         GGL_LOGD(
-            "decode_object_destructive",
-            "given buffer to decode: %.*s",
-            (int) obj->buf.len,
-            obj->buf.data
+            "given buffer to decode: %.*s", (int) obj->buf.len, obj->buf.data
         );
         GglObject return_object;
         GglError json_decode_err = ggl_json_decode_destructive(
@@ -39,9 +36,7 @@ static GglError decode_object_destructive(
         );
         if (json_decode_err != GGL_ERR_OK) {
             GGL_LOGE(
-                "decode_object_destructive",
-                "decode json failed with error code: %d",
-                (int) json_decode_err
+                "decode json failed with error code: %d", (int) json_decode_err
             );
             return GGL_ERR_FAILURE;
         }
@@ -72,27 +67,18 @@ static GglError decode_object_destructive(
             return_err = GGL_ERR_OK;
             break;
         default:
-            GGL_LOGE(
-                "decode_object_destructive",
-                "decoded unexpected type: %d",
-                (int) return_object.type
-            );
+            GGL_LOGE("decoded unexpected type: %d", (int) return_object.type);
             return_err = GGL_ERR_FAILURE;
             break;
         }
     } else if (obj->type == GGL_TYPE_MAP) {
-        GGL_LOGD(
-            "decode_object_destructive",
-            "given map to decode with length: %d",
-            (int) obj->map.len
-        );
+        GGL_LOGD("given map to decode with length: %d", (int) obj->map.len);
         for (size_t i = 0; i < obj->map.len; i++) {
             GglError decode_err = decode_object_destructive(
                 &(obj->map.pairs[i].val), bump_alloc
             );
             if (decode_err != GGL_ERR_OK) {
                 GGL_LOGE(
-                    "decode_object_destructive",
                     "decode map value at index %d and key %.*s failed with "
                     "error code: %d",
                     (int) i,
@@ -105,11 +91,7 @@ static GglError decode_object_destructive(
         }
         return_err = GGL_ERR_OK;
     } else {
-        GGL_LOGE(
-            "decode_object_destructive",
-            "given unexpected type to decode: %d",
-            (int) obj->type
-        );
+        GGL_LOGE("given unexpected type to decode: %d", (int) obj->type);
         return_err = GGL_ERR_FAILURE;
     }
     return return_err;
@@ -121,19 +103,19 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     GglObject *key_path;
     if (!ggl_map_get(params, GGL_STR("key_path"), &key_path)
         || (key_path->type != GGL_TYPE_LIST)) {
-        GGL_LOGE("rpc_read", "read received invalid key_path argument.");
+        GGL_LOGE("read received invalid key_path argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
     GglError ret = ggl_list_type_check(key_path->list, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("rpc_read", "key_path elements must be strings.");
+        GGL_LOGE("key_path elements must be strings.");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
 
-    GGL_LOGD("rpc_read", "reading key %s", print_key_path(&key_path->list));
+    GGL_LOGD("reading key %s", print_key_path(&key_path->list));
 
     GglObject value;
     GglError err = ggconfig_get_value_from_key(&key_path->list, &value);
@@ -153,19 +135,19 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
 static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    GGL_LOGD("rpc_subscribe", "subscribing");
+    GGL_LOGD("subscribing");
 
     GglObject *key_path;
     if (!ggl_map_get(params, GGL_STR("key_path"), &key_path)
         || (key_path->type != GGL_TYPE_LIST)) {
-        GGL_LOGE("rpc_subscribe", "read received invalid key_path argument.");
+        GGL_LOGE("read received invalid key_path argument.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
     GglError ret = ggl_list_type_check(key_path->list, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("rpc_subscribe", "key_path elements must be strings.");
+        GGL_LOGE("key_path elements must be strings.");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
@@ -185,17 +167,15 @@ static GglError process_nonmap(
     uint8_t value_string[1024] = { 0 };
     GglBuffer value_buffer
         = { .data = value_string, .len = sizeof(value_string) };
-    GGL_LOGT("rpc_write:process_nonmap", "Starting json encode.");
+    GGL_LOGT("Starting json encode.");
     GglError error = ggl_json_encode(value, &value_buffer);
     if (error != GGL_ERR_OK) {
         GGL_LOGE(
-            "rpc_write:process_nonmap",
-            "Json encode failed for key %s.",
-            print_key_path(&key_path->list)
+            "Json encode failed for key %s.", print_key_path(&key_path->list)
         );
         return error;
     }
-    GGL_LOGT("rpc_write:process_nonmap", "Writing value.");
+    GGL_LOGT("Writing value.");
     error = ggconfig_write_value_at_key(
         &key_path->list, &value_buffer, timestamp
     );
@@ -204,7 +184,6 @@ static GglError process_nonmap(
     }
 
     GGL_LOGT(
-        "rpc_write:process_nonmap",
         "Wrote %s = %.*s %" PRId64,
         path_string,
         (int) value_buffer.len,
@@ -224,24 +203,18 @@ static GglError process_map(
     GglError error = GGL_ERR_OK;
     for (size_t x = 0; x < the_map->len; x++) {
         GglKV *kv = &the_map->pairs[x];
-        GGL_LOGT(
-            "rpc_write:process_map",
-            "Preparing %zu, %.*s",
-            x,
-            (int) kv->key.len,
-            kv->key.data
-        );
+        GGL_LOGT("Preparing %zu, %.*s", x, (int) kv->key.len, kv->key.data);
 
         ggl_obj_vec_push(key_path, GGL_OBJ(kv->key));
-        GGL_LOGT("rpc_write:process_map", "pushed the key");
+        GGL_LOGT("pushed the key");
         if (kv->val.type == GGL_TYPE_MAP) {
-            GGL_LOGT("rpc_write:process_map", "value is a map");
+            GGL_LOGT("value is a map");
             error = process_map(key_path, &kv->val.map, timestamp);
             if (error != GGL_ERR_OK) {
                 break;
             }
         } else {
-            GGL_LOGT("rpc_write:process_map", "Value is not a map.");
+            GGL_LOGT("Value is not a map.");
             error = process_nonmap(key_path, kv->val, timestamp);
             if (error != GGL_ERR_OK) {
                 break;
@@ -267,14 +240,14 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("rpc_write", "write received one or more invalid arguments.");
+        GGL_LOGE("write received one or more invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
     ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("rpc_write", "key_path elements must be strings.");
+        GGL_LOGE("key_path elements must be strings.");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
@@ -282,7 +255,7 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     GglObjVec key_path = GGL_OBJ_VEC((GglObject[GGL_MAX_CONFIG_DEPTH]) { 0 });
     ret = ggl_obj_vec_append(&key_path, key_path_obj->list);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("rpc_write", "key_path too long.");
+        GGL_LOGE("key_path too long.");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
@@ -295,7 +268,7 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
         clock_gettime(CLOCK_REALTIME, &now);
         timestamp = (int64_t) now.tv_sec * 1000 + now.tv_nsec / 1000000;
     }
-    GGL_LOGD("rpc_write", "Timestamp %." PRId64, timestamp);
+    GGL_LOGD("Timestamp %." PRId64, timestamp);
 
     if (value_obj->type == GGL_TYPE_MAP) {
         GglError error = process_map(&key_path, &value_obj->map, timestamp);

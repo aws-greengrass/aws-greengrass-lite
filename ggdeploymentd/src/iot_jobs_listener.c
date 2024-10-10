@@ -6,15 +6,14 @@
 #include "deployment_queue.h"
 #include <sys/types.h>
 #include <ggl/alloc.h>
+#include <ggl/aws_iot_call.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
-#include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
-#include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -40,20 +39,12 @@ typedef enum DeploymentStatusAction {
 } DeploymentStatusAction;
 
 // format strings for greengrass deployment job topic filters
-#define UPDATE_JOB_TOPIC \
-    "$aws/things/{}/jobs/{}/namespace-aws-gg-deployment/update"
-#define JOB_UPDATE_ACCEPTED_TOPIC \
-    "$aws/things/{}/jobs/+/namespace-aws-gg-deployment/update/accepted"
-#define JOB_UPDATE_REJECTED_TOPIC \
-    "$aws/things/{}/jobs/+/namespace-aws-gg-deployment/update/rejected"
-#define DESCRIBE_JOB_TOPIC \
-    "$aws/things/{}/jobs/{}/namespace-aws-gg-deployment/get"
-#define JOB_DESCRIBE_ACCEPTED_TOPIC \
-    "$aws/things/{}/jobs/{}/namespace-aws-gg-deployment/get/accepted"
-#define JOB_DESCRIBE_REJECTED_TOPIC \
-    "$aws/things/{}/jobs/{}/namespace-aws-gg-deployment/get/rejected"
+#define THINGS_TOPIC_PREFIX "$aws/things/"
+#define JOBS_TOPIC_PREFIX "/jobs/"
+#define JOBS_UPDATE_TOPIC "/namespace-aws-gg-deployment/update"
+#define JOBS_GET_TOPIC "/namespace-aws-gg-deployment/get"
 #define NEXT_JOB_EXECUTION_CHANGED_TOPIC \
-    "$aws/things/{}/jobs/notify-next-namespace-aws-gg-deployment"
+    "/jobs/notify-next-namespace-aws-gg-deployment"
 
 #define NEXT_JOB_LITERAL "$next"
 
@@ -63,7 +54,7 @@ typedef enum DeploymentStatusAction {
 #endif
 
 static uint8_t thing_name_mem[MAX_THING_NAME_LEN];
-static GglBuffer thing_name;
+static GglBuffer thing_name_buf;
 
 static uint8_t current_job_id_buf[64];
 static GglByteVec current_job_id;
@@ -73,81 +64,80 @@ static int64_t current_job_version;
 
 pthread_mutex_t topic_scratch_mutex = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t topic_scratch[256];
-
-static uint8_t subscription_thread_scratch[4096];
+static uint8_t response_scratch[4096];
+static uint8_t subscription_scratch[4096];
 
 // aws_iot_mqtt subscription handles
 static uint32_t next_job_handle;
-static uint32_t get_accepted_handle;
-static uint32_t get_rejected_handle;
-static uint32_t update_accepted_handle;
-static uint32_t update_rejected_handle;
+
+static GglError create_get_next_job_topic(
+    GglBuffer thing_name, GglBuffer *job_topic
+) {
+    GglByteVec job_topic_vec = ggl_byte_vec_init(*job_topic);
+    GglError err = GGL_ERR_OK;
+    ggl_byte_vec_chain_append(
+        &err, &job_topic_vec, GGL_STR(THINGS_TOPIC_PREFIX)
+    );
+    ggl_byte_vec_chain_append(&err, &job_topic_vec, thing_name);
+    ggl_byte_vec_chain_append(&err, &job_topic_vec, GGL_STR(JOBS_TOPIC_PREFIX));
+    ggl_byte_vec_chain_append(&err, &job_topic_vec, GGL_STR(NEXT_JOB_LITERAL));
+    ggl_byte_vec_chain_append(&err, &job_topic_vec, GGL_STR(JOBS_GET_TOPIC));
+    if (err == GGL_ERR_OK) {
+        *job_topic = job_topic_vec.buf;
+    }
+    return err;
+}
+
+static GglError create_update_job_topic(
+    GglBuffer thing_name, GglBuffer job_id, GglBuffer *job_topic
+) {
+    GglByteVec job_topic_vec = ggl_byte_vec_init(*job_topic);
+    GglError err = GGL_ERR_OK;
+    ggl_byte_vec_chain_append(
+        &err, &job_topic_vec, GGL_STR(THINGS_TOPIC_PREFIX)
+    );
+    ggl_byte_vec_chain_append(&err, &job_topic_vec, thing_name);
+    ggl_byte_vec_chain_append(&err, &job_topic_vec, GGL_STR(JOBS_TOPIC_PREFIX));
+    ggl_byte_vec_chain_append(&err, &job_topic_vec, job_id);
+    ggl_byte_vec_chain_append(&err, &job_topic_vec, GGL_STR(JOBS_UPDATE_TOPIC));
+    if (err == GGL_ERR_OK) {
+        *job_topic = job_topic_vec.buf;
+    }
+    return err;
+}
+
+static GglError create_next_job_execution_changed_topic(
+    GglBuffer thing_name, GglBuffer *job_topic
+) {
+    GglByteVec job_topic_vec = ggl_byte_vec_init(*job_topic);
+    GglError err = GGL_ERR_OK;
+    ggl_byte_vec_chain_append(
+        &err, &job_topic_vec, GGL_STR(THINGS_TOPIC_PREFIX)
+    );
+    ggl_byte_vec_chain_append(&err, &job_topic_vec, thing_name);
+    ggl_byte_vec_chain_append(
+        &err, &job_topic_vec, GGL_STR(NEXT_JOB_EXECUTION_CHANGED_TOPIC)
+    );
+    if (err == GGL_ERR_OK) {
+        *job_topic = job_topic_vec.buf;
+    }
+    return err;
+}
 
 static GglError update_job(
     GglBuffer job_id, GglBuffer job_status, int64_t *version
 );
 static GglError process_job_execution(GglMap job_execution);
 
-// replace every occurrence of '{}' in the format string with each
-// successive buffer in values. Formatted string appended into output.
-static GglError ggl_byte_vec_format(
-    GglByteVec *output, GglBuffer format, GglList values
-) {
-    size_t value = 0;
-    while (format.len > 0) {
-        size_t idx;
-        for (idx = 0; idx < format.len - 1; ++idx) {
-            if ((format.data[idx] == '{') && (format.data[idx + 1] == '}')) {
-                break;
-            }
-        }
-
-        if (idx >= format.len - 1) {
-            break;
-        }
-
-        if (value >= values.len) {
-            GGL_LOGE("format", "not enough format values");
-            return GGL_ERR_RANGE;
-        }
-
-        if (values.items[value].type != GGL_TYPE_BUF) {
-            GGL_LOGE("format", "format value type not supported");
-            return GGL_ERR_INVALID;
-        }
-
-        GglBuffer prefix = ggl_buffer_substr(format, 0, idx);
-        GglError ret = ggl_byte_vec_append(output, prefix);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        ret = ggl_byte_vec_append(output, values.items[value].buf);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        format = ggl_buffer_substr(format, idx + 2, format.len);
-        ++value;
-    }
-
-    if (value != values.len) {
-        GGL_LOGW("format", "too many format values");
-    }
-
-    if (format.len > 0) {
-        return ggl_byte_vec_append(output, format);
-    }
-    return GGL_ERR_OK;
-}
-
 // Retrieve thingName from config
 static GglError get_thing_name(void) {
-    thing_name = GGL_BUF(thing_name_mem);
+    thing_name_buf = GGL_BUF(thing_name_mem);
 
     GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &thing_name
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &thing_name_buf
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Failed to read thingName from config.");
+        GGL_LOGE("Failed to read thingName from config.");
         return ret;
     }
 
@@ -168,7 +158,6 @@ static GglError deserialize_payload(
     }
 
     GGL_LOGI(
-        "jobs-listener",
         "Got message from IoT Core; topic: %.*s, payload: %.*s.",
         (int) topic->len,
         topic->data,
@@ -178,7 +167,7 @@ static GglError deserialize_payload(
 
     ret = ggl_json_decode_destructive(*payload, alloc, json_object);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Failed to parse job doc JSON.");
+        GGL_LOGE("Failed to parse job doc JSON.");
         return ret;
     }
     return GGL_ERR_OK;
@@ -189,14 +178,8 @@ static GglError update_job(
 ) {
     pthread_mutex_lock(&topic_scratch_mutex);
     GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
-    GglByteVec topic = GGL_BYTE_VEC(topic_scratch);
-
-    topic.buf.len = 0;
-    GglError ret = ggl_byte_vec_format(
-        &topic,
-        GGL_STR(UPDATE_JOB_TOPIC),
-        GGL_LIST(GGL_OBJ(thing_name), GGL_OBJ(job_id))
-    );
+    GglBuffer topic = GGL_BUF(topic_scratch);
+    GglError ret = create_update_job_topic(thing_name_buf, job_id, &topic);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -206,7 +189,7 @@ static GglError update_job(
         (char *) version_buf, sizeof(version_buf), "%" PRIi64, *version
     );
     if (len <= 0) {
-        GGL_LOGE("jobs-listener", "Version too big");
+        GGL_LOGE("Version too big");
         return GGL_ERR_RANGE;
     }
 
@@ -215,91 +198,25 @@ static GglError update_job(
         { GGL_STR("status"), GGL_OBJ(job_status) },
         { GGL_STR("expectedVersion"),
           GGL_OBJ((GglBuffer) { .data = version_buf, .len = (size_t) len }) },
+        { GGL_STR("clientToken"), GGL_OBJ_STR("jobs-nucleus-lite") }
     );
 
-    // {"expectedVersion":"123456789012345","status":"IN_PROGRESS"}
-    uint8_t payload_bytes[64];
-    GglBuffer payload = GGL_BUF(payload_bytes);
-    ret = ggl_json_encode(payload_object, &payload);
+    GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
+    GglObject result = GGL_OBJ_NULL();
+    ggl_aws_iot_call(topic, payload_object, &call_alloc.alloc, &result);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Payload buffer too small");
+        GGL_LOGE("Failed to publish on update job topic");
         return ret;
     }
-
-    GGL_LOGW("jobs-listener", "%.*s", (int) payload.len, (char *) payload.data);
-
-    ret = ggl_aws_iot_mqtt_publish(
-        topic.buf, payload, QOS_AT_LEAST_ONCE, false
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Failed to publish on update job topic");
-        return ret;
-    }
-
-    GGL_LOGI(
-        "jobs-listener", "Update packet seems to be sent. Incrementing version"
-    );
     ++(*version);
-    return GGL_ERR_OK;
-}
-
-static GglError describe_accepted_callback(
-    void *ctx, uint32_t handle, GglObject data
-
-) {
-    (void) ctx;
-    (void) handle;
-    (void) data;
-    GGL_LOGI("jobs-listener", "describe accepted");
-    GglBumpAlloc json_alloc
-        = ggl_bump_alloc_init(GGL_BUF(subscription_thread_scratch));
-    GglObject job_description = GGL_OBJ_NULL();
-    GglError ret
-        = deserialize_payload(&json_alloc.alloc, data, &job_description);
-
-    if (ret != GGL_ERR_OK) {
-        return GGL_ERR_FAILURE;
-    }
-
-    if (job_description.type != GGL_TYPE_MAP) {
-        GGL_LOGE("jobs-listener", "Describe payload not of type Map");
-        return GGL_ERR_FAILURE;
-    }
-
-    GglObject *execution = NULL;
-    if (!ggl_map_get(job_description.map, GGL_STR("execution"), &execution)) {
-        return GGL_ERR_OK;
-    }
-
-    if (execution->type != GGL_TYPE_MAP) {
-        GGL_LOGE("jobs-listener", "Job execution not a map");
-        return GGL_ERR_FAILURE;
-    }
-
-    return process_job_execution(execution->map);
-}
-
-static GglError describe_rejected_callback(
-    void *ctx, uint32_t handle, GglObject data
-) {
-    (void) ctx;
-    (void) handle;
-    (void) data;
-    GGL_LOGW("jobs-listener", "Describe request rejected");
-    // TODO: retry logic?
     return GGL_ERR_OK;
 }
 
 static GglError describe_next_job(void) {
     pthread_mutex_lock(&topic_scratch_mutex);
     GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
-    GglByteVec topic = GGL_BYTE_VEC(topic_scratch);
-    topic.buf.len = 0;
-    GglError ret = ggl_byte_vec_format(
-        &topic,
-        GGL_STR(DESCRIBE_JOB_TOPIC),
-        GGL_LIST(GGL_OBJ(thing_name), GGL_OBJ_STR(NEXT_JOB_LITERAL))
-    );
+    GglBuffer topic = GGL_BUF(topic_scratch);
+    GglError ret = create_get_next_job_topic(thing_name_buf, &topic);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -307,26 +224,39 @@ static GglError describe_next_job(void) {
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
     GglObject payload_object = GGL_OBJ_MAP(
         { GGL_STR("jobId"), GGL_OBJ_STR(NEXT_JOB_LITERAL) },
-        { GGL_STR("thingName"), GGL_OBJ(thing_name) },
-        { GGL_STR("includeJobDocument"), GGL_OBJ_BOOL(true) }
+        { GGL_STR("thingName"), GGL_OBJ(thing_name_buf) },
+        { GGL_STR("includeJobDocument"), GGL_OBJ_BOOL(true) },
+        { GGL_STR("clientToken"), GGL_OBJ_STR("jobs-nucleus-lite") }
     );
 
-    uint8_t payload_bytes[196];
-    GglBuffer payload = GGL_BUF(payload_bytes);
-    ret = ggl_json_encode(payload_object, &payload);
+    GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
+    GglObject job_description = GGL_OBJ_NULL();
+    ggl_aws_iot_call(
+        topic, payload_object, &call_alloc.alloc, &job_description
+    );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Payload buffer too small");
+        GGL_LOGE("Failed to publish on describe job topic");
         return ret;
     }
 
-    ret = ggl_aws_iot_mqtt_publish(
-        topic.buf, payload, QOS_AT_LEAST_ONCE, false
+    if (job_description.type != GGL_TYPE_MAP) {
+        GGL_LOGE("Describe payload not of type Map");
+        return GGL_ERR_FAILURE;
+    }
+
+    GglObject *execution = NULL;
+    ret = ggl_map_validate(
+        job_description.map,
+        GGL_MAP_SCHEMA({ GGL_STR("execution"), false, GGL_TYPE_MAP, &execution }
+        )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Failed to publish on describe job topic");
-        return ret;
+        return GGL_ERR_FAILURE;
     }
-    return GGL_ERR_OK;
+    if (execution == NULL) {
+        return GGL_ERR_OK;
+    }
+    return process_job_execution(execution->map);
 }
 
 static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
@@ -356,40 +286,38 @@ static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
 
 static GglError process_job_execution(GglMap job_execution) {
     GglObject *job_id = NULL;
-    if (!ggl_map_get(job_execution, GGL_STR("jobId"), &job_id)) {
-        GGL_LOGW("jobs-listener", "Job does not have jobID");
-        return GGL_ERR_OK;
-    }
-    if (job_id->type != GGL_TYPE_BUF) {
-        GGL_LOGE("jobs-listener", "Job ID not of type String");
-        return GGL_ERR_INVALID;
-    }
-
     GglObject *status = NULL;
-    if (!ggl_map_get(job_execution, GGL_STR("status"), &status)) {
+    GglObject *deployment_doc = NULL;
+    GglError err = ggl_map_validate(
+        job_execution,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("jobId"), false, GGL_TYPE_BUF, &job_id },
+            { GGL_STR("status"), false, GGL_TYPE_BUF, &status },
+            { GGL_STR("jobDocument"), false, GGL_TYPE_MAP, &deployment_doc }
+        )
+    );
+    if (err != GGL_ERR_OK) {
+        GGL_LOGE("Failed to validate job execution response.");
+        return GGL_ERR_FAILURE;
+    }
+    if ((status == NULL) || (job_id == NULL)) {
         return GGL_ERR_OK;
     }
-
-    if (status->type != GGL_TYPE_BUF) {
-        GGL_LOGE("jobs-listener", "Job status not of type String");
-        return GGL_ERR_INVALID;
-    }
-
     DeploymentStatusAction action;
     {
         GglMap status_action_map = GGL_MAP(
             { GGL_STR("QUEUED"), GGL_OBJ_I64(DSA_ENQUEUE_JOB) },
-            { GGL_STR("IN_PROGRESS"), GGL_OBJ_BOOL(DSA_DO_NOTHING) },
-            { GGL_STR("SUCCEEDED"), GGL_OBJ_BOOL(DSA_DO_NOTHING) },
-            { GGL_STR("FAILED"), GGL_OBJ_BOOL(DSA_DO_NOTHING) },
-            { GGL_STR("TIMED_OUT"), GGL_OBJ_BOOL(DSA_CANCEL_JOB) },
-            { GGL_STR("REJECTED"), GGL_OBJ_BOOL(DSA_DO_NOTHING) },
-            { GGL_STR("REMOVED"), GGL_OBJ_BOOL(DSA_CANCEL_JOB) },
-            { GGL_STR("CANCELED"), GGL_OBJ_BOOL(DSA_CANCEL_JOB) },
+            { GGL_STR("IN_PROGRESS"), GGL_OBJ_I64(DSA_ENQUEUE_JOB) },
+            { GGL_STR("SUCCEEDED"), GGL_OBJ_I64(DSA_DO_NOTHING) },
+            { GGL_STR("FAILED"), GGL_OBJ_I64(DSA_DO_NOTHING) },
+            { GGL_STR("TIMED_OUT"), GGL_OBJ_I64(DSA_CANCEL_JOB) },
+            { GGL_STR("REJECTED"), GGL_OBJ_I64(DSA_DO_NOTHING) },
+            { GGL_STR("REMOVED"), GGL_OBJ_I64(DSA_CANCEL_JOB) },
+            { GGL_STR("CANCELED"), GGL_OBJ_I64(DSA_CANCEL_JOB) },
         );
         GglObject *integer = NULL;
         if (!ggl_map_get(status_action_map, status->buf, &integer)) {
-            GGL_LOGE("jobs-listener", "Job status not a valid value");
+            GGL_LOGE("Job status not a valid value");
             return GGL_ERR_INVALID;
         }
         action = (DeploymentStatusAction) integer->i64;
@@ -400,11 +328,11 @@ static GglError process_job_execution(GglMap job_execution) {
         break;
 
     case DSA_ENQUEUE_JOB: {
-        GglObject *deployment_doc = NULL;
-        if (!ggl_map_get(
-                job_execution, GGL_STR("jobDocument"), &deployment_doc
-            )) {
-            GGL_LOGE("jobs-listener", "Job document not found.");
+        if (deployment_doc == NULL) {
+            GGL_LOGE(
+                "Job status is queued/in progress, but no deployment doc was "
+                "given."
+            );
             return GGL_ERR_INVALID;
         }
         (void) enqueue_job(deployment_doc->map, job_id->buf);
@@ -421,29 +349,31 @@ static GglError next_job_execution_changed_callback(
 ) {
     (void) ctx;
     (void) handle;
-
     GglBumpAlloc json_allocator
-        = ggl_bump_alloc_init(GGL_BUF(subscription_thread_scratch));
+        = ggl_bump_alloc_init(GGL_BUF(subscription_scratch));
     GglObject json = GGL_OBJ_NULL();
     GglError ret = deserialize_payload(&json_allocator.alloc, data, &json);
     if (ret != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;
     }
-
     if (json.type != GGL_TYPE_MAP) {
-        GGL_LOGE("jobs-listener", "JSON was not a map");
+        GGL_LOGE("JSON was not a map");
         return GGL_ERR_FAILURE;
     }
 
     GglObject *job_execution = NULL;
-    if (!ggl_map_get(json.map, GGL_STR("execution"), &job_execution)) {
-        // TODO: handle cancellation
-        return GGL_ERR_OK;
-    }
-
-    if (job_execution->type != GGL_TYPE_MAP) {
-        GGL_LOGE("jobs-listener", "Job execution state not of type Object");
+    ret = ggl_map_validate(
+        json.map,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("execution"), false, GGL_TYPE_MAP, &job_execution }
+        )
+    );
+    if (ret != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;
+    }
+    if (job_execution == NULL) {
+        // TODO: job cancellation
+        return GGL_ERR_OK;
     }
     ret = process_job_execution(job_execution->map);
     if (ret != GGL_ERR_OK) {
@@ -453,133 +383,26 @@ static GglError next_job_execution_changed_callback(
     return GGL_ERR_OK;
 }
 
-static GglError job_update_accepted_callback(
-    void *ctx, uint32_t handle, GglObject data
-) {
-    (void) ctx;
-    (void) handle;
-    (void) data;
-    GGL_LOGI("jobs-listener", "Job update accepted");
-    uint8_t rejected_payload[512];
-    GglBumpAlloc bump_allocator
-        = ggl_bump_alloc_init(GGL_BUF(rejected_payload));
-    GglObject json = GGL_OBJ_NULL();
-    deserialize_payload(&bump_allocator.alloc, data, &json);
-    return GGL_ERR_OK;
-}
-
-static GglError job_update_rejected_callback(
-    void *ctx, uint32_t handle, GglObject data
-) {
-    (void) ctx;
-    (void) handle;
-    (void) data;
-
-    GGL_LOGW("jobs-listener", "Job update rejected");
-    uint8_t rejected_payload[512];
-    GglBumpAlloc bump_allocator
-        = ggl_bump_alloc_init(GGL_BUF(rejected_payload));
-    GglObject json = GGL_OBJ_NULL();
-    GglError ret = deserialize_payload(&bump_allocator.alloc, data, &json);
-    if (ret != GGL_ERR_OK) {
-        return GGL_ERR_FAILURE;
-    }
-    // TODO: retry logic?
-    return GGL_ERR_OK;
-}
-
-static GglError subscribe_to_format_topic(
-    GglByteVec topic,
-    GglBuffer format,
-    GglList values,
-    GglSubscribeCallback on_response,
-    uint32_t *handle
-) {
-    topic.buf.len = 0;
-    GglError ret = ggl_byte_vec_format(&topic, format, values);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    return ggl_aws_iot_mqtt_subscribe(
-        GGL_BUF_LIST(topic.buf),
-        QOS_AT_LEAST_ONCE,
-        on_response,
-        NULL,
-        NULL,
-        handle
-    );
-}
-
 static GglError subscribe_to_next_job_topics(void) {
     pthread_mutex_lock(&topic_scratch_mutex);
     GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
-    GglByteVec topic = GGL_BYTE_VEC(topic_scratch);
 
-    // TODO: batch these
     if (next_job_handle == 0) {
-        GglError ret = subscribe_to_format_topic(
-            topic,
-            GGL_STR(NEXT_JOB_EXECUTION_CHANGED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name)),
+        GglBuffer job_topic = GGL_BUF(topic_scratch);
+        GglError err = create_next_job_execution_changed_topic(
+            thing_name_buf, &job_topic
+        );
+        if (err != GGL_ERR_OK) {
+            return err;
+        }
+        return ggl_aws_iot_mqtt_subscribe(
+            GGL_BUF_LIST(job_topic),
+            QOS_AT_LEAST_ONCE,
             next_job_execution_changed_callback,
+            NULL,
+            NULL,
             &next_job_handle
         );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-    }
-
-    if (get_accepted_handle == 0) {
-        GglError ret = subscribe_to_format_topic(
-            topic,
-            GGL_STR(JOB_DESCRIBE_ACCEPTED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name), GGL_OBJ_STR(NEXT_JOB_LITERAL)),
-            describe_accepted_callback,
-            &get_accepted_handle
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-    }
-
-    if (get_rejected_handle == 0) {
-        GglError ret = subscribe_to_format_topic(
-            topic,
-            GGL_STR(JOB_DESCRIBE_REJECTED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name), GGL_OBJ_STR(NEXT_JOB_LITERAL)),
-            describe_rejected_callback,
-            &get_rejected_handle
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-    }
-
-    if (update_accepted_handle == 0) {
-        GglError ret = subscribe_to_format_topic(
-            topic,
-            GGL_STR(JOB_UPDATE_ACCEPTED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name)),
-            job_update_accepted_callback,
-            &update_accepted_handle
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-    }
-
-    if (update_rejected_handle == 0) {
-        GglError ret = subscribe_to_format_topic(
-            topic,
-            GGL_STR(JOB_UPDATE_REJECTED_TOPIC),
-            GGL_LIST(GGL_OBJ(thing_name)),
-            job_update_rejected_callback,
-            &update_rejected_handle
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
     }
 
     return GGL_ERR_OK;
@@ -600,30 +423,19 @@ void listen_for_jobs_deployments(void) {
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-workflow-device-online.html
 
     next_job_handle = 0;
-    get_accepted_handle = 0;
-    get_rejected_handle = 0;
-    update_accepted_handle = 0;
-    update_rejected_handle = 0;
 
     retries = 1;
-    GglError ret = GGL_ERR_OK;
-    while ((ret = subscribe_to_next_job_topics()) == GGL_ERR_RETRY) {
+    while (subscribe_to_next_job_topics() != GGL_ERR_OK) {
         int64_t sleep_for = 1 << MIN(5, retries);
         ggl_sleep(sleep_for);
         ++retries;
     }
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Unable to retry subscriptions");
-    }
 
     retries = 1;
-    while ((ret = describe_next_job()) == GGL_ERR_RETRY) {
+    while (describe_next_job() != GGL_ERR_OK) {
         int64_t sleep_for = 1 << MIN(5, retries);
         ggl_sleep(sleep_for);
         ++retries;
-    }
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Unable to retry first publish");
     }
 }
 
@@ -632,15 +444,6 @@ GglError update_current_jobs_deployment(
 ) {
     if (!ggl_buffer_eq(deployment_id, current_deployment_id.buf)) {
         return GGL_ERR_NOENTRY;
-    }
-
-    if (ggl_buffer_eq(status, GGL_STR("SUCCEEDED"))) {
-        // TODO: hack
-        // Update messages can arrive at IoT Core out-of-order
-        // Which causes them to be rejected for version mismatch
-        // SUCCEEDED with Version 2 will be rejected if no
-        // update with Version 1 is first accepted
-        ggl_sleep(10);
     }
 
     // TODO: mutual exclusion

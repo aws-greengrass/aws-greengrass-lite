@@ -28,7 +28,7 @@ static void *job_listener_thread(void *ctx) {
 }
 
 GglError run_ggdeploymentd(const char *bin_path) {
-    GGL_LOGI("ggdeploymentd", "Started ggdeploymentd process.");
+    GGL_LOGI("Started ggdeploymentd process.");
 
     umask(0);
 
@@ -39,14 +39,14 @@ GglError run_ggdeploymentd(const char *bin_path) {
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &root_path
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("ggdeploymentd", "Failed to get root path from config.");
+        GGL_LOGW("Failed to get root path from config.");
         return ret;
     }
 
     int root_path_fd;
     ret = ggl_dir_open(root_path, O_PATH, false, &root_path_fd);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to open root_path.");
+        GGL_LOGE("Failed to open root_path.");
         return ret;
     }
 

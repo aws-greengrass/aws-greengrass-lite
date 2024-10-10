@@ -33,7 +33,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         = getenv("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT");
 
     if (socket_path == NULL) {
-        GGL_LOGE("recipe-runner", "IPC socket path env var not set.");
+        GGL_LOGE("IPC socket path env var not set.");
         return GGL_ERR_FAILURE;
     }
 
@@ -54,20 +54,20 @@ GglError runner(const RecipeRunnerArgs *args) {
     resp.data[resp.len] = '\0';
     int sys_ret = setenv("SVCUID", (char *) resp.data, true);
     if (sys_ret != 0) {
-        GGL_LOGE("recipe-runner", "setenv failed: %d.", errno);
+        GGL_LOGE("setenv failed: %d.", errno);
     }
 
     resp = GGL_BUF(resp_mem);
     resp.len -= 1;
     ret = ggipc_private_get_system_config(conn, GGL_STR("rootCaPath"), &resp);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe-runner", "Failed to get root CA path from config.");
+        GGL_LOGE("Failed to get root CA path from config.");
         return ret;
     }
     resp.data[resp.len] = '\0';
     sys_ret = setenv("GG_ROOT_CA_PATH", (char *) resp.data, true);
     if (sys_ret != 0) {
-        GGL_LOGE("recipe-runner", "setenv failed: %d.", errno);
+        GGL_LOGE("setenv failed: %d.", errno);
     }
 
     resp = GGL_BUF(resp_mem);
@@ -79,22 +79,22 @@ GglError runner(const RecipeRunnerArgs *args) {
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe-runner", "Failed to get region from config.");
+        GGL_LOGE("Failed to get region from config.");
         return ret;
     }
     resp.data[resp.len] = '\0';
     sys_ret = setenv("AWS_REGION", (char *) resp.data, true);
     if (sys_ret != 0) {
-        GGL_LOGE("recipe-runner", "setenv failed: %d.", errno);
+        GGL_LOGE("setenv failed: %d.", errno);
     }
     sys_ret = setenv("AWS_DEFAULT_REGION", (char *) resp.data, true);
     if (sys_ret != 0) {
-        GGL_LOGE("recipe-runner", "setenv failed: %d.", errno);
+        GGL_LOGE("setenv failed: %d.", errno);
     }
 
     sys_ret = setenv("GGC_VERSION", "0.0.1", true);
     if (sys_ret != 0) {
-        GGL_LOGE("recipe-runner", "setenv failed: %d.", errno);
+        GGL_LOGE("setenv failed: %d.", errno);
     }
 
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN + 1];
@@ -104,13 +104,13 @@ GglError runner(const RecipeRunnerArgs *args) {
         conn, GGL_STR("thingName"), &thing_name
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe-runner", "Failed to get thing name from config.");
+        GGL_LOGE("Failed to get thing name from config.");
         return ret;
     }
     thing_name.data[thing_name.len] = '\0';
     sys_ret = setenv("AWS_IOT_THING_NAME", (char *) thing_name.data, true);
     if (sys_ret != 0) {
-        GGL_LOGE("recipe-runner", "setenv failed: %d.", errno);
+        GGL_LOGE("setenv failed: %d.", errno);
     }
 
     GglBuffer root_path = GGL_BUF(resp_mem);
@@ -118,7 +118,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         conn, GGL_STR("rootPath"), &root_path
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe-runner", "Failed to get root path from config.");
+        GGL_LOGE("Failed to get root path from config.");
         return ret;
     }
 

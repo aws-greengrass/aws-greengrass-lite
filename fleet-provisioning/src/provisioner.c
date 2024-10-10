@@ -62,7 +62,6 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
     if (json_status != GGL_ERR_OK
         && config_template_param_json_obj.type != GGL_TYPE_MAP) {
         GGL_LOGI(
-            "fleet-provisioning",
             "Provided Parameter is not in Json format: %.*s",
             (int) template_param.len,
             template_param.data
@@ -102,7 +101,6 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
         = ggl_notify(iotcored, GGL_STR("publish"), thing_request_args);
     if (ret_thing_req_publish != 0) {
         GGL_LOGE(
-            "fleet-provisioning",
             "Failed to send notify message to %.*s",
             (int) iotcored.len,
             iotcored.data
@@ -110,7 +108,7 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
         return EPROTO;
     }
 
-    GGL_LOGI("fleet-provisioning", "Sent MQTT thing Register publish.");
+    GGL_LOGI("Sent MQTT thing Register publish.");
     return GGL_ERR_OK;
 }
 
@@ -229,11 +227,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             );
             if (fd < 0) {
                 int err = errno;
-                GGL_LOGE(
-                    "fleet-provisioning",
-                    "Failed to open certificate for writing: %d",
-                    err
-                );
+                GGL_LOGE("Failed to open certificate for writing: %d", err);
                 return GGL_ERR_FAILURE;
             }
 
@@ -265,7 +259,6 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 memcpy(global_cert_owenership, val->buf.data, val->buf.len);
 
                 GGL_LOGI(
-                    "fleet-provisioning",
                     "Global Certificate Ownership Val %.*s",
                     (int) val->buf.len,
                     global_cert_owenership
@@ -310,17 +303,13 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             }
 
             // Stop iotcored here
-            GGL_LOGI(
-                "fleet-provisioning",
-                "Process Complete, Your device is now provisioned"
-            );
+            GGL_LOGI("Process Complete, Your device is now provisioned");
             exec_kill_process(global_iotcored_pid);
 
             // TODO: Find a way to terminate cleanly with iotcored
         }
     } else {
         GGL_LOGI(
-            "fleet-provisioning",
             "Got message from IoT Core; topic: %.*s, payload: %.*s.",
             (int) topic->len,
             topic->data,
@@ -365,7 +354,6 @@ GglError make_request(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "fleet-provisioning",
             "Failed to send notify message to %.*s, Error: %d",
             (int) iotcored.len,
             iotcored.data,
@@ -373,9 +361,7 @@ GglError make_request(
         );
         return GGL_ERR_FAILURE;
     }
-    GGL_LOGI(
-        "fleet-provisioning", "Successfully set csr accepted subscription."
-    );
+    GGL_LOGI("Successfully set csr accepted subscription.");
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     ggl_sleep(2);
@@ -400,7 +386,6 @@ GglError make_request(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "fleet-provisioning",
             "Failed to send notify message to %.*s, Error: %d",
             (int) iotcored.len,
             iotcored.data,
@@ -408,9 +393,7 @@ GglError make_request(
         );
         return GGL_ERR_FAILURE;
     }
-    GGL_LOGI(
-        "fleet-provisioning", "Successfully set csr rejected subscription."
-    );
+    GGL_LOGI("Successfully set csr rejected subscription.");
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     ggl_sleep(2);
@@ -435,7 +418,6 @@ GglError make_request(
     );
     if (return_thing_sub != GGL_ERR_OK) {
         GGL_LOGE(
-            "fleet-provisioning",
             "Failed to send thing accepted notify message to %.*s, Error: %d",
             (int) iotcored.len,
             iotcored.data,
@@ -443,9 +425,7 @@ GglError make_request(
         );
         return GGL_ERR_FAILURE;
     }
-    GGL_LOGI(
-        "fleet-provisioning", "Successfully set thing accepted subscription."
-    );
+    GGL_LOGI("Successfully set thing accepted subscription.");
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     ggl_sleep(2);
@@ -479,7 +459,6 @@ GglError make_request(
     GglError ret_publish = ggl_notify(iotcored, GGL_STR("publish"), args);
     if (ret_publish != 0) {
         GGL_LOGE(
-            "fleet-provisioning",
             "Failed to send notify message to %.*s, Error:%d",
             (int) iotcored.len,
             iotcored.data,

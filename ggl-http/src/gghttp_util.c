@@ -54,7 +54,6 @@ static size_t write_response_to_buffer(
         output_buffer->len = size_of_response_data;
     } else {
         GGL_LOGE(
-            "gg_http_util",
             "Invalid memory space provided. Required size: %zu",
             size_of_response_data
         );
@@ -105,9 +104,7 @@ GglError gghttplib_init_curl(CurlData *curl_data, const char *url) {
     curl_data->curl = curl_easy_init();
 
     if (curl_data->curl == NULL) {
-        GGL_LOGE(
-            "init_curl", "Cannot create instance of curl for the url=%s", url
-        );
+        GGL_LOGE("Cannot create instance of curl for the url=%s", url);
         error = GGL_ERR_FAILURE;
     } else {
         curl_easy_setopt(curl_data->curl, CURLOPT_URL, url);
@@ -174,7 +171,7 @@ GglError gghttplib_add_sigv4_credential(
         ggl_byte_vec_chain_append(&err, &vector, request_data.aws_service);
         ggl_byte_vec_chain_push(&err, &vector, '\0');
         if (err != GGL_ERR_OK) {
-            GGL_LOGE("sigv4", "sigv4_param too small");
+            GGL_LOGE("sigv4_param too small");
             return err;
         }
         curl_easy_setopt(curl_data->curl, CURLOPT_AWS_SIGV4, sigv4_param);
@@ -192,7 +189,7 @@ GglError gghttplib_add_sigv4_credential(
         );
         ggl_byte_vec_chain_push(&err, &vector, '\0');
         if (err != GGL_ERR_OK) {
-            GGL_LOGE("sigv4", "sigv4_usrpwd too small");
+            GGL_LOGE("sigv4_usrpwd too small");
             return err;
         }
         curl_easy_setopt(curl_data->curl, CURLOPT_USERPWD, sigv4_usrpwd);
@@ -217,12 +214,10 @@ GglError gghttplib_process_request(
     CURLcode curl_error = curl_easy_perform(curl_data->curl);
     long http_status_code = 0;
     curl_easy_getinfo(curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code);
-    GGL_LOGI("process_request", "HTTP code: %ld", http_status_code);
+    GGL_LOGI("HTTP code: %ld", http_status_code);
     if (curl_error != CURLE_OK) {
         GGL_LOGE(
-            "process_request",
-            "curl_easy_perform() failed: %s",
-            curl_easy_strerror(curl_error)
+            "curl_easy_perform() failed: %s", curl_easy_strerror(curl_error)
         );
     }
 
@@ -250,12 +245,10 @@ GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
 
     long http_status_code = 0;
     curl_easy_getinfo(curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code);
-    GGL_LOGI("process_request", "HTTP code: %ld", http_status_code);
+    GGL_LOGI("HTTP code: %ld", http_status_code);
     if (curl_error != CURLE_OK) {
         GGL_LOGE(
-            "process_request",
-            "curl_easy_perform() failed: %s",
-            curl_easy_strerror(curl_error)
+            "curl_easy_perform() failed: %s", curl_easy_strerror(curl_error)
         );
     }
     gghttplib_destroy_curl(curl_data);

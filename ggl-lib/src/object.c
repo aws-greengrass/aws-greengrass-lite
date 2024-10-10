@@ -18,7 +18,7 @@ static GglError deep_copy_buf(GglBuffer *buf, GglAlloc *alloc) {
     }
     uint8_t *new_mem = GGL_ALLOCN(alloc, uint8_t, buf->len);
     if (new_mem == NULL) {
-        GGL_LOGE("object", "Insufficient memory when making deep copy.");
+        GGL_LOGE("Insufficient memory when making deep copy.");
         return GGL_ERR_NOMEM;
     }
     memcpy(new_mem, buf->data, buf->len);
@@ -33,7 +33,7 @@ static GglError deep_copy_list(GglList *list, GglAlloc *alloc) {
     }
     GglObject *new_mem = GGL_ALLOCN(alloc, GglObject, list->len);
     if (new_mem == NULL) {
-        GGL_LOGE("object", "Insufficient memory when making deep copy.");
+        GGL_LOGE("Insufficient memory when making deep copy.");
         return GGL_ERR_NOMEM;
     }
     memcpy(new_mem, list->items, list->len * sizeof(GglObject));
@@ -54,7 +54,7 @@ static GglError deep_copy_map(GglMap *map, GglAlloc *alloc) {
     }
     GglKV *new_mem = GGL_ALLOCN(alloc, GglKV, map->len);
     if (new_mem == NULL) {
-        GGL_LOGE("object", "Insufficient memory when making deep copy.");
+        GGL_LOGE("Insufficient memory when making deep copy.");
         return GGL_ERR_NOMEM;
     }
     memcpy(new_mem, map->pairs, map->len * sizeof(GglKV));
@@ -62,7 +62,7 @@ static GglError deep_copy_map(GglMap *map, GglAlloc *alloc) {
     for (size_t i = 0; i < map->len; i++) {
         uint8_t *key_mem = GGL_ALLOCN(alloc, uint8_t, new_mem[i].key.len);
         if (key_mem == NULL) {
-            GGL_LOGE("object", "Insufficient memory when making deep copy.");
+            GGL_LOGE("Insufficient memory when making deep copy.");
             return GGL_ERR_NOMEM;
         }
         memcpy(key_mem, new_mem[i].key.data, new_mem[i].key.len);
@@ -102,7 +102,7 @@ static GglError buffer_copy_buf(GglBuffer *buf, GglAlloc *alloc) {
     }
     uint8_t *new_mem = GGL_ALLOCN(alloc, uint8_t, buf->len);
     if (new_mem == NULL) {
-        GGL_LOGE("object", "Insufficient memory when copying buffers.");
+        GGL_LOGE("Insufficient memory when copying buffers.");
         return GGL_ERR_NOMEM;
     }
     memcpy(new_mem, buf->data, buf->len);
@@ -127,7 +127,7 @@ static GglError buffer_copy_map(GglMap *map, GglAlloc *alloc) {
         GglKV *kv = &map->pairs[i];
         uint8_t *mem = GGL_ALLOCN(alloc, uint8_t, kv->key.len);
         if (mem == NULL) {
-            GGL_LOGE("object", "Insufficient memory when copying buffers.");
+            GGL_LOGE("Insufficient memory when copying buffers.");
             return GGL_ERR_NOMEM;
         }
         memcpy(mem, kv->key.data, kv->key.len);

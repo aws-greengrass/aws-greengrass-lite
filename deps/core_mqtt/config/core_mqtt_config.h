@@ -20,13 +20,11 @@ pthread_mutex_t *coremqtt_get_state_mtx(const MQTTContext_t *ctx);
 #include "ggl/log.h"
 
 #define GGL_MQTT_LOGUNPACK(...) __VA_ARGS__
-#define GGL_MQTT_LOG2(fn, ...) fn("coreMQTT", __VA_ARGS__)
-#define GGL_MQTT_LOG(fn, ...) GGL_MQTT_LOG2(fn, __VA_ARGS__)
 
-#define LogDebug(body) GGL_MQTT_LOG(GGL_LOGD, GGL_MQTT_LOGUNPACK body)
-#define LogInfo(body) GGL_MQTT_LOG(GGL_LOGI, GGL_MQTT_LOGUNPACK body)
-#define LogWarn(body) GGL_MQTT_LOG(GGL_LOGW, GGL_MQTT_LOGUNPACK body)
-#define LogError(body) GGL_MQTT_LOG(GGL_LOGE, GGL_MQTT_LOGUNPACK body)
+#define LogDebug(body) GGL_LOGD(GGL_MQTT_LOGUNPACK body)
+#define LogInfo(body) GGL_LOGI(GGL_MQTT_LOGUNPACK body)
+#define LogWarn(body) GGL_LOGW(GGL_MQTT_LOGUNPACK body)
+#define LogError(body) GGL_LOGE(GGL_MQTT_LOGUNPACK body)
 
 #define MQTT_PRE_SEND_HOOK(pContext) \
     pthread_mutex_lock(coremqtt_get_send_mtx(pContext));

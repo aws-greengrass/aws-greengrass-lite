@@ -18,7 +18,7 @@ static GglError json_write(GglObject obj, GglBuffer *buf);
 
 static GglError buf_write(GglBuffer str, GglBuffer *buf) {
     if (buf->len < str.len) {
-        GGL_LOGE("json", "Insufficient buffer space to encode json.");
+        GGL_LOGE("Insufficient buffer space to encode json.");
         return GGL_ERR_NOMEM;
     }
 
@@ -47,11 +47,11 @@ static GglError json_write_bool(bool b, GglBuffer *buf) {
 static GglError json_write_i64(int64_t i64, GglBuffer *buf) {
     int ret = snprintf((char *) buf->data, buf->len, "%" PRId64, i64);
     if (ret < 0) {
-        GGL_LOGE("json", "Error encoding json.");
+        GGL_LOGE("Error encoding json.");
         return GGL_ERR_FAILURE;
     }
     if ((size_t) ret > buf->len) {
-        GGL_LOGE("json", "Insufficient buffer space to encode json.");
+        GGL_LOGE("Insufficient buffer space to encode json.");
         return GGL_ERR_NOMEM;
     }
     *buf = ggl_buffer_substr(*buf, (size_t) ret, SIZE_MAX);
@@ -61,11 +61,11 @@ static GglError json_write_i64(int64_t i64, GglBuffer *buf) {
 static GglError json_write_f64(double f64, GglBuffer *buf) {
     int ret = snprintf((char *) buf->data, buf->len, "%g", f64);
     if (ret < 0) {
-        GGL_LOGE("json", "Error encoding json.");
+        GGL_LOGE("Error encoding json.");
         return GGL_ERR_FAILURE;
     }
     if ((size_t) ret > buf->len) {
-        GGL_LOGE("json", "Insufficient buffer space to encode json.");
+        GGL_LOGE("Insufficient buffer space to encode json.");
         return GGL_ERR_NOMEM;
     }
     *buf = ggl_buffer_substr(*buf, (size_t) ret, SIZE_MAX);
@@ -94,11 +94,11 @@ static GglError json_write_buf(GglBuffer str, GglBuffer *buf) {
             int ret_len
                 = snprintf((char *) buf->data, buf->len, "\\u00%02X", byte);
             if (ret_len < 0) {
-                GGL_LOGE("json", "Error encoding json.");
+                GGL_LOGE("Error encoding json.");
                 return GGL_ERR_FAILURE;
             }
             if ((size_t) ret_len > buf->len) {
-                GGL_LOGE("json", "Insufficient buffer space to encode json.");
+                GGL_LOGE("Insufficient buffer space to encode json.");
                 return GGL_ERR_NOMEM;
             }
             *buf = ggl_buffer_substr(*buf, (size_t) ret_len, SIZE_MAX);

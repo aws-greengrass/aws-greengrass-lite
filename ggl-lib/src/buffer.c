@@ -83,7 +83,7 @@ GglError ggl_str_to_int64(GglBuffer str, int64_t *value) {
     }
 
     if (i == str.len) {
-        GGL_LOGE("buffer", "Insufficient characters when parsing int64.");
+        GGL_LOGE("Insufficient characters when parsing int64.");
         return GGL_ERR_INVALID;
     }
 
@@ -91,18 +91,18 @@ GglError ggl_str_to_int64(GglBuffer str, int64_t *value) {
         uint8_t c = str.data[i];
 
         if ((c < '0') || (c > '9')) {
-            GGL_LOGE("buffer", "Invalid character %c when parsing int64.", c);
+            GGL_LOGE("Invalid character %c when parsing int64.", c);
             return GGL_ERR_INVALID;
         }
 
         if (mult_overflow_int64(ret, 10U)) {
-            GGL_LOGE("buffer", "Overflow when parsing int64 from buffer.");
+            GGL_LOGE("Overflow when parsing int64 from buffer.");
             return GGL_ERR_RANGE;
         }
         ret *= 10;
 
         if (add_overflow_int64(ret, sign * (c - '0'))) {
-            GGL_LOGE("buffer", "Overflow when parsing int64 from buffer.");
+            GGL_LOGE("Overflow when parsing int64 from buffer.");
             return GGL_ERR_RANGE;
         }
         ret += sign * (c - '0');
@@ -119,9 +119,7 @@ GglError ggl_buf_clone(GglBuffer buf, GglAlloc *alloc, GglBuffer *out) {
     }
     uint8_t *new_mem = GGL_ALLOCN(alloc, uint8_t, buf.len);
     if (new_mem == NULL) {
-        GGL_LOGE(
-            "buffer", "Insufficient memory when cloning buffer into %p.", alloc
-        );
+        GGL_LOGE("Insufficient memory when cloning buffer into %p.", alloc);
         return GGL_ERR_NOMEM;
     }
     memcpy(new_mem, buf.data, buf.len);

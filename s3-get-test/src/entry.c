@@ -68,7 +68,7 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
         GglObject *aws_session_token = NULL;
 
         if (result.type != GGL_TYPE_MAP) {
-            GGL_LOGE("s3-test", "Result not a map");
+            GGL_LOGE("Result not a map");
             return GGL_ERR_FAILURE;
         }
 
@@ -130,9 +130,7 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
                     close(fd);
                     break;
                 }
-                GGL_LOGD(
-                    "s3-test", "%.*s", (int) bytes_read, big_buffer_for_bump
-                );
+                GGL_LOGD("%.*s", (int) bytes_read, big_buffer_for_bump);
             }
         }
 

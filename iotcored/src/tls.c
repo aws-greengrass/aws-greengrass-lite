@@ -28,7 +28,7 @@ GglError iotcored_tls_connect(const IotcoredArgs *args, IotcoredTlsCtx **ctx) {
 
     SSL_CTX *ssl_ctx = SSL_CTX_new(TLS_client_method());
     if (ssl_ctx == NULL) {
-        GGL_LOGE("ssl", "Failed to create openssl context.");
+        GGL_LOGE("Failed to create openssl context.");
         return GGL_ERR_NOMEM;
     }
 
@@ -36,40 +36,40 @@ GglError iotcored_tls_connect(const IotcoredArgs *args, IotcoredTlsCtx **ctx) {
     SSL_CTX_set_mode(ssl_ctx, SSL_MODE_AUTO_RETRY);
 
     if (SSL_CTX_load_verify_file(ssl_ctx, args->rootca) != 1) {
-        GGL_LOGE("ssl", "Failed to load root CA.");
+        GGL_LOGE("Failed to load root CA.");
         return GGL_ERR_CONFIG;
     }
 
     if (SSL_CTX_use_certificate_file(ssl_ctx, args->cert, SSL_FILETYPE_PEM)
         != 1) {
-        GGL_LOGE("ssl", "Failed to load client certificate.");
+        GGL_LOGE("Failed to load client certificate.");
         return GGL_ERR_CONFIG;
     }
 
     if (SSL_CTX_use_PrivateKey_file(ssl_ctx, args->key, SSL_FILETYPE_PEM)
         != 1) {
-        GGL_LOGE("ssl", "Failed to load client private key.");
+        GGL_LOGE("Failed to load client private key.");
         return GGL_ERR_CONFIG;
     }
 
     if (SSL_CTX_check_private_key(ssl_ctx) != 1) {
-        GGL_LOGE("ssl", "Client certificate and private key do not match.");
+        GGL_LOGE("Client certificate and private key do not match.");
         return GGL_ERR_CONFIG;
     }
 
     BIO *bio = BIO_new_ssl_connect(ssl_ctx);
     if (bio == NULL) {
-        GGL_LOGE("ssl", "Failed to create openssl BIO.");
+        GGL_LOGE("Failed to create openssl BIO.");
         return GGL_ERR_FATAL;
     }
 
     if (BIO_set_conn_port(bio, "8883") != 1) {
-        GGL_LOGE("ssl", "Failed to set port.");
+        GGL_LOGE("Failed to set port.");
         return GGL_ERR_FATAL;
     }
 
     if (BIO_set_conn_hostname(bio, args->endpoint) != 1) {
-        GGL_LOGE("ssl", "Failed to set hostname.");
+        GGL_LOGE("Failed to set hostname.");
         return GGL_ERR_FATAL;
     }
 
@@ -77,17 +77,17 @@ GglError iotcored_tls_connect(const IotcoredArgs *args, IotcoredTlsCtx **ctx) {
     BIO_get_ssl(bio, &ssl);
 
     if (SSL_set_tlsext_host_name(ssl, args->endpoint) != 1) {
-        GGL_LOGE("ssl", "Failed to configure SNI.");
+        GGL_LOGE("Failed to configure SNI.");
         return GGL_ERR_FATAL;
     }
 
     if (SSL_do_handshake(ssl) != 1) {
-        GGL_LOGE("ssl", "Failed TLS handshake.");
+        GGL_LOGE("Failed TLS handshake.");
         return GGL_ERR_FAILURE;
     }
 
     if (SSL_get_verify_result(ssl) != X509_V_OK) {
-        GGL_LOGE("ssl", "Failed TLS server certificate verification.");
+        GGL_LOGE("Failed TLS server certificate verification.");
         return GGL_ERR_FAILURE;
     }
 
@@ -99,7 +99,7 @@ GglError iotcored_tls_connect(const IotcoredArgs *args, IotcoredTlsCtx **ctx) {
 
     *ctx = &conn;
 
-    GGL_LOGI("ssl", "Successfully connected.");
+    GGL_LOGI("Successfully connected.");
     return 0;
 }
 
@@ -118,7 +118,7 @@ GglError iotcored_tls_read(IotcoredTlsCtx *ctx, GglBuffer *buf) {
     int ret = SSL_read_ex(ssl, buf->data, buf->len, &read_bytes);
 
     if (ret != 1) {
-        GGL_LOGE("ssl", "Read failed.");
+        GGL_LOGE("Read failed.");
         return GGL_ERR_FAILURE;
     }
 
@@ -140,7 +140,7 @@ GglError iotcored_tls_write(IotcoredTlsCtx *ctx, GglBuffer buf) {
     int ret = SSL_write_ex(ssl, buf.data, buf.len, &written);
 
     if (ret != 1) {
-        GGL_LOGE("ssl", "Write failed.");
+        GGL_LOGE("Write failed.");
         return GGL_ERR_FAILURE;
     }
 

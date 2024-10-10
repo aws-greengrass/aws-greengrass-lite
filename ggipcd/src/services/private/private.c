@@ -43,7 +43,7 @@ GglError handle_get_system_config(
         args, GGL_MAP_SCHEMA({ GGL_STR("key"), true, GGL_TYPE_BUF, &key_obj })
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("GetSystemConfig", "Received invalid parameters.");
+        GGL_LOGE("Received invalid parameters.");
         return GGL_ERR_INVALID;
     }
 

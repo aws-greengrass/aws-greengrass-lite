@@ -95,7 +95,7 @@ static GglError get_thing_name(char **thing_name) {
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("ggdeploymentd", "Failed to get thing name from config.");
+        GGL_LOGW("Failed to get thing name from config.");
         return ret;
     }
     resp.data[resp.len] = '\0';
@@ -118,7 +118,7 @@ static GglError get_region(GglByteVec *region) {
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("ggdeploymentd", "Failed to get region from config.");
+        GGL_LOGW("Failed to get region from config.");
         return ret;
     }
 
@@ -139,7 +139,7 @@ static GglError get_root_ca_path(char **root_ca_path) {
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")), &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("ggdeploymentd", "Failed to get rootCaPath from config.");
+        GGL_LOGW("Failed to get rootCaPath from config.");
         return ret;
     }
     resp.data[resp.len] = '\0';
@@ -163,7 +163,7 @@ static GglError get_tes_cred_url(char **tes_cred_url) {
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("ggdeploymentd", "Failed to get tesCredUrl from config.");
+        GGL_LOGW("Failed to get tesCredUrl from config.");
         return ret;
     }
     resp.data[resp.len] = '\0';
@@ -188,7 +188,7 @@ static GglError get_posix_user(char **posix_user) {
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("ggdeploymentd", "Failed to get posixUser from config.");
+        GGL_LOGW("Failed to get posixUser from config.");
         return ret;
     }
     resp.data[resp.len] = '\0';
@@ -220,15 +220,11 @@ static GglError get_data_endpoint(GglByteVec *endpoint) {
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW(
-            "ggdeploymentd", "Failed to get dataplane endpoint from config."
-        );
+        GGL_LOGW("Failed to get dataplane endpoint from config.");
         return ret;
     }
     if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "ggdeploymentd", "Configuration dataplane endpoint is not a string."
-        );
+        GGL_LOGE("Configuration dataplane endpoint is not a string.");
         return GGL_ERR_INVALID;
     }
 
@@ -258,13 +254,11 @@ static GglError get_data_port(GglByteVec *port) {
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("ggdeploymentd", "Failed to get dataplane port from config.");
+        GGL_LOGW("Failed to get dataplane port from config.");
         return ret;
     }
     if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "ggdeploymentd", "Configuration dataplane port is not a string."
-        );
+        GGL_LOGE("Configuration dataplane port is not a string.");
         return GGL_ERR_INVALID;
     }
 
@@ -291,15 +285,11 @@ static GglError get_private_key_path(GglByteVec *pkey_path) {
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW(
-            "ggdeploymentd", "Failed to get private key path from config."
-        );
+        GGL_LOGW("Failed to get private key path from config.");
         return ret;
     }
     if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "ggdeploymentd", "Configuration private key path is not a string."
-        );
+        GGL_LOGE("Configuration private key path is not a string.");
         return GGL_ERR_INVALID;
     }
 
@@ -329,15 +319,11 @@ static GglError get_cert_path(GglByteVec *cert_path) {
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW(
-            "ggdeploymentd", "Failed to get certificate path from config."
-        );
+        GGL_LOGW("Failed to get certificate path from config.");
         return ret;
     }
     if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "ggdeploymentd", "Configuration certificate path is not a string."
-        );
+        GGL_LOGE("Configuration certificate path is not a string.");
         return GGL_ERR_INVALID;
     }
 
@@ -366,11 +352,11 @@ static GglError get_rootca_path(GglByteVec *rootca_path) {
         &resp
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("ggdeploymentd", "Failed to get rootca path from config.");
+        GGL_LOGW("Failed to get rootca path from config.");
         return ret;
     }
     if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE("ggdeploymentd", "Configuration rootca path is not a string.");
+        GGL_LOGE("Configuration rootca path is not a string.");
         return GGL_ERR_INVALID;
     }
 
@@ -400,7 +386,7 @@ static GglError get_tes_credentials(TesCredentials *tes_creds) {
         &result
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get TES credentials.");
+        GGL_LOGE("Failed to get TES credentials.");
         return GGL_ERR_FAILURE;
     }
 
@@ -416,8 +402,7 @@ static GglError get_tes_credentials(TesCredentials *tes_creds) {
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "ggdeploymentd", "Failed to validate TES credentials."
+        GGL_LOGE("Failed to validate TES credentials."
 
         );
         return GGL_ERR_FAILURE;
@@ -477,7 +462,7 @@ static GglError download_greengrass_artifact(
         return err;
     }
 
-    GGL_LOGI("ggdeploymentd", "Getting presigned S3 URL");
+    GGL_LOGI("Getting presigned S3 URL");
     GglBuffer response_buffer = GGL_BUF(response_data);
     err = gg_dataplane_call(
         ggl_buffer_from_null_term(config.data_endpoint),
@@ -519,7 +504,7 @@ static GglError download_greengrass_artifact(
     // it's in the middle of a JSON blob.
     presigned_url->buf.data[presigned_url->buf.len] = '\0';
 
-    GGL_LOGI("ggdeploymentd", "Getting presigned S3 URL artifact");
+    GGL_LOGI("Getting presigned S3 URL artifact");
 
     return generic_download(
         (const char *) (presigned_url->buf.data), artifact_fd
@@ -532,14 +517,14 @@ static GglError find_artifacts_list(
     GglObject *cursor = NULL;
     // TODO: use recipe-2-unit recipe parser for manifest selection
     if (!ggl_map_get(recipe, GGL_STR("Manifests"), &cursor)) {
-        GGL_LOGW("ggdeploymentd", "Manifests is missing");
+        GGL_LOGW("Manifests is missing");
         return GGL_ERR_OK;
     }
     if (cursor->type != GGL_TYPE_LIST) {
         return GGL_ERR_PARSE;
     }
     if (cursor->list.len == 0) {
-        GGL_LOGW("ggdeploymentd", "Manifests is empty");
+        GGL_LOGW("Manifests is empty");
         return GGL_ERR_OK;
     }
     // FIXME: assumes first manifest is the right one
@@ -670,9 +655,7 @@ static GglError get_recipe_artifacts(
         GGL_DEFER(ggl_close, artifact_fd);
 
         if (err != GGL_ERR_OK) {
-            GGL_LOGE(
-                "ggdeployment", "Failed to create artifact file for write."
-            );
+            GGL_LOGE("Failed to create artifact file for write.");
             return err;
         }
 
@@ -689,11 +672,8 @@ static GglError get_recipe_artifacts(
                 artifact_fd
             );
         } else {
-            GGL_LOGE("ggdeploymentd", "Unknown artifact URI scheme");
-            return GGL_ERR_PARSE;
-        }
-        if (err != GGL_ERR_OK) {
-            return err;
+            GGL_LOGE("Unknown artifact URI scheme");
+            err = GGL_ERR_PARSE;
         }
 
         // Unarchive the ZIP file if needed
@@ -718,42 +698,42 @@ static GglError get_device_thing_groups(GglBuffer *response) {
     GglByteVec data_endpoint = GGL_BYTE_VEC(config.data_endpoint);
     GglError ret = get_data_endpoint(&data_endpoint);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get dataplane endpoint.");
+        GGL_LOGE("Failed to get dataplane endpoint.");
         return ret;
     }
 
     GglByteVec region = GGL_BYTE_VEC(config.region);
     ret = get_region(&region);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get region.");
+        GGL_LOGE("Failed to get region.");
         return ret;
     }
 
     GglByteVec port = GGL_BYTE_VEC(config.port);
     ret = get_data_port(&port);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get dataplane port.");
+        GGL_LOGE("Failed to get dataplane port.");
         return ret;
     }
 
     GglByteVec pkey_path = GGL_BYTE_VEC(config.pkey_path);
     ret = get_private_key_path(&pkey_path);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get private key path.");
+        GGL_LOGE("Failed to get private key path.");
         return ret;
     }
 
     GglByteVec cert_path = GGL_BYTE_VEC(config.cert_path);
     ret = get_cert_path(&cert_path);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get certificate path.");
+        GGL_LOGE("Failed to get certificate path.");
         return ret;
     }
 
     GglByteVec rootca_path = GGL_BYTE_VEC(config.rootca_path);
     ret = get_rootca_path(&rootca_path);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get certificate path.");
+        GGL_LOGE("Failed to get certificate path.");
         return ret;
     }
 
@@ -765,7 +745,7 @@ static GglError get_device_thing_groups(GglBuffer *response) {
     char *thing_name = NULL;
     ret = get_thing_name(&thing_name);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get thing name.");
+        GGL_LOGE("Failed to get thing name.");
         return ret;
     }
 
@@ -778,6 +758,11 @@ static GglError get_device_thing_groups(GglBuffer *response) {
         &ret, &uri_path_vec, ggl_buffer_from_null_term(thing_name)
     );
     ggl_byte_vec_chain_append(&ret, &uri_path_vec, GGL_STR("/thingGroups"));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create thing groups call uri.");
+        return ret;
+    }
+
     ret = gg_dataplane_call(
         data_endpoint.buf,
         port.buf,
@@ -788,7 +773,6 @@ static GglError get_device_thing_groups(GglBuffer *response) {
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "ggdeploymentd",
             "The listThingGroupsForCoreDevice call failed with response %.*s.",
             (int) response->len,
             response->data
@@ -797,7 +781,6 @@ static GglError get_device_thing_groups(GglBuffer *response) {
     }
 
     GGL_LOGD(
-        "ggdeploymentd",
         "Received response from thingGroups dataplane call: %.*s",
         (int) response->len,
         response->data
@@ -837,7 +820,7 @@ static GglError generate_resolve_component_candidates_body(
     );
     ggl_byte_vec_chain_push(&byte_vec_ret, body_vec, '\0');
 
-    GGL_LOGD("ggdeploymentd", "Body for call: %s", body_vec->buf.data);
+    GGL_LOGD("Body for call: %s", body_vec->buf.data);
 
     return GGL_ERR_OK;
 }
@@ -853,52 +836,49 @@ static GglError resolve_component_with_cloud(
         component_name, version_requirements, &body_vec
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "ggdeploymentd",
-            "Failed to generate body for resolveComponentCandidates call"
-        );
+        GGL_LOGE("Failed to generate body for resolveComponentCandidates call");
         return ret;
     }
 
     GglByteVec data_endpoint = GGL_BYTE_VEC(config.data_endpoint);
     ret = get_data_endpoint(&data_endpoint);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get dataplane endpoint.");
+        GGL_LOGE("Failed to get dataplane endpoint.");
         return ret;
     }
 
     GglByteVec region = GGL_BYTE_VEC(config.region);
     ret = get_region(&region);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get region.");
+        GGL_LOGE("Failed to get region.");
         return ret;
     }
 
     GglByteVec port = GGL_BYTE_VEC(config.port);
     ret = get_data_port(&port);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get dataplane port.");
+        GGL_LOGE("Failed to get dataplane port.");
         return ret;
     }
 
     GglByteVec pkey_path = GGL_BYTE_VEC(config.pkey_path);
     ret = get_private_key_path(&pkey_path);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get private key path.");
+        GGL_LOGE("Failed to get private key path.");
         return ret;
     }
 
     GglByteVec cert_path = GGL_BYTE_VEC(config.cert_path);
     ret = get_cert_path(&cert_path);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get certificate path.");
+        GGL_LOGE("Failed to get certificate path.");
         return ret;
     }
 
     GglByteVec rootca_path = GGL_BYTE_VEC(config.rootca_path);
     ret = get_rootca_path(&rootca_path);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Failed to get certificate path.");
+        GGL_LOGE("Failed to get certificate path.");
         return ret;
     }
 
@@ -917,7 +897,6 @@ static GglError resolve_component_with_cloud(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "ggdeploymentd",
             "Cloud resolution for the component failed with response %.*s.",
             (int) response->len,
             response->data
@@ -926,7 +905,6 @@ static GglError resolve_component_with_cloud(
     }
 
     GGL_LOGD(
-        "ggdeploymentd",
         "Received response from resolveComponentCandidates: %.*s",
         (int) response->len,
         response->data
@@ -948,20 +926,14 @@ static GglError parse_dataplane_response_and_save_recipe(
         dataplane_response, &balloc.alloc, &json_candidates_response_obj
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "ggdeploymentd",
-            "Error when parsing resolveComponentCandidates response to "
-            "json."
-        );
+        GGL_LOGE("Error when parsing resolveComponentCandidates response to "
+                 "json.");
         return ret;
     }
 
     if (json_candidates_response_obj.type != GGL_TYPE_MAP) {
-        GGL_LOGE(
-            "ggdeploymentd",
-            "resolveComponentCandidates response did not parse into a "
-            "map."
-        );
+        GGL_LOGE("resolveComponentCandidates response did not parse into a "
+                 "map.");
         return ret;
     }
 
@@ -971,13 +943,11 @@ static GglError parse_dataplane_response_and_save_recipe(
             GGL_STR("resolvedComponentVersions"),
             &resolved_component_versions
         )) {
-        GGL_LOGE("ggdeploymentd", "Missing resolvedComponentVersions.");
+        GGL_LOGE("Missing resolvedComponentVersions.");
         return ret;
     }
     if (resolved_component_versions->type != GGL_TYPE_LIST) {
-        GGL_LOGE(
-            "ggdeploymentd", "resolvedComponentVersions response is not a list."
-        );
+        GGL_LOGE("resolvedComponentVersions response is not a list.");
         return ret;
     }
 
@@ -985,7 +955,6 @@ static GglError parse_dataplane_response_and_save_recipe(
     GGL_LIST_FOREACH(resolved_version, resolved_component_versions->list) {
         if (!first_component) {
             GGL_LOGE(
-                "ggdeploymentd",
                 "resolveComponentCandidates returned information for more than "
                 "one component."
             );
@@ -994,7 +963,7 @@ static GglError parse_dataplane_response_and_save_recipe(
         first_component = false;
 
         if (resolved_version->type != GGL_TYPE_MAP) {
-            GGL_LOGE("ggdeploymentd", "Resolved version is not of type map.");
+            GGL_LOGE("Resolved version is not of type map.");
             return ret;
         }
 
@@ -1031,28 +1000,24 @@ static GglError parse_dataplane_response_and_save_recipe(
 
         if (vendor_guidance != NULL) {
             if (ggl_buffer_eq(vendor_guidance->buf, GGL_STR("DISCONTINUED"))) {
-                GGL_LOGW(
-                    "ggdeploymentd",
-                    "The component version has been discontinued by "
-                    "its "
-                    "publisher. You can deploy this component version, "
-                    "but "
-                    "we recommend that you use a different version of "
-                    "this "
-                    "component"
-                );
+                GGL_LOGW("The component version has been discontinued by "
+                         "its "
+                         "publisher. You can deploy this component version, "
+                         "but "
+                         "we recommend that you use a different version of "
+                         "this "
+                         "component");
             }
         }
 
         if (recipe_file_content->buf.len == 0) {
-            GGL_LOGE("ggdeploymentd", "Recipe is empty.");
+            GGL_LOGE("Recipe is empty.");
         }
 
         ggl_base64_decode_in_place(&recipe_file_content->buf);
         recipe_file_content->buf.data[recipe_file_content->buf.len] = '\0';
 
         GGL_LOGD(
-            "ggdeploymentd",
             "Decoded recipe data as: %.*s",
             (int) recipe_file_content->buf.len,
             recipe_file_content->buf.data
@@ -1069,6 +1034,10 @@ static GglError parse_dataplane_response_and_save_recipe(
         // to a .yaml and relying on yaml being an almost-superset of
         // json.
         ggl_byte_vec_chain_append(&ret, &recipe_name_vec, GGL_STR(".yaml"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to create recipe file name.");
+            return ret;
+        }
 
         static uint8_t recipe_dir_buf[PATH_MAX];
         GglByteVec recipe_dir_vec = GGL_BYTE_VEC(recipe_dir_buf);
@@ -1079,14 +1048,16 @@ static GglError parse_dataplane_response_and_save_recipe(
         ggl_byte_vec_chain_append(
             &ret, &recipe_dir_vec, GGL_STR("/packages/recipes/")
         );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to create recipe directory name.");
+            return ret;
+        }
 
         // Write file
         int root_dir_fd = -1;
         ret = ggl_dir_open(recipe_dir_vec.buf, O_PATH, true, &root_dir_fd);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "ggdeploymentd", "Failed to open dir when writing cloud recipe."
-            );
+            GGL_LOGE("Failed to open dir when writing cloud recipe.");
             return ret;
         }
 
@@ -1099,25 +1070,18 @@ static GglError parse_dataplane_response_and_save_recipe(
             &fd
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "Failed to open file at the dir when writing cloud "
-                "recipe."
-            );
+            GGL_LOGE("Failed to open file at the dir when writing cloud "
+                     "recipe.");
             return ret;
         }
 
         ret = ggl_write_exact(fd, recipe_file_content->buf);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("ggdeploymentd", "Write to cloud recipe file failed");
+            GGL_LOGE("Write to cloud recipe file failed");
             return ret;
         }
 
-        GGL_LOGD(
-            "ggdeploymentd",
-            "Saved recipe under the name %s",
-            recipe_name_vec.buf.data
-        );
+        GGL_LOGD("Saved recipe under the name %s", recipe_name_vec.buf.data);
 
         ret = ggl_gg_config_write(
             GGL_BUF_LIST(GGL_STR("services"), cloud_component_name->buf, ),
@@ -1125,7 +1089,7 @@ static GglError parse_dataplane_response_and_save_recipe(
             1
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("ggdeploymentd", "Write of arn to config failed");
+            GGL_LOGE("Write of arn to config failed");
             return ret;
         }
     }
@@ -1154,11 +1118,8 @@ static GglError resolve_dependencies(
     // TODO: Add current deployment's thing group to components map to config
     GGL_MAP_FOREACH(pair, root_components) {
         if (pair->val.type != GGL_TYPE_MAP) {
-            GGL_LOGE(
-                "ggdeploymentd",
-                "Incorrect formatting for cloud deployment components "
-                "field."
-            );
+            GGL_LOGE("Incorrect formatting for cloud deployment components "
+                     "field.");
             return GGL_ERR_INVALID;
         }
 
@@ -1166,7 +1127,7 @@ static GglError resolve_dependencies(
         GglBuffer component_version = { 0 };
         if (ggl_map_get(pair->val.map, GGL_STR("version"), &val)) {
             if (val->type != GGL_TYPE_BUF) {
-                GGL_LOGE("ggdeploymentd", "Received invalid argument.");
+                GGL_LOGE("Received invalid argument.");
                 return GGL_ERR_INVALID;
             }
             component_version = val->buf;
@@ -1196,8 +1157,9 @@ static GglError resolve_dependencies(
         // it in this map.
 
         GglBuffer resolved_version = { 0 };
-        // bool found_local_candidate = resolve_component_version(pair->key,
-        // pair->val.buf, &resolved_version);
+        // bool found_local_candidate = resolve_component_version(
+        //     pair->key, pair->val.buf, &resolved_version
+        // );
         bool found_local_candidate = false;
         if (!found_local_candidate) {
             // Resolve with cloud and download recipe
@@ -1219,7 +1181,6 @@ static GglError resolve_dependencies(
 
             if (is_empty_response) {
                 GGL_LOGI(
-                    "ggdeploymentd",
                     "Cloud version resolution failed for component %.*s.",
                     (int) pair->key.len,
                     pair->val.buf.data
@@ -1247,7 +1208,6 @@ static GglError resolve_dependencies(
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "ggdeploymentd",
                 "Error while adding component to list of resolved component"
             );
             return ret;
@@ -1275,9 +1235,7 @@ static GglError resolve_dependencies(
         GglObject *component_dependencies = NULL;
 
         if (recipe_obj.type != GGL_TYPE_MAP) {
-            GGL_LOGE(
-                "ggdeploymentd", "Recipe object did not parse into a map."
-            );
+            GGL_LOGE("Recipe object did not parse into a map.");
             return GGL_ERR_INVALID;
         }
 
@@ -1297,7 +1255,6 @@ static GglError resolve_dependencies(
             GGL_MAP_FOREACH(dependency, component_dependencies->map) {
                 if (dependency->val.type != GGL_TYPE_MAP) {
                     GGL_LOGE(
-                        "ggdeploymentd",
                         "Component dependency in recipe does not have map data"
                     );
                     return GGL_ERR_INVALID;
@@ -1337,12 +1294,9 @@ static GglError resolve_dependencies(
                         dep_version_requirement->buf
                     );
                     if (!meets_requirements) {
-                        GGL_LOGE(
-                            "ggdeploymentd",
-                            "Already resolved component does not meet new "
-                            "dependency requirement, failing dependency "
-                            "resolution."
-                        );
+                        GGL_LOGE("Already resolved component does not meet new "
+                                 "dependency requirement, failing dependency "
+                                 "resolution.");
                         return GGL_ERR_FAILURE;
                     }
                 }
@@ -1374,6 +1328,11 @@ static GglError resolve_dependencies(
                         ggl_byte_vec_chain_append(
                             &ret, &new_req_vec, dep_version_requirement->buf
                         );
+                        if (ret != GGL_ERR_OK) {
+                            GGL_LOGE("Failed to create new requirements for "
+                                     "dependency version.");
+                            return ret;
+                        }
 
                         *existing_requirements = GGL_OBJ(new_req_vec.buf);
                     }
@@ -1448,7 +1407,7 @@ static void handle_deployment(
             GGL_STR("/packages/recipes")
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("ggdeploymentd", "Failed to copy recipes.");
+            GGL_LOGE("Failed to copy recipes.");
             return;
         }
     }
@@ -1460,7 +1419,7 @@ static void handle_deployment(
             GGL_STR("/packages/artifacts")
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("ggdeploymentd", "Failed to copy artifacts.");
+            GGL_LOGE("Failed to copy artifacts.");
             return;
         }
     }
@@ -1479,7 +1438,6 @@ static void handle_deployment(
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "ggdeploymentd",
                 "Failed to do dependency resolution for deployment, failing "
                 "deployment."
             );
@@ -1510,7 +1468,7 @@ static void handle_deployment(
             &artifact_store_fd
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("ggdeploymentd", "Failed to open artifact store");
+            GGL_LOGE("Failed to open artifact store");
             return;
         }
 
@@ -1554,15 +1512,13 @@ static void handle_deployment(
                 &recipe_obj
             );
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE(
-                    "ggdeploymentd", "Failed to validate and decode recipe"
-                );
+                GGL_LOGE("Failed to validate and decode recipe");
                 return;
             }
 
             GglBuffer component_arn = GGL_BUF(component_arn_buffer);
             if (component_arn.data == NULL) {
-                GGL_LOGE("ggdeploymentd", "Failed to retrieve arn");
+                GGL_LOGE("Failed to retrieve arn");
                 return;
             }
 
@@ -1571,7 +1527,7 @@ static void handle_deployment(
                 &component_arn
             );
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to retrieve arn");
+                GGL_LOGE("Failed to retrieve arn");
                 return;
             }
 
@@ -1585,71 +1541,70 @@ static void handle_deployment(
             );
 
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE(
-                    "ggdeploymentd", "Failed to get artifacts from recipe."
-                );
+                GGL_LOGE("Failed to get artifacts from recipe.");
                 return;
             }
 
-            // TODO: Replace with new recipe2unit c script/do not lazy copy
-            // paste
-            char recipe_path[PATH_MAX] = { 0 };
-            strncat(
-                recipe_path, (char *) args->root_path.data, args->root_path.len
+            // FIXME: Don't only support yaml extensions.
+            static uint8_t recipe_path_buf[PATH_MAX];
+            GglByteVec recipe_path_vec = GGL_BYTE_VEC(recipe_path_buf);
+            ret = ggl_byte_vec_append(&recipe_path_vec, args->root_path);
+            ggl_byte_vec_chain_append(
+                &ret, &recipe_path_vec, GGL_STR("/packages/recipes/")
             );
-            strncat(
-                recipe_path, "/packages/recipes/", strlen("/packages/recipes/")
-            );
-            strncat(recipe_path, (char *) pair->key.data, pair->key.len);
-            strncat(recipe_path, "-", strlen("-"));
-            strncat(
-                recipe_path, (char *) pair->val.buf.data, pair->val.buf.len
-            );
-            strncat(recipe_path, ".yaml", strlen(".yaml"));
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->key);
+            ggl_byte_vec_chain_push(&ret, &recipe_path_vec, '-');
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->val.buf);
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, GGL_STR(".yaml"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create recipe path.");
+                return;
+            }
 
-            char recipe_runner_path[PATH_MAX] = { 0 };
-            strncat(recipe_runner_path, args->bin_path, strlen(args->bin_path));
-            strncat(
-                recipe_runner_path, "recipe-runner", strlen("recipe-runner")
+            static uint8_t recipe_runner_path_buf[PATH_MAX];
+            GglByteVec recipe_runner_path_vec
+                = GGL_BYTE_VEC(recipe_runner_path_buf);
+            ret = ggl_byte_vec_append(
+                &recipe_runner_path_vec,
+                ggl_buffer_from_null_term((char *) args->bin_path)
             );
-
-            char socket_path[PATH_MAX] = { 0 };
-            strncat(
-                socket_path, (char *) args->root_path.data, args->root_path.len
+            ggl_byte_vec_chain_append(
+                &ret, &recipe_runner_path_vec, GGL_STR("recipe-runner")
             );
-            strncat(socket_path, "/gg-ipc.socket", strlen("/gg-ipc.socket"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create recipe runner path.");
+                return;
+            }
 
             char *thing_name = NULL;
             ret = get_thing_name(&thing_name);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to get thing name.");
+                GGL_LOGE("Failed to get thing name.");
                 return;
             }
 
             char *root_ca_path = NULL;
             ret = get_root_ca_path(&root_ca_path);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to get rootCaPath.");
+                GGL_LOGE("Failed to get rootCaPath.");
                 return;
             }
 
             char *tes_cred_url = NULL;
             ret = get_tes_cred_url(&tes_cred_url);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to get tes credentials url.");
+                GGL_LOGE("Failed to get tes credentials url.");
                 return;
             }
 
             char *posix_user = NULL;
             ret = get_posix_user(&posix_user);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to get posix_user.");
+                GGL_LOGE("Failed to get posix_user.");
                 return;
             }
             if (strlen(posix_user) < 1) {
-                GGL_LOGE(
-                    "ggdeploymentd", "Run with default posix user is not set."
-                );
+                GGL_LOGE("Run with default posix user is not set.");
                 return;
             }
             bool colon_found = false;
@@ -1666,34 +1621,17 @@ static void handle_deployment(
                 group = posix_user;
             }
 
-            char artifact_path[PATH_MAX] = { 0 };
-            strncat(
-                artifact_path,
-                (char *) args->root_path.data,
-                args->root_path.len
-            );
-            strncat(
-                artifact_path,
-                "/packages/artifacts/",
-                strlen("/packages/artifacts/")
-            );
-            strncat(artifact_path, (char *) pair->key.data, pair->key.len);
-            strncat(artifact_path, "/", strlen("/"));
-            strncat(
-                artifact_path, (char *) pair->val.buf.data, pair->val.buf.len
-            );
-
             Recipe2UnitArgs recipe2unit_args
                 = { .user = posix_user, .group = group };
             memcpy(
                 recipe2unit_args.recipe_path,
-                recipe_path,
-                strnlen(recipe_path, PATH_MAX)
+                recipe_path_vec.buf.data,
+                recipe_path_vec.buf.len
             );
             memcpy(
                 recipe2unit_args.recipe_runner_path,
-                recipe_runner_path,
-                strnlen(recipe_runner_path, PATH_MAX)
+                recipe_runner_path_vec.buf.data,
+                recipe_runner_path_vec.buf.len
             );
             memcpy(
                 recipe2unit_args.root_dir,
@@ -1727,10 +1665,7 @@ static void handle_deployment(
                     &intermediate_obj
                 )) {
                 if (intermediate_obj->type != GGL_TYPE_MAP) {
-                    GGL_LOGE(
-                        "Deployment Handler",
-                        "ComponentConfiguration is not a map type"
-                    );
+                    GGL_LOGE("ComponentConfiguration is not a map type");
                     return;
                 }
 
@@ -1750,117 +1685,137 @@ static void handle_deployment(
                     );
 
                     if (ret != GGL_ERR_OK) {
+                        GGL_LOGE("Failed to send default config to ggconfigd.");
+                        return;
+                    }
+
+                    // add component version to the config
+                    ret = ggl_gg_config_write(
+                        GGL_BUF_LIST(
+                            GGL_STR("services"),
+                            component_name->buf,
+                            GGL_STR("version")
+                        ),
+                        pair->val,
+                        0
+                    );
+                    if (ret != GGL_ERR_OK) {
                         GGL_LOGE(
-                            "Deployment Handler",
-                            "Failed to send default config to ggconfigd."
+                            "Failed to send component version to ggconfigd."
                         );
                         return;
                     }
                 } else {
-                    GGL_LOGI(
-                        "Deployment Handler",
-                        "DefaultConfiguration not found in the recipe."
-                    );
+                    GGL_LOGI("DefaultConfiguration not found in the recipe.");
                 }
             } else {
-                GGL_LOGI(
-                    "Deployment Handler",
-                    "ComponentConfiguration not found in the recipe"
-                );
+                GGL_LOGI("ComponentConfiguration not found in the recipe");
             }
 
             // TODO: add install file processing logic here.
 
-            char service_file_path[PATH_MAX] = { 0 };
-            strncat(service_file_path, "ggl.", strlen("ggl."));
-            strncat(service_file_path, (char *) pair->key.data, pair->key.len);
-            strncat(service_file_path, ".service", strlen(".service"));
+            static uint8_t service_file_path_buf[PATH_MAX];
+            GglByteVec service_file_path_vec
+                = GGL_BYTE_VEC(service_file_path_buf);
+            ret = ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
+            ggl_byte_vec_chain_append(&ret, &service_file_path_vec, pair->key);
+            ggl_byte_vec_chain_append(
+                &ret, &service_file_path_vec, GGL_STR(".service")
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create service file path.");
+                return;
+            }
 
-            char link_command[PATH_MAX] = { 0 };
-            strncat(
-                link_command,
-                "sudo systemctl link ",
-                strlen("sudo systemctl link ")
+            static uint8_t link_command_buf[PATH_MAX];
+            GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
+            ret = ggl_byte_vec_append(
+                &link_command_vec, GGL_STR("sudo systemctl link ")
             );
-            strncat(
-                link_command,
-                (const char *) args->root_path.data,
-                args->root_path.len
+            ggl_byte_vec_chain_append(&ret, &link_command_vec, args->root_path);
+            ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
+            ggl_byte_vec_chain_append(
+                &ret, &link_command_vec, service_file_path_vec.buf
             );
-            strncat(link_command, "/", strlen("/"));
-            strncat(link_command, service_file_path, strlen(service_file_path));
+            ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create systemctl link command.");
+                return;
+            }
+
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            int system_ret = system(link_command);
+            int system_ret = system((char *) link_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("ggdeploymentd", "systemctl link failed");
+                    GGL_LOGE("systemctl link failed");
                     return;
                 }
                 GGL_LOGI(
-                    "ggdeploymentd",
                     "systemctl link exited with child status %d\n",
                     WEXITSTATUS(system_ret)
                 );
             } else {
-                GGL_LOGE(
-                    "ggdeploymentd", "systemctl link did not exit normally"
-                );
+                GGL_LOGE("systemctl link did not exit normally");
                 return;
             }
 
-            char start_command[PATH_MAX] = { 0 };
-            strncat(
-                start_command,
-                "sudo systemctl start ",
-                strlen("sudo systemctl start ")
+            static uint8_t start_command_buf[PATH_MAX];
+            GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
+            ret = ggl_byte_vec_append(
+                &start_command_vec, GGL_STR("sudo systemctl start ")
             );
-            strncat(
-                start_command, service_file_path, strlen(service_file_path)
+            ggl_byte_vec_chain_append(
+                &ret, &start_command_vec, service_file_path_vec.buf
             );
+            ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create systemctl start command.");
+                return;
+            }
+
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system(start_command);
+            system_ret = system((char *) start_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("ggdeploymentd", "systemctl start failed");
+                    GGL_LOGE("systemctl start failed");
                     return;
                 }
                 GGL_LOGI(
-                    "ggdeploymentd",
                     "systemctl start exited with child status %d\n",
                     WEXITSTATUS(system_ret)
                 );
             } else {
-                GGL_LOGE(
-                    "ggdeploymentd", "systemctl start did not exit normally"
-                );
+                GGL_LOGE("systemctl start did not exit normally");
                 return;
             }
 
-            char enable_command[PATH_MAX] = { 0 };
-            strncat(
-                enable_command,
-                "sudo systemctl enable ",
-                strlen("sudo systemctl enable ")
+            static uint8_t enable_command_buf[PATH_MAX];
+            GglByteVec enable_command_vec = GGL_BYTE_VEC(enable_command_buf);
+            ret = ggl_byte_vec_append(
+                &enable_command_vec, GGL_STR("sudo systemctl enable ")
             );
-            strncat(
-                enable_command, service_file_path, strlen(service_file_path)
+            ggl_byte_vec_chain_append(
+                &ret, &enable_command_vec, service_file_path_vec.buf
             );
+            ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create systemctl enable command.");
+                return;
+            }
+
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system(enable_command);
+            system_ret = system((char *) enable_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("ggdeploymentd", "systemctl enable failed");
+                    GGL_LOGE("systemctl enable failed");
                     return;
                 }
                 GGL_LOGI(
-                    "ggdeploymentd",
                     "systemctl enable exited with child status %d\n",
                     WEXITSTATUS(system_ret)
                 );
             } else {
-                GGL_LOGE(
-                    "ggdeploymentd", "systemctl enable did not exit normally"
-                );
+                GGL_LOGE("systemctl enable did not exit normally");
                 return;
             }
         }
@@ -1869,67 +1824,71 @@ static void handle_deployment(
     if (deployment->root_component_versions_to_add.len != 0) {
         GGL_MAP_FOREACH(pair, deployment->root_component_versions_to_add) {
             if (pair->val.type != GGL_TYPE_BUF) {
-                GGL_LOGE("ggdeploymentd", "Component version is not a buffer.");
+                GGL_LOGE("Component version is not a buffer.");
                 return;
             }
 
-            char recipe_path[PATH_MAX] = { 0 };
-            strncat(
-                recipe_path, (char *) args->root_path.data, args->root_path.len
+            // FIXME: Don't only support yaml extensions.
+            static uint8_t recipe_path_buf[PATH_MAX];
+            GglByteVec recipe_path_vec = GGL_BYTE_VEC(recipe_path_buf);
+            GglError ret
+                = ggl_byte_vec_append(&recipe_path_vec, args->root_path);
+            ggl_byte_vec_chain_append(
+                &ret, &recipe_path_vec, GGL_STR("/packages/recipes/")
             );
-            strncat(
-                recipe_path, "/packages/recipes/", strlen("/packages/recipes/")
-            );
-            strncat(recipe_path, (char *) pair->key.data, pair->key.len);
-            strncat(recipe_path, "-", strlen("-"));
-            strncat(
-                recipe_path, (char *) pair->val.buf.data, pair->val.buf.len
-            );
-            strncat(recipe_path, ".yaml", strlen(".yaml"));
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->key);
+            ggl_byte_vec_chain_push(&ret, &recipe_path_vec, '-');
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->val.buf);
+            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, GGL_STR(".yaml"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create recipe path.");
+                return;
+            }
 
-            char recipe_runner_path[PATH_MAX] = { 0 };
-            strncat(recipe_runner_path, args->bin_path, strlen(args->bin_path));
-            strncat(
-                recipe_runner_path, "recipe-runner", strlen("recipe-runner")
+            static uint8_t recipe_runner_path_buf[PATH_MAX];
+            GglByteVec recipe_runner_path_vec
+                = GGL_BYTE_VEC(recipe_runner_path_buf);
+            ret = ggl_byte_vec_append(
+                &recipe_runner_path_vec,
+                ggl_buffer_from_null_term((char *) args->bin_path)
             );
-
-            char socket_path[PATH_MAX] = { 0 };
-            strncat(
-                socket_path, (char *) args->root_path.data, args->root_path.len
+            ggl_byte_vec_chain_append(
+                &ret, &recipe_runner_path_vec, GGL_STR("recipe-runner")
             );
-            strncat(socket_path, "/gg-ipc.socket", strlen("/gg-ipc.socket"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create recipe runner path.");
+                return;
+            }
 
             char *thing_name = NULL;
-            GglError ret = get_thing_name(&thing_name);
+            ret = get_thing_name(&thing_name);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to get thing name.");
+                GGL_LOGE("Failed to get thing name.");
                 return;
             }
 
             GglByteVec region = GGL_BYTE_VEC(config.region);
             ret = get_region(&region);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to get region.");
+                GGL_LOGE("Failed to get region.");
                 return;
             }
 
             char *root_ca_path = NULL;
             ret = get_root_ca_path(&root_ca_path);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to get rootCaPath.");
+                GGL_LOGE("Failed to get rootCaPath.");
                 return;
             }
 
             char *posix_user = NULL;
             ret = get_posix_user(&posix_user);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("ggdeploymentd", "Failed to get posix_user.");
+                GGL_LOGE("Failed to get posix_user.");
                 return;
             }
             if (strlen(posix_user) < 1) {
-                GGL_LOGE(
-                    "ggdeploymentd", "Run with default posix user is not set."
-                );
+                GGL_LOGE("Run with default posix user is not set.");
                 return;
             }
             bool colon_found = false;
@@ -1946,35 +1905,18 @@ static void handle_deployment(
                 group = posix_user;
             }
 
-            char artifact_path[PATH_MAX] = { 0 };
-            strncat(
-                artifact_path,
-                (char *) args->root_path.data,
-                args->root_path.len
-            );
-            strncat(
-                artifact_path,
-                "/packages/artifacts/",
-                strlen("/packages/artifacts/")
-            );
-            strncat(artifact_path, (char *) pair->key.data, pair->key.len);
-            strncat(artifact_path, "/", strlen("/"));
-            strncat(
-                artifact_path, (char *) pair->val.buf.data, pair->val.buf.len
-            );
-
             Recipe2UnitArgs recipe2unit_args
                 = { .group = group, .user = posix_user };
-            GGL_LOGI("Deployment Handler", "Recipepath %s", recipe_path);
+            GGL_LOGI("Recipe path %s", recipe_path_vec.buf.data);
             memcpy(
                 recipe2unit_args.recipe_path,
-                recipe_path,
-                strnlen(recipe_path, PATH_MAX)
+                recipe_path_vec.buf.data,
+                recipe_path_vec.buf.len
             );
             memcpy(
                 recipe2unit_args.recipe_runner_path,
-                recipe_runner_path,
-                strnlen(recipe_runner_path, PATH_MAX)
+                recipe_runner_path_vec.buf.data,
+                recipe_runner_path_vec.buf.len
             );
             memcpy(
                 recipe2unit_args.root_dir,
@@ -2008,10 +1950,7 @@ static void handle_deployment(
                     &intermediate_obj
                 )) {
                 if (intermediate_obj->type != GGL_TYPE_MAP) {
-                    GGL_LOGE(
-                        "Deployment Handler",
-                        "ComponentConfiguration is not a map type"
-                    );
+                    GGL_LOGE("ComponentConfiguration is not a map type");
                     return;
                 }
 
@@ -2031,117 +1970,117 @@ static void handle_deployment(
                     );
 
                     if (ret != GGL_ERR_OK) {
-                        GGL_LOGE(
-                            "Deployment Handler",
-                            "Failed to send default config to ggconfigd."
-                        );
+                        GGL_LOGE("Failed to send default config to ggconfigd.");
                         return;
                     }
                 } else {
-                    GGL_LOGI(
-                        "Deployment Handler",
-                        "DefaultConfiguration not found in the recipe."
-                    );
+                    GGL_LOGI("DefaultConfiguration not found in the recipe.");
                 }
             } else {
-                GGL_LOGI(
-                    "Deployment Handler",
-                    "ComponentConfiguration not found in the recipe"
-                );
+                GGL_LOGI("ComponentConfiguration not found in the recipe");
             }
 
             // TODO: add install file processing logic here.
 
-            char service_file_path[PATH_MAX] = { 0 };
-            strncat(service_file_path, "ggl.", strlen("ggl."));
-            strncat(service_file_path, (char *) pair->key.data, pair->key.len);
-            strncat(service_file_path, ".service", strlen(".service"));
+            static uint8_t service_file_path_buf[PATH_MAX];
+            GglByteVec service_file_path_vec
+                = GGL_BYTE_VEC(service_file_path_buf);
+            ret = ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
+            ggl_byte_vec_chain_append(&ret, &service_file_path_vec, pair->key);
+            ggl_byte_vec_chain_append(
+                &ret, &service_file_path_vec, GGL_STR(".service")
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create service file path.");
+                return;
+            }
 
-            char link_command[PATH_MAX] = { 0 };
-            strncat(
-                link_command,
-                "sudo systemctl link ",
-                strlen("sudo systemctl link ")
+            static uint8_t link_command_buf[PATH_MAX];
+            GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
+            ret = ggl_byte_vec_append(
+                &link_command_vec, GGL_STR("sudo systemctl link ")
             );
-            strncat(
-                link_command,
-                (const char *) args->root_path.data,
-                args->root_path.len
+            ggl_byte_vec_chain_append(&ret, &link_command_vec, args->root_path);
+            ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
+            ggl_byte_vec_chain_append(
+                &ret, &link_command_vec, service_file_path_vec.buf
             );
-            strncat(link_command, "/", strlen("/"));
-            strncat(link_command, service_file_path, strlen(service_file_path));
+            ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create systemctl link command.");
+                return;
+            }
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            int system_ret = system(link_command);
+            int system_ret = system((char *) link_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("ggdeploymentd", "systemctl link failed");
+                    GGL_LOGE("systemctl link failed");
                     return;
                 }
                 GGL_LOGI(
-                    "ggdeploymentd",
                     "systemctl link exited with child status %d\n",
                     WEXITSTATUS(system_ret)
                 );
             } else {
-                GGL_LOGE(
-                    "ggdeploymentd", "systemctl link did not exit normally"
-                );
+                GGL_LOGE("systemctl link did not exit normally");
                 return;
             }
 
-            char start_command[PATH_MAX] = { 0 };
-            strncat(
-                start_command,
-                "sudo systemctl start ",
-                strlen("sudo systemctl start ")
+            static uint8_t start_command_buf[PATH_MAX];
+            GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
+            ret = ggl_byte_vec_append(
+                &start_command_vec, GGL_STR("sudo systemctl start ")
             );
-            strncat(
-                start_command, service_file_path, strlen(service_file_path)
+            ggl_byte_vec_chain_append(
+                &ret, &start_command_vec, service_file_path_vec.buf
             );
+            ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create systemctl start command.");
+                return;
+            }
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system(start_command);
+            system_ret = system((char *) start_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("ggdeploymentd", "systemctl start failed");
+                    GGL_LOGE("systemctl start failed");
                     return;
                 }
                 GGL_LOGI(
-                    "ggdeploymentd",
                     "systemctl start exited with child status %d\n",
                     WEXITSTATUS(system_ret)
                 );
             } else {
-                GGL_LOGE(
-                    "ggdeploymentd", "systemctl start did not exit normally"
-                );
+                GGL_LOGE("systemctl start did not exit normally");
                 return;
             }
 
-            char enable_command[PATH_MAX] = { 0 };
-            strncat(
-                enable_command,
-                "sudo systemctl enable ",
-                strlen("sudo systemctl enable ")
+            static uint8_t enable_command_buf[PATH_MAX];
+            GglByteVec enable_command_vec = GGL_BYTE_VEC(enable_command_buf);
+            ret = ggl_byte_vec_append(
+                &enable_command_vec, GGL_STR("sudo systemctl enable ")
             );
-            strncat(
-                enable_command, service_file_path, strlen(service_file_path)
+            ggl_byte_vec_chain_append(
+                &ret, &enable_command_vec, service_file_path_vec.buf
             );
+            ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create systemctl enable command.");
+                return;
+            }
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system(enable_command);
+            system_ret = system((char *) enable_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
                 if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("ggdeploymentd", "systemctl enable failed");
+                    GGL_LOGE("systemctl enable failed");
                     return;
                 }
                 GGL_LOGI(
-                    "ggdeploymentd",
                     "systemctl enable exited with child status %d\n",
                     WEXITSTATUS(system_ret)
                 );
             } else {
-                GGL_LOGE(
-                    "ggdeploymentd", "systemctl enable did not exit normally"
-                );
+                GGL_LOGE("systemctl enable did not exit normally");
                 return;
             }
         }
@@ -2157,7 +2096,7 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             return ret;
         }
 
-        GGL_LOGI("deployment-handler", "Processing incoming deployment.");
+        GGL_LOGI("Processing incoming deployment.");
 
         update_current_jobs_deployment(
             deployment->deployment_id, GGL_STR("IN_PROGRESS")
@@ -2165,7 +2104,7 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 
         handle_deployment(deployment, args);
 
-        GGL_LOGD("deployment-handler", "Completed deployment.");
+        GGL_LOGD("Completed deployment.");
 
         // TODO: need error details from handle_deployment
         update_current_jobs_deployment(
@@ -2177,11 +2116,11 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 }
 
 void *ggl_deployment_handler_thread(void *ctx) {
-    GGL_LOGD("deployment-handler", "Starting deployment processing thread.");
+    GGL_LOGD("Starting deployment processing thread.");
 
     (void) ggl_deployment_listen(ctx);
 
-    GGL_LOGE("deployment-handler", "Deployment thread exiting due to failure.");
+    GGL_LOGE("Deployment thread exiting due to failure.");
 
     // This is safe as long as only this thread will ever call exit.
 

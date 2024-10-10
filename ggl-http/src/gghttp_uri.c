@@ -101,7 +101,7 @@ GglError gg_uri_parse(GglAlloc *alloc, GglBuffer uri, GglUriInfo *info) {
         &mem
     );
     if (uri_error != URI_SUCCESS) {
-        GGL_LOGE("uri-parse", "Failed to parse URI");
+        GGL_LOGE("Failed to parse URI");
         return convert_uriparser_error(uri_error);
     }
 
@@ -115,11 +115,9 @@ GglError gg_uri_parse(GglAlloc *alloc, GglBuffer uri, GglUriInfo *info) {
     }
     uriFreeUriMembersMmA(&result, &mem);
 
-    GGL_LOGD(
-        "uri-decode", "Scheme: %.*s", (int) info->scheme.len, info->scheme.data
-    );
-    GGL_LOGD("uri-decode", "Host: %.*s", (int) info->host.len, info->host.data);
-    GGL_LOGD("uri-decode", "Path: %.*s", (int) info->path.len, info->path.data);
+    GGL_LOGD("Scheme: %.*s", (int) info->scheme.len, info->scheme.data);
+    GGL_LOGD("Host: %.*s", (int) info->host.len, info->host.data);
+    GGL_LOGD("Path: %.*s", (int) info->path.len, info->path.data);
 
     return GGL_ERR_OK;
 }

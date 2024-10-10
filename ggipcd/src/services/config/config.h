@@ -9,5 +9,6 @@
 
 GglIpcOperationHandler ggl_handle_get_configuration;
 GglIpcOperationHandler ggl_handle_update_configuration;
+GglIpcOperationHandler ggl_handle_subscribe_to_configuration_update;
 
 #endif

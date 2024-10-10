@@ -17,24 +17,24 @@
 static void generate_keys(EVP_PKEY **pkey) {
     EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
     if (!ctx) {
-        GGL_LOGE("fleet-provisioning", "Error creating context.");
+        GGL_LOGE("Error creating context.");
         return;
     }
 
     if (EVP_PKEY_keygen_init(ctx) <= 0) {
-        GGL_LOGE("fleet-provisioning", "Error initializing keygen.");
+        GGL_LOGE("Error initializing keygen.");
         EVP_PKEY_CTX_free(ctx);
         return;
     }
 
     if (EVP_PKEY_CTX_set_rsa_keygen_bits(ctx, KEY_LENGTH) <= 0) {
-        GGL_LOGE("fleet-provisioning", "Error setting RSA keygen bits.");
+        GGL_LOGE("Error setting RSA keygen bits.");
         EVP_PKEY_CTX_free(ctx);
         return;
     }
 
     if (EVP_PKEY_keygen(ctx, pkey) <= 0) {
-        GGL_LOGE("fleet-provisioning", "Error generating RSA key.");
+        GGL_LOGE("Error generating RSA key.");
         EVP_PKEY_CTX_free(ctx);
         return;
     }
@@ -83,7 +83,7 @@ void generate_key_files(
     generate_keys(&pkey);
 
     if (pkey == NULL) {
-        GGL_LOGE("fleet-provisioning", "Failed to Generate Certificate");
+        GGL_LOGE("Failed to Generate Certificate");
         return;
     }
     // Save private key

@@ -34,7 +34,7 @@ GglError publish_message(GglBuffer thing_name) {
 
     // build topic name
     if (thing_name.len > MAX_THING_NAME_LEN) {
-        GGL_LOGE("fss", "Thing name too long.");
+        GGL_LOGE("Thing name too long.");
         return GGL_ERR_RANGE;
     }
 
@@ -74,6 +74,6 @@ GglError publish_message(GglBuffer thing_name) {
         return ret;
     }
 
-    GGL_LOGI("Fleet Status Service", "Published update");
+    GGL_LOGI("Published update");
     return GGL_ERR_OK;
 }

@@ -35,7 +35,7 @@ GglError ggl_handle_publish_to_topic(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("PublishToTopic", "Received invalid paramters.");
+        GGL_LOGE("Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
 
@@ -49,16 +49,13 @@ GglError ggl_handle_publish_to_topic(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("PublishToTopic", "Received invalid paramters.");
+        GGL_LOGE("Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
 
     if ((json_message == NULL) == (binary_message == NULL)) {
-        GGL_LOGE(
-            "PublishToTopic",
-            "publishMessage must have exactly one of binaryMessage or "
-            "jsonMessage."
-        );
+        GGL_LOGE("publishMessage must have exactly one of binaryMessage or "
+                 "jsonMessage.");
         return GGL_ERR_INVALID;
     }
 
@@ -70,13 +67,13 @@ GglError ggl_handle_publish_to_topic(
         GGL_MAP_SCHEMA({ GGL_STR("message"), true, GGL_TYPE_BUF, &message }, )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("PublishToTopic", "Received invalid paramters.");
+        GGL_LOGE("Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
 
     ret = ggl_ipc_auth(info, topic->buf, ggl_ipc_default_policy_matcher);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("PublishToTopic", "IPC Operation not authorized.");
+        GGL_LOGE("IPC Operation not authorized.");
         return GGL_ERR_INVALID;
     }
 

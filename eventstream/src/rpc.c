@@ -24,19 +24,19 @@ GglError eventstream_get_common_headers(
     while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
         if (ggl_buffer_eq(header.name, GGL_STR(":message-type"))) {
             if (header.value.type != EVENTSTREAM_INT32) {
-                GGL_LOGE("ipc-server", ":message-type header not Int32.");
+                GGL_LOGE(":message-type header not Int32.");
                 return GGL_ERR_INVALID;
             }
             message_type = header.value.int32;
         } else if (ggl_buffer_eq(header.name, GGL_STR(":message-flags"))) {
             if (header.value.type != EVENTSTREAM_INT32) {
-                GGL_LOGE("ipc-server", ":message-flags header not Int32.");
+                GGL_LOGE(":message-flags header not Int32.");
                 return GGL_ERR_INVALID;
             }
             message_flags = header.value.int32;
         } else if (ggl_buffer_eq(header.name, GGL_STR(":stream-id"))) {
             if (header.value.type != EVENTSTREAM_INT32) {
-                GGL_LOGE("ipc-server", ":stream-id header not Int32.");
+                GGL_LOGE(":stream-id header not Int32.");
                 return GGL_ERR_INVALID;
             }
             stream_id = header.value.int32;

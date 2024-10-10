@@ -61,7 +61,7 @@ GglError ggl_call(
     if (result != NULL) {
         ret = ggl_deserialize(alloc, true, msg.payload, result);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("core-bus-client", "Failed to decode response payload.");
+            GGL_LOGE("Failed to decode response payload.");
             return ret;
         }
     }

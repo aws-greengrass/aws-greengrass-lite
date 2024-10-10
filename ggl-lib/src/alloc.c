@@ -12,13 +12,9 @@ void *ggl_alloc(GglAlloc *alloc, size_t size, size_t alignment) {
     void *ret = alloc->ALLOC(alloc, size, alignment);
 
     if (ret == NULL) {
-        GGL_LOGW(
-            "ggl-lib", "[%p] Failed alloc %zu bytes.", (void *) alloc, size
-        );
+        GGL_LOGW("[%p] Failed alloc %zu bytes.", (void *) alloc, size);
     } else {
-        GGL_LOGT(
-            "ggl-lib", "[%p] alloc %p, len %zu.", (void *) alloc, ret, size
-        );
+        GGL_LOGT("[%p] alloc %p, len %zu.", (void *) alloc, ret, size);
     }
 
     return ret;
@@ -27,7 +23,7 @@ void *ggl_alloc(GglAlloc *alloc, size_t size, size_t alignment) {
 void ggl_free(GglAlloc *alloc, void *ptr) {
     assert(alloc != NULL);
 
-    GGL_LOGT("ggl-lib", "[%p] Free %p", (void *) alloc, ptr);
+    GGL_LOGT("[%p] Free %p", (void *) alloc, ptr);
 
     if ((alloc->FREE != NULL) && (ptr != NULL)) {
         alloc->FREE(alloc, ptr);

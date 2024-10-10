@@ -23,7 +23,7 @@ static GglError subscribe_to_topic_callback(
     (void) alloc;
 
     if (data.type != GGL_TYPE_MAP) {
-        GGL_LOGE("SubscribeToTopic", "Subscription response not a map.");
+        GGL_LOGE("Subscription response not a map.");
         return GGL_ERR_FAILURE;
     }
 
@@ -39,7 +39,7 @@ static GglError subscribe_to_topic_callback(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("SubscribeToTopic", "Received invalid subscription response.");
+        GGL_LOGE("Received invalid subscription response.");
         return GGL_ERR_FAILURE;
     }
     GglBuffer type = type_obj->buf;
@@ -52,7 +52,6 @@ static GglError subscribe_to_topic_callback(
         is_json = false;
     } else {
         GGL_LOGE(
-            "SubscribeToTopic",
             "Received unknown subscription response type: %.*s.",
             (int) type.len,
             type.data
@@ -76,10 +75,7 @@ static GglError subscribe_to_topic_callback(
         response
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "SubscribeToTopic",
-            "Failed to send subscription response; skipping."
-        );
+        GGL_LOGE("Failed to send subscription response; skipping.");
         return GGL_ERR_OK;
     }
 
@@ -101,13 +97,13 @@ GglError ggl_handle_subscribe_to_topic(
         GGL_MAP_SCHEMA({ GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj }, )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("SubscribeToTopic", "Received invalid parameters.");
+        GGL_LOGE("Received invalid parameters.");
         return GGL_ERR_INVALID;
     }
 
     ret = ggl_ipc_auth(info, topic_obj->buf, ggl_ipc_default_policy_matcher);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("SubscribeToTopic", "IPC Operation not authorized.");
+        GGL_LOGE("IPC Operation not authorized.");
         return GGL_ERR_INVALID;
     }
 

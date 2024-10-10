@@ -46,7 +46,7 @@ static GglError init_subs_index(
         }
     }
 
-    GGL_LOGE("ipc-server", "Exceeded maximum tracked subscriptions.");
+    GGL_LOGE("Exceeded maximum tracked subscriptions.");
     return GGL_ERR_NOMEM;
 }
 
@@ -59,10 +59,7 @@ static void release_subs_index(size_t index, uint32_t resp_handle) {
         subs_stream_id[index] = 0;
         subs_recv_handle[index] = 0;
     } else {
-        GGL_LOGD(
-            "ipc-server",
-            "Releasing subscription state failed; already released."
-        );
+        GGL_LOGD("Releasing subscription state failed; already released.");
     }
 }
 
@@ -80,9 +77,7 @@ static GglError subs_set_recv_handle(
         return GGL_ERR_OK;
     }
 
-    GGL_LOGD(
-        "ipc-server",
-        "Setting subscription recv handle failed; state already released."
+    GGL_LOGD("Setting subscription recv handle failed; state already released."
     );
     return GGL_ERR_FAILURE;
 }
@@ -110,7 +105,7 @@ static GglError subscription_on_response(
     }
 
     if (!found) {
-        GGL_LOGD("ipc-server", "Received response on released subscription.");
+        GGL_LOGD("Received response on released subscription.");
         return GGL_ERR_FAILURE;
     }
 
@@ -136,7 +131,7 @@ static void subscription_on_close(void *ctx, uint32_t recv_handle) {
         }
     }
 
-    GGL_LOGD("ipc-server", "Already released subscription closed.");
+    GGL_LOGD("Already released subscription closed.");
 }
 
 GglError ggl_ipc_bind_subscription(

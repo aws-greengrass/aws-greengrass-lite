@@ -12,9 +12,9 @@
 GglError run_semver_test(void) {
     bool ret = is_in_range(GGL_STR("1.1.0"), GGL_STR(">=2.1.0"));
     if (ret) {
-        GGL_LOGI("SEMVER-test", "Satisfies requirement/s");
+        GGL_LOGI("Satisfies requirement/s");
     } else {
-        GGL_LOGI("SEMVER-test", "Does not satisfy requirement/s");
+        GGL_LOGI("Does not satisfy requirement/s");
     }
     return GGL_ERR_OK;
 }
