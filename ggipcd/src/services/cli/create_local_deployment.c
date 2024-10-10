@@ -44,10 +44,7 @@ GglError ggl_handle_create_local_deployment(
             pair->key = GGL_STR("component_to_configuration");
         } else {
             GGL_LOGE(
-                "CreateLocalDeployment",
-                "Unhandled argument: %.*s",
-                (int) pair->key.len,
-                pair->key.data
+                "Unhandled argument: %.*s", (int) pair->key.len, pair->key.data
             );
         }
     }
@@ -55,7 +52,7 @@ GglError ggl_handle_create_local_deployment(
     GglError ret
         = ggl_ipc_auth(info, GGL_STR(""), ggl_ipc_default_policy_matcher);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("CreateLocalDeployment", "IPC Operation not authorized.");
+        GGL_LOGE("IPC Operation not authorized.");
         return GGL_ERR_INVALID;
     }
 
@@ -70,12 +67,12 @@ GglError ggl_handle_create_local_deployment(
     );
 
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("CreateLocalDeployment", "Failed to create local deployment.");
+        GGL_LOGE("Failed to create local deployment.");
         return ret;
     }
 
     if (result.type != GGL_TYPE_BUF) {
-        GGL_LOGE("CreateLocalDeployment", "Response not a string.");
+        GGL_LOGE("Response not a string.");
         return GGL_ERR_FAILURE;
     }
 

@@ -25,10 +25,7 @@ static GglError subscribe_to_configuration_update_callback(
     (void) alloc;
 
     if (data.type != GGL_TYPE_LIST) {
-        GGL_LOGE(
-            "SubscribeToConfigurationUpdate",
-            "Received invalid subscription response, expected a List."
-        );
+        GGL_LOGE("Received invalid subscription response, expected a List.");
         return GGL_ERR_FAILURE;
     }
 
@@ -56,7 +53,6 @@ static GglError subscribe_to_configuration_update_callback(
     );
     if (err != GGL_ERR_OK) {
         GGL_LOGE(
-            "SubscribeToConfigurationUpdate",
             "Failed to send subscription response with error %s; skipping.",
             ggl_strerror(err)
         );
@@ -88,9 +84,7 @@ GglError ggl_handle_subscribe_to_configuration_update(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "SubscribeToConfigurationUpdate", "Received invalid paramters."
-        );
+        GGL_LOGE("Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
 
@@ -104,9 +98,7 @@ GglError ggl_handle_subscribe_to_configuration_update(
     } else {
         ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "SubscribeToConfigurationUpdate", "Received invalid paramters."
-            );
+            GGL_LOGE("Received invalid paramters.");
             return GGL_ERR_INVALID;
         }
     }

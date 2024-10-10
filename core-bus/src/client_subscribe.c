@@ -74,19 +74,14 @@ static int epoll_fd = -1;
 __attribute__((constructor)) static void start_subscription_thread(void) {
     GglError ret = ggl_socket_epoll_create(&epoll_fd);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "core-bus-client",
-            "Failed to create epoll for subscription responses."
-        );
+        GGL_LOGE("Failed to create epoll for subscription responses.");
         _Exit(1);
     }
 
     pthread_t sub_thread = { 0 };
     int sys_ret = pthread_create(&sub_thread, NULL, subscription_thread, NULL);
     if (sys_ret != 0) {
-        GGL_LOGE(
-            "core-bus-client", "Failed to create subscription response thread."
-        );
+        GGL_LOGE("Failed to create subscription response thread.");
         _Exit(1);
     }
     pthread_detach(sub_thread);
@@ -110,9 +105,9 @@ static void get_sub_callbacks(void *ctx, size_t index) {
 
 static GglError call_close_callback(uint32_t handle, size_t index) {
     (void) index;
-    GGL_LOGT("core-bus-client", "Calling subscription close callback.");
+    GGL_LOGT("Calling subscription close callback.");
 
-    GGL_LOGT("core-bus-client", "Retrieving subscription callbacks.");
+    GGL_LOGT("Retrieving subscription callbacks.");
     SubCallbacks callbacks = { 0 };
     GglError ret = ggl_socket_handle_protected(
         get_sub_callbacks, &callbacks, &pool, handle
@@ -122,7 +117,7 @@ static GglError call_close_callback(uint32_t handle, size_t index) {
     }
 
     if (callbacks.on_close != NULL) {
-        GGL_LOGT("core-bus-client", "Calling subscription close callback.");
+        GGL_LOGT("Calling subscription close callback.");
 
         callbacks.on_close(callbacks.ctx, handle);
     }
@@ -173,10 +168,7 @@ static GglError make_subscribe_request(
     }
 
     if (!accepted) {
-        GGL_LOGE(
-            "core-bus-client",
-            "Non-error subscription response missing accepted header."
-        );
+        GGL_LOGE("Non-error subscription response missing accepted header.");
         return GGL_ERR_FAILURE;
     }
 
@@ -196,13 +188,12 @@ GglError ggl_subscribe(
     uint32_t *handle
 ) {
     if (epoll_fd < 0) {
-        GGL_LOGE("core-bus-client", "Subscription epoll not initialized.");
+        GGL_LOGE("Subscription epoll not initialized.");
         return GGL_ERR_FATAL;
     }
 
     int conn = -1;
     GGL_LOGT(
-        "core-bus-client",
         "Subscribing to %.*s:%.*s.",
         (int) interface.len,
         interface.data,
@@ -215,18 +206,16 @@ GglError ggl_subscribe(
         return ret;
     }
 
-    GGL_LOGT(
-        "core-bus-client", "Registering subscription fd with socket pool."
-    );
+    GGL_LOGT("Registering subscription fd with socket pool.");
     uint32_t sub_handle = 0;
     ret = ggl_socket_pool_register(&pool, conn, &sub_handle);
     if (ret != GGL_ERR_OK) {
         ggl_close(conn);
-        GGL_LOGW("core-bus-client", "Max subscriptions exceeded.");
+        GGL_LOGW("Max subscriptions exceeded.");
         return ret;
     }
 
-    GGL_LOGT("core-bus-client", "Setting subscription callbacks.");
+    GGL_LOGT("Setting subscription callbacks.");
     ggl_socket_handle_protected(
         set_sub_callbacks,
         &(SubCallbacks) {
@@ -251,7 +240,7 @@ GglError ggl_subscribe(
         *handle = sub_handle;
     }
 
-    GGL_LOGT("core-bus-client", "Subscription success.");
+    GGL_LOGT("Subscription success.");
     return GGL_ERR_OK;
 }
 
@@ -274,7 +263,7 @@ static void call_on_response_callback(void *ctx, size_t index) {
     OnResponseCallbackArgs *args = ctx;
     args->ret = GGL_ERR_OK;
     if (sub_callbacks[index].on_response != NULL) {
-        GGL_LOGT("core-bus-client", "Calling subscription response callback.");
+        GGL_LOGT("Calling subscription response callback.");
 
         args->ret = sub_callbacks[index].on_response(
             sub_callbacks[index].ctx, args->handle, args->data
@@ -282,16 +271,13 @@ static void call_on_response_callback(void *ctx, size_t index) {
         if (args->ret != GGL_ERR_OK) {
             ggl_socket_handle_close(&pool, args->handle);
 
-            GGL_LOGT(
-                "core-bus-client",
-                "Subscription response callback returned error."
-            );
+            GGL_LOGT("Subscription response callback returned error.");
         }
     }
 }
 
 static GglError get_subscription_response(uint32_t handle) {
-    GGL_LOGD("core-bus-client", "Handling incoming subscription response.");
+    GGL_LOGD("Handling incoming subscription response.");
 
     // Need separate data array as sub resp callback may call core bus APIs
     static uint8_t sub_resp_payload_array[GGL_COREBUS_MAX_MSG_LEN];
@@ -316,9 +302,7 @@ static GglError get_subscription_response(uint32_t handle) {
     GglObject result = GGL_OBJ_NULL();
     ret = ggl_deserialize(&balloc.alloc, false, msg.payload, &result);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "core-bus-client", "Failed to decode subscription response payload."
-        );
+        GGL_LOGE("Failed to decode subscription response payload.");
         return ret;
     }
 
@@ -331,10 +315,7 @@ static GglError get_subscription_response(uint32_t handle) {
         return ret;
     }
 
-    GGL_LOGT(
-        "core-bus-client",
-        "Successfully handled incoming subscription response."
-    );
+    GGL_LOGT("Successfully handled incoming subscription response.");
 
     return GGL_ERR_OK;
 }
@@ -358,8 +339,8 @@ static GglError sub_fd_ready(void *ctx, uint64_t data) {
 static void *subscription_thread(void *args) {
     assert(epoll_fd >= 0);
 
-    GGL_LOGD("core-bus-client", "Started core bus subscription thread.");
+    GGL_LOGD("Started core bus subscription thread.");
     ggl_socket_epoll_run(epoll_fd, sub_fd_ready, args);
-    GGL_LOGE("core-bus-client", "Core bus subscription thread exited.");
+    GGL_LOGE("Core bus subscription thread exited.");
     return NULL;
 }

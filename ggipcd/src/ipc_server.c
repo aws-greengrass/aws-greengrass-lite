@@ -78,20 +78,17 @@ static GglError deserialize_payload(GglBuffer payload, GglMap *out) {
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(json_decode_mem));
 
     GGL_LOGT(
-        "ipc-server",
-        "Deserializing payload %.*s",
-        (int) payload.len,
-        (char *) payload.data
+        "Deserializing payload %.*s", (int) payload.len, (char *) payload.data
     );
 
     GglError ret = ggl_json_decode_destructive(payload, &balloc.alloc, &obj);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ipc-server", "Failed to decode msg payload.");
+        GGL_LOGE("Failed to decode msg payload.");
         return ret;
     }
 
     if (obj.type != GGL_TYPE_MAP) {
-        GGL_LOGE("ipc-server", "Message payload is not a JSON object.");
+        GGL_LOGE("Message payload is not a JSON object.");
         return GGL_ERR_INVALID;
     }
 
@@ -123,7 +120,7 @@ static GglError complete_conn_init(
     bool send_svcuid,
     GglBuffer svcuid
 ) {
-    GGL_LOGT("ipc-server", "Setting %d as connected.", handle);
+    GGL_LOGT("Setting %d as connected.", handle);
 
     GglError ret = ggl_socket_handle_protected(
         set_conn_component, &component_handle, &pool, handle
@@ -156,12 +153,12 @@ static GglError complete_conn_init(
         return ret;
     }
 
-    GGL_LOGD("ipc-server", "Successful connection.");
+    GGL_LOGD("Successful connection.");
     return GGL_ERR_OK;
 }
 
 static GglError handle_authentication_request(uint32_t handle) {
-    GGL_LOGD("ipc-server", "Client %d requesting svcuid.", handle);
+    GGL_LOGD("Client %d requesting svcuid.", handle);
 
     pid_t pid = 0;
     GglError ret = ggl_socket_handle_get_peer_pid(&pool, handle, &pid);
@@ -174,7 +171,7 @@ static GglError handle_authentication_request(uint32_t handle) {
     GglBuffer svcuid = GGL_BUF(svcuid_buf);
     ret = ggl_ipc_components_register(pid, &component_handle, &svcuid);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ipc-server", "Client %d failed authentication.", handle);
+        GGL_LOGE("Client %d failed authentication.", handle);
         return ret;
     }
 
@@ -186,18 +183,18 @@ static GglError handle_conn_init(
     EventStreamMessage *msg,
     EventStreamCommonHeaders common_headers
 ) {
-    GGL_LOGD("ipc-server", "Handling connect for %d.", handle);
+    GGL_LOGD("Handling connect for %d.", handle);
 
     if (common_headers.message_type != EVENTSTREAM_CONNECT) {
-        GGL_LOGE("ipc-server", "Client initial message not of type connect.");
+        GGL_LOGE("Client initial message not of type connect.");
         return GGL_ERR_INVALID;
     }
     if (common_headers.stream_id != 0) {
-        GGL_LOGE("ipc-server", "Connect message has non-zero :stream-id.");
+        GGL_LOGE("Connect message has non-zero :stream-id.");
         return GGL_ERR_INVALID;
     }
     if ((common_headers.message_flags & EVENTSTREAM_FLAGS_MASK) != 0) {
-        GGL_LOGE("ipc-server", "Connect message has flags set.");
+        GGL_LOGE("Connect message has flags set.");
         return GGL_ERR_INVALID;
     }
 
@@ -210,18 +207,16 @@ static GglError handle_conn_init(
         while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
             if (ggl_buffer_eq(header.name, GGL_STR(":version"))) {
                 if (header.value.type != EVENTSTREAM_STRING) {
-                    GGL_LOGE("ipc-server", ":version header not string.");
+                    GGL_LOGE(":version header not string.");
                     return GGL_ERR_INVALID;
                 }
                 if (!ggl_buffer_eq(header.value.string, GGL_STR("0.1.0"))) {
-                    GGL_LOGE(
-                        "ipc-server", "Client protocol version not 0.1.0."
-                    );
+                    GGL_LOGE("Client protocol version not 0.1.0.");
                     return GGL_ERR_INVALID;
                 }
             } else if (ggl_buffer_eq(header.name, GGL_STR("authenticate"))) {
                 if (header.value.type != EVENTSTREAM_INT32) {
-                    GGL_LOGE("ipc-server", "request_svcuid header not an int.");
+                    GGL_LOGE("request_svcuid header not an int.");
                     return GGL_ERR_INVALID;
                 }
                 if (header.value.int32 == 1) {
@@ -244,17 +239,16 @@ static GglError handle_conn_init(
     GglObject *value;
     bool found = ggl_map_get(payload_data, GGL_STR("authToken"), &value);
     if (!found) {
-        GGL_LOGE("ipc-server", "Connect message payload missing authToken.");
+        GGL_LOGE("Connect message payload missing authToken.");
         return GGL_ERR_INVALID;
     }
     if (value->type != GGL_TYPE_BUF) {
-        GGL_LOGE("ipc-server", "Connect message authToken not a string.");
+        GGL_LOGE("Connect message authToken not a string.");
         return GGL_ERR_INVALID;
     }
     GglBuffer auth_token = value->buf;
 
     GGL_LOGD(
-        "ipc-server",
         "Client connecting with token %.*s.",
         (int) auth_token.len,
         auth_token.data
@@ -264,7 +258,6 @@ static GglError handle_conn_init(
     ret = ggl_ipc_components_get_handle(auth_token, &component_handle);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "ipc-server",
             "Client with token %.*s failed authentication.",
             (int) auth_token.len,
             auth_token.data
@@ -278,9 +271,7 @@ static GglError handle_conn_init(
 }
 
 static GglError send_stream_error(uint32_t handle, int32_t stream_id) {
-    GGL_LOGE(
-        "ipc-server", "Sending error on client %u stream %d.", handle, stream_id
-    );
+    GGL_LOGE("Sending error on client %u stream %d.", handle, stream_id);
 
     pthread_mutex_lock(&resp_array_mtx);
     GGL_DEFER(pthread_mutex_unlock, resp_array_mtx);
@@ -314,11 +305,11 @@ static GglError handle_stream_operation(
     EventStreamCommonHeaders common_headers
 ) {
     if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
-        GGL_LOGE("ipc-server", "Client sent unhandled message type.");
+        GGL_LOGE("Client sent unhandled message type.");
         return GGL_ERR_INVALID;
     }
     if ((common_headers.message_flags & EVENTSTREAM_FLAGS_MASK) != 0) {
-        GGL_LOGE("ipc-server", "Client request has flags set.");
+        GGL_LOGE("Client request has flags set.");
         return GGL_ERR_INVALID;
     }
 
@@ -332,7 +323,7 @@ static GglError handle_stream_operation(
         while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
             if (ggl_buffer_eq(header.name, GGL_STR("operation"))) {
                 if (header.value.type != EVENTSTREAM_STRING) {
-                    GGL_LOGE("ipc-server", "operation header not string.");
+                    GGL_LOGE("operation header not string.");
                     return GGL_ERR_INVALID;
                 }
                 operation = header.value.string;
@@ -341,7 +332,7 @@ static GglError handle_stream_operation(
         }
 
         if (!operation_set) {
-            GGL_LOGE("ipc-server", "Client request missing operation header.");
+            GGL_LOGE("Client request missing operation header.");
             return GGL_ERR_INVALID;
         }
     }
@@ -363,7 +354,7 @@ static GglError handle_operation(
     EventStreamCommonHeaders common_headers
 ) {
     if (common_headers.stream_id == 0) {
-        GGL_LOGE("ipc-server", "Application message has zero :stream-id.");
+        GGL_LOGE("Application message has zero :stream-id.");
         return GGL_ERR_INVALID;
     }
 
@@ -420,7 +411,6 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
     if (prelude.data_len > recv_buffer.len) {
         GGL_LOGE(
-            "ipc-server",
             "EventStream packet does not fit in configured IPC buffer size."
         );
         return ENOMEM;
@@ -447,7 +437,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         return ret;
     }
 
-    GGL_LOGT("ipc-server", "Retrieving connection state for %d.", handle);
+    GGL_LOGT("Retrieving connection state for %d.", handle);
     GglComponentHandle component_handle = 0;
     ret = ggl_socket_handle_protected(
         get_conn_component, &component_handle, &pool, handle

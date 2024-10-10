@@ -19,8 +19,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-static const char COMPONENT_NAME[] = "recipe2unit";
-
 // NOLINTNEXTLINE(misc-no-recursion)
 static void ggl_key_to_lower(GglObject object_object_to_lower) {
     if (object_object_to_lower.type == GGL_TYPE_MAP) {
@@ -112,13 +110,13 @@ GglError deserialize_file_content(
 GglError open_file(char *file_path, GglBuffer *recipe_obj) {
     int fd = open(file_path, O_RDONLY);
     if (fd == -1) {
-        GGL_LOGE("main", "Failed to open recipe file.");
+        GGL_LOGE("Failed to open recipe file.");
         return GGL_ERR_FAILURE;
     }
 
     struct stat st;
     if (fstat(fd, &st) == -1) {
-        GGL_LOGE("main", "Failed to get recipe file info.");
+        GGL_LOGE("Failed to get recipe file info.");
         return GGL_ERR_FAILURE;
     }
 
@@ -127,7 +125,7 @@ GglError open_file(char *file_path, GglBuffer *recipe_obj) {
         = mmap(NULL, file_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     // NOLINTNEXTLINE(performance-no-int-to-ptr)
     if (file_str == MAP_FAILED) {
-        GGL_LOGE("main", "Failed to load recipe file.");
+        GGL_LOGE("Failed to load recipe file.");
         return GGL_ERR_FAILURE;
     }
 
@@ -144,7 +142,7 @@ GglError write_to_file(
         ggl_buffer_from_null_term(directory_path), O_PATH, true, &root_dir_fd
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(COMPONENT_NAME, "Failed to open dir");
+        GGL_LOGE("Failed to open dir");
         return GGL_ERR_FAILURE;
     }
 
@@ -158,12 +156,12 @@ GglError write_to_file(
         &script_as_file
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(COMPONENT_NAME, "Failed to open file at the dir");
+        GGL_LOGE("Failed to open file at the dir");
         return GGL_ERR_FAILURE;
     }
     ret = ggl_write_exact(script_as_file, write_data);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(COMPONENT_NAME, "Write to file failed");
+        GGL_LOGE("Write to file failed");
         return GGL_ERR_FAILURE;
     }
     return GGL_ERR_OK;

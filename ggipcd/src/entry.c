@@ -41,6 +41,6 @@ GglError run_ggipcd(GglIpcArgs *args) {
 
     GglError err = ggl_ipc_listen(socket_path);
 
-    GGL_LOGE("ipc-server", "Exiting due to error while listening (%u).", err);
+    GGL_LOGE("Exiting due to error while listening (%u).", err);
     return err;
 }

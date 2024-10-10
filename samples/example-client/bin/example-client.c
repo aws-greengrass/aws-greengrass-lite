@@ -30,7 +30,7 @@ int main(void) {
         );
 
         if (ret != 0) {
-            GGL_LOGE("client", "Failed to send echo: %d.", ret);
+            GGL_LOGE("Failed to send echo: %d.", ret);
             return EPROTO;
         }
     }
@@ -39,5 +39,5 @@ int main(void) {
     double elapsed_nsecs = (double) (after.tv_sec - before.tv_sec)
         + (double) (after.tv_nsec - before.tv_nsec) / 1000000000;
 
-    GGL_LOGE("client", "Time: %f", elapsed_nsecs);
+    GGL_LOGE("Time: %f", elapsed_nsecs);
 }

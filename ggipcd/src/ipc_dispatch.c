@@ -28,7 +28,6 @@ GglError ggl_ipc_handle_operation(
     for (size_t i = 0; i < SERVICE_COUNT; i++) {
         const GglIpcService *service = SERVICE_TABLE[i];
         GGL_LOGT(
-            "ipc-server",
             "Matching against service: %.*s.",
             (int) service->name.len,
             service->name.data
@@ -38,7 +37,6 @@ GglError ggl_ipc_handle_operation(
             const GglIpcOperation *service_op = &service->operations[j];
 
             GGL_LOGT(
-                "ipc-server",
                 "Matching against operation: %.*s.",
                 (int) service_op->name.len,
                 service_op->name.data
@@ -68,7 +66,6 @@ GglError ggl_ipc_handle_operation(
     }
 
     GGL_LOGW(
-        "ipc-server",
         "Unhandled operation requested: %.*s.",
         (int) operation.len,
         operation.data

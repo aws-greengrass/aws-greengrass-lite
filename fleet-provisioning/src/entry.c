@@ -35,19 +35,16 @@ static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
     GglError ret
         = exec_command_without_child_wait(iotcore_d_args, iotcored_pid);
 
-    GGL_LOGD("fleet-provisioning", "PID for new iotcored: %d", *iotcored_pid);
+    GGL_LOGD("PID for new iotcored: %d", *iotcored_pid);
 
     return ret;
 }
 
 static GglError fetch_from_db(FleetProvArgs *args) {
     if (args->claim_cert_path == NULL) {
-        GGL_LOGD(
-            "fleet-provisioning",
-            "Requesting db for "
-            "services/aws.greengrass.fleet_provisioning/configuration/"
-            "claimCertPath"
-        );
+        GGL_LOGD("Requesting db for "
+                 "services/aws.greengrass.fleet_provisioning/configuration/"
+                 "claimCertPath");
         static uint8_t claim_cert_path_mem[PATH_MAX] = { 0 };
         GglBuffer claim_cert_path = GGL_BUF(claim_cert_path_mem);
         claim_cert_path.len -= 1;
@@ -68,12 +65,9 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->claim_key_path == NULL) {
-        GGL_LOGD(
-            "fleet-provisioning",
-            "Requesting db for "
-            "services/aws.greengrass.fleet_provisioning/configuration/"
-            "claimKeyPath"
-        );
+        GGL_LOGD("Requesting db for "
+                 "services/aws.greengrass.fleet_provisioning/configuration/"
+                 "claimKeyPath");
         static uint8_t claim_key_path_mem[PATH_MAX] = { 0 };
         GglBuffer claim_key_path = GGL_BUF(claim_key_path_mem);
         claim_key_path.len -= 1;
@@ -94,11 +88,8 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->root_ca_path == NULL) {
-        GGL_LOGD(
-            "fleet-provisioning",
-            "Requesting db for "
-            "system/rootCaPath/"
-        );
+        GGL_LOGD("Requesting db for "
+                 "system/rootCaPath/");
         static uint8_t root_ca_path_mem[PATH_MAX] = { 0 };
         GglBuffer root_ca_path = GGL_BUF(root_ca_path_mem);
         root_ca_path.len -= 1;
@@ -114,12 +105,9 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->data_endpoint == NULL) {
-        GGL_LOGD(
-            "fleet-provisioning",
-            "Requesting db for "
-            "services/aws.greengrass.fleet_provisioning/configuration/"
-            "iotDataEndpoint"
-        );
+        GGL_LOGD("Requesting db for "
+                 "services/aws.greengrass.fleet_provisioning/configuration/"
+                 "iotDataEndpoint");
         static uint8_t data_endpoint_mem[MAX_ENDPOINT_LENGTH + 1] = { 0 };
         GglBuffer data_endpoint = GGL_BUF(data_endpoint_mem);
         data_endpoint.len -= 1;
@@ -154,12 +142,9 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->template_name == NULL) {
-        GGL_LOGD(
-            "fleet-provisioning",
-            "Requesting db for "
-            "services/aws.greengrass.fleet_provisioning/configuration/"
-            "templateName"
-        );
+        GGL_LOGD("Requesting db for "
+                 "services/aws.greengrass.fleet_provisioning/configuration/"
+                 "templateName");
         static uint8_t template_name_mem[MAX_TEMPLATE_LEN + 1] = { 0 };
         GglBuffer template_name = GGL_BUF(template_name_mem);
         template_name.len -= 1;
@@ -180,12 +165,9 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->template_parameters == NULL) {
-        GGL_LOGD(
-            "fleet-provisioning",
-            "Requesting db for "
-            "services/aws.greengrass.fleet_provisioning/configuration/"
-            "templateParams"
-        );
+        GGL_LOGD("Requesting db for "
+                 "services/aws.greengrass.fleet_provisioning/configuration/"
+                 "templateParams");
         static uint8_t template_params_mem[MAX_TEMPLATE_PARAM_LEN + 1] = { 0 };
         GglBuffer template_params = GGL_BUF(template_params_mem);
         template_params.len -= 1;
@@ -216,7 +198,7 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     EVP_PKEY *pkey = NULL;
     X509_REQ *csr_req = NULL;
 
-    GGL_LOGD("fleet-provisioning", "Requesting db for system/rootPath");
+    GGL_LOGD("Requesting db for system/rootPath");
     static uint8_t root_dir_mem[4096] = { 0 };
     GglBuffer root_dir = GGL_BUF(root_dir_mem);
     ret = ggl_gg_config_read_str(
@@ -292,23 +274,16 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     fclose(fp);
 
     if (read_size != file_size) {
-        GGL_LOGE("fleet-provisioning", "Failed to read th whole file.");
+        GGL_LOGE("Failed to read th whole file.");
         return GGL_ERR_FAILURE;
     }
 
-    GGL_LOGD(
-        "fleet-provisioning",
-        "New String: %.*s.",
-        (int) strlen(csr_buf),
-        csr_buf
-    );
+    GGL_LOGD("New String: %.*s.", (int) strlen(csr_buf), csr_buf);
 
     ret = make_request(csr_buf, cert_file_path, iotcored_pid);
 
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "fleet-provisioning", "Something went wrong. Killing iotcored"
-        );
+        GGL_LOGE("Something went wrong. Killing iotcored");
         exec_kill_process(iotcored_pid);
 
         return ret;

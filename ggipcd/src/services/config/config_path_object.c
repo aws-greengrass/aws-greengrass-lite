@@ -20,7 +20,7 @@ GglError ggl_make_config_path_object(
     ggl_buf_vec_chain_push(&ret, &full_key_path, GGL_STR("configuration"));
     ggl_buf_vec_chain_append_list(&ret, &full_key_path, key_path);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("config", "Key path too long.");
+        GGL_LOGE("Key path too long.");
         return ret;
     }
 
@@ -32,7 +32,7 @@ GglError ggl_parse_config_path(
     GglList config_path, GglBuffer *component_name, GglList *key_path
 ) {
     if (config_path.len < 4) {
-        GGL_LOGE("config", "Config path is not in the expected format");
+        GGL_LOGE("Config path is not in the expected format");
         return GGL_ERR_INVALID;
     }
 
@@ -51,7 +51,7 @@ GglError ggl_parse_config_path(
         );
     }
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("config", "Key path too long.");
+        GGL_LOGE("Key path too long.");
         return ret;
     }
 

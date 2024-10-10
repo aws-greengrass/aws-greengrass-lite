@@ -69,24 +69,24 @@ GglError run_ggpubsubd(void) {
 
     GglError ret = ggl_listen(GGL_STR("pubsub"), handlers, handlers_len);
 
-    GGL_LOGE("ggpubsubd", "Exiting with error %u.", (unsigned) ret);
+    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
     return ret;
 }
 
 static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
-    GGL_LOGD("publish", "Handling request from %u.", handle);
+    GGL_LOGD("Handling request from %u.", handle);
 
     GglBuffer topic;
     GglObject *val;
     bool found = ggl_map_get(params, GGL_STR("topic"), &val);
     if (!found) {
-        GGL_LOGE("publish", "Params missing topic.");
+        GGL_LOGE("Params missing topic.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
     if (val->type != GGL_TYPE_BUF) {
-        GGL_LOGE("publish", "topic is not a string.");
+        GGL_LOGE("topic is not a string.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -94,7 +94,7 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     topic = val->buf;
 
     if (topic.len > GGL_PUBSUB_MAX_TOPIC_LENGTH) {
-        GGL_LOGE("publish", "Topic too large.");
+        GGL_LOGE("Topic too large.");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
@@ -130,7 +130,7 @@ static GglError register_subscription(
             return GGL_ERR_OK;
         }
     }
-    GGL_LOGE("subscribe", "Configured maximum subscriptions exceeded.");
+    GGL_LOGE("Configured maximum subscriptions exceeded.");
     return GGL_ERR_NOMEM;
 }
 
@@ -144,7 +144,7 @@ static void release_subscription(void *ctx, uint32_t handle) {
 
 static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
-    GGL_LOGD("subscribe", "Handling request from %u.", handle);
+    GGL_LOGD("Handling request from %u.", handle);
 
     GglBuffer topic_filter = { 0 };
 
@@ -153,17 +153,17 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         && (val->type == GGL_TYPE_BUF)) {
         topic_filter = val->buf;
         if (topic_filter.len > GGL_PUBSUB_MAX_TOPIC_LENGTH) {
-            GGL_LOGE("subscribe", "Topic filter too large.");
+            GGL_LOGE("Topic filter too large.");
             ggl_return_err(handle, GGL_ERR_RANGE);
             return;
         }
         if (topic_filter.len == 0) {
-            GGL_LOGE("subscribe", "Topic filter can't be zero length.");
+            GGL_LOGE("Topic filter can't be zero length.");
             ggl_return_err(handle, GGL_ERR_RANGE);
             return;
         }
     } else {
-        GGL_LOGE("subscribe", "Received invalid arguments.");
+        GGL_LOGE("Received invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }

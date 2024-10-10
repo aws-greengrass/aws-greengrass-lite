@@ -13,7 +13,7 @@ GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object) {
     if (vector->list.len >= vector->capacity) {
         return GGL_ERR_NOMEM;
     }
-    GGL_LOGT("ggl_obj_vec", "Pushed to %p.", vector);
+    GGL_LOGT("Pushed to %p.", vector);
     vector->list.items[vector->list.len] = object;
     vector->list.len++;
     return GGL_ERR_OK;
@@ -34,7 +34,7 @@ GglError ggl_obj_vec_pop(GglObjVec *vector, GglObject *out) {
     if (out != NULL) {
         *out = vector->list.items[vector->list.len - 1];
     }
-    GGL_LOGT("ggl_obj_vec", "Popped from %p.", vector);
+    GGL_LOGT("Popped from %p.", vector);
 
     vector->list.len--;
     return GGL_ERR_OK;
@@ -44,7 +44,7 @@ GglError ggl_obj_vec_append(GglObjVec *vector, GglList list) {
     if (vector->capacity - vector->list.len < list.len) {
         return GGL_ERR_NOMEM;
     }
-    GGL_LOGT("ggl_obj_vec", "Appended to %p.", vector);
+    GGL_LOGT("Appended to %p.", vector);
     memcpy(
         &vector->list.items[vector->list.len],
         list.items,
@@ -64,7 +64,7 @@ GglError ggl_kv_vec_push(GglKVVec *vector, GglKV kv) {
     if (vector->map.len >= vector->capacity) {
         return GGL_ERR_NOMEM;
     }
-    GGL_LOGT("ggl_kv_vec", "Pushed to %p.", vector);
+    GGL_LOGT("Pushed to %p.", vector);
     vector->map.pairs[vector->map.len] = kv;
     vector->map.len++;
     return GGL_ERR_OK;
@@ -79,7 +79,7 @@ GglError ggl_byte_vec_push(GglByteVec *vector, uint8_t byte) {
     if (vector->buf.len >= vector->capacity) {
         return GGL_ERR_NOMEM;
     }
-    GGL_LOGT("ggl_byte_vec", "Pushed to %p.", vector);
+    GGL_LOGT("Pushed to %p.", vector);
     vector->buf.data[vector->buf.len] = byte;
     vector->buf.len++;
     return GGL_ERR_OK;
@@ -95,7 +95,7 @@ GglError ggl_byte_vec_append(GglByteVec *vector, GglBuffer buf) {
     if (vector->capacity - vector->buf.len < buf.len) {
         return GGL_ERR_NOMEM;
     }
-    GGL_LOGT("ggl_byte_vec", "Appended to %p.", vector);
+    GGL_LOGT("Appended to %p.", vector);
     memcpy(&vector->buf.data[vector->buf.len], buf.data, buf.len);
     vector->buf.len += buf.len;
     return GGL_ERR_OK;
@@ -118,7 +118,7 @@ GglError ggl_buf_vec_push(GglBufVec *vector, GglBuffer buf) {
     if (vector->buf_list.len >= vector->capacity) {
         return GGL_ERR_NOMEM;
     }
-    GGL_LOGT("ggl_buf_vec", "Pushed to %p.", vector);
+    GGL_LOGT("Pushed to %p.", vector);
     vector->buf_list.bufs[vector->buf_list.len] = buf;
     vector->buf_list.len++;
     return GGL_ERR_OK;

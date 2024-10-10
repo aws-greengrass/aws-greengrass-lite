@@ -29,7 +29,7 @@ static GglError update_root_path(void) {
     );
 
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("component-store", "Failed to get root path from config.");
+        GGL_LOGW("Failed to get root path from config.");
         if ((ret == GGL_ERR_NOMEM) || (ret == GGL_ERR_FATAL)) {
             return ret;
         }
@@ -43,14 +43,14 @@ static GglError update_root_path(void) {
 static GglError get_recipe_dir_fd(int *recipe_fd) {
     GglError ret = update_root_path();
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("component-store", "Failed to retrieve root path.");
+        GGL_LOGE("Failed to retrieve root path.");
         return GGL_ERR_FAILURE;
     }
 
     int root_path_fd;
     ret = ggl_dir_open(root_path, O_PATH, false, &root_path_fd);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("component-store", "Failed to open root_path.");
+        GGL_LOGE("Failed to open root_path.");
         return GGL_ERR_FAILURE;
     }
     GGL_DEFER(ggl_close, root_path_fd);
@@ -64,7 +64,7 @@ static GglError get_recipe_dir_fd(int *recipe_fd) {
         &recipe_dir_fd
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("component-store", "Failed to open recipe subdirectory.");
+        GGL_LOGE("Failed to open recipe subdirectory.");
         return GGL_ERR_FAILURE;
     }
     *recipe_fd = recipe_dir_fd;
@@ -83,7 +83,7 @@ GglError find_available_component(
     // iterate through recipes in the directory
     DIR *dir = fdopendir(recipe_dir_fd);
     if (dir == NULL) {
-        GGL_LOGE("component-store", "Failed to open recipe directory.");
+        GGL_LOGE("Failed to open recipe directory.");
         return GGL_ERR_FAILURE;
     }
 
@@ -101,7 +101,6 @@ GglError find_available_component(
         }
         if (*dash_pos != '-') {
             GGL_LOGW(
-                "component-store",
                 "Recipe file name formatted incorrectly. Continuing to next "
                 "file."
             );

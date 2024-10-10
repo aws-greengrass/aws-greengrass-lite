@@ -31,11 +31,10 @@ static GglObject fetch_creds(GglBumpAlloc the_allocator) {
     );
 
     if (error != GGL_ERR_OK) {
-        GGL_LOGE("tes-serverd", "tes request failed....");
+        GGL_LOGE("tes request failed....");
     } else {
         if (result.type == GGL_TYPE_BUF) {
             GGL_LOGI(
-                "tes-serverd",
                 "read value: %.*s",
                 (int) result.buf.len,
                 (char *) result.buf.data
@@ -59,14 +58,14 @@ static void request_handler(struct evhttp_request *req, void *arg) {
     GglError ret_err_json
         = ggl_json_encode(tes_formatted_obj, &response_cred_buffer);
     if (ret_err_json != GGL_ERR_OK) {
-        GGL_LOGE("request-handler", "Failed to convert the json");
+        GGL_LOGE("Failed to convert the json");
         return;
     }
 
     struct evbuffer *buf = evbuffer_new();
 
     if (!buf) {
-        GGL_LOGE("tes-serverd", "Failed to create response buffer");
+        GGL_LOGE("Failed to create response buffer");
         return;
     }
 
@@ -104,7 +103,6 @@ GglError http_server(void) {
         memcpy(url_address, user_address.data + 7, user_address.len - 6 - 7);
     } else {
         GGL_LOGE(
-            "tes-serverd",
             "The parameter tesCredUrl url can only is prefixed with http:\\ or "
             "with just the ip address(example: 127.0.0.1:8080/), any other "
             "combination is not supported."
@@ -117,14 +115,14 @@ GglError http_server(void) {
     // Create an event_base, which is the core of libevent
     base = event_base_new();
     if (!base) {
-        GGL_LOGE("tes-serverd", "Could not initialize libevent");
+        GGL_LOGE("Could not initialize libevent");
         return 1;
     }
 
     // Create a new HTTP server
     http = evhttp_new(base);
     if (!http) {
-        GGL_LOGE("tes-serverd", "Could not create evhttp. Exiting.");
+        GGL_LOGE("Could not create evhttp. Exiting.");
         return 1;
     }
 
@@ -135,7 +133,6 @@ GglError http_server(void) {
     handle = evhttp_bind_socket_with_handle(http, url_address, port);
     if (!handle) {
         GGL_LOGE(
-            "tes-serverd",
             "Could not bind to port http://%.*s:%d Exiting.",
             (int) strlen(url_address),
             url_address,
@@ -145,7 +142,6 @@ GglError http_server(void) {
     }
 
     GGL_LOGI(
-        "tes-serverd",
         "Server started on http://%.*s:%d...",
         (int) strlen(url_address),
         url_address,

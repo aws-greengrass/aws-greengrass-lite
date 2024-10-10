@@ -23,8 +23,8 @@
 #warning "INSECURE!!! IPC authentication disabled!"
 
 __attribute__((constructor)) static void warn_auth_disabled(void) {
-    GGL_LOGE("ggipcd", "INSECURE!!! IPC authentication disabled!");
-    GGL_LOGE("ggipcd", "SVCUID handling is in debug mode.");
+    GGL_LOGE("INSECURE!!! IPC authentication disabled!");
+    GGL_LOGE("SVCUID handling is in debug mode.");
 }
 #endif
 
@@ -56,7 +56,7 @@ __attribute__((constructor)) static void init_urandom_fd(void) {
     random_fd = open("/dev/random", O_RDONLY);
     if (random_fd == -1) {
         int err = errno;
-        GGL_LOGE("ipc-server", "Failed to open /dev/random: %d.", err);
+        GGL_LOGE("Failed to open /dev/random: %d.", err);
         _Exit(1);
     }
 }
@@ -90,14 +90,14 @@ GglError ggl_ipc_components_get_handle(
         // Match decoded SVCUID and return match
 
         if (svcuid.len != GGL_IPC_SVCUID_LEN) {
-            GGL_LOGE("ipc-server", "svcuid is invalid length.");
+            GGL_LOGE("svcuid is invalid length.");
             return GGL_ERR_INVALID;
         }
 
         GglBuffer svcuid_bin = GGL_BUF((uint8_t[SVCUID_BIN_LEN]) { 0 });
         bool decoded = ggl_base64_decode(svcuid, &svcuid_bin);
         if (!decoded) {
-            GGL_LOGE("ipc-server", "svcuid is invalid base64.");
+            GGL_LOGE("svcuid is invalid base64.");
             return GGL_ERR_INVALID;
         }
 
@@ -109,13 +109,13 @@ GglError ggl_ipc_components_get_handle(
             }
         }
 
-        GGL_LOGE("ipc-server", "Requested svcuid not registered.");
+        GGL_LOGE("Requested svcuid not registered.");
     } else {
         // Match name, and return match. Insert if not found.
         // Assume SVCUID == component name
 
         if (svcuid.len > MAX_COMPONENT_NAME_LENGTH) {
-            GGL_LOGE("ipc-server", "svcuid is invalid length.");
+            GGL_LOGE("svcuid is invalid length.");
             return GGL_ERR_INVALID;
         }
 
@@ -133,7 +133,7 @@ GglError ggl_ipc_components_get_handle(
             return GGL_ERR_OK;
         }
 
-        GGL_LOGE("ipc-server", "Insufficent generic component slots.");
+        GGL_LOGE("Insufficent generic component slots.");
     }
 
     return GGL_ERR_NOENTRY;
@@ -168,7 +168,6 @@ GglError ggl_ipc_components_register(
             *component_handle = i;
             get_svcuid(i, svcuid);
             GGL_LOGD(
-                "ipc-server",
                 "Found existing auth info for component %.*s.",
                 (int) component_name.len,
                 component_name.data
@@ -178,12 +177,11 @@ GglError ggl_ipc_components_register(
     }
 
     if (registered_components >= GGL_MAX_GENERIC_COMPONENTS) {
-        GGL_LOGE("ipc-server", "Insufficent generic component slots.");
+        GGL_LOGE("Insufficent generic component slots.");
         return GGL_ERR_NOMEM;
     }
 
     GGL_LOGD(
-        "ipc-server",
         "Registering new svcuid for component %.*s.",
         (int) component_name.len,
         component_name.data
@@ -195,7 +193,7 @@ GglError ggl_ipc_components_register(
 
     ret = ggl_read_exact(random_fd, GGL_BUF(svcuids[*component_handle - 1]));
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ipc-server", "Failed to read from /dev/random.");
+        GGL_LOGE("Failed to read from /dev/random.");
         return GGL_ERR_FATAL;
     }
     get_svcuid(*component_handle, svcuid);

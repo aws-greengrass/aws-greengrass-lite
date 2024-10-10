@@ -86,7 +86,6 @@ GglError ggl_ipc_auth(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "ipc_authz",
             "Failed to get policies for service %.*s in component %.*s.",
             (int) info->service.len,
             info->service.data,
@@ -97,7 +96,7 @@ GglError ggl_ipc_auth(
     }
 
     if (policies.type != GGL_TYPE_MAP) {
-        GGL_LOGE("ipc_authz", "Configuration's accessControl is not a map.");
+        GGL_LOGE("Configuration's accessControl is not a map.");
         return GGL_ERR_CONFIG;
     }
 
@@ -106,7 +105,7 @@ GglError ggl_ipc_auth(
     GGL_MAP_FOREACH(policy_kv, policy_map) {
         GglObject policy = policy_kv->val;
         if (policy.type != GGL_TYPE_MAP) {
-            GGL_LOGE("ipc_authz", "Policy value is not a map.");
+            GGL_LOGE("Policy value is not a map.");
             return GGL_ERR_CONFIG;
         }
 

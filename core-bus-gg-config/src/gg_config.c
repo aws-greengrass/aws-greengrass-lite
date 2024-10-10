@@ -17,7 +17,7 @@ GglError ggl_gg_config_read(
     GglBufList key_path, GglAlloc *alloc, GglObject *result
 ) {
     if (key_path.len > GGL_MAX_CONFIG_DEPTH) {
-        GGL_LOGE("gg_config", "Key path depth exceeds maximum handled.");
+        GGL_LOGE("Key path depth exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
@@ -53,7 +53,7 @@ GglError ggl_gg_config_read_str(GglBufList key_path, GglBuffer *result) {
     }
 
     if (result_obj.type != GGL_TYPE_BUF) {
-        GGL_LOGE("gg_config", "Configuration value is not a string.");
+        GGL_LOGE("Configuration value is not a string.");
         return GGL_ERR_CONFIG;
     }
 
@@ -65,12 +65,12 @@ GglError ggl_gg_config_write(
     GglBufList key_path, GglObject value, int64_t timestamp
 ) {
     if (timestamp < 0) {
-        GGL_LOGE("gg_config", "Timestamp is negative.");
+        GGL_LOGE("Timestamp is negative.");
         return GGL_ERR_UNSUPPORTED;
     }
 
     if (key_path.len > GGL_MAX_CONFIG_DEPTH) {
-        GGL_LOGE("gg_config", "Key path depth exceeds maximum handled.");
+        GGL_LOGE("Key path depth exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
@@ -106,7 +106,7 @@ GglError ggl_gg_config_subscribe(
     uint32_t *handle
 ) {
     if (key_path.len > GGL_MAX_CONFIG_DEPTH) {
-        GGL_LOGE("gg_config", "Key path depth exceeds maximum handled.");
+        GGL_LOGE("Key path depth exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 

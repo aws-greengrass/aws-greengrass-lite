@@ -34,10 +34,7 @@ static GglError subscribe_to_iot_core_callback(
     GglBuffer base64_payload;
     ret = ggl_base64_encode(*payload, alloc, &base64_payload);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "SubscribeToIoTCore",
-            "Insufficent memory to base64 encode payload; skipping."
-        );
+        GGL_LOGE("Insufficent memory to base64 encode payload; skipping.");
         return GGL_ERR_OK;
     }
 
@@ -56,7 +53,6 @@ static GglError subscribe_to_iot_core_callback(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
-            "SubscribeToIoTCore",
             "Failed to send subscription response with error %s; skipping.",
             ggl_strerror(ret)
         );
@@ -84,7 +80,7 @@ GglError ggl_handle_subscribe_to_iot_core(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("SubscribeToIoTCore", "Received invalid parameters.");
+        GGL_LOGE("Received invalid parameters.");
         return GGL_ERR_INVALID;
     }
 
@@ -92,18 +88,18 @@ GglError ggl_handle_subscribe_to_iot_core(
     if (qos_obj != NULL) {
         ret = ggl_str_to_int64(qos_obj->buf, &qos);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("SubscribeToIoTCore", "Failed to parse qos string value.");
+            GGL_LOGE("Failed to parse qos string value.");
             return ret;
         }
         if ((qos < 0) || (qos > 2)) {
-            GGL_LOGE("SubscribeToIoTCore", "qos not a valid value.");
+            GGL_LOGE("qos not a valid value.");
             return GGL_ERR_INVALID;
         }
     }
 
     ret = ggl_ipc_auth(info, topic_name_obj->buf, ggl_ipc_mqtt_policy_matcher);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("SubscribeToIotCore", "IPC Operation not authorized.");
+        GGL_LOGE("IPC Operation not authorized.");
         return GGL_ERR_INVALID;
     }
 

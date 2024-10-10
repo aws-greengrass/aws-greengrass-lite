@@ -29,7 +29,7 @@ GglError run_ggconfigd_test(void) {
 
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) == NULL) {
-        GGL_LOGE("ggdeploymentd", "Error getting current working directory.");
+        GGL_LOGE("Error getting current working directory.");
         assert(false);
         return GGL_ERR_FAILURE;
     }
@@ -41,7 +41,7 @@ GglError run_ggconfigd_test(void) {
         strlen("/ggconfigd-test/sample-recipe")
     );
 
-    GGL_LOGI("ggconfigd-test", "Location of recipe file is %s", recipe_dir);
+    GGL_LOGI("Location of recipe file is %s", recipe_dir);
 
     GglError ret = ggl_kv_vec_push(
         &args,
@@ -110,7 +110,7 @@ GglError run_ggconfigd_test(void) {
     }
 
     if (result_obj.type != GGL_TYPE_BUF) {
-        GGL_LOGE(component_name_test, "Result is not a buffer.");
+        GGL_LOGE("Result is not a buffer.");
         return GGL_ERR_FAILURE;
     }
 
@@ -122,7 +122,7 @@ GglError run_ggconfigd_test(void) {
     if ((strlen(SUCCESS_STRING) != result_obj.buf.len)
         || (strncmp(SUCCESS_STRING, (const char *) result_obj.buf.data, min)
             != 0)) {
-        GGL_LOGE(component_name_test, "Test failed");
+        GGL_LOGE("Test failed");
         return GGL_ERR_FAILURE;
     }
 

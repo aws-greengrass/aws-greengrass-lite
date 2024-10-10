@@ -94,10 +94,7 @@ static GglError get_message(
     }
 
     if (prelude.data_len > recv_buffer.len) {
-        GGL_LOGE(
-            "ggipc-client",
-            "EventStream packet does not fit in IPC packet buffer size."
-        );
+        GGL_LOGE("EventStream packet does not fit in IPC packet buffer size.");
         return GGL_ERR_NOMEM;
     }
 
@@ -169,12 +166,12 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
     }
 
     if (common_headers.message_type != EVENTSTREAM_CONNECT_ACK) {
-        GGL_LOGE("ggipc-client", "Connection response not an ack.");
+        GGL_LOGE("Connection response not an ack.");
         return GGL_ERR_FAILURE;
     }
 
     if ((common_headers.message_flags & EVENTSTREAM_CONNECTION_ACCEPTED) == 0) {
-        GGL_LOGE("ggipc-client", "Connection response missing accepted flag.");
+        GGL_LOGE("Connection response missing accepted flag.");
         return GGL_ERR_FAILURE;
     }
 
@@ -184,15 +181,13 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
     while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
         if (ggl_buffer_eq(header.name, GGL_STR("svcuid"))) {
             if (header.value.type != EVENTSTREAM_STRING) {
-                GGL_LOGE("ggipc-client", "Response svcuid header not string.");
+                GGL_LOGE("Response svcuid header not string.");
                 return GGL_ERR_INVALID;
             }
 
             if (svcuid != NULL) {
                 if (svcuid->len < header.value.string.len) {
-                    GGL_LOGE(
-                        "ggipc-client", "Insufficient buffer space for svcuid."
-                    );
+                    GGL_LOGE("Insufficient buffer space for svcuid.");
                     return GGL_ERR_NOMEM;
                 }
 
@@ -213,7 +208,7 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
         }
     }
 
-    GGL_LOGE("ggipc-client", "Response missing svcuid header.");
+    GGL_LOGE("Response missing svcuid header.");
     return GGL_ERR_FAILURE;
 }
 
@@ -256,12 +251,12 @@ GglError ggipc_call(
     }
 
     if (common_headers.stream_id != 1) {
-        GGL_LOGE("ggipc-client", "Unknown stream id received.");
+        GGL_LOGE("Unknown stream id received.");
         return GGL_ERR_FAILURE;
     }
 
     if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
-        GGL_LOGE("ggipc-client", "Connection response not an ack.");
+        GGL_LOGE("Connection response not an ack.");
         return GGL_ERR_FAILURE;
     }
 
@@ -285,12 +280,11 @@ GglError ggipc_private_get_system_config(
     }
 
     if (resp.type != GGL_TYPE_BUF) {
-        GGL_LOGE("ggipc-client", "Config value is not a string.");
+        GGL_LOGE("Config value is not a string.");
         return GGL_ERR_FAILURE;
     }
 
     GGL_LOGT(
-        "ggipc-client",
         "Read %.*s: %.*s.",
         (int) key.len,
         key.data,
@@ -312,7 +306,7 @@ GglError ggipc_get_config_str(
         ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ(key_path.bufs[i]));
     }
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggipc-client", "Key path too long.");
+        GGL_LOGE("Key path too long.");
         return GGL_ERR_NOMEM;
     }
 
@@ -342,7 +336,7 @@ GglError ggipc_get_config_str(
     }
 
     if (resp.type != GGL_TYPE_MAP) {
-        GGL_LOGE("ggipc-client", "Config value is not a map.");
+        GGL_LOGE("Config value is not a map.");
         return GGL_ERR_FAILURE;
     }
 
@@ -352,14 +346,14 @@ GglError ggipc_get_config_str(
         GGL_MAP_SCHEMA({ GGL_STR("value"), true, GGL_TYPE_BUF, &resp_value })
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggipc-client", "Failed validating server response.");
+        GGL_LOGE("Failed validating server response.");
         return GGL_ERR_INVALID;
     }
 
     GglBumpAlloc ret_alloc = ggl_bump_alloc_init(*value);
     ret = ggl_obj_buffer_copy(resp_value, &ret_alloc.alloc);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggipc-client", "Insufficent memory provided for response.");
+        GGL_LOGE("Insufficent memory provided for response.");
         return ret;
     }
 

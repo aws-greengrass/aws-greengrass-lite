@@ -48,7 +48,7 @@ GglError ggl_recipe_get_from_file(
         root_path, GGL_STR("packages/recipes"), O_PATH, false, &recipe_dir
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe", "Failed to open recipe dir.");
+        GGL_LOGE("Failed to open recipe dir.");
         return ret;
     }
 
@@ -59,7 +59,7 @@ GglError ggl_recipe_get_from_file(
     ggl_byte_vec_chain_push(&ret, &base_name, '-');
     ggl_byte_vec_chain_append(&ret, &base_name, component_version);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("recipe", "Recipe path too long.");
+        GGL_LOGE("Recipe path too long.");
         return ret;
     }
 

@@ -137,7 +137,7 @@ static GglError get_thing_name(void) {
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &thing_name_buf
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Failed to read thingName from config.");
+        GGL_LOGE("Failed to read thingName from config.");
         return ret;
     }
 
@@ -158,7 +158,6 @@ static GglError deserialize_payload(
     }
 
     GGL_LOGI(
-        "jobs-listener",
         "Got message from IoT Core; topic: %.*s, payload: %.*s.",
         (int) topic->len,
         topic->data,
@@ -168,7 +167,7 @@ static GglError deserialize_payload(
 
     ret = ggl_json_decode_destructive(*payload, alloc, json_object);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Failed to parse job doc JSON.");
+        GGL_LOGE("Failed to parse job doc JSON.");
         return ret;
     }
     return GGL_ERR_OK;
@@ -190,7 +189,7 @@ static GglError update_job(
         (char *) version_buf, sizeof(version_buf), "%" PRIi64, *version
     );
     if (len <= 0) {
-        GGL_LOGE("jobs-listener", "Version too big");
+        GGL_LOGE("Version too big");
         return GGL_ERR_RANGE;
     }
 
@@ -206,7 +205,7 @@ static GglError update_job(
     GglObject result = GGL_OBJ_NULL();
     ggl_aws_iot_call(topic, payload_object, &call_alloc.alloc, &result);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Failed to publish on update job topic");
+        GGL_LOGE("Failed to publish on update job topic");
         return ret;
     }
     ++(*version);
@@ -236,12 +235,12 @@ static GglError describe_next_job(void) {
         topic, payload_object, &call_alloc.alloc, &job_description
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Failed to publish on describe job topic");
+        GGL_LOGE("Failed to publish on describe job topic");
         return ret;
     }
 
     if (job_description.type != GGL_TYPE_MAP) {
-        GGL_LOGE("jobs-listener", "Describe payload not of type Map");
+        GGL_LOGE("Describe payload not of type Map");
         return GGL_ERR_FAILURE;
     }
 
@@ -298,7 +297,7 @@ static GglError process_job_execution(GglMap job_execution) {
         )
     );
     if (err != GGL_ERR_OK) {
-        GGL_LOGE("jobs-listener", "Failed to validate job execution response.");
+        GGL_LOGE("Failed to validate job execution response.");
         return GGL_ERR_FAILURE;
     }
     if ((status == NULL) || (job_id == NULL)) {
@@ -318,7 +317,7 @@ static GglError process_job_execution(GglMap job_execution) {
         );
         GglObject *integer = NULL;
         if (!ggl_map_get(status_action_map, status->buf, &integer)) {
-            GGL_LOGE("jobs-listener", "Job status not a valid value");
+            GGL_LOGE("Job status not a valid value");
             return GGL_ERR_INVALID;
         }
         action = (DeploymentStatusAction) integer->i64;
@@ -331,7 +330,6 @@ static GglError process_job_execution(GglMap job_execution) {
     case DSA_ENQUEUE_JOB: {
         if (deployment_doc == NULL) {
             GGL_LOGE(
-                "jobs-listener",
                 "Job status is queued/in progress, but no deployment doc was "
                 "given."
             );
@@ -359,7 +357,7 @@ static GglError next_job_execution_changed_callback(
         return GGL_ERR_FAILURE;
     }
     if (json.type != GGL_TYPE_MAP) {
-        GGL_LOGE("jobs-listener", "JSON was not a map");
+        GGL_LOGE("JSON was not a map");
         return GGL_ERR_FAILURE;
     }
 

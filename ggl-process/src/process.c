@@ -31,7 +31,7 @@ __attribute__((constructor(101))) static void setup_sigalrm(void) {
     sigaddset(&set, SIGALRM);
     int sys_ret = pthread_sigmask(SIG_BLOCK, &set, NULL);
     if (sys_ret == -1) {
-        GGL_LOGE("process", "pthread_sigmask failed: %d", errno);
+        GGL_LOGE("pthread_sigmask failed: %d", errno);
         _Exit(1);
     }
 
@@ -70,7 +70,7 @@ GglError ggl_process_spawn(char *const argv[], int *handle) {
     }
 
     if (pid < 0) {
-        GGL_LOGE("process", "Err %d when calling clone3.", errno);
+        GGL_LOGE("Err %d when calling clone3.", errno);
         return GGL_ERR_FAILURE;
     }
 
@@ -86,7 +86,7 @@ GglError ggl_process_wait(int handle, bool *exit_status) {
             if (errno == EINTR) {
                 continue;
             }
-            GGL_LOGE("process", "Err %d when calling waitid.", errno);
+            GGL_LOGE("Err %d when calling waitid.", errno);
             return GGL_ERR_FAILURE;
         }
 
@@ -149,7 +149,7 @@ GglError ggl_process_kill(int handle, uint32_t term_timeout) {
     }
 
     if (waitid_err != EINTR) {
-        GGL_LOGE("process", "Err %d when calling waitid.", errno);
+        GGL_LOGE("Err %d when calling waitid.", errno);
         return GGL_ERR_FAILURE;
     }
 

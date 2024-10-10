@@ -21,9 +21,7 @@ static void get_status(void *ctx, GglMap params, uint32_t handle) {
     bool found
         = ggl_map_get(params, GGL_STR("component_name"), &component_name);
     if (!found || component_name->type != GGL_TYPE_BUF) {
-        GGL_LOGE(
-            "rpc-handler", "Missing required GGL_TYPE_BUF `component_name`"
-        );
+        GGL_LOGE("Missing required GGL_TYPE_BUF `component_name`");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -32,7 +30,6 @@ static void get_status(void *ctx, GglMap params, uint32_t handle) {
     GglError error = gghealthd_get_status(component_name->buf, &status);
     if (error == GGL_ERR_OK) {
         GGL_LOGD(
-            "gghealthd",
             "%.*s is %.*s",
             (int) component_name->buf.len,
             component_name->buf.data,
@@ -63,19 +60,19 @@ static void update_status(void *ctx, GglMap params, uint32_t handle) {
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("rpc-handler", "update_status received invalid arguments.");
+        GGL_LOGE("update_status received invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
     if (component_name->buf.len > COMPONENT_NAME_MAX_LEN) {
-        GGL_LOGE("rpc-handler", "`component_name` too long");
+        GGL_LOGE("`component_name` too long");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
 
     if (state->buf.len > LIFECYCLE_STATE_MAX_LEN) {
-        GGL_LOGE("rpc-handler", "`lifecycle_state` too long");
+        GGL_LOGE("`lifecycle_state` too long");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }

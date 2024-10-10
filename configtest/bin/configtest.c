@@ -62,7 +62,6 @@ static void test_insert(
 
     if (expected_result != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
         GGL_LOGE(
-            "test_insert",
             "insert of key %s expected error %s but there was not a remote "
             "error",
             print_key_path(&test_key),
@@ -72,7 +71,6 @@ static void test_insert(
     }
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
-            "test_insert",
             "insert of key %s did not expect error but got error %s and remote "
             "error %s",
             print_key_path(&test_key),
@@ -83,7 +81,6 @@ static void test_insert(
     }
     if (remote_error != expected_result) {
         GGL_LOGE(
-            "test_insert",
             "insert of key %s expected remote error %s but got %s",
             print_key_path(&test_key),
             ggl_strerror(expected_result),
@@ -99,7 +96,6 @@ static void compare_objects(GglObject expected, GglObject result);
 static void compare_lists(GglList expected, GglList result) {
     if (result.len != expected.len) {
         GGL_LOGE(
-            "test_get",
             "expected list of length %d got %d",
             (int) expected.len,
             (int) result.len
@@ -117,7 +113,6 @@ static void compare_lists(GglList expected, GglList result) {
 static void compare_maps(GglMap expected, GglMap result) {
     if (result.len != expected.len) {
         GGL_LOGE(
-            "test_get",
             "expected map of length %d got %d",
             (int) expected.len,
             (int) result.len
@@ -143,7 +138,6 @@ static void compare_maps(GglMap expected, GglMap result) {
         }
         if (!found) {
             GGL_LOGE(
-                "test_get",
                 "expected key %.*s not found",
                 (int) expected_key.len,
                 (char *) expected_key.data
@@ -157,46 +151,36 @@ static void compare_objects(GglObject expected, GglObject result) {
     switch (expected.type) {
     case GGL_TYPE_BOOLEAN:
         if (result.type != GGL_TYPE_BOOLEAN) {
-            GGL_LOGE("test_get", "expected boolean, got %d", result.type);
+            GGL_LOGE("expected boolean, got %d", result.type);
             return;
         }
         if (result.boolean != expected.boolean) {
-            GGL_LOGE(
-                "test_get",
-                "expected %d got %d",
-                expected.boolean,
-                result.boolean
-            );
+            GGL_LOGE("expected %d got %d", expected.boolean, result.boolean);
         }
         break;
     case GGL_TYPE_I64:
         if (result.type != GGL_TYPE_I64) {
-            GGL_LOGE("test_get", "expected i64, got %d", result.type);
+            GGL_LOGE("expected i64, got %d", result.type);
             return;
         }
         if (result.i64 != expected.i64) {
             GGL_LOGE(
-                "test_get",
-                "expected %" PRId64 " got %" PRId64,
-                expected.i64,
-                result.i64
+                "expected %" PRId64 " got %" PRId64, expected.i64, result.i64
             );
         }
         break;
     case GGL_TYPE_F64:
         if (result.type != GGL_TYPE_F64) {
-            GGL_LOGE("test_get", "expected f64, got %d", result.type);
+            GGL_LOGE("expected f64, got %d", result.type);
             return;
         }
         if (result.f64 != expected.f64) {
-            GGL_LOGE(
-                "test_get", "expected %f got %f", expected.f64, result.f64
-            );
+            GGL_LOGE("expected %f got %f", expected.f64, result.f64);
         }
         break;
     case GGL_TYPE_BUF:
         if (result.type != GGL_TYPE_BUF) {
-            GGL_LOGE("test_get", "expected buffer, got %d", result.type);
+            GGL_LOGE("expected buffer, got %d", result.type);
             return;
         }
         if (strncmp(
@@ -206,7 +190,6 @@ static void compare_objects(GglObject expected, GglObject result) {
             )
             != 0) {
             GGL_LOGE(
-                "test_get",
                 "expected %.*s got %.*s",
                 (int) expected.buf.len,
                 (char *) expected.buf.data,
@@ -218,26 +201,26 @@ static void compare_objects(GglObject expected, GglObject result) {
         break;
     case GGL_TYPE_LIST:
         if (result.type != GGL_TYPE_LIST) {
-            GGL_LOGE("test_get", "expected list, got %d", result.type);
+            GGL_LOGE("expected list, got %d", result.type);
             return;
         }
         compare_lists(expected.list, result.list);
         break;
     case GGL_TYPE_MAP:
         if (result.type != GGL_TYPE_MAP) {
-            GGL_LOGE("test_get", "expected map, got %d", result.type);
+            GGL_LOGE("expected map, got %d", result.type);
             return;
         }
         compare_maps(expected.map, result.map);
         break;
     case GGL_TYPE_NULL:
         if (result.type != GGL_TYPE_NULL) {
-            GGL_LOGE("test_get", "expected null, got %d", result.type);
+            GGL_LOGE("expected null, got %d", result.type);
             return;
         }
         break;
     default:
-        GGL_LOGE("test_get", "unexpected type %d", expected.type);
+        GGL_LOGE("unexpected type %d", expected.type);
         break;
     }
 }
@@ -264,7 +247,6 @@ static void test_get(
     );
     if (expected_result != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
         GGL_LOGE(
-            "test_insert",
             "get key %s expected result %s but there was not a remote error",
             print_key_path(&test_key_path),
             ggl_strerror(expected_result)
@@ -273,7 +255,6 @@ static void test_get(
     }
     if (expected_result == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
-            "test_insert",
             "insert of key %s did not expect error but got error %s and remote "
             "error %s",
             print_key_path(&test_key_path),
@@ -284,7 +265,6 @@ static void test_get(
     }
     if (remote_error != expected_result) {
         GGL_LOGE(
-            "test_get",
             "get key %s expected result %s but got %s",
             print_key_path(&test_key_path),
             ggl_strerror(expected_result),
@@ -303,15 +283,11 @@ static GglError subscription_callback(
 ) {
     (void) ctx;
     (void) data;
-    GGL_LOGI(
-        "configtest", "Subscription callback called for handle %d.", handle
-    );
+    GGL_LOGI("Subscription callback called for handle %d.", handle);
     if (data.type == GGL_TYPE_LIST) {
-        GGL_LOGI(
-            "subscription callback", "read %s", print_key_path(&data.list)
-        );
+        GGL_LOGI("read %s", print_key_path(&data.list));
     } else {
-        GGL_LOGE("subscription callback", "expected a list ");
+        GGL_LOGE("expected a list ");
     }
     return GGL_ERR_OK;
 }
@@ -319,7 +295,7 @@ static GglError subscription_callback(
 static void subscription_close(void *ctx, unsigned int handle) {
     (void) ctx;
     (void) handle;
-    GGL_LOGI("subscription close", "called");
+    GGL_LOGI("called");
 }
 
 static void test_subscribe(GglList key, GglError expected_response) {
@@ -340,7 +316,6 @@ static void test_subscribe(GglList key, GglError expected_response) {
     );
     if (expected_response != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
         GGL_LOGE(
-            "test_insert",
             "subscribe key %s expected result %d but there was not a remote "
             "error",
             print_key_path(&key),
@@ -350,7 +325,6 @@ static void test_subscribe(GglList key, GglError expected_response) {
     }
     if (expected_response == GGL_ERR_OK && error != GGL_ERR_OK) {
         GGL_LOGE(
-            "test_insert",
             "insert of key %s did not expect error but got error %s and remote "
             "error %s",
             print_key_path(&key),
@@ -361,7 +335,6 @@ static void test_subscribe(GglList key, GglError expected_response) {
     }
     if (remote_error != expected_response) {
         GGL_LOGE(
-            "test_subscribe",
             "subscribe key %s expected result %s but got %s",
             print_key_path(&key),
             ggl_strerror(expected_response),
@@ -371,12 +344,7 @@ static void test_subscribe(GglList key, GglError expected_response) {
         return;
     }
     if (error == GGL_ERR_OK) {
-        GGL_LOGI(
-            "test_subscribe",
-            "Success! key: %s handle: %d",
-            print_key_path(&key),
-            handle
-        );
+        GGL_LOGI("Success! key: %s handle: %d", print_key_path(&key), handle);
     }
 }
 
@@ -413,22 +381,22 @@ static void test_write_object(void) {
     GglObject test_key_path_object;
     GglObject test_value_object;
     static uint8_t big_buffer[4096];
-    GGL_LOGI("test_write_object", "test begun");
+    GGL_LOGI("test begun");
 
     GglBumpAlloc the_allocator = ggl_bump_alloc_init(GGL_BUF(big_buffer));
     GglError error = ggl_json_decode_destructive(
         test_key_path_json, &the_allocator.alloc, &test_key_path_object
     );
-    GGL_LOGI("test_write_object", "json decode complete %d", error);
+    GGL_LOGI("json decode complete %d", error);
 
     ggl_json_decode_destructive(
         test_value_json, &the_allocator.alloc, &test_value_object
     );
 
     if (test_key_path_object.type == GGL_TYPE_LIST) {
-        GGL_LOGI("test_write_object", "found a list in the json path");
+        GGL_LOGI("found a list in the json path");
     } else {
-        GGL_LOGE("test_write_object", "json path is not a list");
+        GGL_LOGE("json path is not a list");
     }
 
     GglMap params = GGL_MAP(
@@ -436,7 +404,7 @@ static void test_write_object(void) {
         { GGL_STR("value"), test_value_object }
     );
     error = ggl_notify(GGL_STR("gg_config"), GGL_STR("write"), params);
-    GGL_LOGI("test_write_object", "test complete %d", error);
+    GGL_LOGI("test complete %d", error);
 }
 
 int main(int argc, char **argv) {

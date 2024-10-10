@@ -52,7 +52,7 @@ static GglBuffer request_token_from_aws(void) {
         certificate,
         &buffer
     );
-    GGL_LOGI("tesd", "The credentials received are: %s", buffer.data);
+    GGL_LOGI("The credentials received are: %s", buffer.data);
     return buffer;
 }
 
@@ -86,7 +86,7 @@ static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
 
 static void rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
-    GGL_LOGD("request_credentials", "Handling token publish request.");
+    GGL_LOGD("Handling token publish request.");
 
     (void) params;
     GglBuffer response = request_token_from_aws();
@@ -107,7 +107,7 @@ static void rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
         = ggl_map_get(json_cred_obj.map, GGL_STR("credentials"), &creds);
 
     if (!ret_contains) {
-        GGL_LOGD("request_credentials", "Request failed, Invalid credentials");
+        GGL_LOGD("Request failed, Invalid credentials");
         ggl_return_err(handle, ret);
         return;
     }
@@ -120,10 +120,7 @@ static void rpc_request_formatted_creds(
 ) {
     (void) ctx;
     (void) params;
-    GGL_LOGD(
-        "request_credentials_formatted",
-        "Handling token publish request for TES server."
-    );
+    GGL_LOGD("Handling token publish request for TES server.");
 
     GglBuffer buffer = request_token_from_aws();
 
@@ -169,7 +166,7 @@ static void start_tes_core_bus_server(void) {
 
     GglError ret = ggl_listen(interface, handlers, handlers_len);
 
-    GGL_LOGE("tesd", "Exiting with error %u.", (unsigned) ret);
+    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
 }
 
 GglError initiate_request(
@@ -188,7 +185,7 @@ GglError initiate_request(
     ggl_byte_vec_chain_append(&ret, &url_vec, role_alias);
     ggl_byte_vec_chain_append(&ret, &url_vec, GGL_STR("/credentials\0"));
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("tesd", "Failed to construct request URL.");
+        GGL_LOGE("Failed to construct request URL.");
         return ret;
     }
 

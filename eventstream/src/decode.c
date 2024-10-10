@@ -41,7 +41,7 @@ GglError eventstream_decode_prelude(
     uint32_t prelude_crc = read_be_uint32(ggl_buffer_substr(buf, 8, 12));
 
     if (crc != prelude_crc) {
-        GGL_LOGE("eventstream", "Prelude CRC mismatch.");
+        GGL_LOGE("Prelude CRC mismatch.");
         return GGL_ERR_PARSE;
     }
 
@@ -50,15 +50,12 @@ GglError eventstream_decode_prelude(
 
     // message must at least have 12 byte prelude and 4 byte message crc
     if (message_len < 16) {
-        GGL_LOGE("eventstream", "Prelude's message length below valid range.");
+        GGL_LOGE("Prelude's message length below valid range.");
         return GGL_ERR_PARSE;
     }
 
     if (headers_len > message_len - 16) {
-        GGL_LOGE(
-            "eventstream",
-            "Prelude's header length does not fit in valid range."
-        );
+        GGL_LOGE("Prelude's header length does not fit in valid range.");
         return GGL_ERR_PARSE;
     }
 
@@ -77,20 +74,20 @@ static GglError take_header(GglBuffer *headers_buf) {
     uint32_t pos = 0;
 
     if (headers_buf->len - pos < 1) {
-        GGL_LOGE("eventstream", "Header parsing out of bounds.");
+        GGL_LOGE("Header parsing out of bounds.");
         return GGL_ERR_PARSE;
     }
     uint8_t header_name_len = headers_buf->data[pos];
     pos += 1;
 
     if (headers_buf->len - pos < header_name_len) {
-        GGL_LOGE("eventstream", "Header parsing out of bounds.");
+        GGL_LOGE("Header parsing out of bounds.");
         return GGL_ERR_PARSE;
     }
     pos += header_name_len;
 
     if (headers_buf->len - pos < 1) {
-        GGL_LOGE("eventstream", "Header parsing out of bounds.");
+        GGL_LOGE("Header parsing out of bounds.");
         return GGL_ERR_PARSE;
     }
     uint8_t header_value_type = headers_buf->data[pos];
@@ -99,14 +96,14 @@ static GglError take_header(GglBuffer *headers_buf) {
     switch (header_value_type) {
     case EVENTSTREAM_INT32:
         if (headers_buf->len - pos < 4) {
-            GGL_LOGE("eventstream", "Header parsing out of bounds.");
+            GGL_LOGE("Header parsing out of bounds.");
             return GGL_ERR_PARSE;
         }
         pos += 4;
         break;
     case EVENTSTREAM_STRING:
         if (headers_buf->len - pos < 2) {
-            GGL_LOGE("eventstream", "Header parsing out of bounds.");
+            GGL_LOGE("Header parsing out of bounds.");
             return GGL_ERR_PARSE;
         }
         uint16_t value_len = (uint16_t) (headers_buf->data[pos] << 8)
@@ -114,13 +111,13 @@ static GglError take_header(GglBuffer *headers_buf) {
         pos += 2;
 
         if (headers_buf->len - pos < value_len) {
-            GGL_LOGE("eventstream", "Header parsing out of bounds.");
+            GGL_LOGE("Header parsing out of bounds.");
             return GGL_ERR_PARSE;
         }
         pos += value_len;
         break;
     default:
-        GGL_LOGE("eventstream", "Unsupported header value type.");
+        GGL_LOGE("Unsupported header value type.");
         return GGL_ERR_PARSE;
     }
 
@@ -154,7 +151,7 @@ GglError eventstream_decode(
     assert(msg != NULL);
     assert(data_section.len >= 4);
 
-    GGL_LOGT("eventstream", "Decoding eventstream message.");
+    GGL_LOGT("Decoding eventstream message.");
 
     uint32_t crc = ggl_update_crc(
         prelude->crc, ggl_buffer_substr(data_section, 0, data_section.len - 4)
@@ -165,9 +162,7 @@ GglError eventstream_decode(
     );
 
     if (crc != message_crc) {
-        GGL_LOGE(
-            "eventstream", "Message CRC mismatch %u %u.", crc, message_crc
-        );
+        GGL_LOGE("Message CRC mismatch %u %u.", crc, message_crc);
         return GGL_ERR_PARSE;
     }
 
@@ -201,7 +196,6 @@ GglError eventstream_decode(
         switch (header.value.type) {
         case EVENTSTREAM_INT32:
             GGL_LOGT(
-                "eventstream",
                 "Header: \"%.*s\" => %d",
                 (int) header.name.len,
                 header.name.data,
@@ -210,7 +204,6 @@ GglError eventstream_decode(
             break;
         case EVENTSTREAM_STRING:
             GGL_LOGT(
-                "eventstream",
                 "Header: \"%.*s\" => \"%.*s\"",
                 (int) header.name.len,
                 header.name.data,
@@ -221,7 +214,7 @@ GglError eventstream_decode(
         }
     }
 
-    GGL_LOGT("eventstream", "Successfully decoded eventstream message.");
+    GGL_LOGT("Successfully decoded eventstream message.");
 
     return GGL_ERR_OK;
 }

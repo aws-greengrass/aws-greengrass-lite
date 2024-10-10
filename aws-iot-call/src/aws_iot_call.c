@@ -50,7 +50,7 @@ static GglError get_client_token(GglObject payload, GglBuffer **client_token) {
         return GGL_ERR_OK;
     }
     if (found->type != GGL_TYPE_BUF) {
-        GGL_LOGE("iot_core_call", "Invalid clientToken type.");
+        GGL_LOGE("Invalid clientToken type.");
         return GGL_ERR_INVALID;
     }
     *client_token = &found->buf;
@@ -95,7 +95,7 @@ static GglError subscription_callback(
         *payload, call_ctx->alloc, call_ctx->result
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("iot_core_call", "Failed to decode response payload.");
+        GGL_LOGE("Failed to decode response payload.");
         *(call_ctx->result) = GGL_OBJ_NULL();
         decoded = false;
     }
@@ -112,7 +112,6 @@ static GglError subscription_callback(
         call_ctx->ret = GGL_ERR_OK;
     } else if (ggl_buffer_has_suffix(*topic, GGL_STR("/rejected"))) {
         GGL_LOGE(
-            "iot_core_call",
             "Received rejected response: %.*s",
             (int) payload->len,
             payload->data
@@ -151,7 +150,7 @@ GglError ggl_aws_iot_call(
     GglError ret = ggl_byte_vec_append(&topic_filter, topic);
     ggl_byte_vec_chain_append(&ret, &topic_filter, GGL_STR("/+"));
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("iot_core_call", "Failed to construct response topic filter.");
+        GGL_LOGE("Failed to construct response topic filter.");
         return ret;
     }
 
@@ -181,14 +180,14 @@ GglError ggl_aws_iot_call(
         &sub_handle
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("iot_core_call", "Response topic subscription failed.");
+        GGL_LOGE("Response topic subscription failed.");
         return ret;
     }
 
     GglBuffer payload_buf = GGL_BUF(json_encode_mem);
     ret = ggl_json_encode(payload, &payload_buf);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("iot_core_call", "Failed to encode JSON payload.");
+        GGL_LOGE("Failed to encode JSON payload.");
         ggl_client_sub_close(sub_handle);
         return ret;
     }
@@ -199,7 +198,7 @@ GglError ggl_aws_iot_call(
 
     ret = ggl_aws_iot_mqtt_publish(topic, payload_buf, 1, true);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("iot_core_call", "Response topic subscription failed.");
+        GGL_LOGE("Response topic subscription failed.");
         pthread_mutex_unlock(&notify_mtx);
         ggl_client_sub_close(sub_handle);
         return ret;

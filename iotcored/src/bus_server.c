@@ -33,13 +33,13 @@ void iotcored_start_server(IotcoredArgs *args) {
     }
     GglError ret = ggl_listen(interface, handlers, handlers_len);
 
-    GGL_LOGE("iotcored", "Exiting with error %u.", (unsigned) ret);
+    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
 }
 
 static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    GGL_LOGD("rpc-handler", "Handling publish request.");
+    GGL_LOGD("Handling publish request.");
 
     GglObject *topic_obj;
     GglObject *payload_obj;
@@ -53,7 +53,7 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("rpc-handler", "Publish received invalid arguments.");
+        GGL_LOGE("Publish received invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -61,7 +61,7 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     IotcoredMsg msg = { .topic = topic_obj->buf, .payload = { 0 } };
 
     if (msg.topic.len > UINT16_MAX) {
-        GGL_LOGE("rpc-handler", "Publish topic too large.");
+        GGL_LOGE("Publish topic too large.");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
@@ -75,7 +75,7 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     if (qos_obj != NULL) {
         int64_t qos_val = qos_obj->i64;
         if ((qos_val < 0) || (qos_val > 2)) {
-            GGL_LOGE("rpc-handler", "Publish received QoS out of range.");
+            GGL_LOGE("Publish received QoS out of range.");
             ggl_return_err(handle, GGL_ERR_INVALID);
             return;
         }
@@ -99,14 +99,14 @@ static void sub_close_callback(void *ctx, uint32_t handle) {
 static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
-    GGL_LOGD("rpc-handler", "Handling subscribe request.");
+    GGL_LOGD("Handling subscribe request.");
 
     static GglBuffer topic_filters[GGL_MQTT_MAX_SUBSCRIBE_FILTERS] = { 0 };
     size_t topic_filter_count = 0;
 
     GglObject *val;
     if (!ggl_map_get(params, GGL_STR("topic_filter"), &val)) {
-        GGL_LOGE("rpc-handler", "Subscribe received invalid arguments.");
+        GGL_LOGE("Subscribe received invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
@@ -117,17 +117,12 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     } else if (val->type == GGL_TYPE_LIST) {
         GglList arg_filters = val->list;
         if (arg_filters.len == 0) {
-            GGL_LOGE(
-                "rpc-handler", "Subscribe must have at least one topic filter."
-            );
+            GGL_LOGE("Subscribe must have at least one topic filter.");
             ggl_return_err(handle, GGL_ERR_INVALID);
             return;
         }
         if (arg_filters.len > GGL_MQTT_MAX_SUBSCRIBE_FILTERS) {
-            GGL_LOGE(
-                "rpc-handler",
-                "Subscribe received more topic filters than supported."
-            );
+            GGL_LOGE("Subscribe received more topic filters than supported.");
             ggl_return_err(handle, GGL_ERR_UNSUPPORTED);
             return;
         }
@@ -135,23 +130,21 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         topic_filter_count = arg_filters.len;
         for (size_t i = 0; i < arg_filters.len; i++) {
             if (arg_filters.items[i].type != GGL_TYPE_BUF) {
-                GGL_LOGE(
-                    "rpc-handler", "Subscribe received invalid arguments."
-                );
+                GGL_LOGE("Subscribe received invalid arguments.");
                 ggl_return_err(handle, GGL_ERR_INVALID);
                 return;
             }
             topic_filters[i] = arg_filters.items[i].buf;
         }
     } else {
-        GGL_LOGE("rpc-handler", "Subscribe received invalid arguments.");
+        GGL_LOGE("Subscribe received invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
 
     for (size_t i = 0; i < topic_filter_count; i++) {
         if (topic_filters[i].len > UINT16_MAX) {
-            GGL_LOGE("rpc-handler", "Topic filter too large.");
+            GGL_LOGE("Topic filter too large.");
             ggl_return_err(handle, GGL_ERR_RANGE);
             return;
         }
@@ -160,7 +153,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     uint8_t qos = 0;
     if (ggl_map_get(params, GGL_STR("qos"), &val)) {
         if ((val->type != GGL_TYPE_I64) || (val->i64 < 0) || (val->i64 > 2)) {
-            GGL_LOGE("rpc-handler", "Payload received invalid arguments.");
+            GGL_LOGE("Payload received invalid arguments.");
             ggl_return_err(handle, GGL_ERR_INVALID);
             return;
         }
