@@ -136,8 +136,10 @@ GglError find_available_component(
         if (ggl_buffer_eq(component_name, recipe_component)
             && is_in_range(recipe_version, requirement)) {
             *version = recipe_version;
+            return GGL_ERR_OK;
         }
     }
 
-    return GGL_ERR_OK;
+    // component meeting version requirements not found
+    return GGL_ERR_NOENTRY;
 }

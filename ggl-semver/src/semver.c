@@ -77,18 +77,28 @@ bool is_in_range(GglBuffer version, GglBuffer requirements_range) {
     char *requirements_range_as_char = (char *) requirements_range.data;
 
     static uint8_t work_mem_buffer[MAX_VERSION_LEN];
-
     GglByteVec work_mem_vec = GGL_BYTE_VEC(work_mem_buffer);
 
-    for (ulong index = 0; index <= requirements_range.len; index++) {
-        if (requirements_range_as_char[index] == ' '
-            || requirements_range_as_char[index + 1] == '\0') {
-            GglError ret = ggl_byte_vec_append(&work_mem_vec, GGL_STR("\0"));
+    static uint8_t current_version_buffer[MAX_VERSION_LEN];
+    GglByteVec current_version_vec = GGL_BYTE_VEC(current_version_buffer);
+    GglError ret = ggl_byte_vec_append(&current_version_vec, version);
+    ggl_byte_vec_chain_append(&ret, &current_version_vec, GGL_STR("\0"));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(SEMVER, "Failed to copy information over");
+        return ret;
+    }
+
+    for (ulong index = 0; index < requirements_range.len; index++) {
+        if (requirements_range_as_char[index] == ' ') {
+            // null terminating as strverscmp requires it
+            ret = ggl_byte_vec_append(&work_mem_vec, GGL_STR("\0"));
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(SEMVER, "Failed to copy information over");
                 return ret;
             }
-            bool result = process_version(work_mem_vec, (char *) version.data);
+            bool result = process_version(
+                work_mem_vec, (char *) current_version_vec.buf.data
+            );
             if (result == false) {
                 GGL_LOGT(SEMVER, "Requirement wasn't satisfied");
                 return false;
@@ -97,12 +107,27 @@ bool is_in_range(GglBuffer version, GglBuffer requirements_range) {
             work_mem_vec.buf.len = 0;
             index++;
         }
-        GglError ret = ggl_byte_vec_append(
+        ret = ggl_byte_vec_append(
             &work_mem_vec,
             (GglBuffer) { (uint8_t *) &requirements_range_as_char[index], 1 }
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(SEMVER, "Failed to copy information over");
+            return false;
+        }
+    }
+
+    if (work_mem_vec.buf.len != 0) {
+        ret = ggl_byte_vec_append(&work_mem_vec, GGL_STR("\0"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(SEMVER, "Failed to copy information over");
+            return ret;
+        }
+        bool result = process_version(
+            work_mem_vec, (char *) current_version_vec.buf.data
+        );
+        if (result == false) {
+            GGL_LOGT(SEMVER, "Requirement wasn't satisfied");
             return false;
         }
     }

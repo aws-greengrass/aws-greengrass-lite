@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "deployment_handler.h"
+#include "component_manager.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
 #include "iot_jobs_listener.h"
@@ -1116,10 +1117,10 @@ static GglError resolve_dependencies(
         // it in this map.
 
         GglBuffer resolved_version = { 0 };
-        // bool found_local_candidate = resolve_component_version(
-        //     pair->key, pair->val.buf, &resolved_version
-        // );
-        bool found_local_candidate = false;
+        bool found_local_candidate = resolve_component_version(
+            pair->key, pair->val.buf, &resolved_version
+        );
+
         if (!found_local_candidate) {
             // Resolve with cloud and download recipe
             static uint8_t resolve_component_candidates_response_buf[16384]
