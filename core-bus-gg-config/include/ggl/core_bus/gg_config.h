@@ -14,7 +14,13 @@
 #include <ggl/object.h>
 #include <stdint.h>
 
+/// The max config path depth as stored in the database
 #define GGL_MAX_CONFIG_DEPTH 10
+
+/// The max component config path depth
+// Takes into account `services.myComponent.configuration` at the beginning of
+// e.g. `myComponent`'s config path in the database
+#define GGL_MAX_COMPONENT_CONFIG_DEPTH (GGL_MAX_CONFIG_DEPTH - 3)
 
 /// Wrapper for core-bus `gg_config` `read`
 GglError ggl_gg_config_read(

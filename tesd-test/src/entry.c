@@ -33,7 +33,6 @@ GglError run_tesd_test(void) {
     }
 
     GGL_LOGE(
-        "request_credentials",
         "Received token, sessionToken: %.*s",
         (int) result.map.pairs[2].val.buf.len,
         result.map.pairs[2].val.buf.data

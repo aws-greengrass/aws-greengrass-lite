@@ -40,7 +40,7 @@ typedef struct {
 
 static GglError push_parse_state(NestingState *state, NestingLevel level) {
     if (state->level >= CORE_BUS_MAX_NESTING_DEPTH) {
-        GGL_LOGE("core-bus", "Packet object exceeded max nesting depth.");
+        GGL_LOGE("Packet object exceeded max nesting depth.");
         return GGL_ERR_RANGE;
     }
 
@@ -53,7 +53,7 @@ static GglError buf_take(size_t n, GglBuffer *buf, GglBuffer *out) {
     assert((buf != NULL) && (buf->data != NULL) && (out != NULL));
 
     if (n > buf->len) {
-        GGL_LOGE("core-bus", "Packet decode exceeded bounds.");
+        GGL_LOGE("Packet decode exceeded bounds.");
         return GGL_ERR_PARSE;
     }
 
@@ -68,7 +68,7 @@ static GglError write_bool(GglAlloc *alloc, bool boolean) {
 
     uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 1);
     if (buf == NULL) {
-        GGL_LOGE("core-bus", "Insufficient memory to encode packet.");
+        GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
     }
 
@@ -91,7 +91,7 @@ static GglError write_i64(GglAlloc *alloc, int64_t i64) {
 
     uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(int64_t));
     if (buf == NULL) {
-        GGL_LOGE("core-bus", "Insufficient memory to encode packet.");
+        GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
     }
 
@@ -116,7 +116,7 @@ static GglError write_f64(GglAlloc *alloc, double f64) {
 
     uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(double));
     if (buf == NULL) {
-        GGL_LOGE("core-bus", "Insufficient memory to encode packet.");
+        GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
     }
 
@@ -140,14 +140,14 @@ static GglError write_buf(GglAlloc *alloc, GglBuffer buffer) {
     assert(alloc != NULL);
 
     if (buffer.len > UINT32_MAX) {
-        GGL_LOGE("core-bus", "Can't encode buffer of len %zu.", buffer.len);
+        GGL_LOGE("Can't encode buffer of len %zu.", buffer.len);
         return GGL_ERR_RANGE;
     }
     uint32_t len = (uint32_t) buffer.len;
 
     uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(len) + buffer.len);
     if (buf == NULL) {
-        GGL_LOGE("core-bus", "Insufficient memory to encode packet.");
+        GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
     }
 
@@ -175,7 +175,7 @@ static GglError read_buf_raw(
     if (copy_bufs) {
         uint8_t *copy = GGL_ALLOCN(alloc, uint8_t, len);
         if (copy == NULL) {
-            GGL_LOGE("core-bus", "Insufficient memory to encode packet.");
+            GGL_LOGE("Insufficient memory to encode packet.");
             return GGL_ERR_NOMEM;
         }
 
@@ -203,14 +203,14 @@ static GglError write_list(GglAlloc *alloc, NestingState *state, GglList list) {
     assert(alloc != NULL);
 
     if (list.len > UINT32_MAX) {
-        GGL_LOGE("core-bus", "Can't encode list of len %zu.", list.len);
+        GGL_LOGE("Can't encode list of len %zu.", list.len);
         return GGL_ERR_RANGE;
     }
     uint32_t len = (uint32_t) list.len;
 
     uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(len));
     if (buf == NULL) {
-        GGL_LOGE("core-bus", "Insufficient memory to encode packet.");
+        GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
     }
 
@@ -246,16 +246,14 @@ static GglError read_list(
 
     if (len > 0) {
         if (alloc == NULL) {
-            GGL_LOGE(
-                "core-bus",
-                "Packet decode requires allocation and no alloc provided."
+            GGL_LOGE("Packet decode requires allocation and no alloc provided."
             );
             return GGL_ERR_NOMEM;
         }
 
         val.items = GGL_ALLOCN(alloc, GglObject, len);
         if (val.items == NULL) {
-            GGL_LOGE("core-bus", "Insufficient memory to decode packet.");
+            GGL_LOGE("Insufficient memory to decode packet.");
             return GGL_ERR_NOMEM;
         }
 
@@ -280,14 +278,14 @@ static GglError write_map(GglAlloc *alloc, NestingState *state, GglMap map) {
     assert(alloc != NULL);
 
     if (map.len > UINT32_MAX) {
-        GGL_LOGE("core-bus", "Can't encode map of len %zu.", map.len);
+        GGL_LOGE("Can't encode map of len %zu.", map.len);
         return GGL_ERR_RANGE;
     }
     uint32_t len = (uint32_t) map.len;
 
     uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(len));
     if (buf == NULL) {
-        GGL_LOGE("core-bus", "Insufficient memory to encode packet.");
+        GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
     }
 
@@ -322,16 +320,14 @@ static GglError read_map(
 
     if (len > 0) {
         if (alloc == NULL) {
-            GGL_LOGE(
-                "core-bus",
-                "Packet decode requires allocation and no alloc provided."
+            GGL_LOGE("Packet decode requires allocation and no alloc provided."
             );
             return GGL_ERR_NOMEM;
         }
 
         val.pairs = GGL_ALLOCN(alloc, GglKV, len);
         if (val.pairs == NULL) {
-            GGL_LOGE("core-bus", "Insufficient memory to decode packet.");
+            GGL_LOGE("Insufficient memory to decode packet.");
             return GGL_ERR_NOMEM;
         }
 
@@ -355,7 +351,7 @@ static GglError read_map(
 static GglError write_obj(GglAlloc *alloc, NestingState *state, GglObject obj) {
     uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 1);
     if (buf == NULL) {
-        GGL_LOGE("core-bus", "Insufficient memory to encode packet.");
+        GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
     }
     buf[0] = (uint8_t) obj.type;
@@ -519,7 +515,7 @@ GglError ggl_deserialize(
 
     // Ensure no trailing data
     if (rest.len != 0) {
-        GGL_LOGE("msgpack", "Payload has %zu trailing bytes.", rest.len);
+        GGL_LOGE("Payload has %zu trailing bytes.", rest.len);
         return GGL_ERR_PARSE;
     }
 

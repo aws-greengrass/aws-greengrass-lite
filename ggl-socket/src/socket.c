@@ -33,15 +33,15 @@ GglError ggl_read(int fd, GglBuffer *buf) {
             return GGL_ERR_OK;
         }
         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-            GGL_LOGE("socket", "recv timed out on socket %d.", fd);
+            GGL_LOGE("recv timed out on socket %d.", fd);
             return GGL_ERR_FAILURE;
         }
         int err = errno;
-        GGL_LOGE("socket", "Failed to recv on %d: %d.", fd, err);
+        GGL_LOGE("Failed to recv on %d: %d.", fd, err);
         return GGL_ERR_FAILURE;
     }
     if (ret == 0) {
-        GGL_LOGD("socket", "Socket %d closed.", fd);
+        GGL_LOGD("Socket %d closed.", fd);
         return GGL_ERR_NOCONN;
     }
 
@@ -69,15 +69,15 @@ GglError ggl_write(int fd, GglBuffer *buf) {
             return GGL_ERR_OK;
         }
         if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-            GGL_LOGE("socket", "Write timed out on socket %d.", fd);
+            GGL_LOGE("Write timed out on socket %d.", fd);
             return GGL_ERR_FAILURE;
         }
         if (errno == EPIPE) {
-            GGL_LOGE("socket", "Write failed to %d; peer closed socket.", fd);
+            GGL_LOGE("Write failed to %d; peer closed socket.", fd);
             return GGL_ERR_NOCONN;
         }
         int err = errno;
-        GGL_LOGE("socket", "Failed to write to socket %d: %d.", fd, err);
+        GGL_LOGE("Failed to write to socket %d: %d.", fd, err);
         return GGL_ERR_FAILURE;
     }
 
@@ -103,7 +103,7 @@ GglError ggl_connect(GglBuffer path, int *fd) {
 
     // TODO: Use symlinks to handle long paths
     if (path.len >= sizeof(addr.sun_path)) {
-        GGL_LOGE("socket", "Socket path too long.");
+        GGL_LOGE("Socket path too long.");
         return GGL_ERR_FAILURE;
     }
 
@@ -112,7 +112,7 @@ GglError ggl_connect(GglBuffer path, int *fd) {
     int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (sockfd == -1) {
         int err = errno;
-        GGL_LOGE("socket", "Failed to create socket: %d.", err);
+        GGL_LOGE("Failed to create socket: %d.", err);
         return GGL_ERR_FATAL;
     }
     GGL_DEFER(ggl_close, sockfd);
@@ -120,7 +120,6 @@ GglError ggl_connect(GglBuffer path, int *fd) {
     if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         int err = errno;
         GGL_LOGW(
-            "socket",
             "Failed to connect to server (%.*s): %d.",
             (int) path.len,
             path.data,

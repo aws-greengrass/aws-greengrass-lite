@@ -20,7 +20,7 @@ GglError ggl_ipc_auth_lookup_name(
     int error = sd_pid_get_unit(pid, &unit_name);
     GGL_DEFER(free, unit_name);
     if ((error < 0) || (unit_name == NULL)) {
-        GGL_LOGE("ipc-auth", "Failed to look up service for pid %d.", pid);
+        GGL_LOGE("Failed to look up service for pid %d.", pid);
         return GGL_ERR_NOENTRY;
     }
 
@@ -33,10 +33,7 @@ GglError ggl_ipc_auth_lookup_name(
             ggl_buffer_substr(name, name.len - ext.len, SIZE_MAX), ext
         )) {
         GGL_LOGE(
-            "ipc-auth",
-            "Service for pid %d (%s) missing service extension.",
-            pid,
-            unit_name
+            "Service for pid %d (%s) missing service extension.", pid, unit_name
         );
         return GGL_ERR_NOENTRY;
     }
@@ -46,7 +43,6 @@ GglError ggl_ipc_auth_lookup_name(
     GglBuffer prefix = GGL_STR("ggl.");
     if (!ggl_buffer_eq(ggl_buffer_substr(name, 0, prefix.len), prefix)) {
         GGL_LOGE(
-            "ipc-auth",
             "Service for pid %d (%s) does not have ggl component prefix.",
             pid,
             unit_name
@@ -58,12 +54,7 @@ GglError ggl_ipc_auth_lookup_name(
 
     uint8_t *component_name_buf = GGL_ALLOCN(alloc, uint8_t, name.len);
     if (component_name_buf == NULL) {
-        GGL_LOGE(
-            "ipc-auth",
-            "Component name %.*s is too long.",
-            (int) name.len,
-            name.data
-        );
+        GGL_LOGE("Component name %.*s is too long.", (int) name.len, name.data);
         return GGL_ERR_NOMEM;
     }
 

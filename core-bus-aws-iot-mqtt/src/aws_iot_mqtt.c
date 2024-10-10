@@ -42,7 +42,7 @@ GglError ggl_aws_iot_mqtt_subscribe(
     uint32_t *handle
 ) {
     if (topic_filters.len > GGL_MQTT_MAX_SUBSCRIBE_FILTERS) {
-        GGL_LOGE("aws_iot_mqtt", "Topic filter count exceeds maximum handled.");
+        GGL_LOGE("Topic filter count exceeds maximum handled.");
         return GGL_ERR_UNSUPPORTED;
     }
 
@@ -73,7 +73,7 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
     GglObject data, GglBuffer **topic, GglBuffer **payload
 ) {
     if (data.type != GGL_TYPE_MAP) {
-        GGL_LOGE("aws_iot_mqtt", "Subscription response is not a map.");
+        GGL_LOGE("Subscription response is not a map.");
         return GGL_ERR_FAILURE;
     }
 
@@ -87,7 +87,7 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("aws_iot_mqtt", "Received invalid subscription response.");
+        GGL_LOGE("Received invalid subscription response.");
         return GGL_ERR_FAILURE;
     }
 

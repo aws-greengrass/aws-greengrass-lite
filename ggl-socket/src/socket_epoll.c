@@ -16,7 +16,7 @@ GglError ggl_socket_epoll_create(int *epoll_fd) {
     int fd = epoll_create1(EPOLL_CLOEXEC);
     if (fd == -1) {
         int err = errno;
-        GGL_LOGE("socket-epoll", "Failed to create epoll fd: %d.", err);
+        GGL_LOGE("Failed to create epoll fd: %d.", err);
         return GGL_ERR_FAILURE;
     }
     *epoll_fd = fd;
@@ -32,9 +32,7 @@ GglError ggl_socket_epoll_add(int epoll_fd, int target_fd, uint64_t data) {
     int err = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, target_fd, &event);
     if (err == -1) {
         err = errno;
-        GGL_LOGE(
-            "socket-epoll", "Failed to add watch for %d: %d.", target_fd, err
-        );
+        GGL_LOGE("Failed to add watch for %d: %d.", target_fd, err);
         return GGL_ERR_FAILURE;
     }
     return GGL_ERR_OK;
@@ -55,11 +53,11 @@ GglError ggl_socket_epoll_run(
 
         if (ready == -1) {
             if (errno == EINTR) {
-                GGL_LOGT("socket-epoll", "epoll_wait interrupted.");
+                GGL_LOGT("epoll_wait interrupted.");
                 continue;
             }
             int err = errno;
-            GGL_LOGE("socket-epoll", "Failed to wait on epoll: %d.", err);
+            GGL_LOGE("Failed to wait on epoll: %d.", err);
             return GGL_ERR_FAILURE;
         }
 

@@ -88,7 +88,7 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
         MQTTStatus_t mqtt_ret = MQTT_ReceiveLoop(ctx);
 
         if ((mqtt_ret != MQTTSuccess) && (mqtt_ret != MQTTNeedMoreBytes)) {
-            GGL_LOGE("mqtt", "Error in receive loop, closing connection.");
+            GGL_LOGE("Error in receive loop, closing connection.");
             pthread_cancel(keepalive_thread);
             iotcored_tls_cleanup(
                 ctx->transportInterface.pNetworkContext->tls_ctx
@@ -108,19 +108,17 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
         }
 
         if (atomic_load_explicit(&ping_pending, memory_order_acquire)) {
-            GGL_LOGE(
-                "mqtt",
-                "Server did not respond to ping within Keep Alive period."
+            GGL_LOGE("Server did not respond to ping within Keep Alive period."
             );
             break;
         }
 
-        GGL_LOGD("mqtt", "Sending pingreq.");
+        GGL_LOGD("Sending pingreq.");
         atomic_store_explicit(&ping_pending, true, memory_order_release);
         MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
 
         if (mqtt_ret != MQTTSuccess) {
-            GGL_LOGE("mqtt", "Sending pingreq failed.");
+            GGL_LOGE("Sending pingreq failed.");
             break;
         }
     }
@@ -188,7 +186,7 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
 
     size_t id_len = strlen(args->id);
     if (id_len > UINT16_MAX) {
-        GGL_LOGE("mqtt", "Client ID too long.");
+        GGL_LOGE("Client ID too long.");
         return GGL_ERR_CONFIG;
     }
 
@@ -209,9 +207,7 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
     );
 
     if (mqtt_ret != MQTTSuccess) {
-        GGL_LOGE(
-            "mqtt", "Connection failed: %s", MQTT_Status_strerror(mqtt_ret)
-        );
+        GGL_LOGE("Connection failed: %s", MQTT_Status_strerror(mqtt_ret));
         return GGL_ERR_FAILURE;
     }
 
@@ -221,7 +217,7 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
         &keepalive_thread, NULL, mqtt_keepalive_thread_fn, &mqtt_ctx
     );
 
-    GGL_LOGI("mqtt", "Successfully connected.");
+    GGL_LOGI("Successfully connected.");
 
     return 0;
 }
@@ -243,7 +239,6 @@ GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
 
     if (result != MQTTSuccess) {
         GGL_LOGE(
-            "mqtt",
             "%s to %.*s failed: %s",
             "Publish",
             (int) (uint16_t) msg->topic.len,
@@ -254,7 +249,6 @@ GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
     }
 
     GGL_LOGD(
-        "mqtt",
         "Publish sent on: %.*s",
         (int) (uint16_t) msg->topic.len,
         msg->topic.data
@@ -285,7 +279,6 @@ GglError iotcored_mqtt_subscribe(
 
     if (result != MQTTSuccess) {
         GGL_LOGE(
-            "mqtt",
             "%s to %.*s failed: %s",
             "Subscribe",
             (int) (uint16_t) topic_filters[0].len,
@@ -296,7 +289,6 @@ GglError iotcored_mqtt_subscribe(
     }
 
     GGL_LOGD(
-        "mqtt",
         "Subscribe sent for: %.*s",
         (int) (uint16_t) topic_filters[0].len,
         topic_filters[0].data
@@ -333,7 +325,6 @@ static void event_callback(
         MQTTPublishInfo_t *publish = deserialized_info->pPublishInfo;
 
         GGL_LOGD(
-            "mqtt",
             "Received publish id %u on topic %.*s.",
             deserialized_info->packetIdentifier,
             (int) publish->topicNameLength,
@@ -351,7 +342,6 @@ static void event_callback(
         switch (packet_info->type) {
         case MQTT_PACKET_TYPE_PUBACK:
             GGL_LOGD(
-                "mqtt",
                 "Received %s id %u.",
                 "puback",
                 deserialized_info->packetIdentifier
@@ -359,7 +349,6 @@ static void event_callback(
             break;
         case MQTT_PACKET_TYPE_SUBACK:
             GGL_LOGD(
-                "mqtt",
                 "Received %s id %u.",
                 "suback",
                 deserialized_info->packetIdentifier
@@ -367,20 +356,17 @@ static void event_callback(
             break;
         case MQTT_PACKET_TYPE_UNSUBACK:
             GGL_LOGD(
-                "mqtt",
                 "Received %s id %u.",
                 "unsuback",
                 deserialized_info->packetIdentifier
             );
             break;
         case MQTT_PACKET_TYPE_PINGRESP:
-            GGL_LOGD("mqtt", "Received pingresp.");
+            GGL_LOGD("Received pingresp.");
             atomic_store_explicit(&ping_pending, false, memory_order_release);
             break;
         default:
-            GGL_LOGE(
-                "mqtt", "Received unknown packet type %02x.", packet_info->type
-            );
+            GGL_LOGE("Received unknown packet type %02x.", packet_info->type);
         }
     }
 }

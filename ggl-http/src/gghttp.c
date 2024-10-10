@@ -22,7 +22,6 @@ GglError fetch_token(
     CurlData curl_data = { 0 };
 
     GGL_LOGI(
-        "fetch_token",
         "Fetching token from credentials endpoint=%s, for iot thing=%.*s",
         url_for_token,
         (int) thing_name.len,
@@ -44,11 +43,7 @@ GglError fetch_token(
 }
 
 GglError generic_download(const char *url_for_generic_download, int fd) {
-    GGL_LOGI(
-        "generic_download",
-        "downloading content from %s",
-        url_for_generic_download
-    );
+    GGL_LOGI("downloading content from %s", url_for_generic_download);
 
     CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_generic_download);
@@ -62,9 +57,7 @@ GglError generic_download(const char *url_for_generic_download, int fd) {
 GglError sigv4_download(
     const char *url_for_sigv4_download, int fd, SigV4Details sigv4_details
 ) {
-    GGL_LOGI(
-        "sigv4_download", "downloading content from %s", url_for_sigv4_download
-    );
+    GGL_LOGI("downloading content from %s", url_for_sigv4_download);
 
     CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_sigv4_download);
@@ -89,7 +82,6 @@ GglError gg_dataplane_call(
     CurlData curl_data = { 0 };
 
     GGL_LOGI(
-        "dataplane_call",
         "Preparing call to data endpoint provided as %.*s:%.*s/%.*s",
         (int) endpoint.len,
         endpoint.data,
@@ -122,10 +114,10 @@ GglError gg_dataplane_call(
     if (ret == GGL_ERR_OK) {
         gghttplib_add_certificate_data(&curl_data, certificate_details);
         if (body != NULL) {
-            GGL_LOGD("dataplane_call", "Adding body to http request");
+            GGL_LOGD("Adding body to http request");
             gghttplib_add_post_body(&curl_data, body);
         }
-        GGL_LOGD("dataplane_call", "Sending request to dataplane endpoint");
+        GGL_LOGD("Sending request to dataplane endpoint");
         ret = gghttplib_process_request(&curl_data, response_buffer);
     }
     return ret;

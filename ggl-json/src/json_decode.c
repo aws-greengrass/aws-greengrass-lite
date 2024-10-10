@@ -624,7 +624,7 @@ static GglError decode_json_str(GglBuffer content, GglObject *obj) {
     GglBuffer str = content;
     bool ret = unescape_string(&str);
     if (!ret) {
-        GGL_LOGE("json", "Error decoding JSON string.");
+        GGL_LOGE("Error decoding JSON string.");
         return GGL_ERR_PARSE;
     }
     *obj = GGL_OBJ(str);
@@ -636,7 +636,7 @@ static GglError decode_json_number(GglBuffer content, GglObject *obj) {
 
     bool result = parser_call(&PARSER_INT_PART, &buf, NULL);
     if (!result) {
-        GGL_LOGE("json", "Failed to parse JSON number.");
+        GGL_LOGE("Failed to parse JSON number.");
         return GGL_ERR_PARSE;
     }
 
@@ -647,7 +647,7 @@ static GglError decode_json_number(GglBuffer content, GglObject *obj) {
         int64_t val;
         GglError parse_ret = ggl_str_to_int64(content, &val);
         if (parse_ret != GGL_ERR_OK) {
-            GGL_LOGE("json", "JSON integer out of range of int64_t.");
+            GGL_LOGE("JSON integer out of range of int64_t.");
             return parse_ret;
         }
         *obj = GGL_OBJ_I64(val);
@@ -657,7 +657,7 @@ static GglError decode_json_number(GglBuffer content, GglObject *obj) {
     errno = 0;
     double val = strtod((char *) content.data, NULL);
     if (errno == ERANGE) {
-        GGL_LOGE("json", "JSON float out of range of double.");
+        GGL_LOGE("JSON float out of range of double.");
         return GGL_ERR_RANGE;
     }
     *obj = GGL_OBJ_F64(val);
@@ -673,13 +673,13 @@ static GglError decode_json_array(
     GglObject *items = NULL;
     if (count > 0) {
         if (alloc == NULL) {
-            GGL_LOGE("json", "Insufficent memory to decode JSON.");
+            GGL_LOGE("Insufficent memory to decode JSON.");
             return GGL_ERR_NOMEM;
         }
 
         items = GGL_ALLOCN(alloc, GglObject, count);
         if (items == NULL) {
-            GGL_LOGE("json", "Insufficent memory to decode JSON.");
+            GGL_LOGE("Insufficent memory to decode JSON.");
             return GGL_ERR_NOMEM;
         }
     }
@@ -694,7 +694,7 @@ static GglError decode_json_array(
         if (i != count - 1) {
             bool matches = parser_call(&PARSER_CHAR(','), &buf_copy, NULL);
             if (!matches) {
-                GGL_LOGE("json", "Failed to match comma while decoding array.");
+                GGL_LOGE("Failed to match comma while decoding array.");
                 return GGL_ERR_PARSE;
             }
         }
@@ -711,13 +711,13 @@ static GglError decode_json_object(
     GglKV *pairs = NULL;
     if (count > 0) {
         if (alloc == NULL) {
-            GGL_LOGE("json", "Insufficent memory to decode JSON.");
+            GGL_LOGE("Insufficent memory to decode JSON.");
             return GGL_ERR_NOMEM;
         }
 
         pairs = GGL_ALLOCN(alloc, GglKV, count);
         if (pairs == NULL) {
-            GGL_LOGE("json", "Insufficent memory to decode JSON.");
+            GGL_LOGE("Insufficent memory to decode JSON.");
             return GGL_ERR_NOMEM;
         }
     }
@@ -731,14 +731,14 @@ static GglError decode_json_object(
             return ret;
         }
         if (key_obj.type != GGL_TYPE_BUF) {
-            GGL_LOGE("json", "Non-string key type when decoding object.");
+            GGL_LOGE("Non-string key type when decoding object.");
             return GGL_ERR_PARSE;
         }
         pairs[i].key = key_obj.buf;
 
         bool matches = parser_call(&PARSER_CHAR(':'), &buf_copy, NULL);
         if (!matches) {
-            GGL_LOGE("json", "Failed to match comma while decoding object.");
+            GGL_LOGE("Failed to match comma while decoding object.");
             return GGL_ERR_PARSE;
         }
 
@@ -749,9 +749,7 @@ static GglError decode_json_object(
         if (i != count - 1) {
             matches = parser_call(&PARSER_CHAR(','), &buf_copy, NULL);
             if (!matches) {
-                GGL_LOGE(
-                    "json", "Failed to match comma while decoding object."
-                );
+                GGL_LOGE("Failed to match comma while decoding object.");
                 return GGL_ERR_PARSE;
             }
         }
@@ -766,7 +764,7 @@ static GglError take_json_val(GglBuffer *buf, GglAlloc *alloc, GglObject *obj) {
     ParseResult output = { 0 };
     bool matches = parser_call(&PARSER_JSON_VALUE, buf, &output);
     if (!matches) {
-        GGL_LOGE("json", "Failed to parse buffer.");
+        GGL_LOGE("Failed to parse buffer.");
         return GGL_ERR_PARSE;
     }
 
@@ -805,7 +803,7 @@ GglError ggl_json_decode_destructive(
     }
 
     if (buf_copy.len > 0) {
-        GGL_LOGE("json", "Trailing buffer content when decoding.");
+        GGL_LOGE("Trailing buffer content when decoding.");
         return GGL_ERR_PARSE;
     }
 

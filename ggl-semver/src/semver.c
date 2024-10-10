@@ -93,14 +93,14 @@ bool is_in_range(GglBuffer version, GglBuffer requirements_range) {
             // null terminating as strverscmp requires it
             ret = ggl_byte_vec_append(&work_mem_vec, GGL_STR("\0"));
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE(SEMVER, "Failed to copy information over");
+                GGL_LOGE("Failed to copy information over");
                 return ret;
             }
             bool result = process_version(
                 work_mem_vec, (char *) current_version_vec.buf.data
             );
             if (result == false) {
-                GGL_LOGT(SEMVER, "Requirement wasn't satisfied");
+                GGL_LOGT("Requirement wasn't satisfied");
                 return false;
             }
             // Rest once a value is parsed
@@ -112,7 +112,7 @@ bool is_in_range(GglBuffer version, GglBuffer requirements_range) {
             (GglBuffer) { (uint8_t *) &requirements_range_as_char[index], 1 }
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE(SEMVER, "Failed to copy information over");
+            GGL_LOGE("Failed to copy information over");
             return false;
         }
     }

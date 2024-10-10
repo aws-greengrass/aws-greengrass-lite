@@ -35,11 +35,7 @@ int main(void) {
     );
 
     if (ret != 0) {
-        GGL_LOGE(
-            "deployment-client",
-            "Failed to send create_local_deployment: %d.",
-            ret
-        );
+        GGL_LOGE("Failed to send create_local_deployment: %d.", ret);
         return EPROTO;
     }
 }

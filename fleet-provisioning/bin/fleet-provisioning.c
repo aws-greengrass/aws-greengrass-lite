@@ -81,9 +81,7 @@ static void parse_path(char **argv, char *path) {
     memcpy(path, argv[0], strlen(argv[0]) - strlen(COMPONENT_NAME));
     strncat(path, "iotcored", strlen("iotcored"));
 
-    GGL_LOGD(
-        "fleet-provisioning", "iotcored path: %.*s", (int) strlen(path), path
-    );
+    GGL_LOGD("iotcored path: %.*s", (int) strlen(path), path);
 }
 
 int main(int argc, char **argv) {

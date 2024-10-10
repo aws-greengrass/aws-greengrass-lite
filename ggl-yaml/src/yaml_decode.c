@@ -70,7 +70,7 @@ static GglError yaml_mapping_to_obj(
     assert(node->type == YAML_MAPPING_NODE);
 
     if (node->data.mapping.pairs.top < node->data.mapping.pairs.start) {
-        GGL_LOGE("yaml", "Unexpected result from libyaml.");
+        GGL_LOGE("Unexpected result from libyaml.");
         return GGL_ERR_FAILURE;
     }
 
@@ -79,7 +79,7 @@ static GglError yaml_mapping_to_obj(
 
     GglKV *pairs = GGL_ALLOCN(alloc, GglKV, len);
     if (pairs == NULL) {
-        GGL_LOGE("yaml", "Insufficent memory to decode yaml.");
+        GGL_LOGE("Insufficent memory to decode yaml.");
         return GGL_ERR_NOMEM;
     }
 
@@ -88,18 +88,18 @@ static GglError yaml_mapping_to_obj(
         yaml_node_t *key_node
             = yaml_document_get_node(document, node_pairs[i].key);
         if (key_node == NULL) {
-            GGL_LOGE("yaml", "Yaml mapping key NULL.");
+            GGL_LOGE("Yaml mapping key NULL.");
             return GGL_ERR_FAILURE;
         }
         yaml_node_t *value_node
             = yaml_document_get_node(document, node_pairs[i].value);
         if (value_node == NULL) {
-            GGL_LOGE("yaml", "Yaml mapping value NULL.");
+            GGL_LOGE("Yaml mapping value NULL.");
             return GGL_ERR_FAILURE;
         }
 
         if (key_node->type != YAML_SCALAR_NODE) {
-            GGL_LOGE("yaml", "Yaml mapping key not a scalar.");
+            GGL_LOGE("Yaml mapping key not a scalar.");
             return GGL_ERR_FAILURE;
         }
 
@@ -136,7 +136,7 @@ static GglError yaml_sequence_to_obj(
     assert(node->type == YAML_SEQUENCE_NODE);
 
     if (node->data.sequence.items.top < node->data.sequence.items.start) {
-        GGL_LOGE("yaml", "Unexpected result from libyaml.");
+        GGL_LOGE("Unexpected result from libyaml.");
         return GGL_ERR_FAILURE;
     }
 
@@ -145,7 +145,7 @@ static GglError yaml_sequence_to_obj(
 
     GglObject *items = GGL_ALLOCN(alloc, GglObject, len);
     if (items == NULL) {
-        GGL_LOGE("yaml", "Insufficent memory to decode yaml.");
+        GGL_LOGE("Insufficent memory to decode yaml.");
         return GGL_ERR_NOMEM;
     }
 
@@ -154,7 +154,7 @@ static GglError yaml_sequence_to_obj(
         yaml_node_t *item_node
             = yaml_document_get_node(document, item_nodes[i]);
         if (item_node == NULL) {
-            GGL_LOGE("yaml", "Yaml sequence node NULL.");
+            GGL_LOGE("Yaml sequence node NULL.");
             return GGL_ERR_FAILURE;
         }
 
@@ -182,7 +182,7 @@ static GglError yaml_to_obj(
 
     switch (node->type) {
     case YAML_NO_NODE: {
-        GGL_LOGE("yaml", "Unexpected missing node from libyaml.");
+        GGL_LOGE("Unexpected missing node from libyaml.");
         return GGL_ERR_FAILURE;
     }
     case YAML_SCALAR_NODE:
@@ -193,7 +193,7 @@ static GglError yaml_to_obj(
         return yaml_sequence_to_obj(document, node, alloc, obj);
     }
 
-    GGL_LOGE("yaml", "Unexpected node type from libyaml.");
+    GGL_LOGE("Unexpected node type from libyaml.");
     return GGL_ERR_FAILURE;
 }
 

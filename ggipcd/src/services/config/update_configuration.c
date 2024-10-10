@@ -5,7 +5,7 @@
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "config.h"
-#include "make_config_path_object.h"
+#include "config_path_object.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
@@ -48,13 +48,13 @@ GglError ggl_handle_update_configuration(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("GetConfiguration", "Received invalid paramters.");
+        GGL_LOGE("Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
 
     ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("GetConfiguration", "Received invalid paramters.");
+        GGL_LOGE("Received invalid paramters.");
         return GGL_ERR_INVALID;
     }
 
@@ -71,7 +71,7 @@ GglError ggl_handle_update_configuration(
     // convert timestamp from sec in floating-point(with msec precision) to msec
     // in integer
     int64_t timestamp = (int64_t) timestamp_obj->f64 * 1000;
-    GGL_LOGT("UpdateConfiguration", "timestamp is %" PRId64, timestamp);
+    GGL_LOGT("timestamp is %" PRId64, timestamp);
 
     GglBufList full_key_path;
     ret = ggl_make_config_path_object(

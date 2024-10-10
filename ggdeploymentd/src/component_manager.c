@@ -30,7 +30,6 @@ static GglError find_active_version(
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGI(
-            "component-manager",
             "Unable to retrieve version of %s. Assuming no active version "
             "found.",
             package_name.data
@@ -46,24 +45,16 @@ static GglError find_active_version(
 static GglError find_best_candidate_locally(
     GglBuffer component_name, GglBuffer version_requirement, GglBuffer *version
 ) {
-    GGL_LOGD(
-        "component-manager",
-        "Searching for the best local candidate on the device."
-    );
+    GGL_LOGD("Searching for the best local candidate on the device.");
 
     GglError ret = find_active_version(component_name, version);
 
     if (ret == GGL_ERR_OK) {
-        GGL_LOGI(
-            "component-manager",
-            "Found running component which meets the version requirements."
+        GGL_LOGI("Found running component which meets the version requirements."
         );
     } else {
-        GGL_LOGI(
-            "component-manager",
-            "No running component satisfies the version requirements. "
-            "Searching in the local component store."
-        );
+        GGL_LOGI("No running component satisfies the version requirements. "
+                 "Searching in the local component store.");
 
         find_available_component(component_name, version_requirement, version);
     }
@@ -76,7 +67,7 @@ bool resolve_component_version(
     GglBuffer version_requirement,
     GglBuffer *resolved_version
 ) {
-    GGL_LOGD("component-manager", "Resolving component version.");
+    GGL_LOGD("Resolving component version.");
 
     // find best local candidate
     GglBuffer local_version;
@@ -86,7 +77,6 @@ bool resolve_component_version(
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGI(
-            "component-manager",
             "Failed to find a local candidate that satisfies the requrement."
         );
         return false;

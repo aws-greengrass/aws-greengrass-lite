@@ -33,7 +33,6 @@ GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
         if (!found) {
             if (entry->required) {
                 GGL_LOGE(
-                    "map_validate",
                     "Map missing required key %.*s.",
                     (int) entry->key.len,
                     entry->key.data
@@ -42,7 +41,6 @@ GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
             }
 
             GGL_LOGT(
-                "map_validate",
                 "Missing optional key %.*s.",
                 (int) entry->key.len,
                 entry->key.data
@@ -53,17 +51,11 @@ GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
             continue;
         }
 
-        GGL_LOGT(
-            "map_validate",
-            "Found key %.*s.",
-            (int) entry->key.len,
-            entry->key.data
-        );
+        GGL_LOGT("Found key %.*s.", (int) entry->key.len, entry->key.data);
 
         if (entry->type != GGL_TYPE_NULL) {
             if (entry->type != value->type) {
                 GGL_LOGE(
-                    "map_validate",
                     "Key %.*s is of invalid type.",
                     (int) entry->key.len,
                     entry->key.data

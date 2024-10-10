@@ -71,19 +71,16 @@ GglError verify_component_exists(GglBuffer component_name) {
         server, GGL_STR("read"), params, &method_error, &alloc.alloc, &result
     );
     if (error != GGL_ERR_OK) {
-        GGL_LOGE("gghealthd", "failed to connect to ggconfigd");
+        GGL_LOGE("failed to connect to ggconfigd");
         return error;
     }
     if (method_error != GGL_ERR_OK) {
-        GGL_LOGE("gghealthd", "component does not exist in registry");
+        GGL_LOGE("component does not exist in registry");
         return GGL_ERR_NOENTRY;
     }
     if (result.type == GGL_TYPE_BUF) {
         GGL_LOGT(
-            "gghealthd",
-            "read %.*s",
-            (int) result.buf.len,
-            (const char *) result.buf.data
+            "read %.*s", (int) result.buf.len, (const char *) result.buf.data
         );
     }
     return GGL_ERR_OK;

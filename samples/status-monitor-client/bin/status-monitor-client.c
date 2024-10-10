@@ -59,7 +59,6 @@ int main(void) {
         }
 
         GGL_LOGI(
-            "status-monitor",
             "%.*s state: %.*s",
             (int) component_name->buf.len,
             component_name->buf.data,

@@ -21,7 +21,7 @@ GglError run_gg_fleet_statusd(void) {
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &thing_name
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("fleet_status", "Failed to read thingName from config.");
+        GGL_LOGE("Failed to read thingName from config.");
         return ret;
     }
 

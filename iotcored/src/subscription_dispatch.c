@@ -44,16 +44,13 @@ GglError iotcored_register_subscriptions(
 ) {
     for (size_t i = 0; i < count; i++) {
         if (topic_filters[i].len == 0) {
-            GGL_LOGE(
-                "subscriptions",
-                "Attempted to register a 0 length topic filter."
-            );
+            GGL_LOGE("Attempted to register a 0 length topic filter.");
             return GGL_ERR_INVALID;
         }
     }
     for (size_t i = 0; i < count; i++) {
         if (topic_filters[i].len > AWS_IOT_MAX_TOPIC_SIZE) {
-            GGL_LOGE("subscriptions", "Topic filter exceeds max length.");
+            GGL_LOGE("Topic filter exceeds max length.");
             return GGL_ERR_RANGE;
         }
     }
@@ -77,7 +74,7 @@ GglError iotcored_register_subscriptions(
             }
         }
     }
-    GGL_LOGE("subscriptions", "Configured maximum subscriptions exceeded.");
+    GGL_LOGE("Configured maximum subscriptions exceeded.");
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (handles[i] == handle) {

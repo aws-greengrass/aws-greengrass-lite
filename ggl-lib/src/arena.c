@@ -19,7 +19,7 @@ void *ggl_arena_alloc(GglArena *arena, size_t size, size_t alignment) {
     uint32_t pad = (align - (arena->index & (align - 1))) & (align - 1);
 
     if (pad > 0) {
-        GGL_LOGD("arena", "[%p] Need %" PRIu32 " padding.", arena, pad);
+        GGL_LOGD("[%p] Need %" PRIu32 " padding.", arena, pad);
     }
 
     if (pad > arena->CAPACITY - arena->index) {

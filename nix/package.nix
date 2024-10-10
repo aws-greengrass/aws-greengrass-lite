@@ -12,6 +12,7 @@
 , argp-standalone
 , sqlite
 , libyaml
+, libzip
 , dbus
 , systemdLibs
 , defaultMeta
@@ -30,6 +31,7 @@ stdenv.mkDerivation {
     libyaml.dev
     dbus
     systemdLibs
+    libzip
   ] ++ lib.optional (!stdenv.hostPlatform.isGnu) argp-standalone;
   cmakeBuildType = "MinSizeRel";
   cmakeFlags = gglUtil.fetchContentFlags ++ [ "-DENABLE_WERROR=1" ];

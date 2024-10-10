@@ -117,9 +117,7 @@ static GglError open_bus(sd_bus **bus) {
     assert((bus != NULL) && (*bus == NULL));
     int ret = sd_bus_default_system(bus);
     if (ret < 0) {
-        GGL_LOGE(
-            "gghealthd", "Unable to open default system bus (errno=%d)", -ret
-        );
+        GGL_LOGE("Unable to open default system bus (errno=%d)", -ret);
         *bus = NULL;
         return report_connect_error();
     }
@@ -151,7 +149,6 @@ static GglError get_unit_path(
     if (ret < 0) {
         *reply = NULL;
         GGL_LOGE(
-            "gghealthd",
             "Unable to find Component (errno=%d) (name=%s) (message=%s)",
             -ret,
             error.name,
@@ -184,7 +181,6 @@ static GglError get_component_result(
     );
     if (ret < 0) {
         GGL_LOGE(
-            "gghealthd",
             "Unable to retrieve Component last run timestamp (errno=%d) "
             "(name=%s) (message=%s)",
             -ret,
@@ -212,9 +208,7 @@ static GglError get_component_result(
     );
     if (ret < 0) {
         GGL_LOGE(
-            "gghealthd",
-            "Unable to retrieve D-Bus Unit Result property (errno=%d)",
-            -ret
+            "Unable to retrieve D-Bus Unit Result property (errno=%d)", -ret
         );
         return translate_dbus_call_error(ret);
     }
@@ -283,7 +277,7 @@ static GglError get_component_pid(
     );
     GGL_DEFER(free, pid_string);
     if (err != GGL_ERR_OK) {
-        GGL_LOGE("gghealthd", "Unable to acquire pid");
+        GGL_LOGE("Unable to acquire pid");
         *pid = 0;
         return err;
     }
@@ -305,7 +299,7 @@ static GglError get_service_name(
     );
     assert(qualified_name->len > SERVICE_NAME_MAX_LEN);
     if (component_name.len > COMPONENT_NAME_MAX_LEN) {
-        GGL_LOGE("gghealthd", "component name too long");
+        GGL_LOGE("component name too long");
         return GGL_ERR_RANGE;
     }
 
@@ -342,7 +336,7 @@ static GglError get_active_state(
         active_state
     );
     if (ret < 0) {
-        GGL_LOGE("gghealthd", "Failed to read active state");
+        GGL_LOGE("Failed to read active state");
         return translate_dbus_call_error(ret);
     }
     return GGL_ERR_OK;
@@ -361,7 +355,7 @@ static GglError get_run_status(
     char *unit_path = NULL;
     int ret = sd_bus_message_read_basic(reply, 'o', &unit_path);
     if (ret < 0) {
-        GGL_LOGE("gghealthd", "failed to read unit path");
+        GGL_LOGE("failed to read unit path");
         return GGL_ERR_FATAL;
     }
 
@@ -389,7 +383,7 @@ static GglError get_run_status(
     GglObject *value = NULL;
     if (!ggl_map_get(STATUS_MAP, key, &value)) {
         // unreachable?
-        GGL_LOGE("gghealthd", "unknown D-Bus ActiveState");
+        GGL_LOGE("unknown D-Bus ActiveState");
         return GGL_ERR_FATAL;
     }
     if (value->type == GGL_TYPE_BUF) {
@@ -405,7 +399,7 @@ static GglError get_run_status(
 GglError gghealthd_get_status(GglBuffer component_name, GglBuffer *status) {
     assert(status != NULL);
     if (component_name.len > COMPONENT_NAME_MAX_LEN) {
-        GGL_LOGE("gghealthd", "component_name too long");
+        GGL_LOGE("component_name too long");
         return GGL_ERR_RANGE;
     }
 
@@ -458,7 +452,7 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
 
     GglObject *obj = NULL;
     if (!ggl_map_get(STATUS_MAP, status, &obj)) {
-        GGL_LOGE("gghealthd", "Invalid lifecycle_state");
+        GGL_LOGE("Invalid lifecycle_state");
         return GGL_ERR_INVALID;
     }
 
@@ -493,13 +487,10 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
 
     int ret = sd_pid_notify(pid, 0, (const char *) obj->buf.data);
     if (ret < 0) {
-        GGL_LOGE(
-            "gghealthd", "Unable to update component state (errno=%d)", -ret
-        );
+        GGL_LOGE("Unable to update component state (errno=%d)", -ret);
         return GGL_ERR_FATAL;
     }
     GGL_LOGD(
-        "gghealthd",
         "Component %.*s reported state updating to %.*s\n",
         (int) component_name.len,
         (const char *) component_name.data,

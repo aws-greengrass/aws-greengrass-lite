@@ -135,15 +135,15 @@ int main(int argc, char **argv) {
     );
     if (ret != GGL_ERR_OK) {
         if (ret == GGL_ERR_REMOTE) {
-            GGL_LOGE("cli", "Got error from deployment: %d.", remote_err);
+            GGL_LOGE("Got error from deployment: %d.", remote_err);
             return 1;
         }
-        GGL_LOGE("cli", "Error sending deployment: %d.", ret);
+        GGL_LOGE("Error sending deployment: %d.", ret);
         return 1;
     }
 
     if (result.type != GGL_TYPE_BUF) {
-        GGL_LOGE("cli", "Invalid return type.");
+        GGL_LOGE("Invalid return type.");
         return 1;
     }
 

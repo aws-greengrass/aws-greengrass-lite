@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
     argp_parse(&argp, argc, argv, 0, 0, NULL);
 
     if (config_path == NULL) {
-        GGL_LOGE("main", "Invalid config path.");
+        GGL_LOGE("Invalid config path.");
         return 1;
     }
 
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
         ggl_buffer_from_null_term(config_path), O_RDONLY, 0, &fd
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("main", "Failed to open config file.");
+        GGL_LOGE("Failed to open config file.");
         return 1;
     }
 
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
         ggl_buffer_from_null_term(config_path), &config_file
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("main", "Failed to read config file.");
+        GGL_LOGE("Failed to read config file.");
         return 1;
     }
 
@@ -79,13 +79,13 @@ int main(int argc, char **argv) {
     GglObject config_obj;
     ret = ggl_yaml_decode_destructive(config_file, &balloc.alloc, &config_obj);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("main", "Failed to parse config file.");
+        GGL_LOGE("Failed to parse config file.");
         return 1;
     }
 
     ret = ggl_gg_config_write(GGL_BUF_LIST(), config_obj, 0);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("client", "Failed to update configuration: %d.", ret);
+        GGL_LOGE("Failed to update configuration: %d.", ret);
         return 1;
     }
 }

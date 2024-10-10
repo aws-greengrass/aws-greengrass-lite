@@ -39,7 +39,7 @@ static GglError interface_connect(GglBuffer interface, int *conn_fd) {
 
     GglError ret = ggl_byte_vec_append(&socket_path, interface);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("core-bus-client", "Interface name too long.");
+        GGL_LOGE("Interface name too long.");
         return GGL_ERR_RANGE;
     }
 
@@ -123,10 +123,7 @@ GglError ggl_client_get_response(
     }
 
     if (prelude.data_len > recv_buffer.len) {
-        GGL_LOGE(
-            "core-bus-client",
-            "EventStream packet does not fit in core bus buffer size."
-        );
+        GGL_LOGE("EventStream packet does not fit in core bus buffer size.");
         return GGL_ERR_NOMEM;
     }
 
@@ -148,12 +145,12 @@ GglError ggl_client_get_response(
 
     while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
         if (ggl_buffer_eq(header.name, GGL_STR("error"))) {
-            GGL_LOGW("core-bus-client", "Server responded with an error.");
+            GGL_LOGW("Server responded with an error.");
             if (error != NULL) {
                 *error = GGL_ERR_FAILURE;
             }
             if (header.value.type != EVENTSTREAM_INT32) {
-                GGL_LOGE("core-bus-client", "Response error header not int.");
+                GGL_LOGE("Response error header not int.");
             } else {
                 // TODO: Handle unknown error value
                 if (error != NULL) {

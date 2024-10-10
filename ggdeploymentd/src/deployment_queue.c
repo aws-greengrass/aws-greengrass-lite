@@ -56,9 +56,7 @@ static GglError null_terminate_buffer(GglBuffer *buf, GglAlloc *alloc) {
 
     uint8_t *mem = GGL_ALLOCN(alloc, uint8_t, buf->len + 1);
     if (mem == NULL) {
-        GGL_LOGE(
-            "deployment-queue", "Failed to allocate memory for copying buffer."
-        );
+        GGL_LOGE("Failed to allocate memory for copying buffer.");
         return GGL_ERR_NOMEM;
     }
 
@@ -96,6 +94,13 @@ static GglError deep_copy_deployment(
         return ret;
     }
     deployment->root_component_versions_to_add = obj.map;
+
+    obj = GGL_OBJ(deployment->cloud_root_components_to_add);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    deployment->cloud_root_components_to_add = obj.map;
 
     obj = GGL_OBJ(deployment->root_components_to_remove);
     ret = ggl_obj_deep_copy(&obj, alloc);
@@ -156,7 +161,7 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("ggdeploymentd", "Received invalid argument.");
+        GGL_LOGE("Received invalid argument.");
         return GGL_ERR_INVALID;
     }
 
@@ -212,7 +217,7 @@ GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id) {
     if (id != NULL) {
         ret = ggl_byte_vec_append(id, new.deployment_id);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("deployment_queue", "insufficient id length");
+            GGL_LOGE("insufficient id length");
             return ret;
         }
     }
@@ -223,18 +228,16 @@ GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id) {
     bool exists = get_matching_deployment(new.deployment_id, &index);
     if (exists) {
         if (deployments[index].state != GGL_DEPLOYMENT_QUEUED) {
-            GGL_LOGI(
-                "deployment_queue", "Existing deployment not replaceable."
-            );
+            GGL_LOGI("Existing deployment not replaceable.");
             return GGL_ERR_FAILURE;
         }
-        GGL_LOGI("deployment_queue", "Replacing existing deployment in queue.");
+        GGL_LOGI("Replacing existing deployment in queue.");
     } else {
         if (queue_count >= DEPLOYMENT_QUEUE_SIZE) {
             return GGL_ERR_BUSY;
         }
 
-        GGL_LOGD("deployment_queue", "Adding a new deployment to the queue.");
+        GGL_LOGD("Adding a new deployment to the queue.");
         index = (queue_index + queue_count) % DEPLOYMENT_QUEUE_SIZE;
         queue_count += 1;
     }
@@ -263,7 +266,7 @@ GglError ggl_deployment_dequeue(GglDeployment **deployment) {
     deployments[queue_index].state = GGL_DEPLOYMENT_IN_PROGRESS;
     *deployment = &deployments[queue_index];
 
-    GGL_LOGD("deployment_queue", "Set a deployment to in progress.");
+    GGL_LOGD("Set a deployment to in progress.");
 
     return GGL_ERR_OK;
 }
@@ -271,7 +274,7 @@ GglError ggl_deployment_dequeue(GglDeployment **deployment) {
 void ggl_deployment_release(GglDeployment *deployment) {
     assert(deployment == &deployments[queue_index]);
 
-    GGL_LOGD("deployment_queue", "Removing deployment from queue.");
+    GGL_LOGD("Removing deployment from queue.");
 
     queue_count -= 1;
     queue_index = (queue_index + 1) % DEPLOYMENT_QUEUE_SIZE;
