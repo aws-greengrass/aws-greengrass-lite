@@ -73,6 +73,7 @@ GglError ggl_zip_unarchive(
     }
     GGL_DEFER(zip_close, zip);
 
+    GglBuffer init_name;
     zip_uint64_t num_entries = (zip_uint64_t) zip_get_num_entries(zip, 0);
     for (zip_uint64_t i = 0; i < num_entries; i++) {
         const char *name = zip_get_name(zip, i, 0);
@@ -87,6 +88,20 @@ GglError ggl_zip_unarchive(
             return GGL_ERR_FAILURE;
         }
 
+        // Avoid creating duplicate zip file name
+        if (i == 0) {
+            init_name = ggl_buffer_from_null_term((char *) name);
+            continue;
+        }
+
+        // Remove the first segment from the path
+        GglBuffer name_buf = ggl_buffer_from_null_term((char *) name);
+        GglBuffer trunc_name = name_buf;
+        if (ggl_buffer_has_prefix(name_buf, init_name)) {
+            trunc_name
+                = ggl_buffer_substr(name_buf, init_name.len, name_buf.len);
+        };
+
         zip_file_t *entry = zip_fopen_index(zip, i, 0);
         if (entry == NULL) {
             int err = zip_error_code_zip(zip_get_error(zip));
@@ -94,7 +109,7 @@ GglError ggl_zip_unarchive(
                 "zip",
                 "Failed to open file \"%s\" (index %" PRIu64
                 ") from zip with error %d.",
-                name,
+                trunc_name.data,
                 i,
                 err
             );
@@ -102,21 +117,26 @@ GglError ggl_zip_unarchive(
         }
         GGL_DEFER(zip_fclose, entry);
 
+        GglError ret;
         int dest_file_fd;
-        GglError ret = ggl_file_openat(
-            dest_dir_fd,
-            // const cast: name will not be modified
-            ggl_buffer_from_null_term((char *) name),
-            O_WRONLY | O_CREAT | O_TRUNC,
-            mode,
-            &dest_file_fd
-        );
+        if (ggl_buffer_has_suffix(trunc_name, GGL_STR("/"))) {
+            ret = ggl_dir_openat(
+                dest_dir_fd, trunc_name, O_PATH, mode, &dest_file_fd
+            );
+        } else {
+            ret = ggl_file_openat(
+                dest_dir_fd,
+                trunc_name,
+                O_WRONLY | O_CREAT | O_TRUNC,
+                mode,
+                &dest_file_fd
+            );
+        }
         if (ret != GGL_ERR_OK) {
             return ret;
         }
         GGL_DEFER(ggl_close, dest_file_fd);
 
-        GGL_LOGD("zip", "Inflating %s.", name);
         ret = write_entry_to_fd(entry, dest_file_fd);
         if (ret != GGL_ERR_OK) {
             return ret;
