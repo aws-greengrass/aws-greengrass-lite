@@ -549,7 +549,7 @@ static GglError get_artifact_unarchive_type(
     } else if (ggl_buffer_eq(unarchive_buf, GGL_STR("ZIP"))) {
         *needs_unarchive = true;
     } else {
-        GGL_LOGE("ggdeploymentd", "Unknown archive type");
+        GGL_LOGE("Unknown archive type");
         return GGL_ERR_UNSUPPORTED;
     }
     return GGL_ERR_OK;
@@ -568,9 +568,7 @@ static GglError unarchive_artifact(
         );
     }
 
-    GGL_LOGD(
-        "ggdeploymentd", "Unarchive %.*s", (int) zip_file.len, zip_file.data
-    );
+    GGL_LOGD("Unarchive %.*s", (int) zip_file.len, zip_file.data);
 
     int output_dir_fd;
     GglError err = ggl_dir_openat(
@@ -676,6 +674,10 @@ static GglError get_recipe_artifacts(
             err = GGL_ERR_PARSE;
         }
 
+        if (err != GGL_ERR_OK) {
+            return err;
+        }
+
         // Unarchive the ZIP file if needed
         if (needs_unarchive) {
             err = unarchive_artifact(
@@ -689,6 +691,11 @@ static GglError get_recipe_artifacts(
         err = ggl_fsync(artifact_fd);
         if (err != GGL_ERR_OK) {
             return err;
+        }
+
+        GglError close_error = ggl_close(artifact_fd);
+        if (close_error != GGL_ERR_OK) {
+            return close_error;
         }
     }
     return GGL_ERR_OK;
@@ -1481,7 +1488,7 @@ static void handle_deployment(
             &artifact_archive_fd
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("ggdeploymentd", "Failed to open archive store.");
+            GGL_LOGE("Failed to open archive store.");
             return;
         }
 

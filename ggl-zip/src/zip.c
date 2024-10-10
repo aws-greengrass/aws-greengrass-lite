@@ -40,7 +40,7 @@ static GglError write_entry_to_fd(zip_file_t *entry, int fd) {
         }
         if (bytes_read < 0) {
             int err = zip_error_code_zip(zip_file_get_error(entry));
-            GGL_LOGE("zip", "Failed to read from zip file with error %d.", err);
+            GGL_LOGE("Failed to read from zip file with error %d.", err);
             return GGL_ERR_FAILURE;
         }
         GglBuffer bytes
@@ -67,7 +67,7 @@ GglError ggl_zip_unarchive(
         int err;
         zip = zip_fdopen(zip_fd, ZIP_RDONLY, &err);
         if (zip == NULL) {
-            GGL_LOGE("zip", "Failed to open zip file with error %d.", err);
+            GGL_LOGE("Failed to open zip file with error %d.", err);
             return GGL_ERR_FAILURE;
         }
     }
@@ -80,7 +80,6 @@ GglError ggl_zip_unarchive(
         if (name == NULL) {
             int err = zip_error_code_zip(zip_get_error(zip));
             GGL_LOGE(
-                "zip",
                 "Failed to get the name of entry %" PRIu64 " with error %d.",
                 (uint64_t) i,
                 err
@@ -106,7 +105,6 @@ GglError ggl_zip_unarchive(
         if (entry == NULL) {
             int err = zip_error_code_zip(zip_get_error(zip));
             GGL_LOGE(
-                "zip",
                 "Failed to open file \"%s\" (index %" PRIu64
                 ") from zip with error %d.",
                 trunc_name.data,
