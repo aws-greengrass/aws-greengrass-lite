@@ -83,7 +83,7 @@ bool is_in_range(GglBuffer version, GglBuffer requirements_range) {
     ggl_byte_vec_chain_append(&ret, &current_version_vec, GGL_STR("\0"));
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to copy information over");
-        return ret;
+        return false;
     }
 
     for (ulong index = 0; index < requirements_range.len; index++) {
@@ -92,7 +92,7 @@ bool is_in_range(GglBuffer version, GglBuffer requirements_range) {
             ret = ggl_byte_vec_append(&work_mem_vec, GGL_STR("\0"));
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("Failed to copy information over");
-                return ret;
+                return false;
             }
             bool result = process_version(
                 work_mem_vec, (char *) current_version_vec.buf.data
@@ -119,14 +119,14 @@ bool is_in_range(GglBuffer version, GglBuffer requirements_range) {
         ret = ggl_byte_vec_append(&work_mem_vec, GGL_STR("\0"));
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to copy information over");
-            return ret;
+            return false;
         }
         bool result = process_version(
             work_mem_vec, (char *) current_version_vec.buf.data
         );
         if (result == false) {
             GGL_LOGT("Requirement wasn't satisfied");
-            return false;
+            return result;
         }
     }
 

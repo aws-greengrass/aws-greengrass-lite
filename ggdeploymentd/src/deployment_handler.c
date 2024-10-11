@@ -1163,8 +1163,8 @@ static GglError resolve_dependencies(
     GGL_MAP_FOREACH(pair, components_to_resolve.map) {
         // We assume that we have not resolved a component yet if we are finding
         // it in this map.
-
-        GglBuffer resolved_version = { .len = NAME_MAX };
+        uint8_t resolved_version_arr[NAME_MAX];
+        GglBuffer resolved_version = GGL_BUF(resolved_version_arr);
         bool found_local_candidate = resolve_component_version(
             pair->key, pair->val.buf, &resolved_version
         );
