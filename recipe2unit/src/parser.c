@@ -7,6 +7,7 @@
 #include "unit_file_generator.h"
 #include "validate_args.h"
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>

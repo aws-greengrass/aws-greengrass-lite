@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
+#include <ggl/buffer.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>

@@ -8,6 +8,7 @@
 //! Core Bus client interface
 
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdint.h>

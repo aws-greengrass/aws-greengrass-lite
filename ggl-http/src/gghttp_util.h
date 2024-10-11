@@ -7,8 +7,8 @@
 
 #include "ggl/http.h"
 #include <curl/curl.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 
 typedef struct CurlData {
     CURL *curl;

@@ -5,7 +5,6 @@
 #include "tls.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
-#include "ggl/object.h"
 #include "iotcored.h"
 #include <assert.h>
 #include <openssl/bio.h>

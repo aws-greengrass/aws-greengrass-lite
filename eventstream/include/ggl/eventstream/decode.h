@@ -8,8 +8,8 @@
 //! AWS EventStream message decoding.
 
 #include "types.h"
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stdint.h>
 
 /// An iterator over EventStream headers.

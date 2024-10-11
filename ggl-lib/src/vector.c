@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/vector.h"
+#include "ggl/buffer.h"
 #include "ggl/error.h"
 #include "ggl/list.h"
 #include "ggl/log.h"

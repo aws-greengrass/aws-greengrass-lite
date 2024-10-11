@@ -6,6 +6,7 @@
 #define GGDEPLOYMENTD_DEPLOYMENT_MODEL_H
 
 #include "ggl/object.h"
+#include <ggl/buffer.h>
 
 typedef enum {
     GGL_DEPLOYMENT_QUEUED,

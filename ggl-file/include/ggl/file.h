@@ -8,9 +8,9 @@
 //! File system functionality
 
 #include <sys/types.h>
+#include <ggl/buffer.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stdbool.h>
 #include <stdio.h>
 

@@ -8,8 +8,8 @@
 //! Common library for managing unix sockets
 
 #include <sys/types.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stddef.h>
 #include <stdint.h>
 

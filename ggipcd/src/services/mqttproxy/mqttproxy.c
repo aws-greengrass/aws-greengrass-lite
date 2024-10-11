@@ -5,6 +5,7 @@
 #include "mqttproxy.h"
 #include "../../ipc_authz.h"
 #include "../../ipc_service.h"
+#include <ggl/buffer.h>
 #include <ggl/object.h>
 #include <stdbool.h>
 #include <stddef.h>

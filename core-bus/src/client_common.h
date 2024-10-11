@@ -5,9 +5,10 @@
 #ifndef CORE_BUS_CLIENT_COMMON_H
 #define CORE_BUS_CLIENT_COMMON_H
 
-#include "ggl/core_bus/constants.h"
 #include "types.h"
 #include <sys/types.h>
+#include <ggl/buffer.h>
+#include <ggl/core_bus/constants.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/object.h>

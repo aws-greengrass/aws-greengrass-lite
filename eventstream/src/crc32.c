@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "crc32.h"
-#include <ggl/object.h>
+#include <ggl/buffer.h>
 #include <stddef.h>
 #include <stdint.h>
 

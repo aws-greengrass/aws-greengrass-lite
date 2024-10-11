@@ -8,7 +8,7 @@
 //! Arena allocation
 
 #include "error.h"
-#include "object.h"
+#include <ggl/buffer.h>
 #include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>

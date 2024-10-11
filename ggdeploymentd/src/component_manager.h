@@ -5,7 +5,7 @@
 #ifndef GGDEPLOYMENTD_COMPONENT_MANAGER_H
 #define GGDEPLOYMENTD_COMPONENT_MANAGER_H
 
-#include <ggl/object.h>
+#include <ggl/buffer.h>
 #include <stdbool.h>
 
 bool resolve_component_version(

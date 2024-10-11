@@ -7,8 +7,8 @@
 
 //! Socket function wrappers
 
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 
 /// Wrapper for reading from socket.
 /// Returns remaining buffer.

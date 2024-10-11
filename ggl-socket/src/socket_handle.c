@@ -9,7 +9,6 @@
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <pthread.h>
 #include <sys/socket.h>
 #include <stddef.h>

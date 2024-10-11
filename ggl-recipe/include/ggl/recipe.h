@@ -8,6 +8,7 @@
 //! Greengrass recipe utils
 
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 

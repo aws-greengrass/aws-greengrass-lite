@@ -10,7 +10,6 @@
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <signal.h>
 #include <string.h>
 #include <sys/socket.h>

@@ -9,6 +9,7 @@
 #include <ggl/defer.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
+#include <ggl/object.h>
 #include <ggl/socket.h>
 #include <inttypes.h>
 #include <zip.h>

@@ -8,6 +8,7 @@
 //! Generic dynamic object representation.
 
 #include "alloc.h"
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -23,12 +24,6 @@ typedef enum {
     GGL_TYPE_LIST,
     GGL_TYPE_MAP,
 } GglObjectType;
-
-/// A fixed buffer of bytes. Possibly a string.
-typedef struct {
-    uint8_t *data;
-    size_t len;
-} GglBuffer;
 
 /// An array of `GglObject`.
 typedef struct {

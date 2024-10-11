@@ -6,8 +6,8 @@
 #define IOTCORED_MQTT_H
 
 #include "iotcored.h"
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

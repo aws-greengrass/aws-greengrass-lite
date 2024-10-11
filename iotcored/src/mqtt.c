@@ -5,7 +5,6 @@
 #include "mqtt.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
-#include "ggl/object.h"
 #include "ggl/utils.h"
 #include "iotcored.h"
 #include "tls.h"

@@ -8,8 +8,8 @@
 //! AWS EventStream message encoding.
 
 #include "types.h"
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stddef.h>
 
 /// Encode an EventStream packet into a buffer.

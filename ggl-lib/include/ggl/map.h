@@ -9,6 +9,7 @@
 
 #include "error.h"
 #include "object.h"
+#include <ggl/buffer.h>
 #include <stdbool.h>
 #include <stddef.h>
 

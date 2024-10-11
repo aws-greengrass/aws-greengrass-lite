@@ -5,7 +5,7 @@
 #ifndef GGL_EVENTSTREAM_CRC_H
 #define GGL_EVENTSTREAM_CRC_H
 
-#include <ggl/object.h>
+#include <ggl/buffer.h>
 #include <stdint.h>
 
 /// Update a running crc with the given bytes.

@@ -5,8 +5,8 @@
 #ifndef GGDEPLOYMENTD_COMPONENT_STORE_H
 #define GGDEPLOYMENTD_COMPONENT_STORE_H
 
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 
 GglError find_available_component(
     GglBuffer component_name, GglBuffer requirement, GglBuffer *version

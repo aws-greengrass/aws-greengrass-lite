@@ -5,8 +5,8 @@
 #ifndef GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 #define GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
 
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 
 GglError publish_message(GglBuffer thing_name);
 

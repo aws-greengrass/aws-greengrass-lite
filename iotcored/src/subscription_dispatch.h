@@ -5,8 +5,8 @@
 #ifndef IOTCORED_SUBSCRIPTION_DISPATCH_H
 #define IOTCORED_SUBSCRIPTION_DISPATCH_H
 
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stddef.h>
 #include <stdint.h>
 
