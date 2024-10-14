@@ -238,6 +238,7 @@ GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
     curl_easy_setopt(
         curl_data->curl, CURLOPT_WRITEFUNCTION, write_response_to_fd
     );
+    // coverity[bad_sizeof]
     curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, (void *) &fd);
     curl_easy_setopt(curl_data->curl, CURLOPT_FAILONERROR, 1L);
 
