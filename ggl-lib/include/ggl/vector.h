@@ -18,13 +18,18 @@ typedef struct {
     size_t capacity;
 } GglObjVec;
 
+#define GGL_OBJ_VEC_UNCHECKED(...) \
+    ((GglObjVec) { .list = { .items = (__VA_ARGS__), .len = 0 }, \
+                   .capacity = sizeof(__VA_ARGS__) / sizeof(GglObject) })
+
+#ifndef GGL_DISABLE_MACRO_TYPE_CHECKING
 #define GGL_OBJ_VEC(...) \
     _Generic( \
-        (&(__VA_ARGS__)), \
-        GglObject(*)[]: ((GglObjVec \
-        ) { .list = { .items = (__VA_ARGS__), .len = 0 }, \
-            .capacity = (sizeof(__VA_ARGS__) / sizeof(GglObject)) }) \
+        (&(__VA_ARGS__)), GglObject(*)[]: GGL_OBJ_VEC_UNCHECKED(__VA_ARGS__) \
     )
+#else
+#define GGL_OBJ_VEC GGL_OBJ_VEC_UNCHECKED
+#endif
 
 GglError ggl_obj_vec_push(GglObjVec *vector, GglObject object);
 void ggl_obj_vec_chain_push(GglError *err, GglObjVec *vector, GglObject object);
@@ -37,13 +42,16 @@ typedef struct {
     size_t capacity;
 } GglKVVec;
 
+#define GGL_KV_VEC_UNCHECKED(...) \
+    ((GglKVVec) { .map = { .pairs = (__VA_ARGS__), .len = 0 }, \
+                  .capacity = sizeof(__VA_ARGS__) / sizeof(GglKV) })
+
+#ifndef GGL_DISABLE_MACRO_TYPE_CHECKING
 #define GGL_KV_VEC(...) \
-    _Generic( \
-        (&(__VA_ARGS__)), \
-        GglKV(*)[]: ((GglKVVec) { .map = { .pairs = (__VA_ARGS__), .len = 0 }, \
-                                  .capacity \
-                                  = (sizeof(__VA_ARGS__) / sizeof(GglKV)) }) \
-    )
+    _Generic((&(__VA_ARGS__)), GglKV(*)[]: GGL_KV_VEC_UNCHECKED(__VA_ARGS__))
+#else
+#define GGL_KV_VEC GGL_KV_VEC_UNCHECKED
+#endif
 
 GglError ggl_kv_vec_push(GglKVVec *vector, GglKV kv);
 
@@ -52,15 +60,20 @@ typedef struct {
     size_t capacity;
 } GglByteVec;
 
+#define GGL_BYTE_VEC_UNCHECKED(...) \
+    ((GglByteVec) { .buf = { .data = (uint8_t *) (__VA_ARGS__), .len = 0 }, \
+                    .capacity = sizeof(__VA_ARGS__) })
+
+#ifndef GGL_DISABLE_MACRO_TYPE_CHECKING
 #define GGL_BYTE_VEC(...) \
     _Generic( \
         (&(__VA_ARGS__)), \
         uint8_t(*)[]: GGL_BYTE_VEC_UNCHECKED(__VA_ARGS__), \
         char(*)[]: GGL_BYTE_VEC_UNCHECKED(__VA_ARGS__) \
     )
-#define GGL_BYTE_VEC_UNCHECKED(...) \
-    ((GglByteVec) { .buf = { .data = (uint8_t *) (__VA_ARGS__), .len = 0 }, \
-                    .capacity = sizeof(__VA_ARGS__) })
+#else
+#define GGL_BYTE_VEC GGL_BYTE_VEC_UNCHECKED
+#endif
 
 GglByteVec ggl_byte_vec_init(GglBuffer buf);
 GglError ggl_byte_vec_push(GglByteVec *vector, uint8_t byte);
@@ -76,13 +89,18 @@ typedef struct {
     size_t capacity;
 } GglBufVec;
 
+#define GGL_BUF_VEC_UNCHECKED(...) \
+    ((GglBufVec) { .buf_list = { .bufs = (__VA_ARGS__), .len = 0 }, \
+                   .capacity = sizeof(__VA_ARGS__) / sizeof(GglBuffer) })
+
+#ifndef GGL_DISABLE_MACRO_TYPE_CHECKING
 #define GGL_BUF_VEC(...) \
     _Generic( \
-        (&(__VA_ARGS__)), \
-        GglBuffer(*)[]: ((GglBufVec \
-        ) { .buf_list = { .bufs = (__VA_ARGS__), .len = 0 }, \
-            .capacity = (sizeof(__VA_ARGS__) / sizeof(GglBuffer)) }) \
+        (&(__VA_ARGS__)), GglBuffer(*)[]: GGL_BUF_VEC_UNCHECKED(__VA_ARGS__) \
     )
+#else
+#define GGL_BUF_VEC GGL_BUF_VEC_UNCHECKED
+#endif
 
 GglError ggl_buf_vec_push(GglBufVec *vector, GglBuffer buf);
 void ggl_buf_vec_chain_push(GglError *err, GglBufVec *vector, GglBuffer buf);
