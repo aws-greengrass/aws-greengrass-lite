@@ -40,7 +40,7 @@ static GglError subscribe_to_topic_callback(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid subscription response.");
-        return GGL_ERR_FAILURE;
+        return ret;
     }
     GglBuffer type = type_obj->buf;
 
