@@ -37,7 +37,7 @@ static GglError init_subs_index(
     pthread_mutex_lock(&subs_state_mtx);
     GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
 
-    for (size_t i = 0; i <= GGL_IPC_MAX_SUBSCRIPTIONS; i++) {
+    for (size_t i = 0; i < GGL_IPC_MAX_SUBSCRIPTIONS; i++) {
         if (subs_resp_handle[i] == 0) {
             subs_resp_handle[i] = resp_handle;
             subs_stream_id[i] = stream_id;
