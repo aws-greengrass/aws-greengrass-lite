@@ -90,7 +90,7 @@ static size_t write_response_to_fd(
     return size_of_response_data;
 }
 
-static void gghttplib_destroy_curl(CurlData *curl_data) {
+void gghttplib_destroy_curl(CurlData *curl_data) {
     curl_slist_free_all(curl_data->headers_list);
     curl_data->headers_list = NULL;
     curl_easy_cleanup(curl_data->curl);

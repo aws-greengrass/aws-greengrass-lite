@@ -69,6 +69,8 @@ GglError sigv4_download(
         error = gghttplib_process_request_with_fd(&curl_data, fd);
     }
 
+    gghttplib_destroy_curl(&curl_data);
+
     return error;
 }
 
