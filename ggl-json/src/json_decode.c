@@ -483,8 +483,8 @@ static bool get_uint16_from_hex4(uint8_t *hex_bytes, uint16_t *out) {
     }
 
     // unsigned to avoid int promotion
-    *out = (uint16_t) (((unsigned) bytes[0] << 12) & ((unsigned) bytes[1] << 8)
-                       & ((unsigned) bytes[2] << 4) & ((unsigned) bytes[3]));
+    *out = (uint16_t) (((unsigned) bytes[0] << 12) | ((unsigned) bytes[1] << 8)
+                       | ((unsigned) bytes[2] << 4) | ((unsigned) bytes[3]));
     return true;
 }
 
