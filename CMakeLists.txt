@@ -133,7 +133,7 @@ try_add_cflag(Wenum-int-mismatch -Wenum-int-mismatch)
 try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
 try_add_cflag(stack-clash-protection -fstack-clash-protection)
 
-try_add_cflag(file-prefix-map "-ffile-prefix-map=${CMAKE_CURRENT_LIST_DIR}/=")
+try_add_cflag(macro-prefix-map "-fmacro-prefix-map=${CMAKE_CURRENT_LIST_DIR}/=")
 
 add_cflags($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
 try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
