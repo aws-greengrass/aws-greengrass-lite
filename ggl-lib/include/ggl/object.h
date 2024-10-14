@@ -156,6 +156,7 @@ typedef struct GglKV {
         .type = GGL_TYPE_LIST, .list = GGL_LIST(__VA_ARGS__), \
     }
 
+#ifndef __COVERITY__
 // NOLINTBEGIN(bugprone-macro-parentheses)
 #define GGL_FORCE(type, value) \
     _Generic((value), type: (value), default: (type) { 0 })
@@ -178,6 +179,13 @@ typedef struct GglKV {
         double: (GglObject) { .type = GGL_TYPE_F64, \
                               .f64 = GGL_FORCE(double, (__VA_ARGS__)) } \
     )
+
+#else
+#define GGL_OBJ(...) \
+    (GglObject) { \
+        0 \
+    }
+#endif
 
 /// Modifies an object's references to point to copies in alloc
 GglError ggl_obj_deep_copy(GglObject *obj, GglAlloc *alloc);
