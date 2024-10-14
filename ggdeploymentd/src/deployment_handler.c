@@ -17,6 +17,7 @@
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/defer.h>
+#include <ggl/digest.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/http.h>
@@ -594,7 +595,8 @@ static GglError get_recipe_artifacts(
     CertificateDetails iot_creds,
     GglMap recipe,
     int component_store_fd,
-    int component_archive_store_fd
+    int component_archive_store_fd,
+    GglDigest digest_context
 ) {
     GglList artifacts = { 0 };
     GglError error = find_artifacts_list(recipe, &artifacts);
@@ -609,16 +611,40 @@ static GglError get_recipe_artifacts(
         }
         GglObject *uri_obj = NULL;
         GglObject *unarchive_obj = NULL;
+        GglObject *expected_digest = NULL;
+        GglObject *algorithm = NULL;
 
         GglError err = ggl_map_validate(
             artifacts.items[i].map,
             GGL_MAP_SCHEMA(
                 { GGL_STR("Uri"), true, GGL_TYPE_BUF, &uri_obj },
-                { GGL_STR("Unarchive"), false, GGL_TYPE_BUF, &unarchive_obj }
+                { GGL_STR("Unarchive"), false, GGL_TYPE_BUF, &unarchive_obj },
+                { GGL_STR("Digest"), false, GGL_TYPE_BUF, &expected_digest },
+                { GGL_STR("Algorithm"), false, GGL_TYPE_BUF, &algorithm }
             )
         );
+
         if (err != GGL_ERR_OK) {
+            GGL_LOGE("Failed to validate recipe artifact");
             return GGL_ERR_PARSE;
+        }
+
+        bool needs_verification = false;
+        if (expected_digest != NULL) {
+            if (algorithm != NULL) {
+                if (!ggl_buffer_eq(algorithm->buf, GGL_STR("SHA-256"))) {
+                    GGL_LOGE("Unsupported digest algorithm");
+                    return GGL_ERR_UNSUPPORTED;
+                }
+            } else {
+                GGL_LOGW("Assuming SHA-256 digest.");
+            }
+
+            if (!ggl_base64_decode_in_place(&expected_digest->buf)) {
+                GGL_LOGE("Failed to decode digest.");
+                return GGL_ERR_PARSE;
+            }
+            needs_verification = true;
         }
 
         GglUriInfo info = { 0 };
@@ -651,12 +677,11 @@ static GglError get_recipe_artifacts(
             needs_unarchive ? 0644 : mode,
             &artifact_fd
         );
-        GGL_DEFER(ggl_close, artifact_fd);
-
         if (err != GGL_ERR_OK) {
             GGL_LOGE("Failed to create artifact file for write.");
             return err;
         }
+        GGL_DEFER(ggl_close, artifact_fd);
 
         if (ggl_buffer_eq(GGL_STR("s3"), info.scheme)) {
             err = download_s3_artifact(
@@ -679,6 +704,26 @@ static GglError get_recipe_artifacts(
             return err;
         }
 
+        err = ggl_fsync(artifact_fd);
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE("Artifact fsync failed.");
+            return err;
+        }
+
+        // verify SHA256 digest
+        if (needs_verification) {
+            GGL_LOGD("Verifying artifact digest");
+            err = ggl_verify_sha256_digest(
+                component_store_fd,
+                info.file,
+                expected_digest->buf,
+                digest_context
+            );
+            if (err != GGL_ERR_OK) {
+                return err;
+            }
+        }
+
         // Unarchive the ZIP file if needed
         if (needs_unarchive) {
             err = unarchive_artifact(
@@ -687,16 +732,6 @@ static GglError get_recipe_artifacts(
             if (err != GGL_ERR_OK) {
                 return err;
             }
-        }
-
-        err = ggl_fsync(artifact_fd);
-        if (err != GGL_ERR_OK) {
-            return err;
-        }
-
-        GglError close_error = ggl_close(artifact_fd);
-        if (close_error != GGL_ERR_OK) {
-            return close_error;
         }
     }
     return GGL_ERR_OK;
@@ -1493,6 +1528,12 @@ static void handle_deployment(
             return;
         }
 
+        GglDigest digest_context = ggl_new_digest(&ret);
+        if (ret != GGL_ERR_OK) {
+            return;
+        }
+        GGL_DEFER(ggl_free_digest, digest_context);
+
         GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
             int component_artifacts_fd = -1;
             open_component_artifacts_dir(
@@ -1545,7 +1586,8 @@ static void handle_deployment(
                 iot_credentials,
                 recipe_obj.map,
                 component_artifacts_fd,
-                component_archive_dir_fd
+                component_archive_dir_fd,
+                digest_context
             );
 
             if (ret != GGL_ERR_OK) {
