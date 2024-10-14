@@ -25,15 +25,10 @@ Docker does not fully support running systemd containters therefor we encourage 
 Those steps are necessary to compile inside a container.
 ```
 sudo apt install podman
-
 podman build misc/container -t ggl:latest
-
 podman run -it -v $PWD/..:/work --replace --name ggl ggl:latest
-
 cd /work/aws-greengrass-lite/
-
 cmake -B build -DGGL_LOG_LEVEL=DEBUG
-
 make -C build -j$(nproc)
 ```
 
