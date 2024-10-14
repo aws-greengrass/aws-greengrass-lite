@@ -97,8 +97,8 @@ bool resolve_component_version(
     );
 
     assert(local_version.len <= NAME_MAX);
-    memcpy(
-        resolved_version->data, &local_version.data, (size_t) &local_version.len
+    memmove(
+        resolved_version->data, local_version.data, local_version.len
     );
     resolved_version->len = local_version.len;
     return true;

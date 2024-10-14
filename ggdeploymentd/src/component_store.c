@@ -137,10 +137,10 @@ GglError find_available_component(
         if (ggl_buffer_eq(component_name, recipe_component)
             && is_in_range(recipe_version, requirement)) {
             assert(recipe_version.len <= NAME_MAX);
-            memcpy(
+            memmove(
                 version->data,
-                &recipe_version.data,
-                (size_t) &recipe_version.len
+                recipe_version.data,
+                recipe_version.len
             );
             version->len = recipe_version.len;
             return GGL_ERR_OK;
