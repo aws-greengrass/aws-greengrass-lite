@@ -21,7 +21,7 @@ If making a PR to main, you can check all of your branches commits with
 `git rebase main -x "nix flake check -L"`.
 
 ## Using Podman
-Docker does not fully support running systemd containters therefor we encourage to use podmen.
+Docker does not fully support running systemd containers, however you can use podman.
 Those steps are necessary to compile inside a container.
 ```
 sudo apt install podman
