@@ -41,8 +41,6 @@ make -C build -j$(nproc)
 After building, change into the build dir and run the cpack command will generate a deb package.
 ```
 cd build/
-
 cpack -G DEB
-
 apt install ./aws-greengrass-lite-x.x.x-Linux.deb
 ```
