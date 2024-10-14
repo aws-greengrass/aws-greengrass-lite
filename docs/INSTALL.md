@@ -83,6 +83,12 @@ To install to the system, run:
 make -C build install
 ```
 
+To uninstall from the system, run:
+
+```sh
+make -C build uninstall
+```
+
 ## Configuration flags
 
 The following configuration flags may be set with cmake (with `-D`):
