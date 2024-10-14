@@ -11,7 +11,7 @@
 #include <stdint.h>
 
 GglError run_recipe2unit_test(void) {
-    Recipe2UnitArgs args = { 0 };
+    static Recipe2UnitArgs args = { 0 };
     char recipe_path[] = "./recipe2unit-test/sample/recipe.yml";
     char root_dir[] = ".";
     char recipe_runner_path[] = "/home/reciperunner";
