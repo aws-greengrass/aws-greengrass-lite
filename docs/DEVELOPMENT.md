@@ -19,3 +19,28 @@ To reproduced the CI locally, run `nix flake check -L`.
 
 If making a PR to main, you can check all of your branches commits with
 `git rebase main -x "nix flake check -L"`.
+
+## Using Podman
+
+Docker does not fully support running systemd containers, however you can use
+podman. Those steps are necessary to compile inside a container.
+
+```
+sudo apt install podman
+podman build misc/container -t ggl:latest
+podman run -it -v $PWD/..:/work --replace --name ggl ggl:latest
+cd /work/aws-greengrass-lite/
+cmake -B build -DGGL_LOG_LEVEL=DEBUG
+make -C build -j$(nproc)
+```
+
+## Creating deb aws-greengrass-lite deb package
+
+After building, change into the build dir and run the cpack command will
+generate a deb package.
+
+```
+cd build/
+cpack -G DEB
+apt install ./aws-greengrass-lite-x.x.x-Linux.deb
+```

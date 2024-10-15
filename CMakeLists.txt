@@ -350,3 +350,25 @@ if(BUILD_EXAMPLES)
     COMMAND cp "${CMAKE_SOURCE_DIR}/misc/run_nucleus" "${CMAKE_BINARY_DIR}/bin"
     COMMENT "Nucleus run script for testing")
 endif()
+
+#
+# CPACK deb package generation
+#
+install(PROGRAMS "misc/run_nucleus" DESTINATION BIN)
+
+set(CPACK_GENERATOR DEB)
+
+set(CPACK_DEBIAN_PACKAGE_RELEASE "${LINUX_DISTRO_STRING}")
+
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+  set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE amd64)
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
+  set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+endif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+
+set(CPACK_PACKAGE_CONTACT
+    "https://github.com/aws-greengrass/aws-greengrass-lite")
+
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
+include(CPack)

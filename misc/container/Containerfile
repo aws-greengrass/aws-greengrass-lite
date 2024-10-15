@@ -4,7 +4,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
   && apt-get -y install --no-install-recommends \
     systemd systemd-sysv ca-certificates sudo nano bash-completion \
-    build-essential pkg-config cmake git curl \
+    build-essential pkg-config cmake git curl file \
     libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
     libsystemd-dev liburiparser-dev uuid-dev libevent-dev libzip-dev \
   && apt-get clean

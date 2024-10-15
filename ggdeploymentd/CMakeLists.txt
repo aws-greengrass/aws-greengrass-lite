@@ -14,6 +14,7 @@ ggl_init_module(
        ggl-socket
        ggl-yaml
        ggl-zip
+       ggl-exec
        aws-iot-call
        core-bus-gg-config
        core-bus-aws-iot-mqtt
