@@ -21,6 +21,8 @@
 
 #define MAX_PATH_LENGTH 128
 
+GGL_DEFINE_DEFER(closedir, DIR *, dirp, if (dirp != NULL) closedir(*dirp))
+
 static GglBuffer root_path = GGL_STR("/var/lib/aws-greengrass-v2");
 
 static GglError update_root_path(void) {
@@ -143,8 +145,10 @@ GglError find_available_component(
     DIR *dir = fdopendir(recipe_dir_fd);
     if (dir == NULL) {
         GGL_LOGE("Failed to open recipe directory.");
+        (void) ggl_close(recipe_dir_fd);
         return GGL_ERR_FAILURE;
     }
+    GGL_DEFER(closedir, dir);
 
     struct dirent *entry = NULL;
     uint8_t component_name_array[NAME_MAX];
@@ -159,13 +163,11 @@ GglError find_available_component(
             dir, &component_name_buffer, &version_buffer, &entry
         );
 
-        if (entry == NULL) {
-            return GGL_ERR_NOENTRY;
-        }
-
         if (ret != GGL_ERR_OK) {
             return ret;
         }
+
+        assert(entry != NULL);
 
         if (ggl_buffer_eq(component_name, component_name_buffer)
             && is_in_range(version_buffer, requirement)) {
