@@ -330,6 +330,7 @@ add_subdirectory(ggl-exec)
 add_subdirectory(recipe2unit)
 add_subdirectory(ggl-semver)
 add_subdirectory(ggl-constants)
+add_subdirectory(cloud-logger)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)

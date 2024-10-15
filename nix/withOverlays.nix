@@ -21,6 +21,7 @@ in
           ".clang-tidy"
           "fc_deps.json"
           "run_nucleus"
+          "recipe.yml"
         ] ||
         lib.any file.hasExt [ "c" "h" "S" "sql" "cmake" ])
         src;
