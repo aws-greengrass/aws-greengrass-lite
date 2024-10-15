@@ -11,6 +11,11 @@
 // https://docs.aws.amazon.com/greengrass/v2/APIReference/API_DescribeComponent.html
 #define COMPONENT_NAME_MAX_LEN 128
 
+// TODO: CMake configuration
+#ifndef GGHEALTHD_GET_HEALTH_BUFFER_SIZE
+#define GGHEALTHD_GET_HEALTH_BUFFER_SIZE 4096
+#endif
+
 GglError gghealthd_init(void);
 
 // get status from native orchestrator or local database
