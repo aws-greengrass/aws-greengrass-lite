@@ -1704,6 +1704,19 @@ static void handle_deployment(
                 return;
             }
 
+            ret = ggl_gg_config_write(
+                GGL_BUF_LIST(
+                    GGL_STR("services"), component_name->buf, GGL_STR("version")
+                ),
+                pair->val,
+                0
+            );
+
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write component version to ggconfigd.");
+                return;
+            }
+
             GglObject *intermediate_obj;
             GglObject *default_config_obj;
 
@@ -1989,6 +2002,19 @@ static void handle_deployment(
             );
 
             if (err != GGL_ERR_OK) {
+                return;
+            }
+
+            ret = ggl_gg_config_write(
+                GGL_BUF_LIST(
+                    GGL_STR("services"), component_name->buf, GGL_STR("version")
+                ),
+                pair->val,
+                0
+            );
+
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write component version to ggconfigd.");
                 return;
             }
 
