@@ -1566,29 +1566,24 @@ static void handle_deployment(
             }
 
             GglBuffer component_arn = GGL_BUF(component_arn_buffer);
-            if (component_arn.data == NULL) {
-                GGL_LOGE("Failed to retrieve arn");
-                return;
-            }
-
-            ret = ggl_gg_config_read_str(
+            GglError arn_ret = ggl_gg_config_read_str(
                 GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("arn")),
                 &component_arn
             );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to retrieve arn");
-                return;
+            if (arn_ret != GGL_ERR_OK) {
+                GGL_LOGW("Failed to retrieve arn. Assuming recipe artifacts "
+                         "are found on-disk.");
+            } else {
+                ret = get_recipe_artifacts(
+                    component_arn,
+                    tes_credentials,
+                    iot_credentials,
+                    recipe_obj.map,
+                    component_artifacts_fd,
+                    component_archive_dir_fd,
+                    digest_context
+                );
             }
-
-            ret = get_recipe_artifacts(
-                component_arn,
-                tes_credentials,
-                iot_credentials,
-                recipe_obj.map,
-                component_artifacts_fd,
-                component_archive_dir_fd,
-                digest_context
-            );
 
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("Failed to get artifacts from recipe.");
