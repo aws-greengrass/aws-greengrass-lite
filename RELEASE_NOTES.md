@@ -1,3 +1,12 @@
+## 2024-10-18 (In Progress)
+
+Features:
+
+Bug Fixes:
+
+- sqlite autoindex warning fixed. Delete and rebuild your database to get the
+  fix.
+
 ## 2024-10-04
 
 Features:
