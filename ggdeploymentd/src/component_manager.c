@@ -55,14 +55,14 @@ static GglError find_best_candidate_locally(
     if (ret == GGL_ERR_OK) {
         GGL_LOGI("Found running component which meets the version requirements."
         );
-    } else {
-        GGL_LOGI("No running component satisfies the version requirements. "
-                 "Searching in the local component store.");
-
-        find_available_component(component_name, version_requirement, version);
+        return GGL_ERR_OK;
     }
+    GGL_LOGI("No running component satisfies the version requirements. "
+             "Searching in the local component store.");
 
-    return GGL_ERR_OK;
+    return find_available_component(
+        component_name, version_requirement, version
+    );
 }
 
 bool resolve_component_version(
