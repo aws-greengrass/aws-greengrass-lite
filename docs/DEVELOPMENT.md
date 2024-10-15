@@ -21,8 +21,10 @@ If making a PR to main, you can check all of your branches commits with
 `git rebase main -x "nix flake check -L"`.
 
 ## Using Podman
-Docker does not fully support running systemd containers, however you can use podman.
-Those steps are necessary to compile inside a container.
+
+Docker does not fully support running systemd containers, however you can use
+podman. Those steps are necessary to compile inside a container.
+
 ```
 sudo apt install podman
 podman build misc/container -t ggl:latest
@@ -33,7 +35,10 @@ make -C build -j$(nproc)
 ```
 
 ## Creating deb aws-greengrass-lite deb package
-After building, change into the build dir and run the cpack command will generate a deb package.
+
+After building, change into the build dir and run the cpack command will
+generate a deb package.
+
 ```
 cd build/
 cpack -G DEB
