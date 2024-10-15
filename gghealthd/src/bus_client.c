@@ -4,9 +4,6 @@
 
 #include "bus_client.h"
 #include <sys/types.h>
-#include <ggl/alloc.h>
-#include <ggl/bump_alloc.h>
-#include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
@@ -15,11 +12,6 @@
 #include <pthread.h>
 #include <string.h>
 #include <stdint.h>
-
-#define KEY_PREFIX "component/"
-#define KEY_SUFFIX "/version"
-#define KEY_PREFIX_LEN (sizeof(KEY_PREFIX) - 1U)
-#define KEY_SUFFIX_LEN (sizeof(KEY_SUFFIX) - 1U)
 
 static pthread_mutex_t bump_alloc_mutex = PTHREAD_MUTEX_INITIALIZER;
 

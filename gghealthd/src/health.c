@@ -12,7 +12,6 @@
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <pthread.h>
-#include <string.h>
 #include <systemd/sd-bus.h>
 #include <systemd/sd-daemon.h>
 #include <time.h>
@@ -241,11 +240,11 @@ static GglError get_property_string(
     assert((value != NULL) && (*value == NULL));
 
     sd_bus_message *reply = NULL;
-    GGL_DEFER(sd_bus_message_unrefp, reply);
     GglError err = get_unit_path(bus, qualified_name, &reply);
     if (err != GGL_ERR_OK) {
         return err;
     }
+    GGL_DEFER(sd_bus_message_unrefp, reply);
 
     const char *unit_path = NULL;
     int ret = sd_bus_message_read_basic(reply, 'o', &unit_path);
@@ -275,12 +274,12 @@ static GglError get_component_pid(
     GglError err = get_property_string(
         bus, component_name, SERVICE_INTERFACE, "MAIN_PID", &pid_string
     );
-    GGL_DEFER(free, pid_string);
     if (err != GGL_ERR_OK) {
         GGL_LOGE("Unable to acquire pid");
-        *pid = 0;
+        *pid = -1;
         return err;
     }
+    GGL_DEFER(free, pid_string);
 
     *pid = atoi(pid_string);
     if (*pid <= 0) {
@@ -309,6 +308,9 @@ static GglError get_service_name(
     ggl_byte_vec_chain_append(&ret, &vec, component_name);
     ggl_byte_vec_chain_append(&ret, &vec, GGL_STR(SERVICE_SUFFIX));
     ggl_byte_vec_chain_push(&ret, &vec, '\0');
+    if (ret == GGL_ERR_OK) {
+        qualified_name->len = vec.buf.len - 1;
+    }
     return ret;
 }
 
@@ -339,11 +341,11 @@ static GglError get_run_status(
 ) {
     assert((bus != NULL) && (qualified_name != NULL) && (status != NULL));
     sd_bus_message *reply = NULL;
-    GGL_DEFER(sd_bus_message_unrefp, reply);
     GglError err = get_unit_path(bus, qualified_name, &reply);
     if (err != GGL_ERR_OK) {
         return err;
     }
+    GGL_DEFER(sd_bus_message_unrefp, reply);
     char *unit_path = NULL;
     int ret = sd_bus_message_read_basic(reply, 'o', &unit_path);
     if (ret < 0) {
@@ -352,11 +354,11 @@ static GglError get_run_status(
     }
 
     char *active_state = NULL;
-    GGL_DEFER(free, active_state);
     err = get_active_state(bus, unit_path, &active_state);
     if (err != GGL_ERR_OK) {
         return err;
     }
+    GGL_DEFER(free, active_state);
     const GglMap STATUS_MAP = GGL_MAP(
         { GGL_STR("activating"), GGL_OBJ_STR("STARTING") },
         { GGL_STR("active"), GGL_OBJ_STR("RUNNING") },
@@ -370,8 +372,7 @@ static GglError get_run_status(
         { GGL_STR("failed"), GGL_OBJ_NULL() },
     );
 
-    GglBuffer key
-        = { .data = (uint8_t *) active_state, .len = strlen(active_state) };
+    GglBuffer key = ggl_buffer_from_null_term(active_state);
     GglObject *value = NULL;
     if (!ggl_map_get(STATUS_MAP, key, &value)) {
         // unreachable?
@@ -461,11 +462,11 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
     }
 
     sd_bus *bus = NULL;
-    GGL_DEFER(sd_bus_unrefp, bus);
     err = open_bus(&bus);
     if (err != GGL_ERR_OK) {
         return err;
     }
+    GGL_DEFER(sd_bus_unrefp, bus);
 
     if (obj->type == GGL_TYPE_NULL) {
         return GGL_ERR_OK;
@@ -496,13 +497,12 @@ GglError gghealthd_get_health(GglBuffer *status) {
     assert(status != NULL);
 
     sd_bus *bus = NULL;
-    GGL_DEFER(sd_bus_unrefp, bus);
     GglError err = open_bus(&bus);
-
     if (err != GGL_ERR_OK) {
         *status = GGL_STR("UNHEALTHY");
         return GGL_ERR_OK;
     }
+    GGL_DEFER(sd_bus_unrefp, bus);
 
     // TODO: check all root components
     *status = GGL_STR("HEALTHY");
