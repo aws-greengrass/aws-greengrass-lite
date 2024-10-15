@@ -1671,8 +1671,11 @@ static void handle_deployment(
                 group = posix_user;
             }
 
-            Recipe2UnitArgs recipe2unit_args
-                = { .user = posix_user, .group = group };
+            static Recipe2UnitArgs recipe2unit_args;
+            memset(&recipe2unit_args, 0, sizeof(Recipe2UnitArgs));
+            recipe2unit_args.user = posix_user;
+            recipe2unit_args.group = group;
+
             memcpy(
                 recipe2unit_args.recipe_path,
                 recipe_path_vec.buf.data,
@@ -1955,8 +1958,11 @@ static void handle_deployment(
                 group = posix_user;
             }
 
-            Recipe2UnitArgs recipe2unit_args
-                = { .group = group, .user = posix_user };
+            static Recipe2UnitArgs recipe2unit_args;
+            memset(&recipe2unit_args, 0, sizeof(Recipe2UnitArgs));
+            recipe2unit_args.user = posix_user;
+            recipe2unit_args.group = group;
+
             GGL_LOGI("Recipe path %s", recipe_path_vec.buf.data);
             memcpy(
                 recipe2unit_args.recipe_path,

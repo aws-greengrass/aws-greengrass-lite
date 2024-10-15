@@ -1,12 +1,10 @@
 FROM ubuntu:24.04
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update
-RUN apt-get -y install --no-install-recommends \
+RUN apt-get update \
+  && apt-get -y install --no-install-recommends \
     systemd systemd-sysv ca-certificates sudo nano bash-completion \
     build-essential pkg-config cmake git curl file \
-  && apt-get clean
-RUN apt-get -y install --no-install-recommends \
     libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
     libsystemd-dev liburiparser-dev uuid-dev libevent-dev libzip-dev \
   && apt-get clean

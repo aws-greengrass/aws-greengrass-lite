@@ -90,7 +90,7 @@ static size_t write_response_to_fd(
     return size_of_response_data;
 }
 
-static void gghttplib_destroy_curl(CurlData *curl_data) {
+void gghttplib_destroy_curl(CurlData *curl_data) {
     curl_slist_free_all(curl_data->headers_list);
     curl_data->headers_list = NULL;
     curl_easy_cleanup(curl_data->curl);
@@ -238,6 +238,7 @@ GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
     curl_easy_setopt(
         curl_data->curl, CURLOPT_WRITEFUNCTION, write_response_to_fd
     );
+    // coverity[bad_sizeof]
     curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, (void *) &fd);
     curl_easy_setopt(curl_data->curl, CURLOPT_FAILONERROR, 1L);
 

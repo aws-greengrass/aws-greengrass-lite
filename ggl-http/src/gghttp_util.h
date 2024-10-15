@@ -34,6 +34,8 @@ typedef struct CurlData {
  */
 GglError gghttplib_init_curl(CurlData *curl_data, const char *url);
 
+void gghttplib_destroy_curl(CurlData *curl_data);
+
 /**
  * @brief Adds a header to the list of headers for the CURL request.
  *

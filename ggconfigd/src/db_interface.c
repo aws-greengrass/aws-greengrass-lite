@@ -926,8 +926,8 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
 
     GGL_LOGI(
         "Subscribing %" PRIu32 ":%" PRIu32 " to %s",
-        handle && 0xFFFF0000 >> 16,
-        handle && 0x0000FFFF,
+        handle & (0xFFFF0000 >> 16),
+        handle & 0x0000FFFF,
         print_key_path(key_path)
     );
     // insert the key & handle data into the subscriber database

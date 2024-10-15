@@ -14,6 +14,8 @@ void *ggl_arena_alloc(GglArena *arena, size_t size, size_t alignment) {
     // alignment must be power of 2
     assert((alignment > 0) && ((alignment & (alignment - 1)) == 0));
     assert(alignment < UINT32_MAX);
+    // Allocation can't exceed ptrdiff_t, and this is likely a bug.
+    assert(size <= (UINT32_MAX >> 1));
 
     uint32_t align = (uint32_t) alignment;
     uint32_t pad = (align - (arena->index & (align - 1))) & (align - 1);
@@ -23,12 +25,20 @@ void *ggl_arena_alloc(GglArena *arena, size_t size, size_t alignment) {
     }
 
     if (pad > arena->CAPACITY - arena->index) {
+        GGL_LOGD(
+            "[%p] Insufficient memory for padding; returning NULL.", arena
+        );
         return NULL;
     }
 
     uint32_t idx = arena->index + pad;
 
     if (size > arena->CAPACITY - idx) {
+        GGL_LOGD(
+            "[%p] Insufficient memory to alloc %zu; returning NULL.",
+            arena,
+            size + pad
+        );
         return NULL;
     }
 
@@ -42,6 +52,7 @@ GglError ggl_arena_resize_last(GglArena *arena, const void *ptr, size_t size) {
     uint32_t idx = (uint32_t) ((uintptr_t) ptr - (uintptr_t) arena->MEM);
 
     if (size > arena->CAPACITY - idx) {
+        GGL_LOGD("[%p] Insufficient memory for resize to %zu.", arena, size);
         return GGL_ERR_NOMEM;
     }
 
