@@ -7,8 +7,8 @@ clientv
 coremqtt
 coreutils
 corge
-cpack
 coverity
+cpack
 cpus
 dbus
 depl
