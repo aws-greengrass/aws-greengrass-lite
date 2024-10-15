@@ -4,7 +4,8 @@ Features:
 
 Bug Fixes:
 
-- sqlite autoindex warning fixed.  Delete and rebuild your database to get the fix.
+- sqlite autoindex warning fixed. Delete and rebuild your database to get the
+  fix.
 
 ## 2024-10-04
 
