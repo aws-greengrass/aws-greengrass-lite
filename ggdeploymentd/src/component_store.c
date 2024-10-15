@@ -81,16 +81,20 @@ GglError iterate_over_components(
 ) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     while ((*entry = readdir(dir)) != NULL) {
-        // recipe file names follow the format component_name-version.
-        // concatenate to the component name and compare with the target
-        // component name Find the index of the "-" character
-        char *dash_pos = (*entry)->d_name;
-        size_t component_name_len = 0;
-        while (*dash_pos != '\0' && *dash_pos != '-') {
-            dash_pos++;
-            component_name_len++;
+        GglBuffer entry_buf = ggl_buffer_from_null_term((*entry)->d_name);
+        // recipe file names follow this format:
+        // <component_name>-<version>.<extension>
+        // Split directory entry on the index of the "-" character.
+        GglBuffer recipe_component;
+        GglBuffer rest = GGL_STR("");
+        for (size_t i = 0; i < entry_buf.len; ++i) {
+            if (entry_buf.data[i] == '-') {
+                recipe_component = ggl_buffer_substr(entry_buf, 0, i);
+                rest = ggl_buffer_substr(entry_buf, i + 1, SIZE_MAX);
+                break;
+            }
         }
-        if (*dash_pos != '-') {
+        if (rest.len == 0) {
             GGL_LOGD(
                 "Recipe file name formatted incorrectly. Continuing to next "
                 "file."
@@ -98,35 +102,18 @@ GglError iterate_over_components(
             continue;
         }
 
-        // copy the component name substring
-        GglBuffer recipe_component = ggl_buffer_substr(
-            GGL_STR((*entry)->d_name), 0, component_name_len
-        );
-
-        // find the file extension length
-        size_t file_extension_len = 0;
-        char *dot_pos = NULL;
-        for (size_t i = strlen((*entry)->d_name); i > 0; i--) {
-            if ((*entry)->d_name[i - 1] == '.') {
-                dot_pos = (*entry)->d_name + i - 1;
-                file_extension_len = strlen(dot_pos + 1);
+        // Trim the file extension off the rest. This is the component version.
+        GglBuffer recipe_version = GGL_STR("");
+        for (size_t i = rest.len; i > 0; i--) {
+            if (rest.data[i - 1] == '.') {
+                recipe_version = ggl_buffer_substr(rest, 0, i - 1);
                 break;
             }
         }
-        // account for '.'
-        file_extension_len += 1;
-
-        // get the substring of the recipe file after the component name and
-        // before the file extension. This is the component version
-        GglBuffer recipe_version = ggl_buffer_substr(
-            GGL_STR((*entry)->d_name),
-            component_name_len + 1,
-            strlen((*entry)->d_name) - file_extension_len
-        );
 
         assert(recipe_component.len < NAME_MAX);
         assert(recipe_version.len < NAME_MAX);
-        // Copy to component name.
+        // Copy out component name and version.
         memcpy(
             component_name_buffer->data,
             recipe_component.data,
@@ -137,10 +124,8 @@ GglError iterate_over_components(
         memcpy(version->data, recipe_version.data, recipe_version.len);
         version->len = recipe_version.len;
 
-        return GGL_ERR_OK;
-
         // Found one component. Break out of loop and return.
-        break;
+        return GGL_ERR_OK;
     }
     return GGL_ERR_NOENTRY;
 }
