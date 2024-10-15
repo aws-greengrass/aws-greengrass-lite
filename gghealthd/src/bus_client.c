@@ -7,6 +7,7 @@
 #include <ggl/alloc.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -35,53 +36,21 @@ GglError verify_component_exists(GglBuffer component_name) {
     }
     GGL_DEFER(pthread_mutex_unlock, bump_alloc_mutex);
 
-    GglBuffer server = GGL_STR("gg_config");
-    static uint8_t bump_buffer[4096];
-    GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(bump_buffer));
-
-    GglBuffer key
-        = { .data = GGL_ALLOCN(
-                &alloc.alloc,
-                uint8_t,
-                component_name.len + KEY_PREFIX_LEN + KEY_SUFFIX_LEN + 1U
-            ),
-            .len = component_name.len + KEY_PREFIX_LEN + KEY_SUFFIX_LEN };
-
-    if (key.data == NULL) {
-        return GGL_ERR_NOMEM;
-    }
-
-    key.data[0] = '\0';
-    strncat((char *) key.data, KEY_PREFIX, KEY_PREFIX_LEN + 1U);
-    strncat(
-        (char *) key.data,
-        (const char *) component_name.data,
-        component_name.len
+    static uint8_t component_version_mem[512] = { 0 };
+    GglBuffer component_version = GGL_BUF(component_version_mem);
+    GglError config_ret = ggl_gg_config_read_str(
+        GGL_BUF_LIST(GGL_STR("services"), component_name, GGL_STR("version")),
+        &component_version
     );
-    strncat((char *) key.data, KEY_SUFFIX, KEY_SUFFIX_LEN + 1U);
 
-    GglMap params = GGL_MAP(
-        { GGL_STR("component"), GGL_OBJ_STR("gghealthd") },
-        { GGL_STR("key"), GGL_OBJ(key) },
-    );
-    GglObject result;
-
-    GglError method_error = GGL_ERR_OK;
-    GglError error = ggl_call(
-        server, GGL_STR("read"), params, &method_error, &alloc.alloc, &result
-    );
-    if (error != GGL_ERR_OK) {
+    if (config_ret != GGL_ERR_OK) {
         GGL_LOGE("failed to connect to ggconfigd");
-        return error;
+        return config_ret;
     }
-    if (method_error != GGL_ERR_OK) {
-        GGL_LOGE("component does not exist in registry");
-        return GGL_ERR_NOENTRY;
-    }
-    if (result.type == GGL_TYPE_BUF) {
-        GGL_LOGT(
-            "read %.*s", (int) result.buf.len, (const char *) result.buf.data
-        );
-    }
+    GGL_LOGD(
+        "Component version read as %.*s",
+        (int) component_version.len,
+        component_version.data
+    );
     return GGL_ERR_OK;
 }

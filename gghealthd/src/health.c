@@ -10,6 +10,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <pthread.h>
 #include <string.h>
 #include <systemd/sd-bus.h>
@@ -33,7 +34,7 @@
 
 // interfaces
 #define MANAGER_INTERFACE "org.freedesktop.systemd1.Manager"
-#define SERVICE_INTERFACE " org.freedesktop.systemd1.Service"
+#define SERVICE_INTERFACE "org.freedesktop.systemd1.Service"
 #define UNIT_INTERFACE "org.freedesktop.systemd1.Unit"
 
 GGL_DEFINE_DEFER(sd_bus_unrefp, sd_bus *, bus, sd_bus_unrefp(bus))
@@ -196,12 +197,11 @@ static GglError get_component_result(
     }
 
     char *result = NULL;
-    GGL_DEFER(free, result);
     ret = sd_bus_get_property_string(
         bus,
         DEFAULT_DESTINATION,
         unit_path,
-        UNIT_INTERFACE,
+        SERVICE_INTERFACE,
         "Result",
         &error,
         &result
@@ -212,9 +212,9 @@ static GglError get_component_result(
         );
         return translate_dbus_call_error(ret);
     }
+    GGL_DEFER(free, result);
 
-    GglBuffer result_buffer
-        = { .data = (uint8_t *) result, .len = strlen(result) };
+    GglBuffer result_buffer = ggl_buffer_from_null_term(result);
     if (ggl_buffer_eq(result_buffer, GGL_STR("success"))) {
         *status = GGL_STR("FINISHED");
         // hitting the start limit means too many repeated failures
@@ -303,21 +303,13 @@ static GglError get_service_name(
         return GGL_ERR_RANGE;
     }
 
-    qualified_name->data[0] = '\0';
-    strncat(
-        (char *) qualified_name->data, SERVICE_PREFIX, SERVICE_PREFIX_LEN + 1U
-    );
-    strncat(
-        (char *) qualified_name->data,
-        (const char *) component_name.data,
-        component_name.len + 1U
-    );
-    strncat(
-        (char *) qualified_name->data, SERVICE_SUFFIX, SERVICE_SUFFIX_LEN + 1U
-    );
-    qualified_name->len
-        = SERVICE_PREFIX_LEN + component_name.len + SERVICE_SUFFIX_LEN + 1U;
-    return GGL_ERR_OK;
+    GglError ret = GGL_ERR_OK;
+    GglByteVec vec = ggl_byte_vec_init(*qualified_name);
+    ggl_byte_vec_chain_append(&ret, &vec, GGL_STR(SERVICE_PREFIX));
+    ggl_byte_vec_chain_append(&ret, &vec, component_name);
+    ggl_byte_vec_chain_append(&ret, &vec, GGL_STR(SERVICE_SUFFIX));
+    ggl_byte_vec_chain_push(&ret, &vec, '\0');
+    return ret;
 }
 
 static GglError get_active_state(
