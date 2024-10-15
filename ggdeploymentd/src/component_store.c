@@ -172,7 +172,7 @@ GglError find_available_component(
         if (ggl_buffer_eq(component_name, component_name_buffer)
             && is_in_range(version_buffer, requirement)) {
             assert(version_buffer.len <= NAME_MAX);
-            memcpy(version->data, &version_buffer.data, version_buffer.len);
+            memcpy(version->data, version_buffer.data, version_buffer.len);
             version->len = version_buffer.len;
             return GGL_ERR_OK;
         }
