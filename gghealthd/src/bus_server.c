@@ -4,6 +4,7 @@
 
 #include "bus_server.h"
 #include "health.h"
+#include "subscriptions.h"
 #include <ggl/buffer.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
@@ -19,11 +20,20 @@
 static void get_status(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     GglObject *component_name = NULL;
-    bool found
-        = ggl_map_get(params, GGL_STR("component_name"), &component_name);
-    if (!found || component_name->type != GGL_TYPE_BUF) {
-        GGL_LOGE("Missing required GGL_TYPE_BUF `component_name`");
+    GglError ret = ggl_map_validate(
+        params,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("component_name"), true, GGL_TYPE_BUF, &component_name }
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("get_status received invalid arguments.");
         ggl_return_err(handle, GGL_ERR_INVALID);
+        return;
+    }
+    if (component_name->buf.len > COMPONENT_NAME_MAX_LEN) {
+        GGL_LOGE("`component_name` too long");
+        ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
 
@@ -65,13 +75,11 @@ static void update_status(void *ctx, GglMap params, uint32_t handle) {
         ggl_return_err(handle, GGL_ERR_INVALID);
         return;
     }
-
     if (component_name->buf.len > COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("`component_name` too long");
         ggl_return_err(handle, GGL_ERR_RANGE);
         return;
     }
-
     if (state->buf.len > LIFECYCLE_STATE_MAX_LEN) {
         GGL_LOGE("`lifecycle_state` too long");
         ggl_return_err(handle, GGL_ERR_RANGE);
@@ -107,20 +115,74 @@ static void subscribe_to_deployment_updates(
     (void) handle;
 }
 
+static void subscribe_to_lifecycle_completion(
+    void *ctx, GglMap params, uint32_t handle
+) {
+    (void) ctx;
+    GglObject *component_name = NULL;
+    GglError ret = ggl_map_validate(
+        params,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("component_name"), true, GGL_TYPE_BUF, &component_name }
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("subscribe_to_lifecycle_completion received invalid arguments."
+        );
+        ggl_return_err(handle, GGL_ERR_INVALID);
+        return;
+    }
+    if (component_name->buf.len > COMPONENT_NAME_MAX_LEN) {
+        GGL_LOGE("`component_name` too long");
+        ggl_return_err(handle, GGL_ERR_RANGE);
+        return;
+    }
+
+    ret = gghealthd_register_lifecycle_subscription(
+        component_name->buf, handle
+    );
+    if (ret != GGL_ERR_OK) {
+        ggl_return_err(handle, ret);
+    }
+    GGL_LOGD("Accepting subscription.");
+    ggl_sub_accept(handle, gghealthd_unregister_lifecycle_subscription, NULL);
+
+    GglBuffer status;
+    GglError error = gghealthd_get_status(component_name->buf, &status);
+    if (error != GGL_ERR_OK) {
+        return;
+    }
+    if (ggl_buffer_eq(GGL_STR("BROKEN"), status)
+        || ggl_buffer_eq(GGL_STR("FINISHED"), status)
+        || ggl_buffer_eq(GGL_STR("RUNNING"), status)) {
+        GGL_LOGD("Sending early response.");
+        ggl_respond(
+            handle,
+            GGL_OBJ_MAP(GGL_MAP(
+                { GGL_STR("component_name"), *component_name },
+                { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(status) }
+            ))
+        );
+    }
+}
+
 GglError run_gghealthd(void) {
     GglError error = gghealthd_init();
     if (error != GGL_ERR_OK) {
         return error;
     }
-    static GglRpcMethodDesc handlers[] = {
-        { GGL_STR("get_status"), false, get_status, NULL },
-        { GGL_STR("update_status"), false, update_status, NULL },
-        { GGL_STR("get_health"), false, get_health, NULL },
-        { GGL_STR("subscribe_to_deployment_updates"),
-          true,
-          subscribe_to_deployment_updates,
-          NULL },
-    };
+    static GglRpcMethodDesc handlers[]
+        = { { GGL_STR("get_status"), false, get_status, NULL },
+            { GGL_STR("update_status"), false, update_status, NULL },
+            { GGL_STR("get_health"), false, get_health, NULL },
+            { GGL_STR("subscribe_to_deployment_updates"),
+              true,
+              subscribe_to_deployment_updates,
+              NULL },
+            { GGL_STR("subscribe_to_lifecycle_completion"),
+              true,
+              subscribe_to_lifecycle_completion,
+              NULL } };
     static const size_t HANDLERS_LEN = sizeof(handlers) / sizeof(handlers[0]);
 
     ggl_listen(GGL_STR("/aws/ggl/gghealthd"), handlers, HANDLERS_LEN);

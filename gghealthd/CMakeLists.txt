@@ -2,5 +2,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(gghealthd LIBS ggl-lib core-bus core-bus-gg-config
+ggl_init_module(gghealthd LIBS ggl-lib ggl-socket core-bus core-bus-gg-config
                                PkgConfig::libsystemd)

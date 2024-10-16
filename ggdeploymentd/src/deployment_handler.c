@@ -32,10 +32,14 @@
 #include <ggl/semver.h>
 #include <ggl/socket.h>
 #include <ggl/uri.h>
+#include <ggl/utils.h>
 #include <ggl/vector.h>
 #include <ggl/zip.h>
 #include <limits.h>
+#include <pthread.h>
 #include <string.h>
+#include <time.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -1745,9 +1749,132 @@ static GglError send_fss_update(GglBuffer trigger) {
     return GGL_ERR_OK;
 }
 
+typedef struct LifecycleCompleteContext {
+    _Atomic(GglError) result;
+    pthread_mutex_t *mtx;
+    pthread_cond_t *cond;
+} LifecycleCompleteContext;
+
+static inline void cleanup_pthread_cond_signal(pthread_cond_t **cond) {
+    if (cond != NULL) {
+        pthread_cond_signal(*cond);
+    }
+}
+
+static GglError on_lifecycle_completion(
+    void *ctx, uint32_t handle, GglObject data
+) {
+    (void) handle;
+    GGL_LOGD("Subscription fulfilled");
+    LifecycleCompleteContext *context = ctx;
+    GGL_MTX_SCOPE_GUARD(context->mtx);
+    GGL_CLEANUP(cleanup_pthread_cond_signal, context->cond);
+    if (data.type != GGL_TYPE_MAP) {
+        GGL_LOGE("Unexpected gghealthd response format.");
+        atomic_store(&context->result, GGL_ERR_REMOTE);
+        return GGL_ERR_INVALID;
+    }
+    GglObject *component_name = NULL;
+    GglObject *status = NULL;
+    GglError ret = ggl_map_validate(
+        data.map,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("component_name"), true, GGL_TYPE_BUF, &component_name },
+            { GGL_STR("lifecycle_state"), true, GGL_TYPE_BUF, &status }
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Unexpected gghealthd response format.");
+        atomic_store(&context->result, GGL_ERR_REMOTE);
+        return GGL_ERR_FAILURE;
+    }
+    if (!ggl_buffer_eq(GGL_STR("BROKEN"), status->buf)) {
+        context->result = GGL_ERR_OK;
+        return GGL_ERR_OK;
+    }
+    GGL_LOGE(
+        "%.*s failed.", (int) component_name->buf.len, component_name->buf.data
+    );
+    atomic_store(&context->result, GGL_ERR_FAILURE);
+    return GGL_ERR_OK;
+}
+
+static void on_lifecycle_close(void *ctx, uint32_t handle) {
+    (void) handle;
+    LifecycleCompleteContext *context = ctx;
+    GglError expected = GGL_ERR_EXPECTED;
+    if (atomic_compare_exchange_strong(
+            &context->result, &expected, GGL_ERR_REMOTE
+        )) {
+        GGL_MTX_SCOPE_GUARD(context->mtx);
+        GGL_LOGD("Subscription closed");
+        (void) expected;
+        pthread_cond_signal(context->cond);
+    }
+}
+
+static GglError wait_for_deployment_status(GglMap resolved_components) {
+    GGL_LOGT("Beginning wait for deployment completion");
+    // TODO: hack
+    ggl_sleep(5);
+
+    pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+    GGL_MAP_FOREACH(component, resolved_components) {
+        LifecycleCompleteContext ctx
+            = { .mtx = &mtx, .cond = &cond, .result = GGL_ERR_EXPECTED };
+
+        GGL_LOGD(
+            "Awaiting %.*s.", (int) component->key.len, component->key.data
+        );
+        uint32_t handle = 0;
+        GglError method_error = GGL_ERR_OK;
+        GglError ret = ggl_subscribe(
+            GGL_STR("/aws/ggl/gghealthd"),
+            GGL_STR("subscribe_to_lifecycle_completion"),
+            GGL_MAP({ GGL_STR("component_name"), GGL_OBJ_BUF(component->key) }),
+            on_lifecycle_completion,
+            on_lifecycle_close,
+            &ctx,
+            &method_error,
+            &handle
+        );
+        if (ret != GGL_ERR_OK) {
+            return GGL_ERR_FAILURE;
+        }
+
+        struct timespec timeout;
+        clock_gettime(CLOCK_MONOTONIC, &timeout);
+        timeout.tv_sec += 300;
+
+        int cond_ret = 0;
+        {
+            GGL_MTX_SCOPE_GUARD(&mtx);
+            GGL_LOGD("Beginning component wait.");
+            while ((ret = atomic_load(&ctx.result)) == GGL_ERR_EXPECTED) {
+                cond_ret = pthread_cond_timedwait(&cond, &mtx, &timeout);
+                if (cond_ret < 0) {
+                    break;
+                }
+            }
+        }
+
+        ggl_client_sub_close(handle);
+        if (cond_ret < 0) {
+            GGL_LOGE("Cond wait failure.");
+            return GGL_ERR_FAILURE;
+        }
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Component failed.");
+            return GGL_ERR_FAILURE;
+        }
+        GGL_LOGD("Component succeeded");
+    }
+    return GGL_ERR_OK;
+}
+
 // This will be refactored soon with recipe2unit in c, so ignore this warning
 // for now
-
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static void handle_deployment(
     GglDeployment *deployment,
@@ -2221,6 +2348,12 @@ static void handle_deployment(
                 }
             }
         }
+
+        ret = wait_for_deployment_status(resolved_components_kv_vec.map);
+        if (ret != GGL_ERR_OK) {
+            return;
+        }
+
         ret = cleanup_stale_versions(resolved_components_kv_vec.map);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(

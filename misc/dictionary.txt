@@ -21,6 +21,7 @@ EOK
 epoll
 EPOLLIN
 evbuffer
+eventfd
 evhttp
 execvpe
 Fssd
@@ -75,6 +76,7 @@ ptid
 respfd
 rodata
 rootca
+semp
 serde
 serverd
 sigv4
