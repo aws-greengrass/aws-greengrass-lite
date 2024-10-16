@@ -5,27 +5,13 @@
 #include "ggl/backoff.h"
 #include <assert.h>
 #include <backoff_algorithm.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/log.h>
-#include <ggl/socket.h>
+#include <ggl/rand.h>
 #include <ggl/utils.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
-#include <stdlib.h>
-
-static int random_fd;
-
-__attribute__((constructor)) static void init_urandom_fd(void) {
-    random_fd = open("/dev/random", O_RDONLY);
-    if (random_fd == -1) {
-        int err = errno;
-        GGL_LOGE("Failed to open /dev/random: %d.", err);
-        _Exit(1);
-    }
-}
 
 static GglError backoff_wrapper(
     uint32_t base_ms,
@@ -63,11 +49,11 @@ static GglError backoff_wrapper(
         }
 
         uint32_t rand_val;
-        ggl_read_exact(
-            random_fd,
-            (GglBuffer) { .data = (uint8_t *) &rand_val,
-                          .len = sizeof(rand_val) }
-        );
+        GglError rand_err = ggl_rand_fill((GglBuffer
+        ) { .data = (uint8_t *) &rand_val, .len = sizeof(rand_val) });
+        if (rand_err != GGL_ERR_OK) {
+            return rand_err;
+        }
 
         uint16_t backoff_time = 0;
         retry_status = BackoffAlgorithm_GetNextBackoff(
