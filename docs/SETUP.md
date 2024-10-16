@@ -18,13 +18,10 @@ To configure Greengrass, you will need a config YAML file, in the same format as
 the Classic nucleus config. An example config file is available in
 [`doc/examples/sample_nucleus_config.yml`](examples/sample_nucleus_config.yml).
 If this is the first time you are creating a GG device, please follow the
-instruction in the [TES setup instructions](./TES.md).
+instruction in the [TES setup instructions](./TES.md) to get a role alias,
+thing, certificate, private key, and endpoints for your device.
 
-A working installation will require a thing certificate package.
-
-First go to AWS IoT Core and create a thing.
-
-Make a copy of the sample configuration.
+Make a copy of the [sample configuration](./examples/sample_nucleus_config.yml).
 
 Configure the following in your config file
 
@@ -36,6 +33,7 @@ Configure the following in your config file
 - iotCredEndpoint: The IoT Core endpoint
 - iotDataEndpoint: The IoT Core endpoint
 - posixUser: Colon separated user/group that generic components should run as
+- iotRoleAlias: The name of the role alias for accessing TES
 
 `posixUser` must be set to a valid user and group. If no colon and group is
 provided, the user's default group is used. If not running Greengrass as root,
