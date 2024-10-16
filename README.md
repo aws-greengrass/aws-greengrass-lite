@@ -29,9 +29,9 @@ For setting up as a Greengrass developer, also see the
 | UpdateState                             |                              |
 | SubscribeToComponentUpdates             |                              |
 | DeferComponentUpdate                    |                              |
-| GetConfiguration                        |                              |
+| GetConfiguration                        | ggconfigd                    |
 | UpdateConfiguration                     | ggconfigd                    |
-| SubscribeToConfigurationUpdate          |                              |
+| SubscribeToConfigurationUpdate          | ggconfigd                    |
 | SubscribeToValidateConfigurationUpdates | not planned                  |
 | SendConfigurationValidityReport         | not planned                  |
 | GetSecretValue                          | not planned                  |
