@@ -3,5 +3,10 @@
     "url": "https://github.com/FreeRTOS/coreMQTT.git",
     "rev": "58d626a25839ed20b19a57fdff34a41f36dacd05",
     "hash": "sha256-QJyK0LGPCFMx6Q1/VyNBS8m5ywAiQcbgLdPRkA3+ilw="
+  },
+  "backoff_algorithm": {
+    "url": "https://github.com/FreeRTOS/backoffAlgorithm.git",
+    "rev": "f2f3bb2d8310f7cb48baa3ee64b635a5d66f838b",
+    "hash": "sha256-KlqFwW2mQ85ySAaSON5njoz8SfepKws1xgDSEc/mZeM="
   }
 }
