@@ -29,23 +29,24 @@ corebus.  This table identifies the corebus component that does the work.
 | PublishToTopic                          | ggpubsubd                    |
 | PublishToIoTCore                        | iotcored                     |
 | SubscribeToIoTCore                      | iotcored                     |
-| UpdateState                             | - 2025 -                     |
-| SubscribeToComponentUpdates             | - 2025 -                     |
-| DeferComponentUpdate                    | - 2025 -                     |
+| UpdateState                             | - FUTURE -                   |
+| SubscribeToComponentUpdates             | - FUTURE -                   |
+| DeferComponentUpdate                    | - FUTURE -                   |
 | GetConfiguration                        | ggconfigd                    |
 | UpdateConfiguration                     | ggconfigd                    |
 | SubscribeToConfigurationUpdate          | ggconfigd                    |
 | SubscribeToValidateConfigurationUpdates | not planned                  |
 | SendConfigurationValidityReport         | not planned                  |
 | GetSecretValue                          | not planned                  |
-| PutComponentMetric                      | - 2025 -                     |
-| GetComponentDetails                     | - 2025 -                     |
-| RestartComponent                        | - 2025 -                     |
-| StopComponent                           | - 2025 -                     |
+| PutComponentMetric                      | - FUTURE -                   |
+| GetComponentDetails                     | - FUTURE -                   |
+| RestartComponent                        | - FUTURE -                   |
+| StopComponent                           | - FUTURE -                   |
 | CreateLocalDeployment                   | ggdeploymentd                |
-| CancelLocalDeployment                   | - 2025 -                     |
-| GetLocalDeploymentStatus                | - 2025 -                     |
-| ListLocalDeployments                    | - 2025 -                     |
+| CancelLocalDeployment                   | - FUTURE -                   |
+| GetLocalDeploymentStatus                | - FUTURE -                   |
+| ListLocalDeployments                    | - FUTURE -                   |
+| ListComponents                          | - FUTURE -                   |
 | ValidateAuthorizationToken              | not planned                  |
 | CreateDebugPassword                     | not planned                  |
 | PauseComponent                          | not planned                  |
