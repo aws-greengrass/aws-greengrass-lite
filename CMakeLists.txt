@@ -354,7 +354,7 @@ endif()
 #
 # CPACK deb package generation
 #
-install(PROGRAMS "misc/run_nucleus" DESTINATION BIN)
+install(PROGRAMS "misc/run_nucleus" DESTINATION bin)
 
 set(CPACK_GENERATOR DEB)
 
