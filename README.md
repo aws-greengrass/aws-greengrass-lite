@@ -20,8 +20,8 @@ For setting up as a Greengrass developer, also see the
 
 ## Supported Greengrass V2 IPC commands (Features)
 
-IPC support is provided by ggpipcd.  The support is translating the IPC command to
-corebus.  This table identifies the corebus component that does the work.
+IPC support is provided by ggipcd. The support is translating the IPC command to
+corebus. This table identifies the corebus component that does the work.
 
 | Feature                                 | Daemon that provides support |
 | :-------------------------------------- | :--------------------------- |
