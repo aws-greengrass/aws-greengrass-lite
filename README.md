@@ -20,29 +20,32 @@ For setting up as a Greengrass developer, also see the
 
 ## Supported Greengrass V2 IPC commands (Features)
 
+IPC support is provided by ggpipcd.  The support is translating the IPC command to
+corebus.  This table identifies the corebus component that does the work.
+
 | Feature                                 | Daemon that provides support |
 | :-------------------------------------- | :--------------------------- |
 | SubscribeToTopic                        | ggpubsubd                    |
 | PublishToTopic                          | ggpubsubd                    |
 | PublishToIoTCore                        | iotcored                     |
 | SubscribeToIoTCore                      | iotcored                     |
-| UpdateState                             |                              |
-| SubscribeToComponentUpdates             |                              |
-| DeferComponentUpdate                    |                              |
+| UpdateState                             | - 2025 -                     |
+| SubscribeToComponentUpdates             | - 2025 -                     |
+| DeferComponentUpdate                    | - 2025 -                     |
 | GetConfiguration                        | ggconfigd                    |
 | UpdateConfiguration                     | ggconfigd                    |
 | SubscribeToConfigurationUpdate          | ggconfigd                    |
 | SubscribeToValidateConfigurationUpdates | not planned                  |
 | SendConfigurationValidityReport         | not planned                  |
 | GetSecretValue                          | not planned                  |
-| PutComponentMetric                      |                              |
-| GetComponentDetails                     |                              |
-| RestartComponent                        |                              |
-| StopComponent                           |                              |
-| CreateLocalDeployment                   |                              |
-| CancelLocalDeployment                   |                              |
-| GetLocalDeploymentStatus                |                              |
-| ListLocalDeployments                    |                              |
+| PutComponentMetric                      | - 2025 -                     |
+| GetComponentDetails                     | - 2025 -                     |
+| RestartComponent                        | - 2025 -                     |
+| StopComponent                           | - 2025 -                     |
+| CreateLocalDeployment                   | ggdeploymentd                |
+| CancelLocalDeployment                   | - 2025 -                     |
+| GetLocalDeploymentStatus                | - 2025 -                     |
+| ListLocalDeployments                    | - 2025 -                     |
 | ValidateAuthorizationToken              | not planned                  |
 | CreateDebugPassword                     | not planned                  |
 | PauseComponent                          | not planned                  |
