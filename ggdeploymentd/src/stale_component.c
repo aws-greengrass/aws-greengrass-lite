@@ -170,41 +170,13 @@ static GglError delete_recipe_script_and_service_files(GglBuffer *component_name
     return ret;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError disable_and_unlink_service(GglBuffer *component_name) {
     static uint8_t command_array[PATH_MAX];
     GglByteVec command_vec = GGL_BYTE_VEC(command_array);
 
     GglError ret
-        = ggl_byte_vec_append(&command_vec, GGL_STR("sudo systemctl disable "));
-    ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR("ggl."));
-    ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
-    ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
-    ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create systemctl disable command.");
-        return ret;
-    }
-
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    int system_ret = system((char *) command_vec.buf.data);
-    if (WIFEXITED(system_ret)) {
-        if (WEXITSTATUS(system_ret) != 0) {
-            GGL_LOGE("systemctl disable failed");
-            return GGL_ERR_FAILURE;
-        }
-        GGL_LOGI(
-            "systemctl disable exited with child status %d\n",
-            WEXITSTATUS(system_ret)
-        );
-    } else {
-        GGL_LOGE("systemctl disable did not exit normally");
-        return GGL_ERR_FAILURE;
-    }
-
-    memset(command_array, 0, sizeof(command_array));
-    command_vec.buf.len = 0;
-
-    ret = ggl_byte_vec_append(&command_vec, GGL_STR("sudo systemctl stop "));
+        = ggl_byte_vec_append(&command_vec, GGL_STR("sudo systemctl stop "));
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR("ggl."));
     ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
@@ -215,7 +187,7 @@ static GglError disable_and_unlink_service(GglBuffer *component_name) {
     }
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    system_ret = system((char *) command_vec.buf.data);
+    int system_ret = system((char *) command_vec.buf.data);
     if (WIFEXITED(system_ret)) {
         if (WEXITSTATUS(system_ret) != 0) {
             GGL_LOGE("systemctl stop failed");
@@ -233,30 +205,154 @@ static GglError disable_and_unlink_service(GglBuffer *component_name) {
     memset(command_array, 0, sizeof(command_array));
     command_vec.buf.len = 0;
 
-    ret = ggl_byte_vec_append(&command_vec, GGL_STR("sudo systemctl unlink "));
+    ret = ggl_byte_vec_append(&command_vec, GGL_STR("sudo systemctl disable "));
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR("ggl."));
     ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
     ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create systemctl unlink command.");
+        GGL_LOGE("Failed to create systemctl disable command.");
         return ret;
     }
 
+    // TODO: replace system call with platform independent function.
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     system_ret = system((char *) command_vec.buf.data);
     if (WIFEXITED(system_ret)) {
         if (WEXITSTATUS(system_ret) != 0) {
-            GGL_LOGE("systemctl unlink failed");
+            GGL_LOGE("systemctl disable failed");
             return GGL_ERR_FAILURE;
         }
         GGL_LOGI(
-            "systemctl unlink exited with child status %d\n",
+            "systemctl disable exited with child status %d\n",
             WEXITSTATUS(system_ret)
         );
     } else {
-        GGL_LOGE("systemctl unlink did not exit normally");
+        GGL_LOGE("systemctl disable did not exit normally");
         return GGL_ERR_FAILURE;
+    }
+
+    memset(command_array, 0, sizeof(command_array));
+    command_vec.buf.len = 0;
+
+    // TODO: replace this with a better approach such as 'unlink'.
+    ret = ggl_byte_vec_append(
+        &command_vec, GGL_STR("sudo rm /etc/systemd/system/")
+    );
+    ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR("ggl."));
+    ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
+    ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
+    ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create rm /etc/systemd/system/[service] command.");
+        return ret;
+    }
+
+    // TODO: replace system call with platform independent function.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    system_ret = system((char *) command_vec.buf.data);
+    if (WIFEXITED(system_ret)) {
+        if (WEXITSTATUS(system_ret) != 0) {
+            GGL_LOGE("removing symlink failed");
+            return GGL_ERR_FAILURE;
+        }
+        GGL_LOGI(
+            "rm /etc/systemd/system/[service] exited with child status %d\n",
+            WEXITSTATUS(system_ret)
+        );
+    } else {
+        GGL_LOGE("rm /etc/systemd/system/[service] did not exit normally");
+        return GGL_ERR_FAILURE;
+    }
+
+    memset(command_array, 0, sizeof(command_array));
+    command_vec.buf.len = 0;
+
+    // TODO: replace this with a better approach such as 'unlink'.
+    ret = ggl_byte_vec_append(
+        &command_vec, GGL_STR("sudo rm /usr/lib/systemd/system/")
+    );
+    ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR("ggl."));
+    ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
+    ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
+    ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Failed to create rm /usr/lib/systemd/system/[service] command."
+        );
+        return ret;
+    }
+
+    // TODO: replace system call with platform independent function.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    system_ret = system((char *) command_vec.buf.data);
+    if (WIFEXITED(system_ret)) {
+        if (WEXITSTATUS(system_ret) != 0) {
+            GGL_LOGE("removing symlink failed");
+            return GGL_ERR_FAILURE;
+        }
+        GGL_LOGI(
+            "rm /usr/lib/systemd/system/[service] exited with child status "
+            "%d\n",
+            WEXITSTATUS(system_ret)
+        );
+    } else {
+        GGL_LOGE("rm /usr/lib/systemd/system/[service] did not exit normally");
+        return GGL_ERR_FAILURE;
+    }
+
+    memset(command_array, 0, sizeof(command_array));
+    command_vec.buf.len = 0;
+
+    ret = ggl_byte_vec_append(
+        &command_vec, GGL_STR("sudo systemctl daemon-reload")
+    );
+    ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create systemctl daemon-reload command.");
+        return ret;
+    }
+
+    // TODO: replace system call with platform independent function.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    system_ret = system((char *) command_vec.buf.data);
+    if (WIFEXITED(system_ret)) {
+        if (WEXITSTATUS(system_ret) != 0) {
+            GGL_LOGE("systemctl daemon-reload failed");
+        }
+        GGL_LOGI(
+            "systemctl daemon-reload exited with child status %d\n",
+            WEXITSTATUS(system_ret)
+        );
+    } else {
+        GGL_LOGE("systemctl daemon-reload did not exit normally");
+    }
+
+    memset(command_array, 0, sizeof(command_array));
+    command_vec.buf.len = 0;
+
+    ret = ggl_byte_vec_append(
+        &command_vec, GGL_STR("sudo systemctl reset-failed")
+    );
+    ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create systemctl reset-failed command.");
+        return ret;
+    }
+
+    // TODO: replace system call with platform independent function.
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    system_ret = system((char *) command_vec.buf.data);
+    if (WIFEXITED(system_ret)) {
+        if (WEXITSTATUS(system_ret) != 0) {
+            GGL_LOGE("systemctl reset-failed failed");
+        }
+        GGL_LOGI(
+            "systemctl reset-failed exited with child status %d\n",
+            WEXITSTATUS(system_ret)
+        );
+    } else {
+        GGL_LOGE("systemctl reset-failed did not exit normally");
     }
 
     return GGL_ERR_OK;
