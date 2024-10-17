@@ -867,7 +867,7 @@ static GglError fill_service_section(
         return ret;
     }
 
-    ggl_byte_vec_chain_append(&ret, out, GGL_STR("Restart=always\n"));
+    ggl_byte_vec_chain_append(&ret, out, GGL_STR("Restart=on-failure\n"));
     ggl_byte_vec_chain_append(
         &ret, out, GGL_STR("RestartSec=" RETRY_DELAY_SECONDS "\n")
     );
