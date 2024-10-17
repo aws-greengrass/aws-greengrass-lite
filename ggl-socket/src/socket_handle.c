@@ -5,7 +5,7 @@
 #include "ggl/socket_handle.h"
 #include "ggl/socket.h"
 #include <assert.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
@@ -28,10 +28,6 @@
 // overflow a uint16_t.
 
 static const int32_t FD_FREE = -0x55555556; // Alternating bits for debugging
-
-GGL_DEFINE_DEFER(
-    unlock_pool_mtx, GglSocketPool *, pool, pthread_mutex_unlock(&(*pool)->mtx)
-)
 
 static GglError validate_handle(
     GglSocketPool *pool, uint32_t handle, uint16_t *index, const char *location
@@ -84,8 +80,7 @@ GglError ggl_socket_pool_register(
         return GGL_ERR_INVALID;
     }
 
-    pthread_mutex_lock(&pool->mtx);
-    GGL_DEFER(unlock_pool_mtx, pool);
+    GGL_MTX_SCOPE_GUARD(&pool->mtx);
 
     for (uint16_t i = 0; i < pool->max_fds; i++) {
         if (pool->fds[i] == FD_FREE) {
@@ -125,8 +120,7 @@ GglError ggl_socket_pool_release(
 ) {
     GGL_LOGT("Releasing handle %u in pool %p.", handle, pool);
 
-    pthread_mutex_lock(&pool->mtx);
-    GGL_DEFER(unlock_pool_mtx, pool);
+    GGL_MTX_SCOPE_GUARD(&pool->mtx);
 
     uint16_t index = 0;
     GglError ret = validate_handle(pool, handle, &index, __func__);
@@ -175,8 +169,7 @@ GglError ggl_socket_handle_read(
     GglBuffer rest = buf;
 
     while (rest.len > 0) {
-        pthread_mutex_lock(&pool->mtx);
-        GGL_DEFER(unlock_pool_mtx, pool);
+        GGL_MTX_SCOPE_GUARD(&pool->mtx);
 
         uint16_t index = 0;
         GglError ret = validate_handle(pool, handle, &index, __func__);
@@ -204,8 +197,7 @@ GglError ggl_socket_handle_write(
     GglBuffer rest = buf;
 
     while (rest.len > 0) {
-        pthread_mutex_lock(&pool->mtx);
-        GGL_DEFER(unlock_pool_mtx, pool);
+        GGL_MTX_SCOPE_GUARD(&pool->mtx);
 
         uint16_t index = 0;
         GglError ret = validate_handle(pool, handle, &index, __func__);
@@ -242,8 +234,7 @@ GglError ggl_socket_handle_get_peer_pid(
 ) {
     GGL_LOGT("Getting peer pid for handle %u in pool %p.", handle, pool);
 
-    pthread_mutex_lock(&pool->mtx);
-    GGL_DEFER(unlock_pool_mtx, pool);
+    GGL_MTX_SCOPE_GUARD(&pool->mtx);
 
     uint16_t index = 0;
     GglError ret = validate_handle(pool, handle, &index, __func__);
@@ -275,8 +266,7 @@ GglError ggl_socket_handle_protected(
 ) {
     GGL_LOGT("In %s with handle %u in pool %p.", __func__, handle, pool);
 
-    pthread_mutex_lock(&pool->mtx);
-    GGL_DEFER(unlock_pool_mtx, pool);
+    GGL_MTX_SCOPE_GUARD(&pool->mtx);
 
     uint16_t index = 0;
     GglError ret = validate_handle(pool, handle, &index, __func__);

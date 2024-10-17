@@ -14,9 +14,9 @@
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/defer.h>
 #include <ggl/digest.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
@@ -76,14 +76,14 @@ static GglError merge_dir_to(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, source_fd);
+    GGL_CLEANUP(cleanup_close, source_fd);
 
     int dest_fd;
     ret = ggl_dir_openat(root_path_fd, subdir, O_RDONLY, true, &dest_fd);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, dest_fd);
+    GGL_CLEANUP(cleanup_close, dest_fd);
 
     return ggl_copy_dir(source_fd, dest_fd);
 }
@@ -681,7 +681,7 @@ static GglError get_recipe_artifacts(
             GGL_LOGE("Failed to create artifact file for write.");
             return err;
         }
-        GGL_DEFER(ggl_close, artifact_fd);
+        GGL_CLEANUP(cleanup_close, artifact_fd);
 
         if (ggl_buffer_eq(GGL_STR("s3"), info.scheme)) {
             err = download_s3_artifact(
@@ -1618,7 +1618,7 @@ static GglError open_component_artifacts_dir(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, component_fd);
+    GGL_CLEANUP(cleanup_close, component_fd);
     return ggl_dir_openat(
         component_fd, component_version, O_PATH, true, version_fd
     );
@@ -1722,7 +1722,7 @@ static void handle_deployment(
         if (ret != GGL_ERR_OK) {
             return;
         }
-        GGL_DEFER(ggl_free_digest, digest_context);
+        GGL_CLEANUP(ggl_free_digest, digest_context);
 
         GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
             int component_artifacts_fd = -1;

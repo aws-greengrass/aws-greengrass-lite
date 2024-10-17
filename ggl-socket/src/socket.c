@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <ggl/buffer.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
@@ -114,7 +114,7 @@ GglError ggl_connect(GglBuffer path, int *fd) {
         GGL_LOGE("Failed to create socket: %d.", err);
         return GGL_ERR_FATAL;
     }
-    GGL_DEFER(ggl_close, sockfd);
+    GGL_CLEANUP_ID(sockfd_cleanup, cleanup_close, sockfd);
 
     if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
         int err = errno;
@@ -132,7 +132,8 @@ GglError ggl_connect(GglBuffer path, int *fd) {
     setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
-    GGL_DEFER_CANCEL(sockfd);
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+    sockfd_cleanup = -1;
     *fd = sockfd;
     return GGL_ERR_OK;
 }

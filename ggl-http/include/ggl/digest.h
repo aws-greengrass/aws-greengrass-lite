@@ -6,10 +6,8 @@
 #define GGHTTPLIB_DIGEST_H
 
 #include <ggl/buffer.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <openssl/types.h>
-#include <stddef.h>
 
 typedef struct GglDigest {
     EVP_MD_CTX *ctx;
@@ -37,12 +35,5 @@ GglError ggl_verify_sha256_digest(
 );
 
 void ggl_free_digest(GglDigest *digest_context);
-
-GGL_DEFINE_DEFER(
-    ggl_free_digest,
-    GglDigest,
-    context,
-    if (context != NULL) ggl_free_digest(context)
-)
 
 #endif

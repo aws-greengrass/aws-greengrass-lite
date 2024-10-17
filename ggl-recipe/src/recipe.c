@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/alloc.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/json_decode.h>
@@ -40,8 +40,7 @@ GglError ggl_recipe_get_from_file(
     GglObject *recipe
 ) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&mtx);
-    GGL_DEFER(pthread_mutex_unlock, mtx);
+    GGL_MTX_SCOPE_GUARD(&mtx);
 
     int recipe_dir;
     GglError ret = ggl_dir_openat(

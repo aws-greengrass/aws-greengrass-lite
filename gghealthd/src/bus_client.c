@@ -4,8 +4,8 @@
 
 #include "bus_client.h"
 #include <sys/types.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -22,11 +22,7 @@ GglError verify_component_exists(GglBuffer component_name) {
         return GGL_ERR_RANGE;
     }
 
-    int ret = pthread_mutex_lock(&bump_alloc_mutex);
-    if (ret < 0) {
-        return GGL_ERR_FAILURE;
-    }
-    GGL_DEFER(pthread_mutex_unlock, bump_alloc_mutex);
+    GGL_MTX_SCOPE_GUARD(&bump_alloc_mutex);
 
     static uint8_t component_version_mem[512] = { 0 };
     GglBuffer component_version = GGL_BUF(component_version_mem);

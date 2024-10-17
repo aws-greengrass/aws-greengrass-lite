@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
@@ -98,8 +98,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     InterfaceCtx *interface = ctx;
 
     static pthread_mutex_t client_handler_mtx = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&client_handler_mtx);
-    GGL_DEFER(pthread_mutex_unlock, client_handler_mtx);
+    GGL_MTX_SCOPE_GUARD(&client_handler_mtx);
 
     static uint8_t payload_array[GGL_COREBUS_MAX_MSG_LEN];
 
@@ -286,8 +285,7 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
 void ggl_return_err(uint32_t handle, GglError error) {
     assert(error != GGL_ERR_OK); // Returning error ok is invalid
 
-    pthread_mutex_lock(&encode_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, encode_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
 
@@ -324,8 +322,7 @@ void ggl_respond(uint32_t handle, GglObject value) {
         return;
     }
 
-    pthread_mutex_lock(&encode_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, encode_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
 
@@ -366,8 +363,7 @@ void ggl_sub_accept(
         }
     }
 
-    pthread_mutex_lock(&encode_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, encode_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
 

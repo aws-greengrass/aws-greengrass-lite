@@ -7,7 +7,7 @@
 #include "ggl/socket_handle.h"
 #include <assert.h>
 #include <errno.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
@@ -194,7 +194,7 @@ GglError ggl_socket_server_listen(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, epoll_fd);
+    GGL_CLEANUP(cleanup_close, epoll_fd);
 
     int server_fd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (server_fd == -1) {
@@ -202,7 +202,7 @@ GglError ggl_socket_server_listen(
         GGL_LOGE("Failed to create socket: %d.", err);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, server_fd);
+    GGL_CLEANUP(cleanup_close, server_fd);
 
     ret = configure_server_socket(server_fd, path, mode);
     if (ret != GGL_ERR_OK) {

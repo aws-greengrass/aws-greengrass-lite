@@ -9,7 +9,7 @@
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -261,8 +261,7 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
 }
 
 GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id) {
-    pthread_mutex_lock(&queue_mtx);
-    GGL_DEFER(pthread_mutex_unlock, queue_mtx);
+    GGL_MTX_SCOPE_GUARD(&queue_mtx);
 
     GglDeployment new = { 0 };
     GglError ret = parse_deployment_obj(deployment_doc, &new);
@@ -312,8 +311,7 @@ GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id) {
 }
 
 GglError ggl_deployment_dequeue(GglDeployment **deployment) {
-    pthread_mutex_lock(&queue_mtx);
-    GGL_DEFER(pthread_mutex_unlock, queue_mtx);
+    GGL_MTX_SCOPE_GUARD(&queue_mtx);
 
     while (queue_count == 0) {
         pthread_cond_wait(&notify_cond, &queue_mtx);

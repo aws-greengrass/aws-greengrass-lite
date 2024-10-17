@@ -7,13 +7,12 @@
 #include "object_serde.h"
 #include "types.h"
 #include <ggl/alloc.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <pthread.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -44,10 +43,9 @@ GglError ggl_call(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, conn);
+    GGL_CLEANUP(cleanup_close, conn);
 
-    pthread_mutex_lock(&ggl_core_bus_client_payload_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, ggl_core_bus_client_payload_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&ggl_core_bus_client_payload_array_mtx);
 
     GglBuffer recv_buffer = GGL_BUF(ggl_core_bus_client_payload_array);
     EventStreamMessage msg = { 0 };

@@ -1,3 +1,5 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
 
 #include "health.h"
 #include "bus_client.h"
@@ -5,7 +7,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <ggl/buffer.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -35,16 +37,6 @@
 #define MANAGER_INTERFACE "org.freedesktop.systemd1.Manager"
 #define SERVICE_INTERFACE "org.freedesktop.systemd1.Service"
 #define UNIT_INTERFACE "org.freedesktop.systemd1.Unit"
-
-GGL_DEFINE_DEFER(sd_bus_unrefp, sd_bus *, bus, sd_bus_unrefp(bus))
-
-GGL_DEFINE_DEFER(
-    sd_bus_error_free, sd_bus_error, error, sd_bus_error_free(error)
-)
-
-GGL_DEFINE_DEFER(
-    sd_bus_message_unrefp, sd_bus_message *, msg, sd_bus_message_unrefp(msg)
-)
 
 static GglError translate_dbus_call_error(int error) {
     if (error >= 0) {
@@ -94,8 +86,7 @@ static GglError report_connect_error(void) {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);
 
-    pthread_mutex_lock(&connect_time_mutex);
-    GGL_DEFER(pthread_mutex_unlock, connect_time_mutex);
+    GGL_MTX_SCOPE_GUARD(&connect_time_mutex);
     // first failure
     if ((first_connect_attempt.tv_sec == 0)
         && (first_connect_attempt.tv_nsec == 0)) {
@@ -106,13 +97,12 @@ static GglError report_connect_error(void) {
 }
 
 static void report_connect_success(void) {
-    pthread_mutex_lock(&connect_time_mutex);
+    GGL_MTX_SCOPE_GUARD(&connect_time_mutex);
     first_connect_attempt = (struct timespec) { 0 };
     last_connect_attempt = (struct timespec) { 0 };
-    pthread_mutex_unlock(&connect_time_mutex);
 }
 
-// bus must be freed via sd_bus_unrefp
+// bus must be freed via sd_bus_unref
 static GglError open_bus(sd_bus **bus) {
     assert((bus != NULL) && (*bus == NULL));
     int ret = sd_bus_default_system(bus);
@@ -131,9 +121,8 @@ static GglError get_unit_path(
     sd_bus *bus, const char *qualified_name, sd_bus_message **reply
 ) {
     assert((reply != NULL) && (*reply == NULL));
-    sd_bus_error error = SD_BUS_ERROR_NULL;
-    GGL_DEFER(sd_bus_error_free, error);
 
+    sd_bus_error error = SD_BUS_ERROR_NULL;
     int ret = sd_bus_call_method(
         bus,
         DEFAULT_DESTINATION,
@@ -145,6 +134,7 @@ static GglError get_unit_path(
         "s",
         qualified_name
     );
+    GGL_CLEANUP(sd_bus_error_free, error);
 
     if (ret < 0) {
         *reply = NULL;
@@ -167,8 +157,6 @@ static GglError get_component_result(
     assert((bus != NULL) && (unit_path != NULL) && (status != NULL));
     uint64_t timestamp = 0;
     sd_bus_error error = SD_BUS_ERROR_NULL;
-    GGL_DEFER(sd_bus_error_free, error);
-
     int ret = sd_bus_get_property_trivial(
         bus,
         DEFAULT_DESTINATION,
@@ -179,6 +167,7 @@ static GglError get_component_result(
         't',
         &timestamp
     );
+    GGL_CLEANUP(sd_bus_error_free, error);
     if (ret < 0) {
         GGL_LOGE(
             "Unable to retrieve Component last run timestamp (errno=%d) "
@@ -220,6 +209,7 @@ static GglError get_component_result(
     }
 
     char *result = NULL;
+    error = SD_BUS_ERROR_NULL;
     ret = sd_bus_get_property_string(
         bus,
         DEFAULT_DESTINATION,
@@ -229,13 +219,14 @@ static GglError get_component_result(
         &error,
         &result
     );
+    GGL_CLEANUP(sd_bus_error_free, error);
+    GGL_CLEANUP(cleanup_free, result);
     if (ret < 0) {
         GGL_LOGE(
             "Unable to retrieve D-Bus Unit Result property (errno=%d)", -ret
         );
         return translate_dbus_call_error(ret);
     }
-    GGL_DEFER(free, result);
 
     GglBuffer result_buffer = ggl_buffer_from_null_term(result);
     if (ggl_buffer_eq(result_buffer, GGL_STR("success"))) {
@@ -262,10 +253,10 @@ static GglError get_property_string(
 
     sd_bus_message *reply = NULL;
     GglError err = get_unit_path(bus, qualified_name, &reply);
+    GGL_CLEANUP(sd_bus_message_unrefp, reply);
     if (err != GGL_ERR_OK) {
         return err;
     }
-    GGL_DEFER(sd_bus_message_unrefp, reply);
 
     const char *unit_path = NULL;
     int ret = sd_bus_message_read_basic(reply, 'o', &unit_path);
@@ -275,10 +266,10 @@ static GglError get_property_string(
     }
 
     sd_bus_error error = SD_BUS_ERROR_NULL;
-    GGL_DEFER(sd_bus_error_free, error);
     ret = sd_bus_get_property_string(
         bus, DEFAULT_DESTINATION, unit_path, interface, property, &error, value
     );
+    GGL_CLEANUP(sd_bus_error_free, error);
     if (ret < 0) {
         return GGL_ERR_FATAL;
     }
@@ -295,12 +286,12 @@ static GglError get_component_pid(
     GglError err = get_property_string(
         bus, component_name, SERVICE_INTERFACE, "MAIN_PID", &pid_string
     );
+    GGL_CLEANUP(cleanup_free, pid_string);
     if (err != GGL_ERR_OK) {
         GGL_LOGE("Unable to acquire pid");
         *pid = -1;
         return err;
     }
-    GGL_DEFER(free, pid_string);
 
     *pid = atoi(pid_string);
     if (*pid <= 0) {
@@ -340,7 +331,6 @@ static GglError get_active_state(
 ) {
     assert((bus != NULL) && (unit_path != NULL) && (active_state != NULL));
     sd_bus_error error = SD_BUS_ERROR_NULL;
-    GGL_DEFER(sd_bus_error_free, error);
     int ret = sd_bus_get_property_string(
         bus,
         DEFAULT_DESTINATION,
@@ -350,6 +340,7 @@ static GglError get_active_state(
         &error,
         active_state
     );
+    GGL_CLEANUP(sd_bus_error_free, error);
     if (ret < 0) {
         GGL_LOGE("Failed to read active state");
         return translate_dbus_call_error(ret);
@@ -363,10 +354,10 @@ static GglError get_run_status(
     assert((bus != NULL) && (qualified_name != NULL) && (status != NULL));
     sd_bus_message *reply = NULL;
     GglError err = get_unit_path(bus, qualified_name, &reply);
+    GGL_CLEANUP(sd_bus_message_unrefp, reply);
     if (err != GGL_ERR_OK) {
         return err;
     }
-    GGL_DEFER(sd_bus_message_unrefp, reply);
     char *unit_path = NULL;
     int ret = sd_bus_message_read_basic(reply, 'o', &unit_path);
     if (ret < 0) {
@@ -376,10 +367,10 @@ static GglError get_run_status(
 
     char *active_state = NULL;
     err = get_active_state(bus, unit_path, &active_state);
+    GGL_CLEANUP(cleanup_free, active_state);
     if (err != GGL_ERR_OK) {
         return err;
     }
-    GGL_DEFER(free, active_state);
     const GglMap STATUS_MAP = GGL_MAP(
         { GGL_STR("activating"), GGL_OBJ_STR("STARTING") },
         { GGL_STR("active"), GGL_OBJ_STR("RUNNING") },
@@ -418,8 +409,8 @@ GglError gghealthd_get_status(GglBuffer component_name, GglBuffer *status) {
     }
 
     sd_bus *bus = NULL;
-    GGL_DEFER(sd_bus_unrefp, bus);
     GglError err = open_bus(&bus);
+    GGL_CLEANUP(sd_bus_unrefp, bus);
 
     if (ggl_buffer_eq(component_name, GGL_STR("gghealthd"))) {
         if (err == GGL_ERR_OK) {
@@ -484,10 +475,10 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
 
     sd_bus *bus = NULL;
     err = open_bus(&bus);
+    GGL_CLEANUP(sd_bus_unrefp, bus);
     if (err != GGL_ERR_OK) {
         return err;
     }
-    GGL_DEFER(sd_bus_unrefp, bus);
 
     if (obj->type == GGL_TYPE_NULL) {
         return GGL_ERR_OK;
@@ -519,11 +510,11 @@ GglError gghealthd_get_health(GglBuffer *status) {
 
     sd_bus *bus = NULL;
     GglError err = open_bus(&bus);
+    GGL_CLEANUP(sd_bus_unrefp, bus);
     if (err != GGL_ERR_OK) {
         *status = GGL_STR("UNHEALTHY");
         return GGL_ERR_OK;
     }
-    GGL_DEFER(sd_bus_unrefp, bus);
 
     // TODO: check all root components
     *status = GGL_STR("HEALTHY");

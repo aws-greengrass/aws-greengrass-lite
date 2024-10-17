@@ -7,8 +7,8 @@
 #include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/constants.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
@@ -55,8 +55,7 @@ static GglError send_message(
     size_t headers_len,
     GglMap *payload
 ) {
-    pthread_mutex_lock(&payload_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, payload_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&payload_array_mtx);
 
     GglBuffer send_buffer = GGL_BUF(payload_array);
 
@@ -136,7 +135,7 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, conn);
+    GGL_CLEANUP_ID(conn_cleanup, cleanup_close, conn);
 
     EventStreamHeader headers[] = {
         { GGL_STR(":message-type"),
@@ -154,8 +153,7 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
         return ret;
     }
 
-    pthread_mutex_lock(&payload_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, payload_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&payload_array_mtx);
 
     GglBuffer recv_buffer = GGL_BUF(payload_array);
     EventStreamMessage msg = { 0 };
@@ -201,7 +199,9 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
             }
 
             if (fd != NULL) {
-                GGL_DEFER_CANCEL(conn);
+                // false positive
+                // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+                conn_cleanup = -1;
                 *fd = conn;
             }
 
@@ -234,8 +234,7 @@ GglError ggipc_call(
         return ret;
     }
 
-    pthread_mutex_lock(&payload_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, payload_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&payload_array_mtx);
 
     GglBuffer recv_buffer = GGL_BUF(payload_array);
     EventStreamMessage msg = { 0 };

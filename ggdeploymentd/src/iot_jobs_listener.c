@@ -9,9 +9,9 @@
 #include <ggl/aws_iot_call.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
@@ -176,8 +176,7 @@ static GglError deserialize_payload(
 static GglError update_job(
     GglBuffer job_id, GglBuffer job_status, int64_t *version
 ) {
-    pthread_mutex_lock(&topic_scratch_mutex);
-    GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
+    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
     GglBuffer topic = GGL_BUF(topic_scratch);
     GglError ret = create_update_job_topic(thing_name_buf, job_id, &topic);
     if (ret != GGL_ERR_OK) {
@@ -213,8 +212,7 @@ static GglError update_job(
 }
 
 static GglError describe_next_job(void) {
-    pthread_mutex_lock(&topic_scratch_mutex);
-    GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
+    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
     GglBuffer topic = GGL_BUF(topic_scratch);
     GglError ret = create_get_next_job_topic(thing_name_buf, &topic);
     if (ret != GGL_ERR_OK) {
@@ -384,8 +382,7 @@ static GglError next_job_execution_changed_callback(
 }
 
 static GglError subscribe_to_next_job_topics(void) {
-    pthread_mutex_lock(&topic_scratch_mutex);
-    GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
+    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
 
     if (next_job_handle == 0) {
         GglBuffer job_topic = GGL_BUF(topic_scratch);

@@ -1,7 +1,7 @@
 #include "ggl/digest.h"
 #include <fcntl.h>
 #include <ggl/buffer.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
@@ -35,7 +35,7 @@ GglError ggl_verify_sha256_digest(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, file_fd);
+    GGL_CLEANUP(cleanup_close, file_fd);
     if (digest_context.ctx == NULL) {
         return GGL_ERR_INVALID;
     }

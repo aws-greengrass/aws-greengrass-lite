@@ -7,8 +7,8 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -34,8 +34,7 @@ static GglError init_subs_index(
 ) {
     assert(resp_handle != 0);
 
-    pthread_mutex_lock(&subs_state_mtx);
-    GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
+    GGL_MTX_SCOPE_GUARD(&subs_state_mtx);
 
     for (size_t i = 0; i < GGL_IPC_MAX_SUBSCRIPTIONS; i++) {
         if (subs_resp_handle[i] == 0) {
@@ -51,8 +50,7 @@ static GglError init_subs_index(
 }
 
 static void release_subs_index(size_t index, uint32_t resp_handle) {
-    pthread_mutex_lock(&subs_state_mtx);
-    GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
+    GGL_MTX_SCOPE_GUARD(&subs_state_mtx);
 
     if (subs_resp_handle[index] == resp_handle) {
         subs_resp_handle[index] = 0;
@@ -69,8 +67,7 @@ static GglError subs_set_recv_handle(
     assert(resp_handle != 0);
     assert(recv_handle != 0);
 
-    pthread_mutex_lock(&subs_state_mtx);
-    GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
+    GGL_MTX_SCOPE_GUARD(&subs_state_mtx);
 
     if (subs_resp_handle[index] == resp_handle) {
         subs_recv_handle[index] = recv_handle;
@@ -92,8 +89,7 @@ static GglError subscription_on_response(
     bool found = false;
 
     {
-        pthread_mutex_lock(&subs_state_mtx);
-        GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
+        GGL_MTX_SCOPE_GUARD(&subs_state_mtx);
         for (size_t i = 0; i < GGL_IPC_MAX_SUBSCRIPTIONS; i++) {
             if (recv_handle == subs_recv_handle[i]) {
                 found = true;
@@ -119,8 +115,7 @@ static GglError subscription_on_response(
 
 static void subscription_on_close(void *ctx, uint32_t recv_handle) {
     (void) ctx;
-    pthread_mutex_lock(&subs_state_mtx);
-    GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
+    GGL_MTX_SCOPE_GUARD(&subs_state_mtx);
 
     for (size_t i = 0; i < GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
         if (recv_handle == subs_recv_handle[i]) {
@@ -175,8 +170,7 @@ GglError ggl_ipc_release_subscriptions_for_conn(uint32_t resp_handle) {
         uint32_t recv_handle = 0;
 
         {
-            pthread_mutex_lock(&subs_state_mtx);
-            GGL_DEFER(pthread_mutex_unlock, subs_state_mtx);
+            GGL_MTX_SCOPE_GUARD(&subs_state_mtx);
 
             if (subs_resp_handle[i] == resp_handle) {
                 recv_handle = subs_recv_handle[i];

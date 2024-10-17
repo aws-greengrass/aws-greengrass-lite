@@ -6,8 +6,8 @@
 #include "mqtt.h"
 #include <sys/types.h>
 #include <ggl/buffer.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/server.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -55,8 +55,7 @@ GglError iotcored_register_subscriptions(
         }
     }
 
-    pthread_mutex_lock(&mtx);
-    GGL_DEFER(pthread_mutex_unlock, mtx);
+    GGL_MTX_SCOPE_GUARD(&mtx);
 
     size_t filter_index = 0;
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
@@ -86,8 +85,7 @@ GglError iotcored_register_subscriptions(
 }
 
 void iotcored_unregister_subscriptions(uint32_t handle) {
-    pthread_mutex_lock(&mtx);
-    GGL_DEFER(pthread_mutex_unlock, mtx);
+    GGL_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (handles[i] == handle) {
@@ -97,8 +95,7 @@ void iotcored_unregister_subscriptions(uint32_t handle) {
 }
 
 void iotcored_mqtt_receive(const IotcoredMsg *msg) {
-    pthread_mutex_lock(&mtx);
-    GGL_DEFER(pthread_mutex_unlock, mtx);
+    GGL_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if ((topic_filter_len[i] != 0)

@@ -7,8 +7,8 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
@@ -20,8 +20,6 @@
 #include <stdint.h>
 
 #define MAX_PATH_LENGTH 128
-
-GGL_DEFINE_DEFER(closedir, DIR *, dirp, if (dirp != NULL) closedir(*dirp))
 
 static GglBuffer root_path = GGL_STR("/var/lib/aws-greengrass-v2");
 
@@ -57,7 +55,7 @@ GglError get_recipe_dir_fd(int *recipe_fd) {
         GGL_LOGE("Failed to open root_path.");
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, root_path_fd);
+    GGL_CLEANUP(cleanup_close, root_path_fd);
 
     int recipe_dir_fd;
     ret = ggl_dir_openat(
@@ -148,7 +146,7 @@ GglError find_available_component(
         (void) ggl_close(recipe_dir_fd);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(closedir, dir);
+    GGL_CLEANUP(cleanup_closedir, dir);
 
     struct dirent *entry = NULL;
     uint8_t component_name_array[NAME_MAX];

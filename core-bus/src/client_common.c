@@ -8,7 +8,7 @@
 #include "types.h"
 #include <assert.h>
 #include <ggl/buffer.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
@@ -66,10 +66,9 @@ GglError ggl_client_send_message(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, conn);
+    GGL_CLEANUP_ID(conn_cleanup, cleanup_close, conn);
 
-    pthread_mutex_lock(&ggl_core_bus_client_payload_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, ggl_core_bus_client_payload_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&ggl_core_bus_client_payload_array_mtx);
 
     GglBuffer send_buffer = GGL_BUF(ggl_core_bus_client_payload_array);
 
@@ -91,7 +90,8 @@ GglError ggl_client_send_message(
         return ret;
     }
 
-    GGL_DEFER_CANCEL(conn);
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+    conn_cleanup = -1;
     *conn_fd = conn;
     return GGL_ERR_OK;
 }

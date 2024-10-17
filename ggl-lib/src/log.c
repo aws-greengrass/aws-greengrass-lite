@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/log.h"
-#include "ggl/defer.h"
+#include "ggl/cleanup.h"
 #include <sys/types.h>
 #include <errno.h>
 #include <pthread.h>
@@ -45,8 +45,7 @@ void ggl_log(
     }
 
     {
-        pthread_mutex_lock(&log_mutex);
-        GGL_DEFER(pthread_mutex_unlock, log_mutex);
+        GGL_MTX_SCOPE_GUARD(&log_mutex);
 
         fprintf(stderr, "%s[%s] %s:%d: ", level_str, tag, file, line);
 

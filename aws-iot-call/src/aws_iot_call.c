@@ -7,9 +7,9 @@
 #include <errno.h>
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
@@ -129,17 +129,15 @@ static void subscription_close_callback(void *ctx, uint32_t handle) {
     (void) handle;
     CallbackCtx *call_ctx = ctx;
 
-    pthread_mutex_lock(call_ctx->mtx);
+    GGL_MTX_SCOPE_GUARD(call_ctx->mtx);
     pthread_cond_signal(call_ctx->cond);
-    pthread_mutex_unlock(call_ctx->mtx);
 }
 
 GglError ggl_aws_iot_call(
     GglBuffer topic, GglObject payload, GglAlloc *alloc, GglObject *result
 ) {
     static pthread_mutex_t mem_mtx = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&mem_mtx);
-    GGL_DEFER(pthread_mutex_unlock, mem_mtx);
+    GGL_MTX_SCOPE_GUARD(&mem_mtx);
 
     // TODO: Share memory for topic filter and encode
     static uint8_t topic_filter_mem[AWS_IOT_MAX_TOPIC_SIZE];

@@ -4,8 +4,8 @@
 
 #include "fleet_status_service.h"
 #include <sys/types.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -29,8 +29,7 @@
 
 GglError publish_message(GglBuffer thing_name) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&mtx);
-    GGL_DEFER(pthread_mutex_unlock, mtx);
+    GGL_MTX_SCOPE_GUARD(&mtx);
 
     // build topic name
     if (thing_name.len > MAX_THING_NAME_LEN) {

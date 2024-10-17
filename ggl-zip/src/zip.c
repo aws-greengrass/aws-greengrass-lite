@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -16,19 +16,17 @@
 #include <zipconf.h>
 #include <stddef.h>
 
-GGL_DEFINE_DEFER(
-    zip_fclose,
-    zip_file_t *,
-    zip_entry,
-    if (*zip_entry != NULL) zip_fclose(*zip_entry)
-)
+static inline void cleanup_zip_fclose(zip_file_t **zip_entry) {
+    if (*zip_entry != NULL) {
+        zip_fclose(*zip_entry);
+    }
+}
 
-GGL_DEFINE_DEFER(
-    zip_close,
-    zip_t *,
-    zip_archive,
-    if (*zip_archive != NULL) zip_close(*zip_archive)
-)
+static inline void cleanup_zip_close(zip_t **zip_archive) {
+    if (*zip_archive != NULL) {
+        zip_close(*zip_archive);
+    }
+}
 
 static GglError write_entry_to_fd(zip_file_t *entry, int fd) {
     uint8_t read_buffer[32];
@@ -72,7 +70,7 @@ GglError ggl_zip_unarchive(
             return GGL_ERR_FAILURE;
         }
     }
-    GGL_DEFER(zip_close, zip);
+    GGL_CLEANUP(cleanup_zip_close, zip);
 
     GglBuffer init_name;
     zip_uint64_t num_entries = (zip_uint64_t) zip_get_num_entries(zip, 0);
@@ -114,7 +112,7 @@ GglError ggl_zip_unarchive(
             );
             return GGL_ERR_FAILURE;
         }
-        GGL_DEFER(zip_fclose, entry);
+        GGL_CLEANUP(cleanup_zip_fclose, entry);
 
         GglError ret;
         int dest_file_fd;
@@ -134,7 +132,7 @@ GglError ggl_zip_unarchive(
         if (ret != GGL_ERR_OK) {
             return ret;
         }
-        GGL_DEFER(ggl_close, dest_file_fd);
+        GGL_CLEANUP(cleanup_close, dest_file_fd);
 
         ret = write_entry_to_fd(entry, dest_file_fd);
         if (ret != GGL_ERR_OK) {
