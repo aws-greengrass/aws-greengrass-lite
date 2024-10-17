@@ -52,7 +52,7 @@ static GglBuffer request_token_from_aws(void) {
         certificate,
         &buffer
     );
-    GGL_LOGI("The credentials received are: %s", buffer.data);
+    GGL_LOGI("The TES credentials have been received");
     return buffer;
 }
 
