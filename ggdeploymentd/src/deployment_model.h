@@ -17,6 +17,8 @@ typedef struct {
     GglBuffer deployment_id;
     GglBuffer recipe_directory_path;
     GglBuffer artifacts_directory_path;
+    GglBuffer configuration_arn;
+    GglBuffer thing_group;
     // {component_name -> component_version}
     GglMap root_component_versions_to_add;
     GglList root_components_to_remove;

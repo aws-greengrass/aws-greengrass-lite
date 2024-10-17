@@ -1142,6 +1142,7 @@ static GglError parse_dataplane_response_and_save_recipe(
 
 static GglError resolve_dependencies(
     GglMap root_components,
+    GglBuffer thing_group_name,
     GglDeploymentHandlerThreadArgs *args,
     GglAlloc *alloc,
     GglKVVec *resolved_components_kv_vec
@@ -1185,6 +1186,26 @@ static GglError resolve_dependencies(
         }
     }
 
+    // At this point, components_to_resolve should be only a map of root
+    // component names to their version requirements from the deployment.
+    ret = ggl_gg_config_write(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("DeploymentService"),
+            GGL_STR("thingGroupsToRootComponents"),
+            thing_group_name
+        ),
+        GGL_OBJ(components_to_resolve.map),
+        0
+    );
+
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Failed to write thing group to root components map to ggconfigd."
+        );
+        return ret;
+    }
+
     // Get list of thing groups
     static uint8_t list_thing_groups_response_buf[1024] = { 0 };
     GglBuffer list_thing_groups_response
@@ -1193,6 +1214,135 @@ static GglError resolve_dependencies(
     ret = get_device_thing_groups(&list_thing_groups_response);
     if (ret != GGL_ERR_OK) {
         return ret;
+    }
+
+    GglObject json_thing_groups_object;
+    uint8_t thing_groups_response_mem[25 * sizeof(GglObject)];
+    GglBumpAlloc thing_groups_json_balloc
+        = ggl_bump_alloc_init(GGL_BUF(thing_groups_response_mem));
+    ret = ggl_json_decode_destructive(
+        list_thing_groups_response,
+        &thing_groups_json_balloc.alloc,
+        &json_thing_groups_object
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error when parsing listThingGroups response to "
+                 "json.");
+        return ret;
+    }
+
+    if (json_thing_groups_object.type != GGL_TYPE_MAP) {
+        GGL_LOGE("listThingGroups response did not parse into a "
+                 "map.");
+        return ret;
+    }
+
+    GglObject *thing_groups_list;
+    if (!ggl_map_get(
+            json_thing_groups_object.map,
+            GGL_STR("thingGroups"),
+            &thing_groups_list
+        )) {
+        GGL_LOGE("Missing thingGroups.");
+        return ret;
+    }
+    if (thing_groups_list->type != GGL_TYPE_LIST) {
+        GGL_LOGE("thingGroups response is not a list.");
+        return ret;
+    }
+
+    // TODO: We want to also add root components from local deployments, not
+    // only thing group deployments.
+    GGL_LIST_FOREACH(thing_group_item, thing_groups_list->list) {
+        if (thing_group_item->type != GGL_TYPE_MAP) {
+            GGL_LOGE("Thing group item is not of type map.");
+            return ret;
+        }
+
+        GglObject *thing_group_name_from_item;
+
+        ret = ggl_map_validate(
+            thing_group_item->map,
+            GGL_MAP_SCHEMA(
+                { GGL_STR("thingGroupName"),
+                  true,
+                  GGL_TYPE_BUF,
+                  &thing_group_name_from_item },
+            )
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+
+        if (!ggl_buffer_eq(thing_group_name_from_item->buf, thing_group_name)) {
+            GglObject group_root_components_read_value;
+            ret = ggl_gg_config_read(
+                GGL_BUF_LIST(
+                    GGL_STR("services"),
+                    GGL_STR("DeploymentService"),
+                    GGL_STR("thingGroupsToRootComponents"),
+                    thing_group_name_from_item->buf
+                ),
+                alloc,
+                &group_root_components_read_value
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGI(
+                    "No info found in config for root components for thing "
+                    "group %.*s, assuming no components are part of this thing "
+                    "group.",
+                    (int) thing_group_name_from_item->buf.len,
+                    thing_group_name_from_item->buf.data
+                );
+            } else {
+                if (group_root_components_read_value.type != GGL_TYPE_MAP) {
+                    GGL_LOGE(
+                        "Did not read a map from config for thing group to "
+                        "root components map"
+                    );
+                    return GGL_ERR_INVALID;
+                }
+
+                GGL_MAP_FOREACH(
+                    root_component_pair, group_root_components_read_value.map
+                ) {
+                    GglBuffer root_component_name_buf;
+                    ret = ggl_buf_clone(
+                        root_component_pair->key,
+                        alloc,
+                        &root_component_name_buf
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        return ret;
+                    }
+
+                    GglBuffer root_component_version_buf;
+                    ret = ggl_buf_clone(
+                        root_component_pair->val.buf,
+                        &version_requirements_balloc.alloc,
+                        &root_component_version_buf
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        return ret;
+                    }
+
+                    ret = ggl_kv_vec_push(
+                        &components_to_resolve,
+                        (GglKV) { root_component_name_buf,
+                                  GGL_OBJ(root_component_version_buf) }
+                    );
+                    GGL_LOGD(
+                        "Added %.*s to the list of root components to resolve "
+                        "from "
+                        "the thing group %.*s",
+                        (int) root_component_name_buf.len,
+                        root_component_name_buf.data,
+                        (int) thing_group_name_from_item->buf.len,
+                        thing_group_name_from_item->buf.data
+                    );
+                }
+            }
+        }
     }
 
     GGL_MAP_FOREACH(pair, components_to_resolve.map) {
@@ -1475,6 +1625,7 @@ static void handle_deployment(
             = ggl_bump_alloc_init(GGL_BUF(resolve_dependencies_mem));
         GglError ret = resolve_dependencies(
             deployment->cloud_root_components_to_add,
+            deployment->thing_group,
             args,
             &resolve_dependencies_balloc.alloc,
             &resolved_components_kv_vec
