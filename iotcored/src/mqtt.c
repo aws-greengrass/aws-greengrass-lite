@@ -56,6 +56,8 @@ static NetworkContext_t net_ctx;
 
 static MQTTContext_t mqtt_ctx;
 
+static const IotcoredArgs *iot_cored_args;
+
 static uint8_t network_buffer[IOTCORED_NETWORK_BUFFER_SIZE];
 
 static MQTTPubAckInfo_t
@@ -81,18 +83,62 @@ static uint32_t time_ms(void) {
     return (uint32_t) (tv.tv_sec * 1000 + tv.tv_usec / 1000);
 }
 
+// Establish TLS and MQTT connection to the AWS IoT broker.
+static GglError establish_connection(void) {
+    MQTTStatus_t mqtt_ret;
+    GglError ret = iotcored_tls_connect(iot_cored_args, &net_ctx.tls_ctx);
+    if (ret != 0) {
+        return ret;
+    }
+
+    size_t id_len = strlen(iot_cored_args->id);
+    if (id_len > UINT16_MAX) {
+        GGL_LOGE("Client ID too long.");
+        return GGL_ERR_CONFIG;
+    }
+
+    MQTTConnectInfo_t conn_info = {
+        .pClientIdentifier = iot_cored_args->id,
+        .clientIdentifierLength = (uint16_t) id_len,
+        .keepAliveSeconds = IOTCORED_KEEP_ALIVE_PERIOD,
+        .cleanSession = true,
+    };
+
+    bool server_session = false;
+    mqtt_ret = MQTT_Connect(
+        &mqtt_ctx,
+        &conn_info,
+        NULL,
+        IOTCORED_CONNACK_TIMEOUT * 1000,
+        &server_session
+    );
+
+    if (mqtt_ret != MQTTSuccess) {
+        GGL_LOGE("Connection failed: %s", MQTT_Status_strerror(mqtt_ret));
+        return GGL_ERR_FAILURE;
+    }
+
+    atomic_store_explicit(&ping_pending, false, memory_order_release);
+    return GGL_ERR_OK;
+}
+
 noreturn static void *mqtt_recv_thread_fn(void *arg) {
     MQTTContext_t *ctx = arg;
+    GglError err;
     while (true) {
         MQTTStatus_t mqtt_ret = MQTT_ReceiveLoop(ctx);
 
         if ((mqtt_ret != MQTTSuccess) && (mqtt_ret != MQTTNeedMoreBytes)) {
             GGL_LOGE("Error in receive loop, closing connection.");
-            pthread_cancel(keepalive_thread);
+
+            (void) MQTT_Disconnect(ctx);
             iotcored_tls_cleanup(
                 ctx->transportInterface.pNetworkContext->tls_ctx
             );
-            pthread_exit(NULL);
+
+            do {
+                err = establish_connection();
+            } while (err != GGL_ERR_OK);
         }
     }
 }
@@ -101,29 +147,38 @@ noreturn static void *mqtt_keepalive_thread_fn(void *arg) {
     MQTTContext_t *ctx = arg;
 
     while (true) {
-        GglError err = ggl_sleep(IOTCORED_KEEP_ALIVE_PERIOD);
+        GglError err;
+        do {
+            err = ggl_sleep(IOTCORED_KEEP_ALIVE_PERIOD);
+        } while (MQTT_CheckConnectStatus(ctx) == MQTTStatusNotConnected);
+
         if (err != GGL_ERR_OK) {
+            GGL_LOGE("Failed a call to ggl_sleep.");
             break;
         }
 
         if (atomic_load_explicit(&ping_pending, memory_order_acquire)) {
             GGL_LOGE("Server did not respond to ping within Keep Alive period."
             );
-            break;
-        }
+            // We do not care about the value returned by the following call.
+            (void) MQTT_Disconnect(ctx);
+        } else {
+            GGL_LOGD("Sending pingreq.");
+            atomic_store_explicit(&ping_pending, true, memory_order_release);
+            MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
 
-        GGL_LOGD("Sending pingreq.");
-        atomic_store_explicit(&ping_pending, true, memory_order_release);
-        MQTTStatus_t mqtt_ret = MQTT_Ping(ctx);
+            if (mqtt_ret != MQTTSuccess) {
+                GGL_LOGE("Sending pingreq failed.");
 
-        if (mqtt_ret != MQTTSuccess) {
-            GGL_LOGE("Sending pingreq failed.");
-            break;
+                // We do not care about the value returned by the following
+                // call.
+                (void) MQTT_Disconnect(ctx);
+            }
         }
     }
 
-    pthread_cancel(recv_thread);
-    iotcored_tls_cleanup(ctx->transportInterface.pNetworkContext->tls_ctx);
+    GGL_LOGE("Exiting the MQTT Keep Alive thread.");
+
     pthread_exit(NULL);
 }
 
@@ -178,47 +233,34 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
     );
     assert(mqtt_ret == MQTTSuccess);
 
-    GglError ret = iotcored_tls_connect(args, &net_ctx.tls_ctx);
-    if (ret != 0) {
-        return ret;
+    // Store a global variable copy.
+    iot_cored_args = args;
+
+    GglError err = establish_connection();
+
+    if (err != GGL_ERR_OK) {
+        GGL_LOGE("Could not establish connection to the broker.");
+        return err;
     }
 
-    size_t id_len = strlen(args->id);
-    if (id_len > UINT16_MAX) {
-        GGL_LOGE("Client ID too long.");
-        return GGL_ERR_CONFIG;
+    int thread_ret
+        = pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
+    if (thread_ret != 0) {
+        GGL_LOGE("Could not create the MQTT receive thread.");
+        return GGL_ERR_FATAL;
     }
 
-    MQTTConnectInfo_t conn_info = {
-        .pClientIdentifier = args->id,
-        .clientIdentifierLength = (uint16_t) id_len,
-        .keepAliveSeconds = IOTCORED_KEEP_ALIVE_PERIOD,
-        .cleanSession = true,
-    };
-
-    bool server_session = false;
-    mqtt_ret = MQTT_Connect(
-        &mqtt_ctx,
-        &conn_info,
-        NULL,
-        IOTCORED_CONNACK_TIMEOUT * 1000,
-        &server_session
-    );
-
-    if (mqtt_ret != MQTTSuccess) {
-        GGL_LOGE("Connection failed: %s", MQTT_Status_strerror(mqtt_ret));
-        return GGL_ERR_FAILURE;
-    }
-
-    atomic_store_explicit(&ping_pending, false, memory_order_release);
-    pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
-    pthread_create(
+    thread_ret = pthread_create(
         &keepalive_thread, NULL, mqtt_keepalive_thread_fn, &mqtt_ctx
     );
+    if (thread_ret != 0) {
+        GGL_LOGE("Could not create the MQTT keep-alive thread.");
+        return GGL_ERR_FATAL;
+    }
 
     GGL_LOGI("Successfully connected.");
 
-    return 0;
+    return GGL_ERR_OK;
 }
 
 GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {

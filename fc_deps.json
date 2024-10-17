@@ -1,8 +1,8 @@
 {
   "core_mqtt": {
     "url": "https://github.com/FreeRTOS/coreMQTT.git",
-    "rev": "58d626a25839ed20b19a57fdff34a41f36dacd05",
-    "hash": "sha256-QJyK0LGPCFMx6Q1/VyNBS8m5ywAiQcbgLdPRkA3+ilw="
+    "rev": "86fc7d15e3af13690106745f52e79cc07a957d66",
+    "hash": "sha256-cIPunAXfjxEPD6PM9KmBApFjuFMhsFgSzvtnODfCLQw="
   },
   "backoff_algorithm": {
     "url": "https://github.com/FreeRTOS/backoffAlgorithm.git",

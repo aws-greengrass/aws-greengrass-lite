@@ -26,10 +26,6 @@ pthread_mutex_t *coremqtt_get_state_mtx(const MQTTContext_t *ctx);
 #define LogWarn(body) GGL_LOGW(GGL_MQTT_LOGUNPACK body)
 #define LogError(body) GGL_LOGE(GGL_MQTT_LOGUNPACK body)
 
-#define MQTT_PRE_SEND_HOOK(pContext) \
-    pthread_mutex_lock(coremqtt_get_send_mtx(pContext));
-#define MQTT_POST_SEND_HOOK(pContext) \
-    pthread_mutex_unlock(coremqtt_get_send_mtx(pContext));
 #define MQTT_PRE_STATE_UPDATE_HOOK(pContext) \
     pthread_mutex_lock(coremqtt_get_state_mtx(pContext));
 #define MQTT_POST_STATE_UPDATE_HOOK(pContext) \
