@@ -108,7 +108,7 @@ GglError get_unit_path(
         DEFAULT_DESTINATION,
         DEFAULT_PATH,
         MANAGER_INTERFACE,
-        "GetUnit",
+        "LoadUnit",
         &error,
         reply,
         "s",
