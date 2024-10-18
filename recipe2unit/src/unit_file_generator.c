@@ -960,7 +960,10 @@ GglError generate_systemd_unit(
         return ret;
     }
 
-    ggl_byte_vec_append(&concat_unit_vector, GGL_STR("\n"));
+    ret = ggl_byte_vec_append(&concat_unit_vector, GGL_STR("\n"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     ret = fill_service_section(
         recipe_map, &concat_unit_vector, args, component_name
