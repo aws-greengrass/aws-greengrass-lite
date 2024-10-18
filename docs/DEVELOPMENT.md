@@ -25,7 +25,7 @@ If making a PR to main, you can check all of your branches commits with
 Docker does not fully support running systemd containers, however you can use
 podman. Those steps are necessary to compile inside a container.
 
-```
+```sh
 sudo apt install podman
 podman build misc/container -t ggl:latest
 podman run -it -v $PWD/..:/work --replace --name ggl ggl:latest
@@ -34,12 +34,24 @@ cmake -B build -DGGL_LOG_LEVEL=DEBUG
 make -C build -j$(nproc)
 ```
 
+## Running Coverity
+
+After installing Coverity and adding its bin dir to your path, run the following
+in the project root dir:
+
+```sh
+cmake -B build
+coverity scan
+```
+
+The html output will be in `build/cov-out`.
+
 ## Creating deb aws-greengrass-lite deb package
 
 After building, change into the build dir and run the cpack command will
 generate a deb package.
 
-```
+```sh
 cd build/
 cpack -G DEB
 apt install ./aws-greengrass-lite-x.x.x-Linux.deb

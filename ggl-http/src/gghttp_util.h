@@ -61,7 +61,7 @@ GglError gghttplib_add_header(
  * @param[in] request_data A CertificateDetails struct containing the paths to
  * the certificate, private key, and root CA files.
  */
-void gghttplib_add_certificate_data(
+GglError gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 );
 
@@ -74,7 +74,7 @@ void gghttplib_add_certificate_data(
  * handle.
  * @param[in] body The content to be added to the request in the body.
  */
-void gghttplib_add_post_body(CurlData *curl_data, const char *body);
+GglError gghttplib_add_post_body(CurlData *curl_data, const char *body);
 
 /// @brief Adds AWS Signature Version 4 to the CURL handle.
 ///

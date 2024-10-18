@@ -31,21 +31,37 @@ static void new_client_available(
         GGL_LOGE("Failed to accept on socket %d: %d.", socket_fd, err);
         return;
     }
+    GGL_CLEANUP_ID(client_fd_cleanup, cleanup_close, client_fd);
 
     GGL_LOGD("Accepted new client %d.", client_fd);
 
     // To prevent deadlocking on hanged client, add a timeout
     struct timeval timeout = { .tv_sec = 5 };
-    setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    setsockopt(client_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    int sys_ret = setsockopt(
+        client_fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)
+    );
+    if (sys_ret == -1) {
+        GGL_LOGE("Failed to set send timeout on %d: %d.", client_fd, errno);
+        return;
+    }
+    sys_ret = setsockopt(
+        client_fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)
+    );
+    if (sys_ret == -1) {
+        GGL_LOGE("Failed to set receive timeout on %d: %d.", client_fd, errno);
+        return;
+    }
 
     uint32_t handle = 0;
     GglError ret = ggl_socket_pool_register(pool, client_fd, &handle);
     if (ret != GGL_ERR_OK) {
-        ggl_close(client_fd);
         GGL_LOGW("Closed new client %d due to max clients reached.", client_fd);
         return;
     }
+
+    // Socket is now owned by the pool
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+    client_fd_cleanup = -1;
 
     ret = ggl_socket_epoll_add(epoll_fd, client_fd, handle);
     if (ret != GGL_ERR_OK) {

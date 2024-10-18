@@ -110,27 +110,37 @@ GglError ggl_connect(GglBuffer path, int *fd) {
 
     int sockfd = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (sockfd == -1) {
-        int err = errno;
-        GGL_LOGE("Failed to create socket: %d.", err);
+        GGL_LOGE("Failed to create socket: %d.", errno);
         return GGL_ERR_FATAL;
     }
     GGL_CLEANUP_ID(sockfd_cleanup, cleanup_close, sockfd);
 
     if (connect(sockfd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-        int err = errno;
         GGL_LOGW(
             "Failed to connect to server (%.*s): %d.",
             (int) path.len,
             path.data,
-            err
+            errno
         );
         return GGL_ERR_FAILURE;
     }
 
     // To prevent deadlocking on hanged server, add a timeout
     struct timeval timeout = { .tv_sec = 5 };
-    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
-    setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+    int sys_ret = setsockopt(
+        sockfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)
+    );
+    if (sys_ret == -1) {
+        GGL_LOGE("Failed to set receive timeout on socket: %d.", errno);
+        return GGL_ERR_FATAL;
+    }
+    sys_ret = setsockopt(
+        sockfd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)
+    );
+    if (sys_ret == -1) {
+        GGL_LOGE("Failed to set send timeout on socket: %d.", errno);
+        return GGL_ERR_FATAL;
+    }
 
     // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
     sockfd_cleanup = -1;

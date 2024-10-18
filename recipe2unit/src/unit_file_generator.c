@@ -9,6 +9,7 @@
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/json_encode.h>
@@ -914,6 +915,7 @@ static GglError fill_service_section(
         GGL_LOGE("Failed to created working directory.");
         return GGL_ERR_FAILURE;
     }
+    GGL_CLEANUP(cleanup_close, working_dir);
 
     // Add Env Var for GG_root path
     ret = ggl_byte_vec_append(
@@ -958,7 +960,10 @@ GglError generate_systemd_unit(
         return ret;
     }
 
-    ggl_byte_vec_append(&concat_unit_vector, GGL_STR("\n"));
+    ret = ggl_byte_vec_append(&concat_unit_vector, GGL_STR("\n"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     ret = fill_service_section(
         recipe_map, &concat_unit_vector, args, component_name

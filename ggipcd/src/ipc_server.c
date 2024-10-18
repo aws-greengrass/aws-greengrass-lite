@@ -132,7 +132,7 @@ static GglError complete_conn_init(
     GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
     GglBuffer resp_buffer = GGL_BUF(resp_array);
 
-    eventstream_encode(
+    ret = eventstream_encode(
         &resp_buffer,
         (EventStreamHeader[]) {
             { GGL_STR(":message-type"),
@@ -146,6 +146,9 @@ static GglError complete_conn_init(
         payload_writer,
         NULL
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     ret = ggl_socket_handle_write(&pool, handle, resp_buffer);
     if (ret != GGL_ERR_OK) {
