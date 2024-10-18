@@ -5,7 +5,10 @@
 #ifndef CLOUD_LOGGER_H
 #define CLOUD_LOGGER_H
 
+#include <ggl/error.h>
 #include <ggl/vector.h>
-int read_log_100(long index, GglObjVec *lists_obj, GglAlloc *alloc);
+#include <stdio.h>
+
+GglError read_log(FILE *fp, GglObjVec *filling, GglAlloc *alloc);
 
 #endif
