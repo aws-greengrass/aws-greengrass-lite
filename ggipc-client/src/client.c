@@ -245,9 +245,11 @@ GglError ggipc_call(
         return ret;
     }
 
-    ret = ggl_obj_buffer_copy(result, alloc);
-    if (ret != GGL_ERR_OK) {
-        return ret;
+    if (result != NULL) {
+        ret = ggl_obj_buffer_copy(result, alloc);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
     }
 
     if (common_headers.stream_id != 1) {
