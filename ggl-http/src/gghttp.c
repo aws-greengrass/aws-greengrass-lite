@@ -40,6 +40,8 @@ GglError fetch_token(
         error = gghttplib_process_request(&curl_data, buffer);
     }
 
+    gghttplib_destroy_curl(&curl_data);
+
     return error;
 }
 
@@ -123,5 +125,8 @@ GglError gg_dataplane_call(
         GGL_LOGD("Sending request to dataplane endpoint");
         ret = gghttplib_process_request(&curl_data, response_buffer);
     }
+
+    gghttplib_destroy_curl(&curl_data);
+
     return ret;
 }

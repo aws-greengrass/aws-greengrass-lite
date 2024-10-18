@@ -221,8 +221,6 @@ GglError gghttplib_process_request(
         );
     }
 
-    gghttplib_destroy_curl(curl_data);
-
     // TODO: propagate HTTP code up for deployment failure root causing
     if (http_status_code < 200 || http_status_code > 299) {
         return GGL_ERR_FAILURE;
@@ -252,7 +250,6 @@ GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
             "curl_easy_perform() failed: %s", curl_easy_strerror(curl_error)
         );
     }
-    gghttplib_destroy_curl(curl_data);
 
     // TODO: propagate HTTP code up for deployment failure root causing
     return translate_curl_code(curl_error);

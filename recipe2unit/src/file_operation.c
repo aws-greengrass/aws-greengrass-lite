@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/json_decode.h>
@@ -113,6 +114,7 @@ GglError open_file(char *file_path, GglBuffer *recipe_obj) {
         GGL_LOGE("Failed to open recipe file.");
         return GGL_ERR_FAILURE;
     }
+    GGL_CLEANUP(cleanup_close, fd);
 
     struct stat st;
     if (fstat(fd, &st) == -1) {
