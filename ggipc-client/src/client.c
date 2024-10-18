@@ -359,3 +359,19 @@ GglError ggipc_get_config_str(
     *value = resp.buf;
     return GGL_ERR_OK;
 }
+
+GglError ggipc_publish_to_iot_core(
+    int conn, GglBuffer topic_name, GglBuffer payload, uint8_t qos
+) {
+    GglKVVec args = GGL_KV_VEC((GglKV[3]) { 0 });
+    (void) ggl_kv_vec_push(
+        &args, (GglKV) { GGL_STR("topicName"), GGL_OBJ(topic_name) }
+    );
+    (void
+    ) ggl_kv_vec_push(&args, (GglKV) { GGL_STR("payload"), GGL_OBJ(payload) });
+    (void) ggl_kv_vec_push(&args, (GglKV) { GGL_STR("qos"), GGL_OBJ_I64(qos) });
+
+    return ggipc_call(
+        conn, GGL_STR("aws.greengrass#PublishToIoTCore"), args.map, NULL, NULL
+    );
+}
