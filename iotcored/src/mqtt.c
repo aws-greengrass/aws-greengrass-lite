@@ -7,6 +7,7 @@
 #include "ggl/log.h"
 #include "ggl/utils.h"
 #include "iotcored.h"
+#include "subscription_dispatch.h"
 #include "tls.h"
 #include <sys/types.h>
 #include <assert.h>

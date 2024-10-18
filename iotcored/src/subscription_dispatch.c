@@ -112,3 +112,15 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
         }
     }
 }
+
+void iotcored_unregister_all_subs(void) {
+    GGL_MTX_SCOPE_GUARD(&mtx);
+
+    for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
+        if (topic_filter_len[i] != 0) {
+            ggl_server_sub_close(handles[i]);
+
+            topic_filter_len[i] = 0;
+        }
+    }
+}
