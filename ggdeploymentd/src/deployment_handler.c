@@ -1306,6 +1306,45 @@ static GglError resolve_dependencies(
                 GGL_MAP_FOREACH(
                     root_component_pair, group_root_components_read_value.map
                 ) {
+                    // If component is already in the root component list, it
+                    // must be the same version as the one already in the list
+                    // or we have a conflict.
+                    GglObject *existing_root_component_version;
+                    ret = ggl_map_validate(
+                        components_to_resolve.map,
+                        GGL_MAP_SCHEMA(
+                            { root_component_pair->key,
+                              false,
+                              GGL_TYPE_BUF,
+                              &existing_root_component_version },
+                        )
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        return ret;
+                    }
+
+                    if (existing_root_component_version != NULL) {
+                        if (!ggl_buffer_eq(
+                                existing_root_component_version->buf,
+                                root_component_pair->val.buf
+                            )) {
+                            GGL_LOGE(
+                                "There is a version conflict for component "
+                                "%.*s, where two deployments are asking for "
+                                "versions %.*s and %.*s. Please check that "
+                                "this root component does not have conflicting "
+                                "versions across your deployments.",
+                                (int) root_component_pair->key.len,
+                                root_component_pair->key.data,
+                                (int) root_component_pair->val.buf.len,
+                                root_component_pair->val.buf.data,
+                                (int) existing_root_component_version->buf.len,
+                                existing_root_component_version->buf.data
+                            );
+                            return GGL_ERR_INVALID;
+                        }
+                    }
+
                     GglBuffer root_component_name_buf;
                     ret = ggl_buf_clone(
                         root_component_pair->key,
