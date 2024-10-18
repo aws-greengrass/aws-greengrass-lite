@@ -38,12 +38,13 @@ static GglError subscribe_to_iot_core_callback(
         return GGL_ERR_OK;
     }
 
-    GglObject response
-        = GGL_OBJ_MAP({ GGL_STR("message"),
-                        GGL_OBJ_MAP(
-                            { GGL_STR("topicName"), GGL_OBJ(*topic) },
-                            { GGL_STR("payload"), GGL_OBJ(base64_payload) }
-                        ) });
+    GglObject response = GGL_OBJ_MAP(
+        GGL_MAP({ GGL_STR("message"),
+                  GGL_OBJ_MAP(GGL_MAP(
+                      { GGL_STR("topicName"), GGL_OBJ_BUF(*topic) },
+                      { GGL_STR("payload"), GGL_OBJ_BUF(base64_payload) }
+                  )) })
+    );
 
     ret = ggl_ipc_response_send(
         resp_handle,
@@ -125,6 +126,6 @@ GglError ggl_handle_subscribe_to_iot_core(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#SubscribeToIoTCoreResponse"),
-        GGL_OBJ_MAP()
+        GGL_OBJ_MAP({ 0 })
     );
 }

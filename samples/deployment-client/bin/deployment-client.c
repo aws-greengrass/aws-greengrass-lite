@@ -18,9 +18,9 @@ int main(void) {
 
     GglMap args = GGL_MAP(
         { GGL_STR("recipe_directory_path"),
-          GGL_OBJ_STR("/home/ubuntu/recipes") },
+          GGL_OBJ_BUF(GGL_STR("/home/ubuntu/recipes")) },
         { GGL_STR("artifact_directory_path"),
-          GGL_OBJ_STR("/home/ubuntu/artifacts") }
+          GGL_OBJ_BUF(GGL_STR("/home/ubuntu/artifacts")) }
     );
 
     GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));

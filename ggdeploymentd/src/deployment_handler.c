@@ -200,13 +200,14 @@ static GglError get_posix_user(char **posix_user) {
 }
 
 static GglError get_data_endpoint(GglByteVec *endpoint) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              GGL_OBJ_LIST(
-                                  GGL_OBJ_STR("services"),
-                                  GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-                                  GGL_OBJ_STR("configuration"),
-                                  GGL_OBJ_STR("iotDataEndpoint")
-                              ) });
+    GglMap params
+        = GGL_MAP({ GGL_STR("key_path"),
+                    GGL_OBJ_LIST(GGL_LIST(
+                        GGL_OBJ_BUF(GGL_STR("services")),
+                        GGL_OBJ_BUF(GGL_STR("aws.greengrass.Nucleus-Lite")),
+                        GGL_OBJ_BUF(GGL_STR("configuration")),
+                        GGL_OBJ_BUF(GGL_STR("iotDataEndpoint"))
+                    )) });
 
     static uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -234,13 +235,14 @@ static GglError get_data_endpoint(GglByteVec *endpoint) {
 }
 
 static GglError get_data_port(GglByteVec *port) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              GGL_OBJ_LIST(
-                                  GGL_OBJ_STR("services"),
-                                  GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-                                  GGL_OBJ_STR("configuration"),
-                                  GGL_OBJ_STR("greengrassDataPlanePort")
-                              ) });
+    GglMap params
+        = GGL_MAP({ GGL_STR("key_path"),
+                    GGL_OBJ_LIST(GGL_LIST(
+                        GGL_OBJ_BUF(GGL_STR("services")),
+                        GGL_OBJ_BUF(GGL_STR("aws.greengrass.Nucleus-Lite")),
+                        GGL_OBJ_BUF(GGL_STR("configuration")),
+                        GGL_OBJ_BUF(GGL_STR("greengrassDataPlanePort"))
+                    )) });
 
     static uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -268,10 +270,11 @@ static GglError get_data_port(GglByteVec *port) {
 }
 
 static GglError get_private_key_path(GglByteVec *pkey_path) {
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("privateKeyPath")) }
-    );
+    GglMap params = GGL_MAP({ GGL_STR("key_path"),
+                              GGL_OBJ_LIST(GGL_LIST(
+                                  GGL_OBJ_BUF(GGL_STR("system")),
+                                  GGL_OBJ_BUF(GGL_STR("privateKeyPath"))
+                              )) });
 
     uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -302,10 +305,10 @@ static GglError get_private_key_path(GglByteVec *pkey_path) {
 
 static GglError get_cert_path(GglByteVec *cert_path) {
     GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              GGL_OBJ_LIST(
-                                  GGL_OBJ_STR("system"),
-                                  GGL_OBJ_STR("certificateFilePath")
-                              ) });
+                              GGL_OBJ_LIST(GGL_LIST(
+                                  GGL_OBJ_BUF(GGL_STR("system")),
+                                  GGL_OBJ_BUF(GGL_STR("certificateFilePath"))
+                              )) });
 
     static uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -335,10 +338,11 @@ static GglError get_cert_path(GglByteVec *cert_path) {
 }
 
 static GglError get_rootca_path(GglByteVec *rootca_path) {
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("rootCaPath")) }
-    );
+    GglMap params = GGL_MAP({ GGL_STR("key_path"),
+                              GGL_OBJ_LIST(GGL_LIST(
+                                  GGL_OBJ_BUF(GGL_STR("system")),
+                                  GGL_OBJ_BUF(GGL_STR("rootCaPath"))
+                              )) });
 
     static uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -1128,7 +1132,7 @@ static GglError parse_dataplane_response_and_save_recipe(
 
         ret = ggl_gg_config_write(
             GGL_BUF_LIST(GGL_STR("services"), cloud_component_name->buf, ),
-            GGL_OBJ_MAP({ GGL_STR("arn"), *cloud_component_arn }),
+            GGL_OBJ_MAP(GGL_MAP({ GGL_STR("arn"), *cloud_component_arn })),
             1
         );
         if (ret != GGL_ERR_OK) {
@@ -1179,7 +1183,7 @@ static GglError resolve_dependencies(
 
         ret = ggl_kv_vec_push(
             &components_to_resolve,
-            (GglKV) { pair->key, GGL_OBJ(component_version) }
+            (GglKV) { pair->key, GGL_OBJ_BUF(component_version) }
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -1195,7 +1199,7 @@ static GglError resolve_dependencies(
             GGL_STR("thingGroupsToRootComponents"),
             thing_group_name
         ),
-        GGL_OBJ(components_to_resolve.map),
+        GGL_OBJ_MAP(components_to_resolve.map),
         0
     );
 
@@ -1368,7 +1372,7 @@ static GglError resolve_dependencies(
                     ret = ggl_kv_vec_push(
                         &components_to_resolve,
                         (GglKV) { root_component_name_buf,
-                                  GGL_OBJ(root_component_version_buf) }
+                                  GGL_OBJ_BUF(root_component_version_buf) }
                     );
                     GGL_LOGD(
                         "Added %.*s to the list of root components to resolve "
@@ -1436,7 +1440,8 @@ static GglError resolve_dependencies(
         }
 
         ret = ggl_kv_vec_push(
-            resolved_components_kv_vec, (GglKV) { pair->key, GGL_OBJ(val_buf) }
+            resolved_components_kv_vec,
+            (GglKV) { pair->key, GGL_OBJ_BUF(val_buf) }
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
@@ -1566,7 +1571,7 @@ static GglError resolve_dependencies(
                             return ret;
                         }
 
-                        *existing_requirements = GGL_OBJ(new_req_vec.buf);
+                        *existing_requirements = GGL_OBJ_BUF(new_req_vec.buf);
                     }
 
                     // If we haven't resolved it yet, and it doesn't have an
@@ -1592,7 +1597,7 @@ static GglError resolve_dependencies(
 
                         ret = ggl_kv_vec_push(
                             &components_to_resolve,
-                            (GglKV) { name_key_buf, GGL_OBJ(vers_key_buf) }
+                            (GglKV) { name_key_buf, GGL_OBJ_BUF(vers_key_buf) }
                         );
                         if (ret != GGL_ERR_OK) {
                             return ret;

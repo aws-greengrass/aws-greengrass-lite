@@ -78,10 +78,10 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
     //         ...
     //     }
     // }
-    GglObject thing_payload_obj = GGL_OBJ_MAP(
+    GglObject thing_payload_obj = GGL_OBJ_MAP(GGL_MAP(
         { GGL_STR("certificateOwnershipToken"), *cert_owner_gg_obj },
         { GGL_STR("parameters"), config_template_param_json_obj }
-    );
+    ));
     GglError ret_err_json
         = ggl_json_encode(thing_payload_obj, &thing_request_buf);
     if (ret_err_json != GGL_ERR_OK) {
@@ -91,10 +91,10 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
     // Publish message builder for thing request
     GglMap thing_request_args = GGL_MAP(
         { GGL_STR("topic"),
-          GGL_OBJ((GglBuffer) { .len = strlen(global_register_thing_url),
-                                .data = (uint8_t *) global_register_thing_url }
-          ) },
-        { GGL_STR("payload"), GGL_OBJ(thing_request_buf) },
+          GGL_OBJ_BUF((GglBuffer
+          ) { .len = strlen(global_register_thing_url),
+              .data = (uint8_t *) global_register_thing_url }) },
+        { GGL_STR("payload"), GGL_OBJ_BUF(thing_request_buf) },
     );
 
     GglError ret_thing_req_publish
@@ -239,8 +239,9 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
             ret = ggl_gg_config_write(
                 GGL_BUF_LIST(GGL_STR("system"), GGL_STR("certificateFilePath")),
-                GGL_OBJ((GglBuffer) { .data = (uint8_t *) global_cert_file_path,
-                                      .len = strlen(global_cert_file_path) }),
+                GGL_OBJ_BUF((GglBuffer
+                ) { .data = (uint8_t *) global_cert_file_path,
+                    .len = strlen(global_cert_file_path) }),
                 0
             );
             if (ret != GGL_ERR_OK) {
@@ -338,8 +339,9 @@ GglError make_request(
     // Subscribe to csr success topic
     GglMap subscribe_args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ((GglBuffer) { .data = (uint8_t *) certificate_response_url,
-                                .len = strlen(certificate_response_url) }) },
+          GGL_OBJ_BUF((GglBuffer
+          ) { .data = (uint8_t *) certificate_response_url,
+              .len = strlen(certificate_response_url) }) },
     );
 
     ret = ggl_subscribe(
@@ -369,7 +371,7 @@ GglError make_request(
     // Subscribe to csr reject topic
     GglMap subscribe_reject_args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ((GglBuffer
+          GGL_OBJ_BUF((GglBuffer
           ) { .data = (uint8_t *) certificate_response_reject_url,
               .len = strlen(certificate_response_reject_url) }) },
     );
@@ -401,7 +403,7 @@ GglError make_request(
     // Subscribe to register thing success topic
     GglMap subscribe_thing_args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ((GglBuffer
+          GGL_OBJ_BUF((GglBuffer
           ) { .len = strlen(global_register_thing_accept_url),
               .data = (uint8_t *) global_register_thing_accept_url }) },
     );
@@ -431,11 +433,11 @@ GglError make_request(
     ggl_sleep(2);
 
     // Create a json payload object
-    GglObject csr_payload_obj
-        = GGL_OBJ_MAP({ GGL_STR("certificateSigningRequest"),
-                        GGL_OBJ((GglBuffer) { .data = (uint8_t *) csr_as_string,
-                                              .len = strlen(csr_as_string) }) }
-        );
+    GglObject csr_payload_obj = GGL_OBJ_MAP(
+        GGL_MAP({ GGL_STR("certificateSigningRequest"),
+                  GGL_OBJ_BUF((GglBuffer) { .data = (uint8_t *) csr_as_string,
+                                            .len = strlen(csr_as_string) }) })
+    );
     GglError ret_err_json = ggl_json_encode(csr_payload_obj, &csr_buf);
     if (ret_err_json != GGL_ERR_OK) {
         return GGL_ERR_PARSE;
@@ -447,9 +449,9 @@ GglError make_request(
     // Prepare publish packet for requesting certificate with csr
     GglMap args = GGL_MAP(
         { GGL_STR("topic"),
-          GGL_OBJ((GglBuffer) { .len = strlen(cert_request_url),
-                                .data = (uint8_t *) cert_request_url }) },
-        { GGL_STR("payload"), GGL_OBJ(csr_buf) },
+          GGL_OBJ_BUF((GglBuffer) { .len = strlen(cert_request_url),
+                                    .data = (uint8_t *) cert_request_url }) },
+        { GGL_STR("payload"), GGL_OBJ_BUF(csr_buf) },
     );
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)

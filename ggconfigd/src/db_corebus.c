@@ -206,7 +206,7 @@ static GglError process_map(
         GglKV *kv = &the_map->pairs[x];
         GGL_LOGT("Preparing %zu, %.*s", x, (int) kv->key.len, kv->key.data);
 
-        ggl_obj_vec_push(key_path, GGL_OBJ(kv->key));
+        ggl_obj_vec_push(key_path, GGL_OBJ_BUF(kv->key));
         GGL_LOGT("pushed the key");
         if (kv->val.type == GGL_TYPE_MAP) {
             GGL_LOGT("value is a map");

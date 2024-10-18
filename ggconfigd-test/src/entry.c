@@ -51,7 +51,8 @@ GglError run_ggconfigd_test(void) {
 
     ret = ggl_kv_vec_push(
         &args,
-        (GglKV) { GGL_STR("recipe_directory_path"), GGL_OBJ(recipe_dir.buf) }
+        (GglKV) { GGL_STR("recipe_directory_path"),
+                  GGL_OBJ_BUF(recipe_dir.buf) }
     );
     if (ret != GGL_ERR_OK) {
         assert(false);
@@ -60,13 +61,13 @@ GglError run_ggconfigd_test(void) {
 
     GglKV component;
     if (component_name != NULL) {
-        component
-            = (GglKV) { ggl_buffer_from_null_term(component_name),
-                        GGL_OBJ(ggl_buffer_from_null_term(component_version)) };
+        component = (GglKV
+        ) { ggl_buffer_from_null_term(component_name),
+            GGL_OBJ_BUF(ggl_buffer_from_null_term(component_version)) };
         ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("root_component_versions_to_add"),
-                      GGL_OBJ((GglMap) { .pairs = &component, .len = 1 }) }
+                      GGL_OBJ_MAP((GglMap) { .pairs = &component, .len = 1 }) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);

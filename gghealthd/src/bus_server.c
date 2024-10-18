@@ -39,10 +39,10 @@ static void get_status(void *ctx, GglMap params, uint32_t handle) {
         );
         ggl_respond(
             handle,
-            GGL_OBJ_MAP(
-                { GGL_STR("component_name"), GGL_OBJ(component_name->buf) },
-                { GGL_STR("lifecycle_state"), GGL_OBJ(status) },
-            )
+            GGL_OBJ_MAP(GGL_MAP(
+                { GGL_STR("component_name"), GGL_OBJ_BUF(component_name->buf) },
+                { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(status) },
+            ))
         );
     } else {
         ggl_return_err(handle, error);
@@ -93,7 +93,7 @@ static void get_health(void *ctx, GglMap params, uint32_t handle) {
     GglError error = gghealthd_get_health(&status);
 
     if (error == GGL_ERR_OK) {
-        ggl_respond(handle, GGL_OBJ(status));
+        ggl_respond(handle, GGL_OBJ_BUF(status));
     } else {
         ggl_return_err(handle, error);
     }

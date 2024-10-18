@@ -16,7 +16,8 @@ int main(void) {
     GglBuffer server = GGL_STR("/aws/ggl/echo-server");
     static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
 
-    GglMap args = GGL_MAP({ GGL_STR("message"), GGL_OBJ_STR("hello world") });
+    GglMap args
+        = GGL_MAP({ GGL_STR("message"), GGL_OBJ_BUF(GGL_STR("hello world")) });
 
     struct timespec before;
     struct timespec after;

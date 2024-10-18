@@ -46,19 +46,19 @@ GglError publish_message(GglBuffer thing_name) {
         return ret;
     }
 
-    GglObject payload_obj = GGL_OBJ_MAP(
-        { GGL_STR("ggcVersion"), GGL_OBJ_STR("3.13.0") },
-        { GGL_STR("platform"), GGL_OBJ_STR("linux") },
-        { GGL_STR("architecture"), GGL_OBJ_STR("amd64") },
-        { GGL_STR("runtime"), GGL_OBJ_STR("NucleusLite") },
-        { GGL_STR("thing"), GGL_OBJ(thing_name) },
+    GglObject payload_obj = GGL_OBJ_MAP(GGL_MAP(
+        { GGL_STR("ggcVersion"), GGL_OBJ_BUF(GGL_STR("3.13.0")) },
+        { GGL_STR("platform"), GGL_OBJ_BUF(GGL_STR("linux")) },
+        { GGL_STR("architecture"), GGL_OBJ_BUF(GGL_STR("amd64")) },
+        { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("NucleusLite")) },
+        { GGL_STR("thing"), GGL_OBJ_BUF(thing_name) },
         { GGL_STR("sequenceNumber"), GGL_OBJ_I64(1) },
         { GGL_STR("timestamp"), GGL_OBJ_I64(10) },
-        { GGL_STR("messageType"), GGL_OBJ_STR("COMPLETE") },
-        { GGL_STR("trigger"), GGL_OBJ_STR("NUCLEUS_LAUNCH") },
-        { GGL_STR("overallDeviceStatus"), GGL_OBJ_STR("HEALTHY") },
-        { GGL_STR("components"), GGL_OBJ_LIST() }
-    );
+        { GGL_STR("messageType"), GGL_OBJ_BUF(GGL_STR("COMPLETE")) },
+        { GGL_STR("trigger"), GGL_OBJ_BUF(GGL_STR("NUCLEUS_LAUNCH")) },
+        { GGL_STR("overallDeviceStatus"), GGL_OBJ_BUF(GGL_STR("HEALTHY")) },
+        { GGL_STR("components"), GGL_OBJ_LIST({ 0 }) }
+    ));
 
     // build payload
     static uint8_t payload_buf[PAYLOAD_BUFFER_LEN];

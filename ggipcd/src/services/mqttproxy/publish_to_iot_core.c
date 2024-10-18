@@ -84,6 +84,6 @@ GglError ggl_handle_publish_to_iot_core(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#PublishToIoTCoreResponse"),
-        GGL_OBJ_MAP()
+        GGL_OBJ_MAP({ 0 })
     );
 }

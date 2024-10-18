@@ -46,7 +46,7 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
     }
 
     GglMap *map = payload;
-    return ggl_json_encode(GGL_OBJ(*map), buf);
+    return ggl_json_encode(GGL_OBJ_MAP(*map), buf);
 }
 
 static GglError send_message(
@@ -271,7 +271,7 @@ GglError ggipc_private_get_system_config(
     GglError ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass.private#GetSystemConfig"),
-        GGL_MAP({ GGL_STR("key"), GGL_OBJ(key) }),
+        GGL_MAP({ GGL_STR("key"), GGL_OBJ_BUF(key) }),
         &balloc.alloc,
         &resp
     );
@@ -302,7 +302,7 @@ GglError ggipc_get_config_str(
     GglObjVec path_vec = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
     GglError ret = GGL_ERR_OK;
     for (size_t i = 0; i < key_path.len; i++) {
-        ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ(key_path.bufs[i]));
+        ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ_BUF(key_path.bufs[i]));
     }
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Key path too long.");
@@ -311,12 +311,12 @@ GglError ggipc_get_config_str(
 
     GglKVVec args = GGL_KV_VEC((GglKV[2]) { 0 });
     (void) ggl_kv_vec_push(
-        &args, (GglKV) { GGL_STR("keyPath"), GGL_OBJ(path_vec.list) }
+        &args, (GglKV) { GGL_STR("keyPath"), GGL_OBJ_LIST(path_vec.list) }
     );
     if (component_name != NULL) {
         (void) ggl_kv_vec_push(
             &args,
-            (GglKV) { GGL_STR("componentName"), GGL_OBJ(*component_name) }
+            (GglKV) { GGL_STR("componentName"), GGL_OBJ_BUF(*component_name) }
         );
     }
 
@@ -364,8 +364,8 @@ GglError ggipc_publish_to_iot_core(
     int conn, GglBuffer topic_name, GglBuffer payload, uint8_t qos
 ) {
     GglMap args = GGL_MAP(
-        { GGL_STR("topicName"), GGL_OBJ(topic_name) },
-        { GGL_STR("payload"), GGL_OBJ(payload) },
+        { GGL_STR("topicName"), GGL_OBJ_BUF(topic_name) },
+        { GGL_STR("payload"), GGL_OBJ_BUF(payload) },
         { GGL_STR("qos"), GGL_OBJ_I64(qos) }
     );
 

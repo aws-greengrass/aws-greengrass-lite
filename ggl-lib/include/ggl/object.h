@@ -132,60 +132,23 @@ typedef struct GglKV {
         .type = GGL_TYPE_F64, .f64 = (value) \
     }
 
-/// Create buffer object literal from a string literal.
-#define GGL_OBJ_STR(strlit) \
-    (GglObject) { \
-        .type = GGL_TYPE_BUF, .buf = GGL_STR(strlit), \
-    }
-
-/// Create buffer object literal from a byte array.
+/// Create buffer object literal.
 #define GGL_OBJ_BUF(...) \
     (GglObject) { \
-        .type = GGL_TYPE_BUF, .buf = GGL_BUF(__VA_ARGS__), \
+        .type = GGL_TYPE_BUF, .buf = __VA_ARGS__, \
     }
 
-/// Create map object literal from `Ggl_KV` literals.
+/// Create map object literal.
 #define GGL_OBJ_MAP(...) \
     (GglObject) { \
-        .type = GGL_TYPE_MAP, .map = GGL_MAP(__VA_ARGS__), \
+        .type = GGL_TYPE_MAP, .map = __VA_ARGS__, \
     }
 
-/// Create list object literal from object literals.
+/// Create list object literal.
 #define GGL_OBJ_LIST(...) \
     (GglObject) { \
-        .type = GGL_TYPE_LIST, .list = GGL_LIST(__VA_ARGS__), \
+        .type = GGL_TYPE_LIST, .list = __VA_ARGS__, \
     }
-
-#ifndef __COVERITY__
-// NOLINTBEGIN(bugprone-macro-parentheses)
-#define GGL_FORCE(type, value) \
-    _Generic((value), type: (value), default: (type) { 0 })
-// NOLINTEND(bugprone-macro-parentheses)
-
-/// Create object literal from any contained type.
-#define GGL_OBJ(...) \
-    _Generic( \
-        (__VA_ARGS__), \
-        GglBuffer: (GglObject) { .type = GGL_TYPE_BUF, \
-                                 .buf = GGL_FORCE(GglBuffer, (__VA_ARGS__)) }, \
-        GglList: (GglObject) { .type = GGL_TYPE_LIST, \
-                               .list = GGL_FORCE(GglList, (__VA_ARGS__)) }, \
-        GglMap: (GglObject) { .type = GGL_TYPE_MAP, \
-                              .map = GGL_FORCE(GglMap, (__VA_ARGS__)) }, \
-        bool: (GglObject) { .type = GGL_TYPE_BOOLEAN, \
-                            .boolean = GGL_FORCE(bool, (__VA_ARGS__)) }, \
-        int64_t: (GglObject) { .type = GGL_TYPE_I64, \
-                               .i64 = GGL_FORCE(int64_t, (__VA_ARGS__)) }, \
-        double: (GglObject) { .type = GGL_TYPE_F64, \
-                              .f64 = GGL_FORCE(double, (__VA_ARGS__)) } \
-    )
-
-#else
-#define GGL_OBJ(...) \
-    (GglObject) { \
-        0 \
-    }
-#endif
 
 /// Modifies an object's references to point to copies in alloc
 GglError ggl_obj_deep_copy(GglObject *obj, GglAlloc *alloc);

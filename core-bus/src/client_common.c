@@ -51,7 +51,7 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
     assert(payload != NULL);
 
     GglMap *map = payload;
-    return ggl_serialize(GGL_OBJ(*map), buf);
+    return ggl_serialize(GGL_OBJ_MAP(*map), buf);
 }
 
 GglError ggl_client_send_message(

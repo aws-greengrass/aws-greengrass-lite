@@ -193,12 +193,13 @@ static GglError update_job(
     }
 
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
-    GglObject payload_object = GGL_OBJ_MAP(
-        { GGL_STR("status"), GGL_OBJ(job_status) },
+    GglObject payload_object = GGL_OBJ_MAP(GGL_MAP(
+        { GGL_STR("status"), GGL_OBJ_BUF(job_status) },
         { GGL_STR("expectedVersion"),
-          GGL_OBJ((GglBuffer) { .data = version_buf, .len = (size_t) len }) },
-        { GGL_STR("clientToken"), GGL_OBJ_STR("jobs-nucleus-lite") }
-    );
+          GGL_OBJ_BUF((GglBuffer) { .data = version_buf, .len = (size_t) len }
+          ) },
+        { GGL_STR("clientToken"), GGL_OBJ_BUF(GGL_STR("jobs-nucleus-lite")) }
+    ));
 
     GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
     GglObject result = GGL_OBJ_NULL();
@@ -220,12 +221,12 @@ static GglError describe_next_job(void) {
     }
 
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
-    GglObject payload_object = GGL_OBJ_MAP(
-        { GGL_STR("jobId"), GGL_OBJ_STR(NEXT_JOB_LITERAL) },
-        { GGL_STR("thingName"), GGL_OBJ(thing_name_buf) },
+    GglObject payload_object = GGL_OBJ_MAP(GGL_MAP(
+        { GGL_STR("jobId"), GGL_OBJ_BUF(GGL_STR(NEXT_JOB_LITERAL)) },
+        { GGL_STR("thingName"), GGL_OBJ_BUF(thing_name_buf) },
         { GGL_STR("includeJobDocument"), GGL_OBJ_BOOL(true) },
-        { GGL_STR("clientToken"), GGL_OBJ_STR("jobs-nucleus-lite") }
-    );
+        { GGL_STR("clientToken"), GGL_OBJ_BUF(GGL_STR("jobs-nucleus-lite")) }
+    ));
 
     GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
     GglObject job_description = GGL_OBJ_NULL();

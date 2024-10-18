@@ -194,7 +194,7 @@ static GglError read_buf(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    *obj = GGL_OBJ(val);
+    *obj = GGL_OBJ_BUF(val);
     return GGL_ERR_OK;
 }
 
@@ -269,7 +269,7 @@ static GglError read_list(
         }
     }
 
-    *obj = GGL_OBJ(val);
+    *obj = GGL_OBJ_LIST(val);
     return GGL_ERR_OK;
 }
 
@@ -343,7 +343,7 @@ static GglError read_map(
         }
     }
 
-    *obj = GGL_OBJ(val);
+    *obj = GGL_OBJ_MAP(val);
     return GGL_ERR_OK;
 }
 

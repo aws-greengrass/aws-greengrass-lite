@@ -111,7 +111,7 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
                 &matches
             );
             if (matches) {
-                ggl_respond(sub_handle[i], GGL_OBJ(params));
+                ggl_respond(sub_handle[i], GGL_OBJ_MAP(params));
             }
         }
     }

@@ -624,13 +624,13 @@ static GglError parse_install_section(
             &ret, &socketpath_vec, GGL_STR("/gg-ipc.socket")
         );
 
-        GglObject out_object = GGL_OBJ_MAP(
+        GglObject out_object = GGL_OBJ_MAP(GGL_MAP(
             { GGL_STR("requiresprivilege"), GGL_OBJ_BOOL(is_root) },
-            { GGL_STR("script"), GGL_OBJ(selected_script) },
-            { GGL_STR("set_env"), GGL_OBJ(set_env_as_map) },
+            { GGL_STR("script"), GGL_OBJ_BUF(selected_script) },
+            { GGL_STR("set_env"), GGL_OBJ_MAP(set_env_as_map) },
             { GGL_STR("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"),
-              GGL_OBJ(socketpath_vec.buf) }
-        );
+              GGL_OBJ_BUF(socketpath_vec.buf) }
+        ));
 
         ret = ggl_obj_deep_copy(&out_object, allocator);
         if (ret != GGL_ERR_OK) {
@@ -652,7 +652,7 @@ static GglError create_standardized_install_file(
     static uint8_t json_buf[MAX_SCRIPT_SIZE];
     GglBuffer install_json_payload = GGL_BUF(json_buf);
     GglError ret = ggl_json_encode(
-        GGL_OBJ(standardized_install_map), &install_json_payload
+        GGL_OBJ_MAP(standardized_install_map), &install_json_payload
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to encode JSON.");

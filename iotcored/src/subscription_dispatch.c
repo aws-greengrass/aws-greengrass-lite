@@ -104,10 +104,10 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
             )) {
             ggl_respond(
                 handles[i],
-                GGL_OBJ_MAP(
-                    { GGL_STR("topic"), GGL_OBJ(msg->topic) },
-                    { GGL_STR("payload"), GGL_OBJ(msg->payload) }
-                )
+                GGL_OBJ_MAP(GGL_MAP(
+                    { GGL_STR("topic"), GGL_OBJ_BUF(msg->topic) },
+                    { GGL_STR("payload"), GGL_OBJ_BUF(msg->payload) }
+                ))
             );
         }
     }

@@ -19,8 +19,8 @@ GglError ggl_aws_iot_mqtt_publish(
     GglBuffer topic, GglBuffer payload, uint8_t qos, bool wait_for_resp
 ) {
     GglMap args = GGL_MAP(
-        { GGL_STR("topic"), GGL_OBJ(topic) },
-        { GGL_STR("payload"), GGL_OBJ(payload) },
+        { GGL_STR("topic"), GGL_OBJ_BUF(topic) },
+        { GGL_STR("payload"), GGL_OBJ_BUF(payload) },
         { GGL_STR("qos"), GGL_OBJ_I64(qos) }
     );
 
@@ -48,12 +48,13 @@ GglError ggl_aws_iot_mqtt_subscribe(
 
     GglObject filters[GGL_MQTT_MAX_SUBSCRIBE_FILTERS] = { 0 };
     for (size_t i = 0; i < topic_filters.len; i++) {
-        filters[i] = GGL_OBJ(topic_filters.bufs[i]);
+        filters[i] = GGL_OBJ_BUF(topic_filters.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ((GglList) { .items = filters, .len = topic_filters.len }) },
+          GGL_OBJ_LIST((GglList) { .items = filters, .len = topic_filters.len }
+          ) },
         { GGL_STR("qos"), GGL_OBJ_I64(qos) }
     );
 

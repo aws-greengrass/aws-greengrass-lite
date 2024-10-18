@@ -52,7 +52,7 @@ static GglError yaml_scalar_to_obj(
         return ret;
     }
 
-    *obj = GGL_OBJ(result);
+    *obj = GGL_OBJ_BUF(result);
     return GGL_ERR_OK;
 }
 
@@ -118,7 +118,7 @@ static GglError yaml_mapping_to_obj(
         }
     }
 
-    *obj = GGL_OBJ((GglMap) { .pairs = pairs, .len = len });
+    *obj = GGL_OBJ_MAP((GglMap) { .pairs = pairs, .len = len });
     return GGL_ERR_OK;
 }
 
@@ -164,7 +164,7 @@ static GglError yaml_sequence_to_obj(
         }
     }
 
-    *obj = GGL_OBJ((GglList) { .items = items, .len = len });
+    *obj = GGL_OBJ_LIST((GglList) { .items = items, .len = len });
     return GGL_ERR_OK;
 }
 

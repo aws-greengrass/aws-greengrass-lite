@@ -148,7 +148,7 @@ static void rpc_request_formatted_creds(
         return;
     }
 
-    ggl_respond(handle, GGL_OBJ(server_json_creds));
+    ggl_respond(handle, GGL_OBJ_MAP(server_json_creds));
 }
 
 static void start_tes_core_bus_server(void) {

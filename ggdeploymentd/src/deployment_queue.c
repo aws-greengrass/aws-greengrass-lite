@@ -71,7 +71,7 @@ static GglError deep_copy_deployment(
 ) {
     assert(deployment != NULL);
 
-    GglObject obj = GGL_OBJ(deployment->deployment_id);
+    GglObject obj = GGL_OBJ_BUF(deployment->deployment_id);
     GglError ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -88,42 +88,42 @@ static GglError deep_copy_deployment(
         return ret;
     }
 
-    obj = GGL_OBJ(deployment->root_component_versions_to_add);
+    obj = GGL_OBJ_MAP(deployment->root_component_versions_to_add);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->root_component_versions_to_add = obj.map;
 
-    obj = GGL_OBJ(deployment->cloud_root_components_to_add);
+    obj = GGL_OBJ_MAP(deployment->cloud_root_components_to_add);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->cloud_root_components_to_add = obj.map;
 
-    obj = GGL_OBJ(deployment->root_components_to_remove);
+    obj = GGL_OBJ_LIST(deployment->root_components_to_remove);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->root_components_to_remove = obj.list;
 
-    obj = GGL_OBJ(deployment->component_to_configuration);
+    obj = GGL_OBJ_MAP(deployment->component_to_configuration);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->component_to_configuration = obj.map;
 
-    obj = GGL_OBJ(deployment->configuration_arn);
+    obj = GGL_OBJ_BUF(deployment->configuration_arn);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->configuration_arn = obj.buf;
 
-    obj = GGL_OBJ(deployment->thing_group);
+    obj = GGL_OBJ_BUF(deployment->thing_group);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;

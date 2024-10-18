@@ -372,13 +372,13 @@ static GglError get_run_status(
         return err;
     }
     const GglMap STATUS_MAP = GGL_MAP(
-        { GGL_STR("activating"), GGL_OBJ_STR("STARTING") },
-        { GGL_STR("active"), GGL_OBJ_STR("RUNNING") },
+        { GGL_STR("activating"), GGL_OBJ_BUF(GGL_STR("STARTING")) },
+        { GGL_STR("active"), GGL_OBJ_BUF(GGL_STR("RUNNING")) },
         // `reloading` doesn't have any mapping to greengrass. It's an
         // active component whose systemd (not greengrass) configuration is
         // reloading
-        { GGL_STR("reloading"), GGL_OBJ_STR("RUNNING") },
-        { GGL_STR("deactivating"), GGL_OBJ_STR("STOPPING") },
+        { GGL_STR("reloading"), GGL_OBJ_BUF(GGL_STR("RUNNING")) },
+        { GGL_STR("deactivating"), GGL_OBJ_BUF(GGL_STR("STOPPING")) },
         // inactive and failed are ambiguous
         { GGL_STR("inactive"), GGL_OBJ_NULL() },
         { GGL_STR("failed"), GGL_OBJ_NULL() },
@@ -447,11 +447,11 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
     const GglMap STATUS_MAP = GGL_MAP(
         { GGL_STR("NEW"), GGL_OBJ_NULL() },
         { GGL_STR("INSTALLED"), GGL_OBJ_NULL() },
-        { GGL_STR("STARTING"), GGL_OBJ_STR("RELOADING=1") },
-        { GGL_STR("RUNNING"), GGL_OBJ_STR("READY=1") },
-        { GGL_STR("ERRORED"), GGL_OBJ_STR("ERRNO=71") },
-        { GGL_STR("BROKEN"), GGL_OBJ_STR("ERRNO=71") },
-        { GGL_STR("STOPPING"), GGL_OBJ_STR("STOPPING=1") },
+        { GGL_STR("STARTING"), GGL_OBJ_BUF(GGL_STR("RELOADING=1")) },
+        { GGL_STR("RUNNING"), GGL_OBJ_BUF(GGL_STR("READY=1")) },
+        { GGL_STR("ERRORED"), GGL_OBJ_BUF(GGL_STR("ERRNO=71")) },
+        { GGL_STR("BROKEN"), GGL_OBJ_BUF(GGL_STR("ERRNO=71")) },
+        { GGL_STR("STOPPING"), GGL_OBJ_BUF(GGL_STR("STOPPING=1")) },
         { GGL_STR("FINISHED"), GGL_OBJ_NULL() }
     );
 

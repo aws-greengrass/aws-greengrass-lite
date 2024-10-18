@@ -627,7 +627,7 @@ static GglError decode_json_str(GglBuffer content, GglObject *obj) {
         GGL_LOGE("Error decoding JSON string.");
         return GGL_ERR_PARSE;
     }
-    *obj = GGL_OBJ(str);
+    *obj = GGL_OBJ_BUF(str);
     return GGL_ERR_OK;
 }
 
@@ -700,7 +700,7 @@ static GglError decode_json_array(
         }
     }
 
-    *obj = GGL_OBJ((GglList) { .items = items, .len = count });
+    *obj = GGL_OBJ_LIST((GglList) { .items = items, .len = count });
     return GGL_ERR_OK;
 }
 
@@ -755,7 +755,7 @@ static GglError decode_json_object(
         }
     }
 
-    *obj = GGL_OBJ((GglMap) { .pairs = pairs, .len = count });
+    *obj = GGL_OBJ_MAP((GglMap) { .pairs = pairs, .len = count });
     return GGL_ERR_OK;
 }
 

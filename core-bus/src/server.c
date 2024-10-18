@@ -186,7 +186,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         return GGL_ERR_OK;
     }
 
-    GglMap params = GGL_MAP();
+    GglMap params = { 0 };
 
     if (msg.payload.len > 0) {
         static uint8_t payload_deserialize_mem

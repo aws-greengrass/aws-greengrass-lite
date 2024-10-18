@@ -48,11 +48,11 @@ GglError ggl_parse_config_path(
     component_key_path.list.len = 0;
 
     GglError ret = ggl_obj_vec_push(
-        &component_key_path, GGL_OBJ(config_path.items[3].buf)
+        &component_key_path, GGL_OBJ_BUF(config_path.items[3].buf)
     );
     for (size_t i = 4; i < config_path.len; i++) {
         ggl_obj_vec_chain_push(
-            &ret, &component_key_path, GGL_OBJ(config_path.items[i].buf)
+            &ret, &component_key_path, GGL_OBJ_BUF(config_path.items[i].buf)
         );
     }
     if (ret != GGL_ERR_OK) {
