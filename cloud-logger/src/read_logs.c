@@ -10,19 +10,12 @@
 #include <stdio.h>
 
 GglError read_log(FILE *fp, GglObjVec *filling, GglAlloc *alloc) {
-    const size_t VALUE_LENGTH = 2048;
     time_t start;
     time_t now;
     double time_diff;
 
     // Get the start time
     time(&start);
-
-    uint8_t *line = GGL_ALLOCN(alloc, uint8_t, VALUE_LENGTH);
-    if (!line) {
-        GGL_LOGE("no more memory to allocate");
-        return GGL_ERR_NOMEM;
-    }
 
     // Read the output line by line
     while (filling->list.len < filling->capacity) {
@@ -33,14 +26,23 @@ GglError read_log(FILE *fp, GglObjVec *filling, GglAlloc *alloc) {
             break;
         }
 
-        if (fgets((char *) line, (int) VALUE_LENGTH, fp) == NULL) {
+        uint8_t *line = GGL_ALLOCN(alloc, uint8_t, MAX_LINE_LENGTH);
+        if (!line) {
+            // This should never happen because the alloc memory is defined as
+            // MAX_LINE_LENGTH * filling->capacity
+            GGL_LOGW("Ran out of memory for allocation. Returning early to "
+                     "swap memory buffers.");
+            break;
+        }
+
+        if (fgets((char *) line, (int) MAX_LINE_LENGTH, fp) == NULL) {
             continue;
         }
 
         GglObject value;
         value.type = GGL_TYPE_BUF;
         value.buf.data = line;
-        value.buf.len = strnlen((char *) line, VALUE_LENGTH);
+        value.buf.len = strnlen((char *) line, MAX_LINE_LENGTH);
 
         ggl_obj_vec_push(filling, value);
     }

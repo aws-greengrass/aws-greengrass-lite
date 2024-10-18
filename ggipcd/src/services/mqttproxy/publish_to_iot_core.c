@@ -43,6 +43,13 @@ GglError ggl_handle_publish_to_iot_core(
         return GGL_ERR_INVALID;
     }
 
+    GGL_LOGT(
+        "topic_name_obj buffer: %.*s with length: %zu",
+        (int) topic_name_obj->buf.len,
+        topic_name_obj->buf.data,
+        topic_name_obj->buf.len
+    );
+
     GglBuffer payload = GGL_STR("");
     if (payload_obj != NULL) {
         payload = payload_obj->buf;

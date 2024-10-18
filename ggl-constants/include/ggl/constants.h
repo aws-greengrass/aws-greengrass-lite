@@ -9,4 +9,8 @@
 /// The max depth of nested objects via maps or lists
 #define GGL_MAX_OBJECT_DEPTH 15
 
+// According to
+// https://docs.aws.amazon.com/iot/latest/apireference/API_ThingAttribute.html
+#define THING_NAME_MAX_LENGTH 128
+
 #endif

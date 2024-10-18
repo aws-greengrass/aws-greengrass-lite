@@ -4,9 +4,19 @@
 ---
 RecipeFormatVersion: "2020-01-25"
 ComponentName: "aws.greengrass.CloudLogger"
-ComponentVersion: "1.0.0"
+ComponentVersion: "0.0.1"
 ComponentDescription: AWS Greengrass Cloud Logger
 ComponentPublisher: AWS
+ComponentConfiguration:
+  DefaultConfiguration:
+    accessControl:
+      aws.greengrass.ipc.mqttproxy:
+        aws.greengrass.CloudLogger:mqttproxy:1:
+          policyDescription: Allows access to publish/subscribe to all topics.
+          operations:
+            - aws.greengrass#PublishToIoTCore
+          resources:
+            - "gglite/+/logs"
 Manifests:
   - Platform:
       os: linux

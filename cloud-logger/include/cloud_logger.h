@@ -10,6 +10,8 @@
 #include <ggl/vector.h>
 #include <stdio.h>
 
+#define MAX_LINE_LENGTH (2048)
+
 GglError read_log(FILE *fp, GglObjVec *filling, GglAlloc *alloc);
 
 #endif

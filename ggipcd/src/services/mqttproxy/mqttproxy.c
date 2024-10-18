@@ -32,6 +32,7 @@ GglIpcService ggl_ipc_service_mqttproxy = {
 static bool match_topic_filter(GglBuffer resource, GglBuffer filter) {
     size_t i = 0;
     size_t j = 0;
+
     while (i < filter.len) {
         switch (filter.data[i]) {
         case '+':
@@ -42,6 +43,9 @@ static bool match_topic_filter(GglBuffer resource, GglBuffer filter) {
         case '#':
             return true;
         default:
+            if (j >= resource.len) {
+                return false;
+            }
             if (filter.data[i] != resource.data[j]) {
                 return false;
             }

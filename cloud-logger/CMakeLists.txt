@@ -2,7 +2,8 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(cloud-logger LIBS ggl-lib ggipc-client PkgConfig::libsystemd)
+ggl_init_module(cloud-logger LIBS ggl-lib ggl-constants ggipc-client ggl-json
+                                  PkgConfig::libsystemd)
 
 set(COMPONENT_NAME "aws.greengrass.CloudLogger")
 set(COMPONENT_VERSION "0.0.1")

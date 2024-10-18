@@ -51,7 +51,12 @@ GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
             continue;
         }
 
-        GGL_LOGT("Found key %.*s.", (int) entry->key.len, entry->key.data);
+        GGL_LOGT(
+            "Found key %.*s with len %zu",
+            (int) entry->key.len,
+            entry->key.data,
+            entry->key.len
+        );
 
         if (entry->type != GGL_TYPE_NULL) {
             if (entry->type != value->type) {

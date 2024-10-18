@@ -373,6 +373,7 @@ GglError ggipc_publish_to_iot_core(
     GglAlloc *alloc
 ) {
     assert(qos <= 2);
+    GGL_LOGT("Topic name len: %zu", topic_name.len);
     GglBuffer qos_buffer = GGL_BUF((uint8_t[1]) { qos + (uint8_t) '0' });
     GglBuffer encoded_payload;
     GglError ret = ggl_base64_encode(payload, alloc, &encoded_payload);
