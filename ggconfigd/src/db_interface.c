@@ -60,7 +60,6 @@ GglError ggconfig_open(void) {
             return GGL_ERR_FAILURE;
         }
 
-        char *err_message = 0;
         // do configuration
         rc = sqlite3_open(config_database_name, &config_database);
         if (rc) {
@@ -83,6 +82,7 @@ GglError ggconfig_open(void) {
                 return_err = GGL_ERR_OK;
             } else {
                 return_err = create_database();
+                char *err_message = 0;
                 rc = sqlite3_exec(
                     config_database,
                     GGL_SQL_CREATE_INDEX,
@@ -97,15 +97,18 @@ GglError ggconfig_open(void) {
                         "autoindex to be created",
                         err_message
                     );
+                    sqlite3_free(err_message);
                 }
             }
         }
         // create a temporary table for subscriber data
+        char *err_message = 0;
         rc = sqlite3_exec(
             config_database, GGL_SQL_CREATE_SUB_TABLE, NULL, NULL, &err_message
         );
         if (rc) {
             GGL_LOGE("Failed to create temporary table %s", err_message);
+            sqlite3_free(err_message);
             return_err = GGL_ERR_FAILURE;
         }
         config_initialized = true;
