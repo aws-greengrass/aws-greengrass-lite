@@ -363,10 +363,12 @@ GglError ggipc_get_config_str(
 GglError ggipc_publish_to_iot_core(
     int conn, GglBuffer topic_name, GglBuffer payload, uint8_t qos
 ) {
+    assert(qos <= 2);
+    GglBuffer qos_buffer = GGL_BUF((uint8_t[1]) { qos + (uint8_t) '0' });
     GglMap args = GGL_MAP(
         { GGL_STR("topicName"), GGL_OBJ_BUF(topic_name) },
         { GGL_STR("payload"), GGL_OBJ_BUF(payload) },
-        { GGL_STR("qos"), GGL_OBJ_I64(qos) }
+        { GGL_STR("qos"), GGL_OBJ_BUF(qos_buffer) }
     );
 
     return ggipc_call(
