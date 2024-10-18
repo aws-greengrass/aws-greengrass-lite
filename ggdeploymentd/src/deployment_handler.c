@@ -1327,11 +1327,15 @@ static GglError resolve_dependencies(
                         return ret;
                     }
 
+                    bool need_to_add_root_component = true;
+
                     if (existing_root_component_version != NULL) {
-                        if (!ggl_buffer_eq(
+                        if (ggl_buffer_eq(
                                 existing_root_component_version->buf,
                                 root_component_pair->val.buf
                             )) {
+                            need_to_add_root_component = false;
+                        } else {
                             GGL_LOGE(
                                 "There is a version conflict for component "
                                 "%.*s, where two deployments are asking for "
@@ -1349,40 +1353,43 @@ static GglError resolve_dependencies(
                         }
                     }
 
-                    GglBuffer root_component_name_buf;
-                    ret = ggl_buf_clone(
-                        root_component_pair->key,
-                        alloc,
-                        &root_component_name_buf
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        return ret;
-                    }
+                    if (need_to_add_root_component) {
+                        GglBuffer root_component_name_buf;
+                        ret = ggl_buf_clone(
+                            root_component_pair->key,
+                            alloc,
+                            &root_component_name_buf
+                        );
+                        if (ret != GGL_ERR_OK) {
+                            return ret;
+                        }
 
-                    GglBuffer root_component_version_buf;
-                    ret = ggl_buf_clone(
-                        root_component_pair->val.buf,
-                        &version_requirements_balloc.alloc,
-                        &root_component_version_buf
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        return ret;
-                    }
+                        GglBuffer root_component_version_buf;
+                        ret = ggl_buf_clone(
+                            root_component_pair->val.buf,
+                            &version_requirements_balloc.alloc,
+                            &root_component_version_buf
+                        );
+                        if (ret != GGL_ERR_OK) {
+                            return ret;
+                        }
 
-                    ret = ggl_kv_vec_push(
-                        &components_to_resolve,
-                        (GglKV) { root_component_name_buf,
-                                  GGL_OBJ_BUF(root_component_version_buf) }
-                    );
-                    GGL_LOGD(
-                        "Added %.*s to the list of root components to resolve "
-                        "from "
-                        "the thing group %.*s",
-                        (int) root_component_name_buf.len,
-                        root_component_name_buf.data,
-                        (int) thing_group_name_from_item->buf.len,
-                        thing_group_name_from_item->buf.data
-                    );
+                        ret = ggl_kv_vec_push(
+                            &components_to_resolve,
+                            (GglKV) { root_component_name_buf,
+                                      GGL_OBJ_BUF(root_component_version_buf) }
+                        );
+                        GGL_LOGD(
+                            "Added %.*s to the list of root components to "
+                            "resolve "
+                            "from "
+                            "the thing group %.*s",
+                            (int) root_component_name_buf.len,
+                            root_component_name_buf.data,
+                            (int) thing_group_name_from_item->buf.len,
+                            thing_group_name_from_item->buf.data
+                        );
+                    }
                 }
             }
         }
