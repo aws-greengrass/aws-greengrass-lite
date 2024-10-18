@@ -81,16 +81,21 @@ GglError ggconfig_open(void) {
                 return_err = GGL_ERR_OK;
             } else {
                 return_err = create_database();
-            }
-            rc = sqlite3_exec(
-                config_database, GGL_SQL_CREATE_INDEX, NULL, NULL, &err_message
-            );
-            if (rc) {
-                GGL_LOGI(
-                    "Failed to add an index to the relationTable %s, expect an "
-                    "autoindex to be created",
-                    err_message
+                rc = sqlite3_exec(
+                    config_database,
+                    GGL_SQL_CREATE_INDEX,
+                    NULL,
+                    NULL,
+                    &err_message
                 );
+                if (rc) {
+                    GGL_LOGI(
+                        "Failed to add an index to the relationTable %s, "
+                        "expect an "
+                        "autoindex to be created",
+                        err_message
+                    );
+                }
             }
         }
         // create a temporary table for subscriber data

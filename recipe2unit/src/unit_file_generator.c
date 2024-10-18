@@ -25,6 +25,10 @@
 #define WORKING_DIR_LEN 4096
 #define MAX_SCRIPT_SIZE 10000
 
+#define MAX_RETRIES_BEFORE_BROKEN "3"
+#define MAX_RETRIES_INTERVAL_SECONDS "3600"
+#define RETRY_DELAY_SECONDS "1"
+
 static void ggl_string_to_lower(GglBuffer object_object_to_lower) {
     for (size_t key_count = 0; key_count < object_object_to_lower.len;
          key_count++) {
@@ -112,6 +116,19 @@ static GglError fill_unit_section(
     GglObject *val;
 
     GglError ret = ggl_byte_vec_append(concat_unit_vector, GGL_STR("[Unit]\n"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    ggl_byte_vec_chain_append(
+        &ret,
+        concat_unit_vector,
+        GGL_STR("StartLimitInterval=" MAX_RETRIES_INTERVAL_SECONDS "\n")
+    );
+    ggl_byte_vec_chain_append(
+        &ret,
+        concat_unit_vector,
+        GGL_STR("StartLimitBurst=" MAX_RETRIES_BEFORE_BROKEN "\n")
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -846,6 +863,14 @@ static GglError fill_service_section(
     GglObject **component_name
 ) {
     GglError ret = ggl_byte_vec_append(out, GGL_STR("[Service]\n"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    ggl_byte_vec_chain_append(&ret, out, GGL_STR("Restart=on-failure\n"));
+    ggl_byte_vec_chain_append(
+        &ret, out, GGL_STR("RestartSec=" RETRY_DELAY_SECONDS "\n")
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }

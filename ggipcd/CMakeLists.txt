@@ -12,4 +12,5 @@ ggl_init_module(
        core-bus
        core-bus-gg-config
        core-bus-aws-iot-mqtt
-       ggipc-auth)
+       ggipc-auth
+       ggl-rand)

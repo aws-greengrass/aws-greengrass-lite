@@ -11,11 +11,11 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <systemd/sd-bus.h>
 #include <systemd/sd-daemon.h>
 #include <time.h>
-#include <stdint.h>
 #include <stdlib.h>
 
 #define SERVICE_PREFIX "ggl."
@@ -195,6 +195,30 @@ static GglError get_component_result(
         *status = GGL_STR("INSTALLED");
     }
 
+    uint32_t n_retries = 0;
+    ret = sd_bus_get_property_trivial(
+        bus,
+        DEFAULT_DESTINATION,
+        unit_path,
+        SERVICE_INTERFACE,
+        "NRestarts",
+        &error,
+        'u',
+        &n_retries
+    );
+    if (ret < 0) {
+        GGL_LOGE(
+            "Unable to retrieve D-Bus NRestarts property (errno=%d)", -ret
+        );
+        return translate_dbus_call_error(ret);
+    }
+    GGL_LOGD("NRetries: %" PRIu32, n_retries);
+    if (n_retries >= 3) {
+        GGL_LOGE("Component is broken (Exceeded retry limit)");
+        *status = GGL_STR("BROKEN");
+        return GGL_ERR_OK;
+    }
+
     char *result = NULL;
     ret = sd_bus_get_property_string(
         bus,
@@ -216,9 +240,6 @@ static GglError get_component_result(
     GglBuffer result_buffer = ggl_buffer_from_null_term(result);
     if (ggl_buffer_eq(result_buffer, GGL_STR("success"))) {
         *status = GGL_STR("FINISHED");
-        // hitting the start limit means too many repeated failures
-    } else if (ggl_buffer_eq(result_buffer, GGL_STR("start-limit"))) {
-        *status = GGL_STR("BROKEN");
     } else {
         *status = GGL_STR("ERRORED");
     }

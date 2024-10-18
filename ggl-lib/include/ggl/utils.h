@@ -11,7 +11,9 @@
 #include <stdint.h>
 
 /// Sleep for given duration in seconds.
-/// Returns 0 on success else error code.
 GglError ggl_sleep(int64_t seconds);
+
+/// Sleep for given duration in milliseconds.
+GglError ggl_sleep_ms(int64_t ms);
 
 #endif

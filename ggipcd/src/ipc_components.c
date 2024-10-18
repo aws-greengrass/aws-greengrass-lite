@@ -4,8 +4,6 @@
 
 #include "ipc_components.h"
 #include <assert.h>
-#include <errno.h>
-#include <fcntl.h>
 #include <ggipc/auth.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
@@ -13,11 +11,10 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <ggl/socket.h>
+#include <ggl/rand.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #ifdef GGL_IPC_AUTH_DISABLE
 #warning "INSECURE!!! IPC authentication disabled!"
@@ -49,17 +46,6 @@ static uint8_t component_names[GGL_MAX_GENERIC_COMPONENTS]
 static uint8_t component_name_lengths[GGL_MAX_GENERIC_COMPONENTS];
 
 static GglComponentHandle registered_components = 0;
-
-static int random_fd;
-
-__attribute__((constructor)) static void init_urandom_fd(void) {
-    random_fd = open("/dev/random", O_RDONLY);
-    if (random_fd == -1) {
-        int err = errno;
-        GGL_LOGE("Failed to open /dev/random: %d.", err);
-        _Exit(1);
-    }
-}
 
 GglBuffer ggl_ipc_components_get_name(GglComponentHandle component_handle) {
     assert(component_handle != 0);
@@ -191,9 +177,8 @@ GglError ggl_ipc_components_register(
     *component_handle = registered_components;
     set_component_name(*component_handle, component_name);
 
-    ret = ggl_read_exact(random_fd, GGL_BUF(svcuids[*component_handle - 1]));
+    ret = ggl_rand_fill(GGL_BUF(svcuids[*component_handle - 1]));
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to read from /dev/random.");
         return GGL_ERR_FATAL;
     }
     get_svcuid(*component_handle, svcuid);
