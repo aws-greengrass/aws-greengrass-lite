@@ -261,11 +261,15 @@ static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
     // TODO: check if current job is canceled before clobbering
     current_job_version = 1;
     current_job_id = GGL_BYTE_VEC(current_job_id_buf);
-    ggl_byte_vec_append(&current_job_id, job_id);
+    GglError ret = ggl_byte_vec_append(&current_job_id, job_id);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Job ID too long.");
+        return ret;
+    }
+
     current_deployment_id = GGL_BYTE_VEC(current_deployment_id_buf);
 
     // TODO: backoff algorithm
-    GglError ret = GGL_ERR_OK;
     int64_t retries = 1;
     while ((ret
             = ggl_deployment_enqueue(deployment_doc, &current_deployment_id))
