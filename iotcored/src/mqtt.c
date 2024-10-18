@@ -13,6 +13,7 @@
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
 #include <core_mqtt_serializer.h>
+#include <ggl/backoff.h>
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
@@ -20,6 +21,7 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <stdnoreturn.h>
 
 #ifndef IOTCORED_KEEP_ALIVE_PERIOD
@@ -84,7 +86,8 @@ static uint32_t time_ms(void) {
 }
 
 // Establish TLS and MQTT connection to the AWS IoT broker.
-static GglError establish_connection(void) {
+static GglError establish_connection(void *ctx) {
+    (void) ctx;
     MQTTStatus_t mqtt_ret;
     GglError ret = iotcored_tls_connect(iot_cored_args, &net_ctx.tls_ctx);
     if (ret != 0) {
@@ -123,23 +126,38 @@ static GglError establish_connection(void) {
 }
 
 noreturn static void *mqtt_recv_thread_fn(void *arg) {
-    MQTTContext_t *ctx = arg;
-    GglError err;
     while (true) {
-        MQTTStatus_t mqtt_ret = MQTT_ReceiveLoop(ctx);
+        // Connect to IoT core with backoff between 10ms->10s.
+        GglError err
+            = ggl_backoff_indefinite(10, 10000, establish_connection, NULL);
 
-        if ((mqtt_ret != MQTTSuccess) && (mqtt_ret != MQTTNeedMoreBytes)) {
-            GGL_LOGE("Error in receive loop, closing connection.");
-
-            (void) MQTT_Disconnect(ctx);
-            iotcored_tls_cleanup(
-                ctx->transportInterface.pNetworkContext->tls_ctx
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Fatal error in connecting to IoT core with backoff. Err = "
+                "%d",
+                err
             );
+            GGL_LOGE("Exiting the process.");
 
-            do {
-                err = establish_connection();
-            } while (err != GGL_ERR_OK);
+            _Exit(1);
         }
+
+        MQTTStatus_t mqtt_ret;
+        MQTTContext_t *ctx = arg;
+        do {
+            mqtt_ret = MQTT_ReceiveLoop(ctx);
+        } while ((mqtt_ret == MQTTSuccess) || (mqtt_ret == MQTTNeedMoreBytes));
+
+        GGL_LOGE("Error in receive loop, closing connection.");
+
+        (void) MQTT_Disconnect(ctx);
+        iotcored_tls_cleanup(ctx->transportInterface.pNetworkContext->tls_ctx);
+
+        GGL_LOGE("Removing all IoT core subscriptions");
+
+        // Remove all subscriptions. This will force the callers to
+        // resubscribe.
+        iotcored_unregister_all_subs();
     }
 }
 
@@ -235,13 +253,6 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
 
     // Store a global variable copy.
     iot_cored_args = args;
-
-    GglError err = establish_connection();
-
-    if (err != GGL_ERR_OK) {
-        GGL_LOGE("Could not establish connection to the broker.");
-        return err;
-    }
 
     int thread_ret
         = pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
