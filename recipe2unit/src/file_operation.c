@@ -109,7 +109,7 @@ GglError deserialize_file_content(
 }
 
 GglError open_file(char *file_path, GglBuffer *recipe_obj) {
-    int fd = open(file_path, O_RDONLY);
+    int fd = open(file_path, O_RDONLY | O_CLOEXEC);
     if (fd == -1) {
         GGL_LOGE("Failed to open recipe file.");
         return GGL_ERR_FAILURE;
