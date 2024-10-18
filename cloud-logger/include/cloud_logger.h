@@ -5,6 +5,7 @@
 #ifndef CLOUD_LOGGER_H
 #define CLOUD_LOGGER_H
 
+#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/vector.h>
 #include <stdio.h>

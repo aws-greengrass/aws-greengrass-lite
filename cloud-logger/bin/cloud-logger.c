@@ -2,23 +2,21 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <sys/types.h>
 #include <cloud_logger.h>
-#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <ggl/utils.h>
+#include <ggl/vector.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <unistd.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define UPLOAD_MAX_LINES 5
-#define UPLOAD_MAX_BUFFER 2048 * UPLOAD_MAX_LINES
+#define UPLOAD_MAX_LINES 50
+#define UPLOAD_MAX_BUFFER (2048 * UPLOAD_MAX_LINES)
 
 typedef struct {
     uint8_t mem[UPLOAD_MAX_BUFFER];
