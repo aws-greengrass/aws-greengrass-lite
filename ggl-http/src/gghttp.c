@@ -36,7 +36,10 @@ GglError fetch_token(
         );
     }
     if (error == GGL_ERR_OK) {
-        gghttplib_add_certificate_data(&curl_data, certificate_details);
+        error = gghttplib_add_certificate_data(&curl_data, certificate_details);
+    }
+
+    if (error == GGL_ERR_OK) {
         error = gghttplib_process_request(&curl_data, buffer);
     }
 
@@ -54,6 +57,7 @@ GglError generic_download(const char *url_for_generic_download, int fd) {
         error = gghttplib_process_request_with_fd(&curl_data, fd);
     }
 
+    gghttplib_destroy_curl(&curl_data);
     return error;
 }
 
@@ -117,11 +121,15 @@ GglError gg_dataplane_call(
         );
     }
     if (ret == GGL_ERR_OK) {
-        gghttplib_add_certificate_data(&curl_data, certificate_details);
+        ret = gghttplib_add_certificate_data(&curl_data, certificate_details);
+    }
+    if (ret == GGL_ERR_OK) {
         if (body != NULL) {
             GGL_LOGD("Adding body to http request");
-            gghttplib_add_post_body(&curl_data, body);
+            ret = gghttplib_add_post_body(&curl_data, body);
         }
+    }
+    if (ret == GGL_ERR_OK) {
         GGL_LOGD("Sending request to dataplane endpoint");
         ret = gghttplib_process_request(&curl_data, response_buffer);
     }
