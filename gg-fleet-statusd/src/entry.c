@@ -5,12 +5,14 @@
 #include "bus_server.h"
 #include "fleet_status_service.h"
 #include "gg_fleet_statusd.h"
+#include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
+#include <stddef.h>
 #include <stdint.h>
 
 GglError run_gg_fleet_statusd(void) {
