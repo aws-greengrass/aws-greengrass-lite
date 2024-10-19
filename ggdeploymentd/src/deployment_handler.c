@@ -1636,6 +1636,82 @@ static GglError open_component_artifacts_dir(
     );
 }
 
+static GglError add_arn_list_to_config(
+    GglBuffer component_name, GglBuffer configuration_arn
+) {
+    // add configuration arn to the config if it is not already present
+    // added to the config as a list, this is later used in fss
+    GglBuffer arn_list_mem = GGL_BUF((uint8_t[128]) { 0 });
+    GglBumpAlloc arn_list_balloc = ggl_bump_alloc_init(arn_list_mem);
+    GglObject arn_list;
+
+    GglError ret = ggl_gg_config_read(
+        GGL_BUF_LIST(GGL_STR("services"), component_name, GGL_STR("configArn")),
+        &arn_list_balloc.alloc,
+        &arn_list
+    );
+
+    if (ret != GGL_ERR_OK) {
+        // no list exists in config, create one
+        GglObjVec config_arn_list = GGL_OBJ_VEC((GglObject[10]) { 0 });
+        ret = ggl_obj_vec_push(&config_arn_list, GGL_OBJ_BUF(configuration_arn));
+
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to update configuration arn list.");
+            return ret;
+        }
+
+        ret = ggl_gg_config_write(
+            GGL_BUF_LIST(
+                GGL_STR("services"), component_name, GGL_STR("configArn")
+            ),
+            GGL_OBJ_LIST(config_arn_list.list),
+            0
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to write configuration arn list to the config.");
+            return ret;
+        }
+    } else {
+        // list exists in config, parse for current config arn and append if it
+        // is not already included
+        if (arn_list.type != GGL_TYPE_LIST) {
+            GGL_LOGE("Configuration arn list not of expected type.");
+            return GGL_ERR_INVALID;
+        }
+        GglObjVec arn_vec = { .list = arn_list.list, .capacity = 10 };
+        GGL_LIST_FOREACH(arn, arn_vec.list) {
+            if (arn->type != GGL_TYPE_BUF) {
+                GGL_LOGE("Configuration arn not of type buffer.");
+                return ret;
+            }
+            if (ggl_buffer_eq(arn->buf, configuration_arn)) {
+                // arn already added to config
+                return GGL_ERR_OK;
+            }
+            ret = ggl_obj_vec_push(&arn_vec, GGL_OBJ_BUF(configuration_arn));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to update configuration arn list.");
+                return ret;
+            }
+
+            ret = ggl_gg_config_write(
+                GGL_BUF_LIST(
+                    GGL_STR("services"), component_name, GGL_STR("configArn")
+                ),
+                GGL_OBJ_LIST(arn_vec.list),
+                0
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write configuration arn list to the config."
+                );
+                return ret;
+            }
+        }
+    }
+    return GGL_ERR_OK;
+}
+
 // This will be refactored soon with recipe2unit in c, so ignore this warning
 // for now
 
@@ -1668,7 +1744,6 @@ static void handle_deployment(
         }
     }
 
-    // TODO: Add dependency resolution process that will also check local store.
     if (deployment->cloud_root_components_to_add.len != 0) {
         GglKVVec resolved_components_kv_vec = GGL_KV_VEC((GglKV[64]) { 0 });
         static uint8_t resolve_dependencies_mem[8192] = { 0 };
@@ -1919,6 +1994,15 @@ static void handle_deployment(
                 return;
             }
 
+            ret = add_arn_list_to_config(
+                component_name->buf, deployment->configuration_arn
+            );
+
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write configuration arn to ggconfigd.");
+                return;
+            }
+
             GglObject *intermediate_obj;
             GglObject *default_config_obj;
 
@@ -1949,23 +2033,6 @@ static void handle_deployment(
 
                     if (ret != GGL_ERR_OK) {
                         GGL_LOGE("Failed to send default config to ggconfigd.");
-                        return;
-                    }
-
-                    // add component version to the config
-                    ret = ggl_gg_config_write(
-                        GGL_BUF_LIST(
-                            GGL_STR("services"),
-                            component_name->buf,
-                            GGL_STR("version")
-                        ),
-                        pair->val,
-                        0
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE(
-                            "Failed to send component version to ggconfigd."
-                        );
                         return;
                     }
                 } else {
@@ -2217,6 +2284,15 @@ static void handle_deployment(
 
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("Failed to write component version to ggconfigd.");
+                return;
+            }
+
+            ret = add_arn_list_to_config(
+                component_name->buf, deployment->configuration_arn
+            );
+
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write configuration arn to ggconfigd.");
                 return;
             }
 
