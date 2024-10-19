@@ -4,10 +4,10 @@
 
 #include "fleet_status_service.h"
 #include <sys/types.h>
-#include <ggl/cleanup.h>
 #include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/constants.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
@@ -209,7 +209,7 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
 
         // building component info to be in line with the cloud's expected pojo
         // format
-        GglObject component_info = GGL_OBJ_MAP( GGL_MAP(
+        GglObject component_info = GGL_OBJ_MAP(GGL_MAP(
             { GGL_STR("componentName"), GGL_OBJ_BUF(pair->key) },
             { GGL_STR("version"), GGL_OBJ_BUF(version_resp) },
             { GGL_STR("fleetConfigArns"), arn_list },
@@ -264,7 +264,7 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
     // TODO: check if sequence numbers can skip iterations
     int64_t sequence = atomic_fetch_add(&sequence_number, 1);
 
-    GglObject payload_obj = GGL_OBJ_MAP( GGL_MAP(
+    GglObject payload_obj = GGL_OBJ_MAP(GGL_MAP(
         { GGL_STR("ggcVersion"), GGL_OBJ_BUF(GGL_STR("1.0.0")) },
         { GGL_STR("platform"), GGL_OBJ_BUF(GGL_STR("linux")) },
         { GGL_STR("architecture"), GGL_OBJ_BUF(GGL_STR("amd64")) },

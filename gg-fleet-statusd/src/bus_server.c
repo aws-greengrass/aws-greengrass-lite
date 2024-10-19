@@ -4,12 +4,15 @@
 
 #include "bus_server.h"
 #include "fleet_status_service.h"
+#include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 static void send_fleet_status_update(
@@ -38,11 +41,12 @@ static void send_fleet_status_update(
         return;
     }
 
-    GglFleetStatusServiceThreadArgs args = {.thing_name = thing_name, .trigger = trigger->buf};
+    GglFleetStatusServiceThreadArgs args
+        = { .thing_name = thing_name, .trigger = trigger->buf };
 
     ret = publish_fleet_status_update(&args);
-    if(ret != GGL_ERR_OK) {
-      ggl_return_err(handle, ret);
+    if (ret != GGL_ERR_OK) {
+        ggl_return_err(handle, ret);
     }
 }
 

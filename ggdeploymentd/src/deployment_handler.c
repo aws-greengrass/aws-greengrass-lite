@@ -1654,7 +1654,9 @@ static GglError add_arn_list_to_config(
     if (ret != GGL_ERR_OK) {
         // no list exists in config, create one
         GglObjVec config_arn_list = GGL_OBJ_VEC((GglObject[10]) { 0 });
-        ret = ggl_obj_vec_push(&config_arn_list, GGL_OBJ_BUF(configuration_arn));
+        ret = ggl_obj_vec_push(
+            &config_arn_list, GGL_OBJ_BUF(configuration_arn)
+        );
 
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to update configuration arn list.");
