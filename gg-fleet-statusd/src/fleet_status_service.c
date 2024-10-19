@@ -19,13 +19,13 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <limits.h>
 #include <pthread.h>
 #include <string.h>
 #include <time.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <limits.h>
 
 #define MAX_THING_NAME_LEN 128
 
