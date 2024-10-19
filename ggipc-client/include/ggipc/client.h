@@ -38,7 +38,11 @@ GglError ggipc_get_config_str(
 );
 
 GglError ggipc_publish_to_iot_core(
-    int conn, GglBuffer topic_name, GglBuffer payload, uint8_t qos
+    int conn,
+    GglBuffer topic_name,
+    GglBuffer payload,
+    uint8_t qos,
+    GglAlloc *alloc
 );
 
 #endif

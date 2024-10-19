@@ -5,6 +5,7 @@
 #include "ggipc/client.h"
 #include <sys/types.h>
 #include <assert.h>
+#include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
@@ -362,14 +363,25 @@ GglError ggipc_get_config_str(
     return GGL_ERR_OK;
 }
 
+// TODO: use GglByteVec for payload to allow in-place base64 encoding and remove
+// alloc
 GglError ggipc_publish_to_iot_core(
-    int conn, GglBuffer topic_name, GglBuffer payload, uint8_t qos
+    int conn,
+    GglBuffer topic_name,
+    GglBuffer payload,
+    uint8_t qos,
+    GglAlloc *alloc
 ) {
     assert(qos <= 2);
     GglBuffer qos_buffer = GGL_BUF((uint8_t[1]) { qos + (uint8_t) '0' });
+    GglBuffer encoded_payload;
+    GglError ret = ggl_base64_encode(payload, alloc, &encoded_payload);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
     GglMap args = GGL_MAP(
         { GGL_STR("topicName"), GGL_OBJ_BUF(topic_name) },
-        { GGL_STR("payload"), GGL_OBJ_BUF(payload) },
+        { GGL_STR("payload"), GGL_OBJ_BUF(encoded_payload) },
         { GGL_STR("qos"), GGL_OBJ_BUF(qos_buffer) }
     );
 
