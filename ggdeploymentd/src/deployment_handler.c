@@ -2071,7 +2071,7 @@ static void handle_deployment(
 
             if (ggl_map_get(
                     recipe_buff_obj.map,
-                    GGL_STR("componentconfiguration"),
+                    GGL_STR("ComponentConfiguration"),
                     &intermediate_obj
                 )) {
                 if (intermediate_obj->type != GGL_TYPE_MAP) {
@@ -2081,7 +2081,7 @@ static void handle_deployment(
 
                 if (ggl_map_get(
                         intermediate_obj->map,
-                        GGL_STR("defaultconfiguration"),
+                        GGL_STR("DefaultConfiguration"),
                         &default_config_obj
                     )) {
                     ret = ggl_gg_config_write(
@@ -2384,7 +2384,7 @@ static void handle_deployment(
 
             if (ggl_map_get(
                     recipe_buff_obj.map,
-                    GGL_STR("componentconfiguration"),
+                    GGL_STR("ComponentConfiguration"),
                     &intermediate_obj
                 )) {
                 if (intermediate_obj->type != GGL_TYPE_MAP) {
@@ -2394,7 +2394,7 @@ static void handle_deployment(
 
                 if (ggl_map_get(
                         intermediate_obj->map,
-                        GGL_STR("defaultconfiguration"),
+                        GGL_STR("DefaultConfiguration"),
                         &default_config_obj
                     )) {
                     ret = ggl_gg_config_write(

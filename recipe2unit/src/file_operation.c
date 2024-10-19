@@ -20,38 +20,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-// NOLINTNEXTLINE(misc-no-recursion)
-static void ggl_key_to_lower(GglObject object_object_to_lower) {
-    if (object_object_to_lower.type == GGL_TYPE_MAP) {
-        // Iterate over the pairs of Map
-        for (size_t count = 0; count < object_object_to_lower.map.len;
-             count++) {
-            // Iterate through the string
-            for (size_t key_count = 0;
-                 key_count < object_object_to_lower.map.pairs[count].key.len;
-                 key_count++) {
-                if (object_object_to_lower.map.pairs[count].key.data[key_count]
-                        >= 'A'
-                    && object_object_to_lower.map.pairs[count]
-                            .key.data[key_count]
-                        <= 'Z') {
-                    object_object_to_lower.map.pairs[count].key.data[key_count]
-                        = object_object_to_lower.map.pairs[count]
-                              .key.data[key_count]
-                        + ('a' - 'A');
-                }
-            }
-            ggl_key_to_lower(object_object_to_lower.map.pairs[count].val);
-        }
-    } else if (object_object_to_lower.type == GGL_TYPE_LIST) {
-        // Iterate over the List
-        for (size_t count = 0; count < object_object_to_lower.list.len;
-             count++) {
-            ggl_key_to_lower(object_object_to_lower.list.items[count]);
-        }
-    }
-}
-
 static GglError deserialize_json(
     GglBuffer recipe_buffer, GglAlloc *alloc, GglObject *recipe_obj
 ) {
@@ -59,8 +27,6 @@ static GglError deserialize_json(
     if (recipe_obj->type != GGL_TYPE_MAP) {
         return GGL_ERR_FAILURE;
     }
-
-    ggl_key_to_lower(*recipe_obj);
 
     return GGL_ERR_OK;
 }
@@ -72,8 +38,6 @@ static GglError deserialize_yaml(
     if (recipe_obj->type != GGL_TYPE_MAP) {
         return GGL_ERR_FAILURE;
     }
-
-    ggl_key_to_lower(*recipe_obj);
 
     return GGL_ERR_OK;
 }

@@ -30,17 +30,6 @@
 #define MAX_RETRIES_INTERVAL_SECONDS "3600"
 #define RETRY_DELAY_SECONDS "1"
 
-static void ggl_string_to_lower(GglBuffer object_object_to_lower) {
-    for (size_t key_count = 0; key_count < object_object_to_lower.len;
-         key_count++) {
-        if (object_object_to_lower.data[key_count] >= 'A'
-            && object_object_to_lower.data[key_count] <= 'Z') {
-            object_object_to_lower.data[key_count]
-                = object_object_to_lower.data[key_count] + ('a' - 'A');
-        }
-    }
-}
-
 /// Parses [DependencyType] portion of recipe and updates the unit file
 /// buffer(out) with dependency information appropriately
 static GglError parse_dependency_type(
@@ -55,14 +44,13 @@ static GglError parse_dependency_type(
         return GGL_ERR_INVALID;
     }
     if (ggl_map_get(
-            component_dependency.val.map, GGL_STR("dependencytype"), &val
+            component_dependency.val.map, GGL_STR("DependencyType"), &val
         )) {
         if (val->type != GGL_TYPE_BUF) {
             return GGL_ERR_PARSE;
         }
-        ggl_string_to_lower(val->buf);
 
-        if (strncmp((char *) val->buf.data, "hard", val->buf.len) == 0) {
+        if (strncmp((char *) val->buf.data, "HARD", val->buf.len) == 0) {
             GglError ret = ggl_byte_vec_append(out, GGL_STR("After=ggl."));
             if (ret != GGL_ERR_OK) {
                 return ret;
@@ -138,7 +126,7 @@ static GglError fill_unit_section(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    if (ggl_map_get(recipe_map, GGL_STR("componentdescription"), &val)) {
+    if (ggl_map_get(recipe_map, GGL_STR("ComponentDescription"), &val)) {
         if (val->type != GGL_TYPE_BUF) {
             return GGL_ERR_PARSE;
         }
@@ -154,7 +142,7 @@ static GglError fill_unit_section(
         }
     }
 
-    if (ggl_map_get(recipe_map, GGL_STR("componentdependencies"), &val)) {
+    if (ggl_map_get(recipe_map, GGL_STR("ComponentDependencies"), &val)) {
         if ((val->type == GGL_TYPE_MAP) || (val->type == GGL_TYPE_LIST)) {
             return dependency_parser(val, concat_unit_vector);
         }
@@ -188,7 +176,7 @@ static GglError lifecycle_selection(
             // Fetch the global Lifecycle object and match the
             // name with the first occurrence of selection
             if (ggl_map_get(
-                    recipe_map, GGL_STR("lifecycle"), &global_lifecycle
+                    recipe_map, GGL_STR("Lifecycle"), &global_lifecycle
                 )) {
                 if (global_lifecycle->type != GGL_TYPE_MAP) {
                     return GGL_ERR_INVALID;
@@ -231,7 +219,7 @@ static GglError manifest_selection(
 ) {
     GglObject *platform;
     GglObject *os;
-    if (ggl_map_get(*manifest_map, GGL_STR("platform"), &platform)) {
+    if (ggl_map_get(*manifest_map, GGL_STR("Platform"), &platform)) {
         if (platform->type != GGL_TYPE_MAP) {
             return GGL_ERR_INVALID;
         }
@@ -273,7 +261,7 @@ static GglError manifest_selection(
                     GglObject *selections;
                     if (ggl_map_get(
                             *manifest_map,
-                            GGL_STR("lifecycle"),
+                            GGL_STR("Lifecycle"),
                             selected_lifecycle_object
                         )) {
                         if ((*selected_lifecycle_object)->type
@@ -283,7 +271,7 @@ static GglError manifest_selection(
                         }
                     } else if (ggl_map_get(
                                    *manifest_map,
-                                   GGL_STR("selections"),
+                                   GGL_STR("Selections"),
                                    &selections
                                )) {
                         if (selections->type != GGL_TYPE_LIST) {
@@ -317,13 +305,12 @@ static GglError parse_requiresprivilege_section(
 ) {
     GglObject *key_object;
     if (ggl_map_get(
-            lifecycle_step, GGL_STR("requiresprivilege"), &key_object
+            lifecycle_step, GGL_STR("RequiresPrivilege"), &key_object
         )) {
         if (key_object->type != GGL_TYPE_BUF) {
-            GGL_LOGE("requiresprivilege needs to be a (true/false) value");
+            GGL_LOGE("RequiresPrivilege needs to be a (true/false) value");
             return GGL_ERR_INVALID;
         }
-        ggl_string_to_lower(key_object->buf);
 
         // TODO: Check if 0 and 1 are valid
         if (strncmp((char *) key_object->buf.data, "true", key_object->buf.len)
@@ -337,7 +324,7 @@ static GglError parse_requiresprivilege_section(
                    == 0) {
             *is_root = false;
         } else {
-            GGL_LOGE("requiresprivilege needs to be a"
+            GGL_LOGE("RequiresPrivilege needs to be a"
                      "(true/false) value");
             return GGL_ERR_INVALID;
         }
@@ -364,24 +351,24 @@ static GglError fetch_script_section(
                 return ret;
             }
 
-            if (ggl_map_get(val->map, GGL_STR("script"), &key_object)) {
+            if (ggl_map_get(val->map, GGL_STR("Script"), &key_object)) {
                 if (key_object->type != GGL_TYPE_BUF) {
-                    GGL_LOGE("script section needs to be string buffer");
+                    GGL_LOGE("Script section needs to be string buffer");
                     return GGL_ERR_INVALID;
                 }
                 *selected_script_as_buf = key_object->buf;
             }
 
-            if (ggl_map_get(val->map, GGL_STR("setenv"), &key_object)) {
+            if (ggl_map_get(val->map, GGL_STR("Setenv"), &key_object)) {
                 if (key_object->type != GGL_TYPE_MAP) {
-                    GGL_LOGE("set env needs to be a dictionary map");
+                    GGL_LOGE("Setenv needs to be a dictionary map");
                     return GGL_ERR_INVALID;
                 }
                 *set_env_as_map = key_object->map;
             }
 
         } else {
-            GGL_LOGE("script section section is of invalid list type");
+            GGL_LOGE("Script section section is of invalid list type");
             return GGL_ERR_INVALID;
         }
     }
@@ -398,7 +385,7 @@ static GglError concat_initial_strings(
     Recipe2UnitArgs *args
 ) {
     GglError ret;
-    if (!ggl_map_get(*recipe_map, GGL_STR("componentname"), component_name)) {
+    if (!ggl_map_get(*recipe_map, GGL_STR("ComponentName"), component_name)) {
         return GGL_ERR_INVALID;
     }
 
@@ -408,7 +395,7 @@ static GglError concat_initial_strings(
 
     GglObject *component_version_obj;
     if (!ggl_map_get(
-            *recipe_map, GGL_STR("componentversion"), &component_version_obj
+            *recipe_map, GGL_STR("ComponentVersion"), &component_version_obj
         )) {
         return GGL_ERR_INVALID;
     }
@@ -690,7 +677,7 @@ static GglError manifest_builder(
     bool is_root = false;
 
     GglObject *val;
-    if (ggl_map_get(recipe_map, GGL_STR("manifests"), &val)) {
+    if (ggl_map_get(recipe_map, GGL_STR("Manifests"), &val)) {
         if (val->type == GGL_TYPE_LIST) {
             GglMap selected_lifecycle_map = { 0 };
 
@@ -705,17 +692,17 @@ static GglError manifest_builder(
             GglMap set_env_as_map = { 0 };
             if (ggl_map_get(
                     selected_lifecycle_map,
-                    GGL_STR("setenv"),
+                    GGL_STR("Setenv"),
                     &selected_set_env_as_obj
                 )) {
                 if (selected_set_env_as_obj->type != GGL_TYPE_MAP) {
-                    GGL_LOGE("setenv section needs to be a dictionary map type"
+                    GGL_LOGE("Setenv section needs to be a dictionary map type"
                     );
                     return GGL_ERR_INVALID;
                 }
                 set_env_as_map = selected_set_env_as_obj->map;
             } else {
-                GGL_LOGI("setenv section not found within the linux lifecycle");
+                GGL_LOGI("Setenv section not found within the linux lifecycle");
             }
 
             static uint8_t big_buffer_for_bump[MAX_SCRIPT_SIZE + PATH_MAX];
@@ -752,7 +739,7 @@ static GglError manifest_builder(
                     &startup_or_run_section
                 )) {
                 if (startup_or_run_section->type == GGL_TYPE_LIST) {
-                    GGL_LOGE("Startup is a list type");
+                    GGL_LOGE("startup is a list type");
                     return GGL_ERR_INVALID;
                 }
                 lifecycle_script_selection = GGL_STR("startup");
