@@ -16,4 +16,6 @@ GglError iotcored_register_subscriptions(
 
 void iotcored_unregister_subscriptions(uint32_t handle);
 
+void iotcored_unregister_all_subs(void);
+
 #endif
