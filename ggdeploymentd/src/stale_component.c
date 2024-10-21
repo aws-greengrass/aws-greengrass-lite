@@ -85,6 +85,13 @@ static GglError delete_component_recipe(
 static GglError delete_component(
     GglBuffer *component_name, GglBuffer *version_number
 ) {
+    GGL_LOGD(
+        "Removing component %.*s with version %.*s as it is marked as stale",
+        (int) component_name->len,
+        component_name->data,
+        (int) version_number->len,
+        version_number->data
+    );
     static uint8_t root_path_mem[PATH_MAX];
     memset(root_path_mem, 0, sizeof(root_path_mem));
     GglBuffer root_path_buffer = GGL_BUF(root_path_mem);
@@ -109,6 +116,18 @@ static GglError delete_component(
     }
 
     err = delete_component_recipe(component_name, version_number, &root_path);
+
+    // Remove component version from config as we use that as source of truth
+    // for active running component version.
+    ret = ggl_gg_config_write(
+        GGL_BUF_LIST(GGL_STR("services"), *component_name, GGL_STR("version")),
+        GGL_OBJ_BUF(GGL_STR("inactive")),
+        0
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write component version to ggconfigd as inactive.");
+        return ret;
+    }
 
     return err;
 }

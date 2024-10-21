@@ -7,6 +7,7 @@
 #include "deployment_model.h"
 #include "deployment_queue.h"
 #include "iot_jobs_listener.h"
+#include "stale_component.h"
 #include <sys/types.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -2220,6 +2221,13 @@ static void handle_deployment(
                 }
             }
         }
+        ret = cleanup_stale_versions(resolved_components_kv_vec.map);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Error while cleaning up stale components after deployment."
+            );
+        }
+
         ret = send_fss_update(GGL_STR("THING_GROUP_DEPLOYMENT"));
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Error while reporting fleet status after deployment.");
