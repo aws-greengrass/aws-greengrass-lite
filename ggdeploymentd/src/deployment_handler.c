@@ -2220,7 +2220,6 @@ static void handle_deployment(
                 }
             }
         }
-        *deployment_succeeded = true;
         ret = send_fss_update(GGL_STR("THING_GROUP_DEPLOYMENT"));
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Error while reporting fleet status after deployment.");
@@ -2515,12 +2514,12 @@ static void handle_deployment(
                 return;
             }
         }
-        *deployment_succeeded = true;
         GglError ret = send_fss_update(GGL_STR("LOCAL_DEPLOYMENT"));
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Error while reporting fleet status after deployment.");
         }
     }
+    *deployment_succeeded = true;
 }
 
 static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
