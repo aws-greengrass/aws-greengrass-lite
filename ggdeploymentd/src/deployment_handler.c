@@ -1983,6 +1983,34 @@ static void handle_deployment(
                 return;
             }
 
+            bool component_updated = true;
+
+            static uint8_t old_component_version_mem[128] = { 0 };
+            GglBuffer old_component_version
+                = GGL_BUF(old_component_version_mem);
+            ret = ggl_gg_config_read_str(
+                GGL_BUF_LIST(
+                    GGL_STR("services"), component_name->buf, GGL_STR("version")
+                ),
+                &old_component_version
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGD("Failed to get component version from config, "
+                         "assuming component is new.");
+            } else {
+                if (ggl_buffer_eq(pair->val.buf, old_component_version)) {
+                    GGL_LOGD(
+                        "Detected that component %.*s has not changed version.",
+                        (int) pair->key.len,
+                        pair->key.data
+                    );
+                    component_updated = false;
+                }
+            }
+            // TODO: See if there is a better requirement. If a customer has the
+            // same version as before but somehow updated their component
+            // version their component may not get the updates.
+
             ret = ggl_gg_config_write(
                 GGL_BUF_LIST(
                     GGL_STR("services"), component_name->buf, GGL_STR("version")
@@ -2046,109 +2074,118 @@ static void handle_deployment(
 
             // TODO: add install file processing logic here.
 
-            static uint8_t service_file_path_buf[PATH_MAX];
-            GglByteVec service_file_path_vec
-                = GGL_BYTE_VEC(service_file_path_buf);
-            ret = ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
-            ggl_byte_vec_chain_append(&ret, &service_file_path_vec, pair->key);
-            ggl_byte_vec_chain_append(
-                &ret, &service_file_path_vec, GGL_STR(".service")
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create service file path.");
-                return;
-            }
-
-            static uint8_t link_command_buf[PATH_MAX];
-            GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
-            ret = ggl_byte_vec_append(
-                &link_command_vec, GGL_STR("sudo systemctl link ")
-            );
-            ggl_byte_vec_chain_append(&ret, &link_command_vec, args->root_path);
-            ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
-            ggl_byte_vec_chain_append(
-                &ret, &link_command_vec, service_file_path_vec.buf
-            );
-            ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl link command.");
-                return;
-            }
-
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            int system_ret = system((char *) link_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl link failed");
+            if (component_updated) {
+                static uint8_t service_file_path_buf[PATH_MAX];
+                GglByteVec service_file_path_vec
+                    = GGL_BYTE_VEC(service_file_path_buf);
+                ret = ggl_byte_vec_append(
+                    &service_file_path_vec, GGL_STR("ggl.")
+                );
+                ggl_byte_vec_chain_append(
+                    &ret, &service_file_path_vec, pair->key
+                );
+                ggl_byte_vec_chain_append(
+                    &ret, &service_file_path_vec, GGL_STR(".service")
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create service file path.");
                     return;
                 }
-                GGL_LOGI(
-                    "systemctl link exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
+
+                static uint8_t link_command_buf[PATH_MAX];
+                GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
+                ret = ggl_byte_vec_append(
+                    &link_command_vec, GGL_STR("sudo systemctl link ")
                 );
-            } else {
-                GGL_LOGE("systemctl link did not exit normally");
-                return;
-            }
-
-            static uint8_t start_command_buf[PATH_MAX];
-            GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
-            ret = ggl_byte_vec_append(
-                &start_command_vec, GGL_STR("sudo systemctl start ")
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &start_command_vec, service_file_path_vec.buf
-            );
-            ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl start command.");
-                return;
-            }
-
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system((char *) start_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl start failed");
+                ggl_byte_vec_chain_append(
+                    &ret, &link_command_vec, args->root_path
+                );
+                ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
+                ggl_byte_vec_chain_append(
+                    &ret, &link_command_vec, service_file_path_vec.buf
+                );
+                ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create systemctl link command.");
                     return;
                 }
-                GGL_LOGI(
-                    "systemctl start exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
-                );
-            } else {
-                GGL_LOGE("systemctl start did not exit normally");
-                return;
-            }
 
-            static uint8_t enable_command_buf[PATH_MAX];
-            GglByteVec enable_command_vec = GGL_BYTE_VEC(enable_command_buf);
-            ret = ggl_byte_vec_append(
-                &enable_command_vec, GGL_STR("sudo systemctl enable ")
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &enable_command_vec, service_file_path_vec.buf
-            );
-            ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl enable command.");
-                return;
-            }
-
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system((char *) enable_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl enable failed");
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                int system_ret = system((char *) link_command_vec.buf.data);
+                if (WIFEXITED(system_ret)) {
+                    if (WEXITSTATUS(system_ret) != 0) {
+                        GGL_LOGE("systemctl link failed");
+                        return;
+                    }
+                    GGL_LOGI(
+                        "systemctl link exited with child status %d\n",
+                        WEXITSTATUS(system_ret)
+                    );
+                } else {
+                    GGL_LOGE("systemctl link did not exit normally");
                     return;
                 }
-                GGL_LOGI(
-                    "systemctl enable exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
+
+                static uint8_t start_command_buf[PATH_MAX];
+                GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
+                ret = ggl_byte_vec_append(
+                    &start_command_vec, GGL_STR("sudo systemctl start ")
                 );
-            } else {
-                GGL_LOGE("systemctl enable did not exit normally");
-                return;
+                ggl_byte_vec_chain_append(
+                    &ret, &start_command_vec, service_file_path_vec.buf
+                );
+                ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create systemctl start command.");
+                    return;
+                }
+
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                system_ret = system((char *) start_command_vec.buf.data);
+                if (WIFEXITED(system_ret)) {
+                    if (WEXITSTATUS(system_ret) != 0) {
+                        GGL_LOGE("systemctl start failed");
+                        return;
+                    }
+                    GGL_LOGI(
+                        "systemctl start exited with child status %d\n",
+                        WEXITSTATUS(system_ret)
+                    );
+                } else {
+                    GGL_LOGE("systemctl start did not exit normally");
+                    return;
+                }
+
+                static uint8_t enable_command_buf[PATH_MAX];
+                GglByteVec enable_command_vec
+                    = GGL_BYTE_VEC(enable_command_buf);
+                ret = ggl_byte_vec_append(
+                    &enable_command_vec, GGL_STR("sudo systemctl enable ")
+                );
+                ggl_byte_vec_chain_append(
+                    &ret, &enable_command_vec, service_file_path_vec.buf
+                );
+                ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create systemctl enable command.");
+                    return;
+                }
+
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                system_ret = system((char *) enable_command_vec.buf.data);
+                if (WIFEXITED(system_ret)) {
+                    if (WEXITSTATUS(system_ret) != 0) {
+                        GGL_LOGE("systemctl enable failed");
+                        return;
+                    }
+                    GGL_LOGI(
+                        "systemctl enable exited with child status %d\n",
+                        WEXITSTATUS(system_ret)
+                    );
+                } else {
+                    GGL_LOGE("systemctl enable did not exit normally");
+                    return;
+                }
             }
         }
     }
