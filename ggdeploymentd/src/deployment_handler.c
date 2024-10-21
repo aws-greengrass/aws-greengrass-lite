@@ -2550,13 +2550,13 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 
         // TODO: need error details from handle_deployment
         if (deployment_succeeded) {
-            GGL_LOGD("Completed deployment processing and reporting job as "
+            GGL_LOGI("Completed deployment processing and reporting job as "
                      "SUCCEEDED.");
             update_current_jobs_deployment(
                 deployment->deployment_id, GGL_STR("SUCCEEDED")
             );
         } else {
-            GGL_LOGD(
+            GGL_LOGW(
                 "Completed deployment processing and reporting job as FAILED."
             );
             update_current_jobs_deployment(
