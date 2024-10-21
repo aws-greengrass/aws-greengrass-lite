@@ -153,7 +153,7 @@ GglError write_to_file(
     ret = ggl_file_openat(
         root_dir_fd,
         filename,
-        O_CREAT | O_WRONLY,
+        O_CREAT | O_WRONLY | O_TRUNC,
         (mode_t) mode,
         &script_as_file
     );

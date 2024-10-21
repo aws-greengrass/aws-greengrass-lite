@@ -222,7 +222,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             }
             int fd = open(
                 global_cert_file_path,
-                O_WRONLY | O_CREAT | O_CLOEXEC,
+                O_WRONLY | O_CREAT | O_CLOEXEC | O_TRUNC,
                 S_IRUSR | S_IWUSR
             );
             if (fd < 0) {
