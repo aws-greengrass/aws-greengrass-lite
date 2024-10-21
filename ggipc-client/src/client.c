@@ -359,7 +359,7 @@ GglError ggipc_get_config_str(
         return ret;
     }
 
-    *value = resp.buf;
+    *value = resp_value->buf;
     return GGL_ERR_OK;
 }
 

@@ -49,6 +49,7 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
                 &key_path, ggl_buffer_substr(json_ptr, begin, i)
             );
             if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Too many configuration levels.");
                 return ret;
             }
             begin = i + 1;
@@ -58,6 +59,7 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
         &key_path, ggl_buffer_substr(json_ptr, begin, SIZE_MAX)
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Too many configuration levels.");
         return ret;
     }
 
@@ -65,6 +67,7 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
     GglBuffer result = GGL_BUF(config_value);
     ret = ggipc_get_config_str(conn, key_path.buf_list, NULL, &result);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to get config value for substitution.");
         return ret;
     }
 
@@ -107,15 +110,11 @@ static GglError substitute_escape(
         if (ggl_buffer_eq(arg, GGL_STR("rootPath"))) {
             return ggl_write_exact(out_fd, root_path);
         }
-        return GGL_ERR_FAILURE;
-    }
-    if (ggl_buffer_eq(type, GGL_STR("iot"))) {
+    } else if (ggl_buffer_eq(type, GGL_STR("iot"))) {
         if (ggl_buffer_eq(arg, GGL_STR("thingName"))) {
             return ggl_write_exact(out_fd, thing_name);
         }
-        return GGL_ERR_FAILURE;
-    }
-    if (ggl_buffer_eq(type, GGL_STR("work"))) {
+    } else if (ggl_buffer_eq(type, GGL_STR("work"))) {
         if (ggl_buffer_eq(arg, GGL_STR("path"))) {
             ret = ggl_write_exact(out_fd, root_path);
             if (ret != GGL_ERR_OK) {
@@ -131,9 +130,7 @@ static GglError substitute_escape(
             }
             return ggl_write_exact(out_fd, GGL_STR("/"));
         }
-        return GGL_ERR_FAILURE;
-    }
-    if (ggl_buffer_eq(type, GGL_STR("artifacts"))) {
+    } else if (ggl_buffer_eq(type, GGL_STR("artifacts"))) {
         if (ggl_buffer_eq(arg, GGL_STR("path"))) {
             ret = ggl_write_exact(out_fd, root_path);
             if (ret != GGL_ERR_OK) {
@@ -188,11 +185,15 @@ static GglError substitute_escape(
             }
             return ggl_write_exact(out_fd, GGL_STR("/"));
         }
-        if (ggl_buffer_eq(arg, GGL_STR("configuration"))) {
-            return insert_config_value(conn, out_fd, arg);
-        }
-        return GGL_ERR_FAILURE;
+    } else if (ggl_buffer_eq(type, GGL_STR("configuration"))) {
+        return insert_config_value(conn, out_fd, arg);
     }
+
+    GGL_LOGE(
+        "Unhandled variable substitution: %.*s.",
+        (int) escape_seq.len,
+        escape_seq.data
+    );
     return GGL_ERR_FAILURE;
 }
 
