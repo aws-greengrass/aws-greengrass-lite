@@ -1714,12 +1714,44 @@ static GglError add_arn_list_to_config(
     return GGL_ERR_OK;
 }
 
+static GglError send_fss_update(GglBuffer trigger) {
+    GglBuffer server = GGL_STR("/aws/ggl/gg-fleet-statusd");
+    static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
+
+    GglMap args = GGL_MAP({ GGL_STR("trigger"), GGL_OBJ_BUF(trigger) });
+
+    GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));
+    GglObject result;
+
+    GglError ret = ggl_call(
+        server,
+        GGL_STR("send_fleet_status_update"),
+        args,
+        NULL,
+        &alloc.alloc,
+        &result
+    );
+
+    if (ret != 0) {
+        GGL_LOGE(
+            "Failed to send send_fleet_status_update to fleet status service: "
+            "%d.",
+            ret
+        );
+        return ret;
+    }
+
+    return GGL_ERR_OK;
+}
+
 // This will be refactored soon with recipe2unit in c, so ignore this warning
 // for now
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static void handle_deployment(
-    GglDeployment *deployment, GglDeploymentHandlerThreadArgs *args
+    GglDeployment *deployment,
+    GglDeploymentHandlerThreadArgs *args,
+    bool *deployment_succeeded
 ) {
     int root_path_fd = args->root_path_fd;
     if (deployment->recipe_directory_path.len != 0) {
@@ -2188,6 +2220,11 @@ static void handle_deployment(
                 }
             }
         }
+        *deployment_succeeded = true;
+        ret = send_fss_update(GGL_STR("THING_GROUP_DEPLOYMENT"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Error while reporting fleet status after deployment.");
+        }
     }
 
     if (deployment->root_component_versions_to_add.len != 0) {
@@ -2478,6 +2515,11 @@ static void handle_deployment(
                 return;
             }
         }
+        *deployment_succeeded = true;
+        GglError ret = send_fss_update(GGL_STR("LOCAL_DEPLOYMENT"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Error while reporting fleet status after deployment.");
+        }
     }
 }
 
@@ -2496,14 +2538,24 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             deployment->deployment_id, GGL_STR("IN_PROGRESS")
         );
 
-        handle_deployment(deployment, args);
-
-        GGL_LOGD("Completed deployment.");
+        bool deployment_succeeded = false;
+        handle_deployment(deployment, args, &deployment_succeeded);
 
         // TODO: need error details from handle_deployment
-        update_current_jobs_deployment(
-            deployment->deployment_id, GGL_STR("SUCCEEDED")
-        );
+        if (deployment_succeeded) {
+            GGL_LOGD("Completed deployment processing and reporting job as "
+                     "SUCCEEDED.");
+            update_current_jobs_deployment(
+                deployment->deployment_id, GGL_STR("SUCCEEDED")
+            );
+        } else {
+            GGL_LOGD(
+                "Completed deployment processing and reporting job as FAILED."
+            );
+            update_current_jobs_deployment(
+                deployment->deployment_id, GGL_STR("FAILED")
+            );
+        }
 
         ggl_deployment_release(deployment);
     }
