@@ -6,11 +6,15 @@
 #include "recipe-runner.h"
 #include <sys/types.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <ggipc/client.h>
 #include <ggl/buffer.h>
+#include <ggl/constants.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/socket.h>
 #include <ggl/vector.h>
 #include <limits.h>
 #include <unistd.h>
@@ -26,6 +30,283 @@ pid_t child_pid = -1; // To store child process ID
 
 // This file is single-threaded
 // NOLINTBEGIN(concurrency-mt-unsafe)
+
+static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
+    static GglBuffer key_path_mem[GGL_MAX_OBJECT_DEPTH];
+    GglBufVec key_path = GGL_BUF_VEC(key_path_mem);
+
+    // TODO: Do full parsing of JSON pointer
+
+    if ((json_ptr.len < 1) || (json_ptr.data[0] != '/')) {
+        GGL_LOGE("Invalid json pointer in recipe escape.");
+        return GGL_ERR_FAILURE;
+    }
+
+    size_t begin = 1;
+    for (size_t i = 1; i < json_ptr.len; i++) {
+        if (json_ptr.data[i] == '/') {
+            GglError ret = ggl_buf_vec_push(
+                &key_path, ggl_buffer_substr(json_ptr, begin, i)
+            );
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            begin = i + 1;
+        }
+    }
+    GglError ret = ggl_buf_vec_push(
+        &key_path, ggl_buffer_substr(json_ptr, begin, SIZE_MAX)
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    static uint8_t config_value[10000];
+    GglBuffer result = GGL_BUF(config_value);
+    ret = ggipc_get_config_str(conn, key_path.buf_list, NULL, &result);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    return ggl_write_exact(out_fd, result);
+}
+
+static GglError split_escape_seq(
+    GglBuffer escape_seq, GglBuffer *left, GglBuffer *right
+) {
+    for (size_t i = 0; i < escape_seq.len; i++) {
+        if (escape_seq.data[i] == ':') {
+            *left = ggl_buffer_substr(escape_seq, 0, i);
+            *right = ggl_buffer_substr(escape_seq, i + 1, SIZE_MAX);
+            return GGL_ERR_OK;
+        }
+    }
+
+    GGL_LOGE("No : found in recipe escape sequence.");
+    return GGL_ERR_FAILURE;
+}
+
+// TODO: Simplify this code
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+static GglError substitute_escape(
+    int conn,
+    int out_fd,
+    GglBuffer escape_seq,
+    GglBuffer root_path,
+    GglBuffer component_name,
+    GglBuffer component_version,
+    GglBuffer thing_name
+) {
+    GglBuffer type;
+    GglBuffer arg;
+    GglError ret = split_escape_seq(escape_seq, &type, &arg);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    if (ggl_buffer_eq(type, GGL_STR("kernel"))) {
+        if (ggl_buffer_eq(arg, GGL_STR("rootPath"))) {
+            return ggl_write_exact(out_fd, root_path);
+        }
+        return GGL_ERR_FAILURE;
+    }
+    if (ggl_buffer_eq(type, GGL_STR("iot"))) {
+        if (ggl_buffer_eq(arg, GGL_STR("thingName"))) {
+            return ggl_write_exact(out_fd, thing_name);
+        }
+        return GGL_ERR_FAILURE;
+    }
+    if (ggl_buffer_eq(type, GGL_STR("work"))) {
+        if (ggl_buffer_eq(arg, GGL_STR("path"))) {
+            ret = ggl_write_exact(out_fd, root_path);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, GGL_STR("/work/"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, component_name);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            return ggl_write_exact(out_fd, GGL_STR("/"));
+        }
+        return GGL_ERR_FAILURE;
+    }
+    if (ggl_buffer_eq(type, GGL_STR("artifacts"))) {
+        if (ggl_buffer_eq(arg, GGL_STR("path"))) {
+            ret = ggl_write_exact(out_fd, root_path);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, GGL_STR("/packages/"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, GGL_STR("artifacts/"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, component_name);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, GGL_STR("/"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, component_version);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            return ggl_write_exact(out_fd, GGL_STR("/"));
+        }
+        if (ggl_buffer_eq(arg, GGL_STR("decompressedPath"))) {
+            ret = ggl_write_exact(out_fd, root_path);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, GGL_STR("/packages/"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, GGL_STR("artifacts-unarchived/"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, component_name);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, GGL_STR("/"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            ret = ggl_write_exact(out_fd, component_version);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+            return ggl_write_exact(out_fd, GGL_STR("/"));
+        }
+        if (ggl_buffer_eq(arg, GGL_STR("configuration"))) {
+            return insert_config_value(conn, out_fd, arg);
+        }
+        return GGL_ERR_FAILURE;
+    }
+    return GGL_ERR_FAILURE;
+}
+
+static GglError file_read(int fd, GglBuffer *buf) {
+    ssize_t ret;
+    while (true) {
+        ret = read(fd, buf->data, buf->len);
+        if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            GGL_LOGE("Failed to read from %d: %d.", fd, errno);
+            return GGL_ERR_FAILURE;
+        }
+        break;
+    }
+
+    *buf = ggl_buffer_substr(*buf, 0, (size_t) ret);
+    return GGL_ERR_OK;
+}
+
+static GglError handle_escape(
+    int conn,
+    int out_fd,
+    int in_fd,
+    GglBuffer root_path,
+    GglBuffer component_name,
+    GglBuffer component_version,
+    GglBuffer thing_name
+) {
+    static uint8_t escape_contents[120];
+    GglByteVec vec = GGL_BYTE_VEC(escape_contents);
+
+    uint8_t read_mem[1] = { 0 };
+
+    while (true) {
+        GglBuffer read_buf = GGL_BUF(read_mem);
+        GglError ret = file_read(in_fd, &read_buf);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+        if (read_buf.len == 0) {
+            GGL_LOGE("Recipe escape is not terminated.");
+            return GGL_ERR_NOMEM;
+        }
+        if (*read_mem != '}') {
+            ret = ggl_byte_vec_push(&vec, *read_mem);
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Recipe escape exceeded max length.");
+                return ret;
+            }
+        } else {
+            return substitute_escape(
+                conn,
+                out_fd,
+                vec.buf,
+                root_path,
+                component_name,
+                component_version,
+                thing_name
+            );
+        }
+    }
+}
+
+static GglError write_script_with_replacement(
+    int conn,
+    int out_fd,
+    GglBuffer script_path,
+    GglBuffer root_path,
+    GglBuffer component_name,
+    GglBuffer component_version,
+    GglBuffer thing_name
+) {
+    int in_fd = -1;
+    GglError ret = ggl_file_open(script_path, O_RDONLY, 0, &in_fd);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    uint8_t read_mem[1] = { 0 };
+
+    while (true) {
+        GglBuffer read_buf = GGL_BUF(read_mem);
+        ret = file_read(in_fd, &read_buf);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+        if (read_buf.len == 0) {
+            break;
+        }
+        if (*read_mem != '{') {
+            ret = ggl_write_exact(out_fd, read_buf);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+        } else {
+            ret = handle_escape(
+                conn,
+                out_fd,
+                in_fd,
+                root_path,
+                component_name,
+                component_version,
+                thing_name
+            );
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+        }
+    }
+
+    return GGL_ERR_OK;
+}
 
 GglError runner(const RecipeRunnerArgs *args) {
     // Get the SocketPath from Environment Variable
@@ -153,48 +434,43 @@ GglError runner(const RecipeRunnerArgs *args) {
         = ggl_buffer_from_null_term(args->component_version);
     GglBuffer file_path = ggl_buffer_from_null_term(args->file_path);
 
-    static uint8_t script_mem[10000];
-    GglByteVec script = GGL_BYTE_VEC(script_mem);
+    int pipe_fds[2];
 
-    ret = ggl_byte_vec_append(&script, GGL_STR("sed -e 's|{artifacts:path}|"));
-    ggl_byte_vec_chain_append(&ret, &script, root_path);
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("/packages/"));
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("artifacts/"));
-    ggl_byte_vec_chain_append(&ret, &script, component_name);
-    ggl_byte_vec_chain_push(&ret, &script, '/');
-    ggl_byte_vec_chain_append(&ret, &script, component_version);
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("/|g'"));
-    ggl_byte_vec_chain_append(
-        &ret, &script, GGL_STR(" -e 's|{artifacts:decompressedPath}|")
-    );
-    ggl_byte_vec_chain_append(&ret, &script, root_path);
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("/packages/"));
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("artifacts-unarchived/"));
-    ggl_byte_vec_chain_append(&ret, &script, component_name);
-    ggl_byte_vec_chain_push(&ret, &script, '/');
-    ggl_byte_vec_chain_append(&ret, &script, component_version);
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("/|g'"));
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR(" -e 's|{work:path}|"));
-    ggl_byte_vec_chain_append(&ret, &script, root_path);
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("/work/"));
-    ggl_byte_vec_chain_append(&ret, &script, component_name);
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("/|g'"));
-    ggl_byte_vec_chain_append(
-        &ret, &script, GGL_STR(" -e 's|{kernel:rootPath}|")
-    );
-    ggl_byte_vec_chain_append(&ret, &script, root_path);
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("/|g'"));
-    ggl_byte_vec_chain_append(
-        &ret, &script, GGL_STR(" -e 's|{iot:thingName}|")
-    );
-    ggl_byte_vec_chain_append(&ret, &script, thing_name);
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("/|g' '"));
-    ggl_byte_vec_chain_append(&ret, &script, file_path);
-    ggl_byte_vec_chain_append(&ret, &script, GGL_STR("' | bash\n\0"));
+    sys_ret = pipe2(pipe_fds, O_CLOEXEC);
+    if (sys_ret != 0) {
+        GGL_LOGE("pipe failed: %d.", errno);
+        return GGL_ERR_FAILURE;
+    }
 
-    char *exec_args[] = { "bash", "-c", (char *) script.buf.data, NULL };
-    execvp("bash", exec_args);
-    return GGL_ERR_FAILURE;
+    pid_t pid = fork();
+
+    if (pid < 0) {
+        GGL_LOGE("Err %d when calling fork.", errno);
+        return GGL_ERR_FAILURE;
+    }
+
+    // exec in parent to preserve pid
+    if (pid > 0) {
+        dup2(pipe_fds[0], STDIN_FILENO);
+        char *argv[] = { "bash", NULL };
+        execvp(argv[0], argv);
+        _Exit(1);
+    }
+
+    // child
+    (void) ggl_close(pipe_fds[0]);
+    ret = write_script_with_replacement(
+        conn,
+        pipe_fds[1],
+        file_path,
+        root_path,
+        component_name,
+        component_version,
+        thing_name
+    );
+
+    _Exit(ret != GGL_ERR_OK);
+    return GGL_ERR_FATAL;
 }
 
 // NOLINTEND(concurrency-mt-unsafe)

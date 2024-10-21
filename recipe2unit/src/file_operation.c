@@ -166,5 +166,10 @@ GglError write_to_file(
         GGL_LOGE("Write to file failed");
         return GGL_ERR_FAILURE;
     }
+    ret = ggl_write_exact(script_as_file, GGL_STR("\n"));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Write to file failed");
+        return GGL_ERR_FAILURE;
+    }
     return GGL_ERR_OK;
 }

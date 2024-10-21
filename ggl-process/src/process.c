@@ -70,7 +70,7 @@ GglError ggl_process_spawn(char *const argv[], int *handle) {
     }
 
     if (pid < 0) {
-        GGL_LOGE("Err %d when calling clone3.", errno);
+        GGL_LOGE("Err %d when calling fork.", errno);
         return GGL_ERR_FAILURE;
     }
 
