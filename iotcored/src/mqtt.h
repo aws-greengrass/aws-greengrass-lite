@@ -26,6 +26,7 @@ GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos);
 GglError iotcored_mqtt_subscribe(
     GglBuffer *topic_filters, size_t count, uint8_t qos
 );
+GglError iotcored_mqtt_unsubscribe(GglBuffer *topic_filters, size_t count);
 
 bool iotcored_mqtt_topic_filter_match(GglBuffer topic_filter, GglBuffer topic);
 

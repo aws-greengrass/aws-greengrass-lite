@@ -350,6 +350,44 @@ GglError iotcored_mqtt_subscribe(
     return 0;
 }
 
+GglError iotcored_mqtt_unsubscribe(GglBuffer *topic_filters, size_t count) {
+    assert(count > 0);
+    assert(count < GGL_MQTT_MAX_SUBSCRIBE_FILTERS);
+
+    static MQTTSubscribeInfo_t sub_infos[GGL_MQTT_MAX_SUBSCRIBE_FILTERS];
+
+    for (size_t i = 0; i < count; i++) {
+        sub_infos[i] = (MQTTSubscribeInfo_t) {
+            .pTopicFilter = (char *) topic_filters[i].data,
+            .topicFilterLength = (uint16_t) topic_filters[i].len,
+            .qos = 0,
+        };
+    }
+
+    MQTTStatus_t result = MQTT_Unsubscribe(
+        &mqtt_ctx, sub_infos, count, MQTT_GetPacketId(&mqtt_ctx)
+    );
+
+    if (result != MQTTSuccess) {
+        GGL_LOGE(
+            "%s to %.*s failed: %s",
+            "Unsubscribe",
+            (int) (uint16_t) topic_filters[0].len,
+            topic_filters[0].data,
+            MQTT_Status_strerror(result)
+        );
+        return GGL_ERR_FAILURE;
+    }
+
+    GGL_LOGD(
+        "Unsubscribe sent for: %.*s",
+        (int) (uint16_t) topic_filters[0].len,
+        topic_filters[0].data
+    );
+
+    return 0;
+}
+
 bool iotcored_mqtt_topic_filter_match(GglBuffer topic_filter, GglBuffer topic) {
     bool matches = false;
     MQTTStatus_t result = MQTT_MatchTopic(

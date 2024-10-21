@@ -84,11 +84,36 @@ GglError iotcored_register_subscriptions(
     return GGL_ERR_NOMEM;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void iotcored_unregister_subscriptions(uint32_t handle) {
     GGL_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (handles[i] == handle) {
+            size_t j;
+            for (j = 0; j < IOTCORED_MAX_SUBSCRIPTIONS; j++) {
+                if (i == j) {
+                    continue;
+                }
+                if ((topic_filter_len[j] != 0)
+                    && (topic_filter_len[i] == topic_filter_len[j])
+                    && (memcmp(
+                            sub_topic_filters[i],
+                            sub_topic_filters[j],
+                            topic_filter_len[i]
+                        )
+                        == 0)) {
+                    // Found a matching topic filter. No need to check
+                    // further.
+                    break;
+                }
+            }
+
+            // This is the only subscription to this topic. Send an unsubscribe.
+            if (j == IOTCORED_MAX_SUBSCRIPTIONS) {
+                GglBuffer buf[] = { topic_filter_buf(i) };
+                iotcored_mqtt_unsubscribe(buf, 1U);
+            }
             topic_filter_len[i] = 0;
         }
     }
