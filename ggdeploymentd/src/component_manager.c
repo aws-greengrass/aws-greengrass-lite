@@ -10,6 +10,7 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/semver.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
@@ -18,7 +19,7 @@
 #define LOCAL_DEPLOYMENT "LOCAL_DEPLOYMENT"
 
 static GglError find_active_version(
-    GglBuffer package_name, GglBuffer *version
+    GglBuffer package_name, GglBuffer version_requirement, GglBuffer *version
 ) {
     // check the config to see if the provided package name is already a running
     // service
@@ -41,7 +42,8 @@ static GglError find_active_version(
     }
 
     // active component found, update the version if it is a real version
-    if (ggl_buffer_eq(GGL_STR("inactive"), version_resp)) {
+    if (ggl_buffer_eq(GGL_STR("inactive"), version_resp)
+        || !is_in_range(version_resp, version_requirement)) {
         return GGL_ERR_NOENTRY;
     }
     *version = version_resp;
@@ -53,7 +55,8 @@ static GglError find_best_candidate_locally(
 ) {
     GGL_LOGD("Searching for the best local candidate on the device.");
 
-    GglError ret = find_active_version(component_name, version);
+    GglError ret
+        = find_active_version(component_name, version_requirement, version);
 
     if (ret == GGL_ERR_OK) {
         GGL_LOGI("Found running component which meets the version requirements."
