@@ -35,5 +35,5 @@ place of x.y.z
 ./bin/ggl-cli deploy --recipe-dir components/recipes --artifacts-dir components/artifacts --add-component aws.greengrass.CloudLogger=x.y.z
 ```
 
-//TODO: Add cloudformation template and/or setup instructions for the log group,
+TODO: Add cloudformation template and/or setup instructions for the log group,
 rule action, role, etc
