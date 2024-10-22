@@ -172,9 +172,9 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
             continue;
         }
         ret = ggl_buf_clone(version_resp, &balloc.alloc, &version_resp);
-        if(ret != GGL_ERR_OK) {
-          GGL_LOGE("Failed to copy version response buffer.");
-          return ret;
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to copy version response buffer.");
+            return ret;
         }
 
         // retrieve component health status
@@ -185,9 +185,9 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
             return ret;
         }
         ret = ggl_buf_clone(component_health, &balloc.alloc, &component_health);
-        if(ret != GGL_ERR_OK) {
-          GGL_LOGE("Failed to copy component health buffer.");
-          return ret;
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to copy component health buffer.");
+            return ret;
         }
 
         // if a component is broken, mark the device as unhealthy
