@@ -1789,7 +1789,7 @@ static GglError on_lifecycle_completion(
         return GGL_ERR_FAILURE;
     }
     if (!ggl_buffer_eq(GGL_STR("BROKEN"), status->buf)) {
-        context->result = GGL_ERR_OK;
+        atomic_store(&context->result, GGL_ERR_OK);
         return GGL_ERR_OK;
     }
     GGL_LOGE(
