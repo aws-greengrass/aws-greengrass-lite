@@ -23,7 +23,6 @@
 #include <pthread.h>
 #include <string.h>
 #include <time.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -38,8 +37,6 @@
     (TOPIC_PREFIX_LEN + MAX_THING_NAME_LEN + TOPIC_SUFFIX_LEN)
 
 #define PAYLOAD_BUFFER_LEN 5000
-
-static atomic_int sequence_number = 1;
 
 static GglError retrieve_component_health_status(
     GglBuffer component, GglBuffer *component_status
@@ -89,6 +86,8 @@ static GglError retrieve_component_health_status(
     return GGL_ERR_OK;
 }
 
+// TODO: Split this function up
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
     GGL_MTX_SCOPE_GUARD(&mtx);
@@ -152,20 +151,6 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
             continue;
         }
 
-        // retrieve component health status
-        uint8_t component_health_arr[NAME_MAX];
-        GglBuffer component_health = GGL_BUF(component_health_arr);
-        ret = retrieve_component_health_status(pair->key, &component_health);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        ggl_buf_clone(component_health, &balloc.alloc, &component_health);
-
-        // if a component is broken, mark the device as unhealthy
-        if (ggl_buffer_eq(component_health, GGL_STR("BROKEN"))) {
-            device_healthy = false;
-        }
-
         // retrieve component version from config
         static uint8_t version_resp_mem[128] = { 0 };
         GglBuffer version_resp = GGL_BUF(version_resp_mem);
@@ -182,7 +167,25 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
             );
             return GGL_ERR_NOENTRY;
         }
+        if (ggl_buffer_eq(version_resp, GGL_STR("invalid"))) {
+            // this component is no longer on the device
+            continue;
+        }
         ggl_buf_clone(version_resp, &balloc.alloc, &version_resp);
+
+        // retrieve component health status
+        uint8_t component_health_arr[NAME_MAX];
+        GglBuffer component_health = GGL_BUF(component_health_arr);
+        ret = retrieve_component_health_status(pair->key, &component_health);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+        ggl_buf_clone(component_health, &balloc.alloc, &component_health);
+
+        // if a component is broken, mark the device as unhealthy
+        if (ggl_buffer_eq(component_health, GGL_STR("BROKEN"))) {
+            device_healthy = false;
+        }
 
         // retrieve fleet config arn list from config
         GglObject arn_list;
@@ -261,8 +264,30 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
         return ret;
     }
 
-    // TODO: check if sequence numbers can skip iterations
-    int64_t sequence = atomic_fetch_add(&sequence_number, 1);
+    // check for a persisted sequence number
+    GglObject sequence;
+    ret = ggl_gg_config_read(
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("fleetStatusSequenceNum")),
+        &balloc.alloc,
+        &sequence
+    );
+    if (ret == GGL_ERR_OK && sequence.type == GGL_TYPE_I64) {
+        // if sequence number found, increment it
+        sequence.i64 += 1;
+    } else {
+        // if sequence number not found, set it
+        sequence.i64 = 1;
+    }
+    // set the current sequence number in the config
+    ret = ggl_gg_config_write(
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("fleetStatusSequenceNum")),
+        GGL_OBJ_I64(sequence.i64),
+        0
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write sequence number to configuration.");
+        return ret;
+    }
 
     GglObject payload_obj = GGL_OBJ_MAP(GGL_MAP(
         { GGL_STR("ggcVersion"), GGL_OBJ_BUF(GGL_STR("1.0.0")) },
@@ -270,7 +295,7 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
         { GGL_STR("architecture"), GGL_OBJ_BUF(GGL_STR("amd64")) },
         { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("NucleusLite")) },
         { GGL_STR("thing"), GGL_OBJ_BUF(thing_name) },
-        { GGL_STR("sequenceNumber"), GGL_OBJ_I64(sequence) },
+        { GGL_STR("sequenceNumber"), sequence },
         { GGL_STR("timestamp"), GGL_OBJ_I64(timestamp) },
         { GGL_STR("messageType"), GGL_OBJ_BUF(GGL_STR("COMPLETE")) },
         { GGL_STR("trigger"), GGL_OBJ_BUF(trigger) },
