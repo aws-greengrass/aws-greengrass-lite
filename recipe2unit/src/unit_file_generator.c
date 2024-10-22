@@ -31,6 +31,14 @@
 #define MAX_RETRIES_INTERVAL_SECONDS "3600"
 #define RETRY_DELAY_SECONDS "1"
 
+static GglError select_linux_manifest(
+    GglMap recipe_map, GglObject *val, GglMap *out_selected_lifecycle_map
+);
+
+static GglError concat_script_name_prefix_vec(
+    const GglMap *recipe_map, GglByteVec *script_name_prefix_vec
+);
+
 /// Parses [DependencyType] portion of recipe and updates the unit file
 /// buffer(out) with dependency information appropriately
 static GglError parse_dependency_type(
@@ -228,10 +236,57 @@ static GglError fetch_script_section(
     return GGL_ERR_OK;
 };
 
-static GglError concat_initial_strings(
+static GglError concat_script_name_prefix_vec(
+    const GglMap *recipe_map, GglByteVec *script_name_prefix_vec
+) {
+    GglError ret;
+    GglObject *component_name;
+    if (!ggl_map_get(*recipe_map, GGL_STR("ComponentName"), &component_name)) {
+        return GGL_ERR_INVALID;
+    }
+    if (component_name->type != GGL_TYPE_BUF) {
+        return GGL_ERR_INVALID;
+    }
+
+    // build the script name prefix string
+    ret = ggl_byte_vec_append(script_name_prefix_vec, component_name->buf);
+    ggl_byte_vec_chain_append(
+        &ret, script_name_prefix_vec, GGL_STR(".script.")
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    return GGL_ERR_OK;
+}
+
+static GglError concat_working_dir_vec(
+    const GglMap *recipe_map, GglByteVec *working_dir_vec, Recipe2UnitArgs *args
+
+) {
+    GglError ret;
+    GglObject *component_name;
+    if (!ggl_map_get(*recipe_map, GGL_STR("ComponentName"), &component_name)) {
+        return GGL_ERR_INVALID;
+    }
+    if (component_name->type != GGL_TYPE_BUF) {
+        return GGL_ERR_INVALID;
+    }
+
+    // build the working directory string
+    ret = ggl_byte_vec_append(
+        working_dir_vec, ggl_buffer_from_null_term(args->root_dir)
+    );
+    ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work/"));
+    ggl_byte_vec_chain_append(&ret, working_dir_vec, component_name->buf);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    return GGL_ERR_OK;
+}
+
+static GglError concat_exec_start_section_vec(
     const GglMap *recipe_map,
-    GglByteVec *script_name_prefix_vec,
-    GglByteVec *working_dir_vec,
     GglByteVec *exec_start_section_vec,
     GglObject **component_name,
     Recipe2UnitArgs *args
@@ -257,26 +312,7 @@ static GglError concat_initial_strings(
     }
     GglBuffer component_version = component_version_obj->buf;
 
-    // build the script name prefix string
-    ret = ggl_byte_vec_append(script_name_prefix_vec, (*component_name)->buf);
-    ggl_byte_vec_chain_append(
-        &ret, script_name_prefix_vec, GGL_STR(".script.")
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    // build the working directory string
-    ret = ggl_byte_vec_append(
-        working_dir_vec, ggl_buffer_from_null_term(args->root_dir)
-    );
-    ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work/"));
-    ggl_byte_vec_chain_append(&ret, working_dir_vec, (*component_name)->buf);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    // build the working directory string
+    // build the path for ExecStart section in unit file
     ret = ggl_byte_vec_append(
         exec_start_section_vec,
         (GglBuffer) { .data = (uint8_t *) args->recipe_runner_path,
@@ -484,7 +520,8 @@ static GglError manifest_builder(
     GglByteVec *out,
     GglByteVec script_name_prefix_vec,
     GglByteVec exec_start_section_vec,
-    Recipe2UnitArgs *args
+    Recipe2UnitArgs *args,
+    PhaseSelection current_phase
 ) {
     bool is_root = false;
 
@@ -517,71 +554,86 @@ static GglError manifest_builder(
                 GGL_LOGI("Setenv section not found within the linux lifecycle");
             }
 
-            static uint8_t big_buffer_for_bump[MAX_SCRIPT_SIZE + PATH_MAX];
-            GglBumpAlloc the_allocator
-                = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-            GglMap standardized_install_map = { 0 };
-            ret = parse_install_section(
-                selected_lifecycle_map,
-                set_env_as_map,
-                args->root_dir,
-                &standardized_install_map,
-                &the_allocator.alloc
-            );
-            if (ret != GGL_ERR_OK) {
-                return ret;
-            }
+            // static uint8_t big_buffer_for_bump[MAX_SCRIPT_SIZE + PATH_MAX];
+            // GglBumpAlloc the_allocator
+            //     = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+            // GglMap standardized_install_map = { 0 };
 
-            ret = create_standardized_install_file(
-                script_name_prefix_vec, standardized_install_map, args->root_dir
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create standardized install file.");
-                return ret;
-            }
+            // ret = parse_install_section(
+            //     selected_lifecycle_map,
+            //     set_env_as_map,
+            //     args->root_dir,
+            //     &standardized_install_map,
+            //     &the_allocator.alloc
+            // );
+            // if (ret != GGL_ERR_OK) {
+            //     return ret;
+            // }
+
+            // ret = create_standardized_install_file(
+            //     script_name_prefix_vec, standardized_install_map,
+            //     args->root_dir
+            // );
+            // if (ret != GGL_ERR_OK) {
+            //     GGL_LOGE("Failed to create standardized install file.");
+            //     return ret;
+            // }
 
             //****************************************************************
             // Note: Everything below this should only deal with run or startup
             // ****************************************************************
             GglBuffer lifecycle_script_selection = { 0 };
             GglObject *startup_or_run_section;
-            if (ggl_map_get(
-                    selected_lifecycle_map,
-                    GGL_STR("startup"),
-                    &startup_or_run_section
-                )) {
-                if (startup_or_run_section->type == GGL_TYPE_LIST) {
-                    GGL_LOGE("startup is a list type");
-                    return GGL_ERR_INVALID;
-                }
-                lifecycle_script_selection = GGL_STR("startup");
-                ret = ggl_byte_vec_append(
-                    out, GGL_STR("RemainAfterExit=true\n")
-                );
+
+            if (current_phase == INSTALL) {
+                lifecycle_script_selection = GGL_STR("install");
                 ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=oneshot\n"));
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE("Failed to add unit type information");
                     return GGL_ERR_FAILURE;
                 }
+            } else if (current_phase == RUN_STARTUP) {
+                if (ggl_map_get(
+                        selected_lifecycle_map,
+                        GGL_STR("startup"),
+                        &startup_or_run_section
+                    )) {
+                    if (startup_or_run_section->type == GGL_TYPE_LIST) {
+                        GGL_LOGE("Startup is a list type");
+                        return GGL_ERR_INVALID;
+                    }
+                    lifecycle_script_selection = GGL_STR("startup");
+                    ret = ggl_byte_vec_append(
+                        out, GGL_STR("RemainAfterExit=true\n")
+                    );
+                    ggl_byte_vec_chain_append(
+                        &ret, out, GGL_STR("Type=oneshot\n")
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE("Failed to add unit type information");
+                        return GGL_ERR_FAILURE;
+                    }
 
-            } else if (ggl_map_get(
-                           selected_lifecycle_map,
-                           GGL_STR("run"),
-                           &startup_or_run_section
-                       )) {
-                if (startup_or_run_section->type == GGL_TYPE_LIST) {
-                    GGL_LOGE("'run' field in the lifecycle is of List type.");
-                    return GGL_ERR_INVALID;
+                } else if (ggl_map_get(
+                               selected_lifecycle_map,
+                               GGL_STR("run"),
+                               &startup_or_run_section
+                           )) {
+                    if (startup_or_run_section->type == GGL_TYPE_LIST) {
+                        GGL_LOGE("'run' field in the lifecycle is of List type."
+                        );
+                        return GGL_ERR_INVALID;
+                    }
+                    lifecycle_script_selection = GGL_STR("run");
+                    ret = ggl_byte_vec_append(out, GGL_STR("Type=exec\n"));
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE("Failed to add unit type information");
+                        return GGL_ERR_FAILURE;
+                    }
+                } else {
+                    GGL_LOGI("No startup or run provided");
+                    return GGL_ERR_OK;
                 }
-                lifecycle_script_selection = GGL_STR("run");
-                ret = ggl_byte_vec_append(out, GGL_STR("Type=exec\n"));
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to add unit type information");
-                    return GGL_ERR_FAILURE;
-                }
-            } else {
-                GGL_LOGI("No startup or run provided");
-                return GGL_ERR_OK;
             }
 
             GglBuffer selected_script = { 0 };
@@ -643,14 +695,18 @@ static GglError manifest_builder(
     return GGL_ERR_OK;
 }
 
-static GglError fill_install_section(GglByteVec *out) {
-    GglError ret = ggl_byte_vec_append(out, GGL_STR("\n[Install]\n"));
-    ggl_byte_vec_chain_append(
-        &ret, out, GGL_STR("WantedBy=multi-user.target\n")
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to set Install section to unit file");
-        return ret;
+static GglError fill_install_section(
+    GglByteVec *out, PhaseSelection current_phase
+) {
+    if (current_phase != INSTALL) {
+        GglError ret = ggl_byte_vec_append(out, GGL_STR("\n[Install]\n"));
+        ggl_byte_vec_chain_append(
+            &ret, out, GGL_STR("WantedBy=multi-user.target\n")
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to set Install section to unit file");
+            return ret;
+        }
     }
 
     return GGL_ERR_OK;
@@ -660,7 +716,8 @@ static GglError fill_service_section(
     const GglMap *recipe_map,
     GglByteVec *out,
     Recipe2UnitArgs *args,
-    GglObject **component_name
+    GglObject **component_name,
+    PhaseSelection phase
 ) {
     GglError ret = ggl_byte_vec_append(out, GGL_STR("[Service]\n"));
     if (ret != GGL_ERR_OK) {
@@ -685,17 +742,21 @@ static GglError fill_service_section(
     GglByteVec script_name_prefix_vec = GGL_BYTE_VEC(script_name_prefix_buf);
     ret = ggl_byte_vec_append(&script_name_prefix_vec, GGL_STR("ggl."));
 
-    ret = concat_initial_strings(
-        recipe_map,
-        &script_name_prefix_vec,
-        &working_dir_vec,
-        &exec_start_section_vec,
-        component_name,
-        args
-    );
-
+    ret = concat_script_name_prefix_vec(recipe_map, &script_name_prefix_vec);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("String concat failed.");
+        GGL_LOGE("Script Name String prefix concat failed.");
+        return ret;
+    }
+    ret = concat_working_dir_vec(recipe_map, &working_dir_vec, args);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Working directory String prefix concat failed.");
+        return ret;
+    }
+    ret = concat_exec_start_section_vec(
+        recipe_map, &exec_start_section_vec, component_name, args
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("ExctStart String prefix concat failed.");
         return ret;
     }
 
@@ -735,7 +796,12 @@ static GglError fill_service_section(
     }
 
     ret = manifest_builder(
-        *recipe_map, out, script_name_prefix_vec, exec_start_section_vec, args
+        *recipe_map,
+        out,
+        script_name_prefix_vec,
+        exec_start_section_vec,
+        args,
+        phase
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -748,7 +814,8 @@ GglError generate_systemd_unit(
     const GglMap *recipe_map,
     GglBuffer *unit_file_buffer,
     Recipe2UnitArgs *args,
-    GglObject **component_name
+    GglObject **component_name,
+    PhaseSelection phase
 ) {
     GglByteVec concat_unit_vector
         = { .buf = { .data = unit_file_buffer->data, .len = 0 },
@@ -765,13 +832,13 @@ GglError generate_systemd_unit(
     }
 
     ret = fill_service_section(
-        recipe_map, &concat_unit_vector, args, component_name
+        recipe_map, &concat_unit_vector, args, component_name, phase
     );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    ret = fill_install_section(&concat_unit_vector);
+    ret = fill_install_section(&concat_unit_vector, phase);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
