@@ -67,9 +67,20 @@ GglError convert_to_unit(
     ) { .data = (uint8_t *) unit_file_buffer, .len = MAX_UNIT_FILE_BUF_SIZE };
 
     ret = generate_systemd_unit(
-        &recipe_obj->map, &response_buffer, args, component_name
+        &recipe_obj->map, &response_buffer, args, component_name, INSTALL
     );
-    if (ret != GGL_ERR_OK) {
+    if (ret == GGL_ERR_NOENTRY) {
+        GGL_LOGW("No Install phase present");
+    } else if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    ret = generate_systemd_unit(
+        &recipe_obj->map, &response_buffer, args, component_name, RUN_STARTUP
+    );
+    if (ret == GGL_ERR_NOENTRY) {
+        GGL_LOGW("No run or phase present");
+    } else if (ret != GGL_ERR_OK) {
         return ret;
     }
 
