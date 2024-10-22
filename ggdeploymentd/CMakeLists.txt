@@ -17,5 +17,6 @@ ggl_init_module(
        aws-iot-call
        core-bus-gg-config
        core-bus-aws-iot-mqtt
+       core-bus-sub-response
        recipe2unit
        PkgConfig::uuid)

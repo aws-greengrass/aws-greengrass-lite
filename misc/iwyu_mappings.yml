@@ -17,6 +17,7 @@
 - symbol: ["poll", "private", "<poll.h>", "public"]
 - symbol: ["pollfd", "private", "<poll.h>", "public"]
 - symbol: ["pthread_cond_t", "private", "<sys/types.h>", "public"]
+- symbol: ["pthread_condattr_t", "private", "<sys/types.h>", "public"]
 - symbol: ["pthread_mutex_t", "private", "<sys/types.h>", "public"]
 - symbol: ["pthread_mutexattr_t", "private", "<sys/types.h>", "public"]
 - symbol: ["pthread_t", "private", "<sys/types.h>", "public"]
