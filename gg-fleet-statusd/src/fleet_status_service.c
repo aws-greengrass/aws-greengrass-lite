@@ -284,12 +284,12 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
         sequence.i64 += 1;
     } else {
         // if sequence number not found, set it
-        sequence.i64 = 1;
+        sequence = GGL_OBJ_I64(1);
     }
     // set the current sequence number in the config
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("fleetStatusSequenceNum")),
-        GGL_OBJ_I64(sequence.i64),
+        sequence,
         0
     );
     if (ret != GGL_ERR_OK) {
