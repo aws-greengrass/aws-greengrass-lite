@@ -231,6 +231,8 @@ static GglError fetch_script_section(
             GGL_LOGE("Script section section is of invalid list type");
             return GGL_ERR_INVALID;
         }
+    } else {
+        return GGL_ERR_NOENTRY;
     }
 
     return GGL_ERR_OK;
