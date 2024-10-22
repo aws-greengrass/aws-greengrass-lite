@@ -97,7 +97,7 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
         request_ret = ggl_file_open(
             ggl_buffer_from_null_term(file_path),
             O_CREAT | O_WRONLY | O_TRUNC,
-            0644,
+            0640,
             &fd
         );
         if (request_ret != GGL_ERR_OK) {
