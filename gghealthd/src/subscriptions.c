@@ -259,8 +259,6 @@ void *health_event_loop_thread(void *ctx) {
         GGL_LOGE("Bailed out of event loop (ret=%d)", sd_ret);
         ggl_sleep(1);
     }
-
-    sd_event_unref(e);
 }
 
 // core-bus thread functions //
