@@ -1,3 +1,10 @@
+## 2024-10-22
+
+Bug Fixes:
+
+- `--gc-sections` linker flag was causing misaligned accesses on 32-bit arm. The
+  flag has been disabled; this will need to be root caused further.
+
 ## 2024-10-21
 
 Breaking changes:
