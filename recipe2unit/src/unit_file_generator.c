@@ -25,6 +25,7 @@
 
 #define WORKING_DIR_LEN 4096
 #define MAX_SCRIPT_SIZE 10000
+#define MAX_UNIT_SIZE 10000
 
 #define MAX_RETRIES_BEFORE_BROKEN "3"
 #define MAX_RETRIES_INTERVAL_SECONDS "3600"
@@ -365,6 +366,8 @@ static GglError fetch_script_section(
                     return GGL_ERR_INVALID;
                 }
                 *selected_script_as_buf = key_object->buf;
+            } else {
+                  return GGL_ERR_NOENTRY;
             }
 
             if (ggl_map_get(val->map, GGL_STR("Setenv"), &key_object)) {
@@ -854,7 +857,6 @@ static GglError manifest_builder(
             if (ret != GGL_ERR_OK) {
                 return GGL_ERR_FAILURE;
             }
-
             ret = write_to_file(
                 args->root_dir, script_name_vec.buf, selected_script, 0755
             );
@@ -1009,7 +1011,7 @@ GglError generate_systemd_unit(
 ) {
     GglByteVec concat_unit_vector
         = { .buf = { .data = unit_file_buffer->data, .len = 0 },
-            .capacity = unit_file_buffer->len };
+            .capacity = MAX_UNIT_SIZE };
 
     GglError ret = fill_unit_section(*recipe_map, &concat_unit_vector);
     if (ret != GGL_ERR_OK) {
@@ -1032,7 +1034,6 @@ GglError generate_systemd_unit(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-
     *unit_file_buffer = concat_unit_vector.buf;
     return GGL_ERR_OK;
 }
