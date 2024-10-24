@@ -195,6 +195,7 @@ static GglError get_component_result(
     // if a component has not run, it is installed
     if (timestamp == 0) {
         *state = GGL_STR("INSTALLED");
+        return GGL_ERR_OK;
     }
 
     uint32_t n_retries = 0;
