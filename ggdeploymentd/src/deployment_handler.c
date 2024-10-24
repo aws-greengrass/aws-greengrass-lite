@@ -677,13 +677,13 @@ static GglError get_recipe_artifacts(
         }
 
         // TODO: set permissions from recipe
-        mode_t mode = 0750;
+        mode_t mode = 0755;
         int artifact_fd = -1;
         err = ggl_file_openat(
             component_store_fd,
             info.file,
             O_CREAT | O_WRONLY | O_TRUNC,
-            needs_unarchive ? 0640 : mode,
+            needs_unarchive ? 0644 : mode,
             &artifact_fd
         );
         if (err != GGL_ERR_OK) {
@@ -1118,7 +1118,7 @@ static GglError parse_dataplane_response_and_save_recipe(
             root_dir_fd,
             recipe_name_vec.buf,
             O_CREAT | O_WRONLY | O_TRUNC,
-            0640,
+            (mode_t) 0644,
             &fd
         );
         if (ret != GGL_ERR_OK) {

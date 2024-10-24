@@ -181,7 +181,7 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
         dest_fd,
         path_comp_buf,
         O_CLOEXEC | O_WRONLY | O_TRUNC | O_CREAT,
-        S_IRWXU,
+        0755,
         &new_fd
     );
     if (ret != GGL_ERR_OK) {
@@ -364,7 +364,7 @@ GglError ggl_dir_openat(
                 cur_fd,
                 path_comp_buf,
                 O_CLOEXEC | O_DIRECTORY | O_PATH,
-                0700,
+                0755,
                 &new_fd
             );
         } else {
@@ -402,7 +402,7 @@ GglError ggl_dir_openat(
             cur_fd,
             path_comp_buf,
             O_CLOEXEC | O_DIRECTORY | flags,
-            0700,
+            0755,
             &result
         );
     } else {
@@ -507,7 +507,7 @@ static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
 
     int dest_subdir_fd;
     ret = ggl_dir_openat_mkdir(
-        dest_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDONLY, 0700, &dest_subdir_fd
+        dest_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDONLY, 0755, &dest_subdir_fd
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Err %d while opening dir: %s", errno, name);

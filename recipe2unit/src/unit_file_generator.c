@@ -802,7 +802,7 @@ static GglError manifest_builder(
             }
 
             ret = write_to_file(
-                args->root_dir, script_name_vec.buf, selected_script, 0750
+                args->root_dir, script_name_vec.buf, selected_script, 0755
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("Failed to create and write the script file");

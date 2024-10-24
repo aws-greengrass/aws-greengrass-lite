@@ -30,7 +30,7 @@ static void *job_listener_thread(void *ctx) {
 GglError run_ggdeploymentd(const char *bin_path) {
     GGL_LOGI("Started ggdeploymentd process.");
 
-    umask(0007);
+    umask(0002);
 
     static uint8_t root_path_mem[PATH_MAX] = { 0 };
     GglBuffer root_path = GGL_BUF(root_path_mem);
