@@ -51,7 +51,7 @@ static GglError parse_dependency_type(
         }
 
         if (strncmp((char *) val->buf.data, "HARD", val->buf.len) == 0) {
-            GglError ret = ggl_byte_vec_append(out, GGL_STR("After=ggl."));
+            GglError ret = ggl_byte_vec_append(out, GGL_STR("BindsTo=ggl."));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
