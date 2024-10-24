@@ -72,6 +72,7 @@ static GglError parse_dependency_type(
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
+
         } else {
             GglError ret = ggl_byte_vec_append(out, GGL_STR("Wants=ggl."));
             if (ret != GGL_ERR_OK) {
@@ -367,7 +368,8 @@ static GglError fetch_script_section(
                 }
                 *selected_script_as_buf = key_object->buf;
             } else {
-                  return GGL_ERR_NOENTRY;
+                GGL_LOGW("Script is not in the map");
+                return GGL_ERR_NOENTRY;
             }
 
             if (ggl_map_get(val->map, GGL_STR("Setenv"), &key_object)) {
@@ -383,6 +385,11 @@ static GglError fetch_script_section(
             return GGL_ERR_INVALID;
         }
     } else {
+        GGL_LOGE(
+            "%.*s section is not in the lifecycle",
+            (int) selected_phase.len,
+            selected_phase.data
+        );
         return GGL_ERR_NOENTRY;
     }
 
@@ -639,8 +646,7 @@ static GglError parse_install_section(
             &set_env_as_map
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Cannot parse install script section");
-            return GGL_ERR_FAILURE;
+            return ret;
         }
         static uint8_t mem[PATH_MAX];
         GglByteVec socketpath_vec = GGL_BYTE_VEC(mem);
@@ -667,7 +673,8 @@ static GglError parse_install_section(
         *out_install_map = out_object.map;
 
     } else {
-        GGL_LOGI("No install section found within the recipe");
+        GGL_LOGW("No install section found within the recipe");
+        return GGL_ERR_FAILURE;
     }
     return GGL_ERR_OK;
 }
@@ -747,31 +754,6 @@ static GglError manifest_builder(
                 GGL_LOGI("Setenv section not found within the linux lifecycle");
             }
 
-            // static uint8_t big_buffer_for_bump[MAX_SCRIPT_SIZE + PATH_MAX];
-            // GglBumpAlloc the_allocator
-            //     = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-            // GglMap standardized_install_map = { 0 };
-
-            // ret = parse_install_section(
-            //     selected_lifecycle_map,
-            //     set_env_as_map,
-            //     args->root_dir,
-            //     &standardized_install_map,
-            //     &the_allocator.alloc
-            // );
-            // if (ret != GGL_ERR_OK) {
-            //     return ret;
-            // }
-
-            // ret = create_standardized_install_file(
-            //     script_name_prefix_vec, standardized_install_map,
-            //     args->root_dir
-            // );
-            // if (ret != GGL_ERR_OK) {
-            //     GGL_LOGE("Failed to create standardized install file.");
-            //     return ret;
-            // }
-
             //****************************************************************
             // Note: Everything below this should only deal with run or startup
             // ****************************************************************
@@ -838,12 +820,7 @@ static GglError manifest_builder(
                 &set_env_as_map
             );
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE(
-                    "Cannot parse %.*s script section",
-                    (int) lifecycle_script_selection.len,
-                    lifecycle_script_selection.data
-                );
-                return GGL_ERR_FAILURE;
+                return ret;
             }
 
             static uint8_t script_name_buf[PATH_MAX - 1];
@@ -965,7 +942,7 @@ static GglError fill_service_section(
     ret = ggl_dir_open(working_dir_vec.buf, O_PATH, true, &working_dir);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to created working directory.");
-        return GGL_ERR_FAILURE;
+        return ret;
     }
     GGL_CLEANUP(cleanup_close, working_dir);
 
