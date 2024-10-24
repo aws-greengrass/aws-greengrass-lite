@@ -14,6 +14,10 @@ and `./run` as the Greengrass root path.
 
 ## Configuring Greengrass
 
+You may configure a single device with the instruction below or a fleet of
+devices with the steps from [Fleet Provisioning guide](Fleet-provisioning.md).
+Choose one or the other.
+
 To configure Greengrass, you will need a config YAML file, in the same format as
 the Classic nucleus config. An example config file is available in
 [`doc/examples/sample_nucleus_config.yml`](examples/sample_nucleus_config.yml).
