@@ -36,6 +36,7 @@ GglError get_recipe_obj(
     ret = deserialize_file_content(
         args->recipe_path, recipe_str_buf, alloc, recipe_obj
     );
+
     if (ret != GGL_ERR_OK) {
         return ret;
     }
