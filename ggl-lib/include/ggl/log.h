@@ -11,7 +11,6 @@
 
 /// Logging interface implementation.
 /// Do not call directly; use one of the macro wrappers.
-/// Can be overridden by providing a non-weak definition.
 /// Default implementation prints to stderr.
 void ggl_log(
     uint32_t level,
