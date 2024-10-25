@@ -61,6 +61,12 @@ __attribute__((constructor)) static void init_client_pool(void) {
     ggl_socket_pool_init(&pool);
 }
 
+static inline void cleanup_socket_handle(const uint32_t *handle) {
+    if (*handle != 0) {
+        ggl_socket_handle_close(&pool, *handle);
+    }
+}
+
 static GglError reset_client_state(uint32_t handle, size_t index) {
     (void) handle;
     client_request_types[index] = GGL_CORE_BUS_CALL;
@@ -316,9 +322,10 @@ void ggl_respond(uint32_t handle, GglObject value) {
         return;
     }
 
+    GGL_CLEANUP_ID(handle_cleanup, cleanup_socket_handle, handle);
+
     if (type == GGL_CORE_BUS_NOTIFY) {
         GGL_LOGT("Skipping response and closing notify %d.", handle);
-        ggl_socket_handle_close(&pool, handle);
         return;
     }
 
@@ -328,18 +335,20 @@ void ggl_respond(uint32_t handle, GglObject value) {
 
     ret = eventstream_encode(&send_buffer, NULL, 0, payload_writer, &value);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(&pool, handle);
         return;
     }
 
     ret = ggl_socket_handle_write(&pool, handle, send_buffer);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(&pool, handle);
+        return;
     }
 
-    if (type != GGL_CORE_BUS_SUBSCRIBE) {
+    if (type == GGL_CORE_BUS_SUBSCRIBE) {
+        // Keep subscription handle on successful subscription response
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+        handle_cleanup = 0;
+    } else {
         GGL_LOGT("Closing call %d.", handle);
-        ggl_socket_handle_close(&pool, handle);
     }
 
     GGL_LOGT("Sent response to %d.", handle);
@@ -363,6 +372,8 @@ void ggl_sub_accept(
         }
     }
 
+    GGL_CLEANUP_ID(handle_cleanup, cleanup_socket_handle, handle);
+
     GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
@@ -376,16 +387,16 @@ void ggl_sub_accept(
         &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
     );
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(&pool, handle);
         return;
     }
 
     ret = ggl_socket_handle_write(&pool, handle, send_buffer);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(&pool, handle);
         return;
     }
 
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+    handle_cleanup = 0;
     GGL_LOGT("Successfully accepted subscription %d.", handle);
 }
 
