@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX - License - Identifier : Apache - 2.0
 
-#include "file_operation.h"
 #include "ggl/recipe2unit.h"
 #include "unit_file_generator.h"
 #include "validate_args.h"

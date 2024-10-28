@@ -6,6 +6,7 @@
 #define RECIPE_2_UNIT_H
 
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <limits.h>
