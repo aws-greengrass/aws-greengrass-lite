@@ -11,16 +11,14 @@
 #include <limits.h>
 
 typedef struct {
-    char recipe_path[PATH_MAX];
+    GglBuffer component_name;
+    GglBuffer component_version;
     char recipe_runner_path[PATH_MAX];
     char *user;
     char *group;
     char root_dir[PATH_MAX];
+    int root_path_fd;
 } Recipe2UnitArgs;
-
-GglError get_recipe_obj(
-    Recipe2UnitArgs *args, GglAlloc *alloc, GglObject *recipe_obj
-);
 
 GglError convert_to_unit(
     Recipe2UnitArgs *args,

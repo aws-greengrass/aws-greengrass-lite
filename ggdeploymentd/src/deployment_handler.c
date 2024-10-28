@@ -2110,11 +2110,9 @@ static void handle_deployment(
             recipe2unit_args.user = posix_user;
             recipe2unit_args.group = group;
 
-            memcpy(
-                recipe2unit_args.recipe_path,
-                recipe_path_vec.buf.data,
-                recipe_path_vec.buf.len
-            );
+            recipe2unit_args.component_name = pair->key;
+            recipe2unit_args.component_version = pair->val.buf;
+
             memcpy(
                 recipe2unit_args.recipe_runner_path,
                 recipe_runner_path_vec.buf.data,
@@ -2125,6 +2123,7 @@ static void handle_deployment(
                 args->root_path.data,
                 args->root_path.len
             );
+            recipe2unit_args.root_path_fd = root_path_fd;
 
             GglObject recipe_buff_obj;
             GglObject *component_name;
@@ -2456,12 +2455,14 @@ static void handle_deployment(
             recipe2unit_args.user = posix_user;
             recipe2unit_args.group = group;
 
-            GGL_LOGI("Recipe path %s", recipe_path_vec.buf.data);
-            memcpy(
-                recipe2unit_args.recipe_path,
-                recipe_path_vec.buf.data,
-                recipe_path_vec.buf.len
+            GGL_LOGI(
+                "Recipe path %.*s",
+                (int) recipe_path_vec.buf.len,
+                recipe_path_vec.buf.data
             );
+
+            recipe2unit_args.component_name = pair->key;
+            recipe2unit_args.component_version = pair->val.buf;
             memcpy(
                 recipe2unit_args.recipe_runner_path,
                 recipe_runner_path_vec.buf.data,
@@ -2472,6 +2473,7 @@ static void handle_deployment(
                 args->root_path.data,
                 args->root_path.len
             );
+            recipe2unit_args.root_path_fd = root_path_fd;
 
             GglObject recipe_buff_obj;
             GglObject *component_name;
