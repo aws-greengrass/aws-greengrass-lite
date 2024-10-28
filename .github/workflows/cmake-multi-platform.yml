@@ -50,8 +50,8 @@ jobs:
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe multiverse
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-backports main restricted universe multiverse
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe multiverse
-          EOF        
-          sudo dpkg --add-architecture arm64          
+          EOF
+          sudo dpkg --add-architecture arm64
           sudo apt clean && sudo apt update
           sudo apt-get -y install \
             binutils-aarch64-linux-gnu \
@@ -61,13 +61,13 @@ jobs:
       - name: Install arm32 dependencies
         if: matrix.host-triplet == 'arm-linux-gnueabihf-'
         run: |
-          sudo rm -rf /etc/apt/sources.list.d/*          
+          sudo rm -rf /etc/apt/sources.list.d/*
           cat << EOF | sudo tee -a /etc/apt/sources.list.d/cross-packages.list
           deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe multiverse
           deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe multiverse
           deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ noble-backports main restricted universe multiverse
           deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe multiverse
-          EOF           
+          EOF
           sudo dpkg --add-architecture armhf
           sudo apt clean && sudo apt update
           sudo apt-get -y install \
@@ -80,7 +80,7 @@ jobs:
       - name: Configure CMake
         run: >
           cmake -B ${{ steps.strings.outputs.build-output-dir }}
-          -DCMAKE_CXX_COMPILER=${{ matrix.host_triplet }}g++  
+          -DCMAKE_CXX_COMPILER=${{ matrix.host_triplet }}g++
           -DCMAKE_C_COMPILER=${{ matrix.host_triplet }}gcc
           -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
           -DCMAKE_LIBRARY_ARCHITECTURE=${{ matrix.library-architecture }} -D
