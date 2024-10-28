@@ -1,0 +1,102 @@
+name: CMake on multiple platforms
+on:
+  workflow_dispatch:  
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [RelWithDebInfo]
+        host-triplet: [""]
+        library-architecture: [""]
+        include:
+          - host-triplet: aarch64-linux-gnu-
+            library-architecture: arm-linux-gnueabihf
+          - host-triplet: arm-linux-gnueabihf-
+            library-architecture: arm-linux-gnueabihf
+          - host-triplet: ""
+            library-architecture: ""
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install generic dependencies 
+      run: |
+          sudo apt clean && sudo apt update
+          sudo apt-get -y install --no-install-recommends \
+            build-essential \
+            cmake \
+            curl \
+            libc6-dev-i386 \
+            git \
+            libcurl4-openssl-dev \
+            libevent-dev \
+            libssl-dev \
+            libsqlite3-dev \
+            libsystemd-dev \
+            liburiparser-dev \
+            libyaml-dev \
+            pkg-config \
+            uuid-dev \
+            libzip-dev
+    - name: Install arm64 dependencies
+      if: matrix.host-triplet == 'aarch64-linux-gnu-'      
+      run: |
+          cat << EOF | sudo tee -a /etc/apt/sources.list.d/cross-packages.list
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-backports main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe multiverse
+          EOF        
+          sudo dpkg --add-architecture arm64          
+          sudo apt clean && sudo apt update
+          sudo apt-get -y install \
+            binutils-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu \
+            gcc-aarch64-linux-gnu \
+            libzip-dev:arm64 
+    - name: Install arm32 dependencies
+      if: matrix.host-triplet == 'arm-linux-gnueabihf-'
+      run: |
+          sudo rm -rf /etc/apt/sources.list.d/*          
+          cat << EOF | sudo tee -a /etc/apt/sources.list.d/cross-packages.list
+          deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ noble main restricted universe multiverse
+          deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ noble-updates main restricted universe multiverse
+          deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports/ noble-backports main restricted universe multiverse
+          deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports/ noble-security main restricted universe multiverse
+          EOF           
+          sudo dpkg --add-architecture armhf
+          sudo apt clean && sudo apt update
+          sudo apt-get -y install \
+            libzip-dev:armhf     
+    - name: Set reusable strings
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
+    - name: Configure CMake      
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.host_triplet }}g++  
+        -DCMAKE_C_COMPILER=${{ matrix.host_triplet }}gcc
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -DCMAKE_LIBRARY_ARCHITECTURE=${{ matrix.library-architecture }}
+        -D CMAKE_INSTALL_PREFIX=/opt/aws-greengrass-lite
+        -D GGL_LOG_LEVEL=DEBUG
+        -S ${{ github.workspace }}
+    - name: Build
+      run: |        
+        make -C ${{ steps.strings.outputs.build-output-dir }} -j$(nproc)  
+    - name: Package
+      working-directory: ${{ steps.strings.outputs.build-output-dir }}
+      run: cpack -G DEB
+    - name: Save package
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.host_triplet }}_${{ matrix.build_type }}
+        path: |
+          ${{ steps.strings.outputs.build-output-dir }}/*.deb 
+        retention-days: 1
