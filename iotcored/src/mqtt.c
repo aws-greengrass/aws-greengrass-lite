@@ -21,7 +21,6 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
-#include <time.h>
 #include <transport_interface.h>
 #include <stdatomic.h>
 #include <stdbool.h>
