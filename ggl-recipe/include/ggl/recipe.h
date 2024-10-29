@@ -20,4 +20,8 @@ GglError ggl_recipe_get_from_file(
     GglObject *recipe
 );
 
+GglError select_linux_manifest(
+    GglMap recipe_map, GglObject *val, GglMap *selected_lifecycle_map
+);
+
 #endif

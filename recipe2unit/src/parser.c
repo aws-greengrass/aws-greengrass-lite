@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX - License - Identifier : Apache - 2.0
 
-#include "file_operation.h"
 #include "ggl/recipe2unit.h"
 #include "unit_file_generator.h"
 #include "validate_args.h"
@@ -11,6 +10,7 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/recipe.h>
 #include <ggl/vector.h>
 #include <string.h>
 #include <stdint.h>
@@ -18,35 +18,6 @@
 
 #define MAX_UNIT_FILE_BUF_SIZE 2048
 #define MAX_COMPONENT_FILE_NAME 1024
-
-GglError get_recipe_obj(
-    Recipe2UnitArgs *args, GglAlloc *alloc, GglObject *recipe_obj
-) {
-    GglError ret = validate_args(args);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    GglBuffer recipe_str_buf;
-    ret = open_file(args->recipe_path, &recipe_str_buf);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    ret = deserialize_file_content(
-        args->recipe_path, recipe_str_buf, alloc, recipe_obj
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    if (recipe_obj->type != GGL_TYPE_MAP) {
-        GGL_LOGE("Invalid recipe format provided");
-        return GGL_ERR_FAILURE;
-    }
-
-    return GGL_ERR_OK;
-}
 
 GglError convert_to_unit(
     Recipe2UnitArgs *args,
@@ -57,7 +28,18 @@ GglError convert_to_unit(
     GglError ret;
     *component_name = NULL;
 
-    ret = get_recipe_obj(args, alloc, recipe_obj);
+    ret = validate_args(args);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    ret = ggl_recipe_get_from_file(
+        args->root_path_fd,
+        args->component_name,
+        args->component_version,
+        alloc,
+        recipe_obj
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }

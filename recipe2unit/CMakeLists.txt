@@ -2,4 +2,5 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(recipe2unit LIBS ggl-lib ggl-json ggl-socket ggl-yaml ggl-file)
+ggl_init_module(recipe2unit LIBS ggl-lib ggl-json ggl-socket ggl-yaml ggl-file
+                                 ggl-recipe)
