@@ -129,30 +129,6 @@ static GglError establish_connection(void *ctx) {
     return GGL_ERR_OK;
 }
 
-static GglError send_fss_update(void) {
-    static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
-    GglMap args
-        = GGL_MAP({ GGL_STR("trigger"), GGL_OBJ_BUF(GGL_STR("RECONNECT")) });
-    GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));
-    GglObject result;
-
-    GglError ret = ggl_call(
-        GGL_STR("/aws/ggl/gg-fleet-statusd"),
-        GGL_STR("send_fleet_status_update"),
-        args,
-        NULL,
-        &alloc.alloc,
-        &result
-    );
-
-    if (ret != 0) {
-        GGL_LOGE("Failed to call send_fleet_status_update: %d.", ret);
-        return ret;
-    }
-
-    return GGL_ERR_OK;
-}
-
 noreturn static void *mqtt_recv_thread_fn(void *arg) {
     bool reconnect = false;
     while (true) {
@@ -171,22 +147,36 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
             _Exit(1);
         }
 
+        // Send a fleet status update on reconnection
+        if (reconnect) {
+            static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
+            GglMap args = GGL_MAP({ GGL_STR("trigger"),
+                                    GGL_OBJ_BUF(GGL_STR("RECONNECT")) });
+            GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));
+            GglObject result;
+
+            GglError ret = ggl_call(
+                GGL_STR("/aws/ggl/gg-fleet-statusd"),
+                GGL_STR("send_fleet_status_update"),
+                args,
+                NULL,
+                &alloc.alloc,
+                &result
+            );
+
+            if (ret != 0) {
+                GGL_LOGE(
+                    "Failed to call send_fleet_status_update on MQTT "
+                    "reconnection: %d.",
+                    ret
+                );
+            }
+        }
+
         MQTTStatus_t mqtt_ret;
         MQTTContext_t *ctx = arg;
         do {
             mqtt_ret = MQTT_ReceiveLoop(ctx);
-
-            if ((mqtt_ret == MQTTSuccess || mqtt_ret == MQTTNeedMoreBytes)
-                && reconnect) {
-                err = send_fss_update();
-                if (err != GGL_ERR_OK) {
-                    // retry on the next MQTT_ReceiveLoop call
-                    GGL_LOGE("Failed to send fleet status update on MQTT "
-                             "reconnection.");
-                    break;
-                }
-                reconnect = false;
-            }
         } while ((mqtt_ret == MQTTSuccess) || (mqtt_ret == MQTTNeedMoreBytes));
 
         GGL_LOGE("Error in receive loop, closing connection.");
