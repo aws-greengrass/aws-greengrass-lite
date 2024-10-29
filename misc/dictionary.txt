@@ -89,6 +89,7 @@ svcuids
 sysv
 tesd
 tlog
+unacked
 unarchived
 unrefp
 unsuback
