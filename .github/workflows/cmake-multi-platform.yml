@@ -97,13 +97,12 @@ jobs:
         shell: bash
         run: |
           echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
-      - name: Configure CMake ${{ matrix.build_type }} / ${{ matrix.architecture }}
+      - name:
+          Configure CMake ${{ matrix.build_type }} / ${{ matrix.architecture }}
         run: >
-          cmake
-          ${{ env.CMAKE_SETTINGS }}
-          -B ${{ steps.strings.outputs.build-output-dir }}
-          -DCMAKE_INSTALL_PREFIX=/opt/aws-greengrass-lite
-          -DGGL_LOG_LEVEL=DEBUG
+          cmake ${{ env.CMAKE_SETTINGS }} -B ${{
+          steps.strings.outputs.build-output-dir }}
+          -DCMAKE_INSTALL_PREFIX=/opt/aws-greengrass-lite -DGGL_LOG_LEVEL=DEBUG
           -S ${{ github.workspace }}
       - name: Build
         run: |
