@@ -4,19 +4,33 @@
 
 #include "ggl/recipe2unit.h"
 #include "recipe2unit-test.h"
-#include <ggl/buffer.h>
+#include <fcntl.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
+#include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
 #include <stdint.h>
 
+// For the testing purpose, move the sample recipe.yml to /run/packages/recipes
+// and rename it to recipe-1.0.0.yml
+
 GglError run_recipe2unit_test(void) {
     static Recipe2UnitArgs args = { 0 };
-    char component_name[] = "recipe.yml";
+    char component_name[] = "recipe";
     char version[] = "1.0.0";
     char root_dir[] = ".";
     char recipe_runner_path[] = "/home/reciperunner";
+
+    int root_path_fd;
+    GglError ret
+        = ggl_dir_open(GGL_STR(root_dir), O_PATH, false, &root_path_fd);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to open root dir.");
+        return ret;
+    }
+    args.root_path_fd = root_path_fd;
 
     GglBuffer component_name_buff
         = (GglBuffer) { (uint8_t *) component_name, strlen(component_name) };
