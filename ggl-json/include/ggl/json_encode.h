@@ -9,9 +9,14 @@
 
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/io.h>
 #include <ggl/object.h>
 
 /// Serializes a GglObject into a buffer in JSON encoding.
 GglError ggl_json_encode(GglObject obj, GglBuffer *buf);
+
+/// Reader from which a JSON-serialized object can be read.
+/// Errors if buffer is not large enough for entire object.
+GglReader ggl_json_reader(GglObject *obj);
 
 #endif
