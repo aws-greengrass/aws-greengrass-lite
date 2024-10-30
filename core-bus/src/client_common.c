@@ -14,6 +14,7 @@
 #include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/types.h>
 #include <ggl/file.h>
+#include <ggl/io.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket.h>
@@ -91,14 +92,8 @@ GglError ggl_client_send_message(
     return GGL_ERR_OK;
 }
 
-GglError ggl_fd_reader(void *ctx, GglBuffer buf) {
-    int *fd_ptr = ctx;
-    return ggl_read_exact(*fd_ptr, buf);
-}
-
 GglError ggl_client_get_response(
-    GglError (*reader)(void *ctx, GglBuffer buf),
-    void *reader_ctx,
+    GglReader reader,
     GglBuffer recv_buffer,
     GglError *error,
     EventStreamMessage *response
@@ -106,7 +101,7 @@ GglError ggl_client_get_response(
     GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
     assert(prelude_buf.len == 12);
 
-    GglError ret = reader(reader_ctx, prelude_buf);
+    GglError ret = ggl_reader_call_exact(reader, prelude_buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -125,7 +120,7 @@ GglError ggl_client_get_response(
     GglBuffer data_section
         = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
 
-    ret = reader(reader_ctx, data_section);
+    ret = ggl_reader_call_exact(reader, data_section);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

@@ -13,6 +13,7 @@
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/socket.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -50,7 +51,7 @@ GglError ggl_call(
     GglBuffer recv_buffer = GGL_BUF(ggl_core_bus_client_payload_array);
     EventStreamMessage msg = { 0 };
     ret = ggl_client_get_response(
-        ggl_fd_reader, &conn, recv_buffer, error, &msg
+        ggl_socket_reader(&conn), recv_buffer, error, &msg
     );
     if (ret != GGL_ERR_OK) {
         return ret;

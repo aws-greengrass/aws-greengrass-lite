@@ -11,6 +11,7 @@
 #include <ggl/core_bus/constants.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
+#include <ggl/io.h>
 #include <ggl/object.h>
 #include <stdint.h>
 
@@ -25,11 +26,8 @@ GglError ggl_client_send_message(
     int *conn_fd
 );
 
-GglError ggl_fd_reader(void *ctx, GglBuffer buf);
-
 GglError ggl_client_get_response(
-    GglError (*reader)(void *ctx, GglBuffer buf),
-    void *reader_ctx,
+    GglReader reader,
     GglBuffer recv_buffer,
     GglError *error,
     EventStreamMessage *response
