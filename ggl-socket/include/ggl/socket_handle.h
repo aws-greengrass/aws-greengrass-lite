@@ -10,6 +10,7 @@
 #include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/io.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -70,6 +71,19 @@ GglError ggl_socket_handle_protected(
     void *ctx,
     GglSocketPool *pool,
     uint32_t handle
+);
+
+typedef struct {
+    GglSocketPool *pool;
+    uint32_t handle;
+} GglSocketHandleReaderCtx;
+
+/// Reader that reads from a stream socket handle.
+/// Data may be remaining if buffer is filled.
+/// ctx will be overwritten; used for storage.
+/// Reader lives as long as ctx.
+GglReader ggl_socket_handle_reader(
+    GglSocketHandleReaderCtx *ctx, GglSocketPool *pool, uint32_t handle
 );
 
 #endif

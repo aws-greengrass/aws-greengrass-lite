@@ -284,3 +284,17 @@ GglError ggl_socket_handle_protected(
     );
     return GGL_ERR_OK;
 }
+
+static GglError socket_handle_reader_fn(void *ctx, GglBuffer *buf) {
+    GglSocketHandleReaderCtx *args = ctx;
+    // TODO: allow non-exact reads (due to remote closure of socket)
+    return ggl_socket_handle_read(args->pool, args->handle, *buf);
+}
+
+GglReader ggl_socket_handle_reader(
+    GglSocketHandleReaderCtx *ctx, GglSocketPool *pool, uint32_t handle
+) {
+    ctx->pool = pool;
+    ctx->handle = handle;
+    return (GglReader) { .read = socket_handle_reader_fn, .ctx = ctx };
+}

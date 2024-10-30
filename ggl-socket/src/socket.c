@@ -9,6 +9,7 @@
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
+#include <ggl/io.h>
 #include <ggl/log.h>
 #include <signal.h>
 #include <string.h>
@@ -146,4 +147,26 @@ GglError ggl_connect(GglBuffer path, int *fd) {
     sockfd_cleanup = -1;
     *fd = sockfd;
     return GGL_ERR_OK;
+}
+
+static GglError socket_reader_fn(void *ctx, GglBuffer *buf) {
+    int *fd = ctx;
+
+    GglBuffer rest = *buf;
+    while (rest.len > 0) {
+        GglError ret = ggl_read(*fd, &rest);
+        if (ret != GGL_ERR_OK) {
+            if (ret == GGL_ERR_NOCONN) {
+                buf->len = (size_t) (rest.data - buf->data);
+                return GGL_ERR_OK;
+            }
+            return ret;
+        }
+    }
+
+    return GGL_ERR_OK;
+}
+
+GglReader ggl_socket_reader(int *fd) {
+    return (GglReader) { .read = socket_reader_fn, .ctx = fd };
 }

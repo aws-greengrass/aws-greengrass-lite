@@ -9,6 +9,7 @@
 
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/io.h>
 
 /// Wrapper for reading from socket.
 /// Returns remaining buffer.
@@ -26,5 +27,9 @@ GglError ggl_write_exact(int fd, GglBuffer buf);
 
 /// Connect to a socket and return the fd
 GglError ggl_connect(GglBuffer path, int *fd);
+
+/// Reader that reads from a stream socket.
+/// Data may be remaining if buffer is filled.
+GglReader ggl_socket_reader(int *fd);
 
 #endif
