@@ -10,6 +10,7 @@
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/io.h>
 #include <ggl/object.h>
 #include <stdbool.h>
 
@@ -22,5 +23,9 @@ GglError ggl_serialize(GglObject obj, GglBuffer *buf);
 GglError ggl_deserialize(
     GglAlloc *alloc, bool copy_bufs, GglBuffer buf, GglObject *obj
 );
+
+/// Reader from which a serialized object can be read.
+/// Errors if buffer is not large enough for entire object.
+GglReader ggl_serialize_reader(GglObject *obj);
 
 #endif

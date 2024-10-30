@@ -8,6 +8,7 @@
 #include <ggl/bump_alloc.h>
 #include <ggl/constants.h>
 #include <ggl/error.h>
+#include <ggl/io.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
@@ -414,7 +415,7 @@ static GglError read_obj(
 }
 
 GglError ggl_serialize(GglObject obj, GglBuffer *buf) {
-    assert((buf != NULL) && (buf->data != NULL));
+    assert(buf != NULL);
     GglBumpAlloc mem = ggl_bump_alloc_init(*buf);
 
     NestingState state = {
@@ -519,4 +520,21 @@ GglError ggl_deserialize(
     }
 
     return GGL_ERR_OK;
+}
+
+static GglError obj_read(void *ctx, GglBuffer *buf) {
+    assert(buf != NULL);
+
+    GglObject *obj = ctx;
+
+    if ((obj == NULL) || (buf == NULL)) {
+        return GGL_ERR_INVALID;
+    }
+
+    return ggl_serialize(*obj, buf);
+}
+
+GglReader ggl_serialize_reader(GglObject *obj) {
+    assert(obj != NULL);
+    return (GglReader) { .read = obj_read, .ctx = obj };
 }
