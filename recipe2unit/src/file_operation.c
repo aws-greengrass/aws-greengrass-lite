@@ -12,7 +12,6 @@
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <ggl/socket.h>
 #include <ggl/yaml_decode.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -125,12 +124,12 @@ GglError write_to_file(
         GGL_LOGE("Failed to open file at the dir");
         return GGL_ERR_FAILURE;
     }
-    ret = ggl_socket_write_exact(script_as_file, write_data);
+    ret = ggl_file_write(script_as_file, write_data);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Write to file failed");
         return GGL_ERR_FAILURE;
     }
-    ret = ggl_socket_write_exact(script_as_file, GGL_STR("\n"));
+    ret = ggl_file_write(script_as_file, GGL_STR("\n"));
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Write to file failed");
         return GGL_ERR_FAILURE;

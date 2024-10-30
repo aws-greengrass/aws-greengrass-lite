@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/socket_handle.h"
-#include "ggl/socket.h"
 #include <assert.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
@@ -177,7 +176,10 @@ GglError ggl_socket_handle_read(
             return ret;
         }
 
-        ret = ggl_socket_read(pool->fds[index], &rest);
+        ret = ggl_file_read_partial(pool->fds[index], &rest);
+        if (ret == GGL_ERR_RETRY) {
+            continue;
+        }
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -205,7 +207,10 @@ GglError ggl_socket_handle_write(
             return ret;
         }
 
-        ret = ggl_socket_write(pool->fds[index], &rest);
+        ret = ggl_file_write_partial(pool->fds[index], &rest);
+        if (ret == GGL_ERR_RETRY) {
+            continue;
+        }
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -287,7 +292,6 @@ GglError ggl_socket_handle_protected(
 
 static GglError socket_handle_reader_fn(void *ctx, GglBuffer *buf) {
     GglSocketHandleReaderCtx *args = ctx;
-    // TODO: allow non-exact reads (due to remote closure of socket)
     return ggl_socket_handle_read(args->pool, args->handle, *buf);
 }
 

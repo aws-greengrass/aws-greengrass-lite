@@ -8,7 +8,6 @@ ggl_init_module(
        core-bus
        ggl-json
        ggl-file
-       ggl-socket
        ggl-exec
        core-bus-gg-config
        core-bus-aws-iot-mqtt

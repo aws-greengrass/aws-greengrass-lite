@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/socket.h"
-#include <sys/types.h>
 #include <errno.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
@@ -11,91 +10,21 @@
 #include <ggl/file.h>
 #include <ggl/io.h>
 #include <ggl/log.h>
-#include <signal.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/un.h>
-#include <unistd.h>
-#include <stdint.h>
 
-// Lowest allowed priority in order to run before threads are created.
-__attribute__((constructor(101))) static void ignore_sigpipe(void) {
-    // If SIGPIPE is not blocked, writing to a socket that the server has closed
-    // will result in this process being killed.
-    signal(SIGPIPE, SIG_IGN);
+GglError ggl_socket_read(int fd, GglBuffer buf) {
+    GglError ret = ggl_file_read_exact(fd, buf);
+    if (ret == GGL_ERR_NODATA) {
+        GGL_LOGD("Socket %d closed by peer.", fd);
+    }
+    return ret;
 }
 
-GglError ggl_socket_read(int fd, GglBuffer *buf) {
-    ssize_t ret = read(fd, buf->data, buf->len);
-    if (ret < 0) {
-        if (errno == EINTR) {
-            return GGL_ERR_OK;
-        }
-        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-            GGL_LOGE("recv timed out on socket %d.", fd);
-            return GGL_ERR_FAILURE;
-        }
-        int err = errno;
-        GGL_LOGE("Failed to recv on %d: %d.", fd, err);
-        return GGL_ERR_FAILURE;
-    }
-    if (ret == 0) {
-        GGL_LOGD("Socket %d closed.", fd);
-        return GGL_ERR_NOCONN;
-    }
-
-    *buf = ggl_buffer_substr(*buf, (size_t) ret, SIZE_MAX);
-    return GGL_ERR_OK;
-}
-
-GglError ggl_socket_read_exact(int fd, GglBuffer buf) {
-    GglBuffer rest = buf;
-
-    while (rest.len > 0) {
-        GglError ret = ggl_socket_read(fd, &rest);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-    }
-
-    return GGL_ERR_OK;
-}
-
-GglError ggl_socket_write(int fd, GglBuffer *buf) {
-    ssize_t ret = write(fd, buf->data, buf->len);
-    if (ret < 0) {
-        if (errno == EINTR) {
-            return GGL_ERR_OK;
-        }
-        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
-            GGL_LOGE("Write timed out on socket %d.", fd);
-            return GGL_ERR_FAILURE;
-        }
-        if (errno == EPIPE) {
-            GGL_LOGE("Write failed to %d; peer closed socket.", fd);
-            return GGL_ERR_NOCONN;
-        }
-        int err = errno;
-        GGL_LOGE("Failed to write to socket %d: %d.", fd, err);
-        return GGL_ERR_FAILURE;
-    }
-
-    *buf = ggl_buffer_substr(*buf, (size_t) ret, SIZE_MAX);
-    return GGL_ERR_OK;
-}
-
-GglError ggl_socket_write_exact(int fd, GglBuffer buf) {
-    GglBuffer rest = buf;
-
-    while (rest.len > 0) {
-        GglError ret = ggl_socket_write(fd, &rest);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-    }
-
-    return GGL_ERR_OK;
+GglError ggl_socket_write(int fd, GglBuffer buf) {
+    return ggl_file_write(fd, buf);
 }
 
 GglError ggl_connect(GglBuffer path, int *fd) {
@@ -151,20 +80,7 @@ GglError ggl_connect(GglBuffer path, int *fd) {
 
 static GglError socket_reader_fn(void *ctx, GglBuffer *buf) {
     int *fd = ctx;
-
-    GglBuffer rest = *buf;
-    while (rest.len > 0) {
-        GglError ret = ggl_socket_read(*fd, &rest);
-        if (ret != GGL_ERR_OK) {
-            if (ret == GGL_ERR_NOCONN) {
-                buf->len = (size_t) (rest.data - buf->data);
-                return GGL_ERR_OK;
-            }
-            return ret;
-        }
-    }
-
-    return GGL_ERR_OK;
+    return ggl_file_read(*fd, buf);
 }
 
 GglReader ggl_socket_reader(int *fd) {

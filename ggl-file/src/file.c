@@ -12,7 +12,6 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <ggl/socket.h>
 #include <limits.h>
 #include <pthread.h>
 #include <signal.h>
@@ -22,6 +21,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+
+// Lowest allowed priority in order to run before threads are created.
+__attribute__((constructor(101))) static void ignore_sigpipe(void) {
+    // If SIGPIPE is not blocked, writing to a socket that the server has closed
+    // will result in this process being killed.
+    signal(SIGPIPE, SIG_IGN);
+}
 
 static char path_comp_buf[NAME_MAX + 1];
 static pthread_mutex_t path_comp_buf_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -518,6 +524,94 @@ static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
     return ggl_copy_dir(source_subdir_fd, dest_subdir_fd);
 }
 
+GglError ggl_file_read_partial(int fd, GglBuffer *buf) {
+    ssize_t ret = read(fd, buf->data, buf->len);
+    if (ret < 0) {
+        if (errno == EINTR) {
+            return GGL_ERR_RETRY;
+        }
+        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+            GGL_LOGE("Read timed out on fd %d.", fd);
+            return GGL_ERR_FAILURE;
+        }
+        GGL_LOGE("Failed to read fd %d: %d.", fd, errno);
+        return GGL_ERR_FAILURE;
+    }
+    if (ret == 0) {
+        return GGL_ERR_NODATA;
+    }
+
+    *buf = ggl_buffer_substr(*buf, (size_t) ret, SIZE_MAX);
+    return GGL_ERR_OK;
+}
+
+GglError ggl_file_read(int fd, GglBuffer *buf) {
+    GglBuffer rest = *buf;
+
+    while (rest.len > 0) {
+        GglError ret = ggl_file_read_partial(fd, &rest);
+        if (ret == GGL_ERR_NODATA) {
+            buf->len = (size_t) (rest.data - buf->data);
+            return GGL_ERR_OK;
+        }
+        if (ret == GGL_ERR_RETRY) {
+            continue;
+        }
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+
+    return GGL_ERR_OK;
+}
+
+GglError ggl_file_read_exact(int fd, GglBuffer buf) {
+    GglBuffer copy = buf;
+    GglError ret = ggl_file_read(fd, &copy);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    return buf.len == copy.len ? GGL_ERR_OK : GGL_ERR_NODATA;
+}
+
+GglError ggl_file_write_partial(int fd, GglBuffer *buf) {
+    ssize_t ret = write(fd, buf->data, buf->len);
+    if (ret < 0) {
+        if (errno == EINTR) {
+            return GGL_ERR_RETRY;
+        }
+        if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+            GGL_LOGE("Write timed out on fd %d.", fd);
+            return GGL_ERR_FAILURE;
+        }
+        if (errno == EPIPE) {
+            GGL_LOGE("Write failed to %d; peer closed socket/pipe.", fd);
+            return GGL_ERR_NOCONN;
+        }
+        GGL_LOGE("Failed to write to fd %d: %d.", fd, errno);
+        return GGL_ERR_FAILURE;
+    }
+
+    *buf = ggl_buffer_substr(*buf, (size_t) ret, SIZE_MAX);
+    return GGL_ERR_OK;
+}
+
+GglError ggl_file_write(int fd, GglBuffer buf) {
+    GglBuffer rest = buf;
+
+    while (rest.len > 0) {
+        GglError ret = ggl_file_write_partial(fd, &rest);
+        if (ret == GGL_ERR_RETRY) {
+            continue;
+        }
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+
+    return GGL_ERR_OK;
+}
+
 GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content) {
     GglBuffer buf = *content;
     int fd;
@@ -553,7 +647,7 @@ GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content) {
 
     buf.len = file_size;
 
-    ret = ggl_socket_read_exact(fd, buf);
+    ret = ggl_file_read_exact(fd, buf);
     if (ret == GGL_ERR_OK) {
         *content = buf;
     }

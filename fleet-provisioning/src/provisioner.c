@@ -18,7 +18,6 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <ggl/socket.h>
 #include <ggl/utils.h>
 #include <string.h>
 #include <stdint.h>
@@ -231,7 +230,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 return GGL_ERR_FAILURE;
             }
 
-            ret = ggl_socket_write_exact(fd, val->buf);
+            ret = ggl_file_write(fd, val->buf);
             ggl_close(fd);
             if (ret != GGL_ERR_OK) {
                 return ret;

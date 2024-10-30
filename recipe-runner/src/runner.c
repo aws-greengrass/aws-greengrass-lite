@@ -14,7 +14,6 @@
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <ggl/socket.h>
 #include <ggl/vector.h>
 #include <limits.h>
 #include <unistd.h>
@@ -71,7 +70,7 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
         return ret;
     }
 
-    return ggl_socket_write_exact(out_fd, result);
+    return ggl_file_write(out_fd, result);
 }
 
 static GglError split_escape_seq(
@@ -108,84 +107,82 @@ static GglError substitute_escape(
     }
     if (ggl_buffer_eq(type, GGL_STR("kernel"))) {
         if (ggl_buffer_eq(arg, GGL_STR("rootPath"))) {
-            return ggl_socket_write_exact(out_fd, root_path);
+            return ggl_file_write(out_fd, root_path);
         }
     } else if (ggl_buffer_eq(type, GGL_STR("iot"))) {
         if (ggl_buffer_eq(arg, GGL_STR("thingName"))) {
-            return ggl_socket_write_exact(out_fd, thing_name);
+            return ggl_file_write(out_fd, thing_name);
         }
     } else if (ggl_buffer_eq(type, GGL_STR("work"))) {
         if (ggl_buffer_eq(arg, GGL_STR("path"))) {
-            ret = ggl_socket_write_exact(out_fd, root_path);
+            ret = ggl_file_write(out_fd, root_path);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, GGL_STR("/work/"));
+            ret = ggl_file_write(out_fd, GGL_STR("/work/"));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, component_name);
+            ret = ggl_file_write(out_fd, component_name);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            return ggl_socket_write_exact(out_fd, GGL_STR("/"));
+            return ggl_file_write(out_fd, GGL_STR("/"));
         }
     } else if (ggl_buffer_eq(type, GGL_STR("artifacts"))) {
         if (ggl_buffer_eq(arg, GGL_STR("path"))) {
-            ret = ggl_socket_write_exact(out_fd, root_path);
+            ret = ggl_file_write(out_fd, root_path);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, GGL_STR("/packages/"));
+            ret = ggl_file_write(out_fd, GGL_STR("/packages/"));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, GGL_STR("artifacts/"));
+            ret = ggl_file_write(out_fd, GGL_STR("artifacts/"));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, component_name);
+            ret = ggl_file_write(out_fd, component_name);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, GGL_STR("/"));
+            ret = ggl_file_write(out_fd, GGL_STR("/"));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, component_version);
+            ret = ggl_file_write(out_fd, component_version);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            return ggl_socket_write_exact(out_fd, GGL_STR("/"));
+            return ggl_file_write(out_fd, GGL_STR("/"));
         }
         if (ggl_buffer_eq(arg, GGL_STR("decompressedPath"))) {
-            ret = ggl_socket_write_exact(out_fd, root_path);
+            ret = ggl_file_write(out_fd, root_path);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, GGL_STR("/packages/"));
+            ret = ggl_file_write(out_fd, GGL_STR("/packages/"));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(
-                out_fd, GGL_STR("artifacts-unarchived/")
-            );
+            ret = ggl_file_write(out_fd, GGL_STR("artifacts-unarchived/"));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, component_name);
+            ret = ggl_file_write(out_fd, component_name);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, GGL_STR("/"));
+            ret = ggl_file_write(out_fd, GGL_STR("/"));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = ggl_socket_write_exact(out_fd, component_version);
+            ret = ggl_file_write(out_fd, component_version);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            return ggl_socket_write_exact(out_fd, GGL_STR("/"));
+            return ggl_file_write(out_fd, GGL_STR("/"));
         }
     } else if (ggl_buffer_eq(type, GGL_STR("configuration"))) {
         return insert_config_value(conn, out_fd, arg);
@@ -288,7 +285,7 @@ static GglError write_script_with_replacement(
             break;
         }
         if (*read_mem != '{') {
-            ret = ggl_socket_write_exact(out_fd, read_buf);
+            ret = ggl_file_write(out_fd, read_buf);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }

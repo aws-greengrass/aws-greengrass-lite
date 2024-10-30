@@ -57,7 +57,7 @@ static GglError send_message(
         return ret;
     }
 
-    return ggl_socket_write_exact(conn, send_buffer);
+    return ggl_socket_write(conn, send_buffer);
 }
 
 static GglError get_message(
@@ -73,7 +73,7 @@ static GglError get_message(
     GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
     assert(prelude_buf.len == 12);
 
-    GglError ret = ggl_socket_read_exact(conn, prelude_buf);
+    GglError ret = ggl_socket_read(conn, prelude_buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -92,7 +92,7 @@ static GglError get_message(
     GglBuffer data_section
         = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
 
-    ret = ggl_socket_read_exact(conn, data_section);
+    ret = ggl_socket_read(conn, data_section);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

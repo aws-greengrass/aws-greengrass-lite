@@ -30,6 +30,8 @@ const char *ggl_strerror(GglError err) {
         return "NOMEM";
     case GGL_ERR_NOCONN:
         return "NOCONN";
+    case GGL_ERR_NODATA:
+        return "NODATA";
     case GGL_ERR_NOENTRY:
         return "NOENTRY";
     case GGL_ERR_CONFIG:

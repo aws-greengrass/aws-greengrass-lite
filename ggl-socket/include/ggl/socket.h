@@ -11,19 +11,11 @@
 #include <ggl/error.h>
 #include <ggl/io.h>
 
-/// Wrapper for reading from socket.
-/// Returns remaining buffer.
-GglError ggl_socket_read(int fd, GglBuffer *buf);
-
 /// Wrapper for reading full buffer from socket.
-GglError ggl_socket_read_exact(int fd, GglBuffer buf);
-
-/// Wrapper for writing to socket.
-/// Returns remaining buffer.
-GglError ggl_socket_write(int fd, GglBuffer *buf);
+GglError ggl_socket_read(int fd, GglBuffer buf);
 
 /// Wrapper for writing full buffer to socket.
-GglError ggl_socket_write_exact(int fd, GglBuffer buf);
+GglError ggl_socket_write(int fd, GglBuffer buf);
 
 /// Connect to a socket and return the fd
 GglError ggl_connect(GglBuffer path, int *fd);

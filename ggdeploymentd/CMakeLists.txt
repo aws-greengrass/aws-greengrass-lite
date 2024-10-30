@@ -11,7 +11,6 @@ ggl_init_module(
        ggl-json
        ggl-recipe
        ggl-semver
-       ggl-socket
        ggl-yaml
        ggl-zip
        ggl-exec

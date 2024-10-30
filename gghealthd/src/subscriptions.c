@@ -12,9 +12,9 @@
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <ggl/socket.h>
 #include <ggl/utils.h>
 #include <inttypes.h>
 #include <pthread.h>
@@ -176,7 +176,7 @@ static int event_fd_handler(
     (void) revents;
     (void) s;
     uint8_t event_bytes[8] = { 0 };
-    GglError ret = ggl_socket_read_exact(fd, GGL_BUF(event_bytes));
+    GglError ret = ggl_file_read_exact(fd, GGL_BUF(event_bytes));
     pthread_mutex_lock(&mtx);
     if (ret == GGL_ERR_OK) {
         int index = atomic_load(&operation_index);
@@ -268,7 +268,7 @@ static GglError signal_event_loop_and_wait(int index) {
     uint64_t event = 1;
     uint8_t event_bytes[sizeof(event)];
     memcpy(event_bytes, &event, sizeof(event));
-    GglError ret = ggl_socket_write_exact(event_fd, GGL_BUF(event_bytes));
+    GglError ret = ggl_file_write(event_fd, GGL_BUF(event_bytes));
     if (ret != GGL_ERR_OK) {
         return ret;
     }

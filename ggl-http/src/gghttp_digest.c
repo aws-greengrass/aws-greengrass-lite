@@ -6,11 +6,11 @@
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
-#include <ggl/socket.h>
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <openssl/types.h>
 #include <stddef.h>
+#include <stdint.h>
 
 GglDigest ggl_new_digest(GglError *error) {
     EVP_MD_CTX *ctx = EVP_MD_CTX_new();
@@ -45,19 +45,18 @@ GglError ggl_verify_sha256_digest(
         return GGL_ERR_FAILURE;
     }
 
-    unsigned char digest_buffer[SHA256_DIGEST_LENGTH];
+    uint8_t digest_buffer[SHA256_DIGEST_LENGTH];
     for (;;) {
         GglBuffer chunk = GGL_BUF(digest_buffer);
-        ret = ggl_socket_read(file_fd, &chunk);
-        if (ret == GGL_ERR_NOCONN) {
+        ret = ggl_file_read(file_fd, &chunk);
+        if (chunk.len == 0) {
             break;
         }
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to read from file.");
             break;
         }
-        size_t bytes_read = sizeof(digest_buffer) - chunk.len;
-        if (!EVP_DigestUpdate(ctx, digest_buffer, bytes_read)) {
+        if (!EVP_DigestUpdate(ctx, chunk.data, chunk.len)) {
             GGL_LOGE("OpenSSL digest update failed.");
             return GGL_ERR_FAILURE;
         }
