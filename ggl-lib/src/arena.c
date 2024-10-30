@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/arena.h"
+#include "ggl/buffer.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
 #include <assert.h>
@@ -92,4 +93,11 @@ bool ggl_arena_owns(const GglArena *arena, const void *ptr) {
     uintptr_t mem_int = (uintptr_t) arena->MEM;
     uintptr_t ptr_int = (uintptr_t) ptr;
     return (ptr_int >= mem_int) && (ptr_int < mem_int + arena->CAPACITY);
+}
+
+GglBuffer ggl_arena_alloc_rest(GglArena *arena) {
+    GglBuffer rest = { .data = arena->MEM + arena->index,
+                       .len = arena->CAPACITY - arena->index };
+    arena->index = arena->CAPACITY;
+    return rest;
 }
