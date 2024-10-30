@@ -15,7 +15,7 @@ void *ggl_arena_alloc(GglArena *arena, size_t size, size_t alignment) {
     assert((alignment > 0) && ((alignment & (alignment - 1)) == 0));
     assert(alignment < UINT32_MAX);
     // Allocation can't exceed ptrdiff_t, and this is likely a bug.
-    assert(size <= (UINT32_MAX >> 1));
+    assert(size <= PTRDIFF_MAX);
 
     uint32_t align = (uint32_t) alignment;
     uint32_t pad = (align - (arena->index & (align - 1))) & (align - 1);
@@ -46,13 +46,41 @@ void *ggl_arena_alloc(GglArena *arena, size_t size, size_t alignment) {
     return &arena->MEM[idx];
 }
 
-GglError ggl_arena_resize_last(GglArena *arena, const void *ptr, size_t size) {
-    assert(ggl_arena_owns(arena, ptr));
+GglError ggl_arena_resize_last(
+    GglArena *arena, const void *ptr, size_t old_size, size_t size
+) {
+    assert(old_size < UINT32_MAX);
+    assert(old_size <= PTRDIFF_MAX);
+    assert(size <= PTRDIFF_MAX);
+
+    if (!ggl_arena_owns(arena, ptr)) {
+        GGL_LOGE("[%p] Resize ptr %p not owned.", arena, ptr);
+        assert(false);
+        return GGL_ERR_INVALID;
+    }
 
     uint32_t idx = (uint32_t) ((uintptr_t) ptr - (uintptr_t) arena->MEM);
 
+    if (idx > arena->index) {
+        GGL_LOGE("[%p] Resize ptr %p out of allocated range.", arena, ptr);
+        assert(false);
+        return GGL_ERR_INVALID;
+    }
+
+    if (arena->index - idx != old_size) {
+        GGL_LOGE(
+            "[%p] Resize ptr %p + size %zu does not match allocation index",
+            arena,
+            ptr,
+            old_size
+        );
+        return GGL_ERR_INVALID;
+    }
+
     if (size > arena->CAPACITY - idx) {
-        GGL_LOGD("[%p] Insufficient memory for resize to %zu.", arena, size);
+        GGL_LOGD(
+            "[%p] Insufficient memory to resize %p to %zu.", arena, ptr, size
+        );
         return GGL_ERR_NOMEM;
     }
 
