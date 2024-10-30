@@ -553,7 +553,7 @@ GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content) {
 
     buf.len = file_size;
 
-    ret = ggl_read_exact(fd, buf);
+    ret = ggl_socket_read_exact(fd, buf);
     if (ret == GGL_ERR_OK) {
         *content = buf;
     }

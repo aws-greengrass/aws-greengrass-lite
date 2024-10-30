@@ -177,7 +177,7 @@ GglError ggl_socket_handle_read(
             return ret;
         }
 
-        ret = ggl_read(pool->fds[index], &rest);
+        ret = ggl_socket_read(pool->fds[index], &rest);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -205,7 +205,7 @@ GglError ggl_socket_handle_write(
             return ret;
         }
 
-        ret = ggl_write(pool->fds[index], &rest);
+        ret = ggl_socket_write(pool->fds[index], &rest);
         if (ret != GGL_ERR_OK) {
             return ret;
         }

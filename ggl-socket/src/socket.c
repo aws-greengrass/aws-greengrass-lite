@@ -26,7 +26,7 @@ __attribute__((constructor(101))) static void ignore_sigpipe(void) {
     signal(SIGPIPE, SIG_IGN);
 }
 
-GglError ggl_read(int fd, GglBuffer *buf) {
+GglError ggl_socket_read(int fd, GglBuffer *buf) {
     ssize_t ret = read(fd, buf->data, buf->len);
     if (ret < 0) {
         if (errno == EINTR) {
@@ -49,11 +49,11 @@ GglError ggl_read(int fd, GglBuffer *buf) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_read_exact(int fd, GglBuffer buf) {
+GglError ggl_socket_read_exact(int fd, GglBuffer buf) {
     GglBuffer rest = buf;
 
     while (rest.len > 0) {
-        GglError ret = ggl_read(fd, &rest);
+        GglError ret = ggl_socket_read(fd, &rest);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -62,7 +62,7 @@ GglError ggl_read_exact(int fd, GglBuffer buf) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_write(int fd, GglBuffer *buf) {
+GglError ggl_socket_write(int fd, GglBuffer *buf) {
     ssize_t ret = write(fd, buf->data, buf->len);
     if (ret < 0) {
         if (errno == EINTR) {
@@ -85,11 +85,11 @@ GglError ggl_write(int fd, GglBuffer *buf) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_write_exact(int fd, GglBuffer buf) {
+GglError ggl_socket_write_exact(int fd, GglBuffer buf) {
     GglBuffer rest = buf;
 
     while (rest.len > 0) {
-        GglError ret = ggl_write(fd, &rest);
+        GglError ret = ggl_socket_write(fd, &rest);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -154,7 +154,7 @@ static GglError socket_reader_fn(void *ctx, GglBuffer *buf) {
 
     GglBuffer rest = *buf;
     while (rest.len > 0) {
-        GglError ret = ggl_read(*fd, &rest);
+        GglError ret = ggl_socket_read(*fd, &rest);
         if (ret != GGL_ERR_OK) {
             if (ret == GGL_ERR_NOCONN) {
                 buf->len = (size_t) (rest.data - buf->data);

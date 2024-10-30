@@ -48,7 +48,7 @@ GglError ggl_verify_sha256_digest(
     unsigned char digest_buffer[SHA256_DIGEST_LENGTH];
     for (;;) {
         GglBuffer chunk = GGL_BUF(digest_buffer);
-        ret = ggl_read(file_fd, &chunk);
+        ret = ggl_socket_read(file_fd, &chunk);
         if (ret == GGL_ERR_NOCONN) {
             break;
         }

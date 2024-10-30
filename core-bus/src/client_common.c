@@ -81,7 +81,7 @@ GglError ggl_client_send_message(
         return ret;
     }
 
-    ret = ggl_write_exact(conn, send_buffer);
+    ret = ggl_socket_write_exact(conn, send_buffer);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

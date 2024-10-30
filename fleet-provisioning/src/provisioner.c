@@ -231,7 +231,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 return GGL_ERR_FAILURE;
             }
 
-            ret = ggl_write_exact(fd, val->buf);
+            ret = ggl_socket_write_exact(fd, val->buf);
             ggl_close(fd);
             if (ret != GGL_ERR_OK) {
                 return ret;

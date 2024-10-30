@@ -1134,7 +1134,7 @@ static GglError parse_dataplane_response_and_save_recipe(
             return ret;
         }
 
-        ret = ggl_write_exact(fd, recipe_file_content->buf);
+        ret = ggl_socket_write_exact(fd, recipe_file_content->buf);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Write to cloud recipe file failed");
             return ret;

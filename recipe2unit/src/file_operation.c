@@ -125,12 +125,12 @@ GglError write_to_file(
         GGL_LOGE("Failed to open file at the dir");
         return GGL_ERR_FAILURE;
     }
-    ret = ggl_write_exact(script_as_file, write_data);
+    ret = ggl_socket_write_exact(script_as_file, write_data);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Write to file failed");
         return GGL_ERR_FAILURE;
     }
-    ret = ggl_write_exact(script_as_file, GGL_STR("\n"));
+    ret = ggl_socket_write_exact(script_as_file, GGL_STR("\n"));
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Write to file failed");
         return GGL_ERR_FAILURE;

@@ -44,7 +44,7 @@ static GglError write_entry_to_fd(zip_file_t *entry, int fd) {
         }
         GglBuffer bytes
             = (GglBuffer) { .data = read_buffer, .len = (size_t) bytes_read };
-        GglError ret = ggl_write_exact(fd, bytes);
+        GglError ret = ggl_socket_write_exact(fd, bytes);
         if (ret != GGL_ERR_OK) {
             return GGL_ERR_FAILURE;
         }

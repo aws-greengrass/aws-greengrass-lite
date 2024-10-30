@@ -23,7 +23,7 @@ __attribute__((constructor)) static void init_urandom_fd(void) {
 }
 
 GglError ggl_rand_fill(GglBuffer buf) {
-    GglError ret = ggl_read_exact(random_fd, buf);
+    GglError ret = ggl_socket_read_exact(random_fd, buf);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to read from /dev/random.");
     }
