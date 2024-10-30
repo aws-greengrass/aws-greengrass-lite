@@ -1047,8 +1047,14 @@ static GglError parse_dataplane_response_and_save_recipe(
         if (ret != GGL_ERR_OK) {
             return ret;
         }
+        assert(cloud_component_version->buf.len <= NAME_MAX);
 
-        *cloud_version = cloud_component_version->buf;
+        memcpy(
+            cloud_version->data,
+            cloud_component_version->buf.data,
+            cloud_component_version->buf.len
+        );
+        cloud_version->len = cloud_component_version->buf.len;
 
         if (vendor_guidance != NULL) {
             if (ggl_buffer_eq(vendor_guidance->buf, GGL_STR("DISCONTINUED"))) {
@@ -1568,7 +1574,7 @@ static GglError resolve_dependencies(
                         return ret;
                     }
                     if (existing_requirements) {
-                        static uint8_t new_req_buf[PATH_MAX];
+                        uint8_t new_req_buf[PATH_MAX];
                         GglByteVec new_req_vec = GGL_BYTE_VEC(new_req_buf);
                         ret = ggl_byte_vec_append(
                             &new_req_vec, existing_requirements->buf
@@ -1583,7 +1589,22 @@ static GglError resolve_dependencies(
                             return ret;
                         }
 
-                        *existing_requirements = GGL_OBJ_BUF(new_req_vec.buf);
+                        uint8_t *new_req = GGL_ALLOCN(
+                            &version_requirements_balloc.alloc,
+                            uint8_t,
+                            new_req_vec.buf.len
+                        );
+                        if (new_req == NULL) {
+                            GGL_LOGE("Ran out of memory while trying to create "
+                                     "new requirements");
+                            return GGL_ERR_NOMEM;
+                        }
+
+                        memcpy(
+                            new_req, new_req_vec.buf.data, new_req_vec.buf.len
+                        );
+                        *existing_requirements = GGL_OBJ_BUF((GglBuffer
+                        ) { .data = new_req, .len = new_req_vec.buf.len });
                     }
 
                     // If we haven't resolved it yet, and it doesn't have an
