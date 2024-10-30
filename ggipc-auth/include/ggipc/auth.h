@@ -12,8 +12,8 @@
 
 #include <sys/types.h>
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 
 /// Authenticate a client and get its component name.
 GglError ggl_ipc_auth_lookup_name(

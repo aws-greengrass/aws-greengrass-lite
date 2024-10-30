@@ -6,8 +6,8 @@
 #include "mqtt.h"
 #include <sys/types.h>
 #include <ggl/buffer.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/server.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -55,8 +55,7 @@ GglError iotcored_register_subscriptions(
         }
     }
 
-    pthread_mutex_lock(&mtx);
-    GGL_DEFER(pthread_mutex_unlock, mtx);
+    GGL_MTX_SCOPE_GUARD(&mtx);
 
     size_t filter_index = 0;
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
@@ -85,20 +84,43 @@ GglError iotcored_register_subscriptions(
     return GGL_ERR_NOMEM;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 void iotcored_unregister_subscriptions(uint32_t handle) {
-    pthread_mutex_lock(&mtx);
-    GGL_DEFER(pthread_mutex_unlock, mtx);
+    GGL_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (handles[i] == handle) {
+            size_t j;
+            for (j = 0; j < IOTCORED_MAX_SUBSCRIPTIONS; j++) {
+                if (i == j) {
+                    continue;
+                }
+                if ((topic_filter_len[j] != 0)
+                    && (topic_filter_len[i] == topic_filter_len[j])
+                    && (memcmp(
+                            sub_topic_filters[i],
+                            sub_topic_filters[j],
+                            topic_filter_len[i]
+                        )
+                        == 0)) {
+                    // Found a matching topic filter. No need to check
+                    // further.
+                    break;
+                }
+            }
+
+            // This is the only subscription to this topic. Send an unsubscribe.
+            if (j == IOTCORED_MAX_SUBSCRIPTIONS) {
+                GglBuffer buf[] = { topic_filter_buf(i) };
+                iotcored_mqtt_unsubscribe(buf, 1U);
+            }
             topic_filter_len[i] = 0;
         }
     }
 }
 
 void iotcored_mqtt_receive(const IotcoredMsg *msg) {
-    pthread_mutex_lock(&mtx);
-    GGL_DEFER(pthread_mutex_unlock, mtx);
+    GGL_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if ((topic_filter_len[i] != 0)
@@ -107,11 +129,23 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
             )) {
             ggl_respond(
                 handles[i],
-                GGL_OBJ_MAP(
-                    { GGL_STR("topic"), GGL_OBJ(msg->topic) },
-                    { GGL_STR("payload"), GGL_OBJ(msg->payload) }
-                )
+                GGL_OBJ_MAP(GGL_MAP(
+                    { GGL_STR("topic"), GGL_OBJ_BUF(msg->topic) },
+                    { GGL_STR("payload"), GGL_OBJ_BUF(msg->payload) }
+                ))
             );
+        }
+    }
+}
+
+void iotcored_unregister_all_subs(void) {
+    GGL_MTX_SCOPE_GUARD(&mtx);
+
+    for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
+        if (topic_filter_len[i] != 0) {
+            ggl_server_sub_close(handles[i]);
+
+            topic_filter_len[i] = 0;
         }
     }
 }

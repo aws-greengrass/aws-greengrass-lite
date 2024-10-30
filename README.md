@@ -20,29 +20,33 @@ For setting up as a Greengrass developer, also see the
 
 ## Supported Greengrass V2 IPC commands (Features)
 
+IPC support is provided by ggipcd. The support is translating the IPC command to
+corebus. This table identifies the corebus component that does the work.
+
 | Feature                                 | Daemon that provides support |
 | :-------------------------------------- | :--------------------------- |
 | SubscribeToTopic                        | ggpubsubd                    |
 | PublishToTopic                          | ggpubsubd                    |
 | PublishToIoTCore                        | iotcored                     |
 | SubscribeToIoTCore                      | iotcored                     |
-| UpdateState                             |                              |
-| SubscribeToComponentUpdates             |                              |
-| DeferComponentUpdate                    |                              |
-| GetConfiguration                        |                              |
+| UpdateState                             | - FUTURE -                   |
+| SubscribeToComponentUpdates             | - FUTURE -                   |
+| DeferComponentUpdate                    | - FUTURE -                   |
+| GetConfiguration                        | ggconfigd                    |
 | UpdateConfiguration                     | ggconfigd                    |
-| SubscribeToConfigurationUpdate          |                              |
+| SubscribeToConfigurationUpdate          | ggconfigd                    |
 | SubscribeToValidateConfigurationUpdates | not planned                  |
 | SendConfigurationValidityReport         | not planned                  |
 | GetSecretValue                          | not planned                  |
-| PutComponentMetric                      |                              |
-| GetComponentDetails                     |                              |
-| RestartComponent                        |                              |
-| StopComponent                           |                              |
-| CreateLocalDeployment                   |                              |
-| CancelLocalDeployment                   |                              |
-| GetLocalDeploymentStatus                |                              |
-| ListLocalDeployments                    |                              |
+| PutComponentMetric                      | - FUTURE -                   |
+| GetComponentDetails                     | - FUTURE -                   |
+| RestartComponent                        | - FUTURE -                   |
+| StopComponent                           | - FUTURE -                   |
+| CreateLocalDeployment                   | ggdeploymentd                |
+| CancelLocalDeployment                   | - FUTURE -                   |
+| GetLocalDeploymentStatus                | - FUTURE -                   |
+| ListLocalDeployments                    | - FUTURE -                   |
+| ListComponents                          | - FUTURE -                   |
 | ValidateAuthorizationToken              | not planned                  |
 | CreateDebugPassword                     | not planned                  |
 | PauseComponent                          | not planned                  |

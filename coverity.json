@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "capture": {
+    "build": {
+      "clean-command": "make -C build clean",
+      "build-command": "make -C build -j",
+      "parallel-translate": {
+        "enabled": true,
+        "processes": 0
+      }
+    },
+    "compiler-configuration": {
+      "cov-configure": [["--gcc"], ["--python", "--version", "3"]]
+    },
+    "encoding": "UTF-8",
+    "files": {
+      "exclude-regex": "build/.*"
+    }
+  },
+  "analyze": {
+    "aggressiveness-level": "high",
+    "checkers": {
+      "all": true
+    },
+    "cov-analyze-args": ["--disable", "SIGMA.container_running_as_root"]
+  },
+  "commit": {
+    "local": {
+      "path": "build/cov-out"
+    }
+  }
+}

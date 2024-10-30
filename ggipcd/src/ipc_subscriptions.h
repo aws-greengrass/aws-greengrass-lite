@@ -6,6 +6,7 @@
 #define GGL_IPC_SUBSCRIPTIONS_H
 
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdint.h>

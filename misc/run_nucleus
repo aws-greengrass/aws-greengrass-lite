@@ -6,6 +6,8 @@ bin_dir="$(dirname -- "$0")"
 
 "${bin_dir}"/ggconfigd &
 sleep 1
+"${bin_dir}"/gghealthd &
+sleep 1
 "${bin_dir}"/iotcored &
 sleep 1
 "${bin_dir}"/ggpubsubd &

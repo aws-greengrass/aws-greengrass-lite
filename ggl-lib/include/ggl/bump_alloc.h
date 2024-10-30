@@ -8,7 +8,7 @@
 //! A simple bump allocator
 
 #include "alloc.h"
-#include "object.h"
+#include <ggl/buffer.h>
 #include <stddef.h>
 
 /// Alloc-only allocator backed by a fixed buffer.

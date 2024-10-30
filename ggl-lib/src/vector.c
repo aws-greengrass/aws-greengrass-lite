@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/vector.h"
+#include "ggl/buffer.h"
 #include "ggl/error.h"
 #include "ggl/list.h"
 #include "ggl/log.h"
@@ -45,11 +46,13 @@ GglError ggl_obj_vec_append(GglObjVec *vector, GglList list) {
         return GGL_ERR_NOMEM;
     }
     GGL_LOGT("Appended to %p.", vector);
-    memcpy(
-        &vector->list.items[vector->list.len],
-        list.items,
-        list.len * sizeof(GglObject)
-    );
+    if (list.len > 0) {
+        memcpy(
+            &vector->list.items[vector->list.len],
+            list.items,
+            list.len * sizeof(GglObject)
+        );
+    }
     vector->list.len += list.len;
     return GGL_ERR_OK;
 }
@@ -96,7 +99,9 @@ GglError ggl_byte_vec_append(GglByteVec *vector, GglBuffer buf) {
         return GGL_ERR_NOMEM;
     }
     GGL_LOGT("Appended to %p.", vector);
-    memcpy(&vector->buf.data[vector->buf.len], buf.data, buf.len);
+    if (buf.len > 0) {
+        memcpy(&vector->buf.data[vector->buf.len], buf.data, buf.len);
+    }
     vector->buf.len += buf.len;
     return GGL_ERR_OK;
 }

@@ -9,12 +9,14 @@
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/recipe.h>
 #include <ggl/vector.h>
 #include <limits.h>
 #include <string.h>
@@ -25,16 +27,9 @@
 #define WORKING_DIR_LEN 4096
 #define MAX_SCRIPT_SIZE 10000
 
-static void ggl_string_to_lower(GglBuffer object_object_to_lower) {
-    for (size_t key_count = 0; key_count < object_object_to_lower.len;
-         key_count++) {
-        if (object_object_to_lower.data[key_count] >= 'A'
-            && object_object_to_lower.data[key_count] <= 'Z') {
-            object_object_to_lower.data[key_count]
-                = object_object_to_lower.data[key_count] + ('a' - 'A');
-        }
-    }
-}
+#define MAX_RETRIES_BEFORE_BROKEN "3"
+#define MAX_RETRIES_INTERVAL_SECONDS "3600"
+#define RETRY_DELAY_SECONDS "1"
 
 /// Parses [DependencyType] portion of recipe and updates the unit file
 /// buffer(out) with dependency information appropriately
@@ -50,15 +45,14 @@ static GglError parse_dependency_type(
         return GGL_ERR_INVALID;
     }
     if (ggl_map_get(
-            component_dependency.val.map, GGL_STR("dependencytype"), &val
+            component_dependency.val.map, GGL_STR("DependencyType"), &val
         )) {
         if (val->type != GGL_TYPE_BUF) {
             return GGL_ERR_PARSE;
         }
-        ggl_string_to_lower(val->buf);
 
-        if (strncmp((char *) val->buf.data, "hard", val->buf.len) == 0) {
-            GglError ret = ggl_byte_vec_append(out, GGL_STR("After=ggl."));
+        if (strncmp((char *) val->buf.data, "HARD", val->buf.len) == 0) {
+            GglError ret = ggl_byte_vec_append(out, GGL_STR("BindsTo=ggl."));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
@@ -115,12 +109,25 @@ static GglError fill_unit_section(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+    ggl_byte_vec_chain_append(
+        &ret,
+        concat_unit_vector,
+        GGL_STR("StartLimitInterval=" MAX_RETRIES_INTERVAL_SECONDS "\n")
+    );
+    ggl_byte_vec_chain_append(
+        &ret,
+        concat_unit_vector,
+        GGL_STR("StartLimitBurst=" MAX_RETRIES_BEFORE_BROKEN "\n")
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     ret = ggl_byte_vec_append(concat_unit_vector, GGL_STR("Description="));
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    if (ggl_map_get(recipe_map, GGL_STR("componentdescription"), &val)) {
+    if (ggl_map_get(recipe_map, GGL_STR("ComponentDescription"), &val)) {
         if (val->type != GGL_TYPE_BUF) {
             return GGL_ERR_PARSE;
         }
@@ -136,7 +143,7 @@ static GglError fill_unit_section(
         }
     }
 
-    if (ggl_map_get(recipe_map, GGL_STR("componentdependencies"), &val)) {
+    if (ggl_map_get(recipe_map, GGL_STR("ComponentDependencies"), &val)) {
         if ((val->type == GGL_TYPE_MAP) || (val->type == GGL_TYPE_LIST)) {
             return dependency_parser(val, concat_unit_vector);
         }
@@ -145,167 +152,17 @@ static GglError fill_unit_section(
     return GGL_ERR_OK;
 }
 
-static GglError lifecycle_selection(
-    GglObject *selection_obj,
-    GglMap recipe_map,
-    GglObject *selected_lifecycle_object
-) {
-    GglObject *val;
-    for (size_t selection_index = 0; selection_index < selection_obj->list.len;
-         selection_index++) {
-        if ((strncmp(
-                 (char *) selection_obj->list.items[selection_index].buf.data,
-                 "all",
-                 selection_obj->list.items[selection_index].buf.len
-             )
-             == 0)
-            || (strncmp(
-                    (char *) selection_obj->list.items[selection_index]
-                        .buf.data,
-                    "linux",
-                    selection_obj->list.items[selection_index].buf.len
-                )
-                == 0)) {
-            GglObject *global_lifecycle;
-            // Fetch the global Lifecycle object and match the
-            // name with the first occurrence of selection
-            if (ggl_map_get(
-                    recipe_map, GGL_STR("lifecycle"), &global_lifecycle
-                )) {
-                if (global_lifecycle->type != GGL_TYPE_MAP) {
-                    return GGL_ERR_INVALID;
-                }
-                if (ggl_map_get(
-                        global_lifecycle->map, GGL_STR("linux"), &val
-                    )) {
-                    if (val->type != GGL_TYPE_MAP) {
-                        GGL_LOGE("Invalid Global Linux lifecycle");
-                        return GGL_ERR_INVALID;
-                    }
-                    *selected_lifecycle_object = *val;
-                }
-            }
-        }
-    }
-    return GGL_ERR_OK;
-}
-
-static GglBuffer get_current_architecture(void) {
-    GglBuffer current_arch = { 0 };
-#if defined(__x86_64__)
-    current_arch = GGL_STR("amd64");
-#elif defined(__i386__)
-    current_arch = GGL_STR("x86");
-#elif defined(__aarch64__)
-    current_arch = GGL_STR("arm");
-#elif defined(__aarch64__)
-    current_arch = GGL_STR("aarch64");
-#endif
-    return current_arch;
-}
-
-// TODO: Refactor it
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
-static GglError manifest_selection(
-    const GglMap *manifest_map,
-    GglMap recipe_map,
-    GglObject **selected_lifecycle_object
-) {
-    GglObject *platform;
-    GglObject *os;
-    if (ggl_map_get(*manifest_map, GGL_STR("platform"), &platform)) {
-        if (platform->type != GGL_TYPE_MAP) {
-            return GGL_ERR_INVALID;
-        }
-
-        // If OS is not provided then do nothing
-        if (ggl_map_get(platform->map, GGL_STR("os"), &os)) {
-            if (os->type != GGL_TYPE_BUF) {
-                GGL_LOGE("Platform OS is invalid. It must be a string");
-                return GGL_ERR_INVALID;
-            }
-
-            GglObject *architecture_obj = { 0 };
-            // fetch architecture_obj
-            if (ggl_map_get(
-                    platform->map, GGL_STR("architecture"), &architecture_obj
-                )) {
-                if (architecture_obj->type != GGL_TYPE_BUF) {
-                    GGL_LOGE(
-                        "Platform architecture is invalid. It must be a string"
-                    );
-                    return GGL_ERR_INVALID;
-                }
-            }
-
-            GglBuffer curr_arch = get_current_architecture();
-
-            // Check if the current OS supported first
-            if ((strncmp((char *) os->buf.data, "linux", os->buf.len) == 0
-                 || strncmp((char *) os->buf.data, "*", os->buf.len) == 0)) {
-                // Then check if architecture is also supported
-                if (((architecture_obj == NULL)
-                     || (architecture_obj->buf.len == 0)
-                     || (strncmp(
-                             (char *) architecture_obj->buf.data,
-                             (char *) curr_arch.data,
-                             architecture_obj->buf.len
-                         )
-                         == 0))) {
-                    GglObject *selections;
-                    if (ggl_map_get(
-                            *manifest_map,
-                            GGL_STR("lifecycle"),
-                            selected_lifecycle_object
-                        )) {
-                        if ((*selected_lifecycle_object)->type
-                            != GGL_TYPE_MAP) {
-                            GGL_LOGE("Lifecycle object is not MAP type.");
-                            return GGL_ERR_INVALID;
-                        }
-                    } else if (ggl_map_get(
-                                   *manifest_map,
-                                   GGL_STR("selections"),
-                                   &selections
-                               )) {
-                        if (selections->type != GGL_TYPE_LIST) {
-                            return GGL_ERR_INVALID;
-                        }
-                        return lifecycle_selection(
-                            selections, recipe_map, *selected_lifecycle_object
-                        );
-                    } else {
-                        GGL_LOGE("Neither Lifecycle nor Selection data provided"
-                        );
-                        return GGL_ERR_INVALID;
-                    }
-                }
-
-            } else {
-                // If the current platform isn't linux then just proceed to
-                // next and mark current cycle success
-                return GGL_ERR_OK;
-            }
-        }
-    } else {
-        GGL_LOGE("Platform not provided");
-        return GGL_ERR_INVALID;
-    }
-    return GGL_ERR_OK;
-}
-
 static GglError parse_requiresprivilege_section(
     bool *is_root, GglMap lifecycle_step
 ) {
     GglObject *key_object;
     if (ggl_map_get(
-            lifecycle_step, GGL_STR("requiresprivilege"), &key_object
+            lifecycle_step, GGL_STR("RequiresPrivilege"), &key_object
         )) {
         if (key_object->type != GGL_TYPE_BUF) {
-            GGL_LOGE("requiresprivilege needs to be a (true/false) value");
+            GGL_LOGE("RequiresPrivilege needs to be a (true/false) value");
             return GGL_ERR_INVALID;
         }
-        ggl_string_to_lower(key_object->buf);
 
         // TODO: Check if 0 and 1 are valid
         if (strncmp((char *) key_object->buf.data, "true", key_object->buf.len)
@@ -319,7 +176,7 @@ static GglError parse_requiresprivilege_section(
                    == 0) {
             *is_root = false;
         } else {
-            GGL_LOGE("requiresprivilege needs to be a"
+            GGL_LOGE("RequiresPrivilege needs to be a"
                      "(true/false) value");
             return GGL_ERR_INVALID;
         }
@@ -346,24 +203,24 @@ static GglError fetch_script_section(
                 return ret;
             }
 
-            if (ggl_map_get(val->map, GGL_STR("script"), &key_object)) {
+            if (ggl_map_get(val->map, GGL_STR("Script"), &key_object)) {
                 if (key_object->type != GGL_TYPE_BUF) {
-                    GGL_LOGE("script section needs to be string buffer");
+                    GGL_LOGE("Script section needs to be string buffer");
                     return GGL_ERR_INVALID;
                 }
                 *selected_script_as_buf = key_object->buf;
             }
 
-            if (ggl_map_get(val->map, GGL_STR("setenv"), &key_object)) {
+            if (ggl_map_get(val->map, GGL_STR("Setenv"), &key_object)) {
                 if (key_object->type != GGL_TYPE_MAP) {
-                    GGL_LOGE("set env needs to be a dictionary map");
+                    GGL_LOGE("Setenv needs to be a dictionary map");
                     return GGL_ERR_INVALID;
                 }
                 *set_env_as_map = key_object->map;
             }
 
         } else {
-            GGL_LOGE("script section section is of invalid list type");
+            GGL_LOGE("Script section section is of invalid list type");
             return GGL_ERR_INVALID;
         }
     }
@@ -380,7 +237,7 @@ static GglError concat_initial_strings(
     Recipe2UnitArgs *args
 ) {
     GglError ret;
-    if (!ggl_map_get(*recipe_map, GGL_STR("componentname"), component_name)) {
+    if (!ggl_map_get(*recipe_map, GGL_STR("ComponentName"), component_name)) {
         return GGL_ERR_INVALID;
     }
 
@@ -390,7 +247,7 @@ static GglError concat_initial_strings(
 
     GglObject *component_version_obj;
     if (!ggl_map_get(
-            *recipe_map, GGL_STR("componentversion"), &component_version_obj
+            *recipe_map, GGL_STR("ComponentVersion"), &component_version_obj
         )) {
         return GGL_ERR_INVALID;
     }
@@ -446,46 +303,6 @@ static GglError concat_initial_strings(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-
-    return GGL_ERR_OK;
-}
-
-static GglError select_linux_manifest(
-    GglMap recipe_map, GglObject *val, GglMap *selected_lifecycle_map
-) {
-    GglObject *selected_lifecycle_object = NULL;
-    for (size_t platform_index = 0; platform_index < val->list.len;
-         platform_index++) {
-        if (val->list.items[platform_index].type != GGL_TYPE_MAP) {
-            GGL_LOGE("Provided manifest section is in invalid format.");
-            return GGL_ERR_INVALID;
-        }
-        GglError ret = manifest_selection(
-            &val->list.items[platform_index].map,
-            recipe_map,
-            &selected_lifecycle_object
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        if (selected_lifecycle_object == NULL) {
-            GGL_LOGE("No lifecycle was found for linux");
-            return GGL_ERR_FAILURE;
-        }
-        // If a lifecycle is successfully selected then look no futher
-        if (selected_lifecycle_object->type == GGL_TYPE_MAP) {
-            break;
-        }
-    }
-
-    if ((selected_lifecycle_object == NULL)
-        || (selected_lifecycle_object->type != GGL_TYPE_MAP)) {
-        GGL_LOGE("No lifecycle was found for linux");
-        return GGL_ERR_FAILURE;
-    }
-
-    *selected_lifecycle_map = selected_lifecycle_object->map;
 
     return GGL_ERR_OK;
 }
@@ -606,13 +423,13 @@ static GglError parse_install_section(
             &ret, &socketpath_vec, GGL_STR("/gg-ipc.socket")
         );
 
-        GglObject out_object = GGL_OBJ_MAP(
+        GglObject out_object = GGL_OBJ_MAP(GGL_MAP(
             { GGL_STR("requiresprivilege"), GGL_OBJ_BOOL(is_root) },
-            { GGL_STR("script"), GGL_OBJ(selected_script) },
-            { GGL_STR("set_env"), GGL_OBJ(set_env_as_map) },
+            { GGL_STR("script"), GGL_OBJ_BUF(selected_script) },
+            { GGL_STR("set_env"), GGL_OBJ_MAP(set_env_as_map) },
             { GGL_STR("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"),
-              GGL_OBJ(socketpath_vec.buf) }
-        );
+              GGL_OBJ_BUF(socketpath_vec.buf) }
+        ));
 
         ret = ggl_obj_deep_copy(&out_object, allocator);
         if (ret != GGL_ERR_OK) {
@@ -634,7 +451,7 @@ static GglError create_standardized_install_file(
     static uint8_t json_buf[MAX_SCRIPT_SIZE];
     GglBuffer install_json_payload = GGL_BUF(json_buf);
     GglError ret = ggl_json_encode(
-        GGL_OBJ(standardized_install_map), &install_json_payload
+        GGL_OBJ_MAP(standardized_install_map), &install_json_payload
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to encode JSON.");
@@ -672,7 +489,7 @@ static GglError manifest_builder(
     bool is_root = false;
 
     GglObject *val;
-    if (ggl_map_get(recipe_map, GGL_STR("manifests"), &val)) {
+    if (ggl_map_get(recipe_map, GGL_STR("Manifests"), &val)) {
         if (val->type == GGL_TYPE_LIST) {
             GglMap selected_lifecycle_map = { 0 };
 
@@ -687,17 +504,17 @@ static GglError manifest_builder(
             GglMap set_env_as_map = { 0 };
             if (ggl_map_get(
                     selected_lifecycle_map,
-                    GGL_STR("setenv"),
+                    GGL_STR("Setenv"),
                     &selected_set_env_as_obj
                 )) {
                 if (selected_set_env_as_obj->type != GGL_TYPE_MAP) {
-                    GGL_LOGE("setenv section needs to be a dictionary map type"
+                    GGL_LOGE("Setenv section needs to be a dictionary map type"
                     );
                     return GGL_ERR_INVALID;
                 }
                 set_env_as_map = selected_set_env_as_obj->map;
             } else {
-                GGL_LOGI("setenv section not found within the linux lifecycle");
+                GGL_LOGI("Setenv section not found within the linux lifecycle");
             }
 
             static uint8_t big_buffer_for_bump[MAX_SCRIPT_SIZE + PATH_MAX];
@@ -734,7 +551,7 @@ static GglError manifest_builder(
                     &startup_or_run_section
                 )) {
                 if (startup_or_run_section->type == GGL_TYPE_LIST) {
-                    GGL_LOGE("Startup is a list type");
+                    GGL_LOGE("startup is a list type");
                     return GGL_ERR_INVALID;
                 }
                 lifecycle_script_selection = GGL_STR("startup");
@@ -850,6 +667,14 @@ static GglError fill_service_section(
         return ret;
     }
 
+    ggl_byte_vec_chain_append(&ret, out, GGL_STR("Restart=on-failure\n"));
+    ggl_byte_vec_chain_append(
+        &ret, out, GGL_STR("RestartSec=" RETRY_DELAY_SECONDS "\n")
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
     static uint8_t working_dir_buf[PATH_MAX - 1];
     GglByteVec working_dir_vec = GGL_BYTE_VEC(working_dir_buf);
 
@@ -889,6 +714,7 @@ static GglError fill_service_section(
         GGL_LOGE("Failed to created working directory.");
         return GGL_ERR_FAILURE;
     }
+    GGL_CLEANUP(cleanup_close, working_dir);
 
     // Add Env Var for GG_root path
     ret = ggl_byte_vec_append(
@@ -933,7 +759,10 @@ GglError generate_systemd_unit(
         return ret;
     }
 
-    ggl_byte_vec_append(&concat_unit_vector, GGL_STR("\n"));
+    ret = ggl_byte_vec_append(&concat_unit_vector, GGL_STR("\n"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     ret = fill_service_section(
         recipe_map, &concat_unit_vector, args, component_name

@@ -8,11 +8,16 @@
 //! Buffer utilities.
 
 #include "alloc.h"
-#include "object.h"
 #include <ggl/error.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+/// A fixed buffer of bytes. Possibly a string.
+typedef struct {
+    uint8_t *data;
+    size_t len;
+} GglBuffer;
 
 /// An array of `GglBuffer`
 typedef struct {

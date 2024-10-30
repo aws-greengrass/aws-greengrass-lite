@@ -133,7 +133,7 @@ try_add_cflag(Wenum-int-mismatch -Wenum-int-mismatch)
 try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
 try_add_cflag(stack-clash-protection -fstack-clash-protection)
 
-try_add_cflag(file-prefix-map "-ffile-prefix-map=${CMAKE_CURRENT_LIST_DIR}/=")
+try_add_cflag(macro-prefix-map "-fmacro-prefix-map=${CMAKE_CURRENT_LIST_DIR}/=")
 
 add_cflags($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
 try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
@@ -161,7 +161,10 @@ add_link_options(LINKER:-z,relro,-z,now,-z,noexecstack LINKER:--as-needed
 try_add_link_option(compress-debug-sections-zlib
                     LINKER:--compress-debug-sections=zlib)
 
-try_add_link_option_if(gc-sections $<NOT:$<CONFIG:Debug>> LINKER:--gc-sections)
+# TODO: investigate misaligned pointers when this is enabled for 32-bit arm
+# try_add_link_option_if(gc-sections $<NOT:$<CONFIG:Debug>>
+# LINKER:--gc-sections)
+
 try_add_link_option_if(strip-all $<CONFIG:Release,MinSizeRel> LINKER:-s)
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
@@ -268,6 +271,8 @@ function(ggl_init_module name)
       PROPERTY COMPILE_FLAGS "-frandom-seed=${src}")
   endforeach()
 
+  # TODO: Allow modules without src to be built, e.g. ggl-constants can delete
+  # src/dummy.c
   if(NOT SRCS_LEN EQUAL 0)
     add_library(${name} STATIC ${SRCS})
     target_compile_definitions(${name} PRIVATE "GGL_MODULE=(\"${name}\")")
@@ -314,6 +319,9 @@ add_subdirectory(ggipc-auth)
 add_subdirectory(ggipc-client)
 add_subdirectory(ggconfigd)
 add_subdirectory(gghealthd)
+add_subdirectory(deps/backoff_algorithm)
+add_subdirectory(ggl-rand)
+add_subdirectory(ggl-backoff)
 add_subdirectory(deps/core_mqtt)
 add_subdirectory(iotcored)
 add_subdirectory(ggpubsubd)
@@ -327,6 +335,8 @@ add_subdirectory(tes-serverd)
 add_subdirectory(ggl-exec)
 add_subdirectory(recipe2unit)
 add_subdirectory(ggl-semver)
+add_subdirectory(ggl-constants)
+add_subdirectory(cloud-logger)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
@@ -345,4 +355,41 @@ if(BUILD_EXAMPLES)
     run_nucleus ALL
     COMMAND cp "${CMAKE_SOURCE_DIR}/misc/run_nucleus" "${CMAKE_BINARY_DIR}/bin"
     COMMENT "Nucleus run script for testing")
+endif()
+
+#
+# CPACK deb package generation
+#
+install(PROGRAMS "misc/run_nucleus" DESTINATION bin)
+
+set(CPACK_GENERATOR DEB)
+
+set(CPACK_DEBIAN_PACKAGE_RELEASE "${LINUX_DISTRO_STRING}")
+
+if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+  set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE amd64)
+elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
+  set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
+endif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+
+set(CPACK_PACKAGE_CONTACT
+    "https://github.com/aws-greengrass/aws-greengrass-lite")
+
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+
+include(CPack)
+
+#
+# uninstall target
+#
+if(NOT TARGET uninstall)
+  configure_file(
+    "${CMAKE_SOURCE_DIR}/misc/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/misc/cmake_uninstall.cmake" IMMEDIATE @ONLY)
+
+  add_custom_target(
+    uninstall
+    COMMAND ${CMAKE_COMMAND} -P
+            ${CMAKE_CURRENT_BINARY_DIR}/misc/cmake_uninstall.cmake
+    COMMENT "Uninstall target")
 endif()

@@ -80,7 +80,8 @@ GglError ggl_handle_publish_to_topic(
     GglMap call_args = GGL_MAP(
         { GGL_STR("topic"), *topic },
         { GGL_STR("type"),
-          is_json ? GGL_OBJ_STR("json") : GGL_OBJ_STR("base64") },
+          is_json ? GGL_OBJ_BUF(GGL_STR("json"))
+                  : GGL_OBJ_BUF(GGL_STR("base64")) },
         { GGL_STR("message"), *message },
     );
 
@@ -95,6 +96,6 @@ GglError ggl_handle_publish_to_topic(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#PublishToTopicResponse"),
-        GGL_OBJ_MAP()
+        GGL_OBJ_MAP({ 0 })
     );
 }

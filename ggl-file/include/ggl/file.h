@@ -8,20 +8,31 @@
 //! File system functionality
 
 #include <sys/types.h>
-#include <ggl/defer.h>
+#include <dirent.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stdbool.h>
 #include <stdio.h>
+
+// TODO: Remove after ggl-file refactor
+// IWYU pragma: always_keep (IWYU has trouble with cleanup_close)
 
 /// Call close on a fd, handling EINTR
 GglError ggl_close(int fd);
 
-/// Enable defer for closing file descriptors.
-GGL_DEFINE_DEFER(ggl_close, int, fd, if (*fd >= 0) ggl_close(*fd))
+/// Cleanup function for closing file descriptors.
+static inline void cleanup_close(const int *fd) {
+    if (*fd >= 0) {
+        ggl_close(*fd);
+    }
+}
 
-/// Enable defer for closing C file handles (e.g. opened by fdopen)
-GGL_DEFINE_DEFER(fclose, FILE *, fp, if (*fp != NULL) fclose(*fp));
+/// Cleanup function for closing C file handles (e.g. opened by fdopen)
+static inline void cleanup_fclose(FILE **fp) {
+    if (*fp != NULL) {
+        fclose(*fp);
+    }
+}
 
 /// Call fsync on an file/dir, handling EINTR
 GglError ggl_fsync(int fd);
@@ -52,5 +63,11 @@ GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content);
 
 /// Copy directory contents recursively
 GglError ggl_copy_dir(int source_fd, int dest_fd);
+
+static inline void cleanup_closedir(DIR **dirp) {
+    if (*dirp != NULL) {
+        closedir(*dirp);
+    }
+}
 
 #endif

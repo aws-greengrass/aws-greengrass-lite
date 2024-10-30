@@ -5,14 +5,17 @@
 #ifndef GGDEPLOYMENTD_COMPONENT_STORE_H
 #define GGDEPLOYMENTD_COMPONENT_STORE_H
 
-#include <ggl/alloc.h>
+#include <dirent.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 
-/// Populate a vector with each component name and version saved in the local
-/// recipe directory
-GglError retrieve_component_list(
-    int *out_fd, GglAlloc *alloc, GglMap *component_details
+GglError get_recipe_dir_fd(int *recipe_fd);
+
+GglError iterate_over_components(
+    DIR *dir,
+    GglBuffer *component_name_buffer,
+    GglBuffer *version,
+    struct dirent **entry
 );
 
 GglError find_available_component(

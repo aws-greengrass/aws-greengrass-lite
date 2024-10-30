@@ -9,6 +9,7 @@
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdint.h>
 
 #ifndef GGL_IPC_AUTH_DISABLE
 #define GGL_IPC_MAX_SVCUID_LEN (16)
@@ -34,6 +35,14 @@ GglError ggipc_private_get_system_config(
 
 GglError ggipc_get_config_str(
     int conn, GglBufList key_path, GglBuffer *component_name, GglBuffer *value
+);
+
+GglError ggipc_publish_to_iot_core(
+    int conn,
+    GglBuffer topic_name,
+    GglBuffer payload,
+    uint8_t qos,
+    GglAlloc *alloc
 );
 
 #endif

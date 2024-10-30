@@ -3,9 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "deployment_handler.h"
+#include "component_manager.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
 #include "iot_jobs_listener.h"
+#include "stale_component.h"
 #include <sys/types.h>
 #include <assert.h>
 #include <fcntl.h>
@@ -13,9 +15,10 @@
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/defer.h>
+#include <ggl/digest.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/http.h>
@@ -29,10 +32,14 @@
 #include <ggl/semver.h>
 #include <ggl/socket.h>
 #include <ggl/uri.h>
+#include <ggl/utils.h>
 #include <ggl/vector.h>
 #include <ggl/zip.h>
 #include <limits.h>
+#include <pthread.h>
 #include <string.h>
+#include <time.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -74,14 +81,14 @@ static GglError merge_dir_to(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, source_fd);
+    GGL_CLEANUP(cleanup_close, source_fd);
 
     int dest_fd;
     ret = ggl_dir_openat(root_path_fd, subdir, O_RDONLY, true, &dest_fd);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, dest_fd);
+    GGL_CLEANUP(cleanup_close, dest_fd);
 
     return ggl_copy_dir(source_fd, dest_fd);
 }
@@ -198,13 +205,14 @@ static GglError get_posix_user(char **posix_user) {
 }
 
 static GglError get_data_endpoint(GglByteVec *endpoint) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              GGL_OBJ_LIST(
-                                  GGL_OBJ_STR("services"),
-                                  GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-                                  GGL_OBJ_STR("configuration"),
-                                  GGL_OBJ_STR("iotDataEndpoint")
-                              ) });
+    GglMap params
+        = GGL_MAP({ GGL_STR("key_path"),
+                    GGL_OBJ_LIST(GGL_LIST(
+                        GGL_OBJ_BUF(GGL_STR("services")),
+                        GGL_OBJ_BUF(GGL_STR("aws.greengrass.Nucleus-Lite")),
+                        GGL_OBJ_BUF(GGL_STR("configuration")),
+                        GGL_OBJ_BUF(GGL_STR("iotDataEndpoint"))
+                    )) });
 
     static uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -232,13 +240,14 @@ static GglError get_data_endpoint(GglByteVec *endpoint) {
 }
 
 static GglError get_data_port(GglByteVec *port) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              GGL_OBJ_LIST(
-                                  GGL_OBJ_STR("services"),
-                                  GGL_OBJ_STR("aws.greengrass.Nucleus-Lite"),
-                                  GGL_OBJ_STR("configuration"),
-                                  GGL_OBJ_STR("greengrassDataPlanePort")
-                              ) });
+    GglMap params
+        = GGL_MAP({ GGL_STR("key_path"),
+                    GGL_OBJ_LIST(GGL_LIST(
+                        GGL_OBJ_BUF(GGL_STR("services")),
+                        GGL_OBJ_BUF(GGL_STR("aws.greengrass.Nucleus-Lite")),
+                        GGL_OBJ_BUF(GGL_STR("configuration")),
+                        GGL_OBJ_BUF(GGL_STR("greengrassDataPlanePort"))
+                    )) });
 
     static uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -266,10 +275,11 @@ static GglError get_data_port(GglByteVec *port) {
 }
 
 static GglError get_private_key_path(GglByteVec *pkey_path) {
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("privateKeyPath")) }
-    );
+    GglMap params = GGL_MAP({ GGL_STR("key_path"),
+                              GGL_OBJ_LIST(GGL_LIST(
+                                  GGL_OBJ_BUF(GGL_STR("system")),
+                                  GGL_OBJ_BUF(GGL_STR("privateKeyPath"))
+                              )) });
 
     uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -300,10 +310,10 @@ static GglError get_private_key_path(GglByteVec *pkey_path) {
 
 static GglError get_cert_path(GglByteVec *cert_path) {
     GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              GGL_OBJ_LIST(
-                                  GGL_OBJ_STR("system"),
-                                  GGL_OBJ_STR("certificateFilePath")
-                              ) });
+                              GGL_OBJ_LIST(GGL_LIST(
+                                  GGL_OBJ_BUF(GGL_STR("system")),
+                                  GGL_OBJ_BUF(GGL_STR("certificateFilePath"))
+                              )) });
 
     static uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -333,10 +343,11 @@ static GglError get_cert_path(GglByteVec *cert_path) {
 }
 
 static GglError get_rootca_path(GglByteVec *rootca_path) {
-    GglMap params = GGL_MAP(
-        { GGL_STR("key_path"),
-          GGL_OBJ_LIST(GGL_OBJ_STR("system"), GGL_OBJ_STR("rootCaPath")) }
-    );
+    GglMap params = GGL_MAP({ GGL_STR("key_path"),
+                              GGL_OBJ_LIST(GGL_LIST(
+                                  GGL_OBJ_BUF(GGL_STR("system")),
+                                  GGL_OBJ_BUF(GGL_STR("rootCaPath"))
+                              )) });
 
     static uint8_t resp_mem[128] = { 0 };
     GglBumpAlloc balloc
@@ -593,7 +604,8 @@ static GglError get_recipe_artifacts(
     CertificateDetails iot_creds,
     GglMap recipe,
     int component_store_fd,
-    int component_archive_store_fd
+    int component_archive_store_fd,
+    GglDigest digest_context
 ) {
     GglList artifacts = { 0 };
     GglError error = find_artifacts_list(recipe, &artifacts);
@@ -608,16 +620,40 @@ static GglError get_recipe_artifacts(
         }
         GglObject *uri_obj = NULL;
         GglObject *unarchive_obj = NULL;
+        GglObject *expected_digest = NULL;
+        GglObject *algorithm = NULL;
 
         GglError err = ggl_map_validate(
             artifacts.items[i].map,
             GGL_MAP_SCHEMA(
                 { GGL_STR("Uri"), true, GGL_TYPE_BUF, &uri_obj },
-                { GGL_STR("Unarchive"), false, GGL_TYPE_BUF, &unarchive_obj }
+                { GGL_STR("Unarchive"), false, GGL_TYPE_BUF, &unarchive_obj },
+                { GGL_STR("Digest"), false, GGL_TYPE_BUF, &expected_digest },
+                { GGL_STR("Algorithm"), false, GGL_TYPE_BUF, &algorithm }
             )
         );
+
         if (err != GGL_ERR_OK) {
+            GGL_LOGE("Failed to validate recipe artifact");
             return GGL_ERR_PARSE;
+        }
+
+        bool needs_verification = false;
+        if (expected_digest != NULL) {
+            if (algorithm != NULL) {
+                if (!ggl_buffer_eq(algorithm->buf, GGL_STR("SHA-256"))) {
+                    GGL_LOGE("Unsupported digest algorithm");
+                    return GGL_ERR_UNSUPPORTED;
+                }
+            } else {
+                GGL_LOGW("Assuming SHA-256 digest.");
+            }
+
+            if (!ggl_base64_decode_in_place(&expected_digest->buf)) {
+                GGL_LOGE("Failed to decode digest.");
+                return GGL_ERR_PARSE;
+            }
+            needs_verification = true;
         }
 
         GglUriInfo info = { 0 };
@@ -650,12 +686,11 @@ static GglError get_recipe_artifacts(
             needs_unarchive ? 0644 : mode,
             &artifact_fd
         );
-        GGL_DEFER(ggl_close, artifact_fd);
-
         if (err != GGL_ERR_OK) {
             GGL_LOGE("Failed to create artifact file for write.");
             return err;
         }
+        GGL_CLEANUP(cleanup_close, artifact_fd);
 
         if (ggl_buffer_eq(GGL_STR("s3"), info.scheme)) {
             err = download_s3_artifact(
@@ -678,6 +713,26 @@ static GglError get_recipe_artifacts(
             return err;
         }
 
+        err = ggl_fsync(artifact_fd);
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE("Artifact fsync failed.");
+            return err;
+        }
+
+        // verify SHA256 digest
+        if (needs_verification) {
+            GGL_LOGD("Verifying artifact digest");
+            err = ggl_verify_sha256_digest(
+                component_store_fd,
+                info.file,
+                expected_digest->buf,
+                digest_context
+            );
+            if (err != GGL_ERR_OK) {
+                return err;
+            }
+        }
+
         // Unarchive the ZIP file if needed
         if (needs_unarchive) {
             err = unarchive_artifact(
@@ -686,16 +741,6 @@ static GglError get_recipe_artifacts(
             if (err != GGL_ERR_OK) {
                 return err;
             }
-        }
-
-        err = ggl_fsync(artifact_fd);
-        if (err != GGL_ERR_OK) {
-            return err;
-        }
-
-        GglError close_error = ggl_close(artifact_fd);
-        if (close_error != GGL_ERR_OK) {
-            return close_error;
         }
     }
     return GGL_ERR_OK;
@@ -1092,7 +1137,7 @@ static GglError parse_dataplane_response_and_save_recipe(
 
         ret = ggl_gg_config_write(
             GGL_BUF_LIST(GGL_STR("services"), cloud_component_name->buf, ),
-            GGL_OBJ_MAP({ GGL_STR("arn"), *cloud_component_arn }),
+            GGL_OBJ_MAP(GGL_MAP({ GGL_STR("arn"), *cloud_component_arn })),
             1
         );
         if (ret != GGL_ERR_OK) {
@@ -1106,6 +1151,7 @@ static GglError parse_dataplane_response_and_save_recipe(
 
 static GglError resolve_dependencies(
     GglMap root_components,
+    GglBuffer thing_group_name,
     GglDeploymentHandlerThreadArgs *args,
     GglAlloc *alloc,
     GglKVVec *resolved_components_kv_vec
@@ -1142,11 +1188,31 @@ static GglError resolve_dependencies(
 
         ret = ggl_kv_vec_push(
             &components_to_resolve,
-            (GglKV) { pair->key, GGL_OBJ(component_version) }
+            (GglKV) { pair->key, GGL_OBJ_BUF(component_version) }
         );
         if (ret != GGL_ERR_OK) {
             return ret;
         }
+    }
+
+    // At this point, components_to_resolve should be only a map of root
+    // component names to their version requirements from the deployment.
+    ret = ggl_gg_config_write(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("DeploymentService"),
+            GGL_STR("thingGroupsToRootComponents"),
+            thing_group_name
+        ),
+        GGL_OBJ_MAP(components_to_resolve.map),
+        0
+    );
+
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Failed to write thing group to root components map to ggconfigd."
+        );
+        return ret;
     }
 
     // Get list of thing groups
@@ -1159,15 +1225,190 @@ static GglError resolve_dependencies(
         return ret;
     }
 
+    GglObject json_thing_groups_object;
+    uint8_t thing_groups_response_mem[25 * sizeof(GglObject)];
+    GglBumpAlloc thing_groups_json_balloc
+        = ggl_bump_alloc_init(GGL_BUF(thing_groups_response_mem));
+    ret = ggl_json_decode_destructive(
+        list_thing_groups_response,
+        &thing_groups_json_balloc.alloc,
+        &json_thing_groups_object
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error when parsing listThingGroups response to "
+                 "json.");
+        return ret;
+    }
+
+    if (json_thing_groups_object.type != GGL_TYPE_MAP) {
+        GGL_LOGE("listThingGroups response did not parse into a "
+                 "map.");
+        return ret;
+    }
+
+    GglObject *thing_groups_list;
+    if (!ggl_map_get(
+            json_thing_groups_object.map,
+            GGL_STR("thingGroups"),
+            &thing_groups_list
+        )) {
+        GGL_LOGE("Missing thingGroups.");
+        return ret;
+    }
+    if (thing_groups_list->type != GGL_TYPE_LIST) {
+        GGL_LOGE("thingGroups response is not a list.");
+        return ret;
+    }
+
+    // TODO: We want to also add root components from local deployments, not
+    // only thing group deployments.
+    GGL_LIST_FOREACH(thing_group_item, thing_groups_list->list) {
+        if (thing_group_item->type != GGL_TYPE_MAP) {
+            GGL_LOGE("Thing group item is not of type map.");
+            return ret;
+        }
+
+        GglObject *thing_group_name_from_item;
+
+        ret = ggl_map_validate(
+            thing_group_item->map,
+            GGL_MAP_SCHEMA(
+                { GGL_STR("thingGroupName"),
+                  true,
+                  GGL_TYPE_BUF,
+                  &thing_group_name_from_item },
+            )
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+
+        if (!ggl_buffer_eq(thing_group_name_from_item->buf, thing_group_name)) {
+            GglObject group_root_components_read_value;
+            ret = ggl_gg_config_read(
+                GGL_BUF_LIST(
+                    GGL_STR("services"),
+                    GGL_STR("DeploymentService"),
+                    GGL_STR("thingGroupsToRootComponents"),
+                    thing_group_name_from_item->buf
+                ),
+                alloc,
+                &group_root_components_read_value
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGI(
+                    "No info found in config for root components for thing "
+                    "group %.*s, assuming no components are part of this thing "
+                    "group.",
+                    (int) thing_group_name_from_item->buf.len,
+                    thing_group_name_from_item->buf.data
+                );
+            } else {
+                if (group_root_components_read_value.type != GGL_TYPE_MAP) {
+                    GGL_LOGE(
+                        "Did not read a map from config for thing group to "
+                        "root components map"
+                    );
+                    return GGL_ERR_INVALID;
+                }
+
+                GGL_MAP_FOREACH(
+                    root_component_pair, group_root_components_read_value.map
+                ) {
+                    // If component is already in the root component list, it
+                    // must be the same version as the one already in the list
+                    // or we have a conflict.
+                    GglObject *existing_root_component_version;
+                    ret = ggl_map_validate(
+                        components_to_resolve.map,
+                        GGL_MAP_SCHEMA(
+                            { root_component_pair->key,
+                              false,
+                              GGL_TYPE_BUF,
+                              &existing_root_component_version },
+                        )
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        return ret;
+                    }
+
+                    bool need_to_add_root_component = true;
+
+                    if (existing_root_component_version != NULL) {
+                        if (ggl_buffer_eq(
+                                existing_root_component_version->buf,
+                                root_component_pair->val.buf
+                            )) {
+                            need_to_add_root_component = false;
+                        } else {
+                            GGL_LOGE(
+                                "There is a version conflict for component "
+                                "%.*s, where two deployments are asking for "
+                                "versions %.*s and %.*s. Please check that "
+                                "this root component does not have conflicting "
+                                "versions across your deployments.",
+                                (int) root_component_pair->key.len,
+                                root_component_pair->key.data,
+                                (int) root_component_pair->val.buf.len,
+                                root_component_pair->val.buf.data,
+                                (int) existing_root_component_version->buf.len,
+                                existing_root_component_version->buf.data
+                            );
+                            return GGL_ERR_INVALID;
+                        }
+                    }
+
+                    if (need_to_add_root_component) {
+                        GglBuffer root_component_name_buf;
+                        ret = ggl_buf_clone(
+                            root_component_pair->key,
+                            alloc,
+                            &root_component_name_buf
+                        );
+                        if (ret != GGL_ERR_OK) {
+                            return ret;
+                        }
+
+                        GglBuffer root_component_version_buf;
+                        ret = ggl_buf_clone(
+                            root_component_pair->val.buf,
+                            &version_requirements_balloc.alloc,
+                            &root_component_version_buf
+                        );
+                        if (ret != GGL_ERR_OK) {
+                            return ret;
+                        }
+
+                        ret = ggl_kv_vec_push(
+                            &components_to_resolve,
+                            (GglKV) { root_component_name_buf,
+                                      GGL_OBJ_BUF(root_component_version_buf) }
+                        );
+                        GGL_LOGD(
+                            "Added %.*s to the list of root components to "
+                            "resolve "
+                            "from "
+                            "the thing group %.*s",
+                            (int) root_component_name_buf.len,
+                            root_component_name_buf.data,
+                            (int) thing_group_name_from_item->buf.len,
+                            thing_group_name_from_item->buf.data
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     GGL_MAP_FOREACH(pair, components_to_resolve.map) {
         // We assume that we have not resolved a component yet if we are finding
         // it in this map.
+        uint8_t resolved_version_arr[NAME_MAX];
+        GglBuffer resolved_version = GGL_BUF(resolved_version_arr);
+        bool found_local_candidate = resolve_component_version(
+            pair->key, pair->val.buf, &resolved_version
+        );
 
-        GglBuffer resolved_version = { 0 };
-        // bool found_local_candidate = resolve_component_version(
-        //     pair->key, pair->val.buf, &resolved_version
-        // );
-        bool found_local_candidate = false;
         if (!found_local_candidate) {
             // Resolve with cloud and download recipe
             static uint8_t resolve_component_candidates_response_buf[16384]
@@ -1211,7 +1452,8 @@ static GglError resolve_dependencies(
         }
 
         ret = ggl_kv_vec_push(
-            resolved_components_kv_vec, (GglKV) { pair->key, GGL_OBJ(val_buf) }
+            resolved_components_kv_vec,
+            (GglKV) { pair->key, GGL_OBJ_BUF(val_buf) }
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
@@ -1341,7 +1583,7 @@ static GglError resolve_dependencies(
                             return ret;
                         }
 
-                        *existing_requirements = GGL_OBJ(new_req_vec.buf);
+                        *existing_requirements = GGL_OBJ_BUF(new_req_vec.buf);
                     }
 
                     // If we haven't resolved it yet, and it doesn't have an
@@ -1367,7 +1609,7 @@ static GglError resolve_dependencies(
 
                         ret = ggl_kv_vec_push(
                             &components_to_resolve,
-                            (GglKV) { name_key_buf, GGL_OBJ(vers_key_buf) }
+                            (GglKV) { name_key_buf, GGL_OBJ_BUF(vers_key_buf) }
                         );
                         if (ret != GGL_ERR_OK) {
                             return ret;
@@ -1393,18 +1635,251 @@ static GglError open_component_artifacts_dir(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, component_fd);
+    GGL_CLEANUP(cleanup_close, component_fd);
     return ggl_dir_openat(
         component_fd, component_version, O_PATH, true, version_fd
     );
 }
 
+static GglError add_arn_list_to_config(
+    GglBuffer component_name, GglBuffer configuration_arn
+) {
+    // add configuration arn to the config if it is not already present
+    // added to the config as a list, this is later used in fss
+    GglBuffer arn_list_mem = GGL_BUF((uint8_t[128]) { 0 });
+    GglBumpAlloc arn_list_balloc = ggl_bump_alloc_init(arn_list_mem);
+    GglObject arn_list;
+
+    GglError ret = ggl_gg_config_read(
+        GGL_BUF_LIST(GGL_STR("services"), component_name, GGL_STR("configArn")),
+        &arn_list_balloc.alloc,
+        &arn_list
+    );
+
+    if (ret != GGL_ERR_OK) {
+        // no list exists in config, create one
+        GglObjVec config_arn_list = GGL_OBJ_VEC((GglObject[10]) { 0 });
+        ret = ggl_obj_vec_push(
+            &config_arn_list, GGL_OBJ_BUF(configuration_arn)
+        );
+
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to update configuration arn list.");
+            return ret;
+        }
+
+        ret = ggl_gg_config_write(
+            GGL_BUF_LIST(
+                GGL_STR("services"), component_name, GGL_STR("configArn")
+            ),
+            GGL_OBJ_LIST(config_arn_list.list),
+            0
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to write configuration arn list to the config.");
+            return ret;
+        }
+    } else {
+        // list exists in config, parse for current config arn and append if it
+        // is not already included
+        if (arn_list.type != GGL_TYPE_LIST) {
+            GGL_LOGE("Configuration arn list not of expected type.");
+            return GGL_ERR_INVALID;
+        }
+        GglObjVec arn_vec = { .list = arn_list.list, .capacity = 10 };
+        GGL_LIST_FOREACH(arn, arn_vec.list) {
+            if (arn->type != GGL_TYPE_BUF) {
+                GGL_LOGE("Configuration arn not of type buffer.");
+                return ret;
+            }
+            if (ggl_buffer_eq(arn->buf, configuration_arn)) {
+                // arn already added to config
+                return GGL_ERR_OK;
+            }
+            ret = ggl_obj_vec_push(&arn_vec, GGL_OBJ_BUF(configuration_arn));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to update configuration arn list.");
+                return ret;
+            }
+
+            ret = ggl_gg_config_write(
+                GGL_BUF_LIST(
+                    GGL_STR("services"), component_name, GGL_STR("configArn")
+                ),
+                GGL_OBJ_LIST(arn_vec.list),
+                0
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write configuration arn list to the config."
+                );
+                return ret;
+            }
+        }
+    }
+    return GGL_ERR_OK;
+}
+
+static GglError send_fss_update(GglBuffer trigger) {
+    GglBuffer server = GGL_STR("/aws/ggl/gg-fleet-statusd");
+    static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
+
+    GglMap args = GGL_MAP({ GGL_STR("trigger"), GGL_OBJ_BUF(trigger) });
+
+    GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));
+    GglObject result;
+
+    GglError ret = ggl_call(
+        server,
+        GGL_STR("send_fleet_status_update"),
+        args,
+        NULL,
+        &alloc.alloc,
+        &result
+    );
+
+    if (ret != 0) {
+        GGL_LOGE(
+            "Failed to send send_fleet_status_update to fleet status service: "
+            "%d.",
+            ret
+        );
+        return ret;
+    }
+
+    return GGL_ERR_OK;
+}
+
+typedef struct LifecycleCompleteContext {
+    _Atomic(GglError) result;
+    pthread_mutex_t *mtx;
+    pthread_cond_t *cond;
+} LifecycleCompleteContext;
+
+static inline void cleanup_pthread_cond_signal(pthread_cond_t **cond) {
+    if (cond != NULL) {
+        pthread_cond_signal(*cond);
+    }
+}
+
+static GglError on_lifecycle_completion(
+    void *ctx, uint32_t handle, GglObject data
+) {
+    (void) handle;
+    GGL_LOGD("Subscription fulfilled");
+    LifecycleCompleteContext *context = ctx;
+    GGL_MTX_SCOPE_GUARD(context->mtx);
+    GGL_CLEANUP(cleanup_pthread_cond_signal, context->cond);
+    if (data.type != GGL_TYPE_MAP) {
+        GGL_LOGE("Unexpected gghealthd response format.");
+        atomic_store(&context->result, GGL_ERR_REMOTE);
+        return GGL_ERR_INVALID;
+    }
+    GglObject *component_name = NULL;
+    GglObject *status = NULL;
+    GglError ret = ggl_map_validate(
+        data.map,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("component_name"), true, GGL_TYPE_BUF, &component_name },
+            { GGL_STR("lifecycle_state"), true, GGL_TYPE_BUF, &status }
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Unexpected gghealthd response format.");
+        atomic_store(&context->result, GGL_ERR_REMOTE);
+        return GGL_ERR_FAILURE;
+    }
+    if (!ggl_buffer_eq(GGL_STR("BROKEN"), status->buf)) {
+        atomic_store(&context->result, GGL_ERR_OK);
+        return GGL_ERR_OK;
+    }
+    GGL_LOGE(
+        "%.*s failed.", (int) component_name->buf.len, component_name->buf.data
+    );
+    atomic_store(&context->result, GGL_ERR_FAILURE);
+    return GGL_ERR_OK;
+}
+
+static void on_lifecycle_close(void *ctx, uint32_t handle) {
+    (void) handle;
+    LifecycleCompleteContext *context = ctx;
+    GglError expected = GGL_ERR_EXPECTED;
+    if (atomic_compare_exchange_strong(
+            &context->result, &expected, GGL_ERR_REMOTE
+        )) {
+        GGL_MTX_SCOPE_GUARD(context->mtx);
+        GGL_LOGD("Subscription closed");
+        (void) expected;
+        pthread_cond_signal(context->cond);
+    }
+}
+
+static GglError wait_for_deployment_status(GglMap resolved_components) {
+    GGL_LOGT("Beginning wait for deployment completion");
+    // TODO: hack
+    ggl_sleep(5);
+
+    pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+    pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+    GGL_MAP_FOREACH(component, resolved_components) {
+        LifecycleCompleteContext ctx
+            = { .mtx = &mtx, .cond = &cond, .result = GGL_ERR_EXPECTED };
+
+        GGL_LOGD(
+            "Awaiting %.*s.", (int) component->key.len, component->key.data
+        );
+        uint32_t handle = 0;
+        GglError method_error = GGL_ERR_OK;
+        GglError ret = ggl_subscribe(
+            GGL_STR("/aws/ggl/gghealthd"),
+            GGL_STR("subscribe_to_lifecycle_completion"),
+            GGL_MAP({ GGL_STR("component_name"), GGL_OBJ_BUF(component->key) }),
+            on_lifecycle_completion,
+            on_lifecycle_close,
+            &ctx,
+            &method_error,
+            &handle
+        );
+        if (ret != GGL_ERR_OK) {
+            return GGL_ERR_FAILURE;
+        }
+
+        struct timespec timeout;
+        clock_gettime(CLOCK_MONOTONIC, &timeout);
+        timeout.tv_sec += 300;
+
+        int cond_ret = 0;
+        {
+            GGL_MTX_SCOPE_GUARD(&mtx);
+            GGL_LOGD("Beginning component wait.");
+            while ((ret = atomic_load(&ctx.result)) == GGL_ERR_EXPECTED) {
+                cond_ret = pthread_cond_timedwait(&cond, &mtx, &timeout);
+                if (cond_ret < 0) {
+                    break;
+                }
+            }
+        }
+
+        ggl_client_sub_close(handle);
+        if (cond_ret < 0) {
+            GGL_LOGE("Cond wait failure.");
+            return GGL_ERR_FAILURE;
+        }
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Component failed.");
+            return GGL_ERR_FAILURE;
+        }
+        GGL_LOGD("Component succeeded");
+    }
+    return GGL_ERR_OK;
+}
+
 // This will be refactored soon with recipe2unit in c, so ignore this warning
 // for now
-
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static void handle_deployment(
-    GglDeployment *deployment, GglDeploymentHandlerThreadArgs *args
+    GglDeployment *deployment,
+    GglDeploymentHandlerThreadArgs *args,
+    bool *deployment_succeeded
 ) {
     int root_path_fd = args->root_path_fd;
     if (deployment->recipe_directory_path.len != 0) {
@@ -1431,7 +1906,6 @@ static void handle_deployment(
         }
     }
 
-    // TODO: Add dependency resolution process that will also check local store.
     if (deployment->cloud_root_components_to_add.len != 0) {
         GglKVVec resolved_components_kv_vec = GGL_KV_VEC((GglKV[64]) { 0 });
         static uint8_t resolve_dependencies_mem[8192] = { 0 };
@@ -1439,6 +1913,7 @@ static void handle_deployment(
             = ggl_bump_alloc_init(GGL_BUF(resolve_dependencies_mem));
         GglError ret = resolve_dependencies(
             deployment->cloud_root_components_to_add,
+            deployment->thing_group,
             args,
             &resolve_dependencies_balloc.alloc,
             &resolved_components_kv_vec
@@ -1492,6 +1967,12 @@ static void handle_deployment(
             return;
         }
 
+        GglDigest digest_context = ggl_new_digest(&ret);
+        if (ret != GGL_ERR_OK) {
+            return;
+        }
+        GGL_CLEANUP(ggl_free_digest, digest_context);
+
         GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
             int component_artifacts_fd = -1;
             open_component_artifacts_dir(
@@ -1524,28 +2005,24 @@ static void handle_deployment(
             }
 
             GglBuffer component_arn = GGL_BUF(component_arn_buffer);
-            if (component_arn.data == NULL) {
-                GGL_LOGE("Failed to retrieve arn");
-                return;
-            }
-
-            ret = ggl_gg_config_read_str(
+            GglError arn_ret = ggl_gg_config_read_str(
                 GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("arn")),
                 &component_arn
             );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to retrieve arn");
-                return;
+            if (arn_ret != GGL_ERR_OK) {
+                GGL_LOGW("Failed to retrieve arn. Assuming recipe artifacts "
+                         "are found on-disk.");
+            } else {
+                ret = get_recipe_artifacts(
+                    component_arn,
+                    tes_credentials,
+                    iot_credentials,
+                    recipe_obj.map,
+                    component_artifacts_fd,
+                    component_archive_dir_fd,
+                    digest_context
+                );
             }
-
-            ret = get_recipe_artifacts(
-                component_arn,
-                tes_credentials,
-                iot_credentials,
-                recipe_obj.map,
-                component_artifacts_fd,
-                component_archive_dir_fd
-            );
 
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("Failed to get artifacts from recipe.");
@@ -1628,13 +2105,14 @@ static void handle_deployment(
                 group = posix_user;
             }
 
-            Recipe2UnitArgs recipe2unit_args
-                = { .user = posix_user, .group = group };
-            memcpy(
-                recipe2unit_args.recipe_path,
-                recipe_path_vec.buf.data,
-                recipe_path_vec.buf.len
-            );
+            static Recipe2UnitArgs recipe2unit_args;
+            memset(&recipe2unit_args, 0, sizeof(Recipe2UnitArgs));
+            recipe2unit_args.user = posix_user;
+            recipe2unit_args.group = group;
+
+            recipe2unit_args.component_name = pair->key;
+            recipe2unit_args.component_version = pair->val.buf;
+
             memcpy(
                 recipe2unit_args.recipe_runner_path,
                 recipe_runner_path_vec.buf.data,
@@ -1645,6 +2123,7 @@ static void handle_deployment(
                 args->root_path.data,
                 args->root_path.len
             );
+            recipe2unit_args.root_path_fd = root_path_fd;
 
             GglObject recipe_buff_obj;
             GglObject *component_name;
@@ -1663,12 +2142,62 @@ static void handle_deployment(
                 return;
             }
 
+            bool component_updated = true;
+
+            static uint8_t old_component_version_mem[128] = { 0 };
+            GglBuffer old_component_version
+                = GGL_BUF(old_component_version_mem);
+            ret = ggl_gg_config_read_str(
+                GGL_BUF_LIST(
+                    GGL_STR("services"), component_name->buf, GGL_STR("version")
+                ),
+                &old_component_version
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGD("Failed to get component version from config, "
+                         "assuming component is new.");
+            } else {
+                if (ggl_buffer_eq(pair->val.buf, old_component_version)) {
+                    GGL_LOGD(
+                        "Detected that component %.*s has not changed version.",
+                        (int) pair->key.len,
+                        pair->key.data
+                    );
+                    component_updated = false;
+                }
+            }
+            // TODO: See if there is a better requirement. If a customer has the
+            // same version as before but somehow updated their component
+            // version their component may not get the updates.
+
+            ret = ggl_gg_config_write(
+                GGL_BUF_LIST(
+                    GGL_STR("services"), component_name->buf, GGL_STR("version")
+                ),
+                pair->val,
+                0
+            );
+
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write component version to ggconfigd.");
+                return;
+            }
+
+            ret = add_arn_list_to_config(
+                component_name->buf, deployment->configuration_arn
+            );
+
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write configuration arn to ggconfigd.");
+                return;
+            }
+
             GglObject *intermediate_obj;
             GglObject *default_config_obj;
 
             if (ggl_map_get(
                     recipe_buff_obj.map,
-                    GGL_STR("componentconfiguration"),
+                    GGL_STR("ComponentConfiguration"),
                     &intermediate_obj
                 )) {
                 if (intermediate_obj->type != GGL_TYPE_MAP) {
@@ -1678,7 +2207,7 @@ static void handle_deployment(
 
                 if (ggl_map_get(
                         intermediate_obj->map,
-                        GGL_STR("defaultconfiguration"),
+                        GGL_STR("DefaultConfiguration"),
                         &default_config_obj
                     )) {
                     ret = ggl_gg_config_write(
@@ -1695,23 +2224,6 @@ static void handle_deployment(
                         GGL_LOGE("Failed to send default config to ggconfigd.");
                         return;
                     }
-
-                    // add component version to the config
-                    ret = ggl_gg_config_write(
-                        GGL_BUF_LIST(
-                            GGL_STR("services"),
-                            component_name->buf,
-                            GGL_STR("version")
-                        ),
-                        pair->val,
-                        0
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE(
-                            "Failed to send component version to ggconfigd."
-                        );
-                        return;
-                    }
                 } else {
                     GGL_LOGI("DefaultConfiguration not found in the recipe.");
                 }
@@ -1721,110 +2233,136 @@ static void handle_deployment(
 
             // TODO: add install file processing logic here.
 
-            static uint8_t service_file_path_buf[PATH_MAX];
-            GglByteVec service_file_path_vec
-                = GGL_BYTE_VEC(service_file_path_buf);
-            ret = ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
-            ggl_byte_vec_chain_append(&ret, &service_file_path_vec, pair->key);
-            ggl_byte_vec_chain_append(
-                &ret, &service_file_path_vec, GGL_STR(".service")
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create service file path.");
-                return;
-            }
-
-            static uint8_t link_command_buf[PATH_MAX];
-            GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
-            ret = ggl_byte_vec_append(
-                &link_command_vec, GGL_STR("sudo systemctl link ")
-            );
-            ggl_byte_vec_chain_append(&ret, &link_command_vec, args->root_path);
-            ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
-            ggl_byte_vec_chain_append(
-                &ret, &link_command_vec, service_file_path_vec.buf
-            );
-            ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl link command.");
-                return;
-            }
-
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            int system_ret = system((char *) link_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl link failed");
+            if (component_updated) {
+                static uint8_t service_file_path_buf[PATH_MAX];
+                GglByteVec service_file_path_vec
+                    = GGL_BYTE_VEC(service_file_path_buf);
+                ret = ggl_byte_vec_append(
+                    &service_file_path_vec, GGL_STR("ggl.")
+                );
+                ggl_byte_vec_chain_append(
+                    &ret, &service_file_path_vec, pair->key
+                );
+                ggl_byte_vec_chain_append(
+                    &ret, &service_file_path_vec, GGL_STR(".service")
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create service file path.");
                     return;
                 }
-                GGL_LOGI(
-                    "systemctl link exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
+
+                static uint8_t link_command_buf[PATH_MAX];
+                GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
+                ret = ggl_byte_vec_append(
+                    &link_command_vec, GGL_STR("sudo systemctl link ")
                 );
-            } else {
-                GGL_LOGE("systemctl link did not exit normally");
-                return;
-            }
-
-            static uint8_t start_command_buf[PATH_MAX];
-            GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
-            ret = ggl_byte_vec_append(
-                &start_command_vec, GGL_STR("sudo systemctl start ")
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &start_command_vec, service_file_path_vec.buf
-            );
-            ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl start command.");
-                return;
-            }
-
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system((char *) start_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl start failed");
+                ggl_byte_vec_chain_append(
+                    &ret, &link_command_vec, args->root_path
+                );
+                ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
+                ggl_byte_vec_chain_append(
+                    &ret, &link_command_vec, service_file_path_vec.buf
+                );
+                ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create systemctl link command.");
                     return;
                 }
-                GGL_LOGI(
-                    "systemctl start exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
-                );
-            } else {
-                GGL_LOGE("systemctl start did not exit normally");
-                return;
-            }
 
-            static uint8_t enable_command_buf[PATH_MAX];
-            GglByteVec enable_command_vec = GGL_BYTE_VEC(enable_command_buf);
-            ret = ggl_byte_vec_append(
-                &enable_command_vec, GGL_STR("sudo systemctl enable ")
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &enable_command_vec, service_file_path_vec.buf
-            );
-            ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl enable command.");
-                return;
-            }
-
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system((char *) enable_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl enable failed");
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                int system_ret = system((char *) link_command_vec.buf.data);
+                if (WIFEXITED(system_ret)) {
+                    if (WEXITSTATUS(system_ret) != 0) {
+                        GGL_LOGE("systemctl link failed");
+                        return;
+                    }
+                    GGL_LOGI(
+                        "systemctl link exited with child status %d\n",
+                        WEXITSTATUS(system_ret)
+                    );
+                } else {
+                    GGL_LOGE("systemctl link did not exit normally");
                     return;
                 }
-                GGL_LOGI(
-                    "systemctl enable exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
+
+                static uint8_t start_command_buf[PATH_MAX];
+                GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
+                ret = ggl_byte_vec_append(
+                    &start_command_vec, GGL_STR("sudo systemctl start ")
                 );
-            } else {
-                GGL_LOGE("systemctl enable did not exit normally");
-                return;
+                ggl_byte_vec_chain_append(
+                    &ret, &start_command_vec, service_file_path_vec.buf
+                );
+                ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create systemctl start command.");
+                    return;
+                }
+
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                system_ret = system((char *) start_command_vec.buf.data);
+                if (WIFEXITED(system_ret)) {
+                    if (WEXITSTATUS(system_ret) != 0) {
+                        GGL_LOGE("systemctl start failed");
+                        return;
+                    }
+                    GGL_LOGI(
+                        "systemctl start exited with child status %d\n",
+                        WEXITSTATUS(system_ret)
+                    );
+                } else {
+                    GGL_LOGE("systemctl start did not exit normally");
+                    return;
+                }
+
+                static uint8_t enable_command_buf[PATH_MAX];
+                GglByteVec enable_command_vec
+                    = GGL_BYTE_VEC(enable_command_buf);
+                ret = ggl_byte_vec_append(
+                    &enable_command_vec, GGL_STR("sudo systemctl enable ")
+                );
+                ggl_byte_vec_chain_append(
+                    &ret, &enable_command_vec, service_file_path_vec.buf
+                );
+                ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create systemctl enable command.");
+                    return;
+                }
+
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                system_ret = system((char *) enable_command_vec.buf.data);
+                if (WIFEXITED(system_ret)) {
+                    if (WEXITSTATUS(system_ret) != 0) {
+                        GGL_LOGE("systemctl enable failed");
+                        return;
+                    }
+                    GGL_LOGI(
+                        "systemctl enable exited with child status %d\n",
+                        WEXITSTATUS(system_ret)
+                    );
+                } else {
+                    GGL_LOGE("systemctl enable did not exit normally");
+                    return;
+                }
             }
+        }
+
+        ret = wait_for_deployment_status(resolved_components_kv_vec.map);
+        if (ret != GGL_ERR_OK) {
+            return;
+        }
+
+        ret = cleanup_stale_versions(resolved_components_kv_vec.map);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Error while cleaning up stale components after deployment."
+            );
+        }
+
+        ret = send_fss_update(GGL_STR("THING_GROUP_DEPLOYMENT"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Error while reporting fleet status after deployment.");
         }
     }
 
@@ -1912,14 +2450,19 @@ static void handle_deployment(
                 group = posix_user;
             }
 
-            Recipe2UnitArgs recipe2unit_args
-                = { .group = group, .user = posix_user };
-            GGL_LOGI("Recipe path %s", recipe_path_vec.buf.data);
-            memcpy(
-                recipe2unit_args.recipe_path,
-                recipe_path_vec.buf.data,
-                recipe_path_vec.buf.len
+            static Recipe2UnitArgs recipe2unit_args;
+            memset(&recipe2unit_args, 0, sizeof(Recipe2UnitArgs));
+            recipe2unit_args.user = posix_user;
+            recipe2unit_args.group = group;
+
+            GGL_LOGI(
+                "Recipe path %.*s",
+                (int) recipe_path_vec.buf.len,
+                recipe_path_vec.buf.data
             );
+
+            recipe2unit_args.component_name = pair->key;
+            recipe2unit_args.component_version = pair->val.buf;
             memcpy(
                 recipe2unit_args.recipe_runner_path,
                 recipe_runner_path_vec.buf.data,
@@ -1930,6 +2473,7 @@ static void handle_deployment(
                 args->root_path.data,
                 args->root_path.len
             );
+            recipe2unit_args.root_path_fd = root_path_fd;
 
             GglObject recipe_buff_obj;
             GglObject *component_name;
@@ -1948,12 +2492,34 @@ static void handle_deployment(
                 return;
             }
 
+            ret = ggl_gg_config_write(
+                GGL_BUF_LIST(
+                    GGL_STR("services"), component_name->buf, GGL_STR("version")
+                ),
+                pair->val,
+                0
+            );
+
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write component version to ggconfigd.");
+                return;
+            }
+
+            ret = add_arn_list_to_config(
+                component_name->buf, deployment->configuration_arn
+            );
+
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to write configuration arn to ggconfigd.");
+                return;
+            }
+
             GglObject *intermediate_obj;
             GglObject *default_config_obj;
 
             if (ggl_map_get(
                     recipe_buff_obj.map,
-                    GGL_STR("componentconfiguration"),
+                    GGL_STR("ComponentConfiguration"),
                     &intermediate_obj
                 )) {
                 if (intermediate_obj->type != GGL_TYPE_MAP) {
@@ -1963,7 +2529,7 @@ static void handle_deployment(
 
                 if (ggl_map_get(
                         intermediate_obj->map,
-                        GGL_STR("defaultconfiguration"),
+                        GGL_STR("DefaultConfiguration"),
                         &default_config_obj
                     )) {
                     ret = ggl_gg_config_write(
@@ -2091,7 +2657,12 @@ static void handle_deployment(
                 return;
             }
         }
+        GglError ret = send_fss_update(GGL_STR("LOCAL_DEPLOYMENT"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Error while reporting fleet status after deployment.");
+        }
     }
+    *deployment_succeeded = true;
 }
 
 static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
@@ -2109,14 +2680,24 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             deployment->deployment_id, GGL_STR("IN_PROGRESS")
         );
 
-        handle_deployment(deployment, args);
-
-        GGL_LOGD("Completed deployment.");
+        bool deployment_succeeded = false;
+        handle_deployment(deployment, args, &deployment_succeeded);
 
         // TODO: need error details from handle_deployment
-        update_current_jobs_deployment(
-            deployment->deployment_id, GGL_STR("SUCCEEDED")
-        );
+        if (deployment_succeeded) {
+            GGL_LOGI("Completed deployment processing and reporting job as "
+                     "SUCCEEDED.");
+            update_current_jobs_deployment(
+                deployment->deployment_id, GGL_STR("SUCCEEDED")
+            );
+        } else {
+            GGL_LOGW(
+                "Completed deployment processing and reporting job as FAILED."
+            );
+            update_current_jobs_deployment(
+                deployment->deployment_id, GGL_STR("FAILED")
+            );
+        }
 
         ggl_deployment_release(deployment);
     }

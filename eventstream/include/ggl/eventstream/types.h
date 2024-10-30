@@ -7,7 +7,7 @@
 
 //! AWS EventStream message data types.
 
-#include <ggl/object.h>
+#include <ggl/buffer.h>
 #include <stdint.h>
 
 /// Type of EventStream header value.

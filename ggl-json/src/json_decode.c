@@ -483,8 +483,8 @@ static bool get_uint16_from_hex4(uint8_t *hex_bytes, uint16_t *out) {
     }
 
     // unsigned to avoid int promotion
-    *out = (uint16_t) (((unsigned) bytes[0] << 12) & ((unsigned) bytes[1] << 8)
-                       & ((unsigned) bytes[2] << 4) & ((unsigned) bytes[3]));
+    *out = (uint16_t) (((unsigned) bytes[0] << 12) | ((unsigned) bytes[1] << 8)
+                       | ((unsigned) bytes[2] << 4) | ((unsigned) bytes[3]));
     return true;
 }
 
@@ -627,7 +627,7 @@ static GglError decode_json_str(GglBuffer content, GglObject *obj) {
         GGL_LOGE("Error decoding JSON string.");
         return GGL_ERR_PARSE;
     }
-    *obj = GGL_OBJ(str);
+    *obj = GGL_OBJ_BUF(str);
     return GGL_ERR_OK;
 }
 
@@ -700,7 +700,7 @@ static GglError decode_json_array(
         }
     }
 
-    *obj = GGL_OBJ((GglList) { .items = items, .len = count });
+    *obj = GGL_OBJ_LIST((GglList) { .items = items, .len = count });
     return GGL_ERR_OK;
 }
 
@@ -755,7 +755,7 @@ static GglError decode_json_object(
         }
     }
 
-    *obj = GGL_OBJ((GglMap) { .pairs = pairs, .len = count });
+    *obj = GGL_OBJ_MAP((GglMap) { .pairs = pairs, .len = count });
     return GGL_ERR_OK;
 }
 

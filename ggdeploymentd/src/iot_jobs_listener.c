@@ -9,9 +9,9 @@
 #include <ggl/aws_iot_call.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
@@ -176,8 +176,7 @@ static GglError deserialize_payload(
 static GglError update_job(
     GglBuffer job_id, GglBuffer job_status, int64_t *version
 ) {
-    pthread_mutex_lock(&topic_scratch_mutex);
-    GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
+    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
     GglBuffer topic = GGL_BUF(topic_scratch);
     GglError ret = create_update_job_topic(thing_name_buf, job_id, &topic);
     if (ret != GGL_ERR_OK) {
@@ -194,12 +193,13 @@ static GglError update_job(
     }
 
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
-    GglObject payload_object = GGL_OBJ_MAP(
-        { GGL_STR("status"), GGL_OBJ(job_status) },
+    GglObject payload_object = GGL_OBJ_MAP(GGL_MAP(
+        { GGL_STR("status"), GGL_OBJ_BUF(job_status) },
         { GGL_STR("expectedVersion"),
-          GGL_OBJ((GglBuffer) { .data = version_buf, .len = (size_t) len }) },
-        { GGL_STR("clientToken"), GGL_OBJ_STR("jobs-nucleus-lite") }
-    );
+          GGL_OBJ_BUF((GglBuffer) { .data = version_buf, .len = (size_t) len }
+          ) },
+        { GGL_STR("clientToken"), GGL_OBJ_BUF(GGL_STR("jobs-nucleus-lite")) }
+    ));
 
     GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
     GglObject result = GGL_OBJ_NULL();
@@ -213,8 +213,7 @@ static GglError update_job(
 }
 
 static GglError describe_next_job(void) {
-    pthread_mutex_lock(&topic_scratch_mutex);
-    GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
+    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
     GglBuffer topic = GGL_BUF(topic_scratch);
     GglError ret = create_get_next_job_topic(thing_name_buf, &topic);
     if (ret != GGL_ERR_OK) {
@@ -222,12 +221,12 @@ static GglError describe_next_job(void) {
     }
 
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
-    GglObject payload_object = GGL_OBJ_MAP(
-        { GGL_STR("jobId"), GGL_OBJ_STR(NEXT_JOB_LITERAL) },
-        { GGL_STR("thingName"), GGL_OBJ(thing_name_buf) },
+    GglObject payload_object = GGL_OBJ_MAP(GGL_MAP(
+        { GGL_STR("jobId"), GGL_OBJ_BUF(GGL_STR(NEXT_JOB_LITERAL)) },
+        { GGL_STR("thingName"), GGL_OBJ_BUF(thing_name_buf) },
         { GGL_STR("includeJobDocument"), GGL_OBJ_BOOL(true) },
-        { GGL_STR("clientToken"), GGL_OBJ_STR("jobs-nucleus-lite") }
-    );
+        { GGL_STR("clientToken"), GGL_OBJ_BUF(GGL_STR("jobs-nucleus-lite")) }
+    ));
 
     GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
     GglObject job_description = GGL_OBJ_NULL();
@@ -263,11 +262,15 @@ static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
     // TODO: check if current job is canceled before clobbering
     current_job_version = 1;
     current_job_id = GGL_BYTE_VEC(current_job_id_buf);
-    ggl_byte_vec_append(&current_job_id, job_id);
+    GglError ret = ggl_byte_vec_append(&current_job_id, job_id);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Job ID too long.");
+        return ret;
+    }
+
     current_deployment_id = GGL_BYTE_VEC(current_deployment_id_buf);
 
     // TODO: backoff algorithm
-    GglError ret = GGL_ERR_OK;
     int64_t retries = 1;
     while ((ret
             = ggl_deployment_enqueue(deployment_doc, &current_deployment_id))
@@ -384,8 +387,7 @@ static GglError next_job_execution_changed_callback(
 }
 
 static GglError subscribe_to_next_job_topics(void) {
-    pthread_mutex_lock(&topic_scratch_mutex);
-    GGL_DEFER(pthread_mutex_unlock, topic_scratch_mutex);
+    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
 
     if (next_job_handle == 0) {
         GglBuffer job_topic = GGL_BUF(topic_scratch);

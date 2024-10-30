@@ -17,36 +17,42 @@
 #include <stdint.h>
 
 #define SUCCESS_STRING "test-and-verify-the-world"
-char *command = NULL;
-char recipe_dir[PATH_MAX] = { 0 };
-char *component_name = "sample";
-char *component_version = "1.0.0";
 
+static char *component_name = "sample";
+static char *component_version = "1.0.0";
 const char *component_name_test = "ggconfigd-test";
 
 GglError run_ggconfigd_test(void) {
-    GglKVVec args = GGL_KV_VEC((GglKV[3]) { 0 });
+    static uint8_t recipe_dir_mem[PATH_MAX] = { 0 };
+    GglByteVec recipe_dir = GGL_BYTE_VEC(recipe_dir_mem);
 
-    char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) == NULL) {
+    if (getcwd((char *) recipe_dir.buf.data, sizeof(recipe_dir_mem)) == NULL) {
         GGL_LOGE("Error getting current working directory.");
         assert(false);
         return GGL_ERR_FAILURE;
     }
+    recipe_dir.buf.len = strlen((char *) recipe_dir.buf.data);
 
-    strncat(recipe_dir, cwd, strlen(cwd));
-    strncat(
-        recipe_dir,
-        "/ggconfigd-test/sample-recipe",
-        strlen("/ggconfigd-test/sample-recipe")
+    GglError ret = ggl_byte_vec_append(
+        &recipe_dir, GGL_STR("/ggconfigd-test/sample-recipe")
+    );
+    if (ret != GGL_ERR_OK) {
+        assert(false);
+        return ret;
+    }
+
+    GGL_LOGI(
+        "Location of recipe file is %.*s",
+        (int) recipe_dir.buf.len,
+        recipe_dir.buf.data
     );
 
-    GGL_LOGI("Location of recipe file is %s", recipe_dir);
+    GglKVVec args = GGL_KV_VEC((GglKV[3]) { 0 });
 
-    GglError ret = ggl_kv_vec_push(
+    ret = ggl_kv_vec_push(
         &args,
         (GglKV) { GGL_STR("recipe_directory_path"),
-                  GGL_OBJ(ggl_buffer_from_null_term(recipe_dir)) }
+                  GGL_OBJ_BUF(recipe_dir.buf) }
     );
     if (ret != GGL_ERR_OK) {
         assert(false);
@@ -55,13 +61,13 @@ GglError run_ggconfigd_test(void) {
 
     GglKV component;
     if (component_name != NULL) {
-        component
-            = (GglKV) { ggl_buffer_from_null_term(component_name),
-                        GGL_OBJ(ggl_buffer_from_null_term(component_version)) };
+        component = (GglKV
+        ) { ggl_buffer_from_null_term(component_name),
+            GGL_OBJ_BUF(ggl_buffer_from_null_term(component_version)) };
         ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("root_component_versions_to_add"),
-                      GGL_OBJ((GglMap) { .pairs = &component, .len = 1 }) }
+                      GGL_OBJ_MAP((GglMap) { .pairs = &component, .len = 1 }) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);

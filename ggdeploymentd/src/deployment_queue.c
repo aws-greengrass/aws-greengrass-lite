@@ -9,7 +9,7 @@
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -71,7 +71,7 @@ static GglError deep_copy_deployment(
 ) {
     assert(deployment != NULL);
 
-    GglObject obj = GGL_OBJ(deployment->deployment_id);
+    GglObject obj = GGL_OBJ_BUF(deployment->deployment_id);
     GglError ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -88,35 +88,69 @@ static GglError deep_copy_deployment(
         return ret;
     }
 
-    obj = GGL_OBJ(deployment->root_component_versions_to_add);
+    obj = GGL_OBJ_MAP(deployment->root_component_versions_to_add);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->root_component_versions_to_add = obj.map;
 
-    obj = GGL_OBJ(deployment->cloud_root_components_to_add);
+    obj = GGL_OBJ_MAP(deployment->cloud_root_components_to_add);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->cloud_root_components_to_add = obj.map;
 
-    obj = GGL_OBJ(deployment->root_components_to_remove);
+    obj = GGL_OBJ_LIST(deployment->root_components_to_remove);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->root_components_to_remove = obj.list;
 
-    obj = GGL_OBJ(deployment->component_to_configuration);
+    obj = GGL_OBJ_MAP(deployment->component_to_configuration);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->component_to_configuration = obj.map;
 
+    obj = GGL_OBJ_BUF(deployment->configuration_arn);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    deployment->configuration_arn = obj.buf;
+
+    obj = GGL_OBJ_BUF(deployment->thing_group);
+    ret = ggl_obj_deep_copy(&obj, alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    deployment->thing_group = obj.buf;
+
     return GGL_ERR_OK;
+}
+
+static void get_slash_and_colon_locations_from_arn(
+    GglObject *arn, size_t *slash_index, size_t *last_colon_index
+) {
+    assert(*slash_index == 0);
+    assert(*last_colon_index == 0);
+    for (size_t i = arn->buf.len; i > 0; i--) {
+        if (arn->buf.data[i - 1] == ':') {
+            if (*last_colon_index == 0) {
+                *last_colon_index = i - 1;
+            }
+        }
+        if (arn->buf.data[i - 1] == '/') {
+            *slash_index = i - 1;
+        }
+        if (*slash_index != 0 && *last_colon_index != 0) {
+            break;
+        }
+    }
 }
 
 static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
@@ -129,6 +163,7 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
     GglObject *root_components_to_remove;
     GglObject *component_to_configuration;
     GglObject *deployment_id;
+    GglObject *configuration_arn;
 
     GglError ret = ggl_map_validate(
         args,
@@ -158,6 +193,10 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
               GGL_TYPE_MAP,
               &component_to_configuration },
             { GGL_STR("deployment_id"), false, GGL_TYPE_BUF, &deployment_id },
+            { GGL_STR("configurationArn"),
+              false,
+              GGL_TYPE_BUF,
+              &configuration_arn },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -201,12 +240,28 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
         doc->deployment_id = (GglBuffer) { .data = uuid_mem, .len = 36 };
     }
 
+    if (configuration_arn != NULL) {
+        // Assume that the arn has a version at the end, we want to discard the
+        // version for the arn.
+        size_t last_colon_index = 0;
+        size_t slash_index = 0;
+        get_slash_and_colon_locations_from_arn(
+            configuration_arn, &slash_index, &last_colon_index
+        );
+        doc->configuration_arn
+            = ggl_buffer_substr(configuration_arn->buf, 0, last_colon_index);
+        doc->thing_group = ggl_buffer_substr(
+            configuration_arn->buf, slash_index + 1, last_colon_index
+        );
+    } else {
+        doc->thing_group = GGL_STR("LOCAL_DEPLOYMENTS");
+    }
+
     return GGL_ERR_OK;
 }
 
 GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id) {
-    pthread_mutex_lock(&queue_mtx);
-    GGL_DEFER(pthread_mutex_unlock, queue_mtx);
+    GGL_MTX_SCOPE_GUARD(&queue_mtx);
 
     GglDeployment new = { 0 };
     GglError ret = parse_deployment_obj(deployment_doc, &new);
@@ -256,8 +311,7 @@ GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id) {
 }
 
 GglError ggl_deployment_dequeue(GglDeployment **deployment) {
-    pthread_mutex_lock(&queue_mtx);
-    GGL_DEFER(pthread_mutex_unlock, queue_mtx);
+    GGL_MTX_SCOPE_GUARD(&queue_mtx);
 
     while (queue_count == 0) {
         pthread_cond_wait(&notify_cond, &queue_mtx);

@@ -92,6 +92,6 @@ GglError ggl_handle_update_configuration(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#UpdateConfigurationResponse"),
-        GGL_OBJ_MAP()
+        GGL_OBJ_MAP({ 0 })
     );
 }

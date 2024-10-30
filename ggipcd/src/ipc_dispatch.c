@@ -50,9 +50,21 @@ GglError ggl_ipc_handle_operation(
                 GglError ret
                     = ggl_ipc_get_component_name(handle, &info.component);
                 if (ret != GGL_ERR_OK) {
+                    GGL_LOGE(
+                        "Failed component name lookup for IPC operation %.*s",
+                        (int) operation.len,
+                        operation.data
+                    );
                     return ret;
                 }
 
+                GGL_LOGI(
+                    "Received IPC operation %.*s from component %.*s.",
+                    (int) operation.len,
+                    operation.data,
+                    (int) info.component.len,
+                    info.component.data
+                );
                 static uint8_t resp_mem
                     [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
                      + GGL_IPC_MAX_MSG_LEN];

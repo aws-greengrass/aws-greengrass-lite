@@ -11,7 +11,6 @@
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>

@@ -6,7 +6,6 @@
 #include "ggl/alloc.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
-#include "ggl/object.h"
 #include <string.h>
 #include <stdbool.h>
 #include <stddef.h>

@@ -6,11 +6,12 @@
 #include "ggconfigd.h"
 #include "ggl/alloc.h"
 #include "helpers.h"
+#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
+#include <ggl/constants.h>
 #include <ggl/core_bus/constants.h>
-#include <ggl/core_bus/gg_config.h>
 #include <ggl/core_bus/server.h>
-#include <ggl/defer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -20,10 +21,11 @@
 #include <string.h>
 #include <stdbool.h>
 
-/// Enable defer for finalizing sql statements
-GGL_DEFINE_DEFER(
-    sqlite3_finalize, sqlite3_stmt *, stmt, sqlite3_finalize(*stmt)
-)
+static inline void cleanup_sqlite3_finalize(sqlite3_stmt **p) {
+    if (*p != NULL) {
+        sqlite3_finalize(*p);
+    }
+}
 
 static bool config_initialized = false;
 static sqlite3 *config_database;
@@ -58,7 +60,6 @@ GglError ggconfig_open(void) {
             return GGL_ERR_FAILURE;
         }
 
-        char *err_message = 0;
         // do configuration
         rc = sqlite3_open(config_database_name, &config_database);
         if (rc) {
@@ -74,20 +75,40 @@ GglError ggconfig_open(void) {
             sqlite3_prepare_v2(
                 config_database, GGL_SQL_CHECK_INITALIZED, -1, &stmt, NULL
             );
-            GGL_DEFER(sqlite3_finalize, stmt);
+            GGL_CLEANUP(cleanup_sqlite3_finalize, stmt);
+
             if (sqlite3_step(stmt) == SQLITE_ROW) {
                 GGL_LOGI("found keyTable");
                 return_err = GGL_ERR_OK;
             } else {
                 return_err = create_database();
+                char *err_message = 0;
+                rc = sqlite3_exec(
+                    config_database,
+                    GGL_SQL_CREATE_INDEX,
+                    NULL,
+                    NULL,
+                    &err_message
+                );
+                if (rc) {
+                    GGL_LOGI(
+                        "Failed to add an index to the relationTable %s, "
+                        "expect an "
+                        "autoindex to be created",
+                        err_message
+                    );
+                    sqlite3_free(err_message);
+                }
             }
         }
         // create a temporary table for subscriber data
+        char *err_message = 0;
         rc = sqlite3_exec(
             config_database, GGL_SQL_CREATE_SUB_TABLE, NULL, NULL, &err_message
         );
         if (rc) {
             GGL_LOGE("Failed to create temporary table %s", err_message);
+            sqlite3_free(err_message);
             return_err = GGL_ERR_FAILURE;
         }
         config_initialized = true;
@@ -109,7 +130,7 @@ static GglError key_insert(GglBuffer *key, int64_t *id_output) {
     sqlite3_prepare_v2(
         config_database, GGL_SQL_KEY_INSERT, -1, &key_insert_stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, key_insert_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, key_insert_stmt);
     sqlite3_bind_text(
         key_insert_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
@@ -138,7 +159,7 @@ static GglError value_is_present_for_key(
     sqlite3_prepare_v2(
         config_database, GGL_SQL_VALUE_PRESENT, -1, &find_value_stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, find_value_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, find_value_stmt);
     sqlite3_bind_int64(find_value_stmt, 1, key_id);
     int rc = sqlite3_step(find_value_stmt);
     if (rc == SQLITE_ROW) {
@@ -184,7 +205,7 @@ static GglError find_key_with_parent(
         &find_element_stmt,
         NULL
     );
-    GGL_DEFER(sqlite3_finalize, find_element_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, find_element_stmt);
     sqlite3_bind_text(
         find_element_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
@@ -231,7 +252,7 @@ static GglError get_or_create_key_at_root(GglBuffer *key, int64_t *id_output) {
     sqlite3_prepare_v2(
         config_database, GGL_SQL_GET_ROOT_KEY, -1, &root_check_stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, root_check_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, root_check_stmt);
     sqlite3_bind_text(
         root_check_stmt, 1, (char *) key->data, (int) key->len, SQLITE_STATIC
     );
@@ -267,7 +288,7 @@ static GglError relation_insert(int64_t id, int64_t parent) {
         &relation_insert_stmt,
         NULL
     );
-    GGL_DEFER(sqlite3_finalize, relation_insert_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, relation_insert_stmt);
     sqlite3_bind_int64(relation_insert_stmt, 1, id);
     sqlite3_bind_int64(relation_insert_stmt, 2, parent);
     int rc = sqlite3_step(relation_insert_stmt);
@@ -292,7 +313,7 @@ static GglError value_insert(
     sqlite3_prepare_v2(
         config_database, GGL_SQL_VALUE_INSERT, -1, &value_insert_stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, value_insert_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, value_insert_stmt);
     sqlite3_bind_int64(value_insert_stmt, 1, key_id);
     sqlite3_bind_text(
         value_insert_stmt,
@@ -326,7 +347,7 @@ static GglError value_update(
     sqlite3_prepare_v2(
         config_database, GGL_SQL_VALUE_UPDATE, -1, &update_value_stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, update_value_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, update_value_stmt);
     sqlite3_bind_text(
         update_value_stmt,
         1,
@@ -358,7 +379,7 @@ static GglError value_get_timestamp(
     sqlite3_prepare_v2(
         config_database, GGL_SQL_GET_TIMESTAMP, -1, &get_timestamp_stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, get_timestamp_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, get_timestamp_stmt);
     sqlite3_bind_int64(get_timestamp_stmt, 1, id);
     int rc = sqlite3_step(get_timestamp_stmt);
     if (rc == SQLITE_ROW) {
@@ -378,7 +399,7 @@ static GglError value_get_timestamp(
 }
 
 // key_ids_output must point to an empty GglObjVec with capacity
-// MAX_KEY_PATH_DEPTH
+// GGL_MAX_OBJECT_DEPTH
 static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
     GGL_LOGD("searching for %s", print_key_path(key_path));
 
@@ -386,7 +407,7 @@ static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
     sqlite3_prepare_v2(
         config_database, GGL_SQL_FIND_ELEMENT, -1, &find_element_stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, find_element_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, find_element_stmt);
 
     for (size_t index = 0; index < key_path->len; index++) {
         GglBuffer *key = &key_path->items[index].buf;
@@ -399,11 +420,13 @@ static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
         );
     }
 
-    for (size_t index = key_path->len; index <= 24; index++) {
+    for (size_t index = key_path->len; index < GGL_MAX_OBJECT_DEPTH; index++) {
         sqlite3_bind_null(find_element_stmt, (int) index + 1);
     }
 
-    sqlite3_bind_int(find_element_stmt, 26, (int) key_path->len);
+    sqlite3_bind_int(
+        find_element_stmt, GGL_MAX_OBJECT_DEPTH + 1, (int) key_path->len
+    );
 
     for (size_t i = 0; i < key_path->len; i++) {
         int rc = sqlite3_step(find_element_stmt);
@@ -533,7 +556,7 @@ static GglError child_is_present_for_key(
     sqlite3_prepare_v2(
         config_database, GGL_SQL_HAS_CHILD, -1, &child_check_stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, child_check_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, child_check_stmt);
     sqlite3_bind_int64(child_check_stmt, 1, key_id);
     int rc = sqlite3_step(child_check_stmt);
     if (rc == SQLITE_ROW) {
@@ -565,7 +588,7 @@ static GglError notify_single_key(
     sqlite3_prepare_v2(
         config_database, GGL_SQL_GET_SUBSCRIBERS, -1, &stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, stmt);
     sqlite3_bind_int64(stmt, 1, notify_key_id);
     int rc = 0;
     GGL_LOGD(
@@ -583,7 +606,7 @@ static GglError notify_single_key(
         case SQLITE_ROW: {
             uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 0);
             GGL_LOGD("Sending to %u", handle);
-            ggl_respond(handle, GGL_OBJ(*changed_key_path));
+            ggl_respond(handle, GGL_OBJ_LIST(*changed_key_path));
         } break;
         default:
             GGL_LOGE(
@@ -627,9 +650,9 @@ GglError ggconfig_write_value_at_key(
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
 
-    GglObject ids_array[GGL_MAX_CONFIG_DEPTH];
+    GglObject ids_array[GGL_MAX_OBJECT_DEPTH];
     GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
-                      .capacity = GGL_MAX_CONFIG_DEPTH };
+                      .capacity = GGL_MAX_OBJECT_DEPTH };
     int64_t last_key_id;
     GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
@@ -747,7 +770,7 @@ static GglError read_value_at_key(
 ) {
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(config_database, GGL_SQL_READ_VALUE, -1, &stmt, NULL);
-    GGL_DEFER(sqlite3_finalize, stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, stmt);
     sqlite3_bind_int64(stmt, 1, key_id);
     int rc = sqlite3_step(stmt);
     if (rc == SQLITE_DONE) {
@@ -806,7 +829,7 @@ static GglError read_key_recursive(
     sqlite3_prepare_v2(
         config_database, GGL_SQL_GET_CHILDREN, -1, &read_children_stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, read_children_stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, read_children_stmt);
     sqlite3_bind_int64(read_children_stmt, 1, key_id);
 
     // read children count
@@ -879,9 +902,9 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
     GGL_LOGI("starting request for key: %s", print_key_path(key_path));
-    GglObject ids_array[GGL_MAX_CONFIG_DEPTH];
+    GglObject ids_array[GGL_MAX_OBJECT_DEPTH];
     GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
-                      .capacity = GGL_MAX_CONFIG_DEPTH };
+                      .capacity = GGL_MAX_OBJECT_DEPTH };
     GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
@@ -907,9 +930,9 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
     // ensure this key is present in the key path. Key does not require a
     // value
-    GglObject ids_array[GGL_MAX_CONFIG_DEPTH];
+    GglObject ids_array[GGL_MAX_OBJECT_DEPTH];
     GglObjVec ids = { .list = { .items = ids_array, .len = 0 },
-                      .capacity = GGL_MAX_CONFIG_DEPTH };
+                      .capacity = GGL_MAX_OBJECT_DEPTH };
     GglError err = get_key_ids(key_path, &ids);
     if (err == GGL_ERR_NOENTRY) {
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
@@ -923,8 +946,8 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
 
     GGL_LOGI(
         "Subscribing %" PRIu32 ":%" PRIu32 " to %s",
-        handle && 0xFFFF0000 >> 16,
-        handle && 0x0000FFFF,
+        handle & (0xFFFF0000 >> 16),
+        handle & 0x0000FFFF,
         print_key_path(key_path)
     );
     // insert the key & handle data into the subscriber database
@@ -933,7 +956,7 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
     sqlite3_prepare_v2(
         config_database, GGL_SQL_ADD_SUBSCRIPTION, -1, &stmt, NULL
     );
-    GGL_DEFER(sqlite3_finalize, stmt);
+    GGL_CLEANUP(cleanup_sqlite3_finalize, stmt);
     sqlite3_bind_int64(stmt, 1, key_id);
     sqlite3_bind_int64(stmt, 2, handle);
     int rc = sqlite3_step(stmt);

@@ -9,7 +9,7 @@
 #include "config_path_object.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
-#include <ggl/core_bus/gg_config.h>
+#include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
@@ -37,13 +37,13 @@ static GglError subscribe_to_configuration_update_callback(
         return err;
     }
 
-    GglObject ipc_response = GGL_OBJ_MAP(
+    GglObject ipc_response = GGL_OBJ_MAP(GGL_MAP(
         { GGL_STR("configurationUpdateEvent"),
-          GGL_OBJ_MAP(
-              { GGL_STR("componentName"), GGL_OBJ(component_name) },
-              { GGL_STR("keyPath"), GGL_OBJ(key_path) },
-          ) },
-    );
+          GGL_OBJ_MAP(GGL_MAP(
+              { GGL_STR("componentName"), GGL_OBJ_BUF(component_name) },
+              { GGL_STR("keyPath"), GGL_OBJ_LIST(key_path) },
+          )) },
+    ));
 
     err = ggl_ipc_response_send(
         resp_handle,
@@ -92,7 +92,7 @@ GglError ggl_handle_subscribe_to_configuration_update(
     // this component's configuration. Similarly, (although this doesn't appear
     // to be documented) no key path provided also implies we want to subscribe
     // to all keys under this component's configuration
-    GglObject *empty_list = (GglObject *) &GGL_OBJ_LIST();
+    GglObject *empty_list = (GglObject *) &GGL_OBJ_LIST({ 0 });
     if (key_path_obj == NULL) {
         key_path_obj = empty_list;
     } else {
@@ -121,15 +121,15 @@ GglError ggl_handle_subscribe_to_configuration_update(
         return ret;
     }
 
-    GglObject config_path_obj[GGL_MAX_CONFIG_DEPTH] = { 0 };
+    GglObject config_path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < full_key_path.len; i++) {
-        config_path_obj[i] = GGL_OBJ(full_key_path.bufs[i]);
+        config_path_obj[i] = GGL_OBJ_BUF(full_key_path.bufs[i]);
     }
 
     GglMap call_args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ((GglList) { .items = config_path_obj,
-                              .len = full_key_path.len }) },
+          GGL_OBJ_LIST((GglList) { .items = config_path_obj,
+                                   .len = full_key_path.len }) },
     );
 
     // TODO: return IPC errors
@@ -152,6 +152,6 @@ GglError ggl_handle_subscribe_to_configuration_update(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#SubscribeToConfigurationUpdateResponse"),
-        GGL_OBJ_MAP()
+        GGL_OBJ_MAP({ 0 })
     );
 }

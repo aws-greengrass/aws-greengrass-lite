@@ -5,8 +5,8 @@
 #ifndef GGDEPLOYMENTD_IOT_JOBS_LISTENER_H
 #define GGDEPLOYMENTD_IOT_JOBS_LISTENER_H
 
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 
 void listen_for_jobs_deployments(void);
 

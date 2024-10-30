@@ -48,6 +48,23 @@ version. The provided `bootstrap-cmake.sh` script downloads a new cmake version
 into `./build/cmake` and configures the project using that CMake with `./build`
 as the build directory. If you do so, you can skip the configuring step below.
 
+## (Optional) Using Podman
+
+Instead of installing Greengrass Lite directly on a system, you can use a
+container. The provided container has the build dependencies already provided.
+
+Docker does not fully support running systemd containers, however you can use
+podman. These steps allow you to enter a pre-configured container:
+
+```sh
+sudo apt install podman
+podman build misc/container -t ggl:latest
+podman run -it -v $PWD/..:/work --replace --name ggl ggl:latest
+cd /work/aws-greengrass-lite/
+```
+
+Inside of the container, you can continue following the rest of the below steps.
+
 ## Building
 
 The project is configured with CMake in the standard way.
@@ -81,6 +98,12 @@ To install to the system, run:
 
 ```sh
 make -C build install
+```
+
+To uninstall from the system, run:
+
+```sh
+make -C build uninstall
 ```
 
 ## Configuration flags

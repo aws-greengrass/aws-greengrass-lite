@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#ifndef RECIPE_RUNNER__H
-#define RECIPE_RUNNER__H
+#ifndef RUNNER_H
+#define RUNNER_H
 
 #include "recipe-runner.h"
 #include <ggl/error.h>

@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
         GglError ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("recipe_directory_path"),
-                      GGL_OBJ(ggl_buffer_from_null_term(recipe_dir)) }
+                      GGL_OBJ_BUF(ggl_buffer_from_null_term(recipe_dir)) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
         GglError ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("artifacts_directory_path"),
-                      GGL_OBJ(ggl_buffer_from_null_term(artifacts_dir)) }
+                      GGL_OBJ_BUF(ggl_buffer_from_null_term(artifacts_dir)) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);
@@ -106,13 +106,13 @@ int main(int argc, char **argv) {
     }
     GglKV component;
     if (component_name != NULL) {
-        component
-            = (GglKV) { ggl_buffer_from_null_term(component_name),
-                        GGL_OBJ(ggl_buffer_from_null_term(component_version)) };
+        component = (GglKV
+        ) { ggl_buffer_from_null_term(component_name),
+            GGL_OBJ_BUF(ggl_buffer_from_null_term(component_version)) };
         GglError ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("root_component_versions_to_add"),
-                      GGL_OBJ((GglMap) { .pairs = &component, .len = 1 }) }
+                      GGL_OBJ_MAP((GglMap) { .pairs = &component, .len = 1 }) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);

@@ -159,7 +159,7 @@ static GglError json_write_map(GglMap map, GglBuffer *buf) {
                 return ret;
             }
         }
-        ret = json_write(GGL_OBJ(map.pairs[i].key), buf);
+        ret = json_write(GGL_OBJ_BUF(map.pairs[i].key), buf);
         if (ret != GGL_ERR_OK) {
             return ret;
         }

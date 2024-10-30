@@ -4,8 +4,9 @@
 
 #include "ggconfigd.h"
 #include "helpers.h"
+#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/core_bus/gg_config.h>
+#include <ggl/constants.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
@@ -205,7 +206,7 @@ static GglError process_map(
         GglKV *kv = &the_map->pairs[x];
         GGL_LOGT("Preparing %zu, %.*s", x, (int) kv->key.len, kv->key.data);
 
-        ggl_obj_vec_push(key_path, GGL_OBJ(kv->key));
+        ggl_obj_vec_push(key_path, GGL_OBJ_BUF(kv->key));
         GGL_LOGT("pushed the key");
         if (kv->val.type == GGL_TYPE_MAP) {
             GGL_LOGT("value is a map");
@@ -252,7 +253,7 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
         return;
     }
 
-    GglObjVec key_path = GGL_OBJ_VEC((GglObject[GGL_MAX_CONFIG_DEPTH]) { 0 });
+    GglObjVec key_path = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
     ret = ggl_obj_vec_append(&key_path, key_path_obj->list);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("key_path too long.");

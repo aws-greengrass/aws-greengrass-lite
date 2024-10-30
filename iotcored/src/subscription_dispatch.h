@@ -5,8 +5,8 @@
 #ifndef IOTCORED_SUBSCRIPTION_DISPATCH_H
 #define IOTCORED_SUBSCRIPTION_DISPATCH_H
 
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -15,5 +15,7 @@ GglError iotcored_register_subscriptions(
 );
 
 void iotcored_unregister_subscriptions(uint32_t handle);
+
+void iotcored_unregister_all_subs(void);
 
 #endif

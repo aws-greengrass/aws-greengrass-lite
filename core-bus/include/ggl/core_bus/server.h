@@ -5,6 +5,7 @@
 #ifndef GGL_COREBUS_SERVER_H
 #define GGL_COREBUS_SERVER_H
 
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdbool.h>

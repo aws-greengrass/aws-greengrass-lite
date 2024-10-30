@@ -4,6 +4,7 @@
 
 #include "ggl/object.h"
 #include "ggl/alloc.h"
+#include "ggl/buffer.h"
 #include "ggl/error.h"
 #include "ggl/log.h"
 #include <assert.h>
@@ -100,6 +101,10 @@ static GglError buffer_copy_buf(GglBuffer *buf, GglAlloc *alloc) {
     if (buf->len == 0) {
         return GGL_ERR_OK;
     }
+    if (alloc == NULL) {
+        GGL_LOGE("Null allocator when copying buffers.");
+        return GGL_ERR_NOMEM;
+    }
     uint8_t *new_mem = GGL_ALLOCN(alloc, uint8_t, buf->len);
     if (new_mem == NULL) {
         GGL_LOGE("Insufficient memory when copying buffers.");
@@ -125,6 +130,10 @@ static GglError buffer_copy_list(GglList *list, GglAlloc *alloc) {
 static GglError buffer_copy_map(GglMap *map, GglAlloc *alloc) {
     for (size_t i = 0; i < map->len; i++) {
         GglKV *kv = &map->pairs[i];
+        if (alloc == NULL) {
+            GGL_LOGE("Null allocator when copying buffers.");
+            return GGL_ERR_NOMEM;
+        }
         uint8_t *mem = GGL_ALLOCN(alloc, uint8_t, kv->key.len);
         if (mem == NULL) {
             GGL_LOGE("Insufficient memory when copying buffers.");

@@ -7,8 +7,10 @@ ggl_init_module(
   LIBS ggl-lib
        ggl-socket
        eventstream
+       ggl-constants
        ggl-json
        core-bus
        core-bus-gg-config
        core-bus-aws-iot-mqtt
-       ggipc-auth)
+       ggipc-auth
+       ggl-rand)

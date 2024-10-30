@@ -1,3 +1,47 @@
+## 2024-10-22
+
+Bug Fixes:
+
+- `--gc-sections` linker flag was causing misaligned accesses on 32-bit arm. The
+  flag has been disabled; this will need to be root caused further.
+
+## 2024-10-21
+
+Breaking changes:
+
+- sqlite autoindex warning fixed. Delete and rebuild your database to get the
+  fix.
+- Database is now case-sensitive. The sample config is also updated (Ensure your
+  initial config yaml file uses rootPath and not rootpath). Your recipes may
+  need to be updated to use the correct casing (as in the recipe docs
+  <https://docs.aws.amazon.com/greengrass/v2/developerguide/component-recipe-reference.html>)
+
+Features:
+
+- Deployment updates the cloud on failed deployments.
+- Failing components will be retried up to three times.
+- Deployments are marked successful when all components successfully start.
+- SubscribeToConfigurationUpdate IPC command is available.
+- Cloud deployments now use local dependencies if available.
+- ZIP type artifacts are now unarchived.
+- Artifact hashes are now verified.
+- Stale components are cleaned up.
+- A cloud logging generic component is included.
+- MQTT connection reconnects with backoff.
+- iotcored unsubscribes from unused topic filters.
+- Multiple deployments across thing groups is now supported.
+- Recipes now support configuration in lifecycle step variable substitution.
+- Fleet status service provides updates of Greengrass device state to cloud.
+- Components are only restarted if their version is changed.
+
+Bug Fixes:
+
+- Absolute file paths are no longer logged on old compiler versions.
+- ggipcd uses rootPath for creation of the IPC socket.
+- TES environment variables are set for generic components.
+- Coverity findings are fixed.
+- Many minor bugs were fixed.
+
 ## 2024-10-04
 
 Features:

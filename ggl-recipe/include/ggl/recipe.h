@@ -8,6 +8,7 @@
 //! Greengrass recipe utils
 
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 
@@ -17,6 +18,10 @@ GglError ggl_recipe_get_from_file(
     GglBuffer component_version,
     GglAlloc *alloc,
     GglObject *recipe
+);
+
+GglError select_linux_manifest(
+    GglMap recipe_map, GglObject *val, GglMap *selected_lifecycle_map
 );
 
 #endif

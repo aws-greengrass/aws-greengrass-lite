@@ -5,7 +5,7 @@
 #include "ggipc/auth.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -18,7 +18,7 @@ GglError ggl_ipc_auth_lookup_name(
 ) {
     char *unit_name = NULL;
     int error = sd_pid_get_unit(pid, &unit_name);
-    GGL_DEFER(free, unit_name);
+    GGL_CLEANUP(cleanup_free, unit_name);
     if ((error < 0) || (unit_name == NULL)) {
         GGL_LOGE("Failed to look up service for pid %d.", pid);
         return GGL_ERR_NOENTRY;

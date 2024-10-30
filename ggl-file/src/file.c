@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -25,8 +25,6 @@
 
 static char path_comp_buf[NAME_MAX + 1];
 static pthread_mutex_t path_comp_buf_mtx = PTHREAD_MUTEX_INITIALIZER;
-
-GGL_DEFINE_DEFER(closedir, DIR *, dirp, if (*dirp != NULL) closedir(*dirp))
 
 GglError ggl_close(int fd) {
     // Do not loop on EINTR
@@ -101,7 +99,7 @@ static GglError ggl_mkdirat(int dirfd, const char *pathname, mode_t mode) {
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, parent_fd);
+    GGL_CLEANUP(cleanup_close, parent_fd);
 
     do {
         sys_ret = mkdirat(parent_fd, pathname, mode);
@@ -149,8 +147,7 @@ static GglError ggl_dir_openat_mkdir(
 /// `name` must not include `/`.
 /// dest_fd must not be O_PATH.
 static GglError copy_file(const char *name, int source_fd, int dest_fd) {
-    pthread_mutex_lock(&path_comp_buf_mtx);
-    GGL_DEFER(pthread_mutex_unlock, path_comp_buf_mtx);
+    GGL_MTX_SCOPE_GUARD(&path_comp_buf_mtx);
 
     // For atomic writes, one must write to temp file and use rename which
     // atomically moves and replaces a file as long as the source and
@@ -169,29 +166,29 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
     path_comp_buf[name_len + 2] = '\0';
 
     // Open file in source dir
-    int old_fd;
+    int old_fd = -1;
     GglError ret
         = ggl_openat(source_fd, name, O_CLOEXEC | O_RDONLY, 0, &old_fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Err %d while opening %s.", errno, name);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, old_fd);
+    GGL_CLEANUP(cleanup_close, old_fd);
 
     // Open target temp file
-    int new_fd;
+    int new_fd = -1;
     ret = ggl_openat(
         dest_fd,
         path_comp_buf,
         O_CLOEXEC | O_WRONLY | O_TRUNC | O_CREAT,
-        S_IRWXU,
+        0755,
         &new_fd
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Err %d while opening %s.", errno, name);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, new_fd);
+    GGL_CLEANUP_ID(new_fd_cleanup, cleanup_close, new_fd);
 
     struct stat stat;
     if (fstat(old_fd, &stat) != 0) {
@@ -221,7 +218,8 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
         return ret;
     }
 
-    GGL_DEFER_CANCEL(new_fd);
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+    new_fd_cleanup = -1;
     ret = ggl_close(new_fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Err %d while closing %s.", errno, name);
@@ -321,7 +319,7 @@ GglError ggl_dir_open(GglBuffer path, int flags, bool create, int *fd) {
         GGL_LOGE("Err %d while opening /", errno);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, base_fd);
+    GGL_CLEANUP(cleanup_close, base_fd);
     return ggl_dir_openat(base_fd, rel_path, flags, create, fd);
 }
 
@@ -343,10 +341,9 @@ GglError ggl_dir_openat(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, cur_fd);
+    GGL_CLEANUP_ID(cur_fd_cleanup, cleanup_close, cur_fd);
 
-    pthread_mutex_lock(&path_comp_buf_mtx);
-    GGL_DEFER(pthread_mutex_unlock, path_comp_buf_mtx);
+    GGL_MTX_SCOPE_GUARD(&path_comp_buf_mtx);
 
     // Iterate over parents from /
     while (split_path_first_comp(rest, &comp, &rest)) {
@@ -367,7 +364,7 @@ GglError ggl_dir_openat(
                 cur_fd,
                 path_comp_buf,
                 O_CLOEXEC | O_DIRECTORY | O_PATH,
-                0700,
+                0755,
                 &new_fd
             );
         } else {
@@ -387,6 +384,8 @@ GglError ggl_dir_openat(
         // swap cur_fd
         ggl_close(cur_fd);
         cur_fd = new_fd;
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+        cur_fd_cleanup = new_fd;
     }
 
     // Handle final path component (non-empty since trailing slashes stripped)
@@ -403,7 +402,7 @@ GglError ggl_dir_openat(
             cur_fd,
             path_comp_buf,
             O_CLOEXEC | O_DIRECTORY | flags,
-            0700,
+            0755,
             &result
         );
     } else {
@@ -439,14 +438,13 @@ GglError ggl_file_openat(
             return ret;
         }
     }
-    GGL_DEFER(ggl_close, cur_fd);
+    GGL_CLEANUP(cleanup_close, cur_fd);
 
     if (file.len > NAME_MAX) {
         return GGL_ERR_NOMEM;
     }
 
-    pthread_mutex_lock(&path_comp_buf_mtx);
-    GGL_DEFER(pthread_mutex_unlock, path_comp_buf_mtx);
+    GGL_MTX_SCOPE_GUARD(&path_comp_buf_mtx);
 
     memcpy(path_comp_buf, file.data, file.len);
     path_comp_buf[file.len] = '\0';
@@ -486,7 +484,7 @@ GglError ggl_file_open(GglBuffer path, int flags, mode_t mode, int *fd) {
         GGL_LOGE("Err %d while opening /", errno);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, base_fd);
+    GGL_CLEANUP(cleanup_close, base_fd);
     return ggl_file_openat(base_fd, rel_path, flags, mode, fd);
 }
 
@@ -505,17 +503,17 @@ static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
         GGL_LOGE("Err %d while opening dir: %s", errno, name);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, source_subdir_fd);
+    GGL_CLEANUP(cleanup_close, source_subdir_fd);
 
     int dest_subdir_fd;
     ret = ggl_dir_openat_mkdir(
-        dest_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDONLY, 0700, &dest_subdir_fd
+        dest_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDONLY, 0755, &dest_subdir_fd
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Err %d while opening dir: %s", errno, name);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, dest_subdir_fd);
+    GGL_CLEANUP(cleanup_close, dest_subdir_fd);
 
     return ggl_copy_dir(source_subdir_fd, dest_subdir_fd);
 }
@@ -530,7 +528,7 @@ GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content) {
         );
         return ret;
     }
-    GGL_DEFER(ggl_close, fd);
+    GGL_CLEANUP(cleanup_close, fd);
 
     struct stat info;
     int sys_ret = fstat(fd, &info);
@@ -584,7 +582,7 @@ GglError ggl_file_read_path(GglBuffer path, GglBuffer *content) {
         GGL_LOGE("Err %d while opening /", errno);
         return GGL_ERR_FAILURE;
     }
-    GGL_DEFER(ggl_close, base_fd);
+    GGL_CLEANUP(cleanup_close, base_fd);
     return ggl_file_read_path_at(base_fd, rel_path, content);
 }
 
@@ -604,7 +602,7 @@ GglError ggl_copy_dir(int source_fd, int dest_fd) {
         return GGL_ERR_FAILURE;
     }
     // Also closes source_fd_copy
-    GGL_DEFER(closedir, source_dir);
+    GGL_CLEANUP(cleanup_closedir, source_dir);
 
     while (true) {
         // Directory stream is not shared between threads.

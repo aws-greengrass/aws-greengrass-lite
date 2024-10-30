@@ -9,7 +9,7 @@
 
 #include "alloc.h"
 #include "error.h"
-#include "object.h"
+#include <ggl/buffer.h>
 #include <stdbool.h>
 
 /// Convert a base64 buffer to its decoded data.

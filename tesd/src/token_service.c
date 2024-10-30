@@ -52,7 +52,7 @@ static GglBuffer request_token_from_aws(void) {
         certificate,
         &buffer
     );
-    GGL_LOGI("The credentials received are: %s", buffer.data);
+    GGL_LOGI("The TES credentials have been received");
     return buffer;
 }
 
@@ -148,7 +148,7 @@ static void rpc_request_formatted_creds(
         return;
     }
 
-    ggl_respond(handle, GGL_OBJ(server_json_creds));
+    ggl_respond(handle, GGL_OBJ_MAP(server_json_creds));
 }
 
 static void start_tes_core_bus_server(void) {

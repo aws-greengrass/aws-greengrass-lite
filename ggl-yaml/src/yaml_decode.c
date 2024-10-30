@@ -8,7 +8,7 @@
 #include <assert.h>
 #include <ggl/alloc.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -52,7 +52,7 @@ static GglError yaml_scalar_to_obj(
         return ret;
     }
 
-    *obj = GGL_OBJ(result);
+    *obj = GGL_OBJ_BUF(result);
     return GGL_ERR_OK;
 }
 
@@ -118,7 +118,7 @@ static GglError yaml_mapping_to_obj(
         }
     }
 
-    *obj = GGL_OBJ((GglMap) { .pairs = pairs, .len = len });
+    *obj = GGL_OBJ_MAP((GglMap) { .pairs = pairs, .len = len });
     return GGL_ERR_OK;
 }
 
@@ -164,7 +164,7 @@ static GglError yaml_sequence_to_obj(
         }
     }
 
-    *obj = GGL_OBJ((GglList) { .items = items, .len = len });
+    *obj = GGL_OBJ_LIST((GglList) { .items = items, .len = len });
     return GGL_ERR_OK;
 }
 
@@ -201,8 +201,7 @@ GglError ggl_yaml_decode_destructive(
     GglBuffer buf, GglAlloc *alloc, GglObject *obj
 ) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_lock(&mtx);
-    GGL_DEFER(pthread_mutex_unlock, mtx);
+    GGL_MTX_SCOPE_GUARD(&mtx);
 
     static yaml_parser_t parser;
     yaml_parser_initialize(&parser);

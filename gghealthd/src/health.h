@@ -6,7 +6,7 @@
 #define GGHEALTHD_HEALTH_H
 
 #include "ggl/error.h"
-#include "ggl/object.h"
+#include <ggl/buffer.h>
 
 // https://docs.aws.amazon.com/greengrass/v2/APIReference/API_DescribeComponent.html
 #define COMPONENT_NAME_MAX_LEN 128

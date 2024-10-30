@@ -80,9 +80,9 @@ GglError ggl_handle_get_configuration(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#GetConfigurationResponse"),
-        GGL_OBJ_MAP(
-            { GGL_STR("componentName"), GGL_OBJ(component_name) },
+        GGL_OBJ_MAP(GGL_MAP(
+            { GGL_STR("componentName"), GGL_OBJ_BUF(component_name) },
             { GGL_STR("value"), read_value }
-        )
+        ))
     );
 }

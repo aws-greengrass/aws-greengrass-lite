@@ -5,7 +5,7 @@
 #ifndef GGL_SEMVER_H
 #define GGL_SEMVER_H
 
-#include <ggl/object.h>
+#include <ggl/buffer.h>
 #include <stdbool.h>
 
 bool is_in_range(GglBuffer version, GglBuffer requirements_range);

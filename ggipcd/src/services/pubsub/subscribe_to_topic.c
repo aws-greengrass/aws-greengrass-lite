@@ -40,7 +40,7 @@ static GglError subscribe_to_topic_callback(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid subscription response.");
-        return GGL_ERR_FAILURE;
+        return ret;
     }
     GglBuffer type = type_obj->buf;
 
@@ -59,14 +59,15 @@ static GglError subscribe_to_topic_callback(
         return GGL_ERR_INVALID;
     }
 
-    GglObject inner = GGL_OBJ_MAP(
+    GglObject inner = GGL_OBJ_MAP(GGL_MAP(
         { GGL_STR("message"), *message_obj },
-        { GGL_STR("context"), GGL_OBJ_MAP({ GGL_STR("topic"), *topic_obj }) }
-    );
+        { GGL_STR("context"),
+          GGL_OBJ_MAP(GGL_MAP({ GGL_STR("topic"), *topic_obj })) }
+    ));
 
-    GglObject response = GGL_OBJ_MAP(
+    GglObject response = GGL_OBJ_MAP(GGL_MAP(
         { is_json ? GGL_STR("jsonMessage") : GGL_STR("binaryMessage"), inner }
-    );
+    ));
 
     ret = ggl_ipc_response_send(
         resp_handle,
@@ -126,6 +127,6 @@ GglError ggl_handle_subscribe_to_topic(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#SubscribeToTopicResponse"),
-        GGL_OBJ_MAP()
+        GGL_OBJ_MAP({ 0 })
     );
 }

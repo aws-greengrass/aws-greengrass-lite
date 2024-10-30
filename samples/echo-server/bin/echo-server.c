@@ -10,7 +10,7 @@
 
 static void handle_echo(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
-    ggl_respond(handle, GGL_OBJ(params));
+    ggl_respond(handle, GGL_OBJ_MAP(params));
 }
 
 int main(void) {

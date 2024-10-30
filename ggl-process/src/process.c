@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <limits.h>
@@ -70,7 +70,7 @@ GglError ggl_process_spawn(char *const argv[], int *handle) {
     }
 
     if (pid < 0) {
-        GGL_LOGE("Err %d when calling clone3.", errno);
+        GGL_LOGE("Err %d when calling fork.", errno);
         return GGL_ERR_FAILURE;
     }
 
@@ -128,8 +128,7 @@ GglError ggl_process_kill(int handle, uint32_t term_timeout) {
     int waitid_err;
 
     {
-        pthread_mutex_lock(&sigalrm_mtx);
-        GGL_DEFER(pthread_mutex_unlock, sigalrm_mtx);
+        GGL_MTX_SCOPE_GUARD(&sigalrm_mtx);
 
         pthread_sigmask(SIG_SETMASK, &set, &old_set);
 

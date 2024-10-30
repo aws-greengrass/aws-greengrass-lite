@@ -5,9 +5,11 @@
 #include "ggipc/client.h"
 #include <sys/types.h>
 #include <assert.h>
+#include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
+#include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
@@ -45,7 +47,7 @@ static GglError payload_writer(GglBuffer *buf, void *payload) {
     }
 
     GglMap *map = payload;
-    return ggl_json_encode(GGL_OBJ(*map), buf);
+    return ggl_json_encode(GGL_OBJ_MAP(*map), buf);
 }
 
 static GglError send_message(
@@ -54,8 +56,7 @@ static GglError send_message(
     size_t headers_len,
     GglMap *payload
 ) {
-    pthread_mutex_lock(&payload_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, payload_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&payload_array_mtx);
 
     GglBuffer send_buffer = GGL_BUF(payload_array);
 
@@ -135,7 +136,7 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_DEFER(ggl_close, conn);
+    GGL_CLEANUP_ID(conn_cleanup, cleanup_close, conn);
 
     EventStreamHeader headers[] = {
         { GGL_STR(":message-type"),
@@ -153,8 +154,7 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
         return ret;
     }
 
-    pthread_mutex_lock(&payload_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, payload_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&payload_array_mtx);
 
     GglBuffer recv_buffer = GGL_BUF(payload_array);
     EventStreamMessage msg = { 0 };
@@ -200,7 +200,9 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
             }
 
             if (fd != NULL) {
-                GGL_DEFER_CANCEL(conn);
+                // false positive
+                // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores)
+                conn_cleanup = -1;
                 *fd = conn;
             }
 
@@ -233,8 +235,7 @@ GglError ggipc_call(
         return ret;
     }
 
-    pthread_mutex_lock(&payload_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, payload_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&payload_array_mtx);
 
     GglBuffer recv_buffer = GGL_BUF(payload_array);
     EventStreamMessage msg = { 0 };
@@ -245,9 +246,11 @@ GglError ggipc_call(
         return ret;
     }
 
-    ret = ggl_obj_buffer_copy(result, alloc);
-    if (ret != GGL_ERR_OK) {
-        return ret;
+    if (result != NULL) {
+        ret = ggl_obj_buffer_copy(result, alloc);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
     }
 
     if (common_headers.stream_id != 1) {
@@ -271,7 +274,7 @@ GglError ggipc_private_get_system_config(
     GglError ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass.private#GetSystemConfig"),
-        GGL_MAP({ GGL_STR("key"), GGL_OBJ(key) }),
+        GGL_MAP({ GGL_STR("key"), GGL_OBJ_BUF(key) }),
         &balloc.alloc,
         &resp
     );
@@ -299,11 +302,10 @@ GglError ggipc_private_get_system_config(
 GglError ggipc_get_config_str(
     int conn, GglBufList key_path, GglBuffer *component_name, GglBuffer *value
 ) {
-    // TODO: Put GGL_MAX_CONFIG_DEPTH in shared place
-    GglObjVec path_vec = GGL_OBJ_VEC((GglObject[10]) { 0 });
+    GglObjVec path_vec = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
     GglError ret = GGL_ERR_OK;
     for (size_t i = 0; i < key_path.len; i++) {
-        ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ(key_path.bufs[i]));
+        ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ_BUF(key_path.bufs[i]));
     }
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Key path too long.");
@@ -312,12 +314,12 @@ GglError ggipc_get_config_str(
 
     GglKVVec args = GGL_KV_VEC((GglKV[2]) { 0 });
     (void) ggl_kv_vec_push(
-        &args, (GglKV) { GGL_STR("keyPath"), GGL_OBJ(path_vec.list) }
+        &args, (GglKV) { GGL_STR("keyPath"), GGL_OBJ_LIST(path_vec.list) }
     );
     if (component_name != NULL) {
         (void) ggl_kv_vec_push(
             &args,
-            (GglKV) { GGL_STR("componentName"), GGL_OBJ(*component_name) }
+            (GglKV) { GGL_STR("componentName"), GGL_OBJ_BUF(*component_name) }
         );
     }
 
@@ -357,6 +359,34 @@ GglError ggipc_get_config_str(
         return ret;
     }
 
-    *value = resp.buf;
+    *value = resp_value->buf;
     return GGL_ERR_OK;
+}
+
+// TODO: use GglByteVec for payload to allow in-place base64 encoding and remove
+// alloc
+GglError ggipc_publish_to_iot_core(
+    int conn,
+    GglBuffer topic_name,
+    GglBuffer payload,
+    uint8_t qos,
+    GglAlloc *alloc
+) {
+    assert(qos <= 2);
+    GGL_LOGT("Topic name len: %zu", topic_name.len);
+    GglBuffer qos_buffer = GGL_BUF((uint8_t[1]) { qos + (uint8_t) '0' });
+    GglBuffer encoded_payload;
+    GglError ret = ggl_base64_encode(payload, alloc, &encoded_payload);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    GglMap args = GGL_MAP(
+        { GGL_STR("topicName"), GGL_OBJ_BUF(topic_name) },
+        { GGL_STR("payload"), GGL_OBJ_BUF(encoded_payload) },
+        { GGL_STR("qos"), GGL_OBJ_BUF(qos_buffer) }
+    );
+
+    return ggipc_call(
+        conn, GGL_STR("aws.greengrass#PublishToIoTCore"), args, NULL, NULL
+    );
 }

@@ -17,12 +17,13 @@ in
       root = src;
       fileset = lib.fileset.fileFilter
         (file: lib.elem file.name [
-          "CMakeLists.txt"
           ".clang-tidy"
+          "CMakeLists.txt"
           "fc_deps.json"
           "run_nucleus"
+          "recipe.yml"
         ] ||
-        lib.any file.hasExt [ "c" "h" "S" "sql" "cmake" ])
+        lib.any file.hasExt [ "c" "h" "S" "sql" "cmake" "in" ])
         src;
     };
 

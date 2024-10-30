@@ -15,17 +15,22 @@ GglError validate_args(Recipe2UnitArgs *args) {
         return GGL_ERR_NOENTRY;
     }
 
-    GGL_LOGT("recipe_path: %s", args->recipe_path);
-    if (strlen(args->recipe_path) == 0) {
+    GGL_LOGT(
+        "Component Name: %.*s",
+        (int) args->component_name.len,
+        args->component_name.data
+    );
+    if (args->component_name.len == 0) {
         return GGL_ERR_NOENTRY;
     }
-    char resolved_real_path[PATH_MAX] = { 0 };
-    if (realpath(args->recipe_path, resolved_real_path) != NULL) {
-        memcpy(
-            args->recipe_path,
-            resolved_real_path,
-            strnlen(resolved_real_path, PATH_MAX)
-        );
+
+    GGL_LOGT(
+        "Component Version: %.*s",
+        (int) args->component_version.len,
+        args->component_version.data
+    );
+    if (args->component_version.len == 0) {
+        return GGL_ERR_NOENTRY;
     }
 
     GGL_LOGT("recipe_runner_path: %s", args->recipe_runner_path);
@@ -35,6 +40,7 @@ GglError validate_args(Recipe2UnitArgs *args) {
     char resolved_recipe_runner_path[PATH_MAX] = { 0 };
     if (realpath(args->recipe_runner_path, resolved_recipe_runner_path)
         != NULL) {
+        memset(args->recipe_runner_path, 0, PATH_MAX);
         memcpy(
             args->recipe_runner_path,
             resolved_recipe_runner_path,
@@ -57,11 +63,17 @@ GglError validate_args(Recipe2UnitArgs *args) {
     }
     char resolved_root_path[PATH_MAX] = { 0 };
     if (realpath(args->root_dir, resolved_root_path) != NULL) {
+        memset(args->root_dir, 0, PATH_MAX);
         memcpy(
             args->root_dir,
             resolved_root_path,
             strnlen(resolved_root_path, PATH_MAX)
         );
+    }
+
+    GGL_LOGT("root_path_fd: %d", args->root_path_fd);
+    if (args->root_path_fd == 0) {
+        return GGL_ERR_INVALID;
     }
 
     return GGL_ERR_OK;

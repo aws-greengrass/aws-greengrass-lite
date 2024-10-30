@@ -9,8 +9,8 @@
 
 #include "socket_handle.h"
 #include <sys/types.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stdint.h>
 
 /// Run a server listening on `path`.

@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/defer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
@@ -129,11 +129,10 @@ static GglError complete_conn_init(
         return ret;
     }
 
-    pthread_mutex_lock(&resp_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, resp_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
     GglBuffer resp_buffer = GGL_BUF(resp_array);
 
-    eventstream_encode(
+    ret = eventstream_encode(
         &resp_buffer,
         (EventStreamHeader[]) {
             { GGL_STR(":message-type"),
@@ -147,6 +146,9 @@ static GglError complete_conn_init(
         payload_writer,
         NULL
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     ret = ggl_socket_handle_write(&pool, handle, resp_buffer);
     if (ret != GGL_ERR_OK) {
@@ -273,8 +275,7 @@ static GglError handle_conn_init(
 static GglError send_stream_error(uint32_t handle, int32_t stream_id) {
     GGL_LOGE("Sending error on client %u stream %d.", handle, stream_id);
 
-    pthread_mutex_lock(&resp_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, resp_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
     GglBuffer resp_buffer = GGL_BUF(resp_array);
 
     // TODO: Match classic error response
@@ -470,8 +471,7 @@ GglError ggl_ipc_response_send(
     GglBuffer service_model_type,
     GglObject response
 ) {
-    pthread_mutex_lock(&resp_array_mtx);
-    GGL_DEFER(pthread_mutex_unlock, resp_array_mtx);
+    GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
     GglBuffer resp_buffer = GGL_BUF(resp_array);
 
     EventStreamHeader resp_headers[] = {

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "tesd-test.h"
+#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>

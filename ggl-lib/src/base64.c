@@ -6,7 +6,6 @@
 #include "ggl/alloc.h"
 #include "ggl/buffer.h"
 #include "ggl/error.h"
-#include "ggl/object.h"
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -128,15 +127,31 @@ GglError ggl_base64_encode(GglBuffer buf, GglAlloc *alloc, GglBuffer *result) {
         return GGL_ERR_NOMEM;
     }
 
-    for (size_t i = 0, j = 0; i < buf.len;) {
-        uint32_t chunk = (unsigned) (i < buf.len ? buf.data[i++] : 0) << 16;
-        chunk += (unsigned) (i < buf.len ? buf.data[i++] : 0) << 8;
-        chunk += (unsigned) (i < buf.len ? buf.data[i++] : 0);
+    size_t chunks = buf.len / 3;
+    for (size_t i = 0; i < chunks; i++) {
+        uint32_t chunk = (unsigned) buf.data[i * 3] << 16;
+        chunk += (unsigned) buf.data[(i * 3) + 1] << 8;
+        chunk += (unsigned) buf.data[(i * 3) + 2];
 
-        mem[j++] = BASE64_TABLE[chunk >> 18];
-        mem[j++] = BASE64_TABLE[(chunk >> 12) & 0x3F];
-        mem[j++] = BASE64_TABLE[(chunk >> 6) & 0x3F];
-        mem[j++] = BASE64_TABLE[chunk & 0x3F];
+        mem[i * 4] = BASE64_TABLE[chunk >> 18];
+        mem[(i * 4) + 1] = BASE64_TABLE[(chunk >> 12) & 0x3F];
+        mem[(i * 4) + 2] = BASE64_TABLE[(chunk >> 6) & 0x3F];
+        mem[(i * 4) + 3] = BASE64_TABLE[chunk & 0x3F];
+    }
+    size_t remaining = buf.len % 3;
+    if (remaining > 0) {
+        uint32_t chunk = (unsigned) buf.data[chunks * 3] << 16;
+        if (remaining > 1) {
+            chunk += (unsigned) buf.data[(chunks * 3) + 1] << 8;
+        }
+        mem[chunks * 4] = BASE64_TABLE[chunk >> 18];
+        mem[(chunks * 4) + 1] = BASE64_TABLE[(chunk >> 12) & 0x3F];
+        if (remaining > 1) {
+            mem[(chunks * 4) + 2] = BASE64_TABLE[(chunk >> 6) & 0x3F];
+        } else {
+            mem[(chunks * 4) + 2] = '=';
+        }
+        mem[(chunks * 4) + 3] = '=';
     }
 
     *result = (GglBuffer) { .data = mem, .len = base64_len };

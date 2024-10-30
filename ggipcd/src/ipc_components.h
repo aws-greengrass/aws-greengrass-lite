@@ -5,8 +5,8 @@
 #ifndef GGL_IPC_COMPONENTS_H
 #define GGL_IPC_COMPONENTS_H
 
+#include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <stdint.h>
 
 /// Maximum number of generic components that can be tracked.

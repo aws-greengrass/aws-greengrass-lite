@@ -90,7 +90,7 @@ static size_t write_response_to_fd(
     return size_of_response_data;
 }
 
-static void gghttplib_destroy_curl(CurlData *curl_data) {
+void gghttplib_destroy_curl(CurlData *curl_data) {
     curl_slist_free_all(curl_data->headers_list);
     curl_data->headers_list = NULL;
     curl_easy_cleanup(curl_data->curl);
@@ -98,19 +98,17 @@ static void gghttplib_destroy_curl(CurlData *curl_data) {
 }
 
 GglError gghttplib_init_curl(CurlData *curl_data, const char *url) {
-    GglError error = GGL_ERR_OK;
     curl_data->headers_list = NULL;
     curl_global_init(CURL_GLOBAL_DEFAULT);
     curl_data->curl = curl_easy_init();
 
     if (curl_data->curl == NULL) {
         GGL_LOGE("Cannot create instance of curl for the url=%s", url);
-        error = GGL_ERR_FAILURE;
-    } else {
-        curl_easy_setopt(curl_data->curl, CURLOPT_URL, url);
+        return GGL_ERR_FAILURE;
     }
 
-    return error;
+    CURLcode err = curl_easy_setopt(curl_data->curl, CURLOPT_URL, url);
+    return translate_curl_code(err);
 }
 
 GglError gghttplib_add_header(
@@ -137,22 +135,30 @@ GglError gghttplib_add_header(
     return GGL_ERR_OK;
 }
 
-void gghttplib_add_certificate_data(
+GglError gghttplib_add_certificate_data(
     CurlData *curl_data, CertificateDetails request_data
 ) {
-    curl_easy_setopt(
+    CURLcode err = curl_easy_setopt(
         curl_data->curl, CURLOPT_SSLCERT, request_data.gghttplib_cert_path
     );
-    curl_easy_setopt(
+    if (err != CURLE_OK) {
+        return translate_curl_code(err);
+    }
+    err = curl_easy_setopt(
         curl_data->curl, CURLOPT_SSLKEY, request_data.gghttplib_p_key_path
     );
-    curl_easy_setopt(
+    if (err != CURLE_OK) {
+        return translate_curl_code(err);
+    }
+    err = curl_easy_setopt(
         curl_data->curl, CURLOPT_CAINFO, request_data.gghttplib_root_ca_path
     );
+    return translate_curl_code(err);
 }
 
-void gghttplib_add_post_body(CurlData *curl_data, const char *body) {
-    curl_easy_setopt(curl_data->curl, CURLOPT_POSTFIELDS, body);
+GglError gghttplib_add_post_body(CurlData *curl_data, const char *body) {
+    CURLcode err = curl_easy_setopt(curl_data->curl, CURLOPT_POSTFIELDS, body);
+    return translate_curl_code(err);
 }
 
 GglError gghttplib_add_sigv4_credential(
@@ -174,7 +180,11 @@ GglError gghttplib_add_sigv4_credential(
             GGL_LOGE("sigv4_param too small");
             return err;
         }
-        curl_easy_setopt(curl_data->curl, CURLOPT_AWS_SIGV4, sigv4_param);
+        CURLcode curl_err
+            = curl_easy_setopt(curl_data->curl, CURLOPT_AWS_SIGV4, sigv4_param);
+        if (curl_err != CURLE_OK) {
+            return translate_curl_code(curl_err);
+        }
     }
 
     // scope to reduce stack size
@@ -192,7 +202,11 @@ GglError gghttplib_add_sigv4_credential(
             GGL_LOGE("sigv4_usrpwd too small");
             return err;
         }
-        curl_easy_setopt(curl_data->curl, CURLOPT_USERPWD, sigv4_usrpwd);
+        CURLcode curl_err
+            = curl_easy_setopt(curl_data->curl, CURLOPT_USERPWD, sigv4_usrpwd);
+        if (curl_err != CURLE_OK) {
+            return translate_curl_code(curl_err);
+        }
     }
 
     return gghttplib_add_header(
@@ -203,15 +217,28 @@ GglError gghttplib_add_sigv4_credential(
 GglError gghttplib_process_request(
     CurlData *curl_data, GglBuffer *response_buffer
 ) {
-    curl_easy_setopt(
+    CURLcode curl_error = curl_easy_setopt(
         curl_data->curl, CURLOPT_HTTPHEADER, curl_data->headers_list
     );
-    curl_easy_setopt(
+    if (curl_error != CURLE_OK) {
+        return translate_curl_code(curl_error);
+    }
+    curl_error = curl_easy_setopt(
         curl_data->curl, CURLOPT_WRITEFUNCTION, write_response_to_buffer
     );
-    curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, response_buffer);
+    if (curl_error != CURLE_OK) {
+        return translate_curl_code(curl_error);
+    }
+    curl_error
+        = curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, response_buffer);
+    if (curl_error != CURLE_OK) {
+        return translate_curl_code(curl_error);
+    }
 
-    CURLcode curl_error = curl_easy_perform(curl_data->curl);
+    curl_error = curl_easy_perform(curl_data->curl);
+    if (curl_error != CURLE_OK) {
+        return translate_curl_code(curl_error);
+    }
     long http_status_code = 0;
     curl_easy_getinfo(curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code);
     GGL_LOGI("HTTP code: %ld", http_status_code);
@@ -220,8 +247,6 @@ GglError gghttplib_process_request(
             "curl_easy_perform() failed: %s", curl_easy_strerror(curl_error)
         );
     }
-
-    gghttplib_destroy_curl(curl_data);
 
     // TODO: propagate HTTP code up for deployment failure root causing
     if (http_status_code < 200 || http_status_code > 299) {
@@ -232,26 +257,39 @@ GglError gghttplib_process_request(
 }
 
 GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
-    curl_easy_setopt(
+    CURLcode curl_error = curl_easy_setopt(
         curl_data->curl, CURLOPT_HTTPHEADER, curl_data->headers_list
     );
-    curl_easy_setopt(
+    if (curl_error != CURLE_OK) {
+        return translate_curl_code(curl_error);
+    }
+    curl_error = curl_easy_setopt(
         curl_data->curl, CURLOPT_WRITEFUNCTION, write_response_to_fd
     );
-    curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, (void *) &fd);
-    curl_easy_setopt(curl_data->curl, CURLOPT_FAILONERROR, 1L);
+    if (curl_error != CURLE_OK) {
+        return translate_curl_code(curl_error);
+    }
+    // coverity[bad_sizeof]
+    curl_error = curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, &fd);
+    if (curl_error != CURLE_OK) {
+        return translate_curl_code(curl_error);
+    }
+    curl_error = curl_easy_setopt(curl_data->curl, CURLOPT_FAILONERROR, 1L);
+    if (curl_error != CURLE_OK) {
+        return translate_curl_code(curl_error);
+    }
 
-    CURLcode curl_error = curl_easy_perform(curl_data->curl);
-
-    long http_status_code = 0;
-    curl_easy_getinfo(curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code);
-    GGL_LOGI("HTTP code: %ld", http_status_code);
+    curl_error = curl_easy_perform(curl_data->curl);
     if (curl_error != CURLE_OK) {
         GGL_LOGE(
             "curl_easy_perform() failed: %s", curl_easy_strerror(curl_error)
         );
+        return translate_curl_code(curl_error);
     }
-    gghttplib_destroy_curl(curl_data);
+
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGI("HTTP code: %ld", http_status_code);
 
     // TODO: propagate HTTP code up for deployment failure root causing
     return translate_curl_code(curl_error);
