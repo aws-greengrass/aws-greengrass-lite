@@ -10,6 +10,7 @@
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
+#include <ggl/io.h>
 #include <ggl/log.h>
 #include <string.h>
 #include <stdbool.h>
@@ -103,8 +104,7 @@ GglError eventstream_encode(
     GglBuffer *buf,
     const EventStreamHeader *headers,
     size_t header_count,
-    GglError (*payload_writer)(GglBuffer *buf, void *payload),
-    void *payload
+    GglReader payload
 ) {
     assert((headers == NULL) ? (header_count == 0) : true);
 
@@ -144,15 +144,11 @@ GglError eventstream_encode(
     write_be_u32(headers_len, headers_len_p);
 
     GglBuffer payload_buf = buf_copy;
-    if (payload_writer == NULL) {
-        payload_buf.len = 0;
-    } else {
-        GglError err = payload_writer(&payload_buf, payload);
-        if (err != GGL_ERR_OK) {
-            return err;
-        }
-        buf_copy = ggl_buffer_substr(buf_copy, payload_buf.len, SIZE_MAX);
+    GglError err = ggl_reader_call(payload, &payload_buf);
+    if (err != GGL_ERR_OK) {
+        return err;
     }
+    buf_copy = ggl_buffer_substr(buf_copy, payload_buf.len, SIZE_MAX);
 
     uint32_t message_len = 12 + headers_len + (uint32_t) payload_buf.len + 4;
 

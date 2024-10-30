@@ -15,6 +15,7 @@
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/types.h>
+#include <ggl/io.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket_handle.h>
@@ -277,17 +278,6 @@ GglError ggl_listen(
     );
 }
 
-static GglError payload_writer(GglBuffer *buf, void *payload) {
-    GglObject *obj = payload;
-
-    if (obj == NULL) {
-        buf->len = 0;
-        return GGL_ERR_OK;
-    }
-
-    return ggl_serialize(*obj, buf);
-}
-
 void ggl_return_err(uint32_t handle, GglError error) {
     assert(error != GGL_ERR_OK); // Returning error ok is invalid
 
@@ -301,7 +291,7 @@ void ggl_return_err(uint32_t handle, GglError error) {
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
     GglError ret = eventstream_encode(
-        &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
+        &send_buffer, resp_headers, resp_headers_len, GGL_NULL_READER
     );
 
     if (ret == GGL_ERR_OK) {
@@ -333,7 +323,9 @@ void ggl_respond(uint32_t handle, GglObject value) {
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
 
-    ret = eventstream_encode(&send_buffer, NULL, 0, payload_writer, &value);
+    ret = eventstream_encode(
+        &send_buffer, NULL, 0, ggl_serialize_reader(&value)
+    );
     if (ret != GGL_ERR_OK) {
         return;
     }
@@ -384,7 +376,7 @@ void ggl_sub_accept(
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
     GglError ret = eventstream_encode(
-        &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
+        &send_buffer, resp_headers, resp_headers_len, GGL_NULL_READER
     );
     if (ret != GGL_ERR_OK) {
         return;

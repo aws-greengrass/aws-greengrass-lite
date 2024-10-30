@@ -16,6 +16,7 @@
 #include <ggl/eventstream/rpc.h>
 #include <ggl/eventstream/types.h>
 #include <ggl/file.h>
+#include <ggl/io.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -38,18 +39,6 @@
 static uint8_t payload_array[GGL_IPC_MAX_MSG_LEN];
 static pthread_mutex_t payload_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static GglError payload_writer(GglBuffer *buf, void *payload) {
-    assert(buf != NULL);
-
-    if (payload == NULL) {
-        buf->len = 0;
-        return GGL_ERR_OK;
-    }
-
-    GglMap *map = payload;
-    return ggl_json_encode(GGL_OBJ_MAP(*map), buf);
-}
-
 static GglError send_message(
     int conn,
     const EventStreamHeader *headers,
@@ -60,9 +49,10 @@ static GglError send_message(
 
     GglBuffer send_buffer = GGL_BUF(payload_array);
 
-    GglError ret = eventstream_encode(
-        &send_buffer, headers, headers_len, payload_writer, payload
-    );
+    GglReader reader = payload != NULL ? ggl_json_reader(&GGL_OBJ_MAP(*payload))
+                                       : GGL_NULL_READER;
+    GglError ret
+        = eventstream_encode(&send_buffer, headers, headers_len, reader);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

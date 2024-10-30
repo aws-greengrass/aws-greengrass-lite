@@ -10,15 +10,16 @@
 #include "types.h"
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/io.h>
 #include <stddef.h>
 
 /// Encode an EventStream packet into a buffer.
+/// Payload must fail if it does not fit in provided buffer.
 GglError eventstream_encode(
     GglBuffer *buf,
     const EventStreamHeader *headers,
     size_t header_count,
-    GglError (*payload_writer)(GglBuffer *buf, void *payload),
-    void *payload
+    GglReader payload
 );
 
 #endif

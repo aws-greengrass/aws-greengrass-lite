@@ -46,14 +46,6 @@ static GglError interface_connect(GglBuffer interface, int *conn_fd) {
     return ggl_connect(socket_path.buf, conn_fd);
 }
 
-static GglError payload_writer(GglBuffer *buf, void *payload) {
-    assert(buf != NULL);
-    assert(payload != NULL);
-
-    GglMap *map = payload;
-    return ggl_serialize(GGL_OBJ_MAP(*map), buf);
-}
-
 GglError ggl_client_send_message(
     GglBuffer interface,
     GglCoreBusRequestType type,
@@ -79,7 +71,10 @@ GglError ggl_client_send_message(
     size_t headers_len = sizeof(headers) / sizeof(headers[0]);
 
     ret = eventstream_encode(
-        &send_buffer, headers, headers_len, payload_writer, &params
+        &send_buffer,
+        headers,
+        headers_len,
+        ggl_serialize_reader(&GGL_OBJ_MAP(params))
     );
     if (ret != GGL_ERR_OK) {
         return ret;
