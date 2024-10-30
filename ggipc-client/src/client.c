@@ -287,6 +287,8 @@ GglError ggipc_private_get_system_config(
         return GGL_ERR_FAILURE;
     }
 
+    *value = resp.buf;
+
     GGL_LOGT(
         "Read %.*s: %.*s.",
         (int) key.len,
@@ -295,7 +297,6 @@ GglError ggipc_private_get_system_config(
         value->data
     );
 
-    *value = resp.buf;
     return GGL_ERR_OK;
 }
 
