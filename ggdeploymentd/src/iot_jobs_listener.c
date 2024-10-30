@@ -386,6 +386,27 @@ static GglError next_job_execution_changed_callback(
     return GGL_ERR_OK;
 }
 
+static void *job_listener_thread(void *ctx) {
+    (void) ctx;
+    listen_for_jobs_deployments();
+    return NULL;
+}
+
+// TODO: replace on_close with mqtt reconnect signal handling
+// Since that will significantly reduce chatter
+// between jobs listener and iotcored
+// when the core device is offline from the network.
+static void subscribe_on_close(void *ctx, uint32_t handle) {
+    (void) ctx;
+    if (handle != next_job_handle) {
+        return;
+    }
+    next_job_handle = 0;
+    pthread_t ptid_jobs;
+    pthread_create(&ptid_jobs, NULL, &job_listener_thread, NULL);
+    pthread_detach(ptid_jobs);
+}
+
 static GglError subscribe_to_next_job_topics(void) {
     GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
 
@@ -401,7 +422,7 @@ static GglError subscribe_to_next_job_topics(void) {
             GGL_BUF_LIST(job_topic),
             QOS_AT_LEAST_ONCE,
             next_job_execution_changed_callback,
-            NULL,
+            subscribe_on_close,
             NULL,
             &next_job_handle
         );
