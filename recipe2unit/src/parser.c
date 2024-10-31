@@ -85,7 +85,7 @@ GglError convert_to_unit(
     // Note: currently, if we have both run and startup phases,
     // we will only select startup for the script and service file
     static uint8_t install_unit_file_buffer[MAX_UNIT_FILE_BUF_SIZE];
-    
+
     static uint8_t run_startup_unit_file_buffer[MAX_UNIT_FILE_BUF_SIZE];
     GglBuffer install_response_buffer
         = (GglBuffer) { .data = (uint8_t *) install_unit_file_buffer,
@@ -112,13 +112,12 @@ GglError convert_to_unit(
     } else {
         is_install = true;
         ret = create_unit_file(
-            args, component_name, is_install,&install_response_buffer
+            args, component_name, is_install, &install_response_buffer
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to create the install unit file.");
             return ret;
         }
-
     }
 
     ret = generate_systemd_unit(
@@ -135,7 +134,7 @@ GglError convert_to_unit(
     } else {
         is_install = false;
         ret = create_unit_file(
-            args, component_name, is_install,&run_startup_response_buffer 
+            args, component_name, is_install, &run_startup_response_buffer
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to create the run or startup unit file.");
