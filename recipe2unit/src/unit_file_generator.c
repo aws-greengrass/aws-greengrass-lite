@@ -6,13 +6,10 @@
 #include "file_operation.h"
 #include "ggl/recipe2unit.h"
 #include <fcntl.h>
-#include <ggl/alloc.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
-#include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -31,10 +28,6 @@
 #define MAX_RETRIES_BEFORE_BROKEN "3"
 #define MAX_RETRIES_INTERVAL_SECONDS "3600"
 #define RETRY_DELAY_SECONDS "1"
-
-static GglError select_linux_manifest(
-    GglMap recipe_map, GglObject *val, GglMap *out_selected_lifecycle_map
-);
 
 static GglError concat_script_name_prefix_vec(
     const GglMap *recipe_map, GglByteVec *script_name_prefix_vec
@@ -111,7 +104,7 @@ static GglError dependency_parser(GglObject *dependency_obj, GglByteVec *out) {
 }
 
 static GglError fill_unit_section(
-    GglMap recipe_map, GglByteVec *concat_unit_vector
+    GglMap recipe_map, GglByteVec *concat_unit_vector, PhaseSelection phase
 ) {
     GglObject *val;
 
@@ -153,9 +146,11 @@ static GglError fill_unit_section(
         }
     }
 
-    if (ggl_map_get(recipe_map, GGL_STR("ComponentDependencies"), &val)) {
-        if ((val->type == GGL_TYPE_MAP) || (val->type == GGL_TYPE_LIST)) {
-            return dependency_parser(val, concat_unit_vector);
+    if (phase == RUN_STARTUP) {
+        if (ggl_map_get(recipe_map, GGL_STR("ComponentDependencies"), &val)) {
+            if ((val->type == GGL_TYPE_MAP) || (val->type == GGL_TYPE_LIST)) {
+                return dependency_parser(val, concat_unit_vector);
+            }
         }
     }
 
@@ -237,7 +232,7 @@ static GglError fetch_script_section(
             return GGL_ERR_INVALID;
         }
     } else {
-        GGL_LOGE(
+        GGL_LOGW(
             "%.*s section is not in the lifecycle",
             (int) selected_phase.len,
             selected_phase.data
@@ -428,99 +423,6 @@ static GglError update_unit_file_buffer(
                      "files");
             return ret;
         }
-    }
-    return GGL_ERR_OK;
-}
-
-static GglError parse_install_section(
-    GglMap selected_lifecycle_map,
-    GglMap set_env_as_map,
-    char *root_dir,
-    GglMap *out_install_map,
-    GglAlloc *allocator
-) {
-    GglObject *install_section;
-    if (ggl_map_get(
-            selected_lifecycle_map, GGL_STR("install"), &install_section
-        )) {
-        if (install_section->type != GGL_TYPE_MAP) {
-            GGL_LOGE("install section isn't formatted correctly");
-            return GGL_ERR_INVALID;
-        }
-
-        GglBuffer selected_script = { 0 };
-        bool is_root = false;
-        GglError ret = fetch_script_section(
-            selected_lifecycle_map,
-            GGL_STR("install"),
-            &is_root,
-            &selected_script,
-            &set_env_as_map
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        static uint8_t mem[PATH_MAX];
-        GglByteVec socketpath_vec = GGL_BYTE_VEC(mem);
-        ret = ggl_byte_vec_append(
-            &socketpath_vec,
-            (GglBuffer) { (uint8_t *) root_dir, strlen(root_dir) }
-        );
-        ggl_byte_vec_chain_append(
-            &ret, &socketpath_vec, GGL_STR("/gg-ipc.socket")
-        );
-
-        GglObject out_object = GGL_OBJ_MAP(GGL_MAP(
-            { GGL_STR("requiresprivilege"), GGL_OBJ_BOOL(is_root) },
-            { GGL_STR("script"), GGL_OBJ_BUF(selected_script) },
-            { GGL_STR("set_env"), GGL_OBJ_MAP(set_env_as_map) },
-            { GGL_STR("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"),
-              GGL_OBJ_BUF(socketpath_vec.buf) }
-        ));
-
-        ret = ggl_obj_deep_copy(&out_object, allocator);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        *out_install_map = out_object.map;
-
-    } else {
-        GGL_LOGW("No install section found within the recipe");
-        return GGL_ERR_FAILURE;
-    }
-    return GGL_ERR_OK;
-}
-
-static GglError create_standardized_install_file(
-    GglByteVec script_name_prefix_vec,
-    GglMap standardized_install_map,
-    char *root_dir
-) {
-    static uint8_t json_buf[MAX_SCRIPT_SIZE];
-    GglBuffer install_json_payload = GGL_BUF(json_buf);
-    GglError ret = ggl_json_encode(
-        GGL_OBJ_MAP(standardized_install_map), &install_json_payload
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to encode JSON.");
-        return ret;
-    }
-
-    static uint8_t script_name_buf[PATH_MAX - 1];
-    GglByteVec script_name_vec = GGL_BYTE_VEC(script_name_buf);
-    ret = ggl_byte_vec_append(&script_name_vec, script_name_prefix_vec.buf);
-    ggl_byte_vec_chain_append(&ret, &script_name_vec, GGL_STR("install.json"));
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to append script details to vector.");
-        return GGL_ERR_FAILURE;
-    }
-
-    ret = write_to_file(
-        root_dir, script_name_vec.buf, install_json_payload, 0600
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create and write the script file.");
-        return ret;
     }
     return GGL_ERR_OK;
 }
@@ -802,7 +704,7 @@ GglError generate_systemd_unit(
         = { .buf = { .data = unit_file_buffer->data, .len = 0 },
             .capacity = MAX_UNIT_SIZE };
 
-    GglError ret = fill_unit_section(*recipe_map, &concat_unit_vector);
+    GglError ret = fill_unit_section(*recipe_map, &concat_unit_vector, phase);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

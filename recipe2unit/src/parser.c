@@ -13,6 +13,7 @@
 #include <ggl/recipe.h>
 #include <ggl/vector.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -77,12 +78,14 @@ GglError convert_to_unit(
         recipe_obj
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGI("No recipe found");
         return ret;
     }
 
-    static uint8_t install_unit_file_buffer[MAX_UNIT_FILE_BUF_SIZE];
     // Note: currently, if we have both run and startup phases,
-    // we will only select startup for the script and unit file
+    // we will only select startup for the script and service file
+    static uint8_t install_unit_file_buffer[MAX_UNIT_FILE_BUF_SIZE];
+
     static uint8_t run_startup_unit_file_buffer[MAX_UNIT_FILE_BUF_SIZE];
     GglBuffer install_response_buffer
         = (GglBuffer) { .data = (uint8_t *) install_unit_file_buffer,
@@ -111,6 +114,10 @@ GglError convert_to_unit(
         ret = create_unit_file(
             args, component_name, is_install, &install_response_buffer
         );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to create the install unit file.");
+            return ret;
+        }
     }
 
     ret = generate_systemd_unit(
@@ -129,6 +136,10 @@ GglError convert_to_unit(
         ret = create_unit_file(
             args, component_name, is_install, &run_startup_response_buffer
         );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to create the run or startup unit file.");
+            return ret;
+        }
     }
 
     return GGL_ERR_OK;
