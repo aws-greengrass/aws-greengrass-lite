@@ -112,7 +112,7 @@ GglError convert_to_unit(
     } else {
         is_install = true;
         ret = create_unit_file(
-            args, component_name, &install_response_buffer, is_install
+            args, component_name, is_install,&install_response_buffer
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to create the install unit file.");
@@ -135,7 +135,7 @@ GglError convert_to_unit(
     } else {
         is_install = false;
         ret = create_unit_file(
-            args, component_name, &run_startup_response_buffer, is_install
+            args, component_name, is_install,&run_startup_response_buffer 
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to create the run or startup unit file.");
