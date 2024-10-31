@@ -13,6 +13,7 @@
 #include <ggl/recipe.h>
 #include <ggl/vector.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -112,6 +113,10 @@ GglError convert_to_unit(
         ret = create_unit_file(
             args, component_name, &install_response_buffer, is_install
         );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to create the install unit file.");
+            return ret;
+        }
     }
 
     ret = generate_systemd_unit(
@@ -130,6 +135,10 @@ GglError convert_to_unit(
         ret = create_unit_file(
             args, component_name, &run_startup_response_buffer, is_install
         );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to create the run or startup unit file.");
+            return ret;
+        }
     }
 
     return GGL_ERR_OK;

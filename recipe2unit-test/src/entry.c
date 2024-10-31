@@ -5,12 +5,14 @@
 #include "ggl/recipe2unit.h"
 #include "recipe2unit-test.h"
 #include <fcntl.h>
+#include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 // For the testing purpose, move the sample recipe.yml to /run/packages/recipes
