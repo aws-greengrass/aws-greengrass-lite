@@ -1,6 +1,6 @@
 # `recipe-runner` design
 
-See [`recipe-runnerd` spec](../../spec/executable/recipe-runner.md) for the
+See [`recipe-runner` spec](../../spec/executable/recipe-runner.md) for the
 public interface for `recipe-runnerd`.
 
 `recipe-runner` is designed to run as a wrapper on the recipe's lifecycle script
@@ -15,13 +15,13 @@ example a recipe names `sampleComponent-0.1.0` will have unit files named
 `sampleComponent-0.1.0_install` and `sampleComponent-0.1.0_run` to represent
 install and run phase of lifecycle. As per the recipe2unit's design.
 
-Once a unit file is created `ggdeploymentd` will use `recipe2unit`'s functions
-to execute the specific unit file that will run provided lifecycle phase as a
-first time installation process.
+The recipe translation to a unit file relies upon `recipe-runner` to execute
+the scripts in the lifecycle sections.
 
-`recipe-runner` will use the provided selected lifecycle section and use
-`execvpe` to execute the argument provided lifecycle section as a bash script.
-It will also forward any environment variables set during runtime. As a side
-effect it will create a temporary bash script file with all the gg-recipe
-variables replaced with appropriate actual values from the global config and
-then use will provide the newly created script file to `execvpe`.
+Example use from a systemd unit file
+```C
+ExecStart=/opt/aws-greengrass-lite/bin/recipe-runner -n myGenericComponent -p /var/aws-greengrass-lite/launch_scriptmyGenericComponentinstall
+```
+
+`recipe-runner` will use`execvpe` to execute the argument provided bash script.
+It will also forward any environment variables set during runtime.
