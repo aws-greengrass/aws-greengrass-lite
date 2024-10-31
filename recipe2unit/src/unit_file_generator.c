@@ -232,7 +232,7 @@ static GglError fetch_script_section(
             return GGL_ERR_INVALID;
         }
     } else {
-        GGL_LOGE(
+        GGL_LOGW(
             "%.*s section is not in the lifecycle",
             (int) selected_phase.len,
             selected_phase.data

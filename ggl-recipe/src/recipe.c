@@ -131,7 +131,8 @@ static GglError manifest_selection(
 
             // Check if the current OS supported first
             if ((strncmp((char *) os->buf.data, "linux", os->buf.len) == 0
-                 || strncmp((char *) os->buf.data, "*", os->buf.len) == 0)) {
+                 || strncmp((char *) os->buf.data, "*", os->buf.len) == 0)
+                || strncmp((char *) os->buf.data, "all", os->buf.len) == 0) {
                 // Then check if architecture is also supported
                 if (((architecture_obj == NULL)
                      || (architecture_obj->buf.len == 0)
@@ -202,13 +203,11 @@ GglError select_linux_manifest(
             return ret;
         }
 
-        if (selected_lifecycle_object == NULL) {
-            GGL_LOGE("No lifecycle was found for linux");
-            return GGL_ERR_FAILURE;
-        }
-        // If a lifecycle is successfully selected then look no futher
-        if (selected_lifecycle_object->type == GGL_TYPE_MAP) {
-            break;
+        if (selected_lifecycle_object != NULL) {
+            // If a lifecycle is successfully selected then look no futher
+            if (selected_lifecycle_object->type == GGL_TYPE_MAP) {
+                break;
+            }
         }
     }
 
