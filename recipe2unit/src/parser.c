@@ -23,8 +23,8 @@
 static GglError create_unit_file(
     Recipe2UnitArgs *args,
     GglObject **component_name,
-    GglBuffer *response_buffer,
-    bool is_install
+    bool is_install,
+    GglBuffer *response_buffer
 ) {
     static uint8_t file_name_array[MAX_COMPONENT_FILE_NAME];
     GglBuffer file_name_buffer = (GglBuffer
@@ -85,6 +85,7 @@ GglError convert_to_unit(
     // Note: currently, if we have both run and startup phases,
     // we will only select startup for the script and service file
     static uint8_t install_unit_file_buffer[MAX_UNIT_FILE_BUF_SIZE];
+    
     static uint8_t run_startup_unit_file_buffer[MAX_UNIT_FILE_BUF_SIZE];
     GglBuffer install_response_buffer
         = (GglBuffer) { .data = (uint8_t *) install_unit_file_buffer,
@@ -117,6 +118,7 @@ GglError convert_to_unit(
             GGL_LOGE("Failed to create the install unit file.");
             return ret;
         }
+
     }
 
     ret = generate_systemd_unit(

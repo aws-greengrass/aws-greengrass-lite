@@ -29,6 +29,14 @@
 #define MAX_RETRIES_INTERVAL_SECONDS "3600"
 #define RETRY_DELAY_SECONDS "1"
 
+static GglError select_linux_manifest(
+    GglMap recipe_map, GglObject *val, GglMap *out_selected_lifecycle_map
+);
+
+static GglError concat_script_name_prefix_vec(
+    const GglMap *recipe_map, GglByteVec *script_name_prefix_vec
+);
+
 /// Parses [DependencyType] portion of recipe and updates the unit file
 /// buffer(out) with dependency information appropriately
 static GglError parse_dependency_type(
@@ -62,6 +70,7 @@ static GglError parse_dependency_type(
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
+
         } else {
             GglError ret = ggl_byte_vec_append(out, GGL_STR("Wants=ggl."));
             if (ret != GGL_ERR_OK) {
