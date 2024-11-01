@@ -107,14 +107,6 @@ GglError ggl_sub_response(
     // timeout handling
     if (!ready) {
         ggl_client_sub_close(handle);
-        GGL_MTX_SCOPE_GUARD_ID(lock, &mtx);
-        while (!atomic_load_explicit(&resp_ctx.ready, memory_order_acquire)) {
-            // Subscription on_close function must be invoked
-            // immediately. Unbounded wait OK.
-            pthread_cond_wait(&cond, lock);
-        }
-        // Notice: no early return
-        // response may still have arrived at this point, so check it.
     }
 
     GglError err = resp_ctx.response_error;
