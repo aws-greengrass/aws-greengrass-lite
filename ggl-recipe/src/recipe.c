@@ -130,9 +130,9 @@ static GglError manifest_selection(
             GglBuffer curr_arch = get_current_architecture();
 
             // Check if the current OS supported first
-            if ((strncmp((char *) os->buf.data, "linux", os->buf.len) == 0
-                 || strncmp((char *) os->buf.data, "*", os->buf.len) == 0)
-                || strncmp((char *) os->buf.data, "all", os->buf.len) == 0) {
+            if ((strncmp((char *) os->buf.data, "linux", os->buf.len) == 0)
+                || (strncmp((char *) os->buf.data, "*", os->buf.len) == 0)
+                || (strncmp((char *) os->buf.data, "all", os->buf.len) == 0)) {
                 // Then check if architecture is also supported
                 if (((architecture_obj == NULL)
                      || (architecture_obj->buf.len == 0)
