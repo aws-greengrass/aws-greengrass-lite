@@ -14,6 +14,7 @@
 #include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/types.h>
 #include <ggl/file.h>
+#include <ggl/io.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket.h>
@@ -46,14 +47,6 @@ static GglError interface_connect(GglBuffer interface, int *conn_fd) {
     return ggl_connect(socket_path.buf, conn_fd);
 }
 
-static GglError payload_writer(GglBuffer *buf, void *payload) {
-    assert(buf != NULL);
-    assert(payload != NULL);
-
-    GglMap *map = payload;
-    return ggl_serialize(GGL_OBJ_MAP(*map), buf);
-}
-
 GglError ggl_client_send_message(
     GglBuffer interface,
     GglCoreBusRequestType type,
@@ -79,13 +72,16 @@ GglError ggl_client_send_message(
     size_t headers_len = sizeof(headers) / sizeof(headers[0]);
 
     ret = eventstream_encode(
-        &send_buffer, headers, headers_len, payload_writer, &params
+        &send_buffer,
+        headers,
+        headers_len,
+        ggl_serialize_reader(&GGL_OBJ_MAP(params))
     );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    ret = ggl_write_exact(conn, send_buffer);
+    ret = ggl_socket_write(conn, send_buffer);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -96,14 +92,8 @@ GglError ggl_client_send_message(
     return GGL_ERR_OK;
 }
 
-GglError ggl_fd_reader(void *ctx, GglBuffer buf) {
-    int *fd_ptr = ctx;
-    return ggl_read_exact(*fd_ptr, buf);
-}
-
 GglError ggl_client_get_response(
-    GglError (*reader)(void *ctx, GglBuffer buf),
-    void *reader_ctx,
+    GglReader reader,
     GglBuffer recv_buffer,
     GglError *error,
     EventStreamMessage *response
@@ -111,7 +101,7 @@ GglError ggl_client_get_response(
     GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
     assert(prelude_buf.len == 12);
 
-    GglError ret = reader(reader_ctx, prelude_buf);
+    GglError ret = ggl_reader_call_exact(reader, prelude_buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -130,7 +120,7 @@ GglError ggl_client_get_response(
     GglBuffer data_section
         = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
 
-    ret = reader(reader_ctx, data_section);
+    ret = ggl_reader_call_exact(reader, data_section);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

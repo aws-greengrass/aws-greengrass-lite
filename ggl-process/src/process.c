@@ -10,7 +10,6 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <limits.h>
-#include <linux/close_range.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/syscall.h>
@@ -19,6 +18,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
+
+#ifdef SYS_close_range
+#include <linux/close_range.h>
+#endif
 
 static void sigalrm_handler(int s) {
     (void) s;
@@ -53,6 +56,8 @@ static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
     }
     return 0;
 }
+
+#define CLOSE_RANGE_UNSHARE 2
 #endif
 
 GglError ggl_process_spawn(char *const argv[], int *handle) {

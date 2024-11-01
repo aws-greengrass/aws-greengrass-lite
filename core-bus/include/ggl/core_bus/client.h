@@ -56,4 +56,11 @@ GglError ggl_subscribe(
 /// Close a client subscription handle.
 void ggl_client_sub_close(uint32_t handle);
 
+/// Cleanup function for closing client subscription handles.
+static inline void cleanup_ggl_client_sub_close(const uint32_t *handle) {
+    if (*handle != 0) {
+        ggl_client_sub_close(*handle);
+    }
+}
+
 #endif

@@ -213,3 +213,20 @@ GglError ggl_json_encode(GglObject obj, GglBuffer *buf) {
     buf->len = (size_t) (buf_copy.data - buf->data);
     return GGL_ERR_OK;
 }
+
+static GglError obj_read(void *ctx, GglBuffer *buf) {
+    assert(buf != NULL);
+
+    GglObject *obj = ctx;
+
+    if ((obj == NULL) || (buf == NULL)) {
+        return GGL_ERR_INVALID;
+    }
+
+    return ggl_json_encode(*obj, buf);
+}
+
+GglReader ggl_json_reader(GglObject *obj) {
+    assert(obj != NULL);
+    return (GglReader) { .read = obj_read, .ctx = obj };
+}

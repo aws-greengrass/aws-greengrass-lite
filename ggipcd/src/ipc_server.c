@@ -17,6 +17,7 @@
 #include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/rpc.h>
 #include <ggl/eventstream/types.h>
+#include <ggl/io.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -96,17 +97,6 @@ static GglError deserialize_payload(GglBuffer payload, GglMap *out) {
     return GGL_ERR_OK;
 }
 
-static GglError payload_writer(GglBuffer *buf, void *payload) {
-    GglObject *obj = payload;
-
-    if (obj == NULL) {
-        buf->len = 0;
-        return GGL_ERR_OK;
-    }
-
-    return ggl_json_encode(*obj, buf);
-}
-
 static void set_conn_component(void *ctx, size_t index) {
     GglComponentHandle *component_handle = ctx;
     assert(*component_handle != 0);
@@ -143,8 +133,7 @@ static GglError complete_conn_init(
             { GGL_STR("svcuid"), { EVENTSTREAM_STRING, .string = svcuid } },
         },
         send_svcuid ? 4 : 3,
-        payload_writer,
-        NULL
+        GGL_NULL_READER
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -291,7 +280,7 @@ static GglError send_stream_error(uint32_t handle, int32_t stream_id) {
         = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
     GglError ret = eventstream_encode(
-        &resp_buffer, resp_headers, RESP_HEADERS_LEN, NULL, NULL
+        &resp_buffer, resp_headers, RESP_HEADERS_LEN, GGL_NULL_READER
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -492,7 +481,7 @@ GglError ggl_ipc_response_send(
     }
 
     GglError ret = eventstream_encode(
-        &resp_buffer, resp_headers, resp_headers_len, payload_writer, &response
+        &resp_buffer, resp_headers, resp_headers_len, ggl_json_reader(&response)
     );
     if (ret != GGL_ERR_OK) {
         return ret;

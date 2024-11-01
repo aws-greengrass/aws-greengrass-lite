@@ -9,7 +9,7 @@
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
-#include <ggl/core_bus/client.h>
+#include <ggl/core_bus/client.h> // IWYU pragma: keep (cleanup)
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
@@ -181,24 +181,22 @@ GglError ggl_aws_iot_call(
         GGL_LOGE("Response topic subscription failed.");
         return ret;
     }
+    GGL_CLEANUP(cleanup_ggl_client_sub_close, sub_handle);
 
     GglBuffer payload_buf = GGL_BUF(json_encode_mem);
     ret = ggl_json_encode(payload, &payload_buf);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to encode JSON payload.");
-        ggl_client_sub_close(sub_handle);
         return ret;
     }
 
     // Must be unlocked before closing subscription
     // (else subscription response may be blocked, and close would deadlock)
-    pthread_mutex_lock(&notify_mtx);
+    GGL_MTX_SCOPE_GUARD(&notify_mtx);
 
     ret = ggl_aws_iot_mqtt_publish(topic, payload_buf, 1, true);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Response topic subscription failed.");
-        pthread_mutex_unlock(&notify_mtx);
-        ggl_client_sub_close(sub_handle);
         return ret;
     }
 
@@ -213,9 +211,6 @@ GglError ggl_aws_iot_call(
     do {
         cont_ret = pthread_cond_timedwait(&notify_cond, &notify_mtx, &timeout);
     } while (cont_ret == EINTR);
-
-    pthread_mutex_unlock(&notify_mtx);
-    ggl_client_sub_close(sub_handle);
 
     return ctx.ret;
 }

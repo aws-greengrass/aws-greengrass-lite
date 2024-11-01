@@ -95,10 +95,11 @@ bool resolve_component_version(
     // TODO: also check that the component region matches the expected region
     // (component store functionality)
     GGL_LOGI(
-        "Found local candidate for %s that satisfies version requirements. "
+        "Found local candidate for %.*s that satisfies version requirements. "
         "Using "
         "the local candidate as the resolved version "
         "without negotiating with the cloud.",
+        (int) component_name.len,
         (char *) component_name.data
     );
 

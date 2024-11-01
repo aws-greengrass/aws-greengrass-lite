@@ -102,17 +102,47 @@ add_cflags($<$<CONFIG:Debug,RelWithDebInfo>:-ggdb3>)
 
 add_cflags($<$<NOT:$<CONFIG:Debug>>:-fPIE>)
 
+add_cflags(
+  -pthread
+  -std=gnu11
+  -fno-strict-aliasing
+  -fvisibility=hidden
+  -fno-semantic-interposition
+  -fstrict-flex-arrays=3
+  -fstack-protector-strong
+  -fno-common)
+
+try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
+try_add_cflag(stack-clash-protection -fstack-clash-protection)
+try_add_cflag(cf-protection -fcf-protection=full)
+try_add_cflag(branch-protection -mbranch-protection=standard)
+
+try_add_cflag(macro-prefix-map "-fmacro-prefix-map=${CMAKE_CURRENT_LIST_DIR}/=")
+
+add_cflags($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
+try_add_cflag_if(trivial-auto-var-init-pattern $<CONFIG:Debug>
+                 -ftrivial-auto-var-init=pattern)
+
+add_cflags($<$<CONFIG:Debug>:-fsanitize=undefined,address>)
+
+add_cflags($<$<NOT:$<CONFIG:Debug>>:-fno-delete-null-pointer-checks>)
+add_cflags($<$<NOT:$<CONFIG:Debug>>:-fwrapv>)
+try_add_cflag_if(trivial-auto-var-init-zero $<NOT:$<CONFIG:Debug>>
+                 -ftrivial-auto-var-init=zero)
+
+try_add_cflag_if(function-sections $<NOT:$<CONFIG:Debug>> -ffunction-sections)
+try_add_cflag_if(data-sections $<NOT:$<CONFIG:Debug>> -fdata-sections)
+
 if(ENABLE_WERROR)
   add_cflags(-Werror)
 endif()
 
 add_cflags(
-  -pthread
-  -std=gnu11
   -Wall
   -Wextra
   -Wvla
   -Wshadow
+  -Wformat
   -Wformat=2
   -Wmissing-prototypes
   -Wstrict-prototypes
@@ -120,35 +150,24 @@ add_cflags(
   -Wunused
   -Wundef
   -Wconversion
+  -Wsign-conversion
+  -Wimplicit-fallthrough
   -Wredundant-decls
   -Wdate-time
-  -Wstack-protector
-  -fno-strict-aliasing
-  -fvisibility=hidden
-  -fno-semantic-interposition
-  -fstack-protector-strong)
+  -Wstack-protector)
 
 try_add_cflag(Wenum-int-mismatch -Wenum-int-mismatch)
+try_add_cflag(Wtrampolines -Wtrampolines)
+try_add_cflag(Wbidi-chars -Wbidi-chars=any,ucn)
 
-try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
-try_add_cflag(stack-clash-protection -fstack-clash-protection)
-
-try_add_cflag(macro-prefix-map "-fmacro-prefix-map=${CMAKE_CURRENT_LIST_DIR}/=")
-
-add_cflags($<$<CONFIG:Debug>:-fno-omit-frame-pointer>)
-try_add_cflag_if(var-init-pattern $<CONFIG:Debug>
-                 -ftrivial-auto-var-init=pattern)
-
-add_cflags($<$<CONFIG:Debug>:-fsanitize=undefined,address>)
-
-try_add_cflag_if(function-sections $<NOT:$<CONFIG:Debug>> -ffunction-sections)
-try_add_cflag_if(data-sections $<NOT:$<CONFIG:Debug>> -fdata-sections)
+add_cflags(-Werror=format-security -Werror=implicit
+           -Werror=incompatible-pointer-types -Werror=int-conversion)
 
 add_compile_definitions(_GNU_SOURCE)
 # build ggl-http with obsoleted cURL code removed
 add_compile_definitions(CURL_NO_OLDIES)
 
-add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=2>)
+add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=3>)
 
 if(GGL_IPC_AUTH_DISABLE)
   add_compile_definitions(GGL_IPC_AUTH_DISABLE)
@@ -156,8 +175,9 @@ endif()
 
 add_link_options($<$<NOT:$<CONFIG:Debug>>:-pie>)
 
-add_link_options(LINKER:-z,relro,-z,now,-z,noexecstack LINKER:--as-needed
-                 LINKER:--enable-new-dtags,--hash-style=gnu)
+add_link_options(
+  LINKER:-z,relro,-z,now,-z,noexecstack,-z,nodlopen LINKER:--as-needed
+  LINKER:--no-copy-dt-needed-entries LINKER:--enable-new-dtags,--hash-style=gnu)
 try_add_link_option(compress-debug-sections-zlib
                     LINKER:--compress-debug-sections=zlib)
 

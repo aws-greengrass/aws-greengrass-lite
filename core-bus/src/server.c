@@ -15,6 +15,7 @@
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/types.h>
+#include <ggl/io.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket_handle.h>
@@ -59,6 +60,12 @@ static GglSocketPool pool = {
 
 __attribute__((constructor)) static void init_client_pool(void) {
     ggl_socket_pool_init(&pool);
+}
+
+static inline void cleanup_socket_handle(const uint32_t *handle) {
+    if (*handle != 0) {
+        ggl_socket_handle_close(&pool, *handle);
+    }
 }
 
 static GglError reset_client_state(uint32_t handle, size_t index) {
@@ -271,17 +278,6 @@ GglError ggl_listen(
     );
 }
 
-static GglError payload_writer(GglBuffer *buf, void *payload) {
-    GglObject *obj = payload;
-
-    if (obj == NULL) {
-        buf->len = 0;
-        return GGL_ERR_OK;
-    }
-
-    return ggl_serialize(*obj, buf);
-}
-
 void ggl_return_err(uint32_t handle, GglError error) {
     assert(error != GGL_ERR_OK); // Returning error ok is invalid
 
@@ -295,7 +291,7 @@ void ggl_return_err(uint32_t handle, GglError error) {
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
     GglError ret = eventstream_encode(
-        &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
+        &send_buffer, resp_headers, resp_headers_len, GGL_NULL_READER
     );
 
     if (ret == GGL_ERR_OK) {
@@ -316,9 +312,10 @@ void ggl_respond(uint32_t handle, GglObject value) {
         return;
     }
 
+    GGL_CLEANUP_ID(handle_cleanup, cleanup_socket_handle, handle);
+
     if (type == GGL_CORE_BUS_NOTIFY) {
         GGL_LOGT("Skipping response and closing notify %d.", handle);
-        ggl_socket_handle_close(&pool, handle);
         return;
     }
 
@@ -326,20 +323,24 @@ void ggl_respond(uint32_t handle, GglObject value) {
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
 
-    ret = eventstream_encode(&send_buffer, NULL, 0, payload_writer, &value);
+    ret = eventstream_encode(
+        &send_buffer, NULL, 0, ggl_serialize_reader(&value)
+    );
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(&pool, handle);
         return;
     }
 
     ret = ggl_socket_handle_write(&pool, handle, send_buffer);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(&pool, handle);
+        return;
     }
 
-    if (type != GGL_CORE_BUS_SUBSCRIBE) {
+    if (type == GGL_CORE_BUS_SUBSCRIBE) {
+        // Keep subscription handle on successful subscription response
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+        handle_cleanup = 0;
+    } else {
         GGL_LOGT("Closing call %d.", handle);
-        ggl_socket_handle_close(&pool, handle);
     }
 
     GGL_LOGT("Sent response to %d.", handle);
@@ -363,6 +364,8 @@ void ggl_sub_accept(
         }
     }
 
+    GGL_CLEANUP_ID(handle_cleanup, cleanup_socket_handle, handle);
+
     GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
@@ -373,19 +376,19 @@ void ggl_sub_accept(
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
     GglError ret = eventstream_encode(
-        &send_buffer, resp_headers, resp_headers_len, payload_writer, NULL
+        &send_buffer, resp_headers, resp_headers_len, GGL_NULL_READER
     );
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(&pool, handle);
         return;
     }
 
     ret = ggl_socket_handle_write(&pool, handle, send_buffer);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(&pool, handle);
         return;
     }
 
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+    handle_cleanup = 0;
     GGL_LOGT("Successfully accepted subscription %d.", handle);
 }
 

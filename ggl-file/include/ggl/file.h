@@ -55,10 +55,30 @@ GglError ggl_file_openat(
 /// Open a file
 GglError ggl_file_open(GglBuffer path, int flags, mode_t mode, int *fd);
 
-/// Read file contents
+/// Read from file.
+/// If result buf value is less than the input size, the file has ended.
+GglError ggl_file_read(int fd, GglBuffer *buf);
+
+/// Read from file, returning error if file ends before buf is full.
+GglError ggl_file_read_exact(int fd, GglBuffer buf);
+
+/// Read portion of data from file (makes single read call).
+/// Returns remaining buffer.
+/// Caller must handle GGL_ERR_RETRY and GGL_ERR_NODATA
+GglError ggl_file_read_partial(int fd, GglBuffer *buf);
+
+/// Write buffer to file.
+GglError ggl_file_write(int fd, GglBuffer buf);
+
+/// Write portion of buffer to file (makes single write call).
+/// Returns remaining buffer.
+/// Caller must handle GGL_ERR_RETRY
+GglError ggl_file_write_partial(int fd, GglBuffer *buf);
+
+/// Read file contents from path
 GglError ggl_file_read_path(GglBuffer path, GglBuffer *content);
 
-/// Read file contents under dirfd
+/// Read file contents from path under dirfd
 GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content);
 
 /// Copy directory contents recursively

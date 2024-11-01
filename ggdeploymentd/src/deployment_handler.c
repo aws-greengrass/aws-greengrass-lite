@@ -30,7 +30,6 @@
 #include <ggl/recipe.h>
 #include <ggl/recipe2unit.h>
 #include <ggl/semver.h>
-#include <ggl/socket.h>
 #include <ggl/uri.h>
 #include <ggl/utils.h>
 #include <ggl/vector.h>
@@ -46,6 +45,7 @@
 
 #define MAX_RECIPE_BUF_SIZE 256000
 #define MAX_DECODE_BUF_LEN 4096
+#define MAX_COMP_NAME_BUF_SIZE 10000
 
 static struct DeploymentConfiguration {
     char data_endpoint[128];
@@ -1047,8 +1047,14 @@ static GglError parse_dataplane_response_and_save_recipe(
         if (ret != GGL_ERR_OK) {
             return ret;
         }
+        assert(cloud_component_version->buf.len <= NAME_MAX);
 
-        *cloud_version = cloud_component_version->buf;
+        memcpy(
+            cloud_version->data,
+            cloud_component_version->buf.data,
+            cloud_component_version->buf.len
+        );
+        cloud_version->len = cloud_component_version->buf.len;
 
         if (vendor_guidance != NULL) {
             if (ggl_buffer_eq(vendor_guidance->buf, GGL_STR("DISCONTINUED"))) {
@@ -1127,7 +1133,7 @@ static GglError parse_dataplane_response_and_save_recipe(
             return ret;
         }
 
-        ret = ggl_write_exact(fd, recipe_file_content->buf);
+        ret = ggl_file_write(fd, recipe_file_content->buf);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Write to cloud recipe file failed");
             return ret;
@@ -1568,7 +1574,7 @@ static GglError resolve_dependencies(
                         return ret;
                     }
                     if (existing_requirements) {
-                        static uint8_t new_req_buf[PATH_MAX];
+                        uint8_t new_req_buf[PATH_MAX];
                         GglByteVec new_req_vec = GGL_BYTE_VEC(new_req_buf);
                         ret = ggl_byte_vec_append(
                             &new_req_vec, existing_requirements->buf
@@ -1583,7 +1589,22 @@ static GglError resolve_dependencies(
                             return ret;
                         }
 
-                        *existing_requirements = GGL_OBJ_BUF(new_req_vec.buf);
+                        uint8_t *new_req = GGL_ALLOCN(
+                            &version_requirements_balloc.alloc,
+                            uint8_t,
+                            new_req_vec.buf.len
+                        );
+                        if (new_req == NULL) {
+                            GGL_LOGE("Ran out of memory while trying to create "
+                                     "new requirements");
+                            return GGL_ERR_NOMEM;
+                        }
+
+                        memcpy(
+                            new_req, new_req_vec.buf.data, new_req_vec.buf.len
+                        );
+                        *existing_requirements = GGL_OBJ_BUF((GglBuffer
+                        ) { .data = new_req, .len = new_req_vec.buf.len });
                     }
 
                     // If we haven't resolved it yet, and it doesn't have an
@@ -1973,6 +1994,9 @@ static void handle_deployment(
         }
         GGL_CLEANUP(ggl_free_digest, digest_context);
 
+        static GglBuffer comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
+        GglBufVec comp_name_vec = GGL_BUF_VEC(comp_name_buf);
+
         GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
             int component_artifacts_fd = -1;
             open_component_artifacts_dir(
@@ -2234,32 +2258,147 @@ static void handle_deployment(
             // TODO: add install file processing logic here.
 
             if (component_updated) {
-                static uint8_t service_file_path_buf[PATH_MAX];
-                GglByteVec service_file_path_vec
-                    = GGL_BYTE_VEC(service_file_path_buf);
-                ret = ggl_byte_vec_append(
-                    &service_file_path_vec, GGL_STR("ggl.")
-                );
-                ggl_byte_vec_chain_append(
-                    &ret, &service_file_path_vec, pair->key
-                );
-                ggl_byte_vec_chain_append(
-                    &ret, &service_file_path_vec, GGL_STR(".service")
-                );
+                ret = ggl_buf_vec_push(&comp_name_vec, pair->key);
                 if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to create service file path.");
+                    GGL_LOGE("Failed to add the component name into vector");
                     return;
                 }
+            }
+        }
 
+        if (comp_name_vec.buf_list.len == 0) {
+            GGL_LOGE("Failed to retrieve any component name");
+            return;
+        }
+
+        for (size_t i = 0; i < comp_name_vec.buf_list.len; i++) {
+            // install
+            static uint8_t install_service_file_path_buf[PATH_MAX];
+            GglByteVec install_service_file_path_vec
+                = GGL_BYTE_VEC(install_service_file_path_buf);
+            ret = ggl_byte_vec_append(
+                &install_service_file_path_vec, args->root_path
+            );
+            ggl_byte_vec_append(&install_service_file_path_vec, GGL_STR("/"));
+            ggl_byte_vec_append(
+                &install_service_file_path_vec, GGL_STR("ggl.")
+            );
+            ggl_byte_vec_chain_append(
+                &ret,
+                &install_service_file_path_vec,
+                comp_name_vec.buf_list.bufs[i]
+            );
+            ggl_byte_vec_chain_append(
+                &ret,
+                &install_service_file_path_vec,
+                GGL_STR(".install.service")
+            );
+            if (ret == GGL_ERR_OK) {
+                // check if the current component name has relevant install
+                // service file created
+                int fd = -1;
+                ret = ggl_file_open(
+                    install_service_file_path_vec.buf, O_RDONLY, 0, &fd
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGW(
+                        "Component %.*s does not have the relevant install "
+                        "service file",
+                        (int) comp_name_vec.buf_list.bufs[i].len,
+                        comp_name_vec.buf_list.bufs[i].data
+                    );
+                } else { // relevant install service file exists
+
+                    // run link command
+                    static uint8_t link_command_buf[PATH_MAX];
+                    GglByteVec link_command_vec
+                        = GGL_BYTE_VEC(link_command_buf);
+                    ret = ggl_byte_vec_append(
+                        &link_command_vec, GGL_STR("sudo systemctl link ")
+                    );
+                    ggl_byte_vec_chain_append(
+                        &ret,
+                        &link_command_vec,
+                        install_service_file_path_vec.buf
+                    );
+                    ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE("Failed to create systemctl link command.");
+                        return;
+                    }
+
+                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                    int system_ret = system((char *) link_command_vec.buf.data);
+                    if (WIFEXITED(system_ret)) {
+                        if (WEXITSTATUS(system_ret) != 0) {
+                            GGL_LOGE("systemctl link failed");
+                            return;
+                        }
+                        GGL_LOGI(
+                            "systemctl link exited with child status %d\n",
+                            WEXITSTATUS(system_ret)
+                        );
+                    } else {
+                        GGL_LOGE("systemctl link did not exit normally");
+                        return;
+                    }
+
+                    // run start command
+                    static uint8_t start_command_buf[PATH_MAX];
+                    GglByteVec start_command_vec
+                        = GGL_BYTE_VEC(start_command_buf);
+                    ret = ggl_byte_vec_append(
+                        &start_command_vec, GGL_STR("sudo systemctl start ")
+                    );
+                    ggl_byte_vec_chain_append(
+                        &ret,
+                        &start_command_vec,
+                        install_service_file_path_vec.buf
+                    );
+                    ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE("Failed to create systemctl start command.");
+                        return;
+                    }
+
+                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                    system_ret = system((char *) start_command_vec.buf.data);
+                    if (WIFEXITED(system_ret)) {
+                        if (WEXITSTATUS(system_ret) != 0) {
+                            GGL_LOGE("systemctl start failed");
+                            return;
+                        }
+                        GGL_LOGI(
+                            "systemctl start exited with child status %d\n",
+                            WEXITSTATUS(system_ret)
+                        );
+                    } else {
+                        GGL_LOGE("systemctl start did not exit normally");
+                        return;
+                    }
+                }
+            }
+
+            // run or startup
+            static uint8_t service_file_path_buf[PATH_MAX];
+            GglByteVec service_file_path_vec
+                = GGL_BYTE_VEC(service_file_path_buf);
+            ret = ggl_byte_vec_append(&service_file_path_vec, args->root_path);
+            ggl_byte_vec_append(&service_file_path_vec, GGL_STR("/"));
+            ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
+            ggl_byte_vec_chain_append(
+                &ret, &service_file_path_vec, comp_name_vec.buf_list.bufs[i]
+            );
+            ggl_byte_vec_chain_append(
+                &ret, &service_file_path_vec, GGL_STR(".service")
+            );
+            if (ret == GGL_ERR_OK) {
+                // run link command
                 static uint8_t link_command_buf[PATH_MAX];
                 GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
                 ret = ggl_byte_vec_append(
                     &link_command_vec, GGL_STR("sudo systemctl link ")
                 );
-                ggl_byte_vec_chain_append(
-                    &ret, &link_command_vec, args->root_path
-                );
-                ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
                 ggl_byte_vec_chain_append(
                     &ret, &link_command_vec, service_file_path_vec.buf
                 );
@@ -2285,36 +2424,7 @@ static void handle_deployment(
                     return;
                 }
 
-                static uint8_t start_command_buf[PATH_MAX];
-                GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
-                ret = ggl_byte_vec_append(
-                    &start_command_vec, GGL_STR("sudo systemctl start ")
-                );
-                ggl_byte_vec_chain_append(
-                    &ret, &start_command_vec, service_file_path_vec.buf
-                );
-                ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to create systemctl start command.");
-                    return;
-                }
-
-                // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                system_ret = system((char *) start_command_vec.buf.data);
-                if (WIFEXITED(system_ret)) {
-                    if (WEXITSTATUS(system_ret) != 0) {
-                        GGL_LOGE("systemctl start failed");
-                        return;
-                    }
-                    GGL_LOGI(
-                        "systemctl start exited with child status %d\n",
-                        WEXITSTATUS(system_ret)
-                    );
-                } else {
-                    GGL_LOGE("systemctl start did not exit normally");
-                    return;
-                }
-
+                // run enable command
                 static uint8_t enable_command_buf[PATH_MAX];
                 GglByteVec enable_command_vec
                     = GGL_BYTE_VEC(enable_command_buf);
@@ -2343,6 +2453,36 @@ static void handle_deployment(
                     );
                 } else {
                     GGL_LOGE("systemctl enable did not exit normally");
+                    return;
+                }
+
+                // run daemon-reload command
+                static uint8_t reload_command_buf[PATH_MAX];
+                GglByteVec reload_command_vec
+                    = GGL_BYTE_VEC(reload_command_buf);
+                ret = ggl_byte_vec_append(
+                    &reload_command_vec,
+                    GGL_STR("sudo systemctl daemon-reload\0")
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create systemctl daemon-reload command."
+                    );
+                    return;
+                }
+
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                system_ret = system((char *) reload_command_vec.buf.data);
+                if (WIFEXITED(system_ret)) {
+                    if (WEXITSTATUS(system_ret) != 0) {
+                        GGL_LOGE("systemctl daemon-reload failed");
+                        return;
+                    }
+                    GGL_LOGI(
+                        "systemctl daemon-reload exited with child status %d\n",
+                        WEXITSTATUS(system_ret)
+                    );
+                } else {
+                    GGL_LOGE("systemctl daemon-reload did not exit normally");
                     return;
                 }
             }

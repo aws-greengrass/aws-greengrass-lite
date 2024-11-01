@@ -39,9 +39,14 @@ static inline GglArena ggl_arena_init(GglBuffer buf) {
 void *ggl_arena_alloc(GglArena *arena, size_t size, size_t alignment);
 
 /// Resize ptr's allocation (must be the last allocated ptr).
-GglError ggl_arena_resize_last(GglArena *arena, const void *ptr, size_t size);
+GglError ggl_arena_resize_last(
+    GglArena *arena, const void *ptr, size_t old_size, size_t size
+);
 
 /// Returns true if arena's mem contains ptr.
 bool ggl_arena_owns(const GglArena *arena, const void *ptr);
+
+/// Allocates remaining space into a buffer.
+GglBuffer ggl_arena_alloc_rest(GglArena *arena);
 
 #endif

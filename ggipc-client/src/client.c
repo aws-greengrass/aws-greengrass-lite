@@ -16,6 +16,7 @@
 #include <ggl/eventstream/rpc.h>
 #include <ggl/eventstream/types.h>
 #include <ggl/file.h>
+#include <ggl/io.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -38,18 +39,6 @@
 static uint8_t payload_array[GGL_IPC_MAX_MSG_LEN];
 static pthread_mutex_t payload_array_mtx = PTHREAD_MUTEX_INITIALIZER;
 
-static GglError payload_writer(GglBuffer *buf, void *payload) {
-    assert(buf != NULL);
-
-    if (payload == NULL) {
-        buf->len = 0;
-        return GGL_ERR_OK;
-    }
-
-    GglMap *map = payload;
-    return ggl_json_encode(GGL_OBJ_MAP(*map), buf);
-}
-
 static GglError send_message(
     int conn,
     const EventStreamHeader *headers,
@@ -60,14 +49,15 @@ static GglError send_message(
 
     GglBuffer send_buffer = GGL_BUF(payload_array);
 
-    GglError ret = eventstream_encode(
-        &send_buffer, headers, headers_len, payload_writer, payload
-    );
+    GglReader reader = payload != NULL ? ggl_json_reader(&GGL_OBJ_MAP(*payload))
+                                       : GGL_NULL_READER;
+    GglError ret
+        = eventstream_encode(&send_buffer, headers, headers_len, reader);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    return ggl_write_exact(conn, send_buffer);
+    return ggl_socket_write(conn, send_buffer);
 }
 
 static GglError get_message(
@@ -83,7 +73,7 @@ static GglError get_message(
     GglBuffer prelude_buf = ggl_buffer_substr(recv_buffer, 0, 12);
     assert(prelude_buf.len == 12);
 
-    GglError ret = ggl_read_exact(conn, prelude_buf);
+    GglError ret = ggl_socket_read(conn, prelude_buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -102,7 +92,7 @@ static GglError get_message(
     GglBuffer data_section
         = ggl_buffer_substr(recv_buffer, 0, prelude.data_len);
 
-    ret = ggl_read_exact(conn, data_section);
+    ret = ggl_socket_read(conn, data_section);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -287,6 +277,8 @@ GglError ggipc_private_get_system_config(
         return GGL_ERR_FAILURE;
     }
 
+    *value = resp.buf;
+
     GGL_LOGT(
         "Read %.*s: %.*s.",
         (int) key.len,
@@ -295,7 +287,6 @@ GglError ggipc_private_get_system_config(
         value->data
     );
 
-    *value = resp.buf;
     return GGL_ERR_OK;
 }
 

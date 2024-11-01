@@ -7,8 +7,8 @@
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <curl/curl.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
-#include <ggl/socket.h>
 #include <ggl/vector.h>
 #include <string.h>
 
@@ -83,7 +83,7 @@ static size_t write_response_to_fd(
     GglBuffer response_buffer
         = (GglBuffer) { .data = response_data, .len = size_of_response_data };
     int *fd = (int *) fd_void;
-    GglError err = ggl_write_exact(*fd, response_buffer);
+    GglError err = ggl_file_write(*fd, response_buffer);
     if (err != GGL_ERR_OK) {
         return 0;
     }

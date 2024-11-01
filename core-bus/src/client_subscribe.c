@@ -18,6 +18,7 @@
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/socket.h>
 #include <ggl/socket_epoll.h>
 #include <ggl/socket_handle.h>
 #include <pthread.h>
@@ -146,7 +147,7 @@ static GglError make_subscribe_request(
     GglBuffer recv_buffer = GGL_BUF(ggl_core_bus_client_payload_array);
     EventStreamMessage msg = { 0 };
     ret = ggl_client_get_response(
-        ggl_fd_reader, &conn, recv_buffer, error, &msg
+        ggl_socket_reader(&conn), recv_buffer, error, &msg
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -248,11 +249,6 @@ void ggl_client_sub_close(uint32_t handle) {
     ggl_socket_handle_close(&pool, handle);
 }
 
-static GglError socket_handle_reader(void *ctx, GglBuffer buf) {
-    uint32_t *handle_ptr = ctx;
-    return ggl_socket_handle_read(&pool, *handle_ptr, buf);
-}
-
 typedef struct {
     uint32_t handle;
     GglObject data;
@@ -288,8 +284,12 @@ static GglError get_subscription_response(uint32_t handle) {
 
     GglBuffer recv_buffer = GGL_BUF(sub_resp_payload_array);
     EventStreamMessage msg = { 0 };
+    GglSocketHandleReaderCtx reader_ctx;
     GglError ret = ggl_client_get_response(
-        socket_handle_reader, &handle, recv_buffer, NULL, &msg
+        ggl_socket_handle_reader(&reader_ctx, &pool, handle),
+        recv_buffer,
+        NULL,
+        &msg
     );
     if (ret != GGL_ERR_OK) {
         return ret;

@@ -31,6 +31,8 @@ typedef enum GglError {
     GGL_ERR_NOMEM,
     /// No connection
     GGL_ERR_NOCONN,
+    /// No more data available
+    GGL_ERR_NODATA,
     /// Unknown entry or target requested
     GGL_ERR_NOENTRY,
     /// Invalid or missing configuration

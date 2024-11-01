@@ -7,8 +7,8 @@
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
-#include <ggl/socket.h>
 #include <stdlib.h>
 
 static int random_fd;
@@ -23,7 +23,7 @@ __attribute__((constructor)) static void init_urandom_fd(void) {
 }
 
 GglError ggl_rand_fill(GglBuffer buf) {
-    GglError ret = ggl_read_exact(random_fd, buf);
+    GglError ret = ggl_file_read_exact(random_fd, buf);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to read from /dev/random.");
     }
