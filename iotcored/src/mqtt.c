@@ -279,8 +279,12 @@ static void mqtt_clear_packet(MQTTContext_t *context, uint16_t packet_id) {
 static GglError establish_connection(void *ctx) {
     (void) ctx;
     MQTTStatus_t mqtt_ret;
+
+    GGL_LOGD("Trying to establish connection to IoT core.");
+
     GglError ret = iotcored_tls_connect(iot_cored_args, &net_ctx.tls_ctx);
     if (ret != 0) {
+        GGL_LOGE("Failed to create TLS connection.");
         return ret;
     }
 
@@ -312,6 +316,8 @@ static GglError establish_connection(void *ctx) {
     }
 
     atomic_store_explicit(&ping_pending, false, memory_order_release);
+
+    GGL_LOGD("Connected to IoT core.");
     return GGL_ERR_OK;
 }
 
@@ -335,6 +341,9 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
 
         // Send a fleet status update on reconnection
         if (reconnect) {
+            // Resubscribe to all subscriptions.
+            iotcored_re_register_all_subs();
+
             static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
             GglMap args = GGL_MAP({ GGL_STR("trigger"),
                                     GGL_OBJ_BUF(GGL_STR("RECONNECT")) });
@@ -371,10 +380,6 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
         iotcored_tls_cleanup(ctx->transportInterface.pNetworkContext->tls_ctx);
 
         GGL_LOGE("Removing all IoT core subscriptions");
-
-        // Remove all subscriptions. This will force the callers to
-        // resubscribe.
-        iotcored_unregister_all_subs();
 
         // Set reconnect flag. Future connections will send a fleet status
         // update

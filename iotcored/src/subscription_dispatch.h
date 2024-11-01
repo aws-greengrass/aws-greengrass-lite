@@ -11,11 +11,11 @@
 #include <stdint.h>
 
 GglError iotcored_register_subscriptions(
-    GglBuffer *topic_filters, size_t count, uint32_t handle
+    GglBuffer *topic_filters, size_t count, uint32_t handle, uint8_t qos
 );
 
 void iotcored_unregister_subscriptions(uint32_t handle);
 
-void iotcored_unregister_all_subs(void);
+void iotcored_re_register_all_subs(void);
 
 #endif

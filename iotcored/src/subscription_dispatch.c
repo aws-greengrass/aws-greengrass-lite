@@ -31,6 +31,7 @@ static size_t topic_filter_len[IOTCORED_MAX_SUBSCRIPTIONS] = { 0 };
 static uint8_t sub_topic_filters[IOTCORED_MAX_SUBSCRIPTIONS]
                                 [AWS_IOT_MAX_TOPIC_SIZE];
 static uint32_t handles[IOTCORED_MAX_SUBSCRIPTIONS];
+static uint8_t topic_qos[IOTCORED_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static GglBuffer topic_filter_buf(size_t index) {
@@ -40,7 +41,7 @@ static GglBuffer topic_filter_buf(size_t index) {
 }
 
 GglError iotcored_register_subscriptions(
-    GglBuffer *topic_filters, size_t count, uint32_t handle
+    GglBuffer *topic_filters, size_t count, uint32_t handle, uint8_t qos
 ) {
     for (size_t i = 0; i < count; i++) {
         if (topic_filters[i].len == 0) {
@@ -55,6 +56,7 @@ GglError iotcored_register_subscriptions(
         }
     }
 
+    GGL_LOGE("Registering subs.");
     GGL_MTX_SCOPE_GUARD(&mtx);
 
     size_t filter_index = 0;
@@ -67,6 +69,7 @@ GglError iotcored_register_subscriptions(
                 topic_filters[filter_index].len
             );
             handles[i] = handle;
+            topic_qos[i] = qos;
             filter_index += 1;
             if (filter_index == count) {
                 return GGL_ERR_OK;
@@ -109,7 +112,8 @@ void iotcored_unregister_subscriptions(uint32_t handle) {
                 }
             }
 
-            // This is the only subscription to this topic. Send an unsubscribe.
+            // This is the only subscription to this topic. Send an
+            // unsubscribe.
             if (j == IOTCORED_MAX_SUBSCRIPTIONS) {
                 GglBuffer buf[] = { topic_filter_buf(i) };
                 iotcored_mqtt_unsubscribe(buf, 1U);
@@ -138,14 +142,23 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
     }
 }
 
-void iotcored_unregister_all_subs(void) {
+void iotcored_re_register_all_subs(void) {
     GGL_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (topic_filter_len[i] != 0) {
-            ggl_server_sub_close(handles[i]);
-
-            topic_filter_len[i] = 0;
+            GglBuffer buffer
+                = { .data = sub_topic_filters[i], .len = topic_filter_len[i] };
+            GGL_LOGD(
+                "Subscribing again to:  %.*s",
+                (int) topic_filter_len[i],
+                sub_topic_filters[i]
+            );
+            if (iotcored_mqtt_subscribe(&buffer, 1, topic_qos[i])
+                != GGL_ERR_OK) {
+                topic_filter_len[i] = 0;
+                GGL_LOGE("Failed to subscribe to topic filter.");
+            }
         }
     }
 }

@@ -162,7 +162,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     }
 
     GglError ret = iotcored_register_subscriptions(
-        topic_filters, topic_filter_count, handle
+        topic_filters, topic_filter_count, handle, qos
     );
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);

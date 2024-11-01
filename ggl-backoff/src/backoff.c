@@ -29,6 +29,7 @@ static GglError backoff_wrapper(
         assert(false);
         return GGL_ERR_UNSUPPORTED;
     }
+
     if (max_ms > UINT16_MAX) {
         assert(false);
         return GGL_ERR_UNSUPPORTED;
