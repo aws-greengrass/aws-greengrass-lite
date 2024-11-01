@@ -96,8 +96,7 @@ GglError ggl_sub_response(
             ready = atomic_load_explicit(&resp_ctx.ready, memory_order_acquire)
         )) {
             int cond_ret = pthread_cond_timedwait(&cond, lock, &timeout_abs);
-            if (cond_ret != 0) {
-                // cond_wait family functions will not return EINTR
+            if ((cond_ret < 0) && (cond_ret != EINTR)) {
                 assert(cond_ret == ETIMEDOUT);
                 GGL_LOGW("Timed out waiting for a response.");
                 break;
