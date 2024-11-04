@@ -1,3 +1,15 @@
+## dev
+
+Breaking changes:
+
+- The config file loading workflow has changed. `ggconfigd` can now read from a
+  config file and/or a directory of config files, and use it to set default
+  values for configuration.
+
+  If config files are available at `/etc/greengrass/config.yaml` or in
+  `/etc/greengrass/config.d/`, they will be loaded automatically. The
+  `--config-file` and `--config-dir` args let you override these locations.
+
 ## 2024-10-22
 
 Bug Fixes:

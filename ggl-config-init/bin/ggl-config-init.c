@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <argp.h>
-#include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/gg_config.h>
@@ -53,19 +52,10 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    int fd = -1;
-    GglError ret = ggl_file_open(
-        ggl_buffer_from_null_term(config_path), O_RDONLY, 0, &fd
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to open config file.");
-        return 1;
-    }
-
     static uint8_t file_mem[8192];
     GglBuffer config_file = GGL_BUF(file_mem);
 
-    ret = ggl_file_read_path(
+    GglError ret = ggl_file_read_path(
         ggl_buffer_from_null_term(config_path), &config_file
     );
     if (ret != GGL_ERR_OK) {

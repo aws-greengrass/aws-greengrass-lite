@@ -46,28 +46,19 @@ set this to the user Greengrass is running as.
 The following examples assume you have made a copy in `./run/init_config.yml`
 and configured the required fields in it.
 
-To load the config, you will need to run the config daemon and run the
-configuration script.
-
-In one shell, run the config daemon:
+To load the config, you will need to run the config daemon with a flag to load
+your config file:
 
 ```sh
 cd ./run
-../build/bin/ggconfigd
+../build/bin/ggconfigd --config-file ./init_config.yml
 ```
 
-In another shell, run the config script
+If config files are available at `/etc/greengrass/config.yaml` or in
+`/etc/greengrass/config.d/`, they will be loaded automatically. The
+`--config-file` and `--config-dir` args let you override these locations.
 
-```sh
-cd ./run
-../build/bin/ggl-config-init --config ./init_config.yml
-```
-
-You can then kill the config daemon.
-
-If you already have a Greengrass Lite system running, and want to update the
-config values, you don't need to run another copy of the config daemon, just run
-`ggl-config-init`.
+Once it is done loading the config, you can then kill the config daemon.
 
 ## Running the nucleus
 

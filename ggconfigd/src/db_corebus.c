@@ -161,7 +161,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     ggl_sub_accept(handle, NULL, NULL);
 }
 
-static GglError process_nonmap(
+GglError process_nonmap(
     GglObjVec *key_path, GglObject value, int64_t timestamp
 ) {
     char *path_string = print_key_path(&key_path->list);
@@ -198,9 +198,7 @@ static GglError process_nonmap(
 // layer so that merges can be made atomic. Currently it's possible for a subset
 // of the writes in a merge to fail while the rest succeed.
 // NOLINTNEXTLINE(misc-no-recursion)
-static GglError process_map(
-    GglObjVec *key_path, GglMap *the_map, int64_t timestamp
-) {
+GglError process_map(GglObjVec *key_path, GglMap *the_map, int64_t timestamp) {
     GglError error = GGL_ERR_OK;
     for (size_t x = 0; x < the_map->len; x++) {
         GglKV *kv = &the_map->pairs[x];

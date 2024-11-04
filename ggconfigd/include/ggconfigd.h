@@ -8,6 +8,7 @@
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <stdint.h>
 
 // TODO: we could save this static memory by having json decoding done as we
@@ -24,5 +25,13 @@ GglError ggconfig_open(void);
 GglError ggconfig_close(void);
 
 void ggconfigd_start_server(void);
+
+GglError ggconfig_load_file(GglBuffer path);
+GglError ggconfig_load_dir(GglBuffer path);
+
+GglError process_nonmap(
+    GglObjVec *key_path, GglObject value, int64_t timestamp
+);
+GglError process_map(GglObjVec *key_path, GglMap *the_map, int64_t timestamp);
 
 #endif
