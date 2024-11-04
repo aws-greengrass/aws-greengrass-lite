@@ -2408,41 +2408,37 @@ static void handle_deployment(
                         GGL_LOGE("sudo systemctl enable did not exit normally");
                         return;
                     }
-
-                    // run daemon-reload command
-                    static uint8_t reload_command_buf[PATH_MAX];
-                    GglByteVec reload_command_vec
-                        = GGL_BYTE_VEC(reload_command_buf);
-                    ret = ggl_byte_vec_append(
-                        &reload_command_vec,
-                        GGL_STR("sudo systemctl daemon-reload\0")
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to create sudo systemctl "
-                                 "daemon-reload command.");
-                        return;
-                    }
-
-                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                    system_ret = system((char *) reload_command_vec.buf.data);
-                    if (WIFEXITED(system_ret)) {
-                        if (WEXITSTATUS(system_ret) != 0) {
-                            GGL_LOGE("sudo systemctl daemon-reload failed");
-                            return;
-                        }
-                        GGL_LOGI(
-                            "sudo systemctl daemon-reload exited with child "
-                            "status "
-                            "%d\n",
-                            WEXITSTATUS(system_ret)
-                        );
-                    } else {
-                        GGL_LOGE(
-                            "sudo systemctl daemon-reload did not exit normally"
-                        );
-                        return;
-                    }
                 }
+            }
+
+            // run daemon-reload command once all the files are linked
+            static uint8_t reload_command_buf[PATH_MAX];
+            GglByteVec reload_command_vec = GGL_BYTE_VEC(reload_command_buf);
+            ret = ggl_byte_vec_append(
+                &reload_command_vec, GGL_STR("sudo systemctl daemon-reload\0")
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to create sudo systemctl "
+                         "daemon-reload command.");
+                return;
+            }
+
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
+            int system_ret = system((char *) reload_command_vec.buf.data);
+            if (WIFEXITED(system_ret)) {
+                if (WEXITSTATUS(system_ret) != 0) {
+                    GGL_LOGE("sudo systemctl daemon-reload failed");
+                    return;
+                }
+                GGL_LOGI(
+                    "sudo systemctl daemon-reload exited with child "
+                    "status "
+                    "%d\n",
+                    WEXITSTATUS(system_ret)
+                );
+            } else {
+                GGL_LOGE("sudo systemctl daemon-reload did not exit normally");
+                return;
             }
         }
 
