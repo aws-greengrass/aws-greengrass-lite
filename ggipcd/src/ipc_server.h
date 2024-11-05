@@ -19,7 +19,7 @@
 #define GGL_IPC_PAYLOAD_MAX_SUBOBJECTS 50
 
 /// Start the GG-IPC server on a given socket
-GglError ggl_ipc_listen(const char *socket_path);
+GglError ggl_ipc_listen(const char *socket_name, const char *socket_path);
 
 /// Send an EventStream packet to an IPC client.
 GglError ggl_ipc_response_send(

@@ -1,0 +1,11 @@
+---
+system:
+  rootPath: "/var/lib/greengrass"
+services:
+  aws.greengrass.Nucleus-Lite:
+    componentType: "NUCLEUS"
+    configuration:
+      runWithDefault:
+        posixUser: "ggc_user:ggc_group"
+      greengrassDataPlanePort: "8443"
+      tesCredUrl: "http://127.0.0.1:8080/"

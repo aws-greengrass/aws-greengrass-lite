@@ -1,0 +1,6 @@
+[Unit]
+Description=AWS IoT Greengrass runtime for constrained devices.
+AllowIsolate=yes
+
+[Install]
+WantedBy=multi-user.target

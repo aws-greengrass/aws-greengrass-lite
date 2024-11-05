@@ -1,0 +1,25 @@
+[Unit]
+StartLimitInterval=20
+StartLimitBurst=10
+PartOf=greengrass-lite.target
+
+[Install]
+WantedBy=greengrass-lite.target
+
+[Service]
+Type=exec
+ExecStart=@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_BINDIR@/@name@
+Restart=always
+RestartSec=1
+# Disallow from having overly-permissive capabilities
+CapabilityBoundingSet=~CAP_SYS_ADMIN ~CAP_SYS_PTRACE
+User=@GGL_SYSTEMD_SYSTEM_USER@
+Group=@GGL_SYSTEMD_SYSTEM_GROUP@
+# Working directory in StateDirectory (/var/lib/greengrass)
+StateDirectory=greengrass
+WorkingDirectory=%S/greengrass
+
+
+[Unit]
+Description=core-bus generic pub-sub daemon
+After=ggl.core.ggconfigd.service

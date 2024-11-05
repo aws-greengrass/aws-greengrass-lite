@@ -2456,7 +2456,6 @@ static void handle_deployment(
                          "daemon-reload command.");
                 return;
             }
-
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             int system_ret = system((char *) reload_command_vec.buf.data);
             if (WIFEXITED(system_ret)) {
@@ -2475,6 +2474,13 @@ static void handle_deployment(
                 return;
             }
         }
+
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        int system_ret = system("sudo systemctl reset-failed");
+        (void) (system_ret);
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        system_ret = system("sudo systemctl start greengrass-lite.target");
+        (void) (system_ret);
 
         ret = wait_for_deployment_status(resolved_components_kv_vec.map);
         if (ret != GGL_ERR_OK) {

@@ -1,0 +1,11 @@
+[Socket]
+ListenStream=@COMP_ARG_SOCKETDIR@/@socket@
+FileDescriptorName=@socket@
+Service=ggl.core.@name@.service
+SocketUser=@GGL_SYSTEMD_SYSTEM_USER@
+SocketGroup=@GGL_SYSTEMD_SYSTEM_GROUP@
+Backlog=10
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target

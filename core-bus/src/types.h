@@ -9,7 +9,8 @@
 #define GGL_INTERFACE_NAME_MAX_LEN 50
 
 /// Socket path prefix for core bus sockets.
-#define GGL_INTERFACE_SOCKET_PREFIX "/tmp/greengrass/"
+#define GGL_INTERFACE_SOCKET_PREFIX "/run/greengrass/"
+
 /// Length of socket path prefix for core bus sockets.
 #define GGL_INTERFACE_SOCKET_PREFIX_LEN \
     (sizeof(GGL_INTERFACE_SOCKET_PREFIX) - 1)

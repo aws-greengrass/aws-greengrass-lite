@@ -443,8 +443,10 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     return handle_operation(handle, &msg, common_headers);
 }
 
-GglError ggl_ipc_listen(const char *socket_path) {
+GglError ggl_ipc_listen(const char *socket_name, const char *socket_path) {
     return ggl_socket_server_listen(
+        &(GglBuffer) { .data = (uint8_t *) socket_name,
+                       .len = strlen(socket_name) },
         (GglBuffer) { .data = (uint8_t *) socket_path,
                       .len = strlen(socket_path) },
         0777,

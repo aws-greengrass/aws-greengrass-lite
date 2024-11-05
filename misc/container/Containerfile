@@ -4,8 +4,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
   && apt-get -y install --no-install-recommends \
     systemd systemd-sysv dbus ca-certificates sudo nano bash-completion \
-    build-essential pkg-config cmake git curl file gdb \
-    libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
+    build-essential pkg-config cmake git curl file gdb python3 \
+    libssl-dev libcurl4-openssl-dev libsqlite3-dev sqlite3 libyaml-dev \
     libsystemd-dev liburiparser-dev uuid-dev libevent-dev libzip-dev \
   && apt-get clean
 
@@ -14,6 +14,19 @@ COPY ./getty-override.conf \
 
 RUN groupadd ggc_group && useradd -Ng ggc_group ggc_user
 
+RUN groupadd ggcore && useradd -Ng ggcore ggcore
+COPY ./ggcore \
+  /etc/sudoers.d/ggcore
+RUN chmod 440 /etc/sudoers.d/ggcore
+
 RUN echo "export MAKEFLAGS=-j" >> /root/.profile
 
+
 CMD ["/lib/systemd/systemd"]
+
+RUN mkdir -p /etc/greengrass/config.d
+COPY ./01defaults.yaml \
+  /etc/greengrass/config.d/01defaults.yaml
+RUN chown ggcore:ggcore /etc/greengrass -R
+RUN mkdir -p /var/lib/greengrass && \
+  chown ggcore:ggcore /var/lib/greengrass

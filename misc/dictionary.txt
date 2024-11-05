@@ -24,12 +24,16 @@ evbuffer
 eventfd
 evhttp
 execvp
+execvpe
+FDNAMES
+FOWNER
 Fssd
 gencb
 ggconfig
 ggconfigd
 ggconfiglib
 ggconflib
+ggcore
 GGDEPLOYMENT
 ggdeploymentd
 gghealthd
@@ -44,6 +48,7 @@ grault
 greengrasscoreipc
 greengrassv
 htobe
+INET
 iotcored
 iotcoredfleet
 iwyu
@@ -67,6 +72,7 @@ NOCONN
 NOENTRY
 NOLINTNEXTLINE
 NOMEM
+NOPASSWD
 nproc
 parentid
 pidfd
@@ -74,6 +80,7 @@ pkgs
 pname
 posix
 ptid
+PTRACE
 respfd
 rodata
 rootca
@@ -90,6 +97,7 @@ svcuids
 sysv
 tesd
 tlog
+tmpfiles
 unacked
 unarchived
 unrefp

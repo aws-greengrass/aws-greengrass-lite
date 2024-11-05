@@ -22,6 +22,7 @@ in
           "fc_deps.json"
           "run_nucleus"
           "recipe.yml"
+          "greengrass-lite.target"
         ] ||
         lib.any file.hasExt [ "c" "h" "S" "sql" "cmake" "in" ])
         src;

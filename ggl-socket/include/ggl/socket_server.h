@@ -14,10 +14,12 @@
 #include <stdint.h>
 
 /// Run a server listening on `path`.
+/// If `socket_name` is set, systemd-style socket activation will be attempted.
 /// `client_ready` will be called when more data is available or if the client
 /// closes the socket.
 /// If `client_ready` returns an error, the connection will be cleaned up.
 GglError ggl_socket_server_listen(
+    const GglBuffer *socket_name,
     GglBuffer path,
     mode_t mode,
     GglSocketPool *pool,

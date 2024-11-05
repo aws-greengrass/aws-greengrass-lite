@@ -55,6 +55,7 @@ GglError ggl_client_send_message(
     int *conn_fd
 ) {
     int conn = -1;
+    GGL_LOGT("Connecting to %.*s.", (int) interface.len, interface.data);
     GglError ret = interface_connect(interface, &conn);
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -80,6 +81,8 @@ GglError ggl_client_send_message(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+
+    GGL_LOGT("Writing data to %.*s.", (int) interface.len, interface.data);
 
     ret = ggl_socket_write(conn, send_buffer);
     if (ret != GGL_ERR_OK) {

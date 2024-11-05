@@ -18,6 +18,18 @@ set(GGL_LOG_LEVEL CACHE STRING "GGL log level")
 
 option(GGL_IPC_AUTH_DISABLE "Put IPC authentication in debug mode")
 
+option(GGL_SYSTEMD_SERVICE_BUILD "Install GGL as a set of systemd services"
+       TRUE)
+set(GGL_SYSTEMD_SYSTEM_DIR
+    "lib/systemd/system"
+    CACHE STRING "Install directory for systemd unit files")
+set(GGL_SYSTEMD_SYSTEM_USER
+    "ggcore"
+    CACHE STRING "Core service user")
+set(GGL_SYSTEMD_SYSTEM_GROUP
+    "ggcore"
+    CACHE STRING "Core service group")
+
 #
 # Misc
 #
@@ -269,9 +281,13 @@ check_c_source_compiles(
 
 # Common setup for a GGL module
 function(ggl_init_module name)
-  cmake_parse_arguments(PARSE_ARGV 1 COMP_ARG "" "SRCDIR" "INCDIRS;LIBS")
+  cmake_parse_arguments(PARSE_ARGV 1 COMP_ARG "" "SRCDIR;SOCKETDIR"
+                        "INCDIRS;LIBS;SOCKETS")
   if("${COMP_ARG_SRCDIR}" STREQUAL "")
     set(COMP_ARG_SRCDIR src)
+  endif()
+  if("${COMP_ARG_SOCKETDIR}" STREQUAL "")
+    set(COMP_ARG_SOCKETDIR /run/greengrass)
   endif()
   if("${COMP_ARG_INCDIRS}" STREQUAL "")
     set(COMP_ARG_INCDIRS include)
@@ -296,6 +312,22 @@ function(ggl_init_module name)
     target_include_directories(${name} PRIVATE ${COMP_ARG_INCDIRS})
     target_include_directories(${name} SYSTEM INTERFACE ${COMP_ARG_INCDIRS})
     target_link_libraries(${name} PRIVATE ${COMP_ARG_LIBS})
+  endif()
+
+  if(GGL_SYSTEMD_SERVICE_BUILD)
+    foreach(socket ${COMP_ARG_SOCKETS})
+      configure_file(${CMAKE_SOURCE_DIR}/misc/systemd/template.socket.in
+                     ${CMAKE_CURRENT_BINARY_DIR}/ggl.${socket}.socket @ONLY)
+      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ggl.${socket}.socket
+              DESTINATION ${GGL_SYSTEMD_SYSTEM_DIR})
+    endforeach()
+
+    if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/unit/template.service.in)
+      configure_file(${CMAKE_CURRENT_LIST_DIR}/unit/template.service.in
+                     ${CMAKE_CURRENT_BINARY_DIR}/ggl.core.${name}.service @ONLY)
+      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ggl.core.${name}.service
+              DESTINATION ${GGL_SYSTEMD_SYSTEM_DIR})
+    endif()
   endif()
 
   file(GLOB BINS CONFIGURE_DEPENDS "bin/*.c")
@@ -356,6 +388,16 @@ add_subdirectory(ggl-semver)
 add_subdirectory(ggl-constants)
 add_subdirectory(cloud-logger)
 add_subdirectory(hello-world-component)
+
+if(GGL_SYSTEMD_SERVICE_BUILD)
+  add_custom_target(
+    greengrass-lite.target ALL
+    COMMAND cp "${CMAKE_SOURCE_DIR}/misc/systemd/greengrass-lite.target"
+            "${CMAKE_BINARY_DIR}/misc/greengrass-lite.target"
+    COMMENT "Nucleus systemd target")
+  install(FILES "${CMAKE_BINARY_DIR}/misc/greengrass-lite.target"
+          DESTINATION ${GGL_SYSTEMD_SYSTEM_DIR})
+endif()
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
