@@ -24,7 +24,7 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
     static uint8_t big_buffer_for_bump[4096];
     GglError request_ret = GGL_ERR_OK;
     {
-        static GglBuffer tesd = GGL_STR("/aws/ggl/tesd");
+        static GglBuffer tesd = GGL_STR("aws_iot_tes");
         GglObject result;
         GglMap params = { 0 };
         GglBumpAlloc the_allocator

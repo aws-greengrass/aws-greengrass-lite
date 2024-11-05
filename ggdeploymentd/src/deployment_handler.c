@@ -371,7 +371,7 @@ static GglError get_tes_credentials(TesCredentials *tes_creds) {
     GglObject *aws_session_token = NULL;
 
     static uint8_t credentials_alloc[1500];
-    static GglBuffer tesd = GGL_STR("/aws/ggl/tesd");
+    static GglBuffer tesd = GGL_STR("aws_iot_tes");
     GglObject result;
     GglMap params = { 0 };
     GglBumpAlloc credential_alloc
@@ -1732,7 +1732,7 @@ static GglError add_arn_list_to_config(
 }
 
 static GglError send_fss_update(GglBuffer trigger) {
-    GglBuffer server = GGL_STR("/aws/ggl/gg-fleet-statusd");
+    GglBuffer server = GGL_STR("gg_fleet_status");
     static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
 
     GglMap args = GGL_MAP({ GGL_STR("trigger"), GGL_OBJ_BUF(trigger) });
@@ -1853,7 +1853,7 @@ static GglError wait_for_deployment_status(GglMap resolved_components) {
             component->key.data
         );
         GglError ret = ggl_sub_response(
-            GGL_STR("/aws/ggl/gghealthd"),
+            GGL_STR("gg_health"),
             GGL_STR("subscribe_to_lifecycle_completion"),
             GGL_MAP({ GGL_STR("component_name"), GGL_OBJ_BUF(component->key) }),
             deployment_status_callback,

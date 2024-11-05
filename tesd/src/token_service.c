@@ -159,7 +159,7 @@ static void start_tes_core_bus_server(void) {
     };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
-    GglBuffer interface = GGL_STR("/aws/ggl/tesd");
+    GglBuffer interface = GGL_STR("aws_iot_tes");
 
     GglError ret = ggl_listen(interface, handlers, handlers_len);
 

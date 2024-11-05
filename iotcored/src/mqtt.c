@@ -354,7 +354,7 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
             GglObject result;
 
             GglError ret = ggl_call(
-                GGL_STR("/aws/ggl/gg-fleet-statusd"),
+                GGL_STR("gg_fleet_status"),
                 GGL_STR("send_fleet_status_update"),
                 args,
                 NULL,

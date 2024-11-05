@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 int main(void) {
-    GglBuffer server = GGL_STR("/aws/ggl/ggdeploymentd");
+    GglBuffer server = GGL_STR("gg_deployment");
     static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
 
     GglMap args = GGL_MAP(

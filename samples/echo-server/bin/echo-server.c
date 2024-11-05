@@ -21,5 +21,5 @@ int main(void) {
     };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
-    ggl_listen(GGL_STR("/aws/ggl/echo-server"), handlers, handlers_len);
+    ggl_listen(GGL_STR("echo_server"), handlers, handlers_len);
 }

@@ -80,7 +80,7 @@ GglError run_ggconfigd_test(void) {
 
     GglObject result;
     ret = ggl_call(
-        GGL_STR("/aws/ggl/ggdeploymentd"),
+        GGL_STR("gg_deployment"),
         GGL_STR("create_local_deployment"),
         args.map,
         NULL,

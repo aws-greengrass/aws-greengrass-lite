@@ -17,7 +17,7 @@
 struct evhttp_request;
 
 static GglObject fetch_creds(GglBumpAlloc the_allocator) {
-    GglBuffer tesd = GGL_STR("/aws/ggl/tesd");
+    GglBuffer tesd = GGL_STR("aws_iot_tes");
     GglObject result;
     GglMap params = { 0 };
 

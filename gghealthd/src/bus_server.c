@@ -187,7 +187,7 @@ GglError run_gghealthd(void) {
               NULL } };
     static const size_t HANDLERS_LEN = sizeof(handlers) / sizeof(handlers[0]);
 
-    ggl_listen(GGL_STR("/aws/ggl/gghealthd"), handlers, HANDLERS_LEN);
+    ggl_listen(GGL_STR("gg_health"), handlers, HANDLERS_LEN);
 
     return GGL_ERR_OK;
 }

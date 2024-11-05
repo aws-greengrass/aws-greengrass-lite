@@ -61,7 +61,7 @@ void gg_fleet_statusd_start_server(void) {
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
     GglError ret = ggl_listen(
-        GGL_STR("/aws/ggl/gg-fleet-statusd"), handlers, handlers_len
+        GGL_STR("gg_fleet_status"), handlers, handlers_len
     );
 
     GGL_LOGE("Exiting with error %u.", (unsigned) ret);

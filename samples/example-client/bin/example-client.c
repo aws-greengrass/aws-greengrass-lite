@@ -13,7 +13,7 @@
 #include <stdint.h>
 
 int main(void) {
-    GglBuffer server = GGL_STR("/aws/ggl/echo-server");
+    GglBuffer server = GGL_STR("echo_server");
     static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
 
     GglMap args

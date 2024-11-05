@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
     GglObject result;
 
     GglError ret = ggl_call(
-        GGL_STR("/aws/ggl/ggdeploymentd"),
+        GGL_STR("gg_deployment"),
         GGL_STR("create_local_deployment"),
         args.map,
         &remote_err,

@@ -13,7 +13,7 @@
 #include <stdio.h>
 
 GglError run_tesd_test(void) {
-    static GglBuffer tesd = GGL_STR("/aws/ggl/tesd");
+    static GglBuffer tesd = GGL_STR("aws_iot_tes");
 
     GglObject result;
     GglMap params = { 0 };

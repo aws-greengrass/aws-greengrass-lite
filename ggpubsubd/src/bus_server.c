@@ -68,7 +68,7 @@ GglError run_ggpubsubd(void) {
     };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
-    GglError ret = ggl_listen(GGL_STR("pubsub"), handlers, handlers_len);
+    GglError ret = ggl_listen(GGL_STR("gg_pubsub"), handlers, handlers_len);
 
     GGL_LOGE("Exiting with error %u.", (unsigned) ret);
     return ret;

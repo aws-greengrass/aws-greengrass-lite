@@ -113,7 +113,7 @@ GglError ggl_handle_subscribe_to_topic(
     ret = ggl_ipc_bind_subscription(
         handle,
         stream_id,
-        GGL_STR("pubsub"),
+        GGL_STR("gg_pubsub"),
         GGL_STR("subscribe"),
         call_args,
         subscribe_to_topic_callback,

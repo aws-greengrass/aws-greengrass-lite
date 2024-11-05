@@ -86,7 +86,7 @@ GglError ggl_handle_publish_to_topic(
     );
 
     ret = ggl_call(
-        GGL_STR("pubsub"), GGL_STR("publish"), call_args, NULL, NULL, NULL
+        GGL_STR("gg_pubsub"), GGL_STR("publish"), call_args, NULL, NULL, NULL
     );
     if (ret != GGL_ERR_OK) {
         return ret;
