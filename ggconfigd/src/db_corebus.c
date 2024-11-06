@@ -164,7 +164,6 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
 GglError process_nonmap(
     GglObjVec *key_path, GglObject value, int64_t timestamp
 ) {
-    char *path_string = print_key_path(&key_path->list);
     uint8_t value_string[1024] = { 0 };
     GglBuffer value_buffer
         = { .data = value_string, .len = sizeof(value_string) };
@@ -186,7 +185,7 @@ GglError process_nonmap(
 
     GGL_LOGT(
         "Wrote %s = %.*s %" PRId64,
-        path_string,
+        print_key_path(&key_path->list),
         (int) value_buffer.len,
         value_buffer.data,
         timestamp
