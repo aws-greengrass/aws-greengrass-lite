@@ -58,11 +58,7 @@ GglError get_recipe_dir_fd(int *recipe_fd) {
     GGL_CLEANUP(cleanup_close, root_path_fd);
 
     ret = ggl_dir_openat(
-        root_path_fd,
-        GGL_STR("packages/recipes"),
-        O_RDONLY,
-        false,
-        recipe_fd
+        root_path_fd, GGL_STR("packages/recipes"), O_RDONLY, false, recipe_fd
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to open recipe subdirectory.");
