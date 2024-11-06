@@ -25,7 +25,6 @@ GglError exec_command_with_child_wait(char *args[], pid_t *child_pid) {
         return_status = GGL_ERR_FAILURE;
 
     } else if (pid == 0) { // Child process: execute the script
-        // char *exec_args[] = { "bash", args->file_path, NULL };
         execvp(args[0], args);
 
         // If execvp returns, it must have failed
@@ -69,7 +68,6 @@ GglError exec_command_without_child_wait(char *args[], pid_t *child_pid) {
         return_status = GGL_ERR_FAILURE;
 
     } else if (pid == 0) { // Child process: execute the script
-        // char *exec_args[] = { "bash", args->file_path, NULL };
         execvp(args[0], args);
 
         // If execvp returns, it must have failed
