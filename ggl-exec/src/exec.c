@@ -28,8 +28,8 @@ GglError exec_command_with_child_wait(char *args[], pid_t *child_pid) {
         // char *exec_args[] = { "bash", args->file_path, NULL };
         execvp(args[0], args);
 
-        // If execvpe returns, it must have failed
-        GGL_LOGE("Error: execvpe returned unexpectedly");
+        // If execvp returns, it must have failed
+        GGL_LOGE("Error: execvp returned unexpectedly");
         return_status = GGL_ERR_FAILURE;
 
     } else { // Parent process: wait for the child to finish
@@ -72,8 +72,8 @@ GglError exec_command_without_child_wait(char *args[], pid_t *child_pid) {
         // char *exec_args[] = { "bash", args->file_path, NULL };
         execvp(args[0], args);
 
-        // If execvpe returns, it must have failed
-        GGL_LOGE("Error: execvpe returned unexpectedly");
+        // If execvp returns, it must have failed
+        GGL_LOGE("Error: execvp returned unexpectedly");
         return_status = GGL_ERR_FAILURE;
 
     } else { // Parent process: returns without waiting

@@ -23,7 +23,7 @@ EPOLLIN
 evbuffer
 eventfd
 evhttp
-execvpe
+execvp
 Fssd
 gencb
 ggconfig
