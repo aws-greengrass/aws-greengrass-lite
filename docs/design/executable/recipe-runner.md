@@ -20,8 +20,8 @@ to execute the specific unit file that will run provided lifecycle phase as a
 first time installation process.
 
 `recipe-runner` will use the provided selected lifecycle section and use
-`execvpe` to execute the argument provided lifecycle section as a bash script.
-It will also forward any environment variables set during runtime. As a side
-effect it will create a temporary bash script file with all the gg-recipe
-variables replaced with appropriate actual values from the global config and
-then use will provide the newly created script file to `execvpe`.
+`execvp` to execute the argument provided lifecycle section as a bash script. It
+will also forward any environment variables set during runtime. As a side effect
+it will create a temporary bash script file with all the gg-recipe variables
+replaced with appropriate actual values from the global config and then use will
+provide the newly created script file to `execvp`.
