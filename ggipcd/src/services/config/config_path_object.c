@@ -7,6 +7,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <string.h>
 #include <stddef.h>
 
 /// The max component config path depth
@@ -29,7 +30,8 @@ GglError ggl_make_config_path_object(
         return ret;
     }
 
-    *result = full_key_path.buf_list;
+    memcpy(result->bufs, &full_key_path.buf_list, full_key_path.capacity);
+    result->len = full_key_path.buf_list.len;
     return GGL_ERR_OK;
 }
 
