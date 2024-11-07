@@ -86,9 +86,9 @@ static GglBuffer get_current_architecture(void) {
 #elif defined(__i386__)
     current_arch = GGL_STR("x86");
 #elif defined(__aarch64__)
-    current_arch = GGL_STR("arm");
-#elif defined(__aarch64__)
     current_arch = GGL_STR("aarch64");
+#elif defined(__arm__)
+    current_arch = GGL_STR("arm");
 #endif
     return current_arch;
 }

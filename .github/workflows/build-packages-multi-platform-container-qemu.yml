@@ -46,8 +46,8 @@ jobs:
           cp ${{ github.workspace }}/build/*.deb ${{ github.workspace }}/zipfile/
       - name: Generate readme / install file
         run: |
-          cat ${{ github.workspace }}/.github/workflows/cmake-multi-platform/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
-          cp ${{ github.workspace }}/.github/workflows/cmake-multi-platform/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
+          cat ${{ github.workspace }}/.github/workflows/build-packages-multi-platform-container-qemu/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
+          cp ${{ github.workspace }}/.github/workflows/build-packages-multi-platform-container-qemu/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
           sed -i 's|{{ VERSION_LINK }}|${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
       - name: Save package
         uses: actions/upload-artifact@v4

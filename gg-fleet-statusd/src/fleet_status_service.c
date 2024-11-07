@@ -86,6 +86,20 @@ static GglError retrieve_component_health_status(
     return GGL_ERR_OK;
 }
 
+static const GglBuffer ARCHITECTURE =
+#if defined(__x86_64__)
+    GGL_STR("amd64");
+#elif defined(__i386__)
+    GGL_STR("x86");
+#elif defined(__aarch64__)
+    GGL_STR("aarch64");
+#elif defined(__arm__)
+    GGL_STR("arm");
+#else
+#error "Unknown target architecture"
+    { 0 };
+#endif
+
 // TODO: Split this function up
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
@@ -300,7 +314,7 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
     GglObject payload_obj = GGL_OBJ_MAP(GGL_MAP(
         { GGL_STR("ggcVersion"), GGL_OBJ_BUF(GGL_STR("1.0.0")) },
         { GGL_STR("platform"), GGL_OBJ_BUF(GGL_STR("linux")) },
-        { GGL_STR("architecture"), GGL_OBJ_BUF(GGL_STR("amd64")) },
+        { GGL_STR("architecture"), GGL_OBJ_BUF(ARCHITECTURE) },
         { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("NucleusLite")) },
         { GGL_STR("thing"), GGL_OBJ_BUF(thing_name) },
         { GGL_STR("sequenceNumber"), sequence },

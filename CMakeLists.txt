@@ -233,12 +233,9 @@ foreach(index RANGE ${FC_DEPS_INDEX_MAX})
   fetchcontent_declare(
     "${dep_name}"
     GIT_REPOSITORY "${dep_url}"
-    GIT_TAG "${dep_rev}")
-  string(TOLOWER "${dep_name}" dep_name_lower)
-  fetchcontent_getproperties(${dep_name})
-  if(NOT ${dep_name_lower}_POPULATED)
-    fetchcontent_populate(${dep_name})
-  endif()
+    GIT_TAG "${dep_rev}"
+    SOURCE_SUBDIR nonexistent_dir)
+  fetchcontent_makeavailable(${dep_name})
 endforeach()
 
 #
