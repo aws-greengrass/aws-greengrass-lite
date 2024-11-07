@@ -25,12 +25,11 @@
 #define MAX_TEMPLATE_PARAM_LEN 4096
 
 static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
-    char *iotcore_d_args[] = {
-        args->iotcored_path,  "-n", "iotcoredfleet",       "-e",
-        args->data_endpoint,  "-i", args->template_name,   "-r",
-        args->root_ca_path,   "-c", args->claim_cert_path, "-k",
-        args->claim_key_path,
-    };
+    char *iotcore_d_args[]
+        = { args->iotcored_path,  "-n", "iotcoredfleet",       "-e",
+            args->data_endpoint,  "-i", args->template_name,   "-r",
+            args->root_ca_path,   "-c", args->claim_cert_path, "-k",
+            args->claim_key_path, NULL };
 
     GglError ret
         = exec_command_without_child_wait(iotcore_d_args, iotcored_pid);

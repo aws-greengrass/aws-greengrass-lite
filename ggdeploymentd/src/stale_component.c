@@ -18,14 +18,14 @@
 #include <stdlib.h>
 
 static GglError delete_component_artifact(
-    GglBuffer *component_name, GglBuffer *version_number, GglByteVec *root_path
+    GglBuffer component_name, GglBuffer version_number, GglByteVec *root_path
 ) {
     const size_t INDEX_BEFORE_ADDITION = root_path->buf.len;
     GglError err
         = ggl_byte_vec_append(root_path, GGL_STR("/packages/artifacts/"));
-    ggl_byte_vec_chain_append(&err, root_path, *component_name);
+    ggl_byte_vec_chain_append(&err, root_path, component_name);
     ggl_byte_vec_chain_append(&err, root_path, GGL_STR("/"));
-    ggl_byte_vec_chain_append(&err, root_path, *version_number);
+    ggl_byte_vec_chain_append(&err, root_path, version_number);
     ggl_byte_vec_chain_append(&err, root_path, GGL_STR("\0"));
 
     if (err != GGL_ERR_OK) {
@@ -50,14 +50,14 @@ static GglError delete_component_artifact(
 }
 
 static GglError delete_component_recipe(
-    GglBuffer *component_name, GglBuffer *version_number, GglByteVec *root_path
+    GglBuffer component_name, GglBuffer version_number, GglByteVec *root_path
 ) {
     const size_t INDEX_BEFORE_ADDITION = root_path->buf.len;
     GglError err
         = ggl_byte_vec_append(root_path, GGL_STR("/packages/recipes/"));
-    ggl_byte_vec_chain_append(&err, root_path, *component_name);
+    ggl_byte_vec_chain_append(&err, root_path, component_name);
     ggl_byte_vec_chain_append(&err, root_path, GGL_STR("-"));
-    ggl_byte_vec_chain_append(&err, root_path, *version_number);
+    ggl_byte_vec_chain_append(&err, root_path, version_number);
     // FIXME: Don't only support yaml extensions.
     ggl_byte_vec_chain_append(&err, root_path, GGL_STR(".yaml\0"));
 
@@ -83,14 +83,14 @@ static GglError delete_component_recipe(
 }
 
 static GglError delete_component(
-    GglBuffer *component_name, GglBuffer *version_number
+    GglBuffer component_name, GglBuffer version_number
 ) {
     GGL_LOGD(
         "Removing component %.*s with version %.*s as it is marked as stale",
-        (int) component_name->len,
-        component_name->data,
-        (int) version_number->len,
-        version_number->data
+        (int) component_name.len,
+        component_name.data,
+        (int) version_number.len,
+        version_number.data
     );
     static uint8_t root_path_mem[PATH_MAX];
     memset(root_path_mem, 0, sizeof(root_path_mem));
@@ -120,7 +120,7 @@ static GglError delete_component(
     // Remove component version from config as we use that as source of truth
     // for active running component version.
     ret = ggl_gg_config_write(
-        GGL_BUF_LIST(GGL_STR("services"), *component_name, GGL_STR("version")),
+        GGL_BUF_LIST(GGL_STR("services"), component_name, GGL_STR("version")),
         GGL_OBJ_BUF(GGL_STR("inactive")),
         0
     );
@@ -432,13 +432,13 @@ GglError cleanup_stale_versions(GglMap latest_components_map) {
             // The component name matches but the version number doesn't
             // match. Delete it!
             delete_component(
-                &component_name_buffer_iterator, &version_buffer_iterator
+                component_name_buffer_iterator, version_buffer_iterator
             );
 
         } else {
             // Cannot find this component at all. Delete it!
             delete_component(
-                &component_name_buffer_iterator, &version_buffer_iterator
+                component_name_buffer_iterator, version_buffer_iterator
             );
 
             // Also stop any running service for this component.
