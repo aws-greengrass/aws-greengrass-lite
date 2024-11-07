@@ -7,6 +7,7 @@
 
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/object.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -17,5 +18,11 @@ GglError iotcored_register_subscriptions(
 void iotcored_unregister_subscriptions(uint32_t handle);
 
 void iotcored_re_register_all_subs(void);
+
+GglError iotcored_mqtt_status_update_register(uint32_t handle);
+
+void iotcored_mqtt_status_update_unregister(uint32_t handle);
+
+void iotcored_mqtt_status_update_send(GglObject status);
 
 #endif

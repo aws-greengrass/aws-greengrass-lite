@@ -34,6 +34,9 @@ static uint32_t handles[IOTCORED_MAX_SUBSCRIPTIONS];
 static uint8_t topic_qos[IOTCORED_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
 
+static uint32_t mqtt_status_handles[IOTCORED_MAX_SUBSCRIPTIONS];
+static pthread_mutex_t mqtt_status_mtx = PTHREAD_MUTEX_INITIALIZER;
+
 static GglBuffer topic_filter_buf(size_t index) {
     return ggl_buffer_substr(
         GGL_BUF(sub_topic_filters[index]), 0, topic_filter_len[index]
@@ -138,6 +141,37 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
                     { GGL_STR("payload"), GGL_OBJ_BUF(msg->payload) }
                 ))
             );
+        }
+    }
+}
+
+GglError iotcored_mqtt_status_update_register(uint32_t handle) {
+    GGL_MTX_SCOPE_GUARD(&mqtt_status_mtx);
+    for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
+        if (mqtt_status_handles[i] == 0) {
+            mqtt_status_handles[i] = handle;
+            return GGL_ERR_OK;
+        }
+    }
+    return GGL_ERR_NOMEM;
+}
+
+void iotcored_mqtt_status_update_unregister(uint32_t handle) {
+    GGL_MTX_SCOPE_GUARD(&mqtt_status_mtx);
+    for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
+        if (mqtt_status_handles[i] == handle) {
+            mqtt_status_handles[i] = 0;
+            return;
+        }
+    }
+}
+
+void iotcored_mqtt_status_update_send(GglObject status) {
+    GGL_MTX_SCOPE_GUARD(&mqtt_status_mtx);
+
+    for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
+        if (mqtt_status_handles[i] != 0) {
+            ggl_respond(mqtt_status_handles[i], status);
         }
     }
 }

@@ -35,4 +35,16 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
     GglObject data, GglBuffer **topic, GglBuffer **payload
 );
 
+/// Wrapper for core-bus `aws_iot_mqtt` `connection_status`
+GglError ggl_aws_iot_mqtt_connection_status(
+    GglSubscribeCallback on_response,
+    GglSubscribeCloseCallback on_close,
+    void *ctx,
+    uint32_t *handle
+);
+
+GglError ggl_aws_iot_mqtt_connection_status_parse(
+    GglObject data, bool *connection_status
+);
+
 #endif
