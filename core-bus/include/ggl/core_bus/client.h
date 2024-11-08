@@ -16,7 +16,7 @@
 /// Maximum number of core-bus connections.
 /// Can be configured with `-DGGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS=<N>`.
 #ifndef GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS
-#define GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS 50
+#define GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS 100
 #endif
 
 /// Send a Core Bus notification (call, but don't wait for response).

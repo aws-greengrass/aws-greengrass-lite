@@ -339,6 +339,9 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
             _Exit(1);
         }
 
+        // Send status update to indicate mqtt (re)connection.
+        iotcored_mqtt_status_update_send(GGL_OBJ_BOOL(true));
+
         // Send a fleet status update on reconnection
         if (reconnect) {
             // Resubscribe to all subscriptions.
@@ -378,6 +381,9 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
 
         (void) MQTT_Disconnect(ctx);
         iotcored_tls_cleanup(ctx->transportInterface.pNetworkContext->tls_ctx);
+
+        // Send status update to indicate mqtt disconnection.
+        iotcored_mqtt_status_update_send(GGL_OBJ_BOOL(false));
 
         GGL_LOGE("Removing all IoT core subscriptions");
 
@@ -503,6 +509,14 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
     GGL_LOGI("Successfully connected.");
 
     return GGL_ERR_OK;
+}
+
+bool iotcored_mqtt_connection_status(void) {
+    bool connected = false;
+    if (MQTT_CheckConnectStatus(&mqtt_ctx) == MQTTStatusConnected) {
+        connected = true;
+    }
+    return connected;
 }
 
 GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {

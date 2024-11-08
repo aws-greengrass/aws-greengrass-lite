@@ -18,11 +18,13 @@
 
 static void rpc_publish(void *ctx, GglMap params, uint32_t handle);
 static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle);
+static void rpc_get_status(void *ctx, GglMap params, uint32_t handle);
 
 void iotcored_start_server(IotcoredArgs *args) {
     GglRpcMethodDesc handlers[] = {
         { GGL_STR("publish"), false, rpc_publish, NULL },
         { GGL_STR("subscribe"), true, rpc_subscribe, NULL },
+        { GGL_STR("connection_status"), true, rpc_get_status, NULL },
     };
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
@@ -177,4 +179,27 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     }
 
     ggl_sub_accept(handle, sub_close_callback, NULL);
+}
+
+static void mqtt_status_sub_close_callback(void *ctx, uint32_t handle) {
+    (void) ctx;
+    iotcored_mqtt_status_update_unregister(handle);
+}
+
+static void rpc_get_status(void *ctx, GglMap params, uint32_t handle) {
+    (void) ctx;
+    (void) params;
+
+    GglError ret = iotcored_mqtt_status_update_register(handle);
+    if (ret != GGL_ERR_OK) {
+        ggl_return_err(handle, ret);
+        return;
+    }
+
+    ggl_sub_accept(handle, mqtt_status_sub_close_callback, NULL);
+
+    // Send a status update as soon as a subscription is accepted.
+    iotcored_mqtt_status_update_send(
+        GGL_OBJ_BOOL(iotcored_mqtt_connection_status())
+    );
 }

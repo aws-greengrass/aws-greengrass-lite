@@ -102,3 +102,45 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
 
     return GGL_ERR_OK;
 }
+
+/// Call this API to subscribe to MQTT connection status. To parse the data
+/// received from the subscription, call
+/// ggl_aws_iot_mqtt_connection_status_parse function which will return a true
+/// for connected and a false for not connected.
+///
+/// Note that when a subscription is accepted, the current MQTT status is sent
+/// to the subscribers.
+GglError ggl_aws_iot_mqtt_connection_status(
+    GglSubscribeCallback on_response,
+    GglSubscribeCloseCallback on_close,
+    void *ctx,
+    uint32_t *handle
+) {
+    // The GGL subscribe API expects a map. Sending a dummy map.
+    GglMap args = GGL_MAP();
+    return ggl_subscribe(
+        GGL_STR("aws_iot_mqtt"),
+        GGL_STR("connection_status"),
+        args,
+        on_response,
+        on_close,
+        ctx,
+        NULL,
+        handle
+    );
+}
+
+GglError ggl_aws_iot_mqtt_connection_status_parse(
+    GglObject data, bool *connection_status
+) {
+    if (data.type != GGL_TYPE_BOOLEAN) {
+        GGL_LOGE(
+            "MQTT connection status subscription response is not a boolean."
+        );
+        return GGL_ERR_FAILURE;
+    }
+
+    *connection_status = data.boolean;
+
+    return GGL_ERR_OK;
+}
