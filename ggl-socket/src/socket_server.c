@@ -19,6 +19,9 @@
 #include <unistd.h>
 #include <stdint.h>
 
+void (*ggl_socket_server_ext_handler)(void) = NULL;
+int ggl_socket_server_ext_fd;
+
 static void new_client_available(
     GglSocketPool *pool, int epoll_fd, int socket_fd
 ) {
@@ -171,6 +174,8 @@ typedef struct {
 // server_fd's data must be out of range of handle (uint32_t)
 static const uint64_t SERVER_FD_DATA = UINT64_MAX;
 
+static const uint64_t EXT_FD_DATA = UINT64_MAX - 1;
+
 static GglError epoll_fd_ready(void *epoll_ctx, uint64_t data) {
     SocketServerCtx *server_ctx = epoll_ctx;
 
@@ -178,6 +183,9 @@ static GglError epoll_fd_ready(void *epoll_ctx, uint64_t data) {
         new_client_available(
             server_ctx->pool, server_ctx->epoll_fd, server_ctx->server_fd
         );
+    } else if ((ggl_socket_server_ext_handler != NULL)
+               && (data == EXT_FD_DATA)) {
+        ggl_socket_server_ext_handler();
     } else if (data <= UINT32_MAX) {
         client_data_ready(
             server_ctx->pool,
@@ -228,6 +236,15 @@ GglError ggl_socket_server_listen(
     ret = ggl_socket_epoll_add(epoll_fd, server_fd, SERVER_FD_DATA);
     if (ret != GGL_ERR_OK) {
         return ret;
+    }
+
+    if (ggl_socket_server_ext_handler != NULL) {
+        ret = ggl_socket_epoll_add(
+            epoll_fd, ggl_socket_server_ext_fd, EXT_FD_DATA
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
     }
 
     SocketServerCtx server_ctx = {
