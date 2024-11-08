@@ -55,60 +55,45 @@ the following requirements.
    handled.
    - [ggdeploymentd-1.1] The deployment service may receive local deployments
      over IPC CreateLocalDeployment.
-   - [ggdeploymentd-1.2] The deployment service may receive local deployments on
-     startup via a deployment doc file.
-   - [ggdeploymentd-1.3] The deployment service may receive IoT jobs
+   - [ggdeploymentd-1.2] The deployment service may receive IoT jobs
      deployments.
-   - [ggdeploymentd-1.4] Multiple deployments may be received and handled such
+   - [ggdeploymentd-1.3] Multiple deployments may be received and handled such
      that they do not conflict with each other.
 2. [ggdeploymentd-2] The deployment service may handle a deployment that
    includes new root components.
-   - [ggdeploymentd-2.1] The deployment service will resolve a dependency order
-     and versions for components with dependencies.
+   - [ggdeploymentd-2.1] The deployment service will resolve component versions
+     including pulling in and resolving dependent components not included as
+     part of the root component list.
    - [ggdeploymentd-2.2] The deployment service may prepare a component with a
      locally provided recipe.
    - [ggdeploymentd-2.3] The deployment service may prepare a component with a
      recipe from the cloud.
-   - [ggdeploymentd-2.4] The deployment service may prepare a component with an
-     artifact from a customer's S3 bucket.
+   - [ggdeploymentd-2.4] The deployment service may prepare a component with
+     locally provided artifacts.
    - [ggdeploymentd-2.5] The deployment service may prepare a component with an
+     artifact from a customer's S3 bucket.
+   - [ggdeploymentd-2.6] The deployment service may prepare a component with an
      artifact from a Greengrass service account's S3 bucket.
-   - [ggdeploymentd-2.6] The deployment service will run component install
-     scripts in the component dependency order.
+   - [ggdeploymentd-2.7] The deployment service will run component install
+     scripts.
+   - [ggdeploymentd-2.8] The deployment service will setup system services for
+     components after their install scripts have finished.
+   - [ggdeploymentd-2.9] The deployment service will attempt to start components
+     only after their dependencies have completed installing and have started.
 3. [ggdeploymentd-3] The deployment service fully supports configuration
    features.
    - [ggdeploymentd-3.1] The deployment service may handle a component's default
      configuration.
    - [ggdeploymentd-3.2] The deployment service may handle configuration updates
-     and merge/reset configuration.
+     and merge/reset configuration from a deployment document.
 4. [ggdeploymentd-4] The deployment service is aware of device membership within
    multiple thing groups when executing a new deployment.
    - [ggdeploymentd-4.1] If the device has multiple deployments from different
      thing groups, it will use root components from other deployments during
      resolution.
-   - [ggdeploymentd-4.2] Configuration changes from other thing groups is
-     correctly handled.
-   - [ggdeploymentd-4.3] Stale components are removed from the device on a new
-     deployment handling.
-5. [ggdeploymentd-5] The deployment service may notify components and get
-   confirmation to move forward with the deployment.
-   - [ggdeploymentd-5.1] Functionality on the core bus is exposed that handles
-     SubscribeToComponentUpdates IPC commands from the IPC daemon, and the
-     deployment service notifies components about updates if configured to do
-     so.
-   - [ggdeploymentd-5.2] Functionality on the core bus is exposed that handles
-     DeferComponentUpdates IPC commands from the IPC daemon, and the deployment
-     service defers a component update if notified.
-   - [ggdeploymentd-5.3] Functionality on the core bus is exposed that handles
-     SubscribeToValidateConfigurationUpdates IPC commands, and the deployment
-     service notifies components about updates to the component configuration.
-   - [ggdeploymentd-5.4] Functionality on the core bus is exposed that handles
-     SendConfigurationValidityReport IPC commands, and the deployment fails if a
-     component notifies that the configuration is not valid.
-6. [ggdeploymentd-6] Other components may make a request on the core bus and IPC
-   to get the status of a deployment.
-7. [ggdeploymentd-7] Other components may make a request on the core bus and IPC
-   to get the list of local deployments.
+   - [ggdeploymentd-4.2] Stale components are removed from the device on a new
+     deployment handling. A component is considered stale if it was not part of
+     the list of resolved component versions.
 
 ### Future-Looking Possibilities
 
@@ -121,6 +106,13 @@ in the future.
   for Jobs deployments, the deployment service will download the large
   configuration from the cloud.
 - The deployment may be cancelled during certain phases of deployment handling.
+- The deployment service may implement additional IPC commands:
+  GetLocalDeploymentStatus, ListLocalDeployments, SubscribeToComponentUpdates,
+  DeferComponentUpdate, SubscribeToValidateConfigurationUpdates, and
+  SendConfigurationValidityReport.
+- As part of some of the above IPC commands, the deployment service may allow
+  components to defer a deployment or validate configuration changes as part of
+  deployment processing.
 
 ## Core Bus API
 
@@ -159,122 +151,14 @@ deployment and can specify deployment parameters.
     buffer (configuration updates to be made).
     - [ggdeploymentd-bus-createlocaldeployment-5.2] Configuration update values
       must be in valid JSON format.
-- [ggdeploymentd-bus-createlocaldeployment-6] component_to_run_with_info is an
-  optional parameter of type map.
-  - [ggdeploymentd-bus-createlocaldeployment-6.1] component_to_run_with_info is
-    a map that maps keys of type buffer (component names) to values of type map
-    (run with info for the component).
-    - [ggdeploymentd-bus-createlocaldeployment-6.2] The run with info value map
-      must only include the following keys:
-      - [ggdeploymentd-bus-createlocaldeployment-6.3] posix_user is an optional
-        key of type buffer that maps to a value of type buffer (the posix
-        user/group to be used).
-      - [ggdeploymentd-bus-createlocaldeployment-6.4] windows_user is an
-        optional key of type buffer that maps to a value of type buffer (the
-        windows user to be used).
-      - [ggdeploymentd-bus-createlocaldeployment-6.5] system_resource_limits is
-        an optional key of type buffer that maps to a value of type map (system
-        resource limits information).
-        - [ggdeploymentd-bus-createlocaldeployment-6.6] The system resource
-          limits value map must only include the following keys:
-          - [ggdeploymentd-bus-createlocaldeployment-6.7] cpus is an optional
-            key of type buffer that maps to a value of type double (maximum cpu
-            usage).
-          - [ggdeploymentd-bus-createlocaldeployment-6.8] memory is an optional
-            key of type buffer that maps to a value of type double (RAM in KB).
-- [ggdeploymentd-bus-createlocaldeployment-7] group_name is an optional
-  parameter of type buffer.
-  - [ggdeploymentd-bus-createlocaldeployment-7.1] group_name is the name of the
-    thing group for the deployment to target.
 
-### get_local_deployment_status
+## Removing Stale Components
 
-The get_local_deployment_status call provides functionality equivalent to the
-GetLocalDeploymentStatus GG IPC command. It returns the status of a local
-deployment.
+As part of deployment processing, stale components will be removed from the
+device following a deployment.
 
-- [ggdeploymentd-bus-getlocaldeploymentstatus-1] deployment_id is a required
-  parameter of type buffer.
-  - [ggdeploymentd-bus-getlocaldeploymentstatus-1.1] deployment_id is the ID of
-    the local deployment to get the status of.
-
-### list_local_deployments
-
-The list_local_deployments call provides functionality equivalent to the
-ListLocalDeployments GG IPC command. It returns the status of the last 10 local
-deployments.
-
-- [ggdeploymentd-bus-listlocaldeployments-1] This call has no parameters.
-
-### subscribe_to_component_updates
-
-The subscribe_to_component_updates call provides functionality equivalent to the
-SubscribeToComponentUpdates GG IPC command. A component making this call will be
-notified before the deployment service updates the component. Components will
-not be notified of any updates during a local deployment.
-
-- [ggdeploymentd-bus-subscribetocomponentupdates-1] This call has no parameters.
-
-### defer_component_update
-
-The defer_component_update call provides functionality equivalent to the
-DeferComponentUpdate GG IPC command. A component making this call will let the
-deployment service know to defer the component update for the specified amount
-of time.
-
-- [ggdeploymentd-bus-defercomponentupdate-1] deployment_id is a required
-  parameter of type buffer.
-  - [ggdeploymentd-bus-defercomponentupdate-1.1] deployment_id is the ID of the
-    local deployment to defer.
-- [ggdeploymentd-bus-defercomponentupdate-2] message is an optional parameter of
-  type buffer.
-  - [ggdeploymentd-bus-defercomponentupdate-2.1] message is the name of
-    component for which to defer requests. If not provided, it is treated as a
-    default of the component name that made the request.
-- [ggdeploymentd-bus-defercomponentupdate-3] recheck_after_ms is an optional
-  parameter of type buffer.
-  - [ggdeploymentd-bus-defercomponentupdate-3.1] recheck_after_ms is the amount
-    of time in ms to defer the update. If it is set to 0, then the component
-    acknowledges the update and does not defer. If not provided, it is treated
-    as a default value of 0.
-
-### subscribe_to_validate_configuration_updates
-
-The subscribe_to_validate_configuration_updates call provides functionality
-equivalent to the SubscribeToValidateConfigurationUpdates GG IPC command. A
-component making this call will be notified before the deployment service
-updates the component configuration. Components will not be notified of any
-configuration changes during a local deployment.
-
-- [ggdeploymentd-bus-subscribetovalidateconfigurationupdates-1] This call has no
-  parameters.
-
-### send_configuration_validity_report
-
-The send_configuration_validity_report call provides functionality equivalent to
-the SendConfigurationValidityReport GG IPC command. A component making this call
-will notify the deployment service that the configuration changes is either
-valid or invalid.
-
-- [ggdeploymentd-bus-sendconfigurationvalidityreport-1]
-  configuration_validity_report is a required parameter of type map.
-  - [ggdeploymentd-bus-sendconfigurationvalidityreport-1.1]
-    configuration_validity_report must only have the following parameters as
-    keys:
-    - [ggdeploymentd-bus-sendconfigurationvalidityreport-1.2] status is a
-      required key of type buffer that maps to a value of type buffer.
-      - [ggdeploymentd-bus-sendconfigurationvalidityreport-1.3] The value that
-        the status key maps to must be either ACCEPTED or REJECTED.
-    - [ggdeploymentd-bus-sendconfigurationvalidityreport-1.4] deployment_id is a
-      required key of type buffer that maps to a value of type buffer that is
-      the ID of the deployment that requested the configuration validation.
-    - [ggdeploymentd-bus-sendconfigurationvalidityreport-1.5] message is an
-      optional key of type buffer that maps to a value of type buffer with a
-      message of why the configuration is not valid.
-
-### remove_stale_components
-
-- Receive a Map that contains the component_name and version
+- Receive a Map that contains the component_name and version representing
+  components to keep
 - Received Map will contain the information of all the components and version
   across all thing groups
 - Remove any components that does not match the exact component name and version
@@ -284,7 +168,7 @@ valid or invalid.
 - Note: Currently excludes local deployments and might result to removal of all
   those components
 
-#### samples
+### samples
 
 The expected format of the input map will look as below
 
