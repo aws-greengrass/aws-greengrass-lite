@@ -49,12 +49,33 @@ jobs:
           cat ${{ github.workspace }}/.github/workflows/build-packages-multi-platform-container-qemu/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
           cp ${{ github.workspace }}/.github/workflows/build-packages-multi-platform-container-qemu/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
           sed -i 's|{{ VERSION_LINK }}|${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
+      - name: md5sums
+        run: |
+            md5sum ${{ github.workspace }}/zipfile/*
       - name: Save package
         uses: actions/upload-artifact@v4
         with:
           name:
             aws-greengrass-lite-ubuntu-${{ matrix.architecture || 'x86-64'}}_${{
             matrix.build_type }}
+          path: |
+            ${{ github.workspace }}/zipfile/*
+          retention-days: 1
+      - name: Save x86-64 package without build type - default package to download
+        if: matrix.build_type  == 'MinSizeRel' && matrix.architecture == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name:
+            aws-greengrass-lite-ubuntu-${{ matrix.architecture || 'x86-64'}}
+          path: |
+            ${{ github.workspace }}/zipfile/*
+          retention-days: 1
+      - name: Save arm64 package without build type - default package to download
+        if: matrix.build_type  == 'MinSizeRel' && matrix.architecture == 'aarch64-linux-gnu'
+        uses: actions/upload-artifact@v4
+        with:
+          name:
+            aws-greengrass-lite-ubuntu-arm64
           path: |
             ${{ github.workspace }}/zipfile/*
           retention-days: 1
