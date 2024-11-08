@@ -40,6 +40,27 @@ GglError ggl_ipc_auth_lookup_name(
 
     name = ggl_buffer_substr(name, 0, name.len - ext.len);
 
+    // TODO:: Make this generic and support .run/.bootstrap or anything
+    GglBuffer install_ext = GGL_STR(".install");
+    if ((name.len <= install_ext.len)
+        || !ggl_buffer_eq(
+            ggl_buffer_substr(name, name.len - install_ext.len, SIZE_MAX),
+            install_ext
+        )) {
+        GGL_LOGT(
+            "Service for pid %d (%s) is not a install service extension.",
+            pid,
+            unit_name
+        );
+    } else {
+        name = ggl_buffer_substr(name, 0, name.len - install_ext.len);
+        GGL_LOGT(
+            "Service for pid %d (%s) is a install service extension.",
+            pid,
+            unit_name
+        );
+    }
+
     GglBuffer prefix = GGL_STR("ggl.");
     if (!ggl_buffer_eq(ggl_buffer_substr(name, 0, prefix.len), prefix)) {
         GGL_LOGE(
