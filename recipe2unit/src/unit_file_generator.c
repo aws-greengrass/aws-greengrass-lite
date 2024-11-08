@@ -133,21 +133,15 @@ static GglError fill_unit_section(
                 return dependency_parser(val, concat_unit_vector);
             }
         }
-<<<<<<< HEAD
-=======
-        ggl_byte_vec_chain_append(
-            &ret, concat_unit_vector, GGL_STR("Wants=ggl.core.ggipcd.service\n")
-        );
-        ggl_byte_vec_chain_append(
-            &ret, concat_unit_vector, GGL_STR("After=ggl.core.ggipcd.service\n")
-        );
-        ggl_byte_vec_chain_append(
-            &ret, concat_unit_vector, GGL_STR("PartOf=greengrass-lite.target\n")
+        ret = ggl_byte_vec_append(
+            concat_unit_vector,
+            GGL_STR(
+                "Wants=ggl.core.ggipcd.service\nAfter=ggl.core.ggipcd.service\n"
+            )
         );
         if (ret != GGL_ERR_OK) {
             return ret;
         }
->>>>>>> 97a7c17a (fixup! Install ggl as systemd services with socket units)
     }
 
     return GGL_ERR_OK;
@@ -337,6 +331,7 @@ static GglError concat_exec_start_section_vec(
     }
     cwd.len = strlen((char *) cwd.data);
     exec_start_section_vec->buf.len += cwd.len;
+    GGL_LOGD("%.*s (%zu)", (int) cwd.len, cwd.data, cwd.len);
 
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR("/"));
     if (ret != GGL_ERR_OK) {
