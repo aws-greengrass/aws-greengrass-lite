@@ -238,7 +238,7 @@ install() {
   systemctl daemon-reload
 
   systemctl enable greengrass-lite.service
-  
+
   systemctl start greengrass-lite
 
   echo "Installation completed."
@@ -275,12 +275,12 @@ uninstall() {
     rm -f "/etc/sudoers.d/greengrass-lite"
 
     systemctl disable greengrass-lite.service
-  
+
     systemctl stop greengrass-lite
 
     echo "Removing systemd service file..."
     rm -f "$service_file"
-    
+
     systemctl daemon-reload
 
     echo "Uninstallation completed."
