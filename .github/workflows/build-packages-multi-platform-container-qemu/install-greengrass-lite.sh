@@ -136,8 +136,6 @@ create_service_file() {
     cat > "${service_file}" << EOL
 [Unit]
 Description=greengrass lite service
-Requires=systemd-time-wait-sync.service
-After=systemd-time-wait-sync.service
 
 [Service]
 ExecStart=${gg_bindir}/run_nucleus
@@ -221,7 +219,7 @@ install() {
 
   create_group "${gg_group}"
 
-  create_user "${gg_user}" "${gg_group}"
+  create_user "${gg_user}" "${gg_group}"systemd-time-wait-sync.service
 
   mkdir "${gg_workingdir}"
 
