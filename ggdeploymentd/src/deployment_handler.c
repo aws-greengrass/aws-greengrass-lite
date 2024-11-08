@@ -1809,6 +1809,46 @@ static GglError deployment_status_callback(void *ctx, GglObject data) {
     return GGL_ERR_INVALID;
 }
 
+static GglError wait_for_install_status(GglBufVec component_vec) {
+    // TODO: hack
+    ggl_sleep(5);
+
+    for (size_t i = 0; i < component_vec.buf_list.len; i++) {
+        // Add .install into the component name
+        static uint8_t install_comp_name[PATH_MAX];
+        GglByteVec install_comp_name_vec = GGL_BYTE_VEC(install_comp_name);
+        GglError ret = ggl_byte_vec_append(
+            &install_comp_name_vec, component_vec.buf_list.bufs[i]
+        );
+        ggl_byte_vec_append(&install_comp_name_vec, GGL_STR(".install"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to generate the install component name.");
+            return ret;
+        }
+        GGL_LOGD(
+            "Awaiting %.*s to finish.",
+            (int) install_comp_name_vec.buf.len,
+            install_comp_name_vec.buf.data
+        );
+
+        GglError method_error = GGL_ERR_OK;
+        ret = ggl_sub_response(
+            GGL_STR("/aws/ggl/gghealthd"),
+            GGL_STR("subscribe_to_lifecycle_completion"),
+            GGL_MAP({ GGL_STR("component_name"),
+                      GGL_OBJ_BUF(install_comp_name_vec.buf) }),
+            deployment_status_callback,
+            NULL,
+            &method_error,
+            300
+        );
+        if ((ret != GGL_ERR_OK) || (method_error != GGL_ERR_OK)) {
+            return GGL_ERR_FAILURE;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
 static GglError wait_for_deployment_status(GglMap resolved_components) {
     GGL_LOGT("Beginning wait for deployment completion");
     // TODO: hack
@@ -2210,6 +2250,12 @@ static void handle_deployment(
         }
 
         if (updated_comp_name_vec.buf_list.len != 0) {
+            // collect all component names that have relevant install service
+            // files
+            static GglBuffer install_comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
+            GglBufVec install_comp_name_buf_vec
+                = GGL_BUF_VEC(install_comp_name_buf);
+
             // process all install files first
             for (size_t i = 0; i < updated_comp_name_vec.buf_list.len; i++) {
                 static uint8_t install_service_file_path_buf[PATH_MAX];
@@ -2249,6 +2295,17 @@ static void handle_deployment(
                             updated_comp_name_vec.buf_list.bufs[i].data
                         );
                     } else { // relevant install service file exists
+
+                        // add relevant component name into the vector
+                        ret = ggl_buf_vec_push(
+                            &install_comp_name_buf_vec,
+                            updated_comp_name_vec.buf_list.bufs[i]
+                        );
+                        if (ret != GGL_ERR_OK) {
+                            GGL_LOGE("Failed to add the install component name "
+                                     "into vector");
+                            return;
+                        }
 
                         // run link command
                         static uint8_t link_command_buf[PATH_MAX];
@@ -2323,6 +2380,12 @@ static void handle_deployment(
                         }
                     }
                 }
+            }
+
+            // wait for all the install status
+            ret = wait_for_install_status(install_comp_name_buf_vec);
+            if (ret != GGL_ERR_OK) {
+                return;
             }
 
             // process all run or startup files after install only

@@ -17,6 +17,20 @@ static pthread_mutex_t bump_alloc_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Check a component's version field in ggconfigd for proof of existence
 GglError verify_component_exists(GglBuffer component_name) {
+    // Remove .install if at the end of the component name
+    GglBuffer install_ext = GGL_STR(".install");
+    if ((component_name.len > install_ext.len)
+        && ggl_buffer_eq(
+            ggl_buffer_substr(
+                component_name, component_name.len - install_ext.len, SIZE_MAX
+            ),
+            install_ext
+        )) {
+        component_name = ggl_buffer_substr(
+            component_name, 0, component_name.len - install_ext.len
+        );
+    }
+
     if ((component_name.data == NULL) || (component_name.len == 0)
         || (component_name.len > 128U)) {
         return GGL_ERR_RANGE;
