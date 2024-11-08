@@ -40,3 +40,9 @@ TODO: SOME ADDITIONAL INFO
 ##################
 
 TODO: SOME LICENSE TEXT HERE
+
+##################
+
+SOME ADDITIONAL INFO
+
+##################
