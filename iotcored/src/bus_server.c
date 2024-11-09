@@ -7,6 +7,7 @@
 #include "mqtt.h"
 #include "subscription_dispatch.h"
 #include <ggl/buffer.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -163,6 +164,9 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         qos = (uint8_t) val->i64;
     }
 
+    iotcored_set_in_progress(handle);
+    GGL_CLEANUP(iotcored_clear_in_progress, NULL);
+
     GglError ret = iotcored_register_subscriptions(
         topic_filters, topic_filter_count, handle, qos
     );
@@ -190,6 +194,9 @@ static void rpc_get_status(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     (void) params;
 
+    iotcored_set_in_progress(handle);
+    GGL_CLEANUP(iotcored_clear_in_progress, NULL);
+
     GglError ret = iotcored_mqtt_status_update_register(handle);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
@@ -202,4 +209,8 @@ static void rpc_get_status(void *ctx, GglMap params, uint32_t handle) {
     iotcored_mqtt_status_update_send(
         GGL_OBJ_BOOL(iotcored_mqtt_connection_status())
     );
+    // TODO: have result calculated in status_update send to prevent race
+    // condition where status changes after getting it and before sending, and
+    // another notification is sent in that window, resulting in out-of-order
+    // events.
 }

@@ -33,6 +33,7 @@ static uint8_t sub_topic_filters[IOTCORED_MAX_SUBSCRIPTIONS]
 static uint32_t handles[IOTCORED_MAX_SUBSCRIPTIONS];
 static uint8_t topic_qos[IOTCORED_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+static uint32_t in_progress = 0;
 
 static uint32_t mqtt_status_handles[IOTCORED_MAX_SUBSCRIPTIONS];
 static pthread_mutex_t mqtt_status_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -41,6 +42,17 @@ static GglBuffer topic_filter_buf(size_t index) {
     return ggl_buffer_substr(
         GGL_BUF(sub_topic_filters[index]), 0, topic_filter_len[index]
     );
+}
+
+void iotcored_set_in_progress(uint32_t handle) {
+    GGL_MTX_SCOPE_GUARD(&mtx);
+    in_progress = handle;
+}
+
+void iotcored_clear_in_progress(void *unused) {
+    (void) unused;
+    GGL_MTX_SCOPE_GUARD(&mtx);
+    in_progress = 0;
 }
 
 GglError iotcored_register_subscriptions(
@@ -133,7 +145,7 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
     GGL_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
-        if ((topic_filter_len[i] != 0)
+        if ((handles[i] != in_progress) && (topic_filter_len[i] != 0)
             && iotcored_mqtt_topic_filter_match(
                 topic_filter_buf(i), msg->topic
             )) {
@@ -173,7 +185,8 @@ void iotcored_mqtt_status_update_send(GglObject status) {
     GGL_MTX_SCOPE_GUARD(&mqtt_status_mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
-        if (mqtt_status_handles[i] != 0) {
+        if ((mqtt_status_handles[i] != 0)
+            && (mqtt_status_handles[i] != in_progress)) {
             ggl_respond(mqtt_status_handles[i], status);
         }
     }

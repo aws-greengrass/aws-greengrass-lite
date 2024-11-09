@@ -11,6 +11,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/// Sets a handle that should not be used as is being set up.
+void iotcored_set_in_progress(uint32_t handle);
+void iotcored_clear_in_progress(void *unused);
+
 GglError iotcored_register_subscriptions(
     GglBuffer *topic_filters, size_t count, uint32_t handle, uint8_t qos
 );
