@@ -96,11 +96,12 @@ With the above, you can start a local deployment with:
 ```sh
 ./build/bin/ggl-cli deploy --recipe-dir ~/sample-component/recipes \
   --artifacts-dir ~/sample-component/artifacts \
-  --add-component SampleComponent=1.0.0
+  --add-component com.example.SampleComponent=1.0.0
 ```
 
 ## Using the CloudLogger component
 
 The [aws.greengrass.CloudLogger component README](../cloud-logger/README.md)
 contains instructions for using CloudLogger. This is a generic component which
-uploads system logs to cloudwatch.
+helps you forward system logs to CloudWatch by publishing them to an IoT Core
+MQTT topic.
