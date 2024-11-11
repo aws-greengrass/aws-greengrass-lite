@@ -99,6 +99,11 @@ With the above, you can start a local deployment with:
   --add-component com.example.SampleComponent=1.0.0
 ```
 
+## Local-Deploying the sample Hello World component
+
+See the
+[com.example.LiteHelloWorld component README](../hello-world-component/README.md)
+
 ## Using the CloudLogger component
 
 The [aws.greengrass.CloudLogger component README](../cloud-logger/README.md)

@@ -355,6 +355,7 @@ add_subdirectory(recipe2unit)
 add_subdirectory(ggl-semver)
 add_subdirectory(ggl-constants)
 add_subdirectory(cloud-logger)
+add_subdirectory(hello-world-component)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
