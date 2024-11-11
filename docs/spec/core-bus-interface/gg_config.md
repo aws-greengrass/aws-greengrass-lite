@@ -57,8 +57,28 @@ timestamp is greater or equal to the existing timestamp
 
 The `write` method does not have a response value.
 
-- [gg-config-read-resp-1] If the method returns without an error, the
+- [gg-config-write-resp-1] If the method returns without an error, the
   configuration has been successfully updated.
+
+## delete
+
+The `delete` method removes the key and value associated with `key_path`. If the
+value is a map with subkeys, everything under it is also deleted recursively.
+
+- [gg-config-delete-1] `delete` can be invoked with call or notify.
+
+### Parameters
+
+- [gg-config-delete-params-1] `key_path` is a required parameter of type list.
+  - [gg-config-delete-params-1.1] list elements are buffers containing a single
+    level in the key hierarchy.
+
+### Response
+
+The `delete` method does not have a response value.
+
+- [gg-config-delete-resp-1] If the method returns without an error, the
+  configuration has been successfully deleted.
 
 ## subscribe
 
