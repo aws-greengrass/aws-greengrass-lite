@@ -1,0 +1,15 @@
+# aws-greengrass-lite - AWS IoT Greengrass runtime for constrained devices
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: Apache-2.0
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: "com.example.LiteHelloWorld"
+ComponentVersion: "0.1.0"
+ComponentDescription: A hello world component
+ComponentPublisher: example.com
+Manifests:
+  - Platform:
+      os: linux
+    Lifecycle:
+      run: |
+        {artifacts:path}/hello-world
