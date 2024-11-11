@@ -237,16 +237,25 @@ GglError gghttplib_process_request(
 
     curl_error = curl_easy_perform(curl_data->curl);
     if (curl_error != CURLE_OK) {
-        return translate_curl_code(curl_error);
-    }
-    long http_status_code = 0;
-    curl_easy_getinfo(curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code);
-    GGL_LOGI("HTTP code: %ld", http_status_code);
-    if (curl_error != CURLE_OK) {
         GGL_LOGE(
             "curl_easy_perform() failed: %s", curl_easy_strerror(curl_error)
         );
+        return translate_curl_code(curl_error);
     }
+
+    long http_status_code = 0;
+    curl_error = curl_easy_getinfo(
+        curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code
+    );
+
+    if (curl_error != CURLE_OK) {
+        GGL_LOGE(
+            "curl_easy_getinfo() failed: %s", curl_easy_strerror(curl_error)
+        );
+        return translate_curl_code(curl_error);
+    }
+
+    GGL_LOGI("HTTP code: %ld", http_status_code);
 
     // TODO: propagate HTTP code up for deployment failure root causing
     if (http_status_code < 200 || http_status_code > 299) {
