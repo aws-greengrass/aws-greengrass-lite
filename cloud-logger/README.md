@@ -49,3 +49,13 @@ place of x.y.z
 ```
 ./bin/ggl-cli deploy --recipe-dir components/recipes --artifacts-dir components/artifacts --add-component aws.greengrass.CloudLogger=x.y.z
 ```
+
+Check the nucleus logs to verify that the deployment is SUCCEEDED.
+
+### Check the component logs
+
+After the deployment completes, read the logs from the component:
+
+```
+journalctl -f -u ggl.aws.greengrass.CloudLogger.service
+```

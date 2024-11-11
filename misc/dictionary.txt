@@ -47,6 +47,7 @@ htobe
 iotcored
 iotcoredfleet
 iwyu
+journalctl
 keyid
 libsystemd
 liburiparser
