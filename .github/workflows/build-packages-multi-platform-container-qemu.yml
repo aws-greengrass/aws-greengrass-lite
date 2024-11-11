@@ -1,7 +1,9 @@
 name: Build pkgs in containers + qemu
 on:
-  workflow_dispatch:
   push:
+    branches:
+      - main
+  workflow_dispatch:
   pull_request:
 jobs:
   build:
