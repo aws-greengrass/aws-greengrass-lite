@@ -16,7 +16,6 @@
 #include <ggl/object.h>
 #include <inttypes.h>
 #include <stdbool.h>
-#include <stddef.h>
 
 GglError ggl_handle_update_configuration(
     const GglIpcOperationInfo *info,
@@ -29,17 +28,12 @@ GglError ggl_handle_update_configuration(
     (void) alloc;
 
     GglObject *key_path_obj;
-    GglObject *component_name_obj;
     GglObject *value_to_merge_obj;
     GglObject *timestamp_obj;
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
             { GGL_STR("keyPath"), true, GGL_TYPE_LIST, &key_path_obj },
-            { GGL_STR("componentName"),
-              false,
-              GGL_TYPE_BUF,
-              &component_name_obj },
             { GGL_STR("valueToMerge"),
               true,
               GGL_TYPE_NULL,
@@ -58,14 +52,10 @@ GglError ggl_handle_update_configuration(
         return GGL_ERR_INVALID;
     }
 
-    GglBuffer component_name;
-    if (component_name_obj != NULL) {
-        component_name = component_name_obj->buf;
-    } else {
-        ret = ggl_ipc_get_component_name(handle, &component_name);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+    GglBuffer component_name = { 0 };
+    ret = ggl_ipc_get_component_name(handle, &component_name);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     // convert timestamp from sec in floating-point(with msec precision) to msec
