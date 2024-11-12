@@ -9,6 +9,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <stdint.h>
 
 DeploymentConfiguration config;
 
