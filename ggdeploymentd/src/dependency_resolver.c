@@ -5,6 +5,7 @@
 #include "dependency_resolver.h"
 #include "component_manager.h"
 #include "deployment_configuration.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <ggl/base64.h>
@@ -21,6 +22,8 @@
 #include <ggl/semver.h>
 #include <limits.h>
 #include <string.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 static GglError get_device_thing_groups(GglBuffer *response) {
     GglByteVec data_endpoint = GGL_BYTE_VEC(config.data_endpoint);

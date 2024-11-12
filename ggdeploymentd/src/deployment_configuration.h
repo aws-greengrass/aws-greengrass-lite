@@ -5,7 +5,6 @@
 #ifndef GGDEPLOYMENTD_DEPLOYMENT_CONFIGURATION_H
 #define GGDEPLOYMENTD_DEPLOYMENT_CONFIGURATION_H
 
-#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/vector.h>
 

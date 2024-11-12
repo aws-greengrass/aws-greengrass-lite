@@ -14,8 +14,8 @@ typedef enum {
 } GglDeploymentState;
 
 typedef enum {
-  LOCAL,
-  IOT_JOBS
+    LOCAL,
+    IOT_JOBS
 } GglDeploymentType;
 
 typedef struct {
