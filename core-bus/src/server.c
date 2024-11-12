@@ -260,6 +260,11 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
             handler->handler(handler->ctx, params, handle);
 
+            // Handler must respond to request
+            assert(
+                atomic_load_explicit(&current_handle, memory_order_acquire) == 0
+            );
+
             return GGL_ERR_OK;
         }
     }
@@ -303,6 +308,9 @@ GglError ggl_listen(
 void ggl_return_err(uint32_t handle, GglError error) {
     assert(error != GGL_ERR_OK); // Returning error ok is invalid
 
+    assert(
+        handle == atomic_load_explicit(&current_handle, memory_order_acquire)
+    );
     GGL_CLEANUP(cleanup_current_handle, handle);
 
     GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
@@ -328,6 +336,8 @@ void ggl_return_err(uint32_t handle, GglError error) {
 void ggl_respond(uint32_t handle, GglObject value) {
     GGL_LOGT("Responding to %d.", handle);
 
+    GGL_CLEANUP_ID(current_handle_cleanup, cleanup_current_handle, handle);
+
     GGL_LOGT("Retrieving request type for %d.", handle);
     GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
     GglError ret
@@ -336,7 +346,14 @@ void ggl_respond(uint32_t handle, GglObject value) {
         return;
     }
 
-    if (type == GGL_CORE_BUS_SUBSCRIBE) {
+    if (type != GGL_CORE_BUS_SUBSCRIBE) {
+        assert(
+            handle
+            == atomic_load_explicit(&current_handle, memory_order_acquire)
+        );
+    } else {
+        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+        current_handle_cleanup = 0;
         if (handle
             == atomic_load_explicit(&current_handle, memory_order_acquire)) {
             GGL_MTX_SCOPE_GUARD(&current_handle_mtx);
