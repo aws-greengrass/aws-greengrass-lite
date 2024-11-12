@@ -219,7 +219,7 @@ install() {
 
   create_group "${gg_group}"
 
-  create_user "${gg_user}" "${gg_group}"systemd-time-wait-sync.service
+  create_user "${gg_user}" "${gg_group}"
 
   mkdir "${gg_workingdir}"
 
