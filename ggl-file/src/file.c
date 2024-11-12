@@ -16,6 +16,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
+#include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -212,8 +213,16 @@ static GglError copy_file(const char *name, int source_fd, int dest_fd) {
         );
     } while (copy_ret > 0);
     if (copy_ret < 0) {
-        GGL_LOGE("Err %d while copying %s.", errno, name);
-        return GGL_ERR_FAILURE;
+        GGL_LOGD(
+            "Falling back from copy_file_range to sendfile (err %d).", errno
+        );
+        do {
+            copy_ret = sendfile(new_fd, old_fd, NULL, (size_t) stat.st_size);
+        } while (copy_ret > 0);
+        if (copy_ret < 0) {
+            GGL_LOGE("Err %d while copying %s.", errno, name);
+            return GGL_ERR_FAILURE;
+        }
     }
 
     // If we call rename without first calling fsync, the data may not be
