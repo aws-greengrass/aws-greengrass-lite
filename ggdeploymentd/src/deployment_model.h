@@ -13,6 +13,11 @@ typedef enum {
     GGL_DEPLOYMENT_IN_PROGRESS,
 } GglDeploymentState;
 
+typedef enum {
+  LOCAL,
+  IOT_JOBS
+} GglDeploymentType;
+
 typedef struct {
     GglBuffer deployment_id;
     GglBuffer recipe_directory_path;
@@ -25,6 +30,7 @@ typedef struct {
     GglMap component_to_configuration;
     GglDeploymentState state;
     GglMap cloud_root_components_to_add;
+    GglDeploymentType deployment_type;
 } GglDeployment;
 
 #endif
