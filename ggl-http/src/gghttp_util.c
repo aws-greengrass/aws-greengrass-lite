@@ -6,6 +6,7 @@
 #include "ggl/error.h"
 #include "ggl/http.h"
 #include "ggl/object.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <curl/curl.h>
 #include <ggl/cleanup.h>
@@ -13,9 +14,22 @@
 #include <ggl/log.h>
 #include <ggl/vector.h>
 #include <pthread.h>
-#include <string.h>
+#include <stdlib.h>
 
 #define MAX_HEADER_LENGTH 1024
+
+__attribute__((constructor)) static void init_curl(void) {
+    // TODO: set up a heap4 and init curl instead with curl_global_init_mem()
+    CURLcode e = curl_global_init(CURL_GLOBAL_DEFAULT);
+    if (e != CURLE_OK) {
+        GGL_LOGE(
+            "Failed to init curl with CURLcode %d (reason: \"%s\").",
+            e,
+            curl_easy_strerror(e)
+        );
+        _Exit(1);
+    }
+}
 
 static GglError translate_curl_code(CURLcode code) {
     switch (code) {
@@ -111,12 +125,10 @@ void gghttplib_destroy_curl(CurlData *curl_data) {
         curl_data->headers_list = NULL;
     }
     curl_easy_cleanup(curl_data->curl);
-    curl_global_cleanup();
 }
 
 GglError gghttplib_init_curl(CurlData *curl_data, const char *url) {
     curl_data->headers_list = NULL;
-    curl_global_init(CURL_GLOBAL_DEFAULT);
     curl_data->curl = curl_easy_init();
 
     if (curl_data->curl == NULL) {
