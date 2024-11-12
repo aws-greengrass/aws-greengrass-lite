@@ -138,7 +138,7 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
             && iotcored_mqtt_topic_filter_match(
                 topic_filter_buf(i), msg->topic
             )) {
-            ggl_respond(
+            ggl_sub_respond(
                 handles[i],
                 GGL_OBJ_MAP(GGL_MAP(
                     { GGL_STR("topic"), GGL_OBJ_BUF(msg->topic) },
@@ -175,7 +175,7 @@ void iotcored_mqtt_status_update_send(GglObject status) {
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (mqtt_status_handles[i] != 0) {
-            ggl_respond(mqtt_status_handles[i], status);
+            ggl_sub_respond(mqtt_status_handles[i], status);
         }
     }
 }

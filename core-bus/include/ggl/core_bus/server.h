@@ -46,10 +46,9 @@ GglError ggl_listen(
 /// Must be called from within a core bus handler.
 void ggl_return_err(uint32_t handle, GglError error);
 
-/// Send a response to the client.
-/// For call/notify, this closes the connection and must be called from within a
-/// core bus handler.
-/// Subscriptions must be accepted before responding.
+/// Send a response to the client for a call/notify request.
+/// Closes the connection.
+/// Must be called from within a core bus handler.
 void ggl_respond(uint32_t handle, GglObject value);
 
 /// Server callback for whenever a subscription is closed.
@@ -61,6 +60,10 @@ typedef void (*GglServerSubCloseCallback)(void *ctx, uint32_t handle);
 void ggl_sub_accept(
     uint32_t handle, GglServerSubCloseCallback on_close, void *ctx
 );
+
+/// Send a response to the client on a subscription.
+/// Subscriptions must be accepted before responding.
+void ggl_sub_respond(uint32_t handle, GglObject value);
 
 /// Close a server subscription handle.
 void ggl_server_sub_close(uint32_t handle);

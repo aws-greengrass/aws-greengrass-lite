@@ -158,7 +158,7 @@ static void subscribe_to_lifecycle_completion(
         || ggl_buffer_eq(GGL_STR("FINISHED"), status)
         || ggl_buffer_eq(GGL_STR("RUNNING"), status)) {
         GGL_LOGD("Sending early response.");
-        ggl_respond(
+        ggl_sub_respond(
             handle,
             GGL_OBJ_MAP(GGL_MAP(
                 { GGL_STR("component_name"), *component_name },
