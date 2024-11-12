@@ -107,9 +107,8 @@ static void set_subscription_cleanup(void *ctx, size_t index) {
 }
 
 static void cleanup_current_handle(const uint32_t *handle) {
-    if ((*handle != 0)
-        && (*handle
-            == atomic_load_explicit(&current_handle, memory_order_acquire))) {
+    if (*handle
+        == atomic_load_explicit(&current_handle, memory_order_acquire)) {
         GGL_MTX_SCOPE_GUARD(&current_handle_mtx);
         atomic_store_explicit(&current_handle, 0, memory_order_release);
         pthread_cond_broadcast(&current_handle_cond);
@@ -339,7 +338,7 @@ void ggl_respond(uint32_t handle, GglObject value) {
     assert(
         handle == atomic_load_explicit(&current_handle, memory_order_acquire)
     );
-    GGL_CLEANUP_ID(current_handle_cleanup, cleanup_current_handle, handle);
+    GGL_CLEANUP(cleanup_current_handle, handle);
 
     GGL_LOGT("Retrieving request type for %d.", handle);
     GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
@@ -349,7 +348,7 @@ void ggl_respond(uint32_t handle, GglObject value) {
         return;
     }
 
-    GGL_CLEANUP_ID(handle_cleanup, cleanup_socket_handle, handle);
+    GGL_CLEANUP(cleanup_socket_handle, handle);
 
     if (type == GGL_CORE_BUS_NOTIFY) {
         GGL_LOGT("Skipping response and closing notify %d.", handle);
