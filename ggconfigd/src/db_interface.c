@@ -606,7 +606,7 @@ static GglError notify_single_key(
         case SQLITE_ROW: {
             uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 0);
             GGL_LOGD("Sending to %u", handle);
-            ggl_respond(handle, GGL_OBJ_LIST(*changed_key_path));
+            ggl_sub_respond(handle, GGL_OBJ_LIST(*changed_key_path));
         } break;
         default:
             GGL_LOGE(

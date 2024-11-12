@@ -96,7 +96,7 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
 
 static void sub_close_callback(void *ctx, uint32_t handle) {
     (void) ctx;
-    iotcored_unregister_subscriptions(handle);
+    iotcored_unregister_subscriptions(handle, true);
 }
 
 static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
@@ -173,7 +173,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
 
     ret = iotcored_mqtt_subscribe(topic_filters, topic_filter_count, qos);
     if (ret != GGL_ERR_OK) {
-        iotcored_unregister_subscriptions(handle);
+        iotcored_unregister_subscriptions(handle, false);
         ggl_return_err(handle, ret);
         return;
     }
@@ -202,4 +202,8 @@ static void rpc_get_status(void *ctx, GglMap params, uint32_t handle) {
     iotcored_mqtt_status_update_send(
         GGL_OBJ_BOOL(iotcored_mqtt_connection_status())
     );
+    // TODO: have result calculated in status_update send to prevent race
+    // condition where status changes after getting it and before sending, and
+    // another notification is sent in that window, resulting in out-of-order
+    // events.
 }

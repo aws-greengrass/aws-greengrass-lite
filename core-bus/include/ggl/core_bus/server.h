@@ -21,9 +21,10 @@
 #endif
 
 /// Function that receives client invocations of a method.
-/// The handle must be used return an error or respond.
-/// The handle may be saved to defer responding or continue use past this call.
-/// Subscriptions must be accepted before responding.
+/// For call/notify, the handle must be used to either return an error or
+/// respond. For subscribe, the handle must be used to either return an error or
+/// accept the subscription.
+/// If a sub is accepted, the handle may be saved for sending responses.
 typedef void (*GglBusHandler)(void *ctx, GglMap params, uint32_t handle);
 
 /// Method handlers table entry for Core Bus interface.
@@ -42,11 +43,12 @@ GglError ggl_listen(
 
 /// Respond with an error to a call/notify/subscribe.
 /// Closes the connection.
-/// For subscriptions, this may only be called if no response has been sent.
+/// Must be called from within a core bus handler.
 void ggl_return_err(uint32_t handle, GglError error);
 
-/// Send a response to the client.
-/// For call/notify, this closes the connection.
+/// Send a response to the client for a call/notify request.
+/// Closes the connection.
+/// Must be called from within a core bus handler.
 void ggl_respond(uint32_t handle, GglObject value);
 
 /// Server callback for whenever a subscription is closed.
@@ -54,9 +56,14 @@ typedef void (*GglServerSubCloseCallback)(void *ctx, uint32_t handle);
 
 /// Accept a subscription
 /// Must be called before responding on a subscription.
+/// Must be called from within a core bus handler.
 void ggl_sub_accept(
     uint32_t handle, GglServerSubCloseCallback on_close, void *ctx
 );
+
+/// Send a response to the client on a subscription.
+/// Subscriptions must be accepted before responding.
+void ggl_sub_respond(uint32_t handle, GglObject value);
 
 /// Close a server subscription handle.
 void ggl_server_sub_close(uint32_t handle);

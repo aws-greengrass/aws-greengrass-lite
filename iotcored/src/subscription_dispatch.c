@@ -13,6 +13,7 @@
 #include <ggl/object.h>
 #include <pthread.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 /// Maximum size of MQTT topic for AWS IoT.
@@ -91,36 +92,39 @@ GglError iotcored_register_subscriptions(
 }
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-void iotcored_unregister_subscriptions(uint32_t handle) {
+void iotcored_unregister_subscriptions(uint32_t handle, bool unsubscribe) {
     GGL_MTX_SCOPE_GUARD(&mtx);
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (handles[i] == handle) {
-            size_t j;
-            for (j = 0; j < IOTCORED_MAX_SUBSCRIPTIONS; j++) {
-                if (i == j) {
-                    continue;
+            if (unsubscribe) {
+                size_t j;
+                for (j = 0; j < IOTCORED_MAX_SUBSCRIPTIONS; j++) {
+                    if (i == j) {
+                        continue;
+                    }
+                    if ((topic_filter_len[j] != 0)
+                        && (topic_filter_len[i] == topic_filter_len[j])
+                        && (memcmp(
+                                sub_topic_filters[i],
+                                sub_topic_filters[j],
+                                topic_filter_len[i]
+                            )
+                            == 0)) {
+                        // Found a matching topic filter. No need to check
+                        // further.
+                        break;
+                    }
                 }
-                if ((topic_filter_len[j] != 0)
-                    && (topic_filter_len[i] == topic_filter_len[j])
-                    && (memcmp(
-                            sub_topic_filters[i],
-                            sub_topic_filters[j],
-                            topic_filter_len[i]
-                        )
-                        == 0)) {
-                    // Found a matching topic filter. No need to check
-                    // further.
-                    break;
+
+                // This is the only subscription to this topic. Send an
+                // unsubscribe.
+                if (j == IOTCORED_MAX_SUBSCRIPTIONS) {
+                    GglBuffer buf[] = { topic_filter_buf(i) };
+                    iotcored_mqtt_unsubscribe(buf, 1U);
                 }
             }
 
-            // This is the only subscription to this topic. Send an
-            // unsubscribe.
-            if (j == IOTCORED_MAX_SUBSCRIPTIONS) {
-                GglBuffer buf[] = { topic_filter_buf(i) };
-                iotcored_mqtt_unsubscribe(buf, 1U);
-            }
             topic_filter_len[i] = 0;
         }
     }
@@ -134,7 +138,7 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
             && iotcored_mqtt_topic_filter_match(
                 topic_filter_buf(i), msg->topic
             )) {
-            ggl_respond(
+            ggl_sub_respond(
                 handles[i],
                 GGL_OBJ_MAP(GGL_MAP(
                     { GGL_STR("topic"), GGL_OBJ_BUF(msg->topic) },
@@ -171,7 +175,7 @@ void iotcored_mqtt_status_update_send(GglObject status) {
 
     for (size_t i = 0; i < IOTCORED_MAX_SUBSCRIPTIONS; i++) {
         if (mqtt_status_handles[i] != 0) {
-            ggl_respond(mqtt_status_handles[i], status);
+            ggl_sub_respond(mqtt_status_handles[i], status);
         }
     }
 }

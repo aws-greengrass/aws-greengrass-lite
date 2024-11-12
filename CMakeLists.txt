@@ -355,6 +355,7 @@ add_subdirectory(recipe2unit)
 add_subdirectory(ggl-semver)
 add_subdirectory(ggl-constants)
 add_subdirectory(cloud-logger)
+add_subdirectory(hello-world-component)
 
 if(BUILD_EXAMPLES)
   add_subdirectory(samples/echo-server)
@@ -384,11 +385,7 @@ set(CPACK_GENERATOR DEB)
 
 set(CPACK_DEBIAN_PACKAGE_RELEASE "${LINUX_DISTRO_STRING}")
 
-if(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
-  set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE amd64)
-elseif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "i686")
-  set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE i386)
-endif(${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "all")
 
 set(CPACK_PACKAGE_CONTACT
     "https://github.com/aws-greengrass/aws-greengrass-lite")

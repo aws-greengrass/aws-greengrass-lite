@@ -113,6 +113,7 @@ static void subscribe_to_deployment_updates(
     (void) ctx;
     (void) params;
     (void) handle;
+    ggl_return_err(handle, GGL_ERR_UNSUPPORTED);
 }
 
 static void subscribe_to_lifecycle_completion(
@@ -143,6 +144,7 @@ static void subscribe_to_lifecycle_completion(
     );
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
+        return;
     }
     GGL_LOGD("Accepting subscription.");
     ggl_sub_accept(handle, gghealthd_unregister_lifecycle_subscription, NULL);
@@ -156,7 +158,7 @@ static void subscribe_to_lifecycle_completion(
         || ggl_buffer_eq(GGL_STR("FINISHED"), status)
         || ggl_buffer_eq(GGL_STR("RUNNING"), status)) {
         GGL_LOGD("Sending early response.");
-        ggl_respond(
+        ggl_sub_respond(
             handle,
             GGL_OBJ_MAP(GGL_MAP(
                 { GGL_STR("component_name"), *component_name },

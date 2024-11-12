@@ -105,7 +105,7 @@ static int properties_changed_handler(
             (int) status.len,
             status.data
         );
-        ggl_respond(
+        ggl_sub_respond(
             handle,
             GGL_OBJ_MAP(GGL_MAP(
                 { GGL_STR("component_name"), GGL_OBJ_BUF(component_name) },

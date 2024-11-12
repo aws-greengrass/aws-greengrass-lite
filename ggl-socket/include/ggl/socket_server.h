@@ -25,4 +25,7 @@ GglError ggl_socket_server_listen(
     void *ctx
 );
 
+extern void (*ggl_socket_server_ext_handler)(void);
+extern int ggl_socket_server_ext_fd;
+
 #endif

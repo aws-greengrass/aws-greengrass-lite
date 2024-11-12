@@ -22,6 +22,7 @@
 #include <ggl/socket_server.h>
 #include <ggl/vector.h>
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -62,6 +63,13 @@ __attribute__((constructor)) static void init_client_pool(void) {
     ggl_socket_pool_init(&pool);
 }
 
+/// Set to a handle when calling handler.
+/// ggl_sub_respond blocks if this is the response handle.
+static _Atomic(uint32_t) current_handle = 0;
+/// Cond var for when current_handle is cleared
+static pthread_cond_t current_handle_cond = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t current_handle_mtx = PTHREAD_MUTEX_INITIALIZER;
+
 static inline void cleanup_socket_handle(const uint32_t *handle) {
     if (*handle != 0) {
         ggl_socket_handle_close(&pool, *handle);
@@ -98,6 +106,15 @@ static void set_subscription_cleanup(void *ctx, size_t index) {
     subscription_cleanup[index] = *type;
 }
 
+static void cleanup_current_handle(const uint32_t *handle) {
+    if (*handle
+        == atomic_load_explicit(&current_handle, memory_order_acquire)) {
+        GGL_MTX_SCOPE_GUARD(&current_handle_mtx);
+        atomic_store_explicit(&current_handle, 0, memory_order_release);
+        pthread_cond_broadcast(&current_handle_cond);
+    }
+}
+
 // TODO: Split this function up
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError client_ready(void *ctx, uint32_t handle) {
@@ -106,6 +123,9 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
     static pthread_mutex_t client_handler_mtx = PTHREAD_MUTEX_INITIALIZER;
     GGL_MTX_SCOPE_GUARD(&client_handler_mtx);
+
+    atomic_store_explicit(&current_handle, handle, memory_order_release);
+    GGL_CLEANUP(cleanup_current_handle, handle);
 
     static uint8_t payload_array[GGL_COREBUS_MAX_MSG_LEN];
 
@@ -238,6 +258,12 @@ static GglError client_ready(void *ctx, uint32_t handle) {
             }
 
             handler->handler(handler->ctx, params, handle);
+
+            // Handler must respond to request
+            assert(
+                atomic_load_explicit(&current_handle, memory_order_acquire) == 0
+            );
+
             return GGL_ERR_OK;
         }
     }
@@ -281,6 +307,11 @@ GglError ggl_listen(
 void ggl_return_err(uint32_t handle, GglError error) {
     assert(error != GGL_ERR_OK); // Returning error ok is invalid
 
+    assert(
+        handle == atomic_load_explicit(&current_handle, memory_order_acquire)
+    );
+    GGL_CLEANUP(cleanup_current_handle, handle);
+
     GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
 
     GglBuffer send_buffer = GGL_BUF(encode_array);
@@ -304,6 +335,11 @@ void ggl_return_err(uint32_t handle, GglError error) {
 void ggl_respond(uint32_t handle, GglObject value) {
     GGL_LOGT("Responding to %d.", handle);
 
+    assert(
+        handle == atomic_load_explicit(&current_handle, memory_order_acquire)
+    );
+    GGL_CLEANUP(cleanup_current_handle, handle);
+
     GGL_LOGT("Retrieving request type for %d.", handle);
     GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
     GglError ret
@@ -312,12 +348,14 @@ void ggl_respond(uint32_t handle, GglObject value) {
         return;
     }
 
-    GGL_CLEANUP_ID(handle_cleanup, cleanup_socket_handle, handle);
+    GGL_CLEANUP(cleanup_socket_handle, handle);
 
     if (type == GGL_CORE_BUS_NOTIFY) {
         GGL_LOGT("Skipping response and closing notify %d.", handle);
         return;
     }
+
+    assert(type == GGL_CORE_BUS_CALL);
 
     GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
 
@@ -335,21 +373,18 @@ void ggl_respond(uint32_t handle, GglObject value) {
         return;
     }
 
-    if (type == GGL_CORE_BUS_SUBSCRIBE) {
-        // Keep subscription handle on successful subscription response
-        // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
-        handle_cleanup = 0;
-    } else {
-        GGL_LOGT("Closing call %d.", handle);
-    }
-
-    GGL_LOGT("Sent response to %d.", handle);
+    GGL_LOGT("Completed call response to %d.", handle);
 }
 
 void ggl_sub_accept(
     uint32_t handle, GglServerSubCloseCallback on_close, void *ctx
 ) {
     GGL_LOGT("Accepting subscription %d.", handle);
+
+    assert(
+        handle == atomic_load_explicit(&current_handle, memory_order_acquire)
+    );
+    GGL_CLEANUP(cleanup_current_handle, handle);
 
     if (on_close != NULL) {
         SubCleanupCallback cleanup = { .fn = on_close, .ctx = ctx };
@@ -390,6 +425,52 @@ void ggl_sub_accept(
     // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
     handle_cleanup = 0;
     GGL_LOGT("Successfully accepted subscription %d.", handle);
+}
+
+void ggl_sub_respond(uint32_t handle, GglObject value) {
+    GGL_LOGT("Responding to %d.", handle);
+
+#ifndef NDEBUG
+    GglCoreBusRequestType type = GGL_CORE_BUS_CALL;
+    GglError ret
+        = ggl_socket_handle_protected(get_request_type, &type, &pool, handle);
+    if (ret != GGL_ERR_OK) {
+        return;
+    }
+    assert(type == GGL_CORE_BUS_SUBSCRIBE);
+#endif
+
+    if (handle == atomic_load_explicit(&current_handle, memory_order_acquire)) {
+        GGL_MTX_SCOPE_GUARD(&current_handle_mtx);
+        while (handle
+               == atomic_load_explicit(&current_handle, memory_order_acquire)) {
+            pthread_cond_wait(&current_handle_cond, &current_handle_mtx);
+        }
+    }
+
+    GGL_CLEANUP_ID(handle_cleanup, cleanup_socket_handle, handle);
+
+    GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
+
+    GglBuffer send_buffer = GGL_BUF(encode_array);
+
+    ret = eventstream_encode(
+        &send_buffer, NULL, 0, ggl_serialize_reader(&value)
+    );
+    if (ret != GGL_ERR_OK) {
+        return;
+    }
+
+    ret = ggl_socket_handle_write(&pool, handle, send_buffer);
+    if (ret != GGL_ERR_OK) {
+        return;
+    }
+
+    // Keep subscription handle on successful subscription response
+    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
+    handle_cleanup = 0;
+
+    GGL_LOGT("Sent response to %d.", handle);
 }
 
 void ggl_server_sub_close(uint32_t handle) {
