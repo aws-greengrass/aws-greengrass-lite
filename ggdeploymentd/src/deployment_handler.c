@@ -10,9 +10,7 @@
 #include "iot_jobs_listener.h"
 #include "stale_component.h"
 #include <sys/types.h>
-#include <assert.h>
 #include <fcntl.h>
-#include <ggl/alloc.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
@@ -31,7 +29,6 @@
 #include <ggl/object.h>
 #include <ggl/recipe.h>
 #include <ggl/recipe2unit.h>
-#include <ggl/semver.h>
 #include <ggl/uri.h>
 #include <ggl/utils.h>
 #include <ggl/vector.h>
