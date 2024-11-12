@@ -47,7 +47,10 @@ static void send_fleet_status_update(
     ret = publish_fleet_status_update(&args);
     if (ret != GGL_ERR_OK) {
         ggl_return_err(handle, ret);
+        return;
     }
+
+    ggl_respond(handle, GGL_OBJ_NULL());
 }
 
 void gg_fleet_statusd_start_server(void) {
