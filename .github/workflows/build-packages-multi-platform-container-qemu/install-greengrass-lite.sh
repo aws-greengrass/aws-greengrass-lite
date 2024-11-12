@@ -204,6 +204,7 @@ create_sudoers_file() {
 
 # install
 install() {
+  set -euo pipefail
 
   check_ubuntu_version
 
@@ -247,6 +248,14 @@ install() {
 # uninstall
 uninstall() {
     echo "Uninstalling Greengrass Lite..."
+
+    systemctl disable greengrass-lite.service
+
+    systemctl stop greengrass-lite
+
+    echo "Removing systemd service file..."
+    rm -f "$service_file"
+
     apt remove -y aws-greengrass-lite
 
     echo "Removing configuration directory..."
@@ -269,17 +278,10 @@ uninstall() {
     echo "Removing working directory..."
     rm -rf "${gg_workingdir}"
 
+    systemctl daemon-reload
+
     echo "Removing sudoers file..."
     rm -f "/etc/sudoers.d/greengrass-lite"
-
-    systemctl disable greengrass-lite.service
-
-    systemctl stop greengrass-lite
-
-    echo "Removing systemd service file..."
-    rm -f "$service_file"
-
-    systemctl daemon-reload
 
     echo "Uninstallation completed."
 }
