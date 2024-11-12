@@ -54,6 +54,7 @@ typedef void (*GglServerSubCloseCallback)(void *ctx, uint32_t handle);
 
 /// Accept a subscription
 /// Must be called before responding on a subscription.
+/// Must be called from within a core bus handler.
 void ggl_sub_accept(
     uint32_t handle, GglServerSubCloseCallback on_close, void *ctx
 );
