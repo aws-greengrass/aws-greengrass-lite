@@ -15,16 +15,15 @@
 #include <inttypes.h>
 #include <pthread.h>
 #include <time.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 
 typedef struct GglSubResponseCallbackCtx {
     pthread_mutex_t *mtx;
     pthread_cond_t *cond;
+    bool ready;
     GglSubResponseCallback callback;
     void *callback_ctx;
     GglError response_error;
-    atomic_bool ready;
 } GglSubResponseCallbackCtx;
 
 static void cleanup_pthread_cond(pthread_cond_t **cond) {
@@ -53,7 +52,7 @@ static void sub_response_on_close(void *ctx, uint32_t handle) {
     GglSubResponseCallbackCtx *context = ctx;
     GGL_LOGD("Notifying response for %" PRIu32, handle);
     GGL_MTX_SCOPE_GUARD(context->mtx);
-    atomic_store_explicit(&context->ready, true, memory_order_release);
+    context->ready = true;
     pthread_cond_signal(context->cond);
 }
 
@@ -89,7 +88,7 @@ GglError ggl_sub_response(
     clock_gettime(CLOCK_MONOTONIC, &timeout_abs);
     timeout_abs.tv_sec += timeout_seconds;
 
-    bool ready = false;
+    bool timed_out = false;
 
     {
         GGL_MTX_SCOPE_GUARD(&mtx);
@@ -108,20 +107,19 @@ GglError ggl_sub_response(
             return subscribe_error;
         }
 
-        while (!(
-            ready = atomic_load_explicit(&resp_ctx.ready, memory_order_acquire)
-        )) {
+        while (!resp_ctx.ready) {
             int cond_ret = pthread_cond_timedwait(&cond, &mtx, &timeout_abs);
             if ((cond_ret < 0) && (cond_ret != EINTR)) {
                 assert(cond_ret == ETIMEDOUT);
                 GGL_LOGW("Timed out waiting for a response.");
+                timed_out = true;
                 break;
             }
         }
     }
 
     // timeout handling
-    if (!ready) {
+    if (timed_out) {
         ggl_client_sub_close(handle);
     }
 
