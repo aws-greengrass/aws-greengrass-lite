@@ -52,6 +52,14 @@ GglError ggl_handle_update_configuration(
         return GGL_ERR_INVALID;
     }
 
+    if ((key_path_obj->list.len < 1)
+        || ggl_buffer_eq(
+            key_path_obj->list.items[0].buf, GGL_STR("accessControl")
+        )) {
+        GGL_LOGE("Received invalid paramters.");
+        return GGL_ERR_INVALID;
+    }
+
     GglBuffer component_name = { 0 };
     ret = ggl_ipc_get_component_name(handle, &component_name);
     if (ret != GGL_ERR_OK) {
