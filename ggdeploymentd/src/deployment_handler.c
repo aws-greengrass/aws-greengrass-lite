@@ -865,7 +865,8 @@ static GglError generate_resolve_component_candidates_body(
     ggl_byte_vec_chain_append(
         &byte_vec_ret,
         body_vec,
-        GGL_STR("],\"platform\": { \"attributes\": { \"os\" : \"linux\" "
+        GGL_STR("],\"platform\": { \"attributes\": { \"os\" : \"linux\", "
+                "\"runtime\" : \"aws_nucleus_lite\" "
                 "},\"name\": \"linux\"}}")
     );
     ggl_byte_vec_chain_push(&byte_vec_ret, body_vec, '\0');
