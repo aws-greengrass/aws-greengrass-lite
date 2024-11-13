@@ -16,9 +16,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-static void rpc_publish(void *ctx, GglMap params, uint32_t handle);
-static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle);
-static void rpc_get_status(void *ctx, GglMap params, uint32_t handle);
+static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle);
+static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle);
+static GglError rpc_get_status(void *ctx, GglMap params, uint32_t handle);
 
 void iotcored_start_server(IotcoredArgs *args) {
     GglRpcMethodDesc handlers[] = {
@@ -39,7 +39,7 @@ void iotcored_start_server(IotcoredArgs *args) {
     GGL_LOGE("Exiting with error %u.", (unsigned) ret);
 }
 
-static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
+static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     GGL_LOGD("Handling publish request.");
@@ -57,16 +57,14 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Publish received invalid arguments.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
 
     IotcoredMsg msg = { .topic = topic_obj->buf, .payload = { 0 } };
 
     if (msg.topic.len > UINT16_MAX) {
         GGL_LOGE("Publish topic too large.");
-        ggl_return_err(handle, GGL_ERR_RANGE);
-        return;
+        return GGL_ERR_RANGE;
     }
 
     if (payload_obj != NULL) {
@@ -79,19 +77,18 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
         int64_t qos_val = qos_obj->i64;
         if ((qos_val < 0) || (qos_val > 2)) {
             GGL_LOGE("Publish received QoS out of range.");
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
+            return GGL_ERR_INVALID;
         }
         qos = (uint8_t) qos_val;
     }
 
     ret = iotcored_mqtt_publish(&msg, qos);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     ggl_respond(handle, GGL_OBJ_NULL());
+    return GGL_ERR_OK;
 }
 
 static void sub_close_callback(void *ctx, uint32_t handle) {
@@ -99,7 +96,7 @@ static void sub_close_callback(void *ctx, uint32_t handle) {
     iotcored_unregister_subscriptions(handle, true);
 }
 
-static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
+static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     GGL_LOGD("Handling subscribe request.");
@@ -110,8 +107,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     GglObject *val;
     if (!ggl_map_get(params, GGL_STR("topic_filter"), &val)) {
         GGL_LOGE("Subscribe received invalid arguments.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
 
     if (val->type == GGL_TYPE_BUF) {
@@ -121,35 +117,30 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         GglList arg_filters = val->list;
         if (arg_filters.len == 0) {
             GGL_LOGE("Subscribe must have at least one topic filter.");
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
+            return GGL_ERR_INVALID;
         }
         if (arg_filters.len > GGL_MQTT_MAX_SUBSCRIBE_FILTERS) {
             GGL_LOGE("Subscribe received more topic filters than supported.");
-            ggl_return_err(handle, GGL_ERR_UNSUPPORTED);
-            return;
+            return GGL_ERR_UNSUPPORTED;
         }
 
         topic_filter_count = arg_filters.len;
         for (size_t i = 0; i < arg_filters.len; i++) {
             if (arg_filters.items[i].type != GGL_TYPE_BUF) {
                 GGL_LOGE("Subscribe received invalid arguments.");
-                ggl_return_err(handle, GGL_ERR_INVALID);
-                return;
+                return GGL_ERR_INVALID;
             }
             topic_filters[i] = arg_filters.items[i].buf;
         }
     } else {
         GGL_LOGE("Subscribe received invalid arguments.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
 
     for (size_t i = 0; i < topic_filter_count; i++) {
         if (topic_filters[i].len > UINT16_MAX) {
             GGL_LOGE("Topic filter too large.");
-            ggl_return_err(handle, GGL_ERR_RANGE);
-            return;
+            return GGL_ERR_RANGE;
         }
     }
 
@@ -157,8 +148,7 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     if (ggl_map_get(params, GGL_STR("qos"), &val)) {
         if ((val->type != GGL_TYPE_I64) || (val->i64 < 0) || (val->i64 > 2)) {
             GGL_LOGE("Payload received invalid arguments.");
-            ggl_return_err(handle, GGL_ERR_INVALID);
-            return;
+            return GGL_ERR_INVALID;
         }
         qos = (uint8_t) val->i64;
     }
@@ -167,18 +157,17 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         topic_filters, topic_filter_count, handle, qos
     );
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     ret = iotcored_mqtt_subscribe(topic_filters, topic_filter_count, qos);
     if (ret != GGL_ERR_OK) {
         iotcored_unregister_subscriptions(handle, false);
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     ggl_sub_accept(handle, sub_close_callback, NULL);
+    return GGL_ERR_OK;
 }
 
 static void mqtt_status_sub_close_callback(void *ctx, uint32_t handle) {
@@ -186,14 +175,13 @@ static void mqtt_status_sub_close_callback(void *ctx, uint32_t handle) {
     iotcored_mqtt_status_update_unregister(handle);
 }
 
-static void rpc_get_status(void *ctx, GglMap params, uint32_t handle) {
+static GglError rpc_get_status(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     (void) params;
 
     GglError ret = iotcored_mqtt_status_update_register(handle);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     ggl_sub_accept(handle, mqtt_status_sub_close_callback, NULL);
@@ -206,4 +194,6 @@ static void rpc_get_status(void *ctx, GglMap params, uint32_t handle) {
     // condition where status changes after getting it and before sending, and
     // another notification is sent in that window, resulting in out-of-order
     // events.
+
+    return GGL_ERR_OK;
 }

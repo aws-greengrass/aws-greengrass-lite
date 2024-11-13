@@ -115,6 +115,34 @@ static void cleanup_current_handle(const uint32_t *handle) {
     }
 }
 
+static void send_err_response(uint32_t handle, GglError error) {
+    assert(error != GGL_ERR_OK); // Returning error ok is invalid
+
+    assert(
+        handle == atomic_load_explicit(&current_handle, memory_order_acquire)
+    );
+    GGL_CLEANUP(cleanup_current_handle, handle);
+
+    GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
+
+    GglBuffer send_buffer = GGL_BUF(encode_array);
+
+    EventStreamHeader resp_headers[] = {
+        { GGL_STR("error"), { EVENTSTREAM_INT32, .int32 = (int32_t) error } },
+    };
+    size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
+
+    GglError ret = eventstream_encode(
+        &send_buffer, resp_headers, resp_headers_len, GGL_NULL_READER
+    );
+
+    if (ret == GGL_ERR_OK) {
+        ggl_socket_handle_write(&pool, handle, send_buffer);
+    }
+
+    ggl_socket_handle_close(&pool, handle);
+}
+
 // TODO: Split this function up
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError client_ready(void *ctx, uint32_t handle) {
@@ -141,13 +169,13 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     EventStreamPrelude prelude;
     ret = eventstream_decode_prelude(prelude_buf, &prelude);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
+        send_err_response(handle, ret);
         return GGL_ERR_OK;
     }
 
     if (prelude.data_len > recv_buffer.len) {
         GGL_LOGE("EventStream packet does not fit in core bus buffer size.");
-        ggl_return_err(handle, GGL_ERR_NOMEM);
+        send_err_response(handle, GGL_ERR_NOMEM);
         return GGL_ERR_OK;
     }
 
@@ -163,7 +191,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
     ret = eventstream_decode(&prelude, data_section, &msg);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
+        send_err_response(handle, ret);
         return GGL_ERR_OK;
     }
 
@@ -180,7 +208,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
             if (ggl_buffer_eq(header.name, GGL_STR("method"))) {
                 if (header.value.type != EVENTSTREAM_STRING) {
                     GGL_LOGE("Method header not string.");
-                    ggl_return_err(handle, GGL_ERR_INVALID);
+                    send_err_response(handle, GGL_ERR_INVALID);
                     return GGL_ERR_OK;
                 }
                 method = header.value.string;
@@ -188,7 +216,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
             } else if (ggl_buffer_eq(header.name, GGL_STR("type"))) {
                 if (header.value.type != EVENTSTREAM_INT32) {
                     GGL_LOGE("Type header not int.");
-                    ggl_return_err(handle, GGL_ERR_INVALID);
+                    send_err_response(handle, GGL_ERR_INVALID);
                     return GGL_ERR_OK;
                 }
                 switch (header.value.int32) {
@@ -199,7 +227,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
                     break;
                 default:
                     GGL_LOGE("Type header has invalid value.");
-                    ggl_return_err(handle, GGL_ERR_INVALID);
+                    send_err_response(handle, GGL_ERR_INVALID);
                     return GGL_ERR_OK;
                 }
                 type_set = true;
@@ -209,7 +237,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
     if (!method_set || !type_set) {
         GGL_LOGE("Required header missing.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
+        send_err_response(handle, GGL_ERR_INVALID);
         return GGL_ERR_OK;
     }
 
@@ -225,13 +253,13 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         ret = ggl_deserialize(&balloc.alloc, false, msg.payload, &payload_obj);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to decode request payload.");
-            ggl_return_err(handle, ret);
+            send_err_response(handle, ret);
             return GGL_ERR_OK;
         }
 
         if (payload_obj.type != GGL_TYPE_MAP) {
             GGL_LOGE("Request payload is not a map.");
-            ggl_return_err(handle, GGL_ERR_INVALID);
+            send_err_response(handle, GGL_ERR_INVALID);
             return GGL_ERR_OK;
         }
 
@@ -253,11 +281,14 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         if (ggl_buffer_eq(method, handler->name)) {
             if (handler->is_subscription != (type == GGL_CORE_BUS_SUBSCRIBE)) {
                 GGL_LOGE("Request type is unsupported for method.");
-                ggl_return_err(handle, GGL_ERR_INVALID);
+                send_err_response(handle, GGL_ERR_INVALID);
                 return GGL_ERR_OK;
             }
 
-            handler->handler(handler->ctx, params, handle);
+            ret = handler->handler(handler->ctx, params, handle);
+            if (ret != GGL_ERR_OK) {
+                send_err_response(handle, ret);
+            }
 
             // Handler must respond to request
             assert(
@@ -270,7 +301,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
     GGL_LOGW("No handler for method %.*s.", (int) method.len, method.data);
 
-    ggl_return_err(handle, GGL_ERR_NOENTRY);
+    send_err_response(handle, GGL_ERR_NOENTRY);
     return GGL_ERR_OK;
 }
 
@@ -302,34 +333,6 @@ GglError ggl_listen(
     return ggl_socket_server_listen(
         socket_path.buf, 0700, &pool, client_ready, &ctx
     );
-}
-
-void ggl_return_err(uint32_t handle, GglError error) {
-    assert(error != GGL_ERR_OK); // Returning error ok is invalid
-
-    assert(
-        handle == atomic_load_explicit(&current_handle, memory_order_acquire)
-    );
-    GGL_CLEANUP(cleanup_current_handle, handle);
-
-    GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
-
-    GglBuffer send_buffer = GGL_BUF(encode_array);
-
-    EventStreamHeader resp_headers[] = {
-        { GGL_STR("error"), { EVENTSTREAM_INT32, .int32 = (int32_t) error } },
-    };
-    size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
-
-    GglError ret = eventstream_encode(
-        &send_buffer, resp_headers, resp_headers_len, GGL_NULL_READER
-    );
-
-    if (ret == GGL_ERR_OK) {
-        ggl_socket_handle_write(&pool, handle, send_buffer);
-    }
-
-    ggl_socket_handle_close(&pool, handle);
 }
 
 void ggl_respond(uint32_t handle, GglObject value) {

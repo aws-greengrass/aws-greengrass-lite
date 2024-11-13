@@ -13,7 +13,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
+static GglError create_local_deployment(
+    void *ctx, GglMap params, uint32_t handle
+) {
     (void) ctx;
 
     GGL_LOGT("Received create_local_deployment from core bus.");
@@ -22,11 +24,11 @@ static void create_local_deployment(void *ctx, GglMap params, uint32_t handle) {
 
     GglError ret = ggl_deployment_enqueue(params, &id);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     ggl_respond(handle, GGL_OBJ_BUF(id.buf));
+    return GGL_ERR_OK;
 }
 
 void ggdeploymentd_start_server(void) {

@@ -15,7 +15,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static void send_fleet_status_update(
+static GglError send_fleet_status_update(
     void *ctx, GglMap params, uint32_t handle
 ) {
     (void) ctx;
@@ -29,16 +29,14 @@ static void send_fleet_status_update(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to read thingName from config.");
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     GglObject *trigger = NULL;
     bool found = ggl_map_get(params, GGL_STR("trigger"), &trigger);
     if (!found || trigger->type != GGL_TYPE_BUF) {
         GGL_LOGE("Missing required GGL_TYPE_BUF `trigger`.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
 
     GglFleetStatusServiceThreadArgs args
@@ -46,11 +44,11 @@ static void send_fleet_status_update(
 
     ret = publish_fleet_status_update(&args);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     ggl_respond(handle, GGL_OBJ_NULL());
+    return GGL_ERR_OK;
 }
 
 void gg_fleet_statusd_start_server(void) {

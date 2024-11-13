@@ -21,11 +21,12 @@
 #endif
 
 /// Function that receives client invocations of a method.
-/// For call/notify, the handle must be used to either return an error or
-/// respond. For subscribe, the handle must be used to either return an error or
-/// accept the subscription.
-/// If a sub is accepted, the handle may be saved for sending responses.
-typedef void (*GglBusHandler)(void *ctx, GglMap params, uint32_t handle);
+/// For call/notify, the handler must either use the handle to respond and
+/// return GGL_ERR_OK, or return an error without responding. For
+/// subscribe, the handler must either accept the subscription and return
+/// GGL_ERR_OK, or return an error without accepting.
+/// If a sub is accepted, the handle should be saved for sending responses.
+typedef GglError (*GglBusHandler)(void *ctx, GglMap params, uint32_t handle);
 
 /// Method handlers table entry for Core Bus interface.
 typedef struct {
@@ -40,11 +41,6 @@ typedef struct {
 GglError ggl_listen(
     GglBuffer interface, GglRpcMethodDesc *handlers, size_t handlers_len
 );
-
-/// Respond with an error to a call/notify/subscribe.
-/// Closes the connection.
-/// Must be called from within a core bus handler.
-void ggl_return_err(uint32_t handle, GglError error);
 
 /// Send a response to the client for a call/notify request.
 /// Closes the connection.

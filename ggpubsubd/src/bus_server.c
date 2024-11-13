@@ -43,8 +43,8 @@ static_assert(
     "GGL_PUBSUB_MAX_TOPIC_LENGTH does not fit in an uint8_t."
 );
 
-static void rpc_publish(void *ctx, GglMap params, uint32_t handle);
-static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle);
+static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle);
+static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle);
 
 // coreMQTT mtx APIs need defining since we link to it, but we only use topic
 // matching so they should never be called.
@@ -74,7 +74,7 @@ GglError run_ggpubsubd(void) {
     return ret;
 }
 
-static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
+static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     GGL_LOGD("Handling request from %u.", handle);
 
@@ -83,21 +83,18 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     bool found = ggl_map_get(params, GGL_STR("topic"), &val);
     if (!found) {
         GGL_LOGE("Params missing topic.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
     if (val->type != GGL_TYPE_BUF) {
         GGL_LOGE("topic is not a string.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
 
     topic = val->buf;
 
     if (topic.len > GGL_PUBSUB_MAX_TOPIC_LENGTH) {
         GGL_LOGE("Topic too large.");
-        ggl_return_err(handle, GGL_ERR_RANGE);
-        return;
+        return GGL_ERR_RANGE;
     }
 
     for (size_t i = 0; i < GGL_PUBSUB_MAX_SUBSCRIPTIONS; i++) {
@@ -117,6 +114,7 @@ static void rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     }
 
     ggl_respond(handle, GGL_OBJ_NULL());
+    return GGL_ERR_OK;
 }
 
 static GglError register_subscription(
@@ -143,7 +141,7 @@ static void release_subscription(void *ctx, uint32_t handle) {
     sub_handle[index] = 0;
 }
 
-static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
+static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     GGL_LOGD("Handling request from %u.", handle);
 
@@ -155,26 +153,23 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         topic_filter = val->buf;
         if (topic_filter.len > GGL_PUBSUB_MAX_TOPIC_LENGTH) {
             GGL_LOGE("Topic filter too large.");
-            ggl_return_err(handle, GGL_ERR_RANGE);
-            return;
+            return GGL_ERR_RANGE;
         }
         if (topic_filter.len == 0) {
             GGL_LOGE("Topic filter can't be zero length.");
-            ggl_return_err(handle, GGL_ERR_RANGE);
-            return;
+            return GGL_ERR_RANGE;
         }
     } else {
         GGL_LOGE("Received invalid arguments.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
 
     uint32_t *handle_ptr;
     GglError ret = register_subscription(topic_filter, handle, &handle_ptr);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     ggl_sub_accept(handle, release_subscription, handle_ptr);
+    return GGL_ERR_OK;
 }

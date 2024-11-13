@@ -84,7 +84,7 @@ static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
     return GGL_ERR_OK;
 }
 
-static void rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
+static GglError rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     GGL_LOGD("Handling token publish request.");
 
@@ -98,8 +98,7 @@ static void rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
     GglError ret
         = ggl_json_decode_destructive(response, &balloc.alloc, &json_cred_obj);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     GglObject *creds;
@@ -108,14 +107,14 @@ static void rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
 
     if (!ret_contains) {
         GGL_LOGD("Request failed, Invalid credentials");
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     ggl_respond(handle, *creds);
+    return GGL_ERR_OK;
 }
 
-static void rpc_request_formatted_creds(
+static GglError rpc_request_formatted_creds(
     void *ctx, GglMap params, uint32_t handle
 ) {
     (void) ctx;
@@ -131,24 +130,22 @@ static void rpc_request_formatted_creds(
     GglError ret
         = ggl_json_decode_destructive(buffer, &balloc.alloc, &json_cred_obj);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     if (json_cred_obj.type != GGL_TYPE_MAP) {
-        ggl_return_err(handle, GGL_ERR_FAILURE);
-        return;
+        return GGL_ERR_FAILURE;
     }
 
     static GglMap server_json_creds = { 0 };
     ret = create_map_for_server(json_cred_obj.map, &server_json_creds);
 
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
-        return;
+        return ret;
     }
 
     ggl_respond(handle, GGL_OBJ_MAP(server_json_creds));
+    return GGL_ERR_OK;
 }
 
 static void start_tes_core_bus_server(void) {

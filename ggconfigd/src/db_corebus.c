@@ -98,22 +98,20 @@ static GglError decode_object_destructive(
     return return_err;
 }
 
-static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
+static GglError rpc_read(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     GglObject *key_path;
     if (!ggl_map_get(params, GGL_STR("key_path"), &key_path)
         || (key_path->type != GGL_TYPE_LIST)) {
         GGL_LOGE("read received invalid key_path argument.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
 
     GglError ret = ggl_list_type_check(key_path->list, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("key_path elements must be strings.");
-        ggl_return_err(handle, GGL_ERR_RANGE);
-        return;
+        return GGL_ERR_RANGE;
     }
 
     GGL_LOGD("reading key %s", print_key_path(&key_path->list));
@@ -121,8 +119,7 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     GglObject value;
     GglError err = ggconfig_get_value_from_key(&key_path->list, &value);
     if (err != GGL_ERR_OK) {
-        ggl_return_err(handle, err);
-        return;
+        return err;
     }
 
     static uint8_t object_decode_memory[GGCONFIGD_MAX_OBJECT_DECODE_BYTES];
@@ -131,9 +128,10 @@ static void rpc_read(void *ctx, GglMap params, uint32_t handle) {
     decode_object_destructive(&value, &object_alloc);
 
     ggl_respond(handle, value);
+    return GGL_ERR_OK;
 }
 
-static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
+static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     GGL_LOGD("subscribing");
@@ -142,23 +140,22 @@ static void rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     if (!ggl_map_get(params, GGL_STR("key_path"), &key_path)
         || (key_path->type != GGL_TYPE_LIST)) {
         GGL_LOGE("read received invalid key_path argument.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
 
     GglError ret = ggl_list_type_check(key_path->list, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("key_path elements must be strings.");
-        ggl_return_err(handle, GGL_ERR_RANGE);
-        return;
+        return GGL_ERR_RANGE;
     }
 
     ret = ggconfig_get_key_notification(&key_path->list, handle);
     if (ret != GGL_ERR_OK) {
-        ggl_return_err(handle, ret);
+        return ret;
     }
 
     ggl_sub_accept(handle, NULL, NULL);
+    return GGL_ERR_OK;
 }
 
 GglError process_nonmap(
@@ -223,7 +220,7 @@ GglError process_map(GglObjVec *key_path, GglMap *the_map, int64_t timestamp) {
     return error;
 }
 
-static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
+static GglError rpc_write(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
     GglObject *key_path_obj;
@@ -239,23 +236,20 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("write received one or more invalid arguments.");
-        ggl_return_err(handle, GGL_ERR_INVALID);
-        return;
+        return GGL_ERR_INVALID;
     }
 
     ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("key_path elements must be strings.");
-        ggl_return_err(handle, GGL_ERR_RANGE);
-        return;
+        return GGL_ERR_RANGE;
     }
 
     GglObjVec key_path = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
     ret = ggl_obj_vec_append(&key_path, key_path_obj->list);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("key_path too long.");
-        ggl_return_err(handle, GGL_ERR_RANGE);
-        return;
+        return GGL_ERR_RANGE;
     }
 
     int64_t timestamp;
@@ -271,18 +265,17 @@ static void rpc_write(void *ctx, GglMap params, uint32_t handle) {
     if (value_obj->type == GGL_TYPE_MAP) {
         GglError error = process_map(&key_path, &value_obj->map, timestamp);
         if (error != GGL_ERR_OK) {
-            ggl_return_err(handle, error);
-            return;
+            return error;
         }
     } else {
         GglError error = process_nonmap(&key_path, *value_obj, timestamp);
         if (error != GGL_ERR_OK) {
-            ggl_return_err(handle, error);
-            return;
+            return error;
         }
     }
 
     ggl_respond(handle, GGL_OBJ_NULL());
+    return GGL_ERR_OK;
 }
 
 void ggconfigd_start_server(void) {

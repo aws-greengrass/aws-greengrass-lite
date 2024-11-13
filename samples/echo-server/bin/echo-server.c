@@ -3,14 +3,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <ggl/core_bus/server.h>
+#include <ggl/error.h>
 #include <ggl/object.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-static void handle_echo(void *ctx, GglMap params, uint32_t handle) {
+static GglError handle_echo(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     ggl_respond(handle, GGL_OBJ_MAP(params));
+    return GGL_ERR_OK;
 }
 
 int main(void) {
