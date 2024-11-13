@@ -4,6 +4,7 @@
 
 #include "ggl/aws_iot_call.h"
 #include <sys/types.h>
+#include <assert.h>
 #include <errno.h>
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
@@ -18,7 +19,6 @@
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <pthread.h>
-#include <sys/time.h>
 #include <time.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -34,11 +34,16 @@
 typedef struct {
     pthread_mutex_t *mtx;
     pthread_cond_t *cond;
+    bool ready;
     GglBuffer *client_token;
     GglAlloc *alloc;
     GglObject *result;
     GglError ret;
 } CallbackCtx;
+
+static void cleanup_pthread_cond(pthread_cond_t **cond) {
+    pthread_cond_destroy(*cond);
+}
 
 static GglError get_client_token(GglObject payload, GglBuffer **client_token) {
     *client_token = NULL;
@@ -130,6 +135,7 @@ static void subscription_close_callback(void *ctx, uint32_t handle) {
     CallbackCtx *call_ctx = ctx;
 
     GGL_MTX_SCOPE_GUARD(call_ctx->mtx);
+    call_ctx->ready = true;
     pthread_cond_signal(call_ctx->cond);
 }
 
@@ -152,11 +158,26 @@ GglError ggl_aws_iot_call(
         return ret;
     }
 
+    GglBuffer payload_buf = GGL_BUF(json_encode_mem);
+    ret = ggl_json_encode(payload, &payload_buf);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to encode JSON payload.");
+        return ret;
+    }
+
+    pthread_condattr_t notify_condattr;
+    pthread_condattr_init(&notify_condattr);
+    pthread_condattr_setclock(&notify_condattr, CLOCK_MONOTONIC);
+    pthread_cond_t notify_cond;
+    pthread_cond_init(&notify_cond, &notify_condattr);
+    pthread_condattr_destroy(&notify_condattr);
+    GGL_CLEANUP(cleanup_pthread_cond, &notify_cond);
     pthread_mutex_t notify_mtx = PTHREAD_MUTEX_INITIALIZER;
-    pthread_cond_t notify_cond = PTHREAD_COND_INITIALIZER;
+
     CallbackCtx ctx = {
         .mtx = &notify_mtx,
         .cond = &notify_cond,
+        .ready = false,
         .client_token = NULL,
         .alloc = alloc,
         .result = result,
@@ -181,36 +202,40 @@ GglError ggl_aws_iot_call(
         GGL_LOGE("Response topic subscription failed.");
         return ret;
     }
-    GGL_CLEANUP(cleanup_ggl_client_sub_close, sub_handle);
-
-    GglBuffer payload_buf = GGL_BUF(json_encode_mem);
-    ret = ggl_json_encode(payload, &payload_buf);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to encode JSON payload.");
-        return ret;
-    }
-
-    // Must be unlocked before closing subscription
-    // (else subscription response may be blocked, and close would deadlock)
-    GGL_MTX_SCOPE_GUARD(&notify_mtx);
 
     ret = ggl_aws_iot_mqtt_publish(topic, payload_buf, 1, true);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Response topic subscription failed.");
+        ggl_client_sub_close(sub_handle);
         return ret;
     }
 
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    struct timespec timeout = {
-        .tv_sec = now.tv_sec + IOT_RESPONSE_TIMEOUT_S,
-        .tv_nsec = (typeof(timeout.tv_nsec)) now.tv_usec * 1000,
-    };
+    struct timespec timeout;
+    clock_gettime(CLOCK_MONOTONIC, &timeout);
+    timeout.tv_sec += IOT_RESPONSE_TIMEOUT_S;
 
-    int cont_ret;
-    do {
-        cont_ret = pthread_cond_timedwait(&notify_cond, &notify_mtx, &timeout);
-    } while (cont_ret == EINTR);
+    bool timed_out = false;
+
+    {
+        // Must be unlocked before closing subscription
+        // (else subscription response may be blocked, and close would deadlock)
+        GGL_MTX_SCOPE_GUARD(&notify_mtx);
+
+        while (!ctx.ready) {
+            int cond_ret
+                = pthread_cond_timedwait(&notify_cond, &notify_mtx, &timeout);
+            if ((cond_ret < 0) && (cond_ret != EINTR)) {
+                assert(cond_ret == ETIMEDOUT);
+                GGL_LOGW("Timed out waiting for a response.");
+                timed_out = true;
+                break;
+            }
+        }
+    }
+
+    if (timed_out) {
+        ggl_client_sub_close(sub_handle);
+    }
 
     return ctx.ret;
 }
