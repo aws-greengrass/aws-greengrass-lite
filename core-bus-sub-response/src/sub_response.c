@@ -38,6 +38,12 @@ static GglError sub_response_on_response(
     GglSubResponseCallbackCtx *context = ctx;
 
     GglError err = context->callback(ctx, data);
+
+    if (err == GGL_ERR_RETRY) {
+        // Skip this response
+        return GGL_ERR_OK;
+    }
+
     context->response_error = err;
     // Err to close subscription
     return GGL_ERR_EXPECTED;
