@@ -315,7 +315,7 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
         { GGL_STR("ggcVersion"), GGL_OBJ_BUF(GGL_STR("1.0.0")) },
         { GGL_STR("platform"), GGL_OBJ_BUF(GGL_STR("linux")) },
         { GGL_STR("architecture"), GGL_OBJ_BUF(ARCHITECTURE) },
-        { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("NucleusLite")) },
+        { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("aws_nucleus_lite")) },
         { GGL_STR("thing"), GGL_OBJ_BUF(thing_name) },
         { GGL_STR("sequenceNumber"), sequence },
         { GGL_STR("timestamp"), GGL_OBJ_I64(timestamp) },
