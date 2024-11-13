@@ -106,22 +106,37 @@ static void set_subscription_cleanup(void *ctx, size_t index) {
     subscription_cleanup[index] = *type;
 }
 
-static void cleanup_current_handle(const uint32_t *handle) {
-    if (*handle
-        == atomic_load_explicit(&current_handle, memory_order_acquire)) {
+static void set_current_handle(uint32_t handle) {
+    atomic_store_explicit(&current_handle, handle, memory_order_release);
+}
+
+static uint32_t get_current_handle(void) {
+    return atomic_load_explicit(&current_handle, memory_order_acquire);
+}
+
+static void clear_current_handle(void) {
+    GGL_MTX_SCOPE_GUARD(&current_handle_mtx);
+    atomic_store_explicit(&current_handle, 0, memory_order_release);
+    pthread_cond_broadcast(&current_handle_cond);
+}
+
+static void wait_while_current_handle(uint32_t handle) {
+    if (handle == get_current_handle()) {
         GGL_MTX_SCOPE_GUARD(&current_handle_mtx);
-        atomic_store_explicit(&current_handle, 0, memory_order_release);
-        pthread_cond_broadcast(&current_handle_cond);
+        while (handle == get_current_handle()) {
+            pthread_cond_wait(&current_handle_cond, &current_handle_mtx);
+        }
+    }
+}
+
+static void cleanup_current_handle(const uint32_t *handle) {
+    if (*handle == get_current_handle()) {
+        clear_current_handle();
     }
 }
 
 static void send_err_response(uint32_t handle, GglError error) {
     assert(error != GGL_ERR_OK); // Returning error ok is invalid
-
-    assert(
-        handle == atomic_load_explicit(&current_handle, memory_order_acquire)
-    );
-    GGL_CLEANUP(cleanup_current_handle, handle);
 
     GGL_MTX_SCOPE_GUARD(&encode_array_mtx);
 
@@ -151,9 +166,6 @@ static GglError client_ready(void *ctx, uint32_t handle) {
 
     static pthread_mutex_t client_handler_mtx = PTHREAD_MUTEX_INITIALIZER;
     GGL_MTX_SCOPE_GUARD(&client_handler_mtx);
-
-    atomic_store_explicit(&current_handle, handle, memory_order_release);
-    GGL_CLEANUP(cleanup_current_handle, handle);
 
     static uint8_t payload_array[GGL_COREBUS_MAX_MSG_LEN];
 
@@ -285,15 +297,18 @@ static GglError client_ready(void *ctx, uint32_t handle) {
                 return GGL_ERR_OK;
             }
 
+            set_current_handle(handle);
+
             ret = handler->handler(handler->ctx, params, handle);
+
+            // Handler must either error, or succeed after calling ggl_respond
+            // or ggl_sub_accept. Both of those clear current_handle
+            assert(get_current_handle() == ((ret == GGL_ERR_OK) ? 0 : handle));
+
             if (ret != GGL_ERR_OK) {
                 send_err_response(handle, ret);
+                clear_current_handle();
             }
-
-            // Handler must respond to request
-            assert(
-                atomic_load_explicit(&current_handle, memory_order_acquire) == 0
-            );
 
             return GGL_ERR_OK;
         }
@@ -338,9 +353,7 @@ GglError ggl_listen(
 void ggl_respond(uint32_t handle, GglObject value) {
     GGL_LOGT("Responding to %d.", handle);
 
-    assert(
-        handle == atomic_load_explicit(&current_handle, memory_order_acquire)
-    );
+    assert(handle == get_current_handle());
     GGL_CLEANUP(cleanup_current_handle, handle);
 
     GGL_LOGT("Retrieving request type for %d.", handle);
@@ -384,9 +397,7 @@ void ggl_sub_accept(
 ) {
     GGL_LOGT("Accepting subscription %d.", handle);
 
-    assert(
-        handle == atomic_load_explicit(&current_handle, memory_order_acquire)
-    );
+    assert(handle == get_current_handle());
     GGL_CLEANUP(cleanup_current_handle, handle);
 
     if (on_close != NULL) {
@@ -443,13 +454,7 @@ void ggl_sub_respond(uint32_t handle, GglObject value) {
     assert(type == GGL_CORE_BUS_SUBSCRIBE);
 #endif
 
-    if (handle == atomic_load_explicit(&current_handle, memory_order_acquire)) {
-        GGL_MTX_SCOPE_GUARD(&current_handle_mtx);
-        while (handle
-               == atomic_load_explicit(&current_handle, memory_order_acquire)) {
-            pthread_cond_wait(&current_handle_cond, &current_handle_mtx);
-        }
-    }
+    wait_while_current_handle(handle);
 
     GGL_CLEANUP_ID(handle_cleanup, cleanup_socket_handle, handle);
 
