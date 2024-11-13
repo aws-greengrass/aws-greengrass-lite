@@ -1832,7 +1832,6 @@ static GglError wait_for_install_status(GglBufVec component_vec) {
             install_comp_name_vec.buf.data
         );
 
-        GglError method_error = GGL_ERR_OK;
         ret = ggl_sub_response(
             GGL_STR("/aws/ggl/gghealthd"),
             GGL_STR("subscribe_to_lifecycle_completion"),
@@ -1840,10 +1839,10 @@ static GglError wait_for_install_status(GglBufVec component_vec) {
                       GGL_OBJ_BUF(install_comp_name_vec.buf) }),
             deployment_status_callback,
             NULL,
-            &method_error,
+            NULL,
             300
         );
-        if ((ret != GGL_ERR_OK) || (method_error != GGL_ERR_OK)) {
+        if (ret != GGL_ERR_OK) {
             return GGL_ERR_FAILURE;
         }
     }
@@ -1861,17 +1860,16 @@ static GglError wait_for_deployment_status(GglMap resolved_components) {
             (int) component->key.len,
             component->key.data
         );
-        GglError method_error = GGL_ERR_OK;
         GglError ret = ggl_sub_response(
             GGL_STR("/aws/ggl/gghealthd"),
             GGL_STR("subscribe_to_lifecycle_completion"),
             GGL_MAP({ GGL_STR("component_name"), GGL_OBJ_BUF(component->key) }),
             deployment_status_callback,
             NULL,
-            &method_error,
+            NULL,
             300
         );
-        if ((ret != GGL_ERR_OK) || (method_error != GGL_ERR_OK)) {
+        if (ret != GGL_ERR_OK) {
             return GGL_ERR_FAILURE;
         }
     }

@@ -15,15 +15,14 @@
 typedef GglError (*GglSubResponseCallback)(void *ctx, GglObject data);
 
 /// Wrapper for core-bus `ggl_subscribe`
-/// Calls a callback function on the first subscription response, then
-/// returns
+/// Calls a callback function on the first subscription response, then returns
 GglError ggl_sub_response(
     GglBuffer interface,
     GglBuffer method,
     GglMap params,
     GglSubResponseCallback callback,
     void *ctx,
-    GglError *method_error,
+    GglError *remote_error,
     int64_t timeout_seconds
 );
 
