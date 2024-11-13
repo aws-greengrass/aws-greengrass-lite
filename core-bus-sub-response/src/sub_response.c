@@ -88,24 +88,24 @@ GglError ggl_sub_response(
     clock_gettime(CLOCK_MONOTONIC, &timeout_abs);
     timeout_abs.tv_sec += timeout_seconds;
 
+    GglError subscribe_error = ggl_subscribe(
+        interface,
+        method,
+        params,
+        sub_response_on_response,
+        sub_response_on_close,
+        &resp_ctx,
+        remote_error,
+        &handle
+    );
+    if (subscribe_error != GGL_ERR_OK) {
+        return subscribe_error;
+    }
+
     bool timed_out = false;
 
     {
         GGL_MTX_SCOPE_GUARD(&mtx);
-
-        GglError subscribe_error = ggl_subscribe(
-            interface,
-            method,
-            params,
-            sub_response_on_response,
-            sub_response_on_close,
-            &resp_ctx,
-            remote_error,
-            &handle
-        );
-        if (subscribe_error != GGL_ERR_OK) {
-            return subscribe_error;
-        }
 
         while (!resp_ctx.ready) {
             int cond_ret = pthread_cond_timedwait(&cond, &mtx, &timeout_abs);
