@@ -47,8 +47,8 @@ check_ubuntu_version() {
 
 # Function to find default package and kit
 find_defaults() {
-    local deb_files=(*.deb)
-    local zip_files=(*.zip)
+    local deb_files=$(find . -maxdepth 1 -type f ! -name '.*' -regex ".*greengrass-lite.*\.deb" -print)
+    local zip_files=$(find . -maxdepth 1 -type f ! -name '.*' -regex ".*connectionKit.*\.zip" -print)
 
     if [[ ${#deb_files[@]} -eq 1 && -f "${deb_files[0]}" ]]; then
         PACKAGE="${deb_files[0]}"
@@ -66,8 +66,10 @@ find_defaults() {
 }
 
 
-# Find default package and kit before parsing arguments
-find_defaults
+# Only find_defaults if neither PACKAGE nor KIT is specified and we're not uninstalling
+if [[ -z "$PACKAGE" && -z "$KIT" && "$UNINSTALL" != true ]]; then
+    find_defaults
+fi
 
 
 # Parse command line arguments
