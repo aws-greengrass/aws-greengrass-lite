@@ -1221,7 +1221,7 @@ static GglError resolve_dependencies(
     }
 
     // Get list of thing groups
-    static uint8_t list_thing_groups_response_buf[1024] = { 0 };
+    static uint8_t list_thing_groups_response_buf[2048] = { 0 };
     GglBuffer list_thing_groups_response
         = GGL_BUF(list_thing_groups_response_buf);
 
@@ -1230,8 +1230,9 @@ static GglError resolve_dependencies(
         return ret;
     }
 
+    // TODO: Add a schema and only parse the fields we need to save memory
     GglObject json_thing_groups_object;
-    uint8_t thing_groups_response_mem[25 * sizeof(GglObject)];
+    uint8_t thing_groups_response_mem[100 * sizeof(GglObject)];
     GglBumpAlloc thing_groups_json_balloc
         = ggl_bump_alloc_init(GGL_BUF(thing_groups_response_mem));
     ret = ggl_json_decode_destructive(
