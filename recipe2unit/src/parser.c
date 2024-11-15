@@ -5,9 +5,12 @@
 #include "ggl/recipe2unit.h"
 #include "unit_file_generator.h"
 #include "validate_args.h"
+#include <fcntl.h>
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
+#include <ggl/cleanup.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/recipe.h>
@@ -15,7 +18,6 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #define MAX_UNIT_FILE_BUF_SIZE 2048
 #define MAX_COMPONENT_FILE_NAME 1024
@@ -49,9 +51,22 @@ static GglError create_unit_file(
         return ret;
     }
 
-    FILE *f = fopen((const char *) file_name_vector.buf.data, "wb");
-    fwrite(response_buffer->data, sizeof(char), response_buffer->len, f);
-    fclose(f);
+    int fd = -1;
+    ret = ggl_file_open(
+        file_name_vector.buf, O_WRONLY | O_CREAT | O_TRUNC, 0644, &fd
+    );
+    GGL_CLEANUP(cleanup_close, fd);
+
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to open/create a unit file");
+        return GGL_ERR_FAILURE;
+    }
+
+    ret = ggl_file_write(fd, *response_buffer);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write to the unit file.");
+        return GGL_ERR_FAILURE;
+    }
     return GGL_ERR_OK;
 }
 

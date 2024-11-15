@@ -2023,22 +2023,6 @@ static void handle_deployment(
                 return;
             }
 
-            // FIXME: Don't only support yaml extensions.
-            static uint8_t recipe_path_buf[PATH_MAX];
-            GglByteVec recipe_path_vec = GGL_BYTE_VEC(recipe_path_buf);
-            ret = ggl_byte_vec_append(&recipe_path_vec, args->root_path);
-            ggl_byte_vec_chain_append(
-                &ret, &recipe_path_vec, GGL_STR("/packages/recipes/")
-            );
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->key);
-            ggl_byte_vec_chain_push(&ret, &recipe_path_vec, '-');
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->val.buf);
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, GGL_STR(".yaml"));
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create recipe path.");
-                return;
-            }
-
             static uint8_t recipe_runner_path_buf[PATH_MAX];
             GglByteVec recipe_runner_path_vec
                 = GGL_BYTE_VEC(recipe_runner_path_buf);
@@ -2517,27 +2501,10 @@ static void handle_deployment(
                 return;
             }
 
-            // FIXME: Don't only support yaml extensions.
-            static uint8_t recipe_path_buf[PATH_MAX];
-            GglByteVec recipe_path_vec = GGL_BYTE_VEC(recipe_path_buf);
-            GglError ret
-                = ggl_byte_vec_append(&recipe_path_vec, args->root_path);
-            ggl_byte_vec_chain_append(
-                &ret, &recipe_path_vec, GGL_STR("/packages/recipes/")
-            );
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->key);
-            ggl_byte_vec_chain_push(&ret, &recipe_path_vec, '-');
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->val.buf);
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, GGL_STR(".yaml"));
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create recipe path.");
-                return;
-            }
-
             static uint8_t recipe_runner_path_buf[PATH_MAX];
             GglByteVec recipe_runner_path_vec
                 = GGL_BYTE_VEC(recipe_runner_path_buf);
-            ret = ggl_byte_vec_append(
+            GglError ret = ggl_byte_vec_append(
                 &recipe_runner_path_vec,
                 ggl_buffer_from_null_term((char *) args->bin_path)
             );
@@ -2598,12 +2565,6 @@ static void handle_deployment(
             memset(&recipe2unit_args, 0, sizeof(Recipe2UnitArgs));
             recipe2unit_args.user = posix_user;
             recipe2unit_args.group = group;
-
-            GGL_LOGI(
-                "Recipe path %.*s",
-                (int) recipe_path_vec.buf.len,
-                recipe_path_vec.buf.data
-            );
 
             recipe2unit_args.component_name = pair->key;
             recipe2unit_args.component_version = pair->val.buf;
