@@ -28,6 +28,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/process.h>
 #include <ggl/recipe.h>
 #include <ggl/recipe2unit.h>
 #include <ggl/semver.h>
@@ -71,24 +72,14 @@ static SigV4Details sigv4_from_tes(
                             .session_token = credentials.session_token };
 }
 
-static GglError merge_dir_to(
-    GglBuffer source, int root_path_fd, GglBuffer subdir
-) {
-    int source_fd;
-    GglError ret = ggl_dir_open(source, O_PATH, false, &source_fd);
+static GglError merge_dir_to(GglBuffer source, char *dir) {
+    char *mkdir[] = { "mkdir", "-p", dir, NULL };
+    GglError ret = ggl_process_call(mkdir);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_CLEANUP(cleanup_close, source_fd);
-
-    int dest_fd;
-    ret = ggl_dir_openat(root_path_fd, subdir, O_RDONLY, true, &dest_fd);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-    GGL_CLEANUP(cleanup_close, dest_fd);
-
-    return ggl_copy_dir(source_fd, dest_fd);
+    char *cp[] = { "cp", "-RP", (char *) source.data, dir, NULL };
+    return ggl_process_call(cp);
 }
 
 static GglError get_thing_name(char **thing_name) {
@@ -1888,9 +1879,7 @@ static void handle_deployment(
     int root_path_fd = args->root_path_fd;
     if (deployment->recipe_directory_path.len != 0) {
         GglError ret = merge_dir_to(
-            deployment->recipe_directory_path,
-            root_path_fd,
-            GGL_STR("/packages/recipes")
+            deployment->recipe_directory_path, "packages/recipes/"
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to copy recipes.");
@@ -1900,9 +1889,7 @@ static void handle_deployment(
 
     if (deployment->artifacts_directory_path.len != 0) {
         GglError ret = merge_dir_to(
-            deployment->artifacts_directory_path,
-            root_path_fd,
-            GGL_STR("/packages/artifacts")
+            deployment->artifacts_directory_path, "packages/artifacts/"
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to copy artifacts.");

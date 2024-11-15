@@ -7,7 +7,9 @@
 #include "ggdeploymentd.h"
 #include "iot_jobs_listener.h"
 #include "sys/stat.h"
+#include "unistd.h"
 #include <sys/types.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
@@ -46,8 +48,14 @@ GglError run_ggdeploymentd(const char *bin_path) {
     int root_path_fd;
     ret = ggl_dir_open(root_path, O_PATH, false, &root_path_fd);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to open root_path.");
+        GGL_LOGE("Failed to open rootPath.");
         return ret;
+    }
+
+    int sys_ret = fchdir(root_path_fd);
+    if (sys_ret != 0) {
+        GGL_LOGE("Failed to enter rootPath: %d.", errno);
+        return GGL_ERR_FAILURE;
     }
 
     GglDeploymentHandlerThreadArgs args = { .root_path_fd = root_path_fd,

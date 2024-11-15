@@ -13,6 +13,7 @@ ggl_init_module(
        ggl-semver
        ggl-yaml
        ggl-zip
+       ggl-process
        ggl-exec
        aws-iot-call
        core-bus-gg-config
