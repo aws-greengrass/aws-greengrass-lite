@@ -2661,7 +2661,8 @@ static void handle_deployment(
                 return;
             }
 
-            // Cloud expects the deployment ID for the config arn in local deployments
+            // Cloud expects the deployment ID for the config arn in local
+            // deployments
             ret = add_arn_list_to_config(
                 component_name->buf, deployment->deployment_id
             );
