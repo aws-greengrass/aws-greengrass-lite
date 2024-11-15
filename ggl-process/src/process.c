@@ -161,3 +161,17 @@ GglError ggl_process_kill(int handle, uint32_t term_timeout) {
 
     return ggl_process_wait(handle, NULL);
 }
+
+GglError ggl_process_call(char *const argv[]) {
+    int handle;
+    GglError ret = ggl_process_spawn(argv, &handle);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    bool exit_status = false;
+    ret = ggl_process_wait(handle, &exit_status);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    return exit_status ? GGL_ERR_OK : GGL_ERR_FAILURE;
+}
