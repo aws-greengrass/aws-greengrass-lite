@@ -1,4 +1,4 @@
-## dev
+## 2024-11-15
 
 Breaking changes:
 
@@ -9,6 +9,29 @@ Breaking changes:
   If config files are available at `/etc/greengrass/config.yaml` or in
   `/etc/greengrass/config.d/`, they will be loaded automatically. The
   `--config-file` and `--config-dir` args let you override these locations.
+
+Known Bugs:
+
+- `ggconfigd` logs error messages if configuration files are not found in
+  /etc/greengrass; these error messages are harmless and can be ignored.
+
+Bug Fixes:
+
+- File permissions for deployment-created files is fixed when running the
+  Greengrass Lite core services and generic components as different users.
+- Greengrass Lite builds when close_range is not available.
+- Fixed warning on newer CMake versions.
+- Fleet status reports include correct device architecture.
+- Greengrass Lite reports runtime field for cloud to identify it as Lite.
+- Issue with copying directories during local deployments on some systems is
+  fixed.
+
+Features:
+
+- MQTT is used without clean session, and unacked messages with QoS1 are resent
+  after disconnects.
+- MQTT topic filters are unsubscribed from when all Greengrass clients
+  subscribed to it close their Greengrass subscriptions for it.
 
 ## 2024-10-22
 
