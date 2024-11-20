@@ -47,8 +47,11 @@ check_ubuntu_version() {
 
 # Function to find default package and kit
 find_defaults() {
-    local deb_files=$(find . -maxdepth 1 -type f ! -name '.*' -regex ".*greengrass-lite.*\.deb" -print)
-    local zip_files=$(find . -maxdepth 1 -type f ! -name '.*' -regex ".*connectionKit.*\.zip" -print)
+    local -a deb_files
+    mapfile -t deb_files < <(find . -maxdepth 1 -type f ! -name '.*' -regex ".*greengrass-lite.*\.deb" -print)
+
+    local -a zip_files
+    mapfile -t zip_files < <(find . -maxdepth 1 -type f ! -name '.*' -regex ".*connectionKit.*\.zip" -print)
 
     if [[ ${#deb_files[@]} -eq 1 && -f "${deb_files[0]}" ]]; then
         PACKAGE="${deb_files[0]}"
@@ -106,7 +109,9 @@ check_existing_installation() {
     if dpkg -s aws-greengrass-lite &> /dev/null; then
         echo "Error: aws-greengrass-lite is already installed."
         echo "If you want to reinstall, please uninstall first using the -u option."
-        exit 1
+        echo "If you want to just upgrade the aws-greengrass-lite package and "
+        echo "keep configuration and components, run:"
+        echo "sudo apt install ./aws-greengrass-lite-x.x.x-Linux.deb"
     fi
 }
 
@@ -251,7 +256,7 @@ install() {
 uninstall() {
     echo "Uninstalling Greengrass Lite..."
 
-    systemctl disable greengrass-lite.service
+    systemctl disable greengrass-lite.ser.github/workflows/build-packages-multi-platform-container-qemu/install-greengrass-lite.shvice
 
     systemctl stop greengrass-lite
 
