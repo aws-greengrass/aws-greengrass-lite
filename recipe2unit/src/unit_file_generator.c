@@ -487,7 +487,7 @@ static GglError manifest_builder(
                         out, GGL_STR("RemainAfterExit=true\n")
                     );
                     ggl_byte_vec_chain_append(
-                        &ret, out, GGL_STR("Type=oneshot\n")
+                        &ret, out, GGL_STR("Type=notify\n")
                     );
                     if (ret != GGL_ERR_OK) {
                         GGL_LOGE("Failed to add unit type information");
