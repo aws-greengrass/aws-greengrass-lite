@@ -13,11 +13,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
-static const GglIpcService *const SERVICE_TABLE[] = {
-    &ggl_ipc_service_pubsub,  &ggl_ipc_service_mqttproxy,
-    &ggl_ipc_service_config,  &ggl_ipc_service_cli,
-    &ggl_ipc_service_private,
-};
+static const GglIpcService *const SERVICE_TABLE[]
+    = { &ggl_ipc_service_pubsub,  &ggl_ipc_service_mqttproxy,
+        &ggl_ipc_service_config,  &ggl_ipc_service_cli,
+        &ggl_ipc_service_private, &ggl_ipc_service_lifecycle };
 
 static const size_t SERVICE_COUNT
     = sizeof(SERVICE_TABLE) / sizeof(SERVICE_TABLE[0]);
