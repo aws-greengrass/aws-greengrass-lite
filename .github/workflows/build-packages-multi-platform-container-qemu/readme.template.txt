@@ -18,7 +18,7 @@ This deb package only works with Ubuntu 24.04., because of library version,
 package constraints! It doesn't matter if this Ubuntu is running on EC2,
 Desktop, Raspberry Pi, Container...
 
-This package has been build from this source revision:
+This package has been built from this source revision:
 {{ VERSION_LINK }}
 
 ###############################################################################
@@ -43,7 +43,7 @@ sudo ./install-greengrass-lite.sh
 ###############################################################################
 
 Add a parameter "-u" to the script. Be careful this will delete /etc/greengrass
-without asking!
+and /var/lib/aws-greengrass-v2!
 
 sudo ./install-greengrass-lite.sh -u
 
