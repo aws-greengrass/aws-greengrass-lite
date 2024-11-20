@@ -78,7 +78,17 @@ static GglError merge_dir_to(GglBuffer source, char *dir) {
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    char *cp[] = { "cp", "-RP", (char *) source.data, dir, NULL };
+
+    // Append /. so that contents get copied, not dir
+    static char source_path[PATH_MAX];
+    GglByteVec source_path_vec = GGL_BYTE_VEC(source_path);
+    ret = ggl_byte_vec_append(&source_path_vec, source);
+    ggl_byte_vec_chain_append(&ret, &source_path_vec, GGL_STR("/.\0"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    char *cp[] = { "cp", "-RP", source_path, dir, NULL };
     return ggl_process_call(cp);
 }
 
