@@ -13,18 +13,22 @@ typedef enum {
     GGL_DEPLOYMENT_IN_PROGRESS,
 } GglDeploymentState;
 
+typedef enum {
+    LOCAL_DEPLOYMENT,
+    THING_GROUP_DEPLOYMENT,
+} GglDeploymentType;
+
 typedef struct {
     GglBuffer deployment_id;
     GglBuffer recipe_directory_path;
     GglBuffer artifacts_directory_path;
     GglBuffer configuration_arn;
     GglBuffer thing_group;
-    // {component_name -> component_version}
-    GglMap root_component_versions_to_add;
-    GglList root_components_to_remove;
-    GglMap component_to_configuration;
     GglDeploymentState state;
-    GglMap cloud_root_components_to_add;
+    // Map of component names to map of component information, in cloud
+    // deployment doc format
+    GglMap components;
+    GglDeploymentType type;
 } GglDeployment;
 
 #endif

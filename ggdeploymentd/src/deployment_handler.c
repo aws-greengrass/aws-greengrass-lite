@@ -1139,8 +1139,6 @@ static GglError resolve_dependencies(
     GglAlloc *alloc,
     GglKVVec *resolved_components_kv_vec
 ) {
-    assert(root_components.len != 0);
-
     GglError ret;
 
     // TODO: Decide on size
@@ -1151,11 +1149,9 @@ static GglError resolve_dependencies(
         = ggl_bump_alloc_init(GGL_BUF(version_requirements_mem));
 
     // Root components from current deployment
-    // TODO: Add current deployment's thing group to components map to config
     GGL_MAP_FOREACH(pair, root_components) {
         if (pair->val.type != GGL_TYPE_MAP) {
-            GGL_LOGE("Incorrect formatting for cloud deployment components "
-                     "field.");
+            GGL_LOGE("Incorrect formatting for deployment components field.");
             return GGL_ERR_INVALID;
         }
 
@@ -1178,8 +1174,10 @@ static GglError resolve_dependencies(
         }
     }
 
+    // FIXME: Delete this key before writing to it once config delete exists.
     // At this point, components_to_resolve should be only a map of root
-    // component names to their version requirements from the deployment.
+    // component names to their version requirements from the deployment. This
+    // may be empty!
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(
             GGL_STR("services"),
@@ -1379,6 +1377,111 @@ static GglError resolve_dependencies(
                             thing_group_name_from_item->buf.data
                         );
                     }
+                }
+            }
+        }
+    }
+
+    // Add local components to components to resolve, if it isn't a local
+    // deployment
+    if (!ggl_buffer_eq(GGL_STR("LOCAL_DEPLOYMENTS"), thing_group_name)) {
+        GglObject local_components_read_value;
+        ret = ggl_gg_config_read(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("DeploymentService"),
+                GGL_STR("thingGroupsToRootComponents"),
+                GGL_STR("LOCAL_DEPLOYMENTS")
+            ),
+            alloc,
+            &local_components_read_value
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGI("No local components found in config, proceeding "
+                     "deployment without needing to add local components.");
+        } else {
+            if (local_components_read_value.type != GGL_TYPE_MAP) {
+                GGL_LOGE("Did not read a map from config while looking up "
+                         "local components.");
+                return GGL_ERR_INVALID;
+            }
+
+            GGL_MAP_FOREACH(
+                root_component_pair, local_components_read_value.map
+            ) {
+                // If component is already in the root component list, it
+                // must be the same version as the one already in the list
+                // or we have a conflict.
+                GglObject *existing_root_component_version;
+                ret = ggl_map_validate(
+                    components_to_resolve.map,
+                    GGL_MAP_SCHEMA(
+                        { root_component_pair->key,
+                          false,
+                          GGL_TYPE_BUF,
+                          &existing_root_component_version },
+                    )
+                );
+                if (ret != GGL_ERR_OK) {
+                    return ret;
+                }
+
+                bool need_to_add_root_component = true;
+
+                if (existing_root_component_version != NULL) {
+                    if (ggl_buffer_eq(
+                            existing_root_component_version->buf,
+                            root_component_pair->val.buf
+                        )) {
+                        need_to_add_root_component = false;
+                    } else {
+                        GGL_LOGE(
+                            "There is a version conflict for component %.*s, "
+                            "where it is already locally deployed as version "
+                            "%.*s and the deployment requests version %.*s.",
+                            (int) root_component_pair->key.len,
+                            root_component_pair->key.data,
+                            (int) root_component_pair->val.buf.len,
+                            root_component_pair->val.buf.data,
+                            (int) existing_root_component_version->buf.len,
+                            existing_root_component_version->buf.data
+                        );
+                        return GGL_ERR_INVALID;
+                    }
+                }
+
+                if (need_to_add_root_component) {
+                    GglBuffer root_component_name_buf;
+                    ret = ggl_buf_clone(
+                        root_component_pair->key,
+                        alloc,
+                        &root_component_name_buf
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        return ret;
+                    }
+
+                    GglBuffer root_component_version_buf;
+                    ret = ggl_buf_clone(
+                        root_component_pair->val.buf,
+                        &version_requirements_balloc.alloc,
+                        &root_component_version_buf
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        return ret;
+                    }
+
+                    ret = ggl_kv_vec_push(
+                        &components_to_resolve,
+                        (GglKV) { root_component_name_buf,
+                                  GGL_OBJ_BUF(root_component_version_buf) }
+                    );
+                    GGL_LOGD(
+                        "Added %.*s to the list of root components to resolve "
+                        "as it has been previously locally deployed.",
+                        (int) root_component_name_buf.len,
+                        root_component_name_buf.data
+                    );
                 }
             }
         }
@@ -1879,488 +1982,377 @@ static void handle_deployment(
         }
     }
 
-    if (deployment->cloud_root_components_to_add.len != 0) {
-        GglKVVec resolved_components_kv_vec = GGL_KV_VEC((GglKV[64]) { 0 });
-        static uint8_t resolve_dependencies_mem[8192] = { 0 };
-        GglBumpAlloc resolve_dependencies_balloc
-            = ggl_bump_alloc_init(GGL_BUF(resolve_dependencies_mem));
-        GglError ret = resolve_dependencies(
-            deployment->cloud_root_components_to_add,
-            deployment->thing_group,
-            args,
-            &resolve_dependencies_balloc.alloc,
-            &resolved_components_kv_vec
+    GglKVVec resolved_components_kv_vec = GGL_KV_VEC((GglKV[64]) { 0 });
+    static uint8_t resolve_dependencies_mem[8192] = { 0 };
+    GglBumpAlloc resolve_dependencies_balloc
+        = ggl_bump_alloc_init(GGL_BUF(resolve_dependencies_mem));
+    GglError ret = resolve_dependencies(
+        deployment->components,
+        deployment->thing_group,
+        args,
+        &resolve_dependencies_balloc.alloc,
+        &resolved_components_kv_vec
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to do dependency resolution for deployment, failing "
+                 "deployment.");
+        return;
+    }
+
+    GglByteVec region = GGL_BYTE_VEC(config.region);
+    ret = get_region(&region);
+    if (ret != GGL_ERR_OK) {
+        return;
+    }
+    CertificateDetails iot_credentials
+        = { .gghttplib_cert_path = config.cert_path,
+            .gghttplib_p_key_path = config.pkey_path,
+            .gghttplib_root_ca_path = config.rootca_path };
+    TesCredentials tes_credentials = { .aws_region = region.buf };
+    ret = get_tes_credentials(&tes_credentials);
+    if (ret != GGL_ERR_OK) {
+        return;
+    }
+
+    int artifact_store_fd = -1;
+    ret = ggl_dir_openat(
+        root_path_fd,
+        GGL_STR("packages/artifacts"),
+        O_PATH,
+        true,
+        &artifact_store_fd
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to open artifact store");
+        return;
+    }
+
+    int artifact_archive_fd = -1;
+    ret = ggl_dir_openat(
+        root_path_fd,
+        GGL_STR("packages/artifacts-unarchived"),
+        O_PATH,
+        true,
+        &artifact_archive_fd
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to open archive store.");
+        return;
+    }
+
+    GglDigest digest_context = ggl_new_digest(&ret);
+    if (ret != GGL_ERR_OK) {
+        return;
+    }
+    GGL_CLEANUP(ggl_free_digest, digest_context);
+
+    static GglBuffer comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
+    GglBufVec updated_comp_name_vec = GGL_BUF_VEC(comp_name_buf);
+
+    GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
+        int component_artifacts_fd = -1;
+        ret = open_component_artifacts_dir(
+            artifact_store_fd, pair->key, pair->val.buf, &component_artifacts_fd
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Failed to do dependency resolution for deployment, failing "
-                "deployment."
-            );
+            GGL_LOGE("Failed to open artifact directory.");
             return;
         }
-
-        GglByteVec region = GGL_BYTE_VEC(config.region);
-        ret = get_region(&region);
-        if (ret != GGL_ERR_OK) {
-            return;
-        }
-        CertificateDetails iot_credentials
-            = { .gghttplib_cert_path = config.cert_path,
-                .gghttplib_p_key_path = config.pkey_path,
-                .gghttplib_root_ca_path = config.rootca_path };
-        TesCredentials tes_credentials = { .aws_region = region.buf };
-        ret = get_tes_credentials(&tes_credentials);
-        if (ret != GGL_ERR_OK) {
-            return;
-        }
-
-        int artifact_store_fd = -1;
-        ret = ggl_dir_openat(
-            root_path_fd,
-            GGL_STR("packages/artifacts"),
-            O_PATH,
-            true,
-            &artifact_store_fd
+        int component_archive_dir_fd = -1;
+        ret = open_component_artifacts_dir(
+            artifact_archive_fd,
+            pair->key,
+            pair->val.buf,
+            &component_archive_dir_fd
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to open artifact store");
+            GGL_LOGE("Failed to open unarchived artifacts directory.");
             return;
         }
-
-        int artifact_archive_fd = -1;
-        ret = ggl_dir_openat(
-            root_path_fd,
-            GGL_STR("packages/artifacts-unarchived"),
-            O_PATH,
-            true,
-            &artifact_archive_fd
+        GglObject recipe_obj;
+        static uint8_t recipe_mem[8192] = { 0 };
+        static uint8_t component_arn_buffer[256];
+        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(recipe_mem));
+        ret = ggl_recipe_get_from_file(
+            args->root_path_fd,
+            pair->key,
+            pair->val.buf,
+            &balloc.alloc,
+            &recipe_obj
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to open archive store.");
+            GGL_LOGE("Failed to validate and decode recipe");
             return;
         }
 
-        GglDigest digest_context = ggl_new_digest(&ret);
+        GglBuffer component_arn = GGL_BUF(component_arn_buffer);
+        GglError arn_ret = ggl_gg_config_read_str(
+            GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("arn")),
+            &component_arn
+        );
+        if (arn_ret != GGL_ERR_OK) {
+            GGL_LOGW("Failed to retrieve arn. Assuming recipe artifacts "
+                     "are found on-disk.");
+        } else {
+            ret = get_recipe_artifacts(
+                component_arn,
+                tes_credentials,
+                iot_credentials,
+                recipe_obj.map,
+                component_artifacts_fd,
+                component_archive_dir_fd,
+                digest_context
+            );
+        }
+
         if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to get artifacts from recipe.");
             return;
         }
-        GGL_CLEANUP(ggl_free_digest, digest_context);
 
-        static GglBuffer comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
-        GglBufVec updated_comp_name_vec = GGL_BUF_VEC(comp_name_buf);
+        static uint8_t recipe_runner_path_buf[PATH_MAX];
+        GglByteVec recipe_runner_path_vec
+            = GGL_BYTE_VEC(recipe_runner_path_buf);
+        ret = ggl_byte_vec_append(
+            &recipe_runner_path_vec,
+            ggl_buffer_from_null_term((char *) args->bin_path)
+        );
+        ggl_byte_vec_chain_append(
+            &ret, &recipe_runner_path_vec, GGL_STR("recipe-runner")
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to create recipe runner path.");
+            return;
+        }
 
-        GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
-            int component_artifacts_fd = -1;
-            ret = open_component_artifacts_dir(
-                artifact_store_fd,
-                pair->key,
-                pair->val.buf,
-                &component_artifacts_fd
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to open artifact directory.");
-                return;
-            }
-            int component_archive_dir_fd = -1;
-            ret = open_component_artifacts_dir(
-                artifact_archive_fd,
-                pair->key,
-                pair->val.buf,
-                &component_archive_dir_fd
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to open unarchived artifacts directory.");
-                return;
-            }
-            GglObject recipe_obj;
-            static uint8_t recipe_mem[8192] = { 0 };
-            static uint8_t component_arn_buffer[256];
-            GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(recipe_mem));
-            ret = ggl_recipe_get_from_file(
-                args->root_path_fd,
-                pair->key,
-                pair->val.buf,
-                &balloc.alloc,
-                &recipe_obj
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to validate and decode recipe");
-                return;
-            }
+        char *thing_name = NULL;
+        ret = get_thing_name(&thing_name);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to get thing name.");
+            return;
+        }
 
-            GglBuffer component_arn = GGL_BUF(component_arn_buffer);
-            GglError arn_ret = ggl_gg_config_read_str(
-                GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("arn")),
-                &component_arn
-            );
-            if (arn_ret != GGL_ERR_OK) {
-                GGL_LOGW("Failed to retrieve arn. Assuming recipe artifacts "
-                         "are found on-disk.");
-            } else {
-                ret = get_recipe_artifacts(
-                    component_arn,
-                    tes_credentials,
-                    iot_credentials,
-                    recipe_obj.map,
-                    component_artifacts_fd,
-                    component_archive_dir_fd,
-                    digest_context
+        char *root_ca_path = NULL;
+        ret = get_root_ca_path(&root_ca_path);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to get rootCaPath.");
+            return;
+        }
+
+        char *posix_user = NULL;
+        ret = get_posix_user(&posix_user);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to get posix_user.");
+            return;
+        }
+        if (strlen(posix_user) < 1) {
+            GGL_LOGE("Run with default posix user is not set.");
+            return;
+        }
+        bool colon_found = false;
+        char *group;
+        for (size_t j = 0; j < strlen(posix_user); j++) {
+            if (posix_user[j] == ':') {
+                posix_user[j] = '\0';
+                colon_found = true;
+                group = &posix_user[j + 1];
+                break;
+            }
+        }
+        if (!colon_found) {
+            group = posix_user;
+        }
+
+        static Recipe2UnitArgs recipe2unit_args;
+        memset(&recipe2unit_args, 0, sizeof(Recipe2UnitArgs));
+        recipe2unit_args.user = posix_user;
+        recipe2unit_args.group = group;
+
+        recipe2unit_args.component_name = pair->key;
+        recipe2unit_args.component_version = pair->val.buf;
+
+        memcpy(
+            recipe2unit_args.recipe_runner_path,
+            recipe_runner_path_vec.buf.data,
+            recipe_runner_path_vec.buf.len
+        );
+        memcpy(
+            recipe2unit_args.root_dir, args->root_path.data, args->root_path.len
+        );
+        recipe2unit_args.root_path_fd = root_path_fd;
+
+        GglObject recipe_buff_obj;
+        GglObject *component_name;
+        static uint8_t big_buffer_for_bump[MAX_RECIPE_BUF_SIZE];
+        GglBumpAlloc bump_alloc
+            = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+
+        GglError err = convert_to_unit(
+            &recipe2unit_args,
+            &bump_alloc.alloc,
+            &recipe_buff_obj,
+            &component_name
+        );
+
+        if (err != GGL_ERR_OK) {
+            return;
+        }
+
+        bool component_updated = true;
+
+        static uint8_t old_component_version_mem[128] = { 0 };
+        GglBuffer old_component_version = GGL_BUF(old_component_version_mem);
+        ret = ggl_gg_config_read_str(
+            GGL_BUF_LIST(
+                GGL_STR("services"), component_name->buf, GGL_STR("version")
+            ),
+            &old_component_version
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGD("Failed to get component version from config, "
+                     "assuming component is new.");
+        } else {
+            if (ggl_buffer_eq(pair->val.buf, old_component_version)) {
+                GGL_LOGD(
+                    "Detected that component %.*s has not changed version.",
+                    (int) pair->key.len,
+                    pair->key.data
                 );
+                component_updated = false;
             }
+        }
+        // TODO: See if there is a better requirement. If a customer has the
+        // same version as before but somehow updated their component
+        // version their component may not get the updates.
 
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to get artifacts from recipe.");
+        ret = ggl_gg_config_write(
+            GGL_BUF_LIST(
+                GGL_STR("services"), component_name->buf, GGL_STR("version")
+            ),
+            pair->val,
+            &(int64_t) { 0 }
+        );
+
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to write component version to ggconfigd.");
+            return;
+        }
+
+        ret = add_arn_list_to_config(
+            component_name->buf, deployment->configuration_arn
+        );
+
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to write configuration arn to ggconfigd.");
+            return;
+        }
+
+        GglObject *intermediate_obj;
+        GglObject *default_config_obj;
+
+        if (ggl_map_get(
+                recipe_buff_obj.map,
+                GGL_STR("ComponentConfiguration"),
+                &intermediate_obj
+            )) {
+            if (intermediate_obj->type != GGL_TYPE_MAP) {
+                GGL_LOGE("ComponentConfiguration is not a map type");
                 return;
             }
-
-            static uint8_t recipe_runner_path_buf[PATH_MAX];
-            GglByteVec recipe_runner_path_vec
-                = GGL_BYTE_VEC(recipe_runner_path_buf);
-            ret = ggl_byte_vec_append(
-                &recipe_runner_path_vec,
-                ggl_buffer_from_null_term((char *) args->bin_path)
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &recipe_runner_path_vec, GGL_STR("recipe-runner")
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create recipe runner path.");
-                return;
-            }
-
-            char *thing_name = NULL;
-            ret = get_thing_name(&thing_name);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to get thing name.");
-                return;
-            }
-
-            char *root_ca_path = NULL;
-            ret = get_root_ca_path(&root_ca_path);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to get rootCaPath.");
-                return;
-            }
-
-            char *posix_user = NULL;
-            ret = get_posix_user(&posix_user);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to get posix_user.");
-                return;
-            }
-            if (strlen(posix_user) < 1) {
-                GGL_LOGE("Run with default posix user is not set.");
-                return;
-            }
-            bool colon_found = false;
-            char *group;
-            for (size_t j = 0; j < strlen(posix_user); j++) {
-                if (posix_user[j] == ':') {
-                    posix_user[j] = '\0';
-                    colon_found = true;
-                    group = &posix_user[j + 1];
-                    break;
-                }
-            }
-            if (!colon_found) {
-                group = posix_user;
-            }
-
-            static Recipe2UnitArgs recipe2unit_args;
-            memset(&recipe2unit_args, 0, sizeof(Recipe2UnitArgs));
-            recipe2unit_args.user = posix_user;
-            recipe2unit_args.group = group;
-
-            recipe2unit_args.component_name = pair->key;
-            recipe2unit_args.component_version = pair->val.buf;
-
-            memcpy(
-                recipe2unit_args.recipe_runner_path,
-                recipe_runner_path_vec.buf.data,
-                recipe_runner_path_vec.buf.len
-            );
-            memcpy(
-                recipe2unit_args.root_dir,
-                args->root_path.data,
-                args->root_path.len
-            );
-            recipe2unit_args.root_path_fd = root_path_fd;
-
-            GglObject recipe_buff_obj;
-            GglObject *component_name;
-            static uint8_t big_buffer_for_bump[MAX_RECIPE_BUF_SIZE];
-            GglBumpAlloc bump_alloc
-                = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
-            GglError err = convert_to_unit(
-                &recipe2unit_args,
-                &bump_alloc.alloc,
-                &recipe_buff_obj,
-                &component_name
-            );
-
-            if (err != GGL_ERR_OK) {
-                return;
-            }
-
-            bool component_updated = true;
-
-            static uint8_t old_component_version_mem[128] = { 0 };
-            GglBuffer old_component_version
-                = GGL_BUF(old_component_version_mem);
-            ret = ggl_gg_config_read_str(
-                GGL_BUF_LIST(
-                    GGL_STR("services"), component_name->buf, GGL_STR("version")
-                ),
-                &old_component_version
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGD("Failed to get component version from config, "
-                         "assuming component is new.");
-            } else {
-                if (ggl_buffer_eq(pair->val.buf, old_component_version)) {
-                    GGL_LOGD(
-                        "Detected that component %.*s has not changed version.",
-                        (int) pair->key.len,
-                        pair->key.data
-                    );
-                    component_updated = false;
-                }
-            }
-            // TODO: See if there is a better requirement. If a customer has the
-            // same version as before but somehow updated their component
-            // version their component may not get the updates.
-
-            ret = ggl_gg_config_write(
-                GGL_BUF_LIST(
-                    GGL_STR("services"), component_name->buf, GGL_STR("version")
-                ),
-                pair->val,
-                &(int64_t) { 0 }
-            );
-
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to write component version to ggconfigd.");
-                return;
-            }
-
-            ret = add_arn_list_to_config(
-                component_name->buf, deployment->configuration_arn
-            );
-
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to write configuration arn to ggconfigd.");
-                return;
-            }
-
-            GglObject *intermediate_obj;
-            GglObject *default_config_obj;
 
             if (ggl_map_get(
-                    recipe_buff_obj.map,
-                    GGL_STR("ComponentConfiguration"),
-                    &intermediate_obj
+                    intermediate_obj->map,
+                    GGL_STR("DefaultConfiguration"),
+                    &default_config_obj
                 )) {
-                if (intermediate_obj->type != GGL_TYPE_MAP) {
-                    GGL_LOGE("ComponentConfiguration is not a map type");
+                ret = ggl_gg_config_write(
+                    GGL_BUF_LIST(
+                        GGL_STR("services"),
+                        component_name->buf,
+                        GGL_STR("configuration")
+                    ),
+                    *default_config_obj,
+                    &(int64_t) { 0 }
+                );
+
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to send default config to ggconfigd.");
                     return;
-                }
-
-                if (ggl_map_get(
-                        intermediate_obj->map,
-                        GGL_STR("DefaultConfiguration"),
-                        &default_config_obj
-                    )) {
-                    ret = ggl_gg_config_write(
-                        GGL_BUF_LIST(
-                            GGL_STR("services"),
-                            component_name->buf,
-                            GGL_STR("configuration")
-                        ),
-                        *default_config_obj,
-                        &(int64_t) { 0 }
-                    );
-
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to send default config to ggconfigd.");
-                        return;
-                    }
-                } else {
-                    GGL_LOGI("DefaultConfiguration not found in the recipe.");
                 }
             } else {
-                GGL_LOGI("ComponentConfiguration not found in the recipe");
+                GGL_LOGI("DefaultConfiguration not found in the recipe.");
             }
-
-            // TODO: add install file processing logic here.
-
-            if (component_updated) {
-                ret = ggl_buf_vec_push(&updated_comp_name_vec, pair->key);
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to add the component name into vector");
-                    return;
-                }
-            }
+        } else {
+            GGL_LOGI("ComponentConfiguration not found in the recipe");
         }
 
-        if (updated_comp_name_vec.buf_list.len != 0) {
-            // collect all component names that have relevant install service
-            // files
-            static GglBuffer install_comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
-            GglBufVec install_comp_name_buf_vec
-                = GGL_BUF_VEC(install_comp_name_buf);
+        // TODO: add install file processing logic here.
 
-            // process all install files first
-            for (size_t i = 0; i < updated_comp_name_vec.buf_list.len; i++) {
-                static uint8_t install_service_file_path_buf[PATH_MAX];
-                GglByteVec install_service_file_path_vec
-                    = GGL_BYTE_VEC(install_service_file_path_buf);
-                ret = ggl_byte_vec_append(
-                    &install_service_file_path_vec, args->root_path
-                );
-                ggl_byte_vec_append(
-                    &install_service_file_path_vec, GGL_STR("/")
-                );
-                ggl_byte_vec_append(
-                    &install_service_file_path_vec, GGL_STR("ggl.")
-                );
-                ggl_byte_vec_chain_append(
-                    &ret,
-                    &install_service_file_path_vec,
-                    updated_comp_name_vec.buf_list.bufs[i]
-                );
-                ggl_byte_vec_chain_append(
-                    &ret,
-                    &install_service_file_path_vec,
-                    GGL_STR(".install.service")
-                );
-                if (ret == GGL_ERR_OK) {
-                    // check if the current component name has relevant install
-                    // service file created
-                    int fd = -1;
-                    ret = ggl_file_open(
-                        install_service_file_path_vec.buf, O_RDONLY, 0, &fd
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGW(
-                            "Component %.*s does not have the relevant install "
-                            "service file",
-                            (int) updated_comp_name_vec.buf_list.bufs[i].len,
-                            updated_comp_name_vec.buf_list.bufs[i].data
-                        );
-                    } else { // relevant install service file exists
-
-                        // add relevant component name into the vector
-                        ret = ggl_buf_vec_push(
-                            &install_comp_name_buf_vec,
-                            updated_comp_name_vec.buf_list.bufs[i]
-                        );
-                        if (ret != GGL_ERR_OK) {
-                            GGL_LOGE("Failed to add the install component name "
-                                     "into vector");
-                            return;
-                        }
-
-                        // run link command
-                        static uint8_t link_command_buf[PATH_MAX];
-                        GglByteVec link_command_vec
-                            = GGL_BYTE_VEC(link_command_buf);
-                        ret = ggl_byte_vec_append(
-                            &link_command_vec, GGL_STR("systemctl link ")
-                        );
-                        ggl_byte_vec_chain_append(
-                            &ret,
-                            &link_command_vec,
-                            install_service_file_path_vec.buf
-                        );
-                        ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
-                        if (ret != GGL_ERR_OK) {
-                            GGL_LOGE("Failed to create systemctl link command."
-                            );
-                            return;
-                        }
-
-                        // NOLINTBEGIN(concurrency-mt-unsafe)
-                        int system_ret
-                            = system((char *) link_command_vec.buf.data);
-                        if (WIFEXITED(system_ret)) {
-                            if (WEXITSTATUS(system_ret) != 0) {
-                                GGL_LOGE("systemctl link failed");
-                                return;
-                            }
-                            GGL_LOGI(
-                                "systemctl link exited with child status %d\n",
-                                WEXITSTATUS(system_ret)
-                            );
-                        } else {
-                            GGL_LOGE("systemctl link did not exit normally");
-                            return;
-                        }
-
-                        // run start command
-                        static uint8_t start_command_buf[PATH_MAX];
-                        GglByteVec start_command_vec
-                            = GGL_BYTE_VEC(start_command_buf);
-                        ret = ggl_byte_vec_append(
-                            &start_command_vec, GGL_STR("systemctl start ")
-                        );
-                        ggl_byte_vec_chain_append(
-                            &ret,
-                            &start_command_vec,
-                            install_service_file_path_vec.buf
-                        );
-                        ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
-                        if (ret != GGL_ERR_OK) {
-                            GGL_LOGE("Failed to create systemctl start command."
-                            );
-                            return;
-                        }
-
-                        system_ret
-                            = system((char *) start_command_vec.buf.data);
-                        // NOLINTEND(concurrency-mt-unsafe)
-                        if (WIFEXITED(system_ret)) {
-                            if (WEXITSTATUS(system_ret) != 0) {
-                                GGL_LOGE("systemctl start failed");
-                                return;
-                            }
-                            GGL_LOGI(
-                                "systemctl start exited with child status %d\n",
-                                WEXITSTATUS(system_ret)
-                            );
-                        } else {
-                            GGL_LOGE("systemctl start did not exit normally");
-                            return;
-                        }
-                    }
-                }
-            }
-
-            // wait for all the install status
-            ret = wait_for_install_status(install_comp_name_buf_vec);
+        if (component_updated) {
+            ret = ggl_buf_vec_push(&updated_comp_name_vec, pair->key);
             if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to add the component name into vector");
                 return;
             }
+        }
+    }
 
-            // process all run or startup files after install only
-            for (size_t i = 0; i < updated_comp_name_vec.buf_list.len; i++) {
-                static uint8_t service_file_path_buf[PATH_MAX];
-                GglByteVec service_file_path_vec
-                    = GGL_BYTE_VEC(service_file_path_buf);
-                ret = ggl_byte_vec_append(
-                    &service_file_path_vec, args->root_path
+    if (updated_comp_name_vec.buf_list.len != 0) {
+        // collect all component names that have relevant install service
+        // files
+        static GglBuffer install_comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
+        GglBufVec install_comp_name_buf_vec
+            = GGL_BUF_VEC(install_comp_name_buf);
+
+        // process all install files first
+        for (size_t i = 0; i < updated_comp_name_vec.buf_list.len; i++) {
+            static uint8_t install_service_file_path_buf[PATH_MAX];
+            GglByteVec install_service_file_path_vec
+                = GGL_BYTE_VEC(install_service_file_path_buf);
+            ret = ggl_byte_vec_append(
+                &install_service_file_path_vec, args->root_path
+            );
+            ggl_byte_vec_append(&install_service_file_path_vec, GGL_STR("/"));
+            ggl_byte_vec_append(
+                &install_service_file_path_vec, GGL_STR("ggl.")
+            );
+            ggl_byte_vec_chain_append(
+                &ret,
+                &install_service_file_path_vec,
+                updated_comp_name_vec.buf_list.bufs[i]
+            );
+            ggl_byte_vec_chain_append(
+                &ret,
+                &install_service_file_path_vec,
+                GGL_STR(".install.service")
+            );
+            if (ret == GGL_ERR_OK) {
+                // check if the current component name has relevant install
+                // service file created
+                int fd = -1;
+                ret = ggl_file_open(
+                    install_service_file_path_vec.buf, O_RDONLY, 0, &fd
                 );
-                ggl_byte_vec_append(&service_file_path_vec, GGL_STR("/"));
-                ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
-                ggl_byte_vec_chain_append(
-                    &ret,
-                    &service_file_path_vec,
-                    updated_comp_name_vec.buf_list.bufs[i]
-                );
-                ggl_byte_vec_chain_append(
-                    &ret, &service_file_path_vec, GGL_STR(".service")
-                );
-                if (ret == GGL_ERR_OK) {
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGW(
+                        "Component %.*s does not have the relevant install "
+                        "service file",
+                        (int) updated_comp_name_vec.buf_list.bufs[i].len,
+                        updated_comp_name_vec.buf_list.bufs[i].data
+                    );
+                } else { // relevant install service file exists
+
+                    // add relevant component name into the vector
+                    ret = ggl_buf_vec_push(
+                        &install_comp_name_buf_vec,
+                        updated_comp_name_vec.buf_list.bufs[i]
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE("Failed to add the install component name "
+                                 "into vector");
+                        return;
+                    }
+
                     // run link command
                     static uint8_t link_command_buf[PATH_MAX];
                     GglByteVec link_command_vec
@@ -2369,7 +2361,9 @@ static void handle_deployment(
                         &link_command_vec, GGL_STR("systemctl link ")
                     );
                     ggl_byte_vec_chain_append(
-                        &ret, &link_command_vec, service_file_path_vec.buf
+                        &ret,
+                        &link_command_vec,
+                        install_service_file_path_vec.buf
                     );
                     ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
                     if (ret != GGL_ERR_OK) {
@@ -2377,11 +2371,11 @@ static void handle_deployment(
                         return;
                     }
 
-                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                    // NOLINTBEGIN(concurrency-mt-unsafe)
                     int system_ret = system((char *) link_command_vec.buf.data);
                     if (WIFEXITED(system_ret)) {
                         if (WEXITSTATUS(system_ret) != 0) {
-                            GGL_LOGE("systemctl link command failed");
+                            GGL_LOGE("systemctl link failed");
                             return;
                         }
                         GGL_LOGI(
@@ -2393,368 +2387,193 @@ static void handle_deployment(
                         return;
                     }
 
-                    // run enable command
-                    static uint8_t enable_command_buf[PATH_MAX];
-                    GglByteVec enable_command_vec
-                        = GGL_BYTE_VEC(enable_command_buf);
+                    // run start command
+                    static uint8_t start_command_buf[PATH_MAX];
+                    GglByteVec start_command_vec
+                        = GGL_BYTE_VEC(start_command_buf);
                     ret = ggl_byte_vec_append(
-                        &enable_command_vec, GGL_STR("systemctl enable ")
+                        &start_command_vec, GGL_STR("systemctl start ")
                     );
                     ggl_byte_vec_chain_append(
-                        &ret, &enable_command_vec, service_file_path_vec.buf
+                        &ret,
+                        &start_command_vec,
+                        install_service_file_path_vec.buf
                     );
-                    ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
+                    ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
                     if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to create systemctl enable command.");
+                        GGL_LOGE("Failed to create systemctl start command.");
                         return;
                     }
 
-                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                    system_ret = system((char *) enable_command_vec.buf.data);
+                    system_ret = system((char *) start_command_vec.buf.data);
+                    // NOLINTEND(concurrency-mt-unsafe)
                     if (WIFEXITED(system_ret)) {
                         if (WEXITSTATUS(system_ret) != 0) {
-                            GGL_LOGE("systemctl enable failed");
+                            GGL_LOGE("systemctl start failed");
                             return;
                         }
                         GGL_LOGI(
-                            "systemctl enable exited with child status "
-                            "%d\n",
+                            "systemctl start exited with child status %d\n",
                             WEXITSTATUS(system_ret)
                         );
                     } else {
-                        GGL_LOGE("systemctl enable did not exit normally");
+                        GGL_LOGE("systemctl start did not exit normally");
                         return;
                     }
                 }
             }
-
-            // run daemon-reload command once all the files are linked
-            static uint8_t reload_command_buf[PATH_MAX];
-            GglByteVec reload_command_vec = GGL_BYTE_VEC(reload_command_buf);
-            ret = ggl_byte_vec_append(
-                &reload_command_vec, GGL_STR("systemctl daemon-reload\0")
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl daemon-reload command.");
-                return;
-            }
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            int system_ret = system((char *) reload_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl daemon-reload failed");
-                    return;
-                }
-                GGL_LOGI(
-                    "systemctl daemon-reload exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
-                );
-            } else {
-                GGL_LOGE("systemctl daemon-reload did not exit normally");
-                return;
-            }
         }
 
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        int system_ret = system("systemctl reset-failed");
-        (void) (system_ret);
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        system_ret = system("systemctl start greengrass-lite.target");
-        (void) (system_ret);
-
-        ret = wait_for_deployment_status(resolved_components_kv_vec.map);
+        // wait for all the install status
+        ret = wait_for_install_status(install_comp_name_buf_vec);
         if (ret != GGL_ERR_OK) {
             return;
         }
 
-        ret = cleanup_stale_versions(resolved_components_kv_vec.map);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Error while cleaning up stale components after deployment."
+        // process all run or startup files after install only
+        for (size_t i = 0; i < updated_comp_name_vec.buf_list.len; i++) {
+            static uint8_t service_file_path_buf[PATH_MAX];
+            GglByteVec service_file_path_vec
+                = GGL_BYTE_VEC(service_file_path_buf);
+            ret = ggl_byte_vec_append(&service_file_path_vec, args->root_path);
+            ggl_byte_vec_append(&service_file_path_vec, GGL_STR("/"));
+            ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
+            ggl_byte_vec_chain_append(
+                &ret,
+                &service_file_path_vec,
+                updated_comp_name_vec.buf_list.bufs[i]
             );
+            ggl_byte_vec_chain_append(
+                &ret, &service_file_path_vec, GGL_STR(".service")
+            );
+            if (ret == GGL_ERR_OK) {
+                // run link command
+                static uint8_t link_command_buf[PATH_MAX];
+                GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
+                ret = ggl_byte_vec_append(
+                    &link_command_vec, GGL_STR("systemctl link ")
+                );
+                ggl_byte_vec_chain_append(
+                    &ret, &link_command_vec, service_file_path_vec.buf
+                );
+                ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create systemctl link command.");
+                    return;
+                }
+
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                int system_ret = system((char *) link_command_vec.buf.data);
+                if (WIFEXITED(system_ret)) {
+                    if (WEXITSTATUS(system_ret) != 0) {
+                        GGL_LOGE("systemctl link command failed");
+                        return;
+                    }
+                    GGL_LOGI(
+                        "systemctl link exited with child status %d\n",
+                        WEXITSTATUS(system_ret)
+                    );
+                } else {
+                    GGL_LOGE("systemctl link did not exit normally");
+                    return;
+                }
+
+                // run enable command
+                static uint8_t enable_command_buf[PATH_MAX];
+                GglByteVec enable_command_vec
+                    = GGL_BYTE_VEC(enable_command_buf);
+                ret = ggl_byte_vec_append(
+                    &enable_command_vec, GGL_STR("systemctl enable ")
+                );
+                ggl_byte_vec_chain_append(
+                    &ret, &enable_command_vec, service_file_path_vec.buf
+                );
+                ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to create systemctl enable command.");
+                    return;
+                }
+
+                // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                system_ret = system((char *) enable_command_vec.buf.data);
+                if (WIFEXITED(system_ret)) {
+                    if (WEXITSTATUS(system_ret) != 0) {
+                        GGL_LOGE("systemctl enable failed");
+                        return;
+                    }
+                    GGL_LOGI(
+                        "systemctl enable exited with child status "
+                        "%d\n",
+                        WEXITSTATUS(system_ret)
+                    );
+                } else {
+                    GGL_LOGE("systemctl enable did not exit normally");
+                    return;
+                }
+            }
         }
 
+        // run daemon-reload command once all the files are linked
+        static uint8_t reload_command_buf[PATH_MAX];
+        GglByteVec reload_command_vec = GGL_BYTE_VEC(reload_command_buf);
+        ret = ggl_byte_vec_append(
+            &reload_command_vec, GGL_STR("systemctl daemon-reload\0")
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to create systemctl daemon-reload command.");
+            return;
+        }
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        int system_ret = system((char *) reload_command_vec.buf.data);
+        if (WIFEXITED(system_ret)) {
+            if (WEXITSTATUS(system_ret) != 0) {
+                GGL_LOGE("systemctl daemon-reload failed");
+                return;
+            }
+            GGL_LOGI(
+                "systemctl daemon-reload exited with child status %d\n",
+                WEXITSTATUS(system_ret)
+            );
+        } else {
+            GGL_LOGE("systemctl daemon-reload did not exit normally");
+            return;
+        }
+    }
+
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    int system_ret = system("systemctl reset-failed");
+    (void) (system_ret);
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    system_ret = system("systemctl start greengrass-lite.target");
+    (void) (system_ret);
+
+    ret = wait_for_deployment_status(resolved_components_kv_vec.map);
+    if (ret != GGL_ERR_OK) {
+        return;
+    }
+
+    GGL_LOGI("Performing cleanup of stale components");
+    ret = cleanup_stale_versions(resolved_components_kv_vec.map);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error while cleaning up stale components after deployment.");
+    }
+
+    GGL_LOGI("Sending fleet status update as deployment processing is finished."
+    );
+    if (deployment->type == LOCAL_DEPLOYMENT) {
+        ret = send_fss_update(GGL_STR("LOCAL_DEPLOYMENT"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Error while reporting fleet status after deployment.");
+        }
+    }
+
+    if (deployment->type == THING_GROUP_DEPLOYMENT) {
         ret = send_fss_update(GGL_STR("THING_GROUP_DEPLOYMENT"));
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Error while reporting fleet status after deployment.");
         }
     }
 
-    if (deployment->root_component_versions_to_add.len != 0) {
-        GGL_MAP_FOREACH(pair, deployment->root_component_versions_to_add) {
-            if (pair->val.type != GGL_TYPE_BUF) {
-                GGL_LOGE("Component version is not a buffer.");
-                return;
-            }
-
-            static uint8_t recipe_runner_path_buf[PATH_MAX];
-            GglByteVec recipe_runner_path_vec
-                = GGL_BYTE_VEC(recipe_runner_path_buf);
-            GglError ret = ggl_byte_vec_append(
-                &recipe_runner_path_vec,
-                ggl_buffer_from_null_term((char *) args->bin_path)
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &recipe_runner_path_vec, GGL_STR("recipe-runner")
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create recipe runner path.");
-                return;
-            }
-
-            char *thing_name = NULL;
-            ret = get_thing_name(&thing_name);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to get thing name.");
-                return;
-            }
-
-            GglByteVec region = GGL_BYTE_VEC(config.region);
-            ret = get_region(&region);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to get region.");
-                return;
-            }
-
-            char *root_ca_path = NULL;
-            ret = get_root_ca_path(&root_ca_path);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to get rootCaPath.");
-                return;
-            }
-
-            char *posix_user = NULL;
-            ret = get_posix_user(&posix_user);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to get posix_user.");
-                return;
-            }
-            if (strlen(posix_user) < 1) {
-                GGL_LOGE("Run with default posix user is not set.");
-                return;
-            }
-            bool colon_found = false;
-            char *group;
-            for (size_t i = 0; i < strlen(posix_user); i++) {
-                if (posix_user[i] == ':') {
-                    posix_user[i] = '\0';
-                    colon_found = true;
-                    group = &posix_user[i + 1];
-                    break;
-                }
-            }
-            if (!colon_found) {
-                group = posix_user;
-            }
-
-            static Recipe2UnitArgs recipe2unit_args;
-            memset(&recipe2unit_args, 0, sizeof(Recipe2UnitArgs));
-            recipe2unit_args.user = posix_user;
-            recipe2unit_args.group = group;
-
-            recipe2unit_args.component_name = pair->key;
-            recipe2unit_args.component_version = pair->val.buf;
-            memcpy(
-                recipe2unit_args.recipe_runner_path,
-                recipe_runner_path_vec.buf.data,
-                recipe_runner_path_vec.buf.len
-            );
-            memcpy(
-                recipe2unit_args.root_dir,
-                args->root_path.data,
-                args->root_path.len
-            );
-            recipe2unit_args.root_path_fd = root_path_fd;
-
-            GglObject recipe_buff_obj;
-            GglObject *component_name;
-            static uint8_t big_buffer_for_bump[MAX_RECIPE_BUF_SIZE];
-            GglBumpAlloc bump_alloc
-                = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
-            GglError err = convert_to_unit(
-                &recipe2unit_args,
-                &bump_alloc.alloc,
-                &recipe_buff_obj,
-                &component_name
-            );
-
-            if (err != GGL_ERR_OK) {
-                return;
-            }
-
-            ret = ggl_gg_config_write(
-                GGL_BUF_LIST(
-                    GGL_STR("services"), component_name->buf, GGL_STR("version")
-                ),
-                pair->val,
-                &(int64_t) { 0 }
-            );
-
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to write component version to ggconfigd.");
-                return;
-            }
-
-            // Cloud expects the deployment ID for the config arn in local
-            // deployments
-            ret = add_arn_list_to_config(
-                component_name->buf, deployment->deployment_id
-            );
-
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to write configuration arn to ggconfigd.");
-                return;
-            }
-
-            GglObject *intermediate_obj;
-            GglObject *default_config_obj;
-
-            if (ggl_map_get(
-                    recipe_buff_obj.map,
-                    GGL_STR("ComponentConfiguration"),
-                    &intermediate_obj
-                )) {
-                if (intermediate_obj->type != GGL_TYPE_MAP) {
-                    GGL_LOGE("ComponentConfiguration is not a map type");
-                    return;
-                }
-
-                if (ggl_map_get(
-                        intermediate_obj->map,
-                        GGL_STR("DefaultConfiguration"),
-                        &default_config_obj
-                    )) {
-                    ret = ggl_gg_config_write(
-                        GGL_BUF_LIST(
-                            GGL_STR("services"),
-                            component_name->buf,
-                            GGL_STR("configuration")
-                        ),
-                        *default_config_obj,
-                        &(int64_t) { 0 }
-                    );
-
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to send default config to ggconfigd.");
-                        return;
-                    }
-                } else {
-                    GGL_LOGI("DefaultConfiguration not found in the recipe.");
-                }
-            } else {
-                GGL_LOGI("ComponentConfiguration not found in the recipe");
-            }
-
-            // TODO: add install file processing logic here.
-
-            static uint8_t service_file_path_buf[PATH_MAX];
-            GglByteVec service_file_path_vec
-                = GGL_BYTE_VEC(service_file_path_buf);
-            ret = ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
-            ggl_byte_vec_chain_append(&ret, &service_file_path_vec, pair->key);
-            ggl_byte_vec_chain_append(
-                &ret, &service_file_path_vec, GGL_STR(".service")
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create service file path.");
-                return;
-            }
-
-            static uint8_t link_command_buf[PATH_MAX];
-            GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
-            ret = ggl_byte_vec_append(
-                &link_command_vec, GGL_STR("systemctl link ")
-            );
-            ggl_byte_vec_chain_append(&ret, &link_command_vec, args->root_path);
-            ggl_byte_vec_chain_push(&ret, &link_command_vec, '/');
-            ggl_byte_vec_chain_append(
-                &ret, &link_command_vec, service_file_path_vec.buf
-            );
-            ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl link command.");
-                return;
-            }
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            int system_ret = system((char *) link_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl link failed");
-                    return;
-                }
-                GGL_LOGI(
-                    "systemctl link exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
-                );
-            } else {
-                GGL_LOGE("systemctl link did not exit normally");
-                return;
-            }
-
-            static uint8_t start_command_buf[PATH_MAX];
-            GglByteVec start_command_vec = GGL_BYTE_VEC(start_command_buf);
-            ret = ggl_byte_vec_append(
-                &start_command_vec, GGL_STR("systemctl start ")
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &start_command_vec, service_file_path_vec.buf
-            );
-            ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl start command.");
-                return;
-            }
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system((char *) start_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl start failed");
-                    return;
-                }
-                GGL_LOGI(
-                    "systemctl start exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
-                );
-            } else {
-                GGL_LOGE("systemctl start did not exit normally");
-                return;
-            }
-
-            static uint8_t enable_command_buf[PATH_MAX];
-            GglByteVec enable_command_vec = GGL_BYTE_VEC(enable_command_buf);
-            ret = ggl_byte_vec_append(
-                &enable_command_vec, GGL_STR("systemctl enable ")
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &enable_command_vec, service_file_path_vec.buf
-            );
-            ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create systemctl enable command.");
-                return;
-            }
-            // NOLINTNEXTLINE(concurrency-mt-unsafe)
-            system_ret = system((char *) enable_command_vec.buf.data);
-            if (WIFEXITED(system_ret)) {
-                if (WEXITSTATUS(system_ret) != 0) {
-                    GGL_LOGE("systemctl enable failed");
-                    return;
-                }
-                GGL_LOGI(
-                    "systemctl enable exited with child status %d\n",
-                    WEXITSTATUS(system_ret)
-                );
-            } else {
-                GGL_LOGE("systemctl enable did not exit normally");
-                return;
-            }
-        }
-        GglError ret = send_fss_update(GGL_STR("LOCAL_DEPLOYMENT"));
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Error while reporting fleet status after deployment.");
-        }
-    }
     *deployment_succeeded = true;
 }
 

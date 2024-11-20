@@ -17,7 +17,9 @@
 /// the queue with the same ID, then replace it if the deployment is in a
 /// replaceable state. Otherwise, do not add the deployment to the queue and
 /// return an error.
-GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id);
+GglError ggl_deployment_enqueue(
+    GglMap deployment_doc, GglByteVec *id, GglDeploymentType type
+);
 
 /// Get the deployment queue for the next deployment.
 ///

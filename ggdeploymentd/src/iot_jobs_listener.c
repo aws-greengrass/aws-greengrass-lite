@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "iot_jobs_listener.h"
+#include "deployment_model.h"
 #include "deployment_queue.h"
 #include <sys/types.h>
 #include <ggl/alloc.h>
@@ -272,8 +273,9 @@ static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
 
     // TODO: backoff algorithm
     int64_t retries = 1;
-    while ((ret
-            = ggl_deployment_enqueue(deployment_doc, &current_deployment_id))
+    while ((ret = ggl_deployment_enqueue(
+                deployment_doc, &current_deployment_id, THING_GROUP_DEPLOYMENT
+            ))
            == GGL_ERR_BUSY) {
         int64_t sleep_for = 1 << MIN(7, retries);
         ggl_sleep(sleep_for);

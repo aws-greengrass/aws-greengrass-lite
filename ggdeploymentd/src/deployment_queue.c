@@ -10,6 +10,7 @@
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -27,6 +28,10 @@
 
 #ifndef DEPLOYMENT_MEM_SIZE
 #define DEPLOYMENT_MEM_SIZE 5000
+#endif
+
+#ifndef MAX_LOCAL_COMPONENTS
+#define MAX_LOCAL_COMPONENTS 64
 #endif
 
 static GglDeployment deployments[DEPLOYMENT_QUEUE_SIZE];
@@ -88,33 +93,12 @@ static GglError deep_copy_deployment(
         return ret;
     }
 
-    obj = GGL_OBJ_MAP(deployment->root_component_versions_to_add);
+    obj = GGL_OBJ_MAP(deployment->components);
     ret = ggl_obj_deep_copy(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    deployment->root_component_versions_to_add = obj.map;
-
-    obj = GGL_OBJ_MAP(deployment->cloud_root_components_to_add);
-    ret = ggl_obj_deep_copy(&obj, alloc);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-    deployment->cloud_root_components_to_add = obj.map;
-
-    obj = GGL_OBJ_LIST(deployment->root_components_to_remove);
-    ret = ggl_obj_deep_copy(&obj, alloc);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-    deployment->root_components_to_remove = obj.list;
-
-    obj = GGL_OBJ_MAP(deployment->component_to_configuration);
-    ret = ggl_obj_deep_copy(&obj, alloc);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-    deployment->component_to_configuration = obj.map;
+    deployment->components = obj.map;
 
     obj = GGL_OBJ_BUF(deployment->configuration_arn);
     ret = ggl_obj_deep_copy(&obj, alloc);
@@ -153,15 +137,19 @@ static void get_slash_and_colon_locations_from_arn(
     }
 }
 
-static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
+static GglError parse_deployment_obj(
+    GglMap args,
+    GglDeployment *doc,
+    GglDeploymentType type,
+    GglAlloc *alloc,
+    GglKVVec *local_components_kv_vec
+) {
     *doc = (GglDeployment) { 0 };
 
     GglObject *recipe_directory_path;
     GglObject *artifacts_directory_path;
     GglObject *root_component_versions_to_add;
-    GglObject *cloud_root_components_to_add;
-    GglObject *root_components_to_remove;
-    GglObject *component_to_configuration;
+    GglObject *cloud_components;
     GglObject *deployment_id;
     GglObject *configuration_arn;
 
@@ -180,18 +168,7 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
               false,
               GGL_TYPE_MAP,
               &root_component_versions_to_add },
-            { GGL_STR("components"),
-              false,
-              GGL_TYPE_MAP,
-              &cloud_root_components_to_add },
-            { GGL_STR("root_components_to_remove"),
-              false,
-              GGL_TYPE_LIST,
-              &root_components_to_remove },
-            { GGL_STR("component_to_configuration"),
-              false,
-              GGL_TYPE_MAP,
-              &component_to_configuration },
+            { GGL_STR("components"), false, GGL_TYPE_MAP, &cloud_components },
             { GGL_STR("deployment_id"), false, GGL_TYPE_BUF, &deployment_id },
             { GGL_STR("configurationArn"),
               false,
@@ -212,24 +189,6 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
         doc->artifacts_directory_path = artifacts_directory_path->buf;
     }
 
-    if (root_component_versions_to_add != NULL) {
-        doc->root_component_versions_to_add
-            = root_component_versions_to_add->map;
-    }
-
-    // TODO: Refactor. This is a cloud deployment doc only field.
-    if (cloud_root_components_to_add != NULL) {
-        doc->cloud_root_components_to_add = cloud_root_components_to_add->map;
-    }
-
-    if (root_components_to_remove != NULL) {
-        doc->root_components_to_remove = root_components_to_remove->list;
-    }
-
-    if (component_to_configuration != NULL) {
-        doc->component_to_configuration = component_to_configuration->map;
-    }
-
     if (deployment_id != NULL) {
         doc->deployment_id = deployment_id->buf;
     } else {
@@ -240,34 +199,224 @@ static GglError parse_deployment_obj(GglMap args, GglDeployment *doc) {
         doc->deployment_id = (GglBuffer) { .data = uuid_mem, .len = 36 };
     }
 
-    if (configuration_arn != NULL) {
-        // Assume that the arn has a version at the end, we want to discard the
-        // version for the arn.
-        size_t last_colon_index = 0;
-        size_t slash_index = 0;
-        get_slash_and_colon_locations_from_arn(
-            configuration_arn, &slash_index, &last_colon_index
-        );
-        doc->configuration_arn
-            = ggl_buffer_substr(configuration_arn->buf, 0, last_colon_index);
-        doc->thing_group = ggl_buffer_substr(
-            configuration_arn->buf, slash_index + 1, last_colon_index
-        );
-    } else {
+    if (type == THING_GROUP_DEPLOYMENT) {
+        if (cloud_components != NULL) {
+            doc->components = cloud_components->map;
+        } else {
+            GGL_LOGW("Deployment is of type thing group deployment but does "
+                     "not have component information.");
+        }
+
+        if (configuration_arn != NULL) {
+            // Assume that the arn has a version at the end, we want to discard
+            // the version for the arn.
+            size_t last_colon_index = 0;
+            size_t slash_index = 0;
+            get_slash_and_colon_locations_from_arn(
+                configuration_arn, &slash_index, &last_colon_index
+            );
+            doc->configuration_arn = ggl_buffer_substr(
+                configuration_arn->buf, 0, last_colon_index
+            );
+            doc->thing_group = ggl_buffer_substr(
+                configuration_arn->buf, slash_index + 1, last_colon_index
+            );
+        }
+    }
+
+    if (type == LOCAL_DEPLOYMENT) {
         doc->thing_group = GGL_STR("LOCAL_DEPLOYMENTS");
+        doc->configuration_arn = doc->deployment_id;
+
+        GglObject local_deployment_root_components_read_value;
+        ret = ggl_gg_config_read(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("DeploymentService"),
+                GGL_STR("thingGroupsToRootComponents"),
+                GGL_STR("LOCAL_DEPLOYMENTS")
+            ),
+            alloc,
+            &local_deployment_root_components_read_value
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGI("No info found in config for root components for local "
+                     "deployments, assuming no components have been deployed "
+                     "locally yet.");
+            // If no components existed in past deployments, then there is
+            // nothing to remove and the list of components for local deployment
+            // is just components to add.
+            GGL_MAP_FOREACH(
+                component_pair, root_component_versions_to_add->map
+            ) {
+                if (component_pair->val.type != GGL_TYPE_BUF) {
+                    GGL_LOGE("Local deployment component version read "
+                             "incorrectly from the deployment doc.");
+                    return GGL_ERR_INVALID;
+                }
+
+                // TODO: Add configurationUpdate and runWith
+                GglKV *new_component_info_mem = GGL_ALLOC(alloc, GglKV);
+                if (new_component_info_mem == NULL) {
+                    GGL_LOGE("No memory when allocating memory while enqueuing "
+                             "local deployment.");
+                    return GGL_ERR_NOMEM;
+                }
+                *new_component_info_mem
+                    = (GglKV) { GGL_STR("version"), component_pair->val };
+                GglMap new_component_info_map
+                    = (GglMap) { .pairs = new_component_info_mem, .len = 1 };
+
+                ret = ggl_kv_vec_push(
+                    local_components_kv_vec,
+                    (GglKV) { component_pair->key,
+                              GGL_OBJ_MAP(new_component_info_map) }
+                );
+                if (ret != GGL_ERR_OK) {
+                    return ret;
+                }
+            }
+
+            doc->components = local_components_kv_vec->map;
+        } else {
+            if (local_deployment_root_components_read_value.type
+                != GGL_TYPE_MAP) {
+                GGL_LOGE("Local deployment component list read incorrectly "
+                         "from the config.");
+                return GGL_ERR_INVALID;
+            }
+            // Pre-populate with all local components that already have been
+            // deployed
+            GGL_MAP_FOREACH(
+                old_component_pair,
+                local_deployment_root_components_read_value.map
+            ) {
+                if (old_component_pair->val.type != GGL_TYPE_BUF) {
+                    GGL_LOGE("Local deployment component version read "
+                             "incorrectly from the config.");
+                    return GGL_ERR_INVALID;
+                }
+
+                GGL_LOGD(
+                    "Found existing local component %.*s as part of local "
+                    "deployments group.",
+                    (int) old_component_pair->key.len,
+                    old_component_pair->key.data
+                );
+
+                GglKV *old_component_info_mem = GGL_ALLOC(alloc, GglKV);
+                if (old_component_info_mem == NULL) {
+                    GGL_LOGE("No memory when allocating memory while enqueuing "
+                             "local deployment.");
+                    return GGL_ERR_NOMEM;
+                }
+                *old_component_info_mem
+                    = (GglKV) { GGL_STR("version"), old_component_pair->val };
+                GglMap old_component_info_map
+                    = (GglMap) { .pairs = old_component_info_mem, .len = 1 };
+
+                ret = ggl_kv_vec_push(
+                    local_components_kv_vec,
+                    (GglKV) { old_component_pair->key,
+                              GGL_OBJ_MAP(old_component_info_map) }
+                );
+                if (ret != GGL_ERR_OK) {
+                    return ret;
+                }
+            }
+
+            // Add the component to add to the existing list of locally deployed
+            // components, or update the version if it already exists.
+            GGL_MAP_FOREACH(
+                component_pair, root_component_versions_to_add->map
+            ) {
+                if (component_pair->val.type != GGL_TYPE_BUF) {
+                    GGL_LOGE("Local deployment component version read "
+                             "incorrectly from the deployment doc.");
+                    return GGL_ERR_INVALID;
+                }
+
+                GglObject *existing_component_data;
+                // TODO: Remove component if it is in the removal list.
+                if (!ggl_map_get(
+                        local_components_kv_vec->map,
+                        component_pair->key,
+                        &existing_component_data
+                    )) {
+                    GGL_LOGD(
+                        "Locally deployed component not previously deployed, "
+                        "adding it to the list of local components."
+                    );
+                    // TODO: Add configurationUpdate and runWith
+                    GglKV *new_component_info_mem = GGL_ALLOC(alloc, GglKV);
+                    if (new_component_info_mem == NULL) {
+                        GGL_LOGE("No memory when allocating memory while "
+                                 "enqueuing local deployment.");
+                        return GGL_ERR_NOMEM;
+                    }
+                    *new_component_info_mem
+                        = (GglKV) { GGL_STR("version"), component_pair->val };
+                    GglMap new_component_info_map = (GglMap
+                    ) { .pairs = new_component_info_mem, .len = 1 };
+
+                    ret = ggl_kv_vec_push(
+                        local_components_kv_vec,
+                        (GglKV) { component_pair->key,
+                                  GGL_OBJ_MAP(new_component_info_map) }
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        return ret;
+                    }
+                } else {
+                    GglKV *new_component_info_mem = GGL_ALLOC(alloc, GglKV);
+                    if (new_component_info_mem == NULL) {
+                        GGL_LOGE("No memory when allocating memory while "
+                                 "enqueuing local deployment.");
+                        return GGL_ERR_NOMEM;
+                    }
+                    *new_component_info_mem
+                        = (GglKV) { GGL_STR("version"), component_pair->val };
+                    GglMap new_component_info_map = (GglMap
+                    ) { .pairs = new_component_info_mem, .len = 1 };
+                    *existing_component_data
+                        = GGL_OBJ_MAP(new_component_info_map);
+                }
+            }
+
+            doc->components = local_components_kv_vec->map;
+        }
     }
 
     return GGL_ERR_OK;
 }
 
-GglError ggl_deployment_enqueue(GglMap deployment_doc, GglByteVec *id) {
+GglError ggl_deployment_enqueue(
+    GglMap deployment_doc, GglByteVec *id, GglDeploymentType type
+) {
     GGL_MTX_SCOPE_GUARD(&queue_mtx);
 
+    // We are reading a map that may contain MAX_LOCAL_COMPONENTS names to
+    // version mappings. This mem is limited to this function call but we deep
+    // copy into static memory later in this function.
+    uint8_t local_deployment_shortlived_balloc_buf
+        [(1 + 2 * MAX_LOCAL_COMPONENTS) * sizeof(GglObject)];
+    GglBumpAlloc shortlived_balloc
+        = ggl_bump_alloc_init(GGL_BUF(local_deployment_shortlived_balloc_buf));
     GglDeployment new = { 0 };
-    GglError ret = parse_deployment_obj(deployment_doc, &new);
+    GglKVVec local_components_kv_vec
+        = GGL_KV_VEC((GglKV[MAX_LOCAL_COMPONENTS]) { 0 });
+    GglError ret = parse_deployment_obj(
+        deployment_doc,
+        &new,
+        type,
+        &shortlived_balloc.alloc,
+        &local_components_kv_vec
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+
+    new.type = type;
 
     if (id != NULL) {
         ret = ggl_byte_vec_append(id, new.deployment_id);

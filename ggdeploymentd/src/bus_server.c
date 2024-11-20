@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "bus_server.h"
+#include "deployment_model.h"
 #include "deployment_queue.h"
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
@@ -22,7 +23,7 @@ static GglError create_local_deployment(
 
     GglByteVec id = GGL_BYTE_VEC((uint8_t[36]) { 0 });
 
-    GglError ret = ggl_deployment_enqueue(params, &id);
+    GglError ret = ggl_deployment_enqueue(params, &id, LOCAL_DEPLOYMENT);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
