@@ -21,6 +21,14 @@ typedef struct {
     int root_path_fd;
 } Recipe2UnitArgs;
 
+/// @brief Convert a given recipe file to
+/// @param[in] args Recipe2Unit arguments
+/// @param[in] alloc allocator interface which is used to create the recipe
+/// object which is then copied to the object pointed to by #recipe_obj.
+/// @param[out] recipe_obj The object containing the recipe in a map format
+/// @param[out] component_name The name of the component as provided by the
+/// recipe
+/// @return GGL_ERR_OK on success. Failure otherwise.
 GglError convert_to_unit(
     Recipe2UnitArgs *args,
     GglAlloc *alloc,

@@ -81,9 +81,6 @@ GglError ggl_file_read_path(GglBuffer path, GglBuffer *content);
 /// Read file contents from path under dirfd
 GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content);
 
-/// Copy directory contents recursively
-GglError ggl_copy_dir(int source_fd, int dest_fd);
-
 static inline void cleanup_closedir(DIR **dirp) {
     if (*dirp != NULL) {
         closedir(*dirp);

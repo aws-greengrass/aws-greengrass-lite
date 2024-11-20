@@ -4,7 +4,6 @@
 
 #include "ggl/file.h"
 #include <sys/types.h>
-#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
@@ -16,7 +15,6 @@
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
-#include <sys/sendfile.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -147,112 +145,6 @@ static GglError ggl_dir_openat_mkdir(
     }
 
     *out = fd;
-    return GGL_ERR_OK;
-}
-
-/// Atomically copy a file (if source/dest on same fs).
-/// `name` must not include `/`.
-/// dest_fd must not be O_PATH.
-static GglError copy_file(const char *name, int source_fd, int dest_fd) {
-    GGL_MTX_SCOPE_GUARD(&path_comp_buf_mtx);
-
-    // For atomic writes, one must write to temp file and use rename which
-    // atomically moves and replaces a file as long as the source and
-    // destination are on the same filesystem.
-
-    // For the same filesystem requirement, we make a temp file in the target
-    // directory.
-    // Prefixing the name with `.~` to make it hidden and clear its a temp file.
-    // TODO: Check for filesystem O_TMPFILE support and use that instead.
-    size_t name_len = strlen(name);
-    if (name_len > NAME_MAX - 2) {
-        return GGL_ERR_NOMEM;
-    }
-    memcpy(path_comp_buf, ".~", 2);
-    memcpy(&path_comp_buf[2], name, name_len);
-    path_comp_buf[name_len + 2] = '\0';
-
-    // Open file in source dir
-    int old_fd = -1;
-    GglError ret
-        = ggl_openat(source_fd, name, O_CLOEXEC | O_RDONLY, 0, &old_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Err %d while opening %s.", errno, name);
-        return GGL_ERR_FAILURE;
-    }
-    GGL_CLEANUP(cleanup_close, old_fd);
-
-    // Open target temp file
-    int new_fd = -1;
-    ret = ggl_openat(
-        dest_fd,
-        path_comp_buf,
-        O_CLOEXEC | O_WRONLY | O_TRUNC | O_CREAT,
-        0755,
-        &new_fd
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Err %d while opening %s.", errno, name);
-        return GGL_ERR_FAILURE;
-    }
-    GGL_CLEANUP_ID(new_fd_cleanup, cleanup_close, new_fd);
-
-    struct stat stat;
-    if (fstat(old_fd, &stat) != 0) {
-        GGL_LOGE("Err %d while calling fstat on %s.", errno, name);
-        return GGL_ERR_FAILURE;
-    }
-
-    // Using copy_file_range does all of the copying in the kernel, and enables
-    // use of file system acceleration like reflinks, which may allow making a
-    // CoW copy without duplicating data.
-    ssize_t copy_ret;
-    do {
-        copy_ret = copy_file_range(
-            old_fd, NULL, new_fd, NULL, (size_t) stat.st_size, 0
-        );
-    } while (copy_ret > 0);
-    if (copy_ret < 0) {
-        GGL_LOGD(
-            "Falling back from copy_file_range to sendfile (err %d).", errno
-        );
-        do {
-            copy_ret = sendfile(new_fd, old_fd, NULL, (size_t) stat.st_size);
-        } while (copy_ret > 0);
-        if (copy_ret < 0) {
-            GGL_LOGE("Err %d while copying %s.", errno, name);
-            return GGL_ERR_FAILURE;
-        }
-    }
-
-    // If we call rename without first calling fsync, the data may not be
-    // flushed, and system interruption could result in a corrupted target file
-    ret = ggl_fsync(new_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Err %d while fsync on %s.", errno, name);
-        return ret;
-    }
-
-    // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
-    new_fd_cleanup = -1;
-    ret = ggl_close(new_fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Err %d while closing %s.", errno, name);
-        return ret;
-    }
-
-    // Perform the rename to the target location
-    int err = renameat(dest_fd, path_comp_buf, dest_fd, name);
-    if (err != 0) {
-        GGL_LOGE("Err %d while moving %s.", errno, name);
-        return GGL_ERR_FAILURE;
-    }
-
-    // If this fails, file has been moved but failed to write inode for the
-    // directory. In this case the file may be overwritten so returning a
-    // failure could be more error-prone for the caller.
-    (void) ggl_fsync(dest_fd);
-
     return GGL_ERR_OK;
 }
 
@@ -503,36 +395,6 @@ GglError ggl_file_open(GglBuffer path, int flags, mode_t mode, int *fd) {
     return ggl_file_openat(base_fd, rel_path, flags, mode, fd);
 }
 
-/// Recursively copy a subdirectory.
-// NOLINTNEXTLINE(misc-no-recursion)
-static GglError copy_dir(const char *name, int source_fd, int dest_fd) {
-    int source_subdir_fd;
-    GglError ret = ggl_openat(
-        source_fd,
-        name,
-        O_CLOEXEC | O_DIRECTORY | O_RDONLY,
-        0,
-        &source_subdir_fd
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Err %d while opening dir: %s", errno, name);
-        return GGL_ERR_FAILURE;
-    }
-    GGL_CLEANUP(cleanup_close, source_subdir_fd);
-
-    int dest_subdir_fd;
-    ret = ggl_dir_openat_mkdir(
-        dest_fd, name, O_CLOEXEC | O_DIRECTORY | O_RDONLY, 0755, &dest_subdir_fd
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Err %d while opening dir: %s", errno, name);
-        return GGL_ERR_FAILURE;
-    }
-    GGL_CLEANUP(cleanup_close, dest_subdir_fd);
-
-    return ggl_copy_dir(source_subdir_fd, dest_subdir_fd);
-}
-
 GglError ggl_file_read_partial(int fd, GglBuffer *buf) {
     ssize_t ret = read(fd, buf->data, buf->len);
     if (ret < 0) {
@@ -687,62 +549,4 @@ GglError ggl_file_read_path(GglBuffer path, GglBuffer *content) {
     }
     GGL_CLEANUP(cleanup_close, base_fd);
     return ggl_file_read_path_at(base_fd, rel_path, content);
-}
-
-// NOLINTNEXTLINE(misc-no-recursion)
-GglError ggl_copy_dir(int source_fd, int dest_fd) {
-    // We need to copy source_fd as fdopendir takes ownership of it
-    int source_fd_copy;
-    GglError ret = copy_dir_fd(source_fd, O_RDONLY, &source_fd_copy);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    DIR *source_dir = fdopendir(source_fd_copy);
-    if (source_dir == NULL) {
-        GGL_LOGE("Failed to open dir.");
-        ggl_close(source_fd_copy);
-        return GGL_ERR_FAILURE;
-    }
-    // Also closes source_fd_copy
-    GGL_CLEANUP(cleanup_closedir, source_dir);
-
-    while (true) {
-        // Directory stream is not shared between threads.
-        // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        struct dirent *entry = readdir(source_dir);
-        if (entry == NULL) {
-            break;
-        }
-
-        if (entry->d_type == DT_DIR) {
-            if (strcmp(entry->d_name, ".") == 0) {
-                continue;
-            }
-            if (strcmp(entry->d_name, "..") == 0) {
-                continue;
-            }
-
-            ret = copy_dir(entry->d_name, source_fd, dest_fd);
-            if (ret != GGL_ERR_OK) {
-                return ret;
-            }
-        } else if (entry->d_type == DT_REG) {
-            ret = copy_file(entry->d_name, source_fd, dest_fd);
-            if (ret != GGL_ERR_OK) {
-                return ret;
-            }
-        } else {
-            GGL_LOGE("Unexpected special file: %s", entry->d_name);
-            return GGL_ERR_INVALID;
-        }
-    }
-
-    // Flush directory entries to disk (Must not be O_PATH)
-    ret = ggl_fsync(dest_fd);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    return GGL_ERR_OK;
 }

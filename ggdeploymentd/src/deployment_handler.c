@@ -28,6 +28,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/process.h>
 #include <ggl/recipe.h>
 #include <ggl/recipe2unit.h>
 #include <ggl/semver.h>
@@ -71,24 +72,14 @@ static SigV4Details sigv4_from_tes(
                             .session_token = credentials.session_token };
 }
 
-static GglError merge_dir_to(
-    GglBuffer source, int root_path_fd, GglBuffer subdir
-) {
-    int source_fd;
-    GglError ret = ggl_dir_open(source, O_PATH, false, &source_fd);
+static GglError merge_dir_to(GglBuffer source, char *dir) {
+    char *mkdir[] = { "mkdir", "-p", dir, NULL };
+    GglError ret = ggl_process_call(mkdir);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    GGL_CLEANUP(cleanup_close, source_fd);
-
-    int dest_fd;
-    ret = ggl_dir_openat(root_path_fd, subdir, O_RDONLY, true, &dest_fd);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-    GGL_CLEANUP(cleanup_close, dest_fd);
-
-    return ggl_copy_dir(source_fd, dest_fd);
+    char *cp[] = { "cp", "-RP", (char *) source.data, dir, NULL };
+    return ggl_process_call(cp);
 }
 
 static GglError get_thing_name(char **thing_name) {
@@ -1221,7 +1212,7 @@ static GglError resolve_dependencies(
     }
 
     // Get list of thing groups
-    static uint8_t list_thing_groups_response_buf[1024] = { 0 };
+    static uint8_t list_thing_groups_response_buf[2048] = { 0 };
     GglBuffer list_thing_groups_response
         = GGL_BUF(list_thing_groups_response_buf);
 
@@ -1230,8 +1221,9 @@ static GglError resolve_dependencies(
         return ret;
     }
 
+    // TODO: Add a schema and only parse the fields we need to save memory
     GglObject json_thing_groups_object;
-    uint8_t thing_groups_response_mem[25 * sizeof(GglObject)];
+    uint8_t thing_groups_response_mem[100 * sizeof(GglObject)];
     GglBumpAlloc thing_groups_json_balloc
         = ggl_bump_alloc_init(GGL_BUF(thing_groups_response_mem));
     ret = ggl_json_decode_destructive(
@@ -1887,9 +1879,7 @@ static void handle_deployment(
     int root_path_fd = args->root_path_fd;
     if (deployment->recipe_directory_path.len != 0) {
         GglError ret = merge_dir_to(
-            deployment->recipe_directory_path,
-            root_path_fd,
-            GGL_STR("/packages/recipes")
+            deployment->recipe_directory_path, "packages/recipes/"
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to copy recipes.");
@@ -1899,9 +1889,7 @@ static void handle_deployment(
 
     if (deployment->artifacts_directory_path.len != 0) {
         GglError ret = merge_dir_to(
-            deployment->artifacts_directory_path,
-            root_path_fd,
-            GGL_STR("/packages/artifacts")
+            deployment->artifacts_directory_path, "packages/artifacts/"
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to copy artifacts.");
@@ -2032,22 +2020,6 @@ static void handle_deployment(
 
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("Failed to get artifacts from recipe.");
-                return;
-            }
-
-            // FIXME: Don't only support yaml extensions.
-            static uint8_t recipe_path_buf[PATH_MAX];
-            GglByteVec recipe_path_vec = GGL_BYTE_VEC(recipe_path_buf);
-            ret = ggl_byte_vec_append(&recipe_path_vec, args->root_path);
-            ggl_byte_vec_chain_append(
-                &ret, &recipe_path_vec, GGL_STR("/packages/recipes/")
-            );
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->key);
-            ggl_byte_vec_chain_push(&ret, &recipe_path_vec, '-');
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->val.buf);
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, GGL_STR(".yaml"));
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create recipe path.");
                 return;
             }
 
@@ -2529,27 +2501,10 @@ static void handle_deployment(
                 return;
             }
 
-            // FIXME: Don't only support yaml extensions.
-            static uint8_t recipe_path_buf[PATH_MAX];
-            GglByteVec recipe_path_vec = GGL_BYTE_VEC(recipe_path_buf);
-            GglError ret
-                = ggl_byte_vec_append(&recipe_path_vec, args->root_path);
-            ggl_byte_vec_chain_append(
-                &ret, &recipe_path_vec, GGL_STR("/packages/recipes/")
-            );
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->key);
-            ggl_byte_vec_chain_push(&ret, &recipe_path_vec, '-');
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, pair->val.buf);
-            ggl_byte_vec_chain_append(&ret, &recipe_path_vec, GGL_STR(".yaml"));
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create recipe path.");
-                return;
-            }
-
             static uint8_t recipe_runner_path_buf[PATH_MAX];
             GglByteVec recipe_runner_path_vec
                 = GGL_BYTE_VEC(recipe_runner_path_buf);
-            ret = ggl_byte_vec_append(
+            GglError ret = ggl_byte_vec_append(
                 &recipe_runner_path_vec,
                 ggl_buffer_from_null_term((char *) args->bin_path)
             );
@@ -2611,12 +2566,6 @@ static void handle_deployment(
             recipe2unit_args.user = posix_user;
             recipe2unit_args.group = group;
 
-            GGL_LOGI(
-                "Recipe path %.*s",
-                (int) recipe_path_vec.buf.len,
-                recipe_path_vec.buf.data
-            );
-
             recipe2unit_args.component_name = pair->key;
             recipe2unit_args.component_version = pair->val.buf;
             memcpy(
@@ -2661,8 +2610,10 @@ static void handle_deployment(
                 return;
             }
 
+            // Cloud expects the deployment ID for the config arn in local
+            // deployments
             ret = add_arn_list_to_config(
-                component_name->buf, deployment->configuration_arn
+                component_name->buf, deployment->deployment_id
             );
 
             if (ret != GGL_ERR_OK) {

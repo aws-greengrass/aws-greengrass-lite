@@ -1,12 +1,12 @@
 
 #include "stale_component.h"
 #include "component_store.h"
-#include <sys/types.h>
 #include <dirent.h>
+#include <errno.h>
+#include <ftw.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
-#include <ggl/exec.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -15,27 +15,91 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
+// Forward declare structure for use in the function below.
+struct stat;
+
+static int unlink_cb(
+    const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf
+) {
+    (void) sb;
+    (void) typeflag;
+    (void) ftwbuf;
+
+    int rv = remove(fpath);
+
+    if (rv) {
+        GGL_LOGW("Failed to remove file %s.", fpath);
+    }
+
+    // Ignore the return code and keep deleting other files.
+    return 0;
+}
+
+static int remove_all_files(char *path) {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    return nftw(path, unlink_cb, 64, FTW_DEPTH | FTW_PHYS);
+}
+
 static GglError delete_component_artifact(
-    GglBuffer component_name, GglBuffer version_number, GglByteVec *root_path
+    GglBuffer component_name,
+    GglBuffer version_number,
+    GglByteVec *root_path,
+    bool delete_all_versions
 ) {
     const size_t INDEX_BEFORE_ADDITION = root_path->buf.len;
+
+    // Delete artifacts.
     GglError err
         = ggl_byte_vec_append(root_path, GGL_STR("/packages/artifacts/"));
     ggl_byte_vec_chain_append(&err, root_path, component_name);
-    ggl_byte_vec_chain_append(&err, root_path, GGL_STR("/"));
-    ggl_byte_vec_chain_append(&err, root_path, version_number);
-    ggl_byte_vec_chain_append(&err, root_path, GGL_STR("\0"));
+
+    if (delete_all_versions == false) {
+        ggl_byte_vec_chain_append(&err, root_path, GGL_STR("/"));
+        ggl_byte_vec_chain_append(&err, root_path, version_number);
+        ggl_byte_vec_chain_append(&err, root_path, GGL_STR("\0"));
+    } else {
+        ggl_byte_vec_chain_append(&err, root_path, GGL_STR("\0"));
+    }
 
     if (err != GGL_ERR_OK) {
         GGL_LOGE("Failed to create a delete-artifact path string.");
         return err;
     }
 
-    char *exec_args[] = { "rm", "-rf", (char *) root_path->buf.data, NULL };
-    pid_t exec_pid = -1;
-    err = exec_command_with_child_wait(exec_args, &exec_pid);
+    (void) remove_all_files((char *) root_path->buf.data);
+
+    // We should reset the index regardless of the error code in case caller
+    // does not exit.
+    root_path->buf.len = INDEX_BEFORE_ADDITION;
+    memset(
+        &(root_path->buf.data[INDEX_BEFORE_ADDITION]),
+        0,
+        root_path->capacity - INDEX_BEFORE_ADDITION
+    );
+
+    // Delete unarchived artifacts.
+    err = ggl_byte_vec_append(
+        root_path, GGL_STR("/packages/artifacts-unarchived/")
+    );
+    ggl_byte_vec_chain_append(&err, root_path, component_name);
+
+    if (delete_all_versions == false) {
+        ggl_byte_vec_chain_append(&err, root_path, GGL_STR("/"));
+        ggl_byte_vec_chain_append(&err, root_path, version_number);
+        ggl_byte_vec_chain_append(&err, root_path, GGL_STR("\0"));
+    } else {
+        ggl_byte_vec_chain_append(&err, root_path, GGL_STR("\0"));
+    }
+
+    if (err != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create a delete-artifact path string.");
+        return err;
+    }
+
+    (void) remove_all_files((char *) root_path->buf.data);
 
     // We should reset the index regardless of the error code in case caller
     // does not exit.
@@ -58,18 +122,45 @@ static GglError delete_component_recipe(
     ggl_byte_vec_chain_append(&err, root_path, component_name);
     ggl_byte_vec_chain_append(&err, root_path, GGL_STR("-"));
     ggl_byte_vec_chain_append(&err, root_path, version_number);
-    // FIXME: Don't only support yaml extensions.
-    ggl_byte_vec_chain_append(&err, root_path, GGL_STR(".yaml\0"));
 
-    if (err != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create a delete-recipe path string.");
-        return err;
+    // Store index so that we can restore the vector to this state.
+    const size_t INDEX_BEFORE_FILE_EXTENTION = root_path->buf.len;
+    const char *extentions[] = { ".json\0", ".yaml\0", ".yml\0" };
+
+    for (size_t i = 0; i < (sizeof(extentions) / sizeof(char *)); i++) {
+        GglBuffer buf = { .data = (uint8_t *) extentions[i],
+                          .len = strlen(extentions[i]) };
+        ggl_byte_vec_chain_append(&err, root_path, buf);
+
+        if (err != GGL_ERR_OK) {
+            GGL_LOGE("Failed to create a delete-recipe path string.");
+            break;
+        }
+
+        int status = remove((char *) root_path->buf.data);
+
+        if (status == EACCES) {
+            GGL_LOGW(
+                "Failed to delete the file %s. Permission denied.",
+                root_path->buf.data
+            );
+        } else if (status == EPERM) {
+            GGL_LOGW(
+                "Failed to delete the file %s. It is a directory.",
+                root_path->buf.data
+            );
+        } else {
+            // Do nothing. The absence of file is okay.
+        }
+
+        // Restore vector state with only the component name added.
+        root_path->buf.len = INDEX_BEFORE_FILE_EXTENTION;
+        memset(
+            &root_path->buf.data[INDEX_BEFORE_FILE_EXTENTION],
+            0,
+            root_path->capacity - INDEX_BEFORE_FILE_EXTENTION
+        );
     }
-
-    char *exec_args[] = { "rm", "-f", (char *) root_path->buf.data, NULL };
-    pid_t exec_pid = -1;
-    err = exec_command_with_child_wait(exec_args, &exec_pid);
-
     // We should reset the index regardless of the error code in case caller
     // does not exit.
     root_path->buf.len = INDEX_BEFORE_ADDITION;
@@ -83,7 +174,7 @@ static GglError delete_component_recipe(
 }
 
 static GglError delete_component(
-    GglBuffer component_name, GglBuffer version_number
+    GglBuffer component_name, GglBuffer version_number, bool delete_all_versions
 ) {
     GGL_LOGD(
         "Removing component %.*s with version %.*s as it is marked as stale",
@@ -104,12 +195,19 @@ static GglError delete_component(
         return ret;
     }
 
+    // Remove the trailing slash.
+    if ((root_path_buffer.len != 0)
+        && (root_path_buffer.data[root_path_buffer.len - 1] == '/')) {
+        root_path_buffer.len--;
+    }
+
     GglByteVec root_path = { .buf = { .data = root_path_buffer.data,
                                       .len = root_path_buffer.len },
                              .capacity = sizeof(root_path_mem) };
 
-    GglError err
-        = delete_component_artifact(component_name, version_number, &root_path);
+    GglError err = delete_component_artifact(
+        component_name, version_number, &root_path, delete_all_versions
+    );
 
     if (err != GGL_ERR_OK) {
         return err;
@@ -168,13 +266,20 @@ static GglError delete_recipe_script_and_service_files(GglBuffer *component_name
             return ret;
         }
 
-        char *exec_args[] = { "rm", "-f", (char *) root_path.buf.data, NULL };
-        pid_t exec_pid = -1;
-        ret = exec_command_with_child_wait(exec_args, &exec_pid);
+        int status = remove((char *) root_path.buf.data);
 
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to execute command to delete script files.");
-            return ret;
+        if (status == EACCES) {
+            GGL_LOGW(
+                "Failed to delete the file %s. Permission denied.",
+                root_path.buf.data
+            );
+        } else if (status == EPERM) {
+            GGL_LOGW(
+                "Failed to delete the file %s. It is a directory.",
+                root_path.buf.data
+            );
+        } else {
+            // Do nothing. The absence of file is okay.
         }
 
         // Restore vector state with only the component name added.
@@ -432,13 +537,12 @@ GglError cleanup_stale_versions(GglMap latest_components_map) {
             // The component name matches but the version number doesn't
             // match. Delete it!
             delete_component(
-                component_name_buffer_iterator, version_buffer_iterator
+                component_name_buffer_iterator, version_buffer_iterator, false
             );
-
         } else {
             // Cannot find this component at all. Delete it!
             delete_component(
-                component_name_buffer_iterator, version_buffer_iterator
+                component_name_buffer_iterator, version_buffer_iterator, true
             );
 
             // Also stop any running service for this component.
