@@ -434,6 +434,37 @@ GglError runner(const RecipeRunnerArgs *args) {
         = ggl_buffer_from_null_term(args->component_version);
     GglBuffer file_path = ggl_buffer_from_null_term(args->file_path);
 
+    int dir_fd;
+    ret = ggl_dir_open(root_path, O_PATH, false, &dir_fd);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to open %.*s.", (int) root_path.len, root_path.data);
+        return ret;
+    }
+    ret = ggl_dir_openat(dir_fd, GGL_STR("work"), O_PATH, false, &dir_fd);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Failed to open %.*s/work.", (int) root_path.len, root_path.data
+        );
+        return ret;
+    }
+    ret = ggl_dir_openat(dir_fd, component_name, O_RDONLY, false, &dir_fd);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Failed to open %.*s/work/%.*s.",
+            (int) root_path.len,
+            root_path.data,
+            (int) component_name.len,
+            component_name.data
+        );
+        return ret;
+    }
+
+    sys_ret = fchdir(dir_fd);
+    if (sys_ret != 0) {
+        GGL_LOGE("Failed to change working directory: %d.", errno);
+        return GGL_ERR_FAILURE;
+    }
+
     int pipe_fds[2];
 
     sys_ret = pipe2(pipe_fds, O_CLOEXEC);
