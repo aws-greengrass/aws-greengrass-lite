@@ -26,8 +26,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define MAX_THING_NAME_LEN 128
-
 #define TOPIC_PREFIX "$aws/things/"
 #define TOPIC_PREFIX_LEN (sizeof(TOPIC_PREFIX) - 1)
 #define TOPIC_SUFFIX "/greengrassv2/health/json"
@@ -102,12 +100,10 @@ static const GglBuffer ARCHITECTURE =
 
 // TODO: Split this function up
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
+GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
     GGL_MTX_SCOPE_GUARD(&mtx);
 
-    GglBuffer thing_name = args->thing_name;
-    GglBuffer trigger = args->trigger;
     bool device_healthy = true;
 
     // get health for each running component
@@ -340,28 +336,4 @@ GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args) {
 
     GGL_LOGI("Published update.");
     return GGL_ERR_OK;
-}
-
-void *ggl_fleet_status_service_thread(void *ctx) {
-    GGL_LOGD("Starting fleet status service thread.");
-
-    while (true) {
-        GglError ret = publish_fleet_status_update(ctx);
-
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to publish fleet status update.");
-        }
-
-        // thread will wait 24 hours before sending another update
-        struct timespec ts;
-        ts.tv_sec = 86400;
-        ts.tv_nsec = 0;
-        int err = nanosleep(&ts, NULL);
-        if (err != 0) {
-            GGL_LOGE("Fleet status service thread failed to sleep, exiting.");
-            break;
-        }
-    }
-
-    return NULL;
 }

@@ -10,13 +10,6 @@
 
 #define MAX_THING_NAME_LEN 128
 
-typedef struct {
-    GglBuffer thing_name;
-    GglBuffer trigger;
-} GglFleetStatusServiceThreadArgs;
-
-GglError publish_fleet_status_update(GglFleetStatusServiceThreadArgs *args);
-
-void *ggl_fleet_status_service_thread(void *ctx);
+GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger);
 
 #endif // GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H
