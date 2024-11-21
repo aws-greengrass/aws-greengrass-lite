@@ -16,14 +16,8 @@ systemctl enable ggl.core.tesd.service
 systemctl enable ggl.core.ggdeploymentd.service
 systemctl enable ggl.core.gg-fleet-statusd.service
 systemctl enable ggl.core.ggpubsubd.service
+systemctl enable ggl.core.gghealthd.service
 systemctl enable ggl.core.ggipcd.service
 systemctl reset-failed
 systemctl daemon-reload
-systemctl start ggl.aws_iot_tes.socket
-systemctl start ggl.aws_iot_mqtt.socket
-systemctl start ggl.gg_config.socket
-systemctl start ggl.gg_health.socket
-systemctl start ggl.gg_fleet_status.socket
-systemctl start ggl.gg_deployment.socket
-systemctl start ggl.gg_pubsub.socket
 systemctl start greengrass-lite.target

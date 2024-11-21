@@ -1,3 +1,10 @@
+[Unit]
+PartOf=greengrass-lite.target
+Before=greengrass-lite.target
+
+[Install]
+WantedBy=greengrass-lite.target
+
 [Socket]
 ListenStream=@COMP_ARG_SOCKETDIR@/@socket@
 FileDescriptorName=@socket@
