@@ -449,7 +449,7 @@ GglError ggl_ipc_listen(const char *socket_name, const char *socket_path) {
                        .len = strlen(socket_name) },
         (GglBuffer) { .data = (uint8_t *) socket_path,
                       .len = strlen(socket_path) },
-        0777,
+        0666,
         &pool,
         client_ready,
         NULL

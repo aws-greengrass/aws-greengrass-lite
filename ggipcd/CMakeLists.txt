@@ -17,4 +17,6 @@ ggl_init_module(
        SOCKETS
        gg-ipc.socket
        SOCKETDIR
-       /var/lib/greengrass)
+       /var/lib/greengrass
+       SOCKETMODE
+       0666)

@@ -5,7 +5,7 @@ Service=ggl.core.@name@.service
 SocketUser=@GGL_SYSTEMD_SYSTEM_USER@
 SocketGroup=@GGL_SYSTEMD_SYSTEM_GROUP@
 Backlog=10
-SocketMode=0660
+SocketMode=@COMP_ARG_SOCKETMODE@
 
 [Install]
 WantedBy=sockets.target

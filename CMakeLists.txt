@@ -281,13 +281,17 @@ check_c_source_compiles(
 
 # Common setup for a GGL module
 function(ggl_init_module name)
-  cmake_parse_arguments(PARSE_ARGV 1 COMP_ARG "" "SRCDIR;SOCKETDIR"
+  # TODO: special-case the socket permissions and directory for ggipcd
+  cmake_parse_arguments(PARSE_ARGV 1 COMP_ARG "" "SRCDIR;SOCKETDIR;SOCKETMODE"
                         "INCDIRS;LIBS;SOCKETS")
   if("${COMP_ARG_SRCDIR}" STREQUAL "")
     set(COMP_ARG_SRCDIR src)
   endif()
   if("${COMP_ARG_SOCKETDIR}" STREQUAL "")
     set(COMP_ARG_SOCKETDIR /run/greengrass)
+  endif()
+  if("${COMP_ARG_SOCKETMODE}" STREQUAL "")
+    set(COMP_ARG_SOCKETMODE 0660)
   endif()
   if("${COMP_ARG_INCDIRS}" STREQUAL "")
     set(COMP_ARG_INCDIRS include)
