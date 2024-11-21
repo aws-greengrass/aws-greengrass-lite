@@ -4,6 +4,8 @@ StartLimitBurst=10
 Description=core-bus IoT credential provider
 PartOf=greengrass-lite.target
 
+[Install]
+WantedBy=greengrass-lite.target
 
 [Service]
 Type=exec
