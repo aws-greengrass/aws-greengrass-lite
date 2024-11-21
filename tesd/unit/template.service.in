@@ -22,6 +22,6 @@ WorkingDirectory=/var/lib/greengrass
 WantedBy=multi-user.target
 
 [Unit]
-After=ggl.core.ggconfigd.target
-After=ggl.core.iotcored.target
+After=ggl.core.ggconfigd.service
+After=ggl.core.iotcored.service
 After=network.target
