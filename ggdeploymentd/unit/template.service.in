@@ -15,9 +15,7 @@ User=root
 Group=@GGL_SYSTEMD_SYSTEM_GROUP@
 # Disallow from having overly-permissive capabilities
 CapabilityBoundingSet=~CAP_SYS_PTRACE
-# Working directory in StateDirectory (/var/lib/greengrass)
-StateDirectory=greengrass
-WorkingDirectory=%S/greengrass
+WorkingDirectory=/var/lib/greengrass
 
 [Unit]
 Description=Greengrass Lite deployment queue and processor
