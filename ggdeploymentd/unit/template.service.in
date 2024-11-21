@@ -11,7 +11,7 @@ Type=exec
 ExecStart=@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_BINDIR@/@name@
 Restart=always
 RestartSec=1
-User=@GGL_SYSTEMD_SYSTEM_USER@
+User=root
 Group=@GGL_SYSTEMD_SYSTEM_GROUP@
 # Disallow from having overly-permissive capabilities
 CapabilityBoundingSet=~CAP_SYS_PTRACE
