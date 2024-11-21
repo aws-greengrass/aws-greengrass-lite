@@ -1,3 +1,0 @@
-# Allow ggcore to use sudo without a password
-ggcore ALL=(ALL:ALL) NOPASSWD: ALL
-%ggcore ALL=(ALL) NOPASSWD: ALL

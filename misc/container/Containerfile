@@ -15,9 +15,6 @@ COPY ./getty-override.conf \
 RUN groupadd ggc_group && useradd -Ng ggc_group ggc_user
 
 RUN groupadd ggcore && useradd -Ng ggcore ggcore
-COPY ./ggcore \
-  /etc/sudoers.d/ggcore
-RUN chmod 440 /etc/sudoers.d/ggcore
 
 RUN echo "export MAKEFLAGS=-j" >> /root/.profile
 

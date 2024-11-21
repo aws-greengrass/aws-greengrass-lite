@@ -300,7 +300,7 @@ static GglError disable_and_unlink_service(GglBuffer *component_name) {
     GglByteVec command_vec = GGL_BYTE_VEC(command_array);
 
     GglError ret
-        = ggl_byte_vec_append(&command_vec, GGL_STR("sudo systemctl stop "));
+        = ggl_byte_vec_append(&command_vec, GGL_STR("systemctl stop "));
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR("ggl."));
     ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
@@ -329,7 +329,7 @@ static GglError disable_and_unlink_service(GglBuffer *component_name) {
     memset(command_array, 0, sizeof(command_array));
     command_vec.buf.len = 0;
 
-    ret = ggl_byte_vec_append(&command_vec, GGL_STR("sudo systemctl disable "));
+    ret = ggl_byte_vec_append(&command_vec, GGL_STR("systemctl disable "));
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR("ggl."));
     ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
@@ -360,9 +360,7 @@ static GglError disable_and_unlink_service(GglBuffer *component_name) {
     command_vec.buf.len = 0;
 
     // TODO: replace this with a better approach such as 'unlink'.
-    ret = ggl_byte_vec_append(
-        &command_vec, GGL_STR("sudo rm /etc/systemd/system/")
-    );
+    ret = ggl_byte_vec_append(&command_vec, GGL_STR("rm /etc/systemd/system/"));
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR("ggl."));
     ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
@@ -394,7 +392,7 @@ static GglError disable_and_unlink_service(GglBuffer *component_name) {
 
     // TODO: replace this with a better approach such as 'unlink'.
     ret = ggl_byte_vec_append(
-        &command_vec, GGL_STR("sudo rm /usr/lib/systemd/system/")
+        &command_vec, GGL_STR("rm /usr/lib/systemd/system/")
     );
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR("ggl."));
     ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
@@ -428,9 +426,7 @@ static GglError disable_and_unlink_service(GglBuffer *component_name) {
     memset(command_array, 0, sizeof(command_array));
     command_vec.buf.len = 0;
 
-    ret = ggl_byte_vec_append(
-        &command_vec, GGL_STR("sudo systemctl daemon-reload")
-    );
+    ret = ggl_byte_vec_append(&command_vec, GGL_STR("systemctl daemon-reload"));
     ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to create systemctl daemon-reload command.");
@@ -455,9 +451,7 @@ static GglError disable_and_unlink_service(GglBuffer *component_name) {
     memset(command_array, 0, sizeof(command_array));
     command_vec.buf.len = 0;
 
-    ret = ggl_byte_vec_append(
-        &command_vec, GGL_STR("sudo systemctl reset-failed")
-    );
+    ret = ggl_byte_vec_append(&command_vec, GGL_STR("systemctl reset-failed"));
     ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to create systemctl reset-failed command.");
