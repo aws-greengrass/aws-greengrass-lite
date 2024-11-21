@@ -120,10 +120,10 @@ add_cflags(
   -fno-strict-aliasing
   -fvisibility=hidden
   -fno-semantic-interposition
-  -fstrict-flex-arrays=3
   -fstack-protector-strong
   -fno-common)
 
+try_add_cflag(strict-flex-arrays -fstrict-flex-arrays=3)
 try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
 try_add_cflag(stack-clash-protection -fstack-clash-protection)
 try_add_cflag(cf-protection -fcf-protection=full)
