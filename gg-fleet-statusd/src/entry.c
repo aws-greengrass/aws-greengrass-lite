@@ -6,6 +6,7 @@
 #include "gg_fleet_statusd.h"
 #include <sys/types.h>
 #include <ggl/buffer.h>
+#include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
@@ -18,6 +19,10 @@
 #include <stddef.h>
 #include <stdint.h>
 
+static GglError connection_status_callback(
+    void *ctx, uint32_t handle, GglObject data
+);
+static void connection_status_close_callback(void *ctx, uint32_t handle);
 static void gg_fleet_statusd_start_server(void);
 static void *ggl_fleet_status_service_thread(void *ctx);
 
@@ -43,6 +48,13 @@ GglError run_gg_fleet_statusd(void) {
         GGL_LOGE("Failed to publish fleet status update on launch.");
     }
 
+    ret = ggl_aws_iot_mqtt_connection_status(
+        connection_status_callback, connection_status_close_callback, NULL, NULL
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to subscribe to MQTT connection status.");
+    }
+
     pthread_t ptid_fss;
     pthread_create(&ptid_fss, NULL, &ggl_fleet_status_service_thread, NULL);
     pthread_detach(ptid_fss);
@@ -50,6 +62,35 @@ GglError run_gg_fleet_statusd(void) {
     gg_fleet_statusd_start_server();
 
     return GGL_ERR_FAILURE;
+}
+
+static GglError connection_status_callback(
+    void *ctx, uint32_t handle, GglObject data
+) {
+    (void) ctx;
+    (void) handle;
+
+    bool connected;
+    GglError ret = ggl_aws_iot_mqtt_connection_status_parse(data, &connected);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    if (connected) {
+        ret = publish_fleet_status_update(thing_name, GGL_STR("RECONNECT"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to publish fleet status update.");
+        }
+    }
+
+    return GGL_ERR_OK;
+}
+
+static void connection_status_close_callback(void *ctx, uint32_t handle) {
+    (void) ctx;
+    (void) handle;
+    GGL_LOGE("Lost connection to iotcored.");
+    // TODO: Add reconnects (on another thread or with timer
 }
 
 static void *ggl_fleet_status_service_thread(void *ctx) {
@@ -89,6 +130,7 @@ static GglError send_fleet_status_update(
 
     GglError ret = publish_fleet_status_update(thing_name, trigger->buf);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to publish fleet status update.");
         return ret;
     }
 
