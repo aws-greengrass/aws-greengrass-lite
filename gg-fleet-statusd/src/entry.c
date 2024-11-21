@@ -87,15 +87,7 @@ static GglError send_fleet_status_update(
         return GGL_ERR_INVALID;
     }
 
-    GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &thing_name
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to read thingName from config.");
-        return ret;
-    }
-
-    ret = publish_fleet_status_update(thing_name, trigger->buf);
+    GglError ret = publish_fleet_status_update(thing_name, trigger->buf);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
