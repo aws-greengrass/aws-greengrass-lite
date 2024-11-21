@@ -114,15 +114,14 @@ add_cflags($<$<CONFIG:Debug,RelWithDebInfo>:-ggdb3>)
 
 add_cflags($<$<NOT:$<CONFIG:Debug>>:-fPIE>)
 
-add_cflags(
-  -pthread
-  -std=gnu11
-  -fno-strict-aliasing
-  -fvisibility=hidden
-  -fno-semantic-interposition
-  -fstack-protector-strong
-  -fno-common)
+# Following flags are required
+add_cflags(-pthread -fno-strict-aliasing)
 
+# Following flags are optional
+add_cflags(-std=gnu11 -fvisibility=hidden -fno-semantic-interposition
+           -fno-common)
+
+try_add_cflag(stack-protector-strong -fstack-protector-strong)
 try_add_cflag(strict-flex-arrays -fstrict-flex-arrays=3)
 try_add_cflag(zero-call-used-regs -fzero-call-used-regs=used-gpr)
 try_add_cflag(stack-clash-protection -fstack-clash-protection)
