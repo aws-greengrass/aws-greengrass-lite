@@ -1,21 +1,29 @@
 #!/bin/sh
-trap "exit" INT TERM
-trap "kill 0" EXIT
 
-bin_dir="$(dirname -- "$0")"
-
-"${bin_dir}"/ggconfigd &
-sleep 1
-"${bin_dir}"/gghealthd &
-sleep 1
-"${bin_dir}"/iotcored &
-sleep 1
-"${bin_dir}"/ggpubsubd &
-"${bin_dir}"/tesd &
-"${bin_dir}"/tes-serverd &
-"${bin_dir}"/ggdeploymentd &
-"${bin_dir}"/ggipcd &
-sleep 1
-"${bin_dir}"/gg-fleet-statusd &
-
-wait
+set -e
+systemctl enable greengrass-lite.target
+systemctl enable ggl.aws_iot_tes.socket
+systemctl enable ggl.aws_iot_mqtt.socket
+systemctl enable ggl.gg_config.socket
+systemctl enable ggl.gg_health.socket
+systemctl enable ggl.gg_fleet_status.socket
+systemctl enable ggl.gg_deployment.socket
+systemctl enable ggl.gg_pubsub.socket
+systemctl enable ggl.gg-ipc.socket.socket
+systemctl enable ggl.core.ggconfigd.service
+systemctl enable ggl.core.iotcored.service
+systemctl enable ggl.core.tesd.service
+systemctl enable ggl.core.ggdeploymentd.service
+systemctl enable ggl.core.gg-fleet-statusd.service
+systemctl enable ggl.core.ggpubsubd.service
+systemctl enable ggl.core.ggipcd.service
+systemctl reset-failed
+systemctl daemon-reload
+systemctl start ggl.aws_iot_tes.socket
+systemctl start ggl.aws_iot_mqtt.socket
+systemctl start ggl.gg_config.socket
+systemctl start ggl.gg_health.socket
+systemctl start ggl.gg_fleet_status.socket
+systemctl start ggl.gg_deployment.socket
+systemctl start ggl.gg_pubsub.socket
+systemctl start greengrass-lite.target

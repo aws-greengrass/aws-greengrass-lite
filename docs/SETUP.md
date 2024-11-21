@@ -1,7 +1,7 @@
 # Setting up Greengrass Lite
 
-See the [build guide](INSTALL.md) to compile Greengrass Lite. You do not need to
-install it.
+See the [build guide](INSTALL.md) to compile Greengrass Lite. If running
+locally, it is recommended to use the provided container.
 
 Greengrass Lite executables will be available under `bin` in the build
 directory.
@@ -10,7 +10,7 @@ When run, they may use the current working directory to store state. Use the
 directory you intend to use as the Greengrass root path.
 
 The following examples assume you are using `./build` as the build directory,
-and `./run` as the Greengrass root path.
+and `/var/lib/greengrass` as the Greengrass root path.
 
 ## Configuring Greengrass
 
@@ -43,32 +43,36 @@ Configure the following in your config file
 provided, the user's default group is used. If not running Greengrass as root,
 set this to the user Greengrass is running as.
 
-The following examples assume you have made a copy in `./run/init_config.yml`
-and configured the required fields in it.
+To initialize the config, initial configuration will need to be present either
+as `/etc/greengrass/config.yaml`, and/or in one or more files in
+`/etc/greengrass/config.d/`.
 
-To load the config, you will need to run the config daemon with a flag to load
-your config file:
+The config daemon will initially load `/etc/greengrass/config.yaml` and then
+update the initial configuration with any other config files present in
+`/etc/greengrass/config.d/`
 
 ```sh
-cd ./run
-../build/bin/ggconfigd --config-file ./init_config.yml
+mkdir -p /etc/greengrass
+cp ./init_config.yml /etc/greengrass/config.yaml
 ```
-
-If config files are available at `/etc/greengrass/config.yaml` or in
-`/etc/greengrass/config.d/`, they will be loaded automatically. The
-`--config-file` and `--config-dir` args let you override these locations.
-
-Once it is done loading the config, you can then kill the config daemon.
 
 ## Running the nucleus
 
-To run all the Greengrass Lite core services for testing, enter a working dir
-and run `run_nucleus`:
+To run all the Greengrass Lite core services for testing, run `run_nucleus`.
+This enables and starts the installed services.
 
 ```sh
-cd ./run
-../build/bin/run_nucleus
+./build/bin/run_nucleus
 ```
+
+All core services will be reported under the greengrass-lite target. View their
+statuses with `systemctl status --with-dependencies greengrass-lite.target`
+
+Entire system logs can be viewed with `journalctl -a`. Individual service logs
+can be viewed with `journalctl -a -t <service-name>` (e.g.
+`journalctl -a -t ggdeploymentd` to view deployment logs).
+
+To stop Greengrass Lite run `systemctl stop greengrass-lite.target`
 
 ## Performing a local deployment
 
