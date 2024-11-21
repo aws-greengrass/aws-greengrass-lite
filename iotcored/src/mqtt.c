@@ -15,8 +15,6 @@
 #include <core_mqtt_config.h>
 #include <core_mqtt_serializer.h>
 #include <ggl/backoff.h>
-#include <ggl/bump_alloc.h>
-#include <ggl/core_bus/client.h>
 #include <ggl/object.h>
 #include <pthread.h>
 #include <string.h>
@@ -322,7 +320,6 @@ static GglError establish_connection(void *ctx) {
 }
 
 noreturn static void *mqtt_recv_thread_fn(void *arg) {
-    bool reconnect = false;
     while (true) {
         // Connect to IoT core with backoff between 10ms->10s.
         GglError err
@@ -342,34 +339,7 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
         // Send status update to indicate mqtt (re)connection.
         iotcored_mqtt_status_update_send(GGL_OBJ_BOOL(true));
 
-        // Send a fleet status update on reconnection
-        if (reconnect) {
-            // Resubscribe to all subscriptions.
-            iotcored_re_register_all_subs();
-
-            static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
-            GglMap args = GGL_MAP({ GGL_STR("trigger"),
-                                    GGL_OBJ_BUF(GGL_STR("RECONNECT")) });
-            GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));
-            GglObject result;
-
-            GglError ret = ggl_call(
-                GGL_STR("gg_fleet_status"),
-                GGL_STR("send_fleet_status_update"),
-                args,
-                NULL,
-                &alloc.alloc,
-                &result
-            );
-
-            if (ret != 0) {
-                GGL_LOGE(
-                    "Failed to call send_fleet_status_update on MQTT "
-                    "reconnection: %d.",
-                    ret
-                );
-            }
-        }
+        iotcored_re_register_all_subs();
 
         MQTTStatus_t mqtt_ret;
         MQTTContext_t *ctx = arg;
@@ -386,10 +356,6 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
         iotcored_mqtt_status_update_send(GGL_OBJ_BOOL(false));
 
         GGL_LOGE("Removing all IoT core subscriptions");
-
-        // Set reconnect flag. Future connections will send a fleet status
-        // update
-        reconnect = true;
     }
 }
 
