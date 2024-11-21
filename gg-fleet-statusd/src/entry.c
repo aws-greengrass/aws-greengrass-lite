@@ -28,6 +28,8 @@ static void *ggl_fleet_status_service_thread(void *ctx);
 
 static GglBuffer thing_name = { 0 };
 
+static GglBuffer connection_trigger = GGL_STR("NUCLEUS_LAUNCH");
+
 GglError run_gg_fleet_statusd(void) {
     GGL_LOGI("Started gg-fleet-statusd process.");
 
@@ -40,12 +42,6 @@ GglError run_gg_fleet_statusd(void) {
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to read thingName from config.");
         return ret;
-    }
-
-    // send an update on launch
-    ret = publish_fleet_status_update(thing_name, GGL_STR("NUCLEUS_LAUNCH"));
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to publish fleet status update on launch.");
     }
 
     ret = ggl_aws_iot_mqtt_connection_status(
@@ -77,10 +73,16 @@ static GglError connection_status_callback(
     }
 
     if (connected) {
-        ret = publish_fleet_status_update(thing_name, GGL_STR("RECONNECT"));
+        GGL_LOGD(
+            "Sending %.*s fleet status update.",
+            (int) connection_trigger.len,
+            connection_trigger.data
+        );
+        ret = publish_fleet_status_update(thing_name, connection_trigger);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to publish fleet status update.");
         }
+        connection_trigger = GGL_STR("RECONNECT");
     }
 
     return GGL_ERR_OK;
