@@ -414,17 +414,11 @@ if(BUILD_EXAMPLES)
   add_subdirectory(recipe2unit-test)
   add_subdirectory(ggconfigd-test)
   add_subdirectory(semver-test)
-
-  add_custom_target(
-    run_nucleus ALL
-    COMMAND cp "${CMAKE_SOURCE_DIR}/misc/run_nucleus" "${CMAKE_BINARY_DIR}/bin"
-    COMMENT "Nucleus run script for testing")
 endif()
 
 #
 # CPACK deb package generation
 #
-install(PROGRAMS "misc/run_nucleus" DESTINATION bin)
 
 set(CPACK_GENERATOR DEB)
 
