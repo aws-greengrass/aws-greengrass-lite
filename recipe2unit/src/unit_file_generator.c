@@ -5,6 +5,8 @@
 #include "unit_file_generator.h"
 #include "file_operation.h"
 #include "ggl/recipe2unit.h"
+#include <sys/types.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
@@ -15,7 +17,9 @@
 #include <ggl/object.h>
 #include <ggl/recipe.h>
 #include <ggl/vector.h>
+#include <grp.h>
 #include <limits.h>
+#include <pwd.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -634,22 +638,67 @@ static GglError fill_service_section(
         return ret;
     }
 
-    // TODO: Working directory needs ownership changed
-    // ret = ggl_byte_vec_append(out, GGL_STR("WorkingDirectory="));
-    // ggl_byte_vec_chain_append(&ret, out, working_dir_vec.buf);
-    // ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
-    // if (ret != GGL_ERR_OK) {
-    //     return ret;
-    // }
+    ret = ggl_byte_vec_append(out, GGL_STR("WorkingDirectory="));
+    ggl_byte_vec_chain_append(&ret, out, working_dir_vec.buf);
+    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     // Create the working directory if not existant
     int working_dir;
-    ret = ggl_dir_open(working_dir_vec.buf, O_PATH, true, &working_dir);
+    ret = ggl_dir_open(working_dir_vec.buf, O_RDONLY, true, &working_dir);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to created working directory.");
         return ret;
     }
     GGL_CLEANUP(cleanup_close, working_dir);
+
+    struct passwd user_info_mem;
+    static char user_info_buf[2000];
+    struct passwd *user_info = NULL;
+    int sys_ret = getpwnam_r(
+        args->user,
+        &user_info_mem,
+        user_info_buf,
+        sizeof(user_info_buf),
+        &user_info
+    );
+    if (sys_ret != 0) {
+        GGL_LOGE("Failed to look up user %s: %d.", args->user, sys_ret);
+        return GGL_ERR_FAILURE;
+    }
+    if (user_info == NULL) {
+        GGL_LOGE("No user with name %s.", args->user);
+        return GGL_ERR_FAILURE;
+    }
+    uid_t uid = user_info->pw_uid;
+
+    struct group grp_mem;
+    struct group *grp = NULL;
+    sys_ret = getgrnam_r(
+        args->group, &grp_mem, user_info_buf, sizeof(user_info_buf), &grp
+    );
+    if (sys_ret != 0) {
+        GGL_LOGE("Failed to look up group %s: %d.", args->group, sys_ret);
+        return GGL_ERR_FAILURE;
+    }
+    if (user_info == NULL) {
+        GGL_LOGE("No group with name %s.", args->group);
+        return GGL_ERR_FAILURE;
+    }
+    gid_t gid = grp->gr_gid;
+
+    sys_ret = fchown(working_dir, uid, gid);
+    if (sys_ret != 0) {
+        GGL_LOGE(
+            "Failed to change ownership of %.*s: %d.",
+            (int) working_dir_vec.buf.len,
+            working_dir_vec.buf.data,
+            errno
+        );
+        return GGL_ERR_FAILURE;
+    }
 
     // Add Env Var for GG_root path
     ret = ggl_byte_vec_append(
