@@ -60,7 +60,8 @@ GglError iotcored_register_subscriptions(
         }
     }
 
-    GGL_LOGE("Registering subs.");
+    GGL_LOGD("Registering subscriptions.");
+
     GGL_MTX_SCOPE_GUARD(&mtx);
 
     size_t filter_index = 0;
