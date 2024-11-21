@@ -1,4 +1,4 @@
-# Building AWS Greengrass Lite
+# Installing AWS Greengrass Lite from source
 
 This document details building and installing Greengrass from source.
 
@@ -48,10 +48,41 @@ version. The provided `bootstrap-cmake.sh` script downloads a new cmake version
 into `./build/cmake` and configures the project using that CMake with `./build`
 as the build directory. If you do so, you can skip the configuring step below.
 
+## User/Group
+
+You will need to create the user/group for running the Greengrass Lite nucleus
+services, as well as the user/group for running components by default.
+
+The nucleus service user/group is used by the nucleus systemd services and is
+`ggcore:ggcore` by default. It can be configured using CMake as described later
+in this document.
+
+The rootDir must also be owned by the service user/group.
+
+To create the service user/group:
+
+```sh
+groupadd ggcore
+useradd -Ng ggcore ggcore
+mkdir /var/lib/greengrass
+chown ggcore:ggcore /var/lib/greengrass
+```
+
+The default user/group for components is set in your Greengrass configuration.
+Greengrass will configure components without an explicit user/group to run as
+that user/group. The sample configuration and container use
+`ggc_user:ggc_group`.
+
+```sh
+groupadd ggc_group
+useradd -Ng ggc_group ggc_user
+```
+
 ## (Optional) Using Podman
 
 Instead of installing Greengrass Lite directly on a system, you can use a
-container. The provided container has the build dependencies already provided.
+container. The provided container has the build dependencies and system users
+already provided.
 
 Docker does not fully support running systemd containers, however you can use
 podman. These steps allow you to enter a pre-configured container:
@@ -64,6 +95,13 @@ cd /work/aws-greengrass-lite/
 ```
 
 Inside of the container, you can continue following the rest of the below steps.
+
+To persist the Greengrass Lite runDir, you can bind a host directory to
+`/var/lib/greengrass`:
+
+```sh
+podman run -it -v $PWD/..:/work -v $PWD/run:/var/lib/greengrass --replace --name ggl ggl:latest
+```
 
 ## Building
 
@@ -79,13 +117,12 @@ cmake -B build -D CMAKE_BUILD_TYPE=MinSizeRel
 ```
 
 To set the install directory to a location other than the standard system
-locations, set `CMAKE_INSTALL_PREFIX`. For testing, Greengrass Lite can be run
-from the build directory without installing.
+locations, set `CMAKE_INSTALL_PREFIX`.
 
 For example:
 
 ```sh
-cmake -B build -D CMAKE_INSTALL_PREFIX=/opt/aws-greengrass-lite
+cmake -B build -D CMAKE_INSTALL_PREFIX=/usr/local
 ```
 
 To build then run `make`:
@@ -115,9 +152,18 @@ The following configuration flags may be set with cmake (with `-D`):
   This can be set to `NONE`, `ERROR`, `WARN`, `INFO`, `DEBUG`, or `TRACE` to set
   the logging level.
 
-- `GGL_IPC_AUTH_DISABLE`
+- `GGL_SYSTEMD_SYSTEM_USER`
 
-  Set this flag to 1 to compile in debugging mode for IPC authentication. This
-  will enable you to test components, bypassing auth, by using the desired
-  component name as the SVCUID value. This mode is insecure and is only for
-  testing purposes.
+  The system user to use for Greengrass Lite nucleus services (not components).
+  Must exist on system.
+
+- `GGL_SYSTEMD_SYSTEM_GROUP`
+
+  The system group to use for Greengrass Lite nucleus services (not components).
+  Must exist on system.
+
+- `GGL_SYSTEMD_SYSTEM_DIR`
+
+  The directory to install systemd service files into. Should be set to
+  `/lib/systemd/system` or `/etc/systemd/system` unless you are building it for
+  a package.

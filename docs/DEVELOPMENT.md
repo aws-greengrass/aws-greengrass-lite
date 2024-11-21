@@ -10,6 +10,9 @@ CI as well as run the CI checks locally.
 Use the following Nix installer which enables used features automatically:
 ﻿https://github.com/DeterminateSystems/nix-installer
 
+If using a Nix environment for building, you will need to pass
+`CMAKE_INSTALL_PREFIX` when running CMake.
+
 To run all the project formatters, run `nix fmt` in the project root directory.
 Note that untracked git files will be formatted as well, so if using build
 directories or other files not tracked by git or in gitignore, add them to your

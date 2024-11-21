@@ -1,7 +1,8 @@
 # Setting up Greengrass Lite
 
-See the [build guide](INSTALL.md) to compile Greengrass Lite. If running
-locally, it is recommended to use the provided container.
+See the [build guide](INSTALL.md) to compile and install Greengrass Lite. If
+running locally for evaluation, you can use the provided container to install in
+its own environment.
 
 Greengrass Lite executables will be available under `bin` in the build
 directory.
@@ -58,11 +59,11 @@ cp ./init_config.yml /etc/greengrass/config.yaml
 
 ## Running the nucleus
 
-To run all the Greengrass Lite core services for testing, run `run_nucleus`.
-This enables and starts the installed services.
+To enable and run all the Greengrass Lite core services for testing, run the d
+`run_nucleus` script available in the source directory.
 
 ```sh
-./build/bin/run_nucleus
+./misc/run_nucleus
 ```
 
 All core services will be reported under the greengrass-lite target. View their

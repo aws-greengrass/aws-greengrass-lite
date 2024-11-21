@@ -10,10 +10,10 @@ implements a subset of its functionality.
 
 ## Getting started
 
-See the [build guide](docs/INSTALL.md) for instructions to build Greengrass Lite
-from source.
+See the [build guide](docs/INSTALL.md) for instructions to build and install
+Greengrass Lite from source.
 
-To run Greengrass Lite for evaluation, see the [setup guide](docs/SETUP.md).
+To configure and run Greengrass Lite, see the [setup guide](docs/SETUP.md).
 
 For setting up as a Greengrass developer, also see the
 [developer setup guide](docs/DEVELOPMENT.md).

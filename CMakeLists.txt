@@ -440,8 +440,9 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
 include(CPack)
 
 #
-# uninstall target
+# Uninstall target
 #
+
 if(NOT TARGET uninstall)
   configure_file(
     "${CMAKE_SOURCE_DIR}/misc/cmake_uninstall.cmake.in"
