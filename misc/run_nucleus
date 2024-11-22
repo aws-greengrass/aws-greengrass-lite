@@ -1,6 +1,9 @@
 #!/bin/sh
 
 set -e
+
+systemd-tmpfiles --create
+
 systemctl enable greengrass-lite.target
 systemctl enable ggl.aws_iot_tes.socket
 systemctl enable ggl.aws_iot_mqtt.socket

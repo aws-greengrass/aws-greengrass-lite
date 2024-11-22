@@ -400,6 +400,10 @@ if(GGL_SYSTEMD_SERVICE_BUILD)
     COMMENT "Nucleus systemd target")
   install(FILES "${CMAKE_BINARY_DIR}/misc/greengrass-lite.target"
           DESTINATION ${GGL_SYSTEMD_SYSTEM_DIR})
+  configure_file("${CMAKE_SOURCE_DIR}/misc/systemd/greengrass_dir.conf.in"
+                 "${CMAKE_CURRENT_BINARY_DIR}/greengrass_dir.conf" @ONLY)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/greengrass_dir.conf"
+          DESTINATION lib/tmpfiles.d)
 endif()
 
 if(BUILD_EXAMPLES)
