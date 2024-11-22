@@ -256,7 +256,7 @@ install() {
 uninstall() {
     echo "Uninstalling Greengrass Lite..."
 
-    systemctl disable greengrass-lite.ser.github/workflows/build-packages-multi-platform-container-qemu/install-greengrass-lite.shvice
+    systemctl disable greengrass-lite.service
 
     systemctl stop greengrass-lite
 
