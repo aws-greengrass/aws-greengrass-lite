@@ -42,12 +42,12 @@ static GglError ggconfig_load_file_fd(int fd) {
     GglObjVec key_path = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
 
     if (config_obj.type == GGL_TYPE_MAP) {
-        ret = process_map(&key_path, &config_obj.map, 1);
+        ret = process_map(&key_path, &config_obj.map, 2);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
     } else {
-        ret = process_nonmap(&key_path, config_obj, 1);
+        ret = process_nonmap(&key_path, config_obj, 2);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
