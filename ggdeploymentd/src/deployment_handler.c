@@ -1666,9 +1666,17 @@ static GglError open_component_artifacts_dir(
 static GglError add_arn_list_to_config(
     GglBuffer component_name, GglBuffer configuration_arn
 ) {
+    GGL_LOGD(
+        "Writing %.*s to %.*s/configArn",
+        (int) configuration_arn.len,
+        configuration_arn.data,
+        (int) component_name.len,
+        component_name.data
+    );
+
     // add configuration arn to the config if it is not already present
     // added to the config as a list, this is later used in fss
-    GglBuffer arn_list_mem = GGL_BUF((uint8_t[128]) { 0 });
+    GglBuffer arn_list_mem = GGL_BUF((uint8_t[128 * 10]) { 0 });
     GglBumpAlloc arn_list_balloc = ggl_bump_alloc_init(arn_list_mem);
     GglObject arn_list;
 
@@ -1678,38 +1686,27 @@ static GglError add_arn_list_to_config(
         &arn_list
     );
 
-    if (ret != GGL_ERR_OK) {
-        // no list exists in config, create one
-        GglObjVec config_arn_list = GGL_OBJ_VEC((GglObject[10]) { 0 });
-        ret = ggl_obj_vec_push(
-            &config_arn_list, GGL_OBJ_BUF(configuration_arn)
-        );
+    if ((ret != GGL_ERR_OK) && (ret != GGL_ERR_NOENTRY)) {
+        GGL_LOGE("Failed to retrieve configArn.");
+        return GGL_ERR_FAILURE;
+    }
 
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to update configuration arn list.");
-            return ret;
-        }
-
-        ret = ggl_gg_config_write(
-            GGL_BUF_LIST(
-                GGL_STR("services"), component_name, GGL_STR("configArn")
-            ),
-            GGL_OBJ_LIST(config_arn_list.list),
-            0
-        );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to write configuration arn list to the config.");
-            return ret;
-        }
-    } else {
+    GglObjVec new_arn_list = GGL_OBJ_VEC((GglObject[10]) { 0 });
+    if (ret != GGL_ERR_NOENTRY) {
         // list exists in config, parse for current config arn and append if it
         // is not already included
         if (arn_list.type != GGL_TYPE_LIST) {
             GGL_LOGE("Configuration arn list not of expected type.");
             return GGL_ERR_INVALID;
         }
-        GglObjVec arn_vec = { .list = arn_list.list, .capacity = 10 };
-        GGL_LIST_FOREACH(arn, arn_vec.list) {
+        if (arn_list.list.len >= 10) {
+            GGL_LOGE(
+                "Cannot append configArn: Component is deployed as part of too "
+                "many thing groups (%zu >= 10).",
+                arn_list.list.len
+            );
+        }
+        GGL_LIST_FOREACH(arn, arn_list.list) {
             if (arn->type != GGL_TYPE_BUF) {
                 GGL_LOGE("Configuration arn not of type buffer.");
                 return ret;
@@ -1718,26 +1715,24 @@ static GglError add_arn_list_to_config(
                 // arn already added to config
                 return GGL_ERR_OK;
             }
-            ret = ggl_obj_vec_push(&arn_vec, GGL_OBJ_BUF(configuration_arn));
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to update configuration arn list.");
-                return ret;
-            }
-
-            ret = ggl_gg_config_write(
-                GGL_BUF_LIST(
-                    GGL_STR("services"), component_name, GGL_STR("configArn")
-                ),
-                GGL_OBJ_LIST(arn_vec.list),
-                0
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to write configuration arn list to the config."
-                );
-                return ret;
-            }
+            ret = ggl_obj_vec_push(&new_arn_list, *arn);
+            assert(ret == GGL_ERR_OK);
         }
     }
+
+    ret = ggl_obj_vec_push(&new_arn_list, GGL_OBJ_BUF(configuration_arn));
+    assert(ret == GGL_ERR_OK);
+
+    ret = ggl_gg_config_write(
+        GGL_BUF_LIST(GGL_STR("services"), component_name, GGL_STR("configArn")),
+        GGL_OBJ_LIST(new_arn_list.list),
+        0
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write configuration arn list to the config.");
+        return ret;
+    }
+
     return GGL_ERR_OK;
 }
 
