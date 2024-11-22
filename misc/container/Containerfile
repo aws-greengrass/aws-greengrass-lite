@@ -24,6 +24,5 @@ CMD ["/lib/systemd/systemd"]
 RUN mkdir -p /etc/greengrass/config.d
 COPY ./01defaults.yaml \
   /etc/greengrass/config.d/01defaults.yaml
-RUN chown ggcore:ggcore /etc/greengrass -R
 RUN mkdir -p /var/lib/greengrass && \
   chown ggcore:ggcore /var/lib/greengrass
