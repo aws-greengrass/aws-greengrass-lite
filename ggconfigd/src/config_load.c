@@ -60,7 +60,7 @@ GglError ggconfig_load_file(GglBuffer path) {
     int fd;
     GglError ret = ggl_file_open(path, O_RDONLY, 0, &fd);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to open config file.");
+        GGL_LOGI("Could not open config file.");
         return GGL_ERR_FAILURE;
     }
     GGL_CLEANUP(cleanup_close, fd);
@@ -72,13 +72,13 @@ GglError ggconfig_load_dir(GglBuffer path) {
     int config_dir;
     GglError ret = ggl_dir_open(path, O_RDONLY, false, &config_dir);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("Failed to open config directory.");
+        GGL_LOGI("Could not open config directory.");
         return GGL_ERR_FAILURE;
     }
 
     DIR *dir = fdopendir(config_dir);
     if (dir == NULL) {
-        GGL_LOGE("Failed to open config directory.");
+        GGL_LOGE("Failed to read config directory.");
         (void) ggl_close(config_dir);
         return GGL_ERR_FAILURE;
     }

@@ -589,6 +589,7 @@ static GglError unarchive_artifact(
         &output_dir_fd
     );
     if (err != GGL_ERR_OK) {
+        GGL_LOGE("Failed to open unarchived artifact location.");
         return err;
     }
 
@@ -1974,19 +1975,27 @@ static void handle_deployment(
 
         GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
             int component_artifacts_fd = -1;
-            open_component_artifacts_dir(
+            ret = open_component_artifacts_dir(
                 artifact_store_fd,
                 pair->key,
                 pair->val.buf,
                 &component_artifacts_fd
             );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to open artifact directory.");
+                return;
+            }
             int component_archive_dir_fd = -1;
-            open_component_artifacts_dir(
+            ret = open_component_artifacts_dir(
                 artifact_archive_fd,
                 pair->key,
                 pair->val.buf,
                 &component_archive_dir_fd
             );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to open unarchived artifacts directory.");
+                return;
+            }
             GglObject recipe_obj;
             static uint8_t recipe_mem[8192] = { 0 };
             static uint8_t component_arn_buffer[256];

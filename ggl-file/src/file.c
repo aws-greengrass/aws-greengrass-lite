@@ -284,7 +284,7 @@ GglError ggl_dir_openat(
             );
         }
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Err %d while opening path: %s", errno, path_comp_buf);
+            GGL_LOGD("Err %d while opening path: %s", errno, path_comp_buf);
             return GGL_ERR_FAILURE;
         }
 
@@ -318,7 +318,7 @@ GglError ggl_dir_openat(
         );
     }
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Err %d while opening path: %s", errno, path_comp_buf);
+        GGL_LOGD("Err %d while opening path: %s", errno, path_comp_buf);
         return GGL_ERR_FAILURE;
     }
 
@@ -360,7 +360,7 @@ GglError ggl_file_openat(
     GglError ret
         = ggl_openat(cur_fd, path_comp_buf, O_CLOEXEC | flags, mode, &result);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Err %d while opening file: %s", errno, path_comp_buf);
+        GGL_LOGD("Err %d while opening file: %s", errno, path_comp_buf);
         return GGL_ERR_FAILURE;
     }
 
