@@ -4,6 +4,7 @@
 
 #include <argp.h>
 #include <assert.h>
+#include <errno.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
@@ -11,10 +12,12 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 char *command = NULL;
 char *recipe_dir = NULL;
@@ -83,10 +86,19 @@ int main(int argc, char **argv) {
     GglKVVec args = GGL_KV_VEC((GglKV[3]) { 0 });
 
     if (recipe_dir != NULL) {
+        static char recipe_full_path_buf[PATH_MAX];
+        char *path = realpath(recipe_dir, recipe_full_path_buf);
+        if (path == NULL) {
+            GGL_LOGE(
+                "Failed to expand recipe dir path (%s): %d.", recipe_dir, errno
+            );
+            return 1;
+        }
+
         GglError ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("recipe_directory_path"),
-                      GGL_OBJ_BUF(ggl_buffer_from_null_term(recipe_dir)) }
+                      GGL_OBJ_BUF(ggl_buffer_from_null_term(path)) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);
@@ -94,10 +106,21 @@ int main(int argc, char **argv) {
         }
     }
     if (artifacts_dir != NULL) {
+        static char artifacts_full_path_buf[PATH_MAX];
+        char *path = realpath(artifacts_dir, artifacts_full_path_buf);
+        if (path == NULL) {
+            GGL_LOGE(
+                "Failed to expand artifacts dir path (%s): %d.",
+                artifacts_dir,
+                errno
+            );
+            return 1;
+        }
+
         GglError ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("artifacts_directory_path"),
-                      GGL_OBJ_BUF(ggl_buffer_from_null_term(artifacts_dir)) }
+                      GGL_OBJ_BUF(ggl_buffer_from_null_term(path)) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);
