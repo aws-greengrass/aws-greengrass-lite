@@ -506,8 +506,9 @@ GglError cleanup_stale_versions(GglMap latest_components_map) {
             &entry
         );
 
-        if (entry == NULL) {
-            return GGL_ERR_NOENTRY;
+        if ((entry == NULL) || (ret == GGL_ERR_NOENTRY)) {
+            // No more entries to go over.
+            break;
         }
 
         if (ret != GGL_ERR_OK) {
