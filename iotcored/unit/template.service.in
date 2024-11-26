@@ -20,3 +20,7 @@ WorkingDirectory=/var/lib/greengrass
 [Unit]
 Description=core-bus IoT Core mqtt proxy
 After=ggl.core.ggconfigd.service
+# Wait for network devices to be up
+After=network.target
+# Wait for NTP time
+After=systemd-time-wait-sync.service

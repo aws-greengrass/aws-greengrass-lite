@@ -24,4 +24,7 @@ WantedBy=multi-user.target
 [Unit]
 After=ggl.core.ggconfigd.service
 After=ggl.core.iotcored.service
+# Wait for network devices to be up
 After=network.target
+# Wait for NTP time
+After=systemd-time-wait-sync.service

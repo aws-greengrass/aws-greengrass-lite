@@ -7,6 +7,7 @@ PartOf=greengrass-lite.target
 WantedBy=greengrass-lite.target
 
 [Service]
+# Will usually start gg-fleet-statusd last on boot.
 Type=idle
 ExecStart=@CMAKE_INSTALL_PREFIX@/@CMAKE_INSTALL_BINDIR@/@name@
 Restart=always
@@ -22,4 +23,5 @@ Description=Core-bus daemon. Sends fleet status updates periodically and when si
 After=ggl.core.ggconfigd.service
 After=ggl.core.gghealthd.service
 After=ggl.core.iotcored.service
+# Wait for network to be online / IP address assigned
 After=network-online.target
