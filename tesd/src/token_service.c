@@ -36,7 +36,7 @@ static uint8_t
 static CredRequestT global_cred_details = { 0 };
 static uint8_t global_response_buffer[MAX_HTTP_RESPONSE_LENGTH] = { 0 };
 
-static GglBuffer request_token_from_aws(void) {
+static GglError request_token_from_aws(GglBuffer *response) {
     memset(global_response_buffer, '\0', MAX_HTTP_RESPONSE_LENGTH);
 
     CertificateDetails certificate
@@ -46,25 +46,32 @@ static GglBuffer request_token_from_aws(void) {
 
     GglBuffer buffer = GGL_BUF(global_response_buffer);
 
-    fetch_token(
+    GglError ret = fetch_token(
         global_cred_details.url,
         ggl_buffer_from_null_term(global_cred_details.thing_name),
         certificate,
         &buffer
     );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to get TES credentials.");
+        return ret;
+    }
+
     GGL_LOGI("The TES credentials have been received");
-    return buffer;
+    *response = buffer;
+    return GGL_ERR_OK;
 }
 
 static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
     GglObject *creds;
     bool ret = ggl_map_get(json_creds, GGL_STR("credentials"), &creds);
-
     if (!ret) {
+        GGL_LOGE("TES response missing credentials.");
         return GGL_ERR_INVALID;
     }
 
     if (creds->type != GGL_TYPE_MAP) {
+        GGL_LOGE("TES response credentials not a JSON object.");
         return GGL_ERR_INVALID;
     }
 
@@ -89,15 +96,19 @@ static GglError rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
     GGL_LOGD("Handling token publish request.");
 
     (void) params;
-    GglBuffer response = request_token_from_aws();
+    GglBuffer response = { 0 };
+    GglError ret = request_token_from_aws(&response);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     // Create a json object from the URL response
     GglObject json_cred_obj;
     GglBumpAlloc balloc
         = ggl_bump_alloc_init(GGL_BUF(http_response_decode_mem));
-    GglError ret
-        = ggl_json_decode_destructive(response, &balloc.alloc, &json_cred_obj);
+    ret = ggl_json_decode_destructive(response, &balloc.alloc, &json_cred_obj);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("TES response not valid JSON.");
         return ret;
     }
 
@@ -123,25 +134,29 @@ static GglError rpc_request_formatted_creds(
     (void) params;
     GGL_LOGD("Handling token publish request for TES server.");
 
-    GglBuffer buffer = request_token_from_aws();
+    GglBuffer response = { 0 };
+    GglError ret = request_token_from_aws(&response);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     // Create a json object from the URL response
     GglObject json_cred_obj;
     GglBumpAlloc balloc
         = ggl_bump_alloc_init(GGL_BUF(http_response_decode_mem));
-    GglError ret
-        = ggl_json_decode_destructive(buffer, &balloc.alloc, &json_cred_obj);
+    ret = ggl_json_decode_destructive(response, &balloc.alloc, &json_cred_obj);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("TES response not valid JSON.");
         return ret;
     }
 
     if (json_cred_obj.type != GGL_TYPE_MAP) {
+        GGL_LOGE("TES response not a JSON object.");
         return GGL_ERR_FAILURE;
     }
 
     static GglMap server_json_creds = { 0 };
     ret = create_map_for_server(json_cred_obj.map, &server_json_creds);
-
     if (ret != GGL_ERR_OK) {
         return ret;
     }
