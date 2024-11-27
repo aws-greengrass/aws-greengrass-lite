@@ -1,3 +1,51 @@
+## 2024-11-26
+
+Breaking changes:
+
+- `docs/INSTALL.md` and `docs/SETUP.md` have been updated to account for the
+  below. Please follow the new instructions.
+- Greengrass Lite will now need to be installed on the target system or in a
+  container.
+- The installation and running process for Greengrass Lite has been updated. The
+  old `run_nucleus` script has been replaced with systemd service files that
+  start the nucleus services in an appropriate order under systemd. Running the
+  install target with make will install both the binaries and service files to
+  the system. The `run_nucleus` script now enables and starts the service files.
+- The services (other than `ggdeploymentd` run as a `ggcore` user and `ggcore`
+  group by default; the user/group to use can be configured with cmake, and must
+  be created on the system (provided container image has the user/groups).
+- `ggdeploymentd` requires running as root user and nucleus service group
+  instead of using sudo and requiring sudo permissions for nucleus service user.
+- Greengrass Lite now uses `/var/lib/greengrass` for the Greengrass rootDir
+  (where it will store data that needs to be persisted). Core bus sockets are
+  now created in `/run/greengrass`.
+- It is now recommended to place your initial config in
+  `/etc/greengrass/config.yaml` or files in `/etc/greengrass/config.d` instead
+  of using the `ggl-config-init` utility.
+
+Features:
+
+- Greengrass Lite is now installed as systemd services.
+- Most services don't require root or sudo access. Unless configured otherwise,
+  services run as `ggcore` user and `ggcore` group, other than `ggdeploymentd`,
+  which runs as `root` user and `ggcore` group.
+
+Bug Fixes:
+
+- Fixed bug with generic components failing to start.
+- Fix issue with local deployment copying of CLI passed artifact and recipe dirs
+  (bug introduced in 2024-11-15). Local deployments will now place artifacts and
+  recipes in the correct location.
+- Local deployment CLI now handles relative paths for artifacts/recipes.
+- `-fstrict-flex-arrays=3` is made optional.
+- Unused config file locations no longer result in error logs.
+- Removed other unintended error logs.
+- Nucleus service core-bus sockets now allow group access.
+- Nucleus launch Fleet Status reports now correctly wait until connection
+  established.
+- Generic components are started in their proper working directories.
+- Configuration files override recipe default configuration.
+
 ## 2024-11-15
 
 Breaking changes:

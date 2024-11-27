@@ -28,6 +28,7 @@ execvpe
 FDNAMES
 FOWNER
 Fssd
+fstrict
 gencb
 ggconfig
 ggconfigd
