@@ -327,7 +327,6 @@ function(ggl_init_module name)
 
     file(GLOB_RECURSE SERVICES CONFIGURE_DEPENDS
          "${CMAKE_CURRENT_LIST_DIR}/unit/*.service.in")
-    list(LENGTH SERVICES)
 
     foreach(service ${SERVICES})
       get_filename_component(service_filename ${service} NAME_WLE)
