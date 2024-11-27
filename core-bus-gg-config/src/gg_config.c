@@ -63,9 +63,9 @@ GglError ggl_gg_config_read_str(GglBufList key_path, GglBuffer *result) {
 }
 
 GglError ggl_gg_config_write(
-    GglBufList key_path, GglObject value, int64_t timestamp
+    GglBufList key_path, GglObject value, const int64_t *timestamp
 ) {
-    if (timestamp < 0) {
+    if ((timestamp != NULL) && (*timestamp < 0)) {
         GGL_LOGE("Timestamp is negative.");
         return GGL_ERR_UNSUPPORTED;
     }
@@ -84,8 +84,12 @@ GglError ggl_gg_config_write(
         { GGL_STR("key_path"),
           GGL_OBJ_LIST((GglList) { .items = path_obj, .len = key_path.len }) },
         { GGL_STR("value"), value },
-        { GGL_STR("timestamp"), GGL_OBJ_I64(timestamp) },
+        { GGL_STR("timestamp"),
+          GGL_OBJ_I64((timestamp != NULL) ? *timestamp : 0) },
     );
+    if (timestamp == NULL) {
+        args.len -= 1;
+    }
 
     GglError remote_err = GGL_ERR_OK;
     GglError err = ggl_call(

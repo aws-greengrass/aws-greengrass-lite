@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
     }
 
     GGL_LOGI("Updating gg_config configuration.");
-    ret = ggl_gg_config_write(GGL_BUF_LIST(), config_obj, 0);
+    ret = ggl_gg_config_write(GGL_BUF_LIST(), config_obj, &(int64_t) { 0 });
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to update configuration: %d.", ret);
         return 1;

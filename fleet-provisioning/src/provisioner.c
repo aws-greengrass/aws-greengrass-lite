@@ -241,7 +241,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 GGL_OBJ_BUF((GglBuffer
                 ) { .data = (uint8_t *) global_cert_file_path,
                     .len = strlen(global_cert_file_path) }),
-                0
+                &(int64_t) { 0 }
             );
             if (ret != GGL_ERR_OK) {
                 return ret;
@@ -296,7 +296,9 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 thing_payload_json_obj.map, GGL_STR("thingName"), &val
             )) {
             ret = ggl_gg_config_write(
-                GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), *val, 0
+                GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")),
+                *val,
+                &(int64_t) { 0 }
             );
             if (ret != GGL_ERR_OK) {
                 return ret;

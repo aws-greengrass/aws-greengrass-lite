@@ -300,7 +300,7 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("fleetStatusSequenceNum")),
         sequence,
-        0
+        &(int64_t) { 0 }
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write sequence number to configuration.");

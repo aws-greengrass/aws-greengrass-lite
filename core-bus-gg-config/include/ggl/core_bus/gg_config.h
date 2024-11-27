@@ -25,7 +25,7 @@ GglError ggl_gg_config_read_str(GglBufList key_path, GglBuffer *result);
 
 /// Wrapper for core-bus `gg_config` `write`
 GglError ggl_gg_config_write(
-    GglBufList key_path, GglObject value, int64_t timestamp
+    GglBufList key_path, GglObject value, const int64_t *timestamp
 );
 
 /// Wrapper for core-bus `gg_config` `subscribe`

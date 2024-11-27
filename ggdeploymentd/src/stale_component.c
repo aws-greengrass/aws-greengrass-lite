@@ -220,7 +220,7 @@ static GglError delete_component(
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(GGL_STR("services"), component_name, GGL_STR("version")),
         GGL_OBJ_BUF(GGL_STR("inactive")),
-        0
+        &(int64_t) { 0 }
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write component version to ggconfigd as inactive.");

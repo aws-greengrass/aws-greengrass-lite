@@ -1145,7 +1145,7 @@ static GglError parse_dataplane_response_and_save_recipe(
         ret = ggl_gg_config_write(
             GGL_BUF_LIST(GGL_STR("services"), cloud_component_name->buf, ),
             GGL_OBJ_MAP(GGL_MAP({ GGL_STR("arn"), *cloud_component_arn })),
-            1
+            &(int64_t) { 1 }
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Write of arn to config failed");
@@ -2167,7 +2167,7 @@ static void handle_deployment(
                     GGL_STR("services"), component_name->buf, GGL_STR("version")
                 ),
                 pair->val,
-                0
+                &(int64_t) { 0 }
             );
 
             if (ret != GGL_ERR_OK) {
@@ -2209,7 +2209,7 @@ static void handle_deployment(
                             GGL_STR("configuration")
                         ),
                         *default_config_obj,
-                        0
+                        &(int64_t) { 0 }
                     );
 
                     if (ret != GGL_ERR_OK) {
@@ -2619,7 +2619,7 @@ static void handle_deployment(
                     GGL_STR("services"), component_name->buf, GGL_STR("version")
                 ),
                 pair->val,
-                0
+                &(int64_t) { 0 }
             );
 
             if (ret != GGL_ERR_OK) {
@@ -2663,7 +2663,7 @@ static void handle_deployment(
                             GGL_STR("configuration")
                         ),
                         *default_config_obj,
-                        0
+                        &(int64_t) { 0 }
                     );
 
                     if (ret != GGL_ERR_OK) {

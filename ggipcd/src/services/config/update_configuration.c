@@ -79,7 +79,7 @@ GglError ggl_handle_update_configuration(
         return ret;
     }
 
-    ret = ggl_gg_config_write(full_key_path, *value_to_merge_obj, timestamp);
+    ret = ggl_gg_config_write(full_key_path, *value_to_merge_obj, &timestamp);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

@@ -133,7 +133,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                 GGL_STR("iotDataEndpoint")
             ),
             GGL_OBJ_BUF(data_endpoint),
-            0
+            &(int64_t) { 0 }
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -243,7 +243,7 @@ GglError run_fleet_prov(FleetProvArgs *args) {
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
         GGL_OBJ_BUF((GglBuffer) { .data = (uint8_t *) private_file_path,
                                   .len = strlen(private_file_path) }),
-        0
+        &(int64_t) { 0 }
     );
     if (ret != GGL_ERR_OK) {
         exec_kill_process(iotcored_pid);
