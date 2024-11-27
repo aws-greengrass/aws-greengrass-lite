@@ -379,7 +379,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
 
-    // TODO:: Check if TES is dependency within the recipe
+    // TODO: Check if TES is dependency within the recipe
     GglByteVec resp_vec = GGL_BYTE_VEC(resp_mem);
     ret = ggl_byte_vec_append(&resp_vec, GGL_STR("http://localhost:"));
     if (ret != GGL_ERR_OK) {
@@ -396,7 +396,8 @@ GglError runner(const RecipeRunnerArgs *args) {
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get port from config. %d", ret);
-    } else { // Only set the env var if port number is valid
+    } else {
+        // Only set the env var if port number is valid
         resp_vec.buf.len += rest.len;
         ret = ggl_byte_vec_append(
             &resp_vec, GGL_STR("/2016-11-01/credentialprovider/\0")
