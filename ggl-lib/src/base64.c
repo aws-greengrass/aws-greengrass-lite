@@ -28,7 +28,7 @@ static bool base64_char_to_byte(char digit, uint8_t *value) {
 }
 
 static bool base64_decode_segment(
-    const uint8_t segment[4U], GglBuffer *target
+    const uint8_t segment[4U], GglBuffer *target, bool *padding
 ) {
     uint8_t value[3U] = { 0 };
     size_t len = 0U;
@@ -91,6 +91,7 @@ static bool base64_decode_segment(
 
     memcpy(target->data, value, len);
     *target = ggl_buffer_substr(*target, len, SIZE_MAX);
+    *padding = len != 3U;
 
     return true;
 }
@@ -103,8 +104,13 @@ bool ggl_base64_decode(GglBuffer base64, GglBuffer *target) {
         return false;
     }
     GglBuffer out = *target;
+    bool last = false;
     for (size_t i = 0; i < base64.len; i += 4) {
-        bool ret = base64_decode_segment(&base64.data[i], &out);
+        if (last) {
+            // Data after padding
+            return false;
+        }
+        bool ret = base64_decode_segment(&base64.data[i], &out, &last);
         if (!ret) {
             return false;
         }
