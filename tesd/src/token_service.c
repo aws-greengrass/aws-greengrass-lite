@@ -106,8 +106,8 @@ static GglError rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
         = ggl_map_get(json_cred_obj.map, GGL_STR("credentials"), &creds);
 
     if (!ret_contains) {
-        GGL_LOGD("Request failed, Invalid credentials");
-        return ret;
+        GGL_LOGE("Request failed, Invalid credentials");
+        return GGL_ERR_FAILURE;
     }
 
     ggl_respond(handle, *creds);
