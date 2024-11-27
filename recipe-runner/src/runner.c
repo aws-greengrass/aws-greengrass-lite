@@ -378,6 +378,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
 
+    // TODO:: Check if TES is dependency within the recipe
     GglByteVec resp_vec = GGL_BYTE_VEC(resp_mem);
     ret = ggl_byte_vec_append(&resp_vec, GGL_STR("http://localhost:"));
     if (ret != GGL_ERR_OK) {
@@ -393,25 +394,27 @@ GglError runner(const RecipeRunnerArgs *args) {
         &rest
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to get port from config. %d", ret);
-        return ret;
-    }
-    resp_vec.buf.len += rest.len;
-    ret = ggl_byte_vec_append(
-        &resp_vec, GGL_STR("/2016-11-01/credentialprovider/\0")
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to append /2016-11-01/credentialprovider/");
-        return ret;
-    }
-
-    sys_ret = setenv(
-        "AWS_CONTAINER_CREDENTIALS_FULL_URI", (char *) resp_vec.buf.data, true
-    );
-    if (sys_ret != 0) {
-        GGL_LOGE(
-            "setenv AWS_CONTAINER_CREDENTIALS_FULL_URI failed: %d.", errno
+        GGL_LOGW("Failed to get port from config. %d", ret);
+    } else { // Only set the env var if port number is valid
+        resp_vec.buf.len += rest.len;
+        ret = ggl_byte_vec_append(
+            &resp_vec, GGL_STR("/2016-11-01/credentialprovider/\0")
         );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to append /2016-11-01/credentialprovider/");
+            return ret;
+        }
+
+        sys_ret = setenv(
+            "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+            (char *) resp_vec.buf.data,
+            true
+        );
+        if (sys_ret != 0) {
+            GGL_LOGE(
+                "setenv AWS_CONTAINER_CREDENTIALS_FULL_URI failed: %d.", errno
+            );
+        }
     }
 
     sys_ret = setenv("GGC_VERSION", "0.0.1", true);
