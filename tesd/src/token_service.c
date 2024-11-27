@@ -101,6 +101,8 @@ static GglError rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
         return ret;
     }
 
+    GGL_LOGT("Received TES response: %.*s", (int) response.len, response.data);
+
     GglObject *creds;
     bool ret_contains
         = ggl_map_get(json_cred_obj.map, GGL_STR("credentials"), &creds);
