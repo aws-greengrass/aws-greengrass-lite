@@ -308,6 +308,7 @@ static GglError write_script_with_replacement(
     return GGL_ERR_OK;
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 GglError runner(const RecipeRunnerArgs *args) {
     // Get the SocketPath from Environment Variable
     char *socket_path
