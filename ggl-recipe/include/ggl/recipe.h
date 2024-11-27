@@ -21,7 +21,7 @@ GglError ggl_recipe_get_from_file(
 );
 
 GglError select_linux_manifest(
-    GglMap recipe_map, GglObject *val, GglMap *selected_lifecycle_map
+    GglMap recipe_map, GglMap *out_selected_lifecycle_map
 );
 
 #endif

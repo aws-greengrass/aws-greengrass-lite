@@ -185,8 +185,19 @@ static GglError manifest_selection(
 }
 
 GglError select_linux_manifest(
-    GglMap recipe_map, GglObject *val, GglMap *selected_lifecycle_map
+    GglMap recipe_map, GglMap *out_selected_lifecycle_map
 ) {
+    GglObject *val;
+    if (ggl_map_get(recipe_map, GGL_STR("Manifests"), &val)) {
+        if (val->type != GGL_TYPE_LIST) {
+            GGL_LOGI("Invalid Manifest within the recipe file.");
+            return GGL_ERR_INVALID;
+        }
+    } else {
+        GGL_LOGI("Manifest not found in the recipe");
+        return GGL_ERR_INVALID;
+    }
+
     GglObject *selected_lifecycle_object = NULL;
     for (size_t platform_index = 0; platform_index < val->list.len;
          platform_index++) {
@@ -217,7 +228,7 @@ GglError select_linux_manifest(
         return GGL_ERR_FAILURE;
     }
 
-    *selected_lifecycle_map = selected_lifecycle_object->map;
+    *out_selected_lifecycle_map = selected_lifecycle_object->map;
 
     return GGL_ERR_OK;
 }

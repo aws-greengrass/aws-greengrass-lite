@@ -434,142 +434,122 @@ static GglError manifest_builder(
 ) {
     bool is_root = false;
 
-    GglObject *val;
-    if (ggl_map_get(recipe_map, GGL_STR("Manifests"), &val)) {
-        if (val->type == GGL_TYPE_LIST) {
-            GglMap selected_lifecycle_map = { 0 };
+    GglMap selected_lifecycle_map = { 0 };
 
-            GglError ret = select_linux_manifest(
-                recipe_map, val, &selected_lifecycle_map
-            );
-            if (ret != GGL_ERR_OK) {
-                return ret;
-            }
+    GglError ret = select_linux_manifest(recipe_map, &selected_lifecycle_map);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
-            GglObject *selected_set_env_as_obj = { 0 };
-            GglMap set_env_as_map = { 0 };
-            if (ggl_map_get(
-                    selected_lifecycle_map,
-                    GGL_STR("Setenv"),
-                    &selected_set_env_as_obj
-                )) {
-                if (selected_set_env_as_obj->type != GGL_TYPE_MAP) {
-                    GGL_LOGE("Setenv section needs to be a dictionary map type"
-                    );
-                    return GGL_ERR_INVALID;
-                }
-                set_env_as_map = selected_set_env_as_obj->map;
-            } else {
-                GGL_LOGI("Setenv section not found within the linux lifecycle");
-            }
-
-            //****************************************************************
-            // Note: Everything below this should only deal with run or startup
-            // ****************************************************************
-            GglBuffer lifecycle_script_selection = { 0 };
-            GglObject *startup_or_run_section;
-
-            if (current_phase == INSTALL) {
-                lifecycle_script_selection = GGL_STR("install");
-                ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=oneshot\n"));
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to add unit type information");
-                    return GGL_ERR_FAILURE;
-                }
-            } else if (current_phase == RUN_STARTUP) {
-                if (ggl_map_get(
-                        selected_lifecycle_map,
-                        GGL_STR("startup"),
-                        &startup_or_run_section
-                    )) {
-                    if (startup_or_run_section->type == GGL_TYPE_LIST) {
-                        GGL_LOGE("Startup is a list type");
-                        return GGL_ERR_INVALID;
-                    }
-                    lifecycle_script_selection = GGL_STR("startup");
-                    ret = ggl_byte_vec_append(
-                        out, GGL_STR("RemainAfterExit=true\n")
-                    );
-                    ggl_byte_vec_chain_append(
-                        &ret, out, GGL_STR("Type=notify\n")
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to add unit type information");
-                        return GGL_ERR_FAILURE;
-                    }
-
-                } else if (ggl_map_get(
-                               selected_lifecycle_map,
-                               GGL_STR("run"),
-                               &startup_or_run_section
-                           )) {
-                    if (startup_or_run_section->type == GGL_TYPE_LIST) {
-                        GGL_LOGE("'run' field in the lifecycle is of List type."
-                        );
-                        return GGL_ERR_INVALID;
-                    }
-                    lifecycle_script_selection = GGL_STR("run");
-                    ret = ggl_byte_vec_append(out, GGL_STR("Type=exec\n"));
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to add unit type information");
-                        return GGL_ERR_FAILURE;
-                    }
-                } else {
-                    GGL_LOGI("No startup or run provided");
-                    return GGL_ERR_OK;
-                }
-            }
-
-            GglBuffer selected_script = { 0 };
-            ret = fetch_script_section(
-                selected_lifecycle_map,
-                lifecycle_script_selection,
-                &is_root,
-                &selected_script,
-                &set_env_as_map
-            );
-            if (ret != GGL_ERR_OK) {
-                return ret;
-            }
-
-            static uint8_t script_name_buf[PATH_MAX - 1];
-            GglByteVec script_name_vec = GGL_BYTE_VEC(script_name_buf);
-            ret = ggl_byte_vec_append(
-                &script_name_vec, script_name_prefix_vec.buf
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &script_name_vec, lifecycle_script_selection
-            );
-            if (ret != GGL_ERR_OK) {
-                return GGL_ERR_FAILURE;
-            }
-            ret = write_to_file(
-                args->root_dir, script_name_vec.buf, selected_script, 0755
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to create and write the script file");
-                return ret;
-            }
-
-            ret = update_unit_file_buffer(
-                out,
-                exec_start_section_vec,
-                script_name_vec,
-                args->user,
-                args->group,
-                is_root,
-                set_env_as_map
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to write ExecStart portion of unit files");
-                return ret;
-            }
-
-        } else {
-            GGL_LOGI("Invalid Manifest within the recipe file.");
+    GglObject *selected_set_env_as_obj = { 0 };
+    GglMap set_env_as_map = { 0 };
+    if (ggl_map_get(
+            selected_lifecycle_map, GGL_STR("Setenv"), &selected_set_env_as_obj
+        )) {
+        if (selected_set_env_as_obj->type != GGL_TYPE_MAP) {
+            GGL_LOGE("Setenv section needs to be a dictionary map type");
             return GGL_ERR_INVALID;
         }
+        set_env_as_map = selected_set_env_as_obj->map;
+    } else {
+        GGL_LOGI("Setenv section not found within the linux lifecycle");
     }
+
+    //****************************************************************
+    // Note: Everything below this should only deal with run or startup
+    // ****************************************************************
+    GglBuffer lifecycle_script_selection = { 0 };
+    GglObject *startup_or_run_section;
+
+    if (current_phase == INSTALL) {
+        lifecycle_script_selection = GGL_STR("install");
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=oneshot\n"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to add unit type information");
+            return GGL_ERR_FAILURE;
+        }
+    } else if (current_phase == RUN_STARTUP) {
+        if (ggl_map_get(
+                selected_lifecycle_map,
+                GGL_STR("startup"),
+                &startup_or_run_section
+            )) {
+            if (startup_or_run_section->type == GGL_TYPE_LIST) {
+                GGL_LOGE("Startup is a list type");
+                return GGL_ERR_INVALID;
+            }
+            lifecycle_script_selection = GGL_STR("startup");
+            ret = ggl_byte_vec_append(out, GGL_STR("RemainAfterExit=true\n"));
+            ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=notify\n"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to add unit type information");
+                return GGL_ERR_FAILURE;
+            }
+
+        } else if (ggl_map_get(
+                       selected_lifecycle_map,
+                       GGL_STR("run"),
+                       &startup_or_run_section
+                   )) {
+            if (startup_or_run_section->type == GGL_TYPE_LIST) {
+                GGL_LOGE("'run' field in the lifecycle is of List type.");
+                return GGL_ERR_INVALID;
+            }
+            lifecycle_script_selection = GGL_STR("run");
+            ret = ggl_byte_vec_append(out, GGL_STR("Type=exec\n"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to add unit type information");
+                return GGL_ERR_FAILURE;
+            }
+        } else {
+            GGL_LOGI("No startup or run provided");
+            return GGL_ERR_OK;
+        }
+    }
+
+    GglBuffer selected_script = { 0 };
+    ret = fetch_script_section(
+        selected_lifecycle_map,
+        lifecycle_script_selection,
+        &is_root,
+        &selected_script,
+        &set_env_as_map
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    static uint8_t script_name_buf[PATH_MAX - 1];
+    GglByteVec script_name_vec = GGL_BYTE_VEC(script_name_buf);
+    ret = ggl_byte_vec_append(&script_name_vec, script_name_prefix_vec.buf);
+    ggl_byte_vec_chain_append(
+        &ret, &script_name_vec, lifecycle_script_selection
+    );
+    if (ret != GGL_ERR_OK) {
+        return GGL_ERR_FAILURE;
+    }
+    ret = write_to_file(
+        args->root_dir, script_name_vec.buf, selected_script, 0755
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create and write the script file");
+        return ret;
+    }
+
+    ret = update_unit_file_buffer(
+        out,
+        exec_start_section_vec,
+        script_name_vec,
+        args->user,
+        args->group,
+        is_root,
+        set_env_as_map
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write ExecStart portion of unit files");
+        return ret;
+    }
+
     return GGL_ERR_OK;
 }
 
