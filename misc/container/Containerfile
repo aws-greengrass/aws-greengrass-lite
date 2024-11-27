@@ -12,7 +12,7 @@ RUN apt-get update \
 COPY ./getty-override.conf \
   /etc/systemd/system/console-getty.service.d/override.conf
 
-RUN groupadd ggc_group && useradd -Ng ggc_group ggc_user
+RUN groupadd gg_component && useradd -Ng gg_component gg_component
 
 RUN groupadd ggcore && useradd -Ng ggcore ggcore
 

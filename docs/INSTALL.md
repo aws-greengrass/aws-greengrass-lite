@@ -70,8 +70,10 @@ chown ggcore:ggcore /var/lib/greengrass
 
 The default user/group for components is set in your Greengrass configuration.
 Greengrass will configure components without an explicit user/group to run as
-that user/group. The sample configuration and container use
-`ggc_user:ggc_group`.
+that user/group. This is listed in the sample configuration as
+`ggc_user:ggc_group`. The container uses `gg_component` for the user and group.
+
+Run the following with `ggc_user`/`ggc_group` substituted with your user/group.
 
 ```sh
 groupadd ggc_group
