@@ -325,17 +325,23 @@ function(ggl_init_module name)
               DESTINATION ${GGL_SYSTEMD_SYSTEM_DIR})
     endforeach()
 
-    if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/unit/template.service.in)
-      configure_file(${CMAKE_CURRENT_LIST_DIR}/unit/template.service.in
-                     ${CMAKE_CURRENT_BINARY_DIR}/ggl.core.${name}.service @ONLY)
-      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ggl.core.${name}.service
+    file(GLOB_RECURSE SERVICES CONFIGURE_DEPENDS
+         "${CMAKE_CURRENT_LIST_DIR}/unit/*.service.in")
+    list(LENGTH SERVICES)
+
+    foreach(service ${SERVICES})
+      get_filename_component(service_filename ${service} NAME_WLE)
+      configure_file(${service} ${CMAKE_CURRENT_BINARY_DIR}/${service_filename}
+                     @ONLY)
+      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${service_filename}
               DESTINATION ${GGL_SYSTEMD_SYSTEM_DIR})
-    endif()
+    endforeach()
+
   endif()
 
   file(GLOB BINS CONFIGURE_DEPENDS "bin/*.c")
   foreach(bin ${BINS})
-    get_filename_component(bin_name ${bin} NAME_WE)
+    get_filename_component(bin_name ${bin} NAME_WLE)
     add_executable(${bin_name}-bin ${bin})
     target_compile_definitions(${bin_name}-bin
                                PRIVATE "GGL_MODULE=(\"${name}\")")
