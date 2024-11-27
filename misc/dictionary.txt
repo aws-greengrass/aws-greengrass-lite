@@ -23,6 +23,7 @@ EPOLLIN
 evbuffer
 eventfd
 evhttp
+evkeyvalq
 execvp
 execvpe
 FDNAMES
@@ -70,6 +71,7 @@ mtls
 NOCASE
 noclear
 NOCONN
+NOCONTENT
 NOENTRY
 NOLINTNEXTLINE
 NOMEM

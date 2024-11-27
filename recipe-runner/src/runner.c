@@ -377,21 +377,36 @@ GglError runner(const RecipeRunnerArgs *args) {
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
-    resp = GGL_BUF(resp_mem);
-    resp.len -= 1;
-    ret = ggipc_get_config_str(
-        conn,
-        GGL_BUF_LIST(GGL_STR("tesCredUrl")),
-        &GGL_STR("aws.greengrass.Nucleus-Lite"),
-        &resp
-    );
+
+    GglByteVec resp_vec = GGL_BYTE_VEC(resp_mem);
+    ret = ggl_byte_vec_append(&resp_vec, GGL_STR("http://localhost:"));
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to get tesCredUrl from config.");
+        GGL_LOGE("Failed to append http://localhost:");
         return ret;
     }
-    resp.data[resp.len] = '\0';
+    GglBuffer rest = ggl_byte_vec_remaining_capacity(resp_vec);
+
+    ret = ggipc_get_config_str(
+        conn,
+        GGL_BUF_LIST(GGL_STR("port")),
+        &GGL_STR("aws.greengrass.TokenExchangeService"),
+        &rest
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to get port from config. %d", ret);
+        return ret;
+    }
+    resp_vec.buf.len += rest.len;
+    ret = ggl_byte_vec_append(
+        &resp_vec, GGL_STR("/2016-11-01/credentialprovider/\0")
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to append /2016-11-01/credentialprovider/");
+        return ret;
+    }
+
     sys_ret = setenv(
-        "AWS_CONTAINER_CREDENTIALS_FULL_URI", (char *) resp.data, true
+        "AWS_CONTAINER_CREDENTIALS_FULL_URI", (char *) resp_vec.buf.data, true
     );
     if (sys_ret != 0) {
         GGL_LOGE(
