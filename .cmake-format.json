@@ -4,7 +4,7 @@
     "command_case": "lower"
   },
   "lint": {
-    "disabled_codes": ["C0103", "E1120"]
+    "disabled_codes": ["C0103", "E1120","R0915"]
   },
   "additional_commands": {
     "ggl_init_module": {
