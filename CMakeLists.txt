@@ -394,7 +394,6 @@ add_subdirectory(ggl-exec)
 add_subdirectory(recipe2unit)
 add_subdirectory(ggl-semver)
 add_subdirectory(ggl-constants)
-add_subdirectory(hello-world-component)
 
 if(GGL_SYSTEMD_SERVICE_BUILD)
   add_custom_target(
