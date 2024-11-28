@@ -1,6 +1,7 @@
-# Greengrass Lite Developer setup
+# Greengrass Nucleus Lite Developer setup
 
-This guide is for developers working on the Greengrass Lite codebase to set up.
+This guide is for developers working on the Greengrass Nucleus Lite codebase to
+set up.
 
 ## Using Nix
 

@@ -30,15 +30,15 @@ The following is the current daemon implementation flow:
 ### AWS_CONTAINER_AUTHORIZATION_TOKEN
 
 - Authorization token which is used to connected to the Token Exchange Service
-  server hosted on `AWS_CONTAINER_CREDENTIALS_FULL_URI`. Greengrass lite will
-  export this variable for example the AWS SDK to use.
+  server hosted on `AWS_CONTAINER_CREDENTIALS_FULL_URI`. Greengrass Nucleus Lite
+  will export this variable for example the AWS SDK to use.
 
 ### AWS_CONTAINER_CREDENTIALS_FULL_URI
 
 - The URI in which the Token Exchange Service is hosted on. When a component
   creates an AWS SDK client, the client recognizes this URI environment variable
   and uses the token in the `AWS_CONTAINER_AUTHORIZATION_TOKEN` to connect to
-  the token exchange service and retrieve AWS credentials. Greengrass lite will
-  export this variable for example the AWS SDK to use.
+  the token exchange service and retrieve AWS credentials. Greengrass Nucleus
+  Lite will export this variable for example the AWS SDK to use.
 
 ## Core Bus API

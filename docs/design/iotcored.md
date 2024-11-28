@@ -29,4 +29,4 @@ The daemon requires configuration for connecting to AWS IoT Core, including the
 endpoint and device credentials.
 
 These may be passed as command line parameters; if they are not the values will
-be pulled from the Greengrass lite config library.
+be pulled from the Greengrass Nucleus Lite config library.

@@ -11,7 +11,8 @@
 #include <string.h>
 #include <stdbool.h>
 
-static char doc[] = "ggdeploymentd -- Greengrass Lite deployment daemon";
+static char doc[]
+    = "ggdeploymentd -- Greengrass Nucleus Lite deployment daemon";
 
 static struct argp_option opts[] = {
     { 0 },

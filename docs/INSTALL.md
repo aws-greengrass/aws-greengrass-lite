@@ -1,4 +1,4 @@
-# Installing AWS Greengrass Lite from source
+# Installing AWS Greengrass Nucleus Lite from source
 
 This document details building and installing Greengrass from source.
 

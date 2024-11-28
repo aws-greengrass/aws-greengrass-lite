@@ -1,9 +1,8 @@
-# Greengrass Lite Design Overview
+# Greengrass Nucleus Lite Design Overview
 
-Greengrass is designed from executable modules. In unix land, greengrass is
-build from a number of daemons with each daemon providing specific
-functionality. Daemons are intended to be small single purpose executables that
-enable a system to be composable by daemon selection.
+Greengrass Nucleus Lite is designed as a group of daemons with each daemon
+providing specific functionality. Daemons are intended to be small single
+purpose executables that enable a system to be composable by daemon selection.
 
 ## Daemon List
 

@@ -1,10 +1,10 @@
-# Setting up Greengrass Lite
+# Setting up Greengrass Nucleus Lite
 
-See the [build guide](INSTALL.md) to compile and install Greengrass Lite. If
-running locally for evaluation, you can use the provided container to install in
-its own environment.
+See the [build guide](INSTALL.md) to compile and install Greengrass Nucleus
+Lite. If running locally for evaluation, you can use the provided container to
+install in its own environment.
 
-Greengrass Lite executables will be available under `bin` in the build
+Greengrass Nucleus Lite executables will be available under `bin` in the build
 directory.
 
 When run, they may use the current working directory to store state. Use the
@@ -59,8 +59,8 @@ cp ./init_config.yml /etc/greengrass/config.yaml
 
 ## Running the nucleus
 
-To enable and run all the Greengrass Lite core services for testing, run the d
-`run_nucleus` script available in the source directory.
+To enable and run all the Greengrass Nucleus Lite core services for testing, run
+the `run_nucleus` script available in the source directory.
 
 ```sh
 ./misc/run_nucleus
@@ -73,14 +73,14 @@ Entire system logs can be viewed with `journalctl -a`. Individual service logs
 can be viewed with `journalctl -a -t <service-name>` (e.g.
 `journalctl -a -t ggdeploymentd` to view deployment logs).
 
-To stop Greengrass Lite run `systemctl stop greengrass-lite.target`
+To stop Greengrass Nucleus Lite run `systemctl stop greengrass-lite.target`
 
 ## Performing a local deployment
 
-To do a local deployment with the Greengrass Lite CLI, you will need a directory
-with the component's recipe and a directory with the component's artifacts. See
-the Greengrass component documentation for writing your own Greengrass
-component.
+To do a local deployment with the Greengrass Nucleus Lite CLI, you will need a
+directory with the component's recipe and a directory with the component's
+artifacts. See the Greengrass component documentation for writing your own
+Greengrass component.
 
 Assuming you place these in `~/sample-component`, and that your component has a
 single artifact named `hello_world.py`, the layout should be similar to the

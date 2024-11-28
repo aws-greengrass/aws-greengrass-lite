@@ -25,7 +25,7 @@ char *artifacts_dir = NULL;
 char *component_name = NULL;
 char *component_version = NULL;
 
-static char doc[] = "ggl-cli -- Greengrass Lite CLI";
+static char doc[] = "ggl-cli -- Greengrass CLI for Nucleus Lite";
 
 static struct argp_option opts[] = {
     { "recipe-dir", 'r', "path", 0, "Recipe directory to merge", 0 },

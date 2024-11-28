@@ -6,7 +6,7 @@
 #include <argp.h>
 #include <ggl/error.h>
 
-static char doc[] = "ggipcd -- Greengrass IPC server for Greengrass Lite";
+static char doc[] = "ggipcd -- Greengrass IPC server for Nucleus Lite";
 
 static struct argp_option opts[] = {
     { "socket", 's', "path", 0, "GG IPC socket path", 0 },

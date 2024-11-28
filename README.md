@@ -1,4 +1,4 @@
-# AWS Greengrass Lite
+# AWS Greengrass Nucleus Lite
 
 🚧 🚧 🚧 WORK IN PROGRESS 🚧 🚧 🚧
 
@@ -8,18 +8,19 @@
 
 AWS IoT Greengrass runtime for constrained devices.
 
-The Greengrass Lite nucleus provides a smaller alternative to the Classic
+The Greengrass Nucleus Lite provides a smaller alternative to the Classic
 nucleus for Greengrass v2 deployments.
 
-Greengrass Lite aims to maintain compatibility with the Classic nucleus, and
-implements a subset of its functionality.
+Greengrass Nucleus Lite aims to maintain compatibility with the Classic nucleus,
+and implements a subset of its functionality.
 
 ## Getting started
 
 See the [build guide](docs/INSTALL.md) for instructions to build and install
-Greengrass Lite from source.
+Greengrass Nucleus Lite from source.
 
-To configure and run Greengrass Lite, see the [setup guide](docs/SETUP.md).
+To configure and run Greengrass Nucleus Lite, see the
+[setup guide](docs/SETUP.md).
 
 For setting up as a Greengrass developer, also see the
 [developer setup guide](docs/DEVELOPMENT.md).

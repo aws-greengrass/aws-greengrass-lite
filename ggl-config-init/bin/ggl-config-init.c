@@ -16,7 +16,8 @@
 
 static char *config_path = NULL;
 
-static char doc[] = "ggl-config-init -- Update Greengrass Lite configuration";
+static char doc[]
+    = "ggl-config-init -- Update Greengrass Nucleus Lite configuration";
 
 static struct argp_option opts[] = {
     { "config", 'c', "path", 0, "Path to configuration file", 0 },
