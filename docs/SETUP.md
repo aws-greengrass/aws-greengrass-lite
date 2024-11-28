@@ -108,10 +108,3 @@ With the above, you can start a local deployment with:
 
 See the
 [com.example.LiteHelloWorld component README](../hello-world-component/README.md)
-
-## Using the CloudLogger component
-
-The [aws.greengrass.CloudLogger component README](../cloud-logger/README.md)
-contains instructions for using CloudLogger. This is a generic component which
-helps you forward system logs to CloudWatch by publishing them to an IoT Core
-MQTT topic.
