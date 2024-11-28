@@ -154,30 +154,6 @@ static GglError get_root_ca_path(char **root_ca_path) {
     return GGL_ERR_OK;
 }
 
-static GglError get_tes_cred_url(char **tes_cred_url) {
-    static uint8_t resp_mem[129] = { 0 };
-    GglBuffer resp = GGL_BUF(resp_mem);
-    resp.len -= 1;
-
-    GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("aws.greengrass.Nucleus-Lite"),
-            GGL_STR("configuration"),
-            GGL_STR("tesCredUrl")
-        ),
-        &resp
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGW("Failed to get tesCredUrl from config.");
-        return ret;
-    }
-    resp.data[resp.len] = '\0';
-
-    *tes_cred_url = (char *) resp.data;
-    return GGL_ERR_OK;
-}
-
 static GglError get_posix_user(char **posix_user) {
     static uint8_t resp_mem[129] = { 0 };
     GglBuffer resp = GGL_BUF(resp_mem);
@@ -2063,13 +2039,6 @@ static void handle_deployment(
             ret = get_root_ca_path(&root_ca_path);
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("Failed to get rootCaPath.");
-                return;
-            }
-
-            char *tes_cred_url = NULL;
-            ret = get_tes_cred_url(&tes_cred_url);
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to get tes credentials url.");
                 return;
             }
 

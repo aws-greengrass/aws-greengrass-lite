@@ -395,7 +395,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         &rest
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGW("Failed to get port from config. %d", ret);
+        GGL_LOGW("Failed to get port from config. errono: %d", ret);
     } else {
         // Only set the env var if port number is valid
         resp_vec.buf.len += rest.len;
