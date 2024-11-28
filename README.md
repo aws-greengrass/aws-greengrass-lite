@@ -36,36 +36,36 @@ corebus. This table identifies the corebus component that does the work.
 | PublishToTopic                          | ggpubsubd                    |
 | PublishToIoTCore                        | iotcored                     |
 | SubscribeToIoTCore                      | iotcored                     |
-| UpdateState                             | - FUTURE -                   |
-| SubscribeToComponentUpdates             | - FUTURE -                   |
-| DeferComponentUpdate                    | - FUTURE -                   |
+| UpdateState                             | _Future_                     |
+| SubscribeToComponentUpdates             | _Future_                     |
+| DeferComponentUpdate                    | _Future_                     |
 | GetConfiguration                        | ggconfigd                    |
 | UpdateConfiguration                     | ggconfigd                    |
 | SubscribeToConfigurationUpdate          | ggconfigd                    |
-| SubscribeToValidateConfigurationUpdates | not planned                  |
-| SendConfigurationValidityReport         | not planned                  |
-| GetSecretValue                          | not planned                  |
-| PutComponentMetric                      | - FUTURE -                   |
-| GetComponentDetails                     | - FUTURE -                   |
-| RestartComponent                        | - FUTURE -                   |
-| StopComponent                           | - FUTURE -                   |
+| SubscribeToValidateConfigurationUpdates | _Future_                     |
+| SendConfigurationValidityReport         | _Future_                     |
+| GetSecretValue                          | _Future_                     |
+| PutComponentMetric                      | _Future_                     |
+| GetComponentDetails                     | _Future_                     |
+| RestartComponent                        | _Future_                     |
+| StopComponent                           | _Future_                     |
 | CreateLocalDeployment                   | ggdeploymentd                |
-| CancelLocalDeployment                   | - FUTURE -                   |
-| GetLocalDeploymentStatus                | - FUTURE -                   |
-| ListLocalDeployments                    | - FUTURE -                   |
-| ListComponents                          | - FUTURE -                   |
-| ValidateAuthorizationToken              | not planned                  |
-| CreateDebugPassword                     | not planned                  |
-| PauseComponent                          | not planned                  |
-| ResumeComponent                         | not planned                  |
-| GetThingShadow                          | not planned                  |
-| UpdateThingShadow                       | not planned                  |
-| DeleteThingShadow                       | not planned                  |
-| ListNamedShadowsForThing                | not planned                  |
-| SubscribeToCertificateUpdates           | not planned                  |
-| VerifyClientDeviceIdentity              | not planned                  |
-| GetClientDeviceAuthToken                | not planned                  |
-| AuthorizeClientDeviceAction             | not planned                  |
+| CancelLocalDeployment                   | _Future_                     |
+| GetLocalDeploymentStatus                | _Future_                     |
+| ListLocalDeployments                    | _Future_                     |
+| ListComponents                          | _Future_                     |
+| ValidateAuthorizationToken              | _Future_                     |
+| CreateDebugPassword                     | _Future_                     |
+| PauseComponent                          | _Future_                     |
+| ResumeComponent                         | _Future_                     |
+| GetThingShadow                          | _Future_                     |
+| UpdateThingShadow                       | _Future_                     |
+| DeleteThingShadow                       | _Future_                     |
+| ListNamedShadowsForThing                | _Future_                     |
+| SubscribeToCertificateUpdates           | _Future_                     |
+| VerifyClientDeviceIdentity              | _Future_                     |
+| GetClientDeviceAuthToken                | _Future_                     |
+| AuthorizeClientDeviceAction             | _Future_                     |
 
 ## Security
 
