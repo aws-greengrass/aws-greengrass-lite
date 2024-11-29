@@ -1,0 +1,17 @@
+FROM ubuntu:24.04
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update \
+  && apt-get -y install --no-install-recommends \
+    systemd systemd-sysv dbus ca-certificates sudo nano bash-completion \
+    build-essential pkg-config cmake git curl file gdb python3 \
+    libssl-dev libcurl4-openssl-dev libsqlite3-dev sqlite3 libyaml-dev \
+    libsystemd-dev liburiparser-dev uuid-dev libevent-dev libzip-dev \
+  && apt-get clean
+
+COPY ./getty-override.conf \
+  /etc/systemd/system/console-getty.service.d/override.conf
+
+RUN echo "export MAKEFLAGS=-j" >> /root/.profile
+
+CMD ["/lib/systemd/systemd"]

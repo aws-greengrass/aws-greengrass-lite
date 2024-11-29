@@ -46,3 +46,10 @@ cd build/
 cpack -G DEB
 apt install ./aws-greengrass-lite-x.x.x-Linux.deb
 ```
+
+This can also be done in the buildtestcontainer
+
+```
+podman build misc/buildtestcontainer -t buildtestcontainer:latest
+podman run -it -v $PWD/..:/work --replace --name buildtestcontainer buildtestcontainer:latest
+```

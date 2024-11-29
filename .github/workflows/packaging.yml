@@ -1,4 +1,4 @@
-name: Build pkgs in containers + qemu
+name: Build deb packages and put them in zip files
 on:
   push:
     branches:
@@ -11,36 +11,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        architecture: [aarch64-linux-gnu, ""] # arm-linux-gnueabihf
+        architecture: [aarch64-linux-gnu, ""]
         build_type: [RelWithDebInfo, MinSizeRel]
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      - name: Build container for arm-linux-gnueabihf
-        if: matrix.architecture == 'arm-linux-gnueabihf'
-        run: |
-          podman build --from=arm32v7/ubuntu:24.04 --arch=arm32v7 misc/container -t container
       - name: Build container for aarch64-linux-gnu
         if: matrix.architecture == 'aarch64-linux-gnu'
         run: |
-          podman build --from=docker.io/arm64v8/ubuntu:24.04 --arch=arm64 misc/container -t container
+          podman build --from=docker.io/arm64v8/ubuntu:24.04 --arch=arm64 misc/buildtestcontainer -t container
       - name: Build container for x86-64
         if: matrix.architecture == ''
         run: |
-          podman build misc/container -t container
+          podman build misc/buildtestcontainer -t container
       - name: Run build in container
         shell: bash
         run: |
           podman run -v $PWD/.:/aws-greengrass-lite --replace --name ggl container:latest bash -c "\
             cd /aws-greengrass-lite && \
             rm -rf build/ && \
-            cmake -B build -DCMAKE_INSTALL_PREFIX=/opt/aws-greengrass-lite \
+            cmake -B build \
             -DGGL_LOG_LEVEL=DEBUG \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_FIND_DEBUG_MODE=ON && \
+            -DCMAKE_FIND_DEBUG_MODE=ON \
+            -DGGL_SYSTEMD_SYSTEM_USER=ggcore \
+            -DGGL_SYSTEMD_SYSTEM_GROUP=ggcore  \
+            -DGGL_SYSTEMD_SYSTEM_DIR=/lib/systemd/system \
+            -DCMAKE_INSTALL_PREFIX=/usr && \
             make -C build -j$(nproc) && \
-            cd build && cpack -G DEB && cd - \
+            cd build && cpack -v -G DEB && cd - \
             "
       - name: Save package
         run: |
@@ -48,9 +48,10 @@ jobs:
           cp ${{ github.workspace }}/build/*.deb ${{ github.workspace }}/zipfile/
       - name: Generate readme / install file
         run: |
-          cat ${{ github.workspace }}/.github/workflows/build-packages-multi-platform-container-qemu/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
-          cp ${{ github.workspace }}/.github/workflows/build-packages-multi-platform-container-qemu/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
+          cat ${{ github.workspace }}/.github/workflows/packaging/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
+          cp ${{ github.workspace }}/.github/workflows/packaging/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
           sed -i 's|{{ VERSION_LINK }}|${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
+          cat ${{ github.workspace }}/LICENSE >> ${{ github.workspace }}/zipfile/readme.txt
       - name: md5sums
         run: |
           md5sum ${{ github.workspace }}/zipfile/*

@@ -1,0 +1,100 @@
+#!/bin/sh
+set -e
+echo "postinst script running"
+
+# https://github.com/aws-greengrass/aws-greengrass-lite/blob/main/docs/INSTALL.md#usergroup
+# user and group for greengrass itself
+gg_user="ggcore"
+gg_group="ggcore"
+
+# default user and group for greengrass components
+ggc_user="ggc_user"
+ggc_group="ggc_group"
+
+gg_workingdir="/var/lib/greengrass"
+gg_confdir="/etc/greengrass"
+config_file="${gg_confdir}/config.d/greengrass-lite.yaml"
+
+
+# Function to create a group if it doesn't exist
+create_group() {
+    if ! getent group "$1" > /dev/null 2>&1; then
+        groupadd "$1"
+        echo "Group $1 created."
+    else
+        echo "Group $1 already exists."
+    fi
+}
+
+
+# Function to create a user if it doesn't exist
+create_user() {
+    if ! id "$1" &>/dev/null; then
+        useradd -m -g "$2" "$1"
+        echo "User $1 created and added to group $2."
+    else
+        echo "User $1 already exists."
+    fi
+}
+
+
+# Function to create the configuration file
+create_config_file() {
+    cat > "$config_file" << EOL
+---
+system:
+  rootPath: "${gg_workingdir}"
+services:
+  aws.greengrass.Nucleus-Lite:
+    componentType: "NUCLEUS"
+    configuration:
+      runWithDefault:
+        posixUser: "${gg_user}:${gg_group}"
+      greengrassDataPlanePort: "8443"
+      tesCredUrl: "http://127.0.0.1:8080/"
+EOL
+    echo "Configuration file created at $config_file"
+}
+
+
+# main loop
+
+mkdir -p "${gg_confdir}"/config.d
+
+chmod 755 "${gg_confdir}"/config.d
+
+create_config_file
+
+create_group "${gg_group}"
+
+create_user "${gg_user}" "${gg_group}"
+
+create_group "${ggc_group}"
+
+create_user "${ggc_user}" "${ggc_group}"
+
+mkdir -p "${gg_workingdir}"
+
+chown "${gg_user}":"${gg_group}" "${gg_workingdir}"
+
+systemd-tmpfiles --create
+
+systemctl enable greengrass-lite.target
+systemctl enable ggl.aws_iot_tes.socket
+systemctl enable ggl.aws_iot_mqtt.socket
+systemctl enable ggl.gg_config.socket
+systemctl enable ggl.gg_health.socket
+systemctl enable ggl.gg_fleet_status.socket
+systemctl enable ggl.gg_deployment.socket
+systemctl enable ggl.gg_pubsub.socket
+systemctl enable ggl.gg-ipc.socket.socket
+systemctl enable ggl.core.ggconfigd.service
+systemctl enable ggl.core.iotcored.service
+systemctl enable ggl.core.tesd.service
+systemctl enable ggl.core.ggdeploymentd.service
+systemctl enable ggl.core.gg-fleet-statusd.service
+systemctl enable ggl.core.ggpubsubd.service
+systemctl enable ggl.core.gghealthd.service
+systemctl enable ggl.core.ggipcd.service
+systemctl reset-failed
+systemctl daemon-reload

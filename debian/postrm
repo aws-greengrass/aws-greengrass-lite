@@ -1,0 +1,56 @@
+#!/bin/sh
+set -e
+echo "postrm script running"
+
+gg_workingdir="/var/lib/greengrass"
+gg_confdir="/etc/greengrass"
+
+# default user and group for greengrass itself
+gg_user="ggcore"
+gg_group="ggcore"
+
+# default user and group for greengrass components
+ggc_user="ggc_user"
+ggc_group="ggc_group"
+
+# Function to create a group if it exists
+delete_group() {
+    if  getent group "$1" > /dev/null 2>&1; then
+        groupdel "$1"
+        echo "Group $1 deleted."
+    else
+        echo "Group $1 does not exist."
+    fi
+}
+
+# Function to delete a user if it exists
+delete_user() {
+    if id "$1" &>/dev/null; then
+        userdel "$1"
+        echo "User $1 deleted."
+    else
+        echo "User $1 does not exist."
+    fi
+}
+
+# main loop
+if [ "$1" = "purge" ]; then
+    # Remove configuration directories only on purge
+    for dir in ${gg_workingdir} ${gg_confdir}; do
+        if [ -d "$dir" ]; then
+            rm -rf "$dir"
+        fi
+    done
+elif [ "$1" = "remove" ]; then
+    echo "Removing user ${gg_user}..."
+    delete_user "${gg_user}"
+
+    echo "Removing group ${gg_group}..."
+    delete_group "${gg_group}"
+
+    echo "Removing user ${ggc_user}..."
+    delete_user "${ggc_user}"
+
+    echo "Removing group ${ggc_group}..."
+    delete_group "${ggc_group}"
+fi
