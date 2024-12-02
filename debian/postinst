@@ -51,7 +51,6 @@ services:
       runWithDefault:
         posixUser: "${gg_user}:${gg_group}"
       greengrassDataPlanePort: "8443"
-      tesCredUrl: "http://127.0.0.1:8080/"
 EOL
     echo "Configuration file created at $config_file"
 }
