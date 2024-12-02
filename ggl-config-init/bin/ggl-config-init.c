@@ -10,9 +10,13 @@
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/version.h>
 #include <ggl/yaml_decode.h>
 #include <stddef.h>
 #include <stdint.h>
+
+__attribute__((visibility("default"))) const char *argp_program_version
+    = GGL_VERSION;
 
 static char *config_path = NULL;
 

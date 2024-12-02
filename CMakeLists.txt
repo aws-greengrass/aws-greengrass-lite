@@ -184,6 +184,10 @@ if(GGL_IPC_AUTH_DISABLE)
   add_compile_definitions(GGL_IPC_AUTH_DISABLE)
 endif()
 
+file(READ version GGL_VERSION)
+string(STRIP "${GGL_VERSION}" GGL_VERSION)
+add_compile_definitions("GGL_VERSION=\"${GGL_VERSION}\"")
+
 add_link_options($<$<NOT:$<CONFIG:Debug>>:-pie>)
 
 add_link_options(

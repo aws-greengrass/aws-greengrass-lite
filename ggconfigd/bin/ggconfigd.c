@@ -6,7 +6,11 @@
 #include <argp.h>
 #include <ggl/buffer.h>
 #include <ggl/object.h>
+#include <ggl/version.h>
 #include <stdlib.h>
+
+__attribute__((visibility("default"))) const char *argp_program_version
+    = GGL_VERSION;
 
 static char doc[] = "ggconfigd -- Greengrass Nucleus Lite configuration daemon";
 
