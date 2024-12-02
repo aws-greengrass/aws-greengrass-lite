@@ -5,7 +5,11 @@
 #include "ggpubsubd.h"
 #include <argp.h>
 #include <ggl/error.h>
+#include <ggl/version.h>
 #include <stdlib.h>
+
+__attribute__((visibility("default"))) const char *argp_program_version
+    = GGL_VERSION;
 
 static char doc[] = "ggpubsubd -- Greengrass Publish/Subscribe daemon";
 

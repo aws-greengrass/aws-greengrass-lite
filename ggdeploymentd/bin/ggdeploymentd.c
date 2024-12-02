@@ -7,9 +7,13 @@
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/vector.h>
+#include <ggl/version.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
+
+__attribute__((visibility("default"))) const char *argp_program_version
+    = GGL_VERSION;
 
 static char doc[]
     = "ggdeploymentd -- Greengrass Nucleus Lite deployment daemon";

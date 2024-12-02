@@ -20,6 +20,7 @@ in
           ".clang-tidy"
           "CMakeLists.txt"
           "fc_deps.json"
+          "version"
           "run_nucleus"
           "recipe.yml"
           "greengrass-lite.target"
