@@ -8,8 +8,8 @@ gg_user="ggcore"
 gg_group="ggcore"
 
 # default user and group for greengrass components
-ggc_user="ggc_user"
-ggc_group="ggc_group"
+ggc_user="gg_component"
+ggc_group="gg_component"
 
 gg_workingdir="/var/lib/greengrass"
 gg_confdir="/etc/greengrass"

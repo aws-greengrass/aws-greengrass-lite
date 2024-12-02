@@ -10,8 +10,8 @@ gg_user="ggcore"
 gg_group="ggcore"
 
 # default user and group for greengrass components
-ggc_user="ggc_user"
-ggc_group="ggc_group"
+ggc_user="gg_component"
+ggc_group="gg_component"
 
 # Function to create a group if it exists
 delete_group() {
