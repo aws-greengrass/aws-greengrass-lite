@@ -15,6 +15,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <ggl/version.h>
 #include <limits.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -419,7 +420,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         }
     }
 
-    sys_ret = setenv("GGC_VERSION", "0.0.1", true);
+    sys_ret = setenv("GGC_VERSION", GGL_VERSION, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
     }

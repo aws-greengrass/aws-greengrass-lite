@@ -12,12 +12,16 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <ggl/version.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+__attribute__((visibility("default"))) const char *argp_program_version
+    = GGL_VERSION;
 
 char *command = NULL;
 char *recipe_dir = NULL;
