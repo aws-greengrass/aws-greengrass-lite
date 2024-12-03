@@ -169,6 +169,11 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
             &version_resp
         );
 
+        if (ggl_buffer_eq(version_resp, GGL_STR("inactive"))) {
+            // this component is no longer on the device
+            continue;
+        }
+
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Unable to retrieve version of %s. Cannot publish fleet status "
@@ -177,10 +182,7 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
             );
             return GGL_ERR_NOENTRY;
         }
-        if (ggl_buffer_eq(version_resp, GGL_STR("invalid"))) {
-            // this component is no longer on the device
-            continue;
-        }
+
         ret = ggl_buf_clone(version_resp, &balloc.alloc, &version_resp);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to copy version response buffer.");
@@ -192,7 +194,14 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
         GglBuffer component_health = GGL_BUF(component_health_arr);
         ret = retrieve_component_health_status(pair->key, &component_health);
         if (ret != GGL_ERR_OK) {
-            return ret;
+            // skip reporting for components we fail to retrieve health statuses
+            // for
+            GGL_LOGD(
+                "Failed to retrieve health status for %s, removing "
+                "component from fleet status update payload.",
+                pair->key.data
+            );
+            continue;
         }
         ret = ggl_buf_clone(component_health, &balloc.alloc, &component_health);
         if (ret != GGL_ERR_OK) {
