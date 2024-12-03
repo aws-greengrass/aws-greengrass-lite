@@ -34,6 +34,92 @@ static GglError try_open_extension(
     return ggl_file_read_path_at(recipe_dir, full.buf, content);
 }
 
+static GglError parse_requiresprivilege_section(
+    bool *is_root, GglMap lifecycle_step
+) {
+    GglObject *key_object;
+    if (ggl_map_get(
+            lifecycle_step, GGL_STR("RequiresPrivilege"), &key_object
+        )) {
+        if (key_object->type != GGL_TYPE_BUF) {
+            GGL_LOGE("RequiresPrivilege needs to be a (true/false) value");
+            return GGL_ERR_INVALID;
+        }
+
+        // TODO: Check if 0 and 1 are valid
+        if (strncmp((char *) key_object->buf.data, "true", key_object->buf.len)
+            == 0) {
+            *is_root = true;
+        } else if (strncmp(
+                       (char *) key_object->buf.data,
+                       "false",
+                       key_object->buf.len
+                   )
+                   == 0) {
+            *is_root = false;
+        } else {
+            GGL_LOGE("RequiresPrivilege needs to be a"
+                     "(true/false) value");
+            return GGL_ERR_INVALID;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
+GglError fetch_script_section(
+    GglMap selected_lifecycle,
+    GglBuffer selected_phase,
+    bool *is_root,
+    GglBuffer *out_selected_script_as_buf,
+    GglMap *out_set_env_as_map
+) {
+    GglObject *val;
+    if (ggl_map_get(selected_lifecycle, selected_phase, &val)) {
+        if (val->type == GGL_TYPE_BUF) {
+            *out_selected_script_as_buf = val->buf;
+        } else if (val->type == GGL_TYPE_MAP) {
+            GglObject *key_object;
+
+            GglError ret = parse_requiresprivilege_section(is_root, val->map);
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+
+            if (ggl_map_get(val->map, GGL_STR("Script"), &key_object)) {
+                if (key_object->type != GGL_TYPE_BUF) {
+                    GGL_LOGE("Script section needs to be string buffer");
+                    return GGL_ERR_INVALID;
+                }
+                *out_selected_script_as_buf = key_object->buf;
+            } else {
+                GGL_LOGW("Script is not in the map");
+                return GGL_ERR_NOENTRY;
+            }
+
+            if (ggl_map_get(val->map, GGL_STR("Setenv"), &key_object)) {
+                if (key_object->type != GGL_TYPE_MAP) {
+                    GGL_LOGE("Setenv needs to be a dictionary map");
+                    return GGL_ERR_INVALID;
+                }
+                *out_set_env_as_map = key_object->map;
+            }
+
+        } else {
+            GGL_LOGE("Script section section is of invalid list type");
+            return GGL_ERR_INVALID;
+        }
+    } else {
+        GGL_LOGW(
+            "%.*s section is not in the lifecycle",
+            (int) selected_phase.len,
+            selected_phase.data
+        );
+        return GGL_ERR_NOENTRY;
+    }
+
+    return GGL_ERR_OK;
+};
+
 static GglError lifecycle_selection(
     GglObject *selection_obj,
     GglMap recipe_map,
@@ -234,7 +320,7 @@ GglError select_linux_manifest(
 }
 
 GglError ggl_recipe_get_from_file(
-    int root_path,
+    int root_path_fd,
     GglBuffer component_name,
     GglBuffer component_version,
     GglAlloc *alloc,
@@ -245,7 +331,7 @@ GglError ggl_recipe_get_from_file(
 
     int recipe_dir;
     GglError ret = ggl_dir_openat(
-        root_path, GGL_STR("packages/recipes"), O_PATH, false, &recipe_dir
+        root_path_fd, GGL_STR("packages/recipes"), O_PATH, false, &recipe_dir
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to open recipe dir.");
