@@ -3,15 +3,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ipc_components.h"
+#include <sys/types.h>
 #include <assert.h>
 #include <ggipc/auth.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
+#include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/rand.h>
+#include <pthread.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -40,6 +45,8 @@ static_assert(
 
 #define SVCUID_BIN_LEN (((size_t) GGL_IPC_SVCUID_LEN / 4) * 3)
 
+static pthread_mutex_t ggl_ipc_component_registered_components_mtx
+    = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t svcuids[GGL_MAX_GENERIC_COMPONENTS][SVCUID_BIN_LEN];
 static uint8_t component_names[GGL_MAX_GENERIC_COMPONENTS]
                               [MAX_COMPONENT_NAME_LENGTH];
@@ -67,10 +74,100 @@ static void set_component_name(
     component_name_lengths[handle - 1] = (uint8_t) component_name.len;
 }
 
+static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
+    (void) ctx;
+    (void) handle;
+
+    GglObject *svcuid_buf;
+
+    GglError ret = ggl_map_validate(
+        params,
+        GGL_MAP_SCHEMA({ GGL_STR("svcuid"), true, GGL_TYPE_BUF, &svcuid_buf }, )
+    );
+
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to validate the map provided to 'verify_svcuid'.");
+        return GGL_ERR_INVALID;
+    }
+
+    if (svcuid_buf->type != GGL_TYPE_BUF) {
+        GGL_LOGE("svcuid must be of type buffer.");
+        return GGL_ERR_INVALID;
+    }
+
+    GglBuffer svcuid_bin = GGL_BUF((uint8_t[SVCUID_BIN_LEN]) { 0 });
+    bool decoded = ggl_base64_decode(svcuid_buf->buf, &svcuid_bin);
+    if (!decoded) {
+        GGL_LOGE("svcuid is invalid base64.");
+        return GGL_ERR_INVALID;
+    }
+
+    GGL_MTX_SCOPE_GUARD(&ggl_ipc_component_registered_components_mtx);
+
+    for (GglComponentHandle i = 1; i <= registered_components; i++) {
+        GglBuffer svcuid_bin_i = GGL_BUF(svcuids[i - 1]);
+        if (ggl_buffer_eq(svcuid_bin, svcuid_bin_i)) {
+            GGL_LOGD("Found the requested svcuid.");
+            ggl_respond(handle, GGL_OBJ_BOOL(true));
+            return GGL_ERR_OK;
+        }
+    }
+
+    GGL_LOGE("Requested svcuid not found.");
+
+    ggl_respond(handle, GGL_OBJ_BOOL(false));
+    return GGL_ERR_OK;
+}
+
+static void *ggl_ipc_component_server(void *args) {
+    (void) args;
+
+    // Hack. Fix it. Need IPC to be up and running before we start this server.
+    ggl_sleep(5);
+
+    GglRpcMethodDesc handlers[] = {
+        { GGL_STR("verify_svcuid"), false, verify_svcuid, NULL },
+    };
+    size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
+
+    GglBuffer interface = GGL_STR("ipc_component");
+
+    GglError ret = ggl_listen(interface, handlers, handlers_len);
+
+    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
+
+    return NULL;
+}
+
+GglError ggl_ipc_start_component_server(void) {
+    pthread_t ptid;
+    int res = pthread_create(&ptid, NULL, &ggl_ipc_component_server, NULL);
+    if (res != 0) {
+        GGL_LOGE(
+            "Failed to create ggl_ipc_component_server with error %d.", res
+        );
+        return GGL_ERR_FATAL;
+    }
+
+    res = pthread_detach(ptid);
+    if (res != 0) {
+        GGL_LOGE(
+            "Failed to detach the ggl_ipc_component_server thread with error "
+            "%d.",
+            res
+        );
+        return GGL_ERR_FATAL;
+    }
+
+    return GGL_ERR_OK;
+}
+
 GglError ggl_ipc_components_get_handle(
     GglBuffer svcuid, GglComponentHandle *component_handle
 ) {
     assert(component_handle != NULL);
+
+    GGL_MTX_SCOPE_GUARD(&ggl_ipc_component_registered_components_mtx);
 
     if (AUTH_ENABLED) {
         // Match decoded SVCUID and return match
@@ -173,6 +270,7 @@ GglError ggl_ipc_components_register(
         component_name.data
     );
 
+    GGL_MTX_SCOPE_GUARD(&ggl_ipc_component_registered_components_mtx);
     registered_components += 1;
     *component_handle = registered_components;
     set_component_name(*component_handle, component_name);

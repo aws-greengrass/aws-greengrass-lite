@@ -1966,6 +1966,11 @@ static GglError wait_for_deployment_status(GglMap resolved_components) {
             300
         );
         if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Failed waiting for %.*s",
+                (int) component->key.len,
+                component->key.data
+            );
             return GGL_ERR_FAILURE;
         }
     }

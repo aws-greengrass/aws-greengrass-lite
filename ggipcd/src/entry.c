@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggipcd.h"
+#include "ipc_components.h"
 #include "ipc_server.h"
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
@@ -46,7 +47,14 @@ GglError run_ggipcd(GglIpcArgs *args) {
     GGL_LOGI("%s", socket_name != NULL ? socket_name : "n/a");
     GGL_LOGI("%s", socket_path);
 
-    GglError err = ggl_ipc_listen(socket_name, socket_path);
+    GglError err = ggl_ipc_start_component_server();
+
+    if (err != GGL_ERR_OK) {
+        GGL_LOGE("Failed to start ggl_ipc_component_server.");
+        return err;
+    }
+
+    err = ggl_ipc_listen(socket_name, socket_path);
 
     GGL_LOGE("Exiting due to error while listening (%u).", err);
     return err;

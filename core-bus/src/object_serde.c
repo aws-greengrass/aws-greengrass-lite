@@ -172,7 +172,12 @@ static GglError read_buf_raw(
         return ret;
     }
 
-    if (copy_bufs) {
+    if (copy_bufs && (len > 0)) {
+        if (alloc == NULL) {
+            GGL_LOGE("Packet decode requires allocation and no alloc provided."
+            );
+            return GGL_ERR_NOMEM;
+        }
         uint8_t *copy = GGL_ALLOCN(alloc, uint8_t, len);
         if (copy == NULL) {
             GGL_LOGE("Insufficient memory to encode packet.");

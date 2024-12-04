@@ -1,6 +1,7 @@
 #include "http_server.h"
 #include "inttypes.h"
 #include "netinet/in.h"
+#include "stdbool.h"
 #include "stdio.h"
 #include <arpa/inet.h>
 #include <event2/buffer.h>
@@ -15,10 +16,10 @@
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <systemd/sd-daemon.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 struct evhttp_request;
 
@@ -72,7 +73,63 @@ static void request_handler(struct evhttp_request *req, void *arg) {
         }
         return;
     }
-    // TODO: Check the Authorization's value
+
+    size_t auth_header_len = strlen(auth_header);
+    if (auth_header_len != 16U) {
+        GGL_LOGE("svcuid character count must be exactly 16.");
+        // Respond with 400 Bad Request
+        struct evbuffer *response = evbuffer_new();
+        if (response) {
+            evbuffer_add_printf(response, "SVCUID length must be exactly 16.");
+            evhttp_send_reply(req, HTTP_BADREQUEST, "Bad Request", response);
+            evbuffer_free(response);
+        }
+        return;
+    }
+
+    GglBuffer auth_header_buf
+        = { .data = (uint8_t *) auth_header, .len = auth_header_len };
+
+    GglMap svcuid_map
+        = GGL_MAP({ GGL_STR("svcuid"), GGL_OBJ_BUF(auth_header_buf) }, );
+
+    GglObject result = GGL_OBJ_BOOL(false);
+    GglError res = ggl_call(
+        GGL_STR("ipc_component"),
+        GGL_STR("verify_svcuid"),
+        svcuid_map,
+        NULL,
+        NULL,
+        &result
+    );
+    if (res != GGL_ERR_OK) {
+        GGL_LOGE("Failed to make an IPC call to ipc_component to check svcuid."
+        );
+        // Respond with 500 Server unavailable
+        struct evbuffer *response = evbuffer_new();
+        if (response) {
+            evbuffer_add_printf(response, "Failed to fetch SVCUID. Try again.");
+            evhttp_send_reply(
+                req, HTTP_SERVUNAVAIL, "Server unavailable", response
+            );
+            evbuffer_free(response);
+        }
+        return;
+    }
+
+    if (result.boolean == false) {
+        GGL_LOGE("svcuid cannot be found");
+        // Respond with 404 not found.
+        struct evbuffer *response = evbuffer_new();
+        if (response) {
+            evbuffer_add_printf(response, "No such svcuid present.");
+            evhttp_send_reply(
+                req, HTTP_NOTFOUND, "Server unavailable", response
+            );
+            evbuffer_free(response);
+        }
+        return;
+    }
 
     static uint8_t big_buffer_for_bump[4096];
     static uint8_t temp_payload_alloc2[4096];

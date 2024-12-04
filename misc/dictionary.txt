@@ -93,6 +93,7 @@ rootca
 semp
 serde
 serverd
+SERVUNAVAIL
 sigv4
 ssssssouso
 statusd
