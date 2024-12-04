@@ -1595,6 +1595,25 @@ static GglError resolve_dependencies(
                     );
                     return GGL_ERR_INVALID;
                 }
+
+                // If the component is aws.greengrass.Nucleus or
+                // aws.greengrass.TokenExchangeService ignore it and never add
+                // it as a dependency to check or parse.
+                if (ggl_buffer_eq(
+                        dependency->key, GGL_STR("aws.greengrass.Nucleus")
+                    )
+                    || ggl_buffer_eq(
+                        dependency->key,
+                        GGL_STR("aws.greengrass.TokenExchangeService")
+                    )) {
+                    GGL_LOGD(
+                        "Skipping a dependency during resolution as it is %.*s",
+                        (int) dependency->key.len,
+                        dependency->key.data
+                    );
+                    continue;
+                }
+
                 GglObject *dep_version_requirement = NULL;
                 ret = ggl_map_validate(
                     dependency->val.map,
