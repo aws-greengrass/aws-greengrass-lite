@@ -387,7 +387,11 @@ static GglError process_lifecycle_phase(
         return ret;
     }
 
-    GGL_LOGD("Processing lifecycle phase Setenv");
+    GGL_LOGT(
+        "Processing lifecycle phase Setenv for %.*s",
+        (int) phase.len,
+        phase.data
+    );
     ret = process_set_env(
         conn,
         out_fd,
@@ -409,7 +413,11 @@ static GglError process_lifecycle_phase(
             return ret;
         }
     }
-    GGL_LOGD("Processing lifecycle phase script");
+    GGL_LOGT(
+        "Processing lifecycle phase script for %.*s",
+        (int) phase.len,
+        phase.data
+    );
     uint8_t *current_pointer = &selected_script_as_buf.data[0];
     uint8_t *end_pointer
         = &selected_script_as_buf.data[selected_script_as_buf.len];
