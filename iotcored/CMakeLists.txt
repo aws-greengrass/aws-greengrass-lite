@@ -10,6 +10,4 @@ ggl_init_module(
        core_mqtt
        ggl-backoff
        ggl-file
-       PkgConfig::openssl
-       SOCKETS
-       aws_iot_mqtt)
+       PkgConfig::openssl)

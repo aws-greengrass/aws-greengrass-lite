@@ -322,15 +322,8 @@ function(ggl_init_module name)
   endif()
 
   if(GGL_SYSTEMD_SERVICE_BUILD)
-    foreach(socket ${COMP_ARG_SOCKETS})
-      configure_file(${CMAKE_SOURCE_DIR}/misc/systemd/template.socket.in
-                     ${CMAKE_CURRENT_BINARY_DIR}/ggl.${socket}.socket @ONLY)
-      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ggl.${socket}.socket
-              DESTINATION ${GGL_SYSTEMD_SYSTEM_DIR})
-    endforeach()
-
     file(GLOB_RECURSE SERVICES CONFIGURE_DEPENDS
-         "${CMAKE_CURRENT_LIST_DIR}/unit/*.service.in")
+         "${CMAKE_CURRENT_LIST_DIR}/unit/*.in")
 
     foreach(service ${SERVICES})
       get_filename_component(service_filename ${service} NAME_WLE)

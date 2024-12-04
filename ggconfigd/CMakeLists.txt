@@ -11,9 +11,7 @@ ggl_init_module(
        ggl-yaml
        ggl-constants
        ggl-json
-       PkgConfig::sqlite3
-       SOCKETS
-       gg_config)
+       PkgConfig::sqlite3)
 target_compile_definitions(ggconfigd
                            PRIVATE "GGL_COMP_DIR=${CMAKE_CURRENT_LIST_DIR}")
 target_compile_options(ggconfigd PRIVATE $<$<COMPILE_LANGUAGE:ASM>:-undef>)

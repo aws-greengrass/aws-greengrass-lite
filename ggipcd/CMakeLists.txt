@@ -13,10 +13,4 @@ ggl_init_module(
        core-bus-gg-config
        core-bus-aws-iot-mqtt
        ggipc-auth
-       ggl-rand
-       SOCKETS
-       gg-ipc.socket
-       SOCKETDIR
-       /var/lib/greengrass
-       SOCKETMODE
-       0666)
+       ggl-rand)

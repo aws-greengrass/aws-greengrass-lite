@@ -12,6 +12,7 @@ systemctl enable ggl.gg_health.socket
 systemctl enable ggl.gg_fleet_status.socket
 systemctl enable ggl.gg_deployment.socket
 systemctl enable ggl.gg_pubsub.socket
+systemctl enable ggl.ipc_component.socket
 systemctl enable ggl.gg-ipc.socket.socket
 systemctl enable ggl.core.ggconfigd.service
 systemctl enable ggl.core.iotcored.service

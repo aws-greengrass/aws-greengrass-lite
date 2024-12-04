@@ -122,9 +122,6 @@ static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
 static void *ggl_ipc_component_server(void *args) {
     (void) args;
 
-    // Hack. Fix it. Need IPC to be up and running before we start this server.
-    ggl_sleep(5);
-
     GglRpcMethodDesc handlers[] = {
         { GGL_STR("verify_svcuid"), false, verify_svcuid, NULL },
     };

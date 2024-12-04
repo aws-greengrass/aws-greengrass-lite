@@ -1,18 +1,19 @@
 [Unit]
 PartOf=greengrass-lite.target
 Before=greengrass-lite.target
+StartLimitInterval=20
 
 [Install]
 WantedBy=greengrass-lite.target
 
 [Socket]
-ListenStream=@COMP_ARG_SOCKETDIR@/@socket@
-FileDescriptorName=@socket@
-Service=ggl.core.@name@.service
+ListenStream=/var/lib/greengrass/gg-ipc.socket
+FileDescriptorName=gg-ipc.socket
+Service=ggl.core.ggipcd.service
 SocketUser=@GGL_SYSTEMD_SYSTEM_USER@
 SocketGroup=@GGL_SYSTEMD_SYSTEM_GROUP@
 Backlog=10
-SocketMode=@COMP_ARG_SOCKETMODE@
+SocketMode=0666
 
 [Install]
 WantedBy=sockets.target
