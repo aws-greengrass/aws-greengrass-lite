@@ -3,4 +3,4 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ggl_init_module(recipe-runner LIBS ggl-lib ggipc-client ggl-json ggl-file
-                                   ggl-constants)
+                                   ggl-recipe ggl-constants)

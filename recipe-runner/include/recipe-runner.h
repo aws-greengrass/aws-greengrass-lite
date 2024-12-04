@@ -10,7 +10,7 @@
 typedef struct {
     char *component_name;
     char *component_version;
-    char *file_path;
+    char *phase;
 } RecipeRunnerArgs;
 
 GglError run_recipe_runner(RecipeRunnerArgs *args);

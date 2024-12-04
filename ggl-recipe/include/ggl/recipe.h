@@ -7,6 +7,7 @@
 
 //! Greengrass recipe utils
 
+#include "stdbool.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>

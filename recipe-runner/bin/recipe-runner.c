@@ -14,7 +14,7 @@ __attribute__((visibility("default"))) const char *argp_program_version
 static char doc[] = "recipe-runner -- Launch a Greengrass recipe file";
 
 static struct argp_option opts[] = {
-    { "filepath", 'p', "path", 0, "Provide path to a recipe file", 0 },
+    { "phase", 'p', "name", 0, "Provide phase you want to execute", 0 },
     { "component-name", 'n', "name", 0, "Name of the component being run", 0 },
     { "component-version", 'v', "version", 0, "Version of the component", 0 },
     { 0 }
@@ -24,7 +24,7 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
     RecipeRunnerArgs *args = state->input;
     switch (key) {
     case 'p':
-        args->file_path = arg;
+        args->phase = arg;
         break;
     case 'n':
         args->component_name = arg;
@@ -34,7 +34,7 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
         break;
 
     case ARGP_KEY_END:
-        if (args->file_path == NULL || args->component_name == NULL
+        if (args->phase == NULL || args->component_name == NULL
             || args->component_version == NULL) {
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             argp_usage(state);

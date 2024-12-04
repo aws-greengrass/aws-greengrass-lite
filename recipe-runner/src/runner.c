@@ -9,11 +9,14 @@
 #include <fcntl.h>
 #include <ggipc/client.h>
 #include <ggl/buffer.h>
+#include <ggl/bump_alloc.h>
 #include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/recipe.h>
 #include <ggl/vector.h>
 #include <ggl/version.h>
 #include <limits.h>
@@ -23,8 +26,8 @@
 #include <stdlib.h>
 
 #define MAX_SCRIPT_LENGTH 10000
-
 #define MAX_THING_NAME_LEN 128
+#define MAX_RECIPE_LEN 256000
 
 pid_t child_pid = -1; // To store child process ID
 
@@ -106,6 +109,17 @@ static GglError substitute_escape(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+
+    GGL_LOGD(
+        "Current variable substitution: %.*s. type = %.*s; arg = %.*s",
+        (int) escape_seq.len,
+        escape_seq.data,
+        (int) type.len,
+        type.data,
+        (int) arg.len,
+        arg.data
+    );
+
     if (ggl_buffer_eq(type, GGL_STR("kernel"))) {
         if (ggl_buffer_eq(arg, GGL_STR("rootPath"))) {
             return ggl_file_write(out_fd, root_path);
@@ -197,55 +211,33 @@ static GglError substitute_escape(
     return GGL_ERR_FAILURE;
 }
 
-static GglError file_read(int fd, GglBuffer *buf) {
-    ssize_t ret;
-    while (true) {
-        ret = read(fd, buf->data, buf->len);
-        if (ret < 0) {
-            if (errno == EINTR) {
-                continue;
-            }
-            GGL_LOGE("Failed to read from %d: %d.", fd, errno);
-            return GGL_ERR_FAILURE;
-        }
-        break;
-    }
-
-    *buf = ggl_buffer_substr(*buf, 0, (size_t) ret);
-    return GGL_ERR_OK;
-}
-
 static GglError handle_escape(
     int conn,
     int out_fd,
-    int in_fd,
+    uint8_t **current_pointer,
+    const uint8_t *end_pointer,
     GglBuffer root_path,
     GglBuffer component_name,
     GglBuffer component_version,
     GglBuffer thing_name
 ) {
-    static uint8_t escape_contents[120];
+    static uint8_t escape_contents[256];
     GglByteVec vec = GGL_BYTE_VEC(escape_contents);
-
-    uint8_t read_mem[1] = { 0 };
-
+    (*current_pointer)++;
     while (true) {
-        GglBuffer read_buf = GGL_BUF(read_mem);
-        GglError ret = file_read(in_fd, &read_buf);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        if (read_buf.len == 0) {
+        if (*current_pointer == end_pointer) {
             GGL_LOGE("Recipe escape is not terminated.");
-            return GGL_ERR_NOMEM;
+            return GGL_ERR_INVALID;
         }
-        if (*read_mem != '}') {
-            ret = ggl_byte_vec_push(&vec, *read_mem);
+        if (**current_pointer != '}') {
+            GglError ret = ggl_byte_vec_push(&vec, **current_pointer);
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("Recipe escape exceeded max length.");
                 return ret;
             }
+            (*current_pointer)++;
         } else {
+            (*current_pointer)++;
             return substitute_escape(
                 conn,
                 out_fd,
@@ -259,42 +251,184 @@ static GglError handle_escape(
     }
 }
 
-static GglError write_script_with_replacement(
+static GglError process_set_env(
     int conn,
     int out_fd,
-    GglBuffer script_path,
+    GglMap env_values_as_map,
     GglBuffer root_path,
     GglBuffer component_name,
     GglBuffer component_version,
     GglBuffer thing_name
 ) {
-    int in_fd = -1;
-    GglError ret = ggl_file_open(script_path, O_RDONLY, 0, &in_fd);
+    GglError ret = GGL_ERR_OK;
+    GGL_LOGD("Lifecycle Setenv, is a map");
+    GGL_MAP_FOREACH(pair, env_values_as_map) {
+        ggl_file_write(out_fd, GGL_STR("export "));
+        ggl_file_write(out_fd, pair->key);
+        GGL_LOGD(
+            "Lifecycle Setenv, map key: %.*s",
+            (int) pair->key.len,
+            pair->key.data
+        );
+        ggl_file_write(out_fd, GGL_STR("="));
+
+        if (pair->val.type != GGL_TYPE_BUF) {
+            GGL_LOGI("Invalid lifecycle Setenv, Key values must be String");
+            return GGL_ERR_INVALID;
+        }
+        GGL_LOGD(
+            "Lifecycle Setenv, map value: %.*s",
+            (int) pair->val.buf.len,
+            pair->val.buf.data
+        );
+        uint8_t *current_pointer = &pair->val.buf.data[0];
+        uint8_t *end_pointer = &pair->val.buf.data[pair->val.buf.len];
+        if (pair->val.buf.len == 0) {
+            // Add in a new line if no value is provided
+            ret = ggl_file_write(out_fd, GGL_STR("\n"));
+            if (ret != GGL_ERR_OK) {
+                return ret;
+            }
+        }
+        while (true) {
+            if (current_pointer == end_pointer) {
+                break;
+            }
+            if (*current_pointer != '{') {
+                ret = ggl_file_write(
+                    out_fd, (GglBuffer) { current_pointer, 1 }
+                );
+                if (ret != GGL_ERR_OK) {
+                    return ret;
+                }
+                current_pointer++;
+            } else {
+                ret = handle_escape(
+                    conn,
+                    out_fd,
+                    &current_pointer,
+                    end_pointer,
+                    root_path,
+                    component_name,
+                    component_version,
+                    thing_name
+                );
+                if (ret != GGL_ERR_OK) {
+                    return ret;
+                }
+            }
+        }
+        ret = ggl_file_write(out_fd, GGL_STR("\n"));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+    return ret;
+}
+
+static GglError find_and_process_set_env(
+    int conn,
+    int out_fd,
+    GglMap map_containing_setenv,
+    GglBuffer root_path,
+    GglBuffer component_name,
+    GglBuffer component_version,
+    GglBuffer thing_name
+) {
+    GglObject *env_values;
+    GglError ret = GGL_ERR_OK;
+
+    if (ggl_map_get(map_containing_setenv, GGL_STR("Setenv"), &env_values)) {
+        if (env_values->type != GGL_TYPE_MAP) {
+            GGL_LOGE("Invalid lifecycle Setenv, Must be a map");
+            return GGL_ERR_INVALID;
+        }
+
+        ret = process_set_env(
+            conn,
+            out_fd,
+            env_values->map,
+            root_path,
+            component_name,
+            component_version,
+            thing_name
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+
+    } else {
+        GGL_LOGT("No Setenv found");
+    }
+    return ret;
+}
+
+static GglError process_lifecycle_phase(
+    int conn,
+    int out_fd,
+    GglMap selected_lifecycle,
+    GglBuffer phase,
+    GglBuffer root_path,
+    GglBuffer component_name,
+    GglBuffer component_version,
+    GglBuffer thing_name
+) {
+    GglBuffer selected_script_as_buf = { 0 };
+    GglMap set_env_as_map = { 0 };
+    bool is_root;
+    GglError ret = fetch_script_section(
+        selected_lifecycle,
+        phase,
+        &is_root,
+        &selected_script_as_buf,
+        &set_env_as_map
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    uint8_t read_mem[1] = { 0 };
+    GGL_LOGD("Processing lifecycle phase Setenv");
+    ret = process_set_env(
+        conn,
+        out_fd,
+        set_env_as_map,
+        root_path,
+        component_name,
+        component_version,
+        thing_name
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to process setenv");
+        return ret;
+    }
 
-    while (true) {
-        GglBuffer read_buf = GGL_BUF(read_mem);
-        ret = file_read(in_fd, &read_buf);
+    if (selected_script_as_buf.len == 0) {
+        // Add in a new line if no value is provided
+        ret = ggl_file_write(out_fd, GGL_STR("\n"));
         if (ret != GGL_ERR_OK) {
             return ret;
         }
-        if (read_buf.len == 0) {
+    }
+    GGL_LOGD("Processing lifecycle phase script");
+    uint8_t *current_pointer = &selected_script_as_buf.data[0];
+    uint8_t *end_pointer
+        = &selected_script_as_buf.data[selected_script_as_buf.len];
+    while (true) {
+        if (current_pointer == end_pointer) {
             break;
         }
-        if (*read_mem != '{') {
-            ret = ggl_file_write(out_fd, read_buf);
+        if (*current_pointer != '{') {
+            ret = ggl_file_write(out_fd, (GglBuffer) { current_pointer, 1 });
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
+            current_pointer++;
         } else {
             ret = handle_escape(
                 conn,
                 out_fd,
-                in_fd,
+                &current_pointer,
+                end_pointer,
                 root_path,
                 component_name,
                 component_version,
@@ -304,6 +438,67 @@ static GglError write_script_with_replacement(
                 return ret;
             }
         }
+    }
+    return ret;
+}
+
+static GglError write_script_with_replacement(
+    int conn,
+    int out_fd,
+    GglMap recipe_as_map,
+    GglBuffer root_path,
+    GglBuffer component_name,
+    GglBuffer component_version,
+    GglBuffer thing_name,
+    GglBuffer phase
+) {
+    GglMap selected_lifecycle_map = { 0 };
+    GglError ret
+        = select_linux_manifest(recipe_as_map, &selected_lifecycle_map);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to find linux Lifecycle");
+        return ret;
+    }
+    ret = ggl_file_write(out_fd, GGL_STR("set -x\n"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    GGL_LOGT("Processing Global Setenv");
+    ret = find_and_process_set_env(
+        conn,
+        out_fd,
+        selected_lifecycle_map,
+        root_path,
+        component_name,
+        component_version,
+        thing_name
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to process setenv");
+        return ret;
+    }
+
+    GGL_LOGT(
+        "Processing other Lifecycle phase: %.*s", (int) phase.len, phase.data
+    );
+    ret = process_lifecycle_phase(
+        conn,
+        out_fd,
+        selected_lifecycle_map,
+        phase,
+        root_path,
+        component_name,
+        component_version,
+        thing_name
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Failed to process lifecycle phase: %.*s",
+            (int) phase.len,
+            phase.data
+        );
+        return ret;
     }
 
     return GGL_ERR_OK;
@@ -450,10 +645,34 @@ GglError runner(const RecipeRunnerArgs *args) {
         return ret;
     }
 
+    int root_path_fd;
+    ret = ggl_dir_open(root_path, O_PATH, false, &root_path_fd);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to open rootPath.");
+        return ret;
+    }
     GglBuffer component_name = ggl_buffer_from_null_term(args->component_name);
     GglBuffer component_version
         = ggl_buffer_from_null_term(args->component_version);
-    GglBuffer file_path = ggl_buffer_from_null_term(args->file_path);
+
+    GglBuffer phase = ggl_buffer_from_null_term(args->phase);
+
+    static uint8_t big_buffer_for_recipe[MAX_RECIPE_LEN];
+    GglBumpAlloc the_allocator
+        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_recipe));
+    GglObject recipe = { 0 };
+    GGL_LOGE("Root Path: %.*s", (int) root_path.len, root_path.data);
+    ret = ggl_recipe_get_from_file(
+        root_path_fd,
+        component_name,
+        component_version,
+        &the_allocator.alloc,
+        &recipe
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to find the recipe file");
+        return ret;
+    }
 
     int dir_fd;
     ret = ggl_dir_open(root_path, O_PATH, false, &dir_fd);
@@ -505,6 +724,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     if (pid > 0) {
         dup2(pipe_fds[0], STDIN_FILENO);
         char *argv[] = { "sh", NULL };
+
         execvp(argv[0], argv);
         _Exit(1);
     }
@@ -514,11 +734,12 @@ GglError runner(const RecipeRunnerArgs *args) {
     ret = write_script_with_replacement(
         conn,
         pipe_fds[1],
-        file_path,
+        recipe.map,
         root_path,
         component_name,
         component_version,
-        thing_name
+        thing_name,
+        phase
     );
 
     _Exit(ret != GGL_ERR_OK);

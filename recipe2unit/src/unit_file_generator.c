@@ -3,7 +3,6 @@
 // SPDX - License - Identifier : Apache - 2.0
 
 #include "unit_file_generator.h"
-#include "file_operation.h"
 #include "ggl/recipe2unit.h"
 #include <sys/types.h>
 #include <errno.h>
@@ -241,57 +240,20 @@ static GglError concat_exec_start_section_vec(
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, component_version);
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -p "));
 
-    GglBuffer cwd = ggl_byte_vec_remaining_capacity(*exec_start_section_vec);
-    // Get the current working directory
-    if (getcwd((char *) cwd.data, cwd.len) == NULL) {
-        GGL_LOGE("Failed to get current working directory.");
-        return GGL_ERR_FAILURE;
-    }
-    cwd.len = strlen((char *) cwd.data);
-    exec_start_section_vec->buf.len += cwd.len;
-    GGL_LOGD("%.*s (%zu)", (int) cwd.len, cwd.data, cwd.len);
-
-    ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR("/"));
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    return GGL_ERR_OK;
-}
-
-static GglError add_set_env_to_unit(GglMap set_env_as_map, GglByteVec *out) {
-    for (size_t env_var_count = 0; env_var_count < set_env_as_map.len;
-         env_var_count++) {
-        if (set_env_as_map.pairs[env_var_count].val.type != GGL_TYPE_BUF) {
-            GGL_LOGE("Invalid environment var's value, value must be a string");
-            return GGL_ERR_INVALID;
-        }
-
-        GglError ret = ggl_byte_vec_append(out, GGL_STR("Environment=\""));
-        ggl_byte_vec_chain_append(
-            &ret, out, set_env_as_map.pairs[env_var_count].key
-        );
-        ggl_byte_vec_chain_append(&ret, out, GGL_STR("="));
-        ggl_byte_vec_chain_append(
-            &ret, out, set_env_as_map.pairs[env_var_count].val.buf
-        );
-        ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));
-    }
     return GGL_ERR_OK;
 }
 
 static GglError update_unit_file_buffer(
     GglByteVec *out,
     GglByteVec exec_start_section_vec,
-    GglByteVec script_name_vec,
     char *arg_user,
     char *arg_group,
     bool is_root,
-    GglMap set_env_as_map
+    GglBuffer selected_phase
 ) {
     GglError ret = ggl_byte_vec_append(out, GGL_STR("ExecStart="));
     ggl_byte_vec_chain_append(&ret, out, exec_start_section_vec.buf);
-    ggl_byte_vec_chain_append(&ret, out, script_name_vec.buf);
+    ggl_byte_vec_chain_append(&ret, out, selected_phase);
     ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write ExecStart portion of unit files");
@@ -325,14 +287,6 @@ static GglError update_unit_file_buffer(
         }
     }
 
-    if (set_env_as_map.len != 0) {
-        ret = add_set_env_to_unit(set_env_as_map, out);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to write setenv's environment portion to unit "
-                     "files");
-            return ret;
-        }
-    }
     return GGL_ERR_OK;
 }
 
@@ -341,7 +295,6 @@ static GglError update_unit_file_buffer(
 static GglError manifest_builder(
     GglMap recipe_map,
     GglByteVec *out,
-    GglByteVec script_name_prefix_vec,
     GglByteVec exec_start_section_vec,
     Recipe2UnitArgs *args,
     PhaseSelection current_phase
@@ -354,20 +307,7 @@ static GglError manifest_builder(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-
-    GglObject *selected_set_env_as_obj = { 0 };
     GglMap set_env_as_map = { 0 };
-    if (ggl_map_get(
-            selected_lifecycle_map, GGL_STR("Setenv"), &selected_set_env_as_obj
-        )) {
-        if (selected_set_env_as_obj->type != GGL_TYPE_MAP) {
-            GGL_LOGE("Setenv section needs to be a dictionary map type");
-            return GGL_ERR_INVALID;
-        }
-        set_env_as_map = selected_set_env_as_obj->map;
-    } else {
-        GGL_LOGI("Setenv section not found within the linux lifecycle");
-    }
 
     //****************************************************************
     // Note: Everything below this should only deal with run or startup
@@ -433,31 +373,13 @@ static GglError manifest_builder(
         return ret;
     }
 
-    static uint8_t script_name_buf[PATH_MAX - 1];
-    GglByteVec script_name_vec = GGL_BYTE_VEC(script_name_buf);
-    ret = ggl_byte_vec_append(&script_name_vec, script_name_prefix_vec.buf);
-    ggl_byte_vec_chain_append(
-        &ret, &script_name_vec, lifecycle_script_selection
-    );
-    if (ret != GGL_ERR_OK) {
-        return GGL_ERR_FAILURE;
-    }
-    ret = write_to_file(
-        args->root_dir, script_name_vec.buf, selected_script, 0755
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create and write the script file");
-        return ret;
-    }
-
     ret = update_unit_file_buffer(
         out,
         exec_start_section_vec,
-        script_name_vec,
         args->user,
         args->group,
         is_root,
-        set_env_as_map
+        lifecycle_script_selection
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write ExecStart portion of unit files");
@@ -613,12 +535,7 @@ static GglError fill_service_section(
     }
 
     ret = manifest_builder(
-        *recipe_map,
-        out,
-        script_name_prefix_vec,
-        exec_start_section_vec,
-        args,
-        phase
+        *recipe_map, out, exec_start_section_vec, args, phase
     );
     if (ret != GGL_ERR_OK) {
         return ret;
