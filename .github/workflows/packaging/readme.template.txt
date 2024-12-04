@@ -43,7 +43,7 @@ sudo ./install-greengrass-lite.sh
 ###############################################################################
 
 Add a parameter "-u" to the script. Be careful this will delete /etc/greengrass
-and /var/lib/aws-greengrass-v2!
+and /var/lib/greengrass!
 
 sudo ./install-greengrass-lite.sh -u
 

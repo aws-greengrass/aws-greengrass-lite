@@ -1,9 +1,9 @@
 ---
 system:
-  privateKeyPath: "/var/lib/aws-greengrass-v2/device.key"
-  certificateFilePath: "/var/lib/aws-greengrass-v2/device.pem"
-  rootCaPath: "/var/lib/aws-greengrass-v2/AmazonRootCA1.pem"
-  rootPath: "/var/lib/aws-greengrass-v2"
+  privateKeyPath: "/var/lib/greengrass/device.key"
+  certificateFilePath: "/var/lib/greengrass/device.pem"
+  rootCaPath: "/var/lib/greengrass/AmazonRootCA1.pem"
+  rootPath: "/var/lib/greengrass"
   thingName: "ExampleGGDevice"
 services:
   aws.greengrass.Nucleus-Lite:

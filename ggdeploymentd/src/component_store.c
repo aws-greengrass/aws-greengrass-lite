@@ -21,7 +21,7 @@
 
 #define MAX_PATH_LENGTH 128
 
-static GglBuffer root_path = GGL_STR("/var/lib/aws-greengrass-v2");
+static GglBuffer root_path = GGL_STR("/var/lib/greengrass");
 
 static GglError update_root_path(void) {
     static uint8_t resp_mem[MAX_PATH_LENGTH] = { 0 };
