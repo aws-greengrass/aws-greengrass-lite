@@ -387,23 +387,25 @@ static GglError process_lifecycle_phase(
         return ret;
     }
 
-    GGL_LOGT(
-        "Processing lifecycle phase Setenv for %.*s",
-        (int) phase.len,
-        phase.data
-    );
-    ret = process_set_env(
-        conn,
-        out_fd,
-        set_env_as_map,
-        root_path,
-        component_name,
-        component_version,
-        thing_name
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to process setenv");
-        return ret;
+    if (set_env_as_map.len != 0) {
+        GGL_LOGT(
+            "Processing lifecycle phase Setenv for %.*s",
+            (int) phase.len,
+            phase.data
+        );
+        ret = process_set_env(
+            conn,
+            out_fd,
+            set_env_as_map,
+            root_path,
+            component_name,
+            component_version,
+            thing_name
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to process setenv");
+            return ret;
+        }
     }
 
     if (selected_script_as_buf.len == 0) {
