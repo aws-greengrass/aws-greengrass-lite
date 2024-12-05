@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "deployment_handler.h"
+#include "component_config.h"
 #include "component_manager.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
@@ -1972,8 +1973,6 @@ static GglError wait_for_deployment_status(GglMap resolved_components) {
     return GGL_ERR_OK;
 }
 
-// This will be refactored soon with recipe2unit in c, so ignore this warning
-// for now
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static void handle_deployment(
     GglDeployment *deployment,
@@ -2266,6 +2265,14 @@ static void handle_deployment(
             return;
         }
 
+        ret = apply_configurations(
+            deployment, component_name->buf, GGL_STR("reset")
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to apply reset configuration update.");
+            return;
+        }
+
         GglObject *intermediate_obj;
         GglObject *default_config_obj;
 
@@ -2303,6 +2310,14 @@ static void handle_deployment(
             }
         } else {
             GGL_LOGI("ComponentConfiguration not found in the recipe");
+        }
+
+        ret = apply_configurations(
+            deployment, component_name->buf, GGL_STR("merge")
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to apply merge configuration update.");
+            return;
         }
 
         if (component_updated) {
@@ -2675,9 +2690,8 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
                 deployment->deployment_id, GGL_STR("SUCCEEDED")
             );
         } else {
-            GGL_LOGW(
-                "Completed deployment processing and reporting job as FAILED."
-            );
+            GGL_LOGW("Completed deployment processing and reporting job as "
+                     "FAILED.");
             update_current_jobs_deployment(
                 deployment->deployment_id, GGL_STR("FAILED")
             );
