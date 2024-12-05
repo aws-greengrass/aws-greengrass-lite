@@ -500,29 +500,19 @@ static GglError download_greengrass_artifact(
 static GglError find_artifacts_list(
     GglMap recipe, GglList *platform_artifacts
 ) {
-    GglObject *cursor = NULL;
-    // TODO: use recipe-2-unit recipe parser for manifest selection
-    if (!ggl_map_get(recipe, GGL_STR("Manifests"), &cursor)) {
-        GGL_LOGW("Manifests is missing");
-        return GGL_ERR_OK;
+    GglMap linux_manifest = { 0 };
+    GglError ret = select_linux_manifest(recipe, &linux_manifest);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
-    if (cursor->type != GGL_TYPE_LIST) {
+    GglObject *artifact_list = NULL;
+    if (!ggl_map_get(linux_manifest, GGL_STR("Artifacts"), &artifact_list)) {
         return GGL_ERR_PARSE;
     }
-    if (cursor->list.len == 0) {
-        GGL_LOGW("Manifests is empty");
-        return GGL_ERR_OK;
-    }
-    // FIXME: assumes first manifest is the right one
-    if (!ggl_map_get(
-            cursor->list.items[0].map, GGL_STR("Artifacts"), &cursor
-        )) {
+    if (artifact_list->type != GGL_TYPE_LIST) {
         return GGL_ERR_PARSE;
     }
-    if (cursor->type != GGL_TYPE_LIST) {
-        return GGL_ERR_PARSE;
-    }
-    *platform_artifacts = cursor->list;
+    *platform_artifacts = artifact_list->list;
     return GGL_ERR_OK;
 }
 
