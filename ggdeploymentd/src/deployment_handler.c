@@ -1165,10 +1165,25 @@ static GglError resolve_dependencies(
         }
     }
 
-    // FIXME: Delete this key before writing to it once config delete exists.
     // At this point, components_to_resolve should be only a map of root
     // component names to their version requirements from the deployment. This
-    // may be empty!
+    // may be empty! We delete the key first in case components were removed.
+    ret = ggl_gg_config_delete(GGL_BUF_LIST(
+        GGL_STR("services"),
+        GGL_STR("DeploymentService"),
+        GGL_STR("thingGroupsToRootComponents"),
+        thing_group_name
+    ));
+
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGW(
+            "Error while deleting thing group to root components mapping for "
+            "thing group %.*s",
+            (int) thing_group_name.len,
+            thing_group_name.data
+        );
+        return ret;
+    }
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(
             GGL_STR("services"),
@@ -1233,8 +1248,6 @@ static GglError resolve_dependencies(
         return ret;
     }
 
-    // TODO: We want to also add root components from local deployments, not
-    // only thing group deployments.
     GGL_LIST_FOREACH(thing_group_item, thing_groups_list->list) {
         if (thing_group_item->type != GGL_TYPE_MAP) {
             GGL_LOGE("Thing group item is not of type map.");
