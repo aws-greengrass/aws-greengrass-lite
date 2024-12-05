@@ -2315,8 +2315,6 @@ static void handle_deployment(
             GGL_LOGI("ComponentConfiguration not found in the recipe");
         }
 
-        // TODO: add install file processing logic here.
-
         if (component_updated) {
             ret = ggl_buf_vec_push(&updated_comp_name_vec, pair->key);
             if (ret != GGL_ERR_OK) {
