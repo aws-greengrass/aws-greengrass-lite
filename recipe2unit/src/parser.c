@@ -109,6 +109,7 @@ GglError convert_to_unit(
         = (GglBuffer) { .data = (uint8_t *) run_startup_unit_file_buffer,
                         .len = MAX_UNIT_FILE_BUF_SIZE };
 
+    GGL_LOGD("Attempting to find install phase from recipe");
     ret = generate_systemd_unit(
         &recipe_obj->map,
         &install_response_buffer,
@@ -124,7 +125,7 @@ GglError convert_to_unit(
     if (ret == GGL_ERR_NOENTRY) {
         GGL_LOGW("No Install phase present");
 
-    } else if (ret == GGL_ERR_OK) {
+    } else if (ret != GGL_ERR_OK) {
         return ret;
     } else {
         is_install = true;
@@ -137,6 +138,7 @@ GglError convert_to_unit(
         }
     }
 
+    GGL_LOGD("Attempting to find run phase from recipe");
     ret = generate_systemd_unit(
         &recipe_obj->map,
         &run_startup_response_buffer,

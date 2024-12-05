@@ -350,6 +350,7 @@ static GglError manifest_builder(
 
         lifecycle_script_selection = GGL_STR("install");
         ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=oneshot\n"));
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("RemainAfterExit=true\n"));
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to add unit type information");
             return GGL_ERR_FAILURE;

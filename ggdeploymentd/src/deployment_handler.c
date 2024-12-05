@@ -1929,7 +1929,7 @@ static GglError wait_for_install_status(GglBufVec component_vec) {
         );
 
         ret = ggl_sub_response(
-            GGL_STR("/aws/ggl/gghealthd"),
+            GGL_STR("gg_health"),
             GGL_STR("subscribe_to_lifecycle_completion"),
             GGL_MAP({ GGL_STR("component_name"),
                       GGL_OBJ_BUF(install_comp_name_vec.buf) }),
@@ -1939,6 +1939,11 @@ static GglError wait_for_install_status(GglBufVec component_vec) {
             300
         );
         if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Failed waiting for %.*s",
+                (int) install_comp_name_vec.buf.len,
+                install_comp_name_vec.buf.data
+            );
             return GGL_ERR_FAILURE;
         }
     }
@@ -2399,6 +2404,12 @@ static void handle_deployment(
                         return;
                     }
 
+                    GGL_LOGD(
+                        "Command to execute: %.*s",
+                        (int) link_command_vec.buf.len,
+                        link_command_vec.buf.data
+                    );
+
                     // NOLINTBEGIN(concurrency-mt-unsafe)
                     int system_ret = system((char *) link_command_vec.buf.data);
                     if (WIFEXITED(system_ret)) {
@@ -2434,11 +2445,22 @@ static void handle_deployment(
                         &start_command_vec, GGL_STR("systemctl start ")
                     );
                     ggl_byte_vec_chain_append(
+                        &ret, &start_command_vec, GGL_STR("ggl.")
+                    );
+                    ggl_byte_vec_chain_append(
                         &ret,
                         &start_command_vec,
-                        install_service_file_path_vec.buf
+                        updated_comp_name_vec.buf_list.bufs[i]
                     );
-                    ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
+                    ggl_byte_vec_chain_append(
+                        &ret, &start_command_vec, GGL_STR(".install.service\0")
+                    );
+
+                    GGL_LOGD(
+                        "Command to execute: %.*s",
+                        (int) start_command_vec.buf.len,
+                        start_command_vec.buf.data
+                    );
                     if (ret != GGL_ERR_OK) {
                         GGL_LOGE(
                             "Failed to create systemctl start command for %.*s",
@@ -2513,6 +2535,12 @@ static void handle_deployment(
                     return;
                 }
 
+                GGL_LOGD(
+                    "Command to execute: %.*s",
+                    (int) link_command_vec.buf.len,
+                    link_command_vec.buf.data
+                );
+
                 // NOLINTNEXTLINE(concurrency-mt-unsafe)
                 int system_ret = system((char *) link_command_vec.buf.data);
                 if (WIFEXITED(system_ret)) {
@@ -2544,6 +2572,11 @@ static void handle_deployment(
                     GGL_LOGE("Failed to create systemctl enable command.");
                     return;
                 }
+                GGL_LOGD(
+                    "Command to execute: %.*s",
+                    (int) enable_command_vec.buf.len,
+                    enable_command_vec.buf.data
+                );
 
                 // NOLINTNEXTLINE(concurrency-mt-unsafe)
                 system_ret = system((char *) enable_command_vec.buf.data);
