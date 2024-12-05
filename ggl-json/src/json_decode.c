@@ -529,22 +529,25 @@ static bool str_conv_handle_utf16_escape(GglBuffer *buf, uint8_t **write_ptr) {
     }
 
     uint16_t code_value;
-    bool ret = get_uint16_from_hex4(&(*write_ptr)[2], &code_value);
+    bool ret = get_uint16_from_hex4(&(buf->data)[2], &code_value);
     if (!ret) {
         return false;
     }
 
+    *buf = ggl_buffer_substr(*buf, 6, SIZE_MAX);
+
     if ((code_value >= 0xD800) && (code_value <= 0xDBFF)) {
         // high surrogates
-        if ((buf->len < 12) || (buf->data[6] != '\\')
-            || (buf->data[7] != 'u')) {
+        if ((buf->len < 6) || (buf->data[0] != '\\') || (buf->data[1] != 'u')) {
             return false;
         }
         uint16_t low_surrogate;
-        ret = get_uint16_from_hex4(&(*write_ptr)[8], &low_surrogate);
+        ret = get_uint16_from_hex4(&(buf->data)[2], &low_surrogate);
         if (!ret || (low_surrogate < 0xDC00) || (low_surrogate > 0xDFFF)) {
             return false;
         }
+
+        *buf = ggl_buffer_substr(*buf, 6, SIZE_MAX);
 
         uint32_t code_point = ((((uint32_t) code_value - 0xD800) << 10)
                                + (low_surrogate - 0xDC00))
