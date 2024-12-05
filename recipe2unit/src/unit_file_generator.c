@@ -82,6 +82,22 @@ static GglError dependency_parser(GglObject *dependency_obj, GglByteVec *out) {
     }
     for (size_t count = 0; count < dependency_obj->map.len; count++) {
         if (dependency_obj->map.pairs[count].val.type == GGL_TYPE_MAP) {
+            if (ggl_buffer_eq(
+                    dependency_obj->map.pairs[count].key,
+                    GGL_STR("aws.greengrass.Nucleus")
+                )
+                || ggl_buffer_eq(
+                    dependency_obj->map.pairs[count].key,
+                    GGL_STR("aws.greengrass.NucleusLite")
+                )) {
+                GGL_LOGD(
+                    "Skipping dependency on %.*s for the current unit file",
+                    (int) dependency_obj->map.pairs[count].key.len,
+                    dependency_obj->map.pairs[count].key.data
+                );
+                continue;
+            }
+
             GglError ret
                 = parse_dependency_type(dependency_obj->map.pairs[count], out);
             if (ret != GGL_ERR_OK) {
@@ -131,11 +147,6 @@ static GglError fill_unit_section(
     }
 
     if (phase == RUN_STARTUP) {
-        if (ggl_map_get(recipe_map, GGL_STR("ComponentDependencies"), &val)) {
-            if ((val->type == GGL_TYPE_MAP) || (val->type == GGL_TYPE_LIST)) {
-                return dependency_parser(val, concat_unit_vector);
-            }
-        }
         ret = ggl_byte_vec_append(
             concat_unit_vector,
             GGL_STR(
@@ -144,6 +155,12 @@ static GglError fill_unit_section(
         );
         if (ret != GGL_ERR_OK) {
             return ret;
+        }
+
+        if (ggl_map_get(recipe_map, GGL_STR("ComponentDependencies"), &val)) {
+            if ((val->type == GGL_TYPE_MAP) || (val->type == GGL_TYPE_LIST)) {
+                return dependency_parser(val, concat_unit_vector);
+            }
         }
     }
 
@@ -290,6 +307,15 @@ static GglError update_unit_file_buffer(
     return GGL_ERR_OK;
 }
 
+static void compatibility_check(GglMap selected_lifecycle_map) {
+    if (ggl_map_get(selected_lifecycle_map, GGL_STR("shutdown"), NULL)) {
+        GGL_LOGI("'shutdown' phase isn't currently supported by GGLite");
+    }
+    if (ggl_map_get(selected_lifecycle_map, GGL_STR("recover"), NULL)) {
+        GGL_LOGI("'recover' phase isn't currently supported by GGLite");
+    }
+}
+
 // TODO: Refactor it
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError manifest_builder(
@@ -307,21 +333,42 @@ static GglError manifest_builder(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+    if (selected_lifecycle_map.len == 0) {
+        GGL_LOGE("Lifecycle with no phase is not supported");
+        return GGL_ERR_UNSUPPORTED;
+    }
+
     GglMap set_env_as_map = { 0 };
 
-    //****************************************************************
-    // Note: Everything below this should only deal with run or startup
-    // ****************************************************************
     GglBuffer lifecycle_script_selection = { 0 };
     GglObject *startup_or_run_section;
+    GglObject *check_install_exist;
 
     if (current_phase == INSTALL) {
+        // Check if there are any unsupported phases
+        compatibility_check(selected_lifecycle_map);
+
         lifecycle_script_selection = GGL_STR("install");
         ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=oneshot\n"));
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to add unit type information");
             return GGL_ERR_FAILURE;
         }
+
+        if (ggl_map_get(
+                selected_lifecycle_map, GGL_STR("install"), &check_install_exist
+            )) {
+            if (check_install_exist->type == GGL_TYPE_LIST) {
+                GGL_LOGE("install is a list type");
+                return GGL_ERR_INVALID;
+            }
+        } else {
+            GGL_LOGW("No install phase found");
+            GGL_LOGW("Note that in GG Lite, keys are case sensitive. Check the "
+                     "recipe reference for the correct casing.");
+            return GGL_ERR_NOENTRY;
+        }
+
     } else if (current_phase == RUN_STARTUP) {
         if (ggl_map_get(
                 selected_lifecycle_map,
@@ -329,7 +376,7 @@ static GglError manifest_builder(
                 &startup_or_run_section
             )) {
             if (startup_or_run_section->type == GGL_TYPE_LIST) {
-                GGL_LOGE("Startup is a list type");
+                GGL_LOGE("'startup' field in the lifecycle is of List type.");
                 return GGL_ERR_INVALID;
             }
             lifecycle_script_selection = GGL_STR("startup");
@@ -349,6 +396,7 @@ static GglError manifest_builder(
                 GGL_LOGE("'run' field in the lifecycle is of List type.");
                 return GGL_ERR_INVALID;
             }
+            GGL_LOGD("Found run phase");
             lifecycle_script_selection = GGL_STR("run");
             ret = ggl_byte_vec_append(out, GGL_STR("Type=exec\n"));
             if (ret != GGL_ERR_OK) {
@@ -356,8 +404,10 @@ static GglError manifest_builder(
                 return GGL_ERR_FAILURE;
             }
         } else {
-            GGL_LOGI("No startup or run provided");
-            return GGL_ERR_OK;
+            GGL_LOGW("No startup or run phase found");
+            GGL_LOGW("Note that in GG Lite, keys are case sensitive. Check the "
+                     "recipe reference for the correct casing.");
+            return GGL_ERR_NOENTRY;
         }
     }
 

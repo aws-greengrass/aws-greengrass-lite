@@ -110,7 +110,7 @@ static GglError substitute_escape(
         return ret;
     }
 
-    GGL_LOGD(
+    GGL_LOGT(
         "Current variable substitution: %.*s. type = %.*s; arg = %.*s",
         (int) escape_seq.len,
         escape_seq.data,

@@ -120,9 +120,11 @@ GglError convert_to_unit(
         GGL_LOGE("Component name was NULL");
         return GGL_ERR_FAILURE;
     }
+
     if (ret == GGL_ERR_NOENTRY) {
         GGL_LOGW("No Install phase present");
-    } else if (ret != GGL_ERR_OK) {
+
+    } else if (ret == GGL_ERR_OK) {
         return ret;
     } else {
         is_install = true;
@@ -142,6 +144,7 @@ GglError convert_to_unit(
         component_name,
         RUN_STARTUP
     );
+
     if (ret == GGL_ERR_NOENTRY) {
         GGL_LOGW("No run or phase present");
     } else if (ret != GGL_ERR_OK) {
@@ -155,6 +158,7 @@ GglError convert_to_unit(
             GGL_LOGE("Failed to create the run or startup unit file.");
             return ret;
         }
+        GGL_LOGD("Created run or startup unit file.");
     }
 
     return GGL_ERR_OK;

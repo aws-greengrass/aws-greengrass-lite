@@ -2377,7 +2377,7 @@ static void handle_deployment(
                         return;
                     }
 
-                    // run link command
+                    // initiate link command for 'install'
                     static uint8_t link_command_buf[PATH_MAX];
                     GglByteVec link_command_vec
                         = GGL_BYTE_VEC(link_command_buf);
@@ -2391,7 +2391,11 @@ static void handle_deployment(
                     );
                     ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
                     if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to create systemctl link command.");
+                        GGL_LOGE(
+                            "Failed to create systemctl link command for:%.*s",
+                            (int) install_service_file_path_vec.buf.len,
+                            install_service_file_path_vec.buf.data
+                        );
                         return;
                     }
 
@@ -2399,19 +2403,30 @@ static void handle_deployment(
                     int system_ret = system((char *) link_command_vec.buf.data);
                     if (WIFEXITED(system_ret)) {
                         if (WEXITSTATUS(system_ret) != 0) {
-                            GGL_LOGE("systemctl link failed");
+                            GGL_LOGE(
+                                "systemctl link failed for:%.*s",
+                                (int) install_service_file_path_vec.buf.len,
+                                install_service_file_path_vec.buf.data
+                            );
                             return;
                         }
                         GGL_LOGI(
-                            "systemctl link exited with child status %d\n",
+                            "systemctl link exited for %.*s with child status "
+                            "%d\n",
+                            (int) install_service_file_path_vec.buf.len,
+                            install_service_file_path_vec.buf.data,
                             WEXITSTATUS(system_ret)
                         );
                     } else {
-                        GGL_LOGE("systemctl link did not exit normally");
+                        GGL_LOGE(
+                            "systemctl link did not exit normally for %.*s",
+                            (int) install_service_file_path_vec.buf.len,
+                            install_service_file_path_vec.buf.data
+                        );
                         return;
                     }
 
-                    // run start command
+                    // initiate start command for 'install'
                     static uint8_t start_command_buf[PATH_MAX];
                     GglByteVec start_command_vec
                         = GGL_BYTE_VEC(start_command_buf);
@@ -2425,7 +2440,11 @@ static void handle_deployment(
                     );
                     ggl_byte_vec_chain_push(&ret, &start_command_vec, '\0');
                     if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to create systemctl start command.");
+                        GGL_LOGE(
+                            "Failed to create systemctl start command for %.*s",
+                            (int) install_service_file_path_vec.buf.len,
+                            install_service_file_path_vec.buf.data
+                        );
                         return;
                     }
 
@@ -2433,7 +2452,11 @@ static void handle_deployment(
                     // NOLINTEND(concurrency-mt-unsafe)
                     if (WIFEXITED(system_ret)) {
                         if (WEXITSTATUS(system_ret) != 0) {
-                            GGL_LOGE("systemctl start failed");
+                            GGL_LOGE(
+                                "systemctl start failed for%.*s",
+                                (int) install_service_file_path_vec.buf.len,
+                                install_service_file_path_vec.buf.data
+                            );
                             return;
                         }
                         GGL_LOGI(
@@ -2441,7 +2464,11 @@ static void handle_deployment(
                             WEXITSTATUS(system_ret)
                         );
                     } else {
-                        GGL_LOGE("systemctl start did not exit normally");
+                        GGL_LOGE(
+                            "systemctl start did not exit normally for %.*s",
+                            (int) install_service_file_path_vec.buf.len,
+                            install_service_file_path_vec.buf.data
+                        );
                         return;
                     }
                 }
