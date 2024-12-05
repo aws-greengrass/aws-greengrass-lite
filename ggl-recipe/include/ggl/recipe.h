@@ -29,8 +29,11 @@ GglError fetch_script_section(
     GglMap *out_set_env_as_map
 );
 
-GglError select_linux_manifest(
+GglError select_linux_lifecycle(
     GglMap recipe_map, GglMap *out_selected_lifecycle_map
+);
+GglError select_linux_manifest(
+    GglMap recipe_map, GglMap *out_selected_linux_manifest
 );
 
 #endif

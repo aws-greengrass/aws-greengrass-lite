@@ -270,7 +270,7 @@ static GglError manifest_selection(
     return GGL_ERR_OK;
 }
 
-GglError select_linux_manifest(
+GglError select_linux_lifecycle(
     GglMap recipe_map, GglMap *out_selected_lifecycle_map
 ) {
     GglObject *val;
@@ -280,7 +280,7 @@ GglError select_linux_manifest(
             return GGL_ERR_INVALID;
         }
     } else {
-        GGL_LOGI("Manifest not found in the recipe");
+        GGL_LOGI("No Manifest found in the recipe");
         return GGL_ERR_INVALID;
     }
 
@@ -315,6 +315,56 @@ GglError select_linux_manifest(
     }
 
     *out_selected_lifecycle_map = selected_lifecycle_object->map;
+
+    return GGL_ERR_OK;
+}
+
+GglError select_linux_manifest(
+    GglMap recipe_map, GglMap *out_selected_linux_manifest
+) {
+    GglObject *val;
+    if (ggl_map_get(recipe_map, GGL_STR("Manifests"), &val)) {
+        if (val->type != GGL_TYPE_LIST) {
+            GGL_LOGI("Invalid Manifest within the recipe file.");
+            return GGL_ERR_INVALID;
+        }
+    } else {
+        GGL_LOGI("No Manifest found in the recipe");
+        return GGL_ERR_INVALID;
+    }
+
+    GglObject *selected_lifecycle_object = NULL;
+    for (size_t platform_index = 0; platform_index < val->list.len;
+         platform_index++) {
+        if (val->list.items[platform_index].type != GGL_TYPE_MAP) {
+            GGL_LOGE("Provided manifest section is in invalid format.");
+            return GGL_ERR_INVALID;
+        }
+        GglError ret = manifest_selection(
+            &val->list.items[platform_index].map,
+            recipe_map,
+            &selected_lifecycle_object
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+
+        if (selected_lifecycle_object != NULL) {
+            // If a lifecycle is successfully selected then look no futher
+            // If the lifecycle is found then the manifest will also be the same
+            if (selected_lifecycle_object->type == GGL_TYPE_MAP) {
+                *out_selected_linux_manifest
+                    = val->list.items[platform_index].map;
+                break;
+            }
+        }
+    }
+
+    if ((selected_lifecycle_object == NULL)
+        || (selected_lifecycle_object->type != GGL_TYPE_MAP)) {
+        GGL_LOGE("No Manifest was found for linux");
+        return GGL_ERR_FAILURE;
+    }
 
     return GGL_ERR_OK;
 }

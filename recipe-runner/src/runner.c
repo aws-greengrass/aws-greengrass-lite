@@ -464,7 +464,7 @@ static GglError write_script_with_replacement(
 ) {
     GglMap selected_lifecycle_map = { 0 };
     GglError ret
-        = select_linux_manifest(recipe_as_map, &selected_lifecycle_map);
+        = select_linux_lifecycle(recipe_as_map, &selected_lifecycle_map);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to find linux Lifecycle");
         return ret;

@@ -329,7 +329,7 @@ static GglError manifest_builder(
 
     GglMap selected_lifecycle_map = { 0 };
 
-    GglError ret = select_linux_manifest(recipe_map, &selected_lifecycle_map);
+    GglError ret = select_linux_lifecycle(recipe_map, &selected_lifecycle_map);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
