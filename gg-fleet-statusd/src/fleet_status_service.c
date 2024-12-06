@@ -169,11 +169,6 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
             &version_resp
         );
 
-        if (ggl_buffer_eq(version_resp, GGL_STR("inactive"))) {
-            // this component is no longer on the device
-            continue;
-        }
-
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Unable to retrieve version of %s. Cannot publish fleet status "

@@ -41,9 +41,8 @@ static GglError find_active_version(
         return GGL_ERR_NOENTRY;
     }
 
-    // active component found, update the version if it is a real version
-    if (ggl_buffer_eq(GGL_STR("inactive"), version_resp)
-        || !is_in_range(version_resp, version_requirement)) {
+    // active component found, update the version if it is a valid version
+    if (!is_in_range(version_resp, version_requirement)) {
         return GGL_ERR_NOENTRY;
     }
     *version = version_resp;
