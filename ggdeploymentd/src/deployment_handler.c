@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "deployment_handler.h"
+#include "bootstrap_manager.h"
 #include "component_config.h"
 #include "component_manager.h"
 #include "deployment_model.h"
@@ -19,6 +20,7 @@
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
+#include <ggl/core_bus/gghealthd.h>
 #include <ggl/core_bus/sub_response.h>
 #include <ggl/digest.h>
 #include <ggl/error.h>
@@ -39,6 +41,7 @@
 #include <ggl/version.h>
 #include <ggl/zip.h>
 #include <limits.h>
+#include <linux/limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -63,6 +66,10 @@ typedef struct TesCredentials {
     GglBuffer secret_access_key;
     GglBuffer session_token;
 } TesCredentials;
+
+// vector to track successfully deployed components to be saved for bootstrap
+// component name -> map of lifecycle state and version
+static GglKVVec deployed_components = GGL_KV_VEC((GglKV[64]) { 0 });
 
 static SigV4Details sigv4_from_tes(
     TesCredentials credentials, GglBuffer aws_service
@@ -2107,8 +2114,9 @@ static void handle_deployment(
     }
     GGL_CLEANUP(ggl_free_digest, digest_context);
 
-    static GglBuffer comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
-    GglBufVec updated_comp_name_vec = GGL_BUF_VEC(comp_name_buf);
+    // list of {component name -> component version} for all new components in
+    // the deployment
+    GglKVVec components_to_deploy = GGL_KV_VEC((GglKV[64]) { 0 });
 
     GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
         int component_artifacts_fd = -1;
@@ -2362,19 +2370,99 @@ static void handle_deployment(
             GGL_LOGE("Failed to apply merge configuration update.");
             return;
         }
+        // if (ret == GGL_ERR_OK) {
+        //     // bootstrap is required
+        //     // TODO: save deployment info
+        //     // need to keep list of completed components at the end of this
+        //     // process then when we hit a component that needs bootstrap,
+        //     those
+        //     // component details are saved in config save component lifecycle
+        //     // state and version, include resolved components also save
+        //     // deployment document and iot jobs id if it is cloud deployment
+        //     // maybe a section for deployment type
+        //     // all of this will be under services -> DeploymentService ->
+        //     // deploymentState on ggdeploymentd startup we will read the
+        //     config
+        //     // for these components and save them when we run the run/start
+        //     // lifecycles of components, we will ignore the already deployed
+        //     // components
+        // }
+
+        // TODO: add install file processing logic here.
 
         if (component_updated) {
-            ret = ggl_buf_vec_push(&updated_comp_name_vec, pair->key);
+            ret = ggl_kv_vec_push(
+                &components_to_deploy, (GglKV) { pair->key, pair->val }
+            );
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Failed to add the component name into vector");
+                GGL_LOGE(
+                    "Failed to add component info for %.*s to deployment "
+                    "vector.",
+                    (int) pair->key.len,
+                    pair->key.data
+                );
                 return;
             }
+        } else {
+            // component already exists, check its lifecycle state
+            uint8_t component_status_arr[NAME_MAX];
+            GglBuffer component_status = GGL_BUF(component_status_arr);
+            ret = ggl_gghealthd_retrieve_component_status(
+                pair->key, &component_status
+            );
+
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGD(
+                    "Failed to retrieve health status for %.*s. Redeploying "
+                    "component.",
+                    (int) pair->key.len,
+                    pair->key.data
+                );
+                ret = ggl_kv_vec_push(
+                    &components_to_deploy, (GglKV) { pair->key, pair->val }
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE(
+                        "Failed to add component info for %.*s to deployment "
+                        "vector.",
+                        (int) pair->key.len,
+                        pair->key.data
+                    );
+                    return;
+                }
+            }
+
+            // TODO: filter by component health status. decide what to do with
+            // broken/errored components
+
+            GglObject component_info = GGL_OBJ_MAP(GGL_MAP(
+                { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(component_status) },
+                { GGL_STR("version"), GGL_OBJ_BUF(pair->val.buf) }
+            ));
+
+            // save as a deployed component in case of bootstrap
+            ret = ggl_kv_vec_push(
+                &deployed_components, (GglKV) { pair->key, component_info }
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "Failed to add %.*s to the deployed component tracker.",
+                    (int) pair->key.len,
+                    pair->key.data
+                );
+                return;
+            }
+        }
+
+        if (bootstrap_required(recipe_buff_obj.map, component_name->buf)) {
+            ret = save_deployment_state(deployment, deployed_components.map);
+            // TODO: run bootstrap steps
         }
     }
 
     // TODO:: Add a logic to only run the phases that exist with the latest
     // deployment
-    if (updated_comp_name_vec.buf_list.len != 0) {
+    if (components_to_deploy.map.len != 0) {
         // collect all component names that have relevant bootstrap service
         // files
         static GglBuffer bootstrap_comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
@@ -2382,7 +2470,9 @@ static void handle_deployment(
             = GGL_BUF_VEC(bootstrap_comp_name_buf);
 
         // process all bootstrap files first
-        for (size_t i = 0; i < updated_comp_name_vec.buf_list.len; i++) {
+        GGL_MAP_FOREACH(component, components_to_deploy.map) {
+            GglBuffer component_name = component->key;
+
             static uint8_t bootstrap_service_file_path_buf[PATH_MAX];
             GglByteVec bootstrap_service_file_path_vec
                 = GGL_BYTE_VEC(bootstrap_service_file_path_buf);
@@ -2396,7 +2486,7 @@ static void handle_deployment(
             ggl_byte_vec_chain_append(
                 &ret,
                 &bootstrap_service_file_path_vec,
-                updated_comp_name_vec.buf_list.bufs[i]
+                component_name
             );
             ggl_byte_vec_chain_append(
                 &ret,
@@ -2414,15 +2504,15 @@ static void handle_deployment(
                     GGL_LOGD(
                         "Component %.*s does not have the relevant bootstrap "
                         "service file",
-                        (int) updated_comp_name_vec.buf_list.bufs[i].len,
-                        updated_comp_name_vec.buf_list.bufs[i].data
+                        (int) component_name.len,
+                        component_name.data
                     );
                 } else { // relevant bootstrap service file exists
 
                     // add relevant component name into the vector
                     ret = ggl_buf_vec_push(
                         &bootstrap_comp_name_buf_vec,
-                        updated_comp_name_vec.buf_list.bufs[i]
+                        component_name
                     );
                     if (ret != GGL_ERR_OK) {
                         GGL_LOGE("Failed to add the bootstrap component name "
@@ -2498,7 +2588,7 @@ static void handle_deployment(
                     ggl_byte_vec_chain_append(
                         &ret,
                         &start_command_vec,
-                        updated_comp_name_vec.buf_list.bufs[i]
+                        component_name
                     );
                     ggl_byte_vec_chain_append(
                         &ret,
@@ -2562,7 +2652,9 @@ static void handle_deployment(
             = GGL_BUF_VEC(install_comp_name_buf);
 
         // process all install files first
-        for (size_t i = 0; i < updated_comp_name_vec.buf_list.len; i++) {
+        GGL_MAP_FOREACH(component, components_to_deploy.map) {
+            GglBuffer component_name = component->key;
+
             static uint8_t install_service_file_path_buf[PATH_MAX];
             GglByteVec install_service_file_path_vec
                 = GGL_BYTE_VEC(install_service_file_path_buf);
@@ -2574,9 +2666,7 @@ static void handle_deployment(
                 &install_service_file_path_vec, GGL_STR("ggl.")
             );
             ggl_byte_vec_chain_append(
-                &ret,
-                &install_service_file_path_vec,
-                updated_comp_name_vec.buf_list.bufs[i]
+                &ret, &install_service_file_path_vec, component_name
             );
             ggl_byte_vec_chain_append(
                 &ret,
@@ -2594,15 +2684,14 @@ static void handle_deployment(
                     GGL_LOGD(
                         "Component %.*s does not have the relevant install "
                         "service file",
-                        (int) updated_comp_name_vec.buf_list.bufs[i].len,
-                        updated_comp_name_vec.buf_list.bufs[i].data
+                        (int) component_name.len,
+                        component_name.data
                     );
                 } else { // relevant install service file exists
 
                     // add relevant component name into the vector
                     ret = ggl_buf_vec_push(
-                        &install_comp_name_buf_vec,
-                        updated_comp_name_vec.buf_list.bufs[i]
+                        &install_comp_name_buf_vec, component_name
                     );
                     if (ret != GGL_ERR_OK) {
                         GGL_LOGE("Failed to add the install component name "
@@ -2676,9 +2765,7 @@ static void handle_deployment(
                         &ret, &start_command_vec, GGL_STR("ggl.")
                     );
                     ggl_byte_vec_chain_append(
-                        &ret,
-                        &start_command_vec,
-                        updated_comp_name_vec.buf_list.bufs[i]
+                        &ret, &start_command_vec, component_name
                     );
                     ggl_byte_vec_chain_append(
                         &ret, &start_command_vec, GGL_STR(".install.service\0")
@@ -2734,7 +2821,10 @@ static void handle_deployment(
         }
 
         // process all run or startup files after install only
-        for (size_t i = 0; i < updated_comp_name_vec.buf_list.len; i++) {
+        GGL_MAP_FOREACH(component, components_to_deploy.map) {
+            GglBuffer component_name = component->key;
+            GglBuffer component_version = component->val.buf;
+
             static uint8_t service_file_path_buf[PATH_MAX];
             GglByteVec service_file_path_vec
                 = GGL_BYTE_VEC(service_file_path_buf);
@@ -2742,9 +2832,7 @@ static void handle_deployment(
             ggl_byte_vec_append(&service_file_path_vec, GGL_STR("/"));
             ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
             ggl_byte_vec_chain_append(
-                &ret,
-                &service_file_path_vec,
-                updated_comp_name_vec.buf_list.bufs[i]
+                &ret, &service_file_path_vec, component_name
             );
             ggl_byte_vec_chain_append(
                 &ret, &service_file_path_vec, GGL_STR(".service")
@@ -2760,8 +2848,8 @@ static void handle_deployment(
                     GGL_LOGD(
                         "Component %.*s does not have the relevant run "
                         "service file",
-                        (int) updated_comp_name_vec.buf_list.bufs[i].len,
-                        updated_comp_name_vec.buf_list.bufs[i].data
+                        (int) component_name.len,
+                        component_name.data
                     );
                 } else {
                     // run link command
@@ -2841,6 +2929,30 @@ static void handle_deployment(
                     }
                 }
             }
+
+            uint8_t component_status_arr[NAME_MAX];
+            GglBuffer component_status = GGL_BUF(component_status_arr);
+            ret = ggl_gghealthd_retrieve_component_status(
+                component_name, &component_status
+            );
+
+            GglObject component_info = GGL_OBJ_MAP(GGL_MAP(
+                { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(component_status) },
+                { GGL_STR("version"), GGL_OBJ_BUF(component_version) }
+            ));
+
+            // save as a deployed component in case of bootstrap
+            ret = ggl_kv_vec_push(
+                &deployed_components, (GglKV) { component_name, component_info }
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "Failed to add %.*s to the deployed component tracker.",
+                    (int) component_name.len,
+                    component_name.data
+                );
+                return;
+            }
         }
 
         // run daemon-reload command once all the files are linked
@@ -2888,14 +3000,64 @@ static void handle_deployment(
         GGL_LOGE("Error while cleaning up stale components after deployment.");
     }
 
+    ret = delete_saved_deployment_from_config();
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to delete saved deployment info for bootstrap.");
+    }
+
+    // TODO: clear contents of deployed_components for next deployment
+
     *deployment_succeeded = true;
 }
 
 static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
+    // check for in progress deployment in case of bootstrap
+    GglDeployment *bootstrap_deployment;
+    GglError ret = retrieve_in_progress_deployment(
+        bootstrap_deployment, &deployed_components
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGD("No deployments previously in progress detected.");
+    } else {
+        GGL_LOGD(
+            "Found previously in progress deployment %.*s. Resuming "
+            "deployment.",
+            (int) bootstrap_deployment->deployment_id.len,
+            bootstrap_deployment->deployment_id.data
+        );
+        update_current_jobs_deployment(
+            bootstrap_deployment->deployment_id, GGL_STR("IN_PROGRESS")
+        );
+
+        bool bootstrap_deployment_succeeded = false;
+        // TODO: ignore already deployed components from the vector in handle_deployment
+        handle_deployment(
+            bootstrap_deployment, args, &bootstrap_deployment_succeeded
+        );
+
+        // TODO: need error details from handle_deployment
+        if (bootstrap_deployment_succeeded) {
+            GGL_LOGI("Completed deployment processing and reporting job as "
+                     "SUCCEEDED.");
+            update_current_jobs_deployment(
+                bootstrap_deployment->deployment_id, GGL_STR("SUCCEEDED")
+            );
+        } else {
+            GGL_LOGW("Completed deployment processing and reporting job as "
+                     "FAILED.");
+            update_current_jobs_deployment(
+                bootstrap_deployment->deployment_id, GGL_STR("FAILED")
+            );
+        }
+
+        // TODO: investigate deployment queue behavior with bootstrap deployment
+        ggl_deployment_release(bootstrap_deployment);
+    }
+
     while (true) {
         GglDeployment *deployment;
         // Since this is blocking, error is fatal
-        GglError ret = ggl_deployment_dequeue(&deployment);
+        ret = ggl_deployment_dequeue(&deployment);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
