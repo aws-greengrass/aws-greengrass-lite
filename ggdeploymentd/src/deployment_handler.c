@@ -3006,9 +3006,9 @@ static void handle_deployment(
 
 static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     // check for in progress deployment in case of bootstrap
-    GglDeployment *bootstrap_deployment = NULL;
+    GglDeployment bootstrap_deployment = { 0 };
     GglError ret = retrieve_in_progress_deployment(
-        bootstrap_deployment, &deployed_components
+        &bootstrap_deployment, &deployed_components
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGD("No deployments previously in progress detected.");
@@ -3016,34 +3016,34 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         GGL_LOGD(
             "Found previously in progress deployment %.*s. Resuming "
             "deployment.",
-            (int) bootstrap_deployment->deployment_id.len,
-            bootstrap_deployment->deployment_id.data
+            (int) bootstrap_deployment.deployment_id.len,
+            bootstrap_deployment.deployment_id.data
         );
         update_current_jobs_deployment(
-            bootstrap_deployment->deployment_id, GGL_STR("IN_PROGRESS")
+            bootstrap_deployment.deployment_id, GGL_STR("IN_PROGRESS")
         );
 
         bool bootstrap_deployment_succeeded = false;
         handle_deployment(
-            bootstrap_deployment, args, &bootstrap_deployment_succeeded
+            &bootstrap_deployment, args, &bootstrap_deployment_succeeded
         );
 
         if (bootstrap_deployment_succeeded) {
             GGL_LOGI("Completed deployment processing and reporting job as "
                      "SUCCEEDED.");
             update_current_jobs_deployment(
-                bootstrap_deployment->deployment_id, GGL_STR("SUCCEEDED")
+                bootstrap_deployment.deployment_id, GGL_STR("SUCCEEDED")
             );
         } else {
             GGL_LOGW("Completed deployment processing and reporting job as "
                      "FAILED.");
             update_current_jobs_deployment(
-                bootstrap_deployment->deployment_id, GGL_STR("FAILED")
+                bootstrap_deployment.deployment_id, GGL_STR("FAILED")
             );
         }
 
         // TODO: investigate deployment queue behavior with bootstrap deployment
-        ggl_deployment_release(bootstrap_deployment);
+        ggl_deployment_release(&bootstrap_deployment);
     }
 
     while (true) {

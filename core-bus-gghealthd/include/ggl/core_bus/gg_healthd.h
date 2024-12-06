@@ -8,7 +8,6 @@
 //! gghealthd core-bus interface wrapper
 
 #include <ggl/buffer.h>
-#include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 
 GglError ggl_gghealthd_retrieve_component_status(
