@@ -6,6 +6,7 @@
 #define GGDEPLOYMENTD_QUEUE_H
 
 #include "deployment_model.h"
+#include <ggl/alloc.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
@@ -28,5 +29,7 @@ GglError ggl_deployment_dequeue(GglDeployment **deployment);
 
 /// Release a dequeued deployment
 void ggl_deployment_release(GglDeployment *deployment);
+
+GglError deep_copy_deployment(GglDeployment *deployment, GglAlloc *alloc);
 
 #endif
