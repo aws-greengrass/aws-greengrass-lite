@@ -2122,13 +2122,13 @@ static void handle_deployment(
         // ignore already deployed components
         bool component_deployed = false;
         GGL_MAP_FOREACH(deployed_component, deployed_components.map) {
-          if(ggl_buffer_eq(pair->key, deployed_component->key)) {
-            component_deployed = true;
-            break;
-          }
+            if (ggl_buffer_eq(pair->key, deployed_component->key)) {
+                component_deployed = true;
+                break;
+            }
         }
-        if(component_deployed) {
-          continue;
+        if (component_deployed) {
+            continue;
         }
 
         int component_artifacts_fd = -1;
@@ -3027,7 +3027,8 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         );
 
         bool bootstrap_deployment_succeeded = false;
-        // TODO: ignore already deployed components from the vector in handle_deployment
+        // TODO: ignore already deployed components from the vector in
+        // handle_deployment
         handle_deployment(
             bootstrap_deployment, args, &bootstrap_deployment_succeeded
         );
