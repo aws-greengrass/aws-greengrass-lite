@@ -41,7 +41,6 @@
 #include <ggl/version.h>
 #include <ggl/zip.h>
 #include <limits.h>
-#include <linux/limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
