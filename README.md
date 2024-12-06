@@ -1,11 +1,5 @@
 # AWS Greengrass Nucleus Lite
 
-🚧 🚧 🚧 WORK IN PROGRESS 🚧 🚧 🚧
-
-> This software does not yet have an official release. Feel free to test and
-> report issues you find, but some functionality may be buggy and there may be
-> breaking changes before the initial release.
-
 AWS IoT Greengrass runtime for constrained devices.
 
 The Greengrass Nucleus Lite provides a smaller alternative to the Classic
