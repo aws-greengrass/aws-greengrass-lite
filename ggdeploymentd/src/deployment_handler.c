@@ -1158,11 +1158,19 @@ static GglError resolve_dependencies(
         }
 
         if (ggl_buffer_eq(pair->key, GGL_STR("aws.greengrass.NucleusLite"))) {
-            if (!ggl_buffer_eq(component_version, GGL_STR(GGL_VERSION))) {
-                GGL_LOGE("The version of the aws.greengrass.NucleusLite "
-                         "component does not "
-                         "match the already installed version. "
-                         "Deployment failed.");
+            GglBuffer software_version = GGL_STR(GGL_VERSION);
+            if (!ggl_buffer_eq(component_version, software_version)) {
+                GGL_LOGE(
+                    "The deployment failed. The aws.greengrass.NucleusLite "
+                    "component version specified in the deployment is %.*s, "
+                    "but the version of the GG Lite software is %.*s. Please "
+                    "ensure that the version in the deployment matches before "
+                    "attempting the deployment again.",
+                    (int) component_version.len,
+                    component_version.data,
+                    (int) software_version.len,
+                    software_version.data
+                );
                 return GGL_ERR_INVALID;
             }
         }
