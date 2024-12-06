@@ -4,6 +4,7 @@
 
 #include "dirent.h"
 #include "ggconfigd.h"
+#include "helpers.h"
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
@@ -41,6 +42,11 @@ static GglError ggconfig_load_file_fd(int fd) {
 
     GglObjVec key_path = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
 
+    GGL_LOGD(
+        "Processing file load merge to key %s with timestamp 2",
+        print_key_path(&key_path.list)
+    );
+
     if (config_obj.type == GGL_TYPE_MAP) {
         ret = process_map(&key_path, &config_obj.map, 2);
         if (ret != GGL_ERR_OK) {
@@ -57,6 +63,7 @@ static GglError ggconfig_load_file_fd(int fd) {
 }
 
 GglError ggconfig_load_file(GglBuffer path) {
+    GGL_LOGT("Loading file %.*s", (int) path.len, path.data);
     int fd;
     GglError ret = ggl_file_open(path, O_RDONLY, 0, &fd);
     if (ret != GGL_ERR_OK) {
@@ -69,6 +76,9 @@ GglError ggconfig_load_file(GglBuffer path) {
 }
 
 GglError ggconfig_load_dir(GglBuffer path) {
+    GGL_LOGT(
+        "Loading files from config directory %.*s", (int) path.len, path.data
+    );
     int config_dir;
     GglError ret = ggl_dir_open(path, O_RDONLY, false, &config_dir);
     if (ret != GGL_ERR_OK) {
@@ -93,6 +103,8 @@ GglError ggconfig_load_dir(GglBuffer path) {
         }
 
         if (entry->d_type == DT_REG) {
+            GGL_LOGT("Loading directory file %s", entry->d_name);
+
             int fd = -1;
             ret = ggl_file_openat(
                 dirfd(dir),
