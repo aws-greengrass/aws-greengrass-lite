@@ -6,12 +6,15 @@
 #include "deployment_model.h"
 #include <assert.h>
 #include <ggl/buffer.h>
+#include <ggl/constants.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/json_pointer.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -46,13 +49,46 @@ static GglError apply_reset_config(
                      "update not provided as a buffer.");
             return GGL_ERR_INVALID;
         }
-        ret = ggl_gg_config_delete(GGL_BUF_LIST(
-            GGL_STR("services"),
-            component_name,
-            GGL_STR("configuration"),
-            reset_element->buf
-        ));
 
+        // Empty string means they want to reset the whole configuration to
+        // default configuration.
+        if (ggl_buffer_eq(reset_element->buf, GGL_STR(""))) {
+            GGL_LOGI(
+                "Received a request to reset the entire configuration for %.*s",
+                (int) component_name.len,
+                component_name.data
+            );
+            ret = ggl_gg_config_delete(GGL_BUF_LIST(
+                GGL_STR("services"), component_name, GGL_STR("configuration")
+            ));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE(
+                    "Error while deleting the component %.*s's configuration.",
+                    (int) component_name.len,
+                    component_name.data
+                );
+            }
+
+            break;
+        }
+
+        static GglBuffer key_path_mem[GGL_MAX_OBJECT_DEPTH];
+        GglBufVec key_path = GGL_BUF_VEC(key_path_mem);
+        ret = ggl_buf_vec_push(&key_path, GGL_STR("services"));
+        ggl_buf_vec_chain_push(&ret, &key_path, component_name);
+        ggl_buf_vec_chain_push(&ret, &key_path, GGL_STR("configuration"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Too many configuration levels during config reset.");
+            return ret;
+        }
+
+        ret = ggl_gg_config_jsonp_parse(reset_element->buf, &key_path);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Error parsing json pointer for config reset");
+            return ret;
+        }
+
+        ret = ggl_gg_config_delete(key_path.buf_list);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to perform configuration reset updates "
