@@ -1,3 +1,13 @@
+## v2.0.0
+
+Initial public release of AWS Greengrass Nucleus Lite.
+
+Changes since last beta release:
+
+- Variable substitution is supported in recipe Env sections.
+- Recipe bootstrap steps are supported.
+- TES now uses a random port.
+
 ## 2024-11-26
 
 Breaking changes:
