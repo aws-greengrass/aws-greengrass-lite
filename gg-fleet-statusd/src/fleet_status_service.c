@@ -12,7 +12,7 @@
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/core_bus/gghealthd.h>
+#include <ggl/core_bus/gg_healthd.h>
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
 #include <ggl/list.h>
