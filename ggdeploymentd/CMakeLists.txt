@@ -16,6 +16,7 @@ ggl_init_module(
        ggl-process
        ggl-exec
        aws-iot-call
+       core-bus-gghealthd
        core-bus-gg-config
        core-bus-aws-iot-mqtt
        core-bus-sub-response

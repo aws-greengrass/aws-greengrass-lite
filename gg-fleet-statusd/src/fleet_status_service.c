@@ -12,6 +12,7 @@
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
+#include <ggl/core_bus/gghealthd.h>
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
 #include <ggl/list.h>
@@ -35,54 +36,6 @@
     (TOPIC_PREFIX_LEN + MAX_THING_NAME_LEN + TOPIC_SUFFIX_LEN)
 
 #define PAYLOAD_BUFFER_LEN 5000
-
-static GglError retrieve_component_health_status(
-    GglBuffer component, GglBuffer *component_status
-) {
-    static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(buffer));
-
-    GglObject result = GGL_OBJ_NULL();
-    GglError method_error = GGL_ERR_OK;
-    GglError call_error = ggl_call(
-        GGL_STR("gg_health"),
-        GGL_STR("get_status"),
-        GGL_MAP({ GGL_STR("component_name"), GGL_OBJ_BUF(component) }),
-        &method_error,
-        &balloc.alloc,
-        &result
-    );
-    if (call_error != GGL_ERR_OK) {
-        return call_error;
-    }
-    if (method_error != GGL_ERR_OK) {
-        return method_error;
-    }
-    if (result.type != GGL_TYPE_MAP) {
-        return GGL_ERR_INVALID;
-    }
-
-    GglObject *lifecycle_state = NULL;
-    if (!ggl_map_get(
-            result.map, GGL_STR("lifecycle_state"), &lifecycle_state
-        )) {
-        GGL_LOGE("Failed to retrieve lifecycle state of %s.", component.data);
-        return GGL_ERR_NOENTRY;
-    }
-    if (lifecycle_state->type != GGL_TYPE_BUF) {
-        GGL_LOGE("Incorrect type of lifecycle state received. Expected buffer."
-        );
-        return GGL_ERR_INVALID;
-    }
-
-    memcpy(
-        component_status->data,
-        lifecycle_state->buf.data,
-        lifecycle_state->buf.len
-    );
-    component_status->len = lifecycle_state->buf.len;
-    return GGL_ERR_OK;
-}
 
 static const GglBuffer ARCHITECTURE =
 #if defined(__x86_64__)
@@ -176,8 +129,10 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
 
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "Unable to retrieve version of %s. Cannot publish fleet status "
+                "Unable to retrieve version of %.*s. Cannot publish fleet "
+                "status "
                 "update.",
+                (int) pair->key.len,
                 pair->key.data
             );
             return GGL_ERR_NOENTRY;
@@ -192,13 +147,16 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
         // retrieve component health status
         uint8_t component_health_arr[NAME_MAX];
         GglBuffer component_health = GGL_BUF(component_health_arr);
-        ret = retrieve_component_health_status(pair->key, &component_health);
+        ret = ggl_gghealthd_retrieve_component_status(
+            pair->key, &component_health
+        );
         if (ret != GGL_ERR_OK) {
             // skip reporting for components we fail to retrieve health statuses
             // for
             GGL_LOGD(
-                "Failed to retrieve health status for %s, removing "
+                "Failed to retrieve health status for %.*s, removing "
                 "component from fleet status update payload.",
+                (int) pair->key.len,
                 pair->key.data
             );
             continue;
@@ -225,8 +183,9 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
 
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "Unable to retrieve fleet configuration arn list for %s from "
+                "Unable to retrieve fleet configuration arn list for %.*s from "
                 "config. Cannot publish fleet status update.",
+                (int) pair->key.len,
                 pair->key.data
             );
             return GGL_ERR_NOENTRY;
@@ -257,7 +216,8 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
         ret = ggl_obj_vec_push(&component_statuses, component_info);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
-                "Failed to add component info for %s to component list.",
+                "Failed to add component info for %.*s to component list.",
+                (int) pair->key.len,
                 pair->key.data
             );
             return ret;
