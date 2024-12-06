@@ -36,6 +36,7 @@
 #include <ggl/uri.h>
 #include <ggl/utils.h>
 #include <ggl/vector.h>
+#include <ggl/version.h>
 #include <ggl/zip.h>
 #include <limits.h>
 #include <string.h>
@@ -1154,6 +1155,16 @@ static GglError resolve_dependencies(
                 return GGL_ERR_INVALID;
             }
             component_version = val->buf;
+        }
+
+        if (ggl_buffer_eq(pair->key, GGL_STR("aws.greengrass.NucleusLite"))) {
+            if (!ggl_buffer_eq(component_version, GGL_STR(GGL_VERSION))) {
+                GGL_LOGE("The version of the aws.greengrass.NucleusLite "
+                         "component does not "
+                         "match the already installed version. "
+                         "Deployment failed.");
+                return GGL_ERR_INVALID;
+            }
         }
 
         ret = ggl_kv_vec_push(
