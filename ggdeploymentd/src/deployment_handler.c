@@ -2249,6 +2249,9 @@ static void handle_deployment(
             return;
         }
 
+        // TODO: See if there is a better requirement. If a customer has the
+        // same version as before but somehow updated their component
+        // version their component may not get the updates.
         bool component_updated = true;
 
         static uint8_t old_component_version_mem[128] = { 0 };
@@ -2272,9 +2275,6 @@ static void handle_deployment(
                 component_updated = false;
             }
         }
-        // TODO: See if there is a better requirement. If a customer has the
-        // same version as before but somehow updated their component
-        // version their component may not get the updates.
 
         ret = ggl_gg_config_write(
             GGL_BUF_LIST(
