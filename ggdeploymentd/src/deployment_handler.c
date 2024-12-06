@@ -2384,8 +2384,6 @@ static void handle_deployment(
             return;
         }
 
-        // TODO: add install file processing logic here.
-
         if (component_updated) {
             ret = ggl_kv_vec_push(
                 &components_to_deploy, (GglKV) { pair->key, pair->val }
@@ -3009,7 +3007,7 @@ static void handle_deployment(
 
 static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     // check for in progress deployment in case of bootstrap
-    GglDeployment *bootstrap_deployment;
+    GglDeployment *bootstrap_deployment = NULL;
     GglError ret = retrieve_in_progress_deployment(
         bootstrap_deployment, &deployed_components
     );
@@ -3027,8 +3025,6 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         );
 
         bool bootstrap_deployment_succeeded = false;
-        // TODO: ignore already deployed components from the vector in
-        // handle_deployment
         handle_deployment(
             bootstrap_deployment, args, &bootstrap_deployment_succeeded
         );
