@@ -2119,6 +2119,18 @@ static void handle_deployment(
     GglKVVec components_to_deploy = GGL_KV_VEC((GglKV[64]) { 0 });
 
     GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
+        // ignore already deployed components
+        bool component_deployed = false;
+        GGL_MAP_FOREACH(deployed_component, deployed_components.map) {
+          if(ggl_buffer_eq(pair->key, deployed_component->key)) {
+            component_deployed = true;
+            break;
+          }
+        }
+        if(component_deployed) {
+          continue;
+        }
+
         int component_artifacts_fd = -1;
         ret = open_component_artifacts_dir(
             artifact_store_fd, pair->key, pair->val.buf, &component_artifacts_fd
@@ -2371,23 +2383,6 @@ static void handle_deployment(
             GGL_LOGE("Failed to apply merge configuration update.");
             return;
         }
-        // if (ret == GGL_ERR_OK) {
-        //     // bootstrap is required
-        //     // TODO: save deployment info
-        //     // need to keep list of completed components at the end of this
-        //     // process then when we hit a component that needs bootstrap,
-        //     those
-        //     // component details are saved in config save component lifecycle
-        //     // state and version, include resolved components also save
-        //     // deployment document and iot jobs id if it is cloud deployment
-        //     // maybe a section for deployment type
-        //     // all of this will be under services -> DeploymentService ->
-        //     // deploymentState on ggdeploymentd startup we will read the
-        //     config
-        //     // for these components and save them when we run the run/start
-        //     // lifecycles of components, we will ignore the already deployed
-        //     // components
-        // }
 
         // TODO: add install file processing logic here.
 
@@ -3006,7 +3001,8 @@ static void handle_deployment(
         GGL_LOGE("Failed to delete saved deployment info for bootstrap.");
     }
 
-    // TODO: clear contents of deployed_components for next deployment
+    // clear contents of deployed_components for next deployment
+    deployed_components = GGL_KV_VEC((GglKV[64]) { 0 });
 
     *deployment_succeeded = true;
 }
@@ -3036,7 +3032,6 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             bootstrap_deployment, args, &bootstrap_deployment_succeeded
         );
 
-        // TODO: need error details from handle_deployment
         if (bootstrap_deployment_succeeded) {
             GGL_LOGI("Completed deployment processing and reporting job as "
                      "SUCCEEDED.");
