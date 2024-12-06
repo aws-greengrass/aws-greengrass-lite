@@ -10,14 +10,12 @@
 #include <ggl/cleanup.h>
 #include <ggl/constants.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
-#include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/core_bus/gg_healthd.h>
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
-#include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <limits.h>
