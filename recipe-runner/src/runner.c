@@ -13,6 +13,7 @@
 #include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
+#include <ggl/json_pointer.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -38,31 +39,9 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
     static GglBuffer key_path_mem[GGL_MAX_OBJECT_DEPTH];
     GglBufVec key_path = GGL_BUF_VEC(key_path_mem);
 
-    // TODO: Do full parsing of JSON pointer
-
-    if ((json_ptr.len < 1) || (json_ptr.data[0] != '/')) {
-        GGL_LOGE("Invalid json pointer in recipe escape.");
-        return GGL_ERR_FAILURE;
-    }
-
-    size_t begin = 1;
-    for (size_t i = 1; i < json_ptr.len; i++) {
-        if (json_ptr.data[i] == '/') {
-            GglError ret = ggl_buf_vec_push(
-                &key_path, ggl_buffer_substr(json_ptr, begin, i)
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Too many configuration levels.");
-                return ret;
-            }
-            begin = i + 1;
-        }
-    }
-    GglError ret = ggl_buf_vec_push(
-        &key_path, ggl_buffer_substr(json_ptr, begin, SIZE_MAX)
-    );
+    GglError ret = ggl_gg_config_jsonp_parse(json_ptr, &key_path);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Too many configuration levels.");
+        GGL_LOGE("Failed to parse json pointer key.");
         return ret;
     }
 
