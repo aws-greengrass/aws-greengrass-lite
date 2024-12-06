@@ -20,7 +20,7 @@
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/core_bus/gghealthd.h>
+#include <ggl/core_bus/gg_healthd.h>
 #include <ggl/core_bus/sub_response.h>
 #include <ggl/digest.h>
 #include <ggl/error.h>
