@@ -11,6 +11,7 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <string.h>
+#include <stdint.h>
 
 GglError ggl_gghealthd_retrieve_component_status(
     GglBuffer component, GglBuffer *component_status
