@@ -67,6 +67,7 @@ static GglError apply_reset_config(
                     (int) component_name.len,
                     component_name.data
                 );
+                return ret;
             }
 
             break;
