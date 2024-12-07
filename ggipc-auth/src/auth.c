@@ -60,6 +60,25 @@ GglError ggl_ipc_auth_lookup_name(
             unit_name
         );
     }
+    GglBuffer bootstrap_ext = GGL_STR(".bootstrap");
+    if ((name.len <= bootstrap_ext.len)
+        || !ggl_buffer_eq(
+            ggl_buffer_substr(name, name.len - bootstrap_ext.len, SIZE_MAX),
+            bootstrap_ext
+        )) {
+        GGL_LOGT(
+            "Service for pid %d (%s) is not a bootstrap service extension.",
+            pid,
+            unit_name
+        );
+    } else {
+        name = ggl_buffer_substr(name, 0, name.len - bootstrap_ext.len);
+        GGL_LOGT(
+            "Service for pid %d (%s) is a bootstrap service extension.",
+            pid,
+            unit_name
+        );
+    }
 
     GglBuffer prefix = GGL_STR("ggl.");
     if (!ggl_buffer_eq(ggl_buffer_substr(name, 0, prefix.len), prefix)) {

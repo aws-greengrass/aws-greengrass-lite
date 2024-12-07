@@ -4,6 +4,7 @@
 
 #include "bus_client.h"
 #include <sys/types.h>
+#include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -17,17 +18,15 @@ static pthread_mutex_t bump_alloc_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // Check a component's version field in ggconfigd for proof of existence
 GglError verify_component_exists(GglBuffer component_name) {
-    // Remove .install if at the end of the component name
-    GglBuffer install_ext = GGL_STR(".install");
-    if ((component_name.len > install_ext.len)
-        && ggl_buffer_eq(
-            ggl_buffer_substr(
-                component_name, component_name.len - install_ext.len, SIZE_MAX
-            ),
-            install_ext
-        )) {
+    // Remove .install and .bootstrap if at the end of the component name
+    if (ggl_buffer_has_suffix(component_name, GGL_STR(".install"))) {
         component_name = ggl_buffer_substr(
-            component_name, 0, component_name.len - install_ext.len
+            component_name, 0, component_name.len - GGL_STR(".install").len
+        );
+    }
+    if (ggl_buffer_has_suffix(component_name, GGL_STR(".bootstrap"))) {
+        component_name = ggl_buffer_substr(
+            component_name, 0, component_name.len - GGL_STR(".bootstrap").len
         );
     }
 

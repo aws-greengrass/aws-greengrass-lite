@@ -1913,7 +1913,9 @@ static GglError deployment_status_callback(void *ctx, GglObject data) {
     return GGL_ERR_INVALID;
 }
 
-static GglError wait_for_install_status(GglBufVec component_vec) {
+static GglError wait_for_phase_status(
+    GglBufVec component_vec, GglBuffer phase
+) {
     // TODO: hack
     ggl_sleep(5);
 
@@ -1924,9 +1926,15 @@ static GglError wait_for_install_status(GglBufVec component_vec) {
         GglError ret = ggl_byte_vec_append(
             &install_comp_name_vec, component_vec.buf_list.bufs[i]
         );
-        ggl_byte_vec_append(&install_comp_name_vec, GGL_STR(".install"));
+        ggl_byte_vec_append(&install_comp_name_vec, phase);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to generate the install component name.");
+            GGL_LOGE(
+                "Failed to generate %*.s phase name for %*.scomponent.",
+                (int) phase.len,
+                phase.data,
+                (int) component_vec.buf_list.bufs[i].len,
+                component_vec.buf_list.bufs[i].data
+            );
             return ret;
         }
         GGL_LOGD(
@@ -2345,7 +2353,189 @@ static void handle_deployment(
         }
     }
 
+    // TODO:: Add a logic to only run the phases that exist with the latest
+    // deployment
     if (updated_comp_name_vec.buf_list.len != 0) {
+        // collect all component names that have relevant bootstrap service
+        // files
+        static GglBuffer bootstrap_comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
+        GglBufVec bootstrap_comp_name_buf_vec
+            = GGL_BUF_VEC(bootstrap_comp_name_buf);
+
+        // process all bootstrap files first
+        for (size_t i = 0; i < updated_comp_name_vec.buf_list.len; i++) {
+            static uint8_t bootstrap_service_file_path_buf[PATH_MAX];
+            GglByteVec bootstrap_service_file_path_vec
+                = GGL_BYTE_VEC(bootstrap_service_file_path_buf);
+            ret = ggl_byte_vec_append(
+                &bootstrap_service_file_path_vec, args->root_path
+            );
+            ggl_byte_vec_append(&bootstrap_service_file_path_vec, GGL_STR("/"));
+            ggl_byte_vec_append(
+                &bootstrap_service_file_path_vec, GGL_STR("ggl.")
+            );
+            ggl_byte_vec_chain_append(
+                &ret,
+                &bootstrap_service_file_path_vec,
+                updated_comp_name_vec.buf_list.bufs[i]
+            );
+            ggl_byte_vec_chain_append(
+                &ret,
+                &bootstrap_service_file_path_vec,
+                GGL_STR(".bootstrap.service")
+            );
+            if (ret == GGL_ERR_OK) {
+                // check if the current component name has relevant bootstrap
+                // service file created
+                int fd = -1;
+                ret = ggl_file_open(
+                    bootstrap_service_file_path_vec.buf, O_RDONLY, 0, &fd
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGW(
+                        "Component %.*s does not have the relevant bootstrap "
+                        "service file",
+                        (int) updated_comp_name_vec.buf_list.bufs[i].len,
+                        updated_comp_name_vec.buf_list.bufs[i].data
+                    );
+                } else { // relevant bootstrap service file exists
+
+                    // add relevant component name into the vector
+                    ret = ggl_buf_vec_push(
+                        &bootstrap_comp_name_buf_vec,
+                        updated_comp_name_vec.buf_list.bufs[i]
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE("Failed to add the bootstrap component name "
+                                 "into vector");
+                        return;
+                    }
+
+                    // initiate link command for 'bootstrap'
+                    static uint8_t link_command_buf[PATH_MAX];
+                    GglByteVec link_command_vec
+                        = GGL_BYTE_VEC(link_command_buf);
+                    ret = ggl_byte_vec_append(
+                        &link_command_vec, GGL_STR("systemctl link ")
+                    );
+                    ggl_byte_vec_chain_append(
+                        &ret,
+                        &link_command_vec,
+                        bootstrap_service_file_path_vec.buf
+                    );
+                    ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE(
+                            "Failed to create systemctl link command for:%.*s",
+                            (int) bootstrap_service_file_path_vec.buf.len,
+                            bootstrap_service_file_path_vec.buf.data
+                        );
+                        return;
+                    }
+
+                    GGL_LOGD(
+                        "Command to execute: %.*s",
+                        (int) link_command_vec.buf.len,
+                        link_command_vec.buf.data
+                    );
+
+                    // NOLINTBEGIN(concurrency-mt-unsafe)
+                    int system_ret = system((char *) link_command_vec.buf.data);
+                    if (WIFEXITED(system_ret)) {
+                        if (WEXITSTATUS(system_ret) != 0) {
+                            GGL_LOGE(
+                                "systemctl link failed for:%.*s",
+                                (int) bootstrap_service_file_path_vec.buf.len,
+                                bootstrap_service_file_path_vec.buf.data
+                            );
+                            return;
+                        }
+                        GGL_LOGI(
+                            "systemctl link exited for %.*s with child status "
+                            "%d\n",
+                            (int) bootstrap_service_file_path_vec.buf.len,
+                            bootstrap_service_file_path_vec.buf.data,
+                            WEXITSTATUS(system_ret)
+                        );
+                    } else {
+                        GGL_LOGE(
+                            "systemctl link did not exit normally for %.*s",
+                            (int) bootstrap_service_file_path_vec.buf.len,
+                            bootstrap_service_file_path_vec.buf.data
+                        );
+                        return;
+                    }
+
+                    // initiate start command for 'bootstrap'
+                    static uint8_t start_command_buf[PATH_MAX];
+                    GglByteVec start_command_vec
+                        = GGL_BYTE_VEC(start_command_buf);
+                    ret = ggl_byte_vec_append(
+                        &start_command_vec, GGL_STR("systemctl start ")
+                    );
+                    ggl_byte_vec_chain_append(
+                        &ret, &start_command_vec, GGL_STR("ggl.")
+                    );
+                    ggl_byte_vec_chain_append(
+                        &ret,
+                        &start_command_vec,
+                        updated_comp_name_vec.buf_list.bufs[i]
+                    );
+                    ggl_byte_vec_chain_append(
+                        &ret,
+                        &start_command_vec,
+                        GGL_STR(".bootstrap.service\0")
+                    );
+
+                    GGL_LOGD(
+                        "Command to execute: %.*s",
+                        (int) start_command_vec.buf.len,
+                        start_command_vec.buf.data
+                    );
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE(
+                            "Failed to create systemctl start command for %.*s",
+                            (int) bootstrap_service_file_path_vec.buf.len,
+                            bootstrap_service_file_path_vec.buf.data
+                        );
+                        return;
+                    }
+
+                    system_ret = system((char *) start_command_vec.buf.data);
+                    // NOLINTEND(concurrency-mt-unsafe)
+                    if (WIFEXITED(system_ret)) {
+                        if (WEXITSTATUS(system_ret) != 0) {
+                            GGL_LOGE(
+                                "systemctl start failed for%.*s",
+                                (int) bootstrap_service_file_path_vec.buf.len,
+                                bootstrap_service_file_path_vec.buf.data
+                            );
+                            return;
+                        }
+                        GGL_LOGI(
+                            "systemctl start exited with child status %d\n",
+                            WEXITSTATUS(system_ret)
+                        );
+                    } else {
+                        GGL_LOGE(
+                            "systemctl start did not exit normally for %.*s",
+                            (int) bootstrap_service_file_path_vec.buf.len,
+                            bootstrap_service_file_path_vec.buf.data
+                        );
+                        return;
+                    }
+                }
+            }
+        }
+
+        // wait for all the bootstrap status
+        ret = wait_for_phase_status(
+            bootstrap_comp_name_buf_vec, GGL_STR("bootstrap")
+        );
+        if (ret != GGL_ERR_OK) {
+            return;
+        }
+
         // collect all component names that have relevant install service
         // files
         static GglBuffer install_comp_name_buf[MAX_COMP_NAME_BUF_SIZE];
@@ -2517,7 +2707,9 @@ static void handle_deployment(
         }
 
         // wait for all the install status
-        ret = wait_for_install_status(install_comp_name_buf_vec);
+        ret = wait_for_phase_status(
+            install_comp_name_buf_vec, GGL_STR("install")
+        );
         if (ret != GGL_ERR_OK) {
             return;
         }

@@ -12,7 +12,8 @@
 
 typedef enum {
     INSTALL,
-    RUN_STARTUP
+    RUN_STARTUP,
+    BOOTSTRAP
 } PhaseSelection;
 
 GglError generate_systemd_unit(

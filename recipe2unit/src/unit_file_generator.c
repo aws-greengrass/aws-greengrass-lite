@@ -342,12 +342,39 @@ static GglError manifest_builder(
 
     GglBuffer lifecycle_script_selection = { 0 };
     GglObject *startup_or_run_section;
-    GglObject *check_install_exist;
+    GglObject *obj_for_if_exists;
 
-    if (current_phase == INSTALL) {
-        // Check if there are any unsupported phases
+    if (current_phase == BOOTSTRAP) {
+        // Check if there are any unsupported phases first
+        // Inside this if block as we do not want to keep on checking on each
+        // phase lookup
         compatibility_check(selected_lifecycle_map);
 
+        lifecycle_script_selection = GGL_STR("bootstrap");
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=oneshot\n"));
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("RemainAfterExit=true\n"));
+        ggl_byte_vec_chain_append(
+            &ret, out, GGL_STR("SuccessExitStatus=100 101\n")
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to add unit type information");
+            return GGL_ERR_FAILURE;
+        }
+        if (ggl_map_get(
+                selected_lifecycle_map, GGL_STR("bootstrap"), &obj_for_if_exists
+            )) {
+            if (obj_for_if_exists->type == GGL_TYPE_LIST) {
+                GGL_LOGE("bootstrap is a list type");
+                return GGL_ERR_INVALID;
+            }
+        } else {
+            GGL_LOGW("No bootstrap phase found");
+            GGL_LOGW("Note that in GG Lite, keys are case sensitive. Check the "
+                     "recipe reference for the correct casing.");
+            return GGL_ERR_NOENTRY;
+        }
+
+    } else if (current_phase == INSTALL) {
         lifecycle_script_selection = GGL_STR("install");
         ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=oneshot\n"));
         ggl_byte_vec_chain_append(&ret, out, GGL_STR("RemainAfterExit=true\n"));
@@ -357,9 +384,9 @@ static GglError manifest_builder(
         }
 
         if (ggl_map_get(
-                selected_lifecycle_map, GGL_STR("install"), &check_install_exist
+                selected_lifecycle_map, GGL_STR("install"), &obj_for_if_exists
             )) {
-            if (check_install_exist->type == GGL_TYPE_LIST) {
+            if (obj_for_if_exists->type == GGL_TYPE_LIST) {
                 GGL_LOGE("install is a list type");
                 return GGL_ERR_INVALID;
             }
@@ -443,7 +470,7 @@ static GglError manifest_builder(
 static GglError fill_install_section(
     GglByteVec *out, PhaseSelection current_phase
 ) {
-    if (current_phase != INSTALL) {
+    if (current_phase == RUN_STARTUP) {
         GglError ret = ggl_byte_vec_append(out, GGL_STR("\n[Install]\n"));
         ggl_byte_vec_chain_append(
             &ret, out, GGL_STR("WantedBy=greengrass-lite.target\n")
