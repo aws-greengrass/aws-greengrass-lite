@@ -215,9 +215,7 @@ static GglError parse_deployment_obj(
             get_slash_and_colon_locations_from_arn(
                 configuration_arn, &slash_index, &last_colon_index
             );
-            doc->configuration_arn = ggl_buffer_substr(
-                configuration_arn->buf, 0, last_colon_index
-            );
+            doc->configuration_arn = configuration_arn->buf;
             doc->thing_group = ggl_buffer_substr(
                 configuration_arn->buf, slash_index + 1, last_colon_index
             );
