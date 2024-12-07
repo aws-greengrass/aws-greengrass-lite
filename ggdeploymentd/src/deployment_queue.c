@@ -169,7 +169,7 @@ static GglError parse_deployment_obj(
               GGL_TYPE_MAP,
               &root_component_versions_to_add },
             { GGL_STR("components"), false, GGL_TYPE_MAP, &cloud_components },
-            { GGL_STR("deployment_id"), false, GGL_TYPE_BUF, &deployment_id },
+            { GGL_STR("deploymentId"), false, GGL_TYPE_BUF, &deployment_id },
             { GGL_STR("configurationArn"),
               false,
               GGL_TYPE_BUF,

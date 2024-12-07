@@ -100,7 +100,9 @@ static const GglBuffer ARCHITECTURE =
 
 // TODO: Split this function up
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
+GglError publish_fleet_status_update(
+    GglBuffer thing_name, GglBuffer trigger, GglMap deployment_info
+) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
     GGL_MTX_SCOPE_GUARD(&mtx);
 
@@ -322,7 +324,8 @@ GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger) {
         { GGL_STR("messageType"), GGL_OBJ_BUF(GGL_STR("COMPLETE")) },
         { GGL_STR("trigger"), GGL_OBJ_BUF(trigger) },
         { GGL_STR("overallDeviceStatus"), GGL_OBJ_BUF(overall_device_status) },
-        { GGL_STR("components"), GGL_OBJ_LIST(component_statuses.list) }
+        { GGL_STR("components"), GGL_OBJ_LIST(component_statuses.list) },
+        { GGL_STR("deploymentInformation"), GGL_OBJ_MAP(deployment_info) }
     ));
 
     // build payload

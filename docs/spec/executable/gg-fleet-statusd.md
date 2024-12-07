@@ -41,3 +41,7 @@ to send a fleet status update to IoT Core.
     - `RECONNECT`
     - `LAUNCH`
     - `NETWORK_RECONFIGURE`
+- [gg-fleet-statusd-send_fleet_status_update-2] `deployment_info` is a required
+  parameter of type map
+  - [gg-fleet-statusd-send_fleet_status_update-2.1] `deployment_info` includes a
+    map of deployment information to send to cloud after a deployment

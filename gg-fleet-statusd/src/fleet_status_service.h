@@ -7,9 +7,12 @@
 
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/object.h>
 
 #define MAX_THING_NAME_LEN 128
 
-GglError publish_fleet_status_update(GglBuffer thing_name, GglBuffer trigger);
+GglError publish_fleet_status_update(
+    GglBuffer thing_name, GglBuffer trigger, GglMap deployment_info
+);
 
 #endif // GG_FLEET_STATUSD_FLEET_STATUS_SERVICE_H

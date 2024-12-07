@@ -78,7 +78,9 @@ static GglError connection_status_callback(
             (int) connection_trigger.len,
             connection_trigger.data
         );
-        ret = publish_fleet_status_update(thing_name, connection_trigger);
+        ret = publish_fleet_status_update(
+            thing_name, connection_trigger, GGL_MAP()
+        );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to publish fleet status update.");
         }
@@ -108,7 +110,9 @@ static void *ggl_fleet_status_service_thread(void *ctx) {
             return NULL;
         }
 
-        ret = publish_fleet_status_update(thing_name, GGL_STR("CADENCE"));
+        ret = publish_fleet_status_update(
+            thing_name, GGL_STR("CADENCE"), GGL_MAP()
+        );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to publish fleet status update.");
         }
@@ -130,7 +134,16 @@ static GglError send_fleet_status_update(
         return GGL_ERR_INVALID;
     }
 
-    GglError ret = publish_fleet_status_update(thing_name, trigger->buf);
+    GglObject *deployment_info = NULL;
+    found = ggl_map_get(params, GGL_STR("deployment_info"), &deployment_info);
+    if (!found || deployment_info->type != GGL_TYPE_MAP) {
+        GGL_LOGE("Missing required GGL_TYPE_MAP `deployment_info`.");
+        return GGL_ERR_INVALID;
+    }
+
+    GglError ret = publish_fleet_status_update(
+        thing_name, trigger->buf, deployment_info->map
+    );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to publish fleet status update.");
         return ret;
