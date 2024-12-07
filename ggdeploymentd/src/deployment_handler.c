@@ -2392,7 +2392,7 @@ static void handle_deployment(
                     bootstrap_service_file_path_vec.buf, O_RDONLY, 0, &fd
                 );
                 if (ret != GGL_ERR_OK) {
-                    GGL_LOGW(
+                    GGL_LOGD(
                         "Component %.*s does not have the relevant bootstrap "
                         "service file",
                         (int) updated_comp_name_vec.buf_list.bufs[i].len,
@@ -2572,7 +2572,7 @@ static void handle_deployment(
                     install_service_file_path_vec.buf, O_RDONLY, 0, &fd
                 );
                 if (ret != GGL_ERR_OK) {
-                    GGL_LOGW(
+                    GGL_LOGD(
                         "Component %.*s does not have the relevant install "
                         "service file",
                         (int) updated_comp_name_vec.buf_list.bufs[i].len,
@@ -2731,79 +2731,95 @@ static void handle_deployment(
                 &ret, &service_file_path_vec, GGL_STR(".service")
             );
             if (ret == GGL_ERR_OK) {
-                // run link command
-                static uint8_t link_command_buf[PATH_MAX];
-                GglByteVec link_command_vec = GGL_BYTE_VEC(link_command_buf);
-                ret = ggl_byte_vec_append(
-                    &link_command_vec, GGL_STR("systemctl link ")
+                // check if the current component name has relevant run
+                // service file created
+                int fd = -1;
+                ret = ggl_file_open(
+                    service_file_path_vec.buf, O_RDONLY, 0, &fd
                 );
-                ggl_byte_vec_chain_append(
-                    &ret, &link_command_vec, service_file_path_vec.buf
-                );
-                ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
                 if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to create systemctl link command.");
-                    return;
-                }
-
-                GGL_LOGD(
-                    "Command to execute: %.*s",
-                    (int) link_command_vec.buf.len,
-                    link_command_vec.buf.data
-                );
-
-                // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                int system_ret = system((char *) link_command_vec.buf.data);
-                if (WIFEXITED(system_ret)) {
-                    if (WEXITSTATUS(system_ret) != 0) {
-                        GGL_LOGE("systemctl link command failed");
-                        return;
-                    }
-                    GGL_LOGI(
-                        "systemctl link exited with child status %d\n",
-                        WEXITSTATUS(system_ret)
+                    GGL_LOGD(
+                        "Component %.*s does not have the relevant run "
+                        "service file",
+                        (int) updated_comp_name_vec.buf_list.bufs[i].len,
+                        updated_comp_name_vec.buf_list.bufs[i].data
                     );
                 } else {
-                    GGL_LOGE("systemctl link did not exit normally");
-                    return;
-                }
-
-                // run enable command
-                static uint8_t enable_command_buf[PATH_MAX];
-                GglByteVec enable_command_vec
-                    = GGL_BYTE_VEC(enable_command_buf);
-                ret = ggl_byte_vec_append(
-                    &enable_command_vec, GGL_STR("systemctl enable ")
-                );
-                ggl_byte_vec_chain_append(
-                    &ret, &enable_command_vec, service_file_path_vec.buf
-                );
-                ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to create systemctl enable command.");
-                    return;
-                }
-                GGL_LOGD(
-                    "Command to execute: %.*s",
-                    (int) enable_command_vec.buf.len,
-                    enable_command_vec.buf.data
-                );
-
-                // NOLINTNEXTLINE(concurrency-mt-unsafe)
-                system_ret = system((char *) enable_command_vec.buf.data);
-                if (WIFEXITED(system_ret)) {
-                    if (WEXITSTATUS(system_ret) != 0) {
-                        GGL_LOGE("systemctl enable failed");
+                    // run link command
+                    static uint8_t link_command_buf[PATH_MAX];
+                    GglByteVec link_command_vec
+                        = GGL_BYTE_VEC(link_command_buf);
+                    ret = ggl_byte_vec_append(
+                        &link_command_vec, GGL_STR("systemctl link ")
+                    );
+                    ggl_byte_vec_chain_append(
+                        &ret, &link_command_vec, service_file_path_vec.buf
+                    );
+                    ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE("Failed to create systemctl link command.");
                         return;
                     }
-                    GGL_LOGI(
-                        "systemctl enable exited with child status "
-                        "%d\n",
-                        WEXITSTATUS(system_ret)
+
+                    GGL_LOGD(
+                        "Command to execute: %.*s",
+                        (int) link_command_vec.buf.len,
+                        link_command_vec.buf.data
                     );
-                } else {
-                    GGL_LOGE("systemctl enable did not exit normally");
-                    return;
+
+                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                    int system_ret = system((char *) link_command_vec.buf.data);
+                    if (WIFEXITED(system_ret)) {
+                        if (WEXITSTATUS(system_ret) != 0) {
+                            GGL_LOGE("systemctl link command failed");
+                            return;
+                        }
+                        GGL_LOGI(
+                            "systemctl link exited with child status %d\n",
+                            WEXITSTATUS(system_ret)
+                        );
+                    } else {
+                        GGL_LOGE("systemctl link did not exit normally");
+                        return;
+                    }
+
+                    // run enable command
+                    static uint8_t enable_command_buf[PATH_MAX];
+                    GglByteVec enable_command_vec
+                        = GGL_BYTE_VEC(enable_command_buf);
+                    ret = ggl_byte_vec_append(
+                        &enable_command_vec, GGL_STR("systemctl enable ")
+                    );
+                    ggl_byte_vec_chain_append(
+                        &ret, &enable_command_vec, service_file_path_vec.buf
+                    );
+                    ggl_byte_vec_chain_push(&ret, &enable_command_vec, '\0');
+                    if (ret != GGL_ERR_OK) {
+                        GGL_LOGE("Failed to create systemctl enable command.");
+                        return;
+                    }
+                    GGL_LOGD(
+                        "Command to execute: %.*s",
+                        (int) enable_command_vec.buf.len,
+                        enable_command_vec.buf.data
+                    );
+
+                    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+                    system_ret = system((char *) enable_command_vec.buf.data);
+                    if (WIFEXITED(system_ret)) {
+                        if (WEXITSTATUS(system_ret) != 0) {
+                            GGL_LOGE("systemctl enable failed");
+                            return;
+                        }
+                        GGL_LOGI(
+                            "systemctl enable exited with child status "
+                            "%d\n",
+                            WEXITSTATUS(system_ret)
+                        );
+                    } else {
+                        GGL_LOGE("systemctl enable did not exit normally");
+                        return;
+                    }
                 }
             }
         }
