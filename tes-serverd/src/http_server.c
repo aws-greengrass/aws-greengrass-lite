@@ -16,6 +16,7 @@
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/version.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <systemd/sd-daemon.h>
@@ -252,6 +253,35 @@ GglError http_server(void) {
     );
 
     GglError ret = ggl_gg_config_write(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.TokenExchangeService"),
+            GGL_STR("version")
+        ),
+        GGL_OBJ_BUF(GGL_STR(GGL_VERSION)),
+        NULL
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error writing the TES version to the config");
+        return ret;
+    }
+
+    ret = ggl_gg_config_write(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.TokenExchangeService"),
+            GGL_STR("configArn")
+        ),
+        GGL_OBJ_LIST(GGL_LIST()),
+        NULL
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write configuration arn list for TES to the config."
+        );
+        return ret;
+    }
+
+    ret = ggl_gg_config_write(
         GGL_BUF_LIST(
             GGL_STR("services"),
             GGL_STR("aws.greengrass.TokenExchangeService"),
