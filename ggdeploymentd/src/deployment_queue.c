@@ -71,9 +71,7 @@ static GglError null_terminate_buffer(GglBuffer *buf, GglAlloc *alloc) {
     return GGL_ERR_OK;
 }
 
-static GglError deep_copy_deployment(
-    GglDeployment *deployment, GglAlloc *alloc
-) {
+GglError deep_copy_deployment(GglDeployment *deployment, GglAlloc *alloc) {
     assert(deployment != NULL);
 
     GglObject obj = GGL_OBJ_BUF(deployment->deployment_id);
