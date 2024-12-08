@@ -1864,9 +1864,41 @@ static GglError add_arn_list_to_config(
     return GGL_ERR_OK;
 }
 
-static GglError send_fss_update(GglBuffer trigger, GglMap deployment_info) {
+static GglError send_fss_update(
+    GglDeployment *deployment, bool deployment_succeeded
+) {
     GglBuffer server = GGL_STR("gg_fleet_status");
     static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
+
+    // TODO: Fill out statusDetails and unchangedRootComponents
+    GglMap status_details_map = GGL_MAP(
+        { GGL_STR("detailedStatus"),
+          GGL_OBJ_BUF(
+              deployment_succeeded ? GGL_STR("SUCCESSFUL")
+                                   : GGL_STR("FAILED_ROLLBACK_NOT_REQUESTED")
+          ) },
+    );
+
+    GglMap deployment_info = GGL_MAP(
+        { GGL_STR("status"),
+          GGL_OBJ_BUF(
+              deployment_succeeded ? GGL_STR("SUCCEEDED") : GGL_STR("FAILED")
+          ) },
+        { GGL_STR("fleetConfigurationArnForStatus"),
+          GGL_OBJ_BUF(deployment->configuration_arn) },
+        { GGL_STR("deploymentId"), GGL_OBJ_BUF(deployment->deployment_id) },
+        { GGL_STR("statusDetails"), GGL_OBJ_MAP(status_details_map) },
+        { GGL_STR("unchangedRootComponents"), GGL_OBJ_LIST(GGL_LIST()) },
+    );
+
+    uint8_t trigger_buffer[24];
+    GglBuffer trigger = GGL_BUF(trigger_buffer);
+
+    if (deployment->type == LOCAL_DEPLOYMENT) {
+        trigger = GGL_STR("LOCAL_DEPLOYMENT");
+    } else if (deployment->type == THING_GROUP_DEPLOYMENT) {
+        trigger = GGL_STR("THING_GROUP_DEPLOYMENT");
+    }
 
     GglMap args = GGL_MAP(
         { GGL_STR("trigger"), GGL_OBJ_BUF(trigger) },
@@ -2477,9 +2509,7 @@ static void handle_deployment(
                 &bootstrap_service_file_path_vec, GGL_STR("ggl.")
             );
             ggl_byte_vec_chain_append(
-                &ret,
-                &bootstrap_service_file_path_vec,
-                component_name
+                &ret, &bootstrap_service_file_path_vec, component_name
             );
             ggl_byte_vec_chain_append(
                 &ret,
@@ -2504,8 +2534,7 @@ static void handle_deployment(
 
                     // add relevant component name into the vector
                     ret = ggl_buf_vec_push(
-                        &bootstrap_comp_name_buf_vec,
-                        component_name
+                        &bootstrap_comp_name_buf_vec, component_name
                     );
                     if (ret != GGL_ERR_OK) {
                         GGL_LOGE("Failed to add the bootstrap component name "
@@ -2579,9 +2608,7 @@ static void handle_deployment(
                         &ret, &start_command_vec, GGL_STR("ggl.")
                     );
                     ggl_byte_vec_chain_append(
-                        &ret,
-                        &start_command_vec,
-                        component_name
+                        &ret, &start_command_vec, component_name
                     );
                     ggl_byte_vec_chain_append(
                         &ret,
@@ -3028,6 +3055,8 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             &bootstrap_deployment, args, &bootstrap_deployment_succeeded
         );
 
+        send_fss_update(&bootstrap_deployment, bootstrap_deployment_succeeded);
+
         if (bootstrap_deployment_succeeded) {
             GGL_LOGI("Completed deployment processing and reporting job as "
                      "SUCCEEDED.");
@@ -3063,51 +3092,7 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         bool deployment_succeeded = false;
         handle_deployment(deployment, args, &deployment_succeeded);
 
-        // TODO: Fill out statusDetails and unchangedRootComponents
-        GglMap status_details_map = GGL_MAP(
-            { GGL_STR("detailedStatus"),
-              GGL_OBJ_BUF(
-                  deployment_succeeded
-                      ? GGL_STR("SUCCESSFUL")
-                      : GGL_STR("FAILED_ROLLBACK_NOT_REQUESTED")
-              ) },
-        );
-
-        GglMap deployment_info_map = GGL_MAP(
-            { GGL_STR("status"),
-              GGL_OBJ_BUF(
-                  deployment_succeeded ? GGL_STR("SUCCEEDED")
-                                       : GGL_STR("FAILED")
-              ) },
-            { GGL_STR("fleetConfigurationArnForStatus"),
-              GGL_OBJ_BUF(deployment->configuration_arn) },
-            { GGL_STR("deploymentId"), GGL_OBJ_BUF(deployment->deployment_id) },
-            { GGL_STR("statusDetails"), GGL_OBJ_MAP(status_details_map) },
-            { GGL_STR("unchangedRootComponents"), GGL_OBJ_LIST(GGL_LIST()) },
-        );
-
-        GGL_LOGI(
-            "Sending fleet status update as deployment processing is finished."
-        );
-        if (deployment->type == LOCAL_DEPLOYMENT) {
-            ret = send_fss_update(
-                GGL_STR("LOCAL_DEPLOYMENT"), deployment_info_map
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Error while reporting fleet status after deployment."
-                );
-            }
-        }
-
-        if (deployment->type == THING_GROUP_DEPLOYMENT) {
-            ret = send_fss_update(
-                GGL_STR("THING_GROUP_DEPLOYMENT"), deployment_info_map
-            );
-            if (ret != GGL_ERR_OK) {
-                GGL_LOGE("Error while reporting fleet status after deployment."
-                );
-            }
-        }
+        send_fss_update(deployment, deployment_succeeded);
 
         // TODO: need error details from handle_deployment
         if (deployment_succeeded) {
