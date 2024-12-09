@@ -51,6 +51,7 @@ ggpubsubd
 grault
 greengrasscoreipc
 greengrassv
+HEALTHD
 htobe
 INET
 iotcored
