@@ -9,7 +9,9 @@
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/gg_config.h>
+#include <ggl/core_bus/gg_healthd.h>
 #include <ggl/error.h>
+#include <ggl/exec.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -18,48 +20,6 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-bool bootstrap_required(GglMap recipe, GglBuffer component_name) {
-    GglObject *lifecycle_config;
-    GglObject *bootstrap_config;
-
-    GglError ret = ggl_map_validate(
-        recipe,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("Lifecycle"), false, GGL_TYPE_MAP, &lifecycle_config }
-        )
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "Bootstrap is not required for %.*s. Received invalid recipe map.",
-            (int) component_name.len,
-            component_name.data
-        );
-        return false;
-    }
-
-    if (ggl_map_get(
-            lifecycle_config->map, GGL_STR("bootstrap"), &bootstrap_config
-        )) {
-        GGL_LOGD(
-            "Bootstrap is required for %.*s. Found bootstrap step in "
-            "component recipe.",
-            (int) component_name.len,
-            component_name.data
-        );
-
-        // TODO: read and save bootstrap script to be processed
-        return true;
-    }
-    GGL_LOGD(
-        "Bootstrap is not required for %.*s. Did not find bootstrap "
-        "step "
-        "in component recipe.",
-        (int) component_name.len,
-        component_name.data
-    );
-    return false;
-}
 
 GglError save_deployment_state(
     GglDeployment *deployment, GglMap completed_components
@@ -378,7 +338,9 @@ GglError delete_saved_deployment_from_config(void) {
 GglError process_bootstrap_phase(
     GglMap components,
     GglBuffer root_path,
-    GglBufVec *bootstrap_comp_name_buf_vec
+    GglBufVec *bootstrap_comp_name_buf_vec,
+    GglDeployment *deployment,
+    GglKVVec *completed_components
 ) {
     GGL_MAP_FOREACH(component, components) {
         GglBuffer component_name = component->key;
@@ -529,7 +491,53 @@ GglError process_bootstrap_phase(
                     );
                     return ret;
                 }
+
+                // add component to list of completed components
+                uint8_t component_status_arr[NAME_MAX];
+                GglBuffer component_status = GGL_BUF(component_status_arr);
+                ret = ggl_gghealthd_retrieve_component_status(
+                    component_name, &component_status
+                );
+
+                GglObject component_info = GGL_OBJ_MAP(GGL_MAP(
+                    { GGL_STR("lifecycle_state"),
+                      GGL_OBJ_BUF(component_status) },
+                    { GGL_STR("version"), component->val }
+                ));
+
+                ret = ggl_kv_vec_push(
+                    completed_components,
+                    (GglKV) { component_name, component_info }
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE(
+                        "Failed to add %.*s to the completed component "
+                        "tracker.",
+                        (int) component_name.len,
+                        component_name.data
+                    );
+                    return ret;
+                }
             }
         }
     }
+
+    if(bootstrap_comp_name_buf_vec->buf_list.len > 0) {
+      // save deployment state and restart
+      GglError ret = save_deployment_state(deployment, completed_components->map);
+      if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to save deployment state for bootstrap.");
+        return ret;
+      }
+
+      char *reboot_args[]
+        = { "reboot", NULL };
+      ret = exec_command_with_child_wait(reboot_args, NULL);
+      if(ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to reboot system for bootstrap.");
+        return ret;
+      }
+    }
+
+    return GGL_ERR_OK;
 }
