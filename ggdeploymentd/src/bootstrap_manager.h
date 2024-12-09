@@ -11,19 +11,19 @@
 #include <ggl/object.h>
 #include <ggl/vector.h>
 
-GglError save_deployment_state(
-    GglDeployment *deployment, GglMap completed_components
+GglError save_component_info(
+    GglBuffer component_name, GglBuffer component_version
 );
-GglError retrieve_in_progress_deployment(
-    GglDeployment *deployment, GglKVVec *deployed_components
+GglError save_deployment_info(
+    GglDeployment *deployment
 );
+GglError retrieve_in_progress_deployment(GglDeployment *deployment);
 GglError delete_saved_deployment_from_config(void);
 GglError process_bootstrap_phase(
     GglMap components,
     GglBuffer root_path,
     GglBufVec *bootstrap_comp_name_buf_vec,
-    GglDeployment *deployment,
-    GglKVVec *completed_components
+    GglDeployment *deployment
 );
 
 #endif

@@ -21,8 +21,41 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-GglError save_deployment_state(
-    GglDeployment *deployment, GglMap completed_components
+GglError save_component_info(
+    GglBuffer component_name, GglBuffer component_version
+) {
+    GGL_LOGD(
+        "Saving component name and version for %.*s to the config to track "
+        "deployment state.",
+        (int) component_name.len,
+        component_name.data
+    );
+
+    GglError ret = ggl_gg_config_write(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("DeploymentService"),
+            GGL_STR("deploymentState"),
+            GGL_STR("components"),
+            component_name
+        ),
+        GGL_OBJ_BUF(component_version),
+        &(int64_t) { 0 }
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Failed to write component info for %.*s to config.",
+            (int) component_name.len,
+            component_name.data
+        );
+        return ret;
+    }
+
+    return GGL_ERR_OK;
+}
+
+GglError save_deployment_info(
+    GglDeployment *deployment
 ) {
     /*
       deployment info will be saved to config in the following format:
@@ -31,12 +64,8 @@ GglError save_deployment_state(
           DeploymentService:
             deploymentState:
               components:
-                component1:
-                  lifecycle: component lifecycle state
-                  version: component version
-                component2:
-                  lifecycle:
-                  version:
+                component_name1: version
+                component_name2: version
                 ...
               deploymentType: local/IoT Jobs
               deploymentDoc:
@@ -97,52 +126,10 @@ GglError save_deployment_state(
         return ret;
     }
 
-    /*
-      component map format:
-
-        component name:
-          lifecycle_state:
-          version:
-    */
-    GGL_MAP_FOREACH(component, completed_components) {
-        GglBuffer component_name = component->key;
-
-        if (component->val.type != GGL_TYPE_MAP) {
-            GGL_LOGE("Component info object not of type map.");
-            return GGL_ERR_INVALID;
-        }
-
-        GglObject component_info = GGL_OBJ_MAP(
-            GGL_MAP({ component_name, GGL_OBJ_MAP(component->val.map) })
-        );
-
-        ret = ggl_gg_config_write(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("DeploymentService"),
-                GGL_STR("deploymentState"),
-                GGL_STR("components")
-            ),
-            component_info,
-            &(int64_t) { 0 }
-        );
-
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Failed to write component info for %.*s to config.",
-                (int) component_name.len,
-                component_name.data
-            );
-            return ret;
-        }
-    }
-
     return GGL_ERR_OK;
 }
 
-GglError retrieve_in_progress_deployment(
-    GglDeployment *deployment, GglKVVec *deployed_components
-) {
+GglError retrieve_in_progress_deployment(GglDeployment *deployment) {
     GGL_LOGD("Searching config for any in progress deployment.");
 
     GglBuffer config_mem = GGL_BUF((uint8_t[2500]) { 0 });
@@ -164,33 +151,6 @@ GglError retrieve_in_progress_deployment(
     if (deployment_config.type != GGL_TYPE_MAP) {
         GGL_LOGE("Retrieved config not a map.");
         return GGL_ERR_INVALID;
-    }
-
-    GglObject *components_config;
-    ret = ggl_map_validate(
-        deployment_config.map,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("components"), false, GGL_TYPE_MAP, &components_config }
-        )
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    GGL_MAP_FOREACH(component, components_config->map) {
-        if (component->val.type != GGL_TYPE_MAP) {
-            GGL_LOGE("Component info retrieved from config not of type map.");
-            return GGL_ERR_INVALID;
-        }
-
-        // TODO: does this need to be memcopied into the vector?
-        ret = ggl_kv_vec_push(
-            deployed_components, (GglKV) { component->key, component->val }
-        );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to add deployed component to vector.");
-            return ret;
-        }
     }
 
     GglObject *deployment_type;
@@ -339,8 +299,7 @@ GglError process_bootstrap_phase(
     GglMap components,
     GglBuffer root_path,
     GglBufVec *bootstrap_comp_name_buf_vec,
-    GglDeployment *deployment,
-    GglKVVec *completed_components
+    GglDeployment *deployment
 ) {
     GGL_MAP_FOREACH(component, components) {
         GglBuffer component_name = component->key;
@@ -375,6 +334,7 @@ GglError process_bootstrap_phase(
                     component_name.data
                 );
             } else { // relevant bootstrap service file exists
+                GGL_LOGI("Found bootstrap service file for %.*s. Processing.", (int) component_name.len, component_name.data);
 
                 // add relevant component name into the vector
                 ret = ggl_buf_vec_push(
@@ -492,51 +452,31 @@ GglError process_bootstrap_phase(
                     return ret;
                 }
 
-                // add component to list of completed components
-                uint8_t component_status_arr[NAME_MAX];
-                GglBuffer component_status = GGL_BUF(component_status_arr);
-                ret = ggl_gghealthd_retrieve_component_status(
-                    component_name, &component_status
-                );
-
-                GglObject component_info = GGL_OBJ_MAP(GGL_MAP(
-                    { GGL_STR("lifecycle_state"),
-                      GGL_OBJ_BUF(component_status) },
-                    { GGL_STR("version"), component->val }
-                ));
-
-                ret = ggl_kv_vec_push(
-                    completed_components,
-                    (GglKV) { component_name, component_info }
-                );
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE(
-                        "Failed to add %.*s to the completed component "
-                        "tracker.",
-                        (int) component_name.len,
-                        component_name.data
-                    );
-                    return ret;
+                // save to config as deployed component to skip for next run
+                ret = save_component_info(component_name, component->val.buf);
+                if(ret != GGL_ERR_OK) {
+                  GGL_LOGE("Failed to save component info to config after completing bootstrap steps.");
+                  return ret;
                 }
             }
         }
     }
 
-    if(bootstrap_comp_name_buf_vec->buf_list.len > 0) {
-      // save deployment state and restart
-      GglError ret = save_deployment_state(deployment, completed_components->map);
-      if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to save deployment state for bootstrap.");
-        return ret;
-      }
+    if (bootstrap_comp_name_buf_vec->buf_list.len > 0) {
+        // save deployment state and restart
+        GglError ret
+            = save_deployment_info(deployment);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to save deployment state for bootstrap.");
+            return ret;
+        }
 
-      char *reboot_args[]
-        = { "reboot", NULL };
-      ret = exec_command_with_child_wait(reboot_args, NULL);
-      if(ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to reboot system for bootstrap.");
-        return ret;
-      }
+        char *reboot_args[] = { "reboot", NULL };
+        ret = exec_command_with_child_wait(reboot_args, NULL);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to reboot system for bootstrap.");
+            return ret;
+        }
     }
 
     return GGL_ERR_OK;

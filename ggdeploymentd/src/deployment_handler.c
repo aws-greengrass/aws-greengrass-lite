@@ -67,7 +67,7 @@ typedef struct TesCredentials {
 
 // vector to track successfully deployed components to be saved for bootstrap
 // component name -> map of lifecycle state and version
-static GglKVVec deployed_components = GGL_KV_VEC((GglKV[64]) { 0 });
+// static GglKVVec deployed_components = GGL_KV_VEC((GglKV[64]) { 0 });
 
 static SigV4Details sigv4_from_tes(
     TesCredentials credentials, GglBuffer aws_service
@@ -2149,15 +2149,22 @@ static void handle_deployment(
     GglKVVec components_to_deploy = GGL_KV_VEC((GglKV[64]) { 0 });
 
     GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
-        // ignore already deployed components
-        bool component_deployed = false;
-        GGL_MAP_FOREACH(deployed_component, deployed_components.map) {
-            if (ggl_buffer_eq(pair->key, deployed_component->key)) {
-                component_deployed = true;
-                break;
-            }
-        }
-        if (component_deployed) {
+        // check config to see if component has completed processing
+        static uint8_t resp_mem[128] = { 0 };
+        GglBuffer resp = GGL_BUF(resp_mem);
+
+        ret = ggl_gg_config_read_str(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("DeploymentService"),
+                GGL_STR("deploymentState"),
+                GGL_STR("components"),
+                pair->key
+            ),
+            &resp
+        );
+        if (ret == GGL_ERR_OK) {
+            // component deployed, skip to avoid rerunning bootstrap and install phases
             continue;
         }
 
@@ -2459,21 +2466,9 @@ static void handle_deployment(
             // TODO: filter by component health status. decide what to do with
             // broken/errored components
 
-            GglObject component_info = GGL_OBJ_MAP(GGL_MAP(
-                { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(component_status) },
-                { GGL_STR("version"), pair->val }
-            ));
-
             // save as a deployed component in case of bootstrap
-            ret = ggl_kv_vec_push(
-                &deployed_components, (GglKV) { pair->key, component_info }
-            );
+            ret = save_component_info(pair->key, pair->val.buf);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE(
-                    "Failed to add %.*s to the deployed component tracker.",
-                    (int) pair->key.len,
-                    pair->key.data
-                );
                 return;
             }
         }
@@ -2492,8 +2487,7 @@ static void handle_deployment(
             components_to_deploy.map,
             args->root_path,
             &bootstrap_comp_name_buf_vec,
-            deployment,
-            &deployed_components
+            deployment
         );
         if (ret != GGL_ERR_OK) {
             return;
@@ -2792,27 +2786,9 @@ static void handle_deployment(
                 }
             }
 
-            uint8_t component_status_arr[NAME_MAX];
-            GglBuffer component_status = GGL_BUF(component_status_arr);
-            ret = ggl_gghealthd_retrieve_component_status(
-                component_name, &component_status
-            );
-
-            GglObject component_info = GGL_OBJ_MAP(GGL_MAP(
-                { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(component_status) },
-                { GGL_STR("version"), GGL_OBJ_BUF(component_version) }
-            ));
-
             // save as a deployed component in case of bootstrap
-            ret = ggl_kv_vec_push(
-                &deployed_components, (GglKV) { component_name, component_info }
-            );
+            ret = save_component_info(component_name, component_version);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGE(
-                    "Failed to add %.*s to the deployed component tracker.",
-                    (int) component_name.len,
-                    component_name.data
-                );
                 return;
             }
         }
@@ -2862,23 +2838,13 @@ static void handle_deployment(
         GGL_LOGE("Error while cleaning up stale components after deployment.");
     }
 
-    ret = delete_saved_deployment_from_config();
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to delete saved deployment info for bootstrap.");
-    }
-
-    // clear contents of deployed_components for next deployment
-    deployed_components = GGL_KV_VEC((GglKV[64]) { 0 });
-
     *deployment_succeeded = true;
 }
 
 static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     // check for in progress deployment in case of bootstrap
     GglDeployment bootstrap_deployment = { 0 };
-    GglError ret = retrieve_in_progress_deployment(
-        &bootstrap_deployment, &deployed_components
-    );
+    GglError ret = retrieve_in_progress_deployment(&bootstrap_deployment);
     if (ret != GGL_ERR_OK) {
         GGL_LOGD("No deployments previously in progress detected.");
     } else {
@@ -2911,6 +2877,11 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             update_current_jobs_deployment(
                 bootstrap_deployment.deployment_id, GGL_STR("FAILED")
             );
+        }
+        // clear any potential saved deployment info for next deployment
+        ret = delete_saved_deployment_from_config();
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to delete saved deployment info from config.");
         }
 
         // TODO: investigate deployment queue behavior with bootstrap deployment
@@ -2950,6 +2921,11 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
                 deployment->deployment_id, GGL_STR("FAILED")
             );
         }
+        // clear any potential saved deployment info for next deployment
+        ret = delete_saved_deployment_from_config();
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to delete saved deployment info from config.");
+        }
 
         ggl_deployment_release(deployment);
     }
@@ -2961,6 +2937,12 @@ void *ggl_deployment_handler_thread(void *ctx) {
     (void) ggl_deployment_listen(ctx);
 
     GGL_LOGE("Deployment thread exiting due to failure.");
+
+    // clear any potential saved deployment info for next deployment
+    GglError ret = delete_saved_deployment_from_config();
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to delete saved deployment info from config.");
+    }
 
     // This is safe as long as only this thread will ever call exit.
 
