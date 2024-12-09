@@ -266,7 +266,8 @@ static GglError update_unit_file_buffer(
     char *arg_user,
     char *arg_group,
     bool is_root,
-    GglBuffer selected_phase
+    GglBuffer selected_phase,
+    GglBuffer timeout
 ) {
     GglError ret = ggl_byte_vec_append(out, GGL_STR("ExecStart="));
     ggl_byte_vec_chain_append(&ret, out, exec_start_section_vec.buf);
@@ -275,6 +276,21 @@ static GglError update_unit_file_buffer(
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write ExecStart portion of unit files");
         return ret;
+    }
+
+    if (timeout.len != 0) {
+        ret = ggl_byte_vec_append(out, GGL_STR("TimeoutSec="));
+        ggl_byte_vec_chain_append(&ret, out, timeout);
+        ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    } else {
+        // The deafult timeout is 120 seconds
+        ret = ggl_byte_vec_append(out, GGL_STR("TimeoutSec=120\n"));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
     }
 
     if (is_root) {
@@ -443,12 +459,14 @@ static GglError manifest_builder(
     }
 
     GglBuffer selected_script = { 0 };
+    GglBuffer timeout = { 0 };
     ret = fetch_script_section(
         selected_lifecycle_map,
         lifecycle_script_selection,
         &is_root,
         &selected_script,
-        &set_env_as_map
+        &set_env_as_map,
+        &timeout
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -460,7 +478,8 @@ static GglError manifest_builder(
         args->user,
         args->group,
         is_root,
-        lifecycle_script_selection
+        lifecycle_script_selection,
+        timeout
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write ExecStart portion of unit files");

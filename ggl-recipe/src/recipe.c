@@ -4,8 +4,10 @@
 
 #include "ggl/recipe.h"
 #include <sys/types.h>
+#include <ctype.h>
 #include <fcntl.h>
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
@@ -66,42 +68,97 @@ static GglError parse_requiresprivilege_section(
     return GGL_ERR_OK;
 }
 
+static bool is_positive_integer(GglBuffer str) {
+    // Check for null or empty string
+    if (str.len == 0) {
+        return false;
+    }
+
+    for (size_t counter = 0; counter < str.len; counter++) {
+        // Ensure all characters are digits
+        if (!isdigit(str.data[counter])) {
+            return false;
+        }
+    }
+
+    return true; // All characters are digits
+}
+
+static GglError process_script_section_as_map(
+    GglMap selected_lifecycle_phase,
+    bool *is_root,
+    GglBuffer *out_selected_script_as_buf,
+    GglMap *out_set_env_as_map,
+    GglBuffer *out_timeout_value
+) {
+    GglObject *key_object;
+
+    GglError ret
+        = parse_requiresprivilege_section(is_root, selected_lifecycle_phase);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    if (ggl_map_get(selected_lifecycle_phase, GGL_STR("Script"), &key_object)) {
+        if (key_object->type != GGL_TYPE_BUF) {
+            GGL_LOGE("Script section needs to be string buffer");
+            return GGL_ERR_INVALID;
+        }
+        *out_selected_script_as_buf = key_object->buf;
+    } else {
+        GGL_LOGE("Script is not in the map");
+        return GGL_ERR_NOENTRY;
+    }
+
+    if (ggl_map_get(selected_lifecycle_phase, GGL_STR("Setenv"), &key_object)) {
+        if (key_object->type != GGL_TYPE_MAP) {
+            GGL_LOGE("Setenv needs to be a dictionary map");
+            return GGL_ERR_INVALID;
+        }
+        if (out_set_env_as_map != NULL) {
+            *out_set_env_as_map = key_object->map;
+        }
+    }
+    if (ggl_map_get(
+            selected_lifecycle_phase, GGL_STR("Timeout"), &key_object
+        )) {
+        if (key_object->type != GGL_TYPE_BUF) {
+            GGL_LOGE("Timeout needs to be numeric value");
+            return GGL_ERR_INVALID;
+        }
+        if (!is_positive_integer(key_object->buf)) {
+            GGL_LOGE("Timeout needs to be numeric value");
+            return GGL_ERR_INVALID;
+        }
+        if (out_timeout_value != NULL) {
+            *out_timeout_value = key_object->buf;
+        }
+    }
+    return GGL_ERR_OK;
+}
+
 GglError fetch_script_section(
     GglMap selected_lifecycle,
     GglBuffer selected_phase,
     bool *is_root,
     GglBuffer *out_selected_script_as_buf,
-    GglMap *out_set_env_as_map
+    GglMap *out_set_env_as_map,
+    GglBuffer *out_timeout_value
 ) {
     GglObject *val;
     if (ggl_map_get(selected_lifecycle, selected_phase, &val)) {
         if (val->type == GGL_TYPE_BUF) {
             *out_selected_script_as_buf = val->buf;
         } else if (val->type == GGL_TYPE_MAP) {
-            GglObject *key_object;
-
-            GglError ret = parse_requiresprivilege_section(is_root, val->map);
+            GglError ret = process_script_section_as_map(
+                val->map,
+                is_root,
+                out_selected_script_as_buf,
+                out_set_env_as_map,
+                out_timeout_value
+            );
             if (ret != GGL_ERR_OK) {
                 return ret;
-            }
-
-            if (ggl_map_get(val->map, GGL_STR("Script"), &key_object)) {
-                if (key_object->type != GGL_TYPE_BUF) {
-                    GGL_LOGE("Script section needs to be string buffer");
-                    return GGL_ERR_INVALID;
-                }
-                *out_selected_script_as_buf = key_object->buf;
-            } else {
-                GGL_LOGW("Script is not in the map");
-                return GGL_ERR_NOENTRY;
-            }
-
-            if (ggl_map_get(val->map, GGL_STR("Setenv"), &key_object)) {
-                if (key_object->type != GGL_TYPE_MAP) {
-                    GGL_LOGE("Setenv needs to be a dictionary map");
-                    return GGL_ERR_INVALID;
-                }
-                *out_set_env_as_map = key_object->map;
             }
 
         } else {
@@ -138,6 +195,13 @@ static GglError lifecycle_selection(
                     (char *) selection_obj->list.items[selection_index]
                         .buf.data,
                     "linux",
+                    selection_obj->list.items[selection_index].buf.len
+                )
+                == 0)
+            || (strncmp(
+                    (char *) selection_obj->list.items[selection_index]
+                        .buf.data,
+                    "*",
                     selection_obj->list.items[selection_index].buf.len
                 )
                 == 0)) {

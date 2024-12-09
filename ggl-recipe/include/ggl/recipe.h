@@ -26,7 +26,8 @@ GglError fetch_script_section(
     GglBuffer selected_phase,
     bool *is_root,
     GglBuffer *out_selected_script_as_buf,
-    GglMap *out_set_env_as_map
+    GglMap *out_set_env_as_map,
+    GglBuffer *out_timeout_value
 );
 
 GglError select_linux_lifecycle(

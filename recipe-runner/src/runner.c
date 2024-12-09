@@ -360,8 +360,10 @@ static GglError process_lifecycle_phase(
         phase,
         &is_root,
         &selected_script_as_buf,
-        &set_env_as_map
+        &set_env_as_map,
+        NULL
     );
+
     if (ret != GGL_ERR_OK) {
         return ret;
     }
