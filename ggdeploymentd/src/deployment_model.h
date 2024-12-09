@@ -8,6 +8,8 @@
 #include "ggl/object.h"
 #include <ggl/buffer.h>
 
+#define MAX_COMP_NAME_BUF_SIZE 10000
+
 typedef enum {
     GGL_DEPLOYMENT_QUEUED,
     GGL_DEPLOYMENT_IN_PROGRESS,

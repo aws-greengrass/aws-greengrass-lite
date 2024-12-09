@@ -48,7 +48,6 @@
 
 #define MAX_RECIPE_BUF_SIZE 256000
 #define MAX_DECODE_BUF_LEN 4096
-#define MAX_COMP_NAME_BUF_SIZE 10000
 
 static struct DeploymentConfiguration {
     char data_endpoint[128];
@@ -2494,167 +2493,13 @@ static void handle_deployment(
         GglBufVec bootstrap_comp_name_buf_vec
             = GGL_BUF_VEC(bootstrap_comp_name_buf);
 
-        // process all bootstrap files first
-        GGL_MAP_FOREACH(component, components_to_deploy.map) {
-            GglBuffer component_name = component->key;
-
-            static uint8_t bootstrap_service_file_path_buf[PATH_MAX];
-            GglByteVec bootstrap_service_file_path_vec
-                = GGL_BYTE_VEC(bootstrap_service_file_path_buf);
-            ret = ggl_byte_vec_append(
-                &bootstrap_service_file_path_vec, args->root_path
-            );
-            ggl_byte_vec_append(&bootstrap_service_file_path_vec, GGL_STR("/"));
-            ggl_byte_vec_append(
-                &bootstrap_service_file_path_vec, GGL_STR("ggl.")
-            );
-            ggl_byte_vec_chain_append(
-                &ret, &bootstrap_service_file_path_vec, component_name
-            );
-            ggl_byte_vec_chain_append(
-                &ret,
-                &bootstrap_service_file_path_vec,
-                GGL_STR(".bootstrap.service")
-            );
-            if (ret == GGL_ERR_OK) {
-                // check if the current component name has relevant bootstrap
-                // service file created
-                int fd = -1;
-                ret = ggl_file_open(
-                    bootstrap_service_file_path_vec.buf, O_RDONLY, 0, &fd
-                );
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGD(
-                        "Component %.*s does not have the relevant bootstrap "
-                        "service file",
-                        (int) component_name.len,
-                        component_name.data
-                    );
-                } else { // relevant bootstrap service file exists
-
-                    // add relevant component name into the vector
-                    ret = ggl_buf_vec_push(
-                        &bootstrap_comp_name_buf_vec, component_name
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE("Failed to add the bootstrap component name "
-                                 "into vector");
-                        return;
-                    }
-
-                    // initiate link command for 'bootstrap'
-                    static uint8_t link_command_buf[PATH_MAX];
-                    GglByteVec link_command_vec
-                        = GGL_BYTE_VEC(link_command_buf);
-                    ret = ggl_byte_vec_append(
-                        &link_command_vec, GGL_STR("systemctl link ")
-                    );
-                    ggl_byte_vec_chain_append(
-                        &ret,
-                        &link_command_vec,
-                        bootstrap_service_file_path_vec.buf
-                    );
-                    ggl_byte_vec_chain_push(&ret, &link_command_vec, '\0');
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE(
-                            "Failed to create systemctl link command for:%.*s",
-                            (int) bootstrap_service_file_path_vec.buf.len,
-                            bootstrap_service_file_path_vec.buf.data
-                        );
-                        return;
-                    }
-
-                    GGL_LOGD(
-                        "Command to execute: %.*s",
-                        (int) link_command_vec.buf.len,
-                        link_command_vec.buf.data
-                    );
-
-                    // NOLINTBEGIN(concurrency-mt-unsafe)
-                    int system_ret = system((char *) link_command_vec.buf.data);
-                    if (WIFEXITED(system_ret)) {
-                        if (WEXITSTATUS(system_ret) != 0) {
-                            GGL_LOGE(
-                                "systemctl link failed for:%.*s",
-                                (int) bootstrap_service_file_path_vec.buf.len,
-                                bootstrap_service_file_path_vec.buf.data
-                            );
-                            return;
-                        }
-                        GGL_LOGI(
-                            "systemctl link exited for %.*s with child status "
-                            "%d\n",
-                            (int) bootstrap_service_file_path_vec.buf.len,
-                            bootstrap_service_file_path_vec.buf.data,
-                            WEXITSTATUS(system_ret)
-                        );
-                    } else {
-                        GGL_LOGE(
-                            "systemctl link did not exit normally for %.*s",
-                            (int) bootstrap_service_file_path_vec.buf.len,
-                            bootstrap_service_file_path_vec.buf.data
-                        );
-                        return;
-                    }
-
-                    // initiate start command for 'bootstrap'
-                    static uint8_t start_command_buf[PATH_MAX];
-                    GglByteVec start_command_vec
-                        = GGL_BYTE_VEC(start_command_buf);
-                    ret = ggl_byte_vec_append(
-                        &start_command_vec, GGL_STR("systemctl start ")
-                    );
-                    ggl_byte_vec_chain_append(
-                        &ret, &start_command_vec, GGL_STR("ggl.")
-                    );
-                    ggl_byte_vec_chain_append(
-                        &ret, &start_command_vec, component_name
-                    );
-                    ggl_byte_vec_chain_append(
-                        &ret,
-                        &start_command_vec,
-                        GGL_STR(".bootstrap.service\0")
-                    );
-
-                    GGL_LOGD(
-                        "Command to execute: %.*s",
-                        (int) start_command_vec.buf.len,
-                        start_command_vec.buf.data
-                    );
-                    if (ret != GGL_ERR_OK) {
-                        GGL_LOGE(
-                            "Failed to create systemctl start command for %.*s",
-                            (int) bootstrap_service_file_path_vec.buf.len,
-                            bootstrap_service_file_path_vec.buf.data
-                        );
-                        return;
-                    }
-
-                    system_ret = system((char *) start_command_vec.buf.data);
-                    // NOLINTEND(concurrency-mt-unsafe)
-                    if (WIFEXITED(system_ret)) {
-                        if (WEXITSTATUS(system_ret) != 0) {
-                            GGL_LOGE(
-                                "systemctl start failed for%.*s",
-                                (int) bootstrap_service_file_path_vec.buf.len,
-                                bootstrap_service_file_path_vec.buf.data
-                            );
-                            return;
-                        }
-                        GGL_LOGI(
-                            "systemctl start exited with child status %d\n",
-                            WEXITSTATUS(system_ret)
-                        );
-                    } else {
-                        GGL_LOGE(
-                            "systemctl start did not exit normally for %.*s",
-                            (int) bootstrap_service_file_path_vec.buf.len,
-                            bootstrap_service_file_path_vec.buf.data
-                        );
-                        return;
-                    }
-                }
-            }
+        ret = process_bootstrap_phase(
+            components_to_deploy.map,
+            args->root_path,
+            &bootstrap_comp_name_buf_vec
+        );
+        if (ret != GGL_ERR_OK) {
+            return;
         }
 
         // wait for all the bootstrap status
@@ -2671,7 +2516,7 @@ static void handle_deployment(
         GglBufVec install_comp_name_buf_vec
             = GGL_BUF_VEC(install_comp_name_buf);
 
-        // process all install files first
+        // process all install files
         GGL_MAP_FOREACH(component, components_to_deploy.map) {
             GglBuffer component_name = component->key;
 
