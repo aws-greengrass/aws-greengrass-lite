@@ -2461,7 +2461,7 @@ static void handle_deployment(
 
             GglObject component_info = GGL_OBJ_MAP(GGL_MAP(
                 { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(component_status) },
-                { GGL_STR("version"), GGL_OBJ_BUF(pair->val.buf) }
+                { GGL_STR("version"), pair->val }
             ));
 
             // save as a deployed component in case of bootstrap
@@ -2477,11 +2477,6 @@ static void handle_deployment(
                 return;
             }
         }
-
-        if (bootstrap_required(recipe_buff_obj.map, component_name->buf)) {
-            ret = save_deployment_state(deployment, deployed_components.map);
-            // TODO: run bootstrap steps
-        }
     }
 
     // TODO:: Add a logic to only run the phases that exist with the latest
@@ -2496,7 +2491,9 @@ static void handle_deployment(
         ret = process_bootstrap_phase(
             components_to_deploy.map,
             args->root_path,
-            &bootstrap_comp_name_buf_vec
+            &bootstrap_comp_name_buf_vec,
+            deployment,
+            &deployed_components
         );
         if (ret != GGL_ERR_OK) {
             return;
