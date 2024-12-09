@@ -20,5 +20,10 @@ GglError retrieve_in_progress_deployment(
     GglDeployment *deployment, GglKVVec *deployed_components
 );
 GglError delete_saved_deployment_from_config(void);
+GglError process_bootstrap_phase(
+    GglMap components,
+    GglBuffer root_path,
+    GglBufVec *bootstrap_comp_name_buf_vec
+);
 
 #endif
