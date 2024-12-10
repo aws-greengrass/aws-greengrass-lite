@@ -2592,7 +2592,7 @@ static void handle_deployment(
                         component_name.data
                     );
                 } else { // relevant install service file exists
-
+                    disable_and_unlink_service(&component_name, INSTALL);
                     // add relevant component name into the vector
                     ret = ggl_buf_vec_push(
                         &install_comp_name_buf_vec, component_name
@@ -2756,6 +2756,7 @@ static void handle_deployment(
                         component_name.data
                     );
                 } else {
+                    disable_and_unlink_service(&component_name, RUN_STARTUP);
                     // run link command
                     static uint8_t link_command_buf[PATH_MAX];
                     GglByteVec link_command_vec

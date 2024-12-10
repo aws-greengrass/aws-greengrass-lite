@@ -5,6 +5,7 @@
 #include "bootstrap_manager.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
+#include "stale_component.h"
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
@@ -455,6 +456,7 @@ GglError process_bootstrap_phase(
                     component_name.data
                 );
             } else { // relevant bootstrap service file exists
+                disable_and_unlink_service(&component_name, BOOTSTRAP);
                 GGL_LOGI(
                     "Found bootstrap service file for %.*s. Processing.",
                     (int) component_name.len,

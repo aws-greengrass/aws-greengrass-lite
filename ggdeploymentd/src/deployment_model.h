@@ -16,6 +16,12 @@ typedef enum {
 } GglDeploymentState;
 
 typedef enum {
+    INSTALL,
+    RUN_STARTUP,
+    BOOTSTRAP
+} PhaseSelection;
+
+typedef enum {
     LOCAL_DEPLOYMENT,
     THING_GROUP_DEPLOYMENT,
 } GglDeploymentType;
