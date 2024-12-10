@@ -9,14 +9,15 @@
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/gg_config.h>
-#include <ggl/core_bus/gg_healthd.h>
 #include <ggl/error.h>
 #include <ggl/exec.h>
 #include <ggl/file.h>
+#include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -352,6 +353,7 @@ GglError process_bootstrap_phase(
     GglBufVec *bootstrap_comp_name_buf_vec,
     GglDeployment *deployment
 ) {
+    int bootstrap_component_count = 0;
     GGL_MAP_FOREACH(component, components) {
         GglBuffer component_name = component->key;
 
@@ -423,6 +425,7 @@ GglError process_bootstrap_phase(
                              "into vector");
                     return ret;
                 }
+                bootstrap_component_count++;
 
                 // initiate link command for 'bootstrap'
                 static uint8_t link_command_buf[PATH_MAX];
@@ -543,7 +546,7 @@ GglError process_bootstrap_phase(
         }
     }
 
-    if (bootstrap_comp_name_buf_vec->buf_list.len > 0) {
+    if (bootstrap_component_count > 0) {
         // save deployment state and restart
         GglError ret = save_deployment_info(deployment);
         if (ret != GGL_ERR_OK) {
@@ -551,6 +554,7 @@ GglError process_bootstrap_phase(
             return ret;
         }
 
+        GGL_LOGI("Rebooting device for bootstrap.");
         char *reboot_args[] = { "reboot", NULL };
         ret = ggl_exec_command_async(reboot_args, NULL);
         if (ret != GGL_ERR_OK) {

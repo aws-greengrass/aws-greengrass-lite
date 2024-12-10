@@ -2896,7 +2896,7 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     if (ret != GGL_ERR_OK) {
         GGL_LOGD("No deployments previously in progress detected.");
     } else {
-        GGL_LOGD(
+        GGL_LOGI(
             "Found previously in progress deployment %.*s. Resuming "
             "deployment.",
             (int) bootstrap_deployment.deployment_id.len,
