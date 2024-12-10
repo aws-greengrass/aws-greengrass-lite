@@ -1982,6 +1982,11 @@ static GglError wait_for_phase_status(
         GglError ret = ggl_byte_vec_append(
             &full_comp_name_vec, component_vec.buf_list.bufs[i]
         );
+        ggl_byte_vec_chain_push(&ret, &full_comp_name_vec, '.');
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to push '.' character to component name vector.");
+            return ret;
+        }
         ggl_byte_vec_append(&full_comp_name_vec, phase);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
