@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
+#include <ggl/core_bus/gg_healthd.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -34,8 +35,9 @@ static GglError find_active_version(
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGI(
-            "Unable to retrieve version of %s. Assuming no active version "
+            "Unable to retrieve version of %.*s. Assuming no active version "
             "found.",
+            (int) package_name.len,
             package_name.data
         );
         return GGL_ERR_NOENTRY;
@@ -45,6 +47,35 @@ static GglError find_active_version(
     if (!is_in_range(version_resp, version_requirement)) {
         return GGL_ERR_NOENTRY;
     }
+
+    // Check that the component is actually running (or finished)
+    uint8_t component_status_buf[NAME_MAX];
+    GglBuffer component_status = GGL_BUF(component_status_buf);
+    ret = ggl_gghealthd_retrieve_component_status(
+        package_name, &component_status
+    );
+
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGI(
+            "Component status not found for component %.*s despite finding "
+            "active version. Not using this version.",
+            (int) package_name.len,
+            package_name.data
+        );
+        return GGL_ERR_INVALID;
+    }
+
+    if (!ggl_buffer_eq(component_status, GGL_STR("RUNNING"))
+        && !ggl_buffer_eq(component_status, GGL_STR("FINISHED"))) {
+        GGL_LOGI(
+            "Component %.*s is not in the RUNNING or FINISHED states. Not "
+            "using the active version.",
+            (int) package_name.len,
+            package_name.data
+        );
+        return GGL_ERR_INVALID;
+    }
+
     *version = version_resp;
     return GGL_ERR_OK;
 }

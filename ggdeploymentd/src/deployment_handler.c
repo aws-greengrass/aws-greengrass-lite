@@ -2480,7 +2480,8 @@ static void handle_deployment(
             }
 
             // Skip redeploying components in a RUNNING state
-            if (ggl_buffer_eq(component_status, GGL_STR("RUNNING"))) {
+            if (ggl_buffer_eq(component_status, GGL_STR("RUNNING"))
+                || ggl_buffer_eq(component_status, GGL_STR("FINISHED"))) {
                 GGL_LOGD(
                     "Component %.*s is already running. Will not redeploy.",
                     (int) pair->key.len,
