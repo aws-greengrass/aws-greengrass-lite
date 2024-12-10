@@ -261,7 +261,8 @@ static GglError delete_recipe_script_and_service_files(GglBuffer *component_name
     // Store index so that we can restore the vector to this state.
     const size_t INDEX_BEFORE_FILE_EXTENTION = root_path.buf.len;
 
-    char *extentions[] = { ".bootstrap.service", ".install.service", ".service" };
+    char *extentions[]
+        = { ".bootstrap.service", ".install.service", ".service" };
 
     for (size_t i = 0; i < (sizeof(extentions) / sizeof(char *)); i++) {
         GglBuffer buf = { .data = (uint8_t *) extentions[i],
@@ -314,6 +315,9 @@ GglError disable_and_unlink_service(
     ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
     if (phase == INSTALL) {
         ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".install"));
+    }
+    if (phase == BOOTSTRAP) {
+        ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".bootstrap"));
     }
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
     ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
