@@ -12,7 +12,6 @@
 #include <ggl/error.h>
 #include <ggl/exec.h>
 #include <ggl/file.h>
-#include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
