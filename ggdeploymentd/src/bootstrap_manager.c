@@ -16,6 +16,7 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -112,7 +113,10 @@ GglError save_iot_jobs_id(GglBuffer jobs_id) {
 }
 
 GglError save_iot_jobs_version(int64_t jobs_version) {
-    GGL_LOGD("Saving IoT Jobs version %" PRIi64 " in case of bootstrap.", jobs_version);
+    GGL_LOGD(
+        "Saving IoT Jobs version %" PRIi64 " in case of bootstrap.",
+        jobs_version
+    );
 
     GglError ret = ggl_gg_config_write(
         GGL_BUF_LIST(
