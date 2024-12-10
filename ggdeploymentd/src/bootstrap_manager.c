@@ -552,7 +552,7 @@ GglError process_bootstrap_phase(
         }
 
         char *reboot_args[] = { "reboot", NULL };
-        ret = exec_command_with_child_wait(reboot_args, NULL);
+        ret = ggl_exec_command_async(reboot_args, NULL);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to reboot system for bootstrap.");
             return ret;
