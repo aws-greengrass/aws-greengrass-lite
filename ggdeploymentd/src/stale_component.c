@@ -331,7 +331,6 @@ GglError disable_and_unlink_service(
     if (WIFEXITED(system_ret)) {
         if (WEXITSTATUS(system_ret) != 0) {
             GGL_LOGE("systemctl stop failed");
-            // return GGL_ERR_FAILURE;
         }
         GGL_LOGI(
             "systemctl stop exited with child status %d\n",
@@ -339,7 +338,6 @@ GglError disable_and_unlink_service(
         );
     } else {
         GGL_LOGE("systemctl stop did not exit normally");
-        // return GGL_ERR_FAILURE;
     }
 
     memset(command_array, 0, sizeof(command_array));
@@ -361,7 +359,6 @@ GglError disable_and_unlink_service(
     if (WIFEXITED(system_ret)) {
         if (WEXITSTATUS(system_ret) != 0) {
             GGL_LOGE("systemctl disable failed");
-            // return GGL_ERR_FAILURE;
         }
         GGL_LOGI(
             "systemctl disable exited with child status %d\n",
@@ -369,7 +366,6 @@ GglError disable_and_unlink_service(
         );
     } else {
         GGL_LOGE("systemctl disable did not exit normally");
-        // return GGL_ERR_FAILURE;
     }
 
     memset(command_array, 0, sizeof(command_array));
@@ -392,7 +388,6 @@ GglError disable_and_unlink_service(
     if (WIFEXITED(system_ret)) {
         if (WEXITSTATUS(system_ret) != 0) {
             GGL_LOGE("removing symlink failed");
-            // return GGL_ERR_FAILURE;
         }
         GGL_LOGI(
             "rm /etc/systemd/system/[service] exited with child status %d\n",
@@ -400,7 +395,6 @@ GglError disable_and_unlink_service(
         );
     } else {
         GGL_LOGE("rm /etc/systemd/system/[service] did not exit normally");
-        // return GGL_ERR_FAILURE;
     }
 
     memset(command_array, 0, sizeof(command_array));
@@ -427,7 +421,6 @@ GglError disable_and_unlink_service(
     if (WIFEXITED(system_ret)) {
         if (WEXITSTATUS(system_ret) != 0) {
             GGL_LOGE("removing symlink failed");
-            // return GGL_ERR_FAILURE;
         }
         GGL_LOGI(
             "rm /usr/lib/systemd/system/[service] exited with child status "
@@ -436,7 +429,6 @@ GglError disable_and_unlink_service(
         );
     } else {
         GGL_LOGE("rm /usr/lib/systemd/system/[service] did not exit normally");
-        // return GGL_ERR_FAILURE;
     }
 
     memset(command_array, 0, sizeof(command_array));
