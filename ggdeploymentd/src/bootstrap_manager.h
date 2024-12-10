@@ -11,9 +11,29 @@
 #include <ggl/object.h>
 #include <ggl/vector.h>
 
+/*
+  deployment info will be saved to config in the following format:
+
+    services:
+      DeploymentService:
+        deploymentState:
+          components:
+            component_name1: version
+            component_name2: version
+            ...
+          bootstrapComponents
+          deploymentType: local/IoT Jobs
+          deploymentDoc:
+          jobsID:
+*/
+
+// type can be "bootstrap" or "completed"
+// bootstrap type indicates that the component's bootstrap steps have completed
+// running completed type indicates that the component completed deployment
 GglError save_component_info(
-    GglBuffer component_name, GglBuffer component_version
+    GglBuffer component_name, GglBuffer component_version, GglBuffer type
 );
+
 GglError save_iot_jobs_id(GglBuffer jobs_id);
 GglError save_deployment_info(GglDeployment *deployment);
 GglError retrieve_in_progress_deployment(

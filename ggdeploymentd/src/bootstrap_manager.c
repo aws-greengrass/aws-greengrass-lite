@@ -22,33 +22,66 @@
 #include <stdlib.h>
 
 GglError save_component_info(
-    GglBuffer component_name, GglBuffer component_version
+    GglBuffer component_name, GglBuffer component_version, GglBuffer type
 ) {
     GGL_LOGD(
-        "Saving component name and version for %.*s to the config to track "
+        "Saving component name and version for %.*s as type %.*s to the config "
+        "to track "
         "deployment state.",
         (int) component_name.len,
-        component_name.data
+        component_name.data,
+        (int) type.len,
+        type.data
     );
 
-    GglError ret = ggl_gg_config_write(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("DeploymentService"),
-            GGL_STR("deploymentState"),
-            GGL_STR("components"),
-            component_name
-        ),
-        GGL_OBJ_BUF(component_version),
-        &(int64_t) { 0 }
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "Failed to write component info for %.*s to config.",
-            (int) component_name.len,
-            component_name.data
+    if (ggl_buffer_eq(type, GGL_STR("completed"))) {
+        GglError ret = ggl_gg_config_write(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("DeploymentService"),
+                GGL_STR("deploymentState"),
+                GGL_STR("components"),
+                component_name
+            ),
+            GGL_OBJ_BUF(component_version),
+            &(int64_t) { 0 }
         );
-        return ret;
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Failed to write component info for %.*s to config.",
+                (int) component_name.len,
+                component_name.data
+            );
+            return ret;
+        }
+    } else if (ggl_buffer_eq(type, GGL_STR("bootstrap"))) {
+        GglError ret = ggl_gg_config_write(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("DeploymentService"),
+                GGL_STR("deploymentState"),
+                GGL_STR("bootstrapComponents"),
+                component_name
+            ),
+            GGL_OBJ_BUF(component_version),
+            &(int64_t) { 0 }
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Failed to write component info for %.*s to config.",
+                (int) component_name.len,
+                component_name.data
+            );
+            return ret;
+        }
+    } else {
+        GGL_LOGE(
+            "Invalid component type of %.*s received. Expected type "
+            "'bootstrap' or 'completed'.",
+            (int) type.len,
+            type.data
+        );
+        return GGL_ERR_INVALID;
     }
 
     return GGL_ERR_OK;
@@ -79,21 +112,6 @@ GglError save_iot_jobs_id(GglBuffer jobs_id) {
 }
 
 GglError save_deployment_info(GglDeployment *deployment) {
-    /*
-      deployment info will be saved to config in the following format:
-
-        services:
-          DeploymentService:
-            deploymentState:
-              components:
-                component_name1: version
-                component_name2: version
-                ...
-              deploymentType: local/IoT Jobs
-              deploymentDoc:
-              jobsID:
-    */
-
     GGL_LOGD("Encountered component requiring bootstrap. Saving deployment "
              "state to config.");
 
@@ -167,7 +185,7 @@ GglError retrieve_in_progress_deployment(
         jobs_id
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to retrieve IoT Jobs ID from config.");
+        GGL_LOGW("Failed to retrieve IoT Jobs ID from config.");
         return ret;
     }
 
@@ -306,12 +324,6 @@ GglError retrieve_in_progress_deployment(
         return ret;
     }
 
-    // delete config entries once retrieved to avoid future conflicts
-    ret = delete_saved_deployment_from_config();
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
     return GGL_ERR_OK;
 }
 
@@ -343,11 +355,34 @@ GglError process_bootstrap_phase(
     GGL_MAP_FOREACH(component, components) {
         GglBuffer component_name = component->key;
 
+        // check config to see if component bootstrap steps have already been
+        // completed
+        uint8_t resp_mem[128] = { 0 };
+        GglBuffer resp = GGL_BUF(resp_mem);
+        GglError ret = ggl_gg_config_read_str(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("DeploymentService"),
+                GGL_STR("deploymentState"),
+                GGL_STR("bootstrapComponents"),
+                component_name
+            ),
+            &resp
+        );
+        if (ret == GGL_ERR_OK) {
+            GGL_LOGD(
+                "Bootstrap steps have already been run for %.*s. Skipping "
+                "component.",
+                (int) component_name.len,
+                component_name.data
+            );
+            continue;
+        }
+
         static uint8_t bootstrap_service_file_path_buf[PATH_MAX];
         GglByteVec bootstrap_service_file_path_vec
             = GGL_BYTE_VEC(bootstrap_service_file_path_buf);
-        GglError ret
-            = ggl_byte_vec_append(&bootstrap_service_file_path_vec, root_path);
+        ret = ggl_byte_vec_append(&bootstrap_service_file_path_vec, root_path);
         ggl_byte_vec_append(&bootstrap_service_file_path_vec, GGL_STR("/"));
         ggl_byte_vec_append(&bootstrap_service_file_path_vec, GGL_STR("ggl."));
         ggl_byte_vec_chain_append(
@@ -471,6 +506,16 @@ GglError process_bootstrap_phase(
                     return ret;
                 }
 
+                // save component to config to avoid rerunning bootstrap steps
+                ret = save_component_info(
+                    component_name, component->val.buf, GGL_STR("bootstrap")
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to save component info to config after "
+                             "completing bootstrap steps.");
+                    return ret;
+                }
+
                 system_ret = system((char *) start_command_vec.buf.data);
                 // NOLINTEND(concurrency-mt-unsafe)
                 if (WIFEXITED(system_ret)) {
@@ -492,14 +537,6 @@ GglError process_bootstrap_phase(
                         (int) bootstrap_service_file_path_vec.buf.len,
                         bootstrap_service_file_path_vec.buf.data
                     );
-                    return ret;
-                }
-
-                // save to config as deployed component to skip for next run
-                ret = save_component_info(component_name, component->val.buf);
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to save component info to config after "
-                             "completing bootstrap steps.");
                     return ret;
                 }
             }

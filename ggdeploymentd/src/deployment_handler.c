@@ -2150,7 +2150,7 @@ static void handle_deployment(
 
     GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
         // check config to see if component has completed processing
-        static uint8_t resp_mem[128] = { 0 };
+        uint8_t resp_mem[128] = { 0 };
         GglBuffer resp = GGL_BUF(resp_mem);
 
         ret = ggl_gg_config_read_str(
@@ -2164,8 +2164,12 @@ static void handle_deployment(
             &resp
         );
         if (ret == GGL_ERR_OK) {
-            // component deployed, skip to avoid rerunning bootstrap and install
-            // phases
+            GGL_LOGD(
+                "Component %.*s completed processing in previous run. Will not "
+                "be reprocessed.",
+                (int) pair->key.len,
+                pair->key.data
+            );
             continue;
         }
 
@@ -2435,6 +2439,11 @@ static void handle_deployment(
                 );
                 return;
             }
+            GGL_LOGD(
+                "Added %.*s to list of components that need to be processed.",
+                (int) pair->key.len,
+                pair->key.data
+            );
         } else {
             // component already exists, check its lifecycle state
             uint8_t component_status_arr[NAME_MAX];
@@ -2462,15 +2471,47 @@ static void handle_deployment(
                     );
                     return;
                 }
+                GGL_LOGD(
+                    "Added %.*s to list of components that need to be "
+                    "processed.",
+                    (int) pair->key.len,
+                    pair->key.data
+                );
             }
 
-            // TODO: filter by component health status. decide what to do with
-            // broken/errored components
-
-            // save as a deployed component in case of bootstrap
-            ret = save_component_info(pair->key, pair->val.buf);
-            if (ret != GGL_ERR_OK) {
-                return;
+            // Skip redeploying components in a RUNNING state
+            if (ggl_buffer_eq(component_status, GGL_STR("RUNNING"))) {
+                GGL_LOGD(
+                    "Component %.*s is already running. Will not redeploy.",
+                    (int) pair->key.len,
+                    pair->key.data
+                );
+                // save as a deployed component in case of bootstrap
+                ret = save_component_info(
+                    pair->key, pair->val.buf, GGL_STR("completed")
+                );
+                if (ret != GGL_ERR_OK) {
+                    return;
+                }
+            } else {
+                ret = ggl_kv_vec_push(
+                    &components_to_deploy, (GglKV) { pair->key, pair->val }
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE(
+                        "Failed to add component info for %.*s to deployment "
+                        "vector.",
+                        (int) pair->key.len,
+                        pair->key.data
+                    );
+                    return;
+                }
+                GGL_LOGD(
+                    "Added %.*s to list of components that need to be "
+                    "processed.",
+                    (int) pair->key.len,
+                    pair->key.data
+                );
             }
         }
     }
@@ -2788,7 +2829,9 @@ static void handle_deployment(
             }
 
             // save as a deployed component in case of bootstrap
-            ret = save_component_info(component_name, component_version);
+            ret = save_component_info(
+                component_name, component_version, GGL_STR("completed")
+            );
             if (ret != GGL_ERR_OK) {
                 return;
             }
