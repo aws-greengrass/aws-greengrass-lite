@@ -40,7 +40,7 @@ static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
 
 static GglError fetch_from_db(FleetProvArgs *args) {
     if (args->claim_cert_path == NULL) {
-        GGL_LOGD("Requesting db for "
+        GGL_LOGT("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "claimCertPath");
         static uint8_t claim_cert_path_mem[PATH_MAX] = { 0 };
@@ -63,7 +63,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->claim_key_path == NULL) {
-        GGL_LOGD("Requesting db for "
+        GGL_LOGT("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "claimKeyPath");
         static uint8_t claim_key_path_mem[PATH_MAX] = { 0 };
@@ -86,7 +86,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->root_ca_path == NULL) {
-        GGL_LOGD("Requesting db for "
+        GGL_LOGT("Requesting db for "
                  "system/rootCaPath/");
         static uint8_t root_ca_path_mem[PATH_MAX] = { 0 };
         GglBuffer root_ca_path = GGL_BUF(root_ca_path_mem);
@@ -103,7 +103,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->data_endpoint == NULL) {
-        GGL_LOGD("Requesting db for "
+        GGL_LOGT("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "iotDataEndpoint");
         static uint8_t data_endpoint_mem[MAX_ENDPOINT_LENGTH + 1] = { 0 };
@@ -140,7 +140,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->template_name == NULL) {
-        GGL_LOGD("Requesting db for "
+        GGL_LOGT("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "templateName");
         static uint8_t template_name_mem[MAX_TEMPLATE_LEN + 1] = { 0 };
@@ -163,7 +163,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->template_parameters == NULL) {
-        GGL_LOGD("Requesting db for "
+        GGL_LOGT("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "templateParams");
         static uint8_t template_params_mem[MAX_TEMPLATE_PARAM_LEN + 1] = { 0 };
@@ -196,7 +196,7 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     EVP_PKEY *pkey = NULL;
     X509_REQ *csr_req = NULL;
 
-    GGL_LOGD("Requesting db for system/rootPath");
+    GGL_LOGT("Requesting db for system/rootPath");
     static uint8_t root_dir_mem[4096] = { 0 };
     GglBuffer root_dir = GGL_BUF(root_dir_mem);
     ret = ggl_gg_config_read_str(
@@ -275,8 +275,6 @@ GglError run_fleet_prov(FleetProvArgs *args) {
         GGL_LOGE("Failed to read th whole file.");
         return GGL_ERR_FAILURE;
     }
-
-    GGL_LOGD("New String: %.*s.", (int) strlen(csr_buf), csr_buf);
 
     ret = make_request(csr_buf, cert_file_path, iotcored_pid);
 
