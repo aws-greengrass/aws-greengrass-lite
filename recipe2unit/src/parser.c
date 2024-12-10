@@ -196,5 +196,13 @@ GglError convert_to_unit(
         existing_phases->has_run_startup = true;
     }
 
+    if (existing_phases->has_bootstrap == false
+        && existing_phases->has_install == false
+        && existing_phases->has_run_startup == false) {
+        GGL_LOGE("Recipes without at least 1 valid lifecycle step aren't "
+                 "currently supported by GGLite");
+        return GGL_ERR_INVALID;
+    }
+
     return GGL_ERR_OK;
 }

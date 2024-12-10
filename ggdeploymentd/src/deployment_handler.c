@@ -1976,13 +1976,13 @@ static GglError wait_for_phase_status(
     ggl_sleep(5);
 
     for (size_t i = 0; i < component_vec.buf_list.len; i++) {
-        // Add .install into the component name
-        static uint8_t install_comp_name[PATH_MAX];
-        GglByteVec install_comp_name_vec = GGL_BYTE_VEC(install_comp_name);
+        // Add .[phase name] into the component name
+        static uint8_t full_comp_name_mem[PATH_MAX];
+        GglByteVec full_comp_name_vec = GGL_BYTE_VEC(full_comp_name_mem);
         GglError ret = ggl_byte_vec_append(
-            &install_comp_name_vec, component_vec.buf_list.bufs[i]
+            &full_comp_name_vec, component_vec.buf_list.bufs[i]
         );
-        ggl_byte_vec_append(&install_comp_name_vec, phase);
+        ggl_byte_vec_append(&full_comp_name_vec, phase);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to generate %*.s phase name for %*.scomponent.",
@@ -1995,15 +1995,15 @@ static GglError wait_for_phase_status(
         }
         GGL_LOGD(
             "Awaiting %.*s to finish.",
-            (int) install_comp_name_vec.buf.len,
-            install_comp_name_vec.buf.data
+            (int) full_comp_name_vec.buf.len,
+            full_comp_name_vec.buf.data
         );
 
         ret = ggl_sub_response(
             GGL_STR("gg_health"),
             GGL_STR("subscribe_to_lifecycle_completion"),
             GGL_MAP({ GGL_STR("component_name"),
-                      GGL_OBJ_BUF(install_comp_name_vec.buf) }),
+                      GGL_OBJ_BUF(full_comp_name_vec.buf) }),
             deployment_status_callback,
             NULL,
             NULL,
@@ -2012,8 +2012,8 @@ static GglError wait_for_phase_status(
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed waiting for %.*s",
-                (int) install_comp_name_vec.buf.len,
-                install_comp_name_vec.buf.data
+                (int) full_comp_name_vec.buf.len,
+                full_comp_name_vec.buf.data
             );
             return GGL_ERR_FAILURE;
         }
