@@ -2899,7 +2899,7 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     int64_t jobs_version = 0;
 
     GglError ret = retrieve_in_progress_deployment(
-        &bootstrap_deployment, &jobs_id, jobs_version
+        &bootstrap_deployment, &jobs_id, &jobs_version
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGD("No deployments previously in progress detected.");

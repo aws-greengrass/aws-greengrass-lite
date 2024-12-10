@@ -191,7 +191,7 @@ GglError save_deployment_info(GglDeployment *deployment) {
 }
 
 GglError retrieve_in_progress_deployment(
-    GglDeployment *deployment, GglBuffer *jobs_id, int64_t jobs_version
+    GglDeployment *deployment, GglBuffer *jobs_id, int64_t *jobs_version
 ) {
     GGL_LOGD("Searching config for any in progress deployment.");
 
@@ -229,7 +229,7 @@ GglError retrieve_in_progress_deployment(
         GGL_LOGE("Did not receive an int64_t for IoT jobs version.");
         return GGL_ERR_INVALID;
     }
-    jobs_version = jobs_version_obj.i64;
+    *jobs_version = jobs_version_obj.i64;
 
     GglBuffer config_mem = GGL_BUF((uint8_t[2500]) { 0 });
     GglBumpAlloc balloc = ggl_bump_alloc_init(config_mem);

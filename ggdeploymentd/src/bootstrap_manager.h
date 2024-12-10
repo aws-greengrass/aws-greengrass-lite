@@ -40,7 +40,7 @@ GglError save_iot_jobs_id(GglBuffer jobs_id);
 GglError save_iot_jobs_version(int64_t jobs_version);
 GglError save_deployment_info(GglDeployment *deployment);
 GglError retrieve_in_progress_deployment(
-    GglDeployment *deployment, GglBuffer *jobs_id, int64_t jobs_version
+    GglDeployment *deployment, GglBuffer *jobs_id, int64_t *jobs_version
 );
 GglError delete_saved_deployment_from_config(void);
 GglError process_bootstrap_phase(
