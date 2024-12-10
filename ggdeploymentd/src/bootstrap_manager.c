@@ -228,6 +228,7 @@ GglError retrieve_in_progress_deployment(
         &jobs_version_obj
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to retrieve IoT jobs version from config.");
         return ret;
     }
     if (jobs_version_obj.type != GGL_TYPE_I64) {
@@ -250,6 +251,7 @@ GglError retrieve_in_progress_deployment(
         &deployment_config
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to retrieve deployment map from config.");
         return ret;
     }
     if (deployment_config.type != GGL_TYPE_MAP) {

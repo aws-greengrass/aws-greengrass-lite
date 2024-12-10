@@ -212,10 +212,16 @@ static GglError update_job(
     }
     ++(*version);
 
-    // save jobs ID to config in case of bootstrap
+    // save jobs ID and version to config in case of bootstrap
     ret = save_iot_jobs_id(job_id);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to save job ID to config.");
+        return ret;
+    }
+
+    ret = save_iot_jobs_version(current_job_version);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to save job version to config.");
         return ret;
     }
 
