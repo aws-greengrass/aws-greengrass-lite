@@ -180,7 +180,7 @@ GglError fetch_script_section(
 static GglError lifecycle_selection(
     GglObject *selection_obj,
     GglMap recipe_map,
-    GglObject *selected_lifecycle_object
+    GglObject **selected_lifecycle_object
 ) {
     GglObject *val;
     for (size_t selection_index = 0; selection_index < selection_obj->list.len;
@@ -197,13 +197,6 @@ static GglError lifecycle_selection(
                     "linux",
                     selection_obj->list.items[selection_index].buf.len
                 )
-                == 0)
-            || (strncmp(
-                    (char *) selection_obj->list.items[selection_index]
-                        .buf.data,
-                    "*",
-                    selection_obj->list.items[selection_index].buf.len
-                )
                 == 0)) {
             GglObject *global_lifecycle;
             // Fetch the global Lifecycle object and match the
@@ -215,13 +208,15 @@ static GglError lifecycle_selection(
                     return GGL_ERR_INVALID;
                 }
                 if (ggl_map_get(
-                        global_lifecycle->map, GGL_STR("linux"), &val
+                        global_lifecycle->map,
+                        selection_obj->list.items[selection_index].buf,
+                        &val
                     )) {
                     if (val->type != GGL_TYPE_MAP) {
                         GGL_LOGE("Invalid Global Linux lifecycle");
                         return GGL_ERR_INVALID;
                     }
-                    *selected_lifecycle_object = *val;
+                    *selected_lifecycle_object = val;
                 }
             }
         }
@@ -303,22 +298,35 @@ static GglError manifest_selection(
                             GGL_LOGE("Lifecycle object is not MAP type.");
                             return GGL_ERR_INVALID;
                         }
-                    } else if (ggl_map_get(
-                                   *manifest_map,
-                                   GGL_STR("Selections"),
-                                   &selections
-                               )) {
+                        // Lifecycle keyword might be there but only return
+                        // if there is something inside the list
+                        if ((*selected_lifecycle_object)->map.len != 0) {
+                            return GGL_ERR_OK;
+                        }
+                    }
+
+                    if (ggl_map_get(
+                            *manifest_map, GGL_STR("Selections"), &selections
+                        )) {
                         if (selections->type != GGL_TYPE_LIST) {
                             return GGL_ERR_INVALID;
                         }
-                        return lifecycle_selection(
-                            selections, recipe_map, *selected_lifecycle_object
-                        );
-                    } else {
-                        GGL_LOGE("Neither Lifecycle nor Selection data provided"
-                        );
-                        return GGL_ERR_INVALID;
+                        if (selections->list.len != 0) {
+                            return lifecycle_selection(
+                                selections,
+                                recipe_map,
+                                selected_lifecycle_object
+                            );
+                        }
                     }
+
+                    GglList selection_deafult
+                        = GGL_LIST(GGL_OBJ_BUF(GGL_STR("all")));
+                    return lifecycle_selection(
+                        &GGL_OBJ_LIST(selection_deafult),
+                        recipe_map,
+                        selected_lifecycle_object
+                    );
                 }
 
             } else {
