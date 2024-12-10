@@ -54,9 +54,31 @@ GglError save_component_info(
     return GGL_ERR_OK;
 }
 
-GglError save_deployment_info(
-    GglDeployment *deployment
-) {
+GglError save_iot_jobs_id(GglBuffer jobs_id) {
+    GGL_LOGD(
+        "Saving IoT Jobs ID %.*s in case of bootstrap.",
+        (int) jobs_id.len,
+        jobs_id.data
+    );
+
+    GglError ret = ggl_gg_config_write(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("DeploymentService"),
+            GGL_STR("deploymentState"),
+            GGL_STR("jobsID")
+        ),
+        GGL_OBJ_BUF(jobs_id),
+        &(int64_t) { 0 }
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write IoT Jobs ID to config.");
+        return ret;
+    }
+    return GGL_ERR_OK;
+}
+
+GglError save_deployment_info(GglDeployment *deployment) {
     /*
       deployment info will be saved to config in the following format:
 
@@ -69,6 +91,7 @@ GglError save_deployment_info(
                 ...
               deploymentType: local/IoT Jobs
               deploymentDoc:
+              jobsID:
     */
 
     GGL_LOGD("Encountered component requiring bootstrap. Saving deployment "
@@ -129,14 +152,30 @@ GglError save_deployment_info(
     return GGL_ERR_OK;
 }
 
-GglError retrieve_in_progress_deployment(GglDeployment *deployment) {
+GglError retrieve_in_progress_deployment(
+    GglDeployment *deployment, GglBuffer *jobs_id
+) {
     GGL_LOGD("Searching config for any in progress deployment.");
+
+    GglError ret = ggl_gg_config_read_str(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("DeploymentService"),
+            GGL_STR("deploymentState"),
+            GGL_STR("jobsID")
+        ),
+        jobs_id
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to retrieve IoT Jobs ID from config.");
+        return ret;
+    }
 
     GglBuffer config_mem = GGL_BUF((uint8_t[2500]) { 0 });
     GglBumpAlloc balloc = ggl_bump_alloc_init(config_mem);
     GglObject deployment_config;
 
-    GglError ret = ggl_gg_config_read(
+    ret = ggl_gg_config_read(
         GGL_BUF_LIST(
             GGL_STR("services"),
             GGL_STR("DeploymentService"),
@@ -334,7 +373,11 @@ GglError process_bootstrap_phase(
                     component_name.data
                 );
             } else { // relevant bootstrap service file exists
-                GGL_LOGI("Found bootstrap service file for %.*s. Processing.", (int) component_name.len, component_name.data);
+                GGL_LOGI(
+                    "Found bootstrap service file for %.*s. Processing.",
+                    (int) component_name.len,
+                    component_name.data
+                );
 
                 // add relevant component name into the vector
                 ret = ggl_buf_vec_push(
@@ -454,9 +497,10 @@ GglError process_bootstrap_phase(
 
                 // save to config as deployed component to skip for next run
                 ret = save_component_info(component_name, component->val.buf);
-                if(ret != GGL_ERR_OK) {
-                  GGL_LOGE("Failed to save component info to config after completing bootstrap steps.");
-                  return ret;
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to save component info to config after "
+                             "completing bootstrap steps.");
+                    return ret;
                 }
             }
         }
@@ -464,8 +508,7 @@ GglError process_bootstrap_phase(
 
     if (bootstrap_comp_name_buf_vec->buf_list.len > 0) {
         // save deployment state and restart
-        GglError ret
-            = save_deployment_info(deployment);
+        GglError ret = save_deployment_info(deployment);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to save deployment state for bootstrap.");
             return ret;

@@ -14,10 +14,11 @@
 GglError save_component_info(
     GglBuffer component_name, GglBuffer component_version
 );
-GglError save_deployment_info(
-    GglDeployment *deployment
+GglError save_iot_jobs_id(GglBuffer jobs_id);
+GglError save_deployment_info(GglDeployment *deployment);
+GglError retrieve_in_progress_deployment(
+    GglDeployment *deployment, GglBuffer *jobs_id
 );
-GglError retrieve_in_progress_deployment(GglDeployment *deployment);
 GglError delete_saved_deployment_from_config(void);
 GglError process_bootstrap_phase(
     GglMap components,
