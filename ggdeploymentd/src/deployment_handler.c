@@ -2896,9 +2896,11 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     GglDeployment bootstrap_deployment = { 0 };
     uint8_t jobs_id_resp_mem[64] = { 0 };
     GglBuffer jobs_id = GGL_BUF(jobs_id_resp_mem);
+    int64_t jobs_version = 0;
 
-    GglError ret
-        = retrieve_in_progress_deployment(&bootstrap_deployment, &jobs_id);
+    GglError ret = retrieve_in_progress_deployment(
+        &bootstrap_deployment, &jobs_id, jobs_version
+    );
     if (ret != GGL_ERR_OK) {
         GGL_LOGD("No deployments previously in progress detected.");
     } else {
@@ -2908,8 +2910,10 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             (int) bootstrap_deployment.deployment_id.len,
             bootstrap_deployment.deployment_id.data
         );
-        update_current_jobs_deployment(
-            bootstrap_deployment.deployment_id, GGL_STR("IN_PROGRESS")
+        update_bootstrap_jobs_deployment(
+            bootstrap_deployment.deployment_id,
+            GGL_STR("IN_PROGRESS"),
+            jobs_version
         );
 
         bool bootstrap_deployment_succeeded = false;
@@ -2922,14 +2926,18 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
         if (bootstrap_deployment_succeeded) {
             GGL_LOGI("Completed deployment processing and reporting job as "
                      "SUCCEEDED.");
-            update_current_jobs_deployment(
-                bootstrap_deployment.deployment_id, GGL_STR("SUCCEEDED")
+            update_bootstrap_jobs_deployment(
+                bootstrap_deployment.deployment_id,
+                GGL_STR("SUCCEEDED"),
+                jobs_version
             );
         } else {
             GGL_LOGW("Completed deployment processing and reporting job as "
                      "FAILED.");
-            update_current_jobs_deployment(
-                bootstrap_deployment.deployment_id, GGL_STR("FAILED")
+            update_bootstrap_jobs_deployment(
+                bootstrap_deployment.deployment_id,
+                GGL_STR("FAILED"),
+                jobs_version
             );
         }
         // clear any potential saved deployment info for next deployment

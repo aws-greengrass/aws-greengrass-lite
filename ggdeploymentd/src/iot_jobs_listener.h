@@ -13,5 +13,8 @@ void listen_for_jobs_deployments(void);
 GglError update_current_jobs_deployment(
     GglBuffer deployment_id, GglBuffer status
 );
+GglError update_bootstrap_jobs_deployment(
+    GglBuffer deployment_id, GglBuffer status, int64_t version
+);
 
 #endif

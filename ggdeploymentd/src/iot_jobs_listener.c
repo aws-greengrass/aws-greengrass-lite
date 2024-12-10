@@ -485,3 +485,14 @@ GglError update_current_jobs_deployment(
     // overwriting current_job_id while deployment thread updates job state
     return update_job(current_job_id.buf, status, &current_job_version);
 }
+
+GglError update_bootstrap_jobs_deployment(
+    GglBuffer deployment_id, GglBuffer status, int64_t version
+) {
+    if (!ggl_buffer_eq(deployment_id, current_deployment_id.buf)) {
+        return GGL_ERR_NOENTRY;
+    }
+
+    current_job_version = version;
+    return update_job(current_job_id.buf, status, &version);
+}
