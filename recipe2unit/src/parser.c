@@ -5,6 +5,7 @@
 #include "ggl/recipe2unit.h"
 #include "unit_file_generator.h"
 #include "validate_args.h"
+#include <assert.h>
 #include <fcntl.h>
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
@@ -49,6 +50,9 @@ static GglError create_unit_file(
         ggl_byte_vec_chain_append(
             &ret, &file_name_vector, GGL_STR(".bootstrap")
         );
+    } else {
+        // Incase of startup/run nothing to append
+        assert(phase == RUN_STARTUP);
     }
     ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR(".service\0"));
     if (ret != GGL_ERR_OK) {

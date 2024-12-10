@@ -2,6 +2,7 @@
 #include "stale_component.h"
 #include "component_store.h"
 #include "deployment_model.h"
+#include <assert.h>
 #include <dirent.h>
 #include <errno.h>
 #include <ftw.h>
@@ -315,9 +316,11 @@ GglError disable_and_unlink_service(
     ggl_byte_vec_chain_append(&ret, &command_vec, *component_name);
     if (phase == INSTALL) {
         ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".install"));
-    }
-    if (phase == BOOTSTRAP) {
+    } else if (phase == BOOTSTRAP) {
         ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".bootstrap"));
+    } else {
+        // Incase of startup/run nothing to append
+        assert(phase == RUN_STARTUP);
     }
     ggl_byte_vec_chain_append(&ret, &command_vec, GGL_STR(".service"));
     ggl_byte_vec_chain_push(&ret, &command_vec, '\0');
