@@ -122,7 +122,7 @@ GglError convert_to_unit(
     }
 
     if (ret == GGL_ERR_NOENTRY) {
-        GGL_LOGW("No Install phase present");
+        GGL_LOGW("No bootstrap phase present");
 
     } else if (ret != GGL_ERR_OK) {
         return ret;
@@ -131,7 +131,7 @@ GglError convert_to_unit(
             args, component_name, BOOTSTRAP, &bootstrap_response_buffer
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to create the install unit file.");
+            GGL_LOGE("Failed to create the bootstrap unit file.");
             return ret;
         }
         existing_phases->has_bootstrap = true;
