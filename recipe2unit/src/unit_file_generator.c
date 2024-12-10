@@ -384,9 +384,7 @@ static GglError manifest_builder(
                 return GGL_ERR_INVALID;
             }
         } else {
-            GGL_LOGW("No bootstrap phase found");
-            GGL_LOGW("Note that in GG Lite, keys are case sensitive. Check the "
-                     "recipe reference for the correct casing.");
+            GGL_LOGD("No bootstrap phase found");
             return GGL_ERR_NOENTRY;
         }
 
@@ -407,9 +405,7 @@ static GglError manifest_builder(
                 return GGL_ERR_INVALID;
             }
         } else {
-            GGL_LOGW("No install phase found");
-            GGL_LOGW("Note that in GG Lite, keys are case sensitive. Check the "
-                     "recipe reference for the correct casing.");
+            GGL_LOGD("No install phase found");
             return GGL_ERR_NOENTRY;
         }
 
@@ -451,9 +447,7 @@ static GglError manifest_builder(
                 return GGL_ERR_FAILURE;
             }
         } else {
-            GGL_LOGW("No startup or run phase found");
-            GGL_LOGW("Note that in GG Lite, keys are case sensitive. Check the "
-                     "recipe reference for the correct casing.");
+            GGL_LOGD("No startup or run phase found");
             return GGL_ERR_NOENTRY;
         }
     }
