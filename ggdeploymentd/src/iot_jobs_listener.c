@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "iot_jobs_listener.h"
+#include "bootstrap_manager.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
 #include <sys/types.h>
@@ -210,6 +211,14 @@ static GglError update_job(
         return ret;
     }
     ++(*version);
+
+    // save jobs ID to config in case of bootstrap
+    ret = save_iot_jobs_id(job_id);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to save job ID to config.");
+        return ret;
+    }
+
     return GGL_ERR_OK;
 }
 

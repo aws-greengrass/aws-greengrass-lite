@@ -2164,7 +2164,8 @@ static void handle_deployment(
             &resp
         );
         if (ret == GGL_ERR_OK) {
-            // component deployed, skip to avoid rerunning bootstrap and install phases
+            // component deployed, skip to avoid rerunning bootstrap and install
+            // phases
             continue;
         }
 
@@ -2844,7 +2845,11 @@ static void handle_deployment(
 static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
     // check for in progress deployment in case of bootstrap
     GglDeployment bootstrap_deployment = { 0 };
-    GglError ret = retrieve_in_progress_deployment(&bootstrap_deployment);
+    uint8_t jobs_id_resp_mem[64] = { 0 };
+    GglBuffer jobs_id = GGL_BUF(jobs_id_resp_mem);
+
+    GglError ret
+        = retrieve_in_progress_deployment(&bootstrap_deployment, &jobs_id);
     if (ret != GGL_ERR_OK) {
         GGL_LOGD("No deployments previously in progress detected.");
     } else {
