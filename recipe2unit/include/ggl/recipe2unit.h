@@ -10,6 +10,13 @@
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <limits.h>
+#include <stdbool.h>
+
+typedef struct {
+    bool has_install;
+    bool has_run_startup;
+    bool has_bootstrap;
+} HasPhase;
 
 typedef struct {
     GglBuffer component_name;
@@ -28,12 +35,14 @@ typedef struct {
 /// @param[out] recipe_obj The object containing the recipe in a map format
 /// @param[out] component_name The name of the component as provided by the
 /// recipe
+/// @param[out] existing_phases Status of which phases are present
 /// @return GGL_ERR_OK on success. Failure otherwise.
 GglError convert_to_unit(
     Recipe2UnitArgs *args,
     GglAlloc *alloc,
     GglObject *recipe_obj,
-    GglObject **component_name
+    GglObject **component_name,
+    HasPhase *existing_phases
 );
 
 #endif

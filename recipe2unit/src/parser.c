@@ -16,6 +16,7 @@
 #include <ggl/recipe.h>
 #include <ggl/vector.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #define MAX_UNIT_FILE_BUF_SIZE 2048
@@ -77,7 +78,8 @@ GglError convert_to_unit(
     Recipe2UnitArgs *args,
     GglAlloc *alloc,
     GglObject *recipe_obj,
-    GglObject **component_name
+    GglObject **component_name,
+    HasPhase *existing_phases
 ) {
     GglError ret;
     *component_name = NULL;
@@ -132,6 +134,7 @@ GglError convert_to_unit(
             GGL_LOGE("Failed to create the install unit file.");
             return ret;
         }
+        existing_phases->has_bootstrap = true;
     }
 
     GglBuffer install_response_buffer = GGL_BUF(unit_file_buffer);
@@ -163,6 +166,7 @@ GglError convert_to_unit(
             GGL_LOGE("Failed to create the install unit file.");
             return ret;
         }
+        existing_phases->has_install = true;
     }
 
     GglBuffer run_startup_response_buffer = GGL_BUF(unit_file_buffer);
@@ -189,6 +193,7 @@ GglError convert_to_unit(
             return ret;
         }
         GGL_LOGD("Created run or startup unit file.");
+        existing_phases->has_run_startup = true;
     }
 
     return GGL_ERR_OK;

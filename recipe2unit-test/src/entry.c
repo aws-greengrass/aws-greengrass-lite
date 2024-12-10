@@ -51,7 +51,10 @@ GglError run_recipe2unit_test(void) {
     GglObject *component_name_obj;
     static uint8_t big_buffer_for_bump[5000];
     GglBumpAlloc bump_alloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+    HasPhase phases;
 
-    convert_to_unit(&args, &bump_alloc.alloc, &recipe_map, &component_name_obj);
+    convert_to_unit(
+        &args, &bump_alloc.alloc, &recipe_map, &component_name_obj, &phases
+    );
     return GGL_ERR_OK;
 }

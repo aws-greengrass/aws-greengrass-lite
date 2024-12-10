@@ -2247,12 +2247,13 @@ static void handle_deployment(
         static uint8_t big_buffer_for_bump[MAX_RECIPE_BUF_SIZE];
         GglBumpAlloc bump_alloc
             = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-
+        HasPhase phases = { 0 };
         GglError err = convert_to_unit(
             &recipe2unit_args,
             &bump_alloc.alloc,
             &recipe_buff_obj,
-            &component_name
+            &component_name,
+            &phases
         );
 
         if (err != GGL_ERR_OK) {
