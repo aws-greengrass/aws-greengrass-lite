@@ -240,11 +240,11 @@ static GglError process_set_env(
     GglBuffer thing_name
 ) {
     GglError ret = GGL_ERR_OK;
-    GGL_LOGD("Lifecycle Setenv, is a map");
+    GGL_LOGT("Lifecycle Setenv, is a map");
     GGL_MAP_FOREACH(pair, env_values_as_map) {
         ggl_file_write(out_fd, GGL_STR("export "));
         ggl_file_write(out_fd, pair->key);
-        GGL_LOGD(
+        GGL_LOGT(
             "Lifecycle Setenv, map key: %.*s",
             (int) pair->key.len,
             pair->key.data
@@ -252,7 +252,7 @@ static GglError process_set_env(
         ggl_file_write(out_fd, GGL_STR("="));
 
         if (pair->val.type != GGL_TYPE_BUF) {
-            GGL_LOGI("Invalid lifecycle Setenv, Key values must be String");
+            GGL_LOGW("Invalid lifecycle Setenv, Key values must be String");
             return GGL_ERR_INVALID;
         }
         GGL_LOGD(
@@ -652,7 +652,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     GglBumpAlloc the_allocator
         = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_recipe));
     GglObject recipe = { 0 };
-    GGL_LOGE("Root Path: %.*s", (int) root_path.len, root_path.data);
+    GGL_LOGT("Root Path: %.*s", (int) root_path.len, root_path.data);
     ret = ggl_recipe_get_from_file(
         root_path_fd,
         component_name,
