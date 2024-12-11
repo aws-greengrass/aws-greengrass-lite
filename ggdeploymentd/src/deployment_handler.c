@@ -850,8 +850,17 @@ static GglError generate_resolve_component_candidates_body(
         { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("aws_nucleus_lite")) },
         { GGL_STR("os"), GGL_OBJ_BUF(GGL_STR("linux")) },
         { GGL_STR("architecture"), GGL_OBJ_BUF(get_current_architecture()) },
-        { GGL_STR("architecture.detail"), architecture_detail_read_value }
     );
+
+    if (architecture_detail_read_value.buf.len != 0) {
+        platform_attributes = GGL_MAP(
+            { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("aws_nucleus_lite")) },
+            { GGL_STR("os"), GGL_OBJ_BUF(GGL_STR("linux")) },
+            { GGL_STR("architecture"),
+              GGL_OBJ_BUF(get_current_architecture()) },
+            { GGL_STR("architecture.detail"), architecture_detail_read_value }
+        );
+    }
 
     GglMap platform_info = GGL_MAP(
         { GGL_STR("name"), GGL_OBJ_BUF(GGL_STR("linux")) },
