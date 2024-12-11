@@ -16,6 +16,7 @@ services:
       runWithDefault:
         posixUser: "gg_component:gg_component"
       greengrassDataPlanePort: "8443"
+      platformOverride: {}
   # aws.greengrass.fleet_provisioning:
   #   configuration:
   #     iotDataEndpoint: "<CONFIGURE_THIS>"
