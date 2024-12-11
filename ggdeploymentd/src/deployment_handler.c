@@ -818,13 +818,39 @@ static GglError get_device_thing_groups(GglBuffer *response) {
 static GglError generate_resolve_component_candidates_body(
     GglBuffer component_name,
     GglBuffer component_requirements,
-    GglByteVec *body_vec
+    GglByteVec *body_vec,
+    GglAlloc *alloc
 ) {
+    GglObject architecture_detail_read_value;
+    GglError ret = ggl_gg_config_read(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.NucleusLite"),
+            GGL_STR("configuration"),
+            GGL_STR("platformOverride"),
+            GGL_STR("architecture.detail")
+        ),
+        alloc,
+        &architecture_detail_read_value
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGD("No architecture.detail found, using empty string as a "
+                 "default value.");
+        architecture_detail_read_value = GGL_OBJ_BUF(GGL_STR(""));
+    }
+
+    if (architecture_detail_read_value.type != GGL_TYPE_BUF) {
+        GGL_LOGD("architecture.detail platformOverride in the config is not a "
+                 "buffer, so using an empty string as a default value.");
+        architecture_detail_read_value = GGL_OBJ_BUF(GGL_STR(""));
+    }
+
     // TODO: Support platform attributes for platformOverride configuration
     GglMap platform_attributes = GGL_MAP(
         { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("aws_nucleus_lite")) },
         { GGL_STR("os"), GGL_OBJ_BUF(GGL_STR("linux")) },
-        { GGL_STR("architecture"), GGL_OBJ_BUF(get_current_architecture()) }
+        { GGL_STR("architecture"), GGL_OBJ_BUF(get_current_architecture()) },
+        { GGL_STR("architecture.detail"), architecture_detail_read_value }
     );
 
     GglMap platform_info = GGL_MAP(
@@ -851,7 +877,7 @@ static GglError generate_resolve_component_candidates_body(
 
     static uint8_t rcc_buf[4096];
     GglBuffer rcc_body = GGL_BUF(rcc_buf);
-    GglError ret = ggl_json_encode(GGL_OBJ_MAP(request_body), &rcc_body);
+    ret = ggl_json_encode(GGL_OBJ_MAP(request_body), &rcc_body);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Error while encoding body for ResolveComponentCandidates call"
         );
@@ -874,8 +900,11 @@ static GglError resolve_component_with_cloud(
 ) {
     static char resolve_candidates_body_buf[2048];
     GglByteVec body_vec = GGL_BYTE_VEC(resolve_candidates_body_buf);
+    static uint8_t rcc_body_config_read_mem[128];
+    GglBumpAlloc rcc_balloc
+        = ggl_bump_alloc_init(GGL_BUF(rcc_body_config_read_mem));
     GglError ret = generate_resolve_component_candidates_body(
-        component_name, version_requirements, &body_vec
+        component_name, version_requirements, &body_vec, &rcc_balloc.alloc
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to generate body for resolveComponentCandidates call");
