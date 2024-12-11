@@ -166,7 +166,6 @@ static void deafult_handler(struct evhttp_request *req, void *arg) {
 
     GglBuffer response_cred_buffer
         = GGL_STR("Only /2016-11-01/credentialprovider/ uri is supported");
-
     struct evbuffer *buf = evbuffer_new();
 
     if (!buf) {
@@ -177,7 +176,7 @@ static void deafult_handler(struct evhttp_request *req, void *arg) {
     // Add the response data to the evbuffer
     evbuffer_add(buf, response_cred_buffer.data, response_cred_buffer.len);
 
-    evhttp_send_reply(req, HTTP_NOCONTENT, "Forbidden", buf);
+    evhttp_send_reply(req, HTTP_BADREQUEST, "Bad Request", buf);
     evbuffer_free(buf);
 }
 
