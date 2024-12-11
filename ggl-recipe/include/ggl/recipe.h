@@ -37,4 +37,6 @@ GglError select_linux_manifest(
     GglMap recipe_map, GglMap *out_selected_linux_manifest
 );
 
+GglBuffer get_current_architecture(void);
+
 #endif

@@ -27,6 +27,7 @@
 #include <ggl/file.h>
 #include <ggl/http.h>
 #include <ggl/json_decode.h>
+#include <ggl/json_encode.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -819,31 +820,46 @@ static GglError generate_resolve_component_candidates_body(
     GglBuffer component_requirements,
     GglByteVec *body_vec
 ) {
+    // TODO: Support platform attributes for platformOverride configuration
+    GglMap platform_attributes = GGL_MAP(
+        { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("aws_nucleus_lite")) },
+        { GGL_STR("os"), GGL_OBJ_BUF(GGL_STR("linux")) },
+        { GGL_STR("architecture"), GGL_OBJ_BUF(get_current_architecture()) }
+    );
+
+    GglMap platform_info = GGL_MAP(
+        { GGL_STR("name"), GGL_OBJ_BUF(GGL_STR("linux")) },
+        { GGL_STR("attributes"), GGL_OBJ_MAP(platform_attributes) }
+    );
+
+    GglMap version_requirements_map
+        = GGL_MAP({ GGL_STR("requirements"),
+                    GGL_OBJ_BUF(component_requirements) });
+
+    GglMap component_map = GGL_MAP(
+        { GGL_STR("componentName"), GGL_OBJ_BUF(component_name) },
+        { GGL_STR("versionRequirements"),
+          GGL_OBJ_MAP(version_requirements_map) }
+    );
+
+    GglList candidates_list = GGL_LIST(GGL_OBJ_MAP(component_map));
+
+    GglMap request_body = GGL_MAP(
+        { GGL_STR("componentCandidates"), GGL_OBJ_LIST(candidates_list) },
+        { GGL_STR("platform"), GGL_OBJ_MAP(platform_info) }
+    );
+
+    static uint8_t rcc_buf[4096];
+    GglBuffer rcc_body = GGL_BUF(rcc_buf);
+    GglError ret = ggl_json_encode(GGL_OBJ_MAP(request_body), &rcc_body);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error while encoding body for ResolveComponentCandidates call"
+        );
+        return ret;
+    }
+
     GglError byte_vec_ret = GGL_ERR_OK;
-    ggl_byte_vec_chain_append(
-        &byte_vec_ret, body_vec, GGL_STR("{\"componentCandidates\": [")
-    );
-
-    ggl_byte_vec_chain_append(
-        &byte_vec_ret, body_vec, GGL_STR("{\"componentName\": \"")
-    );
-    ggl_byte_vec_chain_append(&byte_vec_ret, body_vec, component_name);
-    ggl_byte_vec_chain_append(
-        &byte_vec_ret,
-        body_vec,
-        GGL_STR("\",\"versionRequirements\": {\"requirements\": \"")
-    );
-    ggl_byte_vec_chain_append(&byte_vec_ret, body_vec, component_requirements);
-    ggl_byte_vec_chain_append(&byte_vec_ret, body_vec, GGL_STR("\"}}"));
-
-    // TODO: Include architecture requirements if any
-    ggl_byte_vec_chain_append(
-        &byte_vec_ret,
-        body_vec,
-        GGL_STR("],\"platform\": { \"attributes\": { \"os\" : \"linux\", "
-                "\"runtime\" : \"aws_nucleus_lite\" "
-                "},\"name\": \"linux\"}}")
-    );
+    ggl_byte_vec_chain_append(&byte_vec_ret, body_vec, rcc_body);
     ggl_byte_vec_chain_push(&byte_vec_ret, body_vec, '\0');
 
     GGL_LOGD("Body for call: %s", body_vec->buf.data);

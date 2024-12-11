@@ -224,7 +224,7 @@ static GglError lifecycle_selection(
     return GGL_ERR_OK;
 }
 
-static GglBuffer get_current_architecture(void) {
+GglBuffer get_current_architecture(void) {
     GglBuffer current_arch = { 0 };
 #if defined(__x86_64__)
     current_arch = GGL_STR("amd64");
