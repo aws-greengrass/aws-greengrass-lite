@@ -11,7 +11,6 @@
 #include <ggl/bump_alloc.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
-#include <ggl/exec.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
