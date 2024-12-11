@@ -84,10 +84,10 @@ GglError iterate_over_components(
         GglBuffer entry_buf = ggl_buffer_from_null_term((*entry)->d_name);
         // recipe file names follow this format:
         // <component_name>-<version>.<extension>
-        // Split directory entry on the index of the "-" character.
+        // Split the last "-" character to retrieve the component name
         GglBuffer recipe_component;
         GglBuffer rest = GGL_STR("");
-        for (size_t i = 0; i < entry_buf.len; ++i) {
+        for (size_t i = entry_buf.len; i-- > 0;) {
             if (entry_buf.data[i] == '-') {
                 recipe_component = ggl_buffer_substr(entry_buf, 0, i);
                 rest = ggl_buffer_substr(entry_buf, i + 1, SIZE_MAX);
