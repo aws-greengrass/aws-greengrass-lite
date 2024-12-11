@@ -614,11 +614,18 @@ GglError process_bootstrap_phase(
         }
 
         GGL_LOGI("Rebooting device for bootstrap.");
-        char *reboot_args[] = { "reboot", NULL };
-        ret = ggl_exec_command_async(reboot_args, NULL);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to reboot system for bootstrap.");
-            return ret;
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        int system_ret = system("systemctl reboot");
+        if (WIFEXITED(system_ret)) {
+            if (WEXITSTATUS(system_ret) != 0) {
+                GGL_LOGE("systemctl reboot failed");
+            }
+            GGL_LOGI(
+                "systemctl reboot exited with child status %d\n",
+                WEXITSTATUS(system_ret)
+            );
+        } else {
+            GGL_LOGE("systemctl reboot did not exit normally");
         }
     }
 
