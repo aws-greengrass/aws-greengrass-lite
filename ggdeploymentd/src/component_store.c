@@ -87,10 +87,10 @@ GglError iterate_over_components(
         // Split the last "-" character to retrieve the component name
         GglBuffer recipe_component;
         GglBuffer rest = GGL_STR("");
-        for (size_t i = entry_buf.len; i < 0; --i) {
-            if (entry_buf.data[i] == '-') {
-                recipe_component = ggl_buffer_substr(entry_buf, 0, i);
-                rest = ggl_buffer_substr(entry_buf, i + 1, SIZE_MAX);
+        for (size_t i = entry_buf.len; i > 0; --i) {
+            if (entry_buf.data[i - 1] == '-') {
+                recipe_component = ggl_buffer_substr(entry_buf, 0, i - 1);
+                rest = ggl_buffer_substr(entry_buf, i, SIZE_MAX);
                 break;
             }
         }
