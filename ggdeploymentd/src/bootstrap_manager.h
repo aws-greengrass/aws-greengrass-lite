@@ -10,6 +10,7 @@
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 /*
@@ -28,6 +29,8 @@
           jobsID:
           jobsVersion:
 */
+
+bool component_bootstrap_phase_completed(GglBuffer component_name);
 
 // type can be "bootstrap" or "completed"
 // bootstrap type indicates that the component's bootstrap steps have completed

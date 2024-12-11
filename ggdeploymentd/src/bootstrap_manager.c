@@ -23,6 +23,32 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+bool component_bootstrap_phase_completed(GglBuffer component_name) {
+    // check config to see if component bootstrap steps have already been
+    // completed
+    uint8_t resp_mem[128] = { 0 };
+    GglBuffer resp = GGL_BUF(resp_mem);
+    GglError ret = ggl_gg_config_read_str(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("DeploymentService"),
+            GGL_STR("deploymentState"),
+            GGL_STR("bootstrapComponents"),
+            component_name
+        ),
+        &resp
+    );
+    if (ret == GGL_ERR_OK) {
+        GGL_LOGD(
+            "Bootstrap steps have already been run for %.*s.",
+            (int) component_name.len,
+            component_name.data
+        );
+        return true;
+    }
+    return false;
+}
+
 GglError save_component_info(
     GglBuffer component_name, GglBuffer component_version, GglBuffer type
 ) {
@@ -407,32 +433,16 @@ GglError process_bootstrap_phase(
 
         // check config to see if component bootstrap steps have already been
         // completed
-        uint8_t resp_mem[128] = { 0 };
-        GglBuffer resp = GGL_BUF(resp_mem);
-        GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("DeploymentService"),
-                GGL_STR("deploymentState"),
-                GGL_STR("bootstrapComponents"),
-                component_name
-            ),
-            &resp
-        );
-        if (ret == GGL_ERR_OK) {
-            GGL_LOGD(
-                "Bootstrap steps have already been run for %.*s. Skipping "
-                "component.",
-                (int) component_name.len,
-                component_name.data
-            );
+        if (component_bootstrap_phase_completed(component_name)) {
+            GGL_LOGD("Bootstrap processed. Skipping component.");
             continue;
         }
 
         static uint8_t bootstrap_service_file_path_buf[PATH_MAX];
         GglByteVec bootstrap_service_file_path_vec
             = GGL_BYTE_VEC(bootstrap_service_file_path_buf);
-        ret = ggl_byte_vec_append(&bootstrap_service_file_path_vec, root_path);
+        GglError ret
+            = ggl_byte_vec_append(&bootstrap_service_file_path_vec, root_path);
         ggl_byte_vec_append(&bootstrap_service_file_path_vec, GGL_STR("/"));
         ggl_byte_vec_append(&bootstrap_service_file_path_vec, GGL_STR("ggl."));
         ggl_byte_vec_chain_append(
