@@ -834,14 +834,16 @@ static GglError generate_resolve_component_candidates_body(
         &architecture_detail_read_value
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGD("No architecture.detail found, using empty string as a "
-                 "default value.");
+        GGL_LOGD("No architecture.detail found, so not including it in the "
+                 "component candidates search.");
         architecture_detail_read_value = GGL_OBJ_BUF(GGL_STR(""));
     }
 
     if (architecture_detail_read_value.type != GGL_TYPE_BUF) {
-        GGL_LOGD("architecture.detail platformOverride in the config is not a "
-                 "buffer, so using an empty string as a default value.");
+        GGL_LOGD(
+            "architecture.detail platformOverride in the config is not a "
+            "buffer, so not including it in the component candidates search"
+        );
         architecture_detail_read_value = GGL_OBJ_BUF(GGL_STR(""));
     }
 
