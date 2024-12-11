@@ -39,6 +39,7 @@ ggconfigd
 ggconfiglib
 ggconflib
 ggcore
+ggcredentials
 GGDEPLOYMENT
 ggdeploymentd
 gghealthd
