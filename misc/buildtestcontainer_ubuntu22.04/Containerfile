@@ -1,0 +1,29 @@
+FROM ubuntu:22.04
+ARG DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update
+
+RUN apt-get install -y software-properties-common ca-certificates gpg wget git pkg-config
+
+RUN add-apt-repository ppa:savoury1/backports
+
+RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+
+RUN echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main' | tee /etc/apt/sources.list.d/kitware.list >/dev/null
+
+RUN apt-get update \
+  && apt-get -y install --no-install-recommends \
+    systemd systemd-sysv dbus ca-certificates sudo nano bash-completion \
+    build-essential pkg-config cmake curl file gdb python3 \
+    libssl-dev libcurl4-openssl-dev libsqlite3-dev sqlite3 libyaml-dev \
+    libsystemd-dev liburiparser-dev uuid-dev libevent-dev libzip-dev \
+  && apt-get clean
+
+RUN apt-get upgrade -y
+
+COPY ./getty-override.conf \
+  /etc/systemd/system/console-getty.service.d/override.conf
+
+RUN echo "export MAKEFLAGS=-j" >> /root/.profile
+
+CMD ["/lib/systemd/systemd"]

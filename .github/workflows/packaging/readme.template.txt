@@ -14,7 +14,7 @@ There is a arm64 and x86-64 version available of this zip file. For the latest
 version, as well as other install options check here:
 https://github.com/aws-greengrass/aws-greengrass-lite/releases
 
-This deb package only works with Ubuntu 24.04., because of library version,
+This deb package only works with Ubuntu {{ UBUNTU_VERSION }}, because of library version,
 package constraints! It doesn't matter if this Ubuntu is running on EC2,
 Desktop, Raspberry Pi, Container...
 
@@ -22,11 +22,11 @@ This package has been built from this source revision:
 {{ VERSION_LINK }}
 
 ###############################################################################
-# INSTALLATION UBUNTU 24.04 ON RASPBERRY PI
+# INSTALLATION UBUNTU {{ UBUNTU_VERSION }} ON RASPBERRY PI
 ###############################################################################
 Download rpi imager for your OS (mac, win, linux)
 https://www.raspberrypi.com/documentation/computers/getting-started.html#raspberry-pi-imager
-Select “Ubuntu Server 24.04.1 LTS”.
+Select “Ubuntu Server {{ UBUNTU_VERSION }} LTS”.
 
 ###############################################################################
 # INSTALLATION
