@@ -1846,6 +1846,17 @@ static GglError open_component_artifacts_dir(
     );
 }
 
+static GglBuffer get_unversioned_substring(GglBuffer arn) {
+    size_t colon_index = SIZE_MAX;
+    for (size_t i = arn.len; i > 0; i--) {
+        if (arn.data[i - 1] == ':') {
+            colon_index = i - 1;
+            break;
+        }
+    }
+    return ggl_buffer_substr(arn, 0, colon_index);
+}
+
 static GglError add_arn_list_to_config(
     GglBuffer component_name, GglBuffer configuration_arn
 ) {
@@ -1874,7 +1885,7 @@ static GglError add_arn_list_to_config(
         return GGL_ERR_FAILURE;
     }
 
-    GglObjVec new_arn_list = GGL_OBJ_VEC((GglObject[10]) { 0 });
+    GglObjVec new_arn_list = GGL_OBJ_VEC((GglObject[100]) { 0 });
     if (ret != GGL_ERR_NOENTRY) {
         // list exists in config, parse for current config arn and append if it
         // is not already included
@@ -1882,10 +1893,10 @@ static GglError add_arn_list_to_config(
             GGL_LOGE("Configuration arn list not of expected type.");
             return GGL_ERR_INVALID;
         }
-        if (arn_list.list.len >= 10) {
+        if (arn_list.list.len >= 100) {
             GGL_LOGE(
                 "Cannot append configArn: Component is deployed as part of too "
-                "many thing groups (%zu >= 10).",
+                "many deployments (%zu >= 100).",
                 arn_list.list.len
             );
         }
@@ -1894,8 +1905,29 @@ static GglError add_arn_list_to_config(
                 GGL_LOGE("Configuration arn not of type buffer.");
                 return ret;
             }
-            if (ggl_buffer_eq(arn->buf, configuration_arn)) {
-                // arn already added to config
+            if (ggl_buffer_eq(
+                    get_unversioned_substring(arn->buf),
+                    get_unversioned_substring(configuration_arn)
+                )) {
+                // arn for this group already added to config, replace it
+                GGL_LOGD("Configuration arn already exists for this thing "
+                         "group, overwriting it.");
+                *arn = GGL_OBJ_BUF(configuration_arn);
+                ret = ggl_gg_config_write(
+                    GGL_BUF_LIST(
+                        GGL_STR("services"),
+                        component_name,
+                        GGL_STR("configArn")
+                    ),
+                    GGL_OBJ_LIST(arn_list.list),
+                    0
+                );
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE(
+                        "Failed to write configuration arn list to the config."
+                    );
+                    return ret;
+                }
                 return GGL_ERR_OK;
             }
             ret = ggl_obj_vec_push(&new_arn_list, *arn);
