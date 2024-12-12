@@ -185,23 +185,26 @@ static GglError delete_component(
         (int) version_number.len,
         version_number.data
     );
+    GglError ret;
 
     // Remove component from config as we use that as source of truth for active
     // running components
-    GglError ret
-        = ggl_gg_config_delete(GGL_BUF_LIST(GGL_STR("services"), component_name)
+    if (delete_all_versions) {
+        ret = ggl_gg_config_delete(
+            GGL_BUF_LIST(GGL_STR("services"), component_name)
         );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "Failed to delete component information from the configuration."
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Failed to delete component information from the configuration."
+            );
+            return ret;
+        }
+        GGL_LOGD(
+            "Removed configuration of stale component %.*s",
+            (int) component_name.len,
+            component_name.data
         );
-        return ret;
     }
-    GGL_LOGD(
-        "Removed configuration of stale component %.*s",
-        (int) component_name.len,
-        component_name.data
-    );
 
     static uint8_t root_path_mem[PATH_MAX];
     memset(root_path_mem, 0, sizeof(root_path_mem));
