@@ -47,8 +47,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define MAX_RECIPE_BUF_SIZE 256000
 #define MAX_DECODE_BUF_LEN 4096
+#define MAX_RECIPE_MEM 25000
 
 static struct DeploymentConfiguration {
     char data_endpoint[128];
@@ -1640,7 +1640,7 @@ static GglError resolve_dependencies(
 
         // Get actual recipe read
         GglObject recipe_obj;
-        static uint8_t recipe_mem[8192] = { 0 };
+        static uint8_t recipe_mem[MAX_RECIPE_MEM] = { 0 };
         GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(recipe_mem));
         ret = ggl_recipe_get_from_file(
             args->root_path_fd,
@@ -2279,7 +2279,7 @@ static void handle_deployment(
             return;
         }
         GglObject recipe_obj;
-        static uint8_t recipe_mem[8192] = { 0 };
+        static uint8_t recipe_mem[MAX_RECIPE_MEM] = { 0 };
         static uint8_t component_arn_buffer[256];
         GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(recipe_mem));
         ret = ggl_recipe_get_from_file(
@@ -2392,7 +2392,7 @@ static void handle_deployment(
 
         GglObject recipe_buff_obj;
         GglObject *component_name;
-        static uint8_t big_buffer_for_bump[MAX_RECIPE_BUF_SIZE];
+        static uint8_t big_buffer_for_bump[MAX_RECIPE_MEM];
         GglBumpAlloc bump_alloc
             = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
         HasPhase phases = { 0 };

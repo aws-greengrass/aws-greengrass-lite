@@ -30,10 +30,11 @@ GglError ggl_handle_get_configuration(
     GglObject *key_path_obj;
     GglObject *component_name_obj;
     GglBuffer component_name;
+
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("keyPath"), true, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("keyPath"), false, GGL_TYPE_LIST, &key_path_obj },
             { GGL_STR("componentName"),
               false,
               GGL_TYPE_BUF,
@@ -43,6 +44,11 @@ GglError ggl_handle_get_configuration(
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid parameters.");
         return GGL_ERR_INVALID;
+    }
+
+    GglObject empty_object = GGL_OBJ_LIST({ 0 });
+    if (key_path_obj == NULL) {
+        key_path_obj = &empty_object;
     }
 
     ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);

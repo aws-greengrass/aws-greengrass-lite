@@ -13,6 +13,7 @@
 #include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
+#include <ggl/json_encode.h>
 #include <ggl/json_pointer.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -28,7 +29,7 @@
 
 #define MAX_SCRIPT_LENGTH 10000
 #define MAX_THING_NAME_LEN 128
-#define MAX_RECIPE_LEN 256000
+#define MAX_RECIPE_LEN 25000
 
 pid_t child_pid = -1; // To store child process ID
 
@@ -46,14 +47,20 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
     }
 
     static uint8_t config_value[10000];
-    GglBuffer result = GGL_BUF(config_value);
-    ret = ggipc_get_config_str(conn, key_path.buf_list, NULL, &result);
+    static uint8_t copy_config_value[10000];
+    GglBumpAlloc buffer = ggl_bump_alloc_init(GGL_BUF(config_value));
+    GglObject result = { 0 };
+    ret = ggipc_get_config_obj(
+        conn, key_path.buf_list, NULL, &buffer.alloc, &result
+    );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get config value for substitution.");
         return ret;
     }
+    GglBuffer final_result = GGL_BUF(copy_config_value);
+    ggl_json_encode(result, &final_result);
 
-    return ggl_file_write(out_fd, result);
+    return ggl_file_write(out_fd, final_result);
 }
 
 static GglError split_escape_seq(

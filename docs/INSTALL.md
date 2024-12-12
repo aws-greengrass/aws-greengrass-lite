@@ -79,6 +79,10 @@ adduser -g <gid from previous command> ggcore
 Then run:
 
 ```
+sudo mkdir /ggcredentials
+//cp your aws credentials(device certificates, private key, root ca) to this folder
+chown -R ggcore:ggcore /ggcredentials
+
 mkdir /var/lib/greengrass
 chown ggcore:ggcore /var/lib/greengrass
 ```
