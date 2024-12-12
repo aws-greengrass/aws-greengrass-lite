@@ -471,7 +471,9 @@ GglError ggl_deployment_dequeue(GglDeployment **deployment) {
 }
 
 void ggl_deployment_release(GglDeployment *deployment) {
-    assert(deployment == &deployments[queue_index]);
+    assert(ggl_buffer_eq(
+        deployment->deployment_id, deployments[queue_index].deployment_id
+    ));
 
     GGL_LOGD("Removing deployment from queue.");
 
