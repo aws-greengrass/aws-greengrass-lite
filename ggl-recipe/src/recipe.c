@@ -281,12 +281,8 @@ static GglError manifest_selection(
                 // Then check if architecture is also supported
                 if (((architecture_obj == NULL)
                      || (architecture_obj->buf.len == 0)
-                     || (strncmp(
-                             (char *) architecture_obj->buf.data,
-                             (char *) curr_arch.data,
-                             architecture_obj->buf.len
-                         )
-                         == 0))) {
+                     || ggl_buffer_eq(architecture_obj->buf, GGL_STR("*"))
+                     || ggl_buffer_eq(architecture_obj->buf, curr_arch))) {
                     GglObject *selections;
                     if (ggl_map_get(
                             *manifest_map,

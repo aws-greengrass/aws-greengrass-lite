@@ -37,6 +37,14 @@ GglError ggipc_get_config_str(
     int conn, GglBufList key_path, GglBuffer *component_name, GglBuffer *value
 );
 
+GglError ggipc_get_config_obj(
+    int conn,
+    GglBufList key_path,
+    GglBuffer *component_name,
+    GglAlloc *alloc,
+    GglObject *value
+);
+
 GglError ggipc_publish_to_iot_core(
     int conn,
     GglBuffer topic_name,

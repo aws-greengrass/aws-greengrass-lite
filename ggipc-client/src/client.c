@@ -354,6 +354,73 @@ GglError ggipc_get_config_str(
     return GGL_ERR_OK;
 }
 
+GglError ggipc_get_config_obj(
+    int conn,
+    GglBufList key_path,
+    GglBuffer *component_name,
+    GglAlloc *alloc,
+    GglObject *value
+) {
+    GglObjVec path_vec = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
+    GglError ret = GGL_ERR_OK;
+    for (size_t i = 0; i < key_path.len; i++) {
+        ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ_BUF(key_path.bufs[i]));
+    }
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Key path too long.");
+        return GGL_ERR_NOMEM;
+    }
+
+    GglKVVec args = GGL_KV_VEC((GglKV[2]) { 0 });
+    (void) ggl_kv_vec_push(
+        &args, (GglKV) { GGL_STR("keyPath"), GGL_OBJ_LIST(path_vec.list) }
+    );
+    if (component_name != NULL) {
+        (void) ggl_kv_vec_push(
+            &args,
+            (GglKV) { GGL_STR("componentName"), GGL_OBJ_BUF(*component_name) }
+        );
+    }
+
+    static uint8_t resp_mem[sizeof(GglKV) + sizeof("value") + PATH_MAX];
+    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
+    GglObject resp;
+    ret = ggipc_call(
+        conn,
+        GGL_STR("aws.greengrass#GetConfiguration"),
+        args.map,
+        &balloc.alloc,
+        &resp
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    if (resp.type != GGL_TYPE_MAP) {
+        GGL_LOGE("Config value is not a map.");
+        return GGL_ERR_FAILURE;
+    }
+
+    GglObject *resp_value;
+    ret = ggl_map_validate(
+        resp.map,
+        GGL_MAP_SCHEMA({ GGL_STR("value"), true, GGL_TYPE_NULL, &resp_value })
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed validating server response.");
+        return GGL_ERR_INVALID;
+    }
+
+    ret = ggl_obj_deep_copy(resp_value, alloc);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Insufficent memory provided for response.");
+        return ret;
+    }
+
+    *value = *resp_value;
+    return GGL_ERR_OK;
+}
+
 // TODO: use GglByteVec for payload to allow in-place base64 encoding and remove
 // alloc
 GglError ggipc_publish_to_iot_core(

@@ -20,10 +20,10 @@
 
 GglError run_recipe2unit_test(void) {
     static Recipe2UnitArgs args = { 0 };
-    char component_name[] = "recipe";
-    char version[] = "1.0.0";
+    char component_name[] = "[Component Name here]";
+    char version[] = "[Component Version here]";
     char root_dir[] = ".";
-    char recipe_runner_path[] = "/home/reciperunner";
+    char recipe_runner_path[] = "[Path to recipe runner here]";
 
     int root_path_fd;
     GglError ret
@@ -49,9 +49,9 @@ GglError run_recipe2unit_test(void) {
 
     GglObject recipe_map;
     GglObject *component_name_obj;
-    static uint8_t big_buffer_for_bump[5000];
+    static uint8_t big_buffer_for_bump[50000];
     GglBumpAlloc bump_alloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-    HasPhase phases;
+    HasPhase phases = { 0 };
 
     convert_to_unit(
         &args, &bump_alloc.alloc, &recipe_map, &component_name_obj, &phases
