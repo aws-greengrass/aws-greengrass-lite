@@ -590,14 +590,6 @@ GglError runner(const RecipeRunnerArgs *args) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
 
-    GglByteVec resp_vec = GGL_BYTE_VEC(resp_mem);
-    ret = ggl_byte_vec_append(&resp_vec, GGL_STR("http://localhost:"));
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to append http://localhost:");
-        return ret;
-    }
-    GglBuffer rest = ggl_byte_vec_remaining_capacity(resp_vec);
-
     sys_ret = setenv("GGC_VERSION", GGL_VERSION, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
@@ -657,7 +649,6 @@ GglError runner(const RecipeRunnerArgs *args) {
         return ret;
     }
 
-    // Check if TES is dependency within the recipe
     GglObject *val;
     if (ggl_map_get(recipe.map, GGL_STR("ComponentDependencies"), &val)) {
         if (val->type != GGL_TYPE_MAP) {
@@ -670,6 +661,15 @@ GglError runner(const RecipeRunnerArgs *args) {
                 GGL_STR("aws.greengrass.TokenExchangeService"),
                 &inner_val
             )) {
+            static uint8_t resp_mem2[PATH_MAX];
+            GglByteVec resp_vec = GGL_BYTE_VEC(resp_mem2);
+            ret = ggl_byte_vec_append(&resp_vec, GGL_STR("http://localhost:"));
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to append http://localhost:");
+                return ret;
+            }
+            GglBuffer rest = ggl_byte_vec_remaining_capacity(resp_vec);
+
             ret = ggipc_get_config_str(
                 conn,
                 GGL_BUF_LIST(GGL_STR("port")),
@@ -679,7 +679,6 @@ GglError runner(const RecipeRunnerArgs *args) {
             if (ret != GGL_ERR_OK) {
                 GGL_LOGW("Failed to get port from config. errono: %d", ret);
             } else {
-                // Only set the env var if port number is valid
                 resp_vec.buf.len += rest.len;
                 ret = ggl_byte_vec_append(
                     &resp_vec, GGL_STR("/2016-11-01/credentialprovider/\0")
@@ -704,7 +703,6 @@ GglError runner(const RecipeRunnerArgs *args) {
             }
         }
     }
-
     int dir_fd;
     ret = ggl_dir_open(root_path, O_PATH, false, &dir_fd);
     if (ret != GGL_ERR_OK) {
