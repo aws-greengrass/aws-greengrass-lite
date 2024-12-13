@@ -73,7 +73,7 @@ GglError save_component_info(
                 component_name
             ),
             GGL_OBJ_BUF(component_version),
-            &(int64_t) { 0 }
+            &(int64_t) { 3 }
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
@@ -93,7 +93,7 @@ GglError save_component_info(
                 component_name
             ),
             GGL_OBJ_BUF(component_version),
-            &(int64_t) { 0 }
+            &(int64_t) { 3 }
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
@@ -131,7 +131,7 @@ GglError save_iot_jobs_id(GglBuffer jobs_id) {
             GGL_STR("jobsID")
         ),
         GGL_OBJ_BUF(jobs_id),
-        &(int64_t) { 0 }
+        &(int64_t) { 3 }
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write IoT Jobs ID to config.");
@@ -154,7 +154,7 @@ GglError save_iot_jobs_version(int64_t jobs_version) {
             GGL_STR("jobsVersion")
         ),
         GGL_OBJ_I64(jobs_version),
-        &(int64_t) { 0 }
+        &(int64_t) { 3 }
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write IoT Jobs Version to config.");
@@ -187,7 +187,7 @@ GglError save_deployment_info(GglDeployment *deployment) {
             GGL_STR("deploymentDoc")
         ),
         deployment_doc,
-        &(int64_t) { 0 }
+        &(int64_t) { 3 }
     );
 
     if (ret != GGL_ERR_OK) {
@@ -211,7 +211,7 @@ GglError save_deployment_info(GglDeployment *deployment) {
             GGL_STR("deploymentType")
         ),
         GGL_OBJ_BUF(deployment_type),
-        &(int64_t) { 0 }
+        &(int64_t) { 3 }
     );
 
     if (ret != GGL_ERR_OK) {

@@ -1920,7 +1920,7 @@ static GglError add_arn_list_to_config(
                         GGL_STR("configArn")
                     ),
                     GGL_OBJ_LIST(arn_list.list),
-                    0
+                    &(int64_t) { 3 }
                 );
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE(
@@ -1941,7 +1941,7 @@ static GglError add_arn_list_to_config(
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(GGL_STR("services"), component_name, GGL_STR("configArn")),
         GGL_OBJ_LIST(new_arn_list.list),
-        0
+        &(int64_t) { 3 }
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write configuration arn list to the config.");
