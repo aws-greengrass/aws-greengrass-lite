@@ -7,20 +7,7 @@ init system.
 
 ## Dependencies
 
-This project uses the following third party library dependencies:
-
-- openssl
-- libcurl >= 7.86
-- sqlite
-- libyaml
-- libsystemd
-- liburiparser
-- libuuid
-- libevent
-- libzip
-- libcgroup-tools
-
-On Ubuntu, these can be installed with:
+This project uses third party library dependencies on Ubuntu > 24.04, these can be installed with:
 
 ```sh
 sudo apt install libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \

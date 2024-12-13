@@ -13,6 +13,23 @@ directory you intend to use as the Greengrass root path.
 The following examples assume you are using `./build` as the build directory,
 and `/var/lib/greengrass` as the Greengrass root path.
 
+## Dependencies
+
+This project uses the following third party library dependencies:
+
+| Library         | Minimum Version Required |
+| --------------- | ------------------------ |
+| openssl         | 3.0                      |
+| libcurl         | 7.86                     |
+| sqlite          | 3.46.0                   |
+| libyaml         | 0.2.2                    |
+| libsystemd      | 249                      |
+| liburiparser    | 0.9.6                    |
+| libuuid         | 2.37.2                   |
+| libevent        | 2.1.12                   |
+| libzip          | 1.7.3                    |
+| libcgroup-tools | 2.0                      |
+
 ## Configuring Greengrass
 
 You may configure a single device with the instruction below or a fleet of
