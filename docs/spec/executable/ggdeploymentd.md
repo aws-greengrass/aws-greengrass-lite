@@ -168,6 +168,29 @@ device following a deployment.
 - Note: Currently excludes local deployments and might result to removal of all
   those components
 
+## NucleusLite Bootstrap
+
+GG-Lite supports bootstrap deployments for the NucleusLite component.
+
+- Upon receiving a deployment, all deployment info will be stored in the config
+  database under services -> DeploymentService -> deploymentState
+- Bootstrap scripts of all bootstrap components will be processed and run
+- Device will reboot after bootstrap scripts successfully complete
+- On reboot, ggdeploymentd will check the config for a previously in progress
+  deployment.
+- If a deployment is found, it will be resumed and completed. Bootstrap steps
+  will be skipped and the remaining lifecycle stages will be processed.
+- If a deployment is not found on startup, ggdeploymentd will continue
+  functioning as normal and await the next deployment
+- At the end of each deployment, all deployment info in the config database will
+  be deleted
+
+- Note:
+  - Bootstrap is NOT guaranteed to work for components other than NucleusLite.
+  - Exit codes in bootstrap scripts are not currently supported. Each script
+    will result in the device being rebooted.
+  - BootstrapOnRollback is NOT supported
+
 ### samples
 
 The expected format of the input map will look as below
