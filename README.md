@@ -67,6 +67,13 @@ corebus. This table identifies the corebus component that does the work.
 | GetClientDeviceAuthToken                | _Future_                     |
 | AuthorizeClientDeviceAction             | _Future_                     |
 
+## Additional Details
+
+Known issues are documented [here](./docs/KNOWN_ISSUES.md) with some potential
+workarounds. Additionally only basic recipe types are supported, more
+information on missing features can be found
+[here](./docs/RECIPE_SUPPORT_CHANGES.md).
+
 ## Security
 
 See [CONTRIBUTING](docs/CONTRIBUTING.md#security-issue-notifications) for more
