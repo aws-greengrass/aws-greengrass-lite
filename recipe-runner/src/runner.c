@@ -649,6 +649,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         return ret;
     }
 
+    // Check if TES is the dependency within the recipe
     GglObject *val;
     if (ggl_map_get(recipe.map, GGL_STR("ComponentDependencies"), &val)) {
         if (val->type != GGL_TYPE_MAP) {
