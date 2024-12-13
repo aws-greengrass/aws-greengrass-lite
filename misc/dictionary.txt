@@ -1,7 +1,9 @@
 aarch64
 ALLOCN
 argp
+armv
 awsiotsdk
+boto
 cgexec
 clientfd
 clientv
@@ -98,7 +100,9 @@ semp
 serde
 serverd
 SERVUNAVAIL
+Setenv
 sigv4
+Skipif
 ssssssouso
 statusd
 stdenv

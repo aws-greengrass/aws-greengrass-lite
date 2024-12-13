@@ -1,0 +1,35 @@
+---
+# Notice: All Key's are case sensitive
+RecipeFormatVersion: "2020-01-25"
+ComponentName: "s3.list.bucket.Python"
+ComponentVersion: "1.0.4"
+ComponentType: "aws.greengrass.generic"
+ComponentDescription: "This example Python component"
+ComponentPublisher: "Amazon"
+ComponentDependencies:
+  aws.greengrass.TokenExchangeService:
+    VersionRequirement: ">=0.0.0"
+    DependencyType: "HARD"
+  aws.greengrass.Nucleus:
+    VersionRequirement: ">=2.0.0 <3.0.0"
+    DependencyType: "HARD"
+Manifests:
+  - Platform:
+      os: "linux"
+      runtime: "*" # Notice this is a required new field for GGLite
+    Lifecycle: {}
+    Selections:
+      - linux
+    Artifacts:
+      - Uri: "s3://gglite-artifact/python_list_S3_bucket.py"
+        Digest: "----"
+        Algorithm: "SHA-256"
+        Unarchive: "NONE"
+        Permission:
+          Read: "OWNER"
+          Execute: "NONE"
+Lifecycle:
+  - linux:
+      run:
+        RequiresPrivilege: true
+        Script: "python3 {artifacts:path}/python_list_S3_bucket.py"

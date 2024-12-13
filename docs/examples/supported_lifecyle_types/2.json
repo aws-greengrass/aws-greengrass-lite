@@ -1,0 +1,153 @@
+{
+  // Notice: All Key's are case sensitive
+  "RecipeFormatVersion": "2020-01-25",
+  "ComponentName": "aws.greengrass.SecureTunneling",
+  "ComponentVersion": "1.0.100",
+  "ComponentType": "aws.greengrass.generic",
+  "ComponentDescription": "Enables AWS IoT Secure Tunneling connections that you can use to establish secure bidirectional communications with Greengrass core devices that are behind restricted firewalls.",
+  "ComponentPublisher": "AWS",
+  "ComponentConfiguration": {
+    "DefaultConfiguration": {
+      "accessControl": {
+        "aws.greengrass.ipc.mqttproxy": {
+          "aws.greengrass.SecureTunneling:mqttproxy:1": {
+            "policyDescription": "Access to tunnel notification pubsub topic",
+            "operations": ["aws.greengrass#SubscribeToIoTCore"],
+            "resources": ["$aws/things/+/tunnels/notify"]
+          }
+        }
+      },
+      "OS_DIST_INFO": "auto"
+    }
+  },
+  "ComponentDependencies": {
+    "aws.greengrass.NucleusLite": {
+      "VersionRequirement": ">=2.0.0",
+      "DependencyType": "SOFT"
+    }
+  },
+  "Manifests": [
+    {
+      "Platform": {
+        "os": "linux",
+        "runtime": "*",
+        "architecture": "amd64" // Notice regex isn't currently supported
+      },
+      "Lifecycle": {
+        "run": {
+          "Script": "java -jar {artifacts:path}/GreengrassV2SecureTunnelingComponent-1.0-all.jar linux x86_64"
+        }
+      },
+      "Artifacts": [
+        {
+          "Uri": "s3://gglite-artifact/GreengrassV2SecureTunnelingComponent-1.0-all.jar",
+          "Digest": "----",
+          "Algorithm": "SHA-256",
+          "Unarchive": "NONE",
+          "Permission": {
+            "Read": "OWNER",
+            "Execute": "NONE"
+          }
+        }
+      ]
+    },
+    {
+      "Platform": {
+        "os": "linux",
+        "runtime": "*",
+        "architecture": "x86_64" // Repeated Lifecycle with just architecture change
+      },
+      "Lifecycle": {
+        "run": {
+          "Script": "java -jar {artifacts:path}/GreengrassV2SecureTunnelingComponent-1.0-all.jar linux x86_64"
+        }
+      },
+      "Artifacts": [
+        {
+          "Uri": "s3://gglite-artifact/GreengrassV2SecureTunnelingComponent-1.0-all.jar",
+          "Digest": "----",
+          "Algorithm": "SHA-256",
+          "Unarchive": "NONE",
+          "Permission": {
+            "Read": "OWNER",
+            "Execute": "NONE"
+          }
+        }
+      ]
+    },
+    {
+      "Platform": {
+        "os": "linux",
+        "runtime": "*",
+        "architecture": "aarch64"
+      },
+      "Lifecycle": {
+        "run": {
+          "Script": "java -jar {artifacts:path}/GreengrassV2SecureTunnelingComponent-1.0-all.jar linux aarch64"
+        }
+      },
+      "Artifacts": [
+        {
+          "Uri": "s3://gglite-artifact/GreengrassV2SecureTunnelingComponent-1.0-all.jar",
+          "Digest": "----",
+          "Algorithm": "SHA-256",
+          "Unarchive": "NONE",
+          "Permission": {
+            "Read": "OWNER",
+            "Execute": "NONE"
+          }
+        }
+      ]
+    },
+    {
+      "Platform": {
+        "os": "linux",
+        "runtime": "*",
+        "architecture": "armv8"
+      },
+      "Lifecycle": {
+        "run": {
+          "Script": "java -jar {artifacts:path}/GreengrassV2SecureTunnelingComponent-1.0-all.jar linux aarch64"
+        }
+      },
+      "Artifacts": [
+        {
+          "Uri": "s3://gglite-artifact/GreengrassV2SecureTunnelingComponent-1.0-all.jar",
+          "Digest": "----",
+          "Algorithm": "SHA-256",
+          "Unarchive": "NONE",
+          "Permission": {
+            "Read": "OWNER",
+            "Execute": "NONE"
+          }
+        }
+      ]
+    },
+    {
+      "Platform": {
+        "os": "linux",
+        "architecture.detail": "armv7l",
+        "runtime": "*",
+        "architecture": "arm"
+      },
+      "Lifecycle": {
+        "run": {
+          "Script": "java -jar {artifacts:path}/GreengrassV2SecureTunnelingComponent-1.0-all.jar linux armv7l"
+        }
+      },
+      "Artifacts": [
+        {
+          "Uri": "s3://gglite-artifact/GreengrassV2SecureTunnelingComponent-1.0-all.jar",
+          "Digest": "----",
+          "Algorithm": "SHA-256",
+          "Unarchive": "NONE",
+          "Permission": {
+            "Read": "OWNER",
+            "Execute": "NONE"
+          }
+        }
+      ]
+    }
+  ],
+  "Lifecycle": {}
+}

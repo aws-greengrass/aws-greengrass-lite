@@ -1,0 +1,43 @@
+---
+# Notice: All Key's are case sensitive
+RecipeFormatVersion: "2020-01-25"
+ComponentName: "s3.list.bucket.Python"
+ComponentVersion: "1.0.4"
+ComponentType: "aws.greengrass.generic"
+ComponentDescription: "This example Python component"
+ComponentPublisher: "Amazon"
+ComponentDependencies:
+  aws.greengrass.TokenExchangeService:
+    VersionRequirement: ">=0.0.0"
+    DependencyType: "HARD"
+  aws.greengrass.NucleusLite:
+    VersionRequirement: ">=2.0.0"
+    DependencyType: "HARD"
+ComponentConfiguration:
+  DefaultConfiguration:
+    containerMode: "auto"
+Manifests:
+  - Platform:
+      os: "linux"
+      runtime: "aws_nucleus_lite" # Notice this is a required new field for GGLite
+    Lifecycle: {} #Notice No Lifecycle or Selection so Global lifecycle is used
+    Artifacts:
+      - Uri: "s3://gglite-artifact/python_list_S3_bucket.py"
+        Digest: "----"
+        Algorithm: "SHA-256"
+        Unarchive: "NONE"
+        Permission:
+          Read: "OWNER"
+          Execute: "NONE"
+Lifecycle:
+  # Notice all is case sensitive and is required when no selection is provided
+  - all:
+      Setenv:
+        TEST_VALUE: "{configuration:/containerMode}"
+      run:
+        # Notice Skipif is not supported
+        RequiresPrivilege: true
+        Script: "python3 {artifacts:path}/python_list_S3_bucket.py"
+        Timeout: 200 #Seconds
+        Setenv:
+          TEST_VALUE: sample
