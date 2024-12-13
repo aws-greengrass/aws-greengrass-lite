@@ -3,8 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "fleet-provisioning.h"
+#include <sys/types.h>
 #include <argp.h>
 #include <ggl/error.h>
+#include <ggl/exec.h>
 #include <ggl/log.h>
 #include <ggl/version.h>
 #include <string.h>
@@ -98,8 +100,13 @@ int main(int argc, char **argv) {
     argp_parse(&argp, argc, argv, 0, 0, &args);
     args.iotcored_path = iotcored_path;
 
-    GglError ret = run_fleet_prov(&args);
+    pid_t pid = -1;
+    GglError ret = run_fleet_prov(&args, &pid);
     if (ret != GGL_ERR_OK) {
+        if (pid != -1) {
+            GGL_LOGE("Something went wrong. Killing iotcored");
+            ggl_exec_kill_process(pid);
+        }
         return 1;
     }
 }

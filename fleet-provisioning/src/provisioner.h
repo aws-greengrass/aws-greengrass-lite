@@ -6,10 +6,11 @@
 #define PROVISIONER_H
 
 #include <sys/types.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 
 GglError make_request(
-    char *csr_as_string, char *cert_file_path, pid_t iotcored_pid
+    GglBuffer csr_as_ggl_buffer, GglBuffer cert_file_path, pid_t iotcored_pid
 );
 
 #endif

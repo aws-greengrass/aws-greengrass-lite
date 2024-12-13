@@ -20,6 +20,8 @@
 #include <ggl/object.h>
 #include <ggl/utils.h>
 #include <string.h>
+#include <stdatomic.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 #define TEMPLATE_PARAM_BUFFER_SIZE 10000
@@ -37,6 +39,8 @@ static uint8_t big_buffer_for_bump[4096];
 GglObject csr_payload_json_obj;
 char *global_cert_file_path;
 
+atomic_bool complete_status = false;
+
 static GglBuffer iotcored = GGL_STR("iotcoredfleet");
 
 static const char *certificate_response_url
@@ -47,7 +51,7 @@ static const char *certificate_response_reject_url
 
 static const char *cert_request_url = "$aws/certificates/create-from-csr/json";
 
-static int request_thing_name(GglObject *cert_owner_gg_obj) {
+static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
     static uint8_t temp_payload_alloc2[2000] = { 0 };
 
     GglBuffer thing_request_buf = GGL_BUF(temp_payload_alloc2);
@@ -104,7 +108,7 @@ static int request_thing_name(GglObject *cert_owner_gg_obj) {
             (int) iotcored.len,
             iotcored.data
         );
-        return EPROTO;
+        return GGL_ERR_FAILURE;
     }
 
     GGL_LOGI("Sent MQTT thing Register publish.");
@@ -160,7 +164,7 @@ static GglError set_global_values(pid_t iotcored_pid) {
         global_register_thing_url,
         strlen(global_register_thing_url)
     );
-    strncat(global_register_thing_reject_url, "/rejected", strlen("/accepted"));
+    strncat(global_register_thing_reject_url, "/rejected", strlen("/rejected"));
 
     // Fetch Template Parameters
     // TODO: Use args passed from entry.c
@@ -194,6 +198,14 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+
+    GGL_LOGI(
+        "Got message from IoT Core; topic: %.*s, payload: %.*s.",
+        (int) topic->len,
+        topic->data,
+        (int) payload->len,
+        payload->data
+    );
 
     if (strncmp((char *) topic->data, certificate_response_url, topic->len)
         == 0) {
@@ -241,7 +253,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 GGL_OBJ_BUF((GglBuffer
                 ) { .data = (uint8_t *) global_cert_file_path,
                     .len = strlen(global_cert_file_path) }),
-                &(int64_t) { 0 }
+                &(int64_t) { 3 }
             );
             if (ret != GGL_ERR_OK) {
                 return ret;
@@ -266,7 +278,11 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
                 // Now that we have a certificate make a call to register a
                 // thing based on that certificate
-                request_thing_name(val);
+                ret = request_thing_name(val);
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Requesting thing name failed");
+                    return ret;
+                }
             }
         }
     } else if (strncmp(
@@ -298,7 +314,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             ret = ggl_gg_config_write(
                 GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")),
                 *val,
-                &(int64_t) { 0 }
+                &(int64_t) { 3 }
             );
             if (ret != GGL_ERR_OK) {
                 return ret;
@@ -309,6 +325,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             ggl_exec_kill_process(global_iotcored_pid);
 
             // TODO: Find a way to terminate cleanly with iotcored
+            atomic_store(&complete_status, true);
         }
     } else {
         GGL_LOGI(
@@ -324,9 +341,9 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 }
 
 GglError make_request(
-    char *csr_as_string, char *cert_file_path, pid_t iotcored_pid
+    GglBuffer csr_as_ggl_buffer, GglBuffer cert_file_path, pid_t iotcored_pid
 ) {
-    global_cert_file_path = cert_file_path;
+    global_cert_file_path = (char *) cert_file_path.data;
 
     GglError ret = set_global_values(iotcored_pid);
     if (ret != GGL_ERR_OK) {
@@ -366,7 +383,6 @@ GglError make_request(
     }
     GGL_LOGI("Successfully set csr accepted subscription.");
 
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     ggl_sleep(2);
 
     // Subscribe to csr reject topic
@@ -398,7 +414,6 @@ GglError make_request(
     }
     GGL_LOGI("Successfully set csr rejected subscription.");
 
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     ggl_sleep(2);
 
     // Subscribe to register thing success topic
@@ -430,15 +445,41 @@ GglError make_request(
     }
     GGL_LOGI("Successfully set thing accepted subscription.");
 
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    // Subscribe to register thing success topic
+    GglMap subscribe_thing_reject_args = GGL_MAP(
+        { GGL_STR("topic_filter"),
+          GGL_OBJ_BUF((GglBuffer
+          ) { .len = strlen(global_register_thing_reject_url),
+              .data = (uint8_t *) global_register_thing_reject_url }) },
+    );
+
+    GglError return_thing_sub_reject = ggl_subscribe(
+        iotcored,
+        GGL_STR("subscribe"),
+        subscribe_thing_reject_args,
+        subscribe_callback,
+        NULL,
+        NULL,
+        NULL,
+        NULL
+    );
+    if (return_thing_sub_reject != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Failed to send thing accepted notify message to %.*s, Error: %d",
+            (int) iotcored.len,
+            iotcored.data,
+            EPROTO
+        );
+        return GGL_ERR_FAILURE;
+    }
+    GGL_LOGI("Successfully set thing rejected subscription.");
+
     ggl_sleep(2);
 
     // Create a json payload object
-    GglObject csr_payload_obj = GGL_OBJ_MAP(
-        GGL_MAP({ GGL_STR("certificateSigningRequest"),
-                  GGL_OBJ_BUF((GglBuffer) { .data = (uint8_t *) csr_as_string,
-                                            .len = strlen(csr_as_string) }) })
-    );
+    GglObject csr_payload_obj
+        = GGL_OBJ_MAP(GGL_MAP({ GGL_STR("certificateSigningRequest"),
+                                GGL_OBJ_BUF(csr_as_ggl_buffer) }));
     GglError ret_err_json = ggl_json_encode(csr_payload_obj, &csr_buf);
     if (ret_err_json != GGL_ERR_OK) {
         return GGL_ERR_PARSE;
@@ -455,8 +496,7 @@ GglError make_request(
         { GGL_STR("payload"), GGL_OBJ_BUF(csr_buf) },
     );
 
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    ggl_sleep(5);
+    ggl_sleep(2);
 
     // Make Publish request to get the new certificate
     GglError ret_publish = ggl_notify(iotcored, GGL_STR("publish"), args);
@@ -470,7 +510,10 @@ GglError make_request(
         return GGL_ERR_FAILURE;
     }
 
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    ggl_sleep(300);
+    while (!atomic_load(&complete_status)) { // Continuously check the flag
+        GGL_LOGI("Wating for thing to register");
+        ggl_sleep(5);
+    }
+
     return GGL_ERR_OK;
 }

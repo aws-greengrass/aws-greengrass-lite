@@ -5,6 +5,7 @@
 #ifndef FLEET_PROVISIONING_H
 #define FLEET_PROVISIONING_H
 
+#include <sys/types.h>
 #include <ggl/error.h>
 
 typedef struct {
@@ -17,5 +18,5 @@ typedef struct {
     char *iotcored_path;
 } FleetProvArgs;
 
-GglError run_fleet_prov(FleetProvArgs *args);
+GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid);
 #endif
