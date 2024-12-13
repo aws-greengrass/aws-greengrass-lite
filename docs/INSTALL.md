@@ -7,7 +7,8 @@ init system.
 
 ## Dependencies
 
-This project uses third party library dependencies on Ubuntu > 24.04, these can be installed with:
+This project uses third party library dependencies on Ubuntu > 24.04, these can
+be installed with:
 
 ```sh
 sudo apt install libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
