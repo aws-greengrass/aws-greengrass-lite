@@ -56,10 +56,10 @@ needed, the component can be renamed which will be under a different counter.
 
 ### Certain complex accessControl policies may not properly grant authorization
 
-accessControl policies for MQTT will not support the \# or \+ MQTT wildcard
-substitutions in the same policy including a normal \* wildcard (the MQTT
-wildcards can still be used if the policy does not include a \*). accessControl
-policies will not support the \$\{\*\}, $\{?\}, and \$\{\$\} escape sequences
+accessControl policies for MQTT will not support the `#` or `+` MQTT wildcard
+substitutions in the same policy including a normal `*` wildcard (the MQTT
+wildcards can still be used if the policy does not include a `*`). accessControl
+policies will not support the `${*}`, `${?}`, and `${$}` escape sequences
 either. They also do not support recipe variable interpolations in policies due
 to Greengrass Lite not supporting recipe variable interpolation in configuration
 yet and accessControl policies are part of the component configuration.
