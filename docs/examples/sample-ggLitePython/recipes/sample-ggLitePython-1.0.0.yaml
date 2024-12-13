@@ -1,0 +1,28 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: sample-ggLitePython
+ComponentVersion: 1.0.0
+ComponentType: "aws.greengrass.generic"
+ComponentDescription:
+  This example Python component for GGLite that lists all your s3 bucket names
+ComponentPublisher: AWS
+ComponentDependencies:
+  aws.greengrass.TokenExchangeService:
+    VersionRequirement: ">=0.0.0"
+    DependencyType: "HARD"
+Manifests:
+  - Platform:
+      os: linux
+      runtime: "*"
+    Lifecycle:
+      install:
+        RequiresPrivilege: false
+        Script: "python3 -m venv ./venv && . ./venv/bin/activate && python3 -m
+          pip install\
+          \ boto3"
+      run:
+        RequiresPrivilege: false
+        Script:
+          ". ./venv/bin/activate && python3  {artifacts:path}/ggLitePython.py"
+    # Artifacts:
+    #   - Uri: "---"
