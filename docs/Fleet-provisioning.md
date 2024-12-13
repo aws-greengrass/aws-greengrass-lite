@@ -22,6 +22,9 @@ Hence you will need to follow few important pre-steps
   under `aws.greengrass.fleet_provisioning`'s config
 4. If this is your not first run, remove the socket at
     /run/greengrass/iotcoredfleet, if it exists
+5. Fleet provisioning assumes the your GGL_SYSTEMD_SYSTEM_USER
+  and GGL_SYSTEMD_SYSTEM_GROUP to be ggcore:ggcore please change
+  appropriately if you change these values during compile time
 ```
 
 Sample Fleet provisioning template:
