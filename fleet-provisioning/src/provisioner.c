@@ -147,7 +147,9 @@ static GglError set_global_values(pid_t iotcored_pid) {
         template_name.len
     );
     strncat(
-        global_register_thing_url, "/provision/json", strlen("/provision/json")
+        global_register_thing_url,
+        "/provision/json",
+        sizeof("/provision/json") - 1U
     );
 
     // Copy the prefix over to both buffer
@@ -157,14 +159,18 @@ static GglError set_global_values(pid_t iotcored_pid) {
         global_register_thing_url,
         strlen(global_register_thing_url)
     );
-    strncat(global_register_thing_accept_url, "/accepted", strlen("/accepted"));
+    strncat(
+        global_register_thing_accept_url, "/accepted", sizeof("/accepted") - 1U
+    );
     // Add failure suffix
     strncat(
         global_register_thing_reject_url,
         global_register_thing_url,
         strlen(global_register_thing_url)
     );
-    strncat(global_register_thing_reject_url, "/rejected", strlen("/rejected"));
+    strncat(
+        global_register_thing_reject_url, "/rejected", sizeof("/rejected") - 1U
+    );
 
     // Fetch Template Parameters
     // TODO: Use args passed from entry.c

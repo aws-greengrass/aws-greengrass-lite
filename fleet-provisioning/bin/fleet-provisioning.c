@@ -85,7 +85,7 @@ static void parse_path(char **argv, char *path) {
     // worry about null termination
     //  NOLINTNEXTLINE(bugprone-not-null-terminated-result)
     memcpy(path, argv[0], strlen(argv[0]) - strlen(COMPONENT_NAME));
-    strncat(path, "iotcored", strlen("iotcored"));
+    strncat(path, "iotcored", sizeof("iotcored") - 1U);
 
     GGL_LOGD("iotcored path: %.*s", (int) strlen(path), path);
 }
