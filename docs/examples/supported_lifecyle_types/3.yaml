@@ -10,9 +10,6 @@ ComponentDependencies:
   aws.greengrass.TokenExchangeService:
     VersionRequirement: ">=0.0.0"
     DependencyType: "HARD"
-  aws.greengrass.NucleusLite:
-    VersionRequirement: ">=2.0.0"
-    DependencyType: "HARD"
 ComponentConfiguration:
   DefaultConfiguration:
     containerMode: "auto"

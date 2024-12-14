@@ -20,12 +20,6 @@
       "OS_DIST_INFO": "auto"
     }
   },
-  "ComponentDependencies": {
-    "aws.greengrass.NucleusLite": {
-      "VersionRequirement": ">=2.0.0",
-      "DependencyType": "SOFT"
-    }
-  },
   "Manifests": [
     {
       "Platform": {
