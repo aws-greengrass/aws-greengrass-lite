@@ -12,30 +12,36 @@ To install nucleus lite from source, please follow the guide from
 environment is complete, please start refering to
 [INSTALL.md](./docs/INSTALL.md).
 
-> For developers planning to contribute to nucleus lite, it's highly recommended
-> to setup a nix environment, more information on setup can be found
-> [here](./docs/DEVELOPMENT.md).
-
 For those intrested in a generic method of provisioning nucleus lite device,
 fleet provisioning by claim may be one of the appropriate solution to the
 problem. Please refer to fleet provisioning setup guide
 [here](./docs/Fleet-provisioning.md).
 
+## For Developers
+
+Thank you for your interest in contributing to nucleus lite project. Whether
+it's a bug report, new feature, code, or documentation, we welcome our community
+to be involved in this project. Guidelines on contributing to repo can be found
+[here](./docs/CONTRIBUTING.md)
+
+It's highly recommended to setup a nix environment, more information on setup
+can be found [here](./docs/DEVELOPMENT.md).
+
 ## New with this release
 
-To provide more transparency on decisions and be in sync with the community all
-the design docs and specs for the project are now provided with this release.
-You can find more details on the [design doc](./docs/design/) and
-[spec doc](./docs/spec/) by following the corresponding links.
+The desing document for the Greengrass nucleus lite can be found in the
+[design](./docs/design/) and [spec](./docs/spec/) directories.
 
-As mentioned at the start, currently nucleus lite isn't fully compatable with
-GGV2. The plan is to release this initial version of nucleus lite with basic
-feature support first and then gain full feature compatibility with future
-releases. Currently only basic recipe types are supported and information on the
-supported recipe can be found here [here](./docs/RECIPE_SUPPORT_CHANGES.md).
+Greengrass nucleus lite is currently not fully compatible with GGV2. Greengrass
+nucleus lite only has basic feature support. The follow up releases will add
+more feature to reach feature parity with GGV2 in near future. The basic recipe
+types that are presently supported along with detailed information can be found
+[here](./docs/RECIPE_SUPPORT_CHANGES.md).
 
-Furthermore there are known differences in behavior that are outlined by
-[KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) document. Also please look at the Github
-issues section to keep up with latest known issues. Please create a Github
-issues for any behaviors that is noticed by the contributors but not coverted by
-the doc or Github issues.
+## Known issues
+
+The differences between Greengrass nucleus lite and GGV2 along with the
+currently known issues can be found in the
+[KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) document and Github issues.
+
+We welcome you to create a Github issue to report bugs or suggest features.
