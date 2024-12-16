@@ -1,47 +1,45 @@
 # Release Notes v2.0.0 (Dec 16 2024)
 
-This the first release for Greengrass nucleus lite product line. Greengrass
-nucleus lite v2 aims to be compatable with AWS's GreenGrass v2(GGV2) product
-line, however currently only a subset of the features are supported with this
-release.
+This is the first release of the Greengrass nucleus lite. It aims to be
+compatible with the AWS IoT GreenGrass API and the previous Greengrass nucleus
+implementations, however currently only a subset of the features are supported
+with this release. Expect future releases to reduce the feature gap with
+Greengrass nucleus.
 
-## Installing from sources
+In particular, only basic component recipe types are presently supported.
+Detailed information can be found [here](./docs/RECIPE_SUPPORT_CHANGES.md).
 
-To install nucleus lite from source, please follow the guide from
-[SETUP.md](./docs/SETUP.md) and [TES.md](./docs/TES.md), once the setup
-environment is complete, please start refering to
-[INSTALL.md](./docs/INSTALL.md).
+## Installing from source
 
-For those intrested in a generic method of provisioning nucleus lite device,
-fleet provisioning by claim may be one of the appropriate solution to the
-problem. Please refer to fleet provisioning setup guide
+To install Greengrass nucleus lite from source, please follow the setup guide
+[SETUP.md](./docs/SETUP.md) and [TES.md](./docs/TES.md). Once the development
+environment is setup, please refer to [INSTALL.md](./docs/INSTALL.md).
+
+For provisioning Greengrass nucleus lite devices by claim certificates, please
+take a look at the fleet provisioning by claim setup guide
 [here](./docs/Fleet-provisioning.md).
 
-## For Developers
+## Contribution guidelines
 
-Thank you for your interest in contributing to nucleus lite project. Whether
-it's a bug report, new feature, code, or documentation, we welcome our community
-to be involved in this project. Guidelines on contributing to repo can be found
-[here](./docs/CONTRIBUTING.md)
+Thank you for your interest in contributing to our project. Whether it's a bug
+report, new feature, code, or documentation, we welcome our community to be
+involved in this project.
 
-It's highly recommended to setup a nix environment, more information on setup
-can be found [here](./docs/DEVELOPMENT.md).
+Guidelines for contributing to this repository can be found
+[here](./docs/CONTRIBUTING.md).
+
+It's recommended to setup a nix environment. Information for nix environment
+setup can be found [here](./docs/DEVELOPMENT.md).
 
 ## New with this release
 
-The desing document for the Greengrass nucleus lite can be found in the
-[design](./docs/design/) and [spec](./docs/spec/) directories.
-
-Greengrass nucleus lite is currently not fully compatible with GGV2. Greengrass
-nucleus lite only has basic feature support. The follow up releases will add
-more feature to reach feature parity with GGV2 in near future. The basic recipe
-types that are presently supported along with detailed information can be found
-[here](./docs/RECIPE_SUPPORT_CHANGES.md).
+This is the first release of Greengrass nucleus lite.
 
 ## Known issues
 
-The differences between Greengrass nucleus lite and GGV2 along with the
-currently known issues can be found in the
-[KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) document and Github issues.
+The differences between Greengrass nucleus lite and Greengrass nucleus along
+with the currently known issues can be found in the
+[KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) document. For an updated list of
+issues/feature requests, please take a look at GitHub issues in the repository.
 
-We welcome you to create a Github issue to report bugs or suggest features.
+We welcome you to create an issue to report bugs or suggest features.
