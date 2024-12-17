@@ -49,13 +49,14 @@ Configure the following in your config file
 
 - privateKeyPath: Path to private key for the Thing
 - certificateFilePath: Path to Thing certificate
-- thingName: Name of the Thing
+- rootCaPath: Path to Amazon Root CA certificate
 - rootPath: Absolute path to the Greengrass rootpath directory
+- thingName: Name of the Thing
 - awsRegion: The AWS region with the Thing
 - iotCredEndpoint: The IoT Core endpoint
 - iotDataEndpoint: The IoT Core endpoint
-- posixUser: Colon separated user/group that generic components should run as
 - iotRoleAlias: The name of the role alias for accessing TES
+- posixUser: Colon separated user/group that generic components should run as
 
 `posixUser` must be set to a valid user and group. If no colon and group is
 provided, the user's default group is used. If not running Greengrass as root,
