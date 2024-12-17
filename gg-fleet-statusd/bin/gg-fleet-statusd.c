@@ -4,6 +4,10 @@
 
 #include "gg_fleet_statusd.h"
 #include <ggl/error.h>
+#include <ggl/version.h>
+
+__attribute__((visibility("default"))) const char *argp_program_version
+    = GGL_VERSION;
 
 int main(int argc, char **argv) {
     (void) argc;
