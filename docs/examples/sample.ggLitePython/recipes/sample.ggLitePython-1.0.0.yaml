@@ -1,6 +1,6 @@
 ---
 RecipeFormatVersion: "2020-01-25"
-ComponentName: sample-ggLitePython
+ComponentName: sample.ggLitePython
 ComponentVersion: 1.0.0
 ComponentType: "aws.greengrass.generic"
 ComponentDescription:
