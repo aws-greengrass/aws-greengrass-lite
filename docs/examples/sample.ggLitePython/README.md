@@ -9,11 +9,11 @@ This demo has two key requirements for it to work.
 ### Pre-installed python3 and python3-venv.
 
 - As a python demo it requires the python3 interpreter (if not already
-  installed) as a well as a python3 virtual environment support for a isolated
-  dependency management.
+  installed) as a well as a python3 virtual environment for isolated dependency
+  management.
 
-- As an alternative method you may deploy the following recipe as a seprate
-  deployment before deploying given python demo.
+- Alternatively, you may deploy the following recipe before deploying the given
+  python demo.
 
 ```yaml
 ---
@@ -59,8 +59,14 @@ You may deploy the componet the following ways:
 
 ## End result
 
-Once the deployment is successful running the following command to check the log
-and see the list of buckets in your S3 that exist in your aws account.
+The logs for following the deployment status can be found by:
+
+```shell
+$ journalctl -xeau ggl.core.ggdeploymentd.service
+```
+
+Once successful, use the following command to check the logs and see the list of
+S3 bucket names that exist in your aws account.
 
 ```shell
 $ journalctl -xeau ggl.sample.ggLitePython.service
