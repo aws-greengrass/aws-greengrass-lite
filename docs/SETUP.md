@@ -38,12 +38,15 @@ Choose one or the other.
 
 To configure Greengrass, you will need a config YAML file, in the same format as
 the Classic nucleus config. An example config file is available in
-[`doc/examples/sample_nucleus_config.yml`](examples/sample_nucleus_config.yml).
+[`docs/examples/sample_nucleus_config.yaml`](examples/sample_nucleus_config.yaml).
 If this is the first time you are creating a GG device, please follow the
 instruction in the [TES setup instructions](./TES.md) to get a role alias,
 thing, certificate, private key, and endpoints for your device.
 
-Make a copy of the [sample configuration](./examples/sample_nucleus_config.yml).
+Make a copy of the [sample configuration](./examples/sample_nucleus_config.yaml) as `config.yaml`.
+```sh
+cp docs/examples/sample_nucleus_config.yaml ./config.yaml
+```
 
 Configure the following in your config file
 
@@ -68,11 +71,11 @@ as `/etc/greengrass/config.yaml`, and/or in one or more files in
 
 The config daemon will initially load `/etc/greengrass/config.yaml` and then
 update the initial configuration with any other config files present in
-`/etc/greengrass/config.d/`
+`/etc/greengrass/config.d/`. Copy your configuration file to the above directory ( Note: you might need to run with `sudo` in case you are getting `permission denied` error) -
 
 ```sh
 mkdir -p /etc/greengrass
-cp ./init_config.yml /etc/greengrass/config.yaml
+cp ./config.yaml /etc/greengrass/config.yaml
 ```
 
 ## Running the nucleus
