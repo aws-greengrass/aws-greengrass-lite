@@ -43,7 +43,9 @@ If this is the first time you are creating a GG device, please follow the
 instruction in the [TES setup instructions](./TES.md) to get a role alias,
 thing, certificate, private key, and endpoints for your device.
 
-Make a copy of the [sample configuration](./examples/sample_nucleus_config.yaml) as `config.yaml`.
+Make a copy of the [sample configuration](./examples/sample_nucleus_config.yaml)
+as `config.yaml`.
+
 ```sh
 cp docs/examples/sample_nucleus_config.yaml ./config.yaml
 ```
@@ -71,7 +73,9 @@ as `/etc/greengrass/config.yaml`, and/or in one or more files in
 
 The config daemon will initially load `/etc/greengrass/config.yaml` and then
 update the initial configuration with any other config files present in
-`/etc/greengrass/config.d/`. Copy your configuration file to the above directory ( Note: you might need to run with `sudo` in case you are getting `permission denied` error) -
+`/etc/greengrass/config.d/`. Copy your configuration file to the above directory
+( Note: you might need to run with `sudo` in case you are getting
+`permission denied` error) -
 
 ```sh
 mkdir -p /etc/greengrass
