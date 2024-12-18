@@ -18,6 +18,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <ggl/version.h>
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>
@@ -305,7 +306,7 @@ GglError publish_fleet_status_update(
     }
 
     GglObject payload_obj = GGL_OBJ_MAP(GGL_MAP(
-        { GGL_STR("ggcVersion"), GGL_OBJ_BUF(GGL_STR("1.0.0")) },
+        { GGL_STR("ggcVersion"), GGL_OBJ_BUF(GGL_STR(GGL_VERSION)) },
         { GGL_STR("platform"), GGL_OBJ_BUF(GGL_STR("linux")) },
         { GGL_STR("architecture"), GGL_OBJ_BUF(ARCHITECTURE) },
         { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("aws_nucleus_lite")) },
