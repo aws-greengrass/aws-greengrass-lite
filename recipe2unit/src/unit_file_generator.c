@@ -286,7 +286,7 @@ static GglError update_unit_file_buffer(
             return ret;
         }
     } else {
-        // The deafult timeout is 120 seconds
+        // The default timeout is 120 seconds
         ret = ggl_byte_vec_append(out, GGL_STR("TimeoutSec=120\n"));
         if (ret != GGL_ERR_OK) {
             return ret;

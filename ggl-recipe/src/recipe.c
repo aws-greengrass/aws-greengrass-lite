@@ -317,10 +317,10 @@ static GglError manifest_selection(
                         }
                     }
 
-                    GglList selection_deafult
+                    GglList selection_default
                         = GGL_LIST(GGL_OBJ_BUF(GGL_STR("all")));
                     return lifecycle_selection(
-                        &GGL_OBJ_LIST(selection_deafult),
+                        &GGL_OBJ_LIST(selection_default),
                         recipe_map,
                         selected_lifecycle_object
                     );

@@ -161,7 +161,7 @@ static void request_handler(struct evhttp_request *req, void *arg) {
     evbuffer_free(buf);
 }
 
-static void deafult_handler(struct evhttp_request *req, void *arg) {
+static void default_handler(struct evhttp_request *req, void *arg) {
     (void) arg;
 
     GglBuffer response_cred_buffer
@@ -205,7 +205,7 @@ GglError http_server(void) {
     evhttp_set_cb(
         http, "/2016-11-01/credentialprovider/", request_handler, NULL
     );
-    evhttp_set_gencb(http, deafult_handler, NULL);
+    evhttp_set_gencb(http, default_handler, NULL);
 
     // Bind to available  port
     handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", 0);

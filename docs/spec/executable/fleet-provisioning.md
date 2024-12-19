@@ -28,7 +28,7 @@ operations
 
 - [fleet-provisioning-param-certfilePath-1] The argument will provide the path
   to the certificate that will be created locally as well as the onces that will
-  be fetched from iot core. By deafult the location will be the current working
+  be fetched from iot core. By default the location will be the current working
   directory
 - [fleet-provisioning-param-certfilePath-2] The certfilePath argument can be
   provided by `--cert-file-Path` or `-c`.
