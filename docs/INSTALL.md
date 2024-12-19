@@ -15,6 +15,9 @@ sudo apt install libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
   libsystemd-dev liburiparser-dev uuid-dev libevent-dev libzip-dev cgroup-tools
 ```
 
+The versions required by greengrass nucleus lite are mentioned at
+[SETUP.md](./SETUP.md#dependencies).
+
 ## Build tools
 
 To build the project, you will need the following build dependencies:

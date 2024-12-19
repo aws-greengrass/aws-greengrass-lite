@@ -57,9 +57,9 @@ You may deploy the componet the following ways:
   - Uncomment the `Artifacts` section of recipe.
   - Provide S3 url under `Uri` section in recipe.
 
-## End result
+## After deploying the component
 
-The logs for following the deployment status can be found by:
+The logs for to follow the deployment progress can be accessed by:
 
 ```shell
 $ journalctl -xeau ggl.core.ggdeploymentd.service
@@ -72,5 +72,5 @@ S3 bucket names that exist in your aws account.
 $ journalctl -xeau ggl.sample.ggLitePython.service
 ```
 
-> If you do see the list of names then keep on press up arrow key until you see
-> `HELLO WORLD` text in your logs
+> If you do not see the list of names then continue pressing the up arrow key
+> until you see `HELLO WORLD` text in your logs

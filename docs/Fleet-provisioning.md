@@ -9,23 +9,33 @@ can get valid certificates. you can follow the link
 [here](https://docs.aws.amazon.com/greengrass/v2/developerguide/fleet-provisioning-setup.html)
 to learn how to create appropriate policies and claim certificate.
 
-```
-Note:
-Currently, fleet provisioning can only be run manually.
-Hence you will need to follow few important pre-steps
+Greengrass nucleus lite generates csr and private keys locally and then sends
+the csr to iotcore to generate a certificate. This behavior is different from
+Greengrass classic. Hence make sure your claim certificate have connect,
+publish, subscribe and receive access to `CreateCertificateFromCsr` and
+`RegisterThing` topics mentioned in
+[linked AWS docs](https://docs.aws.amazon.com/iot/latest/developerguide/fleet-provision-api.html).
 
-1. Make sure you are logged in as root
-2. Allow read access to all user for your certificates
-    chmod -R +rx /ggcredentials/
-3. Make sure you do not fill iotCredEndpoint/iotDataEndpoint under
-  `aws.greengrass.NucleusLite` you should only fill these fields
-  under `aws.greengrass.fleet_provisioning`'s config
-4. If this is your not first run, remove the socket at
-    /run/greengrass/iotcoredfleet, if it exists
-5. Fleet provisioning assumes the your GGL_SYSTEMD_SYSTEM_USER
-  and GGL_SYSTEMD_SYSTEM_GROUP to be ggcore:ggcore please change
-  appropriately if you change these values during compile time
-```
+## Before getting started:
+
+Currently, fleet provisioning can only be run manually. Hence you will need to
+follow few important pre-steps
+
+1. This section assumes that the system has already met the dependencies
+   mentioned in [SETUP.md](./SETUP.md#dependencies).
+2. Make sure you are logged in as root.
+3. Allow read access to all user for your certificates
+   `chmod -R +rx /ggcredentials/`.
+4. Make sure you do not fill `iotCredEndpoint/iotDataEndpoint` under
+   `aws.greengrass.NucleusLite` you should only fill these fields under
+   `aws.greengrass.fleet_provisioning`'s config. See the
+   [sample config below](#configyaml).
+5. Fleet provisioning assumes the your `GGL_SYSTEMD_SYSTEM_USER` and
+   `GGL_SYSTEMD_SYSTEM_GROUP` mentioned in [CMakeLists.txt](../CMakeLists.txt)
+   to be `ggcore:ggcore` please change appropriately if these values are changed
+   during compile time.
+6. If this is your not first run, remove the socket at
+   `/run/greengrass/iotcoredfleet`, if it exists.
 
 Sample Fleet provisioning template:
 
@@ -82,15 +92,19 @@ Sample Fleet provisioning template:
 }
 ```
 
+## Setting up the device side for provisioning
+
 Here we can assume your template name is `FleetTestNew` and your template
-requires you to only provide a serial number as parameter. Then your nucleus
-config should roughly look as below.
+requires(based on above template) you to only provide a serial number as
+parameter. Then your nucleus config should roughly look as below:
+
+### `config.yaml`
 
 ```yaml
 ---
 system:
-  privateKeyPath: ""
-  certificateFilePath: ""
+  privateKeyPath: "" #[Must leave blank]
+  certificateFilePath: "" #[Must leave blank]
   rootCaPath: "/ggcredentials/fleetClaim/AmazonRootCA1.pem" #[Modify here]
   rootPath: "/var/lib/greengrass/" #[Modify here]
   thingName: "" #[Must leave blank]
@@ -101,7 +115,7 @@ services:
       awsRegion: "us-east-1"
       iotCredEndpoint: "" #[Must leave blank]
       iotDataEndpoint: "" #[Must leave blank]
-      iotRoleAlias: "GreengrassV2TokenExchangeRoleAlias"
+      iotRoleAlias: "GreengrassV2TokenExchangeRoleAlias" #[Modify if needed]
       runWithDefault:
         posixUser: "user:group" #[Modify here]
       greengrassDataPlanePort: "8443"
@@ -115,17 +129,29 @@ services:
       templateParams: '{"SerialNumber": "AAA55555"}' #[Modify here]
 ```
 
-In root user shell, run fleet provisioning
+Once completed, the config needs to be moved and all the services need to be
+started (if not started already). Run the following command for it, assuming
+your current working directory is root of greengrass repository:
 
 ```sh
-cd ./run
-../build/bin/fleet-provisioning
+$ mkdir -p /etc/greengrass
+$ cp ./run/config.yaml /etc/greengrass/config.yaml
+$ ./misc/run_nucleus
+```
+
+In root user shell, run fleet provisioning:
+
+```sh
+$ ../build/bin/fleet-provisioning
 ```
 
 Now this will trigger the fleet provisioning script which will take a few
 minutes to complete.
 
-> Note: Device will reboot in case of successful run
+> Note: Device will reboot in case of successful run.
 
 If you are storing the standard output then look for log:
 `Process Complete, Your device is now provisioned`.
+
+> You might see some error log such as `process is getting kill by signal 15`
+> this is expected and correct behavior.
