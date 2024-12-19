@@ -488,9 +488,6 @@ GglError ggl_file_read_path_at(int dirfd, GglBuffer path, GglBuffer *content) {
     int fd;
     GglError ret = ggl_file_openat(dirfd, path, O_RDONLY, 0, &fd);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGD(
-            "Err %d while opening file: %.*s", errno, (int) path.len, path.data
-        );
         return ret;
     }
     GGL_CLEANUP(cleanup_close, fd);
@@ -548,5 +545,17 @@ GglError ggl_file_read_path(GglBuffer path, GglBuffer *content) {
         return GGL_ERR_FAILURE;
     }
     GGL_CLEANUP(cleanup_close, base_fd);
-    return ggl_file_read_path_at(base_fd, rel_path, content);
+
+    GglError ret = ggl_file_read_path_at(base_fd, rel_path, content);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Err %d occurred while reading file %.*s",
+            errno,
+            (int) rel_path.len,
+            rel_path.data
+        );
+        return ret;
+    }
+
+    return GGL_ERR_OK;
 }
