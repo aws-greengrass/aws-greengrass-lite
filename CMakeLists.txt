@@ -50,7 +50,6 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY
 
 # Fix for CMake stripping pkg-config includes from compile command
 unset(CMAKE_C_IMPLICIT_INCLUDE_DIRECTORIES)
-
 #
 # Compiler options
 #
@@ -256,7 +255,6 @@ endforeach()
 #
 # System deps
 #
-
 find_package(PkgConfig REQUIRED)
 
 pkg_search_module(openssl REQUIRED IMPORTED_TARGET openssl)
@@ -424,6 +422,18 @@ endif()
 #
 # CPACK deb package generation
 #
+
+file(READ "${CMAKE_SOURCE_DIR}/version" VERSION_STRING)
+string(STRIP "${VERSION_STRING}" VERSION_STRING)
+
+set(CPACK_PACKAGE_VERSION "${VERSION_STRING}")
+
+string(REGEX REPLACE "^([0-9]+)\\.[0-9]+\\.[0-9]+$" "\\1"
+                     CPACK_PACKAGE_VERSION_MAJOR "${VERSION_STRING}")
+string(REGEX REPLACE "^[0-9]+\\.([0-9]+)\\.[0-9]+$" "\\1"
+                     CPACK_PACKAGE_VERSION_MINOR "${VERSION_STRING}")
+string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+)$" "\\1"
+                     CPACK_PACKAGE_VERSION_PATCH "${VERSION_STRING}")
 
 set(CPACK_GENERATOR DEB)
 

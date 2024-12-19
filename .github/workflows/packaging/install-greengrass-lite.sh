@@ -27,11 +27,11 @@ fi
 check_ubuntu_version() {
     if [ -f /etc/os-release ]; then
         . /etc/os-release
-        if [ "$ID" = "ubuntu" ] && [ "$VERSION_ID" = "24.04" ]; then
+        if [ "$ID" = "ubuntu" ] && [ "$VERSION_ID" = "{{ UBUNTU_VERSION }}" ]; then
             return 0
         fi
     fi
-    echo "Error: This greengrass lite package is only working with Ubuntu 24.04."
+    echo "Error: This greengrass lite package is only working with Ubuntu {{ UBUNTU_VERSION }}"
     echo "Current system: $PRETTY_NAME"
     exit 1
 }

@@ -4,39 +4,30 @@
 
 AWS IoT Greengrass runtime for constrained devices.
 
-The Greengrass Lite nucleus provides a smaller alternative to the Java
-nucleus for Greengrass v2 deployments.
+The Greengrass Lite nucleus provides a smaller alternative to the java nucleus
+ for Greengrass v2 deployments.
 
-Greengrass Lite aims to maintain compatibility with the Java nucleus, and
+Greengrass Lite aims to maintain compatibility with the Classic nucleus, and
 implements a subset of its functionality.
 
 There is a arm64 and x86-64 version available of this zip file. For the latest
 version, as well as other install options check here:
 https://github.com/aws-greengrass/aws-greengrass-lite/releases
 
-This deb package only works with Ubuntu 24.04., because of library version,
-package constraints! It doesn't matter if this Ubuntu is running on EC2,
-Desktop, Raspberry Pi, Container...
+This deb package only works with NVIDIA JetPack SDK 6.0 (based on Ubuntu 22.04.),
+because of library version package constraints!
 
 This package has been built from this source revision:
 {{ VERSION_LINK }}
-
-###############################################################################
-# INSTALLATION UBUNTU 24.04 ON RASPBERRY PI
-###############################################################################
-Download rpi imager for your OS (mac, win, linux)
-https://www.raspberrypi.com/documentation/computers/getting-started.html#raspberry-pi-imager
-Select “Ubuntu Server 24.04.1 LTS”.
 
 ###############################################################################
 # INSTALLATION
 ###############################################################################
 
 copy *.deb package and the install-greengrass-lite.sh from this zip onto your
-device (e.g. scp, usb stick, mounting fat partition (Raspberry Pi))
+device
 
-copy ConnectionKit zip onto your device (e.g. scp, usb stick, mounting fat
-partition (Raspberry Pi))
+copy ConnectionKit zip onto your device (e.g. scp, usb stick)
 
 The three files should be in the same folder on the device.
 
