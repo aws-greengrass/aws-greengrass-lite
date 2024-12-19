@@ -33,7 +33,7 @@ This project uses the following third party library dependencies:
 ## Configuring Greengrass
 
 You may configure a single device with the instruction below or a fleet of
-devices with the steps from [Fleet Provisioning guide](Fleet-provisioning.md).
+devices with the steps from [Fleet Provisioning guide](FLEET_PROVISIONING.md).
 Choose one or the other.
 
 To configure Greengrass, you will need a config YAML file, in the same format as

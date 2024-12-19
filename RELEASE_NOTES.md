@@ -17,7 +17,7 @@ development environment is setup, please refer to [SETUP.md](./docs/SETUP.md).
 
 For provisioning Greengrass nucleus lite devices by claim certificates, please
 take a look at the fleet provisioning by claim setup guide
-[here](./docs/Fleet-provisioning.md).
+[here](./docs/FLEET_PROVISIONING.md).
 
 ## Contribution guidelines
 
