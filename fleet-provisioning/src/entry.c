@@ -28,6 +28,8 @@
 #define MAX_TEMPLATE_PARAM_LEN 4096
 #define MAX_PATH_LEN 4096
 
+GglBuffer ggcredentials_path = GGL_STR("/ggcredentials");
+
 static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
     char *iotcore_d_args[]
         = { args->iotcored_path,  "-n", "iotcoredfleet",       "-e",
@@ -191,8 +193,8 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     return GGL_ERR_OK;
 }
 
-static GglError update_cred_access(void) {
-    char *args[] = { "chown", "-R", "ggcore:ggcore", "/ggcredentials/", NULL };
+static GglError update_cred_access(char *user_group) {
+    char *args[] = { "chown", "-R", user_group, "/ggcredentials/", NULL };
 
     GglError ret = ggl_exec_command(args);
     if (ret != GGL_ERR_OK) {
@@ -272,8 +274,6 @@ static GglError update_iot_endpoints(void) {
 }
 
 GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
-    GglBuffer ggcredentials_path = GGL_STR("/ggcredentials");
-
     int config_dir;
     GglError ret
         = ggl_dir_open(ggcredentials_path, O_RDONLY, false, &config_dir);
@@ -401,7 +401,7 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
         return ret;
     }
 
-    ret = update_cred_access();
+    ret = update_cred_access(args->user_group);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

@@ -18,35 +18,50 @@ static char doc[] = "fleet provisioner -- Executable to automatically "
                     "provision the device to AWS IOT core";
 static const char COMPONENT_NAME[] = "fleet-provisioning";
 
-static struct argp_option opts[] = {
-    { "claim-key",
-      'k',
-      "path",
-      0,
-      "Path to key for client claim private certificate",
-      0 },
-    { "claim-cert",
-      'c',
-      "path",
-      0,
-      "Path to key for client claim certificate",
-      0 },
-    { "template-name",
-      't',
-      "name",
-      0,
-      "AWS fleet provisioning template name",
-      0 },
-    { "template-param",
-      'p',
-      "json",
-      0,
-      "[optional] Fleet Prov additional parameters",
-      0 },
-    { "data-endpoint", 'e', "name", 0, "AWS IoT Core data endpoint", 0 },
-    { "root-ca-path", 'r', "path", 0, "Path to key for client certificate", 0 },
-    { 0 }
-};
+static struct argp_option opts[]
+    = { { "user-group",
+          'u',
+          "name",
+          0,
+          "[optional]GGL_SYSTEMD_SYSTEM_USER user and group \":\" seprated",
+          0 },
+        { "claim-key",
+          'k',
+          "path",
+          0,
+          "[optional]Path to key for client claim private certificate",
+          0 },
+        { "claim-cert",
+          'c',
+          "path",
+          0,
+          "[optional]Path to key for client claim certificate",
+          0 },
+        { "template-name",
+          't',
+          "name",
+          0,
+          "[optional]AWS fleet provisioning template name",
+          0 },
+        { "template-param",
+          'p',
+          "json",
+          0,
+          "[optional]Fleet Prov additional parameters",
+          0 },
+        { "data-endpoint",
+          'e',
+          "name",
+          0,
+          "[optional]AWS IoT Core data endpoint",
+          0 },
+        { "root-ca-path",
+          'r',
+          "path",
+          0,
+          "[optional]Path to key for client certificate",
+          0 },
+        { 0 } };
 
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {
     FleetProvArgs *args = state->input;
@@ -69,8 +84,14 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
     case 'r':
         args->root_ca_path = arg;
         break;
+    case 'u':
+        args->user_group = arg;
+        break;
     case ARGP_KEY_END:
-        // ALL keys have defaults further in.
+        if (args->user_group == NULL) {
+            args->user_group = "ggcore:ggcore";
+        }
+        // All keys are optional other are set down the line
         break;
     default:
         return ARGP_ERR_UNKNOWN;
