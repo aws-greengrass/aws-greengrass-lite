@@ -5,18 +5,22 @@
 #include "fleet-provisioning.h"
 #include <sys/types.h>
 #include <argp.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/exec.h>
 #include <ggl/log.h>
+#include <ggl/object.h>
+#include <ggl/vector.h>
 #include <ggl/version.h>
 #include <string.h>
+#include <stdint.h>
 
 __attribute__((visibility("default"))) const char *argp_program_version
     = GGL_VERSION;
 
 static char doc[] = "fleet provisioner -- Executable to automatically "
                     "provision the device to AWS IOT core";
-static const char COMPONENT_NAME[] = "fleet-provisioning";
+static GglBuffer component_name = GGL_STR("fleet-provisioning");
 
 static struct argp_option opts[]
     = { { "user-group",
@@ -101,25 +105,33 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
 
 static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 
-static void parse_path(char **argv, char *path) {
-    // The passed in buffer is expected to be initialzed already, No need to
-    // worry about null termination
-    //  NOLINTNEXTLINE(bugprone-not-null-terminated-result)
-    memcpy(path, argv[0], strlen(argv[0]) - strlen(COMPONENT_NAME));
-    strncat(path, "iotcored", sizeof("iotcored") - 1U);
+// Use the execution path in argv[0] to find iotcored
+static void parse_path(char **argv, GglBuffer *path) {
+    GglBuffer execution_name = ggl_buffer_from_null_term(argv[0]);
+    GglByteVec path_to_iotcored = ggl_byte_vec_init(*path);
+    if (ggl_buffer_has_suffix(execution_name, component_name)) {
+        ggl_byte_vec_append(
+            &path_to_iotcored,
+            ggl_buffer_substr(
+                execution_name, 0, execution_name.len - component_name.len
+            )
+        );
+    }
+    ggl_byte_vec_append(&path_to_iotcored, GGL_STR("iotcored\0"));
+    path->len = path_to_iotcored.buf.len - 1;
 
-    GGL_LOGD("iotcored path: %.*s", (int) strlen(path), path);
+    GGL_LOGD("iotcored path: %.*s", (int) path->len, path->data);
 }
 
 int main(int argc, char **argv) {
     static FleetProvArgs args = { 0 };
-    static char iotcored_path[4097] = { 0 };
+    static uint8_t iotcored_path[4097] = { 0 };
 
-    parse_path(argv, iotcored_path);
+    parse_path(argv, &GGL_BUF(iotcored_path));
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
-    args.iotcored_path = iotcored_path;
+    args.iotcored_path = (char *) iotcored_path;
 
     pid_t pid = -1;
     GglError ret = run_fleet_prov(&args, &pid);

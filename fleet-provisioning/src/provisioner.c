@@ -19,6 +19,7 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/utils.h>
+#include <ggl/vector.h>
 #include <string.h>
 #include <stdatomic.h>
 #include <stdbool.h>
@@ -136,41 +137,48 @@ static GglError set_global_values(pid_t iotcored_pid) {
         return ret;
     }
 
-    strncat(
-        global_register_thing_url,
-        template_url_prefix,
-        strlen(template_url_prefix)
+    GglByteVec register_thing_url = GGL_BYTE_VEC(global_register_thing_url);
+    ggl_byte_vec_chain_append(
+        &ret,
+        &register_thing_url,
+        ggl_buffer_from_null_term(template_url_prefix)
     );
-    strncat(
-        global_register_thing_url,
-        (char *) template_name.data,
-        template_name.len
+    ggl_byte_vec_chain_append(&ret, &register_thing_url, template_name);
+    ggl_byte_vec_chain_append(
+        &ret, &register_thing_url, GGL_STR("/provision/json")
     );
-    strncat(
-        global_register_thing_url,
-        "/provision/json",
-        sizeof("/provision/json") - 1U
-    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to build register thing topic.");
+        return GGL_ERR_NOMEM;
+    }
 
     // Copy the prefix over to both buffer
     // Add success suffix
-    strncat(
-        global_register_thing_accept_url,
-        global_register_thing_url,
-        strlen(global_register_thing_url)
+    GglByteVec register_thing_accept_url
+        = GGL_BYTE_VEC(global_register_thing_accept_url);
+    ggl_byte_vec_chain_append(
+        &ret, &register_thing_accept_url, register_thing_url.buf
     );
-    strncat(
-        global_register_thing_accept_url, "/accepted", sizeof("/accepted") - 1U
+    ggl_byte_vec_chain_append(
+        &ret, &register_thing_accept_url, GGL_STR("/accepted")
     );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to build register thing accept topic.");
+        return GGL_ERR_NOMEM;
+    }
     // Add failure suffix
-    strncat(
-        global_register_thing_reject_url,
-        global_register_thing_url,
-        strlen(global_register_thing_url)
+    GglByteVec register_thing_reject_url
+        = GGL_BYTE_VEC(global_register_thing_reject_url);
+    ggl_byte_vec_chain_append(
+        &ret, &register_thing_reject_url, register_thing_url.buf
     );
-    strncat(
-        global_register_thing_reject_url, "/rejected", sizeof("/rejected") - 1U
+    ggl_byte_vec_chain_append(
+        &ret, &register_thing_reject_url, GGL_STR("/rejected")
     );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to build register thing reject topic.");
+        return GGL_ERR_NOMEM;
+    }
 
     // Fetch Template Parameters
     // TODO: Use args passed from entry.c
