@@ -32,7 +32,7 @@ Manifests:
     Lifecycle:
       install:
         RequiresPrivilege: true
-        Script: "apt install python3-venv"
+        Script: "apt install python3-venv -y"
 ```
 
 > Python3 isn't mentioned in the recipe as usually linux distributions ship with
