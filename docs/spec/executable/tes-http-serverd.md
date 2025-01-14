@@ -28,6 +28,6 @@ provided by the client.
 
 > NOTE: Requirement 11 above is to encourage the TES HTTP server to be as small as possible.  Any caching should be done in a central place to the system and with c-groups it may be necessary to start multiple tes-http-serverd's
 
-> NOTE: The authentication token is provided to the client component by the environment variable `AWS_CONTAINER_AUTHORIZATION_TOKEN`.  The client must send this token to the tes-ttp-serverd in the TES request.
+> NOTE: The authentication token is provided to the client component by the environment variable `AWS_CONTAINER_AUTHORIZATION_TOKEN`.  The client must send this token to the tes-http-serverd in the TES request.
 
 > NOTE: The tes-http-serverd URI shall be provided to all generic components as the environment variable `AWS_CONTAINER_CREDENTIALS_FULL_URI`.
