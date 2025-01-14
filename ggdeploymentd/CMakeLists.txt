@@ -6,6 +6,7 @@ ggl_init_module(
   ggdeploymentd
   LIBS ggl-lib
        core-bus
+       ggl-backoff
        ggl-constants
        ggl-file
        ggl-http

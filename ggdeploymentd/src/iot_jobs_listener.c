@@ -9,10 +9,12 @@
 #include <sys/types.h>
 #include <ggl/alloc.h>
 #include <ggl/aws_iot_call.h>
+#include <ggl/backoff.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
+#include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
@@ -70,6 +72,7 @@ static uint8_t response_scratch[4096];
 static uint8_t subscription_scratch[4096];
 
 // aws_iot_mqtt subscription handles
+static uint32_t connection_status_handle;
 static uint32_t next_job_handle;
 
 static GglError create_get_next_job_topic(
@@ -131,8 +134,9 @@ static GglError update_job(
 );
 static GglError process_job_execution(GglMap job_execution);
 
-// Retrieve thingName from config
-static GglError get_thing_name(void) {
+static GglError get_thing_name(void *ctx) {
+    (void) ctx;
+    GGL_LOGD("Attempting to retrieve thing name");
     thing_name_buf = GGL_BUF(thing_name_mem);
 
     GglError ret = ggl_gg_config_read_str(
@@ -228,7 +232,8 @@ static GglError update_job(
     return GGL_ERR_OK;
 }
 
-static GglError describe_next_job(void) {
+static GglError describe_next_job(void *ctx) {
+    (void) ctx;
     GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
     GglBuffer topic = GGL_BUF(topic_scratch);
     GglError ret = create_get_next_job_topic(thing_name_buf, &topic);
@@ -424,59 +429,67 @@ static void subscribe_on_close(void *ctx, uint32_t handle) {
     pthread_detach(ptid_jobs);
 }
 
-static GglError subscribe_to_next_job_topics(void) {
-    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
-
-    if (next_job_handle == 0) {
-        GglBuffer job_topic = GGL_BUF(topic_scratch);
-        GglError err = create_next_job_execution_changed_topic(
-            thing_name_buf, &job_topic
-        );
-        if (err != GGL_ERR_OK) {
-            return err;
-        }
-        return ggl_aws_iot_mqtt_subscribe(
-            GGL_BUF_LIST(job_topic),
-            QOS_AT_LEAST_ONCE,
-            next_job_execution_changed_callback,
-            subscribe_on_close,
-            NULL,
-            &next_job_handle
-        );
+static GglError subscribe_to_next_job_topics(void *ctx) {
+    (void) ctx;
+    if (next_job_handle != 0) {
+        return GGL_ERR_OK;
     }
 
+    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
+
+    GglBuffer job_topic = GGL_BUF(topic_scratch);
+    GglError err
+        = create_next_job_execution_changed_topic(thing_name_buf, &job_topic);
+    if (err != GGL_ERR_OK) {
+        return err;
+    }
+    return ggl_aws_iot_mqtt_subscribe(
+        GGL_BUF_LIST(job_topic),
+        QOS_AT_LEAST_ONCE,
+        next_job_execution_changed_callback,
+        subscribe_on_close,
+        NULL,
+        &next_job_handle
+    );
+}
+
+static GglError iot_jobs_on_reconnect(
+    void *ctx, uint32_t handle, GglObject data
+) {
+    (void) ctx;
+    (void) handle;
+    if (data.boolean) {
+        ggl_backoff_indefinite(10, 10000, describe_next_job, NULL);
+    }
     return GGL_ERR_OK;
+}
+
+static GglError subscribe_to_connection_status(void *ctx) {
+    (void) ctx;
+    if (connection_status_handle != 0) {
+        return GGL_ERR_OK;
+    }
+    return ggl_subscribe(
+        GGL_STR("aws_iot_mqtt"),
+        GGL_STR("connection_status"),
+        GGL_MAP(),
+        iot_jobs_on_reconnect,
+        NULL,
+        NULL,
+        NULL,
+        &connection_status_handle
+    );
 }
 
 // Make subscriptions and kick off IoT Jobs Workflow
 void listen_for_jobs_deployments(void) {
-    // TODO: reconnecting to MQTT should call this function
-    // TODO: use backoff library for random retry interval
-    int64_t retries = 1;
-    while (get_thing_name() != GGL_ERR_OK) {
-        int64_t sleep_for = 1 << MIN(2, retries);
-        ggl_sleep(1 << sleep_for);
-        ++retries;
-    }
-
     // Following "Get the next job" workflow
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-workflow-device-online.html
-
     next_job_handle = 0;
-
-    retries = 1;
-    while (subscribe_to_next_job_topics() != GGL_ERR_OK) {
-        int64_t sleep_for = 1 << MIN(5, retries);
-        ggl_sleep(sleep_for);
-        ++retries;
-    }
-
-    retries = 1;
-    while (describe_next_job() != GGL_ERR_OK) {
-        int64_t sleep_for = 1 << MIN(5, retries);
-        ggl_sleep(sleep_for);
-        ++retries;
-    }
+    connection_status_handle = 0;
+    ggl_backoff_indefinite(1, 1000, get_thing_name, NULL);
+    ggl_backoff_indefinite(10, 10000, subscribe_to_next_job_topics, NULL);
+    ggl_backoff_indefinite(10, 10000, subscribe_to_connection_status, NULL);
 }
 
 GglError update_current_jobs_deployment(
