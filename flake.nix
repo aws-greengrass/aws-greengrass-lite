@@ -5,6 +5,7 @@
 {
   description = "AWS IoT Greengrass runtime for constrained devices.";
   inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-24.11";
     flakelight.url = "github:nix-community/flakelight";
     poetry2nix.url = "github:nix-community/poetry2nix";
   };

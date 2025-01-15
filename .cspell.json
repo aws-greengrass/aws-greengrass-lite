@@ -10,6 +10,7 @@
   ],
   "dictionaries": ["project"],
   "ignorePaths": [
+    "**/flake.nix",
     "**/CMakeLists.txt",
     "**/pyproject.toml",
     "**/iwyu_mappings.yml"
