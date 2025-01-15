@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
+#include <ggl/constants.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
@@ -316,7 +317,7 @@ static GglError expand_timeout(
     uint8_t timeout_config_buf[128] = { 0 };
     GglBuffer timeout_config = GGL_BUF(timeout_config_buf);
     {
-        GglBuffer key_path[15] = { 0 };
+        GglBuffer key_path[GGL_MAX_OBJECT_DEPTH] = { 0 };
         GglBufVec key_path_vec = GGL_BUF_VEC(key_path);
         ggl_buf_vec_push(&key_path_vec, GGL_STR("services"));
         if (variable.component_dependency_name.len > 0) {
@@ -324,6 +325,7 @@ static GglError expand_timeout(
         } else {
             ggl_buf_vec_push(&key_path_vec, component_name);
         }
+        ggl_buf_vec_push(&key_path_vec, GGL_STR("configuration"));
 
         ret = json_pointer_to_buf_list(&key_path_vec, variable.key);
         if (ret != GGL_ERR_OK) {

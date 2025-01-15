@@ -10,4 +10,5 @@ ggl_init_module(
        ggl-file
        ggl-recipe
        core-bus
+       ggl-constants
        core-bus-gg-config)
