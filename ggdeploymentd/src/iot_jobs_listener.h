@@ -9,7 +9,7 @@
 #include <ggl/error.h>
 #include <stdint.h>
 
-void listen_for_jobs_deployments(void);
+void *job_listener_thread(void *ctx);
 
 GglError update_current_jobs_deployment(
     GglBuffer deployment_id, GglBuffer status
