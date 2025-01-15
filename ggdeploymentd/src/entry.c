@@ -23,12 +23,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-static void *job_listener_thread(void *ctx) {
-    (void) ctx;
-    listen_for_jobs_deployments();
-    return NULL;
-}
-
 GglError run_ggdeploymentd(const char *bin_path) {
     GGL_LOGI("Started ggdeploymentd process.");
 
