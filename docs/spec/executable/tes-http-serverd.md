@@ -16,7 +16,7 @@ The following are the requirements for the `tes-http-serverd`:
   request to the `tes` daemon to acquire the temporary credentials vended, and
   return to the caller.
 - [tes-http-serverd-4] There are no command line arguments.
-- [tes-http-serverd-5] The server socket poort shall be OS selected at random from a free port.
+- [tes-http-serverd-5] The server socket port shall be OS selected at random from a free port.
 - [tes-http-serverd-6] After the server socket is created & bound, the socket port must be written to the config key `services/aws.greengrass.TokenExchangeService/configuration/port`.
 - [tes-http-serverd-7] The TES request must be authenticated with an authorization token provided by the client.
 - [tes-http-serverd-8] The authorization token must be validated by the `ipc_component` coreBus responder with the `verify_svcuid` corebus message
