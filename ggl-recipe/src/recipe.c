@@ -4,6 +4,7 @@
 
 #include "ggl/recipe.h"
 #include <sys/types.h>
+#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -85,6 +86,69 @@ static bool is_positive_integer(GglBuffer str) {
     return true; // All characters are digits
 }
 
+bool ggl_is_recipe_variable(GglBuffer str) {
+    if ((str.data == NULL) || (str.len < 5)) {
+        return false;
+    }
+    if (str.data[0] != '{') {
+        return false;
+    }
+    if (str.data[str.len - 1] != '}') {
+        return false;
+    }
+    size_t delimiter_count = 0;
+    for (size_t i = 1; i < str.len - 1; ++i) {
+        if ((str.data[i] == '{') || (str.data[i] == '}')) {
+            return false;
+        }
+        if (str.data[i] == ':') {
+            delimiter_count++;
+        }
+    }
+    if ((delimiter_count < 1) || (delimiter_count > 2)) {
+        return false;
+    }
+    return true;
+}
+
+GglError ggl_parse_recipe_variable(
+    GglBuffer str, GglRecipeVariable *out_variable
+) {
+    if (!ggl_is_recipe_variable(str)) {
+        return GGL_ERR_INVALID;
+    }
+    str = ggl_buffer_substr(str, 1, str.len - 1);
+    GglBufVec split = GGL_BUF_VEC((GglBuffer[3]) { 0 });
+    while (str.len > 0) {
+        size_t idx = 0;
+        for (; idx < str.len; ++idx) {
+            if (str.data[idx] == ':') {
+                break;
+            }
+        }
+        GglBuffer token = ggl_buffer_substr(str, 0, idx);
+        str = ggl_buffer_substr(str, idx + 1, SIZE_MAX);
+        if (token.len == 0) {
+            return GGL_ERR_PARSE;
+        }
+        ggl_buf_vec_push(&split, token);
+    }
+    switch (split.buf_list.len) {
+    case 2:
+        out_variable->type = split.buf_list.bufs[0];
+        out_variable->key = split.buf_list.bufs[1];
+        return GGL_ERR_OK;
+    case 3:
+        out_variable->component_dependency_name = split.buf_list.bufs[0];
+        out_variable->type = split.buf_list.bufs[1];
+        out_variable->key = split.buf_list.bufs[2];
+        return GGL_ERR_OK;
+    default:
+        assert(false);
+        return GGL_ERR_PARSE;
+    }
+}
+
 static GglError process_script_section_as_map(
     GglMap selected_lifecycle_phase,
     bool *is_root,
@@ -124,11 +188,12 @@ static GglError process_script_section_as_map(
             selected_lifecycle_phase, GGL_STR("Timeout"), &key_object
         )) {
         if (key_object->type != GGL_TYPE_BUF) {
-            GGL_LOGE("Timeout needs to be numeric value");
+            GGL_LOGE("Timeout must expand to a positive integer value");
             return GGL_ERR_INVALID;
         }
-        if (!is_positive_integer(key_object->buf)) {
-            GGL_LOGE("Timeout needs to be numeric value");
+        if (!ggl_is_recipe_variable(key_object->buf)
+            && !is_positive_integer(key_object->buf)) {
+            GGL_LOGE("Timeout must expand to a positive integer value");
             return GGL_ERR_INVALID;
         }
         if (out_timeout_value != NULL) {

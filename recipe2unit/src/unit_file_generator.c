@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
@@ -56,7 +57,7 @@ static GglError parse_dependency_type(
             return GGL_ERR_PARSE;
         }
 
-        if (strncmp((char *) val->buf.data, "HARD", val->buf.len) == 0) {
+        if (ggl_buffer_eq(GGL_STR("HARD"), val->buf)) {
             GglError ret = ggl_byte_vec_append(out, GGL_STR("BindsTo=ggl."));
             ggl_byte_vec_chain_append(&ret, out, component_dependency.key);
             ggl_byte_vec_chain_append(&ret, out, GGL_STR(".service\n"));
@@ -246,8 +247,7 @@ static GglError concat_exec_start_section_vec(
     // build the path for ExecStart section in unit file
     ret = ggl_byte_vec_append(
         exec_start_section_vec,
-        (GglBuffer) { .data = (uint8_t *) args->recipe_runner_path,
-                      .len = strlen(args->recipe_runner_path) }
+        ggl_buffer_from_null_term(args->recipe_runner_path)
     );
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -n "));
     ggl_byte_vec_chain_append(
@@ -260,6 +260,96 @@ static GglError concat_exec_start_section_vec(
     return GGL_ERR_OK;
 }
 
+static GglError json_pointer_to_buf_list(
+    GglBufVec *out_list, GglBuffer json_pointer
+) {
+    if (json_pointer.len == 0) {
+        return GGL_ERR_INVALID;
+    }
+    if (json_pointer.data[0] == '/') {
+        json_pointer = ggl_buffer_substr(json_pointer, 1, SIZE_MAX);
+    }
+
+    while (json_pointer.len > 0) {
+        size_t i = 0;
+        for (; i != json_pointer.len; ++i) {
+            if (json_pointer.data[i] == '/') {
+                break;
+            }
+        }
+        GglError ret
+            = ggl_buf_vec_push(out_list, ggl_buffer_substr(json_pointer, 0, i));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+        json_pointer = ggl_buffer_substr(json_pointer, i + 1, SIZE_MAX);
+    }
+    return GGL_ERR_OK;
+}
+
+typedef struct RecipeVariable {
+    GglBuffer component_dependency_name;
+    GglBuffer variable_type;
+    GglBuffer variable_key;
+} RecipeVariable;
+
+static GglError expand_timeout(
+    GglBuffer *inout_timeout, GglBuffer component_name
+) {
+    if (inout_timeout == NULL) {
+        return GGL_ERR_INVALID;
+    }
+    if (!ggl_is_recipe_variable(*inout_timeout)) {
+        return GGL_ERR_OK;
+    }
+    GglRecipeVariable variable = { 0 };
+    GglError ret = ggl_parse_recipe_variable(*inout_timeout, &variable);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    if (!ggl_buffer_eq(variable.type, GGL_STR("configuration"))) {
+        GGL_LOGE("Timeout recipe variable must come from configuration. (e.g. "
+                 "{configuration:/json/pointer/to/key})");
+        return GGL_ERR_INVALID;
+    }
+
+    uint8_t timeout_config_buf[128] = { 0 };
+    GglBuffer timeout_config = GGL_BUF(timeout_config_buf);
+    {
+        GglBuffer key_path[15] = { 0 };
+        GglBufVec key_path_vec = GGL_BUF_VEC(key_path);
+        ggl_buf_vec_push(&key_path_vec, GGL_STR("services"));
+        if (variable.component_dependency_name.len > 0) {
+            ggl_buf_vec_push(&key_path_vec, variable.component_dependency_name);
+        } else {
+            ggl_buf_vec_push(&key_path_vec, component_name);
+        }
+
+        ret = json_pointer_to_buf_list(&key_path_vec, variable.key);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+
+        ret = ggl_gg_config_read_str(key_path_vec.buf_list, &timeout_config);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+
+    if (timeout_config.len > inout_timeout->len) {
+        return GGL_ERR_NOMEM;
+    }
+    memcpy(inout_timeout->data, timeout_config.data, timeout_config.len);
+    inout_timeout->len = timeout_config.len;
+    GGL_LOGD(
+        "Interpolated Timeout value: \"%.*s\".",
+        (int) inout_timeout->len,
+        inout_timeout->data
+    );
+
+    return GGL_ERR_OK;
+}
+
 static GglError update_unit_file_buffer(
     GglByteVec *out,
     GglByteVec exec_start_section_vec,
@@ -267,7 +357,8 @@ static GglError update_unit_file_buffer(
     char *arg_group,
     bool is_root,
     GglBuffer selected_phase,
-    GglBuffer timeout
+    GglBuffer timeout,
+    GglBuffer component_name
 ) {
     GglError ret = ggl_byte_vec_append(out, GGL_STR("ExecStart="));
     ggl_byte_vec_chain_append(&ret, out, exec_start_section_vec.buf);
@@ -278,19 +369,23 @@ static GglError update_unit_file_buffer(
         return ret;
     }
 
-    if (timeout.len != 0) {
-        ret = ggl_byte_vec_append(out, GGL_STR("TimeoutSec="));
-        ggl_byte_vec_chain_append(&ret, out, timeout);
-        ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-    } else {
+    ret = expand_timeout(&timeout, component_name);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to expand timeout variable.");
+        return ret;
+    }
+    if (timeout.len == 0) {
         // The default timeout is 120 seconds
-        ret = ggl_byte_vec_append(out, GGL_STR("TimeoutSec=120\n"));
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+        timeout = GGL_STR("120");
+    }
+    GglBuffer timeout_type = ggl_buffer_eq(GGL_STR("startup"), selected_phase)
+        ? GGL_STR("TimeoutStartSec=")
+        : GGL_STR("TimeoutSec=");
+    ret = ggl_byte_vec_append(out, timeout_type);
+    ggl_byte_vec_chain_append(&ret, out, timeout);
+    ggl_byte_vec_chain_push(&ret, out, '\n');
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     if (is_root) {
@@ -302,17 +397,11 @@ static GglError update_unit_file_buffer(
     } else {
         ret = ggl_byte_vec_append(out, GGL_STR("User="));
         ggl_byte_vec_chain_append(
-            &ret,
-            out,
-            (GglBuffer) { .data = (uint8_t *) arg_user,
-                          .len = strlen(arg_user) }
+            &ret, out, ggl_buffer_from_null_term(arg_user)
         );
         ggl_byte_vec_chain_append(&ret, out, GGL_STR("\nGroup="));
         ggl_byte_vec_chain_append(
-            &ret,
-            out,
-            (GglBuffer) { .data = (uint8_t *) arg_group,
-                          .len = strlen(arg_group) }
+            &ret, out, ggl_buffer_from_null_term(arg_group)
         );
         ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
         if (ret != GGL_ERR_OK) {
@@ -362,8 +451,8 @@ static GglError manifest_builder(
 
     if (current_phase == BOOTSTRAP) {
         // Check if there are any unsupported phases first
-        // Inside this if block as we do not want to keep on checking on each
-        // phase lookup
+        // Inside this if block as we do not want to keep on checking on
+        // each phase lookup
         compatibility_check(selected_lifecycle_map);
 
         lifecycle_script_selection = GGL_STR("bootstrap");
@@ -422,8 +511,8 @@ static GglError manifest_builder(
             lifecycle_script_selection = GGL_STR("startup");
             ret = ggl_byte_vec_append(out, GGL_STR("RemainAfterExit=true\n"));
             ggl_byte_vec_chain_append(&ret, out, GGL_STR("Type=notify\n"));
-            // Allow other processes in the cgroup to call sd_pid_notify on the
-            // unit's behalf (i.e. gghealthd)
+            // Allow other processes in the cgroup to call sd_pid_notify on
+            // the unit's behalf (i.e. gghealthd)
             ggl_byte_vec_chain_append(&ret, out, GGL_STR("NotifyAccess=all\n"));
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE("Failed to add unit type information");
@@ -466,6 +555,13 @@ static GglError manifest_builder(
         return ret;
     }
 
+    GglObject *component_name = NULL;
+    if (!ggl_map_get(recipe_map, GGL_STR("ComponentName"), &component_name)) {
+        return GGL_ERR_INVALID;
+    }
+    if (component_name->type != GGL_TYPE_BUF) {
+        return GGL_ERR_INVALID;
+    }
     ret = update_unit_file_buffer(
         out,
         exec_start_section_vec,
@@ -473,7 +569,8 @@ static GglError manifest_builder(
         args->group,
         is_root,
         lifecycle_script_selection,
-        timeout
+        timeout,
+        component_name->buf
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write ExecStart portion of unit files");
@@ -613,14 +710,11 @@ static GglError fill_service_section(
     // Add Env Var for GG_root path
     ret = ggl_byte_vec_append(
         out,
-        GGL_STR(
-            "Environment=\"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT="
-        )
+        GGL_STR("Environment=\"AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_"
+                "COMPONENT=")
     );
     ggl_byte_vec_chain_append(
-        &ret,
-        out,
-        (GglBuffer) { (uint8_t *) args->root_dir, strlen(args->root_dir) }
+        &ret, out, ggl_buffer_from_null_term(args->root_dir)
     );
     ggl_byte_vec_chain_append(&ret, out, GGL_STR("/gg-ipc.socket"));
     ggl_byte_vec_chain_append(&ret, out, GGL_STR("\"\n"));

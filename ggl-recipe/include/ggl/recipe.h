@@ -13,6 +13,12 @@
 #include <ggl/error.h>
 #include <ggl/object.h>
 
+typedef struct GglRecipeVariable {
+    GglBuffer component_dependency_name;
+    GglBuffer type;
+    GglBuffer key;
+} GglRecipeVariable;
+
 GglError ggl_recipe_get_from_file(
     int root_path_fd,
     GglBuffer component_name,
@@ -38,5 +44,15 @@ GglError select_linux_manifest(
 );
 
 GglBuffer get_current_architecture(void);
+
+/// Returns true if the given string is a recipe variable
+/// e.g. GGL_STR("{configuration:/version}")
+bool ggl_is_recipe_variable(GglBuffer str);
+
+/// Parses a string into a recipe variable without modifying it.
+/// The output will contain substrings of the input string on success.
+GglError ggl_parse_recipe_variable(
+    GglBuffer str, GglRecipeVariable *out_variable
+);
 
 #endif
