@@ -58,7 +58,12 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
         return ret;
     }
     GglBuffer final_result = GGL_BUF(copy_config_value);
-    ggl_json_encode(result, &final_result);
+
+    if (result.type != GGL_TYPE_BUF) {
+        ggl_json_encode(result, &final_result);
+    } else {
+        final_result = result.buf;
+    }
 
     return ggl_file_write(out_fd, final_result);
 }
@@ -262,7 +267,7 @@ static GglError process_set_env(
             GGL_LOGW("Invalid lifecycle Setenv, Key values must be String");
             return GGL_ERR_INVALID;
         }
-        GGL_LOGD(
+        GGL_LOGT(
             "Lifecycle Setenv, map value: %.*s",
             (int) pair->val.buf.len,
             pair->val.buf.data
@@ -455,10 +460,6 @@ static GglError write_script_with_replacement(
         = select_linux_lifecycle(recipe_as_map, &selected_lifecycle_map);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to find linux Lifecycle");
-        return ret;
-    }
-    ret = ggl_file_write(out_fd, GGL_STR("set -x\n"));
-    if (ret != GGL_ERR_OK) {
         return ret;
     }
 
