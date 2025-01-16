@@ -471,6 +471,8 @@ GglError ggl_deployment_dequeue(GglDeployment **deployment) {
 }
 
 void ggl_deployment_release(GglDeployment *deployment) {
+    GGL_MTX_SCOPE_GUARD(&queue_mtx);
+
     assert(ggl_buffer_eq(
         deployment->deployment_id, deployments[queue_index].deployment_id
     ));
