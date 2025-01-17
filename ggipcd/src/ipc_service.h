@@ -42,5 +42,6 @@ extern GglIpcService ggl_ipc_service_config;
 extern GglIpcService ggl_ipc_service_cli;
 extern GglIpcService ggl_ipc_service_private;
 extern GglIpcService ggl_ipc_service_lifecycle;
+extern GglIpcService ggl_ipc_service_token_validation;
 
 #endif

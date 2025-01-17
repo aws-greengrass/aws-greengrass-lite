@@ -16,6 +16,7 @@
 #include <ggl/object.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#include <stddef.h>
 
 GglError ggl_handle_update_configuration(
     const GglIpcOperationInfo *info,
@@ -27,13 +28,13 @@ GglError ggl_handle_update_configuration(
     (void) info;
     (void) alloc;
 
-    GglObject *key_path_obj;
+    GglObject *key_path_obj = NULL;
     GglObject *value_to_merge_obj;
     GglObject *timestamp_obj;
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("keyPath"), true, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("keyPath"), false, GGL_TYPE_LIST, &key_path_obj },
             { GGL_STR("valueToMerge"),
               true,
               GGL_TYPE_NULL,
@@ -46,18 +47,38 @@ GglError ggl_handle_update_configuration(
         return GGL_ERR_INVALID;
     }
 
-    ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid paramters.");
-        return GGL_ERR_INVALID;
+    GglObject *empty_list = (GglObject *) &GGL_OBJ_LIST({ 0 });
+    if (key_path_obj == NULL) {
+        key_path_obj = empty_list;
+    } else {
+        ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Received invalid paramters.");
+            return GGL_ERR_INVALID;
+        }
+
+        if ((key_path_obj->list.len >= 1)
+            && ggl_buffer_eq(
+                key_path_obj->list.items[0].buf, GGL_STR("accessControl")
+            )) {
+            GGL_LOGE("Received invalid paramters. Can not change component "
+                     "accessControl over IPC.");
+            return GGL_ERR_INVALID;
+        }
     }
 
-    if ((key_path_obj->list.len < 1)
-        || ggl_buffer_eq(
-            key_path_obj->list.items[0].buf, GGL_STR("accessControl")
-        )) {
-        GGL_LOGE("Received invalid paramters.");
-        return GGL_ERR_INVALID;
+    if ((key_path_obj->list.len == 0)
+        && value_to_merge_obj->type == GGL_TYPE_MAP) {
+        for (size_t i = 0; i < value_to_merge_obj->map.len; i++) {
+            if (ggl_buffer_eq(
+                    value_to_merge_obj->map.pairs[i].key,
+                    GGL_STR("accessControl")
+                )) {
+                GGL_LOGE("Received invalid paramters. Can not change component "
+                         "accessControl over IPC.");
+                return GGL_ERR_INVALID;
+            }
+        }
     }
 
     GglBuffer component_name = { 0 };

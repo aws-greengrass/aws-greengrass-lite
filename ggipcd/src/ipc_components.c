@@ -74,29 +74,9 @@ static void set_component_name(
     component_name_lengths[handle - 1] = (uint8_t) component_name.len;
 }
 
-static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
-    (void) ctx;
-    (void) handle;
-
-    GglObject *svcuid_buf;
-
-    GglError ret = ggl_map_validate(
-        params,
-        GGL_MAP_SCHEMA({ GGL_STR("svcuid"), true, GGL_TYPE_BUF, &svcuid_buf }, )
-    );
-
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to validate the map provided to 'verify_svcuid'.");
-        return GGL_ERR_INVALID;
-    }
-
-    if (svcuid_buf->type != GGL_TYPE_BUF) {
-        GGL_LOGE("svcuid must be of type buffer.");
-        return GGL_ERR_INVALID;
-    }
-
+GglError ipc_svcuid_exists(GglBuffer svcuid_buf) {
     GglBuffer svcuid_bin = GGL_BUF((uint8_t[SVCUID_BIN_LEN]) { 0 });
-    bool decoded = ggl_base64_decode(svcuid_buf->buf, &svcuid_bin);
+    bool decoded = ggl_base64_decode(svcuid_buf, &svcuid_bin);
     if (!decoded) {
         GGL_LOGE("svcuid is invalid base64.");
         return GGL_ERR_INVALID;
@@ -108,9 +88,35 @@ static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
         GglBuffer svcuid_bin_i = GGL_BUF(svcuids[i - 1]);
         if (ggl_buffer_eq(svcuid_bin, svcuid_bin_i)) {
             GGL_LOGD("Found the requested svcuid.");
-            ggl_respond(handle, GGL_OBJ_BOOL(true));
             return GGL_ERR_OK;
         }
+    }
+    return GGL_ERR_FAILURE;
+}
+
+static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
+    (void) ctx;
+    (void) handle;
+
+    GglObject *svcuid_obj;
+
+    GglError ret = ggl_map_validate(
+        params,
+        GGL_MAP_SCHEMA({ GGL_STR("svcuid"), true, GGL_TYPE_BUF, &svcuid_obj }, )
+    );
+
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to validate the map provided to 'verify_svcuid'.");
+        return GGL_ERR_INVALID;
+    }
+
+    if (svcuid_obj->type != GGL_TYPE_BUF) {
+        GGL_LOGE("svcuid must be of type buffer.");
+        return GGL_ERR_INVALID;
+    }
+
+    if (ipc_svcuid_exists(svcuid_obj->buf) == GGL_ERR_OK) {
+        ggl_respond(handle, GGL_OBJ_BOOL(true));
     }
 
     GGL_LOGE("Requested svcuid not found.");

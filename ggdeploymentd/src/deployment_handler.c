@@ -2351,6 +2351,122 @@ static void handle_deployment(
             return;
         }
 
+        // TODO: See if there is a better requirement. If a customer has the
+        // same version as before but somehow updated their component
+        // version their component may not get the updates.
+        bool component_updated = true;
+
+        static uint8_t old_component_version_mem[128] = { 0 };
+        GglBuffer old_component_version = GGL_BUF(old_component_version_mem);
+        ret = ggl_gg_config_read_str(
+            GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("version")),
+            &old_component_version
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGD("Failed to get component version from config, "
+                     "assuming component is new.");
+        } else {
+            if (ggl_buffer_eq(pair->val.buf, old_component_version)) {
+                GGL_LOGD(
+                    "Detected that component %.*s has not changed version.",
+                    (int) pair->key.len,
+                    pair->key.data
+                );
+                component_updated = false;
+            }
+        }
+
+        ret = ggl_gg_config_write(
+            GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("version")),
+            pair->val,
+            &(int64_t) { 0 }
+        );
+
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Failed to write version of %.*s to ggconfigd.",
+                (int) pair->key.len,
+                pair->key.data
+            );
+            return;
+        }
+
+        ret = add_arn_list_to_config(pair->key, deployment->configuration_arn);
+
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Failed to write configuration arn of %.*s to ggconfigd.",
+                (int) pair->key.len,
+                pair->key.data
+            );
+            return;
+        }
+
+        ret = apply_configurations(deployment, pair->key, GGL_STR("reset"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Failed to apply reset configuration update for %.*s.",
+                (int) pair->key.len,
+                pair->key.data
+            );
+            return;
+        }
+
+        GglObject *intermediate_obj;
+        GglObject *default_config_obj;
+
+        if (ggl_map_get(
+                recipe_obj.map,
+                GGL_STR("ComponentConfiguration"),
+                &intermediate_obj
+            )) {
+            if (intermediate_obj->type != GGL_TYPE_MAP) {
+                GGL_LOGE("ComponentConfiguration is not a map type");
+                return;
+            }
+
+            if (ggl_map_get(
+                    intermediate_obj->map,
+                    GGL_STR("DefaultConfiguration"),
+                    &default_config_obj
+                )) {
+                ret = ggl_gg_config_write(
+                    GGL_BUF_LIST(
+                        GGL_STR("services"), pair->key, GGL_STR("configuration")
+                    ),
+                    *default_config_obj,
+                    &(int64_t) { 0 }
+                );
+
+                if (ret != GGL_ERR_OK) {
+                    GGL_LOGE("Failed to send default config to ggconfigd.");
+                    return;
+                }
+            } else {
+                GGL_LOGI(
+                    "DefaultConfiguration not found in the recipe of %.*s.",
+                    (int) pair->key.len,
+                    pair->key.data
+                );
+            }
+        } else {
+            GGL_LOGI(
+                "ComponentConfiguration not found in the recipe of %.*s.",
+                (int) pair->key.len,
+                pair->key.data
+            );
+        }
+
+        ret = apply_configurations(deployment, pair->key, GGL_STR("merge"));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Failed to apply merge configuration update for %.*s.",
+                (int) pair->key.len,
+                pair->key.data
+            );
+            return;
+        }
+
         static uint8_t recipe_runner_path_buf[PATH_MAX];
         GglByteVec recipe_runner_path_vec
             = GGL_BYTE_VEC(recipe_runner_path_buf);
@@ -2443,134 +2559,6 @@ static void handle_deployment(
         if (!ggl_buffer_eq(component_name->buf, pair->key)) {
             GGL_LOGE("Component name from recipe does not match component name "
                      "from recipe file.");
-            return;
-        }
-
-        // TODO: See if there is a better requirement. If a customer has the
-        // same version as before but somehow updated their component
-        // version their component may not get the updates.
-        bool component_updated = true;
-
-        static uint8_t old_component_version_mem[128] = { 0 };
-        GglBuffer old_component_version = GGL_BUF(old_component_version_mem);
-        ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"), component_name->buf, GGL_STR("version")
-            ),
-            &old_component_version
-        );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGD("Failed to get component version from config, "
-                     "assuming component is new.");
-        } else {
-            if (ggl_buffer_eq(pair->val.buf, old_component_version)) {
-                GGL_LOGD(
-                    "Detected that component %.*s has not changed version.",
-                    (int) pair->key.len,
-                    pair->key.data
-                );
-                component_updated = false;
-            }
-        }
-
-        ret = ggl_gg_config_write(
-            GGL_BUF_LIST(
-                GGL_STR("services"), component_name->buf, GGL_STR("version")
-            ),
-            pair->val,
-            &(int64_t) { 0 }
-        );
-
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Failed to write version of %.*s to ggconfigd.",
-                (int) pair->key.len,
-                pair->key.data
-            );
-            return;
-        }
-
-        ret = add_arn_list_to_config(
-            component_name->buf, deployment->configuration_arn
-        );
-
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Failed to write configuration arn of %.*s to ggconfigd.",
-                (int) pair->key.len,
-                pair->key.data
-            );
-            return;
-        }
-
-        ret = apply_configurations(
-            deployment, component_name->buf, GGL_STR("reset")
-        );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Failed to apply reset configuration update for %.*s.",
-                (int) pair->key.len,
-                pair->key.data
-            );
-            return;
-        }
-
-        GglObject *intermediate_obj;
-        GglObject *default_config_obj;
-
-        if (ggl_map_get(
-                recipe_buff_obj.map,
-                GGL_STR("ComponentConfiguration"),
-                &intermediate_obj
-            )) {
-            if (intermediate_obj->type != GGL_TYPE_MAP) {
-                GGL_LOGE("ComponentConfiguration is not a map type");
-                return;
-            }
-
-            if (ggl_map_get(
-                    intermediate_obj->map,
-                    GGL_STR("DefaultConfiguration"),
-                    &default_config_obj
-                )) {
-                ret = ggl_gg_config_write(
-                    GGL_BUF_LIST(
-                        GGL_STR("services"),
-                        component_name->buf,
-                        GGL_STR("configuration")
-                    ),
-                    *default_config_obj,
-                    &(int64_t) { 0 }
-                );
-
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to send default config to ggconfigd.");
-                    return;
-                }
-            } else {
-                GGL_LOGI(
-                    "DefaultConfiguration not found in the recipe of %.*s.",
-                    (int) pair->key.len,
-                    pair->key.data
-                );
-            }
-        } else {
-            GGL_LOGI(
-                "ComponentConfiguration not found in the recipe of %.*s.",
-                (int) pair->key.len,
-                pair->key.data
-            );
-        }
-
-        ret = apply_configurations(
-            deployment, component_name->buf, GGL_STR("merge")
-        );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Failed to apply merge configuration update for %.*s.",
-                (int) pair->key.len,
-                pair->key.data
-            );
             return;
         }
 
