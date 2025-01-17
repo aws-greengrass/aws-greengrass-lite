@@ -9,6 +9,7 @@
 #include <ggl/buffer.h>
 
 #define MAX_COMP_NAME_BUF_SIZE 10000
+#define MAX_RECIPE_MEM 25000
 
 typedef enum {
     GGL_DEPLOYMENT_QUEUED,
