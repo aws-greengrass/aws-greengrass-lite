@@ -43,7 +43,7 @@ GglError ggl_handle_token_validation(
         return GGL_ERR_INVALID;
     }
 
-    if (ipc_svcuid_exists(svcuid_obj->buf)) {
+    if (ipc_svcuid_exists(svcuid_obj->buf) == GGL_ERR_OK) {
         return ggl_ipc_response_send(
             handle,
             stream_id,
