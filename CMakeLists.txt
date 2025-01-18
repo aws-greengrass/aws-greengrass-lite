@@ -391,12 +391,11 @@ if(BUILD_EXAMPLES)
   add_subdirectory(samples/mqtt-client)
   add_subdirectory(samples/deployment-client)
   add_subdirectory(samples/status-monitor-client)
-  add_subdirectory(configtest)
-  add_subdirectory(s3-get-test)
-  add_subdirectory(tesd-test)
-  add_subdirectory(recipe2unit-test)
-  add_subdirectory(ggconfigd-test)
-  add_subdirectory(semver-test)
+
+  file(GLOB TEST_MODULES CONFIGURE_DEPENDS "test_modules/*")
+  foreach(test_module ${TEST_MODULES})
+    add_subdirectory(${test_module})
+  endforeach()
 endif()
 
 #
