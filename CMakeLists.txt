@@ -351,6 +351,11 @@ function(ggl_init_module name)
   endforeach()
 endfunction()
 
+file(GLOB MODULES CONFIGURE_DEPENDS "modules/*")
+foreach(module ${MODULES})
+  add_subdirectory(${module})
+endforeach()
+
 add_subdirectory(ggl-lib)
 add_subdirectory(ggl-http)
 add_subdirectory(ggl-socket)
