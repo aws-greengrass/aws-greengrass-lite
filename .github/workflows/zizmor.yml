@@ -1,0 +1,39 @@
+name: GitHub Actions Security Analysis with zizmor 🌈
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["**"]
+    paths:
+      - ".github/workflows/*"
+
+jobs:
+  zizmor:
+    name: zizmor latest via PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      # required for workflows in private repositories
+      contents: read
+      actions: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Run zizmor 🌈
+        run: uvx zizmor --format json . > results.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload zizmor results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results.json
+          path: results.json
+          retention-days: 1

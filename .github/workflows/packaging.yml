@@ -15,6 +15,8 @@ jobs:
         build_type: [RelWithDebInfo, MinSizeRel]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -76,7 +78,7 @@ jobs:
         run: |
           cat ${{ github.workspace }}/.github/workflows/packaging/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
           cp ${{ github.workspace }}/.github/workflows/packaging/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
-          sed -i 's|{{ VERSION_LINK }}|${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
+          sed -i 's|{{ VERSION_LINK }}|${ GITHUB_SERVER_URL }/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
           sed -i 's|{{ UBUNTU_VERSION }}|24.04|g' ${{ github.workspace }}/zipfile/install-greengrass-lite.sh
           cat ${{ github.workspace }}/LICENSE >> ${{ github.workspace }}/zipfile/readme.txt
 
@@ -99,6 +101,7 @@ jobs:
         if: matrix.build_type  == 'MinSizeRel' && matrix.architecture == ''
         uses: actions/upload-artifact@v4
         with:
+          persist-credentials: false
           name: aws-greengrass-lite-ubuntu-${{ matrix.architecture || 'x86-64'}}
           path: |
             ${{ github.workspace }}/zipfile/*

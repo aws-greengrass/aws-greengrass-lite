@@ -16,6 +16,8 @@ jobs:
         build_type: [RelWithDebInfo, MinSizeRel]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -63,7 +65,7 @@ jobs:
         run: |
           cat ${{ github.workspace }}/.github/workflows/static-packaging/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
           cp ${{ github.workspace }}/.github/workflows/packaging/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
-          sed -i 's|{{ VERSION_LINK }}|${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
+          sed -i 's|{{ VERSION_LINK }}|${ GITHUB_SERVER_URL }/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
           sed -i 's|{{ UBUNTU_VERSION }}|22.04|g' ${{ github.workspace }}/zipfile/install-greengrass-lite.sh
           cat ${{ github.workspace }}/LICENSE >> ${{ github.workspace }}/zipfile/readme.txt
       - name: md5sums
