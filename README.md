@@ -49,7 +49,7 @@ corebus. This table identifies the corebus component that does the work.
 | GetLocalDeploymentStatus                | _Future_                     |
 | ListLocalDeployments                    | _Future_                     |
 | ListComponents                          | _Future_                     |
-| ValidateAuthorizationToken              | _Future_                     |
+| ValidateAuthorizationToken              | ggipcd                       |
 | CreateDebugPassword                     | _Future_                     |
 | PauseComponent                          | _Future_                     |
 | ResumeComponent                         | _Future_                     |

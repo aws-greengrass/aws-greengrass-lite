@@ -1,3 +1,15 @@
+# Release Notes v2.0.1 (Jan 22 2024)
+
+This is a minor release that adds the missing features to support default recipe
+of Stream manager v2.2.0.
+
+## New with this release
+
+- Add recipe variable interpolation to greengrass recipe's timeout section
+- Add support for ValidateAuthorizationToken IPC command for stream manager
+- Fix warnings from Fleet provisioning
+- Add retry and backoff to jobs listener
+
 # Release Notes v2.0.0 (Dec 16 2024)
 
 This is the first release of the Greengrass nucleus lite. It aims to be
@@ -37,9 +49,7 @@ This is the first release of Greengrass nucleus lite.
 
 ## Known issues
 
-The differences between Greengrass nucleus lite and Greengrass nucleus along
-with the currently known issues can be found in the
-[KNOWN_ISSUES](./docs/KNOWN_ISSUES.md) document. For an updated list of
-issues/feature requests, please take a look at GitHub issues in the repository.
+For an updated list of issues/feature requests, please take a look at GitHub
+issues in the repository.
 
 We welcome you to create an issue to report bugs or suggest features.
