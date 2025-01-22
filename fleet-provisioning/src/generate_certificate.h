@@ -5,15 +5,17 @@
 #ifndef FLEET_PROV_GENERATE_CERTIFICATE_H
 #define FLEET_PROV_GENERATE_CERTIFICATE_H
 
+#include <ggl/buffer.h>
+#include <ggl/error.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
 
-void generate_key_files(
+GglError generate_key_files(
     EVP_PKEY *pkey,
     X509_REQ *req,
-    char *private_file_path,
-    char *public_file_path,
-    char *csr_file_path
+    GglBuffer private_file_path,
+    GglBuffer public_file_path,
+    GglBuffer csr_file_path
 );
 
 #endif

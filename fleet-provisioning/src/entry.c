@@ -353,13 +353,16 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
         return ret;
     }
 
-    generate_key_files(
+    ret = generate_key_files(
         pkey,
         csr_req,
-        (char *) private_file_path_vec.buf.data,
-        (char *) public_file_path_vec.buf.data,
-        (char *) csr_file_path_vec.buf.data
+        private_file_path_vec.buf,
+        public_file_path_vec.buf,
+        csr_file_path_vec.buf
     );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     EVP_PKEY_free(pkey);
     X509_REQ_free(csr_req);
