@@ -57,12 +57,6 @@ static GglError generate_csr(EVP_PKEY *pkey, X509_REQ **req) {
         return GGL_ERR_FAILURE;
     }
 
-    X509_REQ_set_version(*req, 1);
-    if (ret == 0) {
-        GGL_LOGE("x509 csr set version request failed");
-        return GGL_ERR_FAILURE;
-    }
-
     X509_NAME *name = X509_NAME_new();
     X509_NAME_add_entry_by_txt(
         name, "C", MBSTRING_ASC, (unsigned char *) "US", -1, -1, 0
