@@ -536,7 +536,7 @@ StartLimitIntervalSec=3600
 StartLimitBurst=3
 #HARD dependency
 Requires= IPCbridge.service
-#WEAK Depenency
+#WEAK Dependency
 Wants=TES.service
 #For Version
 Conflicts= TES@1.2.service
@@ -571,8 +571,11 @@ system (at least for a systemd target).
 ### Quality and/or Performance Features
 
 Deployment happens once so the key quality/performance attributes are:
-1. Accuracy - Ensure that the correct behavior is translated to the underlying host orchestrator
-2. Simplicity - Ensure that the deployment process is clear, debuggable and maintainable.
+
+1. Accuracy - Ensure that the correct behavior is translated to the underlying
+   host orchestrator
+2. Simplicity - Ensure that the deployment process is clear, debuggable and
+   maintainable.
 3. Traceable - Ensure every step of the process is logged and auditable.
 
 ## Rollback
