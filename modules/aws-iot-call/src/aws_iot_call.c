@@ -224,7 +224,7 @@ GglError ggl_aws_iot_call(
         while (!ctx.ready) {
             int cond_ret
                 = pthread_cond_timedwait(&notify_cond, &notify_mtx, &timeout);
-            if ((cond_ret < 0) && (cond_ret != EINTR)) {
+            if ((cond_ret != 0) && (cond_ret != EINTR)) {
                 assert(cond_ret == ETIMEDOUT);
                 GGL_LOGW("Timed out waiting for a response.");
                 timed_out = true;

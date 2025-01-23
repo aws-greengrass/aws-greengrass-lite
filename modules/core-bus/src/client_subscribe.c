@@ -82,7 +82,7 @@ __attribute__((constructor)) static void start_subscription_thread(void) {
     pthread_t sub_thread = { 0 };
     int sys_ret = pthread_create(&sub_thread, NULL, subscription_thread, NULL);
     if (sys_ret != 0) {
-        GGL_LOGE("Failed to create subscription response thread.");
+        GGL_LOGE("Failed to create subscription response thread: %d.", sys_ret);
         _Exit(1);
     }
     pthread_detach(sub_thread);
