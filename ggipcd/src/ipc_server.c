@@ -239,20 +239,12 @@ static GglError handle_conn_init(
     }
     GglBuffer auth_token = value->buf;
 
-    GGL_LOGD(
-        "Client connecting with token %.*s.",
-        (int) auth_token.len,
-        auth_token.data
-    );
+    GGL_LOGD("Client connecting.");
 
     GglComponentHandle component_handle = 0;
     ret = ggl_ipc_components_get_handle(auth_token, &component_handle);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE(
-            "Client with token %.*s failed authentication.",
-            (int) auth_token.len,
-            auth_token.data
-        );
+        GGL_LOGE("Client failed authentication.");
         return ret;
     }
 
