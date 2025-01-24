@@ -35,7 +35,7 @@ static GglError subscribe_to_topic_callback(
         GGL_MAP_SCHEMA(
             { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
             { GGL_STR("type"), true, GGL_TYPE_BUF, &type_obj },
-            { GGL_STR("message"), true, GGL_TYPE_BUF, &message_obj },
+            { GGL_STR("message"), true, GGL_TYPE_NULL, &message_obj },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -50,6 +50,10 @@ static GglError subscribe_to_topic_callback(
         is_json = true;
     } else if (ggl_buffer_eq(type, GGL_STR("base64"))) {
         is_json = false;
+        if (message_obj->type != GGL_TYPE_BUF) {
+            GGL_LOGE("Received invalid message type.");
+            return GGL_ERR_INVALID;
+        }
     } else {
         GGL_LOGE(
             "Received unknown subscription response type: %.*s.",

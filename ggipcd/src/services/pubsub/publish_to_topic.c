@@ -64,7 +64,12 @@ GglError ggl_handle_publish_to_topic(
     GglObject *message;
     ret = ggl_map_validate(
         (is_json ? json_message : binary_message)->map,
-        GGL_MAP_SCHEMA({ GGL_STR("message"), true, GGL_TYPE_BUF, &message }, )
+        GGL_MAP_SCHEMA(
+            { GGL_STR("message"),
+              true,
+              is_json ? GGL_TYPE_NULL : GGL_TYPE_BUF,
+              &message },
+        )
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid paramters.");
