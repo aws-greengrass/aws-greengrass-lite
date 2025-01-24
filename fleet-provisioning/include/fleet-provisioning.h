@@ -16,7 +16,6 @@ typedef struct {
     char *data_endpoint;
     char *root_ca_path;
     char *iotcored_path;
-    char *user_group;
 } FleetProvArgs;
 
 GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid);

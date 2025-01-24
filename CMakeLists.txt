@@ -314,6 +314,11 @@ function(ggl_init_module name)
   if(NOT SRCS_LEN EQUAL 0)
     add_library(${name} STATIC ${SRCS})
     target_compile_definitions(${name} PRIVATE "GGL_MODULE=(\"${name}\")")
+    target_compile_definitions(
+      ${name} PRIVATE "GGL_SYSTEMD_SYSTEM_USER=\"${GGL_SYSTEMD_SYSTEM_USER}\"")
+    target_compile_definitions(
+      ${name}
+      PRIVATE "GGL_SYSTEMD_SYSTEM_GROUP=\"${GGL_SYSTEMD_SYSTEM_GROUP}\"")
     target_include_directories(${name} PRIVATE ${COMP_ARG_INCDIRS})
     target_include_directories(${name} SYSTEM INTERFACE ${COMP_ARG_INCDIRS})
     target_link_libraries(${name} PRIVATE ${COMP_ARG_LIBS})

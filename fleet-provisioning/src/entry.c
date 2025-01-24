@@ -28,6 +28,8 @@
 #define MAX_TEMPLATE_PARAM_LEN 4096
 #define MAX_PATH_LEN 4096
 
+#define USER_GROUP (GGL_SYSTEMD_SYSTEM_USER ":" GGL_SYSTEMD_SYSTEM_GROUP)
+
 GglBuffer ggcredentials_path = GGL_STR("/ggcredentials");
 
 static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
@@ -129,20 +131,6 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         }
 
         args->data_endpoint = (char *) data_endpoint_mem;
-
-        ret = ggl_gg_config_write(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("aws.greengrass.NucleusLite"),
-                GGL_STR("configuration"),
-                GGL_STR("iotDataEndpoint")
-            ),
-            GGL_OBJ_BUF(data_endpoint),
-            &(int64_t) { 3 }
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
     }
 
     if (args->template_name == NULL) {
@@ -193,8 +181,8 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     return GGL_ERR_OK;
 }
 
-static GglError update_cred_access(char *user_group) {
-    char *args[] = { "chown", "-R", user_group, "/ggcredentials/", NULL };
+static GglError update_cred_access(void) {
+    char *args[] = { "chown", "-R", USER_GROUP, "/ggcredentials/", NULL };
 
     GglError ret = ggl_exec_command(args);
     if (ret != GGL_ERR_OK) {
@@ -230,7 +218,7 @@ static GglError update_iot_endpoints(void) {
 
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(
-            GGL_STR("system"),
+            GGL_STR("services"),
             GGL_STR("aws.greengrass.NucleusLite"),
             GGL_STR("configuration"),
             GGL_STR("iotDataEndpoint")
@@ -258,7 +246,7 @@ static GglError update_iot_endpoints(void) {
 
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(
-            GGL_STR("system"),
+            GGL_STR("services"),
             GGL_STR("aws.greengrass.NucleusLite"),
             GGL_STR("configuration"),
             GGL_STR("iotCredEndpoint")
@@ -404,7 +392,7 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
         return ret;
     }
 
-    ret = update_cred_access(args->user_group);
+    ret = update_cred_access();
     if (ret != GGL_ERR_OK) {
         return ret;
     }
