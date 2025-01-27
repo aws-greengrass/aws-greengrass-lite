@@ -5,19 +5,6 @@ This document details building and installing Greengrass from source.
 At the current time, Greengrass Lite supports Linux targets using systemd as the
 init system.
 
-## Dependencies
-
-This project uses third party library dependencies on Ubuntu > 24.04, these can
-be installed with:
-
-```sh
-sudo apt install libssl-dev libcurl4-openssl-dev libsqlite3-dev libyaml-dev \
-  libsystemd-dev liburiparser-dev uuid-dev libevent-dev libzip-dev cgroup-tools
-```
-
-The versions required by greengrass nucleus lite are mentioned at
-[SETUP.md](./SETUP.md#dependencies).
-
 ## Build tools
 
 To build the project, you will need the following build dependencies:
@@ -37,13 +24,14 @@ To build the project, you will need the following build dependencies:
 - libsystemd-dev
 - libevent-dev
 - liburiparser-dev
+- cgroup-tools
 
 On Ubuntu, these can be installed with:
 
 ```sh
 sudo apt install build-essential pkg-config cmake git curl libssl-dev \
   libcurl4-openssl-dev uuid-dev libzip-dev libsqlite3-dev libyaml-dev \
-  libsystemd-dev libevent-dev liburiparser-dev
+  libsystemd-dev libevent-dev liburiparser-dev cgroup-tools
 ```
 
 If your system's cmake is too old, you may need to build or download a newer
