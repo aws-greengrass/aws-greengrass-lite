@@ -679,29 +679,31 @@ GglError runner(const RecipeRunnerArgs *args) {
                 &rest
             );
             if (ret != GGL_ERR_OK) {
-                GGL_LOGW("Failed to get port from config. errono: %d", ret);
-            } else {
-                resp_vec.buf.len += rest.len;
-                ret = ggl_byte_vec_append(
-                    &resp_vec, GGL_STR("/2016-11-01/credentialprovider/\0")
+                GGL_LOGE(
+                    "Failed to get port for TES server from config. Possible "
+                    "reason, TES server might not have started yet."
                 );
-                if (ret != GGL_ERR_OK) {
-                    GGL_LOGE("Failed to append /2016-11-01/credentialprovider/"
-                    );
-                    return ret;
-                }
+                return ret;
+            }
+            resp_vec.buf.len += rest.len;
+            ret = ggl_byte_vec_append(
+                &resp_vec, GGL_STR("/2016-11-01/credentialprovider/\0")
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to append /2016-11-01/credentialprovider/");
+                return ret;
+            }
 
-                sys_ret = setenv(
-                    "AWS_CONTAINER_CREDENTIALS_FULL_URI",
-                    (char *) resp_vec.buf.data,
-                    true
+            sys_ret = setenv(
+                "AWS_CONTAINER_CREDENTIALS_FULL_URI",
+                (char *) resp_vec.buf.data,
+                true
+            );
+            if (sys_ret != 0) {
+                GGL_LOGE(
+                    "setenv AWS_CONTAINER_CREDENTIALS_FULL_URI failed: %d.",
+                    errno
                 );
-                if (sys_ret != 0) {
-                    GGL_LOGE(
-                        "setenv AWS_CONTAINER_CREDENTIALS_FULL_URI failed: %d.",
-                        errno
-                    );
-                }
             }
         }
     }
