@@ -12,7 +12,6 @@
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <ggl/version.h>
-#include <string.h>
 #include <stdint.h>
 
 __attribute__((visibility("default"))) const char *argp_program_version
@@ -23,13 +22,7 @@ static char doc[] = "fleet provisioner -- Executable to automatically "
 static GglBuffer component_name = GGL_STR("fleet-provisioning");
 
 static struct argp_option opts[]
-    = { { "user-group",
-          'u',
-          "name",
-          0,
-          "[optional]GGL_SYSTEMD_SYSTEM_USER user and group \":\" seprated",
-          0 },
-        { "claim-key",
+    = { { "claim-key",
           'k',
           "path",
           0,
@@ -87,15 +80,6 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
         break;
     case 'r':
         args->root_ca_path = arg;
-        break;
-    case 'u':
-        args->user_group = arg;
-        break;
-    case ARGP_KEY_END:
-        if (args->user_group == NULL) {
-            args->user_group = "ggcore:ggcore";
-        }
-        // All keys are optional other are set down the line
         break;
     default:
         return ARGP_ERR_UNKNOWN;

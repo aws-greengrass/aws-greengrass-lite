@@ -33,8 +33,8 @@ __attribute__((constructor(101))) static void setup_sigalrm(void) {
     sigemptyset(&set);
     sigaddset(&set, SIGALRM);
     int sys_ret = pthread_sigmask(SIG_BLOCK, &set, NULL);
-    if (sys_ret == -1) {
-        GGL_LOGE("pthread_sigmask failed: %d", errno);
+    if (sys_ret != 0) {
+        GGL_LOGE("pthread_sigmask failed: %d", sys_ret);
         _Exit(1);
     }
 

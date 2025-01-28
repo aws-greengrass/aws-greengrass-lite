@@ -25,7 +25,10 @@
 #include <ggl/vector.h>
 #include <inttypes.h>
 #include <pthread.h>
+#include <string.h>
+#include <stdatomic.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #define MAX_THING_NAME_LEN 128
@@ -60,23 +63,16 @@ typedef enum DeploymentStatusAction {
 static uint8_t thing_name_mem[MAX_THING_NAME_LEN];
 static GglBuffer thing_name_buf;
 
+static pthread_mutex_t current_job_id_mutex = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t current_job_id_buf[64];
 static GglByteVec current_job_id;
 static uint8_t current_deployment_id_buf[64];
 static GglByteVec current_deployment_id;
-static int64_t current_job_version;
+static _Atomic int32_t current_job_version;
 
 static pthread_mutex_t listener_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t listener_cond = PTHREAD_COND_INITIALIZER;
 static bool needs_describe = false;
-// aws_iot_mqtt subscription handles
-static uint32_t connection_status_handle;
-static uint32_t next_job_handle;
-
-static pthread_mutex_t topic_scratch_mutex = PTHREAD_MUTEX_INITIALIZER;
-static uint8_t topic_scratch[256];
-static uint8_t response_scratch[4096];
-static uint8_t subscription_scratch[4096];
 
 static void listen_for_jobs_deployments(void);
 
@@ -135,8 +131,9 @@ static GglError create_next_job_execution_changed_topic(
 }
 
 static GglError update_job(
-    GglBuffer job_id, GglBuffer job_status, int64_t *version
+    GglBuffer job_id, GglBuffer job_status, _Atomic int32_t *version
 );
+
 static GglError process_job_execution(GglMap job_execution);
 
 static GglError get_thing_name(void *ctx) {
@@ -185,41 +182,102 @@ static GglError deserialize_payload(
 }
 
 static GglError update_job(
-    GglBuffer job_id, GglBuffer job_status, int64_t *version
+    GglBuffer job_id, GglBuffer job_status, _Atomic int32_t *version
 ) {
-    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
-    GglBuffer topic = GGL_BUF(topic_scratch);
+    GglBuffer topic = GGL_BUF((uint8_t[256]) { 0 });
     GglError ret = create_update_job_topic(thing_name_buf, job_id, &topic);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    uint8_t version_buf[16] = { 0 };
-    int len = snprintf(
-        (char *) version_buf, sizeof(version_buf), "%" PRIi64, *version
-    );
-    if (len <= 0) {
-        GGL_LOGE("Version too big");
-        return GGL_ERR_RANGE;
-    }
+    int64_t local_version = atomic_load_explicit(version, memory_order_acquire);
+    while (true) {
+        uint8_t version_buf[16] = { 0 };
+        int len = snprintf(
+            (char *) version_buf, sizeof(version_buf), "%" PRIi64, local_version
+        );
+        if (len <= 0) {
+            GGL_LOGE("Version too big");
+            return GGL_ERR_RANGE;
+        }
+        // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
+        GglObject payload_object = GGL_OBJ_MAP(GGL_MAP(
+            { GGL_STR("status"), GGL_OBJ_BUF(job_status) },
+            { GGL_STR("expectedVersion"),
+              GGL_OBJ_BUF((GglBuffer) { .data = version_buf,
+                                        .len = (size_t) len }) },
+            { GGL_STR("clientToken"),
+              GGL_OBJ_BUF(GGL_STR("jobs-nucleus-lite")) }
+        ));
 
-    // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
-    GglObject payload_object = GGL_OBJ_MAP(GGL_MAP(
-        { GGL_STR("status"), GGL_OBJ_BUF(job_status) },
-        { GGL_STR("expectedVersion"),
-          GGL_OBJ_BUF((GglBuffer) { .data = version_buf, .len = (size_t) len }
-          ) },
-        { GGL_STR("clientToken"), GGL_OBJ_BUF(GGL_STR("jobs-nucleus-lite")) }
-    ));
+        static uint8_t response_scratch[512];
+        GglBumpAlloc call_alloc
+            = ggl_bump_alloc_init(GGL_BUF(response_scratch));
+        GglObject result = GGL_OBJ_NULL();
+        ret = ggl_aws_iot_call(
+            topic, payload_object, &call_alloc.alloc, &result
+        );
+        if (ret == GGL_ERR_OK) {
+            local_version
+                = atomic_fetch_add_explicit(version, 1, memory_order_acq_rel)
+                + 1;
+            break;
+        }
+        if (ret != GGL_ERR_REMOTE) {
+            GGL_LOGE("Failed to publish on update job topic.");
+            return GGL_ERR_FAILURE;
+        }
+        if (result.type != GGL_TYPE_MAP) {
+            GGL_LOGD("Unknown job update rejected response received.");
+            return GGL_ERR_PARSE;
+        }
+        GglObject *execution_state = NULL;
+        if (!ggl_map_get(
+                result.map, GGL_STR("executionState"), &execution_state
+            )) {
+            GGL_LOGW("Unknown job update rejected response received.");
+            return GGL_ERR_PARSE;
+        }
 
-    GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
-    GglObject result = GGL_OBJ_NULL();
-    ggl_aws_iot_call(topic, payload_object, &call_alloc.alloc, &result);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to publish on update job topic");
-        return ret;
+        GglObject *remote_status = NULL;
+        GglObject *remote_version = NULL;
+        ret = ggl_map_validate(
+            execution_state->map,
+            GGL_MAP_SCHEMA(
+                { GGL_STR("status"), true, GGL_TYPE_BUF, &remote_status },
+                { GGL_STR("versionNumber"),
+                  true,
+                  GGL_TYPE_I64,
+                  &remote_version }
+            )
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+        if (ggl_buffer_eq(job_status, GGL_STR("CANCELED"))) {
+            // TODO: Cancelation?
+            GGL_LOGD("Job was canceled.");
+            return GGL_ERR_OK;
+        }
+        if ((remote_version->i64 < 0) || (remote_version->i64 > INT32_MAX)) {
+            GGL_LOGE(
+                "Invalid version %" PRIi64 " received", remote_version->i64
+            );
+            return GGL_ERR_FAILURE;
+        }
+        if ((int32_t) remote_version->i64 != local_version) {
+            GGL_LOGD("Updating stale job status version number.");
+            atomic_store_explicit(
+                version, (int32_t) remote_version->i64, memory_order_release
+            );
+            local_version = (int32_t) remote_version->i64;
+        }
+        if (ggl_buffer_eq(job_status, remote_status->buf)) {
+            GGL_LOGD("Job is already in the desired state.");
+            break;
+        }
+        ggl_sleep(1);
     }
-    ++(*version);
 
     // save jobs ID and version to config in case of bootstrap
     ret = save_iot_jobs_id(job_id);
@@ -228,7 +286,7 @@ static GglError update_job(
         return ret;
     }
 
-    ret = save_iot_jobs_version(current_job_version);
+    ret = save_iot_jobs_version(local_version);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to save job version to config.");
         return ret;
@@ -240,7 +298,7 @@ static GglError update_job(
 static GglError describe_next_job(void *ctx) {
     (void) ctx;
     GGL_LOGD("Requesting next job information.");
-    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
+    static uint8_t topic_scratch[512];
     GglBuffer topic = GGL_BUF(topic_scratch);
     GglError ret = create_get_next_job_topic(thing_name_buf, &topic);
     if (ret != GGL_ERR_OK) {
@@ -255,6 +313,7 @@ static GglError describe_next_job(void *ctx) {
         { GGL_STR("clientToken"), GGL_OBJ_BUF(GGL_STR("jobs-nucleus-lite")) }
     ));
 
+    static uint8_t response_scratch[4096];
     GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
     GglObject job_description = GGL_OBJ_NULL();
     ggl_aws_iot_call(
@@ -288,27 +347,37 @@ static GglError describe_next_job(void *ctx) {
 }
 
 static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
-    // TODO: check if current job is canceled before clobbering
-    current_job_version = 1;
-    current_job_id = GGL_BYTE_VEC(current_job_id_buf);
-    GglError ret = ggl_byte_vec_append(&current_job_id, job_id);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Job ID too long.");
-        return ret;
+    GglError ret = GGL_ERR_OK;
+    {
+        GGL_MTX_SCOPE_GUARD(&current_job_id_mutex);
+        if (ggl_buffer_eq(current_job_id.buf, job_id)) {
+            GGL_LOGI("Duplicate job document received. Skipping.");
+            return GGL_ERR_OK;
+        }
+
+        current_job_version = 1;
+        current_job_id = GGL_BYTE_VEC(current_job_id_buf);
+        ret = ggl_byte_vec_append(&current_job_id, job_id);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Job ID too long.");
+            return ret;
+        }
+
+        current_deployment_id = GGL_BYTE_VEC(current_deployment_id_buf);
+
+        // TODO: backoff algorithm
+        int64_t retries = 1;
+        while (
+            (ret = ggl_deployment_enqueue(
+                 deployment_doc, &current_deployment_id, THING_GROUP_DEPLOYMENT
+             ))
+            == GGL_ERR_BUSY
+        ) {
+            int64_t sleep_for = 1 << MIN(7, retries);
+            ggl_sleep(sleep_for);
+            ++retries;
+        }
     }
-
-    current_deployment_id = GGL_BYTE_VEC(current_deployment_id_buf);
-
-    // TODO: backoff algorithm
-    int64_t retries = 1;
-    while ((ret = ggl_deployment_enqueue(
-                deployment_doc, &current_deployment_id, THING_GROUP_DEPLOYMENT
-            ))
-           == GGL_ERR_BUSY) {
-        int64_t sleep_for = 1 << MIN(7, retries);
-        ggl_sleep(sleep_for);
-        ++retries;
-    };
 
     if (ret != GGL_ERR_OK) {
         update_job(job_id, GGL_STR("FAILURE"), &current_job_version);
@@ -357,7 +426,7 @@ static GglError process_job_execution(GglMap job_execution) {
     }
     switch (action) {
     case DSA_CANCEL_JOB:
-        // TODO: cancellation?
+        // TODO: cancelation?
         break;
 
     case DSA_ENQUEUE_JOB: {
@@ -383,6 +452,7 @@ static GglError next_job_execution_changed_callback(
     (void) ctx;
     (void) handle;
     GGL_LOGD("Received next job execution changed response.");
+    static uint8_t subscription_scratch[4096];
     GglBumpAlloc json_allocator
         = ggl_bump_alloc_init(GGL_BUF(subscription_scratch));
     GglObject json = GGL_OBJ_NULL();
@@ -406,7 +476,7 @@ static GglError next_job_execution_changed_callback(
         return GGL_ERR_FAILURE;
     }
     if (job_execution == NULL) {
-        // TODO: job cancellation
+        // TODO: job cancelation
         return GGL_ERR_OK;
     }
     ret = process_job_execution(job_execution->map);
@@ -423,35 +493,28 @@ void *job_listener_thread(void *ctx) {
     listen_for_jobs_deployments();
 
     while (true) {
-        pthread_mutex_lock(&listener_mutex);
-        pthread_cond_wait(&listener_cond, &listener_mutex);
-        pthread_mutex_unlock(&listener_mutex);
-
-        if ((next_job_handle == 0) || (connection_status_handle == 0)) {
-            listen_for_jobs_deployments();
-        }
-
-        if (needs_describe) {
-            ggl_backoff_indefinite(10, 10000, describe_next_job, NULL);
+        {
+            GGL_MTX_SCOPE_GUARD(&listener_mutex);
+            while (!needs_describe) {
+                pthread_cond_wait(&listener_cond, &listener_mutex);
+            }
             needs_describe = false;
         }
+        ggl_backoff_indefinite(10, 10000, describe_next_job, NULL);
     }
     return NULL;
 }
 
-static void subscribe_on_close(void *ctx, uint32_t handle) {
+static void resubscribe_on_iotcored_close(void *ctx, uint32_t handle) {
     (void) ctx;
     (void) handle;
     GGL_LOGD("Subscriptions closed. Subscribing again.");
-    GGL_MTX_SCOPE_GUARD(&listener_mutex);
-    next_job_handle = 0;
-    connection_status_handle = 0;
-    pthread_cond_signal(&listener_cond);
+    listen_for_jobs_deployments();
 }
 
 static GglError subscribe_to_next_job_topics(void *ctx) {
     (void) ctx;
-    GGL_MTX_SCOPE_GUARD(&topic_scratch_mutex);
+    static uint8_t topic_scratch[256];
     GglBuffer job_topic = GGL_BUF(topic_scratch);
     GglError err
         = create_next_job_execution_changed_topic(thing_name_buf, &job_topic);
@@ -462,9 +525,9 @@ static GglError subscribe_to_next_job_topics(void *ctx) {
         GGL_BUF_LIST(job_topic),
         QOS_AT_LEAST_ONCE,
         next_job_execution_changed_callback,
-        subscribe_on_close,
+        resubscribe_on_iotcored_close,
         NULL,
-        &next_job_handle
+        NULL
     );
 }
 
@@ -492,7 +555,7 @@ static GglError subscribe_to_connection_status(void *ctx) {
         NULL,
         NULL,
         NULL,
-        &connection_status_handle
+        NULL
     );
 }
 
@@ -508,23 +571,48 @@ static void listen_for_jobs_deployments(void) {
 GglError update_current_jobs_deployment(
     GglBuffer deployment_id, GglBuffer status
 ) {
-    if (!ggl_buffer_eq(deployment_id, current_deployment_id.buf)) {
-        return GGL_ERR_NOENTRY;
+    GglBuffer job_id = GGL_BUF((uint8_t[64]) { 0 });
+    {
+        GGL_MTX_SCOPE_GUARD(&current_job_id_mutex);
+        if (!ggl_buffer_eq(deployment_id, current_deployment_id.buf)) {
+            return GGL_ERR_NOENTRY;
+        }
+        memcpy(
+            job_id.data, current_job_id.buf.data, current_deployment_id.buf.len
+        );
+        job_id.len = current_deployment_id.buf.len;
     }
 
-    // TODO: mutual exclusion
-    // Subscription thread gets a cancellation and then a new job,
-    // overwriting current_job_id while deployment thread updates job state
-    return update_job(current_job_id.buf, status, &current_job_version);
+    return update_job(job_id, status, &current_job_version);
 }
 
-GglError update_bootstrap_jobs_deployment(
-    GglBuffer deployment_id, GglBuffer status, int64_t version
+GglError set_jobs_deployment_for_bootstrap(
+    GglBuffer job_id, GglBuffer deployment_id, int64_t version
 ) {
-    if (!ggl_buffer_eq(deployment_id, current_deployment_id.buf)) {
-        return GGL_ERR_NOENTRY;
+    if ((version < 0) || (version > INT32_MAX)) {
+        return GGL_ERR_INVALID;
     }
-
-    current_job_version = version;
-    return update_job(current_job_id.buf, status, &version);
+    GGL_MTX_SCOPE_GUARD(&current_job_id_mutex);
+    if (!ggl_buffer_eq(job_id, current_job_id.buf)) {
+        if (current_job_id.buf.len != 0) {
+            GGL_LOGI("Bootstrap deployment was canceled by cloud.");
+            return GGL_ERR_NOENTRY;
+        }
+        current_job_id = GGL_BYTE_VEC(current_job_id_buf);
+        GglError ret = ggl_byte_vec_append(&current_job_id, job_id);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Job ID too long.");
+            return ret;
+        }
+        current_deployment_id = GGL_BYTE_VEC(current_deployment_id_buf);
+        ret = ggl_byte_vec_append(&current_deployment_id, deployment_id);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Deployment ID too long.");
+            return ret;
+        }
+    }
+    atomic_store_explicit(
+        &current_job_version, (int32_t) version, memory_order_release
+    );
+    return GGL_ERR_OK;
 }

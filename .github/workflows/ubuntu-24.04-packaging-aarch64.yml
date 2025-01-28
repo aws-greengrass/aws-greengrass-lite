@@ -1,0 +1,93 @@
+name: Ubuntu 24.04 aarch64 - Build deb packages and zip files
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [RelWithDebInfo, MinSizeRel]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      - name: Cache Podman image
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/podman-aarch64-linux-gnu-image.tar
+          key:
+            ${{ runner.os }}-podman-${{ hashFiles('misc/buildtestcontainer/*')
+            }}
+
+      - name: Build and save container for aarch64-linux-gnu
+        run: |
+          if [ ! -f ~/podman-aarch64-linux-gnu-image.tar ]; then
+            podman build --from=docker.io/arm64v8/ubuntu:24.04 --arch=arm64 misc/buildtestcontainer -t container
+            podman save container:latest > ~/podman-aarch64-linux-gnu-image.tar
+          else
+            podman load < ~/podman-aarch64-linux-gnu-image.tar
+          fi
+
+      - name: Run build in container
+        shell: bash
+        run: |
+          podman run -v $PWD/.:/aws-greengrass-lite --replace --name ggl container:latest bash -c "\
+            cd /aws-greengrass-lite && \
+            rm -rf build/ && \
+            cmake -B build \
+            -DGGL_LOG_LEVEL=DEBUG \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_FIND_DEBUG_MODE=ON \
+            -DGGL_SYSTEMD_SYSTEM_USER=ggcore \
+            -DGGL_SYSTEMD_SYSTEM_GROUP=ggcore  \
+            -DGGL_SYSTEMD_SYSTEM_DIR=/lib/systemd/system \
+            -DCMAKE_INSTALL_PREFIX=/usr && \
+            make -C build -j$(nproc) && \
+            cd build && cpack -v -G DEB && cd - \
+            "
+
+      - name: Save package
+        run: |
+          mkdir ${{ github.workspace }}/zipfile/
+          cp ${{ github.workspace }}/build/*.deb ${{ github.workspace }}/zipfile/
+
+      - name: Generate readme / install file
+        run: |
+          cat ${{ github.workspace }}/.github/workflows/packaging/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
+          cp ${{ github.workspace }}/.github/workflows/packaging/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
+          sed -i 's|{{ VERSION_LINK }}|${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
+          sed -i 's|{{ UBUNTU_VERSION }}|24.04|g' ${{ github.workspace }}/zipfile/install-greengrass-lite.sh
+          cat ${{ github.workspace }}/LICENSE >> ${{ github.workspace }}/zipfile/readme.txt
+
+      - name: md5sums
+        run: |
+          md5sum ${{ github.workspace }}/zipfile/*
+
+      - name: Save package
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-greengrass-lite-ubuntu-${{ matrix.build_type }}
+          path: |
+            ${{ github.workspace }}/zipfile/*
+          retention-days: 1
+
+      - name:
+          Save arm64 package without build type - default package to download
+        if: matrix.build_type  == 'MinSizeRel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-greengrass-lite-ubuntu-arm64
+          path: |
+            ${{ github.workspace }}/zipfile/*
+          retention-days: 1

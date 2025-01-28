@@ -354,8 +354,6 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
 
         // Send status update to indicate mqtt disconnection.
         iotcored_mqtt_status_update_send(GGL_OBJ_BOOL(false));
-
-        GGL_LOGE("Removing all IoT core subscriptions");
     }
 }
 
@@ -460,7 +458,7 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
     int thread_ret
         = pthread_create(&recv_thread, NULL, mqtt_recv_thread_fn, &mqtt_ctx);
     if (thread_ret != 0) {
-        GGL_LOGE("Could not create the MQTT receive thread.");
+        GGL_LOGE("Could not create the MQTT receive thread: %d.", thread_ret);
         return GGL_ERR_FATAL;
     }
 
@@ -468,7 +466,9 @@ GglError iotcored_mqtt_connect(const IotcoredArgs *args) {
         &keepalive_thread, NULL, mqtt_keepalive_thread_fn, &mqtt_ctx
     );
     if (thread_ret != 0) {
-        GGL_LOGE("Could not create the MQTT keep-alive thread.");
+        GGL_LOGE(
+            "Could not create the MQTT keep-alive thread: %d.", thread_ret
+        );
         return GGL_ERR_FATAL;
     }
 

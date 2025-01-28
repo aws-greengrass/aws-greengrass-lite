@@ -55,19 +55,19 @@ static GglObject fetch_creds(GglBumpAlloc the_allocator) {
 
 static void request_handler(struct evhttp_request *req, void *arg) {
     (void) arg;
-
+    GGL_LOGI("Attempting to vend creds for a request.");
     struct evkeyvalq *headers = evhttp_request_get_input_headers(req);
 
     // Check for the required header
     const char *auth_header = evhttp_find_header(headers, "Authorization");
     if (!auth_header) {
-        GGL_LOGE("Missing Authorization header");
+        GGL_LOGE("Missing Authorization header.");
         // Respond with 400 Bad Request
         struct evbuffer *response = evbuffer_new();
         if (response) {
             evbuffer_add_printf(
                 response,
-                "Authorization header is needed to process the request"
+                "Authorization header is needed to process the request."
             );
             evhttp_send_reply(req, HTTP_BADREQUEST, "Bad Request", response);
             evbuffer_free(response);
@@ -143,16 +143,18 @@ static void request_handler(struct evhttp_request *req, void *arg) {
     GglError ret_err_json
         = ggl_json_encode(tes_formatted_obj, &response_cred_buffer);
     if (ret_err_json != GGL_ERR_OK) {
-        GGL_LOGE("Failed to convert the json");
+        GGL_LOGE("Failed to convert the json.");
         return;
     }
 
     struct evbuffer *buf = evbuffer_new();
 
     if (!buf) {
-        GGL_LOGE("Failed to create response buffer");
+        GGL_LOGI("Failed to create response buffer.");
         return;
     }
+
+    GGL_LOGD("Successfully vended credentials for a request.");
 
     // Add the response data to the evbuffer
     evbuffer_add(buf, response_cred_buffer.data, response_cred_buffer.len);
@@ -165,11 +167,11 @@ static void default_handler(struct evhttp_request *req, void *arg) {
     (void) arg;
 
     GglBuffer response_cred_buffer
-        = GGL_STR("Only /2016-11-01/credentialprovider/ uri is supported");
+        = GGL_STR("Only /2016-11-01/credentialprovider/ uri is supported.");
     struct evbuffer *buf = evbuffer_new();
 
     if (!buf) {
-        GGL_LOGE("Failed to create response buffer");
+        GGL_LOGE("Failed to create response buffer.");
         return;
     }
 
@@ -190,14 +192,14 @@ GglError http_server(void) {
     // Create an event_base, which is the core of libevent
     base = event_base_new();
     if (!base) {
-        GGL_LOGE("Could not initialize libevent");
+        GGL_LOGE("Could not initialize libevent.");
         return 1;
     }
 
     // Create a new HTTP server
     http = evhttp_new(base);
     if (!http) {
-        GGL_LOGE("Could not create evhttp. Exiting.");
+        GGL_LOGE("Could not create evhttp. Exiting...");
         return 1;
     }
 
@@ -210,7 +212,7 @@ GglError http_server(void) {
     // Bind to available  port
     handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", 0);
     if (!handle) {
-        GGL_LOGE("Could not bind to any port...Exiting.");
+        GGL_LOGE("Could not bind to any port. Exiting...");
         return 1;
     }
 
@@ -226,7 +228,7 @@ GglError http_server(void) {
         }
         GGL_LOGI("Listening on port http://localhost:%d\n", port);
     } else {
-        GGL_LOGE("Could not fetch the to any port url...Exiting.");
+        GGL_LOGE("Could not fetch the to any port url. Exiting...");
     }
 
     uint8_t port_mem[8];
@@ -235,11 +237,11 @@ GglError http_server(void) {
         (char *) port_as_buffer.data, port_as_buffer.len, "%" PRId16, port
     );
     if (ret_convert < 0) {
-        GGL_LOGE("Error parsing the port value as string");
+        GGL_LOGE("Error parsing the port value as string.");
         return GGL_ERR_FAILURE;
     }
     if ((size_t) ret_convert > port_as_buffer.len) {
-        GGL_LOGE("Insufficient buffer space to store port data");
+        GGL_LOGE("Insufficient buffer space to store port data.");
         return GGL_ERR_NOMEM;
     }
     port_as_buffer.len = (size_t) ret_convert;
@@ -261,7 +263,7 @@ GglError http_server(void) {
         NULL
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error writing the TES version to the config");
+        GGL_LOGE("Error writing the TES version to the config.");
         return ret;
     }
 

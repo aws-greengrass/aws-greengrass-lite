@@ -14,8 +14,8 @@ void *job_listener_thread(void *ctx);
 GglError update_current_jobs_deployment(
     GglBuffer deployment_id, GglBuffer status
 );
-GglError update_bootstrap_jobs_deployment(
-    GglBuffer deployment_id, GglBuffer status, int64_t version
+GglError set_jobs_deployment_for_bootstrap(
+    GglBuffer job_id, GglBuffer deployment_id, int64_t version
 );
 
 #endif

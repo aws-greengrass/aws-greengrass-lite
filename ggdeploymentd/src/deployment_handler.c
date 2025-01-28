@@ -852,16 +852,11 @@ static GglError generate_resolve_component_candidates_body(
         { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("aws_nucleus_lite")) },
         { GGL_STR("os"), GGL_OBJ_BUF(GGL_STR("linux")) },
         { GGL_STR("architecture"), GGL_OBJ_BUF(get_current_architecture()) },
+        { GGL_STR("architecture.detail"), architecture_detail_read_value }
     );
 
-    if (architecture_detail_read_value.buf.len != 0) {
-        platform_attributes = GGL_MAP(
-            { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("aws_nucleus_lite")) },
-            { GGL_STR("os"), GGL_OBJ_BUF(GGL_STR("linux")) },
-            { GGL_STR("architecture"),
-              GGL_OBJ_BUF(get_current_architecture()) },
-            { GGL_STR("architecture.detail"), architecture_detail_read_value }
-        );
+    if (architecture_detail_read_value.buf.len == 0) {
+        platform_attributes.len -= 1;
     }
 
     GglMap platform_info = GGL_MAP(
@@ -3042,11 +3037,12 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             (int) bootstrap_deployment.deployment_id.len,
             bootstrap_deployment.deployment_id.data
         );
-        update_bootstrap_jobs_deployment(
-            bootstrap_deployment.deployment_id,
-            GGL_STR("IN_PROGRESS"),
-            jobs_version
-        );
+
+        bool send_deployment_update
+            = (GGL_ERR_OK
+               == set_jobs_deployment_for_bootstrap(
+                   jobs_id, bootstrap_deployment.deployment_id, jobs_version
+               ));
 
         bool bootstrap_deployment_succeeded = false;
         handle_deployment(
@@ -3055,22 +3051,20 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 
         send_fss_update(&bootstrap_deployment, bootstrap_deployment_succeeded);
 
-        if (bootstrap_deployment_succeeded) {
+        if (send_deployment_update && bootstrap_deployment_succeeded) {
             GGL_LOGI("Completed deployment processing and reporting job as "
                      "SUCCEEDED.");
-            update_bootstrap_jobs_deployment(
-                bootstrap_deployment.deployment_id,
-                GGL_STR("SUCCEEDED"),
-                jobs_version
+            update_current_jobs_deployment(
+                bootstrap_deployment.deployment_id, GGL_STR("SUCCEEDED")
             );
-        } else {
+        } else if (send_deployment_update) {
             GGL_LOGW("Completed deployment processing and reporting job as "
                      "FAILED.");
-            update_bootstrap_jobs_deployment(
-                bootstrap_deployment.deployment_id,
-                GGL_STR("FAILED"),
-                jobs_version
+            update_current_jobs_deployment(
+                bootstrap_deployment.deployment_id, GGL_STR("FAILED")
             );
+        } else {
+            GGL_LOGI("Completed deployment, but job was canceled.");
         }
         // clear any potential saved deployment info for next deployment
         ret = delete_saved_deployment_from_config();

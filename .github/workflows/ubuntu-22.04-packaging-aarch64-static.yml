@@ -1,4 +1,4 @@
-name: Build static deb arm64 packages and put them in zip files
+name: Ubuntu 22.04 - Build static deb packages and zip files
 on:
   push:
     branches:
@@ -8,28 +8,28 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04-arm
     strategy:
       fail-fast: false
       matrix:
-        architecture: [aarch64-linux-gnu]
         build_type: [RelWithDebInfo, MinSizeRel]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Set up Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
 
       - name: Cache Podman image
         uses: actions/cache@v4
         with:
           path: ~/podman-image.tar
           key:
-            ${{ runner.os }}-${{ matrix.architecture }}-podman-${{
+            ${{ runner.os }}-podman-${{
             hashFiles('misc/staticbuildtestcontainer/*') }}
 
       - name: Build and save container for aarch64-linux-gnu
-        if: matrix.architecture == 'aarch64-linux-gnu'
         run: |
           if [ ! -f ~/podman-image.tar ]; then
             podman build --from=docker.io/arm64v8/ubuntu:22.04 --arch=arm64 misc/staticbuildtestcontainer -t container
@@ -73,16 +73,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name:
-            aws-greengrass-lite-ubuntu-${{ matrix.architecture || 'x86-64'}}_${{
-            matrix.build_type }}-static
+            aws-greengrass-lite-ubuntu-aarch64-linux-gnu_${{ matrix.build_type
+            }}-static
           path: |
             ${{ github.workspace }}/zipfile/*
           retention-days: 1
       - name:
           Save arm64 package without build type - default package to download
-        if:
-          matrix.build_type  == 'MinSizeRel' && matrix.architecture ==
-          'aarch64-linux-gnu'
+        if: matrix.build_type  == 'MinSizeRel'
         uses: actions/upload-artifact@v4
         with:
           name: aws-greengrass-lite-ubuntu-arm64-static

@@ -429,7 +429,7 @@ GglError ggl_deployment_enqueue(
     if (exists) {
         if (deployments[index].state != GGL_DEPLOYMENT_QUEUED) {
             GGL_LOGI("Existing deployment not replaceable.");
-            return GGL_ERR_FAILURE;
+            return GGL_ERR_OK;
         }
         GGL_LOGI("Replacing existing deployment in queue.");
     } else {

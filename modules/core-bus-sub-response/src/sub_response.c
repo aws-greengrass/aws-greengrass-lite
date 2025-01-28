@@ -109,7 +109,7 @@ GglError ggl_sub_response(
 
         while (!resp_ctx.ready) {
             int cond_ret = pthread_cond_timedwait(&cond, &mtx, &timeout_abs);
-            if ((cond_ret < 0) && (cond_ret != EINTR)) {
+            if ((cond_ret != 0) && (cond_ret != EINTR)) {
                 assert(cond_ret == ETIMEDOUT);
                 GGL_LOGW("Timed out waiting for a response.");
                 timed_out = true;

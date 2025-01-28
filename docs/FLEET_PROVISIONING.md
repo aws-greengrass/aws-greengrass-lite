@@ -133,11 +133,8 @@ $ cp ./run/config.yaml /etc/greengrass/config.yaml
 $ ./misc/run_nucleus
 ```
 
-In root user shell, run the fleet provisioning binary.
-
-If you changed `GGL_SYSTEMD_SYSTEM_USER` and `GGL_SYSTEMD_SYSTEM_GROUP`
-mentioned in [CMakeLists.txt](../CMakeLists.txt), you can override default by
-adding `-u "ggcore:ggcore"` at the end of following command:
+In root user shell, run the fleet provisioning binary with the following
+command:
 
 ```sh
 $ ../build/bin/fleet-provisioning
