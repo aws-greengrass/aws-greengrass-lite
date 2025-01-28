@@ -96,7 +96,6 @@ GglError ipc_svcuid_exists(GglBuffer svcuid_buf) {
 
 static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
-    (void) handle;
 
     GglObject *svcuid_obj;
 
@@ -117,6 +116,7 @@ static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
 
     if (ipc_svcuid_exists(svcuid_obj->buf) == GGL_ERR_OK) {
         ggl_respond(handle, GGL_OBJ_BOOL(true));
+        return GGL_ERR_OK;
     }
 
     GGL_LOGE("Requested svcuid not found.");
