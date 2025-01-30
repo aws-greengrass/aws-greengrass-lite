@@ -70,7 +70,7 @@ Then run:
 
 ```
 sudo mkdir /ggcredentials
-//cp your aws credentials(device certificates, private key, root ca) to this folder
+# cp your aws credentials(device certificates, private key, root ca) to this folder
 chown -R ggcore:ggcore /ggcredentials
 
 mkdir /var/lib/greengrass

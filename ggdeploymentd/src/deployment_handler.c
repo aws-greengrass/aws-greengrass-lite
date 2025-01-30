@@ -1278,7 +1278,7 @@ static GglError resolve_dependencies(
     }
 
     // Get list of thing groups
-    static uint8_t list_thing_groups_response_buf[2048] = { 0 };
+    uint8_t list_thing_groups_response_buf[2048] = { 0 };
     GglBuffer list_thing_groups_response
         = GGL_BUF(list_thing_groups_response_buf);
 
@@ -1577,7 +1577,11 @@ static GglError resolve_dependencies(
 
         if (!found_local_candidate) {
             // Resolve with cloud and download recipe
-            static uint8_t resolve_component_candidates_response_buf[16384]
+            static uint8_t resolve_component_candidates_response_buf
+                [16384] // TODO: Clean up usages of static variables in this
+                        // file, many may be more appropriately non-static to
+                        // prevent issues where the memory is not re-initalized
+                        // to zero when the function is re-called
                 = { 0 };
             GglBuffer resolve_component_candidates_response
                 = GGL_BUF(resolve_component_candidates_response_buf);
