@@ -4,6 +4,7 @@ argp
 armv
 awsiotsdk
 boto
+cbmc
 cgexec
 clientfd
 clientv
@@ -88,6 +89,7 @@ NOLINTNEXTLINE
 NOMEM
 NOPASSWD
 nproc
+ostree
 parentid
 pidfd
 pkgs
