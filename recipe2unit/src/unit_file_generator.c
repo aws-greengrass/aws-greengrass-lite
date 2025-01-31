@@ -371,6 +371,14 @@ static GglError update_unit_file_buffer(
         return ret;
     }
 
+    ret = ggl_byte_vec_append(out, GGL_STR("SyslogIdentifier="));
+    ggl_byte_vec_chain_append(&ret, out, component_name);
+    ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write SyslogIdentifier portion of unit files");
+        return ret;
+    }
+
     ret = expand_timeout(&timeout, component_name);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to expand timeout variable.");
