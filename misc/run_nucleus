@@ -22,6 +22,7 @@ systemctl enable ggl.core.gg-fleet-statusd.service
 systemctl enable ggl.core.ggpubsubd.service
 systemctl enable ggl.core.gghealthd.service
 systemctl enable ggl.core.ggipcd.service
+systemctl enable ggl.aws.greengrass.TokenExchangeService.service
 systemctl reset-failed
 systemctl daemon-reload
 systemctl start greengrass-lite.target
