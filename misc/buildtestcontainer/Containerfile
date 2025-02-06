@@ -6,7 +6,7 @@ RUN apt-get update \
     systemd systemd-sysv dbus ca-certificates sudo nano bash-completion \
     build-essential pkg-config cmake git curl file gdb python3 \
     libssl-dev libcurl4-openssl-dev libsqlite3-dev sqlite3 libyaml-dev \
-    libsystemd-dev liburiparser-dev uuid-dev libevent-dev libzip-dev \
+    libsystemd-dev liburiparser-dev uuid-dev libevent-dev cgroup-tools libzip-dev \
   && apt-get clean
 
 COPY ./getty-override.conf \

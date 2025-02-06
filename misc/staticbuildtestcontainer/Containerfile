@@ -81,6 +81,7 @@ RUN apt-get update && apt-get -y install --no-install-recommends \
     libevent-dev \
     libsqlite3-dev \
     libsystemd-dev \
+    cgroup-tools \
     liburiparser-dev \
     libyaml-dev \
     sqlite3 \

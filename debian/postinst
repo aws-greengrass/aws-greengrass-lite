@@ -77,7 +77,7 @@ mkdir -p "${gg_workingdir}"
 
 chown "${gg_user}":"${gg_group}" "${gg_workingdir}"
 
-systemd-tmpfiles --create
+systemctl restart systemd-tmpfiles-clean.service
 
 systemctl enable greengrass-lite.target
 systemctl enable ggl.aws_iot_tes.socket
