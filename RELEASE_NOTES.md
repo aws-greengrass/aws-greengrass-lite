@@ -1,3 +1,8 @@
+# Release Notes v2.0.2
+
+This is a minor release that fixes the dependencies of the apt packages to
+include cgroup-tools.
+
 # Release Notes v2.0.1
 
 This is a minor release that adds the missing features to support default recipe
