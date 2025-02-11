@@ -69,6 +69,13 @@ GglError sigv4_download(
     CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_sigv4_download);
     if (error == GGL_ERR_OK) {
+        error = gghttplib_add_header(
+            &curl_data,
+            GGL_STR("x-amz-content-sha256"),
+            GGL_STR("UNSIGNED-PAYLOAD")
+        );
+    }
+    if (error == GGL_ERR_OK) {
         error = gghttplib_add_sigv4_credential(&curl_data, sigv4_details);
     }
     if (error == GGL_ERR_OK) {
