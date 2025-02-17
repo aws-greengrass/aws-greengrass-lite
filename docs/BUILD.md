@@ -1,9 +1,9 @@
-# Installing AWS Greengrass Nucleus Lite from source
+# Installing AWS IoT Greengrass nucleus lite from source
 
 This document details building and installing Greengrass from source.
 
-At the current time, Greengrass Lite supports Linux targets using systemd as the
-init system.
+At the current time, Greengrass nucleus lite supports Linux targets using
+systemd as the init system.
 
 ## Build tools
 
@@ -39,10 +39,12 @@ version. The provided `bootstrap-cmake.sh` script downloads a new cmake version
 into `./build/cmake` and configures the project using that CMake with `./build`
 as the build directory. If you do so, you can skip the configuring step below.
 
-## User/Group
+## Users/Groups
 
-You will need to create the user/group for running the Greengrass Lite nucleus
+You will need to create the user/group for running the Greengrass nucleus lite
 services, as well as the user/group for running components by default.
+
+#### Nucleus service user/group
 
 The nucleus service user/group is used by the nucleus systemd services and is
 `ggcore:ggcore` by default. It can be configured using CMake as described later
@@ -77,9 +79,16 @@ mkdir /var/lib/greengrass
 chown ggcore:ggcore /var/lib/greengrass
 ```
 
+When [building](#building), provide this user and group via the
+[configuration flags](#configuration-flags) `GGL_SYSTEMD_SYSTEM_USER` and
+`GGL_SYSTEMD_SYSTEM_GROUP`.
+
+#### Component user/group
+
 The default user/group for components is set in your Greengrass configuration.
-Greengrass will configure components without an explicit user/group to run as
-that user/group. This is listed in the sample configuration as
+See the [posixUser in the setup guide](SETUP.md#configuring-greengrass) for more
+info. Greengrass will configure components without an explicit user/group to run
+as that user/group. This is listed in the sample configuration as
 `gg_component:gg_component`.
 
 Run the following with `gg_component`/`gg_component` substituted with your

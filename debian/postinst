@@ -2,7 +2,7 @@
 set -e
 echo "postinst script running"
 
-# https://github.com/aws-greengrass/aws-greengrass-lite/blob/main/docs/INSTALL.md#usergroup
+# https://github.com/aws-greengrass/aws-greengrass-lite/blob/main/docs/BUILD.md#usersgroups
 # user and group for greengrass itself
 gg_user="ggcore"
 gg_group="ggcore"

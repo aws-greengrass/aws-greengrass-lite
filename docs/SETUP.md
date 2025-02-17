@@ -1,10 +1,10 @@
-# Setting up Greengrass Nucleus Lite
+# Setting up Greengrass nucleus lite
 
-See the [build guide](INSTALL.md) to compile and install Greengrass Nucleus
-Lite. If running locally for evaluation, you can use the provided container to
-install in its own environment.
+See the [build guide](BUILD.md) to compile and install Greengrass Nucleus Lite.
+If running locally for evaluation, you can use the provided container to install
+in its own environment.
 
-Greengrass Nucleus Lite executables will be available under `bin` in the build
+Greengrass nucleus lite executables will be available under `bin` in the build
 directory.
 
 When run, they may use the current working directory to store state. Use the
@@ -29,6 +29,12 @@ This project uses the following third party library dependencies:
 | libevent        | 2.1.12                   |
 | libzip          | 1.7.3                    |
 | libcgroup-tools | 2.0                      |
+
+## Users/Groups
+
+Greengrass nucleus lite will use the users/groups configured in the
+[build process](BUILD.md#usersgroups). If you're using the apt package, yocto
+layer, or yocto image, these will be set up and configured for you.
 
 ## Configuring Greengrass
 
@@ -65,7 +71,10 @@ Configure the following in your config file
 
 `posixUser` must be set to a valid user and group. If no colon and group is
 provided, the user's default group is used. If not running Greengrass as root,
-set this to the user Greengrass is running as.
+set this to the user Greengrass is running as. This should be set to the
+component user/group created in the [build process](BUILD.md#usersgroups). If
+using our apt package, yocto layer, or yocto image, then this should be set to
+`gg_component:gg_component`.
 
 To initialize the config, initial configuration will need to be present either
 as `/etc/greengrass/config.yaml`, and/or in one or more files in
