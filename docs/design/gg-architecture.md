@@ -1,4 +1,4 @@
-# Greengrass Lite C Architecture
+# Greengrass Lite Architecture
 
 ## Introduction and Goals
 
