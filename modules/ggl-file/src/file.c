@@ -4,6 +4,7 @@
 
 #include "ggl/file.h"
 #include <sys/types.h>
+#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
@@ -21,11 +22,29 @@
 #include <stdint.h>
 #include <stdio.h>
 
+static void empty_sig_handler(int sig) {
+    (void) sig;
+}
+
 // Lowest allowed priority in order to run before threads are created.
 __attribute__((constructor(101))) static void ignore_sigpipe(void) {
     // If SIGPIPE is not blocked, writing to a socket that the server has closed
     // will result in this process being killed.
-    signal(SIGPIPE, SIG_IGN);
+    // SIG_IGN should not be set as it is inherited across exec.
+    // Since only SIG_IGN or SIG_DFL is inherited, and a handler set to a
+    // function is reset to SIG_DFL after exec, we can start children with the
+    // same settings this process was started with by only setting the handler
+    // if the initial value is SIG_DFL.
+    struct sigaction sa;
+    int ret = sigaction(SIGPIPE, NULL, &sa);
+    assert(ret == 0);
+    if (sa.sa_handler == SIG_DFL) {
+        sa = (struct sigaction) {
+            .sa_handler = empty_sig_handler,
+        };
+        ret = sigaction(SIGPIPE, &sa, NULL);
+        assert(ret == 0);
+    }
 }
 
 static char path_comp_buf[NAME_MAX + 1];
