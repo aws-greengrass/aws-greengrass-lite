@@ -28,9 +28,9 @@ Detailed information can be found [here](./docs/RECIPE_SUPPORT_CHANGES.md).
 
 ## Installing from source
 
-To install Greengrass nucleus lite from source, please follow the installation
-guide [INSTALL.md](./docs/INSTALL.md) and [TES.md](./docs/TES.md). Once the
-development environment is setup, please refer to [SETUP.md](./docs/SETUP.md).
+To install Greengrass nucleus lite from source, please follow the build guide
+[BUILD.md](./docs/BUILD.md) and [TES.md](./docs/TES.md). Once the development
+environment is setup, please refer to [SETUP.md](./docs/SETUP.md).
 
 For provisioning Greengrass nucleus lite devices by claim certificates, please
 take a look at the fleet provisioning by claim setup guide
