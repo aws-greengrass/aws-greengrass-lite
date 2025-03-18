@@ -8,8 +8,10 @@
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/util.h>
+#include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
+#include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -22,74 +24,105 @@
 #include <systemd/sd-daemon.h>
 #include <stdint.h>
 
-struct evhttp_request;
-
-static GglObject fetch_creds(GglBumpAlloc the_allocator) {
-    GglBuffer tesd = GGL_STR("aws_iot_tes");
-    GglObject result;
-    GglMap params = { 0 };
-
-    GglError error = ggl_call(
-        tesd,
-        GGL_STR("request_credentials_formatted"),
-        params,
-        NULL,
-        &the_allocator.alloc,
-        &result
-    );
-
-    if (error != GGL_ERR_OK) {
-        GGL_LOGE("tes request failed....");
-    } else {
-        if (result.type == GGL_TYPE_BUF) {
-            GGL_LOGI(
-                "read value: %.*s",
-                (int) result.buf.len,
-                (char *) result.buf.data
-            );
-        }
+static void cleanup_event_base_free(struct event_base **base) {
+    if ((base != NULL) && (*base != NULL)) {
+        event_base_free(*base);
     }
+}
 
-    return result;
+static void cleanup_evbuffer_free(struct evbuffer **buf) {
+    if ((buf != NULL) && (*buf != NULL)) {
+        evbuffer_free(*buf);
+    }
+}
+
+static void cleanup_evhttp_free(struct evhttp **http) {
+    if ((http != NULL) && (*http != NULL)) {
+        evhttp_free(*http);
+    }
+}
+
+static void cleanup_no_op(const void *data, size_t datlen, void *extra) {
+    (void) data;
+    (void) datlen;
+    (void) extra;
+}
+
+static GglError create_response_buf(struct evbuffer **buf, GglBuffer message) {
+    struct evbuffer *response = evbuffer_new();
+    GGL_CLEANUP_ID(response_cleanup, cleanup_evbuffer_free, response);
+    if (response == NULL) {
+        GGL_LOGE("Failed to create event buffer.");
+        return GGL_ERR_NOMEM;
+    }
+    int error = evbuffer_add_reference(
+        response, message.data, message.len, cleanup_no_op, NULL
+    );
+    if (error == -1) {
+        GGL_LOGE("Failed to add reference to buffer.");
+        return GGL_ERR_FAILURE;
+    }
+    *buf = response;
+    response_cleanup = NULL;
+    return GGL_ERR_OK;
+}
+
+static GglError send_reply(
+    struct evhttp_request *req, int code, char *reason, GglBuffer message
+) {
+    struct evbuffer *response = NULL;
+    GglError ret = create_response_buf(&response, message);
+    GGL_CLEANUP(cleanup_evbuffer_free, response);
+    if (ret == GGL_ERR_OK) {
+        evhttp_send_reply(req, code, reason, response);
+    }
+    return ret;
 }
 
 static void request_handler(struct evhttp_request *req, void *arg) {
     (void) arg;
-    GGL_LOGI("Attempting to vend creds for a request.");
+    GGL_LOGI("TES request received.");
+    struct evhttp_connection *evcon = evhttp_request_get_connection(req);
+    if (evcon != NULL) {
+        char *address = NULL;
+        uint16_t port = 0;
+        evhttp_connection_get_peer(evcon, &address, &port);
+        if (address != NULL) {
+            GglBuffer addr_buf = ggl_buffer_from_null_term(address);
+            GGL_LOGD(
+                "Request received from %.*s:%" PRIu16,
+                (int) addr_buf.len,
+                address,
+                port
+            );
+        }
+    }
     struct evkeyvalq *headers = evhttp_request_get_input_headers(req);
 
     // Check for the required header
     const char *auth_header = evhttp_find_header(headers, "Authorization");
-    if (!auth_header) {
-        GGL_LOGE("Missing Authorization header.");
-        // Respond with 400 Bad Request
-        struct evbuffer *response = evbuffer_new();
-        if (response) {
-            evbuffer_add_printf(
-                response,
-                "Authorization header is needed to process the request."
-            );
-            evhttp_send_reply(req, HTTP_BADREQUEST, "Bad Request", response);
-            evbuffer_free(response);
-        }
+    if (auth_header == NULL) {
+        GGL_LOGE("Missing Authorization Header.");
+        send_reply(
+            req,
+            401 /* Unauthorized */,
+            "Unauthorized",
+            GGL_STR("Missing Authorization Header.")
+        );
         return;
     }
 
-    size_t auth_header_len = strlen(auth_header);
-    if (auth_header_len != 16U) {
-        GGL_LOGE("svcuid character count must be exactly 16.");
-        // Respond with 400 Bad Request
-        struct evbuffer *response = evbuffer_new();
-        if (response) {
-            evbuffer_add_printf(response, "SVCUID length must be exactly 16.");
-            evhttp_send_reply(req, HTTP_BADREQUEST, "Bad Request", response);
-            evbuffer_free(response);
-        }
+    GglBuffer auth_header_buf = ggl_buffer_from_null_term((char *) auth_header);
+    if (auth_header_buf.len != 16U) {
+        GGL_LOGE("SVCUID character count must be exactly 16.");
+        send_reply(
+            req,
+            HTTP_BADREQUEST,
+            "Bad Request",
+            GGL_STR("SVCUID character count must be exactly 16.")
+        );
         return;
     }
-
-    GglBuffer auth_header_buf
-        = { .data = (uint8_t *) auth_header, .len = auth_header_len };
 
     GglMap svcuid_map
         = GGL_MAP({ GGL_STR("svcuid"), GGL_OBJ_BUF(auth_header_buf) }, );
@@ -104,82 +137,79 @@ static void request_handler(struct evhttp_request *req, void *arg) {
         &result
     );
     if (res != GGL_ERR_OK) {
-        GGL_LOGE("Failed to make an IPC call to ipc_component to check svcuid."
+        GGL_LOGE("Bus call for SVCUID lookup failed.");
+        send_reply(
+            req,
+            HTTP_SERVUNAVAIL,
+            "Server Unavailable",
+            GGL_STR("SVCUID lookup failed. Try again later.")
         );
-        // Respond with 500 Server unavailable
-        struct evbuffer *response = evbuffer_new();
-        if (response) {
-            evbuffer_add_printf(response, "Failed to fetch SVCUID. Try again.");
-            evhttp_send_reply(
-                req, HTTP_SERVUNAVAIL, "Server unavailable", response
-            );
-            evbuffer_free(response);
-        }
         return;
     }
 
-    if (result.boolean == false) {
-        GGL_LOGE("svcuid cannot be found");
-        // Respond with 404 not found.
-        struct evbuffer *response = evbuffer_new();
-        if (response) {
-            evbuffer_add_printf(response, "No such svcuid present.");
-            evhttp_send_reply(
-                req, HTTP_NOTFOUND, "Server unavailable", response
-            );
-            evbuffer_free(response);
-        }
+    if (!result.boolean) {
+        GGL_LOGE("SVCUID could not be verified.");
+        send_reply(
+            req,
+            403 /* Forbidden */,
+            "Forbidden",
+            GGL_STR("SVCUID could not be verified.")
+        );
         return;
     }
 
-    static uint8_t big_buffer_for_bump[4096];
-    static uint8_t temp_payload_alloc2[4096];
+    static uint8_t tes_cred_buffer[4096];
+    static uint8_t json_encode_buffer[4096];
 
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-    GglObject tes_formatted_obj = fetch_creds(the_allocator);
-    GglBuffer response_cred_buffer = GGL_BUF(temp_payload_alloc2);
+    GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(tes_cred_buffer));
+    GglObject tes_formatted_obj;
+    GglError ret = ggl_call(
+        GGL_STR("aws_iot_tes"),
+        GGL_STR("request_credentials_formatted"),
+        GGL_MAP(),
+        NULL,
+        &alloc.alloc,
+        &tes_formatted_obj
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to make bus call to get TES.");
+        send_reply(
+            req,
+            HTTP_SERVUNAVAIL,
+            "Server Unavailable",
+            GGL_STR("TES credential retrieval failed. Try again later.")
+        );
+        return;
+    }
 
+    GglBuffer response_cred_buffer = GGL_BUF(json_encode_buffer);
     GglError ret_err_json
         = ggl_json_encode(tes_formatted_obj, &response_cred_buffer);
     if (ret_err_json != GGL_ERR_OK) {
         GGL_LOGE("Failed to convert the json.");
+        send_reply(
+            req,
+            HTTP_INTERNAL,
+            "Internal Server Error",
+            GGL_STR("Failed to retrieve TES credentials.")
+        );
         return;
     }
 
-    struct evbuffer *buf = evbuffer_new();
-
-    if (!buf) {
-        GGL_LOGI("Failed to create response buffer.");
-        return;
+    ret = send_reply(req, HTTP_OK, "OK", response_cred_buffer);
+    if (ret == GGL_ERR_OK) {
+        GGL_LOGD("Successfully vended credentials for a request.");
     }
-
-    GGL_LOGD("Successfully vended credentials for a request.");
-
-    // Add the response data to the evbuffer
-    evbuffer_add(buf, response_cred_buffer.data, response_cred_buffer.len);
-
-    evhttp_send_reply(req, HTTP_OK, "OK", buf);
-    evbuffer_free(buf);
 }
 
 static void default_handler(struct evhttp_request *req, void *arg) {
     (void) arg;
-
-    GglBuffer response_cred_buffer
-        = GGL_STR("Only /2016-11-01/credentialprovider/ uri is supported.");
-    struct evbuffer *buf = evbuffer_new();
-
-    if (!buf) {
-        GGL_LOGE("Failed to create response buffer.");
-        return;
-    }
-
-    // Add the response data to the evbuffer
-    evbuffer_add(buf, response_cred_buffer.data, response_cred_buffer.len);
-
-    evhttp_send_reply(req, HTTP_BADREQUEST, "Bad Request", buf);
-    evbuffer_free(buf);
+    send_reply(
+        req,
+        HTTP_NOTFOUND,
+        "Not Found",
+        GGL_STR("Only /2016-11-01/credentialprovider/ path is supported.")
+    );
 }
 
 GglError http_server(void) {
@@ -191,29 +221,35 @@ GglError http_server(void) {
 
     // Create an event_base, which is the core of libevent
     base = event_base_new();
+    GGL_CLEANUP(cleanup_event_base_free, base);
     if (!base) {
-        GGL_LOGE("Could not initialize libevent.");
-        return 1;
+        GGL_LOGE("Could not initialize libevent. Exiting...");
+        return GGL_ERR_FATAL;
     }
 
     // Create a new HTTP server
     http = evhttp_new(base);
+    GGL_CLEANUP(cleanup_evhttp_free, http);
     if (!http) {
         GGL_LOGE("Could not create evhttp. Exiting...");
-        return 1;
+        return GGL_ERR_FATAL;
     }
 
     // Set a callback for requests to "/2016-11-01/credentialprovider/"
-    evhttp_set_cb(
+    int cb_ret = evhttp_set_cb(
         http, "/2016-11-01/credentialprovider/", request_handler, NULL
     );
+    if (cb_ret != 0) {
+        GGL_LOGE("Callback already exists or couldn't be created. Exiting...");
+        return GGL_ERR_FATAL;
+    }
     evhttp_set_gencb(http, default_handler, NULL);
 
     // Bind to available  port
     handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", 0);
     if (!handle) {
         GGL_LOGE("Could not bind to any port. Exiting...");
-        return 1;
+        return GGL_ERR_FATAL;
     }
 
     struct sockaddr_storage ss = { 0 };
@@ -228,7 +264,8 @@ GglError http_server(void) {
         }
         GGL_LOGI("Listening on port http://localhost:%d\n", port);
     } else {
-        GGL_LOGE("Could not fetch the to any port url. Exiting...");
+        GGL_LOGE("Could not retrieve listen port. Exiting...");
+        return GGL_ERR_FATAL;
     }
 
     uint8_t port_mem[8];
@@ -237,20 +274,16 @@ GglError http_server(void) {
         (char *) port_as_buffer.data, port_as_buffer.len, "%" PRId16, port
     );
     if (ret_convert < 0) {
-        GGL_LOGE("Error parsing the port value as string.");
+        GGL_LOGE("Error parsing the port value as string. Exiting...");
         return GGL_ERR_FAILURE;
     }
     if ((size_t) ret_convert > port_as_buffer.len) {
-        GGL_LOGE("Insufficient buffer space to store port data.");
+        GGL_LOGE("Insufficient buffer space to store port data. Exiting...");
         return GGL_ERR_NOMEM;
     }
     port_as_buffer.len = (size_t) ret_convert;
     GGL_LOGD(
-        "Values when read in memory port:%.*s, len: %d, ret:%d\n",
-        (int) port_as_buffer.len,
-        port_as_buffer.data,
-        (int) port_as_buffer.len,
-        ret_convert
+        "Read port: \"%.*s\"", (int) port_as_buffer.len, port_as_buffer.data
     );
 
     GglError ret = ggl_gg_config_write(
@@ -298,16 +331,16 @@ GglError http_server(void) {
 
     int ret_val = sd_notify(0, "READY=1");
     if (ret_val < 0) {
-        GGL_LOGE("Unable to update component state (errno=%d)", -ret);
-        return GGL_ERR_FATAL;
+        GGL_LOGE("Unable to update component state (errno=%d).", -ret);
     }
 
     // Start the event loop
-    event_base_dispatch(base);
+    int err = event_base_dispatch(base);
+    if (err != 0) {
+        GGL_LOGE("Error'd out of event loop.");
+        return GGL_ERR_FATAL;
+    }
 
-    // Cleanup
-    evhttp_free(http);
-    event_base_free(base);
-
-    return 0;
+    GGL_LOGI("Shutting down TES server...");
+    return GGL_ERR_OK;
 }
