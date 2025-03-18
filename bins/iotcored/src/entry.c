@@ -8,13 +8,33 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/log.h>
 #include <ggl/object.h>
 #include <limits.h>
 #include <string.h>
+#include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define MAX_ENDPOINT_LEN 128
 #define MAX_THINGNAME_LEN 128
+
+static bool getenv_copy(char *name, GglBuffer *destination) {
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    char *value = getenv(name);
+    if (value == NULL) {
+        return false;
+    }
+    GglBuffer source = ggl_buffer_from_null_term(value);
+    if (source.len >= destination->len) {
+        GGL_LOGW("%s too long.", name);
+        return false;
+    }
+    memcpy(destination->data, source.data, source.len);
+    destination->len = source.len;
+    destination->data[destination->len] = '\0';
+    return true;
+}
 
 GglError run_iotcored(IotcoredArgs *args) {
     if (args->cert == NULL) {
@@ -92,6 +112,61 @@ GglError run_iotcored(IotcoredArgs *args) {
             return ret;
         }
         args->rootca = (char *) rootca_mem;
+    }
+
+    static uint8_t proxy_uri_mem[PATH_MAX] = { 0 };
+    if (args->proxy_uri == NULL) {
+        GglBuffer proxy_uri = GGL_BUF(proxy_uri_mem);
+        if (getenv_copy("https_proxy", &proxy_uri)) {
+            args->proxy_uri = (char *) proxy_uri_mem;
+        } else if (getenv_copy("HTTPS_PROXY", &proxy_uri)) {
+            args->proxy_uri = (char *) proxy_uri_mem;
+        }
+    }
+    if (args->proxy_uri == NULL) {
+        GglBuffer proxy_uri = GGL_BUF(proxy_uri_mem);
+        proxy_uri.len -= 1;
+        GglError ret = ggl_gg_config_read_str(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.NucleusLite"),
+                GGL_STR("configuration"),
+                GGL_STR("networkProxy"),
+                GGL_STR("proxy"),
+                GGL_STR("url")
+            ),
+            &proxy_uri
+        );
+        if (ret == GGL_ERR_OK) {
+            args->proxy_uri = (char *) proxy_uri_mem;
+        }
+    }
+
+    static uint8_t no_proxy_mem[PATH_MAX] = { 0 };
+    if (args->no_proxy == NULL) {
+        GglBuffer no_proxy = GGL_BUF(no_proxy_mem);
+        if (getenv_copy("no_proxy", &no_proxy)) {
+            args->no_proxy = (char *) no_proxy_mem;
+        } else if (getenv_copy("NO_PROXY", &no_proxy)) {
+            args->no_proxy = (char *) no_proxy_mem;
+        }
+    }
+    if (args->no_proxy == NULL) {
+        GglBuffer no_proxy = GGL_BUF(no_proxy_mem);
+        no_proxy.len -= 1;
+        GglError ret = ggl_gg_config_read_str(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.NucleusLite"),
+                GGL_STR("configuration"),
+                GGL_STR("networkProxy"),
+                GGL_STR("noproxy"),
+            ),
+            &no_proxy
+        );
+        if (ret == GGL_ERR_OK) {
+            args->no_proxy = (char *) no_proxy_mem;
+        }
     }
 
     GglError ret = iotcored_mqtt_connect(args);
