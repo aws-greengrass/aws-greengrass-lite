@@ -20,6 +20,8 @@
 #define MAX_THINGNAME_LEN 128
 
 static bool getenv_copy(char *name, GglBuffer *destination) {
+    // This is safe as long as getenv is reentrant
+    // and no other threads call setenv.
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     char *value = getenv(name);
     if (value == NULL) {

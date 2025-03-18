@@ -59,20 +59,6 @@ static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 int main(int argc, char **argv) {
     static IotcoredArgs args = { 0 };
 
-    // NOLINTBEGIN(concurrency-mt-unsafe)
-    char *proxy_uri = proxy_uri = getenv("https_proxy");
-    if (proxy_uri == NULL) {
-        proxy_uri = getenv("HTTPS_PROXY");
-    }
-    args.proxy_uri = proxy_uri;
-
-    char *no_proxy = getenv("no_proxy");
-    if (no_proxy == NULL) {
-        no_proxy = getenv("NO_PROXY");
-    }
-    args.no_proxy = no_proxy;
-    // NOLINTEND(concurrency-mt-unsafe)
-
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
 
