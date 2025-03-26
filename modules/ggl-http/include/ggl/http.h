@@ -94,7 +94,11 @@ GglError generic_download(const char *url_for_generic_download, int fd);
 ///
 /// @return error code on failure, GGL_ERR_OK on success
 GglError sigv4_download(
-    const char *url_for_sigv4_download, int fd, SigV4Details sigv4_details
+    const char *url_for_sigv4_download,
+    GglBuffer host,
+    GglBuffer file_path,
+    int fd,
+    SigV4Details sigv4_details
 );
 
 GglError gg_dataplane_call(

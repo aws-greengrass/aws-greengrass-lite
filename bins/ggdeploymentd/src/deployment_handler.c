@@ -415,12 +415,18 @@ static GglError download_s3_artifact(
 ) {
     GglByteVec url_vec = ggl_byte_vec_init(scratch_buffer);
     GglError error = GGL_ERR_OK;
+    size_t start_loc = 0;
+    size_t end_loc = 0;
+    size_t file_name_end = 0;
     ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR("https://"));
+    start_loc = url_vec.buf.len;
     ggl_byte_vec_chain_append(&error, &url_vec, uri_info.host);
     ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".s3."));
     ggl_byte_vec_chain_append(&error, &url_vec, credentials.aws_region);
     ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".amazonaws.com/"));
+    end_loc = url_vec.buf.len - 1;
     ggl_byte_vec_chain_append(&error, &url_vec, uri_info.path);
+    file_name_end = url_vec.buf.len;
     ggl_byte_vec_chain_push(&error, &url_vec, '\0');
     if (error != GGL_ERR_OK) {
         return error;
@@ -428,6 +434,10 @@ static GglError download_s3_artifact(
 
     return sigv4_download(
         (const char *) url_vec.buf.data,
+        (GglBuffer) { .data = &scratch_buffer.data[start_loc],
+                      .len = end_loc - start_loc },
+        (GglBuffer) { .data = &scratch_buffer.data[end_loc],
+                      .len = file_name_end - end_loc },
         artifact_fd,
         sigv4_from_tes(credentials, GGL_STR("s3"))
     );

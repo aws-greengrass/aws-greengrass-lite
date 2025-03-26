@@ -2,13 +2,16 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "aws_sigv4.h"
 #include "gghttp_util.h"
 #include "ggl/error.h"
 #include "ggl/http.h"
 #include "ggl/object.h"
+#include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/log.h>
 #include <ggl/vector.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #define MAX_URI_LENGTH 2048
@@ -62,22 +65,78 @@ GglError generic_download(const char *url_for_generic_download, int fd) {
 }
 
 GglError sigv4_download(
-    const char *url_for_sigv4_download, int fd, SigV4Details sigv4_details
+    const char *url_for_sigv4_download,
+    GglBuffer host,
+    GglBuffer file_path,
+    int fd,
+    SigV4Details sigv4_details
 ) {
-    GGL_LOGI("downloading content from %s", url_for_sigv4_download);
-
     CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_sigv4_download);
+    uint8_t arr[2048];
+    GglByteVec vec = GGL_BYTE_VEC(arr);
+    uint8_t time_buffer[17];
+    size_t date_len
+        = aws_sigv4_get_iso8601_time((char *) time_buffer, sizeof(time_buffer));
+    uint8_t auth_buf[256];
+    GglBuffer auth_header = GGL_BUF(auth_buf);
+
+    assert(date_len > 0);
+
+    S3RequiredHeaders required_headers
+        = { .amz_content_sha256 = GGL_STR(ZERO_PAYLOAD_SHA),
+            .amz_date = (GglBuffer) { .data = time_buffer, .len = date_len },
+            .amz_security_token = sigv4_details.session_token,
+            .host = host };
+
+    // Add the content sha header to the curl headers too.
     if (error == GGL_ERR_OK) {
         error = gghttplib_add_header(
             &curl_data,
             GGL_STR("x-amz-content-sha256"),
-            GGL_STR("UNSIGNED-PAYLOAD")
+            // Signature of empty payload is constant.
+            GGL_STR(ZERO_PAYLOAD_SHA)
         );
     }
+
+    // Add the amz-date header to the curl headers too.
     if (error == GGL_ERR_OK) {
-        error = gghttplib_add_sigv4_credential(&curl_data, sigv4_details);
+        error = gghttplib_add_header(
+            &curl_data,
+            GGL_STR("x-amz-date"),
+            (GglBuffer) { .data = time_buffer, .len = date_len }
+        );
     }
+
+    // Add the amz-security-token header to the curl headers too.
+    if (error == GGL_ERR_OK) {
+        error = gghttplib_add_header(
+            &curl_data,
+            GGL_STR("x-amz-security-token"),
+            sigv4_details.session_token
+        );
+    }
+
+    if (error == GGL_ERR_NOMEM) {
+        GGL_LOGE("The array 'arr' is not big enough to accommodate the headers."
+        );
+    }
+
+    // We DO NOT need to add the "host" header to curl as that is added
+    // automatically by curl.
+
+    if (error == GGL_ERR_OK) {
+        error = aws_sigv4_s3_get_create_header(
+            file_path, sigv4_details, required_headers, &vec, &auth_header
+        );
+    }
+
+    if (error == GGL_ERR_OK) {
+        error = gghttplib_add_header(
+            &curl_data, GGL_STR("Authorization"), auth_header
+        );
+    }
+
     if (error == GGL_ERR_OK) {
         error = gghttplib_process_request_with_fd(&curl_data, fd);
     }

@@ -30,18 +30,27 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
         GglBumpAlloc the_allocator
             = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
+        static char host[256];
+        GglByteVec host_vec = GGL_BYTE_VEC(host);
+        GglError error = GGL_ERR_OK;
+        ggl_byte_vec_chain_append(
+            &error, &host_vec, ggl_buffer_from_null_term(bucket)
+        );
+        ggl_byte_vec_chain_append(&error, &host_vec, GGL_STR(".s3."));
+        ggl_byte_vec_chain_append(
+            &error, &host_vec, ggl_buffer_from_null_term(region)
+        );
+        ggl_byte_vec_chain_append(&error, &host_vec, GGL_STR(".amazonaws.com"));
+
         static char url_buffer[256];
         GglByteVec url_vec = GGL_BYTE_VEC(url_buffer);
-        GglError error = GGL_ERR_OK;
         ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR("https://"));
         ggl_byte_vec_chain_append(
-            &error, &url_vec, ggl_buffer_from_null_term(bucket)
+            &error,
+            &url_vec,
+            (GglBuffer) { .data = host_vec.buf.data, .len = host_vec.buf.len }
         );
-        ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".s3."));
-        ggl_byte_vec_chain_append(
-            &error, &url_vec, ggl_buffer_from_null_term(region)
-        );
-        ggl_byte_vec_chain_append(&error, &url_vec, GGL_STR(".amazonaws.com/"));
+        ggl_byte_vec_chain_push(&error, &url_vec, '/');
         ggl_byte_vec_chain_append(
             &error, &url_vec, ggl_buffer_from_null_term(key)
         );
@@ -106,6 +115,8 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
 
         request_ret = sigv4_download(
             url_buffer,
+            (GglBuffer) { .data = host_vec.buf.data, .len = host_vec.buf.len },
+            ggl_buffer_from_null_term(key),
             fd,
             (SigV4Details) {
                 .aws_region = ggl_buffer_from_null_term(region),

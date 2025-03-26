@@ -8,5 +8,10 @@
     "url": "https://github.com/FreeRTOS/backoffAlgorithm.git",
     "rev": "f2f3bb2d8310f7cb48baa3ee64b635a5d66f838b",
     "hash": "sha256-KlqFwW2mQ85ySAaSON5njoz8SfepKws1xgDSEc/mZeM="
+  },
+  "aws_sigv4": {
+    "url": "https://github.com/aws/SigV4-for-AWS-IoT-embedded-sdk.git",
+    "rev": "ccf04c2921fb054e4abe0fa085370a000457d674",
+    "hash": "sha256-/r89sVhkY7o6tfZLyU7jP79tNSyz6Tid1fRxSjTzRf0="
   }
 }
