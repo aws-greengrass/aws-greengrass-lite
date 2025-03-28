@@ -11,7 +11,7 @@
   },
   "aws_sigv4": {
     "url": "https://github.com/aws/SigV4-for-AWS-IoT-embedded-sdk.git",
-    "rev": "ccf04c2921fb054e4abe0fa085370a000457d674",
-    "hash": "sha256-/r89sVhkY7o6tfZLyU7jP79tNSyz6Tid1fRxSjTzRf0="
+    "rev": "f0409ced6c2c9430f0e972019b7e8f20bbf58f4e",
+    "hash": "sha256-6is4ymM/Ct9JntgpFHF4Vlv5+GUwy0HZvEiEV+ALJkw="
   }
 }
