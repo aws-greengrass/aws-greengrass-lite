@@ -1,6 +1,6 @@
 # `iotcored` spec
 
-`iotcored` implements an MQTT spooler daemon for AWS IoT Core client
+`iotcored` implements an MQTT client daemon for AWS IoT Core client
 applications, and provides the `aws_iot_mqtt` core-bus interface. It enables
 multiple processes to share an MQTT connection using shared credentials, handled
 by the `iotcored` daemon.
