@@ -596,6 +596,54 @@ GglError runner(const RecipeRunnerArgs *args) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
 
+    resp = GGL_BUF(resp_mem);
+    resp.len -= 1;
+    ret = ggipc_get_config_str(
+        conn,
+        GGL_BUF_LIST(GGL_STR("networkProxy"), GGL_STR("proxy"), GGL_STR("url")),
+        &GGL_STR("aws.greengrass.NucleusLite"),
+        &resp
+    );
+    switch (ret) {
+    case GGL_ERR_NOENTRY:
+        break;
+    case GGL_ERR_OK: {
+        resp.data[resp.len] = '\0';
+        setenv("all_proxy", (char *) resp.data, true);
+        setenv("ALL_PROXY", (char *) resp.data, true);
+        setenv("http_proxy", (char *) resp.data, true);
+        setenv("HTTP_PROXY", (char *) resp.data, true);
+        setenv("https_proxy", (char *) resp.data, true);
+        setenv("HTTPS_PROXY", (char *) resp.data, true);
+        break;
+    }
+    default:
+        GGL_LOGE("Failed to get proxy url from config.");
+        return ret;
+    }
+
+    resp = GGL_BUF(resp_mem);
+    resp.len -= 1;
+    ret = ggipc_get_config_str(
+        conn,
+        GGL_BUF_LIST(GGL_STR("networkProxy"), GGL_STR("noProxyAddresses")),
+        &GGL_STR("aws.greengrass.NucleusLite"),
+        &resp
+    );
+    switch (ret) {
+    case GGL_ERR_NOENTRY:
+        break;
+    case GGL_ERR_OK: {
+        resp.data[resp.len] = '\0';
+        setenv("no_proxy", (char *) resp.data, true);
+        setenv("NO_PROXY", (char *) resp.data, true);
+        break;
+    }
+    default:
+        GGL_LOGE("Failed to get noProxyAddresses from config.");
+        return ret;
+    }
+
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN + 1];
     GglBuffer thing_name = GGL_BUF(thing_name_mem);
     thing_name.len -= 1;
