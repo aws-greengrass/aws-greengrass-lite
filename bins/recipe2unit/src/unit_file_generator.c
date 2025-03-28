@@ -148,17 +148,16 @@ static GglError fill_unit_section(
         return ret;
     }
 
-    if (phase == RUN_STARTUP) {
-        ret = ggl_byte_vec_append(
-            concat_unit_vector,
-            GGL_STR(
-                "Wants=ggl.core.ggipcd.service\nAfter=ggl.core.ggipcd.service\n"
-            )
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+    ret = ggl_byte_vec_append(
+        concat_unit_vector,
+        GGL_STR("Wants=ggl.core.ggipcd.service\nAfter=ggl.core.ggipcd.service\n"
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
+    if (phase == RUN_STARTUP) {
         if (ggl_map_get(recipe_map, GGL_STR("ComponentDependencies"), &val)) {
             if ((val->type == GGL_TYPE_MAP) || (val->type == GGL_TYPE_LIST)) {
                 return dependency_parser(val, concat_unit_vector);
