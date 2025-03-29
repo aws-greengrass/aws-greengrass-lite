@@ -155,6 +155,7 @@ static GglError curl_request_retry_wrapper(void *ctx) {
         curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code
     );
     if ((http_status_code >= 200) && (http_status_code < 300)) {
+        retry_ctx->err = GGL_ERR_OK;
         return GGL_ERR_OK;
     } else if ((http_status_code >= 500) && (http_status_code < 600)) {
         retry_ctx->err = GGL_ERR_REMOTE;
