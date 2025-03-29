@@ -10,6 +10,7 @@ ggl_init_module(
        ggl-constants
        ggl-file
        ggl-http
+       ggl-uri
        ggl-json
        ggl-recipe
        ggl-semver

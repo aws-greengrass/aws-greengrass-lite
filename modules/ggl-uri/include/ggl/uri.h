@@ -7,7 +7,9 @@
 
 typedef struct GglUriInfo {
     GglBuffer scheme;
+    GglBuffer userinfo;
     GglBuffer host;
+    GglBuffer port;
     GglBuffer path;
     GglBuffer file;
 } GglUriInfo;

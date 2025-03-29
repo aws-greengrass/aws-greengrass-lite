@@ -14,6 +14,8 @@ typedef struct {
     char *rootca;
     char *cert;
     char *key;
+    char *no_proxy;
+    char *proxy_uri;
 } IotcoredArgs;
 
 GglError run_iotcored(IotcoredArgs *args);

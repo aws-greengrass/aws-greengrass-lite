@@ -10,4 +10,5 @@ ggl_init_module(
        core_mqtt
        ggl-backoff
        ggl-file
+       ggl-uri
        PkgConfig::openssl)

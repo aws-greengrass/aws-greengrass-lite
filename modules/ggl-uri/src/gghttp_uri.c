@@ -107,7 +107,9 @@ GglError gg_uri_parse(GglAlloc *alloc, GglBuffer uri, GglUriInfo *info) {
     }
 
     info->scheme = buffer_from_text_range(result.scheme);
+    info->userinfo = buffer_from_text_range(result.userInfo);
     info->host = buffer_from_text_range(result.hostText);
+    info->port = buffer_from_text_range(result.portText);
     info->path = buffer_from_linked_list(result.pathHead, result.pathTail);
     if (result.pathTail != NULL) {
         info->file = buffer_from_text_range(result.pathTail->text);
@@ -116,9 +118,21 @@ GglError gg_uri_parse(GglAlloc *alloc, GglBuffer uri, GglUriInfo *info) {
     }
     uriFreeUriMembersMmA(&result, &mem);
 
-    GGL_LOGD("Scheme: %.*s", (int) info->scheme.len, info->scheme.data);
-    GGL_LOGD("Host: %.*s", (int) info->host.len, info->host.data);
-    GGL_LOGD("Path: %.*s", (int) info->path.len, info->path.data);
+    if (info->scheme.len > 0) {
+        GGL_LOGD("Scheme: %.*s", (int) info->scheme.len, info->scheme.data);
+    }
+    if (info->userinfo.len > 0) {
+        GGL_LOGD("UserInfo: Present");
+    }
+    if (info->host.len > 0) {
+        GGL_LOGD("Host: %.*s", (int) info->host.len, info->host.data);
+    }
+    if (info->port.len > 0) {
+        GGL_LOGD("Port: %.*s", (int) info->port.len, info->port.data);
+    }
+    if (info->path.len > 0) {
+        GGL_LOGD("Path: %.*s", (int) info->path.len, info->path.data);
+    }
 
     return GGL_ERR_OK;
 }

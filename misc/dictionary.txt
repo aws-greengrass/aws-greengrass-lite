@@ -89,6 +89,7 @@ NOLINTNEXTLINE
 NOMEM
 NOPASSWD
 nproc
+OSSL
 ostree
 parentid
 pidfd
