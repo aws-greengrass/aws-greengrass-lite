@@ -9,22 +9,18 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <curl/curl.h>
+#include <errno.h>
+#include <ggl/backoff.h>
 #include <ggl/cleanup.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
-#include <ggl/utils.h>
 #include <ggl/vector.h>
 #include <pthread.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #define MAX_HEADER_LENGTH 1024
-
-#define MAX_RETRIES 3
-#define RETRY_DELAY_SECONDS 3
 
 __attribute__((constructor)) static void init_curl(void) {
     // TODO: set up a heap4 and init curl instead with curl_global_init_mem()
@@ -55,16 +51,20 @@ static GglError translate_curl_code(CURLcode code) {
     }
 }
 
-static bool is_retriable(CURLcode code, CurlData *data) {
+static bool can_retry(CURLcode code, CurlData *data) {
     switch (code) {
+    // If OK, then inspect HTTP status code.
     case CURLE_OK:
         break;
+
     case CURLE_OPERATION_TIMEDOUT:
     case CURLE_COULDNT_CONNECT:
     case CURLE_SSL_CONNECT_ERROR:
     case CURLE_GOT_NOTHING:
     case CURLE_SEND_ERROR:
     case CURLE_RECV_ERROR:
+    case CURLE_PARTIAL_FILE:
+    case CURLE_AGAIN:
         return true;
 
     default:
@@ -77,6 +77,8 @@ static bool is_retriable(CURLcode code, CurlData *data) {
     switch (http_status_code) {
     case 400: // Generic client error
     case 408: // Request timeout
+    // TODO: 429 can contain a retry-after header.
+    // This should be used as the backoff.
     case 429: // Too many requests
     case 500: // Generic server error
     case 502: // Bad gateway
@@ -89,11 +91,119 @@ static bool is_retriable(CURLcode code, CurlData *data) {
     }
 }
 
-static GglError curl_request_with_retry(void *ctx) {
-    CurlData *curl_data = (CurlData *) ctx;
+typedef struct CurlRequestRetryCtx {
+    CurlData *curl_data;
+
+    // reset response_data for next attempt
+    GglError (*retry_fn)(void *);
+    void *response_data;
+
+    // Needed to propagate errors when retrying is impossible.
+    GglError err;
+} CurlRequestRetryCtx;
+
+static GglError clear_buffer(void *response_data) {
+    GglByteVec *vector = (GglByteVec *) response_data;
+    vector->buf.len = 0;
+    return GGL_ERR_OK;
+}
+
+static GglError truncate_file(void *response_data) {
+    int fd = *(int *) response_data;
+
+    int ret;
+    do {
+        ret = ftruncate(fd, 0);
+    } while ((ret == -1) && (errno == EINTR));
+
+    if (ret == -1) {
+        GGL_LOGE("Failed to truncate fd for write (errno=%d).", errno);
+        return GGL_ERR_FAILURE;
+    }
+    return GGL_ERR_OK;
+}
+
+static GglError curl_request_retry_wrapper(void *ctx) {
+    CurlRequestRetryCtx *retry_ctx = (CurlRequestRetryCtx *) ctx;
+    CurlData *curl_data = retry_ctx->curl_data;
 
     CURLcode curl_error = curl_easy_perform(curl_data->curl);
-    
+    if (can_retry(curl_error, curl_data)) {
+        GglError err = retry_ctx->retry_fn(retry_ctx->response_data);
+        if (err != GGL_ERR_OK) {
+            retry_ctx->err = err;
+            return GGL_ERR_OK;
+        }
+        return GGL_ERR_FAILURE;
+    }
+    if (curl_error != CURLE_OK) {
+        GGL_LOGE(
+            "Curl request failed due to error: %s",
+            curl_easy_strerror(curl_error)
+        );
+        retry_ctx->err = translate_curl_code(curl_error);
+        return GGL_ERR_OK;
+    }
+    int long http_status_code = 0;
+    curl_error = curl_easy_getinfo(
+        curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code
+    );
+    if (curl_error != CURLE_OK) {
+        retry_ctx->err = GGL_ERR_FAILURE;
+        return GGL_ERR_OK;
+    }
+
+    if ((http_status_code >= 200) && (http_status_code < 300)) {
+        retry_ctx->err = GGL_ERR_OK;
+        return GGL_ERR_OK;
+    }
+
+    if ((http_status_code >= 500) && (http_status_code < 600)) {
+        retry_ctx->err = GGL_ERR_REMOTE;
+    } else {
+        retry_ctx->err = GGL_ERR_FAILURE;
+    }
+    GGL_LOGE(
+        "Curl request failed due to HTTP status code %ld.", http_status_code
+    );
+    return GGL_ERR_OK;
+}
+
+static GglError do_curl_request(
+    CurlData *curl_data, GglByteVec *response_buffer
+) {
+    CurlRequestRetryCtx ctx = { .curl_data = curl_data,
+                                .response_data = (void *) response_buffer,
+                                .retry_fn = clear_buffer,
+                                .err = GGL_ERR_OK };
+    GglError ret = ggl_backoff(
+        1000, 64000, 7, curl_request_retry_wrapper, (void *) &ctx
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    if (ctx.err != GGL_ERR_OK) {
+        return ctx.err;
+    }
+    return GGL_ERR_OK;
+}
+
+static GglError do_curl_request_fd(CurlData *curl_data, int fd) {
+    CurlRequestRetryCtx ctx = { .curl_data = curl_data,
+                                .response_data = (void *) &fd,
+                                .retry_fn = truncate_file,
+                                .err = GGL_ERR_OK };
+    GglError ret = ggl_backoff(
+        1000, 64000, 7, curl_request_retry_wrapper, (void *) &ctx
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Curl request failed; retries exhausted.");
+        return ret;
+    }
+    if (ctx.err != GGL_ERR_OK) {
+        return ctx.err;
+    }
+    return GGL_ERR_OK;
 }
 
 /// @brief Callback function to write the HTTP response data to a buffer.
@@ -328,69 +438,11 @@ GglError gghttplib_process_request(
         }
     }
 
-    int retry_count = 0;
-    while (retry_count < MAX_RETRIES) {
-        
-
-        if (is_retriable(curl_error)) {
-            retry_count++;
-            response_vector.buf.len = 0;
-
-            if (retry_count < MAX_RETRIES) {
-                GGL_LOGE(
-                    "Retriable error occurred:  %s",
-                    curl_easy_strerror(curl_error)
-                );
-                GGL_LOGI(
-                    "Retrying in %d seconds (Attempt %d of %d)\n",
-                    RETRY_DELAY_SECONDS,
-                    retry_count + 1,
-                    MAX_RETRIES
-                );
-
-                
-                continue;
-            }
-        }
-
-        break;
-    }
-    ggl_backoff(100, 1000, MAX_RETRIES, GglError (*fn)(void *), void *ctx);
-
-    if (curl_error != CURLE_OK) {
-        GGL_LOGE(
-            "curl_easy_perform() failed: %s", curl_easy_strerror(curl_error)
-        );
-        if (curl_error == CURLE_WRITE_ERROR) {
-            return GGL_ERR_NOMEM;
-        }
-        return translate_curl_code(curl_error);
-    }
-
-    long http_status_code = 0;
-    curl_error = curl_easy_getinfo(
-        curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code
-    );
-
-    if (curl_error != CURLE_OK) {
-        GGL_LOGE(
-            "curl_easy_getinfo() failed: %s", curl_easy_strerror(curl_error)
-        );
-        return translate_curl_code(curl_error);
-    }
-
-    GGL_LOGI("HTTP code: %ld", http_status_code);
-
-    if (response_buffer != NULL) {
+    GglError ret = do_curl_request(curl_data, &response_vector);
+    if ((response_buffer != NULL) && (ret == GGL_ERR_OK)) {
         response_buffer->len = response_vector.buf.len;
     }
-
-    // TODO: propagate HTTP code up for deployment failure root causing
-    if (http_status_code < 200 || http_status_code > 299) {
-        return GGL_ERR_FAILURE;
-    }
-
-    return translate_curl_code(curl_error);
+    return ret;
 }
 
 GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
@@ -407,13 +459,6 @@ GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
         return translate_curl_code(curl_error);
     }
 
-    struct stat fd_status = { 0 };
-    off_t length = -1;
-    int error = fstat(fd, &fd_status);
-    if (error != -1) {
-        length = fd_status.st_size;
-    }
-
     // coverity[bad_sizeof]
     curl_error
         = curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, (void *) &fd);
@@ -425,50 +470,5 @@ GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
         return translate_curl_code(curl_error);
     }
 
-    int retry_count = 0;
-    while (retry_count < MAX_RETRIES) {
-        curl_error = curl_easy_perform(curl_data->curl);
-
-        if (is_retriable(curl_error, curl_data)) {
-            retry_count++;
-            if (length >= 0) {
-                ftruncate(fd, length);
-            }
-
-            if (retry_count < MAX_RETRIES) {
-                GGL_LOGE(
-                    "Retriable error occurred:  %s",
-                    curl_easy_strerror(curl_error)
-                );
-                GGL_LOGI(
-                    "Retrying in %d seconds (Attempt %d of %d)\n",
-                    RETRY_DELAY_SECONDS,
-                    retry_count + 1,
-                    MAX_RETRIES
-                );
-
-                ggl_sleep(RETRY_DELAY_SECONDS);
-                continue;
-            }
-        }
-
-        break;
-    }
-
-    if (curl_error != CURLE_OK) {
-        GGL_LOGE(
-            "curl_easy_perform() failed: %s", curl_easy_strerror(curl_error)
-        );
-        if (curl_error == CURLE_WRITE_ERROR) {
-            return GGL_ERR_NOMEM;
-        }
-        return translate_curl_code(curl_error);
-    }
-
-    long http_status_code = 0;
-    curl_easy_getinfo(curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code);
-    GGL_LOGI("HTTP code: %ld", http_status_code);
-
-    // TODO: propagate HTTP code up for deployment failure root causing
-    return translate_curl_code(curl_error);
+    return do_curl_request_fd(curl_data, fd);
 }
