@@ -373,13 +373,6 @@ if(GGL_SYSTEMD_SERVICE_BUILD)
 endif()
 
 if(BUILD_EXAMPLES)
-  file(GLOB SAMPLES CONFIGURE_DEPENDS "samples/*")
-  foreach(sample ${SAMPLES})
-    if(EXISTS ${sample}/CMakeLists.txt)
-      add_subdirectory(${sample})
-    endif()
-  endforeach()
-
   file(GLOB TEST_MODULES CONFIGURE_DEPENDS "test_modules/*")
   foreach(test_module ${TEST_MODULES})
     add_subdirectory(${test_module})
