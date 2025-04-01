@@ -6,7 +6,7 @@
 }:
 let
   inherit (lib) escapeRegex;
-  inherit (gglUtil) clangBuildDir filteredSrc llvmStdenv cFiles;
+  inherit (gglUtil) llvmStdenv cFiles clangChecks;
 
   check-clang-tidy = file: llvmStdenv.mkDerivation {
     name = "clang-tidy-${file}";
@@ -14,10 +14,11 @@ let
     inherit (ggl-clang) buildInputs;
     buildPhase = ''
       set -eo pipefail
-      clang-tidy -p ${clangBuildDir} --quiet --warnings-as-errors='*' \
-        --header-filter='^${escapeRegex (toString filteredSrc)}"}' \
-        ${filteredSrc}/${file} |\
-        sed 's|${filteredSrc}/||'
+      clang-tidy -p ${clangChecks.cmakeBuildDir} \
+        --quiet --warnings-as-errors='*' \
+        --header-filter='^${escapeRegex (toString clangChecks.src)}"}' \
+        ${clangChecks.src}/${file} |\
+        sed 's|${clangChecks.src}/||'
       touch $out
     '';
     dontUnpack = true;

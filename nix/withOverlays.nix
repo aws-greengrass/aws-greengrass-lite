@@ -13,43 +13,49 @@ in
       (n: v: "-DFETCHCONTENT_SOURCE_DIR_${toUpper n}=${v}")
       deps;
 
-    filteredSrc = lib.fileset.toSource {
-      root = src;
-      fileset = lib.fileset.fileFilter
-        (file: lib.elem file.name [
-          ".clang-tidy"
-          "CMakeLists.txt"
-          "fc_deps.json"
-          "version"
-          "run_nucleus"
-          "recipe.yml"
-          "greengrass-lite.target"
-        ] ||
-        lib.any file.hasExt [ "c" "h" "S" "sql" "cmake" "in" ])
-        src;
-    };
+    buildFileset = lib.fileset.unions (map (p: src + p) [
+      "/CMakeLists.txt"
+      "/fc_deps.json"
+      "/misc/systemd"
+      "/misc/cmake_uninstall.cmake.in"
+      "/version"
+      "/modules"
+      "/bins"
+    ]);
+
+    checkFileset = lib.fileset.unions ([ buildFileset ] ++ (map (p: src + p) [
+      "/.clang-tidy"
+      "/test_modules"
+    ]));
 
     llvmStdenv = final.overrideCC final.llvmPackages.stdenv
       (final.llvmPackages.stdenv.cc.override
         { inherit (final.llvmPackages) bintools; });
 
-    clangBuildDir = llvmStdenv.mkDerivation {
-      name = "clang-build-dir";
-      nativeBuildInputs = [ pkg-config clang-tools ];
-      inherit (ggl-clang) buildInputs;
-      buildPhase = ''
-        ${cmake}/bin/cmake -B $out -S ${filteredSrc} \
-          -D CMAKE_BUILD_TYPE=Debug ${toString fetchContentFlags}
-        rm $out/CMakeFiles/CMakeConfigureLog.yaml
-      '';
-      dontUnpack = true;
-      dontPatch = true;
-      dontConfigure = true;
-      dontInstall = true;
-      dontFixup = true;
-    };
-
     cFiles = map (p: removePrefix ((toString src) + "/") (toString p))
       (fileset.toList (fileset.fileFilter (file: file.hasExt "c") src));
+
+    clangChecks = {
+      src = lib.fileset.toSource {
+        root = src;
+        fileset = checkFileset;
+      };
+
+      cmakeBuildDir = llvmStdenv.mkDerivation {
+        name = "clang-cmake-build-dir";
+        nativeBuildInputs = [ pkg-config clang-tools ];
+        inherit (ggl-clang) buildInputs;
+        buildPhase = ''
+          ${cmake}/bin/cmake -B $out -S ${clangChecks.src} \
+            -D CMAKE_BUILD_TYPE=Debug ${toString fetchContentFlags}
+          rm $out/CMakeFiles/CMakeConfigureLog.yaml
+        '';
+        dontUnpack = true;
+        dontPatch = true;
+        dontConfigure = true;
+        dontInstall = true;
+        dontFixup = true;
+      };
+    };
   };
 }

@@ -1,5 +1,6 @@
 { lib
 , gglUtil
+, src
 , stdenv
 , pkg-config
 , cmake
@@ -19,7 +20,7 @@
 }:
 stdenv.mkDerivation {
   name = "aws-greengrass-lite";
-  src = gglUtil.filteredSrc;
+  src = lib.fileset.toSource { root = src; fileset = gglUtil.buildFileset; };
   nativeBuildInputs = [ pkg-config cmake ninja ];
   buildInputs = [
     openssl
