@@ -327,6 +327,11 @@ function(ggl_init_module name)
 
   file(GLOB BINS CONFIGURE_DEPENDS "bin/*.c")
   foreach(bin ${BINS})
+    set_property(
+      SOURCE ${bin}
+      APPEND_STRING
+      PROPERTY COMPILE_FLAGS "-frandom-seed=${bin}")
+
     get_filename_component(bin_name ${bin} NAME_WLE)
     add_executable(${bin_name}-bin ${bin})
     target_compile_definitions(${bin_name}-bin
