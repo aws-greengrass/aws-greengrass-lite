@@ -17,6 +17,7 @@
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/proxy/environment.h>
 #include <limits.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -25,6 +26,8 @@
 
 GglError run_ggdeploymentd(const char *bin_path) {
     GGL_LOGI("Started ggdeploymentd process.");
+
+    ggl_proxy_set_environment();
 
     umask(0002);
 

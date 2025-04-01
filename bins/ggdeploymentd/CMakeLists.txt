@@ -11,6 +11,7 @@ ggl_init_module(
        ggl-file
        ggl-http
        ggl-json
+       ggl-proxy-environment
        ggl-recipe
        ggl-semver
        ggl-yaml

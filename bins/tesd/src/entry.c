@@ -8,9 +8,12 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <ggl/proxy/environment.h>
 #include <stdint.h>
 
 GglError run_tesd(void) {
+    ggl_proxy_set_environment();
+
     static uint8_t rootca_path_mem[512] = { 0 };
     GglBuffer rootca_path = GGL_BUF(rootca_path_mem);
     GglError ret = ggl_gg_config_read_str(
