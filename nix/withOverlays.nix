@@ -46,7 +46,7 @@ in
         nativeBuildInputs = [ pkg-config clang-tools ];
         inherit (ggl-clang) buildInputs;
         buildPhase = ''
-          ${cmake}/bin/cmake -B $out -S ${clangChecks.src} \
+          ${cmake}/bin/cmake -B $out -S ${clangChecks.src} -D BUILD_EXAMPLES=1 \
             -D CMAKE_BUILD_TYPE=Debug ${toString fetchContentFlags}
           rm $out/CMakeFiles/CMakeConfigureLog.yaml
         '';

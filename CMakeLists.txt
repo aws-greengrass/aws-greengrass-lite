@@ -10,7 +10,7 @@ project(aws-greengrass-lite C ASM)
 #
 
 option(BUILD_TESTING "Build tests")
-option(BUILD_EXAMPLES "Build examples" TRUE)
+option(BUILD_EXAMPLES "Build examples")
 
 option(ENABLE_WERROR "Compile warnings as errors")
 
