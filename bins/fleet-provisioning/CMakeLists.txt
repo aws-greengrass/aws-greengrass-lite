@@ -12,3 +12,9 @@ ggl_init_module(
        core-bus-gg-config
        core-bus-aws-iot-mqtt
        PkgConfig::openssl)
+target_compile_definitions(
+  fleet-provision
+  PRIVATE "GGL_SYSTEMD_SYSTEM_USER=\"${GGL_SYSTEMD_SYSTEM_USER}\"")
+target_compile_definitions(
+  fleet-provision
+  PRIVATE "GGL_SYSTEMD_SYSTEM_GROUP=\"${GGL_SYSTEMD_SYSTEM_GROUP}\"")

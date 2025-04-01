@@ -282,17 +282,9 @@ check_c_source_compiles(
 
 # Common setup for a GGL module
 function(ggl_init_module name)
-  # TODO: special-case the socket permissions and directory for ggipcd
-  cmake_parse_arguments(PARSE_ARGV 1 COMP_ARG "" "SRCDIR;SOCKETDIR;SOCKETMODE"
-                        "INCDIRS;LIBS;SOCKETS")
+  cmake_parse_arguments(PARSE_ARGV 1 COMP_ARG "" "SRCDIR" "INCDIRS;LIBS")
   if("${COMP_ARG_SRCDIR}" STREQUAL "")
     set(COMP_ARG_SRCDIR src)
-  endif()
-  if("${COMP_ARG_SOCKETDIR}" STREQUAL "")
-    set(COMP_ARG_SOCKETDIR /run/greengrass)
-  endif()
-  if("${COMP_ARG_SOCKETMODE}" STREQUAL "")
-    set(COMP_ARG_SOCKETMODE 0660)
   endif()
   if("${COMP_ARG_INCDIRS}" STREQUAL "")
     set(COMP_ARG_INCDIRS include)
@@ -314,11 +306,6 @@ function(ggl_init_module name)
   if(NOT SRCS_LEN EQUAL 0)
     add_library(${name} STATIC ${SRCS})
     target_compile_definitions(${name} PRIVATE "GGL_MODULE=(\"${name}\")")
-    target_compile_definitions(
-      ${name} PRIVATE "GGL_SYSTEMD_SYSTEM_USER=\"${GGL_SYSTEMD_SYSTEM_USER}\"")
-    target_compile_definitions(
-      ${name}
-      PRIVATE "GGL_SYSTEMD_SYSTEM_GROUP=\"${GGL_SYSTEMD_SYSTEM_GROUP}\"")
     target_include_directories(${name} PRIVATE ${COMP_ARG_INCDIRS})
     target_include_directories(${name} SYSTEM INTERFACE ${COMP_ARG_INCDIRS})
     target_link_libraries(${name} PRIVATE ${COMP_ARG_LIBS})

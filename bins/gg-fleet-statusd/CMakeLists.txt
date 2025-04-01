@@ -10,6 +10,4 @@ ggl_init_module(
        core-bus-gghealthd
        core-bus-gg-config
        core-bus-aws-iot-mqtt
-       ggl-constants
-       SOCKETS
-       gg_fleet_status)
+       ggl-constants)
