@@ -605,7 +605,8 @@ GglError runner(const RecipeRunnerArgs *args) {
         &resp
     );
     switch (ret) {
-    case GGL_ERR_NOENTRY:
+    case GGL_ERR_NOMEM:
+        GGL_LOGE("Proxy URL too large.");
         break;
     case GGL_ERR_OK: {
         resp.data[resp.len] = '\0';
@@ -618,8 +619,8 @@ GglError runner(const RecipeRunnerArgs *args) {
         break;
     }
     default:
-        GGL_LOGE("Failed to get proxy url from config.");
-        return ret;
+        GGL_LOGW("Failed to get proxy url from config.");
+        break;
     }
 
     resp = GGL_BUF(resp_mem);
@@ -631,7 +632,8 @@ GglError runner(const RecipeRunnerArgs *args) {
         &resp
     );
     switch (ret) {
-    case GGL_ERR_NOENTRY:
+    case GGL_ERR_NOMEM:
+        GGL_LOGE("noProxyAddresses value too large.");
         break;
     case GGL_ERR_OK: {
         resp.data[resp.len] = '\0';
@@ -640,8 +642,8 @@ GglError runner(const RecipeRunnerArgs *args) {
         break;
     }
     default:
-        GGL_LOGE("Failed to get noProxyAddresses from config.");
-        return ret;
+        GGL_LOGW("Failed to get noProxyAddresses from config.");
+        break;
     }
 
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN + 1];

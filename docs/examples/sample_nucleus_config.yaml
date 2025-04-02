@@ -17,6 +17,10 @@ services:
         posixUser: "gg_component:gg_component"
       greengrassDataPlanePort: "8443"
       platformOverride: {}
+      networkProxy:
+        proxy:
+          url: ""
+        noProxyAddresses: ""
   # aws.greengrass.fleet_provisioning:
   #   configuration:
   #     iotDataEndpoint: "<CONFIGURE_THIS>"
