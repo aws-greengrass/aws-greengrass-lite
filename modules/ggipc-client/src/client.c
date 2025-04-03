@@ -24,6 +24,7 @@
 #include <ggl/object.h>
 #include <ggl/socket.h>
 #include <ggl/vector.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>
@@ -64,9 +65,7 @@ static GglError get_message(
     int conn,
     GglBuffer recv_buffer,
     EventStreamMessage *msg,
-    EventStreamCommonHeaders *common_headers,
-    GglAlloc *alloc,
-    GglObject *payload
+    EventStreamCommonHeaders *common_headers
 ) {
     assert(msg != NULL);
 
@@ -109,14 +108,6 @@ static GglError get_message(
         }
     }
 
-    if (payload != NULL) {
-        ret = ggl_json_decode_destructive(msg->payload, alloc, payload);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-        msg->payload.len = 0;
-    }
-
     return GGL_ERR_OK;
 }
 
@@ -150,7 +141,8 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
     EventStreamMessage msg = { 0 };
     EventStreamCommonHeaders common_headers;
 
-    ret = get_message(conn, recv_buffer, &msg, &common_headers, NULL, NULL);
+    ret = get_message(conn, recv_buffer, &msg, &common_headers);
+
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -163,6 +155,10 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
     if ((common_headers.message_flags & EVENTSTREAM_CONNECTION_ACCEPTED) == 0) {
         GGL_LOGE("Connection response missing accepted flag.");
         return GGL_ERR_FAILURE;
+    }
+
+    if (msg.payload.len != 0) {
+        GGL_LOGW("Eventstream connection ack has unexpected payload.");
     }
 
     EventStreamHeaderIter iter = msg.headers;
@@ -222,6 +218,7 @@ GglError ggipc_call(
 
     GglError ret = send_message(conn, headers, headers_len, &params);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to send message %d", ret);
         return ret;
     }
 
@@ -231,16 +228,10 @@ GglError ggipc_call(
     EventStreamMessage msg = { 0 };
     EventStreamCommonHeaders common_headers;
 
-    ret = get_message(conn, recv_buffer, &msg, &common_headers, alloc, result);
+    ret = get_message(conn, recv_buffer, &msg, &common_headers);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("get_message returned %d", ret);
         return ret;
-    }
-
-    if (result != NULL) {
-        ret = ggl_obj_buffer_copy(result, alloc);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
     }
 
     if (common_headers.stream_id != 1) {
@@ -248,9 +239,37 @@ GglError ggipc_call(
         return GGL_ERR_FAILURE;
     }
 
-    if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
-        GGL_LOGE("Connection response not an ack.");
+    if (common_headers.message_type == EVENTSTREAM_APPLICATION_ERROR) {
+        GGL_LOGI(
+            "Received IPC error on stream %" PRId32 ". Payload: %.*s.",
+            common_headers.stream_id,
+            (int) msg.payload.len,
+            msg.payload.data
+        );
         return GGL_ERR_FAILURE;
+    }
+
+    if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
+        GGL_LOGE(
+            "Stream %" PRId32 " received invalid message type: %" PRId32 ".",
+            common_headers.stream_id,
+            common_headers.message_type
+        );
+        return GGL_ERR_FAILURE;
+    }
+
+    if (result != NULL) {
+        ret = ggl_json_decode_destructive(msg.payload, alloc, result);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("ggl_json_decode_destructive returned %d", ret);
+            return ret;
+        }
+
+        ret = ggl_obj_buffer_copy(result, alloc);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to copy buffer %d", ret);
+            return ret;
+        }
     }
 
     return GGL_ERR_OK;

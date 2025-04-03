@@ -542,6 +542,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         ggl_buffer_from_null_term(socket_path), &resp, &conn
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Runner failed to authenticate with nucleus.");
         return ret;
     }
 
@@ -577,6 +578,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         &GGL_STR("aws.greengrass.NucleusLite"),
         &resp
     );
+
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get region from config.");
         return ret;
@@ -605,7 +607,12 @@ GglError runner(const RecipeRunnerArgs *args) {
         &resp
     );
     switch (ret) {
+    case GGL_ERR_NOMEM:
+        GGL_LOGW("Failed to get network proxy url from config - lack of memory."
+        );
+        break;
     case GGL_ERR_NOENTRY:
+        GGL_LOGW("Failed to get network proxy url - no such entry.");
         break;
     case GGL_ERR_OK: {
         resp.data[resp.len] = '\0';
@@ -619,7 +626,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     }
     default:
         GGL_LOGE("Failed to get proxy url from config.");
-        return ret;
+        break;
     }
 
     resp = GGL_BUF(resp_mem);
@@ -631,7 +638,12 @@ GglError runner(const RecipeRunnerArgs *args) {
         &resp
     );
     switch (ret) {
+    case GGL_ERR_NOMEM:
+        GGL_LOGW("Failed to get noProxyAddresses from config - lack of memory."
+        );
+        break;
     case GGL_ERR_NOENTRY:
+        GGL_LOGW("Failed to get noProxyAddresses - no such entry.");
         break;
     case GGL_ERR_OK: {
         resp.data[resp.len] = '\0';
@@ -641,7 +653,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     }
     default:
         GGL_LOGE("Failed to get noProxyAddresses from config.");
-        return ret;
+        break;
     }
 
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN + 1];
