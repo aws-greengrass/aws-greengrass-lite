@@ -1,0 +1,38 @@
+name: Automatic updates
+
+on:
+  schedule:
+    - cron: "0 12 ? * WED"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-lockfiles:
+    name: Update lockfiles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@master
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Switch branch
+        run: |
+          git switch -c lockfile-update
+          git reset --hard main
+      - name: Update Nix flake
+        run: nix flake update --commit-lock-file
+      - name: Update poetry
+        run: |
+          nix develop -c bash -c "cd misc; poetry update"
+          git add .
+          git commit -m "Update poetry lockfile" ||
+            echo "Did not update lockfile"
+      - run: git push -f origin lockfile-update
+      - run: gh pr create -B main -H lockfile-update -t "Update lockfiles" -b ""
+        env:
+          GH_TOKEN: ${{ github.token }}
