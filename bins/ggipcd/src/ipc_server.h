@@ -18,6 +18,24 @@
 
 #define GGL_IPC_PAYLOAD_MAX_SUBOBJECTS 50
 
+typedef enum {
+    GGL_IPC_ERR_SERVICE_ERROR = 0,
+    GGL_IPC_ERR_RESOURCE_NOT_FOUND,
+    GGL_IPC_ERR_COMPONENT_NOT_FOUND,
+    GGL_IPC_ERR_INVALID_ARGUMENTS,
+    GGL_IPC_ERR_UNAUTHORIZED_ERROR,
+    GGL_IPC_ERR_CONFLICT_ERROR,
+    GGL_IPC_ERR_FAILED_UPDATE_CONDITION_CHECK_ERROR,
+    GGL_IPC_ERR_INVALID_TOKEN_ERROR,
+    GGL_IPC_ERR_INVALID_RECIPE_DIRECTORY_PATH_ERROR,
+    GGL_IPC_ERR_INVALID_ARTIFACTS_DIRECTORY_PATH_ERROR
+} GglIpcErrorCode;
+
+typedef struct {
+    GglIpcErrorCode error_code;
+    GglBuffer message;
+} GglIpcError;
+
 /// Start the GG-IPC server on a given socket
 GglError ggl_ipc_listen(const char *socket_name, const char *socket_path);
 

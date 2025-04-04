@@ -20,6 +20,7 @@ GglError ggl_handle_token_validation(
     GglMap args,
     uint32_t handle,
     int32_t stream_id,
+    GglIpcError *ipc_error,
     GglAlloc *alloc
 ) {
     (void) alloc;
@@ -28,33 +29,51 @@ GglError ggl_handle_token_validation(
         )) {
         GGL_LOGE(
             "Component %.*s does not have access to token verification IPC "
-            "command",
+            "command.",
             (int) info->component.len,
             info->component.data
         );
+
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_UNAUTHORIZED_ERROR,
+            .message = GGL_STR(
+                "Component does not have access to token verification IPC "
+                "command."
+            ) };
+
+        return GGL_ERR_FAILURE;
     }
+
     GglObject *svcuid_obj;
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA({ GGL_STR("token"), true, GGL_TYPE_BUF, &svcuid_obj }, )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid paramters.");
+        GGL_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
 
-    if (ipc_svcuid_exists(svcuid_obj->buf) == GGL_ERR_OK) {
-        return ggl_ipc_response_send(
-            handle,
-            stream_id,
-            GGL_STR("aws.greengrass#ValidateAuthorizationTokenResponse"),
-            GGL_OBJ_MAP(GGL_MAP({ GGL_STR("isValid"), GGL_OBJ_BOOL(true) }))
-        );
+    if (ipc_svcuid_exists(svcuid_obj->buf) != GGL_ERR_OK) {
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_INVALID_TOKEN_ERROR,
+            .message = GGL_STR(
+                "Invalid token used by stream manager when trying to authorize."
+            ) };
+
+        // GreenGrass Java returns an error to the caller instead of setting the
+        // value to 'false'.
+        // https://github.com/aws-greengrass/aws-greengrass-nucleus/blob/b003cf0db575f546456bef69530126cf3e0b6a68/src/main/java/com/aws/greengrass/authorization/AuthorizationIPCAgent.java#L83
+        return GGL_ERR_FAILURE;
     }
+
     return ggl_ipc_response_send(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#ValidateAuthorizationTokenResponse"),
-        GGL_OBJ_MAP(GGL_MAP({ GGL_STR("isValid"), GGL_OBJ_BOOL(false) }))
+        GGL_OBJ_MAP(GGL_MAP({ GGL_STR("isValid"), GGL_OBJ_BOOL(true) }))
     );
 }

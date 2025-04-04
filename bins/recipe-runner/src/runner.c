@@ -608,11 +608,11 @@ GglError runner(const RecipeRunnerArgs *args) {
     );
     switch (ret) {
     case GGL_ERR_NOMEM:
-        GGL_LOGW("Failed to get network proxy url from config - lack of memory."
-        );
-        break;
+        GGL_LOGE("Failed to get network proxy url from config - value longer "
+                 "than supported.");
+        return ret;
     case GGL_ERR_NOENTRY:
-        GGL_LOGW("Failed to get network proxy url - no such entry.");
+        GGL_LOGD("No network proxy set.");
         break;
     case GGL_ERR_OK: {
         resp.data[resp.len] = '\0';
@@ -625,7 +625,8 @@ GglError runner(const RecipeRunnerArgs *args) {
         break;
     }
     default:
-        GGL_LOGE("Failed to get proxy url from config.");
+        GGL_LOGE("Failed to get proxy url from config. Error: %d.", ret);
+        // TODO: Return here once client errors are propagated through.
         break;
     }
 
@@ -639,11 +640,11 @@ GglError runner(const RecipeRunnerArgs *args) {
     );
     switch (ret) {
     case GGL_ERR_NOMEM:
-        GGL_LOGW("Failed to get noProxyAddresses from config - lack of memory."
-        );
-        break;
+        GGL_LOGE("Failed to get network proxy url from config - value longer "
+                 "than supported.");
+        return ret;
     case GGL_ERR_NOENTRY:
-        GGL_LOGW("Failed to get noProxyAddresses - no such entry.");
+        GGL_LOGD("No network proxy set.");
         break;
     case GGL_ERR_OK: {
         resp.data[resp.len] = '\0';
@@ -652,7 +653,8 @@ GglError runner(const RecipeRunnerArgs *args) {
         break;
     }
     default:
-        GGL_LOGE("Failed to get noProxyAddresses from config.");
+        GGL_LOGE("Failed to get proxy url from config. Error: %d.", ret);
+        // TODO: Return here once client errors are propagated through.
         break;
     }
 

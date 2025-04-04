@@ -23,10 +23,9 @@ GglError ggl_handle_get_configuration(
     GglMap args,
     uint32_t handle,
     int32_t stream_id,
+    GglIpcError *ipc_error,
     GglAlloc *alloc
 ) {
-    (void) info;
-
     GglObject *key_path_obj;
     GglObject *component_name_obj;
     GglBuffer component_name;
@@ -42,7 +41,10 @@ GglError ggl_handle_get_configuration(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid parameters.");
+        GGL_LOGE("Received invalid parameters. Failed to validate the map.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
 
@@ -53,17 +55,19 @@ GglError ggl_handle_get_configuration(
 
     ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid parameters.");
+        GGL_LOGE(
+            "Received invalid parameters. keyPath is not a list of strings."
+        );
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
 
     if (component_name_obj != NULL) {
         component_name = component_name_obj->buf;
     } else {
-        ret = ggl_ipc_get_component_name(handle, &component_name);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+        component_name = info->component;
     }
 
     GglBufList full_key_path;
@@ -71,16 +75,22 @@ GglError ggl_handle_get_configuration(
         component_name, key_path_obj->list, &full_key_path
     );
     if (ret != GGL_ERR_OK) {
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Config path depth larger than supported.") };
         return ret;
     }
 
     GglObject read_value;
     ret = ggl_gg_config_read(full_key_path, alloc, &read_value);
     if (ret != GGL_ERR_OK) {
+        if (ret == GGL_ERR_NOENTRY) {
+            *ipc_error
+                = (GglIpcError) { .error_code = GGL_IPC_ERR_RESOURCE_NOT_FOUND,
+                                  .message = GGL_STR("Key not found.") };
+        }
         return ret;
     }
-    // TODO: return IPC errors:
-    // https://github.com/awslabs/smithy-iot-device-sdk-greengrass-ipc/blob/60966747302e17eb8cc6ddad972f90aa92ad38a7/greengrass-ipc-model/main.smithy#L74
 
     return ggl_ipc_response_send(
         handle,

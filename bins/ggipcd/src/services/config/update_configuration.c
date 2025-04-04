@@ -23,9 +23,9 @@ GglError ggl_handle_update_configuration(
     GglMap args,
     uint32_t handle,
     int32_t stream_id,
+    GglIpcError *ipc_error,
     GglAlloc *alloc
 ) {
-    (void) info;
     (void) alloc;
 
     GglObject *key_path_obj = NULL;
@@ -43,7 +43,10 @@ GglError ggl_handle_update_configuration(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid paramters.");
+        GGL_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
+            .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
 
@@ -53,7 +56,10 @@ GglError ggl_handle_update_configuration(
     } else {
         ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Received invalid paramters.");
+            GGL_LOGE("Received invalid parameters.");
+            *ipc_error = (GglIpcError
+            ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
+                .message = GGL_STR("Received invalid parameters.") };
             return GGL_ERR_INVALID;
         }
 
@@ -61,8 +67,12 @@ GglError ggl_handle_update_configuration(
             && ggl_buffer_eq(
                 key_path_obj->list.items[0].buf, GGL_STR("accessControl")
             )) {
-            GGL_LOGE("Received invalid paramters. Can not change component "
+            GGL_LOGE("Received invalid parameters. Can not change component "
                      "accessControl over IPC.");
+            *ipc_error = (GglIpcError
+            ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
+                .message = GGL_STR("Config update is not allowed for following "
+                                   "field [accessControl]") };
             return GGL_ERR_INVALID;
         }
     }
@@ -74,38 +84,44 @@ GglError ggl_handle_update_configuration(
                     value_to_merge_obj->map.pairs[i].key,
                     GGL_STR("accessControl")
                 )) {
-                GGL_LOGE("Received invalid paramters. Can not change component "
-                         "accessControl over IPC.");
+                GGL_LOGE(
+                    "Received invalid parameters. Can not change component "
+                    "accessControl over IPC."
+                );
+                *ipc_error = (GglIpcError
+                ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
+                    .message = GGL_STR("Config update is not allowed for "
+                                       "following field [accessControl]") };
                 return GGL_ERR_INVALID;
             }
         }
     }
 
-    GglBuffer component_name = { 0 };
-    ret = ggl_ipc_get_component_name(handle, &component_name);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
     // convert timestamp from sec in floating-point(with msec precision) to msec
     // in integer
     int64_t timestamp = (int64_t) timestamp_obj->f64 * 1000;
-    GGL_LOGT("timestamp is %" PRId64, timestamp);
+    GGL_LOGT("Timestamp is %" PRId64, timestamp);
 
     GglBufList full_key_path;
     ret = ggl_make_config_path_object(
-        component_name, key_path_obj->list, &full_key_path
+        info->component, key_path_obj->list, &full_key_path
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Config path depth larger than supported.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Config path depth larger than supported.") };
         return ret;
     }
 
     ret = ggl_gg_config_write(full_key_path, *value_to_merge_obj, &timestamp);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to update the configuration.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Failed to update the configuration.") };
         return ret;
     }
-    // TODO: return IPC errors:
-    // https://github.com/awslabs/smithy-iot-device-sdk-greengrass-ipc/blob/60966747302e17eb8cc6ddad972f90aa92ad38a7/greengrass-ipc-model/main.smithy#L82
 
     return ggl_ipc_response_send(
         handle,

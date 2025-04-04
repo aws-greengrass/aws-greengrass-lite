@@ -92,6 +92,7 @@ GglError ggl_handle_subscribe_to_topic(
     GglMap args,
     uint32_t handle,
     int32_t stream_id,
+    GglIpcError *ipc_error,
     GglAlloc *alloc
 ) {
     (void) alloc;
@@ -103,12 +104,18 @@ GglError ggl_handle_subscribe_to_topic(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
 
     ret = ggl_ipc_auth(info, topic_obj->buf, ggl_ipc_default_policy_matcher);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("IPC Operation not authorized.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_UNAUTHORIZED_ERROR,
+            .message = GGL_STR("IPC Operation not authorized.") };
         return GGL_ERR_INVALID;
     }
 
@@ -124,6 +131,10 @@ GglError ggl_handle_subscribe_to_topic(
         NULL
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to bind subscription.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Failed to bind subscription.") };
         return ret;
     }
 

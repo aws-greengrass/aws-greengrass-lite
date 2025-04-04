@@ -66,9 +66,9 @@ GglError ggl_handle_subscribe_to_configuration_update(
     GglMap args,
     uint32_t handle,
     int32_t stream_id,
+    GglIpcError *ipc_error,
     GglAlloc *alloc
 ) {
-    (void) info;
     (void) alloc;
 
     GglObject *key_path_obj;
@@ -84,7 +84,10 @@ GglError ggl_handle_subscribe_to_configuration_update(
         )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid paramters.");
+        GGL_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                                     .message
+                                     = GGL_STR("Failed to validate the map.") };
         return GGL_ERR_INVALID;
     }
 
@@ -98,7 +101,12 @@ GglError ggl_handle_subscribe_to_configuration_update(
     } else {
         ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Received invalid paramters.");
+            GGL_LOGE("Received invalid parameters. keyPath must be a list of "
+                     "strings.");
+            *ipc_error = (GglIpcError
+            ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                .message = GGL_STR("Received invalid parameters: keyPath must "
+                                   "be list of strings.") };
             return GGL_ERR_INVALID;
         }
     }
@@ -107,10 +115,7 @@ GglError ggl_handle_subscribe_to_configuration_update(
     if (component_name_obj != NULL) {
         component_name = component_name_obj->buf;
     } else {
-        ret = ggl_ipc_get_component_name(handle, &component_name);
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
+        component_name = info->component;
     }
 
     GglBufList full_key_path;
@@ -118,6 +123,10 @@ GglError ggl_handle_subscribe_to_configuration_update(
         component_name, key_path_obj->list, &full_key_path
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Config path depth larger than supported.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Config path depth larger than supported.") };
         return ret;
     }
 
@@ -132,8 +141,6 @@ GglError ggl_handle_subscribe_to_configuration_update(
                                    .len = full_key_path.len }) },
     );
 
-    // TODO: return IPC errors
-    // TODO: handle remote error
     GglError remote_err;
     ret = ggl_ipc_bind_subscription(
         handle,
@@ -145,6 +152,16 @@ GglError ggl_handle_subscribe_to_configuration_update(
         &remote_err
     );
     if (ret != GGL_ERR_OK) {
+        if (remote_err == GGL_ERR_NOENTRY) {
+            *ipc_error
+                = (GglIpcError) { .error_code = GGL_IPC_ERR_RESOURCE_NOT_FOUND,
+                                  .message = GGL_STR("Key not found") };
+        } else {
+            *ipc_error = (GglIpcError
+            ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                .message
+                = GGL_STR("Failed to subscribe to configuration update.") };
+        }
         return ret;
     }
 

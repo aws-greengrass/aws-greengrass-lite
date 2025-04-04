@@ -261,13 +261,13 @@ GglError ggipc_call(
     if (result != NULL) {
         ret = ggl_json_decode_destructive(msg.payload, alloc, result);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("ggl_json_decode_destructive returned %d", ret);
+            GGL_LOGE("Failed to decode IPC response payload.");
             return ret;
         }
 
         ret = ggl_obj_buffer_copy(result, alloc);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to copy buffer %d", ret);
+            GGL_LOGE("Insufficient memory provided for IPC response payload.");
             return ret;
         }
     }

@@ -20,6 +20,7 @@ GglError ggl_handle_update_state(
     GglMap args,
     uint32_t handle,
     int32_t stream_id,
+    GglIpcError *ipc_error,
     GglAlloc *alloc
 ) {
     (void) alloc;
@@ -29,7 +30,10 @@ GglError ggl_handle_update_state(
         GGL_MAP_SCHEMA({ GGL_STR("state"), true, GGL_TYPE_BUF, &state_obj }, )
     );
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Received invalid paramters.");
+        GGL_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
 
@@ -55,6 +59,9 @@ GglError ggl_handle_update_state(
         NULL
     );
     if (ret != GGL_ERR_OK) {
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Failed to update the lifecycle state.") };
         return ret;
     }
 

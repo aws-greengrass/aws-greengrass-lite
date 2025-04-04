@@ -67,6 +67,7 @@ GglError ggl_handle_subscribe_to_iot_core(
     GglMap args,
     uint32_t handle,
     int32_t stream_id,
+    GglIpcError *ipc_error,
     GglAlloc *alloc
 ) {
     (void) alloc;
@@ -82,6 +83,9 @@ GglError ggl_handle_subscribe_to_iot_core(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
 
@@ -89,11 +93,17 @@ GglError ggl_handle_subscribe_to_iot_core(
     if (qos_obj != NULL) {
         ret = ggl_str_to_int64(qos_obj->buf, &qos);
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to parse qos string value.");
+            GGL_LOGE("Failed to parse 'qos' string value.");
+            *ipc_error = (GglIpcError
+            ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                .message = GGL_STR("Failed to parse 'qos' string value.") };
             return ret;
         }
         if ((qos < 0) || (qos > 2)) {
-            GGL_LOGE("qos not a valid value.");
+            GGL_LOGE("'qos' not a valid value.");
+            *ipc_error = (GglIpcError
+            ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                .message = GGL_STR("'qos' not a valid value.") };
             return GGL_ERR_INVALID;
         }
     }
@@ -101,6 +111,9 @@ GglError ggl_handle_subscribe_to_iot_core(
     ret = ggl_ipc_auth(info, topic_name_obj->buf, ggl_ipc_mqtt_policy_matcher);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("IPC Operation not authorized.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_UNAUTHORIZED_ERROR,
+            .message = GGL_STR("IPC Operation not authorized.") };
         return GGL_ERR_INVALID;
     }
 
@@ -119,6 +132,10 @@ GglError ggl_handle_subscribe_to_iot_core(
         NULL
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to bind the subscription.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Failed to bind the subscription.") };
         return ret;
     }
 

@@ -21,6 +21,7 @@ GglError ggl_handle_create_local_deployment(
     GglMap args,
     uint32_t handle,
     int32_t stream_id,
+    GglIpcError *ipc_error,
     GglAlloc *alloc
 ) {
     GGL_MAP_FOREACH(pair, args) {
@@ -53,6 +54,9 @@ GglError ggl_handle_create_local_deployment(
         = ggl_ipc_auth(info, GGL_STR(""), ggl_ipc_default_policy_matcher);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("IPC Operation not authorized.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("IPC Operation not authorized.") };
         return GGL_ERR_INVALID;
     }
 
@@ -68,11 +72,16 @@ GglError ggl_handle_create_local_deployment(
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to create local deployment.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Failed to create local deployment.") };
         return ret;
     }
 
     if (result.type != GGL_TYPE_BUF) {
-        GGL_LOGE("Response not a string.");
+        GGL_LOGE("Received deployment ID not a string.");
+        *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                                     .message = GGL_STR("Internal error.") };
         return GGL_ERR_FAILURE;
     }
 

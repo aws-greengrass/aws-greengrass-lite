@@ -71,6 +71,67 @@ static GglError release_client_subscriptions(uint32_t handle, size_t index) {
     return ggl_ipc_release_subscriptions_for_conn(handle);
 }
 
+static void get_ipc_err_info(
+    GglIpcErrorCode error_code,
+    GglBuffer *err_str,
+    GglBuffer *service_model_type
+) {
+    switch (error_code) {
+    case GGL_IPC_ERR_SERVICE_ERROR:
+        *err_str = GGL_STR("ServiceError");
+        *service_model_type = GGL_STR("aws.greengrass#ServiceError");
+        return;
+
+    case GGL_IPC_ERR_RESOURCE_NOT_FOUND:
+        *err_str = GGL_STR("ResourceNotFoundError");
+        *service_model_type = GGL_STR("aws.greengrass#ResourceNotFoundError");
+        return;
+
+    case GGL_IPC_ERR_INVALID_ARGUMENTS:
+        *err_str = GGL_STR("InvalidArgumentsError");
+        *service_model_type = GGL_STR("aws.greengrass#InvalidArgumentsError");
+        return;
+
+    case GGL_IPC_ERR_COMPONENT_NOT_FOUND:
+        *err_str = GGL_STR("ComponentNotFoundError");
+        *service_model_type = GGL_STR("aws.greengrass#ComponentNotFoundError");
+        return;
+
+    case GGL_IPC_ERR_UNAUTHORIZED_ERROR:
+        *err_str = GGL_STR("UnauthorizedError");
+        *service_model_type = GGL_STR("aws.greengrass#UnauthorizedError");
+        return;
+
+    case GGL_IPC_ERR_CONFLICT_ERROR:
+        *err_str = GGL_STR("ConflictError");
+        *service_model_type = GGL_STR("aws.greengrass#ConflictError");
+        return;
+
+    case GGL_IPC_ERR_FAILED_UPDATE_CONDITION_CHECK_ERROR:
+        *err_str = GGL_STR("FailedUpdateConditionCheckError");
+        *service_model_type
+            = GGL_STR("aws.greengrass#FailedUpdateConditionCheckError");
+        return;
+
+    case GGL_IPC_ERR_INVALID_TOKEN_ERROR:
+        *err_str = GGL_STR("InvalidTokenError");
+        *service_model_type = GGL_STR("aws.greengrass#InvalidTokenError");
+        return;
+
+    case GGL_IPC_ERR_INVALID_RECIPE_DIRECTORY_PATH_ERROR:
+        *err_str = GGL_STR("InvalidRecipeDirectoryPathError");
+        *service_model_type
+            = GGL_STR("aws.greengrass#InvalidRecipeDirectoryPathError");
+        return;
+
+    case GGL_IPC_ERR_INVALID_ARTIFACTS_DIRECTORY_PATH_ERROR:
+        *err_str = GGL_STR("InvalidArtifactsDirectoryPathError");
+        *service_model_type
+            = GGL_STR("aws.greengrass#InvalidArtifactsDirectoryPathError");
+        return;
+    }
+}
+
 static GglError deserialize_payload(GglBuffer payload, GglMap *out) {
     GglObject obj;
 
@@ -253,11 +314,18 @@ static GglError handle_conn_init(
     );
 }
 
-static GglError send_stream_error(uint32_t handle, int32_t stream_id) {
+static GglError send_stream_error(
+    uint32_t handle, int32_t stream_id, GglIpcError ipc_error
+) {
     GGL_LOGE("Sending error on client %u stream %d.", handle, stream_id);
 
     GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
     GglBuffer resp_buffer = GGL_BUF(resp_array);
+
+    GglBuffer service_model_type;
+    GglBuffer error_code;
+
+    get_ipc_err_info(ipc_error.error_code, &error_code, &service_model_type);
 
     // TODO: Match classic error response
     EventStreamHeader resp_headers[] = {
@@ -266,13 +334,21 @@ static GglError send_stream_error(uint32_t handle, int32_t stream_id) {
         { GGL_STR(":message-flags"),
           { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_TERMINATE_STREAM } },
         { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = stream_id } },
-
+        { GGL_STR(":content-json"),
+          { EVENTSTREAM_STRING, .string = GGL_STR("application/json") } },
+        { GGL_STR("service-model-type"),
+          { EVENTSTREAM_STRING, .string = service_model_type } },
     };
-    const size_t RESP_HEADERS_LEN
-        = sizeof(resp_headers) / sizeof(resp_headers[0]);
+    size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
     GglError ret = eventstream_encode(
-        &resp_buffer, resp_headers, RESP_HEADERS_LEN, GGL_NULL_READER
+        &resp_buffer,
+        resp_headers,
+        resp_headers_len,
+        ggl_json_reader(&GGL_OBJ_MAP(GGL_MAP(
+            { GGL_STR("_message"), GGL_OBJ_BUF(ipc_error.message) },
+            { GGL_STR("_errorCode"), GGL_OBJ_BUF(error_code) }
+        )))
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -284,7 +360,8 @@ static GglError send_stream_error(uint32_t handle, int32_t stream_id) {
 static GglError handle_stream_operation(
     uint32_t handle,
     EventStreamMessage *msg,
-    EventStreamCommonHeaders common_headers
+    EventStreamCommonHeaders common_headers,
+    GglIpcError *ipc_error
 ) {
     if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
         GGL_LOGE("Client sent unhandled message type.");
@@ -326,7 +403,7 @@ static GglError handle_stream_operation(
     }
 
     return ggl_ipc_handle_operation(
-        operation, payload_data, handle, common_headers.stream_id
+        operation, payload_data, handle, common_headers.stream_id, ipc_error
     );
 }
 
@@ -340,13 +417,16 @@ static GglError handle_operation(
         return GGL_ERR_INVALID;
     }
 
-    GglError ret = handle_stream_operation(handle, msg, common_headers);
+    GglIpcError ipc_error = { 0 };
+
+    GglError ret
+        = handle_stream_operation(handle, msg, common_headers, &ipc_error);
     if (ret == GGL_ERR_FATAL) {
         return GGL_ERR_FAILURE;
     }
 
     if (ret != GGL_ERR_OK) {
-        return send_stream_error(handle, common_headers.stream_id);
+        return send_stream_error(handle, common_headers.stream_id, ipc_error);
     }
 
     return GGL_ERR_OK;

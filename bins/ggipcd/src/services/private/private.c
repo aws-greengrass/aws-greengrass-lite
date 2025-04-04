@@ -34,6 +34,7 @@ GglError handle_get_system_config(
     GglMap args,
     uint32_t handle,
     int32_t stream_id,
+    GglIpcError *ipc_error,
     GglAlloc *alloc
 ) {
     (void) info;
@@ -44,6 +45,9 @@ GglError handle_get_system_config(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid parameters.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
+            .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
 
@@ -52,6 +56,10 @@ GglError handle_get_system_config(
         GGL_BUF_LIST(GGL_STR("system"), key_obj->buf), alloc, &read_value
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to read the system configuration.");
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+            .message = GGL_STR("Failed to read the system configuration.") };
         return ret;
     }
 

@@ -23,7 +23,11 @@ static const size_t SERVICE_COUNT
     = sizeof(SERVICE_TABLE) / sizeof(SERVICE_TABLE[0]);
 
 GglError ggl_ipc_handle_operation(
-    GglBuffer operation, GglMap args, uint32_t handle, int32_t stream_id
+    GglBuffer operation,
+    GglMap args,
+    uint32_t handle,
+    int32_t stream_id,
+    GglIpcError *ipc_error
 ) {
     for (size_t i = 0; i < SERVICE_COUNT; i++) {
         const GglIpcService *service = SERVICE_TABLE[i];
@@ -71,7 +75,7 @@ GglError ggl_ipc_handle_operation(
                 GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
 
                 return service_op->handler(
-                    &info, args, handle, stream_id, &balloc.alloc
+                    &info, args, handle, stream_id, ipc_error, &balloc.alloc
                 );
             }
         }
