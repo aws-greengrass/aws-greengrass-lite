@@ -20,6 +20,17 @@ To configure and run Greengrass Nucleus Lite, see the
 For setting up as a Greengrass developer, also see the
 [developer setup guide](docs/DEVELOPMENT.md).
 
+### ⚠️ Important Notice
+
+The git tags in this repository represent stable, fully tested releases. Please
+use these for production environments.
+
+The `main` branch contains ongoing development work and:
+
+- May contain untested features.
+- Could include breaking changes.
+- Is not recommended for production use.
+
 ## Supported Greengrass V2 IPC commands (Features)
 
 IPC support is provided by ggipcd. The support is translating the IPC command to
