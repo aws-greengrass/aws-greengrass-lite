@@ -45,6 +45,10 @@ GglError fetch_token(
         error = gghttplib_process_request(&curl_data, buffer);
     }
 
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGI("HTTP code: %ld", http_status_code);
+
     gghttplib_destroy_curl(&curl_data);
 
     return error;
@@ -58,6 +62,10 @@ GglError generic_download(const char *url_for_generic_download, int fd) {
     if (error == GGL_ERR_OK) {
         error = gghttplib_process_request_with_fd(&curl_data, fd);
     }
+
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGD("Return HTTP code: %ld", http_status_code);
 
     gghttplib_destroy_curl(&curl_data);
     return error;
@@ -140,6 +148,10 @@ GglError sigv4_download(
         error = gghttplib_process_request_with_fd(&curl_data, fd);
     }
 
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGD("Return HTTP code: %ld", http_status_code);
+
     gghttplib_destroy_curl(&curl_data);
 
     return error;
@@ -198,6 +210,10 @@ GglError gg_dataplane_call(
         GGL_LOGD("Sending request to dataplane endpoint");
         ret = gghttplib_process_request(&curl_data, response_buffer);
     }
+
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGI("HTTP code: %ld", http_status_code);
 
     gghttplib_destroy_curl(&curl_data);
 
