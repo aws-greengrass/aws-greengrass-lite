@@ -77,8 +77,9 @@ static bool can_retry(CURLcode code, CurlData *data) {
     switch (http_status_code) {
     case 400: // Generic client error
     case 408: // Request timeout
-    // TODO: 429 can contain a retry-after header.
-    // This should be used as the backoff.
+              // TODO: 429 can contain a retry-after header.
+              // This should be used as the backoff.
+              // Also add a upper limit to retry-after
     case 429: // Too many requests
     case 500: // Generic server error
     case 502: // Bad gateway
