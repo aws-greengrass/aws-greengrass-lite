@@ -62,4 +62,5 @@ supported as mentioned in the
 ### Nucleus Configuration
 
 - Platform Override only supports `architecture.detail`, please refer known
-  issues docs [here](./KNOWN_ISSUES.md).
+  issues link
+  [here](https://github.com/aws-greengrass/aws-greengrass-lite/issues).
