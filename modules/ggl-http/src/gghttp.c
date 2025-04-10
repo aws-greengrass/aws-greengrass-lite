@@ -8,6 +8,7 @@
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <assert.h>
+#include <curl/curl.h>
 #include <ggl/buffer.h>
 #include <ggl/log.h>
 #include <ggl/vector.h>
@@ -152,6 +153,17 @@ GglError sigv4_download(
     long http_status_code = 0;
     curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
     GGL_LOGD("Return HTTP code: %ld", http_status_code);
+
+    struct curl_header *type = NULL;
+    curl_easy_header(
+        curl_data.curl, "Content-Type", 0, CURLH_HEADER, -1, &type
+    );
+
+    if (type) {
+        GGL_LOGT("Response header content: %s", type->value);
+    } else {
+        GGL_LOGT("Response header content: is empty");
+    }
 
     gghttplib_destroy_curl(&curl_data);
 
