@@ -5,6 +5,7 @@
 #include "ggipc/client.h"
 #include <sys/types.h>
 #include <assert.h>
+#include <ggl/alloc.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
@@ -17,6 +18,7 @@
 #include <ggl/eventstream/types.h>
 #include <ggl/file.h>
 #include <ggl/io.h>
+#include <ggl/ipc/common.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -203,9 +205,11 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
 GglError ggipc_call(
     int conn,
     GglBuffer operation,
+    GglBuffer service_model_type,
     GglMap params,
     GglAlloc *alloc,
-    GglObject *result
+    GglObject *result,
+    GglIpcError *remote_err
 ) {
     EventStreamHeader headers[] = {
         { GGL_STR(":message-type"),
@@ -213,6 +217,8 @@ GglError ggipc_call(
         { GGL_STR(":message-flags"), { EVENTSTREAM_INT32, .int32 = 0 } },
         { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 1 } },
         { GGL_STR("operation"), { EVENTSTREAM_STRING, .string = operation } },
+        { GGL_STR("service-model-type"),
+          { EVENTSTREAM_STRING, .string = service_model_type } },
     };
     size_t headers_len = sizeof(headers) / sizeof(headers[0]);
 
@@ -240,20 +246,64 @@ GglError ggipc_call(
     }
 
     if (common_headers.message_type == EVENTSTREAM_APPLICATION_ERROR) {
-        GGL_LOGI(
-            "Received IPC error on stream %" PRId32 ". Payload: %.*s.",
-            common_headers.stream_id,
-            (int) msg.payload.len,
-            msg.payload.data
+        GGL_LOGE(
+            "Received an IPC error on stream %" PRId32 ".",
+            common_headers.stream_id
         );
-        return GGL_ERR_FAILURE;
+
+        if (remote_err == NULL) {
+            return GGL_ERR_REMOTE;
+        }
+
+        GglBumpAlloc error_alloc
+            = ggl_bump_alloc_init(GGL_BUF((uint8_t[sizeof(GglObject) * 4]) { 0 }
+            ));
+
+        GglObject err_result;
+        ret = ggl_json_decode_destructive(
+            msg.payload, &error_alloc.alloc, &err_result
+        );
+        if ((ret != GGL_ERR_OK) || (err_result.type != GGL_TYPE_MAP)) {
+            GGL_LOGE("Failed to decode IPC error payload.");
+            return ret;
+        }
+
+        GglObject *error_code_obj;
+        GglObject *message_obj;
+
+        ret = ggl_map_validate(
+            err_result.map,
+            GGL_MAP_SCHEMA(
+                { GGL_STR("_errorCode"), true, GGL_TYPE_BUF, &error_code_obj },
+                { GGL_STR("_message"), false, GGL_TYPE_BUF, &message_obj },
+            )
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Error response does not match known schema.");
+            return ret;
+        }
+        GglBuffer error_code = error_code_obj->buf;
+
+        remote_err->error_code = get_ipc_err_info(error_code);
+        remote_err->message = GGL_STR("");
+
+        if (message_obj != NULL) {
+            ret = ggl_obj_buffer_copy(message_obj, alloc);
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGW(
+                    "Insufficient memory provided for IPC response payload."
+                );
+                return GGL_ERR_REMOTE;
+            }
+            remote_err->message = message_obj->buf;
+        }
+
+        return GGL_ERR_REMOTE;
     }
 
     if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
         GGL_LOGE(
-            "Stream %" PRId32 " received invalid message type: %" PRId32 ".",
-            common_headers.stream_id,
-            common_headers.message_type
+            "Unexpected message type %" PRId32 ".", common_headers.message_type
         );
         return GGL_ERR_FAILURE;
     }
@@ -280,13 +330,30 @@ GglError ggipc_private_get_system_config(
 ) {
     GglBumpAlloc balloc = ggl_bump_alloc_init(*value);
     GglObject resp;
+    GglIpcError remote_error;
     GglError ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass.private#GetSystemConfig"),
+        GGL_STR("aws.greengrass.private#GetSystemConfigRequest"),
         GGL_MAP({ GGL_STR("key"), GGL_OBJ_BUF(key) }),
         &balloc.alloc,
-        &resp
+        &resp,
+        &remote_error
     );
+    if (ret == GGL_ERR_REMOTE) {
+        if (remote_error.error_code != GGL_IPC_ERR_INVALID_ARGUMENTS) {
+            GGL_LOGE(
+                "Invalid arguments: %.*s",
+                (int) remote_error.message.len,
+                remote_error.message.data
+            );
+            return GGL_ERR_INVALID;
+        }
+
+        GGL_LOGE("Server error.");
+        return GGL_ERR_FAILURE;
+    }
+
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -336,13 +403,30 @@ GglError ggipc_get_config_str(
     static uint8_t resp_mem[sizeof(GglKV) + sizeof("value") + PATH_MAX];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
     GglObject resp;
+    GglIpcError remote_error;
     ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass#GetConfiguration"),
+        GGL_STR("aws.greengrass#GetConfigurationRequest"),
         args.map,
         &balloc.alloc,
-        &resp
+        &resp,
+        &remote_error
     );
+    if (ret == GGL_ERR_REMOTE) {
+        if (remote_error.error_code == GGL_IPC_ERR_RESOURCE_NOT_FOUND) {
+            GGL_LOGE(
+                "Requested configuration could not be found: %.*s",
+                (int) remote_error.message.len,
+                remote_error.message.data
+            );
+            return GGL_ERR_NOENTRY;
+        }
+
+        GGL_LOGE("Server error.");
+        return GGL_ERR_FAILURE;
+    }
+
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -404,13 +488,30 @@ GglError ggipc_get_config_obj(
     static uint8_t resp_mem[sizeof(GglKV) + sizeof("value") + PATH_MAX];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
     GglObject resp;
+    GglIpcError remote_error = { 0 };
     ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass#GetConfiguration"),
+        GGL_STR("aws.greengrass#GetConfigurationRequest"),
         args.map,
         &balloc.alloc,
-        &resp
+        &resp,
+        &remote_error
     );
+    if (ret == GGL_ERR_REMOTE) {
+        if (remote_error.error_code == GGL_IPC_ERR_RESOURCE_NOT_FOUND) {
+            GGL_LOGE(
+                "Requested configuration could not be found: %.*s",
+                (int) remote_error.message.len,
+                remote_error.message.data
+            );
+            return GGL_ERR_NOENTRY;
+        }
+
+        GGL_LOGE("Server error.");
+        return GGL_ERR_FAILURE;
+    }
+
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -440,8 +541,7 @@ GglError ggipc_get_config_obj(
     return GGL_ERR_OK;
 }
 
-// TODO: use GglByteVec for payload to allow in-place base64 encoding and remove
-// alloc
+// TODO: use GglByteVec for payload to allow in-place base64 encoding.
 GglError ggipc_publish_to_iot_core(
     int conn,
     GglBuffer topic_name,
@@ -463,7 +563,29 @@ GglError ggipc_publish_to_iot_core(
         { GGL_STR("qos"), GGL_OBJ_BUF(qos_buffer) }
     );
 
-    return ggipc_call(
-        conn, GGL_STR("aws.greengrass#PublishToIoTCore"), args, NULL, NULL
+    GglIpcError remote_error;
+    GglObject resp;
+    ret = ggipc_call(
+        conn,
+        GGL_STR("aws.greengrass#PublishToIoTCore"),
+        GGL_STR("aws.greengrass#PublishToIoTCoreRequest"),
+        args,
+        alloc,
+        &resp,
+        &remote_error
     );
+    if (ret == GGL_ERR_REMOTE) {
+        if (remote_error.error_code == GGL_IPC_ERR_UNAUTHORIZED_ERROR) {
+            GGL_LOGE(
+                "Component unauthorized: %.*s",
+                (int) remote_error.message.len,
+                remote_error.message.data
+            );
+            return GGL_ERR_UNSUPPORTED;
+        }
+        GGL_LOGE("Server error.");
+        return GGL_ERR_FAILURE;
+    }
+
+    return ret;
 }

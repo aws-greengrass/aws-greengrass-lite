@@ -5,10 +5,10 @@
 #ifndef GGL_IPC_SERVICE_H
 #define GGL_IPC_SERVICE_H
 
-#include "ipc_server.h"
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/ipc/common.h>
 #include <ggl/object.h>
 #include <stdint.h>
 

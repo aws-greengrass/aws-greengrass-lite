@@ -11,6 +11,7 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/error.h>
+#include <ggl/ipc/common.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>

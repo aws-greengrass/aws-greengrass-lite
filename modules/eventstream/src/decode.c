@@ -72,20 +72,20 @@ static GglError take_header(GglBuffer *headers_buf) {
 
     uint32_t pos = 0;
 
-    if (headers_buf->len - pos < 1) {
+    if ((headers_buf->len - pos) < 1) {
         GGL_LOGE("Header parsing out of bounds.");
         return GGL_ERR_PARSE;
     }
     uint8_t header_name_len = headers_buf->data[pos];
     pos += 1;
 
-    if (headers_buf->len - pos < header_name_len) {
+    if ((headers_buf->len - pos) < header_name_len) {
         GGL_LOGE("Header parsing out of bounds.");
         return GGL_ERR_PARSE;
     }
     pos += header_name_len;
 
-    if (headers_buf->len - pos < 1) {
+    if ((headers_buf->len - pos) < 1) {
         GGL_LOGE("Header parsing out of bounds.");
         return GGL_ERR_PARSE;
     }

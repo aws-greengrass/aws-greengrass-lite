@@ -9,6 +9,7 @@
 #include <ggl/alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
+#include <ggl/ipc/common.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>

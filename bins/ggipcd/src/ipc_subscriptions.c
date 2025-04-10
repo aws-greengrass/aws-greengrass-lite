@@ -10,6 +10,7 @@
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
+#include <ggl/ipc/common.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>

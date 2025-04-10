@@ -626,8 +626,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     }
     default:
         GGL_LOGE("Failed to get proxy url from config. Error: %d.", ret);
-        // TODO: Return here once client errors are propagated through.
-        break;
+        return ret;
     }
 
     resp = GGL_BUF(resp_mem);
@@ -654,8 +653,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     }
     default:
         GGL_LOGE("Failed to get proxy url from config. Error: %d.", ret);
-        // TODO: Return here once client errors are propagated through.
-        break;
+        return ret;
     }
 
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN + 1];

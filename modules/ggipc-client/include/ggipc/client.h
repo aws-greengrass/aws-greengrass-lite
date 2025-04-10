@@ -8,6 +8,7 @@
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/ipc/common.h>
 #include <ggl/object.h>
 #include <stdint.h>
 
@@ -24,9 +25,11 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd);
 GglError ggipc_call(
     int conn,
     GglBuffer operation,
+    GglBuffer service_model_type,
     GglMap params,
     GglAlloc *alloc,
-    GglObject *result
+    GglObject *result,
+    GglIpcError *remote_err
 ) __attribute__((warn_unused_result));
 
 GglError ggipc_private_get_system_config(

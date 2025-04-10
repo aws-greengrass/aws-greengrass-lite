@@ -14,7 +14,7 @@
 GglError eventstream_get_common_headers(
     EventStreamMessage *msg, EventStreamCommonHeaders *out
 ) {
-    int32_t message_type = -1;
+    int32_t message_type = 0;
     int32_t message_flags = 0;
     int32_t stream_id = 0;
 
@@ -27,18 +27,21 @@ GglError eventstream_get_common_headers(
                 GGL_LOGE(":message-type header not Int32.");
                 return GGL_ERR_INVALID;
             }
+
             message_type = header.value.int32;
         } else if (ggl_buffer_eq(header.name, GGL_STR(":message-flags"))) {
             if (header.value.type != EVENTSTREAM_INT32) {
                 GGL_LOGE(":message-flags header not Int32.");
                 return GGL_ERR_INVALID;
             }
+
             message_flags = header.value.int32;
         } else if (ggl_buffer_eq(header.name, GGL_STR(":stream-id"))) {
             if (header.value.type != EVENTSTREAM_INT32) {
                 GGL_LOGE(":stream-id header not Int32.");
                 return GGL_ERR_INVALID;
             }
+
             stream_id = header.value.int32;
         }
     }
@@ -46,5 +49,6 @@ GglError eventstream_get_common_headers(
     out->message_type = message_type;
     out->message_flags = message_flags;
     out->stream_id = stream_id;
+
     return GGL_ERR_OK;
 }
