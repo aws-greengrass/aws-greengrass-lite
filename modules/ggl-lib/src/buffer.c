@@ -29,10 +29,26 @@ bool ggl_buffer_has_prefix(GglBuffer buf, GglBuffer prefix) {
     return false;
 }
 
+bool ggl_buffer_remove_prefix(GglBuffer *buf, GglBuffer prefix) {
+    if (ggl_buffer_has_prefix(*buf, prefix)) {
+        *buf = ggl_buffer_substr(*buf, prefix.len, SIZE_MAX);
+        return true;
+    }
+    return false;
+}
+
 bool ggl_buffer_has_suffix(GglBuffer buf, GglBuffer suffix) {
     if (suffix.len <= buf.len) {
         return memcmp(&buf.data[buf.len - suffix.len], suffix.data, suffix.len)
             == 0;
+    }
+    return false;
+}
+
+bool ggl_buffer_remove_suffix(GglBuffer *buf, GglBuffer suffix) {
+    if (ggl_buffer_has_suffix(*buf, suffix)) {
+        *buf = ggl_buffer_substr(*buf, 0, buf->len - suffix.len);
+        return true;
     }
     return false;
 }

@@ -41,8 +41,14 @@ bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2);
 /// Returns whether the buffer has the given prefix.
 bool ggl_buffer_has_prefix(GglBuffer buf, GglBuffer prefix);
 
+/// Removes a prefix. Returns whether the prefix was removed.
+bool ggl_buffer_remove_prefix(GglBuffer *buf, GglBuffer prefix);
+
 /// Returns whether the buffer has the given suffix.
 bool ggl_buffer_has_suffix(GglBuffer buf, GglBuffer suffix);
+
+/// Removes a suffix. Returns whether the suffix was removed.
+bool ggl_buffer_remove_suffix(GglBuffer *buf, GglBuffer suffix);
 
 /// Returns whether the buffer contains the given substring.
 /// Outputs start and end index.

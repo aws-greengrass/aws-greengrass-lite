@@ -24,64 +24,19 @@ GglError ggl_ipc_auth_lookup_name(
         return GGL_ERR_NOENTRY;
     }
 
-    GglBuffer name
-        = { .data = (uint8_t *) unit_name, .len = strlen(unit_name) };
+    GglBuffer name = ggl_buffer_from_null_term(unit_name);
 
-    GglBuffer ext = GGL_STR(".service");
-    if ((name.len <= ext.len)
-        || !ggl_buffer_eq(
-            ggl_buffer_substr(name, name.len - ext.len, SIZE_MAX), ext
-        )) {
+    if (!ggl_buffer_remove_suffix(&name, GGL_STR(".service"))) {
         GGL_LOGE(
             "Service for pid %d (%s) missing service extension.", pid, unit_name
         );
         return GGL_ERR_NOENTRY;
     }
 
-    name = ggl_buffer_substr(name, 0, name.len - ext.len);
+    (void) (ggl_buffer_remove_suffix(&name, GGL_STR(".install"))
+            || ggl_buffer_remove_suffix(&name, GGL_STR(".bootstrap")));
 
-    // TODO:: Make this generic and support .run/.bootstrap or anything
-    GglBuffer install_ext = GGL_STR(".install");
-    if ((name.len <= install_ext.len)
-        || !ggl_buffer_eq(
-            ggl_buffer_substr(name, name.len - install_ext.len, SIZE_MAX),
-            install_ext
-        )) {
-        GGL_LOGT(
-            "Service for pid %d (%s) is not a install service extension.",
-            pid,
-            unit_name
-        );
-    } else {
-        name = ggl_buffer_substr(name, 0, name.len - install_ext.len);
-        GGL_LOGT(
-            "Service for pid %d (%s) is a install service extension.",
-            pid,
-            unit_name
-        );
-    }
-    GglBuffer bootstrap_ext = GGL_STR(".bootstrap");
-    if ((name.len <= bootstrap_ext.len)
-        || !ggl_buffer_eq(
-            ggl_buffer_substr(name, name.len - bootstrap_ext.len, SIZE_MAX),
-            bootstrap_ext
-        )) {
-        GGL_LOGT(
-            "Service for pid %d (%s) is not a bootstrap service extension.",
-            pid,
-            unit_name
-        );
-    } else {
-        name = ggl_buffer_substr(name, 0, name.len - bootstrap_ext.len);
-        GGL_LOGT(
-            "Service for pid %d (%s) is a bootstrap service extension.",
-            pid,
-            unit_name
-        );
-    }
-
-    GglBuffer prefix = GGL_STR("ggl.");
-    if (!ggl_buffer_eq(ggl_buffer_substr(name, 0, prefix.len), prefix)) {
+    if (!ggl_buffer_remove_prefix(&name, GGL_STR("ggl."))) {
         GGL_LOGE(
             "Service for pid %d (%s) does not have ggl component prefix.",
             pid,
@@ -89,8 +44,6 @@ GglError ggl_ipc_auth_lookup_name(
         );
         return GGL_ERR_NOENTRY;
     }
-
-    name = ggl_buffer_substr(name, prefix.len, SIZE_MAX);
 
     uint8_t *component_name_buf = GGL_ALLOCN(alloc, uint8_t, name.len);
     if (component_name_buf == NULL) {
