@@ -56,26 +56,6 @@ static void set_component_name(
     component_name_lengths[handle - 1] = (uint8_t) component_name.len;
 }
 
-GglError ipc_svcuid_exists(GglBuffer svcuid_buf) {
-    GglBuffer svcuid_bin = GGL_BUF((uint8_t[SVCUID_BIN_LEN]) { 0 });
-    bool decoded = ggl_base64_decode(svcuid_buf, &svcuid_bin);
-    if (!decoded) {
-        GGL_LOGE("svcuid is invalid base64.");
-        return GGL_ERR_INVALID;
-    }
-
-    GGL_MTX_SCOPE_GUARD(&ggl_ipc_component_registered_components_mtx);
-
-    for (GglComponentHandle i = 1; i <= registered_components; i++) {
-        GglBuffer svcuid_bin_i = GGL_BUF(svcuids[i - 1]);
-        if (ggl_buffer_eq(svcuid_bin, svcuid_bin_i)) {
-            GGL_LOGD("Found the requested svcuid.");
-            return GGL_ERR_OK;
-        }
-    }
-    return GGL_ERR_FAILURE;
-}
-
 static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
@@ -96,14 +76,12 @@ static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
         return GGL_ERR_INVALID;
     }
 
-    if (ipc_svcuid_exists(svcuid_obj->buf) == GGL_ERR_OK) {
-        ggl_respond(handle, GGL_OBJ_BOOL(true));
-        return GGL_ERR_OK;
-    }
-
-    GGL_LOGE("Requested svcuid not found.");
-
-    ggl_respond(handle, GGL_OBJ_BOOL(false));
+    ggl_respond(
+        handle,
+        GGL_OBJ_BOOL(
+            ggl_ipc_components_get_handle(svcuid_obj->buf, NULL) == GGL_ERR_OK
+        )
+    );
     return GGL_ERR_OK;
 }
 
@@ -171,7 +149,9 @@ GglError ggl_ipc_components_get_handle(
     for (GglComponentHandle i = 1; i <= registered_components; i++) {
         GglBuffer svcuid_bin_i = GGL_BUF(svcuids[i - 1]);
         if (ggl_buffer_eq(svcuid_bin, svcuid_bin_i)) {
-            *component_handle = i;
+            if (component_handle != NULL) {
+                *component_handle = i;
+            }
             return GGL_ERR_OK;
         }
     }

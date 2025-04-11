@@ -14,6 +14,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <stddef.h>
 #include <stdint.h>
 
 GglError ggl_handle_token_validation(
@@ -58,7 +59,7 @@ GglError ggl_handle_token_validation(
         return GGL_ERR_INVALID;
     }
 
-    if (ipc_svcuid_exists(svcuid_obj->buf) != GGL_ERR_OK) {
+    if (ggl_ipc_components_get_handle(svcuid_obj->buf, NULL) != GGL_ERR_OK) {
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_INVALID_TOKEN_ERROR,
             .message = GGL_STR(
