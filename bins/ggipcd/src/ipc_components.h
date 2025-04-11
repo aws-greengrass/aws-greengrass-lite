@@ -5,6 +5,7 @@
 #ifndef GGL_IPC_COMPONENTS_H
 #define GGL_IPC_COMPONENTS_H
 
+#include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <stdint.h>
@@ -42,7 +43,7 @@ GglBuffer ggl_ipc_components_get_name(GglComponentHandle component_handle);
 
 /// Authenticate client and create component entry and SVCUID.
 GglError ggl_ipc_components_register(
-    int client_fd, GglComponentHandle *component_handle, GglBuffer *svcuid
+    pid_t pid, GglComponentHandle *component_handle, GglBuffer *svcuid
 );
 
 #endif

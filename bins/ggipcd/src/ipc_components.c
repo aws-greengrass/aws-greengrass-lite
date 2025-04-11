@@ -238,13 +238,13 @@ static void get_svcuid(GglComponentHandle component_handle, GglBuffer *svcuid) {
 }
 
 GglError ggl_ipc_components_register(
-    int client_fd, GglComponentHandle *component_handle, GglBuffer *svcuid
+    pid_t pid, GglComponentHandle *component_handle, GglBuffer *svcuid
 ) {
     uint8_t component_name_buf[MAX_COMPONENT_NAME_LENGTH];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(component_name_buf));
     GglBuffer component_name;
     GglError ret
-        = ggl_ipc_auth_lookup_name(client_fd, &balloc.alloc, &component_name);
+        = ggl_ipc_auth_lookup_name(pid, &balloc.alloc, &component_name);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
