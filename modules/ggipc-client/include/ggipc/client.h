@@ -12,12 +12,7 @@
 #include <ggl/object.h>
 #include <stdint.h>
 
-#ifndef GGL_IPC_AUTH_DISABLE
-#define GGL_IPC_MAX_SVCUID_LEN (16)
-#else
-// Max component name length
-#define GGL_IPC_MAX_SVCUID_LEN (128)
-#endif
+#define GGL_IPC_SVCUID_LEN (16)
 
 /// Connect to GG-IPC server using component name.
 /// If svcuid is non-null, it will be filled with the component's identity

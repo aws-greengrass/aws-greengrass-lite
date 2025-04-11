@@ -537,7 +537,7 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     // Fetch the SVCUID
     GglBuffer resp = GGL_BUF(resp_mem);
-    resp.len = GGL_IPC_MAX_SVCUID_LEN;
+    resp.len = GGL_IPC_SVCUID_LEN;
 
     int conn = -1;
     GglError ret = ggipc_connect_by_name(

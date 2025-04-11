@@ -16,8 +16,6 @@ option(ENABLE_WERROR "Compile warnings as errors")
 
 set(GGL_LOG_LEVEL CACHE STRING "GGL log level")
 
-option(GGL_IPC_AUTH_DISABLE "Put IPC authentication in debug mode")
-
 option(GGL_SYSTEMD_SERVICE_BUILD "Install GGL as a set of systemd services"
        TRUE)
 set(GGL_SYSTEMD_SYSTEM_DIR
@@ -178,10 +176,6 @@ add_compile_definitions(_GNU_SOURCE)
 add_compile_definitions(CURL_NO_OLDIES)
 
 add_compile_definitions($<$<NOT:$<CONFIG:Debug>>:_FORTIFY_SOURCE=3>)
-
-if(GGL_IPC_AUTH_DISABLE)
-  add_compile_definitions(GGL_IPC_AUTH_DISABLE)
-endif()
 
 file(READ version GGL_VERSION)
 string(STRIP "${GGL_VERSION}" GGL_VERSION)
