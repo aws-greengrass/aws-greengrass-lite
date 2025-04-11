@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
+#include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
@@ -72,18 +73,16 @@ static GglError release_client_subscriptions(uint32_t handle, size_t index) {
     return ggl_ipc_release_subscriptions_for_conn(handle);
 }
 
-static GglError deserialize_payload(GglBuffer payload, GglMap *out) {
+static GglError deserialize_payload(
+    GglBuffer payload, GglMap *out, GglAlloc *alloc
+) {
     GglObject obj;
-
-    static uint8_t
-        json_decode_mem[GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject)];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(json_decode_mem));
 
     GGL_LOGT(
         "Deserializing payload %.*s", (int) payload.len, (char *) payload.data
     );
 
-    GglError ret = ggl_json_decode_destructive(payload, &balloc.alloc, &obj);
+    GglError ret = ggl_json_decode_destructive(payload, alloc, &obj);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to decode msg payload.");
         return ret;
@@ -173,7 +172,8 @@ static GglError handle_authentication_request(uint32_t handle) {
 static GglError handle_conn_init(
     uint32_t handle,
     EventStreamMessage *msg,
-    EventStreamCommonHeaders common_headers
+    EventStreamCommonHeaders common_headers,
+    GglAlloc *alloc
 ) {
     GGL_LOGD("Handling connect for %d.", handle);
 
@@ -223,7 +223,7 @@ static GglError handle_conn_init(
     }
 
     GglMap payload_data = { 0 };
-    GglError ret = deserialize_payload(msg->payload, &payload_data);
+    GglError ret = deserialize_payload(msg->payload, &payload_data, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -300,7 +300,8 @@ static GglError handle_stream_operation(
     uint32_t handle,
     EventStreamMessage *msg,
     EventStreamCommonHeaders common_headers,
-    GglIpcError *ipc_error
+    GglIpcError *ipc_error,
+    GglAlloc *alloc
 ) {
     if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
         GGL_LOGE("Client sent unhandled message type.");
@@ -336,7 +337,7 @@ static GglError handle_stream_operation(
     }
 
     GglMap payload_data = { 0 };
-    GglError ret = deserialize_payload(msg->payload, &payload_data);
+    GglError ret = deserialize_payload(msg->payload, &payload_data, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -349,7 +350,8 @@ static GglError handle_stream_operation(
 static GglError handle_operation(
     uint32_t handle,
     EventStreamMessage *msg,
-    EventStreamCommonHeaders common_headers
+    EventStreamCommonHeaders common_headers,
+    GglAlloc *alloc
 ) {
     if (common_headers.stream_id == 0) {
         GGL_LOGE("Application message has zero :stream-id.");
@@ -358,8 +360,9 @@ static GglError handle_operation(
 
     GglIpcError ipc_error = { 0 };
 
-    GglError ret
-        = handle_stream_operation(handle, msg, common_headers, &ipc_error);
+    GglError ret = handle_stream_operation(
+        handle, msg, common_headers, &ipc_error, alloc
+    );
     if (ret == GGL_ERR_FATAL) {
         return GGL_ERR_FAILURE;
     }
@@ -447,11 +450,19 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         return ret;
     }
 
+    GglBumpAlloc payload_decode_alloc = ggl_bump_alloc_init(GGL_BUF(
+        (uint8_t[GGL_IPC_PAYLOAD_MAX_SUBOBJECTS *sizeof(GglObject)]) { 0 }
+    ));
+
     if (component_handle == 0) {
-        return handle_conn_init(handle, &msg, common_headers);
+        return handle_conn_init(
+            handle, &msg, common_headers, &payload_decode_alloc.alloc
+        );
     }
 
-    return handle_operation(handle, &msg, common_headers);
+    return handle_operation(
+        handle, &msg, common_headers, &payload_decode_alloc.alloc
+    );
 }
 
 GglError ggl_ipc_listen(const char *socket_name, const char *socket_path) {
