@@ -533,13 +533,15 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     static uint8_t resp_mem[PATH_MAX];
 
+    GglBuffer component_name = ggl_buffer_from_null_term(args->component_name);
+
     // Fetch the SVCUID
     GglBuffer resp = GGL_BUF(resp_mem);
     resp.len = GGL_IPC_MAX_SVCUID_LEN;
 
     int conn = -1;
-    GglError ret = ggipc_connect_auth(
-        ggl_buffer_from_null_term(socket_path), &resp, &conn
+    GglError ret = ggipc_connect_by_name(
+        ggl_buffer_from_null_term(socket_path), component_name, &resp, &conn
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Runner failed to authenticate with nucleus.");
@@ -687,7 +689,6 @@ GglError runner(const RecipeRunnerArgs *args) {
         GGL_LOGE("Failed to open rootPath.");
         return ret;
     }
-    GglBuffer component_name = ggl_buffer_from_null_term(args->component_name);
     GglBuffer component_version
         = ggl_buffer_from_null_term(args->component_version);
 

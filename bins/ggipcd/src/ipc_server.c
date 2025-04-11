@@ -104,79 +104,9 @@ static void set_conn_component(void *ctx, size_t index) {
     client_components[index] = *component_handle;
 }
 
-static GglError complete_conn_init(
-    uint32_t handle,
-    GglComponentHandle component_handle,
-    bool send_svcuid,
-    GglBuffer svcuid
+static GglError validate_conn_msg(
+    EventStreamMessage *msg, EventStreamCommonHeaders common_headers
 ) {
-    GGL_LOGT("Setting %d as connected.", handle);
-
-    GglError ret = ggl_socket_handle_protected(
-        set_conn_component, &component_handle, &pool, handle
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
-    GglBuffer resp_buffer = GGL_BUF(resp_array);
-
-    ret = eventstream_encode(
-        &resp_buffer,
-        (EventStreamHeader[]) {
-            { GGL_STR(":message-type"),
-              { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECT_ACK } },
-            { GGL_STR(":message-flags"),
-              { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECTION_ACCEPTED } },
-            { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 0 } },
-            { GGL_STR("svcuid"), { EVENTSTREAM_STRING, .string = svcuid } },
-        },
-        send_svcuid ? 4 : 3,
-        GGL_NULL_READER
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    ret = ggl_socket_handle_write(&pool, handle, resp_buffer);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    GGL_LOGD("Successful connection.");
-    return GGL_ERR_OK;
-}
-
-static GglError handle_authentication_request(uint32_t handle) {
-    GGL_LOGD("Client %d requesting svcuid.", handle);
-
-    pid_t pid = 0;
-    GglError ret = ggl_socket_handle_get_peer_pid(&pool, handle, &pid);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    GglComponentHandle component_handle = 0;
-    uint8_t svcuid_buf[GGL_IPC_SVCUID_LEN];
-    GglBuffer svcuid = GGL_BUF(svcuid_buf);
-    ret = ggl_ipc_components_register(pid, &component_handle, &svcuid);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Client %d failed authentication.", handle);
-        return ret;
-    }
-
-    return complete_conn_init(handle, component_handle, true, svcuid);
-}
-
-static GglError handle_conn_init(
-    uint32_t handle,
-    EventStreamMessage *msg,
-    EventStreamCommonHeaders common_headers,
-    GglAlloc *alloc
-) {
-    GGL_LOGD("Handling connect for %d.", handle);
-
     if (common_headers.message_type != EVENTSTREAM_CONNECT) {
         GGL_LOGE("Client initial message not of type connect.");
         return GGL_ERR_INVALID;
@@ -190,68 +120,148 @@ static GglError handle_conn_init(
         return GGL_ERR_INVALID;
     }
 
-    bool request_auth = false;
+    EventStreamHeaderIter iter = msg->headers;
+    EventStreamHeader header;
 
-    {
-        EventStreamHeaderIter iter = msg->headers;
-        EventStreamHeader header;
-
-        while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
-            if (ggl_buffer_eq(header.name, GGL_STR(":version"))) {
-                if (header.value.type != EVENTSTREAM_STRING) {
-                    GGL_LOGE(":version header not string.");
-                    return GGL_ERR_INVALID;
-                }
-                if (!ggl_buffer_eq(header.value.string, GGL_STR("0.1.0"))) {
-                    GGL_LOGE("Client protocol version not 0.1.0.");
-                    return GGL_ERR_INVALID;
-                }
-            } else if (ggl_buffer_eq(header.name, GGL_STR("authenticate"))) {
-                if (header.value.type != EVENTSTREAM_INT32) {
-                    GGL_LOGE("request_svcuid header not an int.");
-                    return GGL_ERR_INVALID;
-                }
-                if (header.value.int32 == 1) {
-                    request_auth = true;
-                }
+    while (eventstream_header_next(&iter, &header) == GGL_ERR_OK) {
+        if (ggl_buffer_eq(header.name, GGL_STR(":version"))) {
+            if (header.value.type != EVENTSTREAM_STRING) {
+                GGL_LOGE(":version header not string.");
+                return GGL_ERR_INVALID;
+            }
+            if (!ggl_buffer_eq(header.value.string, GGL_STR("0.1.0"))) {
+                GGL_LOGE("Client protocol version not 0.1.0.");
+                return GGL_ERR_INVALID;
             }
         }
     }
 
-    if (request_auth) {
-        return handle_authentication_request(handle);
+    return GGL_ERR_OK;
+}
+
+static GglError send_conn_resp(uint32_t handle, GglBuffer *svcuid) {
+    GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
+    GglBuffer resp_buffer = GGL_BUF(resp_array);
+
+    GglBuffer svcuid_buf = (svcuid != NULL) ? *svcuid : GGL_STR("");
+
+    GglError ret = eventstream_encode(
+        &resp_buffer,
+        (EventStreamHeader[]) {
+            { GGL_STR(":message-type"),
+              { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECT_ACK } },
+            { GGL_STR(":message-flags"),
+              { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECTION_ACCEPTED } },
+            { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 0 } },
+            { GGL_STR("svcuid"), { EVENTSTREAM_STRING, .string = svcuid_buf } },
+
+        },
+        (svcuid != NULL) ? 4 : 3,
+        GGL_NULL_READER
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    return ggl_socket_handle_write(&pool, handle, resp_buffer);
+}
+
+static GglError handle_conn_init(
+    uint32_t handle,
+    EventStreamMessage *msg,
+    EventStreamCommonHeaders common_headers,
+    GglAlloc *alloc
+) {
+    GGL_LOGD("Handling connect for %d.", handle);
+
+    GglError ret = validate_conn_msg(msg, common_headers);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     GglMap payload_data = { 0 };
-    GglError ret = deserialize_payload(msg->payload, &payload_data, alloc);
+    ret = deserialize_payload(msg->payload, &payload_data, alloc);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Connect payload is not valid json.");
         return ret;
     }
 
-    GglObject *value;
-    bool found = ggl_map_get(payload_data, GGL_STR("authToken"), &value);
-    if (!found) {
-        GGL_LOGE("Connect message payload missing authToken.");
-        return GGL_ERR_INVALID;
-    }
-    if (value->type != GGL_TYPE_BUF) {
-        GGL_LOGE("Connect message authToken not a string.");
-        return GGL_ERR_INVALID;
-    }
-    GglBuffer auth_token = value->buf;
-
-    GGL_LOGD("Client connecting.");
-
-    GglComponentHandle component_handle = 0;
-    ret = ggl_ipc_components_get_handle(auth_token, &component_handle);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Client failed authentication.");
-        return ret;
-    }
-
-    return complete_conn_init(
-        handle, component_handle, false, (GglBuffer) { 0 }
+    GglObject *auth_token_obj;
+    GglObject *component_name_obj;
+    ret = ggl_map_validate(
+        payload_data,
+        GGL_MAP_SCHEMA(
+            { GGL_STR("authToken"), false, GGL_TYPE_BUF, &auth_token_obj },
+            { GGL_STR("componentName"),
+              false,
+              GGL_TYPE_BUF,
+              &component_name_obj },
+        )
     );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Connect payload key has unexpected non-string value.");
+        return GGL_ERR_INVALID;
+    }
+
+    uint8_t svcuid_buf[GGL_IPC_SVCUID_LEN];
+    GglBuffer auth_token;
+    GglComponentHandle component_handle = 0;
+
+    if (auth_token_obj != NULL) {
+        GGL_LOGD("Client %d provided authToken.", handle);
+
+        auth_token = auth_token_obj->buf;
+
+        ret = ggl_ipc_components_get_handle(auth_token, &component_handle);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Client %d failed authentication: invalid svcuid.", handle
+            );
+            return ret;
+        }
+    } else if (component_name_obj != NULL) {
+        GGL_LOGD("Client %d provided componentName.", handle);
+
+        pid_t pid = 0;
+        ret = ggl_socket_handle_get_peer_pid(&pool, handle, &pid);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to get pid of client %d.", handle);
+            return ret;
+        }
+
+        auth_token = GGL_BUF(svcuid_buf);
+        ret = ggl_ipc_components_register(pid, &component_handle, &auth_token);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Client %d failed authentication: pid cannot be associated "
+                "with a component.",
+                handle
+            );
+            return ret;
+        }
+    } else {
+        GGL_LOGE(
+            "Client %d did not provide authToken or componentName.", handle
+        );
+        return GGL_ERR_INVALID;
+    }
+
+    GGL_LOGT("Setting %d as connected.", handle);
+
+    ret = ggl_socket_handle_protected(
+        set_conn_component, &component_handle, &pool, handle
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    ret = send_conn_resp(handle, (auth_token_obj == NULL) ? &auth_token : NULL);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    GGL_LOGD("Successful connection.");
+    return GGL_ERR_OK;
 }
 
 static GglError send_stream_error(

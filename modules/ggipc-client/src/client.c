@@ -113,7 +113,9 @@ static GglError get_message(
     return GGL_ERR_OK;
 }
 
-GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
+GglError ggipc_connect_by_name(
+    GglBuffer socket_path, GglBuffer component_name, GglBuffer *svcuid, int *fd
+) {
     int conn = -1;
     GglError ret = ggl_connect(socket_path, &conn);
     if (ret != GGL_ERR_OK) {
@@ -126,13 +128,15 @@ GglError ggipc_connect_auth(GglBuffer socket_path, GglBuffer *svcuid, int *fd) {
           { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECT } },
         { GGL_STR(":message-flags"), { EVENTSTREAM_INT32, .int32 = 0 } },
         { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 0 } },
-        { GGL_STR("authenticate"), { EVENTSTREAM_INT32, .int32 = 1 } },
         { GGL_STR(":version"),
           { EVENTSTREAM_STRING, .string = GGL_STR("0.1.0") } },
     };
     size_t headers_len = sizeof(headers) / sizeof(headers[0]);
 
-    ret = send_message(conn, headers, headers_len, NULL);
+    GglMap payload
+        = GGL_MAP({ GGL_STR("componentName"), GGL_OBJ_BUF(component_name) });
+
+    ret = send_message(conn, headers, headers_len, &payload);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
