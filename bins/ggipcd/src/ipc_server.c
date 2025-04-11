@@ -221,6 +221,24 @@ static GglError handle_conn_init(
             );
             return ret;
         }
+
+        if (component_name_obj != NULL) {
+            GGL_LOGD("Client %d also provided componentName.", handle);
+
+            GglBuffer component_name = component_name_obj->buf;
+            GglBuffer stored_name
+                = ggl_ipc_components_get_name(component_handle);
+
+            if (!ggl_buffer_eq(component_name, stored_name)) {
+                GGL_LOGE(
+                    "Client %d componentName (%.*s) does not match svcuid.",
+                    handle,
+                    (int) component_name.len,
+                    component_name.data
+                );
+                return GGL_ERR_FAILURE;
+            }
+        }
     } else if (component_name_obj != NULL) {
         GGL_LOGD("Client %d provided componentName.", handle);
 
@@ -257,11 +275,6 @@ static GglError handle_conn_init(
             component_name, &component_handle, &auth_token
         );
         if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Client %d failed authentication: pid cannot be associated "
-                "with a component.",
-                handle
-            );
             return ret;
         }
     } else {
