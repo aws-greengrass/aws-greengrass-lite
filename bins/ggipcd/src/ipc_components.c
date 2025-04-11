@@ -5,11 +5,11 @@
 #include "ipc_components.h"
 #include <sys/types.h>
 #include <assert.h>
-#include <ggipc/auth.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
+#include <ggl/constants.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -35,9 +35,6 @@ static const bool AUTH_ENABLED = true;
 #else
 static const bool AUTH_ENABLED = false;
 #endif
-
-/// Maximum length of generic component name.
-#define MAX_COMPONENT_NAME_LENGTH (128)
 
 static_assert(
     GGL_IPC_SVCUID_LEN % 4 == 0, "GGL_IPC_SVCUID_LEN must be a multiple of 4."
@@ -238,17 +235,10 @@ static void get_svcuid(GglComponentHandle component_handle, GglBuffer *svcuid) {
 }
 
 GglError ggl_ipc_components_register(
-    pid_t pid, GglComponentHandle *component_handle, GglBuffer *svcuid
+    GglBuffer component_name,
+    GglComponentHandle *component_handle,
+    GglBuffer *svcuid
 ) {
-    uint8_t component_name_buf[MAX_COMPONENT_NAME_LENGTH];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(component_name_buf));
-    GglBuffer component_name;
-    GglError ret
-        = ggl_ipc_auth_lookup_name(pid, &balloc.alloc, &component_name);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
     for (GglComponentHandle i = 1; i <= registered_components; i++) {
         if (ggl_buffer_eq(component_name, ggl_ipc_components_get_name(i))) {
             *component_handle = i;
@@ -278,7 +268,7 @@ GglError ggl_ipc_components_register(
     *component_handle = registered_components;
     set_component_name(*component_handle, component_name);
 
-    ret = ggl_rand_fill(GGL_BUF(svcuids[*component_handle - 1]));
+    GglError ret = ggl_rand_fill(GGL_BUF(svcuids[*component_handle - 1]));
     if (ret != GGL_ERR_OK) {
         return GGL_ERR_FATAL;
     }

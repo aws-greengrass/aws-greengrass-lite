@@ -9,10 +9,12 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
+#include <ggipc/auth.h>
 #include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
+#include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
@@ -222,6 +224,8 @@ static GglError handle_conn_init(
     } else if (component_name_obj != NULL) {
         GGL_LOGD("Client %d provided componentName.", handle);
 
+        GglBuffer component_name = component_name_obj->buf;
+
         pid_t pid = 0;
         ret = ggl_socket_handle_get_peer_pid(&pool, handle, &pid);
         if (ret != GGL_ERR_OK) {
@@ -229,8 +233,29 @@ static GglError handle_conn_init(
             return ret;
         }
 
+        uint8_t component_name_buf[MAX_COMPONENT_NAME_LENGTH];
+        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(component_name_buf));
+
+        GglBuffer validated_name;
+        ret = ggl_ipc_auth_lookup_name(pid, &balloc.alloc, &validated_name);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+
+        if (!ggl_buffer_eq(component_name, validated_name)) {
+            GGL_LOGE(
+                "Client %d failed to authenticate as %.*s.",
+                handle,
+                (int) component_name.len,
+                component_name.data
+            );
+            return GGL_ERR_FAILURE;
+        }
+
         auth_token = GGL_BUF(svcuid_buf);
-        ret = ggl_ipc_components_register(pid, &component_handle, &auth_token);
+        ret = ggl_ipc_components_register(
+            component_name, &component_handle, &auth_token
+        );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Client %d failed authentication: pid cannot be associated "

@@ -24,4 +24,7 @@
 // TODO: Should be at least as big as MAX_COMPONENTS, add static assert?
 #define MAX_CONFIG_CHILDREN_PER_OBJECT 64
 
+/// Maximum length of generic component name.
+#define MAX_COMPONENT_NAME_LENGTH (128)
+
 #endif
