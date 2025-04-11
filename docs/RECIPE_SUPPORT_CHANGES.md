@@ -24,7 +24,6 @@ supported as mentioned in the
 
   - shutdown
   - recover
-  - bootstrap
 
 - `Skipif` section for a given lifecycle step is also not supported.
 
