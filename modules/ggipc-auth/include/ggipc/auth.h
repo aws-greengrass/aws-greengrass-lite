@@ -11,13 +11,11 @@
 //! SVCUID tokens, and a means for components to obtain SVCUID tokens.
 
 #include <sys/types.h>
-#include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 
-/// Authenticate a client and get its component name.
-GglError ggl_ipc_auth_lookup_name(
-    pid_t pid, GglAlloc *alloc, GglBuffer *component_name
-);
+/// Authenticate a client by checking if its pid is associated with its claimed
+/// component name.
+GglError ggl_ipc_auth_validate_name(pid_t pid, GglBuffer component_name);
 
 #endif
