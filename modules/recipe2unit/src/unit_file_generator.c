@@ -150,8 +150,8 @@ static GglError fill_unit_section(
 
     ret = ggl_byte_vec_append(
         concat_unit_vector,
-        GGL_STR("Wants=ggl.core.ggipcd.service\nAfter=ggl.core.ggipcd.service\n"
-        )
+        GGL_STR("PartOf=greengrass-lite.target\nWants=ggl.core.ggipcd."
+                "service\nAfter=ggl.core.ggipcd.service\n")
     );
     if (ret != GGL_ERR_OK) {
         return ret;
