@@ -6,8 +6,14 @@
 #define GGL_IPC_COMMON_H
 
 #include <ggl/buffer.h>
+#include <stdint.h>
 
 #define GGL_IPC_PAYLOAD_MAX_SUBOBJECTS 50
+#define GGL_IPC_SVCUID_STR_LEN 16
+
+typedef struct {
+    uint8_t val[12];
+} GglSvcuid;
 
 typedef enum {
     GGL_IPC_ERR_SERVICE_ERROR = 0,

@@ -7,11 +7,11 @@
 #include <assert.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/constants.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
+#include <ggl/ipc/common.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -22,19 +22,37 @@
 #include <stdint.h>
 
 static_assert(
-    GGL_IPC_SVCUID_LEN % 4 == 0, "GGL_IPC_SVCUID_LEN must be a multiple of 4."
+    GGL_IPC_SVCUID_STR_LEN % 4 == 0,
+    "GGL_IPC_SVCUID_STR_LEN must be a multiple of 4."
 );
 
-#define SVCUID_BIN_LEN (((size_t) GGL_IPC_SVCUID_LEN / 4) * 3)
+static_assert(
+    sizeof((GglSvcuid) { 0 }.val) == ((size_t) GGL_IPC_SVCUID_STR_LEN / 4 * 3),
+    "GGL_IPC_SVCUID_STR_LEN must match size of GglSvcuid val, base64 encoded."
+);
 
 static pthread_mutex_t ggl_ipc_component_registered_components_mtx
     = PTHREAD_MUTEX_INITIALIZER;
-static uint8_t svcuids[GGL_MAX_GENERIC_COMPONENTS][SVCUID_BIN_LEN];
+static GglSvcuid svcuids[GGL_MAX_GENERIC_COMPONENTS];
 static uint8_t component_names[GGL_MAX_GENERIC_COMPONENTS]
                               [MAX_COMPONENT_NAME_LENGTH];
 static uint8_t component_name_lengths[GGL_MAX_GENERIC_COMPONENTS];
 
 static GglComponentHandle registered_components = 0;
+
+GglError ggl_ipc_svcuid_from_str(GglBuffer svcuid, GglSvcuid *out) {
+    if (svcuid.len != GGL_IPC_SVCUID_STR_LEN) {
+        return GGL_ERR_INVALID;
+    }
+    GglSvcuid result;
+    bool decoded = ggl_base64_decode(svcuid, &GGL_BUF(result.val));
+    if (!decoded) {
+        GGL_LOGE("svcuid is invalid base64.");
+        return GGL_ERR_INVALID;
+    }
+    *out = result;
+    return GGL_ERR_OK;
+}
 
 GglBuffer ggl_ipc_components_get_name(GglComponentHandle component_handle) {
     assert(component_handle != 0);
@@ -56,6 +74,12 @@ static void set_component_name(
     component_name_lengths[handle - 1] = (uint8_t) component_name.len;
 }
 
+static GglSvcuid get_svcuid(GglComponentHandle component_handle) {
+    assert(component_handle != 0);
+    assert(component_handle <= registered_components);
+    return svcuids[component_handle - 1];
+}
+
 static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
@@ -67,20 +91,19 @@ static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
     );
 
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to validate the map provided to 'verify_svcuid'.");
+        GGL_LOGE("Failed to validate verify_svcuid parameters.");
         return GGL_ERR_INVALID;
     }
 
-    if (svcuid_obj->type != GGL_TYPE_BUF) {
-        GGL_LOGE("svcuid must be of type buffer.");
-        return GGL_ERR_INVALID;
+    GglSvcuid svcuid;
+    ret = ggl_ipc_svcuid_from_str(svcuid_obj->buf, &svcuid);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
 
     ggl_respond(
         handle,
-        GGL_OBJ_BOOL(
-            ggl_ipc_components_get_handle(svcuid_obj->buf, NULL) == GGL_ERR_OK
-        )
+        GGL_OBJ_BOOL(ggl_ipc_components_get_handle(svcuid, NULL) == GGL_ERR_OK)
     );
     return GGL_ERR_OK;
 }
@@ -126,7 +149,7 @@ GglError ggl_ipc_start_component_server(void) {
 }
 
 GglError ggl_ipc_components_get_handle(
-    GglBuffer svcuid, GglComponentHandle *component_handle
+    GglSvcuid svcuid, GglComponentHandle *component_handle
 ) {
     assert(component_handle != NULL);
 
@@ -134,21 +157,8 @@ GglError ggl_ipc_components_get_handle(
 
     // Match decoded SVCUID and return match
 
-    if (svcuid.len != GGL_IPC_SVCUID_LEN) {
-        GGL_LOGE("svcuid is invalid length.");
-        return GGL_ERR_INVALID;
-    }
-
-    GglBuffer svcuid_bin = GGL_BUF((uint8_t[SVCUID_BIN_LEN]) { 0 });
-    bool decoded = ggl_base64_decode(svcuid, &svcuid_bin);
-    if (!decoded) {
-        GGL_LOGE("svcuid is invalid base64.");
-        return GGL_ERR_INVALID;
-    }
-
     for (GglComponentHandle i = 1; i <= registered_components; i++) {
-        GglBuffer svcuid_bin_i = GGL_BUF(svcuids[i - 1]);
-        if (ggl_buffer_eq(svcuid_bin, svcuid_bin_i)) {
+        if (memcmp(svcuid.val, get_svcuid(i).val, sizeof(svcuid.val)) == 0) {
             if (component_handle != NULL) {
                 *component_handle = i;
             }
@@ -161,23 +171,15 @@ GglError ggl_ipc_components_get_handle(
     return GGL_ERR_NOENTRY;
 }
 
-static void get_svcuid(GglComponentHandle component_handle, GglBuffer *svcuid) {
-    assert(svcuid->len >= GGL_IPC_SVCUID_LEN);
-    GglBumpAlloc balloc = ggl_bump_alloc_init(*svcuid);
-    (void) ggl_base64_encode(
-        GGL_BUF(svcuids[component_handle - 1]), &balloc.alloc, svcuid
-    );
-}
-
 GglError ggl_ipc_components_register(
     GglBuffer component_name,
     GglComponentHandle *component_handle,
-    GglBuffer *svcuid
+    GglSvcuid *svcuid
 ) {
     for (GglComponentHandle i = 1; i <= registered_components; i++) {
         if (ggl_buffer_eq(component_name, ggl_ipc_components_get_name(i))) {
             *component_handle = i;
-            get_svcuid(i, svcuid);
+            *svcuid = get_svcuid(i);
             GGL_LOGD(
                 "Found existing auth info for component %.*s.",
                 (int) component_name.len,
@@ -203,11 +205,11 @@ GglError ggl_ipc_components_register(
     *component_handle = registered_components;
     set_component_name(*component_handle, component_name);
 
-    GglError ret = ggl_rand_fill(GGL_BUF(svcuids[*component_handle - 1]));
+    GglError ret = ggl_rand_fill(GGL_BUF(svcuids[*component_handle - 1].val));
     if (ret != GGL_ERR_OK) {
         return GGL_ERR_FATAL;
     }
-    get_svcuid(*component_handle, svcuid);
+    *svcuid = get_svcuid(*component_handle);
 
     return GGL_ERR_OK;
 }

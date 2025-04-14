@@ -59,15 +59,26 @@ GglError ggl_handle_token_validation(
         return GGL_ERR_INVALID;
     }
 
-    if (ggl_ipc_components_get_handle(svcuid_obj->buf, NULL) != GGL_ERR_OK) {
+    GglSvcuid svcuid;
+    ret = ggl_ipc_svcuid_from_str(svcuid_obj->buf, &svcuid);
+    if (ret != GGL_ERR_OK) {
+        *ipc_error = (GglIpcError
+        ) { .error_code = GGL_IPC_ERR_INVALID_TOKEN_ERROR,
+            .message = GGL_STR(
+                "Invalid token used by stream manager when trying to authorize."
+            ) };
+        return ret;
+    }
+
+    if (ggl_ipc_components_get_handle(svcuid, NULL) != GGL_ERR_OK) {
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_INVALID_TOKEN_ERROR,
             .message = GGL_STR(
                 "Invalid token used by stream manager when trying to authorize."
             ) };
 
-        // GreenGrass Java returns an error to the caller instead of setting the
-        // value to 'false'.
+        // Greengrass Classic returns an error to the caller instead of setting
+        // the value to 'false'.
         // https://github.com/aws-greengrass/aws-greengrass-nucleus/blob/b003cf0db575f546456bef69530126cf3e0b6a68/src/main/java/com/aws/greengrass/authorization/AuthorizationIPCAgent.java#L83
         return GGL_ERR_FAILURE;
     }

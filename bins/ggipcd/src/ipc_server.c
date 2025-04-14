@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <ggipc/auth.h>
 #include <ggl/alloc.h>
+#include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
@@ -140,11 +141,23 @@ static GglError validate_conn_msg(
     return GGL_ERR_OK;
 }
 
-static GglError send_conn_resp(uint32_t handle, GglBuffer *svcuid) {
+static GglError send_conn_resp(uint32_t handle, GglSvcuid *svcuid) {
     GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
     GglBuffer resp_buffer = GGL_BUF(resp_array);
 
-    GglBuffer svcuid_buf = (svcuid != NULL) ? *svcuid : GGL_STR("");
+    GglBumpAlloc balloc
+        = ggl_bump_alloc_init(GGL_BUF((uint8_t[GGL_IPC_SVCUID_STR_LEN]) { 0 }));
+    GglBuffer svcuid_str = GGL_STR("");
+
+    if (svcuid != NULL) {
+        GglError ret = ggl_base64_encode(
+            GGL_BUF(svcuid->val), &balloc.alloc, &svcuid_str
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to encode SVCUID.");
+            return GGL_ERR_FATAL;
+        }
+    }
 
     GglError ret = eventstream_encode(
         &resp_buffer,
@@ -154,8 +167,7 @@ static GglError send_conn_resp(uint32_t handle, GglBuffer *svcuid) {
             { GGL_STR(":message-flags"),
               { EVENTSTREAM_INT32, .int32 = EVENTSTREAM_CONNECTION_ACCEPTED } },
             { GGL_STR(":stream-id"), { EVENTSTREAM_INT32, .int32 = 0 } },
-            { GGL_STR("svcuid"), { EVENTSTREAM_STRING, .string = svcuid_buf } },
-
+            { GGL_STR("svcuid"), { EVENTSTREAM_STRING, .string = svcuid_str } },
         },
         (svcuid != NULL) ? 4 : 3,
         GGL_NULL_READER
@@ -204,16 +216,16 @@ static GglError handle_conn_init(
         return GGL_ERR_INVALID;
     }
 
-    uint8_t svcuid_buf[GGL_IPC_SVCUID_LEN];
-    GglBuffer auth_token;
+    GglSvcuid svcuid;
     GglComponentHandle component_handle = 0;
 
     if (auth_token_obj != NULL) {
         GGL_LOGD("Client %d provided authToken.", handle);
 
-        auth_token = auth_token_obj->buf;
-
-        ret = ggl_ipc_components_get_handle(auth_token, &component_handle);
+        ret = ggl_ipc_svcuid_from_str(auth_token_obj->buf, &svcuid);
+        if (ret == GGL_ERR_OK) {
+            ret = ggl_ipc_components_get_handle(svcuid, &component_handle);
+        }
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Client %d failed authentication: invalid svcuid.", handle
@@ -261,9 +273,8 @@ static GglError handle_conn_init(
             return ret;
         }
 
-        auth_token = GGL_BUF(svcuid_buf);
         ret = ggl_ipc_components_register(
-            component_name, &component_handle, &auth_token
+            component_name, &component_handle, &svcuid
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -284,7 +295,7 @@ static GglError handle_conn_init(
         return ret;
     }
 
-    ret = send_conn_resp(handle, (auth_token_obj == NULL) ? &auth_token : NULL);
+    ret = send_conn_resp(handle, (auth_token_obj == NULL) ? &svcuid : NULL);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
