@@ -30,6 +30,7 @@ let
     dontConfigure = true;
     dontInstall = true;
     dontFixup = true;
+    allowSubstitutes = false;
   };
 in
 llvmStdenv.mkDerivation {
