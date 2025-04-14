@@ -49,6 +49,8 @@
 
 #define MAX_DECODE_BUF_LEN 4096
 #define MAX_RECIPE_MEM 25000
+#define DEPLOYMENT_TARGET_NAME_MAX_CHARS 128
+#define MAX_DEPLOYMENT_TARGETS 100
 
 static struct DeploymentConfiguration {
     char data_endpoint[128];
@@ -1875,7 +1877,17 @@ static GglError add_arn_list_to_config(
 
     // add configuration arn to the config if it is not already present
     // added to the config as a list, this is later used in fss
-    GglBuffer arn_list_mem = GGL_BUF((uint8_t[128 * 10]) { 0 });
+
+    // TODO: local deployments should be represented by one deployment target,
+    // rather than each having their own unique deploymentId as a target. This
+    // can be done where the local deployment cli handler is responsible for
+    // mutating the local deployment before sending the updated local deployment
+    // info to this deployment handler.
+    GglBuffer arn_list_mem = GGL_BUF((
+        uint8_t
+            [((size_t) DEPLOYMENT_TARGET_NAME_MAX_CHARS *MAX_DEPLOYMENT_TARGETS)
+             + (sizeof(GglObject) *MAX_DEPLOYMENT_TARGETS)]
+    ) { 0 });
     GglBumpAlloc arn_list_balloc = ggl_bump_alloc_init(arn_list_mem);
     GglObject arn_list;
 
@@ -1890,7 +1902,8 @@ static GglError add_arn_list_to_config(
         return GGL_ERR_FAILURE;
     }
 
-    GglObjVec new_arn_list = GGL_OBJ_VEC((GglObject[100]) { 0 });
+    GglObjVec new_arn_list
+        = GGL_OBJ_VEC((GglObject[MAX_DEPLOYMENT_TARGETS]) { 0 });
     if (ret != GGL_ERR_NOENTRY) {
         // list exists in config, parse for current config arn and append if it
         // is not already included
@@ -1898,7 +1911,7 @@ static GglError add_arn_list_to_config(
             GGL_LOGE("Configuration arn list not of expected type.");
             return GGL_ERR_INVALID;
         }
-        if (arn_list.list.len >= 100) {
+        if (arn_list.list.len >= MAX_DEPLOYMENT_TARGETS) {
             GGL_LOGE(
                 "Cannot append configArn: Component is deployed as part of too "
                 "many deployments (%zu >= 100).",
