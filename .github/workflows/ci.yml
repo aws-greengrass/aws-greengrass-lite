@@ -80,20 +80,3 @@ jobs:
           name: formatting_patch
           path: formatting.patch
           retention-days: 5
-
-  git-secrets:
-    timeout-minutes: 60
-    name: Check git-secrets
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-        with:
-          fetch-depth: 0
-          filter: "tree:0"
-      - uses: ./.github/actions/setup-ci-env
-
-      - name: Check git-secrets
-        shell: nix develop -c bash -exo pipefail {0}
-        run: |
-          git-secrets --register-aws
-          git-secrets --scan

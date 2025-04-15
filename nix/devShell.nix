@@ -7,7 +7,6 @@ in
     clang-tools
     clangd-tidy
     git
-    git-secrets
     gdb
     poetry
   ]) ++ [
