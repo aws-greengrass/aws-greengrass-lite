@@ -45,7 +45,6 @@ jobs:
           fetch-depth: 0
           filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check ${{ matrix.name }}
         run:
@@ -64,7 +63,6 @@ jobs:
           fetch-depth: 0
           filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check formatting
         id: formatting-check
@@ -98,7 +96,6 @@ jobs:
           fetch-depth: 0
           filter: "tree:0"
       - uses: DeterminateSystems/nix-installer-action@main
-      - uses: DeterminateSystems/magic-nix-cache-action@main
 
       - name: Check git-secrets
         run: |
