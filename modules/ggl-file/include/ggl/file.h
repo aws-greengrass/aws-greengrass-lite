@@ -87,4 +87,6 @@ static inline void cleanup_closedir(DIR **dirp) {
     }
 }
 
+GglError truncate_file(void *response_data);
+
 #endif

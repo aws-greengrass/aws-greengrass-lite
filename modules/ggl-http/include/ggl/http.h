@@ -98,7 +98,8 @@ GglError sigv4_download(
     GglBuffer host,
     GglBuffer file_path,
     int fd,
-    SigV4Details sigv4_details
+    SigV4Details sigv4_details,
+    long *http_response_code
 );
 
 GglError gg_dataplane_call(

@@ -9,14 +9,12 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <curl/curl.h>
-#include <errno.h>
 #include <ggl/backoff.h>
 #include <ggl/cleanup.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/vector.h>
 #include <pthread.h>
-#include <unistd.h>
 #include <stdbool.h>
 #include <stdlib.h>
 
@@ -106,21 +104,6 @@ typedef struct CurlRequestRetryCtx {
 static GglError clear_buffer(void *response_data) {
     GglByteVec *vector = (GglByteVec *) response_data;
     vector->buf.len = 0;
-    return GGL_ERR_OK;
-}
-
-static GglError truncate_file(void *response_data) {
-    int fd = *(int *) response_data;
-
-    int ret;
-    do {
-        ret = ftruncate(fd, 0);
-    } while ((ret == -1) && (errno == EINTR));
-
-    if (ret == -1) {
-        GGL_LOGE("Failed to truncate fd for write (errno=%d).", errno);
-        return GGL_ERR_FAILURE;
-    }
     return GGL_ERR_OK;
 }
 

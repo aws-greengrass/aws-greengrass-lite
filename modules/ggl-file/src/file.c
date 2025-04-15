@@ -578,3 +578,18 @@ GglError ggl_file_read_path(GglBuffer path, GglBuffer *content) {
 
     return GGL_ERR_OK;
 }
+
+GglError truncate_file(void *response_data) {
+    int fd = *(int *) response_data;
+
+    int ret;
+    do {
+        ret = ftruncate(fd, 0);
+    } while ((ret == -1) && (errno == EINTR));
+
+    if (ret == -1) {
+        GGL_LOGE("Failed to truncate fd for write (errno=%d).", errno);
+        return GGL_ERR_FAILURE;
+    }
+    return GGL_ERR_OK;
+}
