@@ -535,7 +535,7 @@ Description=A greengrass component
 StartLimitIntervalSec=3600
 StartLimitBurst=3
 #HARD dependency
-Requires= IPCbridge.service
+Requires= ggl.core.ggipcd.service
 #WEAK Dependency
 Wants=TES.service
 #For Version

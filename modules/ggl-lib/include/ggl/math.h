@@ -5,7 +5,7 @@
 #ifndef GGL_MATH_H
 #define GGL_MATH_H
 
-//! Math utilites
+//! Math utilities
 
 #include <stdint.h>
 

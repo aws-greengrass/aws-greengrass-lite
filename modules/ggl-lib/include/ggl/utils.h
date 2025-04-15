@@ -5,7 +5,7 @@
 #ifndef GGL_UTILS_H
 #define GGL_UTILS_H
 
-//! Misc utilites
+//! Misc utilities
 
 #include "ggl/error.h"
 #include <stdint.h>
