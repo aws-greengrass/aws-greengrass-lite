@@ -144,7 +144,7 @@ static GglError curl_request_retry_wrapper(void *ctx) {
         retry_ctx->err = translate_curl_code(curl_error);
         return GGL_ERR_OK;
     }
-    int long http_status_code = 0;
+    long http_status_code = 0;
     curl_error = curl_easy_getinfo(
         curl_data->curl, CURLINFO_HTTP_CODE, &http_status_code
     );

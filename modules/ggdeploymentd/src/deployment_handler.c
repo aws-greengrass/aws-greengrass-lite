@@ -12,8 +12,10 @@
 #include "stale_component.h"
 #include <sys/types.h>
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <ggl/alloc.h>
+#include <ggl/backoff.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
@@ -43,6 +45,7 @@
 #include <ggl/zip.h>
 #include <limits.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -409,6 +412,101 @@ static GglError get_tes_credentials(TesCredentials *tes_creds) {
     return GGL_ERR_OK;
 }
 
+typedef struct {
+    const char *url_for_sigv4_download;
+    GglBuffer host;
+    GglBuffer file_path;
+    SigV4Details sigv4_details;
+
+    // reset response_data for next attempt
+    GglError (*retry_cleanup_fn)(void *);
+    void *response_data;
+
+    // Needed to propagate errors when retrying is impossible.
+    GglError err;
+} DownloadRequestRetryCtx;
+
+static GglError retry_download_wrapper(void *ctx) {
+    DownloadRequestRetryCtx *retry_ctx = (DownloadRequestRetryCtx *) ctx;
+    uint16_t http_response_code;
+
+    GglError ret = sigv4_download(
+        retry_ctx->url_for_sigv4_download,
+        retry_ctx->host,
+        retry_ctx->file_path,
+        *(int *) retry_ctx->response_data,
+        retry_ctx->sigv4_details,
+        &http_response_code
+    );
+    if (http_response_code == (uint16_t) 403) {
+        GglError err = retry_ctx->retry_cleanup_fn(retry_ctx->response_data);
+        GGL_LOGE(
+            "Artifact download attempt failed with 403. Retrying with backoff."
+        );
+        if (err != GGL_ERR_OK) {
+            retry_ctx->err = err;
+            return GGL_ERR_OK;
+        }
+        return GGL_ERR_FAILURE;
+    }
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Artifact download attempt failed due to error: %d", ret
+
+        );
+        retry_ctx->err = ret;
+        return GGL_ERR_OK;
+    }
+
+    retry_ctx->err = ret;
+    return GGL_ERR_OK;
+}
+
+// TODO: Refactor to delete the file and get the new fd instead of truncating
+// the file
+static GglError truncate_s3_file_on_failure(void *response_data) {
+    int fd = *(int *) response_data;
+
+    int ret;
+    do {
+        ret = ftruncate(fd, 0);
+    } while ((ret == -1) && (errno == EINTR));
+
+    if (ret == -1) {
+        GGL_LOGE("Failed to truncate fd for write (errno=%d).", errno);
+        return GGL_ERR_FAILURE;
+    }
+    return GGL_ERR_OK;
+}
+
+static GglError retryable_download_request(
+    const char *url_for_sigv4_download,
+    GglBuffer host,
+    GglBuffer file_path,
+    int artifact_fd,
+    SigV4Details sigv4_details
+) {
+    DownloadRequestRetryCtx ctx
+        = { .url_for_sigv4_download = url_for_sigv4_download,
+            .host = host,
+            .file_path = file_path,
+            .sigv4_details = sigv4_details,
+            .response_data = (void *) &artifact_fd,
+            .retry_cleanup_fn = truncate_s3_file_on_failure,
+            .err = GGL_ERR_OK };
+
+    GglError ret
+        = ggl_backoff(3000, 64000, 3, retry_download_wrapper, (void *) &ctx);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Artifact download attempt failed; retries exhausted.");
+        return ret;
+    }
+    if (ctx.err != GGL_ERR_OK) {
+        return ctx.err;
+    }
+    return GGL_ERR_OK;
+}
+
 static GglError download_s3_artifact(
     GglBuffer scratch_buffer,
     GglUriInfo uri_info,
@@ -434,7 +532,7 @@ static GglError download_s3_artifact(
         return error;
     }
 
-    return sigv4_download(
+    return retryable_download_request(
         (const char *) url_vec.buf.data,
         (GglBuffer) { .data = &scratch_buffer.data[start_loc],
                       .len = end_loc - start_loc },

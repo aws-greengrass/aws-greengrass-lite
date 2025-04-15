@@ -119,19 +119,19 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
         if (request_ret != GGL_ERR_OK) {
             return GGL_ERR_FAILURE;
         }
+        uint16_t http_response_code;
 
         request_ret = sigv4_download(
             url_buffer,
             (GglBuffer) { .data = host_vec.buf.data, .len = host_vec.buf.len },
             ggl_buffer_from_null_term(key),
             fd,
-            (SigV4Details) {
-                .aws_region = ggl_buffer_from_null_term(region),
-                .aws_service = GGL_STR("s3"),
-                .access_key_id = aws_access_key_id,
-                .secret_access_key = aws_secret_access_key,
-                .session_token = aws_session_token,
-            }
+            (SigV4Details) { .aws_region = ggl_buffer_from_null_term(region),
+                             .aws_service = GGL_STR("s3"),
+                             .access_key_id = aws_access_key_id,
+                             .secret_access_key = aws_secret_access_key,
+                             .session_token = aws_session_token },
+            &http_response_code
         );
     }
 

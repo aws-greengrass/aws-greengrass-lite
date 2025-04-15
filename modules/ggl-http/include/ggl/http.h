@@ -7,6 +7,7 @@
 
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <stdint.h>
 
 typedef struct CertificateDetails {
     const char *gghttplib_cert_path;
@@ -83,6 +84,8 @@ GglError generic_download(const char *url_for_generic_download, int fd);
 /// @param[in] url_for_generic_download The URL from which to fetch the content.
 /// @param[in] file File open for write in which response will be written to.
 /// @param[in] sigv4_details The sigv4 details used for REST API authentication
+/// @param[out] http_response_code Returns the response code from the request,
+/// the default value is 400 (BAD REQUEST)
 ///
 /// This function makes a GET request to the specified URL to download the
 /// content with the corresponding SigV4 headers. The downloaded content is then
@@ -98,7 +101,8 @@ GglError sigv4_download(
     GglBuffer host,
     GglBuffer file_path,
     int fd,
-    SigV4Details sigv4_details
+    SigV4Details sigv4_details,
+    uint16_t *http_response_code
 );
 
 GglError gg_dataplane_call(

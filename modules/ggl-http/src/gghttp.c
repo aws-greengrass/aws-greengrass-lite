@@ -77,7 +77,8 @@ GglError sigv4_download(
     GglBuffer host,
     GglBuffer file_path,
     int fd,
-    SigV4Details sigv4_details
+    SigV4Details sigv4_details,
+    uint16_t *http_response_code
 ) {
     CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_sigv4_download);
@@ -152,6 +153,12 @@ GglError sigv4_download(
     long http_status_code = 0;
     curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
     GGL_LOGD("Return HTTP code: %ld", http_status_code);
+
+    if (http_status_code >= 0) {
+        *http_response_code = (uint16_t) http_status_code;
+    } else {
+        *http_response_code = 400;
+    }
 
     struct curl_header *type = NULL;
     curl_easy_header(
