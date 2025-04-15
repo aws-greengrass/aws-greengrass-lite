@@ -20,7 +20,6 @@ in
       "/misc/cmake_uninstall.cmake.in"
       "/version"
       "/modules"
-      "/bins"
     ]);
 
     checkFileset = lib.fileset.unions ([ buildFileset ] ++ (map (p: src + p) [

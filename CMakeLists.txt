@@ -347,11 +347,6 @@ foreach(module ${MODULES})
   add_subdirectory(${module})
 endforeach()
 
-file(GLOB MODULES CONFIGURE_DEPENDS "bins/*")
-foreach(module ${MODULES})
-  add_subdirectory(${module})
-endforeach()
-
 if(GGL_SYSTEMD_SERVICE_BUILD)
   add_custom_target(
     greengrass-lite.target ALL
