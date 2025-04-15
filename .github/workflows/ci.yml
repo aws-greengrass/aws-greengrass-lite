@@ -44,7 +44,7 @@ jobs:
         with:
           fetch-depth: 0
           filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: ./.github/actions/setup-ci-env
 
       - name: Check ${{ matrix.name }}
         run:
@@ -54,15 +54,12 @@ jobs:
     timeout-minutes: 60
     name: Check formatting
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: nix develop -c bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: ./.github/actions/setup-ci-env
 
       - name: Check formatting
         id: formatting-check
@@ -70,6 +67,7 @@ jobs:
 
       - name: Generate / show patch
         if: ${{ failure() && steps.formatting-check.outcome == 'failure' }}
+        shell: nix develop -c bash -exo pipefail {0}
         run: |
           nix fmt
           git diff >> formatting.patch
@@ -87,17 +85,15 @@ jobs:
     timeout-minutes: 60
     name: Check git-secrets
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: nix develop -c bash -exo pipefail {0}
     steps:
       - uses: actions/checkout@v4.1.1
         with:
           fetch-depth: 0
           filter: "tree:0"
-      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: ./.github/actions/setup-ci-env
 
       - name: Check git-secrets
+        shell: nix develop -c bash -exo pipefail {0}
         run: |
           git-secrets --register-aws
           git-secrets --scan
