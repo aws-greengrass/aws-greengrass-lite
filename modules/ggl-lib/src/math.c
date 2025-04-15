@@ -15,6 +15,6 @@ uint64_t ggl_abs(int64_t i64) {
     }
     // Avoiding assuming twos-compliment.
     // Using division to split into two negatable values and recombine. */
-    return (uint64_t) (i64 / INT32_MIN) * (uint64_t) (-(int64_t) INT32_MIN)
+    return ((uint64_t) (i64 / INT32_MIN) * (uint64_t) (-(int64_t) INT32_MIN))
         + (uint64_t) (-(i64 % INT32_MIN));
 }
