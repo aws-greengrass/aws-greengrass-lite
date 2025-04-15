@@ -6,12 +6,13 @@
 #ifndef CORE_MQTT_CONFIG_H
 #define CORE_MQTT_CONFIG_H
 
-#include "core_mqtt.h"
 #include <sys/types.h>
 #include <pthread.h> // IWYU pragma: keep
 
-pthread_mutex_t *coremqtt_get_send_mtx(const MQTTContext_t *ctx);
-pthread_mutex_t *coremqtt_get_state_mtx(const MQTTContext_t *ctx);
+struct MQTTContext;
+
+pthread_mutex_t *coremqtt_get_send_mtx(const struct MQTTContext *ctx);
+pthread_mutex_t *coremqtt_get_state_mtx(const struct MQTTContext *ctx);
 
 #define MQTT_RECV_POLLING_TIMEOUT_MS (1000)
 
