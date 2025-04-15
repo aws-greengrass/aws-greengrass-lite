@@ -25,6 +25,8 @@ jobs:
             check: packages-ggl-clang
           - name: cross-build for arm32 Musl
             check: packages-ggl-musl-pi
+          - name: formatting
+            check: formatting
           - name: clang-tidy
             check: clang-tidy
           - name: header includes
@@ -49,34 +51,3 @@ jobs:
       - name: Check ${{ matrix.name }}
         run:
           nix build -L --log-lines 0 .#checks.x86_64-linux.${{ matrix.check }}
-
-  format-check:
-    timeout-minutes: 60
-    name: Check formatting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4.1.1
-        with:
-          fetch-depth: 0
-          filter: "tree:0"
-      - uses: ./.github/actions/setup-ci-env
-
-      - name: Check formatting
-        id: formatting-check
-        run: nix build -L --log-lines 0 .#checks.x86_64-linux.formatting
-
-      - name: Generate / show patch
-        if: ${{ failure() && steps.formatting-check.outcome == 'failure' }}
-        shell: nix develop -c bash -exo pipefail {0}
-        run: |
-          nix fmt
-          git diff >> formatting.patch
-          git diff --color=always
-
-      - name: Upload patch
-        if: ${{ failure() && steps.formatting-check.outcome == 'failure' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: formatting_patch
-          path: formatting.patch
-          retention-days: 5
