@@ -136,14 +136,9 @@ GglError generate_key_files(
     }
     ret_check
         = PEM_write_PrivateKey(pkey_file, pkey, NULL, NULL, 0, NULL, NULL);
+    fclose(pkey_file);
     if (ret_check == 0) {
         GGL_LOGE("Failed to write private key to disk.");
-        return GGL_ERR_FAILURE;
-    }
-
-    ret_check = fclose(pkey_file);
-    if (ret_check != 0) {
-        GGL_LOGE("Failed to close private key file descriptor.");
         return GGL_ERR_FAILURE;
     }
 
@@ -165,13 +160,9 @@ GglError generate_key_files(
     }
 
     ret_check = PEM_write_PUBKEY(pubkey_file, pkey);
+    fclose(pubkey_file);
     if (ret_check == 0) {
         GGL_LOGE("Failed to write public key to disk.");
-        return GGL_ERR_FAILURE;
-    }
-    ret_check = fclose(pubkey_file);
-    if (ret_check != 0) {
-        GGL_LOGE("Failed to close public key file descriptor.");
         return GGL_ERR_FAILURE;
     }
 
@@ -195,14 +186,11 @@ GglError generate_key_files(
     }
 
     ret_check = PEM_write_X509_REQ(csr_file, req);
+    fclose(csr_file);
     if (ret_check == 0) {
         GGL_LOGE("Failed to write csr to disk.");
         return GGL_ERR_FAILURE;
     }
-    ret_check = fclose(csr_file);
-    if (ret_check != 0) {
-        GGL_LOGE("Failed to close csr file descriptor.");
-        return GGL_ERR_FAILURE;
-    }
+
     return GGL_ERR_OK;
 }
