@@ -31,9 +31,6 @@ in
       (final.llvmPackages.stdenv.cc.override
         { inherit (final.llvmPackages) bintools; });
 
-    cFiles = map (p: removePrefix ((toString src) + "/") (toString p))
-      (fileset.toList (fileset.fileFilter (file: file.hasExt "c") src));
-
     clangChecks = {
       src = lib.fileset.toSource {
         root = src;
@@ -57,4 +54,23 @@ in
       };
     };
   };
+
+  clangd-tidy = final.callPackage
+    ({ python3Packages }:
+      python3Packages.buildPythonPackage rec {
+        pname = "clangd_tidy";
+        version = "1.1.0.post1";
+        format = "pyproject";
+        src = final.fetchPypi {
+          inherit pname version;
+          hash = "sha256-wqwrdD+8kd2N0Ra82qHkA0T2LjlDdj4LbUuMkTfpBww=";
+        };
+        buildInputs = with python3Packages; [ setuptools-scm ];
+        propagatedBuildInputs = with python3Packages; [
+          attrs
+          cattrs
+          typing-extensions
+        ];
+      })
+    { };
 }

@@ -2,40 +2,29 @@
 , gglUtil
 , ggl-clang
 , clang-tools
+, clangd-tidy
+, fd
 , ...
 }:
 let
-  inherit (lib) escapeRegex;
-  inherit (gglUtil) llvmStdenv cFiles clangChecks;
+  inherit (gglUtil) llvmStdenv clangChecks;
 
-  check-clang-tidy = file: llvmStdenv.mkDerivation {
-    name = "clang-tidy-${file}";
-    nativeBuildInputs = [ clang-tools ];
-    inherit (ggl-clang) buildInputs;
-    buildPhase = ''
-      set -eo pipefail
-      clang-tidy -p ${clangChecks.cmakeBuildDir} \
-        --quiet --warnings-as-errors='*' \
-        --header-filter='^${escapeRegex (toString clangChecks.src)}"}' \
-        ${clangChecks.src}/${file} |\
-        sed 's|${clangChecks.src}/||'
-      touch $out
-    '';
-    dontUnpack = true;
-    dontPatch = true;
-    dontConfigure = true;
-    dontInstall = true;
-    dontFixup = true;
-    allowSubstitutes = false;
-  };
 in
 llvmStdenv.mkDerivation {
-  name = "check-clang-tidy";
-  buildInputs = map check-clang-tidy cFiles;
-  installPhase = "touch $out";
+  name = "check-clangd-tidy";
+  nativeBuildInputs = [ clang-tools clangd-tidy fd ];
+  inherit (ggl-clang) buildInputs;
+  buildPhase = ''
+    set -eo pipefail
+    clangd-tidy -j$(nproc) -p ${clangChecks.cmakeBuildDir} --color=always \
+      $(fd . ${clangChecks.src} -e c -e h) |\
+      sed 's|\.\.${clangChecks.src}/||'
+    touch $out
+  '';
   dontUnpack = true;
   dontPatch = true;
   dontConfigure = true;
-  dontBuild = true;
+  dontInstall = true;
   dontFixup = true;
+  allowSubstitutes = false;
 }

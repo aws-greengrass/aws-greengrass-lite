@@ -4,8 +4,10 @@ argp
 armv
 awsiotsdk
 boto
+cattrs
 cbmc
 cgexec
+clangd
 clientfd
 clientv
 coremqtt
@@ -99,6 +101,8 @@ posix
 postrm
 ptid
 PTRACE
+Pypi
+pyproject
 respfd
 rodata
 rootca

@@ -5,6 +5,7 @@ in
 {
   packages = (with pkgs; [
     clang-tools
+    clangd-tidy
     git
     git-secrets
     gdb
