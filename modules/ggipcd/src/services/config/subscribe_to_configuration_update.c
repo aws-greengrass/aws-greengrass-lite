@@ -16,9 +16,9 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 static GglError subscribe_to_configuration_update_callback(
     GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
