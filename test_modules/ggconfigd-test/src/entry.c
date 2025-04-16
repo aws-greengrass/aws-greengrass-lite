@@ -52,7 +52,7 @@ GglError run_ggconfigd_test(void) {
     ret = ggl_kv_vec_push(
         &args,
         (GglKV) { GGL_STR("recipe_directory_path"),
-                  GGL_OBJ_BUF(recipe_dir.buf) }
+                  ggl_obj_buf(recipe_dir.buf) }
     );
     if (ret != GGL_ERR_OK) {
         assert(false);
@@ -63,11 +63,11 @@ GglError run_ggconfigd_test(void) {
     if (component_name != NULL) {
         component = (GglKV
         ) { ggl_buffer_from_null_term(component_name),
-            GGL_OBJ_BUF(ggl_buffer_from_null_term(component_version)) };
+            ggl_obj_buf(ggl_buffer_from_null_term(component_version)) };
         ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("root_component_versions_to_add"),
-                      GGL_OBJ_MAP((GglMap) { .pairs = &component, .len = 1 }) }
+                      ggl_obj_map((GglMap) { .pairs = &component, .len = 1 }) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);
@@ -78,14 +78,13 @@ GglError run_ggconfigd_test(void) {
     GglBuffer id_mem = GGL_BUF((uint8_t[36]) { 0 });
     GglBumpAlloc alloc = ggl_bump_alloc_init(id_mem);
 
-    GglObject result;
     ret = ggl_call(
         GGL_STR("gg_deployment"),
         GGL_STR("create_local_deployment"),
         args.map,
         NULL,
         &alloc.alloc,
-        &result
+        NULL
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -115,19 +114,19 @@ GglError run_ggconfigd_test(void) {
         return ret;
     }
 
-    if (result_obj.type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(result_obj) != GGL_TYPE_BUF) {
         GGL_LOGE("Result is not a buffer.");
         return GGL_ERR_FAILURE;
     }
 
+    GglBuffer result = ggl_obj_into_buf(result_obj);
     size_t min = strlen(SUCCESS_STRING);
-    if (min > result_obj.buf.len) {
-        min = result_obj.buf.len;
+    if (min > result.len) {
+        min = result.len;
     }
 
-    if ((strlen(SUCCESS_STRING) != result_obj.buf.len)
-        || (strncmp(SUCCESS_STRING, (const char *) result_obj.buf.data, min)
-            != 0)) {
+    if ((strlen(SUCCESS_STRING) != result.len)
+        || (strncmp(SUCCESS_STRING, (const char *) result.data, min) != 0)) {
         GGL_LOGE("Test failed");
         return GGL_ERR_FAILURE;
     }

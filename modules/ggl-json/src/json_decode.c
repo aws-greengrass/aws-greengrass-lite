@@ -630,7 +630,7 @@ static GglError decode_json_str(GglBuffer content, GglObject *obj) {
         GGL_LOGE("Error decoding JSON string.");
         return GGL_ERR_PARSE;
     }
-    *obj = GGL_OBJ_BUF(str);
+    *obj = ggl_obj_buf(str);
     return GGL_ERR_OK;
 }
 
@@ -653,7 +653,7 @@ static GglError decode_json_number(GglBuffer content, GglObject *obj) {
             GGL_LOGE("JSON integer out of range of int64_t.");
             return parse_ret;
         }
-        *obj = GGL_OBJ_I64(val);
+        *obj = ggl_obj_i64(val);
         return GGL_ERR_OK;
     }
 
@@ -663,7 +663,7 @@ static GglError decode_json_number(GglBuffer content, GglObject *obj) {
         GGL_LOGE("JSON float out of range of double.");
         return GGL_ERR_RANGE;
     }
-    *obj = GGL_OBJ_F64(val);
+    *obj = ggl_obj_f64(val);
     return GGL_ERR_OK;
 }
 
@@ -703,7 +703,7 @@ static GglError decode_json_array(
         }
     }
 
-    *obj = GGL_OBJ_LIST((GglList) { .items = items, .len = count });
+    *obj = ggl_obj_list((GglList) { .items = items, .len = count });
     return GGL_ERR_OK;
 }
 
@@ -733,11 +733,11 @@ static GglError decode_json_object(
         if (ret != GGL_ERR_OK) {
             return ret;
         }
-        if (key_obj.type != GGL_TYPE_BUF) {
+        if (ggl_obj_type(key_obj) != GGL_TYPE_BUF) {
             GGL_LOGE("Non-string key type when decoding object.");
             return GGL_ERR_PARSE;
         }
-        pairs[i].key = key_obj.buf;
+        pairs[i].key = ggl_obj_into_buf(key_obj);
 
         bool matches = parser_call(&PARSER_CHAR(':'), &buf_copy, NULL);
         if (!matches) {
@@ -758,7 +758,7 @@ static GglError decode_json_object(
         }
     }
 
-    *obj = GGL_OBJ_MAP((GglMap) { .pairs = pairs, .len = count });
+    *obj = ggl_obj_map((GglMap) { .pairs = pairs, .len = count });
     return GGL_ERR_OK;
 }
 
@@ -777,10 +777,10 @@ static GglError take_json_val(GglBuffer *buf, GglAlloc *alloc, GglObject *obj) {
     case JSON_TYPE_NUMBER:
         return decode_json_number(output.content, obj);
     case JSON_TYPE_TRUE:
-        *obj = GGL_OBJ_BOOL(true);
+        *obj = ggl_obj_bool(true);
         return GGL_ERR_OK;
     case JSON_TYPE_FALSE:
-        *obj = GGL_OBJ_BOOL(false);
+        *obj = ggl_obj_bool(false);
         return GGL_ERR_OK;
     case JSON_TYPE_NULL:
         *obj = GGL_OBJ_NULL();

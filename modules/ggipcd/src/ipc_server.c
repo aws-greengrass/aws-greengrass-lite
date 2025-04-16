@@ -90,12 +90,12 @@ static GglError deserialize_payload(
         return ret;
     }
 
-    if (obj.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(obj) != GGL_TYPE_MAP) {
         GGL_LOGE("Message payload is not a JSON object.");
         return GGL_ERR_INVALID;
     }
 
-    *out = obj.map;
+    *out = ggl_obj_into_map(obj);
     return GGL_ERR_OK;
 }
 
@@ -222,7 +222,9 @@ static GglError handle_conn_init(
     if (auth_token_obj != NULL) {
         GGL_LOGD("Client %d provided authToken.", handle);
 
-        ret = ggl_ipc_svcuid_from_str(auth_token_obj->buf, &svcuid);
+        ret = ggl_ipc_svcuid_from_str(
+            ggl_obj_into_buf(*auth_token_obj), &svcuid
+        );
         if (ret == GGL_ERR_OK) {
             ret = ggl_ipc_components_get_handle(svcuid, &component_handle);
         }
@@ -236,7 +238,7 @@ static GglError handle_conn_init(
         if (component_name_obj != NULL) {
             GGL_LOGD("Client %d also provided componentName.", handle);
 
-            GglBuffer component_name = component_name_obj->buf;
+            GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
             GglBuffer stored_name
                 = ggl_ipc_components_get_name(component_handle);
 
@@ -253,7 +255,7 @@ static GglError handle_conn_init(
     } else if (component_name_obj != NULL) {
         GGL_LOGD("Client %d provided componentName.", handle);
 
-        GglBuffer component_name = component_name_obj->buf;
+        GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
 
         pid_t pid = 0;
         ret = ggl_socket_handle_get_peer_pid(&pool, handle, &pid);
@@ -330,14 +332,12 @@ static GglError send_stream_error(
     };
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
+    GglObject payload = ggl_obj_map(GGL_MAP(
+        { GGL_STR("_message"), ggl_obj_buf(ipc_error.message) },
+        { GGL_STR("_errorCode"), ggl_obj_buf(error_code) }
+    ));
     GglError ret = eventstream_encode(
-        &resp_buffer,
-        resp_headers,
-        resp_headers_len,
-        ggl_json_reader(&GGL_OBJ_MAP(GGL_MAP(
-            { GGL_STR("_message"), GGL_OBJ_BUF(ipc_error.message) },
-            { GGL_STR("_errorCode"), GGL_OBJ_BUF(error_code) }
-        )))
+        &resp_buffer, resp_headers, resp_headers_len, ggl_json_reader(&payload)
     );
     if (ret != GGL_ERR_OK) {
         return ret;

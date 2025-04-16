@@ -156,8 +156,8 @@ static GglError get_thing_name(void *ctx) {
 static GglError deserialize_payload(
     GglAlloc *alloc, GglObject data, GglObject *json_object
 ) {
-    GglBuffer *topic;
-    GglBuffer *payload;
+    GglBuffer topic;
+    GglBuffer payload;
 
     GglError ret
         = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
@@ -167,13 +167,13 @@ static GglError deserialize_payload(
 
     GGL_LOGI(
         "Got message from IoT Core; topic: %.*s, payload: %.*s.",
-        (int) topic->len,
-        topic->data,
-        (int) payload->len,
-        payload->data
+        (int) topic.len,
+        topic.data,
+        (int) payload.len,
+        payload.data
     );
 
-    ret = ggl_json_decode_destructive(*payload, alloc, json_object);
+    ret = ggl_json_decode_destructive(payload, alloc, json_object);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to parse job doc JSON.");
         return ret;
@@ -201,13 +201,13 @@ static GglError update_job(
             return GGL_ERR_RANGE;
         }
         // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
-        GglObject payload_object = GGL_OBJ_MAP(GGL_MAP(
-            { GGL_STR("status"), GGL_OBJ_BUF(job_status) },
+        GglObject payload_object = ggl_obj_map(GGL_MAP(
+            { GGL_STR("status"), ggl_obj_buf(job_status) },
             { GGL_STR("expectedVersion"),
-              GGL_OBJ_BUF((GglBuffer) { .data = version_buf,
+              ggl_obj_buf((GglBuffer) { .data = version_buf,
                                         .len = (size_t) len }) },
             { GGL_STR("clientToken"),
-              GGL_OBJ_BUF(GGL_STR("jobs-nucleus-lite")) }
+              ggl_obj_buf(GGL_STR("jobs-nucleus-lite")) }
         ));
 
         static uint8_t response_scratch[512];
@@ -227,13 +227,15 @@ static GglError update_job(
             GGL_LOGE("Failed to publish on update job topic.");
             return GGL_ERR_FAILURE;
         }
-        if (result.type != GGL_TYPE_MAP) {
+        if (ggl_obj_type(result) != GGL_TYPE_MAP) {
             GGL_LOGD("Unknown job update rejected response received.");
             return GGL_ERR_PARSE;
         }
         GglObject *execution_state = NULL;
         if (!ggl_map_get(
-                result.map, GGL_STR("executionState"), &execution_state
+                ggl_obj_into_map(result),
+                GGL_STR("executionState"),
+                &execution_state
             )) {
             GGL_LOGW("Unknown job update rejected response received.");
             return GGL_ERR_PARSE;
@@ -242,7 +244,7 @@ static GglError update_job(
         GglObject *remote_status = NULL;
         GglObject *remote_version = NULL;
         ret = ggl_map_validate(
-            execution_state->map,
+            ggl_obj_into_map(*execution_state),
             GGL_MAP_SCHEMA(
                 { GGL_STR("status"), true, GGL_TYPE_BUF, &remote_status },
                 { GGL_STR("versionNumber"),
@@ -259,20 +261,24 @@ static GglError update_job(
             GGL_LOGD("Job was canceled.");
             return GGL_ERR_OK;
         }
-        if ((remote_version->i64 < 0) || (remote_version->i64 > INT32_MAX)) {
+        if ((ggl_obj_into_i64(*remote_version) < 0)
+            || (ggl_obj_into_i64(*remote_version) > INT32_MAX)) {
             GGL_LOGE(
-                "Invalid version %" PRIi64 " received", remote_version->i64
+                "Invalid version %" PRIi64 " received",
+                ggl_obj_into_i64(*remote_version)
             );
             return GGL_ERR_FAILURE;
         }
-        if ((int32_t) remote_version->i64 != local_version) {
+        if ((int32_t) ggl_obj_into_i64(*remote_version) != local_version) {
             GGL_LOGD("Updating stale job status version number.");
             atomic_store_explicit(
-                version, (int32_t) remote_version->i64, memory_order_release
+                version,
+                (int32_t) ggl_obj_into_i64(*remote_version),
+                memory_order_release
             );
-            local_version = (int32_t) remote_version->i64;
+            local_version = (int32_t) ggl_obj_into_i64(*remote_version);
         }
-        if (ggl_buffer_eq(job_status, remote_status->buf)) {
+        if (ggl_buffer_eq(job_status, ggl_obj_into_buf(*remote_status))) {
             GGL_LOGD("Job is already in the desired state.");
             break;
         }
@@ -306,11 +312,11 @@ static GglError describe_next_job(void *ctx) {
     }
 
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
-    GglObject payload_object = GGL_OBJ_MAP(GGL_MAP(
-        { GGL_STR("jobId"), GGL_OBJ_BUF(GGL_STR(NEXT_JOB_LITERAL)) },
-        { GGL_STR("thingName"), GGL_OBJ_BUF(thing_name_buf) },
-        { GGL_STR("includeJobDocument"), GGL_OBJ_BOOL(true) },
-        { GGL_STR("clientToken"), GGL_OBJ_BUF(GGL_STR("jobs-nucleus-lite")) }
+    GglObject payload_object = ggl_obj_map(GGL_MAP(
+        { GGL_STR("jobId"), ggl_obj_buf(GGL_STR(NEXT_JOB_LITERAL)) },
+        { GGL_STR("thingName"), ggl_obj_buf(thing_name_buf) },
+        { GGL_STR("includeJobDocument"), ggl_obj_bool(true) },
+        { GGL_STR("clientToken"), ggl_obj_buf(GGL_STR("jobs-nucleus-lite")) }
     ));
 
     static uint8_t response_scratch[4096];
@@ -324,14 +330,14 @@ static GglError describe_next_job(void *ctx) {
         return ret;
     }
 
-    if (job_description.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(job_description) != GGL_TYPE_MAP) {
         GGL_LOGE("Describe payload not of type Map");
         return GGL_ERR_FAILURE;
     }
 
     GglObject *execution = NULL;
     ret = ggl_map_validate(
-        job_description.map,
+        ggl_obj_into_map(job_description),
         GGL_MAP_SCHEMA({ GGL_STR("execution"), false, GGL_TYPE_MAP, &execution }
         )
     );
@@ -343,7 +349,7 @@ static GglError describe_next_job(void *ctx) {
         return GGL_ERR_OK;
     }
     GGL_LOGD("Processing execution.");
-    return process_job_execution(execution->map);
+    return process_job_execution(ggl_obj_into_map(*execution));
 }
 
 static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
@@ -408,21 +414,23 @@ static GglError process_job_execution(GglMap job_execution) {
     DeploymentStatusAction action;
     {
         GglMap status_action_map = GGL_MAP(
-            { GGL_STR("QUEUED"), GGL_OBJ_I64(DSA_ENQUEUE_JOB) },
-            { GGL_STR("IN_PROGRESS"), GGL_OBJ_I64(DSA_ENQUEUE_JOB) },
-            { GGL_STR("SUCCEEDED"), GGL_OBJ_I64(DSA_DO_NOTHING) },
-            { GGL_STR("FAILED"), GGL_OBJ_I64(DSA_DO_NOTHING) },
-            { GGL_STR("TIMED_OUT"), GGL_OBJ_I64(DSA_CANCEL_JOB) },
-            { GGL_STR("REJECTED"), GGL_OBJ_I64(DSA_DO_NOTHING) },
-            { GGL_STR("REMOVED"), GGL_OBJ_I64(DSA_CANCEL_JOB) },
-            { GGL_STR("CANCELED"), GGL_OBJ_I64(DSA_CANCEL_JOB) },
+            { GGL_STR("QUEUED"), ggl_obj_i64(DSA_ENQUEUE_JOB) },
+            { GGL_STR("IN_PROGRESS"), ggl_obj_i64(DSA_ENQUEUE_JOB) },
+            { GGL_STR("SUCCEEDED"), ggl_obj_i64(DSA_DO_NOTHING) },
+            { GGL_STR("FAILED"), ggl_obj_i64(DSA_DO_NOTHING) },
+            { GGL_STR("TIMED_OUT"), ggl_obj_i64(DSA_CANCEL_JOB) },
+            { GGL_STR("REJECTED"), ggl_obj_i64(DSA_DO_NOTHING) },
+            { GGL_STR("REMOVED"), ggl_obj_i64(DSA_CANCEL_JOB) },
+            { GGL_STR("CANCELED"), ggl_obj_i64(DSA_CANCEL_JOB) },
         );
         GglObject *integer = NULL;
-        if (!ggl_map_get(status_action_map, status->buf, &integer)) {
+        if (!ggl_map_get(
+                status_action_map, ggl_obj_into_buf(*status), &integer
+            )) {
             GGL_LOGE("Job status not a valid value");
             return GGL_ERR_INVALID;
         }
-        action = (DeploymentStatusAction) integer->i64;
+        action = (DeploymentStatusAction) ggl_obj_into_i64(*integer);
     }
     switch (action) {
     case DSA_CANCEL_JOB:
@@ -437,7 +445,9 @@ static GglError process_job_execution(GglMap job_execution) {
             );
             return GGL_ERR_INVALID;
         }
-        (void) enqueue_job(deployment_doc->map, job_id->buf);
+        (void) enqueue_job(
+            ggl_obj_into_map(*deployment_doc), ggl_obj_into_buf(*job_id)
+        );
         break;
     }
     default:
@@ -460,14 +470,14 @@ static GglError next_job_execution_changed_callback(
     if (ret != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;
     }
-    if (json.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(json) != GGL_TYPE_MAP) {
         GGL_LOGE("JSON was not a map");
         return GGL_ERR_FAILURE;
     }
 
     GglObject *job_execution = NULL;
     ret = ggl_map_validate(
-        json.map,
+        ggl_obj_into_map(json),
         GGL_MAP_SCHEMA(
             { GGL_STR("execution"), false, GGL_TYPE_MAP, &job_execution }
         )
@@ -479,7 +489,7 @@ static GglError next_job_execution_changed_callback(
         // TODO: job cancelation
         return GGL_ERR_OK;
     }
-    ret = process_job_execution(job_execution->map);
+    ret = process_job_execution(ggl_obj_into_map(*job_execution));
     if (ret != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;
     }
@@ -536,7 +546,7 @@ static GglError iot_jobs_on_reconnect(
 ) {
     (void) ctx;
     (void) handle;
-    if (data.boolean) {
+    if (ggl_obj_into_bool(data)) {
         GGL_LOGD("Reconnected to MQTT; requesting new job query publish.");
         GGL_MTX_SCOPE_GUARD(&listener_mutex);
         needs_describe = true;

@@ -24,7 +24,7 @@ GglError ggl_gghealthd_retrieve_component_status(
     GglError call_error = ggl_call(
         GGL_STR("gg_health"),
         GGL_STR("get_status"),
-        GGL_MAP({ GGL_STR("component_name"), GGL_OBJ_BUF(component) }),
+        GGL_MAP({ GGL_STR("component_name"), ggl_obj_buf(component) }),
         &method_error,
         &balloc.alloc,
         &result
@@ -35,13 +35,14 @@ GglError ggl_gghealthd_retrieve_component_status(
     if (method_error != GGL_ERR_OK) {
         return method_error;
     }
-    if (result.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(result) != GGL_TYPE_MAP) {
         return GGL_ERR_INVALID;
     }
+    GglMap result_map = ggl_obj_into_map(result);
 
-    GglObject *lifecycle_state = NULL;
+    GglObject *lifecycle_state_obj = NULL;
     if (!ggl_map_get(
-            result.map, GGL_STR("lifecycle_state"), &lifecycle_state
+            result_map, GGL_STR("lifecycle_state"), &lifecycle_state_obj
         )) {
         GGL_LOGE(
             "Failed to retrieve lifecycle state of %.*s.",
@@ -50,17 +51,13 @@ GglError ggl_gghealthd_retrieve_component_status(
         );
         return GGL_ERR_NOENTRY;
     }
-    if (lifecycle_state->type != GGL_TYPE_BUF) {
-        GGL_LOGE("Incorrect type of lifecycle state received. Expected buffer."
-        );
+    if (ggl_obj_type(*lifecycle_state_obj) != GGL_TYPE_BUF) {
+        GGL_LOGE("Invalid response; lifecycle state must be a buffer.");
         return GGL_ERR_INVALID;
     }
+    GglBuffer lifecycle_state = ggl_obj_into_buf(*lifecycle_state_obj);
 
-    memcpy(
-        component_status->data,
-        lifecycle_state->buf.data,
-        lifecycle_state->buf.len
-    );
-    component_status->len = lifecycle_state->buf.len;
+    memcpy(component_status->data, lifecycle_state.data, lifecycle_state.len);
+    component_status->len = lifecycle_state.len;
     return GGL_ERR_OK;
 }

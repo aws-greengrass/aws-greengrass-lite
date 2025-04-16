@@ -23,8 +23,8 @@
 static GglError subscribe_to_iot_core_callback(
     GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
 ) {
-    GglBuffer *topic;
-    GglBuffer *payload;
+    GglBuffer topic;
+    GglBuffer payload;
 
     GglError ret
         = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
@@ -33,17 +33,17 @@ static GglError subscribe_to_iot_core_callback(
     }
 
     GglBuffer base64_payload;
-    ret = ggl_base64_encode(*payload, alloc, &base64_payload);
+    ret = ggl_base64_encode(payload, alloc, &base64_payload);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Insufficent memory to base64 encode payload; skipping.");
         return GGL_ERR_OK;
     }
 
-    GglObject response = GGL_OBJ_MAP(
+    GglObject response = ggl_obj_map(
         GGL_MAP({ GGL_STR("message"),
-                  GGL_OBJ_MAP(GGL_MAP(
-                      { GGL_STR("topicName"), GGL_OBJ_BUF(*topic) },
-                      { GGL_STR("payload"), GGL_OBJ_BUF(base64_payload) }
+                  ggl_obj_map(GGL_MAP(
+                      { GGL_STR("topicName"), ggl_obj_buf(topic) },
+                      { GGL_STR("payload"), ggl_obj_buf(base64_payload) }
                   )) })
     );
 
@@ -89,10 +89,11 @@ GglError ggl_handle_subscribe_to_iot_core(
             .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
+    GglBuffer topic_name = ggl_obj_into_buf(*topic_name_obj);
 
     int64_t qos = 0;
     if (qos_obj != NULL) {
-        ret = ggl_str_to_int64(qos_obj->buf, &qos);
+        ret = ggl_str_to_int64(ggl_obj_into_buf(*qos_obj), &qos);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to parse 'qos' string value.");
             *ipc_error = (GglIpcError
@@ -109,7 +110,7 @@ GglError ggl_handle_subscribe_to_iot_core(
         }
     }
 
-    ret = ggl_ipc_auth(info, topic_name_obj->buf, ggl_ipc_mqtt_policy_matcher);
+    ret = ggl_ipc_auth(info, topic_name, ggl_ipc_mqtt_policy_matcher);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("IPC Operation not authorized.");
         *ipc_error = (GglIpcError
@@ -120,7 +121,7 @@ GglError ggl_handle_subscribe_to_iot_core(
 
     GglMap call_args = GGL_MAP(
         { GGL_STR("topic_filter"), *topic_name_obj },
-        { GGL_STR("qos"), GGL_OBJ_I64(qos) },
+        { GGL_STR("qos"), ggl_obj_i64(qos) },
     );
 
     ret = ggl_ipc_bind_subscription(
@@ -144,6 +145,6 @@ GglError ggl_handle_subscribe_to_iot_core(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#SubscribeToIoTCoreResponse"),
-        GGL_OBJ_MAP({ 0 })
+        ggl_obj_map((GglMap) { 0 })
     );
 }

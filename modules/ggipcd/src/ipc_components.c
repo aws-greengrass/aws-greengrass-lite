@@ -96,14 +96,14 @@ static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
     }
 
     GglSvcuid svcuid;
-    ret = ggl_ipc_svcuid_from_str(svcuid_obj->buf, &svcuid);
+    ret = ggl_ipc_svcuid_from_str(ggl_obj_into_buf(*svcuid_obj), &svcuid);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
     ggl_respond(
         handle,
-        GGL_OBJ_BOOL(ggl_ipc_components_get_handle(svcuid, NULL) == GGL_ERR_OK)
+        ggl_obj_bool(ggl_ipc_components_get_handle(svcuid, NULL) == GGL_ERR_OK)
     );
     return GGL_ERR_OK;
 }

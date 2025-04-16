@@ -19,15 +19,15 @@ char *print_key_path(GglList *key_path) {
     size_t string_length = 0;
     memset(path_string, 0, sizeof(path_string));
     for (size_t x = 0; x < key_path->len; x++) {
-        size_t additional_length = 1 + key_path->items[x].buf.len;
+        size_t additional_length = 1 + ggl_obj_into_buf(key_path->items[x]).len;
         if (5 + string_length + additional_length < sizeof(path_string)) {
             if (x > 0) {
                 strncat(path_string, "/ ", 1);
             }
             strncat(
                 path_string,
-                (char *) key_path->items[x].buf.data,
-                key_path->items[x].buf.len
+                (char *) ggl_obj_into_buf(key_path->items[x]).data,
+                ggl_obj_into_buf(key_path->items[x]).len
             );
         } else {
             strncat(path_string, (char *) "/... ", 4);

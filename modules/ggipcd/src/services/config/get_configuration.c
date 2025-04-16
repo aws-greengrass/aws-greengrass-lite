@@ -29,7 +29,6 @@ GglError ggl_handle_get_configuration(
 ) {
     GglObject *key_path_obj;
     GglObject *component_name_obj;
-    GglBuffer component_name;
 
     GglError ret = ggl_map_validate(
         args,
@@ -49,12 +48,12 @@ GglError ggl_handle_get_configuration(
         return GGL_ERR_INVALID;
     }
 
-    GglObject empty_object = GGL_OBJ_LIST({ 0 });
-    if (key_path_obj == NULL) {
-        key_path_obj = &empty_object;
+    GglList key_path = { 0 };
+    if (key_path_obj != NULL) {
+        key_path = ggl_obj_into_list(*key_path_obj);
     }
 
-    ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
+    ret = ggl_list_type_check(key_path, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "Received invalid parameters. keyPath is not a list of strings."
@@ -65,16 +64,13 @@ GglError ggl_handle_get_configuration(
         return GGL_ERR_INVALID;
     }
 
+    GglBuffer component_name = info->component;
     if (component_name_obj != NULL) {
-        component_name = component_name_obj->buf;
-    } else {
-        component_name = info->component;
+        component_name = ggl_obj_into_buf(*component_name_obj);
     }
 
     GglBufList full_key_path;
-    ret = ggl_make_config_path_object(
-        component_name, key_path_obj->list, &full_key_path
-    );
+    ret = ggl_make_config_path_object(component_name, key_path, &full_key_path);
     if (ret != GGL_ERR_OK) {
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
@@ -97,8 +93,8 @@ GglError ggl_handle_get_configuration(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#GetConfigurationResponse"),
-        GGL_OBJ_MAP(GGL_MAP(
-            { GGL_STR("componentName"), GGL_OBJ_BUF(component_name) },
+        ggl_obj_map(GGL_MAP(
+            { GGL_STR("componentName"), ggl_obj_buf(component_name) },
             { GGL_STR("value"), read_value }
         ))
     );

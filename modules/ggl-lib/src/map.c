@@ -59,7 +59,7 @@ GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
         );
 
         if (entry->type != GGL_TYPE_NULL) {
-            if (entry->type != value->type) {
+            if (entry->type != ggl_obj_type(*value)) {
                 GGL_LOGE(
                     "Key %.*s is of invalid type.",
                     (int) entry->key.len,

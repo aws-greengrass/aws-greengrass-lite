@@ -32,9 +32,11 @@ void ggconfigd_start_server(void);
 GglError ggconfig_load_file(GglBuffer path);
 GglError ggconfig_load_dir(GglBuffer path);
 
-GglError process_nonmap(
+GglError ggconfig_process_nonmap(
     GglObjVec *key_path, GglObject value, int64_t timestamp
 );
-GglError process_map(GglObjVec *key_path, GglMap *the_map, int64_t timestamp);
+GglError ggconfig_process_map(
+    GglObjVec *key_path, GglMap map, int64_t timestamp
+);
 
 #endif

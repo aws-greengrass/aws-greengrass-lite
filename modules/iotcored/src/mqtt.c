@@ -337,7 +337,7 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
         }
 
         // Send status update to indicate mqtt (re)connection.
-        iotcored_mqtt_status_update_send(GGL_OBJ_BOOL(true));
+        iotcored_mqtt_status_update_send(ggl_obj_bool(true));
 
         iotcored_re_register_all_subs();
 
@@ -353,7 +353,7 @@ noreturn static void *mqtt_recv_thread_fn(void *arg) {
         iotcored_tls_cleanup(ctx->transportInterface.pNetworkContext->tls_ctx);
 
         // Send status update to indicate mqtt disconnection.
-        iotcored_mqtt_status_update_send(GGL_OBJ_BOOL(false));
+        iotcored_mqtt_status_update_send(ggl_obj_bool(false));
     }
 }
 

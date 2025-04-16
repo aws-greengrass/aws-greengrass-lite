@@ -129,20 +129,22 @@ static GglError send_fleet_status_update(
 
     GglObject *trigger = NULL;
     bool found = ggl_map_get(params, GGL_STR("trigger"), &trigger);
-    if (!found || trigger->type != GGL_TYPE_BUF) {
+    if (!found || ggl_obj_type(*trigger) != GGL_TYPE_BUF) {
         GGL_LOGE("Missing required GGL_TYPE_BUF `trigger`.");
         return GGL_ERR_INVALID;
     }
 
     GglObject *deployment_info = NULL;
     found = ggl_map_get(params, GGL_STR("deployment_info"), &deployment_info);
-    if (!found || deployment_info->type != GGL_TYPE_MAP) {
+    if (!found || ggl_obj_type(*deployment_info) != GGL_TYPE_MAP) {
         GGL_LOGE("Missing required GGL_TYPE_MAP `deployment_info`.");
         return GGL_ERR_INVALID;
     }
 
     GglError ret = publish_fleet_status_update(
-        thing_name, trigger->buf, deployment_info->map
+        thing_name,
+        ggl_obj_into_buf(*trigger),
+        ggl_obj_into_map(*deployment_info)
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to publish fleet status update.");

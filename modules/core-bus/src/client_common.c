@@ -72,11 +72,9 @@ GglError ggl_client_send_message(
     };
     size_t headers_len = sizeof(headers) / sizeof(headers[0]);
 
+    GglObject params_obj = ggl_obj_map(params);
     ret = eventstream_encode(
-        &send_buffer,
-        headers,
-        headers_len,
-        ggl_serialize_reader(&GGL_OBJ_MAP(params))
+        &send_buffer, headers, headers_len, ggl_serialize_reader(&params_obj)
     );
     if (ret != GGL_ERR_OK) {
         return ret;

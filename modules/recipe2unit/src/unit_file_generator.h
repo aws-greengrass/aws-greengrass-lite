@@ -17,7 +17,7 @@ typedef enum {
 } PhaseSelection;
 
 GglError generate_systemd_unit(
-    const GglMap *recipe_map,
+    GglMap recipe_map,
     GglBuffer *unit_file_buffer,
     Recipe2UnitArgs *args,
     GglObject **component_name,

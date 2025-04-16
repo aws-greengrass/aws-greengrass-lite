@@ -18,6 +18,20 @@
 #define GGL_DISABLE_MACRO_TYPE_CHECKING
 #endif
 
+/// A generic object.
+typedef struct {
+    union {
+        struct {
+            void *_a;
+            size_t _b;
+        };
+
+        uint64_t _c;
+    };
+
+    uint8_t _d;
+} __attribute__((may_alias)) GglObject;
+
 /// Union tag for `GglObject`.
 typedef enum {
     GGL_TYPE_NULL = 0,
@@ -31,36 +45,22 @@ typedef enum {
 
 /// An array of `GglObject`.
 typedef struct {
-    struct GglObject *items;
+    GglObject *items;
     size_t len;
 } GglList;
 
-/// A map of UTF-8 strings to `GglObject`s.
-typedef struct {
-    struct GglKV *pairs;
-    size_t len;
-} GglMap;
-
-/// A generic object.
-typedef struct GglObject {
-    GglObjectType type;
-
-    union {
-        bool boolean;
-        int64_t i64;
-        double f64;
-        GglBuffer buf;
-        GglList list;
-        GglMap map;
-    };
-} GglObject;
-
 /// A key-value pair used for `GglMap`.
 /// `key` must be an UTF-8 encoded string.
-typedef struct GglKV {
+typedef struct {
     GglBuffer key;
     GglObject val;
 } GglKV;
+
+/// A map of UTF-8 strings to `GglObject`s.
+typedef struct {
+    GglKV *pairs;
+    size_t len;
+} GglMap;
 
 // The only way to guarantee a string literal is with assignment; this could be
 // done with a statement expression but those are not allowed at file context.
@@ -108,47 +108,54 @@ typedef struct GglKV {
         .len = (sizeof((GglKV[]) { __VA_ARGS__ })) / (sizeof(GglKV)) \
     }
 
+/// Get type of an GglObject
+GglObjectType ggl_obj_type(GglObject obj);
+
+// FIXME: make object macro
 /// Create null object literal.
-#define GGL_OBJ_NULL() \
-    (GglObject) { \
-        .type = GGL_TYPE_NULL \
-    }
+#define GGL_OBJ_NULL() ((GglObject) { 0 })
 
-/// Create bool object literal.
-#define GGL_OBJ_BOOL(value) \
-    (GglObject) { \
-        .type = GGL_TYPE_BOOLEAN, .boolean = (value) \
-    }
+/// Create bool object.
+GglObject ggl_obj_bool(bool value);
 
-/// Create signed integer object literal.
-#define GGL_OBJ_I64(value) \
-    (GglObject) { \
-        .type = GGL_TYPE_I64, .i64 = (value) \
-    }
+/// Get the bool represented by an object.
+/// The GglObject must be of type GGL_TYPE_BOOLEAN.
+bool ggl_obj_into_bool(GglObject boolean);
 
-/// Create floating point object literal.
-#define GGL_OBJ_F64(value) \
-    (GglObject) { \
-        .type = GGL_TYPE_F64, .f64 = (value) \
-    }
+/// Create signed integer object.
+GglObject ggl_obj_i64(int64_t value);
 
-/// Create buffer object literal.
-#define GGL_OBJ_BUF(...) \
-    (GglObject) { \
-        .type = GGL_TYPE_BUF, .buf = __VA_ARGS__, \
-    }
+/// Get the i64 represented by an object.
+/// The GglObject must be of type GGL_TYPE_I64.
+int64_t ggl_obj_into_i64(GglObject i64);
 
-/// Create map object literal.
-#define GGL_OBJ_MAP(...) \
-    (GglObject) { \
-        .type = GGL_TYPE_MAP, .map = __VA_ARGS__, \
-    }
+/// Create floating point object.
+GglObject ggl_obj_f64(double value);
 
-/// Create list object literal.
-#define GGL_OBJ_LIST(...) \
-    (GglObject) { \
-        .type = GGL_TYPE_LIST, .list = __VA_ARGS__, \
-    }
+/// Get the f64 represented by an object.
+/// The GglObject must be of type GGL_TYPE_F64.
+double ggl_obj_into_f64(GglObject f64);
+
+/// Create buffer object.
+GglObject ggl_obj_buf(GglBuffer value);
+
+/// Get the buffer represented by an object.
+/// The GglObject must be of type GGL_TYPE_BUF.
+GglBuffer ggl_obj_into_buf(GglObject buf);
+
+/// Create map object.
+GglObject ggl_obj_map(GglMap value);
+
+/// Get the map represented by an object.
+/// The GglObject must be of type GGL_TYPE_MAP.
+GglMap ggl_obj_into_map(GglObject map);
+
+/// Create list object.
+GglObject ggl_obj_list(GglList value);
+
+/// Get the list represented by an object.
+/// The GglObject must be of type GGL_TYPE_LIST.
+GglList ggl_obj_into_list(GglObject list);
 
 /// Modifies an object's references to point to copies in alloc
 GglError ggl_obj_deep_copy(GglObject *obj, GglAlloc *alloc);

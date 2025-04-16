@@ -269,13 +269,13 @@ static GglError client_ready(void *ctx, uint32_t handle) {
             return GGL_ERR_OK;
         }
 
-        if (payload_obj.type != GGL_TYPE_MAP) {
+        if (ggl_obj_type(payload_obj) != GGL_TYPE_MAP) {
             GGL_LOGE("Request payload is not a map.");
             send_err_response(handle, GGL_ERR_INVALID);
             return GGL_ERR_OK;
         }
 
-        params = payload_obj.map;
+        params = ggl_obj_into_map(payload_obj);
     }
 
     GGL_LOGT("Setting request type.");

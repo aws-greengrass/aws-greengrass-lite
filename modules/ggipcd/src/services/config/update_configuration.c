@@ -30,16 +30,13 @@ GglError ggl_handle_update_configuration(
     (void) alloc;
 
     GglObject *key_path_obj = NULL;
-    GglObject *value_to_merge_obj;
+    GglObject *value_to_merge;
     GglObject *timestamp_obj;
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
             { GGL_STR("keyPath"), false, GGL_TYPE_LIST, &key_path_obj },
-            { GGL_STR("valueToMerge"),
-              true,
-              GGL_TYPE_NULL,
-              &value_to_merge_obj },
+            { GGL_STR("valueToMerge"), true, GGL_TYPE_NULL, &value_to_merge },
             { GGL_STR("timestamp"), true, GGL_TYPE_F64, &timestamp_obj },
         )
     );
@@ -51,11 +48,10 @@ GglError ggl_handle_update_configuration(
         return GGL_ERR_INVALID;
     }
 
-    GglObject *empty_list = (GglObject *) &GGL_OBJ_LIST({ 0 });
-    if (key_path_obj == NULL) {
-        key_path_obj = empty_list;
-    } else {
-        ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
+    GglList key_path = { 0 };
+    if (key_path_obj != NULL) {
+        key_path = ggl_obj_into_list(*key_path_obj);
+        ret = ggl_list_type_check(key_path, GGL_TYPE_BUF);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Received invalid parameters.");
             *ipc_error = (GglIpcError
@@ -64,9 +60,9 @@ GglError ggl_handle_update_configuration(
             return GGL_ERR_INVALID;
         }
 
-        if ((key_path_obj->list.len >= 1)
+        if ((key_path.len >= 1)
             && ggl_buffer_eq(
-                key_path_obj->list.items[0].buf, GGL_STR("accessControl")
+                ggl_obj_into_buf(key_path.items[0]), GGL_STR("accessControl")
             )) {
             GGL_LOGE("Received invalid parameters. Can not change component "
                      "accessControl over IPC.");
@@ -78,13 +74,9 @@ GglError ggl_handle_update_configuration(
         }
     }
 
-    if ((key_path_obj->list.len == 0)
-        && value_to_merge_obj->type == GGL_TYPE_MAP) {
-        for (size_t i = 0; i < value_to_merge_obj->map.len; i++) {
-            if (ggl_buffer_eq(
-                    value_to_merge_obj->map.pairs[i].key,
-                    GGL_STR("accessControl")
-                )) {
+    if ((key_path.len == 0) && ggl_obj_type(*value_to_merge) == GGL_TYPE_MAP) {
+        GGL_MAP_FOREACH(kv, ggl_obj_into_map(*value_to_merge)) {
+            if (ggl_buffer_eq(kv->key, GGL_STR("accessControl"))) {
                 GGL_LOGE(
                     "Received invalid parameters. Can not change component "
                     "accessControl over IPC."
@@ -100,12 +92,12 @@ GglError ggl_handle_update_configuration(
 
     // convert timestamp from sec in floating-point(with msec precision) to msec
     // in integer
-    int64_t timestamp = (int64_t) (timestamp_obj->f64 * 1000.0);
+    int64_t timestamp = (int64_t) (ggl_obj_into_f64(*timestamp_obj) * 1000.0);
     GGL_LOGT("Timestamp is %" PRId64, timestamp);
 
     GglBufList full_key_path;
     ret = ggl_make_config_path_object(
-        info->component, key_path_obj->list, &full_key_path
+        info->component, key_path, &full_key_path
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Config path depth larger than supported.");
@@ -115,7 +107,7 @@ GglError ggl_handle_update_configuration(
         return ret;
     }
 
-    ret = ggl_gg_config_write(full_key_path, *value_to_merge_obj, &timestamp);
+    ret = ggl_gg_config_write(full_key_path, *value_to_merge, &timestamp);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to update the configuration.");
         *ipc_error = (GglIpcError
@@ -128,6 +120,6 @@ GglError ggl_handle_update_configuration(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#UpdateConfigurationResponse"),
-        GGL_OBJ_MAP({ 0 })
+        ggl_obj_map((GglMap) { 0 })
     );
 }

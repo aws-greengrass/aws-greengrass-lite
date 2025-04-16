@@ -28,7 +28,7 @@ static GglError create_local_deployment(
         return ret;
     }
 
-    ggl_respond(handle, GGL_OBJ_BUF(id.buf));
+    ggl_respond(handle, ggl_obj_buf(id.buf));
     return GGL_ERR_OK;
 }
 

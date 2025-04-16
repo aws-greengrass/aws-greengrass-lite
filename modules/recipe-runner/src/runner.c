@@ -59,10 +59,10 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
     }
     GglBuffer final_result = GGL_BUF(copy_config_value);
 
-    if (result.type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(result) != GGL_TYPE_BUF) {
         ggl_json_encode(result, &final_result);
     } else {
-        final_result = result.buf;
+        final_result = ggl_obj_into_buf(result);
     }
 
     return ggl_file_write(out_fd, final_result);
@@ -263,18 +263,15 @@ static GglError process_set_env(
         );
         ggl_file_write(out_fd, GGL_STR("="));
 
-        if (pair->val.type != GGL_TYPE_BUF) {
+        if (ggl_obj_type(pair->val) != GGL_TYPE_BUF) {
             GGL_LOGW("Invalid lifecycle Setenv, Key values must be String");
             return GGL_ERR_INVALID;
         }
-        GGL_LOGT(
-            "Lifecycle Setenv, map value: %.*s",
-            (int) pair->val.buf.len,
-            pair->val.buf.data
-        );
-        uint8_t *current_pointer = &pair->val.buf.data[0];
-        uint8_t *end_pointer = &pair->val.buf.data[pair->val.buf.len];
-        if (pair->val.buf.len == 0) {
+        GglBuffer val = ggl_obj_into_buf(pair->val);
+        GGL_LOGT("Lifecycle Setenv, map value: %.*s", (int) val.len, val.data);
+        uint8_t *current_pointer = &val.data[0];
+        uint8_t *end_pointer = &val.data[val.len];
+        if (val.len == 0) {
             // Add in a new line if no value is provided
             ret = ggl_file_write(out_fd, GGL_STR("\n"));
             if (ret != GGL_ERR_OK) {
@@ -330,7 +327,7 @@ static GglError find_and_process_set_env(
     GglError ret = GGL_ERR_OK;
 
     if (ggl_map_get(map_containing_setenv, GGL_STR("Setenv"), &env_values)) {
-        if (env_values->type != GGL_TYPE_MAP) {
+        if (ggl_obj_type(*env_values) != GGL_TYPE_MAP) {
             GGL_LOGE("Invalid lifecycle Setenv, Must be a map");
             return GGL_ERR_INVALID;
         }
@@ -338,7 +335,7 @@ static GglError find_and_process_set_env(
         ret = process_set_env(
             conn,
             out_fd,
-            env_values->map,
+            ggl_obj_into_map(*env_values),
             root_path,
             component_name,
             component_version,
@@ -713,12 +710,14 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     // Check if TES is the dependency within the recipe
     GglObject *val;
-    if (ggl_map_get(recipe.map, GGL_STR("ComponentDependencies"), &val)) {
-        if (val->type != GGL_TYPE_MAP) {
+    if (ggl_map_get(
+            ggl_obj_into_map(recipe), GGL_STR("ComponentDependencies"), &val
+        )) {
+        if (ggl_obj_type(*val) != GGL_TYPE_MAP) {
             return GGL_ERR_PARSE;
         }
         GglObject *inner_val;
-        GglMap inner_map = val->map;
+        GglMap inner_map = ggl_obj_into_map(*val);
         if (ggl_map_get(
                 inner_map,
                 GGL_STR("aws.greengrass.TokenExchangeService"),
@@ -828,7 +827,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     ret = write_script_with_replacement(
         conn,
         pipe_fds[1],
-        recipe.map,
+        ggl_obj_into_map(recipe),
         root_path,
         component_name,
         component_version,

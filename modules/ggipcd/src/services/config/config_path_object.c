@@ -41,19 +41,15 @@ GglError ggl_parse_config_path(
         return GGL_ERR_INVALID;
     }
 
-    *component_name = config_path.items[1].buf;
+    *component_name = ggl_obj_into_buf(config_path.items[1]);
 
     static GglObject component_key_path_mem[GGL_MAX_COMPONENT_CONFIG_DEPTH];
     static GglObjVec component_key_path = GGL_OBJ_VEC(component_key_path_mem);
     component_key_path.list.len = 0;
 
-    GglError ret = ggl_obj_vec_push(
-        &component_key_path, GGL_OBJ_BUF(config_path.items[3].buf)
-    );
+    GglError ret = ggl_obj_vec_push(&component_key_path, config_path.items[3]);
     for (size_t i = 4; i < config_path.len; i++) {
-        ggl_obj_vec_chain_push(
-            &ret, &component_key_path, GGL_OBJ_BUF(config_path.items[i].buf)
-        );
+        ggl_obj_vec_chain_push(&ret, &component_key_path, config_path.items[i]);
     }
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Key path too long.");

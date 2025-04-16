@@ -72,35 +72,42 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
             return GGL_ERR_FAILURE;
         }
 
-        GglObject *aws_access_key_id = NULL;
-        GglObject *aws_secret_access_key = NULL;
-        GglObject *aws_session_token = NULL;
+        GglObject *aws_access_key_id_obj = NULL;
+        GglObject *aws_secret_access_key_obj = NULL;
+        GglObject *aws_session_token_obj = NULL;
 
-        if (result.type != GGL_TYPE_MAP) {
+        if (ggl_obj_type(result) != GGL_TYPE_MAP) {
             GGL_LOGE("Result not a map");
             return GGL_ERR_FAILURE;
         }
 
+        GglMap result_map = ggl_obj_into_map(result);
+
         GglError ret = ggl_map_validate(
-            result.map,
+            result_map,
             GGL_MAP_SCHEMA(
                 { GGL_STR("accessKeyId"),
                   true,
                   GGL_TYPE_BUF,
-                  &aws_access_key_id },
+                  &aws_access_key_id_obj },
                 { GGL_STR("secretAccessKey"),
                   true,
                   GGL_TYPE_BUF,
-                  &aws_secret_access_key },
+                  &aws_secret_access_key_obj },
                 { GGL_STR("sessionToken"),
                   true,
                   GGL_TYPE_BUF,
-                  &aws_session_token },
+                  &aws_session_token_obj },
             )
         );
         if (ret != GGL_ERR_OK) {
             return GGL_ERR_FAILURE;
         }
+
+        GglBuffer aws_access_key_id = ggl_obj_into_buf(*aws_access_key_id_obj);
+        GglBuffer aws_secret_access_key
+            = ggl_obj_into_buf(*aws_secret_access_key_obj);
+        GglBuffer aws_session_token = ggl_obj_into_buf(*aws_session_token_obj);
 
         int fd = -1;
         request_ret = ggl_file_open(
@@ -121,9 +128,9 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
             (SigV4Details) {
                 .aws_region = ggl_buffer_from_null_term(region),
                 .aws_service = GGL_STR("s3"),
-                .access_key_id = aws_access_key_id->buf,
-                .secret_access_key = aws_secret_access_key->buf,
-                .session_token = aws_session_token->buf,
+                .access_key_id = aws_access_key_id,
+                .secret_access_key = aws_secret_access_key,
+                .session_token = aws_session_token,
             }
         );
     }
@@ -133,7 +140,7 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
         = ggl_file_open(ggl_buffer_from_null_term(file_path), 0, O_RDONLY, &fd);
     if ((file_ret == GGL_ERR_OK) && (fd > 0)) {
         if (GGL_LOG_LEVEL >= GGL_LOG_DEBUG) {
-            for (;;) {
+            while (true) {
                 ssize_t bytes_read = read(
                     fd, big_buffer_for_bump, sizeof(big_buffer_for_bump)
                 );

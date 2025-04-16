@@ -137,10 +137,10 @@ void ggl_buf_vec_chain_push(GglError *err, GglBufVec *vector, GglBuffer buf) {
 
 GglError ggl_buf_vec_append_list(GglBufVec *vector, GglList list) {
     GGL_LIST_FOREACH(item, list) {
-        if (item->type != GGL_TYPE_BUF) {
+        if (ggl_obj_type(*item) != GGL_TYPE_BUF) {
             return GGL_ERR_INVALID;
         }
-        GglError ret = ggl_buf_vec_push(vector, item->buf);
+        GglError ret = ggl_buf_vec_push(vector, ggl_obj_into_buf(*item));
         if (ret != GGL_ERR_OK) {
             return ret;
         }

@@ -78,19 +78,18 @@ static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
     GGL_LOGD("Handling request from %u.", handle);
 
-    GglBuffer topic;
     GglObject *val;
     bool found = ggl_map_get(params, GGL_STR("topic"), &val);
     if (!found) {
         GGL_LOGE("Params missing topic.");
         return GGL_ERR_INVALID;
     }
-    if (val->type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
         GGL_LOGE("topic is not a string.");
         return GGL_ERR_INVALID;
     }
 
-    topic = val->buf;
+    GglBuffer topic = ggl_obj_into_buf(*val);
 
     if (topic.len > GGL_PUBSUB_MAX_TOPIC_LENGTH) {
         GGL_LOGE("Topic too large.");
@@ -108,7 +107,7 @@ static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle) {
                 &matches
             );
             if (matches) {
-                ggl_sub_respond(sub_handle[i], GGL_OBJ_MAP(params));
+                ggl_sub_respond(sub_handle[i], ggl_obj_map(params));
             }
         }
     }
@@ -149,8 +148,8 @@ static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
 
     GglObject *val;
     if (ggl_map_get(params, GGL_STR("topic_filter"), &val)
-        && (val->type == GGL_TYPE_BUF)) {
-        topic_filter = val->buf;
+        && (ggl_obj_type(*val) == GGL_TYPE_BUF)) {
+        topic_filter = ggl_obj_into_buf(*val);
         if (topic_filter.len > GGL_PUBSUB_MAX_TOPIC_LENGTH) {
             GGL_LOGE("Topic filter too large.");
             return GGL_ERR_RANGE;

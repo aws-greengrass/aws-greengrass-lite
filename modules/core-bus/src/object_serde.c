@@ -82,7 +82,7 @@ static GglError read_bool(GglBuffer *buf, GglObject *obj) {
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    *obj = GGL_OBJ_BOOL(temp_buf.data[0]);
+    *obj = ggl_obj_bool(temp_buf.data[0]);
     return GGL_ERR_OK;
 }
 
@@ -107,7 +107,7 @@ static GglError read_i64(GglBuffer *buf, GglObject *obj) {
     }
     int64_t val;
     memcpy(&val, temp_buf.data, sizeof(int64_t));
-    *obj = GGL_OBJ_I64(val);
+    *obj = ggl_obj_i64(val);
     return GGL_ERR_OK;
 }
 
@@ -132,7 +132,7 @@ static GglError read_f64(GglBuffer *buf, GglObject *obj) {
     }
     double val;
     memcpy(&val, temp_buf.data, sizeof(double));
-    *obj = GGL_OBJ_F64(val);
+    *obj = ggl_obj_f64(val);
     return GGL_ERR_OK;
 }
 
@@ -200,7 +200,7 @@ static GglError read_buf(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    *obj = GGL_OBJ_BUF(val);
+    *obj = ggl_obj_buf(val);
     return GGL_ERR_OK;
 }
 
@@ -275,7 +275,7 @@ static GglError read_list(
         }
     }
 
-    *obj = GGL_OBJ_LIST(val);
+    *obj = ggl_obj_list(val);
     return GGL_ERR_OK;
 }
 
@@ -349,7 +349,7 @@ static GglError read_map(
         }
     }
 
-    *obj = GGL_OBJ_MAP(val);
+    *obj = ggl_obj_map(val);
     return GGL_ERR_OK;
 }
 
@@ -359,24 +359,24 @@ static GglError write_obj(GglAlloc *alloc, NestingState *state, GglObject obj) {
         GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
     }
-    buf[0] = (uint8_t) obj.type;
+    buf[0] = (uint8_t) ggl_obj_type(obj);
 
     assert(alloc != NULL);
-    switch (obj.type) {
+    switch (ggl_obj_type(obj)) {
     case GGL_TYPE_NULL:
         return GGL_ERR_OK;
     case GGL_TYPE_BOOLEAN:
-        return write_bool(alloc, obj.boolean);
+        return write_bool(alloc, ggl_obj_into_bool(obj));
     case GGL_TYPE_I64:
-        return write_i64(alloc, obj.i64);
+        return write_i64(alloc, ggl_obj_into_i64(obj));
     case GGL_TYPE_F64:
-        return write_f64(alloc, obj.f64);
+        return write_f64(alloc, ggl_obj_into_f64(obj));
     case GGL_TYPE_BUF:
-        return write_buf(alloc, obj.buf);
+        return write_buf(alloc, ggl_obj_into_buf(obj));
     case GGL_TYPE_LIST:
-        return write_list(alloc, state, obj.list);
+        return write_list(alloc, state, ggl_obj_into_list(obj));
     case GGL_TYPE_MAP:
-        return write_map(alloc, state, obj.map);
+        return write_map(alloc, state, ggl_obj_into_map(obj));
     }
     return GGL_ERR_INVALID;
 }

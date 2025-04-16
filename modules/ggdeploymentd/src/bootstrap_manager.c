@@ -72,7 +72,7 @@ GglError save_component_info(
                 GGL_STR("components"),
                 component_name
             ),
-            GGL_OBJ_BUF(component_version),
+            ggl_obj_buf(component_version),
             &(int64_t) { 3 }
         );
         if (ret != GGL_ERR_OK) {
@@ -92,7 +92,7 @@ GglError save_component_info(
                 GGL_STR("bootstrapComponents"),
                 component_name
             ),
-            GGL_OBJ_BUF(component_version),
+            ggl_obj_buf(component_version),
             &(int64_t) { 3 }
         );
         if (ret != GGL_ERR_OK) {
@@ -130,7 +130,7 @@ GglError save_iot_jobs_id(GglBuffer jobs_id) {
             GGL_STR("deploymentState"),
             GGL_STR("jobsID")
         ),
-        GGL_OBJ_BUF(jobs_id),
+        ggl_obj_buf(jobs_id),
         &(int64_t) { 3 }
     );
     if (ret != GGL_ERR_OK) {
@@ -153,7 +153,7 @@ GglError save_iot_jobs_version(int64_t jobs_version) {
             GGL_STR("deploymentState"),
             GGL_STR("jobsVersion")
         ),
-        GGL_OBJ_I64(jobs_version),
+        ggl_obj_i64(jobs_version),
         &(int64_t) { 3 }
     );
     if (ret != GGL_ERR_OK) {
@@ -167,16 +167,16 @@ GglError save_deployment_info(GglDeployment *deployment) {
     GGL_LOGD("Encountered component requiring bootstrap. Saving deployment "
              "state to config.");
 
-    GglObject deployment_doc = GGL_OBJ_MAP(GGL_MAP(
-        { GGL_STR("deployment_id"), GGL_OBJ_BUF(deployment->deployment_id) },
+    GglObject deployment_doc = ggl_obj_map(GGL_MAP(
+        { GGL_STR("deployment_id"), ggl_obj_buf(deployment->deployment_id) },
         { GGL_STR("recipe_directory_path"),
-          GGL_OBJ_BUF(deployment->recipe_directory_path) },
+          ggl_obj_buf(deployment->recipe_directory_path) },
         { GGL_STR("artifacts_directory_path"),
-          GGL_OBJ_BUF(deployment->artifacts_directory_path) },
+          ggl_obj_buf(deployment->artifacts_directory_path) },
         { GGL_STR("configuration_arn"),
-          GGL_OBJ_BUF(deployment->configuration_arn) },
-        { GGL_STR("thing_group"), GGL_OBJ_BUF(deployment->thing_group) },
-        { GGL_STR("components"), GGL_OBJ_MAP(deployment->components) }
+          ggl_obj_buf(deployment->configuration_arn) },
+        { GGL_STR("thing_group"), ggl_obj_buf(deployment->thing_group) },
+        { GGL_STR("components"), ggl_obj_map(deployment->components) }
     ));
 
     GglError ret = ggl_gg_config_write(
@@ -210,7 +210,7 @@ GglError save_deployment_info(GglDeployment *deployment) {
             GGL_STR("deploymentState"),
             GGL_STR("deploymentType")
         ),
-        GGL_OBJ_BUF(deployment_type),
+        ggl_obj_buf(deployment_type),
         &(int64_t) { 3 }
     );
 
@@ -243,25 +243,32 @@ GglError retrieve_in_progress_deployment(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    if (deployment_config.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(deployment_config) != GGL_TYPE_MAP) {
         GGL_LOGE("Retrieved config not a map.");
         return GGL_ERR_INVALID;
     }
 
     GglObject *jobs_id_obj;
     ret = ggl_map_validate(
-        deployment_config.map,
+        ggl_obj_into_map(deployment_config),
         GGL_MAP_SCHEMA({ GGL_STR("jobsID"), true, GGL_TYPE_BUF, &jobs_id_obj })
     );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    assert(jobs_id_obj->buf.len < 64);
-    memcpy(jobs_id->data, jobs_id_obj->buf.data, jobs_id_obj->buf.len);
+
+    assert(ggl_obj_into_buf(*jobs_id_obj).len < 64);
+    assert(jobs_id->len >= 64);
+
+    memcpy(
+        jobs_id->data,
+        ggl_obj_into_buf(*jobs_id_obj).data,
+        ggl_obj_into_buf(*jobs_id_obj).len
+    );
 
     GglObject *jobs_version_obj;
     ret = ggl_map_validate(
-        deployment_config.map,
+        ggl_obj_into_map(deployment_config),
         GGL_MAP_SCHEMA(
             { GGL_STR("jobsVersion"), true, GGL_TYPE_I64, &jobs_version_obj }
         )
@@ -269,11 +276,11 @@ GglError retrieve_in_progress_deployment(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    *jobs_version = jobs_version_obj->i64;
+    *jobs_version = ggl_obj_into_i64(*jobs_version_obj);
 
     GglObject *deployment_type;
     ret = ggl_map_validate(
-        deployment_config.map,
+        ggl_obj_into_map(deployment_config),
         GGL_MAP_SCHEMA(
             { GGL_STR("deploymentType"), true, GGL_TYPE_BUF, &deployment_type }
         )
@@ -282,17 +289,20 @@ GglError retrieve_in_progress_deployment(
         return ret;
     }
 
-    if (ggl_buffer_eq(deployment_type->buf, GGL_STR("LOCAL_DEPLOYMENT"))) {
+    if (ggl_buffer_eq(
+            ggl_obj_into_buf(*deployment_type), GGL_STR("LOCAL_DEPLOYMENT")
+        )) {
         deployment->type = LOCAL_DEPLOYMENT;
     } else if (ggl_buffer_eq(
-                   deployment_type->buf, GGL_STR("THING_GROUP_DEPLOYMENT")
+                   ggl_obj_into_buf(*deployment_type),
+                   GGL_STR("THING_GROUP_DEPLOYMENT")
                )) {
         deployment->type = THING_GROUP_DEPLOYMENT;
     }
 
     GglObject *deployment_doc;
     ret = ggl_map_validate(
-        deployment_config.map,
+        ggl_obj_into_map(deployment_config),
         GGL_MAP_SCHEMA(
             { GGL_STR("deploymentDoc"), true, GGL_TYPE_MAP, &deployment_doc }
         )
@@ -303,7 +313,7 @@ GglError retrieve_in_progress_deployment(
 
     GglObject *deployment_id;
     ret = ggl_map_validate(
-        deployment_doc->map,
+        ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA(
             { GGL_STR("deployment_id"), true, GGL_TYPE_BUF, &deployment_id }
         )
@@ -311,11 +321,11 @@ GglError retrieve_in_progress_deployment(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    deployment->deployment_id = deployment_id->buf;
+    deployment->deployment_id = ggl_obj_into_buf(*deployment_id);
 
     GglObject *recipe_directory_path;
     ret = ggl_map_validate(
-        deployment_doc->map,
+        ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA({ GGL_STR("recipe_directory_path"),
                          true,
                          GGL_TYPE_BUF,
@@ -324,11 +334,12 @@ GglError retrieve_in_progress_deployment(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    deployment->recipe_directory_path = recipe_directory_path->buf;
+    deployment->recipe_directory_path
+        = ggl_obj_into_buf(*recipe_directory_path);
 
     GglObject *artifacts_directory_path;
     ret = ggl_map_validate(
-        deployment_doc->map,
+        ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA({ GGL_STR("artifacts_directory_path"),
                          true,
                          GGL_TYPE_BUF,
@@ -337,11 +348,12 @@ GglError retrieve_in_progress_deployment(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    deployment->artifacts_directory_path = artifacts_directory_path->buf;
+    deployment->artifacts_directory_path
+        = ggl_obj_into_buf(*artifacts_directory_path);
 
     GglObject *configuration_arn;
     ret = ggl_map_validate(
-        deployment_doc->map,
+        ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA({ GGL_STR("configuration_arn"),
                          true,
                          GGL_TYPE_BUF,
@@ -350,11 +362,11 @@ GglError retrieve_in_progress_deployment(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    deployment->configuration_arn = configuration_arn->buf;
+    deployment->configuration_arn = ggl_obj_into_buf(*configuration_arn);
 
     GglObject *thing_group;
     ret = ggl_map_validate(
-        deployment_doc->map,
+        ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA(
             { GGL_STR("thing_group"), true, GGL_TYPE_BUF, &thing_group }
         )
@@ -362,11 +374,11 @@ GglError retrieve_in_progress_deployment(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    deployment->thing_group = thing_group->buf;
+    deployment->thing_group = ggl_obj_into_buf(*thing_group);
 
     GglObject *components;
     ret = ggl_map_validate(
-        deployment_doc->map,
+        ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA(
             { GGL_STR("components"), true, GGL_TYPE_MAP, &components }
         )
@@ -374,7 +386,7 @@ GglError retrieve_in_progress_deployment(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    deployment->components = components->map;
+    deployment->components = ggl_obj_into_map(*components);
 
     static uint8_t deployment_deep_copy_mem[5000] = { 0 };
     GglBumpAlloc deployment_balloc
@@ -556,7 +568,9 @@ GglError process_bootstrap_phase(
 
                 // save component to config to avoid rerunning bootstrap steps
                 ret = save_component_info(
-                    component_name, component->val.buf, GGL_STR("bootstrap")
+                    component_name,
+                    ggl_obj_into_buf(component->val),
+                    GGL_STR("bootstrap")
                 );
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE("Failed to save component info to config after "

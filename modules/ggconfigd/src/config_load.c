@@ -47,13 +47,13 @@ static GglError ggconfig_load_file_fd(int fd) {
         print_key_path(&key_path.list)
     );
 
-    if (config_obj.type == GGL_TYPE_MAP) {
-        ret = process_map(&key_path, &config_obj.map, 2);
+    if (ggl_obj_type(config_obj) == GGL_TYPE_MAP) {
+        ret = ggconfig_process_map(&key_path, ggl_obj_into_map(config_obj), 2);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
     } else {
-        ret = process_nonmap(&key_path, config_obj, 2);
+        ret = ggconfig_process_nonmap(&key_path, config_obj, 2);
         if (ret != GGL_ERR_OK) {
             return ret;
         }

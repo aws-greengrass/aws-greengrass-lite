@@ -98,9 +98,9 @@ static int properties_changed_handler(
         );
         ggl_sub_respond(
             handle,
-            GGL_OBJ_MAP(GGL_MAP(
-                { GGL_STR("component_name"), GGL_OBJ_BUF(component_name) },
-                { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(status) }
+            ggl_obj_map(GGL_MAP(
+                { GGL_STR("component_name"), ggl_obj_buf(component_name) },
+                { GGL_STR("lifecycle_state"), ggl_obj_buf(status) }
             ))
         );
     } else {

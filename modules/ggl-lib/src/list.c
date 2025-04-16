@@ -9,7 +9,7 @@
 
 GglError ggl_list_type_check(GglList list, GglObjectType type) {
     GGL_LIST_FOREACH(elem, list) {
-        if (elem->type != type) {
+        if (ggl_obj_type(*elem) != type) {
             GGL_LOGE("List element is of invalid type.");
             return GGL_ERR_PARSE;
         }

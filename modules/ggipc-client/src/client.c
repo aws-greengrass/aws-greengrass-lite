@@ -53,8 +53,14 @@ static GglError send_message(
 
     GglBuffer send_buffer = GGL_BUF(payload_array);
 
-    GglReader reader = payload != NULL ? ggl_json_reader(&GGL_OBJ_MAP(*payload))
-                                       : GGL_NULL_READER;
+    GglObject payload_obj;
+    GglReader reader;
+    if (payload == NULL) {
+        reader = GGL_NULL_READER;
+    } else {
+        payload_obj = ggl_obj_map(*payload);
+        reader = ggl_json_reader(&payload_obj);
+    }
     GglError ret
         = eventstream_encode(&send_buffer, headers, headers_len, reader);
     if (ret != GGL_ERR_OK) {
@@ -135,7 +141,7 @@ GglError ggipc_connect_by_name(
     size_t headers_len = sizeof(headers) / sizeof(headers[0]);
 
     GglMap payload
-        = GGL_MAP({ GGL_STR("componentName"), GGL_OBJ_BUF(component_name) });
+        = GGL_MAP({ GGL_STR("componentName"), ggl_obj_buf(component_name) });
 
     ret = send_message(conn, headers, headers_len, &payload);
     if (ret != GGL_ERR_OK) {
@@ -268,7 +274,7 @@ GglError ggipc_call(
         ret = ggl_json_decode_destructive(
             msg.payload, &error_alloc.alloc, &err_result
         );
-        if ((ret != GGL_ERR_OK) || (err_result.type != GGL_TYPE_MAP)) {
+        if ((ret != GGL_ERR_OK) || (ggl_obj_type(err_result) != GGL_TYPE_MAP)) {
             GGL_LOGE("Failed to decode IPC error payload.");
             return ret;
         }
@@ -277,7 +283,7 @@ GglError ggipc_call(
         GglObject *message_obj;
 
         ret = ggl_map_validate(
-            err_result.map,
+            ggl_obj_into_map(err_result),
             GGL_MAP_SCHEMA(
                 { GGL_STR("_errorCode"), true, GGL_TYPE_BUF, &error_code_obj },
                 { GGL_STR("_message"), false, GGL_TYPE_BUF, &message_obj },
@@ -287,7 +293,7 @@ GglError ggipc_call(
             GGL_LOGE("Error response does not match known schema.");
             return ret;
         }
-        GglBuffer error_code = error_code_obj->buf;
+        GglBuffer error_code = ggl_obj_into_buf(*error_code_obj);
 
         remote_err->error_code = get_ipc_err_info(error_code);
         remote_err->message = GGL_STR("");
@@ -300,7 +306,7 @@ GglError ggipc_call(
                 );
                 return GGL_ERR_REMOTE;
             }
-            remote_err->message = message_obj->buf;
+            remote_err->message = ggl_obj_into_buf(*message_obj);
         }
 
         return GGL_ERR_REMOTE;
@@ -340,7 +346,7 @@ GglError ggipc_private_get_system_config(
         conn,
         GGL_STR("aws.greengrass.private#GetSystemConfig"),
         GGL_STR("aws.greengrass.private#GetSystemConfigRequest"),
-        GGL_MAP({ GGL_STR("key"), GGL_OBJ_BUF(key) }),
+        GGL_MAP({ GGL_STR("key"), ggl_obj_buf(key) }),
         &balloc.alloc,
         &resp,
         &remote_error
@@ -363,12 +369,12 @@ GglError ggipc_private_get_system_config(
         return ret;
     }
 
-    if (resp.type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(resp) != GGL_TYPE_BUF) {
         GGL_LOGE("Config value is not a string.");
         return GGL_ERR_FAILURE;
     }
 
-    *value = resp.buf;
+    *value = ggl_obj_into_buf(resp);
 
     GGL_LOGT(
         "Read %.*s: %.*s.",
@@ -387,7 +393,7 @@ GglError ggipc_get_config_str(
     GglObjVec path_vec = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
     GglError ret = GGL_ERR_OK;
     for (size_t i = 0; i < key_path.len; i++) {
-        ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ_BUF(key_path.bufs[i]));
+        ggl_obj_vec_chain_push(&ret, &path_vec, ggl_obj_buf(key_path.bufs[i]));
     }
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Key path too long.");
@@ -396,12 +402,12 @@ GglError ggipc_get_config_str(
 
     GglKVVec args = GGL_KV_VEC((GglKV[2]) { 0 });
     (void) ggl_kv_vec_push(
-        &args, (GglKV) { GGL_STR("keyPath"), GGL_OBJ_LIST(path_vec.list) }
+        &args, (GglKV) { GGL_STR("keyPath"), ggl_obj_list(path_vec.list) }
     );
     if (component_name != NULL) {
         (void) ggl_kv_vec_push(
             &args,
-            (GglKV) { GGL_STR("componentName"), GGL_OBJ_BUF(*component_name) }
+            (GglKV) { GGL_STR("componentName"), ggl_obj_buf(*component_name) }
         );
     }
 
@@ -436,14 +442,14 @@ GglError ggipc_get_config_str(
         return ret;
     }
 
-    if (resp.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(resp) != GGL_TYPE_MAP) {
         GGL_LOGE("Config value is not a map.");
         return GGL_ERR_FAILURE;
     }
 
     GglObject *resp_value;
     ret = ggl_map_validate(
-        resp.map,
+        ggl_obj_into_map(resp),
         GGL_MAP_SCHEMA({ GGL_STR("value"), true, GGL_TYPE_BUF, &resp_value })
     );
     if (ret != GGL_ERR_OK) {
@@ -458,7 +464,7 @@ GglError ggipc_get_config_str(
         return ret;
     }
 
-    *value = resp_value->buf;
+    *value = ggl_obj_into_buf(*resp_value);
     return GGL_ERR_OK;
 }
 
@@ -472,7 +478,7 @@ GglError ggipc_get_config_obj(
     GglObjVec path_vec = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
     GglError ret = GGL_ERR_OK;
     for (size_t i = 0; i < key_path.len; i++) {
-        ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ_BUF(key_path.bufs[i]));
+        ggl_obj_vec_chain_push(&ret, &path_vec, ggl_obj_buf(key_path.bufs[i]));
     }
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Key path too long.");
@@ -481,12 +487,12 @@ GglError ggipc_get_config_obj(
 
     GglKVVec args = GGL_KV_VEC((GglKV[2]) { 0 });
     (void) ggl_kv_vec_push(
-        &args, (GglKV) { GGL_STR("keyPath"), GGL_OBJ_LIST(path_vec.list) }
+        &args, (GglKV) { GGL_STR("keyPath"), ggl_obj_list(path_vec.list) }
     );
     if (component_name != NULL) {
         (void) ggl_kv_vec_push(
             &args,
-            (GglKV) { GGL_STR("componentName"), GGL_OBJ_BUF(*component_name) }
+            (GglKV) { GGL_STR("componentName"), ggl_obj_buf(*component_name) }
         );
     }
 
@@ -521,14 +527,14 @@ GglError ggipc_get_config_obj(
         return ret;
     }
 
-    if (resp.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(resp) != GGL_TYPE_MAP) {
         GGL_LOGE("Config value is not a map.");
         return GGL_ERR_FAILURE;
     }
 
     GglObject *resp_value;
     ret = ggl_map_validate(
-        resp.map,
+        ggl_obj_into_map(resp),
         GGL_MAP_SCHEMA({ GGL_STR("value"), true, GGL_TYPE_NULL, &resp_value })
     );
     if (ret != GGL_ERR_OK) {
@@ -561,7 +567,7 @@ GglError ggipc_update_config(
     GglObjVec path_vec = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
     GglError ret = GGL_ERR_OK;
     for (size_t i = 0; i < key_path.len; i++) {
-        ggl_obj_vec_chain_push(&ret, &path_vec, GGL_OBJ_BUF(key_path.bufs[i]));
+        ggl_obj_vec_chain_push(&ret, &path_vec, ggl_obj_buf(key_path.bufs[i]));
     }
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Key path too long.");
@@ -575,8 +581,8 @@ GglError ggipc_update_config(
     }
 
     GglMap args = GGL_MAP(
-        { GGL_STR("keyPath"), GGL_OBJ_LIST(path_vec.list) },
-        { GGL_STR("timestamp"), GGL_OBJ_F64(timestamp_float) },
+        { GGL_STR("keyPath"), ggl_obj_list(path_vec.list) },
+        { GGL_STR("timestamp"), ggl_obj_f64(timestamp_float) },
         { GGL_STR("valueToMerge"), value_to_merge }
     );
 
@@ -610,12 +616,12 @@ GglError ggipc_publish_to_topic_binary(
         return ret;
     }
     GglMap binary_message
-        = GGL_MAP({ GGL_STR("message"), GGL_OBJ_BUF(encoded_payload) });
+        = GGL_MAP({ GGL_STR("message"), ggl_obj_buf(encoded_payload) });
     GglMap publish_message
-        = GGL_MAP({ GGL_STR("binaryMessage"), GGL_OBJ_MAP(binary_message) });
+        = GGL_MAP({ GGL_STR("binaryMessage"), ggl_obj_map(binary_message) });
     GglMap args = GGL_MAP(
-        { GGL_STR("topic"), GGL_OBJ_BUF(topic) },
-        { GGL_STR("publishMessage"), GGL_OBJ_MAP(publish_message) }
+        { GGL_STR("topic"), ggl_obj_buf(topic) },
+        { GGL_STR("publishMessage"), ggl_obj_map(publish_message) }
     );
 
     GglIpcError remote_error;
@@ -650,10 +656,10 @@ GglError ggipc_publish_to_topic_obj(
 ) {
     GglMap json_message = GGL_MAP({ GGL_STR("message"), payload });
     GglMap publish_message
-        = GGL_MAP({ GGL_STR("jsonMessage"), GGL_OBJ_MAP(json_message) });
+        = GGL_MAP({ GGL_STR("jsonMessage"), ggl_obj_map(json_message) });
     GglMap args = GGL_MAP(
-        { GGL_STR("topic"), GGL_OBJ_BUF(topic) },
-        { GGL_STR("publishMessage"), GGL_OBJ_MAP(publish_message) }
+        { GGL_STR("topic"), ggl_obj_buf(topic) },
+        { GGL_STR("publishMessage"), ggl_obj_map(publish_message) }
     );
 
     GglBumpAlloc error_alloc
@@ -705,9 +711,9 @@ GglError ggipc_publish_to_iot_core(
         return ret;
     }
     GglMap args = GGL_MAP(
-        { GGL_STR("topicName"), GGL_OBJ_BUF(topic_name) },
-        { GGL_STR("payload"), GGL_OBJ_BUF(encoded_payload) },
-        { GGL_STR("qos"), GGL_OBJ_BUF(qos_buffer) }
+        { GGL_STR("topicName"), ggl_obj_buf(topic_name) },
+        { GGL_STR("payload"), ggl_obj_buf(encoded_payload) },
+        { GGL_STR("qos"), ggl_obj_buf(qos_buffer) }
     );
 
     GglIpcError remote_error;

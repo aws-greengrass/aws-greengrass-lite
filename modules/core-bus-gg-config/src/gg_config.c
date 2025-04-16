@@ -9,6 +9,7 @@
 #include <ggl/constants.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
+#include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <stddef.h>
@@ -24,12 +25,12 @@ GglError ggl_gg_config_read(
 
     GglObject path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < key_path.len; i++) {
-        path_obj[i] = GGL_OBJ_BUF(key_path.bufs[i]);
+        path_obj[i] = ggl_obj_buf(key_path.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ_LIST((GglList) { .items = path_obj, .len = key_path.len }) },
+          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
     );
 
     GglError remote_err = GGL_ERR_OK;
@@ -54,12 +55,12 @@ GglError ggl_gg_config_list(
 
     GglObject path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < key_path.len; i++) {
-        path_obj[i] = GGL_OBJ_BUF(key_path.bufs[i]);
+        path_obj[i] = ggl_obj_buf(key_path.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ_LIST((GglList) { .items = path_obj, .len = key_path.len }) },
+          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
     );
 
     GglError remote_err = GGL_ERR_OK;
@@ -75,18 +76,17 @@ GglError ggl_gg_config_list(
     if ((err == GGL_ERR_REMOTE) && (remote_err != GGL_ERR_OK)) {
         err = remote_err;
     }
-    if (result_obj.type != GGL_TYPE_LIST) {
+    if (ggl_obj_type(result_obj) != GGL_TYPE_LIST) {
         GGL_LOGE("Configuration list failed to return a list.");
         return GGL_ERR_FAILURE;
     }
-    for (size_t i = 0; i < result_obj.list.len; i++) {
-        if (result_obj.list.items[i].type != GGL_TYPE_BUF) {
-            GGL_LOGE("Configuration list returned a non-buffer list object.");
-            return GGL_ERR_FAILURE;
-        }
+    GglList result = ggl_obj_into_list(result_obj);
+    GglError ret = ggl_list_type_check(result, GGL_TYPE_BUF);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Configuration list returned a non-buffer list object.");
+        return GGL_ERR_FAILURE;
     }
-    subkeys_out->items = result_obj.list.items;
-    subkeys_out->len = result_obj.list.len;
+    *subkeys_out = result;
     return err;
 }
 
@@ -98,12 +98,12 @@ GglError ggl_gg_config_delete(GglBufList key_path) {
 
     GglObject path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < key_path.len; i++) {
-        path_obj[i] = GGL_OBJ_BUF(key_path.bufs[i]);
+        path_obj[i] = ggl_obj_buf(key_path.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ_LIST((GglList) { .items = path_obj, .len = key_path.len }) },
+          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
     );
 
     GglError remote_err = GGL_ERR_OK;
@@ -127,12 +127,12 @@ GglError ggl_gg_config_read_str(GglBufList key_path, GglBuffer *result) {
         return ret;
     }
 
-    if (result_obj.type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(result_obj) != GGL_TYPE_BUF) {
         GGL_LOGE("Configuration value is not a string.");
         return GGL_ERR_CONFIG;
     }
 
-    *result = result_obj.buf;
+    *result = ggl_obj_into_buf(result_obj);
     return GGL_ERR_OK;
 }
 
@@ -151,15 +151,15 @@ GglError ggl_gg_config_write(
 
     GglObject path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < key_path.len; i++) {
-        path_obj[i] = GGL_OBJ_BUF(key_path.bufs[i]);
+        path_obj[i] = ggl_obj_buf(key_path.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ_LIST((GglList) { .items = path_obj, .len = key_path.len }) },
+          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
         { GGL_STR("value"), value },
         { GGL_STR("timestamp"),
-          GGL_OBJ_I64((timestamp != NULL) ? *timestamp : 0) },
+          ggl_obj_i64((timestamp != NULL) ? *timestamp : 0) },
     );
     if (timestamp == NULL) {
         args.len -= 1;
@@ -191,12 +191,12 @@ GglError ggl_gg_config_subscribe(
 
     GglObject path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < key_path.len; i++) {
-        path_obj[i] = GGL_OBJ_BUF(key_path.bufs[i]);
+        path_obj[i] = ggl_obj_buf(key_path.bufs[i]);
     }
 
     GglMap args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ_LIST((GglList) { .items = path_obj, .len = key_path.len }) },
+          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
     );
 
     GglError remote_err = GGL_ERR_OK;

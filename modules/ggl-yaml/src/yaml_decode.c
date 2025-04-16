@@ -52,7 +52,7 @@ static GglError yaml_scalar_to_obj(
         return ret;
     }
 
-    *obj = GGL_OBJ_BUF(result);
+    *obj = ggl_obj_buf(result);
     return GGL_ERR_OK;
 }
 
@@ -108,9 +108,9 @@ static GglError yaml_mapping_to_obj(
         if (ret != GGL_ERR_OK) {
             return ret;
         }
-        assert(key_obj.type == GGL_TYPE_BUF);
+        assert(ggl_obj_type(key_obj) == GGL_TYPE_BUF);
 
-        pairs[i].key = key_obj.buf;
+        pairs[i].key = ggl_obj_into_buf(key_obj);
 
         ret = yaml_to_obj(document, value_node, alloc, &pairs[i].val);
         if (ret != GGL_ERR_OK) {
@@ -118,7 +118,7 @@ static GglError yaml_mapping_to_obj(
         }
     }
 
-    *obj = GGL_OBJ_MAP((GglMap) { .pairs = pairs, .len = len });
+    *obj = ggl_obj_map((GglMap) { .pairs = pairs, .len = len });
     return GGL_ERR_OK;
 }
 
@@ -164,7 +164,7 @@ static GglError yaml_sequence_to_obj(
         }
     }
 
-    *obj = GGL_OBJ_LIST((GglList) { .items = items, .len = len });
+    *obj = ggl_obj_list((GglList) { .items = items, .len = len });
     return GGL_ERR_OK;
 }
 

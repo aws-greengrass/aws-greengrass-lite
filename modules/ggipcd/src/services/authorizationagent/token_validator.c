@@ -60,7 +60,7 @@ GglError ggl_handle_token_validation(
     }
 
     GglSvcuid svcuid;
-    ret = ggl_ipc_svcuid_from_str(svcuid_obj->buf, &svcuid);
+    ret = ggl_ipc_svcuid_from_str(ggl_obj_into_buf(*svcuid_obj), &svcuid);
     if (ret != GGL_ERR_OK) {
         *ipc_error = (GglIpcError
         ) { .error_code = GGL_IPC_ERR_INVALID_TOKEN_ERROR,
@@ -87,6 +87,6 @@ GglError ggl_handle_token_validation(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#ValidateAuthorizationTokenResponse"),
-        GGL_OBJ_MAP(GGL_MAP({ GGL_STR("isValid"), GGL_OBJ_BOOL(true) }))
+        ggl_obj_map(GGL_MAP({ GGL_STR("isValid"), ggl_obj_bool(true) }))
     );
 }

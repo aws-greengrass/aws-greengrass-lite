@@ -38,13 +38,13 @@ static GglError apply_reset_config(
         return GGL_ERR_OK;
     }
 
-    if (reset_configuration->type != GGL_TYPE_LIST) {
+    if (ggl_obj_type(*reset_configuration) != GGL_TYPE_LIST) {
         GGL_LOGE("Reset update did not parse into a list "
                  "during configuration updates.");
         return GGL_ERR_INVALID;
     }
-    GGL_LIST_FOREACH(reset_element, reset_configuration->list) {
-        if (reset_element->type != GGL_TYPE_BUF) {
+    GGL_LIST_FOREACH(reset_element, ggl_obj_into_list(*reset_configuration)) {
+        if (ggl_obj_type(*reset_element) != GGL_TYPE_BUF) {
             GGL_LOGE("Configuration key for reset config "
                      "update not provided as a buffer.");
             return GGL_ERR_INVALID;
@@ -52,7 +52,7 @@ static GglError apply_reset_config(
 
         // Empty string means they want to reset the whole configuration to
         // default configuration.
-        if (ggl_buffer_eq(reset_element->buf, GGL_STR(""))) {
+        if (ggl_buffer_eq(ggl_obj_into_buf(*reset_element), GGL_STR(""))) {
             GGL_LOGI(
                 "Received a request to reset the entire configuration for %.*s",
                 (int) component_name.len,
@@ -83,7 +83,9 @@ static GglError apply_reset_config(
             return ret;
         }
 
-        ret = ggl_gg_config_jsonp_parse(reset_element->buf, &key_path);
+        ret = ggl_gg_config_jsonp_parse(
+            ggl_obj_into_buf(*reset_element), &key_path
+        );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Error parsing json pointer for config reset");
             return ret;
@@ -130,7 +132,7 @@ static GglError apply_merge_config(
     if (merge_configuration == NULL) {
         return GGL_ERR_OK;
     }
-    if (merge_configuration->type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(*merge_configuration) != GGL_TYPE_MAP) {
         GGL_LOGE("Merge update did not parse into a map during "
                  "configuration updates.");
         return GGL_ERR_INVALID;
@@ -189,7 +191,7 @@ GglError apply_configurations(
     if (doc_component_info == NULL) {
         return GGL_ERR_OK;
     }
-    if (doc_component_info->type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(*doc_component_info) != GGL_TYPE_MAP) {
         GGL_LOGE("Component information did not parse into a map during "
                  "configuration updates.");
         return GGL_ERR_INVALID;
@@ -197,7 +199,7 @@ GglError apply_configurations(
 
     GglObject *component_configuration = NULL;
     ret = ggl_map_validate(
-        doc_component_info->map,
+        ggl_obj_into_map(*doc_component_info),
         GGL_MAP_SCHEMA({ GGL_STR("configurationUpdate"),
                          false,
                          GGL_TYPE_MAP,
@@ -212,20 +214,24 @@ GglError apply_configurations(
         return GGL_ERR_OK;
     }
 
-    if (component_configuration->type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(*component_configuration) != GGL_TYPE_MAP) {
         GGL_LOGE("Configuration update did not parse into a map during "
                  "configuration updates.");
         return GGL_ERR_INVALID;
     }
 
     if (ggl_buffer_eq(operation, GGL_STR("merge"))) {
-        ret = apply_merge_config(component_name, component_configuration->map);
+        ret = apply_merge_config(
+            component_name, ggl_obj_into_map(*component_configuration)
+        );
         if (ret != GGL_ERR_OK) {
             return ret;
         }
     }
     if (ggl_buffer_eq(operation, GGL_STR("reset"))) {
-        ret = apply_reset_config(component_name, component_configuration->map);
+        ret = apply_reset_config(
+            component_name, ggl_obj_into_map(*component_configuration)
+        );
         if (ret != GGL_ERR_OK) {
             return ret;
         }

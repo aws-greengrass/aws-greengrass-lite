@@ -47,22 +47,23 @@ GglError ggl_handle_publish_to_iot_core(
             .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
+    GglBuffer topic_name = ggl_obj_into_buf(*topic_name_obj);
 
     GGL_LOGT(
         "topic_name_obj buffer: %.*s with length: %zu",
-        (int) topic_name_obj->buf.len,
-        topic_name_obj->buf.data,
-        topic_name_obj->buf.len
+        (int) topic_name.len,
+        topic_name.data,
+        topic_name.len
     );
 
     GglBuffer payload = GGL_STR("");
     if (payload_obj != NULL) {
-        payload = payload_obj->buf;
+        payload = ggl_obj_into_buf(*payload_obj);
     }
 
     int64_t qos = 0;
     if (qos_obj != NULL) {
-        ret = ggl_str_to_int64(qos_obj->buf, &qos);
+        ret = ggl_str_to_int64(ggl_obj_into_buf(*qos_obj), &qos);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to parse 'qos' string value.");
             *ipc_error = (GglIpcError
@@ -88,7 +89,7 @@ GglError ggl_handle_publish_to_iot_core(
         return GGL_ERR_INVALID;
     }
 
-    ret = ggl_ipc_auth(info, topic_name_obj->buf, ggl_ipc_mqtt_policy_matcher);
+    ret = ggl_ipc_auth(info, topic_name, ggl_ipc_mqtt_policy_matcher);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("IPC Operation not authorized.");
         *ipc_error = (GglIpcError
@@ -97,9 +98,7 @@ GglError ggl_handle_publish_to_iot_core(
         return GGL_ERR_INVALID;
     }
 
-    ret = ggl_aws_iot_mqtt_publish(
-        topic_name_obj->buf, payload, (uint8_t) qos, true
-    );
+    ret = ggl_aws_iot_mqtt_publish(topic_name, payload, (uint8_t) qos, true);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to publish the message.");
         *ipc_error = (GglIpcError
@@ -112,6 +111,6 @@ GglError ggl_handle_publish_to_iot_core(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#PublishToIoTCoreResponse"),
-        GGL_OBJ_MAP({ 0 })
+        ggl_obj_map((GglMap) { 0 })
     );
 }

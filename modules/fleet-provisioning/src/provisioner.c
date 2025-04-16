@@ -28,7 +28,7 @@
 #define TEMPLATE_PARAM_BUFFER_SIZE 10000
 
 static char global_thing_response_buf[512];
-static char global_cert_owenership[10024];
+static char global_cert_ownership[10024];
 static char global_register_thing_url[128] = { 0 };
 static char global_register_thing_accept_url[128] = { 0 };
 static char global_register_thing_reject_url[128] = { 0 };
@@ -64,7 +64,7 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
     );
 
     if (json_status != GGL_ERR_OK
-        && config_template_param_json_obj.type != GGL_TYPE_MAP) {
+        && ggl_obj_type(config_template_param_json_obj) != GGL_TYPE_MAP) {
         GGL_LOGI(
             "Provided Parameter is not in Json format: %.*s",
             (int) template_param.len,
@@ -82,7 +82,7 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
     //         ...
     //     }
     // }
-    GglObject thing_payload_obj = GGL_OBJ_MAP(GGL_MAP(
+    GglObject thing_payload_obj = ggl_obj_map(GGL_MAP(
         { GGL_STR("certificateOwnershipToken"), *cert_owner_gg_obj },
         { GGL_STR("parameters"), config_template_param_json_obj }
     ));
@@ -95,10 +95,10 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
     // Publish message builder for thing request
     GglMap thing_request_args = GGL_MAP(
         { GGL_STR("topic"),
-          GGL_OBJ_BUF((GglBuffer
+          ggl_obj_buf((GglBuffer
           ) { .len = strlen(global_register_thing_url),
               .data = (uint8_t *) global_register_thing_url }) },
-        { GGL_STR("payload"), GGL_OBJ_BUF(thing_request_buf) },
+        { GGL_STR("payload"), ggl_obj_buf(thing_request_buf) },
     );
 
     GglError ret_thing_req_publish
@@ -204,8 +204,8 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     (void) ctx;
     (void) handle;
 
-    GglBuffer *topic;
-    GglBuffer *payload;
+    GglBuffer topic;
+    GglBuffer payload;
 
     GglError ret
         = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
@@ -215,34 +215,37 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
     GGL_LOGI(
         "Got message from IoT Core; topic: %.*s, payload: %.*s.",
-        (int) topic->len,
-        topic->data,
-        (int) payload->len,
-        payload->data
+        (int) topic.len,
+        topic.data,
+        (int) payload.len,
+        payload.data
     );
 
-    if (strncmp((char *) topic->data, certificate_response_url, topic->len)
-        == 0) {
+    if (ggl_buffer_eq(
+            topic, ggl_buffer_from_null_term((char *) certificate_response_url)
+        )) {
         GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
-        memcpy(global_cert_owenership, payload->data, payload->len);
+        memcpy(global_cert_ownership, payload.data, payload.len);
 
         GglBuffer response_buffer = (GglBuffer
-        ) { .data = (uint8_t *) global_cert_owenership, .len = payload->len };
+        ) { .data = (uint8_t *) global_cert_ownership, .len = payload.len };
 
         ggl_json_decode_destructive(
             response_buffer, &balloc.alloc, &csr_payload_json_obj
         );
 
-        if (csr_payload_json_obj.type != GGL_TYPE_MAP) {
+        if (ggl_obj_type(csr_payload_json_obj) != GGL_TYPE_MAP) {
             return GGL_ERR_FAILURE;
         }
 
         GglObject *val;
         if (ggl_map_get(
-                csr_payload_json_obj.map, GGL_STR("certificatePem"), &val
+                ggl_obj_into_map(csr_payload_json_obj),
+                GGL_STR("certificatePem"),
+                &val
             )) {
-            if (val->type != GGL_TYPE_BUF) {
+            if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
                 return GGL_ERR_PARSE;
             }
             int fd = open(
@@ -256,7 +259,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 return GGL_ERR_FAILURE;
             }
 
-            ret = ggl_file_write(fd, val->buf);
+            ret = ggl_file_write(fd, ggl_obj_into_buf(*val));
             ggl_close(fd);
             if (ret != GGL_ERR_OK) {
                 return ret;
@@ -264,7 +267,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
             ret = ggl_gg_config_write(
                 GGL_BUF_LIST(GGL_STR("system"), GGL_STR("certificateFilePath")),
-                GGL_OBJ_BUF((GglBuffer
+                ggl_obj_buf((GglBuffer
                 ) { .data = (uint8_t *) global_cert_file_path,
                     .len = strlen(global_cert_file_path) }),
                 &(int64_t) { 3 }
@@ -275,19 +278,23 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
             // Now find and save the value of certificateOwnershipToken
             if (ggl_map_get(
-                    csr_payload_json_obj.map,
+                    ggl_obj_into_map(csr_payload_json_obj),
                     GGL_STR("certificateOwnershipToken"),
                     &val
                 )) {
-                if (val->type != GGL_TYPE_BUF) {
+                if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
                     return GGL_ERR_PARSE;
                 }
-                memcpy(global_cert_owenership, val->buf.data, val->buf.len);
+                memcpy(
+                    global_cert_ownership,
+                    ggl_obj_into_buf(*val).data,
+                    ggl_obj_into_buf(*val).len
+                );
 
                 GGL_LOGI(
                     "Global Certificate Ownership Val %.*s",
-                    (int) val->buf.len,
-                    global_cert_owenership
+                    (int) ggl_obj_into_buf(*val).len,
+                    global_cert_ownership
                 );
 
                 // Now that we have a certificate make a call to register a
@@ -299,31 +306,30 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 }
             }
         }
-    } else if (strncmp(
-                   (char *) topic->data,
-                   global_register_thing_accept_url,
-                   topic->len
-               )
-               == 0) {
+    } else if (ggl_buffer_eq(
+                   topic,
+                   ggl_buffer_from_null_term(global_register_thing_accept_url)
+               )) {
         GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
 
-        memcpy(global_thing_response_buf, payload->data, payload->len);
+        memcpy(global_thing_response_buf, payload.data, payload.len);
 
-        GglBuffer response_buffer
-            = (GglBuffer) { .data = (uint8_t *) global_thing_response_buf,
-                            .len = payload->len };
+        GglBuffer response_buffer = (GglBuffer
+        ) { .data = (uint8_t *) global_thing_response_buf, .len = payload.len };
         GglObject thing_payload_json_obj;
 
         ggl_json_decode_destructive(
             response_buffer, &balloc.alloc, &thing_payload_json_obj
         );
-        if (thing_payload_json_obj.type != GGL_TYPE_MAP) {
+        if (ggl_obj_type(thing_payload_json_obj) != GGL_TYPE_MAP) {
             return GGL_ERR_FAILURE;
         }
 
         GglObject *val;
         if (ggl_map_get(
-                thing_payload_json_obj.map, GGL_STR("thingName"), &val
+                ggl_obj_into_map(thing_payload_json_obj),
+                GGL_STR("thingName"),
+                &val
             )) {
             ret = ggl_gg_config_write(
                 GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")),
@@ -344,10 +350,10 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     } else {
         GGL_LOGI(
             "Got message from IoT Core; topic: %.*s, payload: %.*s.",
-            (int) topic->len,
-            topic->data,
-            (int) payload->len,
-            payload->data
+            (int) topic.len,
+            topic.data,
+            (int) payload.len,
+            payload.data
         );
     }
 
@@ -371,7 +377,7 @@ GglError make_request(
     // Subscribe to csr success topic
     GglMap subscribe_args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ_BUF((GglBuffer
+          ggl_obj_buf((GglBuffer
           ) { .data = (uint8_t *) certificate_response_url,
               .len = strlen(certificate_response_url) }) },
     );
@@ -402,7 +408,7 @@ GglError make_request(
     // Subscribe to csr reject topic
     GglMap subscribe_reject_args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ_BUF((GglBuffer
+          ggl_obj_buf((GglBuffer
           ) { .data = (uint8_t *) certificate_response_reject_url,
               .len = strlen(certificate_response_reject_url) }) },
     );
@@ -433,7 +439,7 @@ GglError make_request(
     // Subscribe to register thing success topic
     GglMap subscribe_thing_args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ_BUF((GglBuffer
+          ggl_obj_buf((GglBuffer
           ) { .len = strlen(global_register_thing_accept_url),
               .data = (uint8_t *) global_register_thing_accept_url }) },
     );
@@ -462,7 +468,7 @@ GglError make_request(
     // Subscribe to register thing success topic
     GglMap subscribe_thing_reject_args = GGL_MAP(
         { GGL_STR("topic_filter"),
-          GGL_OBJ_BUF((GglBuffer
+          ggl_obj_buf((GglBuffer
           ) { .len = strlen(global_register_thing_reject_url),
               .data = (uint8_t *) global_register_thing_reject_url }) },
     );
@@ -492,8 +498,8 @@ GglError make_request(
 
     // Create a json payload object
     GglObject csr_payload_obj
-        = GGL_OBJ_MAP(GGL_MAP({ GGL_STR("certificateSigningRequest"),
-                                GGL_OBJ_BUF(csr_as_ggl_buffer) }));
+        = ggl_obj_map(GGL_MAP({ GGL_STR("certificateSigningRequest"),
+                                ggl_obj_buf(csr_as_ggl_buffer) }));
     GglError ret_err_json = ggl_json_encode(csr_payload_obj, &csr_buf);
     if (ret_err_json != GGL_ERR_OK) {
         return GGL_ERR_PARSE;
@@ -505,9 +511,9 @@ GglError make_request(
     // Prepare publish packet for requesting certificate with csr
     GglMap args = GGL_MAP(
         { GGL_STR("topic"),
-          GGL_OBJ_BUF((GglBuffer) { .len = strlen(cert_request_url),
+          ggl_obj_buf((GglBuffer) { .len = strlen(cert_request_url),
                                     .data = (uint8_t *) cert_request_url }) },
-        { GGL_STR("payload"), GGL_OBJ_BUF(csr_buf) },
+        { GGL_STR("payload"), ggl_obj_buf(csr_buf) },
     );
 
     ggl_sleep(2);

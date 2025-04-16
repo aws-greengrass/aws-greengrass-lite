@@ -41,11 +41,12 @@ static GglObject fetch_creds(GglBumpAlloc the_allocator) {
     if (error != GGL_ERR_OK) {
         GGL_LOGE("tes request failed....");
     } else {
-        if (result.type == GGL_TYPE_BUF) {
+        if (ggl_obj_type(result) == GGL_TYPE_BUF) {
+            GglBuffer result_buf = ggl_obj_into_buf(result);
             GGL_LOGI(
                 "read value: %.*s",
-                (int) result.buf.len,
-                (char *) result.buf.data
+                (int) result_buf.len,
+                (char *) result_buf.data
             );
         }
     }
@@ -92,16 +93,16 @@ static void request_handler(struct evhttp_request *req, void *arg) {
         = { .data = (uint8_t *) auth_header, .len = auth_header_len };
 
     GglMap svcuid_map
-        = GGL_MAP({ GGL_STR("svcuid"), GGL_OBJ_BUF(auth_header_buf) }, );
+        = GGL_MAP({ GGL_STR("svcuid"), ggl_obj_buf(auth_header_buf) }, );
 
-    GglObject result = GGL_OBJ_BOOL(false);
+    GglObject result_obj;
     GglError res = ggl_call(
         GGL_STR("ipc_component"),
         GGL_STR("verify_svcuid"),
         svcuid_map,
         NULL,
         NULL,
-        &result
+        &result_obj
     );
     if (res != GGL_ERR_OK) {
         GGL_LOGE("Failed to make an IPC call to ipc_component to check svcuid."
@@ -118,7 +119,13 @@ static void request_handler(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    if (result.boolean == false) {
+    if (ggl_obj_type(result_obj) != GGL_TYPE_BOOLEAN) {
+        GGL_LOGE("Call to verify_svcuid responded with non-bool value.");
+        return;
+    }
+
+    bool result = ggl_obj_into_bool(result_obj);
+    if (!result) {
         GGL_LOGE("svcuid cannot be found");
         // Respond with 404 not found.
         struct evbuffer *response = evbuffer_new();
@@ -259,7 +266,7 @@ GglError http_server(void) {
             GGL_STR("aws.greengrass.TokenExchangeService"),
             GGL_STR("version")
         ),
-        GGL_OBJ_BUF(GGL_STR(GGL_VERSION)),
+        ggl_obj_buf(GGL_STR(GGL_VERSION)),
         NULL
     );
     if (ret != GGL_ERR_OK) {
@@ -273,7 +280,7 @@ GglError http_server(void) {
             GGL_STR("aws.greengrass.TokenExchangeService"),
             GGL_STR("configArn")
         ),
-        GGL_OBJ_LIST(GGL_LIST()),
+        ggl_obj_list(GGL_LIST()),
         NULL
     );
     if (ret != GGL_ERR_OK) {
@@ -289,7 +296,7 @@ GglError http_server(void) {
             GGL_STR("configuration"),
             GGL_STR("port")
         ),
-        GGL_OBJ_BUF(port_as_buffer),
+        ggl_obj_buf(port_as_buffer),
         NULL
     );
     if (ret != GGL_ERR_OK) {

@@ -35,8 +35,8 @@ static GglError policy_match(
     if (ret != GGL_ERR_OK) {
         return GGL_ERR_CONFIG;
     }
-    GglList policy_operations = operations_obj->list;
-    GglList policy_resources = resources_obj->list;
+    GglList policy_operations = ggl_obj_into_list(*operations_obj);
+    GglList policy_resources = ggl_obj_into_list(*resources_obj);
 
     ret = ggl_list_type_check(policy_operations, GGL_TYPE_BUF);
     if (ret != GGL_ERR_OK) {
@@ -47,11 +47,14 @@ static GglError policy_match(
         return GGL_ERR_CONFIG;
     }
 
-    GGL_LIST_FOREACH(policy_operation, policy_operations) {
-        if (ggl_buffer_eq(operation, policy_operation->buf)) {
-            GGL_LIST_FOREACH(policy_resource, policy_resources) {
-                if (ggl_buffer_eq(GGL_STR("*"), policy_resource->buf)
-                    || matcher(resource, policy_resource->buf)) {
+    GGL_LIST_FOREACH(policy_operation_obj, policy_operations) {
+        GglBuffer policy_operation = ggl_obj_into_buf(*policy_operation_obj);
+        if (ggl_buffer_eq(operation, policy_operation)) {
+            GGL_LIST_FOREACH(policy_resource_obj, policy_resources) {
+                GglBuffer policy_resource
+                    = ggl_obj_into_buf(*policy_resource_obj);
+                if (ggl_buffer_eq(GGL_STR("*"), policy_resource)
+                    || matcher(resource, policy_resource)) {
                     return GGL_ERR_OK;
                 }
             }
@@ -95,21 +98,23 @@ GglError ggl_ipc_auth(
         return ret;
     }
 
-    if (policies.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(policies) != GGL_TYPE_MAP) {
         GGL_LOGE("Configuration's accessControl is not a map.");
         return GGL_ERR_CONFIG;
     }
 
-    GglMap policy_map = policies.map;
+    GglMap policy_map = ggl_obj_into_map(policies);
 
     GGL_MAP_FOREACH(policy_kv, policy_map) {
         GglObject policy = policy_kv->val;
-        if (policy.type != GGL_TYPE_MAP) {
+        if (ggl_obj_type(policy) != GGL_TYPE_MAP) {
             GGL_LOGE("Policy value is not a map.");
             return GGL_ERR_CONFIG;
         }
 
-        ret = policy_match(policy.map, info->operation, resource, matcher);
+        ret = policy_match(
+            ggl_obj_into_map(policy), info->operation, resource, matcher
+        );
         if (ret == GGL_ERR_OK) {
             return GGL_ERR_OK;
         }

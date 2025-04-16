@@ -63,19 +63,20 @@ static GglError request_token_from_aws(GglBuffer *response) {
 }
 
 static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
-    GglObject *creds;
-    bool ret = ggl_map_get(json_creds, GGL_STR("credentials"), &creds);
+    GglObject *creds_obj;
+    bool ret = ggl_map_get(json_creds, GGL_STR("credentials"), &creds_obj);
     if (!ret) {
         GGL_LOGE("TES response missing credentials.");
         return GGL_ERR_INVALID;
     }
 
-    if (creds->type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(*creds_obj) != GGL_TYPE_MAP) {
         GGL_LOGE("TES response credentials not a JSON object.");
         return GGL_ERR_INVALID;
     }
+    GglMap creds = ggl_obj_into_map(*creds_obj);
 
-    GGL_MAP_FOREACH(pair, creds->map) {
+    GGL_MAP_FOREACH(pair, creds) {
         if (ggl_buffer_eq(pair->key, GGL_STR("accessKeyId"))) {
             pair->key = GGL_STR("AccessKeyId");
         } else if (ggl_buffer_eq(pair->key, GGL_STR("secretAccessKey"))) {
@@ -87,7 +88,7 @@ static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
         }
     }
 
-    *out_json = creds->map;
+    *out_json = creds;
     return GGL_ERR_OK;
 }
 
@@ -114,9 +115,15 @@ static GglError rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
 
     GGL_LOGT("Received TES response: %.*s", (int) response.len, response.data);
 
+    if (ggl_obj_type(json_cred_obj) != GGL_TYPE_MAP) {
+        GGL_LOGE("JSON response is not an object.");
+        return GGL_ERR_FAILURE;
+    }
+
     GglObject *creds;
-    bool ret_contains
-        = ggl_map_get(json_cred_obj.map, GGL_STR("credentials"), &creds);
+    bool ret_contains = ggl_map_get(
+        ggl_obj_into_map(json_cred_obj), GGL_STR("credentials"), &creds
+    );
 
     if (!ret_contains) {
         GGL_LOGE("Request failed, Invalid credentials");
@@ -150,18 +157,20 @@ static GglError rpc_request_formatted_creds(
         return ret;
     }
 
-    if (json_cred_obj.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(json_cred_obj) != GGL_TYPE_MAP) {
         GGL_LOGE("TES response not a JSON object.");
         return GGL_ERR_FAILURE;
     }
 
     static GglMap server_json_creds = { 0 };
-    ret = create_map_for_server(json_cred_obj.map, &server_json_creds);
+    ret = create_map_for_server(
+        ggl_obj_into_map(json_cred_obj), &server_json_creds
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    ggl_respond(handle, GGL_OBJ_MAP(server_json_creds));
+    ggl_respond(handle, ggl_obj_map(server_json_creds));
     return GGL_ERR_OK;
 }
 

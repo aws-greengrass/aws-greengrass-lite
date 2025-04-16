@@ -74,11 +74,11 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
     const GglMap STATUS_MAP = GGL_MAP(
         { GGL_STR("NEW"), GGL_OBJ_NULL() },
         { GGL_STR("INSTALLED"), GGL_OBJ_NULL() },
-        { GGL_STR("STARTING"), GGL_OBJ_BUF(GGL_STR("--reloading")) },
-        { GGL_STR("RUNNING"), GGL_OBJ_BUF(GGL_STR("--ready")) },
+        { GGL_STR("STARTING"), ggl_obj_buf(GGL_STR("--reloading")) },
+        { GGL_STR("RUNNING"), ggl_obj_buf(GGL_STR("--ready")) },
         { GGL_STR("ERRORED"), GGL_OBJ_NULL() },
         { GGL_STR("BROKEN"), GGL_OBJ_NULL() },
-        { GGL_STR("STOPPING"), GGL_OBJ_BUF(GGL_STR("--stopping")) },
+        { GGL_STR("STOPPING"), ggl_obj_buf(GGL_STR("--stopping")) },
         { GGL_STR("FINISHED"), GGL_OBJ_NULL() }
     );
 
@@ -108,7 +108,7 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
         return err;
     }
 
-    if (status_obj->type == GGL_TYPE_NULL) {
+    if (ggl_obj_type(*status_obj) == GGL_TYPE_NULL) {
         return GGL_ERR_OK;
     }
 
@@ -125,7 +125,7 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
                      (char *) cgroup.buf.data,
                      "--",
                      "systemd-notify",
-                     (char *) status_obj->buf.data,
+                     (char *) ggl_obj_into_buf(*status_obj).data,
                      NULL };
     err = ggl_exec_command(argv);
     if (err != GGL_ERR_OK) {
@@ -138,7 +138,7 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
         (const char *) component_name.data,
         (int) status.len,
         status.data,
-        status_obj->buf.data
+        ggl_obj_into_buf(*status_obj).data
     );
 
     return GGL_ERR_OK;

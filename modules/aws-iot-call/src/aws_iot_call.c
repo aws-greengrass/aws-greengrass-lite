@@ -46,24 +46,30 @@ static void cleanup_pthread_cond(pthread_cond_t **cond) {
 }
 
 static GglError get_client_token(GglObject payload, GglBuffer **client_token) {
-    *client_token = NULL;
-    if (payload.type != GGL_TYPE_MAP) {
+    assert(client_token != NULL);
+    assert(*client_token != NULL);
+
+    if (ggl_obj_type(payload) != GGL_TYPE_MAP) {
+        *client_token = NULL;
         return GGL_ERR_OK;
     }
+    GglMap payload_map = ggl_obj_into_map(payload);
+
     GglObject *found;
-    if (!ggl_map_get(payload.map, GGL_STR("clientToken"), &found)) {
+    if (!ggl_map_get(payload_map, GGL_STR("clientToken"), &found)) {
+        *client_token = NULL;
         return GGL_ERR_OK;
     }
-    if (found->type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(*found) != GGL_TYPE_BUF) {
         GGL_LOGE("Invalid clientToken type.");
         return GGL_ERR_INVALID;
     }
-    *client_token = &found->buf;
+    **client_token = ggl_obj_into_buf(*found);
     return GGL_ERR_OK;
 }
 
 static bool match_client_token(GglObject payload, GglBuffer *client_token) {
-    GglBuffer *payload_client_token = NULL;
+    GglBuffer *payload_client_token = &(GglBuffer) { 0 };
 
     GglError ret = get_client_token(payload, &payload_client_token);
     if (ret != GGL_ERR_OK) {
@@ -87,8 +93,8 @@ static GglError subscription_callback(
     (void) handle;
     CallbackCtx *call_ctx = ctx;
 
-    GglBuffer *topic;
-    GglBuffer *payload;
+    GglBuffer topic;
+    GglBuffer payload;
     GglError ret
         = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
     if (ret != GGL_ERR_OK) {
@@ -97,7 +103,7 @@ static GglError subscription_callback(
 
     bool decoded = true;
     ret = ggl_json_decode_destructive(
-        *payload, call_ctx->alloc, call_ctx->result
+        payload, call_ctx->alloc, call_ctx->result
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to decode response payload.");
@@ -110,16 +116,14 @@ static GglError subscription_callback(
         return GGL_ERR_OK;
     }
 
-    if (ggl_buffer_has_suffix(*topic, GGL_STR("/accepted"))) {
+    if (ggl_buffer_has_suffix(topic, GGL_STR("/accepted"))) {
         if (!decoded) {
             return GGL_ERR_INVALID;
         }
         call_ctx->ret = GGL_ERR_OK;
-    } else if (ggl_buffer_has_suffix(*topic, GGL_STR("/rejected"))) {
+    } else if (ggl_buffer_has_suffix(topic, GGL_STR("/rejected"))) {
         GGL_LOGE(
-            "Received rejected response: %.*s",
-            (int) payload->len,
-            payload->data
+            "Received rejected response: %.*s", (int) payload.len, payload.data
         );
         call_ctx->ret = GGL_ERR_REMOTE;
     } else {
@@ -178,7 +182,7 @@ GglError ggl_aws_iot_call(
         .mtx = &notify_mtx,
         .cond = &notify_cond,
         .ready = false,
-        .client_token = NULL,
+        .client_token = &(GglBuffer) { 0 },
         .alloc = alloc,
         .result = result,
         .ret = GGL_ERR_FAILURE,

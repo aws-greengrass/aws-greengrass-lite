@@ -19,40 +19,42 @@
 
 static GglError get_status(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
-    GglObject *component_name = NULL;
+    GglObject *component_name_obj;
     GglError ret = ggl_map_validate(
         params,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("component_name"), true, GGL_TYPE_BUF, &component_name }
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("component_name"),
+                         true,
+                         GGL_TYPE_BUF,
+                         &component_name_obj })
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("get_status received invalid arguments.");
         return GGL_ERR_INVALID;
     }
-    if (component_name->buf.len > COMPONENT_NAME_MAX_LEN) {
+    GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
+    if (component_name.len > COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("`component_name` too long");
         return GGL_ERR_RANGE;
     }
 
     GglBuffer status;
-    GglError error = gghealthd_get_status(component_name->buf, &status);
+    GglError error = gghealthd_get_status(component_name, &status);
     if (error != GGL_ERR_OK) {
         return error;
     }
 
     GGL_LOGD(
         "%.*s is %.*s",
-        (int) component_name->buf.len,
-        component_name->buf.data,
+        (int) component_name.len,
+        component_name.data,
         (int) status.len,
         status.data
     );
     ggl_respond(
         handle,
-        GGL_OBJ_MAP(GGL_MAP(
-            { GGL_STR("component_name"), GGL_OBJ_BUF(component_name->buf) },
-            { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(status) },
+        ggl_obj_map(GGL_MAP(
+            { GGL_STR("component_name"), ggl_obj_buf(component_name) },
+            { GGL_STR("lifecycle_state"), ggl_obj_buf(status) },
         ))
     );
     return GGL_ERR_OK;
@@ -60,29 +62,35 @@ static GglError get_status(void *ctx, GglMap params, uint32_t handle) {
 
 static GglError update_status(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
-    GglObject *component_name;
-    GglObject *state;
+    GglObject *component_name_obj;
+    GglObject *state_obj;
     GglError ret = ggl_map_validate(
         params,
         GGL_MAP_SCHEMA(
-            { GGL_STR("component_name"), true, GGL_TYPE_BUF, &component_name },
-            { GGL_STR("lifecycle_state"), true, GGL_TYPE_BUF, &state },
+            { GGL_STR("component_name"),
+              true,
+              GGL_TYPE_BUF,
+              &component_name_obj },
+            { GGL_STR("lifecycle_state"), true, GGL_TYPE_BUF, &state_obj },
         )
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("update_status received invalid arguments.");
         return GGL_ERR_INVALID;
     }
-    if (component_name->buf.len > COMPONENT_NAME_MAX_LEN) {
+    GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
+    GglBuffer state = ggl_obj_into_buf(*state_obj);
+
+    if (component_name.len > COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("`component_name` too long");
         return GGL_ERR_RANGE;
     }
-    if (state->buf.len > LIFECYCLE_STATE_MAX_LEN) {
+    if (state.len > LIFECYCLE_STATE_MAX_LEN) {
         GGL_LOGE("`lifecycle_state` too long");
         return GGL_ERR_RANGE;
     }
 
-    GglError error = gghealthd_update_status(component_name->buf, state->buf);
+    GglError error = gghealthd_update_status(component_name, state);
     if (error != GGL_ERR_OK) {
         return error;
     }
@@ -101,7 +109,7 @@ static GglError get_health(void *ctx, GglMap params, uint32_t handle) {
         return error;
     }
 
-    ggl_respond(handle, GGL_OBJ_BUF(status));
+    ggl_respond(handle, ggl_obj_buf(status));
     return GGL_ERR_OK;
 }
 
@@ -119,32 +127,32 @@ static GglError subscribe_to_lifecycle_completion(
     void *ctx, GglMap params, uint32_t handle
 ) {
     (void) ctx;
-    GglObject *component_name = NULL;
+    GglObject *component_name_obj = NULL;
     GglError ret = ggl_map_validate(
         params,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("component_name"), true, GGL_TYPE_BUF, &component_name }
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("component_name"),
+                         true,
+                         GGL_TYPE_BUF,
+                         &component_name_obj })
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("subscribe_to_lifecycle_completion received invalid arguments."
         );
         return GGL_ERR_INVALID;
     }
-    if (component_name->buf.len > COMPONENT_NAME_MAX_LEN) {
+    GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
+    if (component_name.len > COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("`component_name` too long");
         return GGL_ERR_RANGE;
     }
 
-    ret = gghealthd_register_lifecycle_subscription(
-        component_name->buf, handle
-    );
+    ret = gghealthd_register_lifecycle_subscription(component_name, handle);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
     GglBuffer status;
-    GglError error = gghealthd_get_status(component_name->buf, &status);
+    GglError error = gghealthd_get_status(component_name, &status);
     if (error != GGL_ERR_OK) {
         // Sub has been accepted
         return GGL_ERR_OK;
@@ -155,9 +163,9 @@ static GglError subscribe_to_lifecycle_completion(
         GGL_LOGD("Sending early response.");
         ggl_sub_respond(
             handle,
-            GGL_OBJ_MAP(GGL_MAP(
-                { GGL_STR("component_name"), *component_name },
-                { GGL_STR("lifecycle_state"), GGL_OBJ_BUF(status) }
+            ggl_obj_map(GGL_MAP(
+                { GGL_STR("component_name"), *component_name_obj },
+                { GGL_STR("lifecycle_state"), ggl_obj_buf(status) }
             ))
         );
     }

@@ -35,7 +35,7 @@
 #define RETRY_DELAY_SECONDS "1"
 
 static GglError concat_script_name_prefix_vec(
-    const GglMap *recipe_map, GglByteVec *script_name_prefix_vec
+    GglMap recipe_map, GglByteVec *script_name_prefix_vec
 );
 
 /// Parses [DependencyType] portion of recipe and updates the unit file
@@ -44,7 +44,7 @@ static GglError parse_dependency_type(
     GglKV component_dependency, GglByteVec *out
 ) {
     GglObject *val;
-    if (component_dependency.val.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(component_dependency.val) != GGL_TYPE_MAP) {
         GGL_LOGE(
             "Any information provided under[ComponentDependencies] section "
             "only supports a key value map type."
@@ -52,13 +52,15 @@ static GglError parse_dependency_type(
         return GGL_ERR_INVALID;
     }
     if (ggl_map_get(
-            component_dependency.val.map, GGL_STR("DependencyType"), &val
+            ggl_obj_into_map(component_dependency.val),
+            GGL_STR("DependencyType"),
+            &val
         )) {
-        if (val->type != GGL_TYPE_BUF) {
+        if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
             return GGL_ERR_PARSE;
         }
 
-        if (ggl_buffer_eq(GGL_STR("HARD"), val->buf)) {
+        if (ggl_buffer_eq(GGL_STR("HARD"), ggl_obj_into_buf(*val))) {
             GglError ret = ggl_byte_vec_append(out, GGL_STR("BindsTo=ggl."));
             ggl_byte_vec_chain_append(&ret, out, component_dependency.key);
             ggl_byte_vec_chain_append(&ret, out, GGL_STR(".service\n"));
@@ -79,29 +81,25 @@ static GglError parse_dependency_type(
 }
 
 static GglError dependency_parser(GglObject *dependency_obj, GglByteVec *out) {
-    if (dependency_obj->type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(*dependency_obj) != GGL_TYPE_MAP) {
         return GGL_ERR_INVALID;
     }
-    for (size_t count = 0; count < dependency_obj->map.len; count++) {
-        if (dependency_obj->map.pairs[count].val.type == GGL_TYPE_MAP) {
-            if (ggl_buffer_eq(
-                    dependency_obj->map.pairs[count].key,
-                    GGL_STR("aws.greengrass.Nucleus")
-                )
+    GglMap dependencies = ggl_obj_into_map(*dependency_obj);
+    GGL_MAP_FOREACH(dep, dependencies) {
+        if (ggl_obj_type(dep->val) == GGL_TYPE_MAP) {
+            if (ggl_buffer_eq(dep->key, GGL_STR("aws.greengrass.Nucleus"))
                 || ggl_buffer_eq(
-                    dependency_obj->map.pairs[count].key,
-                    GGL_STR("aws.greengrass.NucleusLite")
+                    dep->key, GGL_STR("aws.greengrass.NucleusLite")
                 )) {
                 GGL_LOGD(
                     "Skipping dependency on %.*s for the current unit file",
-                    (int) dependency_obj->map.pairs[count].key.len,
-                    dependency_obj->map.pairs[count].key.data
+                    (int) dep->key.len,
+                    dep->key.data
                 );
                 continue;
             }
 
-            GglError ret
-                = parse_dependency_type(dependency_obj->map.pairs[count], out);
+            GglError ret = parse_dependency_type(*dep, out);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
@@ -115,8 +113,6 @@ static GglError dependency_parser(GglObject *dependency_obj, GglByteVec *out) {
 static GglError fill_unit_section(
     GglMap recipe_map, GglByteVec *concat_unit_vector, PhaseSelection phase
 ) {
-    GglObject *val;
-
     GglError ret = ggl_byte_vec_append(concat_unit_vector, GGL_STR("[Unit]\n"));
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -136,14 +132,19 @@ static GglError fill_unit_section(
     }
 
     ret = ggl_byte_vec_append(concat_unit_vector, GGL_STR("Description="));
+
+    GglObject *val;
     if (ggl_map_get(recipe_map, GGL_STR("ComponentDescription"), &val)) {
-        if (val->type != GGL_TYPE_BUF) {
+        if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
             return GGL_ERR_PARSE;
         }
 
-        ggl_byte_vec_chain_append(&ret, concat_unit_vector, val->buf);
+        ggl_byte_vec_chain_append(
+            &ret, concat_unit_vector, ggl_obj_into_buf(*val)
+        );
         ggl_byte_vec_chain_push(&ret, concat_unit_vector, '\n');
     }
+
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -159,7 +160,8 @@ static GglError fill_unit_section(
 
     if (phase == RUN_STARTUP) {
         if (ggl_map_get(recipe_map, GGL_STR("ComponentDependencies"), &val)) {
-            if ((val->type == GGL_TYPE_MAP) || (val->type == GGL_TYPE_LIST)) {
+            GglObjectType type = ggl_obj_type(*val);
+            if ((type == GGL_TYPE_MAP) || (type == GGL_TYPE_LIST)) {
                 return dependency_parser(val, concat_unit_vector);
             }
         }
@@ -169,19 +171,21 @@ static GglError fill_unit_section(
 }
 
 static GglError concat_script_name_prefix_vec(
-    const GglMap *recipe_map, GglByteVec *script_name_prefix_vec
+    GglMap recipe_map, GglByteVec *script_name_prefix_vec
 ) {
     GglError ret;
     GglObject *component_name;
-    if (!ggl_map_get(*recipe_map, GGL_STR("ComponentName"), &component_name)) {
+    if (!ggl_map_get(recipe_map, GGL_STR("ComponentName"), &component_name)) {
         return GGL_ERR_INVALID;
     }
-    if (component_name->type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(*component_name) != GGL_TYPE_BUF) {
         return GGL_ERR_INVALID;
     }
 
     // build the script name prefix string
-    ret = ggl_byte_vec_append(script_name_prefix_vec, component_name->buf);
+    ret = ggl_byte_vec_append(
+        script_name_prefix_vec, ggl_obj_into_buf(*component_name)
+    );
     ggl_byte_vec_chain_append(
         &ret, script_name_prefix_vec, GGL_STR(".script.")
     );
@@ -192,15 +196,14 @@ static GglError concat_script_name_prefix_vec(
 }
 
 static GglError concat_working_dir_vec(
-    const GglMap *recipe_map, GglByteVec *working_dir_vec, Recipe2UnitArgs *args
-
+    GglMap recipe_map, GglByteVec *working_dir_vec, Recipe2UnitArgs *args
 ) {
     GglError ret;
     GglObject *component_name;
-    if (!ggl_map_get(*recipe_map, GGL_STR("ComponentName"), &component_name)) {
+    if (!ggl_map_get(recipe_map, GGL_STR("ComponentName"), &component_name)) {
         return GGL_ERR_INVALID;
     }
-    if (component_name->type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(*component_name) != GGL_TYPE_BUF) {
         return GGL_ERR_INVALID;
     }
 
@@ -209,7 +212,9 @@ static GglError concat_working_dir_vec(
         working_dir_vec, ggl_buffer_from_null_term(args->root_dir)
     );
     ggl_byte_vec_chain_append(&ret, working_dir_vec, GGL_STR("/work/"));
-    ggl_byte_vec_chain_append(&ret, working_dir_vec, component_name->buf);
+    ggl_byte_vec_chain_append(
+        &ret, working_dir_vec, ggl_obj_into_buf(*component_name)
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -218,31 +223,31 @@ static GglError concat_working_dir_vec(
 }
 
 static GglError concat_exec_start_section_vec(
-    const GglMap *recipe_map,
+    GglMap recipe_map,
     GglByteVec *exec_start_section_vec,
     GglObject **component_name,
     Recipe2UnitArgs *args
 ) {
     GglError ret;
-    if (!ggl_map_get(*recipe_map, GGL_STR("ComponentName"), component_name)) {
+    if (!ggl_map_get(recipe_map, GGL_STR("ComponentName"), component_name)) {
         return GGL_ERR_INVALID;
     }
 
-    if ((*component_name)->type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(**component_name) != GGL_TYPE_BUF) {
         return GGL_ERR_INVALID;
     }
 
     GglObject *component_version_obj;
     if (!ggl_map_get(
-            *recipe_map, GGL_STR("ComponentVersion"), &component_version_obj
+            recipe_map, GGL_STR("ComponentVersion"), &component_version_obj
         )) {
         return GGL_ERR_INVALID;
     }
 
-    if (component_version_obj->type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(*component_version_obj) != GGL_TYPE_BUF) {
         return GGL_ERR_INVALID;
     }
-    GglBuffer component_version = component_version_obj->buf;
+    GglBuffer component_version = ggl_obj_into_buf(*component_version_obj);
 
     // build the path for ExecStart section in unit file
     ret = ggl_byte_vec_append(
@@ -251,7 +256,7 @@ static GglError concat_exec_start_section_vec(
     );
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -n "));
     ggl_byte_vec_chain_append(
-        &ret, exec_start_section_vec, (*component_name)->buf
+        &ret, exec_start_section_vec, ggl_obj_into_buf(**component_name)
     );
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, GGL_STR(" -v "));
     ggl_byte_vec_chain_append(&ret, exec_start_section_vec, component_version);
@@ -477,7 +482,7 @@ static GglError manifest_builder(
         if (ggl_map_get(
                 selected_lifecycle_map, GGL_STR("bootstrap"), &obj_for_if_exists
             )) {
-            if (obj_for_if_exists->type == GGL_TYPE_LIST) {
+            if (ggl_obj_type(*obj_for_if_exists) == GGL_TYPE_LIST) {
                 GGL_LOGE("bootstrap is a list type");
                 return GGL_ERR_INVALID;
             }
@@ -498,7 +503,7 @@ static GglError manifest_builder(
         if (ggl_map_get(
                 selected_lifecycle_map, GGL_STR("install"), &obj_for_if_exists
             )) {
-            if (obj_for_if_exists->type == GGL_TYPE_LIST) {
+            if (ggl_obj_type(*obj_for_if_exists) == GGL_TYPE_LIST) {
                 GGL_LOGE("install is a list type");
                 return GGL_ERR_INVALID;
             }
@@ -513,7 +518,7 @@ static GglError manifest_builder(
                 GGL_STR("startup"),
                 &startup_or_run_section
             )) {
-            if (startup_or_run_section->type == GGL_TYPE_LIST) {
+            if (ggl_obj_type(*startup_or_run_section) == GGL_TYPE_LIST) {
                 GGL_LOGE("'startup' field in the lifecycle is of List type.");
                 return GGL_ERR_INVALID;
             }
@@ -533,7 +538,7 @@ static GglError manifest_builder(
                        GGL_STR("run"),
                        &startup_or_run_section
                    )) {
-            if (startup_or_run_section->type == GGL_TYPE_LIST) {
+            if (ggl_obj_type(*startup_or_run_section) == GGL_TYPE_LIST) {
                 GGL_LOGE("'run' field in the lifecycle is of List type.");
                 return GGL_ERR_INVALID;
             }
@@ -568,7 +573,7 @@ static GglError manifest_builder(
     if (!ggl_map_get(recipe_map, GGL_STR("ComponentName"), &component_name)) {
         return GGL_ERR_INVALID;
     }
-    if (component_name->type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(*component_name) != GGL_TYPE_BUF) {
         return GGL_ERR_INVALID;
     }
     ret = update_unit_file_buffer(
@@ -579,7 +584,7 @@ static GglError manifest_builder(
         is_root,
         lifecycle_script_selection,
         timeout,
-        component_name->buf
+        ggl_obj_into_buf(*component_name)
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write ExecStart portion of unit files");
@@ -607,7 +612,7 @@ static GglError fill_install_section(
 }
 
 static GglError fill_service_section(
-    const GglMap *recipe_map,
+    GglMap recipe_map,
     GglByteVec *out,
     Recipe2UnitArgs *args,
     GglObject **component_name,
@@ -732,7 +737,7 @@ static GglError fill_service_section(
     }
 
     ret = manifest_builder(
-        *recipe_map, out, exec_start_section_vec, args, phase
+        recipe_map, out, exec_start_section_vec, args, phase
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -742,7 +747,7 @@ static GglError fill_service_section(
 }
 
 GglError generate_systemd_unit(
-    const GglMap *recipe_map,
+    GglMap recipe_map,
     GglBuffer *unit_file_buffer,
     Recipe2UnitArgs *args,
     GglObject **component_name,
@@ -752,7 +757,7 @@ GglError generate_systemd_unit(
         = { .buf = { .data = unit_file_buffer->data, .len = 0 },
             .capacity = MAX_UNIT_SIZE };
 
-    GglError ret = fill_unit_section(*recipe_map, &concat_unit_vector, phase);
+    GglError ret = fill_unit_section(recipe_map, &concat_unit_vector, phase);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

@@ -223,7 +223,7 @@ static GglError update_iot_endpoints(void) {
             GGL_STR("configuration"),
             GGL_STR("iotDataEndpoint")
         ),
-        GGL_OBJ_BUF(data_endpoint),
+        ggl_obj_buf(data_endpoint),
         &(int64_t) { 3 }
     );
     if (ret != GGL_ERR_OK) {
@@ -251,7 +251,7 @@ static GglError update_iot_endpoints(void) {
             GGL_STR("configuration"),
             GGL_STR("iotCredEndpoint")
         ),
-        GGL_OBJ_BUF(cred_endpoint),
+        ggl_obj_buf(cred_endpoint),
         &(int64_t) { 3 }
     );
     if (ret != GGL_ERR_OK) {
@@ -357,7 +357,7 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
 
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
-        GGL_OBJ_BUF(private_file_path_vec.buf),
+        ggl_obj_buf(private_file_path_vec.buf),
         &(int64_t) { 3 }
     );
     if (ret != GGL_ERR_OK) {

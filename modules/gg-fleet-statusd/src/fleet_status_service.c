@@ -83,36 +83,30 @@ GglError publish_fleet_status_update(
     GglObjVec component_statuses
         = GGL_OBJ_VEC((GglObject[MAX_COMPONENTS]) { 0 });
     size_t component_count = 0;
-    GGL_LIST_FOREACH(component, components) {
-        if (component->type != GGL_TYPE_BUF) {
+    GGL_LIST_FOREACH(component_obj, components) {
+        if (ggl_obj_type(*component_obj) != GGL_TYPE_BUF) {
             GGL_LOGE(
                 "Incorrect type of component key received. Expected buffer. "
                 "Cannot publish fleet status update for this entry."
             );
             continue;
         }
+        GglBuffer component = ggl_obj_into_buf(*component_obj);
 
         // ignore core components for now, gghealthd does not support
         // getting their health yet
-        GglList ignored_components = GGL_LIST(
-            GGL_OBJ_BUF(GGL_STR("aws.greengrass.NucleusLite")),
-            GGL_OBJ_BUF(GGL_STR("aws.greengrass.fleet_provisioning")),
-            GGL_OBJ_BUF(GGL_STR("DeploymentService")),
-            GGL_OBJ_BUF(GGL_STR("FleetStatusService")),
-            GGL_OBJ_BUF(GGL_STR("main")),
-            GGL_OBJ_BUF(GGL_STR("TelemetryAgent")),
-            GGL_OBJ_BUF(GGL_STR("UpdateSystemPolicyService"))
+        GglBufList ignored_components = GGL_BUF_LIST(
+            GGL_STR("aws.greengrass.NucleusLite"),
+            GGL_STR("aws.greengrass.fleet_provisioning"),
+            GGL_STR("DeploymentService"),
+            GGL_STR("FleetStatusService"),
+            GGL_STR("main"),
+            GGL_STR("TelemetryAgent"),
+            GGL_STR("UpdateSystemPolicyService")
         );
         bool ignore_component = false;
-        GGL_LIST_FOREACH(ignored_component, ignored_components) {
-            if (ignored_component->type != GGL_TYPE_BUF) {
-                GGL_LOGE(
-                    "Expected type buffer for ignored component list, but got "
-                    "something else. Unable to match this ignored component."
-                );
-                continue;
-            }
-            if (ggl_buffer_eq(ignored_component->buf, component->buf)) {
+        GGL_BUF_LIST_FOREACH(ignored_component, ignored_components) {
+            if (ggl_buffer_eq(*ignored_component, component)) {
                 ignore_component = true;
                 break;
             }
@@ -125,9 +119,7 @@ GglError publish_fleet_status_update(
         static uint8_t version_resp_mem[128] = { 0 };
         GglBuffer version_resp = GGL_BUF(version_resp_mem);
         ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"), component->buf, GGL_STR("version")
-            ),
+            GGL_BUF_LIST(GGL_STR("services"), component, GGL_STR("version")),
             &version_resp
         );
         if (ret != GGL_ERR_OK) {
@@ -135,8 +127,8 @@ GglError publish_fleet_status_update(
                 "Unable to retrieve version of %.*s with error %s. Cannot "
                 "publish fleet "
                 "status update for this component.",
-                (int) component->buf.len,
-                component->buf.data,
+                (int) component.len,
+                component.data,
                 ggl_strerror(ret)
             );
             continue;
@@ -146,8 +138,8 @@ GglError publish_fleet_status_update(
             GGL_LOGE(
                 "Failed to copy version response buffer for %.*s with error "
                 "%s. Cannot publish fleet status update for this component.",
-                (int) component->buf.len,
-                component->buf.data,
+                (int) component.len,
+                component.data,
                 ggl_strerror(ret)
             );
             continue;
@@ -157,14 +149,14 @@ GglError publish_fleet_status_update(
         uint8_t component_health_arr[NAME_MAX];
         GglBuffer component_health = GGL_BUF(component_health_arr);
         ret = ggl_gghealthd_retrieve_component_status(
-            component->buf, &component_health
+            component, &component_health
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to retrieve health status for %.*s with error %s. "
                 "Cannot publish fleet status update for this component.",
-                (int) component->buf.len,
-                component->buf.data,
+                (int) component.len,
+                component.data,
                 ggl_strerror(ret)
             );
             continue;
@@ -174,8 +166,8 @@ GglError publish_fleet_status_update(
             GGL_LOGE(
                 "Failed to copy component health buffer for %.*s with error "
                 "%s. Cannot publish fleet status update for this component.",
-                (int) component->buf.len,
-                component->buf.data,
+                (int) component.len,
+                component.data,
                 ggl_strerror(ret)
             );
             continue;
@@ -189,9 +181,7 @@ GglError publish_fleet_status_update(
         // retrieve fleet config arn list from config
         GglObject arn_list;
         ret = ggl_gg_config_read(
-            GGL_BUF_LIST(
-                GGL_STR("services"), component->buf, GGL_STR("configArn")
-            ),
+            GGL_BUF_LIST(GGL_STR("services"), component, GGL_STR("configArn")),
             &balloc.alloc,
             &arn_list
         );
@@ -201,49 +191,51 @@ GglError publish_fleet_status_update(
                 "%.*s from "
                 "config with error %s. Cannot publish fleet status update for "
                 "this component.",
-                (int) component->buf.len,
-                component->buf.data,
+                (int) component.len,
+                component.data,
                 ggl_strerror(ret)
             );
             continue;
         }
-        if (arn_list.type != GGL_TYPE_LIST) {
+        if (ggl_obj_type(arn_list) != GGL_TYPE_LIST) {
             GGL_LOGE(
                 "Fleet configuration arn retrieved from config not of "
                 "type list for component %.*s. Cannot publish fleet "
                 "status update for this component.",
-                (int) component->buf.len,
-                component->buf.data
+                (int) component.len,
+                component.data
             );
             continue;
         }
 
         // building component info to be in line with the cloud's expected pojo
         // format
-        GglObject component_info = GGL_OBJ_MAP(GGL_MAP(
-            { GGL_STR("componentName"), GGL_OBJ_BUF(component->buf) },
-            { GGL_STR("version"), GGL_OBJ_BUF(version_resp) },
+        GglMap component_info = GGL_MAP(
+            { GGL_STR("componentName"), ggl_obj_buf(component) },
+            { GGL_STR("version"), ggl_obj_buf(version_resp) },
             { GGL_STR("fleetConfigArns"), arn_list },
-            { GGL_STR("isRoot"), GGL_OBJ_BOOL(true) },
-            { GGL_STR("status"), GGL_OBJ_BUF(component_health) }
-        ));
+            { GGL_STR("isRoot"), ggl_obj_bool(true) },
+            { GGL_STR("status"), ggl_obj_buf(component_health) }
+        );
 
         memcpy(
             component_infos[component_count],
-            component_info.map.pairs,
+            component_info.pairs,
             sizeof(component_infos[component_count])
         );
-        component_info.map.pairs = component_infos[component_count];
+        component_info.pairs = component_infos[component_count];
 
         // store component info
-        ret = ggl_obj_vec_push(&component_statuses, component_info);
+        ret = ggl_obj_vec_push(
+            &component_statuses, ggl_obj_map(component_info)
+        );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to add component info for %.*s to component list with "
                 "error %s. Cannot publish fleet status update for this "
                 "component.",
-                (int) component->buf.len,
-                component->buf.data,
+                (int) component.len,
+                component.data,
                 ggl_strerror(ret)
             );
             continue;
@@ -281,23 +273,21 @@ GglError publish_fleet_status_update(
     }
 
     // check for a persisted sequence number
-    GglObject sequence;
+    GglObject sequence_obj;
     ret = ggl_gg_config_read(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("fleetStatusSequenceNum")),
         &balloc.alloc,
-        &sequence
+        &sequence_obj
     );
-    if (ret == GGL_ERR_OK && sequence.type == GGL_TYPE_I64) {
+    int64_t sequence = 1;
+    if ((ret == GGL_ERR_OK) && (ggl_obj_type(sequence_obj) == GGL_TYPE_I64)) {
         // if sequence number found, increment it
-        sequence.i64 += 1;
-    } else {
-        // if sequence number not found, set it
-        sequence = GGL_OBJ_I64(1);
+        sequence = ggl_obj_into_i64(sequence_obj) + 1;
     }
     // set the current sequence number in the config
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("fleetStatusSequenceNum")),
-        sequence,
+        ggl_obj_i64(sequence),
         &(int64_t) { 0 }
     );
     if (ret != GGL_ERR_OK) {
@@ -305,19 +295,19 @@ GglError publish_fleet_status_update(
         return ret;
     }
 
-    GglObject payload_obj = GGL_OBJ_MAP(GGL_MAP(
-        { GGL_STR("ggcVersion"), GGL_OBJ_BUF(GGL_STR(GGL_VERSION)) },
-        { GGL_STR("platform"), GGL_OBJ_BUF(GGL_STR("linux")) },
-        { GGL_STR("architecture"), GGL_OBJ_BUF(ARCHITECTURE) },
-        { GGL_STR("runtime"), GGL_OBJ_BUF(GGL_STR("aws_nucleus_lite")) },
-        { GGL_STR("thing"), GGL_OBJ_BUF(thing_name) },
-        { GGL_STR("sequenceNumber"), sequence },
-        { GGL_STR("timestamp"), GGL_OBJ_I64(timestamp) },
-        { GGL_STR("messageType"), GGL_OBJ_BUF(GGL_STR("COMPLETE")) },
-        { GGL_STR("trigger"), GGL_OBJ_BUF(trigger) },
-        { GGL_STR("overallDeviceStatus"), GGL_OBJ_BUF(overall_device_status) },
-        { GGL_STR("components"), GGL_OBJ_LIST(component_statuses.list) },
-        { GGL_STR("deploymentInformation"), GGL_OBJ_MAP(deployment_info) }
+    GglObject payload_obj = ggl_obj_map(GGL_MAP(
+        { GGL_STR("ggcVersion"), ggl_obj_buf(GGL_STR(GGL_VERSION)) },
+        { GGL_STR("platform"), ggl_obj_buf(GGL_STR("linux")) },
+        { GGL_STR("architecture"), ggl_obj_buf(ARCHITECTURE) },
+        { GGL_STR("runtime"), ggl_obj_buf(GGL_STR("aws_nucleus_lite")) },
+        { GGL_STR("thing"), ggl_obj_buf(thing_name) },
+        { GGL_STR("sequenceNumber"), ggl_obj_i64(sequence) },
+        { GGL_STR("timestamp"), ggl_obj_i64(timestamp) },
+        { GGL_STR("messageType"), ggl_obj_buf(GGL_STR("COMPLETE")) },
+        { GGL_STR("trigger"), ggl_obj_buf(trigger) },
+        { GGL_STR("overallDeviceStatus"), ggl_obj_buf(overall_device_status) },
+        { GGL_STR("components"), ggl_obj_list(component_statuses.list) },
+        { GGL_STR("deploymentInformation"), ggl_obj_map(deployment_info) }
     ));
 
     // build payload

@@ -23,7 +23,7 @@ static GglError subscribe_to_topic_callback(
 ) {
     (void) alloc;
 
-    if (data.type != GGL_TYPE_MAP) {
+    if (ggl_obj_type(data) != GGL_TYPE_MAP) {
         GGL_LOGE("Subscription response not a map.");
         return GGL_ERR_FAILURE;
     }
@@ -32,7 +32,7 @@ static GglError subscribe_to_topic_callback(
     GglObject *type_obj;
     GglObject *message_obj;
     GglError ret = ggl_map_validate(
-        data.map,
+        ggl_obj_into_map(data),
         GGL_MAP_SCHEMA(
             { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
             { GGL_STR("type"), true, GGL_TYPE_BUF, &type_obj },
@@ -43,7 +43,7 @@ static GglError subscribe_to_topic_callback(
         GGL_LOGE("Received invalid subscription response.");
         return ret;
     }
-    GglBuffer type = type_obj->buf;
+    GglBuffer type = ggl_obj_into_buf(*type_obj);
 
     bool is_json;
 
@@ -51,7 +51,7 @@ static GglError subscribe_to_topic_callback(
         is_json = true;
     } else if (ggl_buffer_eq(type, GGL_STR("base64"))) {
         is_json = false;
-        if (message_obj->type != GGL_TYPE_BUF) {
+        if (ggl_obj_type(*message_obj) != GGL_TYPE_BUF) {
             GGL_LOGE("Received invalid message type.");
             return GGL_ERR_INVALID;
         }
@@ -64,13 +64,13 @@ static GglError subscribe_to_topic_callback(
         return GGL_ERR_INVALID;
     }
 
-    GglObject inner = GGL_OBJ_MAP(GGL_MAP(
+    GglObject inner = ggl_obj_map(GGL_MAP(
         { GGL_STR("message"), *message_obj },
         { GGL_STR("context"),
-          GGL_OBJ_MAP(GGL_MAP({ GGL_STR("topic"), *topic_obj })) }
+          ggl_obj_map(GGL_MAP({ GGL_STR("topic"), *topic_obj })) }
     ));
 
-    GglObject response = GGL_OBJ_MAP(GGL_MAP(
+    GglObject response = ggl_obj_map(GGL_MAP(
         { is_json ? GGL_STR("jsonMessage") : GGL_STR("binaryMessage"), inner }
     ));
 
@@ -110,8 +110,9 @@ GglError ggl_handle_subscribe_to_topic(
             .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
+    GglBuffer topic = ggl_obj_into_buf(*topic_obj);
 
-    ret = ggl_ipc_auth(info, topic_obj->buf, ggl_ipc_default_policy_matcher);
+    ret = ggl_ipc_auth(info, topic, ggl_ipc_default_policy_matcher);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("IPC Operation not authorized.");
         *ipc_error = (GglIpcError
@@ -143,6 +144,6 @@ GglError ggl_handle_subscribe_to_topic(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#SubscribeToTopicResponse"),
-        GGL_OBJ_MAP({ 0 })
+        ggl_obj_map((GglMap) { 0 })
     );
 }

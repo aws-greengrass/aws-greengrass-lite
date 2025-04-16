@@ -25,7 +25,7 @@ static GglError subscribe_to_configuration_update_callback(
 ) {
     (void) alloc;
 
-    if (data.type != GGL_TYPE_LIST) {
+    if (ggl_obj_type(data) != GGL_TYPE_LIST) {
         GGL_LOGE("Received invalid subscription response, expected a List.");
         return GGL_ERR_FAILURE;
     }
@@ -33,16 +33,18 @@ static GglError subscribe_to_configuration_update_callback(
     GglBuffer component_name;
     GglList key_path;
 
-    GglError err = ggl_parse_config_path(data.list, &component_name, &key_path);
+    GglError err = ggl_parse_config_path(
+        ggl_obj_into_list(data), &component_name, &key_path
+    );
     if (err != GGL_ERR_OK) {
         return err;
     }
 
-    GglObject ipc_response = GGL_OBJ_MAP(GGL_MAP(
+    GglObject ipc_response = ggl_obj_map(GGL_MAP(
         { GGL_STR("configurationUpdateEvent"),
-          GGL_OBJ_MAP(GGL_MAP(
-              { GGL_STR("componentName"), GGL_OBJ_BUF(component_name) },
-              { GGL_STR("keyPath"), GGL_OBJ_LIST(key_path) },
+          ggl_obj_map(GGL_MAP(
+              { GGL_STR("componentName"), ggl_obj_buf(component_name) },
+              { GGL_STR("keyPath"), ggl_obj_list(key_path) },
           )) },
     ));
 
@@ -96,11 +98,10 @@ GglError ggl_handle_subscribe_to_configuration_update(
     // this component's configuration. Similarly, (although this doesn't appear
     // to be documented) no key path provided also implies we want to subscribe
     // to all keys under this component's configuration
-    GglObject *empty_list = (GglObject *) &GGL_OBJ_LIST({ 0 });
-    if (key_path_obj == NULL) {
-        key_path_obj = empty_list;
-    } else {
-        ret = ggl_list_type_check(key_path_obj->list, GGL_TYPE_BUF);
+    GglList key_path = { 0 };
+    if (key_path_obj != NULL) {
+        key_path = ggl_obj_into_list(*key_path_obj);
+        ret = ggl_list_type_check(key_path, GGL_TYPE_BUF);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Received invalid parameters. keyPath must be a list of "
                      "strings.");
@@ -112,17 +113,13 @@ GglError ggl_handle_subscribe_to_configuration_update(
         }
     }
 
-    GglBuffer component_name;
+    GglBuffer component_name = info->component;
     if (component_name_obj != NULL) {
-        component_name = component_name_obj->buf;
-    } else {
-        component_name = info->component;
+        component_name = ggl_obj_into_buf(*component_name_obj);
     }
 
     GglBufList full_key_path;
-    ret = ggl_make_config_path_object(
-        component_name, key_path_obj->list, &full_key_path
-    );
+    ret = ggl_make_config_path_object(component_name, key_path, &full_key_path);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Config path depth larger than supported.");
         *ipc_error = (GglIpcError
@@ -133,12 +130,12 @@ GglError ggl_handle_subscribe_to_configuration_update(
 
     GglObject config_path_obj[GGL_MAX_OBJECT_DEPTH] = { 0 };
     for (size_t i = 0; i < full_key_path.len; i++) {
-        config_path_obj[i] = GGL_OBJ_BUF(full_key_path.bufs[i]);
+        config_path_obj[i] = ggl_obj_buf(full_key_path.bufs[i]);
     }
 
     GglMap call_args = GGL_MAP(
         { GGL_STR("key_path"),
-          GGL_OBJ_LIST((GglList) { .items = config_path_obj,
+          ggl_obj_list((GglList) { .items = config_path_obj,
                                    .len = full_key_path.len }) },
     );
 
@@ -170,6 +167,6 @@ GglError ggl_handle_subscribe_to_configuration_update(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#SubscribeToConfigurationUpdateResponse"),
-        GGL_OBJ_MAP({ 0 })
+        ggl_obj_map((GglMap) { 0 })
     );
 }

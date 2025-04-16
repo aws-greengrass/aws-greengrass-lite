@@ -14,6 +14,7 @@
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/json_decode.h>
+#include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -41,25 +42,19 @@ static GglError try_open_extension(
 static GglError parse_requiresprivilege_section(
     bool *is_root, GglMap lifecycle_step
 ) {
-    GglObject *key_object;
-    if (ggl_map_get(
-            lifecycle_step, GGL_STR("RequiresPrivilege"), &key_object
-        )) {
-        if (key_object->type != GGL_TYPE_BUF) {
+    GglObject *value_obj;
+    if (ggl_map_get(lifecycle_step, GGL_STR("RequiresPrivilege"), &value_obj)) {
+        if (ggl_obj_type(*value_obj) != GGL_TYPE_BUF) {
             GGL_LOGE("RequiresPrivilege needs to be a (true/false) value");
             return GGL_ERR_INVALID;
         }
 
+        GglBuffer value = ggl_obj_into_buf(*value_obj);
+
         // TODO: Check if 0 and 1 are valid
-        if (strncmp((char *) key_object->buf.data, "true", key_object->buf.len)
-            == 0) {
+        if (ggl_buffer_eq(value, GGL_STR("true"))) {
             *is_root = true;
-        } else if (strncmp(
-                       (char *) key_object->buf.data,
-                       "false",
-                       key_object->buf.len
-                   )
-                   == 0) {
+        } else if (ggl_buffer_eq(value, GGL_STR("false"))) {
             *is_root = false;
         } else {
             GGL_LOGE("RequiresPrivilege needs to be a"
@@ -156,50 +151,50 @@ static GglError process_script_section_as_map(
     GglMap *out_set_env_as_map,
     GglBuffer *out_timeout_value
 ) {
-    GglObject *key_object;
-
     GglError ret
         = parse_requiresprivilege_section(is_root, selected_lifecycle_phase);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    if (ggl_map_get(selected_lifecycle_phase, GGL_STR("Script"), &key_object)) {
-        if (key_object->type != GGL_TYPE_BUF) {
-            GGL_LOGE("Script section needs to be string buffer");
+    GglObject *val;
+    if (ggl_map_get(selected_lifecycle_phase, GGL_STR("Script"), &val)) {
+        if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
+            GGL_LOGE("Script section needs to be a string.");
             return GGL_ERR_INVALID;
         }
-        *out_selected_script_as_buf = key_object->buf;
+        *out_selected_script_as_buf = ggl_obj_into_buf(*val);
     } else {
         GGL_LOGE("Script is not in the map");
         return GGL_ERR_NOENTRY;
     }
 
-    if (ggl_map_get(selected_lifecycle_phase, GGL_STR("Setenv"), &key_object)) {
-        if (key_object->type != GGL_TYPE_MAP) {
-            GGL_LOGE("Setenv needs to be a dictionary map");
+    if (ggl_map_get(selected_lifecycle_phase, GGL_STR("Setenv"), &val)) {
+        if (ggl_obj_type(*val) != GGL_TYPE_MAP) {
+            GGL_LOGE("Setenv needs to be a map.");
             return GGL_ERR_INVALID;
         }
         if (out_set_env_as_map != NULL) {
-            *out_set_env_as_map = key_object->map;
+            *out_set_env_as_map = ggl_obj_into_map(*val);
         }
     }
-    if (ggl_map_get(
-            selected_lifecycle_phase, GGL_STR("Timeout"), &key_object
-        )) {
-        if (key_object->type != GGL_TYPE_BUF) {
+
+    if (ggl_map_get(selected_lifecycle_phase, GGL_STR("Timeout"), &val)) {
+        if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
             GGL_LOGE("Timeout must expand to a positive integer value");
             return GGL_ERR_INVALID;
         }
-        if (!ggl_is_recipe_variable(key_object->buf)
-            && !is_positive_integer(key_object->buf)) {
+        GglBuffer timeout_str = ggl_obj_into_buf(*val);
+        if (!ggl_is_recipe_variable(timeout_str)
+            && !is_positive_integer(timeout_str)) {
             GGL_LOGE("Timeout must expand to a positive integer value");
             return GGL_ERR_INVALID;
         }
         if (out_timeout_value != NULL) {
-            *out_timeout_value = key_object->buf;
+            *out_timeout_value = timeout_str;
         }
     }
+
     return GGL_ERR_OK;
 }
 
@@ -213,11 +208,11 @@ GglError fetch_script_section(
 ) {
     GglObject *val;
     if (ggl_map_get(selected_lifecycle, selected_phase, &val)) {
-        if (val->type == GGL_TYPE_BUF) {
-            *out_selected_script_as_buf = val->buf;
-        } else if (val->type == GGL_TYPE_MAP) {
+        if (ggl_obj_type(*val) == GGL_TYPE_BUF) {
+            *out_selected_script_as_buf = ggl_obj_into_buf(*val);
+        } else if (ggl_obj_type(*val) == GGL_TYPE_MAP) {
             GglError ret = process_script_section_as_map(
-                val->map,
+                ggl_obj_into_map(*val),
                 is_root,
                 out_selected_script_as_buf,
                 out_set_env_as_map,
@@ -244,41 +239,28 @@ GglError fetch_script_section(
 };
 
 static GglError lifecycle_selection(
-    GglObject *selection_obj,
-    GglMap recipe_map,
-    GglObject **selected_lifecycle_object
+    GglList selection, GglMap recipe_map, GglObject **selected_lifecycle_object
 ) {
-    GglObject *val;
-    for (size_t selection_index = 0; selection_index < selection_obj->list.len;
-         selection_index++) {
-        if ((strncmp(
-                 (char *) selection_obj->list.items[selection_index].buf.data,
-                 "all",
-                 selection_obj->list.items[selection_index].buf.len
-             )
-             == 0)
-            || (strncmp(
-                    (char *) selection_obj->list.items[selection_index]
-                        .buf.data,
-                    "linux",
-                    selection_obj->list.items[selection_index].buf.len
-                )
-                == 0)) {
+    assert(ggl_list_type_check(selection, GGL_TYPE_BUF));
+    GGL_LIST_FOREACH(i, selection) {
+        GglBuffer elem = ggl_obj_into_buf(*i);
+        if (ggl_buffer_eq(elem, GGL_STR("all"))
+            || ggl_buffer_eq(elem, GGL_STR("linux"))) {
             GglObject *global_lifecycle;
             // Fetch the global Lifecycle object and match the
             // name with the first occurrence of selection
             if (ggl_map_get(
                     recipe_map, GGL_STR("Lifecycle"), &global_lifecycle
                 )) {
-                if (global_lifecycle->type != GGL_TYPE_MAP) {
+                if (ggl_obj_type(*global_lifecycle) != GGL_TYPE_MAP) {
                     return GGL_ERR_INVALID;
                 }
+
+                GglObject *val;
                 if (ggl_map_get(
-                        global_lifecycle->map,
-                        selection_obj->list.items[selection_index].buf,
-                        &val
+                        ggl_obj_into_map(*global_lifecycle), elem, &val
                     )) {
-                    if (val->type != GGL_TYPE_MAP) {
+                    if (ggl_obj_type(*val) != GGL_TYPE_MAP) {
                         GGL_LOGE("Invalid Global Linux lifecycle");
                         return GGL_ERR_INVALID;
                     }
@@ -307,30 +289,34 @@ GglBuffer get_current_architecture(void) {
 // TODO: Refactor it
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError manifest_selection(
-    const GglMap *manifest_map,
+    GglMap manifest_map,
     GglMap recipe_map,
     GglObject **selected_lifecycle_object
 ) {
-    GglObject *platform;
-    GglObject *os;
-    if (ggl_map_get(*manifest_map, GGL_STR("Platform"), &platform)) {
-        if (platform->type != GGL_TYPE_MAP) {
+    GglObject *platform_obj;
+    if (ggl_map_get(manifest_map, GGL_STR("Platform"), &platform_obj)) {
+        if (ggl_obj_type(*platform_obj) != GGL_TYPE_MAP) {
             return GGL_ERR_INVALID;
         }
 
+        GglMap platform = ggl_obj_into_map(*platform_obj);
+
         // If OS is not provided then do nothing
-        if (ggl_map_get(platform->map, GGL_STR("os"), &os)) {
-            if (os->type != GGL_TYPE_BUF) {
+        GglObject *os_obj;
+        if (ggl_map_get(platform, GGL_STR("os"), &os_obj)) {
+            if (ggl_obj_type(*os_obj) != GGL_TYPE_BUF) {
                 GGL_LOGE("Platform OS is invalid. It must be a string");
                 return GGL_ERR_INVALID;
             }
 
-            GglObject *architecture_obj = { 0 };
+            GglBuffer os = ggl_obj_into_buf(*os_obj);
+
+            GglObject *architecture_obj = NULL;
             // fetch architecture_obj
             if (ggl_map_get(
-                    platform->map, GGL_STR("architecture"), &architecture_obj
+                    platform, GGL_STR("architecture"), &architecture_obj
                 )) {
-                if (architecture_obj->type != GGL_TYPE_BUF) {
+                if (ggl_obj_type(*architecture_obj) != GGL_TYPE_BUF) {
                     GGL_LOGE(
                         "Platform architecture is invalid. It must be a string"
                     );
@@ -338,42 +324,49 @@ static GglError manifest_selection(
                 }
             }
 
+            GglBuffer architecture = { 0 };
+
+            if (architecture_obj != NULL) {
+                architecture = ggl_obj_into_buf(*architecture_obj);
+            }
+
             GglBuffer curr_arch = get_current_architecture();
 
             // Check if the current OS supported first
-            if ((strncmp((char *) os->buf.data, "linux", os->buf.len) == 0)
-                || (strncmp((char *) os->buf.data, "*", os->buf.len) == 0)
-                || (strncmp((char *) os->buf.data, "all", os->buf.len) == 0)) {
+            if (ggl_buffer_eq(os, GGL_STR("linux"))
+                || ggl_buffer_eq(os, GGL_STR("*"))
+                || ggl_buffer_eq(os, GGL_STR("all"))) {
                 // Then check if architecture is also supported
-                if (((architecture_obj == NULL)
-                     || (architecture_obj->buf.len == 0)
-                     || ggl_buffer_eq(architecture_obj->buf, GGL_STR("*"))
-                     || ggl_buffer_eq(architecture_obj->buf, curr_arch))) {
-                    GglObject *selections;
+                if (((architecture.len == 0)
+                     || ggl_buffer_eq(architecture, GGL_STR("*"))
+                     || ggl_buffer_eq(architecture, curr_arch))) {
                     if (ggl_map_get(
-                            *manifest_map,
+                            manifest_map,
                             GGL_STR("Lifecycle"),
                             selected_lifecycle_object
                         )) {
-                        if ((*selected_lifecycle_object)->type
+                        if (ggl_obj_type(**selected_lifecycle_object)
                             != GGL_TYPE_MAP) {
-                            GGL_LOGE("Lifecycle object is not MAP type.");
+                            GGL_LOGE("Lifecycle object is not a map.");
                             return GGL_ERR_INVALID;
                         }
                         // Lifecycle keyword might be there but only return
                         // if there is something inside the list
-                        if ((*selected_lifecycle_object)->map.len != 0) {
+                        if (ggl_obj_into_map(**selected_lifecycle_object).len
+                            != 0) {
                             return GGL_ERR_OK;
                         }
                     }
 
+                    GglObject *selections_obj;
                     if (ggl_map_get(
-                            *manifest_map, GGL_STR("Selections"), &selections
+                            manifest_map, GGL_STR("Selections"), &selections_obj
                         )) {
-                        if (selections->type != GGL_TYPE_LIST) {
+                        if (ggl_obj_type(*selections_obj) != GGL_TYPE_LIST) {
                             return GGL_ERR_INVALID;
                         }
-                        if (selections->list.len != 0) {
+                        GglList selections = ggl_obj_into_list(*selections_obj);
+                        if (selections.len != 0) {
                             return lifecycle_selection(
                                 selections,
                                 recipe_map,
@@ -383,11 +376,9 @@ static GglError manifest_selection(
                     }
 
                     GglList selection_default
-                        = GGL_LIST(GGL_OBJ_BUF(GGL_STR("all")));
+                        = GGL_LIST(ggl_obj_buf(GGL_STR("all")));
                     return lifecycle_selection(
-                        &GGL_OBJ_LIST(selection_default),
-                        recipe_map,
-                        selected_lifecycle_object
+                        selection_default, recipe_map, selected_lifecycle_object
                     );
                 }
 
@@ -409,7 +400,7 @@ GglError select_linux_lifecycle(
 ) {
     GglObject *val;
     if (ggl_map_get(recipe_map, GGL_STR("Manifests"), &val)) {
-        if (val->type != GGL_TYPE_LIST) {
+        if (ggl_obj_type(*val) != GGL_TYPE_LIST) {
             GGL_LOGI("Invalid Manifest within the recipe file.");
             return GGL_ERR_INVALID;
         }
@@ -417,18 +408,17 @@ GglError select_linux_lifecycle(
         GGL_LOGI("No Manifest found in the recipe");
         return GGL_ERR_INVALID;
     }
+    GglList manifests = ggl_obj_into_list(*val);
 
     GglObject *selected_lifecycle_object = NULL;
-    for (size_t platform_index = 0; platform_index < val->list.len;
-         platform_index++) {
-        if (val->list.items[platform_index].type != GGL_TYPE_MAP) {
+    GGL_LIST_FOREACH(elem, manifests) {
+        if (ggl_obj_type(*elem) != GGL_TYPE_MAP) {
             GGL_LOGE("Provided manifest section is in invalid format.");
             return GGL_ERR_INVALID;
         }
+        GglMap elem_map = ggl_obj_into_map(*elem);
         GglError ret = manifest_selection(
-            &val->list.items[platform_index].map,
-            recipe_map,
-            &selected_lifecycle_object
+            elem_map, recipe_map, &selected_lifecycle_object
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -436,19 +426,20 @@ GglError select_linux_lifecycle(
 
         if (selected_lifecycle_object != NULL) {
             // If a lifecycle is successfully selected then look no futher
-            if (selected_lifecycle_object->type == GGL_TYPE_MAP) {
+            if (ggl_obj_type(*selected_lifecycle_object) == GGL_TYPE_MAP) {
                 break;
             }
+            selected_lifecycle_object = NULL;
         }
     }
 
     if ((selected_lifecycle_object == NULL)
-        || (selected_lifecycle_object->type != GGL_TYPE_MAP)) {
+        || (ggl_obj_type(*selected_lifecycle_object) != GGL_TYPE_MAP)) {
         GGL_LOGE("No lifecycle was found for linux");
         return GGL_ERR_FAILURE;
     }
 
-    *out_selected_lifecycle_map = selected_lifecycle_object->map;
+    *out_selected_lifecycle_map = ggl_obj_into_map(*selected_lifecycle_object);
 
     return GGL_ERR_OK;
 }
@@ -458,7 +449,7 @@ GglError select_linux_manifest(
 ) {
     GglObject *val;
     if (ggl_map_get(recipe_map, GGL_STR("Manifests"), &val)) {
-        if (val->type != GGL_TYPE_LIST) {
+        if (ggl_obj_type(*val) != GGL_TYPE_LIST) {
             GGL_LOGI("Invalid Manifest within the recipe file.");
             return GGL_ERR_INVALID;
         }
@@ -466,18 +457,17 @@ GglError select_linux_manifest(
         GGL_LOGI("No Manifest found in the recipe");
         return GGL_ERR_INVALID;
     }
+    GglList manifests = ggl_obj_into_list(*val);
 
     GglObject *selected_lifecycle_object = NULL;
-    for (size_t platform_index = 0; platform_index < val->list.len;
-         platform_index++) {
-        if (val->list.items[platform_index].type != GGL_TYPE_MAP) {
+    GGL_LIST_FOREACH(elem, manifests) {
+        if (ggl_obj_type(*elem) != GGL_TYPE_MAP) {
             GGL_LOGE("Provided manifest section is in invalid format.");
             return GGL_ERR_INVALID;
         }
+        GglMap elem_map = ggl_obj_into_map(*elem);
         GglError ret = manifest_selection(
-            &val->list.items[platform_index].map,
-            recipe_map,
-            &selected_lifecycle_object
+            elem_map, recipe_map, &selected_lifecycle_object
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -486,16 +476,16 @@ GglError select_linux_manifest(
         if (selected_lifecycle_object != NULL) {
             // If a lifecycle is successfully selected then look no futher
             // If the lifecycle is found then the manifest will also be the same
-            if (selected_lifecycle_object->type == GGL_TYPE_MAP) {
-                *out_selected_linux_manifest
-                    = val->list.items[platform_index].map;
+            if (ggl_obj_type(*selected_lifecycle_object) == GGL_TYPE_MAP) {
+                *out_selected_linux_manifest = elem_map;
                 break;
             }
+            selected_lifecycle_object = NULL;
         }
     }
 
     if ((selected_lifecycle_object == NULL)
-        || (selected_lifecycle_object->type != GGL_TYPE_MAP)) {
+        || (ggl_obj_type(*selected_lifecycle_object) != GGL_TYPE_MAP)) {
         GGL_LOGE("No Manifest was found for linux");
         return GGL_ERR_FAILURE;
     }

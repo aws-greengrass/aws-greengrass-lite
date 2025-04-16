@@ -6,6 +6,7 @@
 #include "../../ipc_service.h"
 #include "lifecycle.h"
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/ipc/common.h>
@@ -37,16 +38,17 @@ GglError ggl_handle_update_state(
             .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
+    GglBuffer state = ggl_obj_into_buf(*state_obj);
 
     GGL_LOGT(
         "state buffer: %.*s with length: %zu",
-        (int) state_obj->buf.len,
-        state_obj->buf.data,
-        state_obj->buf.len
+        (int) state.len,
+        state.data,
+        state.len
     );
 
     // No AuthZ required. UpdateState only affects the caller.
-    GglObject component_obj = GGL_OBJ_BUF(info->component);
+    GglObject component_obj = ggl_obj_buf(info->component);
 
     ret = ggl_call(
         GGL_STR("gg_health"),
@@ -70,6 +72,6 @@ GglError ggl_handle_update_state(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#UpdateStateResponse"),
-        GGL_OBJ_MAP({ 0 })
+        ggl_obj_map((GglMap) { 0 })
     );
 }

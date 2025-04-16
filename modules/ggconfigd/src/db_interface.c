@@ -416,12 +416,12 @@ static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
     GGL_CLEANUP(cleanup_sqlite3_finalize, find_element_stmt);
 
     for (size_t index = 0; index < key_path->len; index++) {
-        GglBuffer *key = &key_path->items[index].buf;
+        GglBuffer key = ggl_obj_into_buf(key_path->items[index]);
         sqlite3_bind_text(
             find_element_stmt,
             (int) index + 1,
-            (char *) key->data,
-            (int) key->len,
+            (char *) key.data,
+            (int) key.len,
             SQLITE_STATIC
         );
     }
@@ -460,7 +460,7 @@ static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
             print_key_path(key_path),
             id
         );
-        ggl_obj_vec_push(key_ids_output, GGL_OBJ_I64(id));
+        ggl_obj_vec_push(key_ids_output, ggl_obj_i64(id));
     }
 
     return GGL_ERR_OK;
@@ -474,13 +474,13 @@ static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
 // key_ids_output must point to an empty GglObjVec with capacity
 // MAX_KEY_PATH_DEPTH
 static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
-    GglBuffer root_key_buffer = key_path->items[0].buf;
+    GglBuffer root_key_buffer = ggl_obj_into_buf(key_path->items[0]);
     int64_t parent_key_id;
     GglError err = get_or_create_key_at_root(&root_key_buffer, &parent_key_id);
     if (err != GGL_ERR_OK) {
         return err;
     }
-    ggl_obj_vec_push(key_ids_output, GGL_OBJ_I64(parent_key_id));
+    ggl_obj_vec_push(key_ids_output, ggl_obj_i64(parent_key_id));
     bool value_is_present_for_root_key;
     err = value_is_present_for_key(
         parent_key_id, &value_is_present_for_root_key
@@ -509,7 +509,7 @@ static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
 
     int64_t current_key_id = parent_key_id;
     for (size_t index = 1; index < key_path->len; index++) {
-        GglBuffer current_key_buffer = key_path->items[index].buf;
+        GglBuffer current_key_buffer = ggl_obj_into_buf(key_path->items[index]);
         err = find_key_with_parent(
             &current_key_buffer, parent_key_id, &current_key_id
         );
@@ -553,7 +553,7 @@ static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
         } else {
             return err;
         }
-        ggl_obj_vec_push(key_ids_output, GGL_OBJ_I64(current_key_id));
+        ggl_obj_vec_push(key_ids_output, ggl_obj_i64(current_key_id));
         parent_key_id = current_key_id;
     }
     return GGL_ERR_OK;
@@ -618,7 +618,7 @@ static GglError notify_single_key(
         case SQLITE_ROW: {
             uint32_t handle = (uint32_t) sqlite3_column_int64(stmt, 0);
             GGL_LOGT("Sending to %u", handle);
-            ggl_sub_respond(handle, GGL_OBJ_LIST(*changed_key_path));
+            ggl_sub_respond(handle, ggl_obj_list(*changed_key_path));
         } break;
         default:
             GGL_LOGE(
@@ -639,14 +639,15 @@ static GglError notify_single_key(
 // Given a key path and the ids of the keys in that path, notify each key along
 // the path that the value at the tip of the key path has changed
 static GglError notify_nested_key(GglList *key_path, GglObjVec key_ids) {
-    GglError return_err = GGL_ERR_OK;
     for (size_t i = 0; i < key_ids.list.len; i++) {
-        GglError err = notify_single_key(key_ids.list.items[i].i64, key_path);
-        if (err != GGL_ERR_OK) {
-            return_err = GGL_ERR_FAILURE;
+        GglError ret = notify_single_key(
+            ggl_obj_into_i64(key_ids.list.items[i]), key_path
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
         }
     }
-    return return_err;
+    return GGL_ERR_OK;
 }
 
 GglError ggconfig_write_empty_map(GglList *key_path) {
@@ -686,7 +687,7 @@ GglError ggconfig_write_empty_map(GglList *key_path) {
         return err;
     }
 
-    last_key_id = ids.list.items[ids.list.len - 1].i64;
+    last_key_id = ggl_obj_into_i64(ids.list.items[ids.list.len - 1]);
 
     bool value_is_present;
     err = value_is_present_for_key(last_key_id, &value_is_present);
@@ -736,7 +737,7 @@ GglError ggconfig_write_value_at_key(
             return err;
         }
 
-        last_key_id = ids.list.items[ids.list.len - 1].i64;
+        last_key_id = ggl_obj_into_i64(ids.list.items[ids.list.len - 1]);
         err = value_insert(last_key_id, value, timestamp);
         if (err != GGL_ERR_OK) {
             sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
@@ -763,7 +764,7 @@ GglError ggconfig_write_value_at_key(
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
     }
-    last_key_id = ids.list.items[ids.list.len - 1].i64;
+    last_key_id = ggl_obj_into_i64(ids.list.items[ids.list.len - 1]);
     bool child_is_present;
     err = child_is_present_for_key(last_key_id, &child_is_present);
     if (err != GGL_ERR_OK) {
@@ -888,11 +889,9 @@ static GglError read_value_at_key(
         );
         return GGL_ERR_NOMEM;
     }
-    value->type = GGL_TYPE_BUF;
-    value->buf.data = string_buffer;
     memcpy(string_buffer, value_string, value_length);
-    value->buf.len = value_length;
-
+    *value = ggl_obj_buf((GglBuffer) { .data = string_buffer,
+                                       .len = value_length });
     return GGL_ERR_OK;
 }
 
@@ -905,19 +904,19 @@ static GglError read_key_recursive(
     GGL_LOGT("reading key id %" PRId64, key_id);
 
     bool value_is_present;
-    GglError err = value_is_present_for_key(key_id, &value_is_present);
-    if (err != GGL_ERR_OK) {
-        return err;
+    GglError ret = value_is_present_for_key(key_id, &value_is_present);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
     if (value_is_present) {
-        err = read_value_at_key(key_id, value, alloc);
+        ret = read_value_at_key(key_id, value, alloc);
         GGL_LOGT(
             "value read: %.*s from key id %" PRId64,
-            (int) value->buf.len,
-            (char *) value->buf.data,
+            (int) ggl_obj_into_buf(*value).len,
+            (char *) ggl_obj_into_buf(*value).data,
             key_id
         );
-        return err;
+        return ret;
     }
 
     // at this point we know the key should be a map, because it's not a value
@@ -951,8 +950,7 @@ static GglError read_key_recursive(
         children_count
     );
     if (children_count == 0) {
-        value->type = GGL_TYPE_MAP;
-        value->map.len = 0;
+        *value = ggl_obj_map((GglMap) { 0 });
         GGL_LOGT("value read: empty map for key id %" PRId64, key_id);
         return GGL_ERR_OK;
     }
@@ -991,10 +989,10 @@ static GglError read_key_recursive(
 
         read_key_recursive(child_key_id, &child_kv.val, alloc);
 
-        err = ggl_kv_vec_push(&kv_buffer_vec, child_kv);
-        if (err != GGL_ERR_OK) {
-            GGL_LOGE("error pushing kv with error %s", ggl_strerror(err));
-            return err;
+        ret = ggl_kv_vec_push(&kv_buffer_vec, child_kv);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("error pushing kv with error %s", ggl_strerror(ret));
+            return ret;
         }
 
         rc = sqlite3_step(read_children_stmt);
@@ -1010,8 +1008,7 @@ static GglError read_key_recursive(
         return GGL_ERR_FAILURE;
     }
 
-    value->type = GGL_TYPE_MAP;
-    value->map = kv_buffer_vec.map;
+    *value = ggl_obj_map(kv_buffer_vec.map);
     return GGL_ERR_OK;
 }
 
@@ -1039,7 +1036,7 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
         return err;
     }
-    int64_t key_id = ids.list.items[ids.list.len - 1].i64;
+    int64_t key_id = ggl_obj_into_i64(ids.list.items[ids.list.len - 1]);
     err = read_key_recursive(key_id, value, &bumper.alloc);
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
     return err;
@@ -1076,7 +1073,7 @@ static GglError get_children(
 
         GglError err = ggl_obj_vec_push(
             children_ids_output,
-            GGL_OBJ_BUF((GglBuffer) { .data = child_key_name_memory,
+            ggl_obj_buf((GglBuffer) { .data = child_key_name_memory,
                                       .len = child_key_name_length })
         );
         if (err != GGL_ERR_OK) {
@@ -1123,7 +1120,7 @@ GglError ggconfig_list_subkeys(GglList *key_path, GglList *subkeys) {
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
         return err;
     }
-    int64_t key_id = ids.list.items[ids.list.len - 1].i64;
+    int64_t key_id = ggl_obj_into_i64(ids.list.items[ids.list.len - 1]);
 
     bool value_is_present;
     err = value_is_present_for_key(key_id, &value_is_present);
@@ -1178,7 +1175,7 @@ static GglError get_descendants(
     while (rc == SQLITE_ROW) {
         int64_t id = sqlite3_column_int64(stmt, 0);
         GGL_LOGT("found descendant id %" PRId64, id);
-        GglError err = ggl_obj_vec_push(descendant_ids_output, GGL_OBJ_I64(id));
+        GglError err = ggl_obj_vec_push(descendant_ids_output, ggl_obj_i64(id));
         if (err != GGL_ERR_OK) {
             GGL_LOGE(
                 "Not enough memory to push a descendant into the output vector."
@@ -1303,7 +1300,7 @@ GglError ggconfig_delete_key(GglList *key_path) {
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
     }
-    int64_t key_id = ids.list.items[ids.list.len - 1].i64;
+    int64_t key_id = ggl_obj_into_i64(ids.list.items[ids.list.len - 1]);
 
     GglObject descendant_ids_array
         [MAX_CONFIG_DESCENDANTS_PER_COMPONENT]; // Deletes are recursive, so
@@ -1320,7 +1317,7 @@ GglError ggconfig_delete_key(GglList *key_path) {
     }
 
     for (size_t i = 0; i < descendant_ids.list.len; i++) {
-        int64_t descendant_id = descendant_ids.list.items[i].i64;
+        int64_t descendant_id = ggl_obj_into_i64(descendant_ids.list.items[i]);
         err = delete_subscribers(descendant_id);
         if (err != GGL_ERR_OK) {
             GGL_LOGE(
@@ -1381,7 +1378,7 @@ GglError ggconfig_get_key_notification(GglList *key_path, uint32_t handle) {
         sqlite3_exec(config_database, "ROLLBACK", NULL, NULL, NULL);
         return err;
     }
-    int64_t key_id = ids.list.items[ids.list.len - 1].i64;
+    int64_t key_id = ggl_obj_into_i64(ids.list.items[ids.list.len - 1]);
 
     // insert the key & handle data into the subscriber database
     GGL_LOGT("INSERT %" PRId64 ", %" PRIu32, key_id, handle);

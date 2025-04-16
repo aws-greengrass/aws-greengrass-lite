@@ -43,7 +43,9 @@ static GglError create_unit_file(
     GglError ret = ggl_byte_vec_append(&file_name_vector, root_dir_buffer);
     ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR("/"));
     ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR("ggl."));
-    ggl_byte_vec_chain_append(&ret, &file_name_vector, (*component_name)->buf);
+    ggl_byte_vec_chain_append(
+        &ret, &file_name_vector, ggl_obj_into_buf(**component_name)
+    );
     if (phase == INSTALL) {
         ggl_byte_vec_chain_append(&ret, &file_name_vector, GGL_STR(".install"));
     } else if (phase == BOOTSTRAP) {
@@ -114,7 +116,7 @@ GglError convert_to_unit(
 
     GGL_LOGD("Attempting to find bootstrap phase from recipe");
     ret = generate_systemd_unit(
-        &recipe_obj->map,
+        ggl_obj_into_map(*recipe_obj),
         &bootstrap_response_buffer,
         args,
         component_name,
@@ -144,13 +146,11 @@ GglError convert_to_unit(
     GglBuffer install_response_buffer = GGL_BUF(unit_file_buffer);
     install_response_buffer.len = MAX_UNIT_FILE_BUF_SIZE;
 
+    GglMap recipe = ggl_obj_into_map(*recipe_obj);
+
     GGL_LOGD("Attempting to find install phase from recipe");
     ret = generate_systemd_unit(
-        &recipe_obj->map,
-        &install_response_buffer,
-        args,
-        component_name,
-        INSTALL
+        recipe, &install_response_buffer, args, component_name, INSTALL
     );
     if (*component_name == NULL) {
         GGL_LOGE("Component name was NULL");
@@ -178,11 +178,7 @@ GglError convert_to_unit(
 
     GGL_LOGD("Attempting to find run phase from recipe");
     ret = generate_systemd_unit(
-        &recipe_obj->map,
-        &run_startup_response_buffer,
-        args,
-        component_name,
-        RUN_STARTUP
+        recipe, &run_startup_response_buffer, args, component_name, RUN_STARTUP
     );
     if (ret == GGL_ERR_NOENTRY) {
         GGL_LOGD("Neither run nor startup phase present");

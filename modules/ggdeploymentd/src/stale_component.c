@@ -512,7 +512,7 @@ GglError cleanup_stale_versions(GglMap latest_components_map) {
     uint8_t version_array[NAME_MAX];
     GglBuffer version_buffer_iterator = { .data = version_array, .len = 0 };
 
-    do {
+    while (true) {
         ret = iterate_over_components(
             dir,
             &component_name_buffer_iterator,
@@ -535,10 +535,11 @@ GglError cleanup_stale_versions(GglMap latest_components_map) {
                 latest_components_map,
                 component_name_buffer_iterator,
                 &component_version
-            )
-            == true) {
-            if (ggl_buffer_eq(version_buffer_iterator, component_version->buf)
-                == true) {
+            )) {
+            if (ggl_buffer_eq(
+                    version_buffer_iterator,
+                    ggl_obj_into_buf(*component_version)
+                )) {
                 // The component name and version matches. Skip over it.
                 continue;
             }
@@ -571,7 +572,7 @@ GglError cleanup_stale_versions(GglMap latest_components_map) {
                 &component_name_buffer_iterator
             );
         }
-    } while (true);
+    }
 
     return GGL_ERR_OK;
 }

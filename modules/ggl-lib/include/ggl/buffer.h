@@ -32,6 +32,13 @@ typedef struct {
         .len = (sizeof((GglBuffer[]) { __VA_ARGS__ })) / (sizeof(GglBuffer)) \
     }
 
+// NOLINTBEGIN(bugprone-macro-parentheses)
+/// Loop over the objects in a list.
+#define GGL_BUF_LIST_FOREACH(name, list) \
+    for (GglBuffer *name = (list).bufs; name < &(list).bufs[(list).len]; \
+         name = &name[1])
+// NOLINTEND(bugprone-macro-parentheses)
+
 /// Convert null-terminated string to buffer
 GglBuffer ggl_buffer_from_null_term(char *str);
 

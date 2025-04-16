@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
         GglError ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("recipe_directory_path"),
-                      GGL_OBJ_BUF(ggl_buffer_from_null_term(path)) }
+                      ggl_obj_buf(ggl_buffer_from_null_term(path)) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
         GglError ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("artifacts_directory_path"),
-                      GGL_OBJ_BUF(ggl_buffer_from_null_term(path)) }
+                      ggl_obj_buf(ggl_buffer_from_null_term(path)) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);
@@ -135,11 +135,11 @@ int main(int argc, char **argv) {
     if (component_name != NULL) {
         component = (GglKV
         ) { ggl_buffer_from_null_term(component_name),
-            GGL_OBJ_BUF(ggl_buffer_from_null_term(component_version)) };
+            ggl_obj_buf(ggl_buffer_from_null_term(component_version)) };
         GglError ret = ggl_kv_vec_push(
             &args,
             (GglKV) { GGL_STR("root_component_versions_to_add"),
-                      GGL_OBJ_MAP((GglMap) { .pairs = &component, .len = 1 }) }
+                      ggl_obj_map((GglMap) { .pairs = &component, .len = 1 }) }
         );
         if (ret != GGL_ERR_OK) {
             assert(false);
@@ -169,10 +169,12 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    if (result.type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(result) != GGL_TYPE_BUF) {
         GGL_LOGE("Invalid return type.");
         return 1;
     }
 
-    printf("Deployment id: %.*s.", (int) result.buf.len, result.buf.data);
+    GglBuffer result_buf = ggl_obj_into_buf(result);
+
+    printf("Deployment id: %.*s.", (int) result_buf.len, result_buf.data);
 }

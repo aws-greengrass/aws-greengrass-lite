@@ -79,7 +79,7 @@ GglError ggl_handle_create_local_deployment(
         return ret;
     }
 
-    if (result.type != GGL_TYPE_BUF) {
+    if (ggl_obj_type(result) != GGL_TYPE_BUF) {
         GGL_LOGE("Received deployment ID not a string.");
         *ipc_error = (GglIpcError) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
                                      .message = GGL_STR("Internal error.") };
@@ -90,6 +90,6 @@ GglError ggl_handle_create_local_deployment(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#CreateLocalDeploymentResponse"),
-        GGL_OBJ_MAP(GGL_MAP({ GGL_STR("deploymentId"), result }))
+        ggl_obj_map(GGL_MAP({ GGL_STR("deploymentId"), result }))
     );
 }

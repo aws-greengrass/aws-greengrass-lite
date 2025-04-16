@@ -161,7 +161,7 @@ static GglError json_write_map(GglMap map, GglBuffer *buf) {
                 return ret;
             }
         }
-        ret = json_write(GGL_OBJ_BUF(map.pairs[i].key), buf);
+        ret = json_write(ggl_obj_buf(map.pairs[i].key), buf);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -186,21 +186,21 @@ static GglError json_write_map(GglMap map, GglBuffer *buf) {
 
 // NOLINTNEXTLINE(misc-no-recursion)
 static GglError json_write(GglObject obj, GglBuffer *buf) {
-    switch (obj.type) {
+    switch (ggl_obj_type(obj)) {
     case GGL_TYPE_NULL:
         return json_write_null(buf);
     case GGL_TYPE_BOOLEAN:
-        return json_write_bool(obj.boolean, buf);
+        return json_write_bool(ggl_obj_into_bool(obj), buf);
     case GGL_TYPE_I64:
-        return json_write_i64(obj.i64, buf);
+        return json_write_i64(ggl_obj_into_i64(obj), buf);
     case GGL_TYPE_F64:
-        return json_write_f64(obj.f64, buf);
+        return json_write_f64(ggl_obj_into_f64(obj), buf);
     case GGL_TYPE_BUF:
-        return json_write_buf(obj.buf, buf);
+        return json_write_buf(ggl_obj_into_buf(obj), buf);
     case GGL_TYPE_LIST:
-        return json_write_list(obj.list, buf);
+        return json_write_list(ggl_obj_into_list(obj), buf);
     case GGL_TYPE_MAP:
-        return json_write_map(obj.map, buf);
+        return json_write_map(ggl_obj_into_map(obj), buf);
     }
     assert(false);
     return GGL_ERR_FAILURE;

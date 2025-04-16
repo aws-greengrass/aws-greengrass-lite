@@ -52,7 +52,7 @@ int main(int argc, char **argv) {
         conn,
         GGL_BUF_LIST(GGL_STR("timestamp")),
         &t,
-        GGL_OBJ_I64((int64_t) t.tv_sec)
+        ggl_obj_i64((int64_t) t.tv_sec)
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write timestamp.");
@@ -60,7 +60,7 @@ int main(int argc, char **argv) {
     }
 
     GGL_LOGT("Reading timestamp out of config.");
-    GglObject timestamp_obj = GGL_OBJ_I64(-1);
+    GglObject timestamp_obj = ggl_obj_i64(-1);
 
     uint8_t ipc_bytes[128 + (((INT64_DECIMAL_DIGITS_MAX + 2) / 3) * 4)] = { 0 };
 
@@ -79,8 +79,8 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        if ((timestamp_obj.type != GGL_TYPE_I64)
-            || (timestamp_obj.i64 != (int64_t) t.tv_sec)) {
+        if ((ggl_obj_type(timestamp_obj) != GGL_TYPE_I64)
+            || (ggl_obj_into_i64(timestamp_obj) != (int64_t) t.tv_sec)) {
             GGL_LOGE("Mismatched timestamp.");
             return 1;
         }
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
     {
         GGL_LOGT("Publishing timestamp as object.");
         ret = ggipc_publish_to_topic_obj(
-            conn, GGL_STR("test_topic"), GGL_OBJ_I64((int64_t) t.tv_sec)
+            conn, GGL_STR("test_topic"), ggl_obj_i64((int64_t) t.tv_sec)
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to publish object.");

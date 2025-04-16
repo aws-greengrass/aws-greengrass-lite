@@ -7,6 +7,7 @@
 #include "../../ipc_service.h"
 #include "pubsub.h"
 #include <ggl/alloc.h>
+#include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/ipc/common.h>
@@ -27,13 +28,16 @@ GglError ggl_handle_publish_to_topic(
 ) {
     (void) alloc;
 
-    GglObject *topic;
-    GglObject *publish_message;
+    GglObject *topic_obj;
+    GglObject *publish_message_obj;
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic },
-            { GGL_STR("publishMessage"), true, GGL_TYPE_MAP, &publish_message },
+            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("publishMessage"),
+              true,
+              GGL_TYPE_MAP,
+              &publish_message_obj },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -43,11 +47,13 @@ GglError ggl_handle_publish_to_topic(
             .message = GGL_STR("Received invalid parameters.") };
         return GGL_ERR_INVALID;
     }
+    GglBuffer topic = ggl_obj_into_buf(*topic_obj);
+    GglMap publish_message = ggl_obj_into_map(*publish_message_obj);
 
     GglObject *json_message;
     GglObject *binary_message;
     ret = ggl_map_validate(
-        publish_message->map,
+        publish_message,
         GGL_MAP_SCHEMA(
             { GGL_STR("jsonMessage"), false, GGL_TYPE_MAP, &json_message },
             { GGL_STR("binaryMessage"), false, GGL_TYPE_MAP, &binary_message },
@@ -74,7 +80,7 @@ GglError ggl_handle_publish_to_topic(
 
     GglObject *message;
     ret = ggl_map_validate(
-        (is_json ? json_message : binary_message)->map,
+        ggl_obj_into_map(*(is_json ? json_message : binary_message)),
         GGL_MAP_SCHEMA(
             { GGL_STR("message"),
               true,
@@ -90,7 +96,7 @@ GglError ggl_handle_publish_to_topic(
         return GGL_ERR_INVALID;
     }
 
-    ret = ggl_ipc_auth(info, topic->buf, ggl_ipc_default_policy_matcher);
+    ret = ggl_ipc_auth(info, topic, ggl_ipc_default_policy_matcher);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("IPC Operation not authorized.");
         *ipc_error = (GglIpcError
@@ -100,10 +106,10 @@ GglError ggl_handle_publish_to_topic(
     }
 
     GglMap call_args = GGL_MAP(
-        { GGL_STR("topic"), *topic },
+        { GGL_STR("topic"), *topic_obj },
         { GGL_STR("type"),
-          is_json ? GGL_OBJ_BUF(GGL_STR("json"))
-                  : GGL_OBJ_BUF(GGL_STR("base64")) },
+          is_json ? ggl_obj_buf(GGL_STR("json"))
+                  : ggl_obj_buf(GGL_STR("base64")) },
         { GGL_STR("message"), *message },
     );
 
@@ -122,6 +128,6 @@ GglError ggl_handle_publish_to_topic(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#PublishToTopicResponse"),
-        GGL_OBJ_MAP({ 0 })
+        ggl_obj_map((GglMap) { 0 })
     );
 }

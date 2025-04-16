@@ -52,9 +52,10 @@ GglError handle_get_system_config(
         return GGL_ERR_INVALID;
     }
 
+    GglBuffer key = ggl_obj_into_buf(*key_obj);
     GglObject read_value;
     ret = ggl_gg_config_read(
-        GGL_BUF_LIST(GGL_STR("system"), key_obj->buf), alloc, &read_value
+        GGL_BUF_LIST(GGL_STR("system"), key), alloc, &read_value
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to read the system configuration.");
