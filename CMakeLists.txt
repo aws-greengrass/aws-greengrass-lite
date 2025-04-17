@@ -2,7 +2,7 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.22)
 project(aws-greengrass-lite C ASM)
 
 #
@@ -252,7 +252,7 @@ endforeach()
 find_package(PkgConfig REQUIRED)
 
 pkg_search_module(openssl REQUIRED IMPORTED_TARGET openssl)
-pkg_search_module(libcurl REQUIRED IMPORTED_TARGET libcurl>=7.86)
+pkg_search_module(libcurl REQUIRED IMPORTED_TARGET libcurl)
 pkg_search_module(sqlite3 REQUIRED IMPORTED_TARGET sqlite3)
 pkg_search_module(yaml REQUIRED IMPORTED_TARGET yaml-0.1)
 pkg_search_module(libsystemd REQUIRED IMPORTED_TARGET libsystemd)
