@@ -64,8 +64,8 @@ Configure the following in your config file
 - rootPath: Absolute path to the Greengrass rootpath directory
 - thingName: Name of the Thing
 - awsRegion: The AWS region with the Thing
-- iotCredEndpoint: The IoT Core endpoint
-- iotDataEndpoint: The IoT Core endpoint
+- iotCredEndpoint: The IoT Core credential endpoint
+- iotDataEndpoint: The IoT Core data endpoint
 - iotRoleAlias: The name of the role alias for accessing TES
 - posixUser: Colon separated user/group that generic components should run as
 
@@ -75,6 +75,18 @@ set this to the user Greengrass is running as. This should be set to the
 component user/group created in the [build process](BUILD.md#usersgroups). If
 using our apt package, yocto layer, or yocto image, then this should be set to
 `gg_component:gg_component`.
+
+Retrieve the credential endpoint by issuing the AWS CLI command:
+
+```bash
+aws iot describe-endpoint --endpoint-type iot:CredentialProvider --output text --query endpointAddress
+```
+
+Retrieve the data endpoint by issuing the AWS CLI command:
+
+```bash
+aws iot describe-endpoint --endpoint-type iot:data-ATS --output text --query endpointAddress
+```
 
 To initialize the config, initial configuration will need to be present either
 as `/etc/greengrass/config.yaml`, and/or in one or more files in
@@ -87,8 +99,8 @@ update the initial configuration with any other config files present in
 `permission denied` error) -
 
 ```sh
-mkdir -p /etc/greengrass
-cp ./config.yaml /etc/greengrass/config.yaml
+sudo mkdir -p /etc/greengrass
+sudo cp ./config.yaml /etc/greengrass/config.yaml
 ```
 
 ## Running the nucleus
@@ -97,7 +109,7 @@ To enable and run all the Greengrass Nucleus Lite core services for testing, run
 the `run_nucleus` script available in the source directory.
 
 ```sh
-./misc/run_nucleus
+sudo ./misc/run_nucleus
 ```
 
 All core services will be reported under the greengrass-lite target. View their
