@@ -16,6 +16,7 @@ corge
 coverity
 cpack
 cpus
+CURLH
 DBUILD
 dbus
 dearmor

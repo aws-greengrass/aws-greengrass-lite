@@ -8,6 +8,7 @@
 #include "ggl/http.h"
 #include "ggl/object.h"
 #include <assert.h>
+#include <curl/curl.h>
 #include <ggl/buffer.h>
 #include <ggl/log.h>
 #include <ggl/vector.h>
@@ -46,6 +47,10 @@ GglError fetch_token(
         error = gghttplib_process_request(&curl_data, buffer);
     }
 
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGI("HTTP code: %ld", http_status_code);
+
     gghttplib_destroy_curl(&curl_data);
 
     return error;
@@ -60,6 +65,10 @@ GglError generic_download(const char *url_for_generic_download, int fd) {
         error = gghttplib_process_request_with_fd(&curl_data, fd);
     }
 
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGD("Return HTTP code: %ld", http_status_code);
+
     gghttplib_destroy_curl(&curl_data);
     return error;
 }
@@ -69,7 +78,8 @@ GglError sigv4_download(
     GglBuffer host,
     GglBuffer file_path,
     int fd,
-    SigV4Details sigv4_details
+    SigV4Details sigv4_details,
+    long *http_response_code
 ) {
     CurlData curl_data = { 0 };
     GglError error = gghttplib_init_curl(&curl_data, url_for_sigv4_download);
@@ -141,6 +151,22 @@ GglError sigv4_download(
         error = gghttplib_process_request_with_fd(&curl_data, fd);
     }
 
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGD("Return HTTP code: %ld", http_status_code);
+    *http_response_code = http_status_code;
+
+    struct curl_header *type = NULL;
+    curl_easy_header(
+        curl_data.curl, "Content-Type", 0, CURLH_HEADER, -1, &type
+    );
+
+    if (type) {
+        GGL_LOGT("Response header content: %s", type->value);
+    } else {
+        GGL_LOGT("Response header content: is empty");
+    }
+
     gghttplib_destroy_curl(&curl_data);
 
     return error;
@@ -199,6 +225,10 @@ GglError gg_dataplane_call(
         GGL_LOGD("Sending request to dataplane endpoint");
         ret = gghttplib_process_request(&curl_data, response_buffer);
     }
+
+    long http_status_code = 0;
+    curl_easy_getinfo(curl_data.curl, CURLINFO_HTTP_CODE, &http_status_code);
+    GGL_LOGI("HTTP code: %ld", http_status_code);
 
     gghttplib_destroy_curl(&curl_data);
 
