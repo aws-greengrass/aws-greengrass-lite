@@ -261,7 +261,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         GglBumpAlloc balloc
             = ggl_bump_alloc_init(GGL_BUF(payload_deserialize_mem));
 
-        GglObject payload_obj = GGL_OBJ_NULL();
+        GglObject payload_obj;
         ret = ggl_deserialize(&balloc.alloc, false, msg.payload, &payload_obj);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to decode request payload.");

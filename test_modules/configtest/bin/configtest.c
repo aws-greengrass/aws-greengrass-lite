@@ -964,7 +964,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component10")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL() })),
+        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL })),
         -1,
         GGL_ERR_OK
     );
@@ -974,7 +974,7 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("key"))
         ),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         GGL_ERR_OK
     );
 
@@ -1000,7 +1000,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component12")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         -1,
         GGL_ERR_OK
     );
@@ -1008,7 +1008,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component12")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         GGL_ERR_OK
     );
 
@@ -1031,7 +1031,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component13")), ggl_obj_buf(GGL_STR("key"))
         ),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         GGL_ERR_NOENTRY
     );
     test_get(
@@ -1058,19 +1058,19 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         GGL_ERR_NOENTRY
     );
     test_get(
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component14")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         GGL_ERR_NOENTRY
     );
     test_get(
         GGL_LIST(ggl_obj_buf(GGL_STR("component14"))),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         GGL_ERR_NOENTRY
     );
 
@@ -1117,7 +1117,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component17")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL() })),
+        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL })),
         -1,
         GGL_ERR_OK
     );
@@ -1133,7 +1133,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component17")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL() })),
+        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL })),
         GGL_ERR_OK
     );
 
@@ -1142,7 +1142,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component18")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL() })),
+        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL })),
         -1,
         GGL_ERR_OK
     );
@@ -1174,7 +1174,7 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("key"))
         ),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         -1,
         GGL_ERR_FAILURE
     );
@@ -1259,7 +1259,7 @@ int main(int argc, char **argv) {
     // Test to ensure list returns no entry if the key doesn't exist
     test_list(
         GGL_LIST(ggl_obj_buf(GGL_STR("non-existent")), ),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         GGL_ERR_NOENTRY
     );
 
@@ -1272,7 +1272,7 @@ int main(int argc, char **argv) {
     );
     test_list(
         GGL_LIST(ggl_obj_buf(GGL_STR("component22"))),
-        GGL_OBJ_NULL(),
+        GGL_OBJ_NULL,
         GGL_ERR_INVALID
     );
 

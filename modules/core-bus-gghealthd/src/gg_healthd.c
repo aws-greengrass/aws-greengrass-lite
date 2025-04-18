@@ -19,7 +19,7 @@ GglError ggl_gghealthd_retrieve_component_status(
     static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(buffer));
 
-    GglObject result = GGL_OBJ_NULL();
+    GglObject result;
     GglError method_error = GGL_ERR_OK;
     GglError call_error = ggl_call(
         GGL_STR("gg_health"),

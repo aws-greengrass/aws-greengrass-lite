@@ -160,7 +160,7 @@ static GglError rpc_delete(void *ctx, GglMap params, uint32_t handle) {
         return ret;
     }
 
-    ggl_respond(handle, GGL_OBJ_NULL());
+    ggl_respond(handle, GGL_OBJ_NULL);
     return GGL_ERR_OK;
 }
 
@@ -331,7 +331,7 @@ static GglError rpc_write(void *ctx, GglMap params, uint32_t handle) {
         }
     }
 
-    ggl_respond(handle, GGL_OBJ_NULL());
+    ggl_respond(handle, GGL_OBJ_NULL);
     return GGL_ERR_OK;
 }
 

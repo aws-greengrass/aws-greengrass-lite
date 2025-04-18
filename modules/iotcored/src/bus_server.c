@@ -88,7 +88,7 @@ static GglError rpc_publish(void *ctx, GglMap params, uint32_t handle) {
         return ret;
     }
 
-    ggl_respond(handle, GGL_OBJ_NULL());
+    ggl_respond(handle, GGL_OBJ_NULL);
     return GGL_ERR_OK;
 }
 

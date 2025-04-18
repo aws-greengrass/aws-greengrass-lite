@@ -107,7 +107,7 @@ static GglError subscription_callback(
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to decode response payload.");
-        *(call_ctx->result) = GGL_OBJ_NULL();
+        *(call_ctx->result) = GGL_OBJ_NULL;
         decoded = false;
     }
 

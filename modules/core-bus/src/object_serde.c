@@ -399,7 +399,7 @@ static GglError read_obj(
 
     switch (tag) {
     case GGL_TYPE_NULL:
-        *obj = GGL_OBJ_NULL();
+        *obj = GGL_OBJ_NULL;
         return GGL_ERR_OK;
     case GGL_TYPE_BOOLEAN:
         return read_bool(buf, obj);

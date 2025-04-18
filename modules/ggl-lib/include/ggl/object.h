@@ -111,9 +111,7 @@ typedef struct {
 /// Get type of an GglObject
 GglObjectType ggl_obj_type(GglObject obj);
 
-// FIXME: make object macro
-/// Create null object literal.
-#define GGL_OBJ_NULL() ((GglObject) { 0 })
+static const GglObject GGL_OBJ_NULL = { 0 };
 
 /// Create bool object.
 GglObject ggl_obj_bool(bool value);

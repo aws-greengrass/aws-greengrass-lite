@@ -213,7 +213,7 @@ static GglError update_job(
         static uint8_t response_scratch[512];
         GglBumpAlloc call_alloc
             = ggl_bump_alloc_init(GGL_BUF(response_scratch));
-        GglObject result = GGL_OBJ_NULL();
+        GglObject result;
         ret = ggl_aws_iot_call(
             topic, payload_object, &call_alloc.alloc, &result
         );
@@ -321,7 +321,7 @@ static GglError describe_next_job(void *ctx) {
 
     static uint8_t response_scratch[4096];
     GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
-    GglObject job_description = GGL_OBJ_NULL();
+    GglObject job_description;
     ggl_aws_iot_call(
         topic, payload_object, &call_alloc.alloc, &job_description
     );
@@ -465,7 +465,7 @@ static GglError next_job_execution_changed_callback(
     static uint8_t subscription_scratch[4096];
     GglBumpAlloc json_allocator
         = ggl_bump_alloc_init(GGL_BUF(subscription_scratch));
-    GglObject json = GGL_OBJ_NULL();
+    GglObject json;
     GglError ret = deserialize_payload(&json_allocator.alloc, data, &json);
     if (ret != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;

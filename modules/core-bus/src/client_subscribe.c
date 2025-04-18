@@ -298,7 +298,7 @@ static GglError get_subscription_response(uint32_t handle) {
     static uint8_t obj_decode_mem[PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject)];
     GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(obj_decode_mem));
 
-    GglObject result = GGL_OBJ_NULL();
+    GglObject result;
     ret = ggl_deserialize(&balloc.alloc, false, msg.payload, &result);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to decode subscription response payload.");

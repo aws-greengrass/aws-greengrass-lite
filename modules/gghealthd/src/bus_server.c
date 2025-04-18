@@ -95,7 +95,7 @@ static GglError update_status(void *ctx, GglMap params, uint32_t handle) {
         return error;
     }
 
-    ggl_respond(handle, GGL_OBJ_NULL());
+    ggl_respond(handle, GGL_OBJ_NULL);
     return GGL_ERR_OK;
 }
 

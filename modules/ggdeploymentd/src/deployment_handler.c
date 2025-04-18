@@ -485,7 +485,7 @@ static GglError download_greengrass_artifact(
 
     // reusing scratch buffer for JSON decoding
     GglBumpAlloc json_bump = ggl_bump_alloc_init(scratch_buffer);
-    GglObject response_obj = GGL_OBJ_NULL();
+    GglObject response_obj;
     err = ggl_json_decode_destructive(
         response_buffer, &json_bump.alloc, &response_obj
     );

@@ -151,7 +151,7 @@ static GglError send_fleet_status_update(
         return ret;
     }
 
-    ggl_respond(handle, GGL_OBJ_NULL());
+    ggl_respond(handle, GGL_OBJ_NULL);
     return GGL_ERR_OK;
 }
 

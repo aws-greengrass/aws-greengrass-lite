@@ -296,8 +296,8 @@ GglError get_lifecycle_state(
         { GGL_STR("reloading"), ggl_obj_buf(GGL_STR("RUNNING")) },
         { GGL_STR("deactivating"), ggl_obj_buf(GGL_STR("STOPPING")) },
         // inactive and failed are ambiguous
-        { GGL_STR("inactive"), GGL_OBJ_NULL() },
-        { GGL_STR("failed"), GGL_OBJ_NULL() },
+        { GGL_STR("inactive"), GGL_OBJ_NULL },
+        { GGL_STR("failed"), GGL_OBJ_NULL },
     );
 
     GglBuffer key = ggl_buffer_from_null_term(active_state);

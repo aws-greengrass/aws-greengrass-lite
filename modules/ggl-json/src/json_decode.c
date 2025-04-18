@@ -783,7 +783,7 @@ static GglError take_json_val(GglBuffer *buf, GglAlloc *alloc, GglObject *obj) {
         *obj = ggl_obj_bool(false);
         return GGL_ERR_OK;
     case JSON_TYPE_NULL:
-        *obj = GGL_OBJ_NULL();
+        *obj = GGL_OBJ_NULL;
         return GGL_ERR_OK;
     case JSON_TYPE_ARRAY:
         return decode_json_array(output.content, output.count, alloc, obj);
