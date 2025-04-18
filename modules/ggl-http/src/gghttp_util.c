@@ -356,60 +356,6 @@ GglError gghttplib_add_post_body(CurlData *curl_data, const char *body) {
     return translate_curl_code(err);
 }
 
-GglError gghttplib_add_sigv4_credential(
-    CurlData *curl_data, SigV4Details request_data
-) {
-    assert(curl_data != NULL);
-    GglError err = GGL_ERR_OK;
-    // scope to reduce stack size
-    {
-        // TODO: tune length based on longest-possible string
-        // e.g. "aws:amz:us-gov-east-1:lambda" (30 characters)
-        char sigv4_param[32];
-        GglByteVec vector = GGL_BYTE_VEC(sigv4_param);
-        ggl_byte_vec_chain_append(&err, &vector, GGL_STR("aws:amz:"));
-        ggl_byte_vec_chain_append(&err, &vector, request_data.aws_region);
-        ggl_byte_vec_chain_push(&err, &vector, ':');
-        ggl_byte_vec_chain_append(&err, &vector, request_data.aws_service);
-        ggl_byte_vec_chain_push(&err, &vector, '\0');
-        if (err != GGL_ERR_OK) {
-            GGL_LOGE("sigv4_param too small");
-            return err;
-        }
-        CURLcode curl_err
-            = curl_easy_setopt(curl_data->curl, CURLOPT_AWS_SIGV4, sigv4_param);
-        if (curl_err != CURLE_OK) {
-            return translate_curl_code(curl_err);
-        }
-    }
-
-    // scope to reduce stack size
-    {
-        // "<128-chars>:<128-chars>"
-        char sigv4_usrpwd[258];
-        GglByteVec vector = GGL_BYTE_VEC(sigv4_usrpwd);
-        ggl_byte_vec_chain_append(&err, &vector, request_data.access_key_id);
-        ggl_byte_vec_chain_push(&err, &vector, ':');
-        ggl_byte_vec_chain_append(
-            &err, &vector, request_data.secret_access_key
-        );
-        ggl_byte_vec_chain_push(&err, &vector, '\0');
-        if (err != GGL_ERR_OK) {
-            GGL_LOGE("sigv4_usrpwd too small");
-            return err;
-        }
-        CURLcode curl_err
-            = curl_easy_setopt(curl_data->curl, CURLOPT_USERPWD, sigv4_usrpwd);
-        if (curl_err != CURLE_OK) {
-            return translate_curl_code(curl_err);
-        }
-    }
-
-    return gghttplib_add_header(
-        curl_data, GGL_STR("x-amz-security-token"), request_data.session_token
-    );
-}
-
 GglError gghttplib_process_request(
     CurlData *curl_data, GglBuffer *response_buffer
 ) {
