@@ -3,9 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/core_bus/gg_config.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/constants.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -16,7 +15,7 @@
 #include <stdint.h>
 
 GglError ggl_gg_config_read(
-    GglBufList key_path, GglAlloc *alloc, GglObject *result
+    GglBufList key_path, GglArena *alloc, GglObject *result
 ) {
     if (key_path.len > GGL_MAX_OBJECT_DEPTH) {
         GGL_LOGE("Key path depth exceeds maximum handled.");
@@ -46,7 +45,7 @@ GglError ggl_gg_config_read(
 }
 
 GglError ggl_gg_config_list(
-    GglBufList key_path, GglAlloc *alloc, GglList *subkeys_out
+    GglBufList key_path, GglArena *alloc, GglList *subkeys_out
 ) {
     if (key_path.len > GGL_MAX_OBJECT_DEPTH) {
         GGL_LOGE("Key path depth exceeds maximum handled.");
@@ -118,11 +117,11 @@ GglError ggl_gg_config_delete(GglBufList key_path) {
     return err;
 }
 
-GglError ggl_gg_config_read_str(GglBufList key_path, GglBuffer *result) {
+GglError ggl_gg_config_read_str(
+    GglBufList key_path, GglArena *alloc, GglBuffer *result
+) {
     GglObject result_obj;
-    GglBumpAlloc alloc = ggl_bump_alloc_init(*result);
-
-    GglError ret = ggl_gg_config_read(key_path, &alloc.alloc, &result_obj);
+    GglError ret = ggl_gg_config_read(key_path, alloc, &result_obj);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

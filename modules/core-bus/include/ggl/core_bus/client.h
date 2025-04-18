@@ -7,7 +7,7 @@
 
 //! Core Bus client interface
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -29,7 +29,7 @@ GglError ggl_call(
     GglBuffer method,
     GglMap params,
     GglError *error,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglObject *result
 ) __attribute__((warn_unused_result));
 

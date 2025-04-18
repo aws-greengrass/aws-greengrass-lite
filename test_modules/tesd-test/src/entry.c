@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "tesd-test.h"
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -17,15 +17,10 @@ GglError run_tesd_test(void) {
     GglObject result;
     GglMap params = { 0 };
     static uint8_t alloc_buf[4096];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(alloc_buf));
+    GglArena alloc = ggl_arena_init(GGL_BUF(alloc_buf));
 
     GglError error = ggl_call(
-        tesd,
-        GGL_STR("request_credentials"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &result
+        tesd, GGL_STR("request_credentials"), params, NULL, &alloc, &result
     );
     if (error != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;

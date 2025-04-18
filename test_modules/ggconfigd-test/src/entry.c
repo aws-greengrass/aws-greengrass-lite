@@ -2,8 +2,8 @@
 #include "ggconfigd-test.h"
 #include "stdbool.h"
 #include <assert.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -76,14 +76,14 @@ GglError run_ggconfigd_test(void) {
     }
 
     GglBuffer id_mem = GGL_BUF((uint8_t[36]) { 0 });
-    GglBumpAlloc alloc = ggl_bump_alloc_init(id_mem);
+    GglArena alloc = ggl_arena_init(id_mem);
 
     ret = ggl_call(
         GGL_STR("gg_deployment"),
         GGL_STR("create_local_deployment"),
         args.map,
         NULL,
-        &alloc.alloc,
+        &alloc,
         NULL
     );
     if (ret != GGL_ERR_OK) {
@@ -97,8 +97,7 @@ GglError run_ggconfigd_test(void) {
     // find the version of the active running component
     GglObject result_obj;
     static uint8_t version_resp_mem[10024] = { 0 };
-    GglBumpAlloc version_balloc
-        = ggl_bump_alloc_init(GGL_BUF(version_resp_mem));
+    GglArena version_alloc = ggl_arena_init(GGL_BUF(version_resp_mem));
 
     ret = ggl_gg_config_read(
         GGL_BUF_LIST(
@@ -106,7 +105,7 @@ GglError run_ggconfigd_test(void) {
             GGL_STR("com.example.sample"),
             GGL_STR("message")
         ),
-        &version_balloc.alloc,
+        &version_alloc,
         &result_obj
     );
 

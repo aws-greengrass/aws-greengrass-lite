@@ -6,7 +6,7 @@
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "pubsub.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -24,7 +24,7 @@ GglError ggl_handle_publish_to_topic(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     (void) alloc;
 

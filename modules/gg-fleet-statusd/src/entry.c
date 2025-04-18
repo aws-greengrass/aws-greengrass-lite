@@ -5,6 +5,7 @@
 #include "fleet_status_service.h"
 #include "gg_fleet_statusd.h"
 #include <sys/types.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/gg_config.h>
@@ -34,10 +35,12 @@ GglError run_gg_fleet_statusd(void) {
     GGL_LOGI("Started gg-fleet-statusd process.");
 
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN] = { 0 };
-    thing_name = GGL_BUF(thing_name_mem);
+    GglArena alloc = ggl_arena_init(GGL_BUF(thing_name_mem));
 
     GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &thing_name
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")),
+        &alloc,
+        &thing_name
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to read thingName from config.");

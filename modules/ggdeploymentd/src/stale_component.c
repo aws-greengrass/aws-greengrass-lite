@@ -6,6 +6,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <ftw.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -208,10 +209,14 @@ static GglError delete_component(
 
     static uint8_t root_path_mem[PATH_MAX];
     memset(root_path_mem, 0, sizeof(root_path_mem));
-    GglBuffer root_path_buffer = GGL_BUF(root_path_mem);
+
+    GglArena alloc = ggl_arena_init(GGL_BUF(root_path_mem));
+    GglBuffer root_path_buffer;
 
     ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &root_path_buffer
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")),
+        &alloc,
+        &root_path_buffer
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get root path from config.");
@@ -245,10 +250,14 @@ static GglError delete_recipe_script_and_service_files(GglBuffer *component_name
 ) {
     static uint8_t root_path_mem[PATH_MAX];
     memset(root_path_mem, 0, sizeof(root_path_mem));
-    GglBuffer root_path_buffer = GGL_BUF(root_path_mem);
+
+    GglArena alloc = ggl_arena_init(GGL_BUF(root_path_mem));
+    GglBuffer root_path_buffer;
 
     GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &root_path_buffer
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")),
+        &alloc,
+        &root_path_buffer
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get root path from config.");

@@ -5,8 +5,8 @@
 #include "ggl/recipe2unit.h"
 #include "recipe2unit-test.h"
 #include <fcntl.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
@@ -50,11 +50,9 @@ GglError run_recipe2unit_test(void) {
     GglObject recipe_map;
     GglObject *component_name_obj;
     static uint8_t big_buffer_for_bump[50000];
-    GglBumpAlloc bump_alloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+    GglArena alloc = ggl_arena_init(GGL_BUF(big_buffer_for_bump));
     HasPhase phases = { 0 };
 
-    convert_to_unit(
-        &args, &bump_alloc.alloc, &recipe_map, &component_name_obj, &phases
-    );
+    convert_to_unit(&args, &alloc, &recipe_map, &component_name_obj, &phases);
     return GGL_ERR_OK;
 }

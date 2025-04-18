@@ -5,10 +5,9 @@
 #include "ggipc/client.h"
 #include <sys/types.h>
 #include <assert.h>
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/constants.h>
 #include <ggl/error.h>
@@ -218,7 +217,7 @@ GglError ggipc_call(
     GglBuffer operation,
     GglBuffer service_model_type,
     GglMap params,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglObject *result,
     GglIpcError *remote_err
 ) {
@@ -266,13 +265,12 @@ GglError ggipc_call(
             return GGL_ERR_REMOTE;
         }
 
-        GglBumpAlloc error_alloc
-            = ggl_bump_alloc_init(GGL_BUF((uint8_t[sizeof(GglObject) * 4]) { 0 }
-            ));
+        GglArena error_alloc
+            = ggl_arena_init(GGL_BUF((uint8_t[sizeof(GglObject) * 4]) { 0 }));
 
         GglObject err_result;
         ret = ggl_json_decode_destructive(
-            msg.payload, &error_alloc.alloc, &err_result
+            msg.payload, &error_alloc, &err_result
         );
         if ((ret != GGL_ERR_OK) || (ggl_obj_type(err_result) != GGL_TYPE_MAP)) {
             GGL_LOGE("Failed to decode IPC error payload.");
@@ -299,14 +297,15 @@ GglError ggipc_call(
         remote_err->message = GGL_STR("");
 
         if (message_obj != NULL) {
-            ret = ggl_obj_buffer_copy(message_obj, alloc);
+            GglBuffer err_msg = ggl_obj_into_buf(*message_obj);
+
+            ret = ggl_arena_claim_buf(&err_msg, alloc);
             if (ret != GGL_ERR_OK) {
-                GGL_LOGW(
-                    "Insufficient memory provided for IPC response payload."
-                );
-                return GGL_ERR_REMOTE;
+                GGL_LOGW("Insufficient memory provided for IPC error message.");
+                // TODO: truncate error message to what fits
+            } else {
+                remote_err->message = err_msg;
             }
-            remote_err->message = ggl_obj_into_buf(*message_obj);
         }
 
         return GGL_ERR_REMOTE;
@@ -326,7 +325,7 @@ GglError ggipc_call(
             return ret;
         }
 
-        ret = ggl_obj_buffer_copy(result, alloc);
+        ret = ggl_arena_claim_obj(result, alloc);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Insufficient memory provided for IPC response payload.");
             return ret;
@@ -339,7 +338,7 @@ GglError ggipc_call(
 GglError ggipc_private_get_system_config(
     int conn, GglBuffer key, GglBuffer *value
 ) {
-    GglBumpAlloc balloc = ggl_bump_alloc_init(*value);
+    GglArena alloc = ggl_arena_init(*value);
     GglObject resp;
     GglIpcError remote_error;
     GglError ret = ggipc_call(
@@ -347,7 +346,7 @@ GglError ggipc_private_get_system_config(
         GGL_STR("aws.greengrass.private#GetSystemConfig"),
         GGL_STR("aws.greengrass.private#GetSystemConfigRequest"),
         GGL_MAP({ GGL_STR("key"), ggl_obj_buf(key) }),
-        &balloc.alloc,
+        &alloc,
         &resp,
         &remote_error
     );
@@ -412,7 +411,7 @@ GglError ggipc_get_config_str(
     }
 
     static uint8_t resp_mem[sizeof(GglKV) + sizeof("value") + PATH_MAX];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
+    GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
     GglObject resp;
     GglIpcError remote_error;
     ret = ggipc_call(
@@ -420,7 +419,7 @@ GglError ggipc_get_config_str(
         GGL_STR("aws.greengrass#GetConfiguration"),
         GGL_STR("aws.greengrass#GetConfigurationRequest"),
         args.map,
-        &balloc.alloc,
+        &alloc,
         &resp,
         &remote_error
     );
@@ -447,24 +446,26 @@ GglError ggipc_get_config_str(
         return GGL_ERR_FAILURE;
     }
 
-    GglObject *resp_value;
+    GglObject *resp_value_obj;
     ret = ggl_map_validate(
         ggl_obj_into_map(resp),
-        GGL_MAP_SCHEMA({ GGL_STR("value"), true, GGL_TYPE_BUF, &resp_value })
+        GGL_MAP_SCHEMA({ GGL_STR("value"), true, GGL_TYPE_BUF, &resp_value_obj }
+        )
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed validating server response.");
         return GGL_ERR_INVALID;
     }
+    GglBuffer resp_value = ggl_obj_into_buf(*resp_value_obj);
 
-    GglBumpAlloc ret_alloc = ggl_bump_alloc_init(*value);
-    ret = ggl_obj_buffer_copy(resp_value, &ret_alloc.alloc);
+    GglArena ret_alloc = ggl_arena_init(*value);
+    ret = ggl_arena_claim_buf(&resp_value, &ret_alloc);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Insufficent memory provided for response.");
         return ret;
     }
 
-    *value = ggl_obj_into_buf(*resp_value);
+    *value = resp_value;
     return GGL_ERR_OK;
 }
 
@@ -472,7 +473,7 @@ GglError ggipc_get_config_obj(
     int conn,
     GglBufList key_path,
     GglBuffer *component_name,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglObject *value
 ) {
     GglObjVec path_vec = GGL_OBJ_VEC((GglObject[GGL_MAX_OBJECT_DEPTH]) { 0 });
@@ -497,15 +498,15 @@ GglError ggipc_get_config_obj(
     }
 
     static uint8_t resp_mem[sizeof(GglKV) + sizeof("value") + PATH_MAX];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
+    GglArena resp_alloc = ggl_arena_init(GGL_BUF(resp_mem));
     GglObject resp;
-    GglIpcError remote_error = { 0 };
+    GglIpcError remote_error;
     ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass#GetConfiguration"),
         GGL_STR("aws.greengrass#GetConfigurationRequest"),
         args.map,
-        &balloc.alloc,
+        &resp_alloc,
         &resp,
         &remote_error
     );
@@ -542,7 +543,7 @@ GglError ggipc_get_config_obj(
         return GGL_ERR_INVALID;
     }
 
-    ret = ggl_obj_deep_copy(resp_value, alloc);
+    ret = ggl_arena_claim_obj(resp_value, alloc);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Insufficent memory provided for response.");
         return ret;
@@ -586,17 +587,14 @@ GglError ggipc_update_config(
         { GGL_STR("valueToMerge"), value_to_merge }
     );
 
-    uint8_t error_mem[128];
-    GglBumpAlloc error_alloc = ggl_bump_alloc_init(GGL_BUF(error_mem));
-    GglIpcError remote_error = { 0 };
     ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass#UpdateConfiguration"),
         GGL_STR("aws.greengrass#UpdateConfigurationRequest"),
         args,
-        &error_alloc.alloc,
         NULL,
-        &remote_error
+        NULL,
+        NULL
     );
     if (ret == GGL_ERR_REMOTE) {
         GGL_LOGE("Server error.");
@@ -608,7 +606,7 @@ GglError ggipc_update_config(
 
 // TODO: use GglByteVec for payload to allow in-place base64 encoding.
 GglError ggipc_publish_to_topic_binary(
-    int conn, GglBuffer topic, GglBuffer payload, GglAlloc *alloc
+    int conn, GglBuffer topic, GglBuffer payload, GglArena *alloc
 ) {
     GglBuffer encoded_payload;
     GglError ret = ggl_base64_encode(payload, alloc, &encoded_payload);
@@ -662,17 +660,15 @@ GglError ggipc_publish_to_topic_obj(
         { GGL_STR("publishMessage"), ggl_obj_map(publish_message) }
     );
 
-    GglBumpAlloc error_alloc
-        = ggl_bump_alloc_init(GGL_BUF((uint8_t[128]) { 0 }));
+    GglArena error_alloc = ggl_arena_init(GGL_BUF((uint8_t[128]) { 0 }));
     GglIpcError remote_error;
-    GglObject resp;
     GglError ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass#PublishToTopic"),
         GGL_STR("aws.greengrass#PublishToTopicRequest"),
         args,
-        &error_alloc.alloc,
-        &resp,
+        &error_alloc,
+        NULL,
         &remote_error
     );
     if (ret == GGL_ERR_REMOTE) {
@@ -697,7 +693,7 @@ GglError ggipc_publish_to_iot_core(
     GglBuffer topic_name,
     GglBuffer payload,
     uint8_t qos,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     if (qos > 2) {
         GGL_LOGE("Invalid QoS \"%" PRIu8 "\" provided. QoS must be <= 2", qos);
@@ -716,15 +712,15 @@ GglError ggipc_publish_to_iot_core(
         { GGL_STR("qos"), ggl_obj_buf(qos_buffer) }
     );
 
+    GglArena error_alloc = ggl_arena_init(GGL_BUF((uint8_t[128]) { 0 }));
     GglIpcError remote_error;
-    GglObject resp;
     ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass#PublishToIoTCore"),
         GGL_STR("aws.greengrass#PublishToIoTCoreRequest"),
         args,
-        alloc,
-        &resp,
+        &error_alloc,
+        NULL,
         &remote_error
     );
     if (ret == GGL_ERR_REMOTE) {

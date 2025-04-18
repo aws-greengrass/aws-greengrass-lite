@@ -10,10 +10,9 @@
 #include <assert.h>
 #include <errno.h>
 #include <ggipc/auth.h>
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
@@ -76,7 +75,7 @@ static GglError release_client_subscriptions(uint32_t handle, size_t index) {
 }
 
 static GglError deserialize_payload(
-    GglBuffer payload, GglMap *out, GglAlloc *alloc
+    GglBuffer payload, GglMap *out, GglArena *alloc
 ) {
     GglObject obj;
 
@@ -145,14 +144,13 @@ static GglError send_conn_resp(uint32_t handle, GglSvcuid *svcuid) {
     GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
     GglBuffer resp_buffer = GGL_BUF(resp_array);
 
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init(GGL_BUF((uint8_t[GGL_IPC_SVCUID_STR_LEN]) { 0 }));
+    uint8_t svcuid_mem[GGL_IPC_SVCUID_STR_LEN];
     GglBuffer svcuid_str = GGL_STR("");
 
     if (svcuid != NULL) {
-        GglError ret = ggl_base64_encode(
-            GGL_BUF(svcuid->val), &balloc.alloc, &svcuid_str
-        );
+        GglArena arena = ggl_arena_init(GGL_BUF(svcuid_mem));
+        GglError ret
+            = ggl_base64_encode(GGL_BUF(svcuid->val), &arena, &svcuid_str);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to encode SVCUID.");
             return GGL_ERR_FATAL;
@@ -183,7 +181,7 @@ static GglError handle_conn_init(
     uint32_t handle,
     EventStreamMessage *msg,
     EventStreamCommonHeaders common_headers,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     GGL_LOGD("Handling connect for %d.", handle);
 
@@ -351,7 +349,7 @@ static GglError handle_stream_operation(
     EventStreamMessage *msg,
     EventStreamCommonHeaders common_headers,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     if (common_headers.message_type != EVENTSTREAM_APPLICATION_MESSAGE) {
         GGL_LOGE("Client sent unhandled message type.");
@@ -401,7 +399,7 @@ static GglError handle_operation(
     uint32_t handle,
     EventStreamMessage *msg,
     EventStreamCommonHeaders common_headers,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     if (common_headers.stream_id == 0) {
         GGL_LOGE("Application message has zero :stream-id.");
@@ -500,18 +498,18 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         return ret;
     }
 
-    GglBumpAlloc payload_decode_alloc = ggl_bump_alloc_init(GGL_BUF(
+    GglArena payload_decode_alloc = ggl_arena_init(GGL_BUF(
         (uint8_t[GGL_IPC_PAYLOAD_MAX_SUBOBJECTS *sizeof(GglObject)]) { 0 }
     ));
 
     if (component_handle == 0) {
         return handle_conn_init(
-            handle, &msg, common_headers, &payload_decode_alloc.alloc
+            handle, &msg, common_headers, &payload_decode_alloc
         );
     }
 
     return handle_operation(
-        handle, &msg, common_headers, &payload_decode_alloc.alloc
+        handle, &msg, common_headers, &payload_decode_alloc
     );
 }
 

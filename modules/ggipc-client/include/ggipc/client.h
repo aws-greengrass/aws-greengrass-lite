@@ -5,7 +5,7 @@
 #ifndef GGIPC_CLIENT_H
 #define GGIPC_CLIENT_H
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/ipc/common.h>
@@ -29,7 +29,7 @@ GglError ggipc_call(
     GglBuffer operation,
     GglBuffer service_model_type,
     GglMap params,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglObject *result,
     GglIpcError *remote_err
 ) __attribute__((warn_unused_result));
@@ -46,7 +46,7 @@ GglError ggipc_get_config_obj(
     int conn,
     GglBufList key_path,
     GglBuffer *component_name,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglObject *value
 );
 
@@ -61,7 +61,7 @@ GglError ggipc_update_config(
 /// base64 encoding will allocate 4 bytes for every 3 payload bytes.
 /// Additionally, up to 128 bytes may be allocated for an error message.
 GglError ggipc_publish_to_topic_binary(
-    int conn, GglBuffer topic, GglBuffer payload, GglAlloc *alloc
+    int conn, GglBuffer topic, GglBuffer payload, GglArena *alloc
 );
 
 GglError ggipc_publish_to_topic_obj(
@@ -76,7 +76,7 @@ GglError ggipc_publish_to_iot_core(
     GglBuffer topic_name,
     GglBuffer payload,
     uint8_t qos,
-    GglAlloc *alloc
+    GglArena *alloc
 );
 
 #endif

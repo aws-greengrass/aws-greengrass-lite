@@ -1,6 +1,6 @@
 #include <assert.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
@@ -41,9 +41,8 @@ static void test_insert(
     );
     GglBuffer server = GGL_STR("gg_config");
 
-    static uint8_t big_buffer_for_bump[4096];
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+    static uint8_t alloc_mem[4096];
+    GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
 
     GglMap params = GGL_MAP(
         { GGL_STR("key_path"), ggl_obj_list(test_key) },
@@ -59,12 +58,7 @@ static void test_insert(
 
     GglError remote_error = GGL_ERR_OK;
     GglError error = ggl_call(
-        server,
-        GGL_STR("write"),
-        params,
-        &remote_error,
-        &the_allocator.alloc,
-        &result
+        server, GGL_STR("write"), params, &remote_error, &alloc, &result
     );
 
     if (expected_result != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
@@ -251,9 +245,8 @@ static void test_get(
         ggl_strerror(expected_result)
     );
     GglBuffer server = GGL_STR("gg_config");
-    static uint8_t big_buffer_for_bump[4096];
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+    static uint8_t alloc_mem[4096];
+    GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
 
     GglMap params
         = GGL_MAP({ GGL_STR("key_path"), ggl_obj_list(test_key_path) }, );
@@ -261,12 +254,7 @@ static void test_get(
 
     GglError remote_error = GGL_ERR_OK;
     GglError error = ggl_call(
-        server,
-        GGL_STR("read"),
-        params,
-        &remote_error,
-        &the_allocator.alloc,
-        &result
+        server, GGL_STR("read"), params, &remote_error, &alloc, &result
     );
     if (expected_result != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
         GGL_LOGE(
@@ -310,9 +298,8 @@ static void test_list(
         ggl_strerror(expected_result)
     );
     GglBuffer server = GGL_STR("gg_config");
-    static uint8_t big_buffer_for_bump[4096];
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+    static uint8_t alloc_mem[4096];
+    GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
 
     GglMap params
         = GGL_MAP({ GGL_STR("key_path"), ggl_obj_list(test_key_path) }, );
@@ -320,12 +307,7 @@ static void test_list(
 
     GglError remote_error = GGL_ERR_OK;
     GglError error = ggl_call(
-        server,
-        GGL_STR("list"),
-        params,
-        &remote_error,
-        &the_allocator.alloc,
-        &result
+        server, GGL_STR("list"), params, &remote_error, &alloc, &result
     );
     if (expected_result != GGL_ERR_OK && error != GGL_ERR_REMOTE) {
         GGL_LOGE(
@@ -514,15 +496,13 @@ static void test_write_object(void) {
     static uint8_t big_buffer[4096];
     GGL_LOGI("test begun");
 
-    GglBumpAlloc the_allocator = ggl_bump_alloc_init(GGL_BUF(big_buffer));
+    GglArena arena = ggl_arena_init(GGL_BUF(big_buffer));
     GglError error = ggl_json_decode_destructive(
-        test_key_path_json, &the_allocator.alloc, &test_key_path_object
+        test_key_path_json, &arena, &test_key_path_object
     );
     GGL_LOGI("json decode complete %d", error);
 
-    ggl_json_decode_destructive(
-        test_value_json, &the_allocator.alloc, &test_value_object
-    );
+    ggl_json_decode_destructive(test_value_json, &arena, &test_value_object);
 
     if (ggl_obj_type(test_key_path_object) == GGL_TYPE_LIST) {
         GGL_LOGI("found a list in the json path");

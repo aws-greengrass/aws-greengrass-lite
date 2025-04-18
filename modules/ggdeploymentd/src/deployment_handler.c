@@ -14,11 +14,10 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/backoff.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
@@ -107,11 +106,13 @@ static GglError merge_dir_to(GglBuffer source, char *dir) {
 
 static GglError get_thing_name(char **thing_name) {
     static uint8_t resp_mem[129] = { 0 };
-    GglBuffer resp = GGL_BUF(resp_mem);
-    resp.len -= 1;
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
+    );
+    GglBuffer resp;
 
     GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &resp
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &alloc, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get thing name from config.");
@@ -125,7 +126,8 @@ static GglError get_thing_name(char **thing_name) {
 
 static GglError get_region(GglByteVec *region) {
     static uint8_t resp_mem[128] = { 0 };
-    GglBuffer resp = GGL_BUF(resp_mem);
+    GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
+    GglBuffer resp;
 
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(
@@ -134,6 +136,7 @@ static GglError get_region(GglByteVec *region) {
             GGL_STR("configuration"),
             GGL_STR("awsRegion")
         ),
+        &alloc,
         &resp
     );
     if (ret != GGL_ERR_OK) {
@@ -151,11 +154,13 @@ static GglError get_region(GglByteVec *region) {
 
 static GglError get_root_ca_path(char **root_ca_path) {
     static uint8_t resp_mem[129] = { 0 };
-    GglBuffer resp = GGL_BUF(resp_mem);
-    resp.len -= 1;
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
+    );
+    GglBuffer resp;
 
     GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")), &resp
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")), &alloc, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get rootCaPath from config.");
@@ -169,8 +174,10 @@ static GglError get_root_ca_path(char **root_ca_path) {
 
 static GglError get_posix_user(char **posix_user) {
     static uint8_t resp_mem[129] = { 0 };
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
+    );
     GglBuffer resp = GGL_BUF(resp_mem);
-    resp.len -= 1;
 
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(
@@ -180,6 +187,7 @@ static GglError get_posix_user(char **posix_user) {
             GGL_STR("runWithDefault"),
             GGL_STR("posixUser")
         ),
+        &alloc,
         &resp
     );
     if (ret != GGL_ERR_OK) {
@@ -203,17 +211,13 @@ static GglError get_data_endpoint(GglByteVec *endpoint) {
                     )) });
 
     static uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
+    );
 
     GglObject resp;
     GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &resp
+        GGL_STR("gg_config"), GGL_STR("read"), params, NULL, &alloc, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get dataplane endpoint from config.");
@@ -238,17 +242,13 @@ static GglError get_data_port(GglByteVec *port) {
                     )) });
 
     static uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
+    );
 
     GglObject resp;
     GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &resp
+        GGL_STR("gg_config"), GGL_STR("read"), params, NULL, &alloc, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get dataplane port from config.");
@@ -270,17 +270,13 @@ static GglError get_private_key_path(GglByteVec *pkey_path) {
                               )) });
 
     uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
+    );
 
     GglObject resp;
     GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &resp
+        GGL_STR("gg_config"), GGL_STR("read"), params, NULL, &alloc, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get private key path from config.");
@@ -304,17 +300,13 @@ static GglError get_cert_path(GglByteVec *cert_path) {
                               )) });
 
     static uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
+    );
 
     GglObject resp;
     GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &resp
+        GGL_STR("gg_config"), GGL_STR("read"), params, NULL, &alloc, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get certificate path from config.");
@@ -338,17 +330,13 @@ static GglError get_rootca_path(GglByteVec *rootca_path) {
                               )) });
 
     static uint8_t resp_mem[128] = { 0 };
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init((GglBuffer) { .data = resp_mem, .len = 127 });
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
+    );
 
     GglObject resp;
     GglError ret = ggl_call(
-        GGL_STR("gg_config"),
-        GGL_STR("read"),
-        params,
-        NULL,
-        &balloc.alloc,
-        &resp
+        GGL_STR("gg_config"), GGL_STR("read"), params, NULL, &alloc, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get rootca path from config.");
@@ -373,15 +361,14 @@ static GglError get_tes_credentials(TesCredentials *tes_creds) {
     static GglBuffer tesd = GGL_STR("aws_iot_tes");
     GglObject result;
     GglMap params = { 0 };
-    GglBumpAlloc credential_alloc
-        = ggl_bump_alloc_init(GGL_BUF(credentials_alloc));
+    GglArena credential_alloc = ggl_arena_init(GGL_BUF(credentials_alloc));
 
     GglError ret = ggl_call(
         tesd,
         GGL_STR("request_credentials"),
         params,
         NULL,
-        &credential_alloc.alloc,
+        &credential_alloc,
         &result
     );
     if (ret != GGL_ERR_OK) {
@@ -582,10 +569,10 @@ static GglError download_greengrass_artifact(
     }
 
     // reusing scratch buffer for JSON decoding
-    GglBumpAlloc json_bump = ggl_bump_alloc_init(scratch_buffer);
+    GglArena json_bump = ggl_arena_init(scratch_buffer);
     GglObject response_obj;
     err = ggl_json_decode_destructive(
-        response_buffer, &json_bump.alloc, &response_obj
+        response_buffer, &json_bump, &response_obj
     );
     if (err != GGL_ERR_OK) {
         return err;
@@ -749,8 +736,8 @@ static GglError get_recipe_artifacts(
 
         GglUriInfo info = { 0 };
         {
-            GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(decode_buffer));
-            err = gg_uri_parse(&alloc.alloc, ggl_obj_into_buf(*uri_obj), &info);
+            GglArena alloc = ggl_arena_init(GGL_BUF(decode_buffer));
+            err = gg_uri_parse(&alloc, ggl_obj_into_buf(*uri_obj), &info);
 
             if (err != GGL_ERR_OK) {
                 return err;
@@ -933,7 +920,7 @@ static GglError generate_resolve_component_candidates_body(
     GglBuffer component_name,
     GglBuffer component_requirements,
     GglByteVec *body_vec,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     GglObject architecture_detail_read_value;
     GglError ret = ggl_gg_config_read(
@@ -1021,10 +1008,9 @@ static GglError resolve_component_with_cloud(
     static char resolve_candidates_body_buf[2048];
     GglByteVec body_vec = GGL_BYTE_VEC(resolve_candidates_body_buf);
     static uint8_t rcc_body_config_read_mem[128];
-    GglBumpAlloc rcc_balloc
-        = ggl_bump_alloc_init(GGL_BUF(rcc_body_config_read_mem));
+    GglArena rcc_alloc = ggl_arena_init(GGL_BUF(rcc_body_config_read_mem));
     GglError ret = generate_resolve_component_candidates_body(
-        component_name, version_requirements, &body_vec, &rcc_balloc.alloc
+        component_name, version_requirements, &body_vec, &rcc_alloc
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to generate body for resolveComponentCandidates call");
@@ -1112,9 +1098,9 @@ static GglError parse_dataplane_response_and_save_recipe(
     GglObject json_candidates_response_obj;
     // TODO: Figure out a better size. This response can be big.
     uint8_t candidates_response_mem[100 * sizeof(GglObject)];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(candidates_response_mem));
+    GglArena alloc = ggl_arena_init(GGL_BUF(candidates_response_mem));
     GglError ret = ggl_json_decode_destructive(
-        dataplane_response, &balloc.alloc, &json_candidates_response_obj
+        dataplane_response, &alloc, &json_candidates_response_obj
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Error when parsing resolveComponentCandidates response to "
@@ -1312,7 +1298,7 @@ static GglError resolve_dependencies(
     GglMap root_components,
     GglBuffer thing_group_name,
     GglDeploymentHandlerThreadArgs *args,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglKVVec *resolved_components_kv_vec
 ) {
     GglError ret;
@@ -1321,8 +1307,8 @@ static GglError resolve_dependencies(
     GglKVVec components_to_resolve = GGL_KV_VEC((GglKV[64]) { 0 });
 
     static uint8_t version_requirements_mem[2048] = { 0 };
-    GglBumpAlloc version_requirements_balloc
-        = ggl_bump_alloc_init(GGL_BUF(version_requirements_mem));
+    GglArena version_requirements_alloc
+        = ggl_arena_init(GGL_BUF(version_requirements_mem));
 
     // Root components from current deployment
     GGL_MAP_FOREACH(pair, root_components) {
@@ -1420,11 +1406,11 @@ static GglError resolve_dependencies(
     // TODO: Add a schema and only parse the fields we need to save memory
     GglObject json_thing_groups_object;
     uint8_t thing_groups_response_mem[100 * sizeof(GglObject)];
-    GglBumpAlloc thing_groups_json_balloc
-        = ggl_bump_alloc_init(GGL_BUF(thing_groups_response_mem));
+    GglArena thing_groups_json_alloc
+        = ggl_arena_init(GGL_BUF(thing_groups_response_mem));
     ret = ggl_json_decode_destructive(
         list_thing_groups_response,
-        &thing_groups_json_balloc.alloc,
+        &thing_groups_json_alloc,
         &json_thing_groups_object
     );
     if (ret != GGL_ERR_OK) {
@@ -1561,21 +1547,20 @@ static GglError resolve_dependencies(
                     }
 
                     if (need_to_add_root_component) {
-                        GglBuffer root_component_name_buf;
-                        ret = ggl_buf_clone(
-                            root_component_pair->key,
-                            alloc,
-                            &root_component_name_buf
+                        GglBuffer root_component_name_buf
+                            = root_component_pair->key;
+                        ret = ggl_arena_claim_buf(
+                            &root_component_name_buf, alloc
                         );
                         if (ret != GGL_ERR_OK) {
                             return ret;
                         }
 
-                        GglBuffer root_component_version_buf;
-                        ret = ggl_buf_clone(
-                            root_component_val,
-                            &version_requirements_balloc.alloc,
-                            &root_component_version_buf
+                        GglBuffer root_component_version_buf
+                            = root_component_val;
+                        ret = ggl_arena_claim_buf(
+                            &root_component_version_buf,
+                            &version_requirements_alloc
                         );
                         if (ret != GGL_ERR_OK) {
                             return ret;
@@ -1677,21 +1662,16 @@ static GglError resolve_dependencies(
                 }
 
                 if (need_to_add_root_component) {
-                    GglBuffer root_component_name_buf;
-                    ret = ggl_buf_clone(
-                        root_component_pair->key,
-                        alloc,
-                        &root_component_name_buf
-                    );
+                    GglBuffer root_component_name_buf
+                        = root_component_pair->key;
+                    ret = ggl_arena_claim_buf(&root_component_name_buf, alloc);
                     if (ret != GGL_ERR_OK) {
                         return ret;
                     }
 
-                    GglBuffer root_component_version_buf;
-                    ret = ggl_buf_clone(
-                        root_component_val,
-                        &version_requirements_balloc.alloc,
-                        &root_component_version_buf
+                    GglBuffer root_component_version_buf = root_component_val;
+                    ret = ggl_arena_claim_buf(
+                        &root_component_version_buf, &version_requirements_alloc
                     );
                     if (ret != GGL_ERR_OK) {
                         return ret;
@@ -1759,15 +1739,14 @@ static GglError resolve_dependencies(
         }
 
         // Add resolved component to list of resolved components
-        GglBuffer val_buf;
-        ret = ggl_buf_clone(resolved_version, alloc, &val_buf);
+        ret = ggl_arena_claim_buf(&resolved_version, alloc);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
 
         ret = ggl_kv_vec_push(
             resolved_components_kv_vec,
-            (GglKV) { pair->key, ggl_obj_buf(val_buf) }
+            (GglKV) { pair->key, ggl_obj_buf(resolved_version) }
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
@@ -1784,12 +1763,12 @@ static GglError resolve_dependencies(
         // Get actual recipe read
         GglObject recipe_obj;
         static uint8_t recipe_mem[MAX_RECIPE_MEM] = { 0 };
-        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(recipe_mem));
+        GglArena recipe_alloc = ggl_arena_init(GGL_BUF(recipe_mem));
         ret = ggl_recipe_get_from_file(
             args->root_path_fd,
             pair->key,
             resolved_version,
-            &balloc.alloc,
+            &recipe_alloc,
             &recipe_obj
         );
         if (ret != GGL_ERR_OK) {
@@ -1921,8 +1900,8 @@ static GglError resolve_dependencies(
                             return ret;
                         }
 
-                        uint8_t *new_req = GGL_ALLOCN(
-                            &version_requirements_balloc.alloc,
+                        uint8_t *new_req = GGL_ARENA_ALLOCN(
+                            &version_requirements_alloc,
                             uint8_t,
                             new_req_vec.buf.len
                         );
@@ -1942,19 +1921,15 @@ static GglError resolve_dependencies(
                     // If we haven't resolved it yet, and it doesn't have an
                     // existing requirement, add it.
                     if (!existing_requirements) {
-                        GglBuffer name_key_buf;
-                        ret = ggl_buf_clone(
-                            dependency->key, alloc, &name_key_buf
-                        );
+                        GglBuffer name_key_buf = dependency->key;
+                        ret = ggl_arena_claim_buf(&name_key_buf, alloc);
                         if (ret != GGL_ERR_OK) {
                             return ret;
                         }
 
-                        GglBuffer vers_key_buf;
-                        ret = ggl_buf_clone(
-                            dep_version_requirement,
-                            &version_requirements_balloc.alloc,
-                            &vers_key_buf
+                        GglBuffer vers_key_buf = dep_version_requirement;
+                        ret = ggl_arena_claim_buf(
+                            &vers_key_buf, &version_requirements_alloc
                         );
                         if (ret != GGL_ERR_OK) {
                             return ret;
@@ -2029,12 +2004,12 @@ static GglError add_arn_list_to_config(
             [((size_t) DEPLOYMENT_TARGET_NAME_MAX_CHARS *MAX_DEPLOYMENT_TARGETS)
              + (sizeof(GglObject) *MAX_DEPLOYMENT_TARGETS)]
     ) { 0 });
-    GglBumpAlloc arn_list_balloc = ggl_bump_alloc_init(arn_list_mem);
+    GglArena arn_list_alloc = ggl_arena_init(arn_list_mem);
 
     GglObject arn_list_obj;
     GglError ret = ggl_gg_config_read(
         GGL_BUF_LIST(GGL_STR("services"), component_name, GGL_STR("configArn")),
-        &arn_list_balloc.alloc,
+        &arn_list_alloc,
         &arn_list_obj
     );
 
@@ -2153,16 +2128,11 @@ static GglError send_fss_update(
         { GGL_STR("deployment_info"), ggl_obj_map(deployment_info) }
     );
 
-    GglBumpAlloc alloc = ggl_bump_alloc_init(GGL_BUF(buffer));
+    GglArena alloc = ggl_arena_init(GGL_BUF(buffer));
     GglObject result;
 
     GglError ret = ggl_call(
-        server,
-        GGL_STR("send_fleet_status_update"),
-        args,
-        NULL,
-        &alloc.alloc,
-        &result
+        server, GGL_STR("send_fleet_status_update"), args, NULL, &alloc, &result
     );
 
     if (ret != 0) {
@@ -2335,13 +2305,13 @@ static void handle_deployment(
 
     GglKVVec resolved_components_kv_vec = GGL_KV_VEC((GglKV[64]) { 0 });
     static uint8_t resolve_dependencies_mem[8192] = { 0 };
-    GglBumpAlloc resolve_dependencies_balloc
-        = ggl_bump_alloc_init(GGL_BUF(resolve_dependencies_mem));
+    GglArena resolve_dependencies_alloc
+        = ggl_arena_init(GGL_BUF(resolve_dependencies_mem));
     GglError ret = resolve_dependencies(
         deployment->components,
         deployment->thing_group,
         args,
-        &resolve_dependencies_balloc.alloc,
+        &resolve_dependencies_alloc,
         &resolved_components_kv_vec
     );
     if (ret != GGL_ERR_OK) {
@@ -2405,8 +2375,8 @@ static void handle_deployment(
         GglBuffer pair_val = ggl_obj_into_buf(pair->val);
 
         // check config to see if component has completed processing
-        uint8_t resp_mem[128] = { 0 };
-        GglBuffer resp = GGL_BUF(resp_mem);
+        GglArena resp_alloc = ggl_arena_init(GGL_BUF((uint8_t[128]) { 0 }));
+        GglBuffer resp;
 
         ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
@@ -2416,6 +2386,7 @@ static void handle_deployment(
                 GGL_STR("components"),
                 pair->key
             ),
+            &resp_alloc,
             &resp
         );
         if (ret == GGL_ERR_OK) {
@@ -2471,19 +2442,21 @@ static void handle_deployment(
         }
         GglObject recipe_obj;
         static uint8_t recipe_mem[MAX_RECIPE_MEM] = { 0 };
-        static uint8_t component_arn_buffer[256];
-        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(recipe_mem));
+        GglArena alloc = ggl_arena_init(GGL_BUF(recipe_mem));
         ret = ggl_recipe_get_from_file(
-            args->root_path_fd, pair->key, pair_val, &balloc.alloc, &recipe_obj
+            args->root_path_fd, pair->key, pair_val, &alloc, &recipe_obj
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to validate and decode recipe");
             return;
         }
 
-        GglBuffer component_arn = GGL_BUF(component_arn_buffer);
+        static uint8_t component_arn_buffer[256];
+        alloc = ggl_arena_init(GGL_BUF(component_arn_buffer));
+        GglBuffer component_arn;
         GglError arn_ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("arn")),
+            &alloc,
             &component_arn
         );
         if (arn_ret != GGL_ERR_OK) {
@@ -2512,9 +2485,11 @@ static void handle_deployment(
         bool component_updated = true;
 
         static uint8_t old_component_version_mem[128] = { 0 };
-        GglBuffer old_component_version = GGL_BUF(old_component_version_mem);
+        alloc = ggl_arena_init(GGL_BUF(old_component_version_mem));
+        GglBuffer old_component_version;
         ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("version")),
+            &alloc,
             &old_component_version
         );
         if (ret != GGL_ERR_OK) {
@@ -2695,12 +2670,13 @@ static void handle_deployment(
 
         GglObject recipe_buff_obj;
         GglObject *component_name;
-        static uint8_t alloc_mem[MAX_RECIPE_MEM];
-        GglBumpAlloc bump_alloc = ggl_bump_alloc_init(GGL_BUF(alloc_mem));
+        static uint8_t unit_convert_alloc_mem[MAX_RECIPE_MEM];
+        GglArena unit_convert_alloc
+            = ggl_arena_init(GGL_BUF(unit_convert_alloc_mem));
         HasPhase phases = { 0 };
         GglError err = convert_to_unit(
             &recipe2unit_args,
-            &bump_alloc.alloc,
+            &unit_convert_alloc,
             &recipe_buff_obj,
             &component_name,
             &phases
@@ -2736,10 +2712,11 @@ static void handle_deployment(
             );
         } else {
             // component already exists, check its lifecycle state
-            uint8_t component_status_arr[NAME_MAX];
-            GglBuffer component_status = GGL_BUF(component_status_arr);
+            GglArena component_status_alloc
+                = ggl_arena_init(GGL_BUF((uint8_t[NAME_MAX]) { 0 }));
+            GglBuffer component_status;
             ret = ggl_gghealthd_retrieve_component_status(
-                pair->key, &component_status
+                pair->key, &component_status_alloc, &component_status
             );
 
             if (ret != GGL_ERR_OK) {

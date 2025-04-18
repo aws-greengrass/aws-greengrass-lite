@@ -5,6 +5,7 @@
 #include "bus_server.h"
 #include "iotcored.h"
 #include "mqtt.h"
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -46,6 +47,7 @@ static bool get_proxy_variable(GglBufList aliases, GglBuffer *destination) {
 
 static void set_proxy_args(IotcoredArgs *args) {
     static uint8_t proxy_uri_mem[PATH_MAX] = { 0 };
+
     if (args->proxy_uri == NULL) {
         GglBuffer proxy_uri = GGL_BUF(proxy_uri_mem);
         if (get_proxy_variable(
@@ -55,9 +57,12 @@ static void set_proxy_args(IotcoredArgs *args) {
             args->proxy_uri = (char *) proxy_uri_mem;
         }
     }
+
     if (args->proxy_uri == NULL) {
-        GglBuffer proxy_uri = GGL_BUF(proxy_uri_mem);
-        proxy_uri.len -= 1;
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(proxy_uri_mem), 0, sizeof(proxy_uri_mem) - 1
+        ));
+        GglBuffer proxy_uri;
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
                 GGL_STR("services"),
@@ -67,14 +72,16 @@ static void set_proxy_args(IotcoredArgs *args) {
                 GGL_STR("proxy"),
                 GGL_STR("url")
             ),
+            &alloc,
             &proxy_uri
         );
         if (ret == GGL_ERR_OK) {
-            args->proxy_uri = (char *) proxy_uri_mem;
+            args->proxy_uri = (char *) proxy_uri.data;
         }
     }
 
     static uint8_t no_proxy_mem[PATH_MAX] = { 0 };
+
     if (args->no_proxy == NULL) {
         GglBuffer no_proxy = GGL_BUF(no_proxy_mem);
         if (get_proxy_variable(
@@ -84,9 +91,12 @@ static void set_proxy_args(IotcoredArgs *args) {
             args->no_proxy = (char *) no_proxy_mem;
         }
     }
+
     if (args->no_proxy == NULL) {
-        GglBuffer no_proxy = GGL_BUF(no_proxy_mem);
-        no_proxy.len -= 1;
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(no_proxy_mem), 0, sizeof(no_proxy_mem) - 1
+        ));
+        GglBuffer no_proxy;
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
                 GGL_STR("services"),
@@ -95,10 +105,11 @@ static void set_proxy_args(IotcoredArgs *args) {
                 GGL_STR("networkProxy"),
                 GGL_STR("noproxy"),
             ),
+            &alloc,
             &no_proxy
         );
         if (ret == GGL_ERR_OK) {
-            args->no_proxy = (char *) no_proxy_mem;
+            args->no_proxy = (char *) no_proxy.data;
         }
     }
 }
@@ -106,11 +117,14 @@ static void set_proxy_args(IotcoredArgs *args) {
 GglError run_iotcored(IotcoredArgs *args) {
     if (args->cert == NULL) {
         static uint8_t cert_mem[PATH_MAX] = { 0 };
-        GglBuffer cert = GGL_BUF(cert_mem);
-        cert.len -= 1;
+        GglArena alloc = ggl_arena_init(
+            ggl_buffer_substr(GGL_BUF(cert_mem), 0, sizeof(cert_mem) - 1)
+        );
+        GglBuffer cert;
 
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(GGL_STR("system"), GGL_STR("certificateFilePath")),
+            &alloc,
             &cert
         );
         if (ret != GGL_ERR_OK) {
@@ -121,8 +135,10 @@ GglError run_iotcored(IotcoredArgs *args) {
 
     if (args->endpoint == NULL) {
         static uint8_t endpoint_mem[MAX_ENDPOINT_LEN + 1] = { 0 };
-        GglBuffer endpoint = GGL_BUF(endpoint_mem);
-        endpoint.len -= 1;
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(endpoint_mem), 0, sizeof(endpoint_mem) - 1
+        ));
+        GglBuffer endpoint;
 
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
@@ -131,6 +147,7 @@ GglError run_iotcored(IotcoredArgs *args) {
                 GGL_STR("configuration"),
                 GGL_STR("iotDataEndpoint")
             ),
+            &alloc,
             &endpoint
         );
         if (ret != GGL_ERR_OK) {
@@ -141,11 +158,13 @@ GglError run_iotcored(IotcoredArgs *args) {
 
     if (args->id == NULL) {
         static uint8_t id_mem[MAX_THINGNAME_LEN + 1] = { 0 };
-        GglBuffer id = GGL_BUF(id_mem);
-        id.len -= 1;
+        GglArena alloc = ggl_arena_init(
+            ggl_buffer_substr(GGL_BUF(id_mem), 0, sizeof(id_mem) - 1)
+        );
+        GglBuffer id;
 
         GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &id
+            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &alloc, &id
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -155,11 +174,15 @@ GglError run_iotcored(IotcoredArgs *args) {
 
     if (args->key == NULL) {
         static uint8_t key_mem[PATH_MAX] = { 0 };
-        GglBuffer key = GGL_BUF(key_mem);
-        key.len -= 1;
+        GglArena alloc = ggl_arena_init(
+            ggl_buffer_substr(GGL_BUF(key_mem), 0, sizeof(key_mem) - 1)
+        );
+        GglBuffer key;
 
         GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")), &key
+            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
+            &alloc,
+            &key
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -169,11 +192,15 @@ GglError run_iotcored(IotcoredArgs *args) {
 
     if (args->rootca == NULL) {
         static uint8_t rootca_mem[PATH_MAX] = { 0 };
-        GglBuffer rootca = GGL_BUF(rootca_mem);
-        rootca.len -= 1;
+        GglArena alloc = ggl_arena_init(
+            ggl_buffer_substr(GGL_BUF(rootca_mem), 0, sizeof(rootca_mem) - 1)
+        );
+        GglBuffer rootca;
 
         GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")), &rootca
+            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")),
+            &alloc,
+            &rootca
         );
         if (ret != GGL_ERR_OK) {
             return ret;

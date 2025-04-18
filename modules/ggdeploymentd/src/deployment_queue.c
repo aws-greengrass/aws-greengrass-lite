@@ -6,9 +6,8 @@
 #include "deployment_model.h"
 #include <sys/types.h>
 #include <assert.h>
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -53,13 +52,13 @@ static bool get_matching_deployment(GglBuffer deployment_id, size_t *index) {
     return false;
 }
 
-static GglError null_terminate_buffer(GglBuffer *buf, GglAlloc *alloc) {
+static GglError null_terminate_buffer(GglBuffer *buf, GglArena *alloc) {
     if (buf->len == 0) {
         *buf = GGL_STR("");
         return GGL_ERR_OK;
     }
 
-    uint8_t *mem = GGL_ALLOCN(alloc, uint8_t, buf->len + 1);
+    uint8_t *mem = GGL_ARENA_ALLOCN(alloc, uint8_t, buf->len + 1);
     if (mem == NULL) {
         GGL_LOGE("Failed to allocate memory for copying buffer.");
         return GGL_ERR_NOMEM;
@@ -71,11 +70,11 @@ static GglError null_terminate_buffer(GglBuffer *buf, GglAlloc *alloc) {
     return GGL_ERR_OK;
 }
 
-GglError deep_copy_deployment(GglDeployment *deployment, GglAlloc *alloc) {
+GglError deep_copy_deployment(GglDeployment *deployment, GglArena *alloc) {
     assert(deployment != NULL);
 
     GglObject obj = ggl_obj_buf(deployment->deployment_id);
-    GglError ret = ggl_obj_deep_copy(&obj, alloc);
+    GglError ret = ggl_arena_claim_obj(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -92,21 +91,21 @@ GglError deep_copy_deployment(GglDeployment *deployment, GglAlloc *alloc) {
     }
 
     obj = ggl_obj_map(deployment->components);
-    ret = ggl_obj_deep_copy(&obj, alloc);
+    ret = ggl_arena_claim_obj(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->components = ggl_obj_into_map(obj);
 
     obj = ggl_obj_buf(deployment->configuration_arn);
-    ret = ggl_obj_deep_copy(&obj, alloc);
+    ret = ggl_arena_claim_obj(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
     deployment->configuration_arn = ggl_obj_into_buf(obj);
 
     obj = ggl_obj_buf(deployment->thing_group);
-    ret = ggl_obj_deep_copy(&obj, alloc);
+    ret = ggl_arena_claim_obj(&obj, alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -139,7 +138,7 @@ static GglError parse_deployment_obj(
     GglMap args,
     GglDeployment *doc,
     GglDeploymentType type,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglKVVec *local_components_kv_vec
 ) {
     *doc = (GglDeployment) { 0 };
@@ -256,7 +255,7 @@ static GglError parse_deployment_obj(
                 }
 
                 // TODO: Add configurationUpdate and runWith
-                GglKV *new_component_info_mem = GGL_ALLOC(alloc, GglKV);
+                GglKV *new_component_info_mem = GGL_ARENA_ALLOC(alloc, GglKV);
                 if (new_component_info_mem == NULL) {
                     GGL_LOGE("No memory when allocating memory while enqueuing "
                              "local deployment.");
@@ -304,7 +303,7 @@ static GglError parse_deployment_obj(
                     old_component_pair->key.data
                 );
 
-                GglKV *old_component_info_mem = GGL_ALLOC(alloc, GglKV);
+                GglKV *old_component_info_mem = GGL_ARENA_ALLOC(alloc, GglKV);
                 if (old_component_info_mem == NULL) {
                     GGL_LOGE("No memory when allocating memory while enqueuing "
                              "local deployment.");
@@ -349,7 +348,8 @@ static GglError parse_deployment_obj(
                         "adding it to the list of local components."
                     );
                     // TODO: Add configurationUpdate and runWith
-                    GglKV *new_component_info_mem = GGL_ALLOC(alloc, GglKV);
+                    GglKV *new_component_info_mem
+                        = GGL_ARENA_ALLOC(alloc, GglKV);
                     if (new_component_info_mem == NULL) {
                         GGL_LOGE("No memory when allocating memory while "
                                  "enqueuing local deployment.");
@@ -369,7 +369,8 @@ static GglError parse_deployment_obj(
                         return ret;
                     }
                 } else {
-                    GglKV *new_component_info_mem = GGL_ALLOC(alloc, GglKV);
+                    GglKV *new_component_info_mem
+                        = GGL_ARENA_ALLOC(alloc, GglKV);
                     if (new_component_info_mem == NULL) {
                         GGL_LOGE("No memory when allocating memory while "
                                  "enqueuing local deployment.");
@@ -401,17 +402,13 @@ GglError ggl_deployment_enqueue(
     // copy into static memory later in this function.
     uint8_t local_deployment_shortlived_balloc_buf
         [(1 + 2 * MAX_LOCAL_COMPONENTS) * sizeof(GglObject)];
-    GglBumpAlloc shortlived_balloc
-        = ggl_bump_alloc_init(GGL_BUF(local_deployment_shortlived_balloc_buf));
+    GglArena shortlived_alloc
+        = ggl_arena_init(GGL_BUF(local_deployment_shortlived_balloc_buf));
     GglDeployment new = { 0 };
     GglKVVec local_components_kv_vec
         = GGL_KV_VEC((GglKV[MAX_LOCAL_COMPONENTS]) { 0 });
     GglError ret = parse_deployment_obj(
-        deployment_doc,
-        &new,
-        type,
-        &shortlived_balloc.alloc,
-        &local_components_kv_vec
+        deployment_doc, &new, type, &shortlived_alloc, &local_components_kv_vec
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -447,8 +444,8 @@ GglError ggl_deployment_enqueue(
         queue_count += 1;
     }
 
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(deployment_mem[index]));
-    ret = deep_copy_deployment(&new, &balloc.alloc);
+    GglArena alloc = ggl_arena_init(GGL_BUF(deployment_mem[index]));
+    ret = deep_copy_deployment(&new, &alloc);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

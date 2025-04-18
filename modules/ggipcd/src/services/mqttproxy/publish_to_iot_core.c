@@ -6,7 +6,7 @@
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "mqttproxy.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
@@ -25,7 +25,7 @@ GglError ggl_handle_publish_to_iot_core(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     (void) alloc;
 

@@ -6,9 +6,7 @@
 #include "crc32.h"
 #include "ggl/eventstream/types.h"
 #include <assert.h>
-#include <ggl/alloc.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/io.h>
 #include <ggl/log.h>
@@ -16,57 +14,52 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-static void write_be_u32(uint32_t val, uint8_t *dest) {
+static void write_be_u32(uint32_t val, uint8_t dest[4]) {
     dest[0] = (uint8_t) (val >> 24);
     dest[1] = (uint8_t) ((val >> 16) & 0xFF);
     dest[2] = (uint8_t) ((val >> 8) & 0xFF);
     dest[3] = (uint8_t) (val & 0xFF);
 }
 
-static GglError header_encode(GglAlloc *alloc, EventStreamHeader header) {
-    assert(alloc != NULL);
-
+static GglError header_encode(GglWriter out, EventStreamHeader header) {
     if (header.name.len > UINT8_MAX) {
         GGL_LOGE("Header name field too long.");
         return GGL_ERR_RANGE;
     }
-
-    uint8_t *header_name_len_p = GGL_ALLOCN(alloc, uint8_t, 1);
-    if (header_name_len_p == NULL) {
+    uint8_t header_name_len[1] = { (uint8_t) header.name.len };
+    GglError ret = ggl_writer_call(out, GGL_BUF(header_name_len));
+    if (ret != GGL_ERR_OK) {
         GGL_LOGE("Insufficent buffer space to encode packet.");
-        return GGL_ERR_NOMEM;
+        return ret;
     }
 
-    *header_name_len_p = (uint8_t) header.name.len;
-
-    uint8_t *header_name_p = GGL_ALLOCN(alloc, uint8_t, header.name.len);
-    if (header_name_p == NULL) {
+    ret = ggl_writer_call(out, header.name);
+    if (ret != GGL_ERR_OK) {
         GGL_LOGE("Insufficent buffer space to encode packet.");
-        return GGL_ERR_NOMEM;
-    }
-    memcpy(header_name_p, header.name.data, header.name.len);
-
-    uint8_t *header_value_type_p = GGL_ALLOCN(alloc, uint8_t, 1);
-
-    if (header_value_type_p == NULL) {
-        GGL_LOGE("Insufficent buffer space to encode packet.");
-        return GGL_ERR_NOMEM;
+        return ret;
     }
 
-    *header_value_type_p = (uint8_t) header.value.type;
+    uint8_t header_value_type[1] = { (uint8_t) header.value.type };
+    ret = ggl_writer_call(out, GGL_BUF(header_value_type));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Insufficent buffer space to encode packet.");
+        return ret;
+    }
 
     switch (header.value.type) {
     case EVENTSTREAM_INT32: {
-        uint8_t *ptr = GGL_ALLOCN(alloc, uint8_t, 4);
-        if (ptr == NULL) {
-            GGL_LOGE("Insufficent buffer space to encode packet.");
-            return GGL_ERR_NOMEM;
-        }
         uint32_t val;
         memcpy(&val, &header.value.int32, 4);
-        write_be_u32(val, ptr);
-        break;
-    }
+
+        uint8_t data[4];
+        write_be_u32(val, data);
+
+        ret = ggl_writer_call(out, GGL_BUF(data));
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Insufficent buffer space to encode packet.");
+            return ret;
+        }
+    } break;
     case EVENTSTREAM_STRING: {
         GglBuffer str = header.value.string;
 
@@ -76,22 +69,22 @@ static GglError header_encode(GglAlloc *alloc, EventStreamHeader header) {
         }
         uint16_t str_len = (uint16_t) str.len;
 
-        uint8_t *ptr = GGL_ALLOCN(alloc, uint8_t, 2);
-        if (ptr == NULL) {
-            GGL_LOGE("Insufficent buffer space to encode packet.");
-            return GGL_ERR_NOMEM;
-        }
-        ptr[0] = (uint8_t) (str_len >> 8);
-        ptr[1] = (uint8_t) (str_len & 0xFF);
+        uint8_t len_data[2];
+        len_data[0] = (uint8_t) (str_len >> 8);
+        len_data[1] = (uint8_t) (str_len & 0xFF);
 
-        ptr = GGL_ALLOCN(alloc, uint8_t, str_len);
-        if (ptr == NULL) {
+        ret = ggl_writer_call(out, GGL_BUF(len_data));
+        if (ret != GGL_ERR_OK) {
             GGL_LOGE("Insufficent buffer space to encode packet.");
-            return GGL_ERR_NOMEM;
+            return ret;
         }
-        memcpy(ptr, str.data, str_len);
-        break;
-    }
+
+        ret = ggl_writer_call(out, str);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Insufficent buffer space to encode packet.");
+            return ret;
+        }
+    } break;
     default:
         GGL_LOGE("Unhandled header value type.");
         return GGL_ERR_PARSE;
@@ -128,17 +121,17 @@ GglError eventstream_encode(
     uint32_t headers_len = 0;
 
     if (headers != NULL) {
-        GglBumpAlloc bump_alloc = ggl_bump_alloc_init(buf_copy);
+        uint8_t *headers_start = buf_copy.data;
+        GglWriter headers_writer = ggl_buf_writer(&buf_copy);
 
         for (size_t i = 0; i < header_count; i++) {
-            GglError err = header_encode(&bump_alloc.alloc, headers[i]);
+            GglError err = header_encode(headers_writer, headers[i]);
             if (err != GGL_ERR_OK) {
                 return err;
             }
         }
 
-        headers_len = (uint32_t) bump_alloc.index;
-        buf_copy = ggl_buffer_substr(buf_copy, headers_len, SIZE_MAX);
+        headers_len = (uint32_t) (buf_copy.data - headers_start);
     }
 
     write_be_u32(headers_len, headers_len_p);

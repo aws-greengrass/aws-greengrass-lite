@@ -5,6 +5,7 @@
 #include "component_manager.h"
 #include "component_store.h"
 #include <assert.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/core_bus/gg_healthd.h>
@@ -26,9 +27,11 @@ static GglError find_active_version(
 
     // find the version of the active running component
     static uint8_t version_resp_mem[128] = { 0 };
-    GglBuffer version_resp = GGL_BUF(version_resp_mem);
+    GglArena alloc = ggl_arena_init(GGL_BUF(version_resp_mem));
+    GglBuffer version_resp;
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(GGL_STR("services"), package_name, GGL_STR("version")),
+        &alloc,
         &version_resp
     );
 
@@ -49,9 +52,10 @@ static GglError find_active_version(
 
     // Check that the component is actually running (or finished)
     uint8_t component_status_buf[NAME_MAX];
-    GglBuffer component_status = GGL_BUF(component_status_buf);
+    alloc = ggl_arena_init(GGL_BUF(component_status_buf));
+    GglBuffer component_status;
     ret = ggl_gghealthd_retrieve_component_status(
-        package_name, &component_status
+        package_name, &alloc, &component_status
     );
 
     if (ret != GGL_ERR_OK) {

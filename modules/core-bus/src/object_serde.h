@@ -7,22 +7,20 @@
 
 //! Serialization/Deserialization for GGL objects.
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/io.h>
 #include <ggl/object.h>
-#include <stdbool.h>
+
+// TODO: serialize should take writer, deserialize should take reader
 
 /// Serialize an object into a buffer.
 GglError ggl_serialize(GglObject obj, GglBuffer *buf);
 
 /// Deserialize an object from a buffer.
-/// The resultant object holds references into the buffer, unless `copy_bufs` is
-/// true, in which case all data will live in `alloc`.
-GglError ggl_deserialize(
-    GglAlloc *alloc, bool copy_bufs, GglBuffer buf, GglObject *obj
-);
+/// The resultant object holds references into the buffer.
+GglError ggl_deserialize(GglArena *alloc, GglBuffer buf, GglObject *obj);
 
 /// Reader from which a serialized object can be read.
 /// Errors if buffer is not large enough for entire object.

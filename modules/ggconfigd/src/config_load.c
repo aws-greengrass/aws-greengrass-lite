@@ -6,8 +6,8 @@
 #include "ggconfigd.h"
 #include "helpers.h"
 #include <fcntl.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/constants.h>
 #include <ggl/error.h>
@@ -31,10 +31,10 @@ static GglError ggconfig_load_file_fd(int fd) {
     }
 
     static uint8_t decode_mem[500 * sizeof(GglObject)];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(decode_mem));
+    GglArena alloc = ggl_arena_init(GGL_BUF(decode_mem));
 
     GglObject config_obj;
-    ret = ggl_yaml_decode_destructive(config_file, &balloc.alloc, &config_obj);
+    ret = ggl_yaml_decode_destructive(config_file, &alloc, &config_obj);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to parse config file.");
         return GGL_ERR_FAILURE;

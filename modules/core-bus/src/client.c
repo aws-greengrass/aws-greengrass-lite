@@ -6,7 +6,7 @@
 #include "client_common.h"
 #include "object_serde.h"
 #include "types.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
@@ -14,7 +14,6 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket.h>
-#include <stdbool.h>
 #include <stddef.h>
 
 GglError ggl_notify(GglBuffer interface, GglBuffer method, GglMap params) {
@@ -34,7 +33,7 @@ GglError ggl_call(
     GglBuffer method,
     GglMap params,
     GglError *error,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglObject *result
 ) {
     int conn = -1;
@@ -61,9 +60,15 @@ GglError ggl_call(
     }
 
     if (result != NULL) {
-        ret = ggl_deserialize(alloc, true, msg.payload, result);
+        ret = ggl_deserialize(alloc, msg.payload, result);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to decode response payload.");
+            return ret;
+        }
+
+        ret = ggl_arena_claim_obj(result, alloc);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Insufficient memory to return response payload.");
             return ret;
         }
     }

@@ -7,7 +7,7 @@
 
 //! gg_config core-bus interface wrapper
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -16,17 +16,18 @@
 
 /// Wrapper for core-bus `gg_config` `read`
 GglError ggl_gg_config_read(
-    GglBufList key_path, GglAlloc *alloc, GglObject *result
+    GglBufList key_path, GglArena *alloc, GglObject *result
 );
 
 /// Get string from core-bus `gg_config` `read`
-/// `result` must point to buffer with memory to read into
-GglError ggl_gg_config_read_str(GglBufList key_path, GglBuffer *result);
+GglError ggl_gg_config_read_str(
+    GglBufList key_path, GglArena *alloc, GglBuffer *result
+);
 
 /// Wrapper for core-bus `gg_config` `list`
 // subkeys_out is a list of buffer objects.
 GglError ggl_gg_config_list(
-    GglBufList key_path, GglAlloc *alloc, GglList *subkeys_out
+    GglBufList key_path, GglArena *alloc, GglList *subkeys_out
 );
 
 /// Wrapper for core-bus `gg_config` `write`

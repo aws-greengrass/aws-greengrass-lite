@@ -7,8 +7,8 @@
 
 //! Base64 utilities
 
-#include "alloc.h"
 #include "error.h"
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <stdbool.h>
 
@@ -19,6 +19,6 @@ bool ggl_base64_decode(GglBuffer base64, GglBuffer *target);
 bool ggl_base64_decode_in_place(GglBuffer *target);
 
 /// Encode a buffer into base64.
-GglError ggl_base64_encode(GglBuffer buf, GglAlloc *alloc, GglBuffer *result);
+GglError ggl_base64_encode(GglBuffer buf, GglArena *alloc, GglBuffer *result);
 
 #endif

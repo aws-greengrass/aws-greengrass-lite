@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/base64.h"
-#include "ggl/alloc.h"
+#include "ggl/arena.h"
 #include "ggl/buffer.h"
 #include "ggl/error.h"
 #include <string.h>
@@ -126,9 +126,9 @@ bool ggl_base64_decode_in_place(GglBuffer *target) {
 static const uint8_t BASE64_TABLE[]
     = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-GglError ggl_base64_encode(GglBuffer buf, GglAlloc *alloc, GglBuffer *result) {
+GglError ggl_base64_encode(GglBuffer buf, GglArena *alloc, GglBuffer *result) {
     size_t base64_len = ((buf.len + 2) / 3) * 4;
-    uint8_t *mem = GGL_ALLOCN(alloc, uint8_t, base64_len);
+    uint8_t *mem = GGL_ARENA_ALLOCN(alloc, uint8_t, base64_len);
     if (mem == NULL) {
         return GGL_ERR_NOMEM;
     }

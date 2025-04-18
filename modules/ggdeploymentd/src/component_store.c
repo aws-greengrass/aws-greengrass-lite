@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/gg_config.h>
@@ -24,9 +25,10 @@ static GglBuffer root_path = GGL_STR("/var/lib/greengrass");
 
 static GglError update_root_path(void) {
     static uint8_t resp_mem[MAX_PATH_LENGTH] = { 0 };
-    GglBuffer resp = GGL_BUF(resp_mem);
+    GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
+    GglBuffer resp;
     GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &resp
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &alloc, &resp
     );
 
     if (ret != GGL_ERR_OK) {

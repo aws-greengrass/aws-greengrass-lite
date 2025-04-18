@@ -7,7 +7,7 @@
 #include "validate_args.h"
 #include <assert.h>
 #include <fcntl.h>
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
@@ -82,7 +82,7 @@ static GglError create_unit_file(
 
 GglError convert_to_unit(
     Recipe2UnitArgs *args,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglObject *recipe_obj,
     GglObject **component_name,
     HasPhase *existing_phases

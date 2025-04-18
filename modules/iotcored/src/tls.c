@@ -7,8 +7,8 @@
 #include "ggl/log.h"
 #include "iotcored.h"
 #include <assert.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/uri.h>
 #include <limits.h>
 #include <openssl/bio.h>
@@ -61,12 +61,10 @@ static GglError proxy_get_info(
     }
 
     static uint8_t uri_parse_mem[256];
-    GglBumpAlloc uri_alloc = ggl_bump_alloc_init(GGL_BUF(uri_parse_mem));
+    GglArena uri_alloc = ggl_arena_init(GGL_BUF(uri_parse_mem));
     GglUriInfo proxy_parsed = { 0 };
     GglError ret = gg_uri_parse(
-        &uri_alloc.alloc,
-        ggl_buffer_from_null_term((char *) proxy_uri),
-        &proxy_parsed
+        &uri_alloc, ggl_buffer_from_null_term((char *) proxy_uri), &proxy_parsed
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to parse proxy URL.");

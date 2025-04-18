@@ -5,8 +5,8 @@
 #include "ipc_authz.h"
 #include "ipc_service.h"
 #include <assert.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/list.h>
@@ -73,7 +73,7 @@ GglError ggl_ipc_auth(
     assert(info != NULL);
 
     static uint8_t policy_mem[4096];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(policy_mem));
+    GglArena alloc = ggl_arena_init(GGL_BUF(policy_mem));
 
     GglObject policies;
     GglError ret = ggl_gg_config_read(
@@ -84,7 +84,7 @@ GglError ggl_ipc_auth(
             GGL_STR("accessControl"),
             info->service
         ),
-        &balloc.alloc,
+        &alloc,
         &policies
     );
     if (ret != GGL_ERR_OK) {

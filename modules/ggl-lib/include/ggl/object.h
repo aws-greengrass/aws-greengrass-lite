@@ -7,9 +7,7 @@
 
 //! Generic dynamic object representation.
 
-#include "alloc.h"
 #include <ggl/buffer.h>
-#include <ggl/error.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -122,11 +120,5 @@ GglObject ggl_obj_list(GglList value);
 /// Get the list represented by an object.
 /// The GglObject must be of type GGL_TYPE_LIST.
 GglList ggl_obj_into_list(GglObject list);
-
-/// Modifies an object's references to point to copies in alloc
-GglError ggl_obj_deep_copy(GglObject *obj, GglAlloc *alloc);
-
-/// Modifies an object's buffer references to point to copies in alloc
-GglError ggl_obj_buffer_copy(GglObject *obj, GglAlloc *alloc);
 
 #endif

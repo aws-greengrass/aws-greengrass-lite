@@ -4,7 +4,7 @@
 
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -36,7 +36,7 @@ GglError handle_get_system_config(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     (void) info;
 

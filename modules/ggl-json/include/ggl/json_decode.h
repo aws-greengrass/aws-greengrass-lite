@@ -7,7 +7,7 @@
 
 //! JSON decoding
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -16,7 +16,7 @@
 /// Result obj may contain references into buf, and allocations from alloc.
 /// Input buffer will be modified.
 GglError ggl_json_decode_destructive(
-    GglBuffer buf, GglAlloc *alloc, GglObject *obj
+    GglBuffer buf, GglArena *arena, GglObject *obj
 );
 
 #endif

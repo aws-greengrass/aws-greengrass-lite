@@ -8,7 +8,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
@@ -497,7 +497,7 @@ GglError ggl_recipe_get_from_file(
     int root_path_fd,
     GglBuffer component_name,
     GglBuffer component_version,
-    GglAlloc *alloc,
+    GglArena *arena,
     GglObject *recipe
 ) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -527,7 +527,7 @@ GglError ggl_recipe_get_from_file(
     GglBuffer content = GGL_BUF(file_mem);
     ret = try_open_extension(recipe_dir, GGL_STR("json"), base_name, &content);
     if (ret == GGL_ERR_OK) {
-        ret = ggl_json_decode_destructive(content, alloc, recipe);
+        ret = ggl_json_decode_destructive(content, arena, recipe);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -551,11 +551,11 @@ GglError ggl_recipe_get_from_file(
             }
         }
 
-        ret = ggl_yaml_decode_destructive(content, alloc, recipe);
+        ret = ggl_yaml_decode_destructive(content, arena, recipe);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
     }
 
-    return ggl_obj_buffer_copy(recipe, alloc);
+    return ggl_arena_claim_obj(recipe, arena);
 }

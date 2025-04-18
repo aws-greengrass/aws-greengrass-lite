@@ -4,6 +4,7 @@
 
 #include "ggl/proxy/environment.h"
 #include <errno.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -27,14 +28,11 @@ static GglError setenv_wrapper(GglBufList aliases, GglBuffer value) {
 }
 
 GglError ggl_proxy_set_environment(void) {
-    static uint8_t proxy_url_mem[4096] = { 0 };
-    static uint8_t no_proxy_mem[4096] = { 0 };
-
-    GglBuffer proxy_url = GGL_BUF(proxy_url_mem);
-    proxy_url.len -= 1;
-
-    GglBuffer no_proxy = GGL_BUF(no_proxy_mem);
-    no_proxy.len -= 1;
+    uint8_t alloc_mem[4096] = { 0 };
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(alloc_mem), 0, sizeof(alloc_mem) - 1)
+    );
+    GglBuffer proxy_url;
 
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(
@@ -45,6 +43,7 @@ GglError ggl_proxy_set_environment(void) {
             GGL_STR("proxy"),
             GGL_STR("url")
         ),
+        &alloc,
         &proxy_url
     );
     if (ret == GGL_ERR_OK) {
@@ -65,6 +64,11 @@ GglError ggl_proxy_set_environment(void) {
         return GGL_ERR_FAILURE;
     }
 
+    alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(alloc_mem), 0, sizeof(alloc_mem) - 1)
+    );
+    GglBuffer no_proxy;
+
     ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(
             GGL_STR("services"),
@@ -73,6 +77,7 @@ GglError ggl_proxy_set_environment(void) {
             GGL_STR("networkProxy"),
             GGL_STR("noProxyAddresses")
         ),
+        &alloc,
         &no_proxy
     );
     if (ret == GGL_ERR_OK) {

@@ -6,7 +6,7 @@
 #include "ipc_server.h"
 #include <sys/types.h>
 #include <assert.h>
-#include <ggl/bump_alloc.h>
+#include <ggl/arena.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -109,9 +109,9 @@ static GglError subscription_on_response(
     static uint8_t resp_mem
         [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
          + GGL_IPC_MAX_MSG_LEN];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
+    GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
 
-    return on_response(data, resp_handle, stream_id, &balloc.alloc);
+    return on_response(data, resp_handle, stream_id, &alloc);
 }
 
 static void subscription_on_close(void *ctx, uint32_t recv_handle) {

@@ -5,8 +5,8 @@
 #include "s3-get-test.h"
 #include <sys/types.h>
 #include <fcntl.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
@@ -21,14 +21,13 @@
 #include <stdio.h>
 
 GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
-    static uint8_t big_buffer_for_bump[4096];
+    static uint8_t alloc_mem[4096];
     GglError request_ret = GGL_ERR_OK;
     {
         static GglBuffer tesd = GGL_STR("aws_iot_tes");
         GglObject result;
         GglMap params = { 0 };
-        GglBumpAlloc the_allocator
-            = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+        GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
 
         static char host[256];
         GglByteVec host_vec = GGL_BYTE_VEC(host);
@@ -61,12 +60,7 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
         }
 
         error = ggl_call(
-            tesd,
-            GGL_STR("request_credentials"),
-            params,
-            NULL,
-            &the_allocator.alloc,
-            &result
+            tesd, GGL_STR("request_credentials"), params, NULL, &alloc, &result
         );
         if (error != GGL_ERR_OK) {
             return GGL_ERR_FAILURE;
@@ -141,14 +135,12 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
     if ((file_ret == GGL_ERR_OK) && (fd > 0)) {
         if (GGL_LOG_LEVEL >= GGL_LOG_DEBUG) {
             while (true) {
-                ssize_t bytes_read = read(
-                    fd, big_buffer_for_bump, sizeof(big_buffer_for_bump)
-                );
+                ssize_t bytes_read = read(fd, alloc_mem, sizeof(alloc_mem));
                 if (bytes_read <= 0) {
                     close(fd);
                     break;
                 }
-                GGL_LOGD("%.*s", (int) bytes_read, big_buffer_for_bump);
+                GGL_LOGD("%.*s", (int) bytes_read, alloc_mem);
             }
         }
 

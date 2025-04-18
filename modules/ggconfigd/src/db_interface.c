@@ -4,10 +4,9 @@
 
 #include "embeds.h"
 #include "ggconfigd.h"
-#include "ggl/alloc.h"
 #include "helpers.h"
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/constants.h>
 #include <ggl/core_bus/constants.h>
@@ -859,7 +858,7 @@ GglError ggconfig_write_value_at_key(
 }
 
 static GglError read_value_at_key(
-    int64_t key_id, GglObject *value, GglAlloc *alloc
+    int64_t key_id, GglObject *value, GglArena *alloc
 ) {
     sqlite3_stmt *stmt;
     sqlite3_prepare_v2(config_database, GGL_SQL_READ_VALUE, -1, &stmt, NULL);
@@ -882,7 +881,7 @@ static GglError read_value_at_key(
     }
     const uint8_t *value_string = sqlite3_column_text(stmt, 0);
     unsigned long value_length = (unsigned long) sqlite3_column_bytes(stmt, 0);
-    uint8_t *string_buffer = GGL_ALLOCN(alloc, uint8_t, value_length);
+    uint8_t *string_buffer = GGL_ARENA_ALLOCN(alloc, uint8_t, value_length);
     if (!string_buffer) {
         GGL_LOGE(
             "no more memory to allocate value for key id %" PRId64, key_id
@@ -899,7 +898,7 @@ static GglError read_value_at_key(
 /// value.
 // NOLINTNEXTLINE(misc-no-recursion)
 static GglError read_key_recursive(
-    int64_t key_id, GglObject *value, GglAlloc *alloc
+    int64_t key_id, GglObject *value, GglArena *alloc
 ) {
     GGL_LOGT("reading key id %" PRId64, key_id);
 
@@ -956,7 +955,7 @@ static GglError read_key_recursive(
     }
 
     // create the kvs for the children
-    GglKV *kv_buffer = GGL_ALLOCN(alloc, GglKV, children_count);
+    GglKV *kv_buffer = GGL_ARENA_ALLOCN(alloc, GglKV, children_count);
     if (!kv_buffer) {
         GGL_LOGE("no more memory to allocate kvs for key id %" PRId64, key_id);
         return GGL_ERR_NOMEM;
@@ -974,7 +973,7 @@ static GglError read_key_recursive(
         unsigned long child_key_name_length
             = (unsigned long) sqlite3_column_bytes(read_children_stmt, 1);
         uint8_t *child_key_name_memory
-            = GGL_ALLOCN(alloc, uint8_t, child_key_name_length);
+            = GGL_ARENA_ALLOCN(alloc, uint8_t, child_key_name_length);
         if (!child_key_name_memory) {
             GGL_LOGE(
                 "no more memory to allocate value for key id %" PRId64, key_id
@@ -1019,7 +1018,7 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
     }
 
     static uint8_t key_value_memory[GGL_COREBUS_MAX_MSG_LEN];
-    GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(key_value_memory));
+    GglArena alloc = ggl_arena_init(GGL_BUF(key_value_memory));
 
     sqlite3_exec(config_database, "BEGIN TRANSACTION", NULL, NULL, NULL);
     GGL_LOGT("Starting transaction to read key: %s", print_key_path(key_path));
@@ -1037,13 +1036,13 @@ GglError ggconfig_get_value_from_key(GglList *key_path, GglObject *value) {
         return err;
     }
     int64_t key_id = ggl_obj_into_i64(ids.list.items[ids.list.len - 1]);
-    err = read_key_recursive(key_id, value, &bumper.alloc);
+    err = read_key_recursive(key_id, value, &alloc);
     sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
     return err;
 }
 
 static GglError get_children(
-    int64_t key_id, GglObjVec *children_ids_output, GglAlloc *alloc
+    int64_t key_id, GglObjVec *children_ids_output, GglArena *alloc
 ) {
     GGL_LOGT("Getting children for id %" PRId64, key_id);
 
@@ -1063,7 +1062,7 @@ static GglError get_children(
 
         GGL_LOGT("Found child.");
         uint8_t *child_key_name_memory
-            = GGL_ALLOCN(alloc, uint8_t, child_key_name_length);
+            = GGL_ARENA_ALLOCN(alloc, uint8_t, child_key_name_length);
         if (!child_key_name_memory) {
             GGL_LOGE("No more memory to allocate while reading children keys.");
             return GGL_ERR_NOMEM;
@@ -1145,8 +1144,8 @@ GglError ggconfig_list_subkeys(GglList *key_path, GglList *subkeys) {
 
     static uint8_t key_buffers_memory[GGL_COREBUS_MAX_MSG_LEN]; // TODO: can we
                                                                 // shrink this?
-    GglBumpAlloc bumper = ggl_bump_alloc_init(GGL_BUF(key_buffers_memory));
-    err = get_children(key_id, &children_ids, &bumper.alloc);
+    GglArena alloc = ggl_arena_init(GGL_BUF(key_buffers_memory));
+    err = get_children(key_id, &children_ids, &alloc);
     if (err != GGL_ERR_OK) {
         sqlite3_exec(config_database, "END TRANSACTION", NULL, NULL, NULL);
         return err;

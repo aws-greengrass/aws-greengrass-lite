@@ -7,7 +7,7 @@
 #include "../../ipc_service.h"
 #include "../../ipc_subscriptions.h"
 #include "pubsub.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/ipc/common.h>
@@ -19,7 +19,7 @@
 #include <stdlib.h>
 
 static GglError subscribe_to_topic_callback(
-    GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
+    GglObject data, uint32_t resp_handle, int32_t stream_id, GglArena *alloc
 ) {
     (void) alloc;
 
@@ -94,7 +94,7 @@ GglError ggl_handle_subscribe_to_topic(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     (void) alloc;
 

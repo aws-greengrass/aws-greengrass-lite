@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <argp.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
@@ -69,10 +69,10 @@ int main(int argc, char **argv) {
     }
 
     static uint8_t decode_mem[500 * sizeof(GglObject)];
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(decode_mem));
+    GglArena alloc = ggl_arena_init(GGL_BUF(decode_mem));
 
     GglObject config_obj;
-    ret = ggl_yaml_decode_destructive(config_file, &balloc.alloc, &config_obj);
+    ret = ggl_yaml_decode_destructive(config_file, &alloc, &config_obj);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to parse config file.");
         return 1;

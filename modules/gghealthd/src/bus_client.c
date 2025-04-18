@@ -4,6 +4,7 @@
 
 #include "bus_client.h"
 #include <sys/types.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/gg_config.h>
@@ -36,10 +37,11 @@ GglError verify_component_exists(GglBuffer component_name) {
 
     GGL_MTX_SCOPE_GUARD(&bump_alloc_mutex);
 
-    static uint8_t component_version_mem[512] = { 0 };
-    GglBuffer component_version = GGL_BUF(component_version_mem);
+    GglArena alloc = ggl_arena_init(GGL_BUF((uint8_t[512]) { 0 }));
+    GglBuffer component_version;
     GglError config_ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(GGL_STR("services"), component_name, GGL_STR("version")),
+        &alloc,
         &component_version
     );
 

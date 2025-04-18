@@ -5,8 +5,8 @@
 #include "fleet_status_service.h"
 #include <sys/types.h>
 #include <assert.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/constants.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
@@ -63,12 +63,12 @@ GglError publish_fleet_status_update(
     GglBuffer component_info_mem = GGL_BUF((uint8_t[PAYLOAD_BUFFER_LEN - 128]
     ) { 0 }); // The size of the payload buffer minus some bytes we will need
               // for boilerplate contents, is the max we can send
-    GglBumpAlloc balloc = ggl_bump_alloc_init(component_info_mem);
+    GglArena alloc = ggl_arena_init(component_info_mem);
 
     // retrieve running components from services config
     GglList components;
     GglError ret = ggl_gg_config_list(
-        GGL_BUF_LIST(GGL_STR("services")), &balloc.alloc, &components
+        GGL_BUF_LIST(GGL_STR("services")), &alloc, &components
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
@@ -116,10 +116,10 @@ GglError publish_fleet_status_update(
         }
 
         // retrieve component version from config
-        static uint8_t version_resp_mem[128] = { 0 };
-        GglBuffer version_resp = GGL_BUF(version_resp_mem);
+        GglBuffer version_resp;
         ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(GGL_STR("services"), component, GGL_STR("version")),
+            &alloc,
             &version_resp
         );
         if (ret != GGL_ERR_OK) {
@@ -133,39 +133,17 @@ GglError publish_fleet_status_update(
             );
             continue;
         }
-        ret = ggl_buf_clone(version_resp, &balloc.alloc, &version_resp);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Failed to copy version response buffer for %.*s with error "
-                "%s. Cannot publish fleet status update for this component.",
-                (int) component.len,
-                component.data,
-                ggl_strerror(ret)
-            );
-            continue;
-        }
 
         // retrieve component health status
         uint8_t component_health_arr[NAME_MAX];
         GglBuffer component_health = GGL_BUF(component_health_arr);
         ret = ggl_gghealthd_retrieve_component_status(
-            component, &component_health
+            component, &alloc, &component_health
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to retrieve health status for %.*s with error %s. "
                 "Cannot publish fleet status update for this component.",
-                (int) component.len,
-                component.data,
-                ggl_strerror(ret)
-            );
-            continue;
-        }
-        ret = ggl_buf_clone(component_health, &balloc.alloc, &component_health);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Failed to copy component health buffer for %.*s with error "
-                "%s. Cannot publish fleet status update for this component.",
                 (int) component.len,
                 component.data,
                 ggl_strerror(ret)
@@ -182,7 +160,7 @@ GglError publish_fleet_status_update(
         GglObject arn_list;
         ret = ggl_gg_config_read(
             GGL_BUF_LIST(GGL_STR("services"), component, GGL_STR("configArn")),
-            &balloc.alloc,
+            &alloc,
             &arn_list
         );
         if (ret != GGL_ERR_OK) {
@@ -276,7 +254,7 @@ GglError publish_fleet_status_update(
     GglObject sequence_obj;
     ret = ggl_gg_config_read(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("fleetStatusSequenceNum")),
-        &balloc.alloc,
+        &alloc,
         &sequence_obj
     );
     int64_t sequence = 1;

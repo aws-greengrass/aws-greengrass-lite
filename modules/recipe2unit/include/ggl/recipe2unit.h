@@ -5,7 +5,7 @@
 #ifndef RECIPE_2_UNIT_H
 #define RECIPE_2_UNIT_H
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -39,7 +39,7 @@ typedef struct {
 /// @return GGL_ERR_OK on success. Failure otherwise.
 GglError convert_to_unit(
     Recipe2UnitArgs *args,
-    GglAlloc *alloc,
+    GglArena *alloc,
     GglObject *recipe_obj,
     GglObject **component_name,
     HasPhase *existing_phases

@@ -4,8 +4,8 @@
 
 #include "ggconfigd.h"
 #include "helpers.h"
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/constants.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
@@ -23,34 +23,22 @@
 /// Given a GglObject of (possibly nested) GglMaps and/or GglBuffer(s),
 /// decode all the GglBuffers from json to their appropriate GGL object types.
 // NOLINTNEXTLINE(misc-no-recursion)
-static GglError decode_object_destructive(
-    GglObject *obj, GglBumpAlloc *bump_alloc
-) {
-    GglError return_err = GGL_ERR_FAILURE;
+static GglError decode_object_destructive(GglObject *obj, GglArena *arena) {
     if (ggl_obj_type(*obj) == GGL_TYPE_BUF) {
-        GglBuffer obj_buf = ggl_obj_into_buf(*obj);
-        GGL_LOGT(
-            "given buffer to decode: %.*s", (int) obj_buf.len, obj_buf.data
-        );
-        GglError json_decode_err
-            = ggl_json_decode_destructive(obj_buf, &(bump_alloc->alloc), obj);
-        if (json_decode_err != GGL_ERR_OK) {
-            GGL_LOGE(
-                "decode json failed with error code: %d", (int) json_decode_err
-            );
-            return GGL_ERR_FAILURE;
-        }
-    } else if (ggl_obj_type(*obj) == GGL_TYPE_MAP) {
-        GglMap obj_map = ggl_obj_into_map(*obj);
-        GGL_LOGT("given map to decode with length: %d", (int) obj_map.len);
-        GGL_MAP_FOREACH(kv, obj_map) {
-            GglError decode_err
-                = decode_object_destructive(&kv->val, bump_alloc);
+        GglBuffer buf = ggl_obj_into_buf(*obj);
+        GGL_LOGT("given buffer to decode: %.*s", (int) buf.len, buf.data);
+        return ggl_json_decode_destructive(buf, arena, obj);
+    }
+    if (ggl_obj_type(*obj) == GGL_TYPE_MAP) {
+        GglMap map = ggl_obj_into_map(*obj);
+        GGL_LOGT("given map to decode with length: %d", (int) map.len);
+        GGL_MAP_FOREACH(kv, map) {
+            GglError decode_err = decode_object_destructive(&kv->val, arena);
             if (decode_err != GGL_ERR_OK) {
                 GGL_LOGE(
                     "decode map value at index %d and key %.*s failed with "
                     "error code: %d",
-                    (int) (kv - obj_map.pairs),
+                    (int) (kv - map.pairs),
                     (int) kv->key.len,
                     kv->key.data,
                     (int) decode_err
@@ -58,14 +46,11 @@ static GglError decode_object_destructive(
                 return decode_err;
             }
         }
-        return_err = GGL_ERR_OK;
-    } else {
-        GGL_LOGE(
-            "given unexpected type to decode: %d", (int) ggl_obj_type(*obj)
-        );
-        return_err = GGL_ERR_FAILURE;
+        return GGL_ERR_OK;
     }
-    return return_err;
+
+    GGL_LOGE("given unexpected type to decode: %d", (int) ggl_obj_type(*obj));
+    return GGL_ERR_FAILURE;
 }
 
 static GglError rpc_read(void *ctx, GglMap params, uint32_t handle) {
@@ -94,8 +79,7 @@ static GglError rpc_read(void *ctx, GglMap params, uint32_t handle) {
     }
 
     static uint8_t object_decode_memory[GGCONFIGD_MAX_OBJECT_DECODE_BYTES];
-    GglBumpAlloc object_alloc
-        = ggl_bump_alloc_init(GGL_BUF(object_decode_memory));
+    GglArena object_alloc = ggl_arena_init(GGL_BUF(object_decode_memory));
     decode_object_destructive(&value, &object_alloc);
 
     ggl_respond(handle, value);

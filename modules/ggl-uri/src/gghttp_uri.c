@@ -1,5 +1,5 @@
 #include "ggl/uri.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -26,7 +26,7 @@ static GglBuffer buffer_from_linked_list(
 }
 
 static void *ggl_uri_malloc(struct UriMemoryManagerStruct *mem, size_t size) {
-    return ggl_alloc((GglAlloc *) mem->userData, size, alignof(size_t));
+    return ggl_arena_alloc((GglArena *) mem->userData, size, alignof(size_t));
 }
 
 static void *ggl_uri_calloc(
@@ -62,7 +62,8 @@ static void *ggl_uri_reallocarray(
 }
 
 static void ggl_uri_free(struct UriMemoryManagerStruct *mem, void *block) {
-    ggl_free((GglAlloc *) mem->userData, block);
+    (void) mem;
+    (void) block;
 }
 
 static GglError convert_uriparser_error(int error) {
@@ -80,7 +81,7 @@ static GglError convert_uriparser_error(int error) {
     }
 }
 
-GglError gg_uri_parse(GglAlloc *alloc, GglBuffer uri, GglUriInfo *info) {
+GglError gg_uri_parse(GglArena *arena, GglBuffer uri, GglUriInfo *info) {
     UriUriA result;
 
     // TODO: can we patch uriparser to not need to allocate memory for a linked
@@ -90,7 +91,7 @@ GglError gg_uri_parse(GglAlloc *alloc, GglBuffer uri, GglUriInfo *info) {
                              .reallocarray = ggl_uri_reallocarray,
                              .malloc = ggl_uri_malloc,
                              .free = ggl_uri_free,
-                             .userData = alloc };
+                             .userData = arena };
     const char *error_pos = NULL;
 
     int uri_error = uriParseSingleUriExMmA(

@@ -7,11 +7,10 @@
 #include "deployment_model.h"
 #include "deployment_queue.h"
 #include <sys/types.h>
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/aws_iot_call.h>
 #include <ggl/backoff.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
@@ -60,7 +59,6 @@ typedef enum DeploymentStatusAction {
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #endif
 
-static uint8_t thing_name_mem[MAX_THING_NAME_LEN];
 static GglBuffer thing_name_buf;
 
 static pthread_mutex_t current_job_id_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -139,10 +137,14 @@ static GglError process_job_execution(GglMap job_execution);
 static GglError get_thing_name(void *ctx) {
     (void) ctx;
     GGL_LOGD("Attempting to retrieve thing name");
-    thing_name_buf = GGL_BUF(thing_name_mem);
+
+    static uint8_t thing_name_mem[MAX_THING_NAME_LEN];
+    GglArena alloc = ggl_arena_init(GGL_BUF(thing_name_mem));
 
     GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &thing_name_buf
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")),
+        &alloc,
+        &thing_name_buf
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to read thingName from config.");
@@ -154,7 +156,7 @@ static GglError get_thing_name(void *ctx) {
 
 // Decode MQTT payload as JSON into GglObject representation
 static GglError deserialize_payload(
-    GglAlloc *alloc, GglObject data, GglObject *json_object
+    GglArena *alloc, GglObject data, GglObject *json_object
 ) {
     GglBuffer topic;
     GglBuffer payload;
@@ -211,12 +213,9 @@ static GglError update_job(
         ));
 
         static uint8_t response_scratch[512];
-        GglBumpAlloc call_alloc
-            = ggl_bump_alloc_init(GGL_BUF(response_scratch));
+        GglArena call_alloc = ggl_arena_init(GGL_BUF(response_scratch));
         GglObject result;
-        ret = ggl_aws_iot_call(
-            topic, payload_object, &call_alloc.alloc, &result
-        );
+        ret = ggl_aws_iot_call(topic, payload_object, &call_alloc, &result);
         if (ret == GGL_ERR_OK) {
             local_version
                 = atomic_fetch_add_explicit(version, 1, memory_order_acq_rel)
@@ -320,11 +319,9 @@ static GglError describe_next_job(void *ctx) {
     ));
 
     static uint8_t response_scratch[4096];
-    GglBumpAlloc call_alloc = ggl_bump_alloc_init(GGL_BUF(response_scratch));
+    GglArena call_alloc = ggl_arena_init(GGL_BUF(response_scratch));
     GglObject job_description;
-    ggl_aws_iot_call(
-        topic, payload_object, &call_alloc.alloc, &job_description
-    );
+    ggl_aws_iot_call(topic, payload_object, &call_alloc, &job_description);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to publish on describe job topic");
         return ret;
@@ -463,10 +460,9 @@ static GglError next_job_execution_changed_callback(
     (void) handle;
     GGL_LOGD("Received next job execution changed response.");
     static uint8_t subscription_scratch[4096];
-    GglBumpAlloc json_allocator
-        = ggl_bump_alloc_init(GGL_BUF(subscription_scratch));
+    GglArena json_allocator = ggl_arena_init(GGL_BUF(subscription_scratch));
     GglObject json;
-    GglError ret = deserialize_payload(&json_allocator.alloc, data, &json);
+    GglError ret = deserialize_payload(&json_allocator, data, &json);
     if (ret != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;
     }

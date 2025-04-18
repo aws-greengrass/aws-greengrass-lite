@@ -7,7 +7,6 @@
 
 //! Buffer utilities.
 
-#include "alloc.h"
 #include <ggl/error.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -100,8 +99,5 @@ GglBuffer ggl_buffer_substr(GglBuffer buf, size_t start, size_t end);
 
 /// Parse an integer from a string
 GglError ggl_str_to_int64(GglBuffer str, int64_t *value);
-
-/// Clone a buffer into an alloc
-GglError ggl_buf_clone(GglBuffer buf, GglAlloc *alloc, GglBuffer *out);
 
 #endif

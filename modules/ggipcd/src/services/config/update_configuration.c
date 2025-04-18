@@ -6,7 +6,7 @@
 #include "../../ipc_service.h"
 #include "config.h"
 #include "config_path_object.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -25,7 +25,7 @@ GglError ggl_handle_update_configuration(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     (void) alloc;
 

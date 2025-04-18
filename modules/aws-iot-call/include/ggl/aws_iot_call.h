@@ -7,7 +7,7 @@
 
 //! Helper for calling AWS IoT Core APIs
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -16,7 +16,7 @@
 /// Sends request on topic and waits for response on topic/(accepted|rejected).
 /// Responses will be filtered according to clientToken.
 GglError ggl_aws_iot_call(
-    GglBuffer topic, GglObject payload, GglAlloc *alloc, GglObject *result
+    GglBuffer topic, GglObject payload, GglArena *alloc, GglObject *result
 );
 
 #endif

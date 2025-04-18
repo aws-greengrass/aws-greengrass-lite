@@ -7,7 +7,7 @@
 #include "../../ipc_service.h"
 #include "authorization_agent.h"
 #include "stdbool.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/ipc/common.h>
@@ -23,7 +23,7 @@ GglError ggl_handle_token_validation(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     (void) alloc;
     if (!ggl_buffer_eq(

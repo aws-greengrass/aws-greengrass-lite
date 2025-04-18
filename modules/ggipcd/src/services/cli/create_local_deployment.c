@@ -6,7 +6,7 @@
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "cli.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -23,7 +23,7 @@ GglError ggl_handle_create_local_deployment(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     GGL_MAP_FOREACH(pair, args) {
         if (ggl_buffer_eq(pair->key, GGL_STR("recipeDirectoryPath"))) {

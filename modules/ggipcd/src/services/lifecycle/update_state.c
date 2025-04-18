@@ -5,7 +5,7 @@
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "lifecycle.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
@@ -23,7 +23,7 @@ GglError ggl_handle_update_state(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     (void) alloc;
     GglObject *state_obj;

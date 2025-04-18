@@ -5,7 +5,7 @@
 #ifndef GGL_IPC_SERVICE_H
 #define GGL_IPC_SERVICE_H
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/ipc/common.h>
@@ -24,7 +24,7 @@ typedef GglError GglIpcOperationHandler(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 );
 
 typedef struct {

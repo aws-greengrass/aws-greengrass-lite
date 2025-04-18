@@ -6,13 +6,23 @@
 #define GGL_ATTR_H
 
 #ifdef __has_attribute
+
 #if __has_attribute(counted_by)
 #define COUNTED_BY(field) __attribute__((counted_by(field)))
 #endif
+
+#if __has_attribute(designated_init)
+#define DESIGNATED_INIT __attribute__((designated_init))
 #endif
+
+#endif // __has_attribute
 
 #ifndef COUNTED_BY
 #define COUNTED_BY(field)
+#endif
+
+#ifndef DESIGNATED_INIT
+#define DESIGNATED_INIT
 #endif
 
 #endif

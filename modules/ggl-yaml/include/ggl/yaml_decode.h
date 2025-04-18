@@ -7,16 +7,16 @@
 
 //! YAML decoding
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 
 /// Reads a YAML doc from a buffer as a GglObject.
-/// Result obj will contain allocations from alloc and buf.
+/// Result obj will contain pointers into both arena and buf.
 /// buf value is overwritten.
 GglError ggl_yaml_decode_destructive(
-    GglBuffer buf, GglAlloc *alloc, GglObject *obj
+    GglBuffer buf, GglArena *arena, GglObject *obj
 );
 
 #endif

@@ -5,8 +5,8 @@
 #include "ipc_dispatch.h"
 #include "ipc_server.h"
 #include "ipc_service.h"
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -72,10 +72,10 @@ GglError ggl_ipc_handle_operation(
                 static uint8_t resp_mem
                     [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
                      + GGL_IPC_MAX_MSG_LEN];
-                GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(resp_mem));
+                GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
 
                 return service_op->handler(
-                    &info, args, handle, stream_id, ipc_error, &balloc.alloc
+                    &info, args, handle, stream_id, ipc_error, &alloc
                 );
             }
         }

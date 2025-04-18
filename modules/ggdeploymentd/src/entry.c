@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -31,10 +32,12 @@ GglError run_ggdeploymentd(const char *bin_path) {
     umask(0002);
 
     static uint8_t root_path_mem[PATH_MAX] = { 0 };
-    GglBuffer root_path = GGL_BUF(root_path_mem);
-    root_path.len -= 1;
+    GglArena alloc = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(root_path_mem), 0, sizeof(root_path_mem) - 1)
+    );
+    GglBuffer root_path;
     GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &root_path
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &alloc, &root_path
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGW("Failed to get root path from config.");

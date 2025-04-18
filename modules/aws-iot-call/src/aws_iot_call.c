@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
@@ -36,7 +36,7 @@ typedef struct {
     pthread_cond_t *cond;
     bool ready;
     GglBuffer *client_token;
-    GglAlloc *alloc;
+    GglArena *alloc;
     GglObject *result;
     GglError ret;
 } CallbackCtx;
@@ -144,7 +144,7 @@ static void subscription_close_callback(void *ctx, uint32_t handle) {
 }
 
 GglError ggl_aws_iot_call(
-    GglBuffer topic, GglObject payload, GglAlloc *alloc, GglObject *result
+    GglBuffer topic, GglObject payload, GglArena *alloc, GglObject *result
 ) {
     static pthread_mutex_t mem_mtx = PTHREAD_MUTEX_INITIALIZER;
     GGL_MTX_SCOPE_GUARD(&mem_mtx);

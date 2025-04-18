@@ -8,8 +8,8 @@
 #include "stale_component.h"
 #include <assert.h>
 #include <fcntl.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
@@ -28,7 +28,8 @@ bool component_bootstrap_phase_completed(GglBuffer component_name) {
     // check config to see if component bootstrap steps have already been
     // completed
     uint8_t resp_mem[128] = { 0 };
-    GglBuffer resp = GGL_BUF(resp_mem);
+    GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
+    GglBuffer resp;
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(
             GGL_STR("services"),
@@ -37,6 +38,7 @@ bool component_bootstrap_phase_completed(GglBuffer component_name) {
             GGL_STR("bootstrapComponents"),
             component_name
         ),
+        &alloc,
         &resp
     );
     if (ret == GGL_ERR_OK) {
@@ -228,7 +230,7 @@ GglError retrieve_in_progress_deployment(
     GGL_LOGD("Searching config for any in progress deployment.");
 
     GglBuffer config_mem = GGL_BUF((uint8_t[2500]) { 0 });
-    GglBumpAlloc balloc = ggl_bump_alloc_init(config_mem);
+    GglArena alloc = ggl_arena_init(config_mem);
     GglObject deployment_config;
 
     GglError ret = ggl_gg_config_read(
@@ -237,7 +239,7 @@ GglError retrieve_in_progress_deployment(
             GGL_STR("DeploymentService"),
             GGL_STR("deploymentState")
         ),
-        &balloc.alloc,
+        &alloc,
         &deployment_config
     );
     if (ret != GGL_ERR_OK) {
@@ -389,9 +391,9 @@ GglError retrieve_in_progress_deployment(
     deployment->components = ggl_obj_into_map(*components);
 
     static uint8_t deployment_deep_copy_mem[5000] = { 0 };
-    GglBumpAlloc deployment_balloc
-        = ggl_bump_alloc_init(GGL_BUF(deployment_deep_copy_mem));
-    ret = deep_copy_deployment(deployment, &deployment_balloc.alloc);
+    GglArena deployment_balloc
+        = ggl_arena_init(GGL_BUF(deployment_deep_copy_mem));
+    ret = deep_copy_deployment(deployment, &deployment_balloc);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to deep copy deployment.");
         return ret;

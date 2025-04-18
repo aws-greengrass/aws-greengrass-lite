@@ -5,8 +5,8 @@
 #include <argp.h>
 #include <assert.h>
 #include <errno.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
 
     GglError remote_err = GGL_ERR_OK;
     GglBuffer id_mem = GGL_BUF((uint8_t[36]) { 0 });
-    GglBumpAlloc alloc = ggl_bump_alloc_init(id_mem);
+    GglArena alloc = ggl_arena_init(id_mem);
     GglObject result;
 
     GglError ret = ggl_call(
@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
         GGL_STR("create_local_deployment"),
         args.map,
         &remote_err,
-        &alloc.alloc,
+        &alloc,
         &result
     );
     if (ret != GGL_ERR_OK) {

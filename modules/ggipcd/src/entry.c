@@ -5,6 +5,7 @@
 #include "ggipcd.h"
 #include "ipc_components.h"
 #include "ipc_server.h"
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -23,9 +24,12 @@ GglError run_ggipcd(GglIpcArgs *args) {
     if (args->socket_path != NULL) {
         socket_path = args->socket_path;
     } else {
-        GglBuffer path_buf = GGL_BUF(default_socket_path);
+        GglArena alloc = ggl_arena_init(GGL_BUF(default_socket_path));
+        GglBuffer path_buf;
         GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &path_buf
+            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")),
+            &alloc,
+            &path_buf
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to read system/rootPath from config.");

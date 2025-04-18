@@ -9,6 +9,7 @@
 #include "stdbool.h"
 #include <sys/types.h>
 #include <fcntl.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -20,8 +21,8 @@
 #include <openssl/evp.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
+#include <string.h>
 #include <stdint.h>
-#include <stdio.h>
 
 #define MAX_TEMPLATE_LEN 129
 #define MAX_ENDPOINT_LENGTH 129
@@ -52,8 +53,10 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "claimCertPath");
         static uint8_t claim_cert_path_mem[PATH_MAX] = { 0 };
-        GglBuffer claim_cert_path = GGL_BUF(claim_cert_path_mem);
-        claim_cert_path.len -= 1;
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(claim_cert_path_mem), 0, sizeof(claim_cert_path_mem) - 1
+        ));
+        GglBuffer claim_cert_path;
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
                 GGL_STR("services"),
@@ -61,13 +64,14 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                 GGL_STR("configuration"),
                 GGL_STR("claimCertPath")
             ),
+            &alloc,
             &claim_cert_path
         );
         if (ret != GGL_ERR_OK) {
             return ret;
         }
 
-        args->claim_cert_path = (char *) claim_cert_path_mem;
+        args->claim_cert_path = (char *) claim_cert_path.data;
     }
 
     if (args->claim_key_path == NULL) {
@@ -75,8 +79,10 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "claimKeyPath");
         static uint8_t claim_key_path_mem[PATH_MAX] = { 0 };
-        GglBuffer claim_key_path = GGL_BUF(claim_key_path_mem);
-        claim_key_path.len -= 1;
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(claim_key_path_mem), 0, sizeof(claim_key_path_mem) - 1
+        ));
+        GglBuffer claim_key_path;
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
                 GGL_STR("services"),
@@ -84,6 +90,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                 GGL_STR("configuration"),
                 GGL_STR("claimKeyPath")
             ),
+            &alloc,
             &claim_key_path
         );
         if (ret != GGL_ERR_OK) {
@@ -97,10 +104,13 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         GGL_LOGT("Requesting db for "
                  "system/rootCaPath/");
         static uint8_t root_ca_path_mem[PATH_MAX] = { 0 };
-        GglBuffer root_ca_path = GGL_BUF(root_ca_path_mem);
-        root_ca_path.len -= 1;
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(root_ca_path_mem), 0, sizeof(root_ca_path_mem) - 1
+        ));
+        GglBuffer root_ca_path;
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")),
+            &alloc,
             &root_ca_path
         );
         if (ret != GGL_ERR_OK) {
@@ -115,8 +125,10 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "iotDataEndpoint");
         static uint8_t data_endpoint_mem[MAX_ENDPOINT_LENGTH + 1] = { 0 };
-        GglBuffer data_endpoint = GGL_BUF(data_endpoint_mem);
-        data_endpoint.len -= 1;
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(data_endpoint_mem), 0, sizeof(data_endpoint_mem) - 1
+        ));
+        GglBuffer data_endpoint;
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
                 GGL_STR("services"),
@@ -124,6 +136,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                 GGL_STR("configuration"),
                 GGL_STR("iotDataEndpoint")
             ),
+            &alloc,
             &data_endpoint
         );
         if (ret != GGL_ERR_OK) {
@@ -138,8 +151,10 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "templateName");
         static uint8_t template_name_mem[MAX_TEMPLATE_LEN + 1] = { 0 };
-        GglBuffer template_name = GGL_BUF(template_name_mem);
-        template_name.len -= 1;
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(template_name_mem), 0, sizeof(template_name_mem) - 1
+        ));
+        GglBuffer template_name;
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
                 GGL_STR("services"),
@@ -147,6 +162,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                 GGL_STR("configuration"),
                 GGL_STR("templateName")
             ),
+            &alloc,
             &template_name
         );
         if (ret != GGL_ERR_OK) {
@@ -161,8 +177,10 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "templateParams");
         static uint8_t template_params_mem[MAX_TEMPLATE_PARAM_LEN + 1] = { 0 };
-        GglBuffer template_params = GGL_BUF(template_params_mem);
-        template_params.len -= 1;
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(template_params_mem), 0, sizeof(template_params_mem) - 1
+        ));
+        GglBuffer template_params;
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
                 GGL_STR("services"),
@@ -170,6 +188,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
                 GGL_STR("configuration"),
                 GGL_STR("templateParams")
             ),
+            &alloc,
             &template_params
         );
         if (ret != GGL_ERR_OK) {
@@ -202,7 +221,8 @@ static GglError update_cred_access(void) {
 
 static GglError update_iot_endpoints(void) {
     static uint8_t endpoint_mem[2048] = { 0 };
-    GglBuffer data_endpoint = GGL_BUF(endpoint_mem);
+    GglArena alloc = ggl_arena_init(GGL_BUF(endpoint_mem));
+    GglBuffer data_endpoint;
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(
             GGL_STR("services"),
@@ -210,6 +230,7 @@ static GglError update_iot_endpoints(void) {
             GGL_STR("configuration"),
             GGL_STR("iotDataEndpoint")
         ),
+        &alloc,
         &data_endpoint
     );
     if (ret != GGL_ERR_OK) {
@@ -230,6 +251,7 @@ static GglError update_iot_endpoints(void) {
         return ret;
     }
 
+    alloc = ggl_arena_init(GGL_BUF(endpoint_mem));
     GglBuffer cred_endpoint = GGL_BUF(endpoint_mem);
     ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(
@@ -238,6 +260,7 @@ static GglError update_iot_endpoints(void) {
             GGL_STR("configuration"),
             GGL_STR("iotCredEndpoint")
         ),
+        &alloc,
         &cred_endpoint
     );
     if (ret != GGL_ERR_OK) {
@@ -280,9 +303,10 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
 
     GGL_LOGT("Requesting db for system/rootPath");
     static uint8_t root_dir_mem[4096] = { 0 };
-    GglBuffer root_dir = GGL_BUF(root_dir_mem);
+    GglArena alloc = ggl_arena_init(GGL_BUF(root_dir_mem));
+    GglBuffer root_dir;
     ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &root_dir
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &alloc, &root_dir
     );
     if (ret != GGL_ERR_OK) {
         return ret;

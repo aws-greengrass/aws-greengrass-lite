@@ -61,4 +61,7 @@ static inline GglError ggl_reader_call_exact(GglReader reader, GglBuffer buf) {
 /// Reader that 0 bytes can be read from
 static const GglReader GGL_NULL_READER = { 0 };
 
+/// Returns a writer that writes into a buffer, consuming used portion
+GglWriter ggl_buf_writer(GglBuffer *buf);
+
 #endif

@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/buffer.h"
-#include "ggl/alloc.h"
 #include "ggl/error.h"
+#include "ggl/io.h"
 #include "ggl/log.h"
 #include <string.h>
 #include <stdbool.h>
@@ -127,18 +127,19 @@ GglError ggl_str_to_int64(GglBuffer str, int64_t *value) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_buf_clone(GglBuffer buf, GglAlloc *alloc, GglBuffer *out) {
-    if (buf.len == 0) {
-        *out = (GglBuffer) { 0 };
-        return GGL_ERR_OK;
-    }
-    uint8_t *new_mem = GGL_ALLOCN(alloc, uint8_t, buf.len);
-    if (new_mem == NULL) {
-        GGL_LOGE("Insufficient memory when cloning buffer into %p.", alloc);
+static GglError buf_write(void *ctx, GglBuffer buf) {
+    GglBuffer *target = ctx;
+
+    if (target->len < buf.len) {
+        GGL_LOGT("Buffer write failed due to insufficient space.");
         return GGL_ERR_NOMEM;
     }
-    memcpy(new_mem, buf.data, buf.len);
-    out->data = new_mem;
-    out->len = buf.len;
+    memcpy(target->data, buf.data, buf.len);
+    *target = ggl_buffer_substr(*target, buf.len, SIZE_MAX);
+
     return GGL_ERR_OK;
+}
+
+GglWriter ggl_buf_writer(GglBuffer *buf) {
+    return (GglWriter) { .ctx = buf, .write = &buf_write };
 }

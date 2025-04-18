@@ -8,8 +8,8 @@
 #include "types.h"
 #include <sys/types.h>
 #include <assert.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
@@ -258,11 +258,10 @@ static GglError client_ready(void *ctx, uint32_t handle) {
     if (msg.payload.len > 0) {
         static uint8_t payload_deserialize_mem
             [PAYLOAD_VALUE_MAX_SUBOBJECTS * sizeof(GglObject)];
-        GglBumpAlloc balloc
-            = ggl_bump_alloc_init(GGL_BUF(payload_deserialize_mem));
+        GglArena alloc = ggl_arena_init(GGL_BUF(payload_deserialize_mem));
 
         GglObject payload_obj;
-        ret = ggl_deserialize(&balloc.alloc, false, msg.payload, &payload_obj);
+        ret = ggl_deserialize(&alloc, msg.payload, &payload_obj);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to decode request payload.");
             send_err_response(handle, ret);

@@ -6,8 +6,8 @@
 #include "pthread.h"
 #include <sys/types.h>
 #include <assert.h>
-#include <ggl/alloc.h>
-#include <ggl/bump_alloc.h>
+#include <ggl/arena.h>
+#include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -19,40 +19,36 @@
 static GglError yaml_to_obj(
     yaml_document_t *document,
     yaml_node_t *node,
-    GglAlloc *alloc,
+    GglArena *arena,
     GglObject *obj
 );
 
-static GglError yaml_node_to_buf(
-    yaml_node_t *node, GglAlloc *alloc, GglBuffer *buf
-) {
+static GglError yaml_node_to_buf(yaml_node_t *node, GglBuffer *buf) {
     assert(node != NULL);
-    assert(alloc != NULL);
-    assert(buf != NULL);
     assert(node->type == YAML_SCALAR_NODE);
 
     uint8_t *value = node->data.scalar.value;
     size_t len = strlen((char *) value);
 
-    *buf = (GglBuffer) { .data = value, .len = len };
+    if (buf != NULL) {
+        *buf = (GglBuffer) { .data = value, .len = len };
+    }
     return GGL_ERR_OK;
 }
 
-static GglError yaml_scalar_to_obj(
-    yaml_node_t *node, GglAlloc *alloc, GglObject *obj
-) {
+static GglError yaml_scalar_to_obj(yaml_node_t *node, GglObject *obj) {
     assert(node != NULL);
-    assert(alloc != NULL);
-    assert(obj != NULL);
     assert(node->type == YAML_SCALAR_NODE);
 
     GglBuffer result;
-    GglError ret = yaml_node_to_buf(node, alloc, &result);
+    GglError ret = yaml_node_to_buf(node, &result);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    *obj = ggl_obj_buf(result);
+    if (obj != NULL) {
+        *obj = ggl_obj_buf(result);
+    }
     return GGL_ERR_OK;
 }
 
@@ -60,14 +56,13 @@ static GglError yaml_scalar_to_obj(
 static GglError yaml_mapping_to_obj(
     yaml_document_t *document,
     yaml_node_t *node,
-    GglAlloc *alloc,
+    GglArena *arena,
     GglObject *obj
 ) {
     assert(document != NULL);
     assert(node != NULL);
-    assert(alloc != NULL);
-    assert(obj != NULL);
     assert(node->type == YAML_MAPPING_NODE);
+    assert(arena != NULL);
 
     if (node->data.mapping.pairs.top < node->data.mapping.pairs.start) {
         GGL_LOGE("Unexpected result from libyaml.");
@@ -77,10 +72,20 @@ static GglError yaml_mapping_to_obj(
     size_t len = (size_t) (node->data.mapping.pairs.top
                            - node->data.mapping.pairs.start);
 
-    GglKV *pairs = GGL_ALLOCN(alloc, GglKV, len);
-    if (pairs == NULL) {
-        GGL_LOGE("Insufficent memory to decode yaml.");
-        return GGL_ERR_NOMEM;
+    if (len == 0) {
+        if (obj != NULL) {
+            *obj = ggl_obj_map((GglMap) { 0 });
+        }
+        return GGL_ERR_OK;
+    }
+
+    GglKV *pairs = NULL;
+    if (obj != NULL) {
+        pairs = GGL_ARENA_ALLOCN(arena, GglKV, len);
+        if (pairs == NULL) {
+            GGL_LOGE("Insufficent memory to decode yaml.");
+            return GGL_ERR_NOMEM;
+        }
     }
 
     yaml_node_pair_t *node_pairs = node->data.mapping.pairs.start;
@@ -103,22 +108,23 @@ static GglError yaml_mapping_to_obj(
             return GGL_ERR_FAILURE;
         }
 
-        GglObject key_obj;
-        GglError ret = yaml_to_obj(document, key_node, alloc, &key_obj);
+        GglBuffer *key = (pairs == NULL) ? NULL : &pairs[i].key;
+        GglObject *val = (pairs == NULL) ? NULL : &pairs[i].val;
+
+        GglError ret = yaml_node_to_buf(key_node, key);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
-        assert(ggl_obj_type(key_obj) == GGL_TYPE_BUF);
 
-        pairs[i].key = ggl_obj_into_buf(key_obj);
-
-        ret = yaml_to_obj(document, value_node, alloc, &pairs[i].val);
+        ret = yaml_to_obj(document, value_node, arena, val);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
     }
 
-    *obj = ggl_obj_map((GglMap) { .pairs = pairs, .len = len });
+    if (obj != NULL) {
+        *obj = ggl_obj_map((GglMap) { .pairs = pairs, .len = len });
+    }
     return GGL_ERR_OK;
 }
 
@@ -126,14 +132,13 @@ static GglError yaml_mapping_to_obj(
 static GglError yaml_sequence_to_obj(
     yaml_document_t *document,
     yaml_node_t *node,
-    GglAlloc *alloc,
+    GglArena *arena,
     GglObject *obj
 ) {
     assert(document != NULL);
     assert(node != NULL);
-    assert(alloc != NULL);
-    assert(obj != NULL);
     assert(node->type == YAML_SEQUENCE_NODE);
+    assert(arena != NULL);
 
     if (node->data.sequence.items.top < node->data.sequence.items.start) {
         GGL_LOGE("Unexpected result from libyaml.");
@@ -143,10 +148,20 @@ static GglError yaml_sequence_to_obj(
     size_t len = (size_t) (node->data.sequence.items.top
                            - node->data.sequence.items.start);
 
-    GglObject *items = GGL_ALLOCN(alloc, GglObject, len);
-    if (items == NULL) {
-        GGL_LOGE("Insufficent memory to decode yaml.");
-        return GGL_ERR_NOMEM;
+    if (len == 0) {
+        if (obj != NULL) {
+            *obj = ggl_obj_list((GglList) { 0 });
+        }
+        return GGL_ERR_OK;
+    }
+
+    GglObject *items = NULL;
+    if (obj != NULL) {
+        items = GGL_ARENA_ALLOCN(arena, GglObject, len);
+        if (items == NULL) {
+            GGL_LOGE("Insufficent memory to decode yaml.");
+            return GGL_ERR_NOMEM;
+        }
     }
 
     yaml_node_item_t *item_nodes = node->data.sequence.items.start;
@@ -158,13 +173,17 @@ static GglError yaml_sequence_to_obj(
             return GGL_ERR_FAILURE;
         }
 
-        GglError ret = yaml_to_obj(document, item_node, alloc, &items[i]);
+        GglObject *item = (items == NULL) ? NULL : &items[i];
+
+        GglError ret = yaml_to_obj(document, item_node, arena, item);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
     }
 
-    *obj = ggl_obj_list((GglList) { .items = items, .len = len });
+    if (obj != NULL) {
+        *obj = ggl_obj_list((GglList) { .items = items, .len = len });
+    }
     return GGL_ERR_OK;
 }
 
@@ -172,13 +191,12 @@ static GglError yaml_sequence_to_obj(
 static GglError yaml_to_obj(
     yaml_document_t *document,
     yaml_node_t *node,
-    GglAlloc *alloc,
+    GglArena *arena,
     GglObject *obj
 ) {
     assert(document != NULL);
     assert(node != NULL);
-    assert(alloc != NULL);
-    assert(obj != NULL);
+    assert(arena != NULL);
 
     switch (node->type) {
     case YAML_NO_NODE: {
@@ -186,11 +204,11 @@ static GglError yaml_to_obj(
         return GGL_ERR_FAILURE;
     }
     case YAML_SCALAR_NODE:
-        return yaml_scalar_to_obj(node, alloc, obj);
+        return yaml_scalar_to_obj(node, obj);
     case YAML_MAPPING_NODE:
-        return yaml_mapping_to_obj(document, node, alloc, obj);
+        return yaml_mapping_to_obj(document, node, arena, obj);
     case YAML_SEQUENCE_NODE:
-        return yaml_sequence_to_obj(document, node, alloc, obj);
+        return yaml_sequence_to_obj(document, node, arena, obj);
     }
 
     GGL_LOGE("Unexpected node type from libyaml.");
@@ -198,7 +216,7 @@ static GglError yaml_to_obj(
 }
 
 GglError ggl_yaml_decode_destructive(
-    GglBuffer buf, GglAlloc *alloc, GglObject *obj
+    GglBuffer buf, GglArena *arena, GglObject *obj
 ) {
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
     GGL_MTX_SCOPE_GUARD(&mtx);
@@ -231,11 +249,27 @@ GglError ggl_yaml_decode_destructive(
         return GGL_ERR_NOENTRY;
     }
 
-    GglError ret = yaml_to_obj(&document, root_node, alloc, obj);
+    // Handle NULL arena arg
+    GglArena empty_arena = { 0 };
+    GglArena *result_arena = (arena == NULL) ? &empty_arena : arena;
 
-    if (ret == GGL_ERR_OK) {
-        GglBumpAlloc balloc = ggl_bump_alloc_init(buf);
-        ret = ggl_obj_buffer_copy(obj, &balloc.alloc);
+    // Copy to avoid committing allocation on error path
+    GglArena arena_copy = *result_arena;
+
+    GglError ret = yaml_to_obj(&document, root_node, &arena_copy, obj);
+
+    if (obj != NULL) {
+        if (ret == GGL_ERR_OK) {
+            // Copy buffers (dynamically allocated by libyaml) into buf to mimic
+            // in-place buffer decoding
+            GglArena buf_arena = ggl_arena_init(buf);
+            ret = ggl_arena_claim_obj_bufs(obj, &buf_arena);
+        }
+
+        if (ret == GGL_ERR_OK) {
+            // Commit allocations
+            *result_arena = arena_copy;
+        }
     }
 
     yaml_document_delete(&document);

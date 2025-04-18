@@ -5,7 +5,6 @@
 #include "ggl/json_decode.h"
 #include <assert.h>
 #include <errno.h>
-#include <ggl/alloc.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -630,7 +629,9 @@ static GglError decode_json_str(GglBuffer content, GglObject *obj) {
         GGL_LOGE("Error decoding JSON string.");
         return GGL_ERR_PARSE;
     }
-    *obj = ggl_obj_buf(str);
+    if (obj != NULL) {
+        *obj = ggl_obj_buf(str);
+    }
     return GGL_ERR_OK;
 }
 
@@ -653,7 +654,9 @@ static GglError decode_json_number(GglBuffer content, GglObject *obj) {
             GGL_LOGE("JSON integer out of range of int64_t.");
             return parse_ret;
         }
-        *obj = ggl_obj_i64(val);
+        if (obj != NULL) {
+            *obj = ggl_obj_i64(val);
+        }
         return GGL_ERR_OK;
     }
 
@@ -663,24 +666,23 @@ static GglError decode_json_number(GglBuffer content, GglObject *obj) {
         GGL_LOGE("JSON float out of range of double.");
         return GGL_ERR_RANGE;
     }
-    *obj = ggl_obj_f64(val);
+    if (obj != NULL) {
+        *obj = ggl_obj_f64(val);
+    }
     return GGL_ERR_OK;
 }
 
-static GglError take_json_val(GglBuffer *buf, GglAlloc *alloc, GglObject *obj);
+static GglError take_json_val(GglBuffer *buf, GglArena *arena, GglObject *obj);
 
 // NOLINTNEXTLINE(misc-no-recursion)
 static GglError decode_json_array(
-    GglBuffer content, size_t count, GglAlloc *alloc, GglObject *obj
+    GglBuffer content, size_t count, GglArena *arena, GglObject *obj
 ) {
-    GglObject *items = NULL;
-    if (count > 0) {
-        if (alloc == NULL) {
-            GGL_LOGE("Insufficent memory to decode JSON.");
-            return GGL_ERR_NOMEM;
-        }
+    assert(arena != NULL);
 
-        items = GGL_ALLOCN(alloc, GglObject, count);
+    GglObject *items = NULL;
+    if ((count > 0) && (obj != NULL)) {
+        items = GGL_ARENA_ALLOCN(arena, GglObject, count);
         if (items == NULL) {
             GGL_LOGE("Insufficent memory to decode JSON.");
             return GGL_ERR_NOMEM;
@@ -690,7 +692,9 @@ static GglError decode_json_array(
     GglBuffer buf_copy = content;
 
     for (size_t i = 0; i < count; i++) {
-        GglError ret = take_json_val(&buf_copy, alloc, &items[i]);
+        GglError ret = take_json_val(
+            &buf_copy, arena, (items == NULL) ? NULL : &items[i]
+        );
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -703,22 +707,19 @@ static GglError decode_json_array(
         }
     }
 
-    *obj = ggl_obj_list((GglList) { .items = items, .len = count });
+    if (obj != NULL) {
+        *obj = ggl_obj_list((GglList) { .items = items, .len = count });
+    }
     return GGL_ERR_OK;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
 static GglError decode_json_object(
-    GglBuffer content, size_t count, GglAlloc *alloc, GglObject *obj
+    GglBuffer content, size_t count, GglArena *arena, GglObject *obj
 ) {
     GglKV *pairs = NULL;
-    if (count > 0) {
-        if (alloc == NULL) {
-            GGL_LOGE("Insufficent memory to decode JSON.");
-            return GGL_ERR_NOMEM;
-        }
-
-        pairs = GGL_ALLOCN(alloc, GglKV, count);
+    if ((count > 0) && (obj != NULL)) {
+        pairs = GGL_ARENA_ALLOCN(arena, GglKV, count);
         if (pairs == NULL) {
             GGL_LOGE("Insufficent memory to decode JSON.");
             return GGL_ERR_NOMEM;
@@ -729,7 +730,7 @@ static GglError decode_json_object(
 
     for (size_t i = 0; i < count; i++) {
         GglObject key_obj;
-        GglError ret = take_json_val(&buf_copy, alloc, &key_obj);
+        GglError ret = take_json_val(&buf_copy, arena, &key_obj);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -737,7 +738,9 @@ static GglError decode_json_object(
             GGL_LOGE("Non-string key type when decoding object.");
             return GGL_ERR_PARSE;
         }
-        pairs[i].key = ggl_obj_into_buf(key_obj);
+        if (pairs != NULL) {
+            pairs[i].key = ggl_obj_into_buf(key_obj);
+        }
 
         bool matches = parser_call(&PARSER_CHAR(':'), &buf_copy, NULL);
         if (!matches) {
@@ -745,7 +748,9 @@ static GglError decode_json_object(
             return GGL_ERR_PARSE;
         }
 
-        ret = take_json_val(&buf_copy, alloc, &pairs[i].val);
+        ret = take_json_val(
+            &buf_copy, arena, (pairs == NULL) ? NULL : &pairs[i].val
+        );
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -758,12 +763,17 @@ static GglError decode_json_object(
         }
     }
 
-    *obj = ggl_obj_map((GglMap) { .pairs = pairs, .len = count });
+    if (obj != NULL) {
+        *obj = ggl_obj_map((GglMap) { .pairs = pairs, .len = count });
+    }
     return GGL_ERR_OK;
 }
 
 // NOLINTNEXTLINE(misc-no-recursion)
-static GglError take_json_val(GglBuffer *buf, GglAlloc *alloc, GglObject *obj) {
+static GglError take_json_val(GglBuffer *buf, GglArena *arena, GglObject *obj) {
+    assert(buf != NULL);
+    assert(arena != NULL);
+
     ParseResult output = { 0 };
     bool matches = parser_call(&PARSER_JSON_VALUE, buf, &output);
     if (!matches) {
@@ -777,18 +787,24 @@ static GglError take_json_val(GglBuffer *buf, GglAlloc *alloc, GglObject *obj) {
     case JSON_TYPE_NUMBER:
         return decode_json_number(output.content, obj);
     case JSON_TYPE_TRUE:
-        *obj = ggl_obj_bool(true);
+        if (obj != NULL) {
+            *obj = ggl_obj_bool(true);
+        }
         return GGL_ERR_OK;
     case JSON_TYPE_FALSE:
-        *obj = ggl_obj_bool(false);
+        if (obj != NULL) {
+            *obj = ggl_obj_bool(false);
+        }
         return GGL_ERR_OK;
     case JSON_TYPE_NULL:
-        *obj = GGL_OBJ_NULL;
+        if (obj != NULL) {
+            *obj = GGL_OBJ_NULL;
+        }
         return GGL_ERR_OK;
     case JSON_TYPE_ARRAY:
-        return decode_json_array(output.content, output.count, alloc, obj);
+        return decode_json_array(output.content, output.count, arena, obj);
     case JSON_TYPE_OBJECT:
-        return decode_json_object(output.content, output.count, alloc, obj);
+        return decode_json_object(output.content, output.count, arena, obj);
     }
 
     assert(false);
@@ -796,11 +812,19 @@ static GglError take_json_val(GglBuffer *buf, GglAlloc *alloc, GglObject *obj) {
 }
 
 GglError ggl_json_decode_destructive(
-    GglBuffer buf, GglAlloc *alloc, GglObject *obj
+    GglBuffer buf, GglArena *arena, GglObject *obj
 ) {
+    // Handle NULL arena arg
+    GglArena empty_arena = { 0 };
+    GglArena *result_arena = (arena == NULL) ? &empty_arena : arena;
+
+    // Copy to avoid committing allocation on error path
+    GglArena arena_copy = *result_arena;
+
+    // Copy since we treat arguments as read-only
     GglBuffer buf_copy = buf;
 
-    GglError ret = take_json_val(&buf_copy, alloc, obj);
+    GglError ret = take_json_val(&buf_copy, &arena_copy, obj);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -808,6 +832,11 @@ GglError ggl_json_decode_destructive(
     if (buf_copy.len > 0) {
         GGL_LOGE("Trailing buffer content when decoding.");
         return GGL_ERR_PARSE;
+    }
+
+    if (obj != NULL) {
+        // Commit allocations
+        *result_arena = arena_copy;
     }
 
     return GGL_ERR_OK;

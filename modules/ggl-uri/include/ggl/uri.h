@@ -1,7 +1,7 @@
 #ifndef GGHTTPLIB_URI_H
 #define GGHTTPLIB_URI_H
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 
@@ -14,6 +14,6 @@ typedef struct GglUriInfo {
     GglBuffer file;
 } GglUriInfo;
 
-GglError gg_uri_parse(GglAlloc *alloc, GglBuffer uri, GglUriInfo *info);
+GglError gg_uri_parse(GglArena *arena, GglBuffer uri, GglUriInfo *info);
 
 #endif

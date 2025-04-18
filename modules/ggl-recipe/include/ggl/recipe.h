@@ -8,7 +8,7 @@
 //! Greengrass recipe utils
 
 #include "stdbool.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -23,7 +23,7 @@ GglError ggl_recipe_get_from_file(
     int root_path_fd,
     GglBuffer component_name,
     GglBuffer component_version,
-    GglAlloc *alloc,
+    GglArena *arena,
     GglObject *recipe
 );
 

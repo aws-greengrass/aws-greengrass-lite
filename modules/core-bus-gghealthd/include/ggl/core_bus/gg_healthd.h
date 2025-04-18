@@ -7,11 +7,12 @@
 
 //! gghealthd core-bus interface wrapper
 
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 
 GglError ggl_gghealthd_retrieve_component_status(
-    GglBuffer component, GglBuffer *component_status
+    GglBuffer component, GglArena *alloc, GglBuffer *component_status
 );
 
 #endif

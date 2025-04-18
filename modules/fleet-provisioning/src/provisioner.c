@@ -5,8 +5,8 @@
 #include "provisioner.h"
 #include <errno.h>
 #include <fcntl.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
@@ -32,11 +32,10 @@ static char global_cert_ownership[10024];
 static char global_register_thing_url[128] = { 0 };
 static char global_register_thing_accept_url[128] = { 0 };
 static char global_register_thing_reject_url[128] = { 0 };
-static uint8_t template_param_mem[TEMPLATE_PARAM_BUFFER_SIZE];
-static GglBuffer template_param = GGL_BUF(template_param_mem);
+static GglBuffer template_param;
 static pid_t global_iotcored_pid;
 
-static uint8_t big_buffer_for_bump[4096];
+static uint8_t arena_mem[4096];
 GglObject csr_payload_json_obj;
 char *global_cert_file_path;
 
@@ -57,10 +56,10 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
 
     GglBuffer thing_request_buf = GGL_BUF(temp_payload_alloc2);
 
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+    GglArena arena = ggl_arena_init(GGL_BUF(arena_mem));
     GglObject config_template_param_json_obj;
     GglError json_status = ggl_json_decode_destructive(
-        template_param, &balloc.alloc, &config_template_param_json_obj
+        template_param, &arena, &config_template_param_json_obj
     );
 
     if (json_status != GGL_ERR_OK
@@ -123,7 +122,8 @@ static GglError set_global_values(pid_t iotcored_pid) {
     // Fetch Template Name from db
     // TODO: Use args passed from entry.c
     static uint8_t template_name_mem[128];
-    GglBuffer template_name = GGL_BUF(template_name_mem);
+    GglArena template_name_alloc = ggl_arena_init(GGL_BUF(template_name_mem));
+    GglBuffer template_name;
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(
             GGL_STR("services"),
@@ -131,6 +131,7 @@ static GglError set_global_values(pid_t iotcored_pid) {
             GGL_STR("configuration"),
             GGL_STR("templateName")
         ),
+        &template_name_alloc,
         &template_name
     );
     if (ret != GGL_ERR_OK) {
@@ -180,6 +181,9 @@ static GglError set_global_values(pid_t iotcored_pid) {
         return GGL_ERR_NOMEM;
     }
 
+    static uint8_t template_param_mem[TEMPLATE_PARAM_BUFFER_SIZE];
+    GglArena template_param_alloc = ggl_arena_init(GGL_BUF(template_param_mem));
+
     // Fetch Template Parameters
     // TODO: Use args passed from entry.c
     ret = ggl_gg_config_read_str(
@@ -189,6 +193,7 @@ static GglError set_global_values(pid_t iotcored_pid) {
             GGL_STR("configuration"),
             GGL_STR("templateParams")
         ),
+        &template_param_alloc,
         &template_param
     );
     if (ret != GGL_ERR_OK) {
@@ -224,7 +229,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
     if (ggl_buffer_eq(
             topic, ggl_buffer_from_null_term((char *) certificate_response_url)
         )) {
-        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+        GglArena arena = ggl_arena_init(GGL_BUF(arena_mem));
 
         memcpy(global_cert_ownership, payload.data, payload.len);
 
@@ -232,7 +237,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
         ) { .data = (uint8_t *) global_cert_ownership, .len = payload.len };
 
         ggl_json_decode_destructive(
-            response_buffer, &balloc.alloc, &csr_payload_json_obj
+            response_buffer, &arena, &csr_payload_json_obj
         );
 
         if (ggl_obj_type(csr_payload_json_obj) != GGL_TYPE_MAP) {
@@ -310,7 +315,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                    topic,
                    ggl_buffer_from_null_term(global_register_thing_accept_url)
                )) {
-        GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
+        GglArena alloc = ggl_arena_init(GGL_BUF(arena_mem));
 
         memcpy(global_thing_response_buf, payload.data, payload.len);
 
@@ -319,7 +324,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
         GglObject thing_payload_json_obj;
 
         ggl_json_decode_destructive(
-            response_buffer, &balloc.alloc, &thing_payload_json_obj
+            response_buffer, &alloc, &thing_payload_json_obj
         );
         if (ggl_obj_type(thing_payload_json_obj) != GGL_TYPE_MAP) {
             return GGL_ERR_FAILURE;

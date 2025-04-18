@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/constants.h>
@@ -318,9 +319,10 @@ static GglError expand_timeout(
         return GGL_ERR_INVALID;
     }
 
-    uint8_t timeout_config_buf[128] = { 0 };
-    GglBuffer timeout_config = GGL_BUF(timeout_config_buf);
+    uint8_t timeout_config_mem[128] = { 0 };
+    GglBuffer timeout_config;
     {
+        GglArena alloc = ggl_arena_init(GGL_BUF(timeout_config_mem));
         GglBuffer key_path[GGL_MAX_OBJECT_DEPTH] = { 0 };
         GglBufVec key_path_vec = GGL_BUF_VEC(key_path);
         ggl_buf_vec_push(&key_path_vec, GGL_STR("services"));
@@ -336,7 +338,9 @@ static GglError expand_timeout(
             return ret;
         }
 
-        ret = ggl_gg_config_read_str(key_path_vec.buf_list, &timeout_config);
+        ret = ggl_gg_config_read_str(
+            key_path_vec.buf_list, &alloc, &timeout_config
+        );
         if (ret != GGL_ERR_OK) {
             return ret;
         }

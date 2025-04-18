@@ -8,8 +8,8 @@
 #include <event2/event.h>
 #include <event2/http.h>
 #include <event2/util.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
@@ -24,7 +24,7 @@
 
 struct evhttp_request;
 
-static GglObject fetch_creds(GglBumpAlloc the_allocator) {
+static GglObject fetch_creds(GglArena *alloc) {
     GglBuffer tesd = GGL_STR("aws_iot_tes");
     GglObject result;
     GglMap params = { 0 };
@@ -34,7 +34,7 @@ static GglObject fetch_creds(GglBumpAlloc the_allocator) {
         GGL_STR("request_credentials_formatted"),
         params,
         NULL,
-        &the_allocator.alloc,
+        alloc,
         &result
     );
 
@@ -139,13 +139,12 @@ static void request_handler(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    static uint8_t big_buffer_for_bump[4096];
-    static uint8_t temp_payload_alloc2[4096];
+    static uint8_t alloc_mem[4096];
+    GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
+    GglObject tes_formatted_obj = fetch_creds(&alloc);
 
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_bump));
-    GglObject tes_formatted_obj = fetch_creds(the_allocator);
-    GglBuffer response_cred_buffer = GGL_BUF(temp_payload_alloc2);
+    static uint8_t response_cred_mem[4096];
+    GglBuffer response_cred_buffer = GGL_BUF(response_cred_mem);
 
     GglError ret_err_json
         = ggl_json_encode(tes_formatted_obj, &response_cred_buffer);

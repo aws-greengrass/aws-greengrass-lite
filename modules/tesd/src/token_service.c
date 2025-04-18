@@ -4,8 +4,8 @@
 
 #include "token_service.h"
 #include "ggl/http.h"
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
@@ -105,9 +105,8 @@ static GglError rpc_request_creds(void *ctx, GglMap params, uint32_t handle) {
 
     // Create a json object from the URL response
     GglObject json_cred_obj;
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init(GGL_BUF(http_response_decode_mem));
-    ret = ggl_json_decode_destructive(response, &balloc.alloc, &json_cred_obj);
+    GglArena alloc = ggl_arena_init(GGL_BUF(http_response_decode_mem));
+    ret = ggl_json_decode_destructive(response, &alloc, &json_cred_obj);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("TES response not valid JSON.");
         return ret;
@@ -149,9 +148,8 @@ static GglError rpc_request_formatted_creds(
 
     // Create a json object from the URL response
     GglObject json_cred_obj;
-    GglBumpAlloc balloc
-        = ggl_bump_alloc_init(GGL_BUF(http_response_decode_mem));
-    ret = ggl_json_decode_destructive(response, &balloc.alloc, &json_cred_obj);
+    GglArena alloc = ggl_arena_init(GGL_BUF(http_response_decode_mem));
+    ret = ggl_json_decode_destructive(response, &alloc, &json_cred_obj);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("TES response not valid JSON.");
         return ret;

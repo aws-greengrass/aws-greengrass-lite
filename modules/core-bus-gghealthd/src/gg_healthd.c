@@ -3,44 +3,43 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/core_bus/gg_healthd.h"
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <string.h>
 #include <stdint.h>
 
 GglError ggl_gghealthd_retrieve_component_status(
-    GglBuffer component, GglBuffer *component_status
+    GglBuffer component, GglArena *alloc, GglBuffer *component_status
 ) {
-    static uint8_t buffer[10 * sizeof(GglObject)] = { 0 };
-    GglBumpAlloc balloc = ggl_bump_alloc_init(GGL_BUF(buffer));
+    static uint8_t resp_mem[10 * sizeof(GglObject)] = { 0 };
+    GglArena resp_alloc = ggl_arena_init(GGL_BUF(resp_mem));
 
     GglObject result;
-    GglError method_error = GGL_ERR_OK;
-    GglError call_error = ggl_call(
+    GglError method_error;
+    GglError ret = ggl_call(
         GGL_STR("gg_health"),
         GGL_STR("get_status"),
         GGL_MAP({ GGL_STR("component_name"), ggl_obj_buf(component) }),
         &method_error,
-        &balloc.alloc,
+        &resp_alloc,
         &result
     );
-    if (call_error != GGL_ERR_OK) {
-        return call_error;
-    }
-    if (method_error != GGL_ERR_OK) {
-        return method_error;
+    if (ret != GGL_ERR_OK) {
+        if (ret == GGL_ERR_REMOTE) {
+            return method_error;
+        }
+        return ret;
     }
     if (ggl_obj_type(result) != GGL_TYPE_MAP) {
         return GGL_ERR_INVALID;
     }
     GglMap result_map = ggl_obj_into_map(result);
 
-    GglObject *lifecycle_state_obj = NULL;
+    GglObject *lifecycle_state_obj;
     if (!ggl_map_get(
             result_map, GGL_STR("lifecycle_state"), &lifecycle_state_obj
         )) {
@@ -55,9 +54,13 @@ GglError ggl_gghealthd_retrieve_component_status(
         GGL_LOGE("Invalid response; lifecycle state must be a buffer.");
         return GGL_ERR_INVALID;
     }
-    GglBuffer lifecycle_state = ggl_obj_into_buf(*lifecycle_state_obj);
+    *component_status = ggl_obj_into_buf(*lifecycle_state_obj);
 
-    memcpy(component_status->data, lifecycle_state.data, lifecycle_state.len);
-    component_status->len = lifecycle_state.len;
+    ret = ggl_arena_claim_buf(component_status, alloc);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Insufficient memory to return lifecycle state.");
+        return ret;
+    }
+
     return GGL_ERR_OK;
 }

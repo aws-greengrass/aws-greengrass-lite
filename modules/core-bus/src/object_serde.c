@@ -4,8 +4,7 @@
 
 #include "object_serde.h"
 #include <assert.h>
-#include <ggl/alloc.h>
-#include <ggl/bump_alloc.h>
+#include <ggl/arena.h>
 #include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/io.h>
@@ -63,10 +62,10 @@ static GglError buf_take(size_t n, GglBuffer *buf, GglBuffer *out) {
     return GGL_ERR_OK;
 }
 
-static GglError write_bool(GglAlloc *alloc, bool boolean) {
+static GglError write_bool(GglArena *alloc, bool boolean) {
     assert(alloc != NULL);
 
-    uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 1);
+    uint8_t *buf = GGL_ARENA_ALLOCN(alloc, uint8_t, 1);
     if (buf == NULL) {
         GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
@@ -86,10 +85,10 @@ static GglError read_bool(GglBuffer *buf, GglObject *obj) {
     return GGL_ERR_OK;
 }
 
-static GglError write_i64(GglAlloc *alloc, int64_t i64) {
+static GglError write_i64(GglArena *alloc, int64_t i64) {
     assert(alloc != NULL);
 
-    uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(int64_t));
+    uint8_t *buf = GGL_ARENA_ALLOCN(alloc, uint8_t, sizeof(int64_t));
     if (buf == NULL) {
         GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
@@ -111,10 +110,10 @@ static GglError read_i64(GglBuffer *buf, GglObject *obj) {
     return GGL_ERR_OK;
 }
 
-static GglError write_f64(GglAlloc *alloc, double f64) {
+static GglError write_f64(GglArena *alloc, double f64) {
     assert(alloc != NULL);
 
-    uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(double));
+    uint8_t *buf = GGL_ARENA_ALLOCN(alloc, uint8_t, sizeof(double));
     if (buf == NULL) {
         GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
@@ -136,7 +135,7 @@ static GglError read_f64(GglBuffer *buf, GglObject *obj) {
     return GGL_ERR_OK;
 }
 
-static GglError write_buf(GglAlloc *alloc, GglBuffer buffer) {
+static GglError write_buf(GglArena *alloc, GglBuffer buffer) {
     assert(alloc != NULL);
 
     if (buffer.len > UINT32_MAX) {
@@ -145,7 +144,7 @@ static GglError write_buf(GglAlloc *alloc, GglBuffer buffer) {
     }
     uint32_t len = (uint32_t) buffer.len;
 
-    uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(len) + buffer.len);
+    uint8_t *buf = GGL_ARENA_ALLOCN(alloc, uint8_t, sizeof(len) + buffer.len);
     if (buf == NULL) {
         GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
@@ -156,9 +155,7 @@ static GglError write_buf(GglAlloc *alloc, GglBuffer buffer) {
     return GGL_ERR_OK;
 }
 
-static GglError read_buf_raw(
-    GglAlloc *alloc, bool copy_bufs, GglBuffer *buf, GglBuffer *out
-) {
+static GglError read_buf_raw(GglBuffer *buf, GglBuffer *out) {
     GglBuffer temp_buf;
     uint32_t len;
     GglError ret = buf_take(sizeof(len), buf, &temp_buf);
@@ -172,31 +169,13 @@ static GglError read_buf_raw(
         return ret;
     }
 
-    if (copy_bufs && (len > 0)) {
-        if (alloc == NULL) {
-            GGL_LOGE("Packet decode requires allocation and no alloc provided."
-            );
-            return GGL_ERR_NOMEM;
-        }
-        uint8_t *copy = GGL_ALLOCN(alloc, uint8_t, len);
-        if (copy == NULL) {
-            GGL_LOGE("Insufficient memory to encode packet.");
-            return GGL_ERR_NOMEM;
-        }
-
-        memcpy(copy, temp_buf.data, len);
-        temp_buf.data = copy;
-    }
-
     *out = temp_buf;
     return GGL_ERR_OK;
 }
 
-static GglError read_buf(
-    GglAlloc *alloc, bool copy_bufs, GglBuffer *buf, GglObject *obj
-) {
+static GglError read_buf(GglBuffer *buf, GglObject *obj) {
     GglBuffer val;
-    GglError ret = read_buf_raw(alloc, copy_bufs, buf, &val);
+    GglError ret = read_buf_raw(buf, &val);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -204,7 +183,7 @@ static GglError read_buf(
     return GGL_ERR_OK;
 }
 
-static GglError write_list(GglAlloc *alloc, NestingState *state, GglList list) {
+static GglError write_list(GglArena *alloc, NestingState *state, GglList list) {
     assert(alloc != NULL);
 
     if (list.len > UINT32_MAX) {
@@ -213,7 +192,7 @@ static GglError write_list(GglAlloc *alloc, NestingState *state, GglList list) {
     }
     uint32_t len = (uint32_t) list.len;
 
-    uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(len));
+    uint8_t *buf = GGL_ARENA_ALLOCN(alloc, uint8_t, sizeof(len));
     if (buf == NULL) {
         GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
@@ -237,7 +216,7 @@ static GglError write_list(GglAlloc *alloc, NestingState *state, GglList list) {
 }
 
 static GglError read_list(
-    GglAlloc *alloc, NestingState *state, GglBuffer *buf, GglObject *obj
+    GglArena *alloc, NestingState *state, GglBuffer *buf, GglObject *obj
 ) {
     GglBuffer temp_buf;
     uint32_t len;
@@ -256,7 +235,7 @@ static GglError read_list(
             return GGL_ERR_NOMEM;
         }
 
-        val.items = GGL_ALLOCN(alloc, GglObject, len);
+        val.items = GGL_ARENA_ALLOCN(alloc, GglObject, len);
         if (val.items == NULL) {
             GGL_LOGE("Insufficient memory to decode packet.");
             return GGL_ERR_NOMEM;
@@ -279,7 +258,7 @@ static GglError read_list(
     return GGL_ERR_OK;
 }
 
-static GglError write_map(GglAlloc *alloc, NestingState *state, GglMap map) {
+static GglError write_map(GglArena *alloc, NestingState *state, GglMap map) {
     assert(alloc != NULL);
 
     if (map.len > UINT32_MAX) {
@@ -288,7 +267,7 @@ static GglError write_map(GglAlloc *alloc, NestingState *state, GglMap map) {
     }
     uint32_t len = (uint32_t) map.len;
 
-    uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, sizeof(len));
+    uint8_t *buf = GGL_ARENA_ALLOCN(alloc, uint8_t, sizeof(len));
     if (buf == NULL) {
         GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
@@ -311,7 +290,7 @@ static GglError write_map(GglAlloc *alloc, NestingState *state, GglMap map) {
 }
 
 static GglError read_map(
-    GglAlloc *alloc, NestingState *state, GglBuffer *buf, GglObject *obj
+    GglArena *alloc, NestingState *state, GglBuffer *buf, GglObject *obj
 ) {
     GglBuffer temp_buf;
     uint32_t len;
@@ -330,7 +309,7 @@ static GglError read_map(
             return GGL_ERR_NOMEM;
         }
 
-        val.pairs = GGL_ALLOCN(alloc, GglKV, len);
+        val.pairs = GGL_ARENA_ALLOCN(alloc, GglKV, len);
         if (val.pairs == NULL) {
             GGL_LOGE("Insufficient memory to decode packet.");
             return GGL_ERR_NOMEM;
@@ -353,8 +332,8 @@ static GglError read_map(
     return GGL_ERR_OK;
 }
 
-static GglError write_obj(GglAlloc *alloc, NestingState *state, GglObject obj) {
-    uint8_t *buf = GGL_ALLOCN(alloc, uint8_t, 1);
+static GglError write_obj(GglArena *alloc, NestingState *state, GglObject obj) {
+    uint8_t *buf = GGL_ARENA_ALLOCN(alloc, uint8_t, 1);
     if (buf == NULL) {
         GGL_LOGE("Insufficient memory to encode packet.");
         return GGL_ERR_NOMEM;
@@ -382,11 +361,7 @@ static GglError write_obj(GglAlloc *alloc, NestingState *state, GglObject obj) {
 }
 
 static GglError read_obj(
-    GglAlloc *alloc,
-    bool copy_bufs,
-    NestingState *state,
-    GglBuffer *buf,
-    GglObject *obj
+    GglArena *alloc, NestingState *state, GglBuffer *buf, GglObject *obj
 ) {
     assert((buf != NULL) && (obj != NULL));
 
@@ -408,7 +383,7 @@ static GglError read_obj(
     case GGL_TYPE_F64:
         return read_f64(buf, obj);
     case GGL_TYPE_BUF:
-        return read_buf(alloc, copy_bufs, buf, obj);
+        return read_buf(buf, obj);
     case GGL_TYPE_LIST:
         return read_list(alloc, state, buf, obj);
     case GGL_TYPE_MAP:
@@ -421,7 +396,8 @@ static GglError read_obj(
 
 GglError ggl_serialize(GglObject obj, GglBuffer *buf) {
     assert(buf != NULL);
-    GglBumpAlloc mem = ggl_bump_alloc_init(*buf);
+    // TODO: Remove alloc abuse. Should use a writer.
+    GglArena mem = ggl_arena_init(*buf);
 
     NestingState state = {
         .levels = { {
@@ -441,18 +417,18 @@ GglError ggl_serialize(GglObject obj, GglBuffer *buf) {
         }
 
         if (level->type == HANDLING_OBJ) {
-            GglError ret = write_obj(&mem.alloc, &state, *level->obj_next);
+            GglError ret = write_obj(&mem, &state, *level->obj_next);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
             level->remaining -= 1;
             level->obj_next = &level->obj_next[1];
         } else if (level->type == HANDLING_KV) {
-            GglError ret = write_buf(&mem.alloc, level->kv_next->key);
+            GglError ret = write_buf(&mem, level->kv_next->key);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = write_obj(&mem.alloc, &state, level->kv_next->val);
+            ret = write_obj(&mem, &state, level->kv_next->val);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
@@ -467,9 +443,7 @@ GglError ggl_serialize(GglObject obj, GglBuffer *buf) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_deserialize(
-    GglAlloc *alloc, bool copy_bufs, GglBuffer buf, GglObject *obj
-) {
+GglError ggl_deserialize(GglArena *alloc, GglBuffer buf, GglObject *obj) {
     assert(obj != NULL);
 
     GglBuffer rest = buf;
@@ -492,22 +466,18 @@ GglError ggl_deserialize(
         }
 
         if (level->type == HANDLING_OBJ) {
-            GglError ret
-                = read_obj(alloc, copy_bufs, &state, &rest, level->obj_next);
+            GglError ret = read_obj(alloc, &state, &rest, level->obj_next);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
             level->remaining -= 1;
             level->obj_next = &level->obj_next[1];
         } else if (level->type == HANDLING_KV) {
-            GglError ret
-                = read_buf_raw(alloc, copy_bufs, &rest, &level->kv_next->key);
+            GglError ret = read_buf_raw(&rest, &level->kv_next->key);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = read_obj(
-                alloc, copy_bufs, &state, &rest, &level->kv_next->val
-            );
+            ret = read_obj(alloc, &state, &rest, &level->kv_next->val);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }

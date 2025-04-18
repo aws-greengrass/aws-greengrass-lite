@@ -8,8 +8,8 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ggipc/client.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
@@ -48,11 +48,9 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
 
     static uint8_t config_value[10000];
     static uint8_t copy_config_value[10000];
-    GglBumpAlloc buffer = ggl_bump_alloc_init(GGL_BUF(config_value));
+    GglArena alloc = ggl_arena_init(GGL_BUF(config_value));
     GglObject result = { 0 };
-    ret = ggipc_get_config_obj(
-        conn, key_path.buf_list, NULL, &buffer.alloc, &result
-    );
+    ret = ggipc_get_config_obj(conn, key_path.buf_list, NULL, &alloc, &result);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get config value for substitution.");
         return ret;
@@ -691,17 +689,12 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     GglBuffer phase = ggl_buffer_from_null_term(args->phase);
 
-    static uint8_t big_buffer_for_recipe[MAX_RECIPE_LEN];
-    GglBumpAlloc the_allocator
-        = ggl_bump_alloc_init(GGL_BUF(big_buffer_for_recipe));
+    static uint8_t recipe_mem[MAX_RECIPE_LEN];
+    GglArena alloc = ggl_arena_init(GGL_BUF(recipe_mem));
     GglObject recipe = { 0 };
     GGL_LOGT("Root Path: %.*s", (int) root_path.len, root_path.data);
     ret = ggl_recipe_get_from_file(
-        root_path_fd,
-        component_name,
-        component_version,
-        &the_allocator.alloc,
-        &recipe
+        root_path_fd, component_name, component_version, &alloc, &recipe
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to find the recipe file");

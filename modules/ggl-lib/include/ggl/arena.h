@@ -9,6 +9,7 @@
 
 #include "error.h"
 #include <ggl/buffer.h>
+#include <ggl/object.h>
 #include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -16,15 +17,19 @@
 
 /// Arena allocator backed by fixed buffer
 typedef struct {
-    uint8_t *const MEM;
-    const uint32_t CAPACITY;
+    uint8_t *mem;
+    uint32_t capacity;
     uint32_t index;
 } GglArena;
 
+typedef struct {
+    uint32_t index;
+} GglArenaState;
+
 /// Obtain an initialized `GglAlloc` backed by `buf`.
 static inline GglArena ggl_arena_init(GglBuffer buf) {
-    return (GglArena) { .MEM = buf.data,
-                        .CAPACITY = buf.len <= UINT32_MAX ? (uint32_t) buf.len
+    return (GglArena) { .mem = buf.data,
+                        .capacity = buf.len <= UINT32_MAX ? (uint32_t) buf.len
                                                           : UINT32_MAX };
 }
 
@@ -48,5 +53,14 @@ bool ggl_arena_owns(const GglArena *arena, const void *ptr);
 
 /// Allocates remaining space into a buffer.
 GglBuffer ggl_arena_alloc_rest(GglArena *arena);
+
+/// Modifies all of an object's references to point into a given arena
+GglError ggl_arena_claim_obj(GglObject *obj, GglArena *arena);
+
+/// Modifies an buffer to point into a given arena
+GglError ggl_arena_claim_buf(GglBuffer *buf, GglArena *arena);
+
+/// Modifies only the buffers of an object to point into a given arena
+GglError ggl_arena_claim_obj_bufs(GglObject *obj, GglArena *arena);
 
 #endif

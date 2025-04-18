@@ -5,7 +5,7 @@
 #ifndef GGL_IPC_SUBSCRIPTIONS_H
 #define GGL_IPC_SUBSCRIPTIONS_H
 
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -13,7 +13,7 @@
 
 /// Callback for whenever a subscription is closed.
 typedef GglError (*GglIpcSubscribeCallback)(
-    GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
+    GglObject data, uint32_t resp_handle, int32_t stream_id, GglArena *arena
 );
 
 /// Wrapper around ggl_subscribe for IPC handlers.

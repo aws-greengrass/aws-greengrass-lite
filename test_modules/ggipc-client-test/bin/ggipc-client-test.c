@@ -4,8 +4,8 @@
 
 #include <errno.h>
 #include <ggipc/client.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/bump_alloc.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
@@ -66,12 +66,12 @@ int main(int argc, char **argv) {
 
     GglBuffer ipc_buf = GGL_BUF(ipc_bytes);
     {
-        GglBumpAlloc balloc = ggl_bump_alloc_init(ipc_buf);
+        GglArena alloc = ggl_arena_init(ipc_buf);
         ret = ggipc_get_config_obj(
             conn,
             GGL_BUF_LIST(GGL_STR("timestamp")),
             NULL,
-            &balloc.alloc,
+            &alloc,
             &timestamp_obj
         );
         if (ret != GGL_ERR_OK) {
@@ -115,9 +115,9 @@ int main(int argc, char **argv) {
 
         timestamp_buf.len = (size_t) written;
 
-        GglBumpAlloc balloc = ggl_bump_alloc_init(ipc_buf);
+        GglArena alloc = ggl_arena_init(ipc_buf);
         ret = ggipc_publish_to_topic_binary(
-            conn, GGL_STR("test_topic2"), timestamp_buf, &balloc.alloc
+            conn, GGL_STR("test_topic2"), timestamp_buf, &alloc
         );
 
         if (ret != GGL_ERR_OK) {

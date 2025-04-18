@@ -7,7 +7,7 @@
 #include "../../ipc_service.h"
 #include "../../ipc_subscriptions.h"
 #include "mqttproxy.h"
-#include <ggl/alloc.h>
+#include <ggl/arena.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
@@ -21,7 +21,7 @@
 #include <stdlib.h>
 
 static GglError subscribe_to_iot_core_callback(
-    GglObject data, uint32_t resp_handle, int32_t stream_id, GglAlloc *alloc
+    GglObject data, uint32_t resp_handle, int32_t stream_id, GglArena *alloc
 ) {
     GglBuffer topic;
     GglBuffer payload;
@@ -69,7 +69,7 @@ GglError ggl_handle_subscribe_to_iot_core(
     uint32_t handle,
     int32_t stream_id,
     GglIpcError *ipc_error,
-    GglAlloc *alloc
+    GglArena *alloc
 ) {
     (void) alloc;
 
