@@ -5,7 +5,6 @@
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <openssl/evp.h>
 #include <openssl/sha.h>
 #include <openssl/types.h>

@@ -7,7 +7,6 @@
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <string.h>
 #include <systemd/sd-login.h>
 

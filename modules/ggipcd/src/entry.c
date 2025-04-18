@@ -9,7 +9,6 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <ggl/vector.h>
 #include <limits.h>
 #include <stdint.h>

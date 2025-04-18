@@ -9,7 +9,6 @@
 #include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/bump_alloc.h>
-#include <ggl/object.h>
 #include <ggl/uri.h>
 #include <limits.h>
 #include <openssl/bio.h>

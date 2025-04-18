@@ -4,7 +4,7 @@
 
 #include "pubsub.h"
 #include "../../ipc_service.h"
-#include <ggl/object.h>
+#include <ggl/buffer.h>
 
 static GglIpcOperation operations[] = {
     {

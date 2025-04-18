@@ -11,7 +11,6 @@
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <limits.h>
 #include <pthread.h>
 #include <signal.h>

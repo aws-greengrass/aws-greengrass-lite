@@ -5,7 +5,6 @@
 #include "gghttp_util.h"
 #include "ggl/error.h"
 #include "ggl/http.h"
-#include "ggl/object.h"
 #include <sys/types.h>
 #include <assert.h>
 #include <curl/curl.h>

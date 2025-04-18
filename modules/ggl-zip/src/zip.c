@@ -9,7 +9,6 @@
 #include <ggl/cleanup.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <inttypes.h>
 #include <zip.h>
 #include <zipconf.h>

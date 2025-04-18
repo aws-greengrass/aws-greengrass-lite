@@ -5,7 +5,6 @@
 #include "ggconfigd.h"
 #include <argp.h>
 #include <ggl/buffer.h>
-#include <ggl/object.h>
 #include <ggl/version.h>
 #include <stdlib.h>
 

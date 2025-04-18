@@ -16,7 +16,6 @@
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <ggl/proxy/environment.h>
 #include <limits.h>
 #include <pthread.h>

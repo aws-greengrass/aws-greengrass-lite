@@ -8,7 +8,6 @@
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <stdint.h>
 
 GglError eventstream_get_common_headers(

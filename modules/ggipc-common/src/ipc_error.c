@@ -1,7 +1,6 @@
 #include <ggl/buffer.h>
 #include <ggl/ipc/common.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 
 void ggl_ipc_err_info(
     GglIpcErrorCode error_code,

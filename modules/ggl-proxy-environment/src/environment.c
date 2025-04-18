@@ -8,7 +8,6 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

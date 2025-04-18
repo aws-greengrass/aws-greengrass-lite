@@ -10,7 +10,6 @@
 #include <ggl/core_bus/gg_healthd.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <ggl/semver.h>
 #include <limits.h>
 #include <string.h>

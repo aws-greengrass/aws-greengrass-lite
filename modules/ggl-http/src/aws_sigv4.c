@@ -7,8 +7,6 @@
 #include "sigv4.h"
 #include <assert.h>
 #include <ggl/buffer.h>
-#include <ggl/error.h>
-#include <ggl/object.h>
 #include <ggl/vector.h>
 #include <openssl/evp.h>
 #include <openssl/types.h>

@@ -9,7 +9,6 @@
 #include <ggl/error.h>
 #include <ggl/exec.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <ggl/vector.h>
 #include <ggl/version.h>
 #include <stdint.h>

@@ -62,38 +62,6 @@ typedef struct {
     size_t len;
 } GglMap;
 
-// The only way to guarantee a string literal is with assignment; this could be
-// done with a statement expression but those are not allowed at file context.
-
-#define GGL_STR_UNCHECKED(strlit) \
-    ((GglBuffer) { .data = (uint8_t *) (strlit), .len = sizeof(strlit) - 1U })
-
-#ifndef GGL_DISABLE_MACRO_TYPE_CHECKING
-/// Create buffer literal from a string literal.
-#define GGL_STR(strlit) \
-    _Generic( \
-        (&(strlit)), \
-        char(*)[]: GGL_STR_UNCHECKED(strlit), \
-        const char(*)[]: GGL_STR_UNCHECKED(strlit) \
-    )
-#else
-#define GGL_STR GGL_STR_UNCHECKED
-#endif
-
-// generic function on pointer is to validate parameter is array and not ptr.
-// On systems where char == uint8_t, this won't warn on string literal.
-
-#define GGL_BUF_UNCHECKED(...) \
-    ((GglBuffer) { .data = (__VA_ARGS__), .len = sizeof(__VA_ARGS__) })
-
-#ifndef GGL_DISABLE_MACRO_TYPE_CHECKING
-/// Create buffer literal from a byte array.
-#define GGL_BUF(...) \
-    _Generic((&(__VA_ARGS__)), uint8_t(*)[]: GGL_BUF_UNCHECKED(__VA_ARGS__))
-#else
-#define GGL_BUF GGL_BUF_UNCHECKED
-#endif
-
 /// Create list literal from object literals.
 #define GGL_LIST(...) \
     (GglList) { \

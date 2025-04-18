@@ -5,9 +5,9 @@
 #include "ggl/semver.h"
 #include "semver-test.h"
 #include "stdbool.h"
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 
 GglError run_semver_test(void) {
     bool ret = is_in_range(GGL_STR("1.1.0"), GGL_STR(">=2.1.0"));

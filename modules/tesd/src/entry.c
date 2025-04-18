@@ -7,7 +7,6 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
-#include <ggl/object.h>
 #include <ggl/proxy/environment.h>
 #include <stdint.h>
 

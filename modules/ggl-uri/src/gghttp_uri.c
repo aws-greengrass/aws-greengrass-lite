@@ -3,7 +3,6 @@
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <string.h>
 #include <uriparser/Uri.h>
 #include <uriparser/UriBase.h>

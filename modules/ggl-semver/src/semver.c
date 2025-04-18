@@ -5,9 +5,9 @@
 #include "ggl/semver.h"
 #include <sys/types.h>
 #include <ctype.h>
+#include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <ggl/vector.h>
 #include <limits.h>
 #include <string.h>

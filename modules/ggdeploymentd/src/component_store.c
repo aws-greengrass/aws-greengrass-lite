@@ -12,7 +12,6 @@
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
-#include <ggl/object.h>
 #include <ggl/semver.h>
 #include <limits.h>
 #include <string.h>

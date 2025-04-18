@@ -5,6 +5,7 @@
 #include "bus_server.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
+#include <ggl/buffer.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
