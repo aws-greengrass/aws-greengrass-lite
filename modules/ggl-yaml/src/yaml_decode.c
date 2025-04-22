@@ -223,12 +223,12 @@ GglError ggl_yaml_decode_destructive(
             parser.problem_mark.column + 1
         );
         yaml_parser_delete(&parser);
-        return GGL_ERR_NOENTRY;
+        return GGL_ERR_PARSE;
     }
     yaml_node_t *root_node = yaml_document_get_root_node(&document);
     if (root_node == NULL) {
         GGL_LOGE("Yaml document is empty.");
-        return GGL_ERR_PARSE;
+        return GGL_ERR_NOENTRY;
     }
 
     GglError ret = yaml_to_obj(&document, root_node, alloc, obj);
