@@ -203,12 +203,33 @@ GglError ggl_yaml_decode_destructive(
     static pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
     GGL_MTX_SCOPE_GUARD(&mtx);
 
+    GGL_LOGT(
+        "%s received yaml content: %.*s", __func__, (int) buf.len, buf.data
+    );
+
     static yaml_parser_t parser;
-    yaml_parser_initialize(&parser);
+    if (!yaml_parser_initialize(&parser)) {
+        GGL_LOGE("Parser initialization failed.");
+        return GGL_ERR_FATAL;
+    }
     yaml_parser_set_input_string(&parser, buf.data, buf.len);
     static yaml_document_t document;
-    yaml_parser_load(&parser, &document);
+    if (!yaml_parser_load(&parser, &document)) {
+        GGL_LOGE(
+            "Yaml parser load failed. Parser error: %s, at line %zu, column "
+            "%zu",
+            parser.problem,
+            parser.problem_mark.line + 1,
+            parser.problem_mark.column + 1
+        );
+        yaml_parser_delete(&parser);
+        return GGL_ERR_PARSE;
+    }
     yaml_node_t *root_node = yaml_document_get_root_node(&document);
+    if (root_node == NULL) {
+        GGL_LOGE("Yaml document is empty.");
+        return GGL_ERR_PARSE;
+    }
 
     GglError ret = yaml_to_obj(&document, root_node, alloc, obj);
 
