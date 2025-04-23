@@ -4,13 +4,13 @@
  */
 
 #include "ggl/exec.h"
-#include <sys/types.h>
 #include <errno.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <signal.h>
 #include <spawn.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "fleet_status_service.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
@@ -22,6 +21,7 @@
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <time.h>
 #include <stdbool.h>
 #include <stdint.h>

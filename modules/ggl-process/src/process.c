@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/process.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
 #include <ggl/cleanup.h>
@@ -13,6 +12,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <sys/syscall.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
 #include <stdbool.h>

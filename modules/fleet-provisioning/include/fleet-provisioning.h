@@ -5,8 +5,8 @@
 #ifndef FLEET_PROVISIONING_H
 #define FLEET_PROVISIONING_H
 
-#include <sys/types.h>
 #include <ggl/error.h>
+#include <sys/types.h>
 
 typedef struct {
     char *claim_cert_path;

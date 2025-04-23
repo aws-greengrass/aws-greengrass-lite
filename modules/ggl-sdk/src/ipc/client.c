@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <sys/types.h>
 #include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/base64.h>
@@ -29,6 +28,7 @@
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <time.h>
 #include <stdbool.h>
 

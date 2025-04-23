@@ -7,9 +7,9 @@
 
 //! Zip file functionality
 
-#include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <sys/types.h>
 
 /// Unarchive all entries from the zip file in a directory to the destination
 /// directory. All created, uncompressed files use the given mode.

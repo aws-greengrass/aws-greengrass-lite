@@ -6,8 +6,8 @@
 #ifndef CORE_MQTT_CONFIG_H
 #define CORE_MQTT_CONFIG_H
 
-#include <sys/types.h>
 #include <pthread.h> // IWYU pragma: keep
+#include <sys/types.h>
 
 struct MQTTContext;
 

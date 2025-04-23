@@ -7,10 +7,10 @@
 
 //! File system functionality
 
-#include <sys/types.h>
 #include <dirent.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdio.h>
 

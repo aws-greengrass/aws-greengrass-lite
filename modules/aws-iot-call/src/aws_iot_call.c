@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/aws_iot_call.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
 #include <ggl/arena.h>
@@ -19,6 +18,7 @@
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <pthread.h>
+#include <sys/types.h>
 #include <time.h>
 #include <stdbool.h>
 #include <stdint.h>

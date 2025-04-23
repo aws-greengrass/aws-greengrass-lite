@@ -4,7 +4,6 @@
 
 #include "fleet_status_service.h"
 #include "gg_fleet_statusd.h"
-#include <sys/types.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
@@ -16,6 +15,7 @@
 #include <ggl/object.h>
 #include <ggl/utils.h>
 #include <pthread.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

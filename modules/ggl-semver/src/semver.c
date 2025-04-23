@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/semver.h"
-#include <sys/types.h>
 #include <ctype.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
@@ -11,6 +10,7 @@
 #include <ggl/vector.h>
 #include <limits.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 

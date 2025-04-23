@@ -4,7 +4,6 @@
 
 #include "gghttp_util.h"
 #include "ggl/http.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <curl/curl.h>
 #include <errno.h>
@@ -15,6 +14,7 @@
 #include <ggl/log.h>
 #include <ggl/vector.h>
 #include <pthread.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdlib.h>

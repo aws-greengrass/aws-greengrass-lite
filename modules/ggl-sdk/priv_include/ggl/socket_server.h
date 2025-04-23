@@ -7,10 +7,10 @@
 
 //! Event driven server listening on a unix socket
 
-#include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/socket_handle.h>
+#include <sys/types.h>
 #include <stdint.h>
 
 /// Run a server listening on `path`.

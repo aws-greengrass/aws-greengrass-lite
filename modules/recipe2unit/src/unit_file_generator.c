@@ -4,7 +4,6 @@
 
 #include "unit_file_generator.h"
 #include "ggl/recipe2unit.h"
-#include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/arena.h>
@@ -23,6 +22,7 @@
 #include <limits.h>
 #include <pwd.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>

@@ -9,7 +9,6 @@
 #include "iotcored.h"
 #include "subscription_dispatch.h"
 #include "tls.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <core_mqtt.h>
 #include <core_mqtt_config.h>
@@ -19,6 +18,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <transport_interface.h>
 #include <stdatomic.h>
 #include <stdbool.h>

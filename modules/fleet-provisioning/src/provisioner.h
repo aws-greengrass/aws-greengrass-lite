@@ -5,9 +5,9 @@
 #ifndef PROVISIONER_H
 #define PROVISIONER_H
 
-#include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <sys/types.h>
 
 GglError make_request(
     GglBuffer csr_as_ggl_buffer, GglBuffer cert_file_path, pid_t iotcored_pid

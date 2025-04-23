@@ -7,7 +7,6 @@
 #include "ggl/exec.h"
 #include "provisioner.h"
 #include "stdbool.h"
-#include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
@@ -22,6 +21,7 @@
 #include <openssl/types.h>
 #include <openssl/x509.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdint.h>
 
 #define MAX_TEMPLATE_LEN 129

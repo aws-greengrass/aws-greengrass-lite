@@ -10,9 +10,9 @@
 //! This module implements an interface for a GG-IPC server to validate received
 //! SVCUID tokens, and a means for components to obtain SVCUID tokens.
 
-#include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <sys/types.h>
 
 /// Authenticate a client by checking if its pid is associated with its claimed
 /// component name.

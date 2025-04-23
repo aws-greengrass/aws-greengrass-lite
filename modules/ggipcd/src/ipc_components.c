@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ipc_components.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
@@ -17,6 +16,7 @@
 #include <ggl/rand.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 

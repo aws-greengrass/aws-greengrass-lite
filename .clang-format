@@ -14,12 +14,10 @@ IncludeBlocks: Merge
 IncludeCategories:
   - Regex: '^".*"$'
     Priority: 1
-  - Regex: "^<sys/types.h>$"
-    Priority: 2
   - Regex: "^<std.*>$"
-    Priority: 4
-  - Regex: "^<.*>$"
     Priority: 3
+  - Regex: "^<.*>$"
+    Priority: 2
 KeepEmptyLinesAtTheStartOfBlocks: false
 PointerAlignment: Right
 QualifierAlignment: Left

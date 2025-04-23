@@ -2,11 +2,11 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <sys/types.h>
 #include <errno.h>
 #include <ggl/cleanup.h>
 #include <ggl/log.h>
 #include <pthread.h>
+#include <sys/types.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>

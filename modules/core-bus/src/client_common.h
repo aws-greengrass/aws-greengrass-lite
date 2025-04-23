@@ -6,13 +6,13 @@
 #define CORE_BUS_CLIENT_COMMON_H
 
 #include "types.h"
-#include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/constants.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <ggl/io.h>
 #include <ggl/object.h>
+#include <sys/types.h>
 #include <stdint.h>
 
 extern uint8_t ggl_core_bus_client_payload_array[GGL_COREBUS_MAX_MSG_LEN];

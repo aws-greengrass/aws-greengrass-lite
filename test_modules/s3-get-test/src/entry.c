@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "s3-get-test.h"
-#include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
@@ -15,6 +14,7 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>

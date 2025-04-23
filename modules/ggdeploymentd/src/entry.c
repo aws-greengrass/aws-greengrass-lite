@@ -8,7 +8,6 @@
 #include "iot_jobs_listener.h"
 #include "sys/stat.h"
 #include "unistd.h"
-#include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/arena.h>
@@ -20,6 +19,7 @@
 #include <ggl/proxy/environment.h>
 #include <limits.h>
 #include <pthread.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

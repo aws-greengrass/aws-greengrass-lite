@@ -4,7 +4,6 @@
 
 #include "deployment_queue.h"
 #include "deployment_model.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
@@ -17,6 +16,7 @@
 #include <ggl/vector.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <uuid/uuid.h>
 #include <stdbool.h>
 #include <stdint.h>

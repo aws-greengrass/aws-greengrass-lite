@@ -4,7 +4,6 @@
 
 #include "ggl/yaml_decode.h"
 #include "pthread.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
@@ -13,6 +12,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
+#include <sys/types.h>
 #include <yaml.h>
 #include <stdint.h>
 

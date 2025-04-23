@@ -2,7 +2,6 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include <sys/types.h>
 #include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
@@ -13,6 +12,7 @@
 #include <ggl/socket_handle.h>
 #include <pthread.h>
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <stddef.h>
 #include <stdint.h>
 

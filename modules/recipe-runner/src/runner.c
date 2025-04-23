@@ -4,7 +4,6 @@
 
 #include "runner.h"
 #include "recipe-runner.h"
-#include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/arena.h>
@@ -22,6 +21,7 @@
 #include <ggl/vector.h>
 #include <ggl/version.h>
 #include <limits.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>

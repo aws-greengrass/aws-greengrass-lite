@@ -6,7 +6,6 @@
 #include "bootstrap_manager.h"
 #include "deployment_model.h"
 #include "deployment_queue.h"
-#include <sys/types.h>
 #include <ggl/arena.h>
 #include <ggl/aws_iot_call.h>
 #include <ggl/backoff.h>
@@ -25,6 +24,7 @@
 #include <inttypes.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>

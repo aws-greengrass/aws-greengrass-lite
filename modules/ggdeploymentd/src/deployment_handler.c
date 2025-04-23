@@ -10,7 +10,6 @@
 #include "deployment_queue.h"
 #include "iot_jobs_listener.h"
 #include "stale_component.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -44,6 +43,7 @@
 #include <ggl/zip.h>
 #include <limits.h>
 #include <string.h>
+#include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <stdint.h>

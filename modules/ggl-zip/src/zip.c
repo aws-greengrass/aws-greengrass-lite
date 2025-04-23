@@ -3,13 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/zip.h"
-#include <sys/types.h>
 #include <fcntl.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <inttypes.h>
+#include <sys/types.h>
 #include <zip.h>
 #include <zipconf.h>
 #include <stdbool.h>

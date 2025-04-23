@@ -6,7 +6,6 @@
 #include "ipc_components.h"
 #include "ipc_dispatch.h"
 #include "ipc_subscriptions.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
 #include <ggipc/auth.h>
@@ -31,6 +30,7 @@
 #include <ggl/socket_server.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 

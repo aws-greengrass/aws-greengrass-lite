@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "bus_client.h"
-#include <sys/types.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
@@ -12,6 +11,7 @@
 #include <ggl/log.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdint.h>
 
 static pthread_mutex_t bump_alloc_mutex = PTHREAD_MUTEX_INITIALIZER;

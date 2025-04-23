@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/recipe.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -23,6 +22,7 @@
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 

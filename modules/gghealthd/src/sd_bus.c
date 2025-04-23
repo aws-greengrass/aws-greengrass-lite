@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "sd_bus.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <errno.h>
 #include <ggl/cleanup.h>
@@ -13,6 +12,7 @@
 #include <ggl/vector.h>
 #include <inttypes.h>
 #include <pthread.h>
+#include <sys/types.h>
 #include <systemd/sd-bus.h>
 #include <time.h>
 

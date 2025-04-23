@@ -4,7 +4,6 @@
 
 #include "subscription_dispatch.h"
 #include "mqtt.h"
-#include <sys/types.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/server.h>
@@ -13,6 +12,7 @@
 #include <ggl/object.h>
 #include <pthread.h>
 #include <string.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 

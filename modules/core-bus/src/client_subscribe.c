@@ -7,7 +7,6 @@
 #include "ggl/core_bus/constants.h"
 #include "object_serde.h"
 #include "types.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
@@ -22,6 +21,7 @@
 #include <ggl/socket_epoll.h>
 #include <ggl/socket_handle.h>
 #include <pthread.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>

@@ -4,7 +4,6 @@
 
 #include "ipc_subscriptions.h"
 #include "ipc_server.h"
-#include <sys/types.h>
 #include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/cleanup.h>
@@ -14,6 +13,7 @@
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

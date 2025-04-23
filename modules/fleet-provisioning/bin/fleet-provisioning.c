@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "fleet-provisioning.h"
-#include <sys/types.h>
 #include <argp.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
@@ -11,6 +10,7 @@
 #include <ggl/log.h>
 #include <ggl/vector.h>
 #include <ggl/version.h>
+#include <sys/types.h>
 #include <stdint.h>
 
 __attribute__((visibility("default"))) const char *argp_program_version
