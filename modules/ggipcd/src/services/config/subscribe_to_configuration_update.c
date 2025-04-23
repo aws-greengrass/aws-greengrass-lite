@@ -11,7 +11,7 @@
 #include <ggl/buffer.h>
 #include <ggl/constants.h>
 #include <ggl/error.h>
-#include <ggl/ipc/common.h>
+#include <ggl/ipc/error.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>

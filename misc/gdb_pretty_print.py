@@ -102,7 +102,7 @@ class GglObjectPrinter:
 
 
 def build_pretty_printer():
-    pp = gdb.printing.RegexpCollectionPrettyPrinter("ggl-lib")
+    pp = gdb.printing.RegexpCollectionPrettyPrinter("ggl-sdk")
     pp.add_printer('GglBuffer', '^GglBuffer$', GglBufferPrinter)
     pp.add_printer('GglList', '^GglList$', GglListPrinter)
     pp.add_printer('GglMap', '^GglMap$', GglMapPrinter)

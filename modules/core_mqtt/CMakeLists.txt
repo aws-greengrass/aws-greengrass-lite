@@ -7,6 +7,6 @@ ggl_init_module(
   SRCDIR ${core_mqtt_SOURCE_DIR}/source
   INCDIRS config ${core_mqtt_SOURCE_DIR}/source/include
           ${core_mqtt_SOURCE_DIR}/source/interface
-  LIBS ggl-lib)
+  LIBS ggl-sdk)
 
 target_compile_definitions(core_mqtt PRIVATE CORE_MQTT_SOURCE)

@@ -7,15 +7,8 @@
 
 #include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/ipc/common.h>
+#include <ggl/nucleus/constants.h>
 #include <stdint.h>
-
-/// Maximum number of generic components that can be tracked.
-/// This is unique component names over all time, not just at a given moment.
-/// Can be configured with `-DGGL_MAX_GENERIC_COMPONENTS=<N>`.
-#ifndef GGL_MAX_GENERIC_COMPONENTS
-#define GGL_MAX_GENERIC_COMPONENTS 50
-#endif
 
 #if GGL_MAX_GENERIC_COMPONENTS <= UINT8_MAX
 typedef uint8_t GglComponentHandle;
@@ -24,6 +17,10 @@ typedef uint16_t GglComponentHandle;
 #else
 #error "Maximum number of generic components is too large."
 #endif
+
+typedef struct {
+    uint8_t val[12];
+} GglSvcuid;
 
 /// Start the IPC component server used to verify svcuid.
 GglError ggl_ipc_start_component_server(void);

@@ -7,12 +7,12 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <ggipc/client.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
+#include <ggl/ipc/client.h>
 #include <ggl/json_encode.h>
 #include <ggl/json_pointer.h>
 #include <ggl/log.h>
@@ -532,7 +532,7 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     // Fetch the SVCUID
     GglBuffer resp = GGL_BUF(resp_mem);
-    resp.len = GGL_IPC_SVCUID_LEN;
+    resp.len = GGL_IPC_SVCUID_STR_LEN;
 
     int conn = -1;
     GglError ret = ggipc_connect_by_name(

@@ -3,11 +3,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
 ggl_init_module(
-  gg-fleet-statusd
-  LIBS ggl-lib
-       ggl-json
-       core-bus
-       core-bus-gghealthd
-       core-bus-gg-config
-       core-bus-aws-iot-mqtt
-       ggl-constants)
+  gg-fleet-statusd LIBS ggl-sdk core-bus core-bus-gghealthd core-bus-gg-config
+                        core-bus-aws-iot-mqtt ggl-constants)

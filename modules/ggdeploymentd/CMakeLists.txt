@@ -4,11 +4,9 @@
 
 ggl_init_module(
   ggdeploymentd
-  LIBS ggl-lib
+  LIBS ggl-sdk
        core-bus
        ggl-backoff
-       ggl-constants
-       ggl-file
        ggl-http
        ggl-uri
        ggl-json

@@ -20,6 +20,14 @@
 #include <string.h>
 #include <stdbool.h>
 
+/// The maximum expected config keys (including nested) held under one component
+/// configuration
+#define MAX_CONFIG_DESCENDANTS_PER_COMPONENT 256
+
+/// The maximum expected config keys held as children of a single config object
+// TODO: Should be at least as big as MAX_COMPONENTS, add static assert?
+#define MAX_CONFIG_CHILDREN_PER_OBJECT 64
+
 static inline void cleanup_sqlite3_finalize(sqlite3_stmt **p) {
     if (*p != NULL) {
         sqlite3_finalize(*p);

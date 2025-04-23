@@ -148,6 +148,7 @@ endif()
 add_cflags(
   -Wall
   -Wextra
+  -Wno-missing-braces
   -Wvla
   -Wshadow
   -Wformat

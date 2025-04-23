@@ -8,7 +8,6 @@
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
-#include <ggl/constants.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/core_bus/gg_healthd.h>
@@ -16,6 +15,7 @@
 #include <ggl/json_encode.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
+#include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <ggl/version.h>
@@ -79,9 +79,9 @@ GglError publish_fleet_status_update(
     }
 
     // get status for each running component
-    GglKV component_infos[MAX_COMPONENTS][5];
+    GglKV component_infos[GGL_MAX_GENERIC_COMPONENTS][5];
     GglObjVec component_statuses
-        = GGL_OBJ_VEC((GglObject[MAX_COMPONENTS]) { 0 });
+        = GGL_OBJ_VEC((GglObject[GGL_MAX_GENERIC_COMPONENTS]) { 0 });
     size_t component_count = 0;
     GGL_LIST_FOREACH(component_obj, components) {
         if (ggl_obj_type(*component_obj) != GGL_TYPE_BUF) {

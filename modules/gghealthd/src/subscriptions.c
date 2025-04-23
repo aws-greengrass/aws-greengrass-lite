@@ -11,7 +11,7 @@
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
-#include <ggl/file.h>
+#include <ggl/file.h> // IWYU pragma: keep (TODO: remove after file.h refactor)
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/socket_server.h>

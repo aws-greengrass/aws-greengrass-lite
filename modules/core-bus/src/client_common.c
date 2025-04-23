@@ -13,7 +13,7 @@
 #include <ggl/eventstream/decode.h>
 #include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/types.h>
-#include <ggl/file.h>
+#include <ggl/file.h> // IWYU pragma: keep (TODO: remove after file.h refactor)
 #include <ggl/io.h>
 #include <ggl/log.h>
 #include <ggl/object.h>

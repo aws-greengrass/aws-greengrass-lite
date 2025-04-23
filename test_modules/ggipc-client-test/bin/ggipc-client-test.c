@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <errno.h>
-#include <ggipc/client.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/ipc/client.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <inttypes.h>

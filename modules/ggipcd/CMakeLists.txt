@@ -4,14 +4,10 @@
 
 ggl_init_module(
   ggipcd
-  LIBS ggl-lib
-       ggl-socket
-       eventstream
+  LIBS ggl-sdk
        ggl-constants
-       ggl-json
        core-bus
        core-bus-gg-config
        core-bus-aws-iot-mqtt
        ggipc-auth
-       ggl-rand
-       ggipc-common)
+       ggl-rand)

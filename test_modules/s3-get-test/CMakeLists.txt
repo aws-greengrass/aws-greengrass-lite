@@ -2,4 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(s3-get-test LIBS ggl-lib ggl-http ggl-file ggl-json core-bus)
+ggl_init_module(s3-get-test LIBS ggl-sdk ggl-http core-bus)

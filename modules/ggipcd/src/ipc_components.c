@@ -8,10 +8,9 @@
 #include <ggl/base64.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
-#include <ggl/constants.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
-#include <ggl/ipc/common.h>
+#include <ggl/ipc/limits.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -20,6 +19,9 @@
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+/// Maximum length of generic component name.
+#define MAX_COMPONENT_NAME_LENGTH (128)
 
 static_assert(
     GGL_IPC_SVCUID_STR_LEN % 4 == 0,

@@ -20,7 +20,8 @@
 #include <ggl/eventstream/rpc.h>
 #include <ggl/eventstream/types.h>
 #include <ggl/io.h>
-#include <ggl/ipc/common.h>
+#include <ggl/ipc/error.h>
+#include <ggl/ipc/limits.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
