@@ -58,7 +58,11 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
     GglBuffer final_result = GGL_BUF(copy_config_value);
 
     if (ggl_obj_type(result) != GGL_TYPE_BUF) {
-        ggl_json_encode(result, &final_result);
+        ret = ggl_json_encode(result, &final_result);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to encode result as JSON.");
+            return ret;
+        }
     } else {
         final_result = ggl_obj_into_buf(result);
     }
@@ -249,17 +253,25 @@ static GglError process_set_env(
     GglBuffer component_version,
     GglBuffer thing_name
 ) {
-    GglError ret = GGL_ERR_OK;
     GGL_LOGT("Lifecycle Setenv, is a map");
     GGL_MAP_FOREACH(pair, env_values_as_map) {
-        ggl_file_write(out_fd, GGL_STR("export "));
-        ggl_file_write(out_fd, pair->key);
+        GglError ret = ggl_file_write(out_fd, GGL_STR("export "));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+        ret = ggl_file_write(out_fd, pair->key);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
         GGL_LOGT(
             "Lifecycle Setenv, map key: %.*s",
             (int) pair->key.len,
             pair->key.data
         );
-        ggl_file_write(out_fd, GGL_STR("="));
+        ret = ggl_file_write(out_fd, GGL_STR("="));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
 
         if (ggl_obj_type(pair->val) != GGL_TYPE_BUF) {
             GGL_LOGW("Invalid lifecycle Setenv, Key values must be String");
@@ -309,7 +321,7 @@ static GglError process_set_env(
             return ret;
         }
     }
-    return ret;
+    return GGL_ERR_OK;
 }
 
 static GglError find_and_process_set_env(

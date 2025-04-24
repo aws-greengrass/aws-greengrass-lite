@@ -236,9 +236,12 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
         GglBuffer response_buffer = (GglBuffer
         ) { .data = (uint8_t *) global_cert_ownership, .len = payload.len };
 
-        ggl_json_decode_destructive(
+        ret = ggl_json_decode_destructive(
             response_buffer, &arena, &csr_payload_json_obj
         );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
 
         if (ggl_obj_type(csr_payload_json_obj) != GGL_TYPE_MAP) {
             return GGL_ERR_FAILURE;
@@ -265,7 +268,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
             }
 
             ret = ggl_file_write(fd, ggl_obj_into_buf(*val));
-            ggl_close(fd);
+            (void) ggl_close(fd);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
@@ -323,9 +326,12 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
         ) { .data = (uint8_t *) global_thing_response_buf, .len = payload.len };
         GglObject thing_payload_json_obj;
 
-        ggl_json_decode_destructive(
+        ret = ggl_json_decode_destructive(
             response_buffer, &alloc, &thing_payload_json_obj
         );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
         if (ggl_obj_type(thing_payload_json_obj) != GGL_TYPE_MAP) {
             return GGL_ERR_FAILURE;
         }
@@ -347,7 +353,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
             // Stop iotcored here
             GGL_LOGI("Process Complete, Your device is now provisioned");
-            ggl_exec_kill_process(global_iotcored_pid);
+            (void) ggl_exec_kill_process(global_iotcored_pid);
 
             // TODO: Find a way to terminate cleanly with iotcored
             atomic_store(&complete_status, true);
@@ -408,7 +414,7 @@ GglError make_request(
     }
     GGL_LOGI("Successfully set csr accepted subscription.");
 
-    ggl_sleep(2);
+    (void) ggl_sleep(2);
 
     // Subscribe to csr reject topic
     GglMap subscribe_reject_args = GGL_MAP(
@@ -439,7 +445,7 @@ GglError make_request(
     }
     GGL_LOGI("Successfully set csr rejected subscription.");
 
-    ggl_sleep(2);
+    (void) ggl_sleep(2);
 
     // Subscribe to register thing success topic
     GglMap subscribe_thing_args = GGL_MAP(
@@ -499,7 +505,7 @@ GglError make_request(
     }
     GGL_LOGI("Successfully set thing rejected subscription.");
 
-    ggl_sleep(2);
+    (void) ggl_sleep(2);
 
     // Create a json payload object
     GglObject csr_payload_obj
@@ -521,7 +527,7 @@ GglError make_request(
         { GGL_STR("payload"), ggl_obj_buf(csr_buf) },
     );
 
-    ggl_sleep(2);
+    (void) ggl_sleep(2);
 
     // Make Publish request to get the new certificate
     GglError ret_publish = ggl_notify(iotcored, GGL_STR("publish"), args);
@@ -537,7 +543,7 @@ GglError make_request(
 
     while (!atomic_load(&complete_status)) { // Continuously check the flag
         GGL_LOGI("Wating for thing to register");
-        ggl_sleep(5);
+        (void) ggl_sleep(5);
     }
 
     return GGL_ERR_OK;

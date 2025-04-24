@@ -281,7 +281,7 @@ static GglError update_job(
             GGL_LOGD("Job is already in the desired state.");
             break;
         }
-        ggl_sleep(1);
+        (void) ggl_sleep(1);
     }
 
     // save jobs ID and version to config in case of bootstrap
@@ -321,7 +321,9 @@ static GglError describe_next_job(void *ctx) {
     static uint8_t response_scratch[4096];
     GglArena call_alloc = ggl_arena_init(GGL_BUF(response_scratch));
     GglObject job_description;
-    ggl_aws_iot_call(topic, payload_object, &call_alloc, &job_description);
+    ret = ggl_aws_iot_call(
+        topic, payload_object, &call_alloc, &job_description
+    );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to publish on describe job topic");
         return ret;
@@ -350,7 +352,7 @@ static GglError describe_next_job(void *ctx) {
 }
 
 static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
-    GglError ret = GGL_ERR_OK;
+    GglError ret;
     {
         GGL_MTX_SCOPE_GUARD(&current_job_id_mutex);
         if (ggl_buffer_eq(current_job_id.buf, job_id)) {
@@ -377,13 +379,13 @@ static GglError enqueue_job(GglMap deployment_doc, GglBuffer job_id) {
             == GGL_ERR_BUSY
         ) {
             int64_t sleep_for = 1 << MIN(7, retries);
-            ggl_sleep(sleep_for);
+            (void) ggl_sleep(sleep_for);
             ++retries;
         }
     }
 
     if (ret != GGL_ERR_OK) {
-        update_job(job_id, GGL_STR("FAILURE"), &current_job_version);
+        (void) update_job(job_id, GGL_STR("FAILURE"), &current_job_version);
     }
 
     return ret;

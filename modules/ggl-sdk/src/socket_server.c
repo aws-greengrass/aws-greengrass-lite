@@ -75,7 +75,7 @@ static void new_client_available(
 
     ret = ggl_socket_epoll_add(epoll_fd, client_fd, handle);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(pool, handle);
+        (void) ggl_socket_handle_close(pool, handle);
         GGL_LOGE("Failed to register client %d with epoll.", client_fd);
         return;
     }
@@ -91,7 +91,7 @@ static void client_data_ready(
 
     GglError ret = client_ready(ctx, handle);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(pool, handle);
+        (void) ggl_socket_handle_close(pool, handle);
     }
 }
 

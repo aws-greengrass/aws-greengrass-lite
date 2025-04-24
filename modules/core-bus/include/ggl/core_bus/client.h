@@ -31,7 +31,7 @@ GglError ggl_call(
     GglError *error,
     GglArena *alloc,
     GglObject *result
-) __attribute__((warn_unused_result));
+);
 
 /// Callback for new data on a subscription.
 typedef GglError (*GglSubscribeCallback)(
@@ -51,7 +51,7 @@ GglError ggl_subscribe(
     void *ctx,
     GglError *error,
     uint32_t *handle
-) __attribute__((warn_unused_result));
+);
 
 /// Close a client subscription handle.
 void ggl_client_sub_close(uint32_t handle);

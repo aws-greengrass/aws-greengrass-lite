@@ -12,12 +12,15 @@
 #include <stdint.h>
 
 GglError run_tesd(void) {
-    ggl_proxy_set_environment();
+    GglError ret = ggl_proxy_set_environment();
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     static uint8_t rootca_path_mem[512] = { 0 };
     GglArena alloc = ggl_arena_init(GGL_BUF(rootca_path_mem));
     GglBuffer rootca_path;
-    GglError ret = ggl_gg_config_read_str(
+    ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")),
         &alloc,
         &rootca_path

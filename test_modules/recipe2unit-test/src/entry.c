@@ -53,6 +53,7 @@ GglError run_recipe2unit_test(void) {
     GglArena alloc = ggl_arena_init(GGL_BUF(big_buffer_for_bump));
     HasPhase phases = { 0 };
 
-    convert_to_unit(&args, &alloc, &recipe_map, &component_name_obj, &phases);
-    return GGL_ERR_OK;
+    return convert_to_unit(
+        &args, &alloc, &recipe_map, &component_name_obj, &phases
+    );
 }

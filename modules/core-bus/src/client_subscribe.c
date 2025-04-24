@@ -211,13 +211,13 @@ GglError ggl_subscribe(
     uint32_t sub_handle = 0;
     ret = ggl_socket_pool_register(&pool, conn, &sub_handle);
     if (ret != GGL_ERR_OK) {
-        ggl_close(conn);
+        (void) ggl_close(conn);
         GGL_LOGW("Max subscriptions exceeded.");
         return ret;
     }
 
     GGL_LOGT("Setting subscription callbacks.");
-    ggl_socket_handle_protected(
+    (void) ggl_socket_handle_protected(
         set_sub_callbacks,
         &(SubCallbacks) {
             .on_response = on_response,
@@ -230,10 +230,10 @@ GglError ggl_subscribe(
 
     ret = ggl_socket_epoll_add(epoll_fd, conn, sub_handle);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_protected(
+        (void) ggl_socket_handle_protected(
             set_sub_callbacks, &(SubCallbacks) { 0 }, &pool, sub_handle
         );
-        ggl_socket_handle_close(&pool, sub_handle);
+        (void) ggl_socket_handle_close(&pool, sub_handle);
         return ret;
     }
 
@@ -246,7 +246,7 @@ GglError ggl_subscribe(
 }
 
 void ggl_client_sub_close(uint32_t handle) {
-    ggl_socket_handle_close(&pool, handle);
+    (void) ggl_socket_handle_close(&pool, handle);
 }
 
 typedef struct {
@@ -265,7 +265,7 @@ static void call_on_response_callback(void *ctx, size_t index) {
             sub_callbacks[index].ctx, args->handle, args->data
         );
         if (args->ret != GGL_ERR_OK) {
-            ggl_socket_handle_close(&pool, args->handle);
+            (void) ggl_socket_handle_close(&pool, args->handle);
 
             GGL_LOGT("Subscription response callback returned error.");
         }
@@ -329,7 +329,7 @@ static GglError sub_fd_ready(void *ctx, uint64_t data) {
 
     GglError ret = get_subscription_response(handle);
     if (ret != GGL_ERR_OK) {
-        ggl_socket_handle_close(&pool, handle);
+        (void) ggl_socket_handle_close(&pool, handle);
     }
 
     return GGL_ERR_OK;
@@ -339,7 +339,7 @@ static void *subscription_thread(void *args) {
     assert(epoll_fd >= 0);
 
     GGL_LOGD("Started core bus subscription thread.");
-    ggl_socket_epoll_run(epoll_fd, sub_fd_ready, args);
+    (void) ggl_socket_epoll_run(epoll_fd, sub_fd_ready, args);
     GGL_LOGE("Core bus subscription thread exited.");
     return NULL;
 }

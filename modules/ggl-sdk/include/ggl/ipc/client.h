@@ -32,7 +32,7 @@ GglError ggipc_call(
     GglArena *alloc,
     GglObject *result,
     GglIpcError *remote_err
-) __attribute__((warn_unused_result));
+);
 
 GglError ggipc_private_get_system_config(
     int conn, GglBuffer key, GglBuffer *value

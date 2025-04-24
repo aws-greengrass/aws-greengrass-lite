@@ -497,12 +497,14 @@ static void test_write_object(void) {
     GGL_LOGI("test begun");
 
     GglArena arena = ggl_arena_init(GGL_BUF(big_buffer));
-    GglError error = ggl_json_decode_destructive(
+    GglError ret = ggl_json_decode_destructive(
         test_key_path_json, &arena, &test_key_path_object
     );
-    GGL_LOGI("json decode complete %d", error);
+    GGL_LOGI("json decode complete %d", ret);
 
-    ggl_json_decode_destructive(test_value_json, &arena, &test_value_object);
+    // Needs error checking?
+    (void
+    ) ggl_json_decode_destructive(test_value_json, &arena, &test_value_object);
 
     if (ggl_obj_type(test_key_path_object) == GGL_TYPE_LIST) {
         GGL_LOGI("found a list in the json path");
@@ -514,8 +516,8 @@ static void test_write_object(void) {
         { GGL_STR("key_path"), test_key_path_object },
         { GGL_STR("value"), test_value_object }
     );
-    error = ggl_notify(GGL_STR("gg_config"), GGL_STR("write"), params);
-    GGL_LOGI("test complete %d", error);
+    ret = ggl_notify(GGL_STR("gg_config"), GGL_STR("write"), params);
+    GGL_LOGI("test complete %d", ret);
 }
 
 int main(int argc, char **argv) {

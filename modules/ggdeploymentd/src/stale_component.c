@@ -555,29 +555,29 @@ GglError cleanup_stale_versions(GglMap latest_components_map) {
 
             // The component name matches but the version number doesn't
             // match. Delete it!
-            delete_component(
+            (void) delete_component(
                 component_name_buffer_iterator, version_buffer_iterator, false
             );
         } else {
             // Cannot find this component at all. Delete it!
-            delete_component(
+            (void) delete_component(
                 component_name_buffer_iterator, version_buffer_iterator, true
             );
 
             // Also stop any running service for this component.
-            disable_and_unlink_service(
+            (void) disable_and_unlink_service(
                 &component_name_buffer_iterator, RUN_STARTUP
             );
-            disable_and_unlink_service(
+            (void) disable_and_unlink_service(
                 &component_name_buffer_iterator, INSTALL
             );
-            disable_and_unlink_service(
+            (void) disable_and_unlink_service(
                 &component_name_buffer_iterator, BOOTSTRAP
             );
 
             // Also delete the .script.install and .script.run and .service
             // files.
-            delete_recipe_script_and_service_files(
+            (void) delete_recipe_script_and_service_files(
                 &component_name_buffer_iterator
             );
         }

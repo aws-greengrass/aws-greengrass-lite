@@ -230,7 +230,7 @@ GglError ggl_socket_handle_close(GglSocketPool *pool, uint32_t handle) {
 
     GglError ret = ggl_socket_pool_release(pool, handle, &fd);
     if (ret == GGL_ERR_OK) {
-        ggl_close(fd);
+        (void) ggl_close(fd);
     }
 
     GGL_LOGT("Close of %u successful.", handle);

@@ -23,7 +23,6 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdlib.h>
 #include <stdnoreturn.h>
 
 #ifndef IOTCORED_KEEP_ALIVE_PERIOD
@@ -322,19 +321,7 @@ static GglError establish_connection(void *ctx) {
 noreturn static void *mqtt_recv_thread_fn(void *arg) {
     while (true) {
         // Connect to IoT core with backoff between 10ms->10s.
-        GglError err
-            = ggl_backoff_indefinite(10, 10000, establish_connection, NULL);
-
-        if (err != GGL_ERR_OK) {
-            GGL_LOGE(
-                "Fatal error in connecting to IoT core with backoff. Err = "
-                "%d",
-                err
-            );
-            GGL_LOGE("Exiting the process.");
-
-            _Exit(1);
-        }
+        ggl_backoff_indefinite(10, 10000, establish_connection, NULL);
 
         // Send status update to indicate mqtt (re)connection.
         iotcored_mqtt_status_update_send(ggl_obj_bool(true));

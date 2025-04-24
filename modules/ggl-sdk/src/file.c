@@ -306,7 +306,7 @@ GglError ggl_dir_openat(
         }
 
         // swap cur_fd
-        ggl_close(cur_fd);
+        (void) ggl_close(cur_fd);
         cur_fd = new_fd;
         // NOLINTNEXTLINE(clang-analyzer-deadcode.DeadStores) false positive
         cur_fd_cleanup = new_fd;

@@ -122,7 +122,9 @@ void iotcored_unregister_subscriptions(uint32_t handle, bool unsubscribe) {
                 // unsubscribe.
                 if (j == IOTCORED_MAX_SUBSCRIPTIONS) {
                     GglBuffer buf[] = { topic_filter_buf(i) };
-                    iotcored_mqtt_unsubscribe(buf, 1U);
+                    // TODO: Should these be retried? If offline, should be
+                    // queued up until online?
+                    (void) iotcored_mqtt_unsubscribe(buf, 1U);
                 }
             }
 

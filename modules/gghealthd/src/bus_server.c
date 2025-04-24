@@ -192,7 +192,8 @@ GglError run_gghealthd(void) {
               NULL } };
     static const size_t HANDLERS_LEN = sizeof(handlers) / sizeof(handlers[0]);
 
-    ggl_listen(GGL_STR("gg_health"), handlers, HANDLERS_LEN);
+    GglError ret = ggl_listen(GGL_STR("gg_health"), handlers, HANDLERS_LEN);
+    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
 
-    return GGL_ERR_OK;
+    return GGL_ERR_FAILURE;
 }

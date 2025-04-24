@@ -4,6 +4,7 @@
 
 #include "ggconfigd.h"
 #include "helpers.h"
+#include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/constants.h>
@@ -80,7 +81,10 @@ static GglError rpc_read(void *ctx, GglMap params, uint32_t handle) {
 
     static uint8_t object_decode_memory[GGCONFIGD_MAX_OBJECT_DECODE_BYTES];
     GglArena object_alloc = ggl_arena_init(GGL_BUF(object_decode_memory));
-    decode_object_destructive(&value, &object_alloc);
+    ret = decode_object_destructive(&value, &object_alloc);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     ggl_respond(handle, value);
     return GGL_ERR_OK;
@@ -221,7 +225,7 @@ GglError ggconfig_process_nonmap(
 GglError ggconfig_process_map(
     GglObjVec *key_path, GglMap map, int64_t timestamp
 ) {
-    GglError error = GGL_ERR_OK;
+    GglError ret = GGL_ERR_OK;
     if (map.len == 0) {
         GGL_LOGT("Map is empty, merging in.");
         return ggconfig_write_empty_map(&key_path->list);
@@ -230,25 +234,26 @@ GglError ggconfig_process_map(
         GglKV *kv = &map.pairs[x];
         GGL_LOGT("Preparing %zu, %.*s", x, (int) kv->key.len, kv->key.data);
 
-        ggl_obj_vec_push(key_path, ggl_obj_buf(kv->key));
+        ret = ggl_obj_vec_push(key_path, ggl_obj_buf(kv->key));
+        assert(ret == GGL_ERR_OK);
         GGL_LOGT("pushed the key");
         if (ggl_obj_type(kv->val) == GGL_TYPE_MAP) {
             GGL_LOGT("value is a map");
             GglMap val_map = ggl_obj_into_map(kv->val);
-            error = ggconfig_process_map(key_path, val_map, timestamp);
-            if (error != GGL_ERR_OK) {
+            ret = ggconfig_process_map(key_path, val_map, timestamp);
+            if (ret != GGL_ERR_OK) {
                 break;
             }
         } else {
             GGL_LOGT("Value is not a map.");
-            error = ggconfig_process_nonmap(key_path, kv->val, timestamp);
-            if (error != GGL_ERR_OK) {
+            ret = ggconfig_process_nonmap(key_path, kv->val, timestamp);
+            if (ret != GGL_ERR_OK) {
                 break;
             }
         }
-        ggl_obj_vec_pop(key_path, NULL);
+        (void) ggl_obj_vec_pop(key_path, NULL);
     }
-    return error;
+    return ret;
 }
 
 static GglError rpc_write(void *ctx, GglMap params, uint32_t handle) {
@@ -329,5 +334,7 @@ void ggconfigd_start_server(void) {
     size_t handlers_len = sizeof(handlers) / sizeof(handlers[0]);
 
     GGL_LOGI("Starting listening for requests");
-    ggl_listen(GGL_STR("gg_config"), handlers, handlers_len);
+    GglError ret = ggl_listen(GGL_STR("gg_config"), handlers, handlers_len);
+
+    GGL_LOGE("Exiting with error %u.", (unsigned) ret);
 }

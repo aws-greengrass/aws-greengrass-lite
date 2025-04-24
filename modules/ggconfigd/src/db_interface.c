@@ -5,6 +5,7 @@
 #include "embeds.h"
 #include "ggconfigd.h"
 #include "helpers.h"
+#include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
@@ -467,7 +468,8 @@ static GglError get_key_ids(GglList *key_path, GglObjVec *key_ids_output) {
             print_key_path(key_path),
             id
         );
-        ggl_obj_vec_push(key_ids_output, ggl_obj_i64(id));
+        GglError ret = ggl_obj_vec_push(key_ids_output, ggl_obj_i64(id));
+        assert(ret == GGL_ERR_OK);
     }
 
     return GGL_ERR_OK;
@@ -487,7 +489,8 @@ static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
     if (err != GGL_ERR_OK) {
         return err;
     }
-    ggl_obj_vec_push(key_ids_output, ggl_obj_i64(parent_key_id));
+    err = ggl_obj_vec_push(key_ids_output, ggl_obj_i64(parent_key_id));
+    assert(err == GGL_ERR_OK);
     bool value_is_present_for_root_key;
     err = value_is_present_for_key(
         parent_key_id, &value_is_present_for_root_key
@@ -560,7 +563,8 @@ static GglError create_key_path(GglList *key_path, GglObjVec *key_ids_output) {
         } else {
             return err;
         }
-        ggl_obj_vec_push(key_ids_output, ggl_obj_i64(current_key_id));
+        err = ggl_obj_vec_push(key_ids_output, ggl_obj_i64(current_key_id));
+        assert(err == GGL_ERR_OK);
         parent_key_id = current_key_id;
     }
     return GGL_ERR_OK;
@@ -994,7 +998,10 @@ static GglError read_key_recursive(
             = { .data = child_key_name_memory, .len = child_key_name_length };
         GglKV child_kv = { .key = child_key_name_buffer };
 
-        read_key_recursive(child_key_id, &child_kv.val, alloc);
+        ret = read_key_recursive(child_key_id, &child_kv.val, alloc);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
 
         ret = ggl_kv_vec_push(&kv_buffer_vec, child_kv);
         if (ret != GGL_ERR_OK) {

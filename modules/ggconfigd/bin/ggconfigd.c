@@ -43,7 +43,7 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
 static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 
 static void exit_cleanup(void) {
-    ggconfig_close();
+    (void) ggconfig_close();
 }
 
 int main(int argc, char **argv) {
@@ -52,12 +52,14 @@ int main(int argc, char **argv) {
 
     atexit(exit_cleanup);
 
-    ggconfig_open();
+    (void) ggconfig_open();
 
-    ggconfig_load_file(config_path);
-    ggconfig_load_dir(config_dir);
+    // TODO: clean up error handling for these, and don't log missing files as
+    // errors
+    (void) ggconfig_load_file(config_path);
+    (void) ggconfig_load_dir(config_dir);
 
     ggconfigd_start_server();
 
-    return 0;
+    return 1;
 }

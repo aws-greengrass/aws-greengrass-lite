@@ -92,7 +92,7 @@ GglError run_ggconfigd_test(void) {
 
     // Hacky way to wait for deployment. Once we have an API to verify that a
     // given deployment is complete, we should use that.
-    ggl_sleep(10);
+    (void) ggl_sleep(10);
 
     // find the version of the active running component
     GglObject result_obj;

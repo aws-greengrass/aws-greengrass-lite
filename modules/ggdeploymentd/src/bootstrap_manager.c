@@ -443,8 +443,12 @@ GglError process_bootstrap_phase(
             = GGL_BYTE_VEC(bootstrap_service_file_path_buf);
         GglError ret
             = ggl_byte_vec_append(&bootstrap_service_file_path_vec, root_path);
-        ggl_byte_vec_append(&bootstrap_service_file_path_vec, GGL_STR("/"));
-        ggl_byte_vec_append(&bootstrap_service_file_path_vec, GGL_STR("ggl."));
+        ggl_byte_vec_chain_append(
+            &ret, &bootstrap_service_file_path_vec, GGL_STR("/")
+        );
+        ggl_byte_vec_chain_append(
+            &ret, &bootstrap_service_file_path_vec, GGL_STR("ggl.")
+        );
         ggl_byte_vec_chain_append(
             &ret, &bootstrap_service_file_path_vec, component_name
         );
@@ -468,7 +472,10 @@ GglError process_bootstrap_phase(
                     component_name.data
                 );
             } else { // relevant bootstrap service file exists
-                disable_and_unlink_service(&component_name, BOOTSTRAP);
+                ret = disable_and_unlink_service(&component_name, BOOTSTRAP);
+                if (ret != GGL_ERR_OK) {
+                    return ret;
+                }
                 GGL_LOGI(
                     "Found bootstrap service file for %.*s. Processing.",
                     (int) component_name.len,

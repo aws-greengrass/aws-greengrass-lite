@@ -89,39 +89,51 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
 static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 
 // Use the execution path in argv[0] to find iotcored
-static void parse_path(char **argv, GglBuffer *path) {
+static GglError parse_path(char **argv, GglBuffer *path) {
     GglBuffer execution_name = ggl_buffer_from_null_term(argv[0]);
     GglByteVec path_to_iotcored = ggl_byte_vec_init(*path);
     if (ggl_buffer_has_suffix(execution_name, component_name)) {
-        ggl_byte_vec_append(
+        GglError ret = ggl_byte_vec_append(
             &path_to_iotcored,
             ggl_buffer_substr(
                 execution_name, 0, execution_name.len - component_name.len
             )
         );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
     }
-    ggl_byte_vec_append(&path_to_iotcored, GGL_STR("iotcored\0"));
+    GglError ret
+        = ggl_byte_vec_append(&path_to_iotcored, GGL_STR("iotcored\0"));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
     path->len = path_to_iotcored.buf.len - 1;
 
     GGL_LOGD("iotcored path: %.*s", (int) path->len, path->data);
+    return GGL_ERR_OK;
 }
 
 int main(int argc, char **argv) {
     static FleetProvArgs args = { 0 };
     static uint8_t iotcored_path[4097] = { 0 };
 
-    parse_path(argv, &GGL_BUF(iotcored_path));
+    GglError ret = parse_path(argv, &GGL_BUF(iotcored_path));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to initialize iotcored path.");
+        return 1;
+    }
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
     args.iotcored_path = (char *) iotcored_path;
 
     pid_t pid = -1;
-    GglError ret = run_fleet_prov(&args, &pid);
+    ret = run_fleet_prov(&args, &pid);
     if (ret != GGL_ERR_OK) {
         if (pid != -1) {
             GGL_LOGE("Something went wrong. Killing iotcored");
-            ggl_exec_kill_process(pid);
+            (void) ggl_exec_kill_process(pid);
         }
         return 1;
     }

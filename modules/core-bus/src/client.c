@@ -24,7 +24,7 @@ GglError ggl_notify(GglBuffer interface, GglBuffer method, GglMap params) {
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    ggl_close(conn_fd);
+    (void) ggl_close(conn_fd);
     return GGL_ERR_OK;
 }
 

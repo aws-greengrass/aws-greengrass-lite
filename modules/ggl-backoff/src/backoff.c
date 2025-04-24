@@ -3,10 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ggl/backoff.h"
+#include "stdlib.h"
 #include <assert.h>
 #include <backoff_algorithm.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/log.h>
 #include <ggl/rand.h>
 #include <ggl/utils.h>
 #include <stdbool.h>
@@ -53,7 +55,9 @@ static GglError backoff_wrapper(
         GglError rand_err = ggl_rand_fill((GglBuffer
         ) { .data = (uint8_t *) &rand_val, .len = sizeof(rand_val) });
         if (rand_err != GGL_ERR_OK) {
-            return rand_err;
+            // TODO: call proper panic function
+            GGL_LOGE("Fatal error: could not get random value during backoff.");
+            _Exit(1);
         }
 
         uint16_t backoff_time = 0;
@@ -67,7 +71,9 @@ static GglError backoff_wrapper(
 
         GglError sleep_err = ggl_sleep_ms(backoff_time);
         if (sleep_err != GGL_ERR_OK) {
-            return sleep_err;
+            // TODO: call proper panic function
+            GGL_LOGE("Fatal error: unexpected sleep error during backoff.");
+            _Exit(1);
         }
     }
 
@@ -86,10 +92,12 @@ GglError ggl_backoff(
     return backoff_wrapper(base_ms, max_ms, max_attempts, fn, ctx);
 }
 
-GglError ggl_backoff_indefinite(
+void ggl_backoff_indefinite(
     uint32_t base_ms, uint32_t max_ms, GglError (*fn)(void *ctx), void *ctx
 ) {
-    return backoff_wrapper(
+    GglError ret = backoff_wrapper(
         base_ms, max_ms, BACKOFF_ALGORITHM_RETRY_FOREVER, fn, ctx
     );
+    // TODO: Perhaps should panic/log/etc.
+    assert(ret == GGL_ERR_OK);
 }

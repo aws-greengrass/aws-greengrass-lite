@@ -18,7 +18,7 @@ GglError ggl_backoff(
     void *ctx
 );
 
-GglError ggl_backoff_indefinite(
+void ggl_backoff_indefinite(
     uint32_t base_ms, uint32_t max_ms, GglError (*fn)(void *ctx), void *ctx
 );
 

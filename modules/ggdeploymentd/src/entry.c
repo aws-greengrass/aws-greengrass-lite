@@ -27,7 +27,10 @@
 GglError run_ggdeploymentd(const char *bin_path) {
     GGL_LOGI("Started ggdeploymentd process.");
 
-    ggl_proxy_set_environment();
+    GglError ret = ggl_proxy_set_environment();
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
 
     umask(0002);
 
@@ -36,7 +39,7 @@ GglError run_ggdeploymentd(const char *bin_path) {
         ggl_buffer_substr(GGL_BUF(root_path_mem), 0, sizeof(root_path_mem) - 1)
     );
     GglBuffer root_path;
-    GglError ret = ggl_gg_config_read_str(
+    ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &alloc, &root_path
     );
     if (ret != GGL_ERR_OK) {

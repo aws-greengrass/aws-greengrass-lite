@@ -2191,7 +2191,7 @@ static GglError wait_for_phase_status(
     GglBufVec component_vec, GglBuffer phase
 ) {
     // TODO: hack
-    ggl_sleep(5);
+    (void) ggl_sleep(5);
 
     for (size_t i = 0; i < component_vec.buf_list.len; i++) {
         // Add .[phase name] into the component name
@@ -2205,7 +2205,7 @@ static GglError wait_for_phase_status(
             GGL_LOGE("Failed to push '.' character to component name vector.");
             return ret;
         }
-        ggl_byte_vec_append(&full_comp_name_vec, phase);
+        ret = ggl_byte_vec_append(&full_comp_name_vec, phase);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to generate %*.s phase name for %*.scomponent.",
@@ -2247,7 +2247,7 @@ static GglError wait_for_phase_status(
 static GglError wait_for_deployment_status(GglMap resolved_components) {
     GGL_LOGT("Beginning wait for deployment completion");
     // TODO: hack
-    ggl_sleep(5);
+    (void) ggl_sleep(5);
 
     GGL_MAP_FOREACH(component, resolved_components) {
         GGL_LOGD(
@@ -2827,9 +2827,11 @@ static void handle_deployment(
             ret = ggl_byte_vec_append(
                 &install_service_file_path_vec, args->root_path
             );
-            ggl_byte_vec_append(&install_service_file_path_vec, GGL_STR("/"));
-            ggl_byte_vec_append(
-                &install_service_file_path_vec, GGL_STR("ggl.")
+            ggl_byte_vec_chain_append(
+                &ret, &install_service_file_path_vec, GGL_STR("/")
+            );
+            ggl_byte_vec_chain_append(
+                &ret, &install_service_file_path_vec, GGL_STR("ggl.")
             );
             ggl_byte_vec_chain_append(
                 &ret, &install_service_file_path_vec, component_name
@@ -2854,7 +2856,7 @@ static void handle_deployment(
                         component_name.data
                     );
                 } else { // relevant install service file exists
-                    disable_and_unlink_service(&component_name, INSTALL);
+                    (void) disable_and_unlink_service(&component_name, INSTALL);
                     // add relevant component name into the vector
                     ret = ggl_buf_vec_push(
                         &install_comp_name_buf_vec, component_name
@@ -2995,8 +2997,12 @@ static void handle_deployment(
             GglByteVec service_file_path_vec
                 = GGL_BYTE_VEC(service_file_path_buf);
             ret = ggl_byte_vec_append(&service_file_path_vec, args->root_path);
-            ggl_byte_vec_append(&service_file_path_vec, GGL_STR("/"));
-            ggl_byte_vec_append(&service_file_path_vec, GGL_STR("ggl."));
+            ggl_byte_vec_chain_append(
+                &ret, &service_file_path_vec, GGL_STR("/")
+            );
+            ggl_byte_vec_chain_append(
+                &ret, &service_file_path_vec, GGL_STR("ggl.")
+            );
             ggl_byte_vec_chain_append(
                 &ret, &service_file_path_vec, component_name
             );
@@ -3018,7 +3024,8 @@ static void handle_deployment(
                         component_name.data
                     );
                 } else {
-                    disable_and_unlink_service(&component_name, RUN_STARTUP);
+                    (void
+                    ) disable_and_unlink_service(&component_name, RUN_STARTUP);
                     // run link command
                     static uint8_t link_command_buf[PATH_MAX];
                     GglByteVec link_command_vec
@@ -3185,18 +3192,20 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
             &bootstrap_deployment, args, &bootstrap_deployment_succeeded
         );
 
-        send_fss_update(&bootstrap_deployment, bootstrap_deployment_succeeded);
+        (void) send_fss_update(
+            &bootstrap_deployment, bootstrap_deployment_succeeded
+        );
 
         if (send_deployment_update && bootstrap_deployment_succeeded) {
             GGL_LOGI("Completed deployment processing and reporting job as "
                      "SUCCEEDED.");
-            update_current_jobs_deployment(
+            (void) update_current_jobs_deployment(
                 bootstrap_deployment.deployment_id, GGL_STR("SUCCEEDED")
             );
         } else if (send_deployment_update) {
             GGL_LOGW("Completed deployment processing and reporting job as "
                      "FAILED.");
-            update_current_jobs_deployment(
+            (void) update_current_jobs_deployment(
                 bootstrap_deployment.deployment_id, GGL_STR("FAILED")
             );
         } else {
@@ -3222,26 +3231,26 @@ static GglError ggl_deployment_listen(GglDeploymentHandlerThreadArgs *args) {
 
         GGL_LOGI("Processing incoming deployment.");
 
-        update_current_jobs_deployment(
+        (void) update_current_jobs_deployment(
             deployment->deployment_id, GGL_STR("IN_PROGRESS")
         );
 
         bool deployment_succeeded = false;
         handle_deployment(deployment, args, &deployment_succeeded);
 
-        send_fss_update(deployment, deployment_succeeded);
+        (void) send_fss_update(deployment, deployment_succeeded);
 
         // TODO: need error details from handle_deployment
         if (deployment_succeeded) {
             GGL_LOGI("Completed deployment processing and reporting job as "
                      "SUCCEEDED.");
-            update_current_jobs_deployment(
+            (void) update_current_jobs_deployment(
                 deployment->deployment_id, GGL_STR("SUCCEEDED")
             );
         } else {
             GGL_LOGW("Completed deployment processing and reporting job as "
                      "FAILED.");
-            update_current_jobs_deployment(
+            (void) update_current_jobs_deployment(
                 deployment->deployment_id, GGL_STR("FAILED")
             );
         }

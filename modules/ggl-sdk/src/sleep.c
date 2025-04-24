@@ -14,8 +14,8 @@ static GglError sleep_timespec(struct timespec time) {
 
     while (nanosleep(&remain, &remain) != 0) {
         if (errno != EINTR) {
-            int err = errno;
-            GGL_LOGE("nanosleep failed: %d.", err);
+            GGL_LOGE("nanosleep failed: %d.", errno);
+            // TODO: panic instead of returning error.
             return GGL_ERR_FAILURE;
         }
     }

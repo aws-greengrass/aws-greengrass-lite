@@ -155,13 +155,12 @@ static GglError register_dbus_signal(int index) {
     return GGL_ERR_OK;
 }
 
-static GglError unregister_dbus_signal(int index) {
+static void unregister_dbus_signal(int index) {
     GGL_LOGD("Event loop thread disabling signal for %d.", index);
     sd_bus_slot_unref(slots[index]);
     slots[index] = NULL;
     handles[index] = 0;
     component_names_len[index] = 0;
-    return GGL_ERR_OK;
 }
 
 static sd_event *sd_event_ctx;
@@ -180,7 +179,7 @@ void init_health_events(void) {
             break;
         }
         GGL_LOGE("Failed to open bus.");
-        ggl_sleep(1);
+        (void) ggl_sleep(1);
     }
 
     do {
@@ -205,7 +204,7 @@ void init_health_events(void) {
             error.name,
             error.message
         );
-        ggl_sleep(1);
+        (void) ggl_sleep(1);
     } while (true);
 
     sd_event *e = NULL;
@@ -215,7 +214,7 @@ void init_health_events(void) {
             break;
         }
         GGL_LOGE("Failed to create event loop (errno=%d)", -sd_ret);
-        ggl_sleep(1);
+        (void) ggl_sleep(1);
     }
 
     int sd_ret = sd_bus_attach_event(global_bus, e, 0);

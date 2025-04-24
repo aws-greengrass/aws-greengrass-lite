@@ -5,10 +5,12 @@
 #ifndef GGL_ERROR_H
 #define GGL_ERROR_H
 
+#include <ggl/attr.h>
+
 //! GGL error codes
 
 /// GGL error codes, representing class of error.
-typedef enum GglError {
+typedef enum NODISCARD GglError {
     /// Success
     GGL_ERR_OK = 0,
     /// Generic failure

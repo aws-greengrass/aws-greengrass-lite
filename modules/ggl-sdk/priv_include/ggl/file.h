@@ -20,7 +20,7 @@ GglError ggl_close(int fd);
 /// Cleanup function for closing file descriptors.
 static inline void cleanup_close(const int *fd) {
     if (*fd >= 0) {
-        ggl_close(*fd);
+        (void) ggl_close(*fd);
     }
 }
 

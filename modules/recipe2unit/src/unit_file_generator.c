@@ -325,13 +325,18 @@ static GglError expand_timeout(
         GglArena alloc = ggl_arena_init(GGL_BUF(timeout_config_mem));
         GglBuffer key_path[GGL_MAX_OBJECT_DEPTH] = { 0 };
         GglBufVec key_path_vec = GGL_BUF_VEC(key_path);
-        ggl_buf_vec_push(&key_path_vec, GGL_STR("services"));
+        ret = ggl_buf_vec_push(&key_path_vec, GGL_STR("services"));
         if (variable.component_dependency_name.len > 0) {
-            ggl_buf_vec_push(&key_path_vec, variable.component_dependency_name);
+            ggl_buf_vec_chain_push(
+                &ret, &key_path_vec, variable.component_dependency_name
+            );
         } else {
-            ggl_buf_vec_push(&key_path_vec, component_name);
+            ggl_buf_vec_chain_push(&ret, &key_path_vec, component_name);
         }
-        ggl_buf_vec_push(&key_path_vec, GGL_STR("configuration"));
+        ggl_buf_vec_chain_push(&ret, &key_path_vec, GGL_STR("configuration"));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
 
         ret = json_pointer_to_buf_list(&key_path_vec, variable.key);
         if (ret != GGL_ERR_OK) {

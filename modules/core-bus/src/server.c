@@ -72,7 +72,7 @@ static pthread_mutex_t current_handle_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static inline void cleanup_socket_handle(const uint32_t *handle) {
     if (*handle != 0) {
-        ggl_socket_handle_close(&pool, *handle);
+        (void) ggl_socket_handle_close(&pool, *handle);
     }
 }
 
@@ -152,10 +152,10 @@ static void send_err_response(uint32_t handle, GglError error) {
     );
 
     if (ret == GGL_ERR_OK) {
-        ggl_socket_handle_write(&pool, handle, send_buffer);
+        (void) ggl_socket_handle_write(&pool, handle, send_buffer);
     }
 
-    ggl_socket_handle_close(&pool, handle);
+    (void) ggl_socket_handle_close(&pool, handle);
 }
 
 // TODO: Split this function up
@@ -481,5 +481,5 @@ void ggl_sub_respond(uint32_t handle, GglObject value) {
 }
 
 void ggl_server_sub_close(uint32_t handle) {
-    ggl_socket_handle_close(&pool, handle);
+    (void) ggl_socket_handle_close(&pool, handle);
 }

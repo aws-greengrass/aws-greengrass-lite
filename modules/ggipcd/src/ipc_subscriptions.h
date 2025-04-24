@@ -25,7 +25,7 @@ GglError ggl_ipc_bind_subscription(
     GglMap params,
     GglIpcSubscribeCallback on_response,
     GglError *error
-) __attribute__((warn_unused_result));
+);
 
 /// Clean up subscriptions for an IPC client
 GglError ggl_ipc_release_subscriptions_for_conn(uint32_t resp_handle);

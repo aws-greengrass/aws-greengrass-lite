@@ -126,7 +126,10 @@ GglError ggl_parse_recipe_variable(
         if (token.len == 0) {
             return GGL_ERR_PARSE;
         }
-        ggl_buf_vec_push(&split, token);
+        GglError ret = ggl_buf_vec_push(&split, token);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
     }
     switch (split.buf_list.len) {
     case 2:
