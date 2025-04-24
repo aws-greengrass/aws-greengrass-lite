@@ -7,6 +7,7 @@
 
 //! Arena allocation
 
+#include <ggl/attr.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
@@ -41,7 +42,8 @@ static inline GglArena ggl_arena_init(GglBuffer buf) {
     (typeof(type) *) ggl_arena_alloc(arena, (n) * sizeof(type), alignof(type))
 
 /// Allocate `size` bytes with given alignment from an arena.
-void *ggl_arena_alloc(GglArena *arena, size_t size, size_t alignment);
+void *ggl_arena_alloc(GglArena *arena, size_t size, size_t alignment)
+    ALLOC_ALIGN(3);
 
 /// Resize ptr's allocation (must be the last allocated ptr).
 GglError ggl_arena_resize_last(

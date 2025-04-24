@@ -35,4 +35,24 @@
 #define DESIGNATED_INIT
 #endif
 
+#ifdef __has_attribute
+#if __has_attribute(alloc_size)
+#define ALLOC_SIZE(...) __attribute__((alloc_size(__VA_ARGS__)))
+#endif
+#endif
+
+#ifndef ALLOC_SIZE
+#define ALLOC_SIZE(...)
+#endif
+
+#ifdef __has_attribute
+#if __has_attribute(alloc_align)
+#define ALLOC_ALIGN(pos) __attribute__((alloc_align(pos)))
+#endif
+#endif
+
+#ifndef ALLOC_ALIGN
+#define ALLOC_ALIGN(pos)
+#endif
+
 #endif
