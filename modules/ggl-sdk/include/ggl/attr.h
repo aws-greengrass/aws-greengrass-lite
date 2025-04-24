@@ -65,4 +65,15 @@
 #define NONNULL(...)
 #endif
 
+#ifdef __has_attribute
+#if __has_attribute(null_terminated_string_arg)
+#define NULL_TERMINATED_STRING_ARG(pos) \
+    __attribute__((null_terminated_string_arg(pos)))
+#endif
+#endif
+
+#ifndef NULL_TERMINATED_STRING_ARG
+#define NULL_TERMINATED_STRING_ARG(pos)
+#endif
+
 #endif
