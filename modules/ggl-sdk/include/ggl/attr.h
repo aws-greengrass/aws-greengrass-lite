@@ -55,4 +55,14 @@
 #define ALLOC_ALIGN(pos)
 #endif
 
+#ifdef __has_attribute
+#if __has_attribute(nonnull)
+#define NONNULL(...) __attribute__((nonnull(__VA_ARGS__)))
+#endif
+#endif
+
+#ifndef NONNULL
+#define NONNULL(...)
+#endif
+
 #endif

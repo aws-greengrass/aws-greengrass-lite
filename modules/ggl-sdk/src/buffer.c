@@ -2,16 +2,17 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/io.h>
 #include <ggl/log.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
 
 GglBuffer ggl_buffer_from_null_term(char *str) {
+    assert(str != NULL);
     return (GglBuffer) { .data = (uint8_t *) str, .len = strlen(str) };
 }
 
@@ -30,6 +31,7 @@ bool ggl_buffer_has_prefix(GglBuffer buf, GglBuffer prefix) {
 }
 
 bool ggl_buffer_remove_prefix(GglBuffer *buf, GglBuffer prefix) {
+    assert(buf != NULL);
     if (ggl_buffer_has_prefix(*buf, prefix)) {
         *buf = ggl_buffer_substr(*buf, prefix.len, SIZE_MAX);
         return true;
@@ -46,6 +48,7 @@ bool ggl_buffer_has_suffix(GglBuffer buf, GglBuffer suffix) {
 }
 
 bool ggl_buffer_remove_suffix(GglBuffer *buf, GglBuffer suffix) {
+    assert(buf != NULL);
     if (ggl_buffer_has_suffix(*buf, suffix)) {
         *buf = ggl_buffer_substr(*buf, 0, buf->len - suffix.len);
         return true;
@@ -55,14 +58,18 @@ bool ggl_buffer_remove_suffix(GglBuffer *buf, GglBuffer suffix) {
 
 bool ggl_buffer_contains(GglBuffer buf, GglBuffer substring, size_t *start) {
     if (substring.len == 0) {
-        *start = 0;
+        if (start != NULL) {
+            *start = 0;
+        }
         return true;
     }
     uint8_t *ptr = memmem(buf.data, buf.len, substring.data, substring.len);
     if (ptr == NULL) {
         return false;
     }
-    *start = (size_t) (ptr - buf.data);
+    if (start != NULL) {
+        *start = (size_t) (ptr - buf.data);
+    }
     return true;
 }
 
@@ -123,7 +130,9 @@ GglError ggl_str_to_int64(GglBuffer str, int64_t *value) {
         ret += sign * (c - '0');
     }
 
-    *value = ret;
+    if (value != NULL) {
+        *value = ret;
+    }
     return GGL_ERR_OK;
 }
 

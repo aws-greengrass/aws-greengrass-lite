@@ -59,6 +59,8 @@ void *ggl_arena_alloc(GglArena *arena, size_t size, size_t alignment) {
 GglError ggl_arena_resize_last(
     GglArena *arena, const void *ptr, size_t old_size, size_t size
 ) {
+    assert(arena != NULL);
+    assert(ptr != NULL);
     assert(old_size < UINT32_MAX);
     assert(old_size <= PTRDIFF_MAX);
     assert(size <= PTRDIFF_MAX);
@@ -108,10 +110,13 @@ bool ggl_arena_owns(const GglArena *arena, const void *ptr) {
 }
 
 GglBuffer ggl_arena_alloc_rest(GglArena *arena) {
-    GglBuffer rest = { .data = arena->mem + arena->index,
-                       .len = arena->capacity - arena->index };
-    arena->index = arena->capacity;
-    return rest;
+    if (arena == NULL) {
+        return (GglBuffer) { 0 };
+    }
+    size_t remaining = arena->capacity - arena->index;
+    uint8_t *data = GGL_ARENA_ALLOCN(arena, uint8_t, remaining);
+    assert(data != NULL);
+    return (GglBuffer) { .data = data, .len = remaining };
 }
 
 GglError ggl_arena_claim_buf(GglBuffer *buf, GglArena *arena) {

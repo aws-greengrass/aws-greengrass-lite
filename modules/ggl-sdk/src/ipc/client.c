@@ -459,14 +459,16 @@ GglError ggipc_get_config_str(
     }
     GglBuffer resp_value = ggl_obj_into_buf(*resp_value_obj);
 
-    GglArena ret_alloc = ggl_arena_init(*value);
-    ret = ggl_arena_claim_buf(&resp_value, &ret_alloc);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Insufficent memory provided for response.");
-        return ret;
-    }
+    if (value != NULL) {
+        GglArena ret_alloc = ggl_arena_init(*value);
+        ret = ggl_arena_claim_buf(&resp_value, &ret_alloc);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Insufficent memory provided for response.");
+            return ret;
+        }
 
-    *value = resp_value;
+        *value = resp_value;
+    }
     return GGL_ERR_OK;
 }
 
@@ -544,13 +546,15 @@ GglError ggipc_get_config_obj(
         return GGL_ERR_INVALID;
     }
 
-    ret = ggl_arena_claim_obj(resp_value, alloc);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Insufficent memory provided for response.");
-        return ret;
-    }
+    if (value != NULL) {
+        ret = ggl_arena_claim_obj(resp_value, alloc);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Insufficent memory provided for response.");
+            return ret;
+        }
 
-    *value = *resp_value;
+        *value = *resp_value;
+    }
     return GGL_ERR_OK;
 }
 

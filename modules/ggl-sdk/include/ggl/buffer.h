@@ -7,6 +7,7 @@
 
 //! Buffer utilities.
 
+#include <ggl/attr.h>
 #include <ggl/error.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -75,7 +76,7 @@ typedef struct {
 // NOLINTEND(bugprone-macro-parentheses)
 
 /// Convert null-terminated string to buffer
-GglBuffer ggl_buffer_from_null_term(char *str);
+GglBuffer ggl_buffer_from_null_term(char *str) NONNULL(1);
 
 /// Returns whether two buffers have identical content.
 bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2);
@@ -84,16 +85,16 @@ bool ggl_buffer_eq(GglBuffer buf1, GglBuffer buf2);
 bool ggl_buffer_has_prefix(GglBuffer buf, GglBuffer prefix);
 
 /// Removes a prefix. Returns whether the prefix was removed.
-bool ggl_buffer_remove_prefix(GglBuffer *buf, GglBuffer prefix);
+bool ggl_buffer_remove_prefix(GglBuffer *buf, GglBuffer prefix) NONNULL(1);
 
 /// Returns whether the buffer has the given suffix.
 bool ggl_buffer_has_suffix(GglBuffer buf, GglBuffer suffix);
 
 /// Removes a suffix. Returns whether the suffix was removed.
-bool ggl_buffer_remove_suffix(GglBuffer *buf, GglBuffer suffix);
+bool ggl_buffer_remove_suffix(GglBuffer *buf, GglBuffer suffix) NONNULL(1);
 
 /// Returns whether the buffer contains the given substring.
-/// Outputs start and end index.
+/// Outputs start index if non-null.
 bool ggl_buffer_contains(GglBuffer buf, GglBuffer substring, size_t *start);
 
 /// Returns substring of buffer from start to end.
