@@ -14,6 +14,7 @@
 #include <ggl/eventstream/rpc.h>
 #include <ggl/eventstream/types.h>
 #include <ggl/file.h> // IWYU pragma: keep (TODO: remove after file.h refactor)
+#include <ggl/flags.h>
 #include <ggl/io.h>
 #include <ggl/ipc/client.h>
 #include <ggl/ipc/error.h>
@@ -30,7 +31,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
-#include <stdbool.h>
 
 struct timespec;
 
@@ -284,8 +284,14 @@ GglError ggipc_call(
         ret = ggl_map_validate(
             ggl_obj_into_map(err_result),
             GGL_MAP_SCHEMA(
-                { GGL_STR("_errorCode"), true, GGL_TYPE_BUF, &error_code_obj },
-                { GGL_STR("_message"), false, GGL_TYPE_BUF, &message_obj },
+                { GGL_STR("_errorCode"),
+                  GGL_REQUIRED,
+                  GGL_TYPE_BUF,
+                  &error_code_obj },
+                { GGL_STR("_message"),
+                  GGL_OPTIONAL,
+                  GGL_TYPE_BUF,
+                  &message_obj },
             )
         );
         if (ret != GGL_ERR_OK) {
@@ -450,7 +456,8 @@ GglError ggipc_get_config_str(
     GglObject *resp_value_obj;
     ret = ggl_map_validate(
         ggl_obj_into_map(resp),
-        GGL_MAP_SCHEMA({ GGL_STR("value"), true, GGL_TYPE_BUF, &resp_value_obj }
+        GGL_MAP_SCHEMA(
+            { GGL_STR("value"), GGL_REQUIRED, GGL_TYPE_BUF, &resp_value_obj }
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -539,7 +546,9 @@ GglError ggipc_get_config_obj(
     GglObject *resp_value;
     ret = ggl_map_validate(
         ggl_obj_into_map(resp),
-        GGL_MAP_SCHEMA({ GGL_STR("value"), true, GGL_TYPE_NULL, &resp_value })
+        GGL_MAP_SCHEMA(
+            { GGL_STR("value"), GGL_REQUIRED, GGL_TYPE_NULL, &resp_value }
+        )
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed validating server response.");

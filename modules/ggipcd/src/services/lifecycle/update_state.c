@@ -9,11 +9,11 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -29,7 +29,9 @@ GglError ggl_handle_update_state(
     GglObject *state_obj;
     GglError ret = ggl_map_validate(
         args,
-        GGL_MAP_SCHEMA({ GGL_STR("state"), true, GGL_TYPE_BUF, &state_obj }, )
+        GGL_MAP_SCHEMA(
+            { GGL_STR("state"), GGL_REQUIRED, GGL_TYPE_BUF, &state_obj },
+        )
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid parameters.");

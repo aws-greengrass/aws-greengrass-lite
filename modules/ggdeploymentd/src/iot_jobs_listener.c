@@ -15,6 +15,7 @@
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -245,9 +246,12 @@ static GglError update_job(
         ret = ggl_map_validate(
             ggl_obj_into_map(*execution_state),
             GGL_MAP_SCHEMA(
-                { GGL_STR("status"), true, GGL_TYPE_BUF, &remote_status },
+                { GGL_STR("status"),
+                  GGL_REQUIRED,
+                  GGL_TYPE_BUF,
+                  &remote_status },
                 { GGL_STR("versionNumber"),
-                  true,
+                  GGL_REQUIRED,
                   GGL_TYPE_I64,
                   &remote_version }
             )
@@ -337,7 +341,8 @@ static GglError describe_next_job(void *ctx) {
     GglObject *execution = NULL;
     ret = ggl_map_validate(
         ggl_obj_into_map(job_description),
-        GGL_MAP_SCHEMA({ GGL_STR("execution"), false, GGL_TYPE_MAP, &execution }
+        GGL_MAP_SCHEMA(
+            { GGL_STR("execution"), GGL_OPTIONAL, GGL_TYPE_MAP, &execution }
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -398,9 +403,12 @@ static GglError process_job_execution(GglMap job_execution) {
     GglError err = ggl_map_validate(
         job_execution,
         GGL_MAP_SCHEMA(
-            { GGL_STR("jobId"), false, GGL_TYPE_BUF, &job_id },
-            { GGL_STR("status"), false, GGL_TYPE_BUF, &status },
-            { GGL_STR("jobDocument"), false, GGL_TYPE_MAP, &deployment_doc }
+            { GGL_STR("jobId"), GGL_OPTIONAL, GGL_TYPE_BUF, &job_id },
+            { GGL_STR("status"), GGL_OPTIONAL, GGL_TYPE_BUF, &status },
+            { GGL_STR("jobDocument"),
+              GGL_OPTIONAL,
+              GGL_TYPE_MAP,
+              &deployment_doc }
         )
     );
     if (err != GGL_ERR_OK) {
@@ -477,7 +485,7 @@ static GglError next_job_execution_changed_callback(
     ret = ggl_map_validate(
         ggl_obj_into_map(json),
         GGL_MAP_SCHEMA(
-            { GGL_STR("execution"), false, GGL_TYPE_MAP, &job_execution }
+            { GGL_STR("execution"), GGL_OPTIONAL, GGL_TYPE_MAP, &job_execution }
         )
     );
     if (ret != GGL_ERR_OK) {

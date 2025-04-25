@@ -8,11 +8,11 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <stdbool.h>
 #include <stdint.h>
 
 static GglIpcOperationHandler handle_get_system_config;
@@ -42,7 +42,8 @@ GglError handle_get_system_config(
 
     GglObject *key_obj;
     GglError ret = ggl_map_validate(
-        args, GGL_MAP_SCHEMA({ GGL_STR("key"), true, GGL_TYPE_BUF, &key_obj })
+        args,
+        GGL_MAP_SCHEMA({ GGL_STR("key"), GGL_REQUIRED, GGL_TYPE_BUF, &key_obj })
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid parameters.");

@@ -6,6 +6,7 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -84,8 +85,8 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
     GglError ret = ggl_map_validate(
         response,
         GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
-            { GGL_STR("payload"), true, GGL_TYPE_BUF, &payload_obj },
+            { GGL_STR("topic"), GGL_REQUIRED, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("payload"), GGL_REQUIRED, GGL_TYPE_BUF, &payload_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

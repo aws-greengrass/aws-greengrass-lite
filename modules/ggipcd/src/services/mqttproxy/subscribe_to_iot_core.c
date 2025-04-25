@@ -12,11 +12,11 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -78,8 +78,11 @@ GglError ggl_handle_subscribe_to_iot_core(
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("topicName"), true, GGL_TYPE_BUF, &topic_name_obj },
-            { GGL_STR("qos"), false, GGL_TYPE_BUF, &qos_obj },
+            { GGL_STR("topicName"),
+              GGL_REQUIRED,
+              GGL_TYPE_BUF,
+              &topic_name_obj },
+            { GGL_STR("qos"), GGL_OPTIONAL, GGL_TYPE_BUF, &qos_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

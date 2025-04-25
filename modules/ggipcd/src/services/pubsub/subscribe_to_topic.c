@@ -10,6 +10,7 @@
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -34,9 +35,9 @@ static GglError subscribe_to_topic_callback(
     GglError ret = ggl_map_validate(
         ggl_obj_into_map(data),
         GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
-            { GGL_STR("type"), true, GGL_TYPE_BUF, &type_obj },
-            { GGL_STR("message"), true, GGL_TYPE_NULL, &message_obj },
+            { GGL_STR("topic"), GGL_REQUIRED, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("type"), GGL_REQUIRED, GGL_TYPE_BUF, &type_obj },
+            { GGL_STR("message"), GGL_REQUIRED, GGL_TYPE_NULL, &message_obj },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -101,7 +102,9 @@ GglError ggl_handle_subscribe_to_topic(
     GglObject *topic_obj;
     GglError ret = ggl_map_validate(
         args,
-        GGL_MAP_SCHEMA({ GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj }, )
+        GGL_MAP_SCHEMA(
+            { GGL_STR("topic"), GGL_REQUIRED, GGL_TYPE_BUF, &topic_obj },
+        )
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid parameters.");

@@ -10,6 +10,7 @@
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -154,21 +155,27 @@ static GglError parse_deployment_obj(
         args,
         GGL_MAP_SCHEMA(
             { GGL_STR("recipe_directory_path"),
-              false,
+              GGL_OPTIONAL,
               GGL_TYPE_BUF,
               &recipe_directory_path },
             { GGL_STR("artifacts_directory_path"),
-              false,
+              GGL_OPTIONAL,
               GGL_TYPE_BUF,
               &artifacts_directory_path },
             { GGL_STR("root_component_versions_to_add"),
-              false,
+              GGL_OPTIONAL,
               GGL_TYPE_MAP,
               &root_component_versions_to_add },
-            { GGL_STR("components"), false, GGL_TYPE_MAP, &cloud_components },
-            { GGL_STR("deploymentId"), false, GGL_TYPE_BUF, &deployment_id },
+            { GGL_STR("components"),
+              GGL_OPTIONAL,
+              GGL_TYPE_MAP,
+              &cloud_components },
+            { GGL_STR("deploymentId"),
+              GGL_OPTIONAL,
+              GGL_TYPE_BUF,
+              &deployment_id },
             { GGL_STR("configurationArn"),
-              false,
+              GGL_OPTIONAL,
               GGL_TYPE_BUF,
               &configuration_arn_obj },
         )

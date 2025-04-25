@@ -10,12 +10,12 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/error.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -33,9 +33,9 @@ GglError ggl_handle_get_configuration(
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("keyPath"), false, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("keyPath"), GGL_OPTIONAL, GGL_TYPE_LIST, &key_path_obj },
             { GGL_STR("componentName"),
-              false,
+              GGL_OPTIONAL,
               GGL_TYPE_BUF,
               &component_name_obj },
         )

@@ -25,6 +25,7 @@
 #include <ggl/digest.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
+#include <ggl/flags.h>
 #include <ggl/http.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
@@ -379,12 +380,18 @@ static GglError get_tes_credentials(TesCredentials *tes_creds) {
     ret = ggl_map_validate(
         ggl_obj_into_map(result),
         GGL_MAP_SCHEMA(
-            { GGL_STR("accessKeyId"), true, GGL_TYPE_BUF, &aws_access_key_id },
+            { GGL_STR("accessKeyId"),
+              GGL_REQUIRED,
+              GGL_TYPE_BUF,
+              &aws_access_key_id },
             { GGL_STR("secretAccessKey"),
-              true,
+              GGL_REQUIRED,
               GGL_TYPE_BUF,
               &aws_secret_access_key },
-            { GGL_STR("sessionToken"), true, GGL_TYPE_BUF, &aws_session_token },
+            { GGL_STR("sessionToken"),
+              GGL_REQUIRED,
+              GGL_TYPE_BUF,
+              &aws_session_token },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -583,9 +590,10 @@ static GglError download_greengrass_artifact(
     GglObject *presigned_url_obj;
     err = ggl_map_validate(
         ggl_obj_into_map(response_obj),
-        GGL_MAP_SCHEMA(
-            { GGL_STR("preSignedUrl"), true, GGL_TYPE_BUF, &presigned_url_obj }
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("preSignedUrl"),
+                         GGL_REQUIRED,
+                         GGL_TYPE_BUF,
+                         &presigned_url_obj })
     );
     if (err != GGL_ERR_OK) {
         return GGL_ERR_FAILURE;
@@ -696,13 +704,16 @@ static GglError get_recipe_artifacts(
         GglError err = ggl_map_validate(
             ggl_obj_into_map(artifacts.items[i]),
             GGL_MAP_SCHEMA(
-                { GGL_STR("Uri"), true, GGL_TYPE_BUF, &uri_obj },
-                { GGL_STR("Unarchive"), false, GGL_TYPE_BUF, &unarchive_obj },
+                { GGL_STR("Uri"), GGL_REQUIRED, GGL_TYPE_BUF, &uri_obj },
+                { GGL_STR("Unarchive"),
+                  GGL_OPTIONAL,
+                  GGL_TYPE_BUF,
+                  &unarchive_obj },
                 { GGL_STR("Digest"),
-                  false,
+                  GGL_OPTIONAL,
                   GGL_TYPE_BUF,
                   &expected_digest_obj },
-                { GGL_STR("Algorithm"), false, GGL_TYPE_BUF, &algorithm }
+                { GGL_STR("Algorithm"), GGL_OPTIONAL, GGL_TYPE_BUF, &algorithm }
             )
         );
 
@@ -1156,22 +1167,22 @@ static GglError parse_dataplane_response_and_save_recipe(
             ggl_obj_into_map(*resolved_version),
             GGL_MAP_SCHEMA(
                 { GGL_STR("arn"),
-                  true,
+                  GGL_REQUIRED,
                   GGL_TYPE_BUF,
                   &cloud_component_arn_obj },
                 { GGL_STR("componentName"),
-                  true,
+                  GGL_REQUIRED,
                   GGL_TYPE_BUF,
                   &cloud_component_name_obj },
                 { GGL_STR("componentVersion"),
-                  true,
+                  GGL_REQUIRED,
                   GGL_TYPE_BUF,
                   &cloud_component_version_obj },
                 { GGL_STR("vendorGuidance"),
-                  false,
+                  GGL_OPTIONAL,
                   GGL_TYPE_BUF,
                   &vendor_guidance_obj },
-                { GGL_STR("recipe"), true, GGL_TYPE_BUF, &recipe_obj },
+                { GGL_STR("recipe"), GGL_REQUIRED, GGL_TYPE_BUF, &recipe_obj },
             )
         );
         if (ret != GGL_ERR_OK) {
@@ -1451,7 +1462,7 @@ static GglError resolve_dependencies(
             ggl_obj_into_map(*thing_group_item),
             GGL_MAP_SCHEMA(
                 { GGL_STR("thingGroupName"),
-                  true,
+                  GGL_REQUIRED,
                   GGL_TYPE_BUF,
                   &thing_group_name_from_item_obj },
             )
@@ -1507,7 +1518,7 @@ static GglError resolve_dependencies(
                         components_to_resolve.map,
                         GGL_MAP_SCHEMA(
                             { root_component_pair->key,
-                              false,
+                              GGL_OPTIONAL,
                               GGL_TYPE_BUF,
                               &existing_root_component_version_obj },
                         )
@@ -1626,7 +1637,7 @@ static GglError resolve_dependencies(
                     components_to_resolve.map,
                     GGL_MAP_SCHEMA(
                         { root_component_pair->key,
-                          false,
+                          GGL_OPTIONAL,
                           GGL_TYPE_BUF,
                           &existing_root_component_version_obj },
                     )
@@ -1785,7 +1796,7 @@ static GglError resolve_dependencies(
             ggl_obj_into_map(recipe_obj),
             GGL_MAP_SCHEMA(
                 { GGL_STR("ComponentDependencies"),
-                  false,
+                  GGL_OPTIONAL,
                   GGL_TYPE_MAP,
                   &component_dependencies },
             )
@@ -1827,7 +1838,7 @@ static GglError resolve_dependencies(
                     ggl_obj_into_map(dependency->val),
                     GGL_MAP_SCHEMA(
                         { GGL_STR("VersionRequirement"),
-                          true,
+                          GGL_REQUIRED,
                           GGL_TYPE_BUF,
                           &dep_version_requirement_obj },
                     )
@@ -1845,7 +1856,7 @@ static GglError resolve_dependencies(
                     resolved_components_kv_vec->map,
                     GGL_MAP_SCHEMA(
                         { dependency->key,
-                          false,
+                          GGL_OPTIONAL,
                           GGL_TYPE_BUF,
                           &already_resolved_version },
                     )
@@ -1875,7 +1886,7 @@ static GglError resolve_dependencies(
                         components_to_resolve.map,
                         GGL_MAP_SCHEMA(
                             { dependency->key,
-                              false,
+                              GGL_OPTIONAL,
                               GGL_TYPE_BUF,
                               &existing_requirements },
                         )
@@ -2159,10 +2170,13 @@ static GglError deployment_status_callback(void *ctx, GglObject data) {
         ggl_obj_into_map(data),
         GGL_MAP_SCHEMA(
             { GGL_STR("component_name"),
-              true,
+              GGL_REQUIRED,
               GGL_TYPE_BUF,
               &component_name_obj },
-            { GGL_STR("lifecycle_state"), true, GGL_TYPE_BUF, &status_obj }
+            { GGL_STR("lifecycle_state"),
+              GGL_REQUIRED,
+              GGL_TYPE_BUF,
+              &status_obj }
         )
     );
     if (ret != GGL_ERR_OK) {

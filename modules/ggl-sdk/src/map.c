@@ -4,6 +4,7 @@
 
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -31,7 +32,7 @@ GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
         GglObject *value;
         bool found = ggl_map_get(map, entry->key, &value);
         if (!found) {
-            if (entry->required) {
+            if (entry->required.val == GGL_PRESENCE_REQUIRED) {
                 GGL_LOGE(
                     "Map missing required key %.*s.",
                     (int) entry->key.len,
@@ -40,11 +41,14 @@ GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
                 return GGL_ERR_NOENTRY;
             }
 
-            GGL_LOGT(
-                "Missing optional key %.*s.",
-                (int) entry->key.len,
-                entry->key.data
-            );
+            if (entry->required.val == GGL_PRESENCE_OPTIONAL) {
+                GGL_LOGT(
+                    "Missing optional key %.*s.",
+                    (int) entry->key.len,
+                    entry->key.data
+                );
+            }
+
             if (entry->value != NULL) {
                 *entry->value = NULL;
             }
@@ -57,6 +61,15 @@ GglError ggl_map_validate(GglMap map, GglMapSchema schema) {
             entry->key.data,
             entry->key.len
         );
+
+        if (entry->required.val == GGL_PRESENCE_MISSING) {
+            GGL_LOGE(
+                "Map has required missing key %.*s.",
+                (int) entry->key.len,
+                entry->key.data
+            );
+            return GGL_ERR_PARSE;
+        }
 
         if (entry->type != GGL_TYPE_NULL) {
             if (entry->type != ggl_obj_type(*value)) {

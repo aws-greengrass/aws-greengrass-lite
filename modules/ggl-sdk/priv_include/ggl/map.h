@@ -9,6 +9,7 @@
 
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/object.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -27,7 +28,7 @@ bool ggl_map_get(GglMap map, GglBuffer key, GglObject **result);
 
 typedef struct {
     GglBuffer key;
-    bool required;
+    GglPresence required;
     GglObjectType type;
     GglObject **value;
 } GglMapSchemaEntry;

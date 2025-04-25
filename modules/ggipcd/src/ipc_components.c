@@ -9,6 +9,7 @@
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/limits.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -89,7 +90,9 @@ static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
 
     GglError ret = ggl_map_validate(
         params,
-        GGL_MAP_SCHEMA({ GGL_STR("svcuid"), true, GGL_TYPE_BUF, &svcuid_obj }, )
+        GGL_MAP_SCHEMA(
+            { GGL_STR("svcuid"), GGL_REQUIRED, GGL_TYPE_BUF, &svcuid_obj },
+        )
     );
 
     if (ret != GGL_ERR_OK) {

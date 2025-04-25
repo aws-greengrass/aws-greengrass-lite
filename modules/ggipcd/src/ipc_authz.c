@@ -9,6 +9,7 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -28,8 +29,14 @@ static GglError policy_match(
     GglError ret = ggl_map_validate(
         policy,
         GGL_MAP_SCHEMA(
-            { GGL_STR("operations"), true, GGL_TYPE_LIST, &operations_obj },
-            { GGL_STR("resources"), true, GGL_TYPE_LIST, &resources_obj },
+            { GGL_STR("operations"),
+              GGL_REQUIRED,
+              GGL_TYPE_LIST,
+              &operations_obj },
+            { GGL_STR("resources"),
+              GGL_REQUIRED,
+              GGL_TYPE_LIST,
+              &resources_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

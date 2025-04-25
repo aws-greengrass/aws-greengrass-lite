@@ -10,6 +10,7 @@
 #include <ggl/constants.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/list.h>
@@ -265,9 +266,12 @@ static GglError rpc_write(void *ctx, GglMap params, uint32_t handle) {
     GglError ret = ggl_map_validate(
         params,
         GGL_MAP_SCHEMA(
-            { GGL_STR("key_path"), true, GGL_TYPE_LIST, &key_path_obj },
-            { GGL_STR("value"), true, GGL_TYPE_NULL, &value },
-            { GGL_STR("timestamp"), false, GGL_TYPE_I64, &timestamp_obj },
+            { GGL_STR("key_path"), GGL_REQUIRED, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("value"), GGL_REQUIRED, GGL_TYPE_NULL, &value },
+            { GGL_STR("timestamp"),
+              GGL_OPTIONAL,
+              GGL_TYPE_I64,
+              &timestamp_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

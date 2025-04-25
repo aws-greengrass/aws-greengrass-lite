@@ -9,13 +9,13 @@
 #include <ggl/constants.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/json_pointer.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
-#include <stdbool.h>
 #include <stddef.h>
 
 static GglError apply_reset_config(
@@ -24,9 +24,10 @@ static GglError apply_reset_config(
     GglObject *reset_configuration = NULL;
     GglError ret = ggl_map_validate(
         component_config_map,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("reset"), false, GGL_TYPE_LIST, &reset_configuration }
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("reset"),
+                         GGL_OPTIONAL,
+                         GGL_TYPE_LIST,
+                         &reset_configuration })
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -119,9 +120,10 @@ static GglError apply_merge_config(
     GglObject *merge_configuration = NULL;
     GglError ret = ggl_map_validate(
         component_config_map,
-        GGL_MAP_SCHEMA(
-            { GGL_STR("merge"), false, GGL_TYPE_MAP, &merge_configuration }
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("merge"),
+                         GGL_OPTIONAL,
+                         GGL_TYPE_MAP,
+                         &merge_configuration })
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -179,7 +181,7 @@ GglError apply_configurations(
     GglError ret = ggl_map_validate(
         deployment->components,
         GGL_MAP_SCHEMA(
-            { component_name, false, GGL_TYPE_MAP, &doc_component_info }
+            { component_name, GGL_OPTIONAL, GGL_TYPE_MAP, &doc_component_info }
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -201,7 +203,7 @@ GglError apply_configurations(
     ret = ggl_map_validate(
         ggl_obj_into_map(*doc_component_info),
         GGL_MAP_SCHEMA({ GGL_STR("configurationUpdate"),
-                         false,
+                         GGL_OPTIONAL,
                          GGL_TYPE_MAP,
                          &component_configuration })
     );

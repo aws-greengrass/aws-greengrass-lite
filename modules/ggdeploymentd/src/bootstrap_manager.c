@@ -13,6 +13,7 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
+#include <ggl/flags.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -253,7 +254,9 @@ GglError retrieve_in_progress_deployment(
     GglObject *jobs_id_obj;
     ret = ggl_map_validate(
         ggl_obj_into_map(deployment_config),
-        GGL_MAP_SCHEMA({ GGL_STR("jobsID"), true, GGL_TYPE_BUF, &jobs_id_obj })
+        GGL_MAP_SCHEMA(
+            { GGL_STR("jobsID"), GGL_REQUIRED, GGL_TYPE_BUF, &jobs_id_obj }
+        )
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -271,9 +274,10 @@ GglError retrieve_in_progress_deployment(
     GglObject *jobs_version_obj;
     ret = ggl_map_validate(
         ggl_obj_into_map(deployment_config),
-        GGL_MAP_SCHEMA(
-            { GGL_STR("jobsVersion"), true, GGL_TYPE_I64, &jobs_version_obj }
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("jobsVersion"),
+                         GGL_REQUIRED,
+                         GGL_TYPE_I64,
+                         &jobs_version_obj })
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -283,9 +287,10 @@ GglError retrieve_in_progress_deployment(
     GglObject *deployment_type;
     ret = ggl_map_validate(
         ggl_obj_into_map(deployment_config),
-        GGL_MAP_SCHEMA(
-            { GGL_STR("deploymentType"), true, GGL_TYPE_BUF, &deployment_type }
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("deploymentType"),
+                         GGL_REQUIRED,
+                         GGL_TYPE_BUF,
+                         &deployment_type })
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -305,9 +310,10 @@ GglError retrieve_in_progress_deployment(
     GglObject *deployment_doc;
     ret = ggl_map_validate(
         ggl_obj_into_map(deployment_config),
-        GGL_MAP_SCHEMA(
-            { GGL_STR("deploymentDoc"), true, GGL_TYPE_MAP, &deployment_doc }
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("deploymentDoc"),
+                         GGL_REQUIRED,
+                         GGL_TYPE_MAP,
+                         &deployment_doc })
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -316,9 +322,10 @@ GglError retrieve_in_progress_deployment(
     GglObject *deployment_id;
     ret = ggl_map_validate(
         ggl_obj_into_map(*deployment_doc),
-        GGL_MAP_SCHEMA(
-            { GGL_STR("deployment_id"), true, GGL_TYPE_BUF, &deployment_id }
-        )
+        GGL_MAP_SCHEMA({ GGL_STR("deployment_id"),
+                         GGL_REQUIRED,
+                         GGL_TYPE_BUF,
+                         &deployment_id })
     );
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -329,7 +336,7 @@ GglError retrieve_in_progress_deployment(
     ret = ggl_map_validate(
         ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA({ GGL_STR("recipe_directory_path"),
-                         true,
+                         GGL_REQUIRED,
                          GGL_TYPE_BUF,
                          &recipe_directory_path })
     );
@@ -343,7 +350,7 @@ GglError retrieve_in_progress_deployment(
     ret = ggl_map_validate(
         ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA({ GGL_STR("artifacts_directory_path"),
-                         true,
+                         GGL_REQUIRED,
                          GGL_TYPE_BUF,
                          &artifacts_directory_path })
     );
@@ -357,7 +364,7 @@ GglError retrieve_in_progress_deployment(
     ret = ggl_map_validate(
         ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA({ GGL_STR("configuration_arn"),
-                         true,
+                         GGL_REQUIRED,
                          GGL_TYPE_BUF,
                          &configuration_arn })
     );
@@ -370,7 +377,7 @@ GglError retrieve_in_progress_deployment(
     ret = ggl_map_validate(
         ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA(
-            { GGL_STR("thing_group"), true, GGL_TYPE_BUF, &thing_group }
+            { GGL_STR("thing_group"), GGL_REQUIRED, GGL_TYPE_BUF, &thing_group }
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -382,7 +389,7 @@ GglError retrieve_in_progress_deployment(
     ret = ggl_map_validate(
         ggl_obj_into_map(*deployment_doc),
         GGL_MAP_SCHEMA(
-            { GGL_STR("components"), true, GGL_TYPE_MAP, &components }
+            { GGL_STR("components"), GGL_REQUIRED, GGL_TYPE_MAP, &components }
         )
     );
     if (ret != GGL_ERR_OK) {

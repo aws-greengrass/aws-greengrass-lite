@@ -8,6 +8,7 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -23,7 +24,7 @@ static GglError get_status(void *ctx, GglMap params, uint32_t handle) {
     GglError ret = ggl_map_validate(
         params,
         GGL_MAP_SCHEMA({ GGL_STR("component_name"),
-                         true,
+                         GGL_REQUIRED,
                          GGL_TYPE_BUF,
                          &component_name_obj })
     );
@@ -68,10 +69,13 @@ static GglError update_status(void *ctx, GglMap params, uint32_t handle) {
         params,
         GGL_MAP_SCHEMA(
             { GGL_STR("component_name"),
-              true,
+              GGL_REQUIRED,
               GGL_TYPE_BUF,
               &component_name_obj },
-            { GGL_STR("lifecycle_state"), true, GGL_TYPE_BUF, &state_obj },
+            { GGL_STR("lifecycle_state"),
+              GGL_REQUIRED,
+              GGL_TYPE_BUF,
+              &state_obj },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -131,7 +135,7 @@ static GglError subscribe_to_lifecycle_completion(
     GglError ret = ggl_map_validate(
         params,
         GGL_MAP_SCHEMA({ GGL_STR("component_name"),
-                         true,
+                         GGL_REQUIRED,
                          GGL_TYPE_BUF,
                          &component_name_obj })
     );

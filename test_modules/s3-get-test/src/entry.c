@@ -9,6 +9,7 @@
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
+#include <ggl/flags.h>
 #include <ggl/http.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -81,15 +82,15 @@ GglError run_s3_test(char *region, char *bucket, char *key, char *file_path) {
             result_map,
             GGL_MAP_SCHEMA(
                 { GGL_STR("accessKeyId"),
-                  true,
+                  GGL_REQUIRED,
                   GGL_TYPE_BUF,
                   &aws_access_key_id_obj },
                 { GGL_STR("secretAccessKey"),
-                  true,
+                  GGL_REQUIRED,
                   GGL_TYPE_BUF,
                   &aws_secret_access_key_obj },
                 { GGL_STR("sessionToken"),
-                  true,
+                  GGL_REQUIRED,
                   GGL_TYPE_BUF,
                   &aws_session_token_obj },
             )

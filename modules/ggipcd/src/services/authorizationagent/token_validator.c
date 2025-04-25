@@ -10,6 +10,7 @@
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -49,7 +50,9 @@ GglError ggl_handle_token_validation(
     GglObject *svcuid_obj;
     GglError ret = ggl_map_validate(
         args,
-        GGL_MAP_SCHEMA({ GGL_STR("token"), true, GGL_TYPE_BUF, &svcuid_obj }, )
+        GGL_MAP_SCHEMA(
+            { GGL_STR("token"), GGL_REQUIRED, GGL_TYPE_BUF, &svcuid_obj },
+        )
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Received invalid parameters.");

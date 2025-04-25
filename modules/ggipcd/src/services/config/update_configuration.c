@@ -10,13 +10,13 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/error.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <inttypes.h>
-#include <stdbool.h>
 #include <stddef.h>
 
 GglError ggl_handle_update_configuration(
@@ -35,9 +35,15 @@ GglError ggl_handle_update_configuration(
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("keyPath"), false, GGL_TYPE_LIST, &key_path_obj },
-            { GGL_STR("valueToMerge"), true, GGL_TYPE_NULL, &value_to_merge },
-            { GGL_STR("timestamp"), true, GGL_TYPE_F64, &timestamp_obj },
+            { GGL_STR("keyPath"), GGL_OPTIONAL, GGL_TYPE_LIST, &key_path_obj },
+            { GGL_STR("valueToMerge"),
+              GGL_REQUIRED,
+              GGL_TYPE_NULL,
+              &value_to_merge },
+            { GGL_STR("timestamp"),
+              GGL_REQUIRED,
+              GGL_TYPE_F64,
+              &timestamp_obj },
         )
     );
     if (ret != GGL_ERR_OK) {

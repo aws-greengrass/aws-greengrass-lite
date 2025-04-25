@@ -10,6 +10,7 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -33,9 +34,9 @@ GglError ggl_handle_publish_to_topic(
     GglError ret = ggl_map_validate(
         args,
         GGL_MAP_SCHEMA(
-            { GGL_STR("topic"), true, GGL_TYPE_BUF, &topic_obj },
+            { GGL_STR("topic"), GGL_REQUIRED, GGL_TYPE_BUF, &topic_obj },
             { GGL_STR("publishMessage"),
-              true,
+              GGL_REQUIRED,
               GGL_TYPE_MAP,
               &publish_message_obj },
         )
@@ -55,8 +56,14 @@ GglError ggl_handle_publish_to_topic(
     ret = ggl_map_validate(
         publish_message,
         GGL_MAP_SCHEMA(
-            { GGL_STR("jsonMessage"), false, GGL_TYPE_MAP, &json_message },
-            { GGL_STR("binaryMessage"), false, GGL_TYPE_MAP, &binary_message },
+            { GGL_STR("jsonMessage"),
+              GGL_OPTIONAL,
+              GGL_TYPE_MAP,
+              &json_message },
+            { GGL_STR("binaryMessage"),
+              GGL_OPTIONAL,
+              GGL_TYPE_MAP,
+              &binary_message },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -83,7 +90,7 @@ GglError ggl_handle_publish_to_topic(
         ggl_obj_into_map(*(is_json ? json_message : binary_message)),
         GGL_MAP_SCHEMA(
             { GGL_STR("message"),
-              true,
+              GGL_REQUIRED,
               is_json ? GGL_TYPE_NULL : GGL_TYPE_BUF,
               &message },
         )

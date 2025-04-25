@@ -18,6 +18,7 @@
 #include <ggl/eventstream/encode.h>
 #include <ggl/eventstream/rpc.h>
 #include <ggl/eventstream/types.h>
+#include <ggl/flags.h>
 #include <ggl/io.h>
 #include <ggl/ipc/error.h>
 #include <ggl/ipc/limits.h>
@@ -203,9 +204,12 @@ static GglError handle_conn_init(
     ret = ggl_map_validate(
         payload_data,
         GGL_MAP_SCHEMA(
-            { GGL_STR("authToken"), false, GGL_TYPE_BUF, &auth_token_obj },
+            { GGL_STR("authToken"),
+              GGL_OPTIONAL,
+              GGL_TYPE_BUF,
+              &auth_token_obj },
             { GGL_STR("componentName"),
-              false,
+              GGL_OPTIONAL,
               GGL_TYPE_BUF,
               &component_name_obj },
         )
