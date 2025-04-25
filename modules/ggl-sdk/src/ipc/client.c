@@ -347,7 +347,7 @@ GglError ggipc_private_get_system_config(
 ) {
     GglArena alloc = ggl_arena_init(*value);
     GglObject resp;
-    GglIpcError remote_error;
+    GglIpcError remote_error = { 0 };
     GglError ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass.private#GetSystemConfig"),
@@ -420,7 +420,7 @@ GglError ggipc_get_config_str(
     static uint8_t resp_mem[sizeof(GglKV) + sizeof("value") + PATH_MAX];
     GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
     GglObject resp;
-    GglIpcError remote_error;
+    GglIpcError remote_error = { 0 };
     ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass#GetConfiguration"),
@@ -510,7 +510,7 @@ GglError ggipc_get_config_obj(
     static uint8_t resp_mem[sizeof(GglKV) + sizeof("value") + PATH_MAX];
     GglArena resp_alloc = ggl_arena_init(GGL_BUF(resp_mem));
     GglObject resp;
-    GglIpcError remote_error;
+    GglIpcError remote_error = { 0 };
     ret = ggipc_call(
         conn,
         GGL_STR("aws.greengrass#GetConfiguration"),

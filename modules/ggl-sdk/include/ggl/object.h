@@ -14,17 +14,8 @@
 
 /// A generic object.
 typedef struct {
-    union {
-        struct {
-            void *_a;
-            size_t _b;
-        };
-
-        uint64_t _c;
-    };
-
-    uint8_t _d;
-} __attribute__((may_alias)) GglObject;
+    uint8_t _private[(sizeof(void *) == 4) ? 9 : 11];
+} GglObject;
 
 /// Union tag for `GglObject`.
 typedef enum {

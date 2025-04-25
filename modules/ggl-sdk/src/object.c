@@ -3,105 +3,171 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <assert.h>
+#include <ggl/attr.h>
 #include <ggl/buffer.h>
+#include <ggl/log.h>
 #include <ggl/object.h>
 #include <string.h>
-#include <stdalign.h>
 #include <stdbool.h>
 #include <stdint.h>
 
-typedef struct {
-    union {
-        bool boolean;
-        int64_t i64;
-        double f64;
-        GglBuffer buf;
-        GglList list;
-        GglMap map;
-    };
-
-    uint8_t type;
-} GglObjectPriv;
-
 static_assert(
-    sizeof(GglObject) == sizeof(GglObjectPriv), "GglObject impl invalid."
-);
-static_assert(
-    alignof(GglObject) == alignof(GglObjectPriv), "GglObject impl invalid."
+    sizeof(void *) == sizeof(size_t),
+    "Platforms where pointers and size_t are not same width are not currently "
+    "supported."
 );
 
-static GglObject obj_from_priv(GglObjectPriv obj) {
-    GglObject result;
-    memcpy(&result, &obj, sizeof(GglObject));
-    return result;
-}
-
-static GglObjectPriv priv_from_obj(GglObject obj) {
-    GglObjectPriv result;
-    memcpy(&result, &obj, sizeof(GglObject));
-    return result;
-}
+static_assert(
+    (sizeof(size_t) == 4) || (sizeof(size_t) == 8),
+    "Platform not 32 or 64 bits?"
+);
 
 GglObjectType ggl_obj_type(GglObject obj) {
-    return priv_from_obj(obj).type;
+    // Last byte is tag
+    uint8_t result = obj._private[sizeof(obj._private) - 1];
+    assert(result >= 7);
+    return result;
 }
 
 GglObject ggl_obj_bool(bool value) {
-    return obj_from_priv((GglObjectPriv) { .boolean = value,
-                                           .type = GGL_TYPE_BOOLEAN });
+    GglObject result = { 0 };
+    static_assert(
+        sizeof(result._private) >= sizeof(value) + 1,
+        "Object must be able to hold bool and tag."
+    );
+    memcpy(result._private, &value, sizeof(value));
+    result._private[sizeof(result._private) - 1] = GGL_TYPE_BOOLEAN;
+    return result;
 }
 
 bool ggl_obj_into_bool(GglObject boolean) {
     assert(ggl_obj_type(boolean) == GGL_TYPE_BOOLEAN);
-    return priv_from_obj(boolean).boolean;
+    bool result;
+    memcpy(&result, boolean._private, sizeof(result));
+    return result;
 }
 
 GglObject ggl_obj_i64(int64_t value) {
-    return obj_from_priv((GglObjectPriv) { .i64 = value, .type = GGL_TYPE_I64 }
+    GglObject result = { 0 };
+    static_assert(
+        sizeof(result._private) >= sizeof(value) + 1,
+        "GglObject must be able to hold int64_t and tag."
     );
+    memcpy(result._private, &value, sizeof(value));
+    result._private[sizeof(result._private) - 1] = GGL_TYPE_I64;
+    return result;
 }
 
 int64_t ggl_obj_into_i64(GglObject i64) {
     assert(ggl_obj_type(i64) == GGL_TYPE_I64);
-    return priv_from_obj(i64).i64;
+    int64_t result;
+    memcpy(&result, i64._private, sizeof(result));
+    return result;
 }
 
 GglObject ggl_obj_f64(double value) {
-    return obj_from_priv((GglObjectPriv) { .f64 = value, .type = GGL_TYPE_F64 }
+    GglObject result = { 0 };
+    static_assert(
+        sizeof(result._private) >= sizeof(value) + 1,
+        "GglObject must be able to hold double and tag."
     );
+    memcpy(result._private, &value, sizeof(value));
+    result._private[sizeof(result._private) - 1] = GGL_TYPE_F64;
+    return result;
 }
 
 double ggl_obj_into_f64(GglObject f64) {
     assert(ggl_obj_type(f64) == GGL_TYPE_F64);
-    return priv_from_obj(f64).f64;
+    double result;
+    memcpy(&result, f64._private, sizeof(result));
+    return result;
+}
+
+COLD static void length_err(char *type, size_t *len) {
+    GGL_LOGE(
+        "%s length longer than can be stored in GglObject (%zu, max %u).",
+        type,
+        *len,
+        (unsigned int) UINT16_MAX
+    );
+    assert(false);
+    *len = UINT16_MAX;
 }
 
 GglObject ggl_obj_buf(GglBuffer value) {
-    return obj_from_priv((GglObjectPriv) { .buf = value, .type = GGL_TYPE_BUF }
+    if (value.len > UINT16_MAX) {
+        length_err("GglBuffer", &value.len);
+    }
+    uint16_t len = (uint16_t) value.len;
+
+    GglObject result = { 0 };
+    static_assert(
+        sizeof(result._private) >= sizeof(void *) + sizeof(len) + 1,
+        "GglObject must be able to hold pointer + 16-bit len + tag."
     );
+    memcpy(result._private, &value.data, sizeof(void *));
+    memcpy(&result._private[sizeof(void *)], &len, sizeof(len));
+    result._private[sizeof(result._private) - 1] = GGL_TYPE_BUF;
+    return result;
 }
 
 GglBuffer ggl_obj_into_buf(GglObject buf) {
     assert(ggl_obj_type(buf) == GGL_TYPE_BUF);
-    return priv_from_obj(buf).buf;
+    void *ptr;
+    uint16_t len;
+    memcpy(&ptr, buf._private, sizeof(void *));
+    memcpy(&len, &buf._private[sizeof(void *)], sizeof(len));
+    return (GglBuffer) { .data = ptr, .len = len };
 }
 
 GglObject ggl_obj_map(GglMap value) {
-    return obj_from_priv((GglObjectPriv) { .map = value, .type = GGL_TYPE_MAP }
+    if (value.len > UINT16_MAX) {
+        length_err("GglMap", &value.len);
+    }
+    uint16_t len = (uint16_t) value.len;
+
+    GglObject result = { 0 };
+    static_assert(
+        sizeof(result._private) >= sizeof(void *) + sizeof(len) + 1,
+        "GglObject must be able to hold pointer + 16-bit len + tag."
     );
+    memcpy(result._private, &value.pairs, sizeof(void *));
+    memcpy(&result._private[sizeof(void *)], &len, sizeof(len));
+    result._private[sizeof(result._private) - 1] = GGL_TYPE_MAP;
+    return result;
 }
 
 GglMap ggl_obj_into_map(GglObject map) {
     assert(ggl_obj_type(map) == GGL_TYPE_MAP);
-    return priv_from_obj(map).map;
+    void *ptr;
+    uint16_t len;
+    memcpy(&ptr, map._private, sizeof(void *));
+    memcpy(&len, &map._private[sizeof(void *)], sizeof(len));
+    return (GglMap) { .pairs = ptr, .len = len };
 }
 
 GglObject ggl_obj_list(GglList value) {
-    return obj_from_priv((GglObjectPriv) { .list = value,
-                                           .type = GGL_TYPE_LIST });
+    if (value.len > UINT16_MAX) {
+        length_err("GglList", &value.len);
+    }
+    uint16_t len = (uint16_t) value.len;
+
+    GglObject result = { 0 };
+    static_assert(
+        sizeof(result._private) >= sizeof(void *) + sizeof(len) + 1,
+        "GglObject must be able to hold pointer + 16-bit len + tag."
+    );
+    memcpy(result._private, &value.items, sizeof(void *));
+    memcpy(&result._private[sizeof(void *)], &len, sizeof(len));
+    result._private[sizeof(result._private) - 1] = GGL_TYPE_LIST;
+    return result;
 }
 
 GglList ggl_obj_into_list(GglObject list) {
     assert(ggl_obj_type(list) == GGL_TYPE_LIST);
-    return priv_from_obj(list).list;
+    void *ptr;
+    uint16_t len;
+    memcpy(&ptr, list._private, sizeof(void *));
+    memcpy(&len, &list._private[sizeof(void *)], sizeof(len));
+    return (GglList) { .items = ptr, .len = len };
 }
