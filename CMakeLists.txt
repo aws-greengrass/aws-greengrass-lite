@@ -137,6 +137,8 @@ add_cflags($<$<NOT:$<CONFIG:Debug>>:-fno-delete-null-pointer-checks>)
 add_cflags($<$<NOT:$<CONFIG:Debug>>:-fwrapv>)
 try_add_cflag_if(trivial-auto-var-init-zero $<NOT:$<CONFIG:Debug>>
                  -ftrivial-auto-var-init=zero)
+try_add_cflag_if(zero-init-padding-bits-all $<NOT:$<CONFIG:Debug>>
+                 -fzero-init-padding-bits=all)
 
 try_add_cflag_if(function-sections $<NOT:$<CONFIG:Debug>> -ffunction-sections)
 try_add_cflag_if(data-sections $<NOT:$<CONFIG:Debug>> -fdata-sections)
