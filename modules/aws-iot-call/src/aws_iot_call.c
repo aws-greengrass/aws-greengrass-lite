@@ -94,7 +94,7 @@ static GglError subscription_callback(
     CallbackCtx *call_ctx = ctx;
 
     GglBuffer topic;
-    GglBuffer payload;
+    GglBuffer payload = { 0 };
     GglError ret
         = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);
     if (ret != GGL_ERR_OK) {

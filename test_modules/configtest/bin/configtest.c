@@ -485,12 +485,10 @@ timestamp = 1723142212
 */
 
 static void test_write_object(void) {
-    char json_path_string[] = "[\"component\",\"foobar\"]";
-    char json_value_string[]
-        = "{\"foo\":{\"bar\":{\"baz\":[ 1,2,3,4],\"qux\":1},\"quux\""
-          ": \"string\" },\"corge\" : true, \"grault\" : false}";
-    GglBuffer test_key_path_json = GGL_STR(json_path_string);
-    GglBuffer test_value_json = GGL_STR(json_value_string);
+    GglBuffer test_key_path_json = GGL_STR("[\"component\",\"foobar\"]");
+    GglBuffer test_value_json
+        = GGL_STR("{\"foo\":{\"bar\":{\"baz\":[ 1,2,3,4],\"qux\":1},\"quux\": "
+                  "\"string\" },\"corge\" : true, \"grault\" : false}");
     GglObject test_key_path_object;
     GglObject test_value_object;
     static uint8_t big_buffer[4096];

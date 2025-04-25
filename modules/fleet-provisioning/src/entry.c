@@ -56,7 +56,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
         GglArena alloc = ggl_arena_init(ggl_buffer_substr(
             GGL_BUF(claim_cert_path_mem), 0, sizeof(claim_cert_path_mem) - 1
         ));
-        GglBuffer claim_cert_path;
+        GglBuffer claim_cert_path = { 0 };
         GglError ret = ggl_gg_config_read_str(
             GGL_BUF_LIST(
                 GGL_STR("services"),

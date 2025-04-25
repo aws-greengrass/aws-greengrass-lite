@@ -159,8 +159,8 @@ static GglError get_thing_name(void *ctx) {
 static GglError deserialize_payload(
     GglArena *alloc, GglObject data, GglObject *json_object
 ) {
-    GglBuffer topic;
-    GglBuffer payload;
+    GglBuffer topic = { 0 };
+    GglBuffer payload = { 0 };
 
     GglError ret
         = ggl_aws_iot_mqtt_subscribe_parse_resp(data, &topic, &payload);

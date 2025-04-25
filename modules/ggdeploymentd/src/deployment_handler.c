@@ -110,7 +110,7 @@ static GglError get_thing_name(char **thing_name) {
     GglArena alloc = ggl_arena_init(
         ggl_buffer_substr(GGL_BUF(resp_mem), 0, sizeof(resp_mem) - 1)
     );
-    GglBuffer resp;
+    GglBuffer resp = { 0 };
 
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("thingName")), &alloc, &resp

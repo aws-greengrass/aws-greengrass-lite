@@ -20,32 +20,27 @@
 
 GglError run_recipe2unit_test(void) {
     static Recipe2UnitArgs args = { 0 };
-    char component_name[] = "[Component Name here]";
-    char version[] = "[Component Version here]";
-    char root_dir[] = ".";
-    char recipe_runner_path[] = "[Path to recipe runner here]";
+    GglBuffer root_dir = GGL_STR(".");
+    GglBuffer recipe_runner_path = GGL_STR("[Path to recipe runner here]");
 
     int root_path_fd;
-    GglError ret
-        = ggl_dir_open(GGL_STR(root_dir), O_PATH, false, &root_path_fd);
+    GglError ret = ggl_dir_open(root_dir, O_PATH, false, &root_path_fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to open root dir.");
         return ret;
     }
     args.root_path_fd = root_path_fd;
 
-    GglBuffer component_name_buff
-        = (GglBuffer) { (uint8_t *) component_name, strlen(component_name) };
-    GglBuffer version_buff
-        = (GglBuffer) { (uint8_t *) version, strlen(version) };
-    memcpy(args.root_dir, root_dir, strlen(root_dir));
+    memcpy(args.root_dir, root_dir.data, root_dir.len + 1);
     args.user = "ubuntu";
     args.group = "ubuntu";
     memcpy(
-        args.recipe_runner_path, recipe_runner_path, strlen(recipe_runner_path)
+        args.recipe_runner_path,
+        recipe_runner_path.data,
+        recipe_runner_path.len + 1
     );
-    args.component_name = component_name_buff;
-    args.component_version = version_buff;
+    args.component_name = GGL_STR("[Component Name here]");
+    args.component_version = GGL_STR("[Component Version here]");
 
     GglObject recipe_map;
     GglObject *component_name_obj;

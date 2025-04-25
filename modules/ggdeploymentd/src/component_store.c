@@ -26,7 +26,7 @@ static GglBuffer root_path = GGL_STR("/var/lib/greengrass");
 static GglError update_root_path(void) {
     static uint8_t resp_mem[MAX_PATH_LENGTH] = { 0 };
     GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
-    GglBuffer resp;
+    GglBuffer resp = { 0 };
     GglError ret = ggl_gg_config_read_str(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &alloc, &resp
     );
