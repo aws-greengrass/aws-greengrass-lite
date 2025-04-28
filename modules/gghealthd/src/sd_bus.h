@@ -1,9 +1,9 @@
 #ifndef GGHEALTHD_SD_BUS_H
 #define GGHEALTHD_SD_BUS_H
 
-#include "health.h"
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/nucleus/constants.h>
 #include <systemd/sd-bus.h>
 
 #define SERVICE_PREFIX "ggl."
@@ -11,7 +11,7 @@
 #define SERVICE_SUFFIX ".service"
 #define SERVICE_SUFFIX_LEN (sizeof(SERVICE_SUFFIX) - 1U)
 #define SERVICE_NAME_MAX_LEN \
-    (SERVICE_PREFIX_LEN + COMPONENT_NAME_MAX_LEN + SERVICE_SUFFIX_LEN)
+    (SERVICE_PREFIX_LEN + GGL_COMPONENT_NAME_MAX_LEN + SERVICE_SUFFIX_LEN)
 
 // destinations
 #define DEFAULT_DESTINATION "org.freedesktop.systemd1"

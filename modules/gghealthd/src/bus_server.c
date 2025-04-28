@@ -11,6 +11,7 @@
 #include <ggl/flags.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
+#include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -33,7 +34,7 @@ static GglError get_status(void *ctx, GglMap params, uint32_t handle) {
         return GGL_ERR_INVALID;
     }
     GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
-    if (component_name.len > COMPONENT_NAME_MAX_LEN) {
+    if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("`component_name` too long");
         return GGL_ERR_RANGE;
     }
@@ -85,7 +86,7 @@ static GglError update_status(void *ctx, GglMap params, uint32_t handle) {
     GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
     GglBuffer state = ggl_obj_into_buf(*state_obj);
 
-    if (component_name.len > COMPONENT_NAME_MAX_LEN) {
+    if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("`component_name` too long");
         return GGL_ERR_RANGE;
     }
@@ -145,7 +146,7 @@ static GglError subscribe_to_lifecycle_completion(
         return GGL_ERR_INVALID;
     }
     GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
-    if (component_name.len > COMPONENT_NAME_MAX_LEN) {
+    if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("`component_name` too long");
         return GGL_ERR_RANGE;
     }

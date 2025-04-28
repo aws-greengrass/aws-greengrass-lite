@@ -144,7 +144,7 @@ GglError get_service_name(GglBuffer component_name, GglBuffer *qualified_name) {
         && (qualified_name->data != NULL)
     );
     assert(qualified_name->len > SERVICE_NAME_MAX_LEN);
-    if (component_name.len > COMPONENT_NAME_MAX_LEN) {
+    if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("component name too long");
         return GGL_ERR_RANGE;
     }

@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "subscriptions.h"
-#include "health.h"
 #include "sd_bus.h"
 #include <assert.h>
 #include <errno.h>
@@ -13,6 +12,7 @@
 #include <ggl/error.h>
 #include <ggl/file.h> // IWYU pragma: keep (TODO: remove after file.h refactor)
 #include <ggl/log.h>
+#include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/socket_server.h>
 #include <ggl/utils.h>
@@ -33,7 +33,7 @@ static sd_bus_slot *slots[GGHEALTHD_MAX_SUBSCRIPTIONS];
 static uint32_t handles[GGHEALTHD_MAX_SUBSCRIPTIONS];
 static size_t component_names_len[GGHEALTHD_MAX_SUBSCRIPTIONS];
 static uint8_t component_names[GGHEALTHD_MAX_SUBSCRIPTIONS]
-                              [COMPONENT_NAME_MAX_LEN];
+                              [GGL_COMPONENT_NAME_MAX_LEN];
 
 static sd_bus *global_bus;
 

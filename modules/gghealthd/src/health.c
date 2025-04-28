@@ -13,6 +13,7 @@
 #include <ggl/exec.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
+#include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <systemd/sd-bus.h>
@@ -22,7 +23,7 @@
 
 GglError gghealthd_get_status(GglBuffer component_name, GglBuffer *status) {
     assert(status != NULL);
-    if (component_name.len > COMPONENT_NAME_MAX_LEN) {
+    if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
         GGL_LOGE("component_name too long");
         return GGL_ERR_RANGE;
     }

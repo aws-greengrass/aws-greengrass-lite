@@ -8,9 +8,6 @@
 #include "ggl/error.h"
 #include <ggl/buffer.h>
 
-// https://docs.aws.amazon.com/greengrass/v2/APIReference/API_DescribeComponent.html
-#define COMPONENT_NAME_MAX_LEN 128
-
 GglError gghealthd_init(void);
 
 // get status from native orchestrator or local database
