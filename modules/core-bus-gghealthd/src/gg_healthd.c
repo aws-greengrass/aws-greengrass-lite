@@ -15,7 +15,7 @@
 GglError ggl_gghealthd_retrieve_component_status(
     GglBuffer component, GglArena *alloc, GglBuffer *component_status
 ) {
-    static uint8_t resp_mem[10 * sizeof(GglObject)] = { 0 };
+    static uint8_t resp_mem[256] = { 0 };
     GglArena resp_alloc = ggl_arena_init(GGL_BUF(resp_mem));
 
     GglObject result;
