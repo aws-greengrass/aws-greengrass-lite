@@ -14,6 +14,9 @@
 #include <stdlib.h>
 
 static GglError setenv_wrapper(GglBufList aliases, GglBuffer value) {
+    if ((value.data == NULL) || (value.len == 0)) {
+        value = GGL_STR("");
+    }
     for (size_t i = 0; i < aliases.len; ++i) {
         GglBuffer name = aliases.bufs[i];
         int ret
