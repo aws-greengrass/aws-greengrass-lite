@@ -410,7 +410,7 @@ static GglError handle_operation(
         return GGL_ERR_INVALID;
     }
 
-    GglIpcError ipc_error = { 0 };
+    GglIpcError ipc_error = GGL_IPC_ERROR_DEFAULT;
 
     GglError ret = handle_stream_operation(
         handle, msg, common_headers, &ipc_error, alloc

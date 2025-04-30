@@ -315,5 +315,5 @@ GglError http_server(void) {
     evhttp_free(http);
     event_base_free(base);
 
-    return 0;
+    return GGL_ERR_OK;
 }

@@ -424,5 +424,5 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
         return ret;
     }
 
-    return 0;
+    return GGL_ERR_OK;
 }

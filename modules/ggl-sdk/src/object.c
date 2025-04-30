@@ -43,7 +43,7 @@ static GglObjectPriv priv_from_obj(GglObject obj) {
 }
 
 GglObjectType ggl_obj_type(GglObject obj) {
-    return priv_from_obj(obj).type;
+    return (GglObjectType) priv_from_obj(obj).type;
 }
 
 GglObject ggl_obj_bool(bool value) {

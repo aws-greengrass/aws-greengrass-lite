@@ -240,14 +240,16 @@ GglError eventstream_header_next(
     uint8_t header_value_type = pos[0];
     pos += 1;
 
-    EventStreamHeaderValue value = { .type = header_value_type };
+    EventStreamHeaderValue value;
 
     switch (header_value_type) {
     case EVENTSTREAM_INT32:
+        value.type = EVENTSTREAM_INT32;
         value.int32 = read_be_int32((GglBuffer) { .data = pos, .len = 4 });
         pos += 4;
         break;
     case EVENTSTREAM_STRING: {
+        value.type = EVENTSTREAM_STRING;
         uint16_t str_len = (uint16_t) (pos[0] << 8) + pos[1];
         pos += 2;
         value.string = (GglBuffer) { .data = pos, .len = str_len };

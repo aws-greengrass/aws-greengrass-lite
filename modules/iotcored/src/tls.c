@@ -346,7 +346,7 @@ GglError iotcored_tls_connect(const IotcoredArgs *args, IotcoredTlsCtx **ctx) {
     }
 
     GGL_LOGI("Successfully connected.");
-    return 0;
+    return GGL_ERR_OK;
 }
 
 GglError iotcored_tls_read(IotcoredTlsCtx *ctx, GglBuffer *buf) {
@@ -417,7 +417,7 @@ GglError iotcored_tls_write(IotcoredTlsCtx *ctx, GglBuffer buf) {
         }
     }
 
-    return 0;
+    return GGL_ERR_OK;
 }
 
 void iotcored_tls_cleanup(IotcoredTlsCtx *ctx) {

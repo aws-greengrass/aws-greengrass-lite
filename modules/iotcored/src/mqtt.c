@@ -475,6 +475,7 @@ bool iotcored_mqtt_connection_status(void) {
 
 GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
     assert(msg != NULL);
+    assert(qos <= 2);
 
     MQTTStatus_t result = MQTT_Publish(
         &mqtt_ctx,
@@ -483,7 +484,7 @@ GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
             .topicNameLength = (uint16_t) msg->topic.len,
             .pPayload = msg->payload.data,
             .payloadLength = msg->payload.len,
-            .qos = qos,
+            .qos = (MQTTQoS_t) qos,
         },
         MQTT_GetPacketId(&mqtt_ctx)
     );
@@ -505,7 +506,7 @@ GglError iotcored_mqtt_publish(const IotcoredMsg *msg, uint8_t qos) {
         msg->topic.data
     );
 
-    return 0;
+    return GGL_ERR_OK;
 }
 
 GglError iotcored_mqtt_subscribe(
@@ -513,6 +514,7 @@ GglError iotcored_mqtt_subscribe(
 ) {
     assert(count > 0);
     assert(count < GGL_MQTT_MAX_SUBSCRIBE_FILTERS);
+    assert(qos <= 2);
 
     static MQTTSubscribeInfo_t sub_infos[GGL_MQTT_MAX_SUBSCRIBE_FILTERS];
 
@@ -520,7 +522,7 @@ GglError iotcored_mqtt_subscribe(
         sub_infos[i] = (MQTTSubscribeInfo_t) {
             .pTopicFilter = (char *) topic_filters[i].data,
             .topicFilterLength = (uint16_t) topic_filters[i].len,
-            .qos = qos,
+            .qos = (MQTTQoS_t) qos,
         };
     }
 
@@ -545,7 +547,7 @@ GglError iotcored_mqtt_subscribe(
         topic_filters[0].data
     );
 
-    return 0;
+    return GGL_ERR_OK;
 }
 
 GglError iotcored_mqtt_unsubscribe(GglBuffer *topic_filters, size_t count) {
@@ -558,7 +560,7 @@ GglError iotcored_mqtt_unsubscribe(GglBuffer *topic_filters, size_t count) {
         sub_infos[i] = (MQTTSubscribeInfo_t) {
             .pTopicFilter = (char *) topic_filters[i].data,
             .topicFilterLength = (uint16_t) topic_filters[i].len,
-            .qos = 0,
+            .qos = (MQTTQoS_t) 0,
         };
     }
 
@@ -583,7 +585,7 @@ GglError iotcored_mqtt_unsubscribe(GglBuffer *topic_filters, size_t count) {
         topic_filters[0].data
     );
 
-    return 0;
+    return GGL_ERR_OK;
 }
 
 bool iotcored_mqtt_topic_filter_match(GglBuffer topic_filter, GglBuffer topic) {

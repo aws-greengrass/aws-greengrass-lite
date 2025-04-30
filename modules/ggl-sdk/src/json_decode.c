@@ -41,6 +41,10 @@ typedef struct {
     size_t count;
 } ParseResult;
 
+static const ParseResult PARSE_RESULT_INIT = {
+    .json_type = JSON_TYPE_NULL,
+};
+
 typedef struct {
     bool (*fn)(const void *parser_ctx, GglBuffer *buf, ParseResult *output);
     const void *parser_ctx;
@@ -775,7 +779,7 @@ static GglError take_json_val(GglBuffer *buf, GglArena *arena, GglObject *obj) {
     assert(buf != NULL);
     assert(arena != NULL);
 
-    ParseResult output = { 0 };
+    ParseResult output = PARSE_RESULT_INIT;
     bool matches = parser_call(&PARSER_JSON_VALUE, buf, &output);
     if (!matches) {
         GGL_LOGE("Failed to parse buffer.");

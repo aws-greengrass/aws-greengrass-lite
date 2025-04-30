@@ -5,6 +5,7 @@
 #ifndef GGL_IPC_ERROR_H
 #define GGL_IPC_ERROR_H
 
+#include <ggl/attr.h>
 #include <ggl/buffer.h>
 
 typedef enum {
@@ -24,6 +25,10 @@ typedef struct {
     GglIpcErrorCode error_code;
     GglBuffer message;
 } GglIpcError;
+
+static const GglIpcError GGL_IPC_ERROR_DEFAULT UNUSED = {
+    .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+};
 
 void ggl_ipc_err_info(
     GglIpcErrorCode error_code,
