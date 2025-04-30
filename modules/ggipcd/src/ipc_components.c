@@ -47,7 +47,7 @@ GglError ggl_ipc_svcuid_from_str(GglBuffer svcuid, GglSvcuid *out) {
     if (svcuid.len != GGL_IPC_SVCUID_STR_LEN) {
         return GGL_ERR_INVALID;
     }
-    GglSvcuid result;
+    GglSvcuid result = { 0 };
     bool decoded = ggl_base64_decode(svcuid, &GGL_BUF(result.val));
     if (!decoded) {
         GGL_LOGE("svcuid is invalid base64.");

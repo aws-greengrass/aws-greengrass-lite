@@ -26,7 +26,7 @@ struct evhttp_request;
 
 static GglObject fetch_creds(GglArena *alloc) {
     GglBuffer tesd = GGL_STR("aws_iot_tes");
-    GglObject result;
+    GglObject result = { 0 };
     GglMap params = { 0 };
 
     GglError error = ggl_call(

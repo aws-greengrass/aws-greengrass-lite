@@ -82,7 +82,7 @@ static GglError convert_uriparser_error(int error) {
 }
 
 GglError gg_uri_parse(GglArena *arena, GglBuffer uri, GglUriInfo *info) {
-    UriUriA result;
+    UriUriA result = { 0 };
 
     // TODO: can we patch uriparser to not need to allocate memory for a linked
     // list?

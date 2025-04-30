@@ -216,7 +216,7 @@ static GglError update_job(
 
         static uint8_t response_scratch[512];
         GglArena call_alloc = ggl_arena_init(GGL_BUF(response_scratch));
-        GglObject result;
+        GglObject result = { 0 };
         ret = ggl_aws_iot_call(topic, payload_object, &call_alloc, &result);
         if (ret == GGL_ERR_OK) {
             local_version

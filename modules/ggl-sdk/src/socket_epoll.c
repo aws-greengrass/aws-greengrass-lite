@@ -44,7 +44,7 @@ GglError ggl_socket_epoll_run(
     assert(epoll_fd >= 0);
     assert(fd_ready != NULL);
 
-    struct epoll_event events[10];
+    struct epoll_event events[10] = { 0 };
 
     while (true) {
         int ready = epoll_wait(

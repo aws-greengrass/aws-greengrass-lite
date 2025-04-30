@@ -434,7 +434,7 @@ static void get_conn_component(void *ctx, size_t index) {
 GglError ggl_ipc_get_component_name(
     uint32_t handle, GglBuffer *component_name
 ) {
-    GglComponentHandle component_handle;
+    GglComponentHandle component_handle = { 0 };
     GglError ret = ggl_socket_handle_protected(
         get_conn_component, &component_handle, &pool, handle
     );

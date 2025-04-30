@@ -156,8 +156,10 @@ static GglError create_tls_context(
 }
 
 static GglError do_handshake(char *host, BIO *bio) {
-    SSL *ssl;
+    SSL *ssl = NULL;
     BIO_get_ssl(bio, &ssl);
+
+    assert(ssl != NULL);
 
     if (SSL_set_tlsext_host_name(ssl, host) != 1) {
         GGL_LOGE("Failed to configure SNI.");
@@ -355,7 +357,7 @@ GglError iotcored_tls_read(IotcoredTlsCtx *ctx, GglBuffer *buf) {
         return GGL_ERR_NOCONN;
     }
 
-    SSL *ssl;
+    SSL *ssl = NULL;
     BIO_get_ssl(ctx->bio, &ssl);
 
     size_t read_bytes = 0;
@@ -392,7 +394,7 @@ GglError iotcored_tls_write(IotcoredTlsCtx *ctx, GglBuffer buf) {
         return GGL_ERR_NOCONN;
     }
 
-    SSL *ssl;
+    SSL *ssl = NULL;
     BIO_get_ssl(ctx->bio, &ssl);
 
     size_t written;

@@ -730,7 +730,7 @@ static GglError decode_json_object(
     GglBuffer buf_copy = content;
 
     for (size_t i = 0; i < count; i++) {
-        GglObject key_obj;
+        GglObject key_obj = { 0 };
         GglError ret = take_json_val(&buf_copy, arena, &key_obj);
         if (ret != GGL_ERR_OK) {
             return ret;

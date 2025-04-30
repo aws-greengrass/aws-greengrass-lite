@@ -92,7 +92,7 @@ GglError ggl_zip_unarchive(
         if (ret != GGL_ERR_OK) {
             return ret;
         }
-        int err;
+        int err = -1;
         zip = zip_fdopen(zip_fd, ZIP_RDONLY, &err);
         if (zip == NULL) {
             GGL_LOGE("Failed to open zip file with error %d.", err);

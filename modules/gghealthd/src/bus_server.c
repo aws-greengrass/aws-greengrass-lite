@@ -39,7 +39,7 @@ static GglError get_status(void *ctx, GglMap params, uint32_t handle) {
         return GGL_ERR_RANGE;
     }
 
-    GglBuffer status;
+    GglBuffer status = { 0 };
     GglError error = gghealthd_get_status(component_name, &status);
     if (error != GGL_ERR_OK) {
         return error;

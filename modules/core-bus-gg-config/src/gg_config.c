@@ -63,7 +63,7 @@ GglError ggl_gg_config_list(
     );
 
     GglError remote_err = GGL_ERR_OK;
-    GglObject result_obj;
+    GglObject result_obj = { 0 };
     GglError err = ggl_call(
         GGL_STR("gg_config"),
         GGL_STR("list"),
