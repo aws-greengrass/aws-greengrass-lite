@@ -17,7 +17,7 @@
 #endif
 
 /// Start the GG-IPC server on a given socket
-GglError ggl_ipc_listen(const char *socket_name, const char *socket_path);
+GglError ggl_ipc_listen(const GglBuffer *socket_name, GglBuffer socket_path);
 
 /// Send an EventStream packet to an IPC client.
 GglError ggl_ipc_response_send(

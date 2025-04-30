@@ -5,6 +5,7 @@
 #include "ggipcd.h"
 #include "ipc_components.h"
 #include "ipc_server.h"
+#include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
@@ -15,14 +16,15 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#define GG_IPC_SOCKET_NAME "gg-ipc.socket"
+static const GglBuffer GG_IPC_SOCKET_NAME = GGL_STR("gg-ipc.socket");
 uint8_t default_socket_path[PATH_MAX];
 
 GglError run_ggipcd(GglIpcArgs *args) {
-    const char *socket_name = NULL;
-    const char *socket_path;
+    const GglBuffer *socket_name = NULL;
+    GglBuffer socket_path;
+
     if (args->socket_path != NULL) {
-        socket_path = args->socket_path;
+        socket_path = ggl_buffer_from_null_term(args->socket_path);
     } else {
         GglArena alloc = ggl_arena_init(GGL_BUF(default_socket_path));
         GglBuffer path_buf;
@@ -36,20 +38,18 @@ GglError run_ggipcd(GglIpcArgs *args) {
             return ret;
         }
 
+        assert(path_buf.data == default_socket_path);
         GglByteVec path_vec
             = { .buf = path_buf, .capacity = sizeof(default_socket_path) };
-        ggl_byte_vec_chain_push(&ret, &path_vec, '/');
-        ggl_byte_vec_chain_append(&ret, &path_vec, GGL_STR(GG_IPC_SOCKET_NAME));
+        ret = ggl_byte_vec_push(&path_vec, '/');
+        ggl_byte_vec_chain_append(&ret, &path_vec, GG_IPC_SOCKET_NAME);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
 
-        socket_name = GG_IPC_SOCKET_NAME;
-        socket_path = (char *) default_socket_path;
+        socket_name = &GG_IPC_SOCKET_NAME;
+        socket_path = path_vec.buf;
     }
-
-    GGL_LOGI("%s", socket_name != NULL ? socket_name : "n/a");
-    GGL_LOGI("%s", socket_path);
 
     GglError err = ggl_ipc_start_component_server();
 

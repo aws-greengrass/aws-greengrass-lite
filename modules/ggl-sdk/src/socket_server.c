@@ -351,12 +351,6 @@ GglError ggl_socket_server_listen(
             return ret;
         }
         GGL_LOGT("Listening on %.*s", (int) path.len, path.data);
-    } else {
-        GGL_LOGT(
-            "Received listen socket %.*s",
-            (int) socket_name->len,
-            socket_name->data
-        );
     }
     GGL_CLEANUP(cleanup_close, server_fd);
 
