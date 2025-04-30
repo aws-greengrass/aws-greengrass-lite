@@ -514,6 +514,7 @@ GglError ggl_recipe_get_from_file(
         GGL_LOGE("Failed to open recipe dir.");
         return ret;
     }
+    GGL_CLEANUP(cleanup_close, recipe_dir);
 
     static uint8_t file_name_mem[PATH_MAX];
     GglByteVec base_name = GGL_BYTE_VEC(file_name_mem);

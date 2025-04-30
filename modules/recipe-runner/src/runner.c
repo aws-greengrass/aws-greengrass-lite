@@ -708,6 +708,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     ret = ggl_recipe_get_from_file(
         root_path_fd, component_name, component_version, &alloc, &recipe
     );
+    (void) ggl_close(root_path_fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to find the recipe file");
         return ret;
@@ -778,14 +779,18 @@ GglError runner(const RecipeRunnerArgs *args) {
         GGL_LOGE("Failed to open %.*s.", (int) root_path.len, root_path.data);
         return ret;
     }
-    ret = ggl_dir_openat(dir_fd, GGL_STR("work"), O_PATH, false, &dir_fd);
+    int new_fd;
+    ret = ggl_dir_openat(dir_fd, GGL_STR("work"), O_PATH, false, &new_fd);
+    (void) ggl_close(dir_fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "Failed to open %.*s/work.", (int) root_path.len, root_path.data
         );
         return ret;
     }
-    ret = ggl_dir_openat(dir_fd, component_name, O_RDONLY, false, &dir_fd);
+    dir_fd = new_fd;
+    ret = ggl_dir_openat(dir_fd, component_name, O_RDONLY, false, &new_fd);
+    (void) ggl_close(dir_fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "Failed to open %.*s/work/%.*s.",
@@ -796,6 +801,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         );
         return ret;
     }
+    dir_fd = new_fd;
 
     sys_ret = fchdir(dir_fd);
     if (sys_ret != 0) {
