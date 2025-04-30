@@ -30,6 +30,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdnoreturn.h>
 
 #define MAX_THING_NAME_LEN 128
 
@@ -503,11 +504,12 @@ static GglError next_job_execution_changed_callback(
     return GGL_ERR_OK;
 }
 
-void *job_listener_thread(void *ctx) {
+noreturn void *job_listener_thread(void *ctx) {
     (void) ctx;
     ggl_backoff_indefinite(1, 1000, get_thing_name, NULL);
     listen_for_jobs_deployments();
 
+    // coverity[infinite_loop]
     while (true) {
         {
             GGL_MTX_SCOPE_GUARD(&listener_mutex);
@@ -518,7 +520,6 @@ void *job_listener_thread(void *ctx) {
         }
         ggl_backoff_indefinite(10, 10000, describe_next_job, NULL);
     }
-    return NULL;
 }
 
 static void resubscribe_on_iotcored_close(void *ctx, uint32_t handle) {
