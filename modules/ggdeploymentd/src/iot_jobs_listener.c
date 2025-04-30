@@ -220,7 +220,8 @@ static GglError update_job(
         ret = ggl_aws_iot_call(topic, payload_object, &call_alloc, &result);
         if (ret == GGL_ERR_OK) {
             local_version
-                = atomic_fetch_add_explicit(version, 1, memory_order_acq_rel)
+                // coverity[incompatible_param]
+                = atomic_fetch_add_explicit(version, 1U, memory_order_acq_rel)
                 + 1;
             break;
         }

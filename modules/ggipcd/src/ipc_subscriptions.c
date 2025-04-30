@@ -83,6 +83,7 @@ static GglError subs_set_recv_handle(
 static GglError subscription_on_response(
     void *ctx, uint32_t recv_handle, GglObject data
 ) {
+    // coverity[bad_initializer_type]
     GglIpcSubscribeCallback on_response = ctx;
 
     uint32_t resp_handle = 0;

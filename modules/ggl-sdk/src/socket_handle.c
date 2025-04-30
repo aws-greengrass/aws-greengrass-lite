@@ -109,6 +109,7 @@ GglError ggl_socket_pool_register(
                 new_handle
             );
 
+            // coverity[missing_restore]
             return GGL_ERR_OK;
         }
     }

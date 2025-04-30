@@ -59,6 +59,7 @@ GglError ggl_ipc_svcuid_from_str(GglBuffer svcuid, GglSvcuid *out) {
 
 GglBuffer ggl_ipc_components_get_name(GglComponentHandle component_handle) {
     assert(component_handle != 0);
+    // coverity[missing_lock]
     assert(component_handle <= registered_components);
     return (GglBuffer) { .data = component_names[component_handle - 1],
                          .len = component_name_lengths[component_handle - 1] };
