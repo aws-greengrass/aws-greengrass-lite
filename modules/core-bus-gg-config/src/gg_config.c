@@ -62,7 +62,7 @@ GglError ggl_gg_config_list(
           ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
     );
 
-    GglError remote_err = GGL_ERR_OK;
+    GglError remote_err = GGL_ERR_FAILURE;
     GglObject result_obj = { 0 };
     GglError err = ggl_call(
         GGL_STR("gg_config"),
