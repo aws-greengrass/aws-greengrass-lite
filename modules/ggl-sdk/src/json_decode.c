@@ -311,7 +311,7 @@ static bool parser_json_str_codepoint_fn(
     }
 
     for (size_t i = 1; i < utf8_len; i++) {
-        if ((buf->data[0] & 0b11000000) != 0b10000000) {
+        if ((buf->data[i] & 0b11000000) != 0b10000000) {
             // Not a UTF-8 continuation byte
             return false;
         }
