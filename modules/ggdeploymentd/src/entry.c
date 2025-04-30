@@ -57,6 +57,7 @@ GglError run_ggdeploymentd(const char *bin_path) {
     int sys_ret = fchdir(root_path_fd);
     if (sys_ret != 0) {
         GGL_LOGE("Failed to enter rootPath: %d.", errno);
+        (void) ggl_close(root_path_fd);
         return GGL_ERR_FAILURE;
     }
 
