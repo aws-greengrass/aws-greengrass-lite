@@ -300,7 +300,7 @@ static int inherit_socket_from_env(GglBuffer socket_name) {
             int flags = fcntl(server_fd, F_GETFD, 0);
             flags |= O_CLOEXEC;
             flags &= ~O_NONBLOCK;
-            fcntl(server_fd, F_SETFD, flags);
+            (void) fcntl(server_fd, F_SETFD, flags);
             return server_fd;
         }
     }
