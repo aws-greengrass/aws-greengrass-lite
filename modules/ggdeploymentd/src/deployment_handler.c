@@ -2014,12 +2014,10 @@ static GglError add_arn_list_to_config(
     // can be done where the local deployment cli handler is responsible for
     // mutating the local deployment before sending the updated local deployment
     // info to this deployment handler.
-    GglBuffer arn_list_mem = GGL_BUF((
-        uint8_t
-            [((size_t) DEPLOYMENT_TARGET_NAME_MAX_CHARS *MAX_DEPLOYMENT_TARGETS)
-             + (sizeof(GglObject) *MAX_DEPLOYMENT_TARGETS)]
-    ) { 0 });
-    GglArena arn_list_alloc = ggl_arena_init(arn_list_mem);
+    static uint8_t arn_list_mem
+        [((size_t) DEPLOYMENT_TARGET_NAME_MAX_CHARS * MAX_DEPLOYMENT_TARGETS)
+         + (sizeof(GglObject) * MAX_DEPLOYMENT_TARGETS)];
+    GglArena arn_list_alloc = ggl_arena_init(GGL_BUF(arn_list_mem));
 
     GglObject arn_list_obj;
     GglError ret = ggl_gg_config_read(
