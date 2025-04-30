@@ -16,6 +16,16 @@
 #endif
 
 #ifdef __has_attribute
+#if __has_attribute(unused)
+#define UNUSED __attribute__((unused))
+#endif
+#endif
+
+#ifndef UNUSED
+#define UNUSED
+#endif
+
+#ifdef __has_attribute
 #if __has_attribute(counted_by)
 #define COUNTED_BY(field) __attribute__((counted_by(field)))
 #endif

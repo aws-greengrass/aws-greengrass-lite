@@ -7,6 +7,7 @@
 
 //! Generic dynamic object representation.
 
+#include <ggl/attr.h>
 #include <ggl/buffer.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -73,7 +74,7 @@ typedef struct {
 /// Get type of an GglObject
 GglObjectType ggl_obj_type(GglObject obj);
 
-static const GglObject GGL_OBJ_NULL = { 0 };
+static const GglObject GGL_OBJ_NULL UNUSED = { 0 };
 
 /// Create bool object.
 GglObject ggl_obj_bool(bool value);

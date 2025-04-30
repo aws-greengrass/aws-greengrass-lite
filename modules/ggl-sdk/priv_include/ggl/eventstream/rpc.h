@@ -7,6 +7,7 @@
 
 //! AWS EventStream message data types.
 
+#include <ggl/attr.h>
 #include <ggl/error.h>
 #include <ggl/eventstream/decode.h>
 #include <stdint.h>
@@ -25,7 +26,7 @@ typedef enum {
     EVENTSTREAM_TERMINATE_STREAM = 2,
 } EventStreamMessageFlags;
 
-static const int32_t EVENTSTREAM_FLAGS_MASK = 3;
+static const int32_t EVENTSTREAM_FLAGS_MASK UNUSED = 3;
 
 typedef struct {
     int32_t stream_id;
