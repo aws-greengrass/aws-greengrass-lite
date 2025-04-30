@@ -285,15 +285,18 @@ static GglError update_iot_endpoints(void) {
 }
 
 GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
-    int config_dir;
-    GglError ret
-        = ggl_dir_open(ggcredentials_path, O_RDONLY, false, &config_dir);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGI("Could not open ggcredentials directory.");
-        return GGL_ERR_FAILURE;
+    {
+        int config_dir;
+        GglError ret
+            = ggl_dir_open(ggcredentials_path, O_RDONLY, false, &config_dir);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGI("Could not open ggcredentials directory.");
+            return GGL_ERR_FAILURE;
+        }
+        (void) ggl_close(config_dir);
     }
 
-    ret = fetch_from_db(args);
+    GglError ret = fetch_from_db(args);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
