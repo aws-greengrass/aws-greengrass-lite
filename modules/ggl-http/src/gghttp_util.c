@@ -376,9 +376,11 @@ GglError gghttplib_process_request(
         if (curl_error != CURLE_OK) {
             return translate_curl_code(curl_error);
         }
-        curl_error = curl_easy_setopt(
-            curl_data->curl, CURLOPT_WRITEDATA, (void *) &response_vector
-        );
+        curl_error =
+            // coverity[bad_sizeof]
+            curl_easy_setopt(
+                curl_data->curl, CURLOPT_WRITEDATA, (void *) &response_vector
+            );
         if (curl_error != CURLE_OK) {
             return translate_curl_code(curl_error);
         }
@@ -405,9 +407,9 @@ GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
         return translate_curl_code(curl_error);
     }
 
-    // coverity[bad_sizeof]
-    curl_error
-        = curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, (void *) &fd);
+    curl_error =
+        // coverity[bad_sizeof]
+        curl_easy_setopt(curl_data->curl, CURLOPT_WRITEDATA, (void *) &fd);
     if (curl_error != CURLE_OK) {
         return translate_curl_code(curl_error);
     }
