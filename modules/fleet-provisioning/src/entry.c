@@ -398,7 +398,7 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
     ret = ggl_file_open(csr_file_path_vec.buf, O_RDONLY, 0, &fd);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Error opening csr file %d", ret);
-        return 1;
+        return ret;
     }
 
     GglBuffer csr_buf = GGL_BUF(csr_mem);

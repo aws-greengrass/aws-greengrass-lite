@@ -199,14 +199,14 @@ GglError http_server(void) {
     base = event_base_new();
     if (!base) {
         GGL_LOGE("Could not initialize libevent.");
-        return 1;
+        return GGL_ERR_FAILURE;
     }
 
     // Create a new HTTP server
     http = evhttp_new(base);
     if (!http) {
         GGL_LOGE("Could not create evhttp. Exiting...");
-        return 1;
+        return GGL_ERR_FAILURE;
     }
 
     // Set a callback for requests to "/2016-11-01/credentialprovider/"
@@ -219,7 +219,7 @@ GglError http_server(void) {
     handle = evhttp_bind_socket_with_handle(http, "0.0.0.0", 0);
     if (!handle) {
         GGL_LOGE("Could not bind to any port. Exiting...");
-        return 1;
+        return GGL_ERR_FAILURE;
     }
 
     struct sockaddr_storage ss = { 0 };

@@ -7,7 +7,6 @@
 #include "ipc_dispatch.h"
 #include "ipc_subscriptions.h"
 #include <assert.h>
-#include <errno.h>
 #include <ggipc/auth.h>
 #include <ggl/arena.h>
 #include <ggl/base64.h>
@@ -470,7 +469,7 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         GGL_LOGE(
             "EventStream packet does not fit in configured IPC buffer size."
         );
-        return ENOMEM;
+        return GGL_ERR_NOMEM;
     }
 
     GglBuffer data_section
