@@ -1221,7 +1221,11 @@ static GglError parse_dataplane_response_and_save_recipe(
             GGL_LOGE("Recipe is empty.");
         }
 
-        ggl_base64_decode_in_place(&recipe_file_content);
+        bool decoded = ggl_base64_decode_in_place(&recipe_file_content);
+        if (!decoded) {
+            GGL_LOGE("Failed to decode recipe base64.");
+            return GGL_ERR_PARSE;
+        }
         recipe_file_content.data[recipe_file_content.len] = '\0';
 
         GGL_LOGD(
