@@ -150,7 +150,7 @@ GglError ggl_handle_subscribe_to_configuration_update(
         &remote_err
     );
     if (ret != GGL_ERR_OK) {
-        if (remote_err == GGL_ERR_NOENTRY) {
+        if ((ret == GGL_ERR_REMOTE) && (remote_err == GGL_ERR_NOENTRY)) {
             *ipc_error
                 = (GglIpcError) { .error_code = GGL_IPC_ERR_RESOURCE_NOT_FOUND,
                                   .message = GGL_STR("Key not found") };
