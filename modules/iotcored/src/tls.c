@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
+#include <ggl/cleanup.h>
 #include <ggl/uri.h>
 #include <limits.h>
 #include <openssl/bio.h>
@@ -117,6 +118,12 @@ static GglError proxy_get_info(
     return GGL_ERR_OK;
 }
 
+static void cleanup_ssl_ctx(SSL_CTX **ctx) {
+    if (*ctx != NULL) {
+        SSL_CTX_free(*ctx);
+    }
+}
+
 static GglError create_tls_context(
     const IotcoredArgs *args, SSL_CTX **ssl_ctx
 ) {
@@ -126,6 +133,7 @@ static GglError create_tls_context(
         GGL_LOGE("Failed to create openssl context.");
         return GGL_ERR_NOMEM;
     }
+    GGL_CLEANUP_ID(ctx_cleanup, cleanup_ssl_ctx, new_ssl_ctx);
 
     SSL_CTX_set_verify(new_ssl_ctx, SSL_VERIFY_PEER, NULL);
     SSL_CTX_set_mode(new_ssl_ctx, SSL_MODE_AUTO_RETRY);
@@ -151,6 +159,8 @@ static GglError create_tls_context(
         GGL_LOGE("Client certificate and private key do not match.");
         return GGL_ERR_CONFIG;
     }
+
+    ctx_cleanup = NULL;
     *ssl_ctx = new_ssl_ctx;
     return GGL_ERR_OK;
 }
@@ -187,6 +197,7 @@ static GglError iotcored_tls_connect_no_proxy(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+    GGL_CLEANUP_ID(ctx_cleanup, cleanup_ssl_ctx, ssl_ctx);
 
     BIO *bio = BIO_new_ssl_connect(ssl_ctx);
     if (bio == NULL) {
@@ -209,6 +220,7 @@ static GglError iotcored_tls_connect_no_proxy(
         return ret;
     }
 
+    ctx_cleanup = NULL;
     conn = (IotcoredTlsCtx
     ) { .ssl_ctx = ssl_ctx, .bio = bio, .connected = true };
     *ctx = &conn;
@@ -266,12 +278,12 @@ static GglError iotcored_tls_connect_http_proxy(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+    GGL_CLEANUP_ID(ctx_cleanup, cleanup_ssl_ctx, ssl_ctx);
     BIO *mqtt_bio = BIO_new_ssl(ssl_ctx, 1);
     if (mqtt_bio == NULL) {
         GGL_LOGE("Failed to create openssl BIO.");
         return GGL_ERR_FATAL;
     }
-
     // default fallback
     if (info.port.len == 0) {
         info.port = GGL_STR("80");
@@ -309,6 +321,8 @@ static GglError iotcored_tls_connect_http_proxy(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+
+    ctx_cleanup = NULL;
 
     conn = (IotcoredTlsCtx
     ) { .ssl_ctx = ssl_ctx, .bio = mqtt_proxy_chain, .connected = true };
