@@ -1264,32 +1264,36 @@ static GglError parse_dataplane_response_and_save_recipe(
             return ret;
         }
 
-        // Write file
-        int root_dir_fd = -1;
-        ret = ggl_dir_open(recipe_dir_vec.buf, O_PATH, true, &root_dir_fd);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to open dir when writing cloud recipe.");
-            return ret;
-        }
+        {
+            // Write file
+            int root_dir_fd = -1;
+            ret = ggl_dir_open(recipe_dir_vec.buf, O_PATH, true, &root_dir_fd);
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to open dir when writing cloud recipe.");
+                return ret;
+            }
+            GGL_CLEANUP(cleanup_close, root_dir_fd);
 
-        int fd = -1;
-        ret = ggl_file_openat(
-            root_dir_fd,
-            recipe_name_vec.buf,
-            O_CREAT | O_WRONLY | O_TRUNC,
-            (mode_t) 0644,
-            &fd
-        );
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to open file at the dir when writing cloud "
-                     "recipe.");
-            return ret;
-        }
+            int fd = -1;
+            ret = ggl_file_openat(
+                root_dir_fd,
+                recipe_name_vec.buf,
+                O_CREAT | O_WRONLY | O_TRUNC,
+                (mode_t) 0644,
+                &fd
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to open file at the dir when writing cloud "
+                         "recipe.");
+                return ret;
+            }
+            GGL_CLEANUP(cleanup_close, fd);
 
-        ret = ggl_file_write(fd, recipe_file_content);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Write to cloud recipe file failed");
-            return ret;
+            ret = ggl_file_write(fd, recipe_file_content);
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Write to cloud recipe file failed");
+                return ret;
+            }
         }
 
         GGL_LOGD("Saved recipe under the name %s", recipe_name_vec.buf.data);
