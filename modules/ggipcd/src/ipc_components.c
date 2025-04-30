@@ -181,6 +181,8 @@ GglError ggl_ipc_components_register(
     GglComponentHandle *component_handle,
     GglSvcuid *svcuid
 ) {
+    GGL_MTX_SCOPE_GUARD(&ggl_ipc_component_registered_components_mtx);
+
     for (GglComponentHandle i = 1; i <= registered_components; i++) {
         if (ggl_buffer_eq(component_name, ggl_ipc_components_get_name(i))) {
             *component_handle = i;
@@ -205,7 +207,6 @@ GglError ggl_ipc_components_register(
         component_name.data
     );
 
-    GGL_MTX_SCOPE_GUARD(&ggl_ipc_component_registered_components_mtx);
     registered_components += 1;
     *component_handle = registered_components;
     set_component_name(*component_handle, component_name);
