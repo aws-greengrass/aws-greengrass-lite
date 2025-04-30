@@ -76,9 +76,6 @@ static GglError backoff_wrapper(
             _Exit(1);
         }
     }
-
-    assert(false);
-    return GGL_ERR_FATAL;
 }
 
 GglError ggl_backoff(
