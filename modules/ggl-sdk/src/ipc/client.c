@@ -273,9 +273,13 @@ GglError ggipc_call(
         ret = ggl_json_decode_destructive(
             msg.payload, &error_alloc, &err_result
         );
-        if ((ret != GGL_ERR_OK) || (ggl_obj_type(err_result) != GGL_TYPE_MAP)) {
+        if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to decode IPC error payload.");
             return ret;
+        }
+        if (ggl_obj_type(err_result) != GGL_TYPE_MAP) {
+            GGL_LOGE("Failed to decode IPC error payload.");
+            return GGL_ERR_PARSE;
         }
 
         GglObject *error_code_obj;
