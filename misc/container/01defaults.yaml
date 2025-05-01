@@ -8,4 +8,3 @@ services:
       runWithDefault:
         posixUser: "gg_component:gg_component"
       greengrassDataPlanePort: "8443"
-      tesCredUrl: "http://127.0.0.1:8080/"

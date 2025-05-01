@@ -111,27 +111,56 @@ adduser -g <gid from previous command> gg_component
 ## (Optional) Using Podman
 
 Instead of installing Greengrass Lite directly on a system, you can use a
-container. The provided container has the build dependencies and system users
-already provided.
+container. The provided container has the build dependencies, system users
+already provided, as well as Greengrass Lite built and installed.
+
+The following steps assume you want to use `./run` for persistent state, you
+place your Greengrass config file in `./run/config.yaml`, and certs/keys in
+`./run/certs`. See [Setup guide](SETUP.md) for info on required keys. The keys
+in [the built-in config](../misc/container/01defaults.yaml) are already set for
+you and don't need to be in your config file.
+
+A sample config file for the container is below:
+
+```yml
+system:
+  privateKeyPath: "/var/lib/greengrass/certs/device.key"
+  certificateFilePath: "/var/lib/greengrass/certs/device.pem"
+  rootCaPath: "/var/lib/greengrass/certs/AmazonRootCA1.pem"
+  thingName: "ExampleGreengrassCore"
+services:
+  aws.greengrass.NucleusLite:
+    configuration:
+      awsRegion: "<aws-region>"
+      iotCredEndpoint: "<your-endpoint>.credentials.iot.<aws-region>.amazonaws.com"
+      iotDataEndpoint: "<your-endpoint>-ats.iot.<aws-region>.amazonaws.com"
+      iotRoleAlias: "GreengrassCoreTokenExchangeRoleAlias"
+```
 
 Docker does not fully support running systemd containers, however you can use
 podman. These steps allow you to enter a pre-configured container:
 
 ```sh
 sudo apt install podman
-podman build misc/container -t ggl:latest
-podman run -it -v $PWD/..:/work --replace --name ggl ggl:latest
-cd /work/aws-greengrass-lite/
+podman build . -t ggl:latest
+podman run -it -v $PWD/run/config.yaml:/etc/greengrass/config.yaml \
+  -v $PWD/run/certs:/var/lib/greengrass/certs \
+  --replace --name ggl ggl:latest
 ```
 
-Inside of the container, you can continue following the rest of the below steps.
-
-To persist the Greengrass Lite runDir, you can bind a host directory to
-`/var/lib/greengrass`:
+To persist the Greengrass Lite run dir, you can bind a host directory to
+`/var/lib/greengrass` (assuming certs/keys are in `./run/rootPath/certs`):
 
 ```sh
-podman run -it -v $PWD/..:/work -v $PWD/run:/var/lib/greengrass --replace --name ggl ggl:latest
+podman run -it -v $PWD/run/config.yaml:/etc/greengrass/config.yaml \
+  -v $PWD/run/rootPath:/var/lib/greengrass \
+  --replace --name ggl ggl:latest
 ```
+
+You may need to run `chown -R ggcore:ggcore /var/lib/greengrass/certs`.
+
+Note to not bind over the entirety of `/etc/greengrass` (this will hide the
+default config fragment in the container).
 
 ## Building
 
