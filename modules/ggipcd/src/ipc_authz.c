@@ -56,7 +56,8 @@ static GglError policy_match(
 
     GGL_LIST_FOREACH(policy_operation_obj, policy_operations) {
         GglBuffer policy_operation = ggl_obj_into_buf(*policy_operation_obj);
-        if (ggl_buffer_eq(operation, policy_operation)) {
+        if (ggl_buffer_eq(GGL_STR("*"), policy_operation)
+            || ggl_buffer_eq(operation, policy_operation)) {
             GGL_LIST_FOREACH(policy_resource_obj, policy_resources) {
                 GglBuffer policy_resource
                     = ggl_obj_into_buf(*policy_resource_obj);
