@@ -1,3 +1,20 @@
+# Release Notes v2.1.0
+
+This release includes HTTP proxy support for the AWS Greengrass Nucleus Lite
+runtime.
+
+## New with this release
+
+- Added HTTP proxy support that can be configured using the networkProxy
+  configuration option
+- Lowered the requirement of `libcurl` from 7.86 to 7.82 for devices running
+  older versions
+- Updates `journalctl` logs so they are attributed to components instead of
+  recipe-runner
+- Improved error responses for IPC calls
+- Added retries for S3 download attempts (for generic component artifacts)
+- Minor bug fixes
+
 # Release Notes v2.0.2
 
 This is a minor release that fixes the dependencies of the apt packages to
