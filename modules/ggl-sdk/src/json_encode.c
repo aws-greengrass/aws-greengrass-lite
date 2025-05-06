@@ -9,6 +9,7 @@
 #include <ggl/io.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <inttypes.h>
 #include <string.h>
@@ -162,7 +163,7 @@ static GglError json_write_map(GglMap map, GglBuffer *buf) {
                 return ret;
             }
         }
-        ret = json_write(ggl_obj_buf(map.pairs[i].key), buf);
+        ret = json_write(ggl_obj_buf(ggl_kv_key(map.pairs[i])), buf);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -172,7 +173,7 @@ static GglError json_write_map(GglMap map, GglBuffer *buf) {
             return ret;
         }
 
-        ret = json_write(map.pairs[i].val, buf);
+        ret = json_write(*ggl_kv_val(&map.pairs[i]), buf);
         if (ret != GGL_ERR_OK) {
             return ret;
         }

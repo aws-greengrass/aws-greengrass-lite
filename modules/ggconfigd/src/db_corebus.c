@@ -35,14 +35,15 @@ static GglError decode_object_destructive(GglObject *obj, GglArena *arena) {
         GglMap map = ggl_obj_into_map(*obj);
         GGL_LOGT("given map to decode with length: %d", (int) map.len);
         GGL_MAP_FOREACH(kv, map) {
-            GglError decode_err = decode_object_destructive(&kv->val, arena);
+            GglError decode_err
+                = decode_object_destructive(ggl_kv_val(kv), arena);
             if (decode_err != GGL_ERR_OK) {
                 GGL_LOGE(
                     "decode map value at index %d and key %.*s failed with "
                     "error code: %d",
                     (int) (kv - map.pairs),
-                    (int) kv->key.len,
-                    kv->key.data,
+                    (int) ggl_kv_key(*kv).len,
+                    ggl_kv_key(*kv).data,
                     (int) decode_err
                 );
                 return decode_err;
@@ -233,21 +234,26 @@ GglError ggconfig_process_map(
     }
     for (size_t x = 0; x < map.len; x++) {
         GglKV *kv = &map.pairs[x];
-        GGL_LOGT("Preparing %zu, %.*s", x, (int) kv->key.len, kv->key.data);
+        GGL_LOGT(
+            "Preparing %zu, %.*s",
+            x,
+            (int) ggl_kv_key(*kv).len,
+            ggl_kv_key(*kv).data
+        );
 
-        ret = ggl_obj_vec_push(key_path, ggl_obj_buf(kv->key));
+        ret = ggl_obj_vec_push(key_path, ggl_obj_buf(ggl_kv_key(*kv)));
         assert(ret == GGL_ERR_OK);
         GGL_LOGT("pushed the key");
-        if (ggl_obj_type(kv->val) == GGL_TYPE_MAP) {
+        if (ggl_obj_type(*ggl_kv_val(kv)) == GGL_TYPE_MAP) {
             GGL_LOGT("value is a map");
-            GglMap val_map = ggl_obj_into_map(kv->val);
+            GglMap val_map = ggl_obj_into_map(*ggl_kv_val(kv));
             ret = ggconfig_process_map(key_path, val_map, timestamp);
             if (ret != GGL_ERR_OK) {
                 break;
             }
         } else {
             GGL_LOGT("Value is not a map.");
-            ret = ggconfig_process_nonmap(key_path, kv->val, timestamp);
+            ret = ggconfig_process_nonmap(key_path, *ggl_kv_val(kv), timestamp);
             if (ret != GGL_ERR_OK) {
                 break;
             }

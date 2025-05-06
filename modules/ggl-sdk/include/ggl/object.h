@@ -47,8 +47,8 @@ typedef struct {
 /// A key-value pair used for `GglMap`.
 /// `key` must be an UTF-8 encoded string.
 typedef struct {
-    GglBuffer key;
-    GglObject val;
+    GglBuffer _a;
+    GglObject _b;
 } GglKV;
 
 /// A map of UTF-8 strings to `GglObject`s.

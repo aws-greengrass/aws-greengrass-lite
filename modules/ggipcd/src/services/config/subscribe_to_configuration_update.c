@@ -41,11 +41,13 @@ static GglError subscribe_to_configuration_update_callback(
     }
 
     GglObject ipc_response = ggl_obj_map(GGL_MAP(
-        { GGL_STR("configurationUpdateEvent"),
-          ggl_obj_map(GGL_MAP(
-              { GGL_STR("componentName"), ggl_obj_buf(component_name) },
-              { GGL_STR("keyPath"), ggl_obj_list(key_path) },
-          )) },
+        ggl_kv(
+            GGL_STR("configurationUpdateEvent"),
+            ggl_obj_map(GGL_MAP(
+                ggl_kv(GGL_STR("componentName"), ggl_obj_buf(component_name)),
+                ggl_kv(GGL_STR("keyPath"), ggl_obj_list(key_path)),
+            ))
+        ),
     ));
 
     err = ggl_ipc_response_send(
@@ -134,9 +136,11 @@ GglError ggl_handle_subscribe_to_configuration_update(
     }
 
     GglMap call_args = GGL_MAP(
-        { GGL_STR("key_path"),
-          ggl_obj_list((GglList) { .items = config_path_obj,
-                                   .len = full_key_path.len }) },
+        ggl_kv(
+            GGL_STR("key_path"),
+            ggl_obj_list((GglList) { .items = config_path_obj,
+                                     .len = full_key_path.len })
+        ),
     );
 
     GglError remote_err;

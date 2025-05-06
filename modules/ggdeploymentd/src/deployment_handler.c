@@ -202,14 +202,15 @@ static GglError get_posix_user(char **posix_user) {
 }
 
 static GglError get_data_endpoint(GglByteVec *endpoint) {
-    GglMap params
-        = GGL_MAP({ GGL_STR("key_path"),
-                    ggl_obj_list(GGL_LIST(
-                        ggl_obj_buf(GGL_STR("services")),
-                        ggl_obj_buf(GGL_STR("aws.greengrass.NucleusLite")),
-                        ggl_obj_buf(GGL_STR("configuration")),
-                        ggl_obj_buf(GGL_STR("iotDataEndpoint"))
-                    )) });
+    GglMap params = GGL_MAP(ggl_kv(
+        GGL_STR("key_path"),
+        ggl_obj_list(GGL_LIST(
+            ggl_obj_buf(GGL_STR("services")),
+            ggl_obj_buf(GGL_STR("aws.greengrass.NucleusLite")),
+            ggl_obj_buf(GGL_STR("configuration")),
+            ggl_obj_buf(GGL_STR("iotDataEndpoint"))
+        ))
+    ));
 
     static uint8_t resp_mem[128] = { 0 };
     GglArena alloc = ggl_arena_init(
@@ -233,14 +234,15 @@ static GglError get_data_endpoint(GglByteVec *endpoint) {
 }
 
 static GglError get_data_port(GglByteVec *port) {
-    GglMap params
-        = GGL_MAP({ GGL_STR("key_path"),
-                    ggl_obj_list(GGL_LIST(
-                        ggl_obj_buf(GGL_STR("services")),
-                        ggl_obj_buf(GGL_STR("aws.greengrass.NucleusLite")),
-                        ggl_obj_buf(GGL_STR("configuration")),
-                        ggl_obj_buf(GGL_STR("greengrassDataPlanePort"))
-                    )) });
+    GglMap params = GGL_MAP(ggl_kv(
+        GGL_STR("key_path"),
+        ggl_obj_list(GGL_LIST(
+            ggl_obj_buf(GGL_STR("services")),
+            ggl_obj_buf(GGL_STR("aws.greengrass.NucleusLite")),
+            ggl_obj_buf(GGL_STR("configuration")),
+            ggl_obj_buf(GGL_STR("greengrassDataPlanePort"))
+        ))
+    ));
 
     static uint8_t resp_mem[128] = { 0 };
     GglArena alloc = ggl_arena_init(
@@ -264,11 +266,13 @@ static GglError get_data_port(GglByteVec *port) {
 }
 
 static GglError get_private_key_path(GglByteVec *pkey_path) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              ggl_obj_list(GGL_LIST(
-                                  ggl_obj_buf(GGL_STR("system")),
-                                  ggl_obj_buf(GGL_STR("privateKeyPath"))
-                              )) });
+    GglMap params = GGL_MAP(ggl_kv(
+        GGL_STR("key_path"),
+        ggl_obj_list(GGL_LIST(
+            ggl_obj_buf(GGL_STR("system")),
+            ggl_obj_buf(GGL_STR("privateKeyPath"))
+        ))
+    ));
 
     uint8_t resp_mem[128] = { 0 };
     GglArena alloc = ggl_arena_init(
@@ -294,11 +298,13 @@ static GglError get_private_key_path(GglByteVec *pkey_path) {
 }
 
 static GglError get_cert_path(GglByteVec *cert_path) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              ggl_obj_list(GGL_LIST(
-                                  ggl_obj_buf(GGL_STR("system")),
-                                  ggl_obj_buf(GGL_STR("certificateFilePath"))
-                              )) });
+    GglMap params = GGL_MAP(ggl_kv(
+        GGL_STR("key_path"),
+        ggl_obj_list(GGL_LIST(
+            ggl_obj_buf(GGL_STR("system")),
+            ggl_obj_buf(GGL_STR("certificateFilePath"))
+        ))
+    ));
 
     static uint8_t resp_mem[128] = { 0 };
     GglArena alloc = ggl_arena_init(
@@ -324,11 +330,12 @@ static GglError get_cert_path(GglByteVec *cert_path) {
 }
 
 static GglError get_rootca_path(GglByteVec *rootca_path) {
-    GglMap params = GGL_MAP({ GGL_STR("key_path"),
-                              ggl_obj_list(GGL_LIST(
-                                  ggl_obj_buf(GGL_STR("system")),
-                                  ggl_obj_buf(GGL_STR("rootCaPath"))
-                              )) });
+    GglMap params = GGL_MAP(ggl_kv(
+        GGL_STR("key_path"),
+        ggl_obj_list(GGL_LIST(
+            ggl_obj_buf(GGL_STR("system")), ggl_obj_buf(GGL_STR("rootCaPath"))
+        ))
+    ));
 
     static uint8_t resp_mem[128] = { 0 };
     GglArena alloc = ggl_arena_init(
@@ -961,10 +968,12 @@ static GglError generate_resolve_component_candidates_body(
 
     // TODO: Support platform attributes for platformOverride configuration
     GglMap platform_attributes = GGL_MAP(
-        { GGL_STR("runtime"), ggl_obj_buf(GGL_STR("aws_nucleus_lite")) },
-        { GGL_STR("os"), ggl_obj_buf(GGL_STR("linux")) },
-        { GGL_STR("architecture"), ggl_obj_buf(get_current_architecture()) },
-        { GGL_STR("architecture.detail"), architecture_detail_read_value }
+        ggl_kv(GGL_STR("runtime"), ggl_obj_buf(GGL_STR("aws_nucleus_lite"))),
+        ggl_kv(GGL_STR("os"), ggl_obj_buf(GGL_STR("linux"))),
+        ggl_kv(
+            GGL_STR("architecture"), ggl_obj_buf(get_current_architecture())
+        ),
+        ggl_kv(GGL_STR("architecture.detail"), architecture_detail_read_value)
     );
 
     if (ggl_obj_into_buf(architecture_detail_read_value).len == 0) {
@@ -972,25 +981,27 @@ static GglError generate_resolve_component_candidates_body(
     }
 
     GglMap platform_info = GGL_MAP(
-        { GGL_STR("name"), ggl_obj_buf(GGL_STR("linux")) },
-        { GGL_STR("attributes"), ggl_obj_map(platform_attributes) }
+        ggl_kv(GGL_STR("name"), ggl_obj_buf(GGL_STR("linux"))),
+        ggl_kv(GGL_STR("attributes"), ggl_obj_map(platform_attributes))
     );
 
-    GglMap version_requirements_map
-        = GGL_MAP({ GGL_STR("requirements"),
-                    ggl_obj_buf(component_requirements) });
+    GglMap version_requirements_map = GGL_MAP(
+        ggl_kv(GGL_STR("requirements"), ggl_obj_buf(component_requirements))
+    );
 
     GglMap component_map = GGL_MAP(
-        { GGL_STR("componentName"), ggl_obj_buf(component_name) },
-        { GGL_STR("versionRequirements"),
-          ggl_obj_map(version_requirements_map) }
+        ggl_kv(GGL_STR("componentName"), ggl_obj_buf(component_name)),
+        ggl_kv(
+            GGL_STR("versionRequirements"),
+            ggl_obj_map(version_requirements_map)
+        )
     );
 
     GglList candidates_list = GGL_LIST(ggl_obj_map(component_map));
 
     GglMap request_body = GGL_MAP(
-        { GGL_STR("componentCandidates"), ggl_obj_list(candidates_list) },
-        { GGL_STR("platform"), ggl_obj_map(platform_info) }
+        ggl_kv(GGL_STR("componentCandidates"), ggl_obj_list(candidates_list)),
+        ggl_kv(GGL_STR("platform"), ggl_obj_map(platform_info))
     );
 
     static uint8_t rcc_buf[4096];
@@ -1300,8 +1311,9 @@ static GglError parse_dataplane_response_and_save_recipe(
 
         ret = ggl_gg_config_write(
             GGL_BUF_LIST(GGL_STR("services"), cloud_component_name, ),
-            ggl_obj_map(GGL_MAP({ GGL_STR("arn"),
-                                  ggl_obj_buf(cloud_component_arn) })),
+            ggl_obj_map(GGL_MAP(
+                ggl_kv(GGL_STR("arn"), ggl_obj_buf(cloud_component_arn))
+            )),
             &(int64_t) { 1 }
         );
         if (ret != GGL_ERR_OK) {
@@ -1331,7 +1343,7 @@ static GglError resolve_dependencies(
 
     // Root components from current deployment
     GGL_MAP_FOREACH(pair, root_components) {
-        if (ggl_obj_type(pair->val) != GGL_TYPE_MAP) {
+        if (ggl_obj_type(*ggl_kv_val(pair)) != GGL_TYPE_MAP) {
             GGL_LOGE("Incorrect formatting for deployment components field.");
             return GGL_ERR_INVALID;
         }
@@ -1339,7 +1351,7 @@ static GglError resolve_dependencies(
         GglObject *val;
         GglBuffer component_version = { 0 };
         if (ggl_map_get(
-                ggl_obj_into_map(pair->val), GGL_STR("version"), &val
+                ggl_obj_into_map(*ggl_kv_val(pair)), GGL_STR("version"), &val
             )) {
             if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
                 GGL_LOGE("Received invalid argument.");
@@ -1348,7 +1360,9 @@ static GglError resolve_dependencies(
             component_version = ggl_obj_into_buf(*val);
         }
 
-        if (ggl_buffer_eq(pair->key, GGL_STR("aws.greengrass.NucleusLite"))) {
+        if (ggl_buffer_eq(
+                ggl_kv_key(*pair), GGL_STR("aws.greengrass.NucleusLite")
+            )) {
             GglBuffer software_version = GGL_STR(GGL_VERSION);
             if (!ggl_buffer_eq(component_version, software_version)) {
                 GGL_LOGE(
@@ -1368,7 +1382,7 @@ static GglError resolve_dependencies(
 
         ret = ggl_kv_vec_push(
             &components_to_resolve,
-            (GglKV) { pair->key, ggl_obj_buf(component_version) }
+            ggl_kv(ggl_kv_key(*pair), ggl_obj_buf(component_version))
         );
         if (ret != GGL_ERR_OK) {
             return ret;
@@ -1516,7 +1530,7 @@ static GglError resolve_dependencies(
                     ggl_obj_into_map(group_root_components_read_value)
                 ) {
                     GglBuffer root_component_val
-                        = ggl_obj_into_buf(root_component_pair->val);
+                        = ggl_obj_into_buf(*ggl_kv_val(root_component_pair));
 
                     // If component is already in the root component list, it
                     // must be the same version as the one already in the list
@@ -1525,7 +1539,7 @@ static GglError resolve_dependencies(
                     ret = ggl_map_validate(
                         components_to_resolve.map,
                         GGL_MAP_SCHEMA(
-                            { root_component_pair->key,
+                            { ggl_kv_key(*root_component_pair),
                               GGL_OPTIONAL,
                               GGL_TYPE_BUF,
                               &existing_root_component_version_obj },
@@ -1544,7 +1558,8 @@ static GglError resolve_dependencies(
                             );
                         if (ggl_buffer_eq(
                                 existing_root_component_version,
-                                ggl_obj_into_buf(root_component_pair->val)
+                                ggl_obj_into_buf(*ggl_kv_val(root_component_pair
+                                ))
                             )) {
                             need_to_add_root_component = false;
                         } else {
@@ -1554,8 +1569,8 @@ static GglError resolve_dependencies(
                                 "versions %.*s and %.*s. Please check that "
                                 "this root component does not have conflicting "
                                 "versions across your deployments.",
-                                (int) root_component_pair->key.len,
-                                root_component_pair->key.data,
+                                (int) ggl_kv_key(*root_component_pair).len,
+                                ggl_kv_key(*root_component_pair).data,
                                 (int) root_component_val.len,
                                 root_component_val.data,
                                 (int) existing_root_component_version.len,
@@ -1567,7 +1582,7 @@ static GglError resolve_dependencies(
 
                     if (need_to_add_root_component) {
                         GglBuffer root_component_name_buf
-                            = root_component_pair->key;
+                            = ggl_kv_key(*root_component_pair);
                         ret = ggl_arena_claim_buf(
                             &root_component_name_buf, alloc
                         );
@@ -1587,8 +1602,10 @@ static GglError resolve_dependencies(
 
                         ret = ggl_kv_vec_push(
                             &components_to_resolve,
-                            (GglKV) { root_component_name_buf,
-                                      ggl_obj_buf(root_component_version_buf) }
+                            ggl_kv(
+                                root_component_name_buf,
+                                ggl_obj_buf(root_component_version_buf)
+                            )
                         );
                         GGL_LOGD(
                             "Added %.*s to the list of root components to "
@@ -1635,7 +1652,7 @@ static GglError resolve_dependencies(
                 ggl_obj_into_map(local_components_read_value)
             ) {
                 GglBuffer root_component_val
-                    = ggl_obj_into_buf(root_component_pair->val);
+                    = ggl_obj_into_buf(*ggl_kv_val(root_component_pair));
 
                 // If component is already in the root component list, it
                 // must be the same version as the one already in the list
@@ -1644,7 +1661,7 @@ static GglError resolve_dependencies(
                 ret = ggl_map_validate(
                     components_to_resolve.map,
                     GGL_MAP_SCHEMA(
-                        { root_component_pair->key,
+                        { ggl_kv_key(*root_component_pair),
                           GGL_OPTIONAL,
                           GGL_TYPE_BUF,
                           &existing_root_component_version_obj },
@@ -1669,8 +1686,8 @@ static GglError resolve_dependencies(
                             "There is a version conflict for component %.*s, "
                             "where it is already locally deployed as version "
                             "%.*s and the deployment requests version %.*s.",
-                            (int) root_component_pair->key.len,
-                            root_component_pair->key.data,
+                            (int) ggl_kv_key(*root_component_pair).len,
+                            ggl_kv_key(*root_component_pair).data,
                             (int) root_component_val.len,
                             root_component_val.data,
                             (int) existing_root_component_version.len,
@@ -1682,7 +1699,7 @@ static GglError resolve_dependencies(
 
                 if (need_to_add_root_component) {
                     GglBuffer root_component_name_buf
-                        = root_component_pair->key;
+                        = ggl_kv_key(*root_component_pair);
                     ret = ggl_arena_claim_buf(&root_component_name_buf, alloc);
                     if (ret != GGL_ERR_OK) {
                         return ret;
@@ -1698,8 +1715,10 @@ static GglError resolve_dependencies(
 
                     ret = ggl_kv_vec_push(
                         &components_to_resolve,
-                        (GglKV) { root_component_name_buf,
-                                  ggl_obj_buf(root_component_version_buf) }
+                        ggl_kv(
+                            root_component_name_buf,
+                            ggl_obj_buf(root_component_version_buf)
+                        )
                     );
                     GGL_LOGD(
                         "Added %.*s to the list of root components to resolve "
@@ -1713,14 +1732,15 @@ static GglError resolve_dependencies(
     }
 
     GGL_MAP_FOREACH(pair, components_to_resolve.map) {
-        GglBuffer pair_val = ggl_obj_into_buf(pair->val);
+        GglBuffer pair_val = ggl_obj_into_buf(*ggl_kv_val(pair));
 
         // We assume that we have not resolved a component yet if we are finding
         // it in this map.
         uint8_t resolved_version_arr[NAME_MAX];
         GglBuffer resolved_version = GGL_BUF(resolved_version_arr);
-        bool found_local_candidate
-            = resolve_component_version(pair->key, pair_val, &resolved_version);
+        bool found_local_candidate = resolve_component_version(
+            ggl_kv_key(*pair), pair_val, &resolved_version
+        );
 
         if (!found_local_candidate) {
             // Resolve with cloud and download recipe
@@ -1730,7 +1750,9 @@ static GglError resolve_dependencies(
                 = GGL_BUF(resolve_component_candidates_response_buf);
 
             ret = resolve_component_with_cloud(
-                pair->key, pair_val, &resolve_component_candidates_response
+                ggl_kv_key(*pair),
+                pair_val,
+                &resolve_component_candidates_response
             );
             if (ret != GGL_ERR_OK) {
                 return ret;
@@ -1743,7 +1765,7 @@ static GglError resolve_dependencies(
             if (is_empty_response) {
                 GGL_LOGI(
                     "Cloud version resolution failed for component %.*s.",
-                    (int) pair->key.len,
+                    (int) ggl_kv_key(*pair).len,
                     pair_val.data
                 );
                 return GGL_ERR_FAILURE;
@@ -1765,7 +1787,7 @@ static GglError resolve_dependencies(
 
         ret = ggl_kv_vec_push(
             resolved_components_kv_vec,
-            (GglKV) { pair->key, ggl_obj_buf(resolved_version) }
+            ggl_kv(ggl_kv_key(*pair), ggl_obj_buf(resolved_version))
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
@@ -1785,7 +1807,7 @@ static GglError resolve_dependencies(
         GglArena recipe_alloc = ggl_arena_init(GGL_BUF(recipe_mem));
         ret = ggl_recipe_get_from_file(
             args->root_path_fd,
-            pair->key,
+            ggl_kv_key(*pair),
             resolved_version,
             &recipe_alloc,
             &recipe_obj
@@ -1816,7 +1838,7 @@ static GglError resolve_dependencies(
             GGL_MAP_FOREACH(
                 dependency, ggl_obj_into_map(*component_dependencies)
             ) {
-                if (ggl_obj_type(dependency->val) != GGL_TYPE_MAP) {
+                if (ggl_obj_type(*ggl_kv_val(dependency)) != GGL_TYPE_MAP) {
                     GGL_LOGE(
                         "Component dependency in recipe does not have map data"
                     );
@@ -1827,23 +1849,24 @@ static GglError resolve_dependencies(
                 // aws.greengrass.TokenExchangeService ignore it and never add
                 // it as a dependency to check or parse.
                 if (ggl_buffer_eq(
-                        dependency->key, GGL_STR("aws.greengrass.Nucleus")
+                        ggl_kv_key(*dependency),
+                        GGL_STR("aws.greengrass.Nucleus")
                     )
                     || ggl_buffer_eq(
-                        dependency->key,
+                        ggl_kv_key(*dependency),
                         GGL_STR("aws.greengrass.TokenExchangeService")
                     )) {
                     GGL_LOGD(
                         "Skipping a dependency during resolution as it is %.*s",
-                        (int) dependency->key.len,
-                        dependency->key.data
+                        (int) ggl_kv_key(*dependency).len,
+                        ggl_kv_key(*dependency).data
                     );
                     continue;
                 }
 
                 GglObject *dep_version_requirement_obj = NULL;
                 ret = ggl_map_validate(
-                    ggl_obj_into_map(dependency->val),
+                    ggl_obj_into_map(*ggl_kv_val(dependency)),
                     GGL_MAP_SCHEMA(
                         { GGL_STR("VersionRequirement"),
                           GGL_REQUIRED,
@@ -1863,7 +1886,7 @@ static GglError resolve_dependencies(
                 ret = ggl_map_validate(
                     resolved_components_kv_vec->map,
                     GGL_MAP_SCHEMA(
-                        { dependency->key,
+                        { ggl_kv_key(*dependency),
                           GGL_OPTIONAL,
                           GGL_TYPE_BUF,
                           &already_resolved_version },
@@ -1893,7 +1916,7 @@ static GglError resolve_dependencies(
                     ret = ggl_map_validate(
                         components_to_resolve.map,
                         GGL_MAP_SCHEMA(
-                            { dependency->key,
+                            { ggl_kv_key(*dependency),
                               GGL_OPTIONAL,
                               GGL_TYPE_BUF,
                               &existing_requirements },
@@ -1940,7 +1963,7 @@ static GglError resolve_dependencies(
                     // If we haven't resolved it yet, and it doesn't have an
                     // existing requirement, add it.
                     if (!existing_requirements) {
-                        GglBuffer name_key_buf = dependency->key;
+                        GglBuffer name_key_buf = ggl_kv_key(*dependency);
                         ret = ggl_arena_claim_buf(&name_key_buf, alloc);
                         if (ret != GGL_ERR_OK) {
                             return ret;
@@ -1956,7 +1979,7 @@ static GglError resolve_dependencies(
 
                         ret = ggl_kv_vec_push(
                             &components_to_resolve,
-                            (GglKV) { name_key_buf, ggl_obj_buf(vers_key_buf) }
+                            ggl_kv(name_key_buf, ggl_obj_buf(vers_key_buf))
                         );
                         if (ret != GGL_ERR_OK) {
                             return ret;
@@ -2112,23 +2135,29 @@ static GglError send_fss_update(
 
     // TODO: Fill out statusDetails and unchangedRootComponents
     GglMap status_details_map = GGL_MAP(
-        { GGL_STR("detailedStatus"),
-          ggl_obj_buf(
-              deployment_succeeded ? GGL_STR("SUCCESSFUL")
-                                   : GGL_STR("FAILED_ROLLBACK_NOT_REQUESTED")
-          ) },
+        ggl_kv(
+            GGL_STR("detailedStatus"),
+            ggl_obj_buf(
+                deployment_succeeded ? GGL_STR("SUCCESSFUL")
+                                     : GGL_STR("FAILED_ROLLBACK_NOT_REQUESTED")
+            )
+        ),
     );
 
     GglMap deployment_info = GGL_MAP(
-        { GGL_STR("status"),
-          ggl_obj_buf(
-              deployment_succeeded ? GGL_STR("SUCCEEDED") : GGL_STR("FAILED")
-          ) },
-        { GGL_STR("fleetConfigurationArnForStatus"),
-          ggl_obj_buf(deployment->configuration_arn) },
-        { GGL_STR("deploymentId"), ggl_obj_buf(deployment->deployment_id) },
-        { GGL_STR("statusDetails"), ggl_obj_map(status_details_map) },
-        { GGL_STR("unchangedRootComponents"), ggl_obj_list(GGL_LIST()) },
+        ggl_kv(
+            GGL_STR("status"),
+            ggl_obj_buf(
+                deployment_succeeded ? GGL_STR("SUCCEEDED") : GGL_STR("FAILED")
+            )
+        ),
+        ggl_kv(
+            GGL_STR("fleetConfigurationArnForStatus"),
+            ggl_obj_buf(deployment->configuration_arn)
+        ),
+        ggl_kv(GGL_STR("deploymentId"), ggl_obj_buf(deployment->deployment_id)),
+        ggl_kv(GGL_STR("statusDetails"), ggl_obj_map(status_details_map)),
+        ggl_kv(GGL_STR("unchangedRootComponents"), ggl_obj_list(GGL_LIST())),
     );
 
     uint8_t trigger_buffer[24];
@@ -2141,8 +2170,8 @@ static GglError send_fss_update(
     }
 
     GglMap args = GGL_MAP(
-        { GGL_STR("trigger"), ggl_obj_buf(trigger) },
-        { GGL_STR("deployment_info"), ggl_obj_map(deployment_info) }
+        ggl_kv(GGL_STR("trigger"), ggl_obj_buf(trigger)),
+        ggl_kv(GGL_STR("deployment_info"), ggl_obj_map(deployment_info))
     );
 
     GglArena alloc = ggl_arena_init(GGL_BUF(buffer));
@@ -2245,8 +2274,9 @@ static GglError wait_for_phase_status(
         ret = ggl_sub_response(
             GGL_STR("gg_health"),
             GGL_STR("subscribe_to_lifecycle_completion"),
-            GGL_MAP({ GGL_STR("component_name"),
-                      ggl_obj_buf(full_comp_name_vec.buf) }),
+            GGL_MAP(ggl_kv(
+                GGL_STR("component_name"), ggl_obj_buf(full_comp_name_vec.buf)
+            )),
             deployment_status_callback,
             NULL,
             NULL,
@@ -2272,13 +2302,15 @@ static GglError wait_for_deployment_status(GglMap resolved_components) {
     GGL_MAP_FOREACH(component, resolved_components) {
         GGL_LOGD(
             "Waiting for %.*s to finish",
-            (int) component->key.len,
-            component->key.data
+            (int) ggl_kv_key(*component).len,
+            ggl_kv_key(*component).data
         );
         GglError ret = ggl_sub_response(
             GGL_STR("gg_health"),
             GGL_STR("subscribe_to_lifecycle_completion"),
-            GGL_MAP({ GGL_STR("component_name"), ggl_obj_buf(component->key) }),
+            GGL_MAP(ggl_kv(
+                GGL_STR("component_name"), ggl_obj_buf(ggl_kv_key(*component))
+            )),
             deployment_status_callback,
             NULL,
             NULL,
@@ -2287,8 +2319,8 @@ static GglError wait_for_deployment_status(GglMap resolved_components) {
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed waiting for %.*s",
-                (int) component->key.len,
-                component->key.data
+                (int) ggl_kv_key(*component).len,
+                ggl_kv_key(*component).data
             );
             return GGL_ERR_FAILURE;
         }
@@ -2392,7 +2424,7 @@ static void handle_deployment(
     GglKVVec components_to_deploy = GGL_KV_VEC((GglKV[64]) { 0 });
 
     GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
-        GglBuffer pair_val = ggl_obj_into_buf(pair->val);
+        GglBuffer pair_val = ggl_obj_into_buf(*ggl_kv_val(pair));
 
         // check config to see if component has completed processing
         GglArena resp_alloc = ggl_arena_init(GGL_BUF((uint8_t[128]) { 0 }));
@@ -2404,7 +2436,7 @@ static void handle_deployment(
                 GGL_STR("DeploymentService"),
                 GGL_STR("deploymentState"),
                 GGL_STR("components"),
-                pair->key
+                ggl_kv_key(*pair)
             ),
             &resp_alloc,
             &resp
@@ -2413,31 +2445,32 @@ static void handle_deployment(
             GGL_LOGD(
                 "Component %.*s completed processing in previous run. Will not "
                 "be reprocessed.",
-                (int) pair->key.len,
-                pair->key.data
+                (int) ggl_kv_key(*pair).len,
+                ggl_kv_key(*pair).data
             );
             continue;
         }
 
         // check config to see if bootstrap steps have already been run for this
         // component
-        if (component_bootstrap_phase_completed(pair->key)) {
+        if (component_bootstrap_phase_completed(ggl_kv_key(*pair))) {
             GGL_LOGD(
                 "Bootstrap component %.*s encountered. Bootstrap phase has "
                 "already been completed. Adding to list of components to "
                 "process to complete any other lifecycle stages.",
-                (int) pair->key.len,
-                pair->key.data
+                (int) ggl_kv_key(*pair).len,
+                ggl_kv_key(*pair).data
             );
             ret = ggl_kv_vec_push(
-                &components_to_deploy, (GglKV) { pair->key, pair->val }
+                &components_to_deploy,
+                ggl_kv(ggl_kv_key(*pair), *ggl_kv_val(pair))
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
                     "Failed to add component info for %.*s to deployment "
                     "vector.",
-                    (int) pair->key.len,
-                    pair->key.data
+                    (int) ggl_kv_key(*pair).len,
+                    ggl_kv_key(*pair).data
                 );
                 return;
             }
@@ -2446,7 +2479,10 @@ static void handle_deployment(
 
         int component_artifacts_fd = -1;
         ret = open_component_artifacts_dir(
-            artifact_store_fd, pair->key, pair_val, &component_artifacts_fd
+            artifact_store_fd,
+            ggl_kv_key(*pair),
+            pair_val,
+            &component_artifacts_fd
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to open artifact directory.");
@@ -2454,7 +2490,10 @@ static void handle_deployment(
         }
         int component_archive_dir_fd = -1;
         ret = open_component_artifacts_dir(
-            artifact_archive_fd, pair->key, pair_val, &component_archive_dir_fd
+            artifact_archive_fd,
+            ggl_kv_key(*pair),
+            pair_val,
+            &component_archive_dir_fd
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to open unarchived artifacts directory.");
@@ -2464,7 +2503,7 @@ static void handle_deployment(
         static uint8_t recipe_mem[MAX_RECIPE_MEM] = { 0 };
         GglArena alloc = ggl_arena_init(GGL_BUF(recipe_mem));
         ret = ggl_recipe_get_from_file(
-            args->root_path_fd, pair->key, pair_val, &alloc, &recipe_obj
+            args->root_path_fd, ggl_kv_key(*pair), pair_val, &alloc, &recipe_obj
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to validate and decode recipe");
@@ -2475,7 +2514,9 @@ static void handle_deployment(
         alloc = ggl_arena_init(GGL_BUF(component_arn_buffer));
         GglBuffer component_arn;
         GglError arn_ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("arn")),
+            GGL_BUF_LIST(
+                GGL_STR("services"), ggl_kv_key(*pair), GGL_STR("arn")
+            ),
             &alloc,
             &component_arn
         );
@@ -2508,7 +2549,9 @@ static void handle_deployment(
         alloc = ggl_arena_init(GGL_BUF(old_component_version_mem));
         GglBuffer old_component_version;
         ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("version")),
+            GGL_BUF_LIST(
+                GGL_STR("services"), ggl_kv_key(*pair), GGL_STR("version")
+            ),
             &alloc,
             &old_component_version
         );
@@ -2519,45 +2562,51 @@ static void handle_deployment(
             if (ggl_buffer_eq(pair_val, old_component_version)) {
                 GGL_LOGD(
                     "Detected that component %.*s has not changed version.",
-                    (int) pair->key.len,
-                    pair->key.data
+                    (int) ggl_kv_key(*pair).len,
+                    ggl_kv_key(*pair).data
                 );
                 component_updated = false;
             }
         }
 
         ret = ggl_gg_config_write(
-            GGL_BUF_LIST(GGL_STR("services"), pair->key, GGL_STR("version")),
-            pair->val,
+            GGL_BUF_LIST(
+                GGL_STR("services"), ggl_kv_key(*pair), GGL_STR("version")
+            ),
+            *ggl_kv_val(pair),
             &(int64_t) { 0 }
         );
 
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to write version of %.*s to ggconfigd.",
-                (int) pair->key.len,
-                pair->key.data
+                (int) ggl_kv_key(*pair).len,
+                ggl_kv_key(*pair).data
             );
             return;
         }
 
-        ret = add_arn_list_to_config(pair->key, deployment->configuration_arn);
+        ret = add_arn_list_to_config(
+            ggl_kv_key(*pair), deployment->configuration_arn
+        );
 
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to write configuration arn of %.*s to ggconfigd.",
-                (int) pair->key.len,
-                pair->key.data
+                (int) ggl_kv_key(*pair).len,
+                ggl_kv_key(*pair).data
             );
             return;
         }
 
-        ret = apply_configurations(deployment, pair->key, GGL_STR("reset"));
+        ret = apply_configurations(
+            deployment, ggl_kv_key(*pair), GGL_STR("reset")
+        );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to apply reset configuration update for %.*s.",
-                (int) pair->key.len,
-                pair->key.data
+                (int) ggl_kv_key(*pair).len,
+                ggl_kv_key(*pair).data
             );
             return;
         }
@@ -2582,7 +2631,9 @@ static void handle_deployment(
                 )) {
                 ret = ggl_gg_config_write(
                     GGL_BUF_LIST(
-                        GGL_STR("services"), pair->key, GGL_STR("configuration")
+                        GGL_STR("services"),
+                        ggl_kv_key(*pair),
+                        GGL_STR("configuration")
                     ),
                     *default_config_obj,
                     &(int64_t) { 0 }
@@ -2595,24 +2646,26 @@ static void handle_deployment(
             } else {
                 GGL_LOGI(
                     "DefaultConfiguration not found in the recipe of %.*s.",
-                    (int) pair->key.len,
-                    pair->key.data
+                    (int) ggl_kv_key(*pair).len,
+                    ggl_kv_key(*pair).data
                 );
             }
         } else {
             GGL_LOGI(
                 "ComponentConfiguration not found in the recipe of %.*s.",
-                (int) pair->key.len,
-                pair->key.data
+                (int) ggl_kv_key(*pair).len,
+                ggl_kv_key(*pair).data
             );
         }
 
-        ret = apply_configurations(deployment, pair->key, GGL_STR("merge"));
+        ret = apply_configurations(
+            deployment, ggl_kv_key(*pair), GGL_STR("merge")
+        );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE(
                 "Failed to apply merge configuration update for %.*s.",
-                (int) pair->key.len,
-                pair->key.data
+                (int) ggl_kv_key(*pair).len,
+                ggl_kv_key(*pair).data
             );
             return;
         }
@@ -2675,7 +2728,7 @@ static void handle_deployment(
         recipe2unit_args.user = posix_user;
         recipe2unit_args.group = group;
 
-        recipe2unit_args.component_name = pair->key;
+        recipe2unit_args.component_name = ggl_kv_key(*pair);
         recipe2unit_args.component_version = pair_val;
 
         memcpy(
@@ -2706,7 +2759,9 @@ static void handle_deployment(
             return;
         }
 
-        if (!ggl_buffer_eq(ggl_obj_into_buf(*component_name), pair->key)) {
+        if (!ggl_buffer_eq(
+                ggl_obj_into_buf(*component_name), ggl_kv_key(*pair)
+            )) {
             GGL_LOGE("Component name from recipe does not match component name "
                      "from recipe file.");
             return;
@@ -2714,21 +2769,22 @@ static void handle_deployment(
 
         if (component_updated) {
             ret = ggl_kv_vec_push(
-                &components_to_deploy, (GglKV) { pair->key, pair->val }
+                &components_to_deploy,
+                ggl_kv(ggl_kv_key(*pair), *ggl_kv_val(pair))
             );
             if (ret != GGL_ERR_OK) {
                 GGL_LOGE(
                     "Failed to add component info for %.*s to deployment "
                     "vector.",
-                    (int) pair->key.len,
-                    pair->key.data
+                    (int) ggl_kv_key(*pair).len,
+                    ggl_kv_key(*pair).data
                 );
                 return;
             }
             GGL_LOGD(
                 "Added %.*s to list of components that need to be processed.",
-                (int) pair->key.len,
-                pair->key.data
+                (int) ggl_kv_key(*pair).len,
+                ggl_kv_key(*pair).data
             );
         } else {
             // component already exists, check its lifecycle state
@@ -2736,33 +2792,34 @@ static void handle_deployment(
                 = ggl_arena_init(GGL_BUF((uint8_t[NAME_MAX]) { 0 }));
             GglBuffer component_status;
             ret = ggl_gghealthd_retrieve_component_status(
-                pair->key, &component_status_alloc, &component_status
+                ggl_kv_key(*pair), &component_status_alloc, &component_status
             );
 
             if (ret != GGL_ERR_OK) {
                 GGL_LOGD(
                     "Failed to retrieve health status for %.*s. Redeploying "
                     "component.",
-                    (int) pair->key.len,
-                    pair->key.data
+                    (int) ggl_kv_key(*pair).len,
+                    ggl_kv_key(*pair).data
                 );
                 ret = ggl_kv_vec_push(
-                    &components_to_deploy, (GglKV) { pair->key, pair->val }
+                    &components_to_deploy,
+                    ggl_kv(ggl_kv_key(*pair), *ggl_kv_val(pair))
                 );
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE(
                         "Failed to add component info for %.*s to deployment "
                         "vector.",
-                        (int) pair->key.len,
-                        pair->key.data
+                        (int) ggl_kv_key(*pair).len,
+                        ggl_kv_key(*pair).data
                     );
                     return;
                 }
                 GGL_LOGD(
                     "Added %.*s to list of components that need to be "
                     "processed.",
-                    (int) pair->key.len,
-                    pair->key.data
+                    (int) ggl_kv_key(*pair).len,
+                    ggl_kv_key(*pair).data
                 );
             }
 
@@ -2771,34 +2828,35 @@ static void handle_deployment(
                 || ggl_buffer_eq(component_status, GGL_STR("FINISHED"))) {
                 GGL_LOGD(
                     "Component %.*s is already running. Will not redeploy.",
-                    (int) pair->key.len,
-                    pair->key.data
+                    (int) ggl_kv_key(*pair).len,
+                    ggl_kv_key(*pair).data
                 );
                 // save as a deployed component in case of bootstrap
                 ret = save_component_info(
-                    pair->key, pair_val, GGL_STR("completed")
+                    ggl_kv_key(*pair), pair_val, GGL_STR("completed")
                 );
                 if (ret != GGL_ERR_OK) {
                     return;
                 }
             } else {
                 ret = ggl_kv_vec_push(
-                    &components_to_deploy, (GglKV) { pair->key, pair->val }
+                    &components_to_deploy,
+                    ggl_kv(ggl_kv_key(*pair), *ggl_kv_val(pair))
                 );
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE(
                         "Failed to add component info for %.*s to deployment "
                         "vector.",
-                        (int) pair->key.len,
-                        pair->key.data
+                        (int) ggl_kv_key(*pair).len,
+                        ggl_kv_key(*pair).data
                     );
                     return;
                 }
                 GGL_LOGD(
                     "Added %.*s to list of components that need to be "
                     "processed.",
-                    (int) pair->key.len,
-                    pair->key.data
+                    (int) ggl_kv_key(*pair).len,
+                    ggl_kv_key(*pair).data
                 );
             }
         }
@@ -2839,7 +2897,7 @@ static void handle_deployment(
 
         // process all install files
         GGL_MAP_FOREACH(component, components_to_deploy.map) {
-            GglBuffer component_name = component->key;
+            GglBuffer component_name = ggl_kv_key(*component);
 
             static uint8_t install_service_file_path_buf[PATH_MAX];
             GglByteVec install_service_file_path_vec
@@ -3010,8 +3068,9 @@ static void handle_deployment(
 
         // process all run or startup files after install only
         GGL_MAP_FOREACH(component, components_to_deploy.map) {
-            GglBuffer component_name = component->key;
-            GglBuffer component_version = ggl_obj_into_buf(component->val);
+            GglBuffer component_name = ggl_kv_key(*component);
+            GglBuffer component_version
+                = ggl_obj_into_buf(*ggl_kv_val(component));
 
             static uint8_t service_file_path_buf[PATH_MAX];
             GglByteVec service_file_path_vec

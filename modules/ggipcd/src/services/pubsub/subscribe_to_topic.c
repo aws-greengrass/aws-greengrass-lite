@@ -66,14 +66,16 @@ static GglError subscribe_to_topic_callback(
     }
 
     GglObject inner = ggl_obj_map(GGL_MAP(
-        { GGL_STR("message"), *message_obj },
-        { GGL_STR("context"),
-          ggl_obj_map(GGL_MAP({ GGL_STR("topic"), *topic_obj })) }
+        ggl_kv(GGL_STR("message"), *message_obj),
+        ggl_kv(
+            GGL_STR("context"),
+            ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("topic"), *topic_obj)))
+        )
     ));
 
-    GglObject response = ggl_obj_map(GGL_MAP(
-        { is_json ? GGL_STR("jsonMessage") : GGL_STR("binaryMessage"), inner }
-    ));
+    GglObject response = ggl_obj_map(GGL_MAP(ggl_kv(
+        is_json ? GGL_STR("jsonMessage") : GGL_STR("binaryMessage"), inner
+    )));
 
     ret = ggl_ipc_response_send(
         resp_handle,
@@ -124,7 +126,7 @@ GglError ggl_handle_subscribe_to_topic(
         return GGL_ERR_INVALID;
     }
 
-    GglMap call_args = GGL_MAP({ GGL_STR("topic_filter"), *topic_obj });
+    GglMap call_args = GGL_MAP(ggl_kv(GGL_STR("topic_filter"), *topic_obj));
 
     ret = ggl_ipc_bind_subscription(
         handle,

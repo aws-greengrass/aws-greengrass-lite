@@ -171,15 +171,23 @@ GglError save_deployment_info(GglDeployment *deployment) {
              "state to config.");
 
     GglObject deployment_doc = ggl_obj_map(GGL_MAP(
-        { GGL_STR("deployment_id"), ggl_obj_buf(deployment->deployment_id) },
-        { GGL_STR("recipe_directory_path"),
-          ggl_obj_buf(deployment->recipe_directory_path) },
-        { GGL_STR("artifacts_directory_path"),
-          ggl_obj_buf(deployment->artifacts_directory_path) },
-        { GGL_STR("configuration_arn"),
-          ggl_obj_buf(deployment->configuration_arn) },
-        { GGL_STR("thing_group"), ggl_obj_buf(deployment->thing_group) },
-        { GGL_STR("components"), ggl_obj_map(deployment->components) }
+        ggl_kv(
+            GGL_STR("deployment_id"), ggl_obj_buf(deployment->deployment_id)
+        ),
+        ggl_kv(
+            GGL_STR("recipe_directory_path"),
+            ggl_obj_buf(deployment->recipe_directory_path)
+        ),
+        ggl_kv(
+            GGL_STR("artifacts_directory_path"),
+            ggl_obj_buf(deployment->artifacts_directory_path)
+        ),
+        ggl_kv(
+            GGL_STR("configuration_arn"),
+            ggl_obj_buf(deployment->configuration_arn)
+        ),
+        ggl_kv(GGL_STR("thing_group"), ggl_obj_buf(deployment->thing_group)),
+        ggl_kv(GGL_STR("components"), ggl_obj_map(deployment->components))
     ));
 
     GglError ret = ggl_gg_config_write(
@@ -436,7 +444,7 @@ GglError process_bootstrap_phase(
 ) {
     int bootstrap_component_count = 0;
     GGL_MAP_FOREACH(component, components) {
-        GglBuffer component_name = component->key;
+        GglBuffer component_name = ggl_kv_key(*component);
 
         // check config to see if component bootstrap steps have already been
         // completed
@@ -585,7 +593,7 @@ GglError process_bootstrap_phase(
                 // save component to config to avoid rerunning bootstrap steps
                 ret = save_component_info(
                     component_name,
-                    ggl_obj_into_buf(component->val),
+                    ggl_obj_into_buf(*ggl_kv_val(component)),
                     GGL_STR("bootstrap")
                 );
                 if (ret != GGL_ERR_OK) {

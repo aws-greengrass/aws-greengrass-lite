@@ -15,6 +15,7 @@
 #include <ggl/error.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/version.h>
 #include <string.h>
@@ -93,7 +94,7 @@ static void request_handler(struct evhttp_request *req, void *arg) {
         = { .data = (uint8_t *) auth_header, .len = auth_header_len };
 
     GglMap svcuid_map
-        = GGL_MAP({ GGL_STR("svcuid"), ggl_obj_buf(auth_header_buf) }, );
+        = GGL_MAP(ggl_kv(GGL_STR("svcuid"), ggl_obj_buf(auth_header_buf)));
 
     GglObject result_obj;
     GglError res = ggl_call(

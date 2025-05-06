@@ -14,6 +14,7 @@
 #include <ggl/json_encode.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
@@ -189,11 +190,11 @@ GglError publish_fleet_status_update(
         // building component info to be in line with the cloud's expected pojo
         // format
         GglMap component_info = GGL_MAP(
-            { GGL_STR("componentName"), ggl_obj_buf(component) },
-            { GGL_STR("version"), ggl_obj_buf(version_resp) },
-            { GGL_STR("fleetConfigArns"), arn_list },
-            { GGL_STR("isRoot"), ggl_obj_bool(true) },
-            { GGL_STR("status"), ggl_obj_buf(component_health) }
+            ggl_kv(GGL_STR("componentName"), ggl_obj_buf(component)),
+            ggl_kv(GGL_STR("version"), ggl_obj_buf(version_resp)),
+            ggl_kv(GGL_STR("fleetConfigArns"), arn_list),
+            ggl_kv(GGL_STR("isRoot"), ggl_obj_bool(true)),
+            ggl_kv(GGL_STR("status"), ggl_obj_buf(component_health))
         );
 
         memcpy(
@@ -274,18 +275,20 @@ GglError publish_fleet_status_update(
     }
 
     GglObject payload_obj = ggl_obj_map(GGL_MAP(
-        { GGL_STR("ggcVersion"), ggl_obj_buf(GGL_STR(GGL_VERSION)) },
-        { GGL_STR("platform"), ggl_obj_buf(GGL_STR("linux")) },
-        { GGL_STR("architecture"), ggl_obj_buf(ARCHITECTURE) },
-        { GGL_STR("runtime"), ggl_obj_buf(GGL_STR("aws_nucleus_lite")) },
-        { GGL_STR("thing"), ggl_obj_buf(thing_name) },
-        { GGL_STR("sequenceNumber"), ggl_obj_i64(sequence) },
-        { GGL_STR("timestamp"), ggl_obj_i64(timestamp) },
-        { GGL_STR("messageType"), ggl_obj_buf(GGL_STR("COMPLETE")) },
-        { GGL_STR("trigger"), ggl_obj_buf(trigger) },
-        { GGL_STR("overallDeviceStatus"), ggl_obj_buf(overall_device_status) },
-        { GGL_STR("components"), ggl_obj_list(component_statuses.list) },
-        { GGL_STR("deploymentInformation"), ggl_obj_map(deployment_info) }
+        ggl_kv(GGL_STR("ggcVersion"), ggl_obj_buf(GGL_STR(GGL_VERSION))),
+        ggl_kv(GGL_STR("platform"), ggl_obj_buf(GGL_STR("linux"))),
+        ggl_kv(GGL_STR("architecture"), ggl_obj_buf(ARCHITECTURE)),
+        ggl_kv(GGL_STR("runtime"), ggl_obj_buf(GGL_STR("aws_nucleus_lite"))),
+        ggl_kv(GGL_STR("thing"), ggl_obj_buf(thing_name)),
+        ggl_kv(GGL_STR("sequenceNumber"), ggl_obj_i64(sequence)),
+        ggl_kv(GGL_STR("timestamp"), ggl_obj_i64(timestamp)),
+        ggl_kv(GGL_STR("messageType"), ggl_obj_buf(GGL_STR("COMPLETE"))),
+        ggl_kv(GGL_STR("trigger"), ggl_obj_buf(trigger)),
+        ggl_kv(
+            GGL_STR("overallDeviceStatus"), ggl_obj_buf(overall_device_status)
+        ),
+        ggl_kv(GGL_STR("components"), ggl_obj_list(component_statuses.list)),
+        ggl_kv(GGL_STR("deploymentInformation"), ggl_obj_map(deployment_info))
     ));
 
     // build payload

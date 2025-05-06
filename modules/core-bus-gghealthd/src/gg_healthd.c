@@ -23,7 +23,7 @@ GglError ggl_gghealthd_retrieve_component_status(
     GglError ret = ggl_call(
         GGL_STR("gg_health"),
         GGL_STR("get_status"),
-        GGL_MAP({ GGL_STR("component_name"), ggl_obj_buf(component) }),
+        GGL_MAP(ggl_kv(GGL_STR("component_name"), ggl_obj_buf(component))),
         &method_error,
         &resp_alloc,
         &result

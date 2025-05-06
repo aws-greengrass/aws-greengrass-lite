@@ -73,14 +73,14 @@ GglError gghealthd_get_status(GglBuffer component_name, GglBuffer *status) {
 
 GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
     const GglMap STATUS_MAP = GGL_MAP(
-        { GGL_STR("NEW"), GGL_OBJ_NULL },
-        { GGL_STR("INSTALLED"), GGL_OBJ_NULL },
-        { GGL_STR("STARTING"), ggl_obj_buf(GGL_STR("--reloading")) },
-        { GGL_STR("RUNNING"), ggl_obj_buf(GGL_STR("--ready")) },
-        { GGL_STR("ERRORED"), GGL_OBJ_NULL },
-        { GGL_STR("BROKEN"), GGL_OBJ_NULL },
-        { GGL_STR("STOPPING"), ggl_obj_buf(GGL_STR("--stopping")) },
-        { GGL_STR("FINISHED"), GGL_OBJ_NULL }
+        ggl_kv(GGL_STR("NEW"), GGL_OBJ_NULL),
+        ggl_kv(GGL_STR("INSTALLED"), GGL_OBJ_NULL),
+        ggl_kv(GGL_STR("STARTING"), ggl_obj_buf(GGL_STR("--reloading"))),
+        ggl_kv(GGL_STR("RUNNING"), ggl_obj_buf(GGL_STR("--ready"))),
+        ggl_kv(GGL_STR("ERRORED"), GGL_OBJ_NULL),
+        ggl_kv(GGL_STR("BROKEN"), GGL_OBJ_NULL),
+        ggl_kv(GGL_STR("STOPPING"), ggl_obj_buf(GGL_STR("--stopping"))),
+        ggl_kv(GGL_STR("FINISHED"), GGL_OBJ_NULL)
     );
 
     GglObject *status_obj = NULL;

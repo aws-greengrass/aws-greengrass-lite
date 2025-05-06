@@ -5,6 +5,7 @@
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <inttypes.h>
 #include <string.h>
@@ -45,9 +46,9 @@ static void test_insert(
     GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
 
     GglMap params = GGL_MAP(
-        { GGL_STR("key_path"), ggl_obj_list(test_key) },
-        { GGL_STR("value"), test_value },
-        { GGL_STR("timestamp"), ggl_obj_i64(timestamp) }
+        ggl_kv(GGL_STR("key_path"), ggl_obj_list(test_key)),
+        ggl_kv(GGL_STR("value"), test_value),
+        ggl_kv(GGL_STR("timestamp"), ggl_obj_i64(timestamp))
     );
     if (timestamp < 0) {
         params.len -= 1;
@@ -120,20 +121,21 @@ static void compare_maps(GglMap expected, GglMap result) {
         );
         return;
     }
-    for (size_t i = 0; i < expected.len; i++) {
-        GglBuffer expected_key = expected.pairs[i].key;
-        GglObject expected_val = expected.pairs[i].val;
+    GGL_MAP_FOREACH(expected_pair, expected) {
+        GglBuffer expected_key = ggl_kv_key(*expected_pair);
+        GglObject expected_val = *ggl_kv_val(expected_pair);
         bool found = false;
-        for (size_t j = 0; j < result.len; j++) {
-            if (strncmp(
-                    (const char *) expected_key.data,
-                    (const char *) result.pairs[j].key.data,
-                    expected_key.len
-                )
-                == 0) {
+        GGL_MAP_FOREACH(result_pair, result) {
+            if (ggl_buffer_eq(expected_key, ggl_kv_key(*result_pair))) {
                 found = true;
-                GglObject result_item = result.pairs[j].val;
-                compare_objects(expected_val, result_item);
+                compare_objects(expected_val, *ggl_kv_val(result_pair));
+                break;
+            }
+        }
+        GGL_MAP_FOREACH(result_pair, result) {
+            if (ggl_buffer_eq(expected_key, ggl_kv_key(*result_pair))) {
+                found = true;
+                compare_objects(expected_val, *ggl_kv_val(result_pair));
                 break;
             }
         }
@@ -249,7 +251,7 @@ static void test_get(
     GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
 
     GglMap params
-        = GGL_MAP({ GGL_STR("key_path"), ggl_obj_list(test_key_path) }, );
+        = GGL_MAP(ggl_kv(GGL_STR("key_path"), ggl_obj_list(test_key_path)));
     GglObject result;
 
     GglError remote_error = GGL_ERR_OK;
@@ -302,7 +304,7 @@ static void test_list(
     GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
 
     GglMap params
-        = GGL_MAP({ GGL_STR("key_path"), ggl_obj_list(test_key_path) }, );
+        = GGL_MAP(ggl_kv(GGL_STR("key_path"), ggl_obj_list(test_key_path)));
     GglObject result;
 
     GglError remote_error = GGL_ERR_OK;
@@ -350,7 +352,8 @@ static void test_delete(GglList key_path, GglError expected_result) {
     );
     GglBuffer server = GGL_STR("gg_config");
 
-    GglMap params = GGL_MAP({ GGL_STR("key_path"), ggl_obj_list(key_path) }, );
+    GglMap params
+        = GGL_MAP(ggl_kv(GGL_STR("key_path"), ggl_obj_list(key_path)));
 
     GglError remote_error = GGL_ERR_OK;
     GglError error = ggl_call(
@@ -414,7 +417,7 @@ static void test_subscribe(GglList key, GglError expected_response) {
     );
     GglBuffer server = GGL_STR("gg_config");
 
-    GglMap params = GGL_MAP({ GGL_STR("key_path"), ggl_obj_list(key) }, );
+    GglMap params = GGL_MAP(ggl_kv(GGL_STR("key_path"), ggl_obj_list(key)));
     uint32_t handle = 0;
     GglError remote_error = GGL_ERR_OK;
     GglError error = ggl_subscribe(
@@ -511,8 +514,8 @@ static void test_write_object(void) {
     }
 
     GglMap params = GGL_MAP(
-        { GGL_STR("key_path"), test_key_path_object },
-        { GGL_STR("value"), test_value_object }
+        ggl_kv(GGL_STR("key_path"), test_key_path_object),
+        ggl_kv(GGL_STR("value"), test_value_object)
     );
     ret = ggl_notify(GGL_STR("gg_config"), GGL_STR("write"), params);
     GGL_LOGI("test complete %d", ret);
@@ -560,16 +563,18 @@ int main(int argc, char **argv) {
     );
 
     GglObject bar = ggl_obj_map(GGL_MAP(
-        { GGL_STR("qux"), ggl_obj_i64(1) },
-        { GGL_STR("baz"),
-          ggl_obj_list(GGL_LIST(
-              ggl_obj_i64(1), ggl_obj_i64(2), ggl_obj_i64(3), ggl_obj_i64(4)
-          )) }
+        ggl_kv(GGL_STR("qux"), ggl_obj_i64(1)),
+        ggl_kv(
+            GGL_STR("baz"),
+            ggl_obj_list(GGL_LIST(
+                ggl_obj_i64(1), ggl_obj_i64(2), ggl_obj_i64(3), ggl_obj_i64(4)
+            ))
+        )
     ));
 
     GglObject foo = ggl_obj_map(GGL_MAP(
-        { GGL_STR("bar"), bar },
-        { GGL_STR("quux"), ggl_obj_buf(GGL_STR("string")) }
+        ggl_kv(GGL_STR("bar"), bar),
+        ggl_kv(GGL_STR("quux"), ggl_obj_buf(GGL_STR("string")))
     ));
 
     test_get(
@@ -577,9 +582,9 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("component")), ggl_obj_buf(GGL_STR("foobar")),
         ),
         ggl_obj_map(GGL_MAP(
-            { GGL_STR("foo"), foo },
-            { GGL_STR("corge"), ggl_obj_bool(true) },
-            { GGL_STR("grault"), ggl_obj_bool(false) },
+            ggl_kv(GGL_STR("foo"), foo),
+            ggl_kv(GGL_STR("corge"), ggl_obj_bool(true)),
+            ggl_kv(GGL_STR("grault"), ggl_obj_bool(false)),
         )),
         GGL_ERR_OK
     );
@@ -591,7 +596,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), ggl_obj_buf(GGL_STR("value1")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("value1"))))
         ),
         -1,
         GGL_ERR_OK
@@ -613,8 +619,9 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("bar")),
             ggl_obj_buf(GGL_STR("key"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("subkey"),
-                              ggl_obj_buf(GGL_STR("value2")) })),
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("subkey"), ggl_obj_buf(GGL_STR("value2"))))
+        ),
         -1,
         GGL_ERR_FAILURE // expect failure because `component/foo/bar/key` is
                         // already a value, so it should not also be a parent of
@@ -656,8 +663,9 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("bar")),
             ggl_obj_buf(GGL_STR("key"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("subkey"),
-                              ggl_obj_buf(GGL_STR("value1")) })),
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("subkey"), ggl_obj_buf(GGL_STR("value1"))))
+        ),
         -1,
         GGL_ERR_OK
     );
@@ -678,7 +686,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), ggl_obj_buf(GGL_STR("value1")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("value1"))))
         ),
         -1,
         GGL_ERR_FAILURE
@@ -690,8 +699,9 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("bar")),
             ggl_obj_buf(GGL_STR("key"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("subkey"),
-                              ggl_obj_buf(GGL_STR("value1")) })),
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("subkey"), ggl_obj_buf(GGL_STR("value1"))))
+        ),
         GGL_ERR_OK
     );
 
@@ -713,8 +723,9 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"),
-                              ggl_obj_buf(GGL_STR("big value")) })),
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("big value"))))
+        ),
         -1,
         GGL_ERR_OK
     );
@@ -736,8 +747,9 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"),
-                              ggl_obj_buf(GGL_STR("the biggest value")) })),
+        ggl_obj_map(GGL_MAP(
+            ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("the biggest value")))
+        )),
         -1,
         GGL_ERR_OK
     );
@@ -750,7 +762,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), ggl_obj_buf(GGL_STR("value1")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("value1"))))
         ),
         -1,
         GGL_ERR_OK
@@ -759,7 +772,8 @@ int main(int argc, char **argv) {
     // Should see `I[subscription callback] (..): read component4/baz`)
     test_insert(
         GGL_LIST(ggl_obj_buf(GGL_STR("component4"))),
-        ggl_obj_map(GGL_MAP({ GGL_STR("baz"), ggl_obj_buf(GGL_STR("value2")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("baz"), ggl_obj_buf(GGL_STR("value2"))))
         ),
         -1,
         GGL_ERR_OK
@@ -771,7 +785,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("baz"), ggl_obj_buf(GGL_STR("value3")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("baz"), ggl_obj_buf(GGL_STR("value3"))))
         ),
         -1,
         GGL_ERR_OK
@@ -785,7 +800,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), ggl_obj_buf(GGL_STR("value1")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("value1"))))
         ),
         1720000000001,
         GGL_ERR_OK
@@ -796,7 +812,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), ggl_obj_buf(GGL_STR("value2")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("value2"))))
         ),
         1720000000000,
         GGL_ERR_OK
@@ -820,7 +837,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), ggl_obj_buf(GGL_STR("value1")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("value1"))))
         ),
         1720000000001,
         GGL_ERR_OK
@@ -831,7 +849,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), ggl_obj_buf(GGL_STR("value2")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("value2"))))
         ),
         1720000000001,
         GGL_ERR_OK
@@ -854,7 +873,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), ggl_obj_buf(GGL_STR("value1")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("value1"))))
         ),
         1720000000001,
         GGL_ERR_OK
@@ -865,7 +885,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), ggl_obj_buf(GGL_STR("value2")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(GGL_STR("value2"))))
         ),
         1720000000002,
         GGL_ERR_OK
@@ -889,7 +910,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key1"), ggl_obj_buf(GGL_STR("value1")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key1"), ggl_obj_buf(GGL_STR("value1"))))
         ),
         1720000000000,
         GGL_ERR_OK
@@ -900,7 +922,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("foo")),
             ggl_obj_buf(GGL_STR("bar"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key2"), ggl_obj_buf(GGL_STR("value2")) })
+        ggl_obj_map(
+            GGL_MAP(ggl_kv(GGL_STR("key2"), ggl_obj_buf(GGL_STR("value2"))))
         ),
         1720000000002,
         GGL_ERR_OK
@@ -912,8 +935,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("bar"))
         ),
         ggl_obj_map(GGL_MAP(
-            { GGL_STR("key1"), ggl_obj_buf(GGL_STR("value3")) },
-            { GGL_STR("key2"), ggl_obj_buf(GGL_STR("value4")) }
+            ggl_kv(GGL_STR("key1"), ggl_obj_buf(GGL_STR("value3"))),
+            ggl_kv(GGL_STR("key2"), ggl_obj_buf(GGL_STR("value4")))
         )),
         1720000000001,
         GGL_ERR_OK
@@ -944,7 +967,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component10")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL })),
+        ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("key"), GGL_OBJ_NULL))),
         -1,
         GGL_ERR_OK
     );
@@ -1097,7 +1120,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component17")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL })),
+        ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("key"), GGL_OBJ_NULL))),
         -1,
         GGL_ERR_OK
     );
@@ -1113,7 +1136,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component17")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL })),
+        ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("key"), GGL_OBJ_NULL))),
         GGL_ERR_OK
     );
 
@@ -1122,7 +1145,7 @@ int main(int argc, char **argv) {
         GGL_LIST(
             ggl_obj_buf(GGL_STR("component18")), ggl_obj_buf(GGL_STR("foo"))
         ),
-        ggl_obj_map(GGL_MAP({ GGL_STR("key"), GGL_OBJ_NULL })),
+        ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("key"), GGL_OBJ_NULL))),
         -1,
         GGL_ERR_OK
     );
@@ -1222,8 +1245,8 @@ int main(int argc, char **argv) {
             ggl_obj_buf(GGL_STR("component21")), ggl_obj_buf(GGL_STR("key2"))
         ),
         ggl_obj_map(GGL_MAP(
-            { GGL_STR("nested_key1"), ggl_obj_buf(GGL_STR("value2")) },
-            { GGL_STR("nested_key2"), ggl_obj_buf(GGL_STR("value3")) }
+            ggl_kv(GGL_STR("nested_key1"), ggl_obj_buf(GGL_STR("value2"))),
+            ggl_kv(GGL_STR("nested_key2"), ggl_obj_buf(GGL_STR("value3")))
         )),
         -1,
         GGL_ERR_OK

@@ -335,8 +335,8 @@ static GglError send_stream_error(
     size_t resp_headers_len = sizeof(resp_headers) / sizeof(resp_headers[0]);
 
     GglObject payload = ggl_obj_map(GGL_MAP(
-        { GGL_STR("_message"), ggl_obj_buf(ipc_error.message) },
-        { GGL_STR("_errorCode"), ggl_obj_buf(error_code) }
+        ggl_kv(GGL_STR("_message"), ggl_obj_buf(ipc_error.message)),
+        ggl_kv(GGL_STR("_errorCode"), ggl_obj_buf(error_code))
     ));
     GglError ret = eventstream_encode(
         &resp_buffer, resp_headers, resp_headers_len, ggl_json_reader(&payload)

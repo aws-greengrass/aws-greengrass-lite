@@ -259,25 +259,25 @@ static GglError process_set_env(
         if (ret != GGL_ERR_OK) {
             return ret;
         }
-        ret = ggl_file_write(out_fd, pair->key);
+        ret = ggl_file_write(out_fd, ggl_kv_key(*pair));
         if (ret != GGL_ERR_OK) {
             return ret;
         }
         GGL_LOGT(
             "Lifecycle Setenv, map key: %.*s",
-            (int) pair->key.len,
-            pair->key.data
+            (int) ggl_kv_key(*pair).len,
+            ggl_kv_key(*pair).data
         );
         ret = ggl_file_write(out_fd, GGL_STR("="));
         if (ret != GGL_ERR_OK) {
             return ret;
         }
 
-        if (ggl_obj_type(pair->val) != GGL_TYPE_BUF) {
+        if (ggl_obj_type(*ggl_kv_val(pair)) != GGL_TYPE_BUF) {
             GGL_LOGW("Invalid lifecycle Setenv, Key values must be String");
             return GGL_ERR_INVALID;
         }
-        GglBuffer val = ggl_obj_into_buf(pair->val);
+        GglBuffer val = ggl_obj_into_buf(*ggl_kv_val(pair));
         GGL_LOGT("Lifecycle Setenv, map value: %.*s", (int) val.len, val.data);
         uint8_t *current_pointer = &val.data[0];
         uint8_t *end_pointer = &val.data[val.len];

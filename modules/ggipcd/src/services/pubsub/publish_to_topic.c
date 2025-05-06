@@ -113,11 +113,13 @@ GglError ggl_handle_publish_to_topic(
     }
 
     GglMap call_args = GGL_MAP(
-        { GGL_STR("topic"), *topic_obj },
-        { GGL_STR("type"),
-          is_json ? ggl_obj_buf(GGL_STR("json"))
-                  : ggl_obj_buf(GGL_STR("base64")) },
-        { GGL_STR("message"), *message },
+        ggl_kv(GGL_STR("topic"), *topic_obj),
+        ggl_kv(
+            GGL_STR("type"),
+            is_json ? ggl_obj_buf(GGL_STR("json"))
+                    : ggl_obj_buf(GGL_STR("base64"))
+        ),
+        ggl_kv(GGL_STR("message"), *message),
     );
 
     ret = ggl_call(

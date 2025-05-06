@@ -26,6 +26,18 @@
 /// If `result` is not NULL it is set to the found value or NULL.
 bool ggl_map_get(GglMap map, GglBuffer key, GglObject **result);
 
+/// Construct a GglKV
+GglKV ggl_kv(GglBuffer key, GglObject val);
+
+/// Get a GglKV's key
+GglBuffer ggl_kv_key(GglKV kv);
+
+/// Set a GglKV's key
+void ggl_kv_set_key(GglKV *kv, GglBuffer key);
+
+/// Get a GglKV's value
+GglObject *ggl_kv_val(GglKV *kv);
+
 typedef struct {
     GglBuffer key;
     GglPresence required;

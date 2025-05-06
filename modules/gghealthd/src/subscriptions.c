@@ -12,6 +12,7 @@
 #include <ggl/error.h>
 #include <ggl/file.h> // IWYU pragma: keep (TODO: remove after file.h refactor)
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/socket_server.h>
@@ -99,8 +100,8 @@ static int properties_changed_handler(
         ggl_sub_respond(
             handle,
             ggl_obj_map(GGL_MAP(
-                { GGL_STR("component_name"), ggl_obj_buf(component_name) },
-                { GGL_STR("lifecycle_state"), ggl_obj_buf(status) }
+                ggl_kv(GGL_STR("component_name"), ggl_obj_buf(component_name)),
+                ggl_kv(GGL_STR("lifecycle_state"), ggl_obj_buf(status))
             ))
         );
     } else {

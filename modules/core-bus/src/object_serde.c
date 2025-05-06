@@ -5,10 +5,12 @@
 #include "object_serde.h"
 #include <assert.h>
 #include <ggl/arena.h>
+#include <ggl/buffer.h>
 #include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/io.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <string.h>
 #include <stdbool.h>
@@ -424,11 +426,11 @@ GglError ggl_serialize(GglObject obj, GglBuffer *buf) {
             level->remaining -= 1;
             level->obj_next = &level->obj_next[1];
         } else if (level->type == HANDLING_KV) {
-            GglError ret = write_buf(&mem, level->kv_next->key);
+            GglError ret = write_buf(&mem, ggl_kv_key(*level->kv_next));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = write_obj(&mem, &state, level->kv_next->val);
+            ret = write_obj(&mem, &state, *ggl_kv_val(level->kv_next));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
@@ -473,11 +475,14 @@ GglError ggl_deserialize(GglArena *alloc, GglBuffer buf, GglObject *obj) {
             level->remaining -= 1;
             level->obj_next = &level->obj_next[1];
         } else if (level->type == HANDLING_KV) {
-            GglError ret = read_buf_raw(&rest, &level->kv_next->key);
+            GglBuffer key = { 0 };
+            GglError ret = read_buf_raw(&rest, &key);
             if (ret != GGL_ERR_OK) {
                 return ret;
             }
-            ret = read_obj(alloc, &state, &rest, &level->kv_next->val);
+            ggl_kv_set_key(level->kv_next, key);
+
+            ret = read_obj(alloc, &state, &rest, ggl_kv_val(level->kv_next));
             if (ret != GGL_ERR_OK) {
                 return ret;
             }

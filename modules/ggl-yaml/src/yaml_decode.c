@@ -10,6 +10,7 @@
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <string.h>
 #include <sys/types.h>
@@ -108,13 +109,19 @@ static GglError yaml_mapping_to_obj(
             return GGL_ERR_FAILURE;
         }
 
-        GglBuffer *key = (pairs == NULL) ? NULL : &pairs[i].key;
-        GglObject *val = (pairs == NULL) ? NULL : &pairs[i].val;
-
-        GglError ret = yaml_node_to_buf(key_node, key);
+        GglError ret;
+        if (pairs == NULL) {
+            ret = yaml_node_to_buf(key_node, NULL);
+        } else {
+            GglBuffer key = { 0 };
+            ret = yaml_node_to_buf(key_node, &key);
+            ggl_kv_set_key(&pairs[i], key);
+        }
         if (ret != GGL_ERR_OK) {
             return ret;
         }
+
+        GglObject *val = (pairs == NULL) ? NULL : ggl_kv_val(&pairs[i]);
 
         ret = yaml_to_obj(document, value_node, arena, val);
         if (ret != GGL_ERR_OK) {

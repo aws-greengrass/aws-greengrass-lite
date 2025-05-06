@@ -56,8 +56,8 @@ GglError ggl_handle_update_state(
         GGL_STR("gg_health"),
         GGL_STR("update_status"),
         GGL_MAP(
-            { GGL_STR("component_name"), component_obj },
-            { GGL_STR("lifecycle_state"), *state_obj }
+            ggl_kv(GGL_STR("component_name"), component_obj),
+            ggl_kv(GGL_STR("lifecycle_state"), *state_obj)
         ),
         NULL,
         NULL,

@@ -26,27 +26,30 @@ GglError ggl_handle_create_local_deployment(
     GglArena *alloc
 ) {
     GGL_MAP_FOREACH(pair, args) {
-        if (ggl_buffer_eq(pair->key, GGL_STR("recipeDirectoryPath"))) {
-            pair->key = GGL_STR("recipe_directory_path");
+        if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("recipeDirectoryPath"))) {
+            ggl_kv_set_key(pair, GGL_STR("recipe_directory_path"));
         } else if (ggl_buffer_eq(
-                       pair->key, GGL_STR("artifactsDirectoryPath")
+                       ggl_kv_key(*pair), GGL_STR("artifactsDirectoryPath")
                    )) {
-            pair->key = GGL_STR("artifacts_directory_path");
+            ggl_kv_set_key(pair, GGL_STR("artifacts_directory_path"));
         } else if (ggl_buffer_eq(
-                       pair->key, GGL_STR("rootComponentVersionsToAdd")
+                       ggl_kv_key(*pair), GGL_STR("rootComponentVersionsToAdd")
                    )) {
-            pair->key = GGL_STR("root_component_versions_to_add");
+            ggl_kv_set_key(pair, GGL_STR("root_component_versions_to_add"));
         } else if (ggl_buffer_eq(
-                       pair->key, GGL_STR("rootComponentVersionsToRemove")
+                       ggl_kv_key(*pair),
+                       GGL_STR("rootComponentVersionsToRemove")
                    )) {
-            pair->key = GGL_STR("root_component_versions_to_remove");
+            ggl_kv_set_key(pair, GGL_STR("root_component_versions_to_remove"));
         } else if (ggl_buffer_eq(
-                       pair->key, GGL_STR("componentToConfiguration")
+                       ggl_kv_key(*pair), GGL_STR("componentToConfiguration")
                    )) {
-            pair->key = GGL_STR("component_to_configuration");
+            ggl_kv_set_key(pair, GGL_STR("component_to_configuration"));
         } else {
             GGL_LOGE(
-                "Unhandled argument: %.*s", (int) pair->key.len, pair->key.data
+                "Unhandled argument: %.*s",
+                (int) ggl_kv_key(*pair).len,
+                ggl_kv_key(*pair).data
             );
         }
     }
@@ -90,6 +93,6 @@ GglError ggl_handle_create_local_deployment(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#CreateLocalDeploymentResponse"),
-        ggl_obj_map(GGL_MAP({ GGL_STR("deploymentId"), result }))
+        ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("deploymentId"), result)))
     );
 }

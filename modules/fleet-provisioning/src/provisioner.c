@@ -82,8 +82,8 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
     //     }
     // }
     GglObject thing_payload_obj = ggl_obj_map(GGL_MAP(
-        { GGL_STR("certificateOwnershipToken"), *cert_owner_gg_obj },
-        { GGL_STR("parameters"), config_template_param_json_obj }
+        ggl_kv(GGL_STR("certificateOwnershipToken"), *cert_owner_gg_obj),
+        ggl_kv(GGL_STR("parameters"), config_template_param_json_obj)
     ));
     GglError ret_err_json
         = ggl_json_encode(thing_payload_obj, &thing_request_buf);
@@ -93,11 +93,13 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
 
     // Publish message builder for thing request
     GglMap thing_request_args = GGL_MAP(
-        { GGL_STR("topic"),
-          ggl_obj_buf((GglBuffer
-          ) { .len = strlen(global_register_thing_url),
-              .data = (uint8_t *) global_register_thing_url }) },
-        { GGL_STR("payload"), ggl_obj_buf(thing_request_buf) },
+        ggl_kv(
+            GGL_STR("topic"),
+            ggl_obj_buf((GglBuffer) { .len = strlen(global_register_thing_url),
+                                      .data
+                                      = (uint8_t *) global_register_thing_url })
+        ),
+        ggl_kv(GGL_STR("payload"), ggl_obj_buf(thing_request_buf)),
     );
 
     GglError ret_thing_req_publish
@@ -387,10 +389,12 @@ GglError make_request(
 
     // Subscribe to csr success topic
     GglMap subscribe_args = GGL_MAP(
-        { GGL_STR("topic_filter"),
-          ggl_obj_buf((GglBuffer
-          ) { .data = (uint8_t *) certificate_response_url,
-              .len = strlen(certificate_response_url) }) },
+        ggl_kv(
+            GGL_STR("topic_filter"),
+            ggl_obj_buf(
+                ggl_buffer_from_null_term((char *) certificate_response_url)
+            )
+        ),
     );
 
     ret = ggl_subscribe(
@@ -418,10 +422,12 @@ GglError make_request(
 
     // Subscribe to csr reject topic
     GglMap subscribe_reject_args = GGL_MAP(
-        { GGL_STR("topic_filter"),
-          ggl_obj_buf((GglBuffer
-          ) { .data = (uint8_t *) certificate_response_reject_url,
-              .len = strlen(certificate_response_reject_url) }) },
+        ggl_kv(
+            GGL_STR("topic_filter"),
+            ggl_obj_buf((GglBuffer
+            ) { .data = (uint8_t *) certificate_response_reject_url,
+                .len = strlen(certificate_response_reject_url) })
+        ),
     );
 
     ret = ggl_subscribe(
@@ -449,10 +455,12 @@ GglError make_request(
 
     // Subscribe to register thing success topic
     GglMap subscribe_thing_args = GGL_MAP(
-        { GGL_STR("topic_filter"),
-          ggl_obj_buf((GglBuffer
-          ) { .len = strlen(global_register_thing_accept_url),
-              .data = (uint8_t *) global_register_thing_accept_url }) },
+        ggl_kv(
+            GGL_STR("topic_filter"),
+            ggl_obj_buf(
+                ggl_buffer_from_null_term(global_register_thing_accept_url)
+            )
+        ),
     );
 
     GglError return_thing_sub = ggl_subscribe(
@@ -478,10 +486,12 @@ GglError make_request(
 
     // Subscribe to register thing success topic
     GglMap subscribe_thing_reject_args = GGL_MAP(
-        { GGL_STR("topic_filter"),
-          ggl_obj_buf((GglBuffer
-          ) { .len = strlen(global_register_thing_reject_url),
-              .data = (uint8_t *) global_register_thing_reject_url }) },
+        ggl_kv(
+            GGL_STR("topic_filter"),
+            ggl_obj_buf(
+                ggl_buffer_from_null_term(global_register_thing_reject_url)
+            )
+        ),
     );
 
     GglError return_thing_sub_reject = ggl_subscribe(
@@ -508,9 +518,9 @@ GglError make_request(
     (void) ggl_sleep(2);
 
     // Create a json payload object
-    GglObject csr_payload_obj
-        = ggl_obj_map(GGL_MAP({ GGL_STR("certificateSigningRequest"),
-                                ggl_obj_buf(csr_as_ggl_buffer) }));
+    GglObject csr_payload_obj = ggl_obj_map(GGL_MAP(ggl_kv(
+        GGL_STR("certificateSigningRequest"), ggl_obj_buf(csr_as_ggl_buffer)
+    )));
     GglError ret_err_json = ggl_json_encode(csr_payload_obj, &csr_buf);
     if (ret_err_json != GGL_ERR_OK) {
         return GGL_ERR_PARSE;
@@ -521,10 +531,11 @@ GglError make_request(
     // }
     // Prepare publish packet for requesting certificate with csr
     GglMap args = GGL_MAP(
-        { GGL_STR("topic"),
-          ggl_obj_buf((GglBuffer) { .len = strlen(cert_request_url),
-                                    .data = (uint8_t *) cert_request_url }) },
-        { GGL_STR("payload"), ggl_obj_buf(csr_buf) },
+        ggl_kv(
+            GGL_STR("topic"),
+            ggl_obj_buf(ggl_buffer_from_null_term((char *) cert_request_url))
+        ),
+        ggl_kv(GGL_STR("payload"), ggl_obj_buf(csr_buf)),
     );
 
     (void) ggl_sleep(2);

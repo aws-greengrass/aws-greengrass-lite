@@ -55,8 +55,8 @@ static GglError get_status(void *ctx, GglMap params, uint32_t handle) {
     ggl_respond(
         handle,
         ggl_obj_map(GGL_MAP(
-            { GGL_STR("component_name"), ggl_obj_buf(component_name) },
-            { GGL_STR("lifecycle_state"), ggl_obj_buf(status) },
+            ggl_kv(GGL_STR("component_name"), ggl_obj_buf(component_name)),
+            ggl_kv(GGL_STR("lifecycle_state"), ggl_obj_buf(status)),
         ))
     );
     return GGL_ERR_OK;
@@ -169,8 +169,8 @@ static GglError subscribe_to_lifecycle_completion(
         ggl_sub_respond(
             handle,
             ggl_obj_map(GGL_MAP(
-                { GGL_STR("component_name"), *component_name_obj },
-                { GGL_STR("lifecycle_state"), ggl_obj_buf(status) }
+                ggl_kv(GGL_STR("component_name"), *component_name_obj),
+                ggl_kv(GGL_STR("lifecycle_state"), ggl_obj_buf(status))
             ))
         );
     }

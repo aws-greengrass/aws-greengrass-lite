@@ -255,7 +255,7 @@ static GglError parse_deployment_obj(
                 component_pair,
                 ggl_obj_into_map(*root_component_versions_to_add)
             ) {
-                if (ggl_obj_type(component_pair->val) != GGL_TYPE_BUF) {
+                if (ggl_obj_type(*ggl_kv_val(component_pair)) != GGL_TYPE_BUF) {
                     GGL_LOGE("Local deployment component version read "
                              "incorrectly from the deployment doc.");
                     return GGL_ERR_INVALID;
@@ -269,14 +269,16 @@ static GglError parse_deployment_obj(
                     return GGL_ERR_NOMEM;
                 }
                 *new_component_info_mem
-                    = (GglKV) { GGL_STR("version"), component_pair->val };
+                    = ggl_kv(GGL_STR("version"), *ggl_kv_val(component_pair));
                 GglMap new_component_info_map
                     = (GglMap) { .pairs = new_component_info_mem, .len = 1 };
 
                 ret = ggl_kv_vec_push(
                     local_components_kv_vec,
-                    (GglKV) { component_pair->key,
-                              ggl_obj_map(new_component_info_map) }
+                    ggl_kv(
+                        ggl_kv_key(*component_pair),
+                        ggl_obj_map(new_component_info_map)
+                    )
                 );
                 if (ret != GGL_ERR_OK) {
                     return ret;
@@ -297,7 +299,8 @@ static GglError parse_deployment_obj(
                 old_component_pair,
                 ggl_obj_into_map(local_deployment_root_components_read_value)
             ) {
-                if (ggl_obj_type(old_component_pair->val) != GGL_TYPE_BUF) {
+                if (ggl_obj_type(*ggl_kv_val(old_component_pair))
+                    != GGL_TYPE_BUF) {
                     GGL_LOGE("Local deployment component version read "
                              "incorrectly from the config.");
                     return GGL_ERR_INVALID;
@@ -306,8 +309,8 @@ static GglError parse_deployment_obj(
                 GGL_LOGD(
                     "Found existing local component %.*s as part of local "
                     "deployments group.",
-                    (int) old_component_pair->key.len,
-                    old_component_pair->key.data
+                    (int) ggl_kv_key(*old_component_pair).len,
+                    ggl_kv_key(*old_component_pair).data
                 );
 
                 GglKV *old_component_info_mem = GGL_ARENA_ALLOC(alloc, GglKV);
@@ -316,15 +319,18 @@ static GglError parse_deployment_obj(
                              "local deployment.");
                     return GGL_ERR_NOMEM;
                 }
-                *old_component_info_mem
-                    = (GglKV) { GGL_STR("version"), old_component_pair->val };
+                *old_component_info_mem = ggl_kv(
+                    GGL_STR("version"), *ggl_kv_val(old_component_pair)
+                );
                 GglMap old_component_info_map
                     = (GglMap) { .pairs = old_component_info_mem, .len = 1 };
 
                 ret = ggl_kv_vec_push(
                     local_components_kv_vec,
-                    (GglKV) { old_component_pair->key,
-                              ggl_obj_map(old_component_info_map) }
+                    ggl_kv(
+                        ggl_kv_key(*old_component_pair),
+                        ggl_obj_map(old_component_info_map)
+                    )
                 );
                 if (ret != GGL_ERR_OK) {
                     return ret;
@@ -337,7 +343,7 @@ static GglError parse_deployment_obj(
                 component_pair,
                 ggl_obj_into_map(*root_component_versions_to_add)
             ) {
-                if (ggl_obj_type(component_pair->val) != GGL_TYPE_BUF) {
+                if (ggl_obj_type(*ggl_kv_val(component_pair)) != GGL_TYPE_BUF) {
                     GGL_LOGE("Local deployment component version read "
                              "incorrectly from the deployment doc.");
                     return GGL_ERR_INVALID;
@@ -347,7 +353,7 @@ static GglError parse_deployment_obj(
                 // TODO: Remove component if it is in the removal list.
                 if (!ggl_map_get(
                         local_components_kv_vec->map,
-                        component_pair->key,
+                        ggl_kv_key(*component_pair),
                         &existing_component_data
                     )) {
                     GGL_LOGD(
@@ -362,15 +368,18 @@ static GglError parse_deployment_obj(
                                  "enqueuing local deployment.");
                         return GGL_ERR_NOMEM;
                     }
-                    *new_component_info_mem
-                        = (GglKV) { GGL_STR("version"), component_pair->val };
+                    *new_component_info_mem = ggl_kv(
+                        GGL_STR("version"), *ggl_kv_val(component_pair)
+                    );
                     GglMap new_component_info_map = (GglMap
                     ) { .pairs = new_component_info_mem, .len = 1 };
 
                     ret = ggl_kv_vec_push(
                         local_components_kv_vec,
-                        (GglKV) { component_pair->key,
-                                  ggl_obj_map(new_component_info_map) }
+                        ggl_kv(
+                            ggl_kv_key(*component_pair),
+                            ggl_obj_map(new_component_info_map)
+                        )
                     );
                     if (ret != GGL_ERR_OK) {
                         return ret;
@@ -383,8 +392,9 @@ static GglError parse_deployment_obj(
                                  "enqueuing local deployment.");
                         return GGL_ERR_NOMEM;
                     }
-                    *new_component_info_mem
-                        = (GglKV) { GGL_STR("version"), component_pair->val };
+                    *new_component_info_mem = ggl_kv(
+                        GGL_STR("version"), *ggl_kv_val(component_pair)
+                    );
                     GglMap new_component_info_map = (GglMap
                     ) { .pairs = new_component_info_mem, .len = 1 };
                     *existing_component_data

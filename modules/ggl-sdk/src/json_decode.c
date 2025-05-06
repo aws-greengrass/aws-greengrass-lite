@@ -9,6 +9,7 @@
 #include <ggl/error.h>
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <string.h>
 #include <stdbool.h>
@@ -744,7 +745,7 @@ static GglError decode_json_object(
             return GGL_ERR_PARSE;
         }
         if (pairs != NULL) {
-            pairs[i].key = ggl_obj_into_buf(key_obj);
+            ggl_kv_set_key(&pairs[i], ggl_obj_into_buf(key_obj));
         }
 
         bool matches = parser_call(&PARSER_CHAR(':'), &buf_copy, NULL);
@@ -754,7 +755,7 @@ static GglError decode_json_object(
         }
 
         ret = take_json_val(
-            &buf_copy, arena, (pairs == NULL) ? NULL : &pairs[i].val
+            &buf_copy, arena, (pairs == NULL) ? NULL : ggl_kv_val(&pairs[i])
         );
         if (ret != GGL_ERR_OK) {
             return ret;

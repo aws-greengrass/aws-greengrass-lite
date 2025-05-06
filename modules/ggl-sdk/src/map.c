@@ -2,20 +2,51 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include <assert.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/flags.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 
+typedef struct {
+    GglBuffer key;
+    GglObject val;
+} GglKVPriv;
+
+static_assert(sizeof(GglKV) == sizeof(GglKVPriv), "GglKV impl invalid.");
+static_assert(alignof(GglKV) == alignof(GglKVPriv), "GglKV impl invalid.");
+
+GglKV ggl_kv(GglBuffer key, GglObject val) {
+    union {
+        GglKVPriv priv;
+        GglKV pub;
+    } kv = { .priv = { .key = key, .val = val } };
+
+    return kv.pub;
+}
+
+GglBuffer ggl_kv_key(GglKV kv) {
+    return ((GglKVPriv *) &kv)->key;
+}
+
+void ggl_kv_set_key(GglKV *kv, GglBuffer key) {
+    ((GglKVPriv *) kv)->key = key;
+}
+
+GglObject *ggl_kv_val(GglKV *kv) {
+    return &((GglKVPriv *) kv)->val;
+}
+
 bool ggl_map_get(GglMap map, GglBuffer key, GglObject **result) {
     GGL_MAP_FOREACH(pair, map) {
-        if (ggl_buffer_eq(key, pair->key)) {
+        if (ggl_buffer_eq(key, ggl_kv_key(*pair))) {
             if (result != NULL) {
-                *result = &pair->val;
+                *result = ggl_kv_val(pair);
             }
             return true;
         }

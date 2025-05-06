@@ -8,6 +8,7 @@
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/utils.h>
 #include <ggl/vector.h>
@@ -51,8 +52,7 @@ GglError run_ggconfigd_test(void) {
 
     ret = ggl_kv_vec_push(
         &args,
-        (GglKV) { GGL_STR("recipe_directory_path"),
-                  ggl_obj_buf(recipe_dir.buf) }
+        ggl_kv(GGL_STR("recipe_directory_path"), ggl_obj_buf(recipe_dir.buf))
     );
     if (ret != GGL_ERR_OK) {
         assert(false);
@@ -61,13 +61,16 @@ GglError run_ggconfigd_test(void) {
 
     GglKV component;
     if (component_name != NULL) {
-        component = (GglKV
-        ) { ggl_buffer_from_null_term(component_name),
-            ggl_obj_buf(ggl_buffer_from_null_term(component_version)) };
+        component = ggl_kv(
+            ggl_buffer_from_null_term(component_name),
+            ggl_obj_buf(ggl_buffer_from_null_term(component_version))
+        );
         ret = ggl_kv_vec_push(
             &args,
-            (GglKV) { GGL_STR("root_component_versions_to_add"),
-                      ggl_obj_map((GglMap) { .pairs = &component, .len = 1 }) }
+            ggl_kv(
+                GGL_STR("root_component_versions_to_add"),
+                ggl_obj_map((GglMap) { .pairs = &component, .len = 1 })
+            )
         );
         if (ret != GGL_ERR_OK) {
             assert(false);

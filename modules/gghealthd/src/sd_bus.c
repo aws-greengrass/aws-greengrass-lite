@@ -288,16 +288,16 @@ GglError get_lifecycle_state(
         return err;
     }
     const GglMap STATUS_MAP = GGL_MAP(
-        { GGL_STR("activating"), ggl_obj_buf(GGL_STR("STARTING")) },
-        { GGL_STR("active"), ggl_obj_buf(GGL_STR("RUNNING")) },
+        ggl_kv(GGL_STR("activating"), ggl_obj_buf(GGL_STR("STARTING"))),
+        ggl_kv(GGL_STR("active"), ggl_obj_buf(GGL_STR("RUNNING"))),
         // `reloading` doesn't have any mapping to greengrass. It's an
         // active component whose systemd (not greengrass) configuration is
         // reloading
-        { GGL_STR("reloading"), ggl_obj_buf(GGL_STR("RUNNING")) },
-        { GGL_STR("deactivating"), ggl_obj_buf(GGL_STR("STOPPING")) },
+        ggl_kv(GGL_STR("reloading"), ggl_obj_buf(GGL_STR("RUNNING"))),
+        ggl_kv(GGL_STR("deactivating"), ggl_obj_buf(GGL_STR("STOPPING"))),
         // inactive and failed are ambiguous
-        { GGL_STR("inactive"), GGL_OBJ_NULL },
-        { GGL_STR("failed"), GGL_OBJ_NULL },
+        ggl_kv(GGL_STR("inactive"), GGL_OBJ_NULL),
+        ggl_kv(GGL_STR("failed"), GGL_OBJ_NULL),
     );
 
     GglBuffer key = ggl_buffer_from_null_term(active_state);

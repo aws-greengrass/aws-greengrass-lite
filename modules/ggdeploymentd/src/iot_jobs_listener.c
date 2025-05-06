@@ -206,12 +206,16 @@ static GglError update_job(
         }
         // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
         GglObject payload_object = ggl_obj_map(GGL_MAP(
-            { GGL_STR("status"), ggl_obj_buf(job_status) },
-            { GGL_STR("expectedVersion"),
-              ggl_obj_buf((GglBuffer) { .data = version_buf,
-                                        .len = (size_t) len }) },
-            { GGL_STR("clientToken"),
-              ggl_obj_buf(GGL_STR("jobs-nucleus-lite")) }
+            ggl_kv(GGL_STR("status"), ggl_obj_buf(job_status)),
+            ggl_kv(
+                GGL_STR("expectedVersion"),
+                ggl_obj_buf((GglBuffer) { .data = version_buf,
+                                          .len = (size_t) len })
+            ),
+            ggl_kv(
+                GGL_STR("clientToken"),
+                ggl_obj_buf(GGL_STR("jobs-nucleus-lite"))
+            )
         ));
 
         static uint8_t response_scratch[512];
@@ -318,10 +322,12 @@ static GglError describe_next_job(void *ctx) {
 
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-mqtt-api.html
     GglObject payload_object = ggl_obj_map(GGL_MAP(
-        { GGL_STR("jobId"), ggl_obj_buf(GGL_STR(NEXT_JOB_LITERAL)) },
-        { GGL_STR("thingName"), ggl_obj_buf(thing_name_buf) },
-        { GGL_STR("includeJobDocument"), ggl_obj_bool(true) },
-        { GGL_STR("clientToken"), ggl_obj_buf(GGL_STR("jobs-nucleus-lite")) }
+        ggl_kv(GGL_STR("jobId"), ggl_obj_buf(GGL_STR(NEXT_JOB_LITERAL))),
+        ggl_kv(GGL_STR("thingName"), ggl_obj_buf(thing_name_buf)),
+        ggl_kv(GGL_STR("includeJobDocument"), ggl_obj_bool(true)),
+        ggl_kv(
+            GGL_STR("clientToken"), ggl_obj_buf(GGL_STR("jobs-nucleus-lite"))
+        )
     ));
 
     static uint8_t response_scratch[4096];
@@ -423,14 +429,14 @@ static GglError process_job_execution(GglMap job_execution) {
     DeploymentStatusAction action;
     {
         GglMap status_action_map = GGL_MAP(
-            { GGL_STR("QUEUED"), ggl_obj_i64(DSA_ENQUEUE_JOB) },
-            { GGL_STR("IN_PROGRESS"), ggl_obj_i64(DSA_ENQUEUE_JOB) },
-            { GGL_STR("SUCCEEDED"), ggl_obj_i64(DSA_DO_NOTHING) },
-            { GGL_STR("FAILED"), ggl_obj_i64(DSA_DO_NOTHING) },
-            { GGL_STR("TIMED_OUT"), ggl_obj_i64(DSA_CANCEL_JOB) },
-            { GGL_STR("REJECTED"), ggl_obj_i64(DSA_DO_NOTHING) },
-            { GGL_STR("REMOVED"), ggl_obj_i64(DSA_CANCEL_JOB) },
-            { GGL_STR("CANCELED"), ggl_obj_i64(DSA_CANCEL_JOB) },
+            ggl_kv(GGL_STR("QUEUED"), ggl_obj_i64(DSA_ENQUEUE_JOB)),
+            ggl_kv(GGL_STR("IN_PROGRESS"), ggl_obj_i64(DSA_ENQUEUE_JOB)),
+            ggl_kv(GGL_STR("SUCCEEDED"), ggl_obj_i64(DSA_DO_NOTHING)),
+            ggl_kv(GGL_STR("FAILED"), ggl_obj_i64(DSA_DO_NOTHING)),
+            ggl_kv(GGL_STR("TIMED_OUT"), ggl_obj_i64(DSA_CANCEL_JOB)),
+            ggl_kv(GGL_STR("REJECTED"), ggl_obj_i64(DSA_DO_NOTHING)),
+            ggl_kv(GGL_STR("REMOVED"), ggl_obj_i64(DSA_CANCEL_JOB)),
+            ggl_kv(GGL_STR("CANCELED"), ggl_obj_i64(DSA_CANCEL_JOB)),
         );
         GglObject *integer = NULL;
         if (!ggl_map_get(

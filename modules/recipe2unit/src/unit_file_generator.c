@@ -45,7 +45,7 @@ static GglError parse_dependency_type(
     GglKV component_dependency, GglByteVec *out
 ) {
     GglObject *val;
-    if (ggl_obj_type(component_dependency.val) != GGL_TYPE_MAP) {
+    if (ggl_obj_type(*ggl_kv_val(&component_dependency)) != GGL_TYPE_MAP) {
         GGL_LOGE(
             "Any information provided under[ComponentDependencies] section "
             "only supports a key value map type."
@@ -53,7 +53,7 @@ static GglError parse_dependency_type(
         return GGL_ERR_INVALID;
     }
     if (ggl_map_get(
-            ggl_obj_into_map(component_dependency.val),
+            ggl_obj_into_map(*ggl_kv_val(&component_dependency)),
             GGL_STR("DependencyType"),
             &val
         )) {
@@ -63,7 +63,9 @@ static GglError parse_dependency_type(
 
         if (ggl_buffer_eq(GGL_STR("HARD"), ggl_obj_into_buf(*val))) {
             GglError ret = ggl_byte_vec_append(out, GGL_STR("BindsTo=ggl."));
-            ggl_byte_vec_chain_append(&ret, out, component_dependency.key);
+            ggl_byte_vec_chain_append(
+                &ret, out, ggl_kv_key(component_dependency)
+            );
             ggl_byte_vec_chain_append(&ret, out, GGL_STR(".service\n"));
             if (ret != GGL_ERR_OK) {
                 return ret;
@@ -71,7 +73,9 @@ static GglError parse_dependency_type(
 
         } else {
             GglError ret = ggl_byte_vec_append(out, GGL_STR("Wants=ggl."));
-            ggl_byte_vec_chain_append(&ret, out, component_dependency.key);
+            ggl_byte_vec_chain_append(
+                &ret, out, ggl_kv_key(component_dependency)
+            );
             ggl_byte_vec_chain_append(&ret, out, GGL_STR(".service\n"));
             if (ret != GGL_ERR_OK) {
                 return ret;
@@ -87,15 +91,17 @@ static GglError dependency_parser(GglObject *dependency_obj, GglByteVec *out) {
     }
     GglMap dependencies = ggl_obj_into_map(*dependency_obj);
     GGL_MAP_FOREACH(dep, dependencies) {
-        if (ggl_obj_type(dep->val) == GGL_TYPE_MAP) {
-            if (ggl_buffer_eq(dep->key, GGL_STR("aws.greengrass.Nucleus"))
+        if (ggl_obj_type(*ggl_kv_val(dep)) == GGL_TYPE_MAP) {
+            if (ggl_buffer_eq(
+                    ggl_kv_key(*dep), GGL_STR("aws.greengrass.Nucleus")
+                )
                 || ggl_buffer_eq(
-                    dep->key, GGL_STR("aws.greengrass.NucleusLite")
+                    ggl_kv_key(*dep), GGL_STR("aws.greengrass.NucleusLite")
                 )) {
                 GGL_LOGD(
                     "Skipping dependency on %.*s for the current unit file",
-                    (int) dep->key.len,
-                    dep->key.data
+                    (int) ggl_kv_key(*dep).len,
+                    ggl_kv_key(*dep).data
                 );
                 continue;
             }

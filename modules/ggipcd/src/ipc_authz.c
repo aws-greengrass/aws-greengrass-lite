@@ -113,7 +113,7 @@ GglError ggl_ipc_auth(
     GglMap policy_map = ggl_obj_into_map(policies);
 
     GGL_MAP_FOREACH(policy_kv, policy_map) {
-        GglObject policy = policy_kv->val;
+        GglObject policy = *ggl_kv_val(policy_kv);
         if (ggl_obj_type(policy) != GGL_TYPE_MAP) {
             GGL_LOGE("Policy value is not a map.");
             return GGL_ERR_CONFIG;

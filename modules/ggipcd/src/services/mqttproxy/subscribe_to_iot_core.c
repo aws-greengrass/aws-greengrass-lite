@@ -39,13 +39,13 @@ static GglError subscribe_to_iot_core_callback(
         return GGL_ERR_OK;
     }
 
-    GglObject response = ggl_obj_map(
-        GGL_MAP({ GGL_STR("message"),
-                  ggl_obj_map(GGL_MAP(
-                      { GGL_STR("topicName"), ggl_obj_buf(topic) },
-                      { GGL_STR("payload"), ggl_obj_buf(base64_payload) }
-                  )) })
-    );
+    GglObject response = ggl_obj_map(GGL_MAP(ggl_kv(
+        GGL_STR("message"),
+        ggl_obj_map(GGL_MAP(
+            ggl_kv(GGL_STR("topicName"), ggl_obj_buf(topic)),
+            ggl_kv(GGL_STR("payload"), ggl_obj_buf(base64_payload))
+        ))
+    )));
 
     ret = ggl_ipc_response_send(
         resp_handle,
@@ -123,8 +123,8 @@ GglError ggl_handle_subscribe_to_iot_core(
     }
 
     GglMap call_args = GGL_MAP(
-        { GGL_STR("topic_filter"), *topic_name_obj },
-        { GGL_STR("qos"), ggl_obj_i64(qos) },
+        ggl_kv(GGL_STR("topic_filter"), *topic_name_obj),
+        ggl_kv(GGL_STR("qos"), ggl_obj_i64(qos)),
     );
 
     ret = ggl_ipc_bind_subscription(

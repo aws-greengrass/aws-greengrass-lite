@@ -90,6 +90,6 @@ GglError ggl_handle_token_validation(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#ValidateAuthorizationTokenResponse"),
-        ggl_obj_map(GGL_MAP({ GGL_STR("isValid"), ggl_obj_bool(true) }))
+        ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("isValid"), ggl_obj_bool(true))))
     );
 }

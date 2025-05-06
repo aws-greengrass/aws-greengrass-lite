@@ -141,7 +141,8 @@ GglError ggipc_connect_by_name(
     size_t headers_len = sizeof(headers) / sizeof(headers[0]);
 
     GglMap payload
-        = GGL_MAP({ GGL_STR("componentName"), ggl_obj_buf(component_name) });
+        = GGL_MAP(ggl_kv(GGL_STR("componentName"), ggl_obj_buf(component_name))
+        );
 
     ret = send_message(conn, headers, headers_len, &payload);
     if (ret != GGL_ERR_OK) {
@@ -356,7 +357,7 @@ GglError ggipc_private_get_system_config(
         conn,
         GGL_STR("aws.greengrass.private#GetSystemConfig"),
         GGL_STR("aws.greengrass.private#GetSystemConfigRequest"),
-        GGL_MAP({ GGL_STR("key"), ggl_obj_buf(key) }),
+        GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(key))),
         &alloc,
         &resp,
         &remote_error
@@ -412,12 +413,12 @@ GglError ggipc_get_config_str(
 
     GglKVVec args = GGL_KV_VEC((GglKV[2]) { 0 });
     (void) ggl_kv_vec_push(
-        &args, (GglKV) { GGL_STR("keyPath"), ggl_obj_list(path_vec.list) }
+        &args, ggl_kv(GGL_STR("keyPath"), ggl_obj_list(path_vec.list))
     );
     if (component_name != NULL) {
         (void) ggl_kv_vec_push(
             &args,
-            (GglKV) { GGL_STR("componentName"), ggl_obj_buf(*component_name) }
+            ggl_kv(GGL_STR("componentName"), ggl_obj_buf(*component_name))
         );
     }
 
@@ -502,12 +503,12 @@ GglError ggipc_get_config_obj(
 
     GglKVVec args = GGL_KV_VEC((GglKV[2]) { 0 });
     (void) ggl_kv_vec_push(
-        &args, (GglKV) { GGL_STR("keyPath"), ggl_obj_list(path_vec.list) }
+        &args, ggl_kv(GGL_STR("keyPath"), ggl_obj_list(path_vec.list))
     );
     if (component_name != NULL) {
         (void) ggl_kv_vec_push(
             &args,
-            (GglKV) { GGL_STR("componentName"), ggl_obj_buf(*component_name) }
+            ggl_kv(GGL_STR("componentName"), ggl_obj_buf(*component_name))
         );
     }
 
@@ -600,9 +601,9 @@ GglError ggipc_update_config(
     }
 
     GglMap args = GGL_MAP(
-        { GGL_STR("keyPath"), ggl_obj_list(path_vec.list) },
-        { GGL_STR("timestamp"), ggl_obj_f64(timestamp_float) },
-        { GGL_STR("valueToMerge"), value_to_merge }
+        ggl_kv(GGL_STR("keyPath"), ggl_obj_list(path_vec.list)),
+        ggl_kv(GGL_STR("timestamp"), ggl_obj_f64(timestamp_float)),
+        ggl_kv(GGL_STR("valueToMerge"), value_to_merge)
     );
 
     ret = ggipc_call(
@@ -632,12 +633,13 @@ GglError ggipc_publish_to_topic_binary(
         return ret;
     }
     GglMap binary_message
-        = GGL_MAP({ GGL_STR("message"), ggl_obj_buf(encoded_payload) });
+        = GGL_MAP(ggl_kv(GGL_STR("message"), ggl_obj_buf(encoded_payload)));
     GglMap publish_message
-        = GGL_MAP({ GGL_STR("binaryMessage"), ggl_obj_map(binary_message) });
+        = GGL_MAP(ggl_kv(GGL_STR("binaryMessage"), ggl_obj_map(binary_message))
+        );
     GglMap args = GGL_MAP(
-        { GGL_STR("topic"), ggl_obj_buf(topic) },
-        { GGL_STR("publishMessage"), ggl_obj_map(publish_message) }
+        ggl_kv(GGL_STR("topic"), ggl_obj_buf(topic)),
+        ggl_kv(GGL_STR("publishMessage"), ggl_obj_map(publish_message))
     );
 
     GglIpcError remote_error = GGL_IPC_ERROR_DEFAULT;
@@ -670,12 +672,12 @@ GglError ggipc_publish_to_topic_binary(
 GglError ggipc_publish_to_topic_obj(
     int conn, GglBuffer topic, GglObject payload
 ) {
-    GglMap json_message = GGL_MAP({ GGL_STR("message"), payload });
+    GglMap json_message = GGL_MAP(ggl_kv(GGL_STR("message"), payload));
     GglMap publish_message
-        = GGL_MAP({ GGL_STR("jsonMessage"), ggl_obj_map(json_message) });
+        = GGL_MAP(ggl_kv(GGL_STR("jsonMessage"), ggl_obj_map(json_message)));
     GglMap args = GGL_MAP(
-        { GGL_STR("topic"), ggl_obj_buf(topic) },
-        { GGL_STR("publishMessage"), ggl_obj_map(publish_message) }
+        ggl_kv(GGL_STR("topic"), ggl_obj_buf(topic)),
+        ggl_kv(GGL_STR("publishMessage"), ggl_obj_map(publish_message))
     );
 
     GglArena error_alloc = ggl_arena_init(GGL_BUF((uint8_t[128]) { 0 }));
@@ -725,9 +727,9 @@ GglError ggipc_publish_to_iot_core(
         return ret;
     }
     GglMap args = GGL_MAP(
-        { GGL_STR("topicName"), ggl_obj_buf(topic_name) },
-        { GGL_STR("payload"), ggl_obj_buf(encoded_payload) },
-        { GGL_STR("qos"), ggl_obj_buf(qos_buffer) }
+        ggl_kv(GGL_STR("topicName"), ggl_obj_buf(topic_name)),
+        ggl_kv(GGL_STR("payload"), ggl_obj_buf(encoded_payload)),
+        ggl_kv(GGL_STR("qos"), ggl_obj_buf(qos_buffer))
     );
 
     GglArena error_alloc = ggl_arena_init(GGL_BUF((uint8_t[128]) { 0 }));

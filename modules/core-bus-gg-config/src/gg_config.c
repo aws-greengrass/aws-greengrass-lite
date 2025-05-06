@@ -10,6 +10,7 @@
 #include <ggl/error.h>
 #include <ggl/list.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -28,8 +29,10 @@ GglError ggl_gg_config_read(
     }
 
     GglMap args = GGL_MAP(
-        { GGL_STR("key_path"),
-          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
+        ggl_kv(
+            GGL_STR("key_path"),
+            ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len })
+        ),
     );
 
     GglError remote_err = GGL_ERR_OK;
@@ -58,8 +61,10 @@ GglError ggl_gg_config_list(
     }
 
     GglMap args = GGL_MAP(
-        { GGL_STR("key_path"),
-          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
+        ggl_kv(
+            GGL_STR("key_path"),
+            ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len })
+        ),
     );
 
     GglError remote_err = GGL_ERR_FAILURE;
@@ -101,8 +106,10 @@ GglError ggl_gg_config_delete(GglBufList key_path) {
     }
 
     GglMap args = GGL_MAP(
-        { GGL_STR("key_path"),
-          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
+        ggl_kv(
+            GGL_STR("key_path"),
+            ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len })
+        ),
     );
 
     GglError remote_err = GGL_ERR_OK;
@@ -154,11 +161,15 @@ GglError ggl_gg_config_write(
     }
 
     GglMap args = GGL_MAP(
-        { GGL_STR("key_path"),
-          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
-        { GGL_STR("value"), value },
-        { GGL_STR("timestamp"),
-          ggl_obj_i64((timestamp != NULL) ? *timestamp : 0) },
+        ggl_kv(
+            GGL_STR("key_path"),
+            ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len })
+        ),
+        ggl_kv(GGL_STR("value"), value),
+        ggl_kv(
+            GGL_STR("timestamp"),
+            ggl_obj_i64((timestamp != NULL) ? *timestamp : 0)
+        ),
     );
     if (timestamp == NULL) {
         args.len -= 1;
@@ -194,8 +205,10 @@ GglError ggl_gg_config_subscribe(
     }
 
     GglMap args = GGL_MAP(
-        { GGL_STR("key_path"),
-          ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len }) },
+        ggl_kv(
+            GGL_STR("key_path"),
+            ggl_obj_list((GglList) { .items = path_obj, .len = key_path.len })
+        ),
     );
 
     GglError remote_err = GGL_ERR_OK;

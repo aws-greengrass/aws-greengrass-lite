@@ -187,12 +187,14 @@ static GglError claim_map(GglMap *map, GglArena *arena) {
     }
 
     GGL_MAP_FOREACH(kv, *map) {
-        GglError ret = ggl_arena_claim_buf(&kv->key, arena);
+        GglBuffer key = ggl_kv_key(*kv);
+        GglError ret = ggl_arena_claim_buf(&key, arena);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
+        ggl_kv_set_key(kv, key);
 
-        ret = ggl_arena_claim_obj(&kv->val, arena);
+        ret = ggl_arena_claim_obj(ggl_kv_val(kv), arena);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
@@ -249,12 +251,14 @@ static GglError claim_list_bufs(GglList list, GglArena *arena) {
 // NOLINTNEXTLINE(misc-no-recursion)
 static GglError claim_map_bufs(GglMap map, GglArena *arena) {
     GGL_MAP_FOREACH(kv, map) {
-        GglError ret = ggl_arena_claim_buf(&kv->key, arena);
+        GglBuffer key = ggl_kv_key(*kv);
+        GglError ret = ggl_arena_claim_buf(&key, arena);
         if (ret != GGL_ERR_OK) {
             return ret;
         }
+        ggl_kv_set_key(kv, key);
 
-        ret = ggl_arena_claim_obj_bufs(&kv->val, arena);
+        ret = ggl_arena_claim_obj_bufs(ggl_kv_val(kv), arena);
         if (ret != GGL_ERR_OK) {
             return ret;
         }

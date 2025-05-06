@@ -14,6 +14,7 @@
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <inttypes.h>
@@ -996,9 +997,9 @@ static GglError read_key_recursive(
 
         GglBuffer child_key_name_buffer
             = { .data = child_key_name_memory, .len = child_key_name_length };
-        GglKV child_kv = { .key = child_key_name_buffer };
+        GglKV child_kv = ggl_kv(child_key_name_buffer, GGL_OBJ_NULL);
 
-        ret = read_key_recursive(child_key_id, &child_kv.val, alloc);
+        ret = read_key_recursive(child_key_id, ggl_kv_val(&child_kv), alloc);
         if (ret != GGL_ERR_OK) {
             return ret;
         }

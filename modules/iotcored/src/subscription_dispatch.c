@@ -9,6 +9,7 @@
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/object.h>
 #include <pthread.h>
 #include <string.h>
@@ -144,8 +145,8 @@ void iotcored_mqtt_receive(const IotcoredMsg *msg) {
             ggl_sub_respond(
                 handles[i],
                 ggl_obj_map(GGL_MAP(
-                    { GGL_STR("topic"), ggl_obj_buf(msg->topic) },
-                    { GGL_STR("payload"), ggl_obj_buf(msg->payload) }
+                    ggl_kv(GGL_STR("topic"), ggl_obj_buf(msg->topic)),
+                    ggl_kv(GGL_STR("payload"), ggl_obj_buf(msg->payload))
                 ))
             );
         }

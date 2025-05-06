@@ -77,14 +77,16 @@ static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
     GglMap creds = ggl_obj_into_map(*creds_obj);
 
     GGL_MAP_FOREACH(pair, creds) {
-        if (ggl_buffer_eq(pair->key, GGL_STR("accessKeyId"))) {
-            pair->key = GGL_STR("AccessKeyId");
-        } else if (ggl_buffer_eq(pair->key, GGL_STR("secretAccessKey"))) {
-            pair->key = GGL_STR("SecretAccessKey");
-        } else if (ggl_buffer_eq(pair->key, GGL_STR("sessionToken"))) {
-            pair->key = GGL_STR("Token");
-        } else if (ggl_buffer_eq(pair->key, GGL_STR("expiration"))) {
-            pair->key = GGL_STR("Expiration");
+        if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("accessKeyId"))) {
+            ggl_kv_set_key(pair, GGL_STR("AccessKeyId"));
+        } else if (ggl_buffer_eq(
+                       ggl_kv_key(*pair), GGL_STR("secretAccessKey")
+                   )) {
+            ggl_kv_set_key(pair, GGL_STR("SecretAccessKey"));
+        } else if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("sessionToken"))) {
+            ggl_kv_set_key(pair, GGL_STR("Token"));
+        } else if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("expiration"))) {
+            ggl_kv_set_key(pair, GGL_STR("Expiration"));
         }
     }
 
