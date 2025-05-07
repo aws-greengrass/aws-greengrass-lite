@@ -15,19 +15,11 @@
 
 /// A generic object.
 typedef struct {
-    union {
-        struct {
-            void *_a;
-            size_t _b;
-        };
+    // Used only with memcpy so no aliasing with contents
+    uint8_t _private[(sizeof(void *) == 4) ? 9 : 11];
+} GglObject;
 
-        uint64_t _c;
-    };
-
-    uint8_t _d;
-} __attribute__((may_alias)) GglObject;
-
-/// Union tag for `GglObject`.
+/// Type tag for `GglObject`.
 typedef enum {
     GGL_TYPE_NULL = 0,
     GGL_TYPE_BOOLEAN,
@@ -46,9 +38,9 @@ typedef struct {
 
 /// A key-value pair used for `GglMap`.
 /// `key` must be an UTF-8 encoded string.
-typedef struct {
-    GglBuffer _a;
-    GglObject _b;
+typedef struct __attribute__((may_alias)) {
+    // KVs alias with pointers to their value objects
+    uint8_t _private[sizeof(void *) + 2 + sizeof(GglObject)];
 } GglKV;
 
 /// A map of UTF-8 strings to `GglObject`s.

@@ -86,4 +86,14 @@
 #define NULL_TERMINATED_STRING_ARG(pos)
 #endif
 
+#ifdef __has_attribute
+#if __has_attribute(cold)
+#define COLD __attribute__((cold))
+#endif
+#endif
+
+#ifndef COLD
+#define COLD
+#endif
+
 #endif

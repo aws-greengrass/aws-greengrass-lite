@@ -3,43 +3,66 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <assert.h>
+#include <ggl/attr.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/flags.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <stdalign.h>
+#include <string.h>
 #include <stdbool.h>
-#include <stddef.h>
+#include <stdint.h>
 
-typedef struct {
-    GglBuffer key;
-    GglObject val;
-} GglKVPriv;
+// This assumption is used to size buffers in a lot of places
+static_assert(
+    sizeof(GglKV) <= 2 * sizeof(GglObject),
+    "GglKV must be at most the size of two GglObjects."
+);
 
-static_assert(sizeof(GglKV) == sizeof(GglKVPriv), "GglKV impl invalid.");
-static_assert(alignof(GglKV) == alignof(GglKVPriv), "GglKV impl invalid.");
+COLD static void length_err(size_t *len) {
+    GGL_LOGE(
+        "Key length longer than can be stored in GglKV (%zu, max %u).",
+        *len,
+        (unsigned int) UINT16_MAX
+    );
+    assert(false);
+    *len = UINT16_MAX;
+}
 
 GglKV ggl_kv(GglBuffer key, GglObject val) {
-    union {
-        GglKVPriv priv;
-        GglKV pub;
-    } kv = { .priv = { .key = key, .val = val } };
+    GglKV result = { 0 };
 
-    return kv.pub;
+    static_assert(
+        sizeof(result._private) >= sizeof(void *) + 2 + sizeof(GglObject),
+        "GglKV must be able to hold key pointer, 16-bit key length, and value."
+    );
+
+    ggl_kv_set_key(&result, key);
+
+    memcpy(&result._private[sizeof(void *) + 2], &val, sizeof(GglObject));
+    return result;
 }
 
 GglBuffer ggl_kv_key(GglKV kv) {
-    return ((GglKVPriv *) &kv)->key;
+    void *ptr;
+    uint16_t len;
+    memcpy(&ptr, kv._private, sizeof(void *));
+    memcpy(&len, &kv._private[sizeof(void *)], 2);
+    return (GglBuffer) { .data = ptr, .len = len };
 }
 
 void ggl_kv_set_key(GglKV *kv, GglBuffer key) {
-    ((GglKVPriv *) kv)->key = key;
+    if (key.len > UINT16_MAX) {
+        length_err(&key.len);
+    }
+    uint16_t key_len = (uint16_t) key.len;
+    memcpy(kv->_private, &key.data, sizeof(void *));
+    memcpy(&kv->_private[sizeof(void *)], &key_len, 2);
 }
 
 GglObject *ggl_kv_val(GglKV *kv) {
-    return &((GglKVPriv *) kv)->val;
+    return (GglObject *) &kv->_private[sizeof(void *) + 2];
 }
 
 bool ggl_map_get(GglMap map, GglBuffer key, GglObject **result) {
