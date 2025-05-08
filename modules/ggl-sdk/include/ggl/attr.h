@@ -96,4 +96,14 @@
 #define COLD
 #endif
 
+#ifdef __has_attribute
+#if __has_attribute(const)
+#define CONST __attribute__((const))
+#endif
+#endif
+
+#ifndef CONST
+#define CONST
+#endif
+
 #endif

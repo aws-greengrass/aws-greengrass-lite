@@ -7,6 +7,7 @@
 
 //! Map utilities
 
+#include <ggl/attr.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/flags.h>
@@ -27,10 +28,10 @@
 bool ggl_map_get(GglMap map, GglBuffer key, GglObject **result);
 
 /// Construct a GglKV
-GglKV ggl_kv(GglBuffer key, GglObject val);
+GglKV ggl_kv(GglBuffer key, GglObject val) CONST;
 
 /// Get a GglKV's key
-GglBuffer ggl_kv_key(GglKV kv);
+GglBuffer ggl_kv_key(GglKV kv) CONST;
 
 /// Set a GglKV's key
 void ggl_kv_set_key(GglKV *kv, GglBuffer key);
