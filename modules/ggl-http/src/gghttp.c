@@ -160,17 +160,6 @@ GglError sigv4_download(
         *http_response_code = 400;
     }
 
-    struct curl_header *type = NULL;
-    curl_easy_header(
-        curl_data.curl, "Content-Type", 0, CURLH_HEADER, -1, &type
-    );
-
-    if (type) {
-        GGL_LOGT("Response header content: %s", type->value);
-    } else {
-        GGL_LOGT("Response header content: is empty");
-    }
-
     gghttplib_destroy_curl(&curl_data);
 
     return error;
