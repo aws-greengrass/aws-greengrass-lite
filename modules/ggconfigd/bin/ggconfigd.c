@@ -5,11 +5,8 @@
 #include "ggconfigd.h"
 #include <argp.h>
 #include <ggl/buffer.h>
-#include <ggl/version.h>
+#include <ggl/nucleus/init.h>
 #include <stdlib.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
 
 static char doc[] = "ggconfigd -- Greengrass Nucleus Lite configuration daemon";
 
@@ -49,6 +46,8 @@ static void exit_cleanup(void) {
 int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, NULL);
+
+    ggl_nucleus_init();
 
     atexit(exit_cleanup);
 

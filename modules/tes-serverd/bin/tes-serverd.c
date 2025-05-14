@@ -6,12 +6,10 @@
 
 #include "tes-serverd.h"
 #include <ggl/error.h>
-#include <ggl/version.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
+#include <ggl/nucleus/init.h>
 
 int main(void) {
+    ggl_nucleus_init();
     GglError ret = run_tes_serverd();
     if (ret != GGL_ERR_OK) {
         return 1;

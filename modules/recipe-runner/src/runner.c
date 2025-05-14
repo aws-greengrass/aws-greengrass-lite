@@ -12,6 +12,7 @@
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/ipc/client.h>
+#include <ggl/ipc/client_priv.h>
 #include <ggl/json_encode.h>
 #include <ggl/json_pointer.h>
 #include <ggl/log.h>
@@ -19,7 +20,6 @@
 #include <ggl/object.h>
 #include <ggl/recipe.h>
 #include <ggl/vector.h>
-#include <ggl/version.h>
 #include <limits.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -548,7 +548,7 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     int conn = -1;
     GglError ret = ggipc_connect_by_name(
-        ggl_buffer_from_null_term(socket_path), component_name, &resp, &conn
+        ggl_buffer_from_null_term(socket_path), component_name, &conn, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Runner failed to authenticate with nucleus.");

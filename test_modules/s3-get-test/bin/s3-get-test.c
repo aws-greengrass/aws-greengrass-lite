@@ -4,11 +4,14 @@
 
 #include "s3-get-test.h"
 #include <ggl/error.h>
+#include <ggl/nucleus/init.h>
 
 int main(int argc, char **argv) {
     if (argc < 4) {
         return 1;
     }
+
+    ggl_nucleus_init();
 
     // resuse key for file_path if not provided
     char *file_path = (argc < 5) ? argv[3] : argv[4];

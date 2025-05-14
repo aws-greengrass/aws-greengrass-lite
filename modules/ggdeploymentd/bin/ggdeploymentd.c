@@ -6,14 +6,11 @@
 #include <argp.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/nucleus/init.h>
 #include <ggl/vector.h>
-#include <ggl/version.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
 
 static char doc[]
     = "ggdeploymentd -- Greengrass Nucleus Lite deployment daemon";
@@ -66,6 +63,8 @@ int main(int argc, char **argv) {
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, NULL);
+
+    ggl_nucleus_init();
 
     ret = run_ggdeploymentd(bin_path);
     if (ret != GGL_ERR_OK) {

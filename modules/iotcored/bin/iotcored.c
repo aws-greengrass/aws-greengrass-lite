@@ -5,10 +5,7 @@
 #include "iotcored.h"
 #include <argp.h>
 #include <ggl/error.h>
-#include <ggl/version.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
+#include <ggl/nucleus/init.h>
 
 static char doc[] = "iotcored -- MQTT spooler for AWS IoT Core";
 
@@ -59,6 +56,8 @@ int main(int argc, char **argv) {
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
+
+    ggl_nucleus_init();
 
     GglError ret = run_iotcored(&args);
     if (ret != GGL_ERR_OK) {

@@ -40,7 +40,6 @@
 #include <ggl/uri.h>
 #include <ggl/utils.h>
 #include <ggl/vector.h>
-#include <ggl/version.h>
 #include <ggl/zip.h>
 #include <limits.h>
 #include <string.h>

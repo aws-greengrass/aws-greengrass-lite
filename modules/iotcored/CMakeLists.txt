@@ -5,6 +5,7 @@
 ggl_init_module(
   iotcored
   LIBS ggl-sdk
+       ggl-common
        core-bus
        core-bus-gg-config
        core_mqtt

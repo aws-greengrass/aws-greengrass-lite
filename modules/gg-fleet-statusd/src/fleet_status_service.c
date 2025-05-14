@@ -18,7 +18,6 @@
 #include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
-#include <ggl/version.h>
 #include <limits.h>
 #include <pthread.h>
 #include <string.h>

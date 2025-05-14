@@ -4,12 +4,10 @@
 
 #include "bus_server.h"
 #include <ggl/error.h>
-#include <ggl/version.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
+#include <ggl/nucleus/init.h>
 
 int main(void) {
+    ggl_nucleus_init();
     GglError ret = run_gghealthd();
     if (ret != GGL_ERR_OK) {
         return 1;

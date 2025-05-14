@@ -5,11 +5,8 @@
 #include "recipe-runner.h"
 #include <argp.h>
 #include <ggl/error.h>
-#include <ggl/version.h>
+#include <ggl/nucleus/init.h>
 #include <stdlib.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
 
 static char doc[] = "recipe-runner -- Launch a Greengrass recipe file";
 
@@ -53,6 +50,8 @@ int main(int argc, char **argv) {
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
+
+    ggl_nucleus_init();
 
     GglError ret = run_recipe_runner(&args);
     return ret != GGL_ERR_OK;

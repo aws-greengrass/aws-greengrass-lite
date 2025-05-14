@@ -2,16 +2,18 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-// IWYU removes this since GGL_VERSION is provided on the command line
-// IWYU pragma: always_keep
-
-#ifndef GGL_VERSION_H
-#define GGL_VERSION_H
-
-//! Greengrass Lite version number
+#include <argp.h>
+#include <ggl/nucleus/init.h>
+#include <ggl/sdk.h>
 
 #ifndef GGL_VERSION
 #define GGL_VERSION "0.0.0"
 #endif
 
-#endif
+__attribute__((visibility("default"))) const char *argp_program_version
+    = GGL_VERSION;
+
+void ggl_nucleus_init(void) {
+    // TODO: Raise rlimits
+    ggl_sdk_init();
+}

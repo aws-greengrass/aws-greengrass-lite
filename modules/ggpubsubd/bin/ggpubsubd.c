@@ -5,11 +5,8 @@
 #include "ggpubsubd.h"
 #include <argp.h>
 #include <ggl/error.h>
-#include <ggl/version.h>
+#include <ggl/nucleus/init.h>
 #include <stdlib.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
 
 static char doc[] = "ggpubsubd -- Greengrass Publish/Subscribe daemon";
 
@@ -35,6 +32,8 @@ static struct argp argp = { opts, arg_parser, 0, doc, 0, 0, 0 };
 int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, NULL);
+
+    ggl_nucleus_init();
 
     GglError ret = run_ggpubsubd();
     if (ret != GGL_ERR_OK) {

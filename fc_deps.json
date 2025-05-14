@@ -13,5 +13,10 @@
     "url": "https://github.com/aws/SigV4-for-AWS-IoT-embedded-sdk.git",
     "rev": "f0409ced6c2c9430f0e972019b7e8f20bbf58f4e",
     "hash": "sha256-6is4ymM/Ct9JntgpFHF4Vlv5+GUwy0HZvEiEV+ALJkw="
+  },
+  "ggl_sdk": {
+    "url": "https://github.com/aws-greengrass/aws-greengrass-sdk-lite.git",
+    "rev": "f06f8e1e78e150172bbaa5386325e3918dfbc83e",
+    "hash": "sha256-+yu8ciEmVv2rmSTy4iQqDcH3+yrugwZCF7ZBkAgVDAo="
   }
 }

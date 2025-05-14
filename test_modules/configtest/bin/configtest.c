@@ -6,6 +6,7 @@
 #include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
+#include <ggl/nucleus/init.h>
 #include <ggl/object.h>
 #include <inttypes.h>
 #include <string.h>
@@ -524,6 +525,8 @@ static void test_write_object(void) {
 int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
+
+    ggl_nucleus_init();
 
     // Test to ensure getting a key which doesn't exist works
     test_get(

@@ -11,18 +11,15 @@
 #include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
+#include <ggl/nucleus/init.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
-#include <ggl/version.h>
 #include <limits.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
 
 char *command = NULL;
 char *recipe_dir = NULL;
@@ -87,6 +84,8 @@ static struct argp argp = { opts, arg_parser, "deploy", doc, 0, 0, 0 };
 int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, NULL);
+
+    ggl_nucleus_init();
 
     GglKVVec args = GGL_KV_VEC((GglKV[3]) { 0 });
 

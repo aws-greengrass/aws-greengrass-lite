@@ -5,10 +5,7 @@
 #include "ggipcd.h"
 #include <argp.h>
 #include <ggl/error.h>
-#include <ggl/version.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
+#include <ggl/nucleus/init.h>
 
 static char doc[] = "ggipcd -- Greengrass IPC server for Nucleus Lite";
 
@@ -38,6 +35,8 @@ int main(int argc, char **argv) {
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
+
+    ggl_nucleus_init();
 
     GglError ret = run_ggipcd(&args);
     if (ret != GGL_ERR_OK) {

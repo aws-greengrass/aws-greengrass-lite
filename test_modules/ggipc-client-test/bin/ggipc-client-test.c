@@ -7,7 +7,9 @@
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/ipc/client.h>
+#include <ggl/ipc/client_priv.h>
 #include <ggl/log.h>
+#include <ggl/nucleus/init.h>
 #include <ggl/object.h>
 #include <inttypes.h>
 #include <time.h>
@@ -21,6 +23,9 @@ static GglBuffer component_name = GGL_STR("ggipc.client.test");
 int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
+
+    ggl_nucleus_init();
+
     // Get the SocketPath from Environment Variable
     char *socket_path
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
@@ -33,7 +38,7 @@ int main(int argc, char **argv) {
 
     int conn = -1;
     GglError ret = ggipc_connect_by_name(
-        ggl_buffer_from_null_term(socket_path), component_name, NULL, &conn
+        ggl_buffer_from_null_term(socket_path), component_name, &conn, NULL
     );
     if (ret != GGL_ERR_OK) {
         return 1;
@@ -117,7 +122,7 @@ int main(int argc, char **argv) {
 
         GglArena alloc = ggl_arena_init(ipc_buf);
         ret = ggipc_publish_to_topic_binary(
-            conn, GGL_STR("test_topic2"), timestamp_buf, &alloc
+            conn, GGL_STR("test_topic2"), timestamp_buf, alloc
         );
 
         if (ret != GGL_ERR_OK) {

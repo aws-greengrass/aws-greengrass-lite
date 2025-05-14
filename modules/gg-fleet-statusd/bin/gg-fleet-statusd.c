@@ -4,14 +4,13 @@
 
 #include "gg_fleet_statusd.h"
 #include <ggl/error.h>
-#include <ggl/version.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
+#include <ggl/nucleus/init.h>
 
 int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
+
+    ggl_nucleus_init();
 
     GglError ret = run_gg_fleet_statusd();
     if (ret != GGL_ERR_OK) {

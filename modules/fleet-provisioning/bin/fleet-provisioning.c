@@ -8,13 +8,10 @@
 #include <ggl/error.h>
 #include <ggl/exec.h>
 #include <ggl/log.h>
+#include <ggl/nucleus/init.h>
 #include <ggl/vector.h>
-#include <ggl/version.h>
 #include <sys/types.h>
 #include <stdint.h>
-
-__attribute__((visibility("default"))) const char *argp_program_version
-    = GGL_VERSION;
 
 static char doc[] = "fleet provisioner -- Executable to automatically "
                     "provision the device to AWS IOT core";
@@ -127,6 +124,8 @@ int main(int argc, char **argv) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, &args);
     args.iotcored_path = (char *) iotcored_path;
+
+    ggl_nucleus_init();
 
     pid_t pid = -1;
     ret = run_fleet_prov(&args, &pid);

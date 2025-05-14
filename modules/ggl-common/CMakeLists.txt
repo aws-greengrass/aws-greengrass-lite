@@ -2,12 +2,4 @@
 # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0
 
-ggl_init_module(
-  ggconfigd-test
-  LIBS ggl-sdk
-       ggl-common
-       core-bus
-       core-bus-gg-config
-       ggl-json
-       ggconfigd
-       PkgConfig::sqlite3)
+ggl_init_module(ggl-common LIBS ggl-sdk)

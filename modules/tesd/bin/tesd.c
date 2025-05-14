@@ -6,8 +6,10 @@
 
 #include "tesd.h"
 #include <ggl/error.h>
+#include <ggl/nucleus/init.h>
 
 int main(void) {
+    ggl_nucleus_init();
     GglError ret = run_tesd();
     if (ret != GGL_ERR_OK) {
         return 1;

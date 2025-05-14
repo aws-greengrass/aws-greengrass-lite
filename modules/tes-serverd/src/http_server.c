@@ -17,7 +17,6 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
-#include <ggl/version.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <systemd/sd-daemon.h>

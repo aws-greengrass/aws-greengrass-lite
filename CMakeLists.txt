@@ -277,6 +277,9 @@ check_c_source_compiles(
 # Add components
 #
 
+add_subdirectory(${ggl_sdk_SOURCE_DIR} ggl-sdk)
+target_include_directories(ggl-sdk INTERFACE ${ggl_sdk_SOURCE_DIR}/priv_include)
+
 # Common setup for a GGL module
 function(ggl_init_module name)
   cmake_parse_arguments(PARSE_ARGV 1 COMP_ARG "" "SRCDIR" "INCDIRS;LIBS")
