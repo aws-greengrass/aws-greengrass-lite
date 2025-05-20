@@ -8,6 +8,7 @@
 #include <ggl/cleanup.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
+#include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <inttypes.h>

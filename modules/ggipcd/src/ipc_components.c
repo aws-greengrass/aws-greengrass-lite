@@ -13,6 +13,7 @@
 #include <ggl/ipc/limits.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
+#include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/rand.h>
 #include <pthread.h>
