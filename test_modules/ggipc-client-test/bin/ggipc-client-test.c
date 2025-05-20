@@ -9,6 +9,7 @@
 #include <ggl/ipc/client.h>
 #include <ggl/ipc/client_priv.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
 #include <ggl/nucleus/init.h>
 #include <ggl/object.h>
 #include <inttypes.h>
@@ -36,9 +37,8 @@ int main(int argc, char **argv) {
         return GGL_ERR_FAILURE;
     }
 
-    int conn = -1;
-    GglError ret = ggipc_connect_by_name(
-        ggl_buffer_from_null_term(socket_path), component_name, &conn, NULL
+    GglError ret = ggipc_connect_with_name(
+        ggl_buffer_from_null_term(socket_path), component_name, NULL
     );
     if (ret != GGL_ERR_OK) {
         return 1;
@@ -54,10 +54,7 @@ int main(int argc, char **argv) {
         "Putting timestamp ( %" PRIi64 ") into config.", (int64_t) t.tv_sec
     );
     ret = ggipc_update_config(
-        conn,
-        GGL_BUF_LIST(GGL_STR("timestamp")),
-        &t,
-        ggl_obj_i64((int64_t) t.tv_sec)
+        GGL_BUF_LIST(GGL_STR("timestamp")), &t, ggl_obj_i64((int64_t) t.tv_sec)
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to write timestamp.");
@@ -72,12 +69,8 @@ int main(int argc, char **argv) {
     GglBuffer ipc_buf = GGL_BUF(ipc_bytes);
     {
         GglArena alloc = ggl_arena_init(ipc_buf);
-        ret = ggipc_get_config_obj(
-            conn,
-            GGL_BUF_LIST(GGL_STR("timestamp")),
-            NULL,
-            &alloc,
-            &timestamp_obj
+        ret = ggipc_get_config(
+            GGL_BUF_LIST(GGL_STR("timestamp")), NULL, &alloc, &timestamp_obj
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to read timestamp.");
@@ -93,8 +86,11 @@ int main(int argc, char **argv) {
 
     {
         GGL_LOGT("Publishing timestamp as object.");
-        ret = ggipc_publish_to_topic_obj(
-            conn, GGL_STR("test_topic"), ggl_obj_i64((int64_t) t.tv_sec)
+        ret = ggipc_publish_to_topic_json(
+            GGL_STR("test_topic"),
+            GGL_MAP(
+                ggl_kv(GGL_STR("timestamp"), ggl_obj_i64((int64_t) t.tv_sec))
+            )
         );
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to publish object.");
@@ -122,7 +118,7 @@ int main(int argc, char **argv) {
 
         GglArena alloc = ggl_arena_init(ipc_buf);
         ret = ggipc_publish_to_topic_binary(
-            conn, GGL_STR("test_topic2"), timestamp_buf, alloc
+            GGL_STR("test_topic2"), timestamp_buf, alloc
         );
 
         if (ret != GGL_ERR_OK) {

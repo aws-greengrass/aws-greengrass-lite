@@ -13,6 +13,7 @@
 #include <ggl/file.h>
 #include <ggl/ipc/client.h>
 #include <ggl/ipc/client_priv.h>
+#include <ggl/ipc/limits.h>
 #include <ggl/json_encode.h>
 #include <ggl/json_pointer.h>
 #include <ggl/log.h>
@@ -36,7 +37,7 @@ pid_t child_pid = -1; // To store child process ID
 // This file is single-threaded
 // NOLINTBEGIN(concurrency-mt-unsafe)
 
-static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
+static GglError insert_config_value(int out_fd, GglBuffer json_ptr) {
     static GglBuffer key_path_mem[GGL_MAX_OBJECT_DEPTH];
     GglBufVec key_path = GGL_BUF_VEC(key_path_mem);
 
@@ -50,7 +51,7 @@ static GglError insert_config_value(int conn, int out_fd, GglBuffer json_ptr) {
     static uint8_t copy_config_value[10000];
     GglArena alloc = ggl_arena_init(GGL_BUF(config_value));
     GglObject result = { 0 };
-    ret = ggipc_get_config_obj(conn, key_path.buf_list, NULL, &alloc, &result);
+    ret = ggipc_get_config(key_path.buf_list, NULL, &alloc, &result);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get config value for substitution.");
         return ret;
@@ -88,7 +89,6 @@ static GglError split_escape_seq(
 // TODO: Simplify this code
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError substitute_escape(
-    int conn,
     int out_fd,
     GglBuffer escape_seq,
     GglBuffer root_path,
@@ -193,7 +193,7 @@ static GglError substitute_escape(
             return ggl_file_write(out_fd, GGL_STR("/"));
         }
     } else if (ggl_buffer_eq(type, GGL_STR("configuration"))) {
-        return insert_config_value(conn, out_fd, arg);
+        return insert_config_value(out_fd, arg);
     }
 
     GGL_LOGE(
@@ -205,7 +205,6 @@ static GglError substitute_escape(
 }
 
 static GglError handle_escape(
-    int conn,
     int out_fd,
     uint8_t **current_pointer,
     const uint8_t *end_pointer,
@@ -232,7 +231,6 @@ static GglError handle_escape(
         } else {
             (*current_pointer)++;
             return substitute_escape(
-                conn,
                 out_fd,
                 vec.buf,
                 root_path,
@@ -245,7 +243,6 @@ static GglError handle_escape(
 }
 
 static GglError process_set_env(
-    int conn,
     int out_fd,
     GglMap env_values_as_map,
     GglBuffer root_path,
@@ -302,7 +299,6 @@ static GglError process_set_env(
                 current_pointer++;
             } else {
                 ret = handle_escape(
-                    conn,
                     out_fd,
                     &current_pointer,
                     end_pointer,
@@ -325,7 +321,6 @@ static GglError process_set_env(
 }
 
 static GglError find_and_process_set_env(
-    int conn,
     int out_fd,
     GglMap map_containing_setenv,
     GglBuffer root_path,
@@ -343,7 +338,6 @@ static GglError find_and_process_set_env(
         }
 
         ret = process_set_env(
-            conn,
             out_fd,
             ggl_obj_into_map(*env_values),
             root_path,
@@ -362,7 +356,6 @@ static GglError find_and_process_set_env(
 }
 
 static GglError process_lifecycle_phase(
-    int conn,
     int out_fd,
     GglMap selected_lifecycle,
     GglBuffer phase,
@@ -394,7 +387,6 @@ static GglError process_lifecycle_phase(
             phase.data
         );
         ret = process_set_env(
-            conn,
             out_fd,
             set_env_as_map,
             root_path,
@@ -435,7 +427,6 @@ static GglError process_lifecycle_phase(
             current_pointer++;
         } else {
             ret = handle_escape(
-                conn,
                 out_fd,
                 &current_pointer,
                 end_pointer,
@@ -453,7 +444,6 @@ static GglError process_lifecycle_phase(
 }
 
 static GglError write_script_with_replacement(
-    int conn,
     int out_fd,
     GglMap recipe_as_map,
     GglBuffer root_path,
@@ -472,7 +462,6 @@ static GglError write_script_with_replacement(
 
     GGL_LOGT("Processing Global Setenv");
     ret = find_and_process_set_env(
-        conn,
         out_fd,
         selected_lifecycle_map,
         root_path,
@@ -489,7 +478,6 @@ static GglError write_script_with_replacement(
         "Processing other Lifecycle phase: %.*s", (int) phase.len, phase.data
     );
     ret = process_lifecycle_phase(
-        conn,
         out_fd,
         selected_lifecycle_map,
         phase,
@@ -546,9 +534,8 @@ GglError runner(const RecipeRunnerArgs *args) {
     GglBuffer resp = GGL_BUF(resp_mem);
     resp.len = GGL_IPC_SVCUID_STR_LEN;
 
-    int conn = -1;
-    GglError ret = ggipc_connect_by_name(
-        ggl_buffer_from_null_term(socket_path), component_name, &conn, &resp
+    GglError ret = ggipc_connect_with_name(
+        ggl_buffer_from_null_term(socket_path), component_name, &resp
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Runner failed to authenticate with nucleus.");
@@ -568,7 +555,7 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     resp = GGL_BUF(resp_mem);
     resp.len -= 1;
-    ret = ggipc_private_get_system_config(conn, GGL_STR("rootCaPath"), &resp);
+    ret = ggipc_private_get_system_config(GGL_STR("rootCaPath"), &resp);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get root CA path from config.");
         return ret;
@@ -582,7 +569,6 @@ GglError runner(const RecipeRunnerArgs *args) {
     resp = GGL_BUF(resp_mem);
     resp.len -= 1;
     ret = ggipc_get_config_str(
-        conn,
         GGL_BUF_LIST(GGL_STR("awsRegion")),
         &GGL_STR("aws.greengrass.NucleusLite"),
         &resp
@@ -610,7 +596,6 @@ GglError runner(const RecipeRunnerArgs *args) {
     resp = GGL_BUF(resp_mem);
     resp.len -= 1;
     ret = ggipc_get_config_str(
-        conn,
         GGL_BUF_LIST(GGL_STR("networkProxy"), GGL_STR("proxy"), GGL_STR("url")),
         &GGL_STR("aws.greengrass.NucleusLite"),
         &resp
@@ -641,7 +626,6 @@ GglError runner(const RecipeRunnerArgs *args) {
     resp = GGL_BUF(resp_mem);
     resp.len -= 1;
     ret = ggipc_get_config_str(
-        conn,
         GGL_BUF_LIST(GGL_STR("networkProxy"), GGL_STR("noProxyAddresses")),
         &GGL_STR("aws.greengrass.NucleusLite"),
         &resp
@@ -668,9 +652,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN + 1];
     GglBuffer thing_name = GGL_BUF(thing_name_mem);
     thing_name.len -= 1;
-    ret = ggipc_private_get_system_config(
-        conn, GGL_STR("thingName"), &thing_name
-    );
+    ret = ggipc_private_get_system_config(GGL_STR("thingName"), &thing_name);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get thing name from config.");
         return ret;
@@ -682,9 +664,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     }
 
     GglBuffer root_path = GGL_BUF(resp_mem);
-    ret = ggipc_private_get_system_config(
-        conn, GGL_STR("rootPath"), &root_path
-    );
+    ret = ggipc_private_get_system_config(GGL_STR("rootPath"), &root_path);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get root path from config.");
         return ret;
@@ -739,7 +719,6 @@ GglError runner(const RecipeRunnerArgs *args) {
             GglBuffer rest = ggl_byte_vec_remaining_capacity(resp_vec);
 
             ret = ggipc_get_config_str(
-                conn,
                 GGL_BUF_LIST(GGL_STR("port")),
                 &GGL_STR("aws.greengrass.TokenExchangeService"),
                 &rest
@@ -836,7 +815,6 @@ GglError runner(const RecipeRunnerArgs *args) {
     // child
     (void) ggl_close(pipe_fds[0]);
     ret = write_script_with_replacement(
-        conn,
         pipe_fds[1],
         ggl_obj_into_map(recipe),
         root_path,
