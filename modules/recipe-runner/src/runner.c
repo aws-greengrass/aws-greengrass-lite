@@ -806,9 +806,9 @@ GglError runner(const RecipeRunnerArgs *args) {
     // exec in parent to preserve pid
     if (pid > 0) {
         dup2(pipe_fds[0], STDIN_FILENO);
-        char *argv[] = { "sh", NULL };
+        const char *argv[] = { "sh", NULL };
 
-        execvp(argv[0], argv);
+        execvp(argv[0], (char **) argv);
         _Exit(1);
     }
 

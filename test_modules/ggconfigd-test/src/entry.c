@@ -19,8 +19,8 @@
 
 #define SUCCESS_STRING "test-and-verify-the-world"
 
-static char *component_name = "sample";
-static char *component_version = "1.0.0";
+static const char *component_name = "sample";
+static const char *component_version = "1.0.0";
 const char *component_name_test = "ggconfigd-test";
 
 GglError run_ggconfigd_test(void) {
@@ -62,8 +62,8 @@ GglError run_ggconfigd_test(void) {
     GglKV component;
     if (component_name != NULL) {
         component = ggl_kv(
-            ggl_buffer_from_null_term(component_name),
-            ggl_obj_buf(ggl_buffer_from_null_term(component_version))
+            ggl_buffer_from_null_term((char *) component_name),
+            ggl_obj_buf(ggl_buffer_from_null_term((char *) component_version))
         );
         ret = ggl_kv_vec_push(
             &args,

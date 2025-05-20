@@ -15,7 +15,7 @@
 /// Exactly one of wait or kill must eventually be called to clean up resources
 /// and reap zombie.
 /// argv must be null-terminated.
-GglError ggl_process_spawn(char *const argv[], int *handle);
+GglError ggl_process_spawn(const char *const argv[], int *handle);
 
 /// Wait until child process exits
 /// Cleans up handle and child zombie.
@@ -30,6 +30,6 @@ GglError ggl_process_kill(int handle, uint32_t term_timeout);
 
 /// Run a process with given arguments, and return if successful.
 /// argv must be null-terminated.
-GglError ggl_process_call(char *const argv[]);
+GglError ggl_process_call(const char *const argv[]);
 
 #endif

@@ -22,8 +22,8 @@ typedef struct {
     GglBuffer component_name;
     GglBuffer component_version;
     char recipe_runner_path[PATH_MAX];
-    char *user;
-    char *group;
+    const char *user;
+    const char *group;
     char root_dir[PATH_MAX];
     int root_path_fd;
 } Recipe2UnitArgs;

@@ -2,12 +2,12 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
-#include "ggl/process.h"
 #include <assert.h>
 #include <errno.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
+#include <ggl/process.h>
 #include <limits.h>
 #include <pthread.h>
 #include <signal.h>
@@ -60,7 +60,7 @@ static int sys_close_range(unsigned first, unsigned last, unsigned flags) {
 #define CLOSE_RANGE_UNSHARE 2
 #endif
 
-GglError ggl_process_spawn(char *const argv[], int *handle) {
+GglError ggl_process_spawn(const char *const argv[], int *handle) {
     assert(argv[0] != NULL);
     assert(handle != NULL);
 
@@ -69,7 +69,7 @@ GglError ggl_process_spawn(char *const argv[], int *handle) {
     if (pid == 0) {
         sys_close_range(3, UINT_MAX, CLOSE_RANGE_UNSHARE);
 
-        execvp(argv[0], argv);
+        execvp(argv[0], (char **) argv);
 
         _Exit(1);
     }
@@ -162,7 +162,7 @@ GglError ggl_process_kill(int handle, uint32_t term_timeout) {
     return ggl_process_wait(handle, NULL);
 }
 
-GglError ggl_process_call(char *const argv[]) {
+GglError ggl_process_call(const char *const argv[]) {
     int handle;
     GglError ret = ggl_process_spawn(argv, &handle);
     if (ret != GGL_ERR_OK) {

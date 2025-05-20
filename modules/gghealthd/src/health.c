@@ -121,13 +121,13 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status) {
         return GGL_ERR_FAILURE;
     }
 
-    char *argv[] = { "cgexec",
-                     "-g",
-                     (char *) cgroup.buf.data,
-                     "--",
-                     "systemd-notify",
-                     (char *) ggl_obj_into_buf(*status_obj).data,
-                     NULL };
+    const char *argv[] = { "cgexec",
+                           "-g",
+                           (char *) cgroup.buf.data,
+                           "--",
+                           "systemd-notify",
+                           (char *) ggl_obj_into_buf(*status_obj).data,
+                           NULL };
     err = ggl_exec_command(argv);
     if (err != GGL_ERR_OK) {
         GGL_LOGE("Failed to notify status");

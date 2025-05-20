@@ -14,7 +14,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-GglError ggl_exec_command(char *args[]) {
+GglError ggl_exec_command(const char *const args[]) {
     int pid = -1;
     GglError err = ggl_exec_command_async(args, &pid);
     if (err != GGL_ERR_OK) {
@@ -37,9 +37,11 @@ GglError ggl_exec_command(char *args[]) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_exec_command_async(char *args[], pid_t *child_pid) {
+GglError ggl_exec_command_async(const char *const args[], pid_t *child_pid) {
     pid_t pid = -1;
-    int ret = posix_spawnp(&pid, args[0], NULL, NULL, args, environ);
+    int ret = posix_spawnp(
+        &pid, args[0], NULL, NULL, (char *const *) args, environ
+    );
     if (ret != 0) {
         GGL_LOGE("Error, unable to spawn (%d)", ret);
         return GGL_ERR_FAILURE;

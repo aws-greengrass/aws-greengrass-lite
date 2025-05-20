@@ -84,8 +84,8 @@ static SigV4Details sigv4_from_tes(
                             .session_token = credentials.session_token };
 }
 
-static GglError merge_dir_to(GglBuffer source, char *dir) {
-    char *mkdir[] = { "mkdir", "-p", dir, NULL };
+static GglError merge_dir_to(GglBuffer source, const char *dir) {
+    const char *mkdir[] = { "mkdir", "-p", dir, NULL };
     GglError ret = ggl_process_call(mkdir);
     if (ret != GGL_ERR_OK) {
         return ret;
@@ -100,7 +100,7 @@ static GglError merge_dir_to(GglBuffer source, char *dir) {
         return ret;
     }
 
-    char *cp[] = { "cp", "-RP", source_path, dir, NULL };
+    const char *cp[] = { "cp", "-RP", source_path, dir, NULL };
     return ggl_process_call(cp);
 }
 

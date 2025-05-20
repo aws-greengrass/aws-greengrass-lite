@@ -374,8 +374,8 @@ static GglError expand_timeout(
 static GglError update_unit_file_buffer(
     GglByteVec *out,
     GglByteVec exec_start_section_vec,
-    char *arg_user,
-    char *arg_group,
+    const char *arg_user,
+    const char *arg_group,
     bool is_root,
     GglBuffer selected_phase,
     GglBuffer timeout,
@@ -426,11 +426,11 @@ static GglError update_unit_file_buffer(
     } else {
         ret = ggl_byte_vec_append(out, GGL_STR("User="));
         ggl_byte_vec_chain_append(
-            &ret, out, ggl_buffer_from_null_term(arg_user)
+            &ret, out, ggl_buffer_from_null_term((char *) arg_user)
         );
         ggl_byte_vec_chain_append(&ret, out, GGL_STR("\nGroup="));
         ggl_byte_vec_chain_append(
-            &ret, out, ggl_buffer_from_null_term(arg_group)
+            &ret, out, ggl_buffer_from_null_term((char *) arg_group)
         );
         ggl_byte_vec_chain_append(&ret, out, GGL_STR("\n"));
         if (ret != GGL_ERR_OK) {

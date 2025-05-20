@@ -9,8 +9,8 @@
 #include <ggl/error.h>
 #include <sys/types.h>
 
-GglError ggl_exec_command(char *args[]);
-GglError ggl_exec_command_async(char *args[], pid_t *child_pid);
+GglError ggl_exec_command(const char *const args[]);
+GglError ggl_exec_command_async(const char *const args[], pid_t *child_pid);
 GglError ggl_exec_kill_process(pid_t process_id);
 
 #endif

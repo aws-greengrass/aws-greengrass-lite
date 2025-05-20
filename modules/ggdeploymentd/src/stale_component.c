@@ -274,7 +274,7 @@ static GglError delete_recipe_script_and_service_files(GglBuffer *component_name
     // Store index so that we can restore the vector to this state.
     const size_t INDEX_BEFORE_FILE_EXTENTION = root_path.buf.len;
 
-    char *extentions[]
+    const char *extentions[]
         = { ".bootstrap.service", ".install.service", ".service" };
 
     for (size_t i = 0; i < (sizeof(extentions) / sizeof(char *)); i++) {

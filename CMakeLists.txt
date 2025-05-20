@@ -153,6 +153,7 @@ endif()
 add_cflags(
   -Wall
   -Wextra
+  -Wwrite-strings
   -Wno-missing-braces
   -Wvla
   -Wshadow

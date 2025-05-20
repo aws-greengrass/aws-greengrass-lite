@@ -118,7 +118,7 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
 }
 
 static GglError set_global_values(pid_t iotcored_pid) {
-    static char *template_url_prefix = "$aws/provisioning-templates/";
+    static const char *template_url_prefix = "$aws/provisioning-templates/";
     global_iotcored_pid = iotcored_pid;
 
     // Fetch Template Name from db
@@ -144,7 +144,7 @@ static GglError set_global_values(pid_t iotcored_pid) {
     ggl_byte_vec_chain_append(
         &ret,
         &register_thing_url,
-        ggl_buffer_from_null_term(template_url_prefix)
+        ggl_buffer_from_null_term((char *) template_url_prefix)
     );
     ggl_byte_vec_chain_append(&ret, &register_thing_url, template_name);
     ggl_byte_vec_chain_append(

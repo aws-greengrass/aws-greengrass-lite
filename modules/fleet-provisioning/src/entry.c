@@ -34,7 +34,7 @@
 GglBuffer ggcredentials_path = GGL_STR("/ggcredentials");
 
 static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
-    char *iotcore_d_args[]
+    const char *iotcore_d_args[]
         = { args->iotcored_path,  "-n", "iotcoredfleet",       "-e",
             args->data_endpoint,  "-i", args->template_name,   "-r",
             args->root_ca_path,   "-c", args->claim_cert_path, "-k",
@@ -201,7 +201,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
 }
 
 static GglError update_cred_access(void) {
-    char *args[] = { "chown", "-R", USER_GROUP, "/ggcredentials/", NULL };
+    const char *args[] = { "chown", "-R", USER_GROUP, "/ggcredentials/", NULL };
 
     GglError ret = ggl_exec_command(args);
     if (ret != GGL_ERR_OK) {
@@ -209,7 +209,7 @@ static GglError update_cred_access(void) {
         return ret;
     }
 
-    char *args_reboot[] = { "systemctl", "reboot", NULL };
+    const char *args_reboot[] = { "systemctl", "reboot", NULL };
     ret = ggl_exec_command(args_reboot);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to reboot the device");
