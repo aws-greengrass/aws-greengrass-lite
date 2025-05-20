@@ -10,7 +10,7 @@ systemd as the init system.
 To build the project, you will need the following build dependencies:
 
 - GCC or Clang
-- CMake (at least version 3.25)
+- CMake (at least version 3.22)
 - Make or Ninja
 - pkg-config
 - git
