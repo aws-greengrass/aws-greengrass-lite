@@ -75,8 +75,9 @@ corebus. This table identifies the corebus component that does the work.
 
 ## Additional Details
 
-Known issues are documented [here](./docs/KNOWN_ISSUES.md) with some potential
-workarounds. Additionally only basic recipe types are supported, more
+Known issues are documented
+[here](https://github.com/aws-greengrass/aws-greengrass-lite/issues) with some
+potential workarounds. Additionally only basic recipe types are supported, more
 information on missing features can be found
 [here](./docs/RECIPE_SUPPORT_CHANGES.md).
 
