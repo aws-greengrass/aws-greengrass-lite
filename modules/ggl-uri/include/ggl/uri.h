@@ -14,6 +14,17 @@ typedef struct GglUriInfo {
     GglBuffer file;
 } GglUriInfo;
 
+typedef struct GglDockerUriInfo {
+    GglBuffer registry;
+    GglBuffer username;
+    GglBuffer repository;
+    GglBuffer tag;
+    GglBuffer digest_algorithm;
+    GglBuffer digest;
+} GglDockerUriInfo;
+
 GglError gg_uri_parse(GglArena *arena, GglBuffer uri, GglUriInfo *info);
+
+GglError gg_docker_uri_parse(GglBuffer uri, GglDockerUriInfo *info);
 
 #endif
