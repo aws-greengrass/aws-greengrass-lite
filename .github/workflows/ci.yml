@@ -61,16 +61,11 @@ jobs:
           nix build -L .#checks.x86_64-linux.${{ matrix.check }}
   check-links:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Install Lychee
-        run: |
-          curl -sSfL https://github.com/lycheeverse/lychee/releases/latest/download/lychee-linux-x86_64.tar.gz | tar xz
-          sudo mv lychee /usr/local/bin/
-
-      - name: Check links in Markdown files
-        run: |
-          lychee --verbose --exclude-mail --no-progress --max-retries 2 --timeout 20s './**/*.md'
+      - name: Run Lychee link checker
+        uses: lycheeverse/lychee-action@v2.4.1
+        with:
+          args: --verbose --require-https --exclude-mail './**/*.md'
