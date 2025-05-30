@@ -8,6 +8,7 @@ ggl_init_module(
        ggl-common
        core-bus
        ggl-backoff
+       ggl-docker-client
        ggl-http
        ggl-uri
        ggl-json
