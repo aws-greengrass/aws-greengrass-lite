@@ -29,7 +29,7 @@ To build the project, you will need the following build dependencies:
 On Ubuntu, these can be installed with:
 
 ```sh
-sudo apt install build-essential pkg-config cmake git curl libssl-dev \
+sudo apt update && sudo apt install build-essential pkg-config cmake git curl libssl-dev \
   libcurl4-openssl-dev uuid-dev libzip-dev libsqlite3-dev libyaml-dev \
   libsystemd-dev libevent-dev liburiparser-dev cgroup-tools
 ```
