@@ -27,6 +27,7 @@
 #include <ggl/file.h>
 #include <ggl/flags.h>
 #include <ggl/http.h>
+#include <ggl/io.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/list.h>
@@ -1005,7 +1006,7 @@ static GglError generate_resolve_component_candidates_body(
 
     static uint8_t rcc_buf[4096];
     GglBuffer rcc_body = GGL_BUF(rcc_buf);
-    ret = ggl_json_encode(ggl_obj_map(request_body), &rcc_body);
+    ret = ggl_json_encode(ggl_obj_map(request_body), ggl_buf_writer(&rcc_body));
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Error while encoding body for ResolveComponentCandidates call"
         );

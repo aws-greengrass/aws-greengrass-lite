@@ -85,8 +85,9 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
         ggl_kv(GGL_STR("certificateOwnershipToken"), *cert_owner_gg_obj),
         ggl_kv(GGL_STR("parameters"), config_template_param_json_obj)
     ));
-    GglError ret_err_json
-        = ggl_json_encode(thing_payload_obj, &thing_request_buf);
+    GglError ret_err_json = ggl_json_encode(
+        thing_payload_obj, ggl_buf_writer(&thing_request_buf)
+    );
     if (ret_err_json != GGL_ERR_OK) {
         return GGL_ERR_PARSE;
     }
@@ -521,7 +522,8 @@ GglError make_request(
     GglObject csr_payload_obj = ggl_obj_map(GGL_MAP(ggl_kv(
         GGL_STR("certificateSigningRequest"), ggl_obj_buf(csr_as_ggl_buffer)
     )));
-    GglError ret_err_json = ggl_json_encode(csr_payload_obj, &csr_buf);
+    GglError ret_err_json
+        = ggl_json_encode(csr_payload_obj, ggl_buf_writer(&csr_buf));
     if (ret_err_json != GGL_ERR_OK) {
         return GGL_ERR_PARSE;
     }

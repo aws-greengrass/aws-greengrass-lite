@@ -293,7 +293,7 @@ GglError publish_fleet_status_update(
     // build payload
     static uint8_t payload_buf[PAYLOAD_BUFFER_LEN];
     GglBuffer payload = GGL_BUF(payload_buf);
-    ret = ggl_json_encode(payload_obj, &payload);
+    ret = ggl_json_encode(payload_obj, ggl_buf_writer(&payload));
     if (ret != GGL_ERR_OK) {
         return ret;
     }
