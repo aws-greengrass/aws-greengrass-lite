@@ -179,6 +179,9 @@ static GglError delete_component_recipe(
 static GglError delete_component(
     GglBuffer component_name, GglBuffer version_number, bool delete_all_versions
 ) {
+    // TODO: Remove docker image artifacts before deleting recipe if this
+    // component is the only one to require this artifact.
+
     GGL_LOGD(
         "Removing component %.*s with version %.*s as it is marked as stale",
         (int) component_name.len,
