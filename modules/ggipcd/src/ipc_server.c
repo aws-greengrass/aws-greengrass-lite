@@ -410,6 +410,12 @@ static GglError handle_operation(
         return GGL_ERR_INVALID;
     }
 
+    GGL_LOGD(
+        "Handling operation on stream %d for %d.",
+        common_headers.stream_id,
+        handle
+    );
+
     GglIpcError ipc_error = GGL_IPC_ERROR_DEFAULT;
 
     GglError ret = handle_stream_operation(
@@ -529,6 +535,8 @@ GglError ggl_ipc_response_send(
     GglBuffer service_model_type,
     GglObject response
 ) {
+    GGL_LOGD("Responding to operation on stream %d for %d.", stream_id, handle);
+
     GGL_MTX_SCOPE_GUARD(&resp_array_mtx);
     GglBuffer resp_buffer = GGL_BUF(resp_array);
 
