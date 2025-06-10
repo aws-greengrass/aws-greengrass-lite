@@ -76,4 +76,24 @@ GglError aws_sigv4_s3_get_create_header(
     GglBuffer *auth_header
 );
 
+/// SignedHeaders=content-type;host;x-amz-date
+typedef struct ECRRequiredHeaders {
+    /// content-type
+    GglBuffer content_type;
+    /// host
+    GglBuffer host;
+    /// x-amz-date
+    GglBuffer amz_date;
+    /// POST payload
+    GglBuffer payload;
+} ECRRequiredHeaders;
+
+GglError aws_sigv4_ecr_post_create_header(
+    GglBuffer filepath,
+    SigV4Details sigv4_details,
+    ECRRequiredHeaders required_headers,
+    GglByteVec *headers_to_sign,
+    GglBuffer *auth_header
+);
+
 #endif

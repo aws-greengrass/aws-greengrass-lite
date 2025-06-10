@@ -699,6 +699,7 @@ static GglError get_recipe_artifacts(
         return error;
     }
 
+    bool ecr_logged_in = false;
     for (size_t i = 0; i < artifacts.len; ++i) {
         uint8_t decode_buffer[MAX_DECODE_BUF_LEN];
         if (ggl_obj_type(artifacts.items[i]) != GGL_TYPE_MAP) {
@@ -755,15 +756,26 @@ static GglError get_recipe_artifacts(
             if (((docker_info.tag.len == 0) && (docker_info.digest.len == 0))
                 || ggl_buffer_eq(docker_info.tag, GGL_STR("latest"))) {
                 GGL_LOGD("Latest tag requested. Pulling image.");
-                err = ggl_docker_pull(docker_uri);
             } else if (ggl_docker_check_image(docker_uri) != GGL_ERR_OK) {
                 GGL_LOGD("Image not found. Pulling image.");
-                err = ggl_docker_pull(docker_uri);
             } else {
                 GGL_LOGD("Image already found, skipping.");
-                err = GGL_ERR_OK;
+                continue;
             }
 
+            if (!ecr_logged_in) {
+                if (ggl_docker_is_uri_private_ecr(docker_info)) {
+                    err = ggl_docker_credentials_ecr_retrieve(
+                        docker_info, sigv4_from_tes(tes_creds, GGL_STR("ecr"))
+                    );
+                    if (err != GGL_ERR_OK) {
+                        return GGL_ERR_FAILURE;
+                    }
+                    ecr_logged_in = true;
+                }
+            }
+
+            err = ggl_docker_pull(docker_uri);
             if (err != GGL_ERR_OK) {
                 return GGL_ERR_FAILURE;
             }

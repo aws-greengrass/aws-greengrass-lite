@@ -4,6 +4,8 @@
  */
 
 #include "ggl/exec.h"
+#include "ggl/json_encode.h"
+#include "priv_io.h"
 #include <errno.h>
 #include <ggl/attr.h>
 #include <ggl/buffer.h>
@@ -12,6 +14,7 @@
 #include <ggl/file.h>
 #include <ggl/io.h>
 #include <ggl/log.h>
+#include <ggl/object.h>
 #include <signal.h>
 #include <spawn.h>
 #include <string.h>
@@ -126,43 +129,61 @@ static void cleanup_posix_destroy_file_actions(
     }
 }
 
-static GglError create_pipe_file_actions(
+static GglError create_output_pipe_file_actions(
+    posix_spawn_file_actions_t *actions, int pipe_read_fd, int pipe_write_fd
+) NONNULL(1);
+
+static GglError create_input_pipe_file_actions(
     posix_spawn_file_actions_t *actions, int pipe_read_fd, int pipe_write_fd
 ) NONNULL(1);
 
 // configures a pipe to redirect stdout,stderr
-static GglError create_pipe_file_actions(
+static GglError create_output_pipe_file_actions(
     posix_spawn_file_actions_t *actions, int pipe_read_fd, int pipe_write_fd
 ) {
-    if (posix_spawn_file_actions_init(actions) != 0) {
-        return GGL_ERR_NOMEM;
-    }
-    GGL_CLEANUP_ID(
-        actions_cleanup, cleanup_posix_destroy_file_actions, actions
-    );
     // The child does not need the readable end.
-    int ret = posix_spawn_file_actions_addclose(actions_cleanup, pipe_read_fd);
+    int ret = posix_spawn_file_actions_addclose(actions, pipe_read_fd);
     if (ret != 0) {
         return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
     }
     // Redirect both stderr and stdout to the writeable end
     ret = posix_spawn_file_actions_adddup2(
-        actions_cleanup, pipe_write_fd, STDOUT_FILENO
+        actions, pipe_write_fd, STDOUT_FILENO
     );
     if (ret != 0) {
         return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
     }
     ret = posix_spawn_file_actions_adddup2(
-        actions_cleanup, pipe_write_fd, STDERR_FILENO
+        actions, pipe_write_fd, STDERR_FILENO
     );
     if (ret != 0) {
         return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
     }
-    ret = posix_spawn_file_actions_addclose(actions_cleanup, pipe_write_fd);
+    ret = posix_spawn_file_actions_addclose(actions, pipe_write_fd);
     if (ret != 0) {
         return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
     }
-    actions_cleanup = NULL;
+    return GGL_ERR_OK;
+}
+
+// configures a pipe to stdin
+static GglError create_input_pipe_file_actions(
+    posix_spawn_file_actions_t *actions, int pipe_read_fd, int pipe_write_fd
+) {
+    // The child does not need the writeable end.
+    int ret = posix_spawn_file_actions_addclose(actions, pipe_write_fd);
+    if (ret != 0) {
+        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+    }
+    // Redirect stdin to the readable pipe
+    ret = posix_spawn_file_actions_adddup2(actions, pipe_read_fd, STDIN_FILENO);
+    if (ret != 0) {
+        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+    }
+    ret = posix_spawn_file_actions_addclose(actions, pipe_read_fd);
+    if (ret != 0) {
+        return (ret == ENOMEM) ? GGL_ERR_NOMEM : GGL_ERR_FAILURE;
+    }
     return GGL_ERR_OK;
 }
 
@@ -204,14 +225,18 @@ GglError ggl_exec_command_with_output(
     GGL_CLEANUP_ID(pipe_write_cleanup, cleanup_close, out_pipe[1]);
 
     posix_spawn_file_actions_t actions = { 0 };
-    GglError err = create_pipe_file_actions(&actions, out_pipe[0], out_pipe[1]);
-    if (err != GGL_ERR_OK) {
-        GGL_LOGE("Failed to create posix spawn file actions.");
-        return GGL_ERR_FAILURE;
+    if (posix_spawn_file_actions_init(&actions) != 0) {
+        return GGL_ERR_NOMEM;
     }
     GGL_CLEANUP_ID(
         actions_cleanup, cleanup_posix_destroy_file_actions, &actions
     );
+    GglError err
+        = create_output_pipe_file_actions(&actions, out_pipe[0], out_pipe[1]);
+    if (err != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create posix spawn file actions.");
+        return GGL_ERR_FAILURE;
+    }
 
     pid_t pid = -1;
     ret = posix_spawnp(
@@ -222,7 +247,7 @@ GglError ggl_exec_command_with_output(
         return GGL_ERR_FAILURE;
     }
 
-    (void) posix_spawn_file_actions_destroy(actions_cleanup);
+    (void) posix_spawn_file_actions_destroy(&actions);
     actions_cleanup = NULL;
     (void) ggl_close(pipe_write_cleanup);
     pipe_write_cleanup = -1;
@@ -234,4 +259,61 @@ GglError ggl_exec_command_with_output(
         return process_err;
     }
     return read_err;
+}
+
+GglError ggl_exec_command_with_input(
+    const char *const *args, GglObject payload
+) {
+    int in_pipe[2] = { -1, -1 };
+    int ret = pipe(in_pipe);
+    if (ret < 0) {
+        return GGL_ERR_FAILURE;
+    }
+    GGL_CLEANUP_ID(pipe_read_cleanup, cleanup_close, in_pipe[0]);
+    GGL_CLEANUP_ID(pipe_write_cleanup, cleanup_close, in_pipe[1]);
+
+    posix_spawn_file_actions_t actions = { 0 };
+    if (posix_spawn_file_actions_init(&actions) != 0) {
+        return GGL_ERR_NOMEM;
+    }
+    GGL_CLEANUP_ID(
+        actions_cleanup, cleanup_posix_destroy_file_actions, &actions
+    );
+    GglError err
+        = create_input_pipe_file_actions(&actions, in_pipe[0], in_pipe[1]);
+    if (err != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create posix spawn file actions.");
+        return GGL_ERR_FAILURE;
+    }
+
+    pid_t pid = -1;
+    ret = posix_spawnp(
+        &pid, args[0], &actions, NULL, (char *const *) args, environ
+    );
+    if (ret != 0) {
+        GGL_LOGE("Error, unable to spawn (%d)", ret);
+        return GGL_ERR_FAILURE;
+    }
+
+    (void) posix_spawn_file_actions_destroy(&actions);
+    actions_cleanup = NULL;
+    (void) ggl_close(pipe_read_cleanup);
+    pipe_read_cleanup = -1;
+
+    GglError pipe_error = GGL_ERR_OK;
+    if (ggl_obj_type(payload) == GGL_TYPE_BUF) {
+        pipe_error = ggl_file_write(in_pipe[1], ggl_obj_into_buf(payload));
+    } else {
+        FileWriterContext ctx = { .fd = in_pipe[1] };
+        pipe_error = ggl_json_encode(payload, priv_file_writer(&ctx));
+    }
+    (void) ggl_close(pipe_write_cleanup);
+    pipe_write_cleanup = -1;
+
+    GglError process_err = wait_for_process(pid);
+
+    if (process_err != GGL_ERR_OK) {
+        return err;
+    }
+    return pipe_error;
 }

@@ -9,6 +9,8 @@
 #include <ggl/error.h>
 #include <ggl/exec.h>
 #include <ggl/log.h>
+#include <ggl/map.h>
+#include <ggl/object.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -18,6 +20,12 @@ typedef struct RunnerEntry {
     GglBuffer expected_output;
     bool successful;
 } RunnerEntry;
+
+typedef struct InputEntry {
+    const char *arg_list[5];
+    GglObject input;
+    bool successful;
+} InputEntry;
 
 GglError run_cli_runner(void) {
     const RunnerEntry ENTRIES[]
@@ -65,6 +73,26 @@ GglError run_cli_runner(void) {
         if (entry->expected_output.data != NULL) {
             assert(ggl_buffer_eq(entry->expected_output, output));
         }
+    }
+
+    InputEntry inputs[] = {
+        { .arg_list = { "cat", NULL },
+          .input = ggl_obj_buf(GGL_STR("cat says hello\n")),
+          .successful = true },
+        { .arg_list = { "cat", NULL },
+          .input = ggl_obj_map(GGL_MAP(
+              ggl_kv(GGL_STR("Something"), ggl_obj_buf(GGL_STR("or other"))),
+              ggl_kv(GGL_STR("Nothing"), GGL_OBJ_NULL),
+              ggl_kv(GGL_STR("Anything"), ggl_obj_i64(64))
+          )),
+          .successful = true },
+    };
+
+    for (size_t i = 0; i < sizeof(inputs) / sizeof(*inputs); ++i) {
+        GglError err
+            = ggl_exec_command_with_input(inputs[i].arg_list, inputs[i].input);
+        bool successful = (err == GGL_ERR_OK);
+        assert(inputs[i].successful == successful);
     }
 
     return GGL_ERR_OK;
