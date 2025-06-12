@@ -192,17 +192,18 @@ static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
 GglError ggconfig_process_nonmap(
     GglObjVec *key_path, GglObject value, int64_t timestamp
 ) {
-    uint8_t value_string[1024] = { 0 };
-    GglBuffer value_buffer
-        = { .data = value_string, .len = sizeof(value_string) };
+    GglBuffer value_buffer = GGL_BUF((uint8_t[1024]) { 0 });
     GGL_LOGT("Starting json encode.");
-    GglError error = ggl_json_encode(value, ggl_buf_writer(&value_buffer));
+    GglBuffer encode_buf = value_buffer;
+    GglError error = ggl_json_encode(value, ggl_buf_writer(&encode_buf));
     if (error != GGL_ERR_OK) {
         GGL_LOGE(
             "Json encode failed for key %s.", print_key_path(&key_path->list)
         );
         return error;
     }
+    value_buffer.len
+        = (uintptr_t) encode_buf.data - (uintptr_t) value_buffer.data;
     GGL_LOGT("Writing value.");
     error = ggconfig_write_value_at_key(
         &key_path->list, &value_buffer, timestamp
