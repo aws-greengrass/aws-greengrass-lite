@@ -489,10 +489,10 @@ timestamp = 1723142212
 */
 
 static void test_write_object(void) {
-    GglBuffer test_key_path_json = GGL_STR("[\"component\",\"foobar\"]");
-    GglBuffer test_value_json
-        = GGL_STR("{\"foo\":{\"bar\":{\"baz\":[ 1,2,3,4],\"qux\":1},\"quux\": "
-                  "\"string\" },\"corge\" : true, \"grault\" : false}");
+    char test_key_path_json[] = "[\"component\",\"foobar\"]";
+    char test_value_json[]
+        = "{\"foo\":{\"bar\":{\"baz\":[ 1,2,3,4],\"qux\":1},\"quux\": "
+          "\"string\" },\"corge\" : true, \"grault\" : false}";
     GglObject test_key_path_object;
     GglObject test_value_object;
     static uint8_t big_buffer[4096];
@@ -500,13 +500,16 @@ static void test_write_object(void) {
 
     GglArena arena = ggl_arena_init(GGL_BUF(big_buffer));
     GglError ret = ggl_json_decode_destructive(
-        test_key_path_json, &arena, &test_key_path_object
+        ggl_buffer_from_null_term(test_key_path_json),
+        &arena,
+        &test_key_path_object
     );
     GGL_LOGI("json decode complete %d", ret);
 
     // Needs error checking?
-    (void
-    ) ggl_json_decode_destructive(test_value_json, &arena, &test_value_object);
+    (void) ggl_json_decode_destructive(
+        ggl_buffer_from_null_term(test_value_json), &arena, &test_value_object
+    );
 
     if (ggl_obj_type(test_key_path_object) == GGL_TYPE_LIST) {
         GGL_LOGI("found a list in the json path");
