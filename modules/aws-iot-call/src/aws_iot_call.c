@@ -11,7 +11,6 @@
 #include <ggl/core_bus/aws_iot_mqtt.h>
 #include <ggl/core_bus/client.h> // IWYU pragma: keep (cleanup)
 #include <ggl/error.h>
-#include <ggl/io.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -163,8 +162,8 @@ GglError ggl_aws_iot_call(
         return ret;
     }
 
-    GglBuffer payload_buf = GGL_BUF(json_encode_mem);
-    ret = ggl_json_encode(payload, ggl_buf_writer(&payload_buf));
+    GglByteVec payload_vec = GGL_BYTE_VEC(json_encode_mem);
+    ret = ggl_json_encode(payload, ggl_byte_vec_writer(&payload_vec));
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to encode JSON payload.");
         return ret;
@@ -208,7 +207,7 @@ GglError ggl_aws_iot_call(
         return ret;
     }
 
-    ret = ggl_aws_iot_mqtt_publish(topic, payload_buf, 1, true);
+    ret = ggl_aws_iot_mqtt_publish(topic, payload_vec.buf, 1, true);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Response topic subscription failed.");
         ggl_client_sub_close(sub_handle);

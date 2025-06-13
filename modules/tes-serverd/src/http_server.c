@@ -1,4 +1,5 @@
 #include "http_server.h"
+#include "ggl/vector.h"
 #include "inttypes.h"
 #include "netinet/in.h"
 #include "stdbool.h"
@@ -13,7 +14,6 @@
 #include <ggl/core_bus/client.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
-#include <ggl/io.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
@@ -145,10 +145,10 @@ static void request_handler(struct evhttp_request *req, void *arg) {
     GglObject tes_formatted_obj = fetch_creds(&alloc);
 
     static uint8_t response_cred_mem[4096];
-    GglBuffer response_cred_buffer = GGL_BUF(response_cred_mem);
+    GglByteVec response_cred_buffer = GGL_BYTE_VEC(response_cred_mem);
 
     GglError ret_err_json = ggl_json_encode(
-        tes_formatted_obj, ggl_buf_writer(&response_cred_buffer)
+        tes_formatted_obj, ggl_byte_vec_writer(&response_cred_buffer)
     );
     if (ret_err_json != GGL_ERR_OK) {
         GGL_LOGE("Failed to convert the json.");
@@ -165,7 +165,9 @@ static void request_handler(struct evhttp_request *req, void *arg) {
     GGL_LOGD("Successfully vended credentials for a request.");
 
     // Add the response data to the evbuffer
-    evbuffer_add(buf, response_cred_buffer.data, response_cred_buffer.len);
+    evbuffer_add(
+        buf, response_cred_buffer.buf.data, response_cred_buffer.buf.len
+    );
 
     evhttp_send_reply(req, HTTP_OK, "OK", buf);
     evbuffer_free(buf);

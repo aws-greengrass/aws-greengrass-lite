@@ -13,7 +13,6 @@
 #include <ggl/error.h>
 #include <ggl/exec.h>
 #include <ggl/file.h>
-#include <ggl/io.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
 #include <ggl/log.h>
@@ -55,7 +54,7 @@ static const char *cert_request_url = "$aws/certificates/create-from-csr/json";
 static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
     static uint8_t temp_payload_alloc2[2000] = { 0 };
 
-    GglBuffer thing_request_buf = GGL_BUF(temp_payload_alloc2);
+    GglByteVec thing_request_vec = GGL_BYTE_VEC(temp_payload_alloc2);
 
     GglArena arena = ggl_arena_init(GGL_BUF(arena_mem));
     GglObject config_template_param_json_obj;
@@ -87,7 +86,7 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
         ggl_kv(GGL_STR("parameters"), config_template_param_json_obj)
     ));
     GglError ret_err_json = ggl_json_encode(
-        thing_payload_obj, ggl_buf_writer(&thing_request_buf)
+        thing_payload_obj, ggl_byte_vec_writer(&thing_request_vec)
     );
     if (ret_err_json != GGL_ERR_OK) {
         return GGL_ERR_PARSE;
@@ -101,7 +100,7 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
                                       .data
                                       = (uint8_t *) global_register_thing_url })
         ),
-        ggl_kv(GGL_STR("payload"), ggl_obj_buf(thing_request_buf)),
+        ggl_kv(GGL_STR("payload"), ggl_obj_buf(thing_request_vec.buf)),
     );
 
     GglError ret_thing_req_publish
@@ -387,7 +386,7 @@ GglError make_request(
 
     static uint8_t temp_payload_alloc[2000] = { 0 };
 
-    GglBuffer csr_buf = GGL_BUF(temp_payload_alloc);
+    GglByteVec csr_vec = GGL_BYTE_VEC(temp_payload_alloc);
 
     // Subscribe to csr success topic
     GglMap subscribe_args = GGL_MAP(
@@ -524,7 +523,7 @@ GglError make_request(
         GGL_STR("certificateSigningRequest"), ggl_obj_buf(csr_as_ggl_buffer)
     )));
     GglError ret_err_json
-        = ggl_json_encode(csr_payload_obj, ggl_buf_writer(&csr_buf));
+        = ggl_json_encode(csr_payload_obj, ggl_byte_vec_writer(&csr_vec));
     if (ret_err_json != GGL_ERR_OK) {
         return GGL_ERR_PARSE;
     }
@@ -538,7 +537,7 @@ GglError make_request(
             GGL_STR("topic"),
             ggl_obj_buf(ggl_buffer_from_null_term((char *) cert_request_url))
         ),
-        ggl_kv(GGL_STR("payload"), ggl_obj_buf(csr_buf)),
+        ggl_kv(GGL_STR("payload"), ggl_obj_buf(csr_vec.buf)),
     );
 
     (void) ggl_sleep(2);
