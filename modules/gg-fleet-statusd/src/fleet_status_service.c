@@ -293,13 +293,13 @@ GglError publish_fleet_status_update(
 
     // build payload
     static uint8_t payload_buf[PAYLOAD_BUFFER_LEN];
-    GglBuffer payload = GGL_BUF(payload_buf);
-    ret = ggl_json_encode(payload_obj, ggl_buf_writer(&payload));
+    GglByteVec payload = GGL_BYTE_VEC(payload_buf);
+    ret = ggl_json_encode(payload_obj, ggl_byte_vec_writer(&payload));
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    ret = ggl_aws_iot_mqtt_publish(topic_vec.buf, payload, 0, false);
+    ret = ggl_aws_iot_mqtt_publish(topic_vec.buf, payload.buf, 0, false);
     if (ret != GGL_ERR_OK) {
         return ret;
     }

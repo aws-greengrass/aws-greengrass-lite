@@ -76,4 +76,23 @@ GglError aws_sigv4_s3_get_create_header(
     GglBuffer *auth_header
 );
 
+typedef struct ECRRequiredHeaders {
+    // x-amz-security-token
+    GglBuffer amz_security_token;
+    // x-amz-date
+    GglBuffer amz_date;
+    // x-amz-target
+    GglBuffer amz_target;
+    // host
+    GglBuffer host;
+} ECRRequiredHeaders;
+
+GglError aws_sigv4_ecr_post_create_header(
+    GglBuffer filepath,
+    SigV4Details sigv4_details,
+    ECRRequiredHeaders required_headers,
+    GglByteVec *headers_to_sign,
+    GglBuffer *auth_header
+);
+
 #endif

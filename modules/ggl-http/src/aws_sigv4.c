@@ -279,3 +279,70 @@ GglError aws_sigv4_s3_get_create_header(
 
     return err;
 }
+
+GglError aws_sigv4_ecr_post_create_header(
+    GglBuffer filepath,
+    SigV4Details sigv4_details,
+    ECRRequiredHeaders required_headers,
+    GglByteVec *headers_to_sign,
+    GglBuffer *auth_header
+) {
+    GglError err;
+
+    assert(required_headers.host.len > 0);
+    assert(required_headers.amz_security_token.len > 0);
+    assert(required_headers.amz_date.len > 0);
+    assert(required_headers.amz_security_token.len > 0);
+    assert(headers_to_sign != NULL);
+    assert(auth_header != NULL);
+    assert(auth_header->len > 64U);
+
+    err = aws_sigv4_add_header_for_signing(
+        headers_to_sign,
+        (GglBuffer) { .data = (uint8_t *) "host", .len = sizeof("host") - 1 },
+        required_headers.host
+    );
+
+    if (err == GGL_ERR_OK) {
+        err = aws_sigv4_add_header_for_signing(
+            headers_to_sign,
+            (GglBuffer) { .data = (uint8_t *) "x-amz-security-token",
+                          .len = sizeof("x-amz-security-token") - 1 },
+            required_headers.amz_security_token
+        );
+    }
+
+    if (err == GGL_ERR_OK) {
+        err = aws_sigv4_add_header_for_signing(
+            headers_to_sign,
+            (GglBuffer) { .data = (uint8_t *) "x-amz-date",
+                          .len = sizeof("x-amz-date") - 1 },
+            required_headers.amz_date
+        );
+    }
+
+    if (err == GGL_ERR_OK) {
+        err = aws_sigv4_add_header_for_signing(
+            headers_to_sign,
+            (GglBuffer) { .data = (uint8_t *) "x-amz-target",
+                          .len = sizeof("x-amz-target") - 1 },
+            required_headers.amz_target
+        );
+    }
+
+    if (err == GGL_ERR_OK) {
+        GglBuffer all_headers_to_sign = { .data = headers_to_sign->buf.data,
+                                          .len = headers_to_sign->buf.len };
+        err = aws_sigv4_generate_header(
+            filepath,
+            sigv4_details,
+            all_headers_to_sign,
+            auth_header,
+            GGL_STR("{}"),
+            GGL_STR("POST"),
+            (GglBuffer) { .data = NULL, .len = 0 }
+        );
+    }
+
+    return err;
+}
