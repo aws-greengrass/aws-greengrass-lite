@@ -22,6 +22,7 @@
 #include <ggl/recipe.h>
 #include <ggl/vector.h>
 #include <limits.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
@@ -33,9 +34,6 @@
 #define MAX_RECIPE_LEN 25000
 
 pid_t child_pid = -1; // To store child process ID
-
-// This file is single-threaded
-// NOLINTBEGIN(concurrency-mt-unsafe)
 
 static GglError insert_config_value(int out_fd, GglBuffer json_ptr) {
     static GglBuffer key_path_mem[GGL_MAX_OBJECT_DEPTH];
@@ -520,8 +518,9 @@ static GglError write_script_with_replacement(
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 GglError runner(const RecipeRunnerArgs *args) {
     // Get the SocketPath from Environment Variable
-    char *socket_path
-        = getenv("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT");
+    char *socket_path =
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        getenv("AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT");
 
     if (socket_path == NULL) {
         GGL_LOGE("IPC socket path env var not set.");
@@ -545,12 +544,14 @@ GglError runner(const RecipeRunnerArgs *args) {
     }
 
     resp.data[resp.len] = '\0';
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     int sys_ret = setenv("SVCUID", (char *) resp.data, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
-    sys_ret
-        = setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN", (char *) resp.data, true);
+    sys_ret =
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
+        setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN", (char *) resp.data, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
@@ -563,6 +564,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         return ret;
     }
     resp.data[resp.len] = '\0';
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("GG_ROOT_CA_PATH", (char *) resp.data, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
@@ -581,15 +583,18 @@ GglError runner(const RecipeRunnerArgs *args) {
         return ret;
     }
     resp.data[resp.len] = '\0';
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("AWS_REGION", (char *) resp.data, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("AWS_DEFAULT_REGION", (char *) resp.data, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
 
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("GGC_VERSION", GGL_VERSION, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
@@ -612,12 +617,14 @@ GglError runner(const RecipeRunnerArgs *args) {
         break;
     case GGL_ERR_OK: {
         resp.data[resp.len] = '\0';
+        // NOLINTBEGIN(concurrency-mt-unsafe)
         setenv("all_proxy", (char *) resp.data, true);
         setenv("ALL_PROXY", (char *) resp.data, true);
         setenv("http_proxy", (char *) resp.data, true);
         setenv("HTTP_PROXY", (char *) resp.data, true);
         setenv("https_proxy", (char *) resp.data, true);
         setenv("HTTPS_PROXY", (char *) resp.data, true);
+        // NOLINTEND(concurrency-mt-unsafe)
         break;
     }
     default:
@@ -642,7 +649,9 @@ GglError runner(const RecipeRunnerArgs *args) {
         break;
     case GGL_ERR_OK: {
         resp.data[resp.len] = '\0';
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
         setenv("no_proxy", (char *) resp.data, true);
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
         setenv("NO_PROXY", (char *) resp.data, true);
         break;
     }
@@ -660,6 +669,7 @@ GglError runner(const RecipeRunnerArgs *args) {
         return ret;
     }
     thing_name.data[thing_name.len] = '\0';
+    // NOLINTNEXTLINE(concurrency-mt-unsafe)
     sys_ret = setenv("AWS_IOT_THING_NAME", (char *) thing_name.data, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
@@ -741,6 +751,7 @@ GglError runner(const RecipeRunnerArgs *args) {
                 return ret;
             }
 
+            // NOLINTNEXTLINE(concurrency-mt-unsafe)
             sys_ret = setenv(
                 "AWS_CONTAINER_CREDENTIALS_FULL_URI",
                 (char *) resp_vec.buf.data,
@@ -790,34 +801,22 @@ GglError runner(const RecipeRunnerArgs *args) {
         return GGL_ERR_FAILURE;
     }
 
-    int pipe_fds[2];
-
-    sys_ret = pipe2(pipe_fds, O_CLOEXEC);
-    if (sys_ret != 0) {
-        GGL_LOGE("pipe failed: %d.", errno);
+    int script_fd = memfd_create("ggl_component_script", 0);
+    if (script_fd < 0) {
+        GGL_LOGE(
+            "Failed to create memfd for component phase script: %d.", errno
+        );
         return GGL_ERR_FAILURE;
     }
 
-    pid_t pid = fork();
-
-    if (pid < 0) {
-        GGL_LOGE("Err %d when calling fork.", errno);
-        return GGL_ERR_FAILURE;
+    ret = ggl_file_write(script_fd, GGL_STR("#!/bin/sh\n"));
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write shebang to component phase script.");
+        return ret;
     }
 
-    // exec in parent to preserve pid
-    if (pid > 0) {
-        dup2(pipe_fds[0], STDIN_FILENO);
-        const char *argv[] = { "sh", NULL };
-
-        execvp(argv[0], (char **) argv);
-        _Exit(1);
-    }
-
-    // child
-    (void) ggl_close(pipe_fds[0]);
     ret = write_script_with_replacement(
-        pipe_fds[1],
+        script_fd,
         ggl_obj_into_map(recipe),
         root_path,
         component_name,
@@ -826,8 +825,9 @@ GglError runner(const RecipeRunnerArgs *args) {
         phase
     );
 
-    _Exit(ret != GGL_ERR_OK);
+    const char *argv[] = { "/bin/sh", NULL };
+    sys_ret = fexecve(script_fd, (char **) argv, environ);
+
+    GGL_LOGE("Failed to execute component phase script: %d.", errno);
     return GGL_ERR_FATAL;
 }
-
-// NOLINTEND(concurrency-mt-unsafe)
