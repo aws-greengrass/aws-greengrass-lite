@@ -16,7 +16,7 @@
   },
   "ggl_sdk": {
     "url": "https://github.com/aws-greengrass/aws-greengrass-sdk-lite.git",
-    "rev": "3711ea46f4aa87981a15a1383eba20310b1204e2",
-    "hash": "sha256-gIn2/QtFxFSnLJ/GDN4p6SzMvgLfGjFkfDs2w4O5iog="
+    "rev": "0d239f96101608441dd6434f98a9e7f6623556c7",
+    "hash": "sha256-9WXcpDg267k9vcdc9vv3eXon2z0xluLJwSvyOnnsvo4="
   }
 }
