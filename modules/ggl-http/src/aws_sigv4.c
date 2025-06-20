@@ -7,6 +7,7 @@
 #include "sigv4.h"
 #include <assert.h>
 #include <ggl/buffer.h>
+#include <ggl/error.h>
 #include <ggl/vector.h>
 #include <openssl/evp.h>
 #include <openssl/types.h>
@@ -106,13 +107,17 @@ static GglError translate_sigv4_error(SigV4Status_t status) {
 static GglError aws_sigv4_generate_header(
     GglBuffer path,
     SigV4Details sigv4_details,
+    GglBuffer amz_date,
     GglBuffer http_headers,
     GglBuffer *auth_header,
     GglBuffer payload,
     GglBuffer http_method,
     GglBuffer query
 ) {
-    char timestamp[17]; // YYYYMMDDTHHMMSSz\0
+    if (amz_date.len < 16) {
+        return GGL_ERR_INVALID;
+    }
+
     EVP_MD_CTX *md_context = EVP_MD_CTX_new();
 
     SigV4HttpParameters_t http_params
@@ -143,8 +148,6 @@ static GglError aws_sigv4_generate_header(
     crypto_interface.hashDigestLen = HASH_DIGEST_LEN;
     crypto_interface.hashBlockLen = HASH_BLOCK_LEN;
 
-    aws_sigv4_get_iso8601_time(timestamp, sizeof(timestamp));
-
     SigV4Credentials_t credentials
         = { .pAccessKeyId = (const char *) sigv4_details.access_key_id.data,
             .accessKeyIdLen = sigv4_details.access_key_id.len,
@@ -162,7 +165,7 @@ static GglError aws_sigv4_generate_header(
         .algorithmLen = SIGV4_AWS4_HMAC_SHA256_LENGTH,
         .pHttpParameters = &http_params,
         .pCryptoInterface = &crypto_interface,
-        .pDateIso8601 = timestamp,
+        .pDateIso8601 = (const char *) amz_date.data,
     };
 
     uint8_t *signature;
@@ -269,10 +272,64 @@ GglError aws_sigv4_s3_get_create_header(
         err = aws_sigv4_generate_header(
             filepath,
             sigv4_details,
+            required_headers.amz_date,
             all_headers_to_sign,
             auth_header,
             (GglBuffer) { .data = NULL, .len = 0 },
             GGL_STR("GET"),
+            (GglBuffer) { .data = NULL, .len = 0 }
+        );
+    }
+
+    return err;
+}
+
+GglError aws_sigv4_ecr_post_create_header(
+    GglBuffer filepath,
+    SigV4Details sigv4_details,
+    ECRRequiredHeaders required_headers,
+    GglByteVec *headers_to_sign,
+    GglBuffer *auth_header
+) {
+    GglError err = GGL_ERR_OK;
+
+    assert(required_headers.content_type.len > 0);
+    assert(required_headers.host.len > 0);
+    assert(required_headers.amz_date.len > 0);
+    assert(headers_to_sign != NULL);
+    assert(auth_header != NULL);
+    assert(auth_header->len > 64U);
+
+    if (err == GGL_ERR_OK) {
+        err = aws_sigv4_add_header_for_signing(
+            headers_to_sign,
+            GGL_STR("content-type"),
+            required_headers.content_type
+        );
+    }
+
+    if (err == GGL_ERR_OK) {
+        err = aws_sigv4_add_header_for_signing(
+            headers_to_sign, GGL_STR("host"), required_headers.host
+        );
+    }
+
+    if (err == GGL_ERR_OK) {
+        err = aws_sigv4_add_header_for_signing(
+            headers_to_sign, GGL_STR("x-amz-date"), required_headers.amz_date
+        );
+    }
+
+    if (err == GGL_ERR_OK) {
+        GglBuffer all_headers_to_sign = headers_to_sign->buf;
+        err = aws_sigv4_generate_header(
+            filepath,
+            sigv4_details,
+            required_headers.amz_date,
+            all_headers_to_sign,
+            auth_header,
+            required_headers.payload,
+            GGL_STR("POST"),
             (GglBuffer) { .data = NULL, .len = 0 }
         );
     }

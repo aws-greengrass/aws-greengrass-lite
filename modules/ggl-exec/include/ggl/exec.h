@@ -9,6 +9,7 @@
 #include "ggl/io.h"
 #include <ggl/attr.h>
 #include <ggl/error.h>
+#include <ggl/object.h>
 #include <sys/types.h>
 
 GglError ggl_exec_command(const char *const args[]) NONNULL(1);
@@ -19,5 +20,8 @@ GglError ggl_exec_kill_process(pid_t process_id);
 GglError ggl_exec_command_with_output(
     const char *const args[], GglWriter writer
 ) NONNULL(1);
+
+GglError ggl_exec_command_with_input(const char *const *args, GglObject payload)
+    NONNULL(1);
 
 #endif
