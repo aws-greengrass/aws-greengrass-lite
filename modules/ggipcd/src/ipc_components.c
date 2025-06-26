@@ -112,6 +112,7 @@ static GglError verify_svcuid(void *ctx, GglMap params, uint32_t handle) {
         handle,
         ggl_obj_bool(ggl_ipc_components_get_handle(svcuid, NULL) == GGL_ERR_OK)
     );
+
     return GGL_ERR_OK;
 }
 
@@ -158,8 +159,6 @@ GglError ggl_ipc_start_component_server(void) {
 GglError ggl_ipc_components_get_handle(
     GglSvcuid svcuid, GglComponentHandle *component_handle
 ) {
-    assert(component_handle != NULL);
-
     GGL_MTX_SCOPE_GUARD(&ggl_ipc_component_registered_components_mtx);
 
     // Match decoded SVCUID and return match
