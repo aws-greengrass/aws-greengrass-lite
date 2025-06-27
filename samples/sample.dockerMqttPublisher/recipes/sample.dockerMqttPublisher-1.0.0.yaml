@@ -1,0 +1,40 @@
+---
+RecipeFormatVersion: "2020-01-25"
+ComponentName: sample.dockerMqttPublisher
+ComponentVersion: 1.0.0
+ComponentType: "aws.greengrass.generic"
+ComponentDescription:
+  This example component uses IPC from within a Docker/Podman container to
+  publish an MQTT message to IoT Core
+ComponentPublisher: AWS
+ComponentConfiguration:
+  DefaultConfiguration:
+    topic: "my/topic"
+    message: "Hello World!"
+    qos: "0"
+    accessControl:
+      aws.greengrass.ipc.mqttproxy:
+        sample.dockerMqttPublisher:mqttproxy:1:
+          policyDescription: Allows access to publish to all topics.
+          operations:
+            - aws.greengrass#PublishToIoTCore
+          resources:
+            - "*"
+Manifests:
+  - Platform:
+      os: linux
+      runtime: "*"
+    Lifecycle:
+      install:
+        RequiresPrivilege: true
+        Script: "docker load -i {artifacts:path}/publish_to_iot_core.tar.gz"
+      run:
+        RequiresPrivilege: true
+        Script: >-
+          docker run -v
+          "$AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT:$AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT"
+          -e SVCUID -e AWS_GG_NUCLEUS_DOMAIN_SOCKET_FILEPATH_FOR_COMPONENT -e
+          MQTT_TOPIC="{configuration:/topic}" -e MQTT_QOS="{configuration:/qos}"
+          -e MQTT_MESSAGE="{configuration:/message}" --rm publish_to_iot_core
+    Artifacts:
+    #  - Uri: "---"

@@ -82,7 +82,7 @@ GglError ggl_handle_subscribe_to_iot_core(
               GGL_REQUIRED,
               GGL_TYPE_BUF,
               &topic_name_obj },
-            { GGL_STR("qos"), GGL_OPTIONAL, GGL_TYPE_BUF, &qos_obj },
+            { GGL_STR("qos"), GGL_OPTIONAL, GGL_TYPE_NULL, &qos_obj },
         )
     );
     if (ret != GGL_ERR_OK) {
@@ -96,13 +96,28 @@ GglError ggl_handle_subscribe_to_iot_core(
 
     int64_t qos = 0;
     if (qos_obj != NULL) {
-        ret = ggl_str_to_int64(ggl_obj_into_buf(*qos_obj), &qos);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to parse 'qos' string value.");
+        switch (ggl_obj_type(*qos_obj)) {
+        case GGL_TYPE_BUF:
+            ret = ggl_str_to_int64(ggl_obj_into_buf(*qos_obj), &qos);
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to parse 'qos' string value.");
+                *ipc_error = (GglIpcError
+                ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
+                    .message = GGL_STR("Failed to parse 'qos' string value.") };
+                return ret;
+            }
+            break;
+        case GGL_TYPE_I64:
+            qos = ggl_obj_into_i64(*qos_obj);
+            break;
+        case GGL_TYPE_NULL:
+            break;
+        default:
+            GGL_LOGE("Key qos of invalid type.");
             *ipc_error = (GglIpcError
             ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-                .message = GGL_STR("Failed to parse 'qos' string value.") };
-            return ret;
+                .message = GGL_STR("Key qos of invalid type.") };
+            return GGL_ERR_INVALID;
         }
         if ((qos < 0) || (qos > 2)) {
             GGL_LOGE("'qos' not a valid value.");
