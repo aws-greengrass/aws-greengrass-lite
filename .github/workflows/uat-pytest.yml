@@ -5,14 +5,17 @@ on:
     branches: "*"
 
 env:
-  AWS_ACCOUNT: "891377305071"
   AWS_REGION: "us-west-2"
-  S3_BUCKET: "lite-dev-uat-bucket"
+  AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+  S3_BUCKET: ${{ secrets.S3_BUCKET }}
   COMMIT_ID: "25ca698f878ee481a8a2ade0d54499992f339122" #TODO: replace to be ${{ github.event.pull_request.head.sha }}
-  AWS_ROLE_TO_ASSUME: "arn:aws:iam::891377305071:role/Admin" #TODO: need to set another role
+  AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }} #TODO: need to set another role
 
 jobs:
   test:
+    permissions:
+      id-token: write
+
     runs-on: ubuntu-24.04
 
     steps:
@@ -36,9 +39,6 @@ jobs:
         run: |
           cd aws-greengrass-testing
           echo "Environment Variables:"
-          echo "AWS_ACCOUNT: ${{ env.AWS_ACCOUNT }}"
-          echo "AWS_REGION: ${{ env.AWS_REGION }}"
-          echo "S3_BUCKET: ${{ env.S3_BUCKET }}"
           echo "COMMIT_ID: ${{ env.COMMIT_ID }}"
 
         # ./run-tests.sh \
