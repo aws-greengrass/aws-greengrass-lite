@@ -6,13 +6,13 @@ on:
 
 env:
   AWS_REGION: "us-west-2"
-  AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
-  S3_BUCKET: ${{ secrets.S3_BUCKET }}
+  # AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+  # S3_BUCKET: ${{ secrets.S3_BUCKET }}
   COMMIT_ID: "25ca698f878ee481a8a2ade0d54499992f339122" #TODO: replace to be ${{ github.event.pull_request.head.sha }}
-  AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }} #TODO: need to set another role
+  # AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }} #TODO: need to set another role
 
 jobs:
-  test:
+  uat-test:
     permissions:
       id-token: write
 
@@ -24,7 +24,7 @@ jobs:
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
 
       # Checkout the public testing repo
