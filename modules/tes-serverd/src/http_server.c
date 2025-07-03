@@ -140,11 +140,11 @@ static void request_handler(struct evhttp_request *req, void *arg) {
         return;
     }
 
-    static uint8_t alloc_mem[4096];
+    static uint8_t alloc_mem[8192];
     GglArena alloc = ggl_arena_init(GGL_BUF(alloc_mem));
     GglObject tes_formatted_obj = fetch_creds(&alloc);
 
-    static uint8_t response_cred_mem[4096];
+    static uint8_t response_cred_mem[8192];
     GglByteVec response_cred_buffer = GGL_BYTE_VEC(response_cred_mem);
 
     GglError ret_err_json = ggl_json_encode(

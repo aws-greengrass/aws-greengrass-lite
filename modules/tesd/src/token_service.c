@@ -18,7 +18,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define MAX_HTTP_RESPONSE_LENGTH 4096
+#define MAX_HTTP_RESPONSE_LENGTH 8192
 #define MAX_HTTP_RESPONSE_SUB_OBJECTS 10
 
 typedef struct {
