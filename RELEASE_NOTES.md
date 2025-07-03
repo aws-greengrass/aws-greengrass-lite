@@ -1,4 +1,4 @@
-# Pre-release Notes v2.2.0
+# Release Notes v2.2.0
 
 This release includes support for pulling images from public container
 registries, including Public ECR and Docker.
@@ -9,6 +9,10 @@ registries, including Public ECR and Docker.
   image names to declare them as artifacts (i.e.
   `docker:registry/image[:tag|@digest]`). Missing images are pulled when
   deploying a component with Docker artifacts.
+- IPC access control policies now supports the `"*"` wildcard for policy
+  operations.
+- Fixed failure when aws-device-sdk-python-v2 calls PublishToIoTCore with a QoS.
+- Fixed bug with vending TES credentials to components introduced in v2.1.0.
 
 Docker must be installed and configured in order to pull registry images and run
 containers on a Greengrass Lite Core Device. For instructions, view
