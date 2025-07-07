@@ -1,7 +1,7 @@
 # Release Notes v2.2.0
 
-This release includes support for pulling images from public container
-registries, including Public ECR and Docker.
+This release includes support for pulling images from container registries,
+including Docker and public/private ECR.
 
 ## New with this release
 
