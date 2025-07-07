@@ -1293,10 +1293,7 @@ static GglError parse_dataplane_response_and_save_recipe(
         ggl_byte_vec_chain_append(
             &ret, &recipe_name_vec, cloud_component_version
         );
-        // TODO: Actual support for .json files. We're writing a .json
-        // to a .yaml and relying on yaml being an almost-superset of
-        // json.
-        ggl_byte_vec_chain_append(&ret, &recipe_name_vec, GGL_STR(".yaml"));
+        ggl_byte_vec_chain_append(&ret, &recipe_name_vec, GGL_STR(".json"));
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Failed to create recipe file name.");
             return ret;
