@@ -19,7 +19,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define MAX_HEADER_LENGTH 1024
+#define MAX_HEADER_LENGTH 8192
 
 __attribute__((constructor)) static void init_curl(void) {
     // TODO: set up a heap4 and init curl instead with curl_global_init_mem()

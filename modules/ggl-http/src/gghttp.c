@@ -14,7 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define MAX_URI_LENGTH 2048
+#define MAX_URI_LENGTH 4096
 #define HTTPS_PREFIX "https://"
 
 GglError fetch_token(
