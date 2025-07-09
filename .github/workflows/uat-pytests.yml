@@ -6,7 +6,7 @@ on:
 
 env:
   AWS_REGION: "us-west-2"
-  COMMIT_ID: {{ github.event.pull_request.head.sha }}
+  COMMIT_ID: { { github.event.pull_request.head.sha } }
 
 jobs:
   uat-test:
@@ -47,4 +47,3 @@ jobs:
             --s3-bucket=${{ secrets.S3_BUCKET }} \
             --commit-id=${{ env.COMMIT_ID }} \
             --aws-region=${{ env.AWS_REGION }}
-            
