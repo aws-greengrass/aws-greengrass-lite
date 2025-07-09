@@ -47,3 +47,4 @@ jobs:
             --s3-bucket=${{ secrets.S3_BUCKET }} \
             --commit-id=${{ env.COMMIT_ID }} \
             --aws-region=${{ env.AWS_REGION }}
+            
