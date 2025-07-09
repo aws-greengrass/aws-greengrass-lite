@@ -617,25 +617,6 @@ static GglError download_greengrass_artifact(
     return generic_download((const char *) (presigned_url.data), artifact_fd);
 }
 
-static GglError find_artifacts_list(
-    GglMap recipe, GglList *platform_artifacts
-) {
-    GglMap linux_manifest = { 0 };
-    GglError ret = select_linux_manifest(recipe, &linux_manifest);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-    GglObject *artifact_list = NULL;
-    if (!ggl_map_get(linux_manifest, GGL_STR("Artifacts"), &artifact_list)) {
-        return GGL_ERR_PARSE;
-    }
-    if (ggl_obj_type(*artifact_list) != GGL_TYPE_LIST) {
-        return GGL_ERR_PARSE;
-    }
-    *platform_artifacts = ggl_obj_into_list(*artifact_list);
-    return GGL_ERR_OK;
-}
-
 // Get the unarchive type: NONE or ZIP
 static GglError get_artifact_unarchive_type(
     GglBuffer unarchive_buf, bool *needs_unarchive
@@ -694,7 +675,7 @@ static GglError get_recipe_artifacts(
     GglDigest digest_context
 ) {
     GglList artifacts = { 0 };
-    GglError error = find_artifacts_list(recipe, &artifacts);
+    GglError error = ggl_get_recipe_artifacts_for_platform(recipe, &artifacts);
     if (error != GGL_ERR_OK) {
         return error;
     }

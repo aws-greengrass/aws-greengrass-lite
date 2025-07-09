@@ -9,7 +9,9 @@
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/gg_config.h>
+#include <ggl/docker_artifact_cleanup.h>
 #include <ggl/error.h>
+#include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
@@ -53,6 +55,16 @@ static GglError delete_component_artifact(
     bool delete_all_versions
 ) {
     const size_t INDEX_BEFORE_ADDITION = root_path->buf.len;
+
+    // Delete Docker artifacts
+    int root_path_fd = -1;
+    if (ggl_dir_open(root_path->buf, 0, false, &root_path_fd) == GGL_ERR_OK) {
+        GGL_LOGT("Attempting docker artifact removal");
+        ggl_docker_artifact_cleanup(
+            root_path_fd, component_name, version_number
+        );
+        (void) ggl_close(root_path_fd);
+    }
 
     // Delete artifacts.
     GglError err

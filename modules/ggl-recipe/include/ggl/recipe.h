@@ -45,6 +45,10 @@ GglError select_linux_manifest(
 
 GglBuffer get_current_architecture(void);
 
+GglError ggl_get_recipe_artifacts_for_platform(
+    GglMap recipe_map, GglList *out_platform_artifacts
+);
+
 /// Returns true if the given string is a recipe variable
 /// e.g. GGL_STR("{configuration:/version}")
 bool ggl_is_recipe_variable(GglBuffer str);
