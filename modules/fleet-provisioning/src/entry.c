@@ -255,7 +255,8 @@ static GglError fetch_from_db(FleetProvArgs *args) {
 }
 
 static GglError cleanup_actions(void) {
-    const char *args[] = { "chown", "-R", USER_GROUP, "/ggcredentials/", NULL };
+    const char *args[]
+        = { "chown", "-R", USER_GROUP, (char *) ggcredentials_path.data, NULL };
 
     GglError ret = ggl_exec_command(args);
     if (ret != GGL_ERR_OK) {
@@ -368,17 +369,19 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
                             .len = strlen(args->out_cert_path) };
     }
 
-    int config_dir;
-    ret = ggl_dir_open(ggcredentials_path, O_RDONLY, false, &config_dir);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGI(
-            "Could not open %.*s directory.",
-            (int) ggcredentials_path.len,
-            ggcredentials_path.data
-        );
-        return ret;
+    {
+        int config_dir;
+        ret = ggl_dir_open(ggcredentials_path, O_RDONLY, false, &config_dir);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGI(
+                "Could not open %.*s directory.",
+                (int) ggcredentials_path.len,
+                ggcredentials_path.data
+            );
+            return ret;
+        }
+        (void) ggl_close(config_dir);
     }
-    (void) ggl_close(config_dir);
 
     ret = fetch_from_db(args);
     if (ret != GGL_ERR_OK) {
