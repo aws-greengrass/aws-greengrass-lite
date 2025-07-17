@@ -1,11 +1,11 @@
 # Fleet provisioning
 
 Fleet provisioning is an alternative way of provisioning a device with claim
-certificates. This will allow you provision a fleet of devices with a common
+certificates. This will allow you to provision a fleet of devices with a common
 claim certificate.
 
-To get started you would need aws claim certificates from IoT Core, so that we
-can get valid certificates. you can follow the link
+To get started, you would need AWS claim certificates from IoT Core, so that we
+can get valid certificates. You can follow the link
 [here](https://docs.aws.amazon.com/greengrass/v2/developerguide/fleet-provisioning-setup.html)
 to learn how to create appropriate policies and claim certificate.
 
@@ -18,17 +18,17 @@ publish, subscribe and receive access to `CreateCertificateFromCsr` and
 
 ## Before getting started:
 
-Currently, fleet provisioning can only be run manually. Hence you will need to
-follow few important pre-steps
+Currently, fleet provisioning can only be run manually. Hence, you will need to
+follow a few important pre-steps
 
 1. This section assumes that the system has already met the dependencies
    mentioned in [SETUP.md](./SETUP.md#dependencies).
 2. Make sure you are logged in as root.
 3. Make sure you do not fill `iotCredEndpoint/iotDataEndpoint` under
-   `aws.greengrass.NucleusLite` you should only fill these fields under
+   `aws.greengrass.NucleusLite`. You should only fill these fields under
    `aws.greengrass.fleet_provisioning`'s config. See the
    [sample config below](#configyaml).
-4. If this is your not first run, remove the socket at
+4. If this is not your first run, remove the socket at
    `/run/greengrass/iotcoredfleet`, if it exists.
 
 Sample Fleet provisioning template:
@@ -89,7 +89,7 @@ Sample Fleet provisioning template:
 ## Setting up the device side for provisioning
 
 Here we can assume your template name is `FleetTestNew` and your template
-requires(based on above template) you to only provide a serial number as
+requires (based on the above template) you to only provide a serial number as a
 parameter. Then your nucleus config should roughly look as below:
 
 ### `config.yaml`
@@ -140,13 +140,14 @@ command:
 $ ../build/bin/fleet-provisioning
 ```
 
+Here you can also add `--out_cert_path path/to/dir/` to provide an alternate
+directory. Default is `/var/lib/greengrass/provisioned-cert/`.
+
 Now this will trigger the fleet provisioning script which will take a few
 minutes to complete.
-
-> Note: Device will reboot in case of a successful run.
 
 If you are storing the standard output then look for log:
 `Process Complete, Your device is now provisioned`.
 
-> You might see some error log such as `process is getting kill by signal 15`
+> You might see some error log such as `process is getting killed by signal 15`;
 > this is expected and correct behavior.
