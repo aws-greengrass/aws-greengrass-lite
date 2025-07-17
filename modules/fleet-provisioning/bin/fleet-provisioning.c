@@ -54,6 +54,12 @@ static struct argp_option opts[]
           0,
           "[optional]Path to key for client certificate",
           0 },
+        { "out-cert-path",
+          'o',
+          "path",
+          0,
+          "[optional]Path to the location of generated certificates",
+          0 },
         { 0 } };
 
 static error_t arg_parser(int key, char *arg, struct argp_state *state) {
@@ -76,6 +82,9 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
         break;
     case 'r':
         args->root_ca_path = arg;
+        break;
+    case 'o':
+        args->out_cert_path = arg;
         break;
     default:
         return ARGP_ERR_UNKNOWN;

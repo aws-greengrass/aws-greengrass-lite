@@ -31,7 +31,7 @@
 
 #define USER_GROUP (GGL_SYSTEMD_SYSTEM_USER ":" GGL_SYSTEMD_SYSTEM_GROUP)
 
-GglBuffer ggcredentials_path = GGL_STR("/ggcredentials");
+GglBuffer ggcredentials_path = GGL_STR("/var/lib/greengrass/provisioned-cert/");
 
 static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
     const char *iotcore_d_args[]
@@ -45,6 +45,60 @@ static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
     GGL_LOGD("PID for new iotcored: %d", *iotcored_pid);
 
     return ret;
+}
+
+static GglError check_if_claim_cert(FleetProvArgs args) {
+    if (args.claim_key_path == NULL) {
+        GGL_LOGT("Checking value with db for "
+                 "services/aws.greengrass.fleet_provisioning/configuration/"
+                 "claimKeyPath");
+        uint8_t claim_key_path_mem[PATH_MAX] = { 0 };
+        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
+            GGL_BUF(claim_key_path_mem), 0, sizeof(claim_key_path_mem) - 1
+        ));
+        GglBuffer claim_key_path;
+        GglError ret = ggl_gg_config_read_str(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.fleet_provisioning"),
+                GGL_STR("configuration"),
+                GGL_STR("claimKeyPath")
+            ),
+            &alloc,
+            &claim_key_path
+        );
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+    GGL_LOGI("Config value for "
+             "services/aws.greengrass.fleet_provisioning/claimKeyPath is set.");
+    return GGL_ERR_OK;
+}
+
+static GglError fetch_prov_status(void) {
+    GGL_LOGT("Requesting db for system/privateKeyPath");
+    uint8_t mem[MAX_PATH_LEN] = { 0 };
+    GglArena alloc = ggl_arena_init(GGL_BUF(mem));
+    GglBuffer private_key = { 0 };
+    GglError ret_private_key = ggl_gg_config_read_str(
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
+        &alloc,
+        &private_key
+    );
+    if (ret_private_key != GGL_ERR_OK) {
+        // If the key is not found then we still want to provision the device
+        if (ret_private_key == GGL_ERR_NOENTRY) {
+            return GGL_ERR_OK;
+        }
+        return ret_private_key;
+    }
+    if (private_key.len != 0) {
+        GGL_LOGI("Config value for system/privateKeyPath is set.");
+        return GGL_ERR_EXPECTED;
+    }
+
+    return GGL_ERR_OK;
 }
 
 static GglError fetch_from_db(FleetProvArgs *args) {
@@ -200,7 +254,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     return GGL_ERR_OK;
 }
 
-static GglError update_cred_access(void) {
+static GglError cleanup_actions(void) {
     const char *args[] = { "chown", "-R", USER_GROUP, "/ggcredentials/", NULL };
 
     GglError ret = ggl_exec_command(args);
@@ -209,10 +263,21 @@ static GglError update_cred_access(void) {
         return ret;
     }
 
-    const char *args_reboot[] = { "systemctl", "reboot", NULL };
-    ret = ggl_exec_command(args_reboot);
+    GGL_LOGI("Restarting all greengrass services to apply changes");
+
+    const char *args_stop[]
+        = { "systemctl", "stop", "greengrass-lite.target", NULL };
+    ret = ggl_exec_command(args_stop);
     if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to reboot the device");
+        GGL_LOGE("Failed to stop greengrass service");
+        return ret;
+    }
+
+    const char *args_start[]
+        = { "systemctl", "start", "greengrass-lite.target", NULL };
+    ret = ggl_exec_command(args_start);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to restart greengrass service");
         return ret;
     }
 
@@ -285,18 +350,37 @@ static GglError update_iot_endpoints(void) {
 }
 
 GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
-    {
-        int config_dir;
-        GglError ret
-            = ggl_dir_open(ggcredentials_path, O_RDONLY, false, &config_dir);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGI("Could not open ggcredentials directory.");
-            return GGL_ERR_FAILURE;
-        }
-        (void) ggl_close(config_dir);
+    // Check the config to see if we need to provision
+    GglError ret = fetch_prov_status();
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGI("Device already provisioned skipping.");
+        return ret;
+    }
+    ret = check_if_claim_cert(*args);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Claim certs weren't accessable");
+        return ret;
     }
 
-    GglError ret = fetch_from_db(args);
+    if (args->out_cert_path != NULL) {
+        ggcredentials_path
+            = (GglBuffer) { .data = (uint8_t *) args->out_cert_path,
+                            .len = strlen(args->out_cert_path) };
+    }
+
+    int config_dir;
+    ret = ggl_dir_open(ggcredentials_path, O_RDONLY, false, &config_dir);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGI(
+            "Could not open %.*s directory.",
+            (int) ggcredentials_path.len,
+            ggcredentials_path.data
+        );
+        return ret;
+    }
+    (void) ggl_close(config_dir);
+
+    ret = fetch_from_db(args);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -382,15 +466,6 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
     EVP_PKEY_free(pkey);
     X509_REQ_free(csr_req);
 
-    ret = ggl_gg_config_write(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
-        ggl_obj_buf(private_file_path_vec.buf),
-        &(int64_t) { 3 }
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
     static uint8_t csr_mem[2048] = { 0 };
 
     // Try to read csr into memory
@@ -414,12 +489,21 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
         return ret;
     }
 
+    ret = ggl_gg_config_write(
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
+        ggl_obj_buf(private_file_path_vec.buf),
+        &(int64_t) { 3 }
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
     ret = update_iot_endpoints();
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    ret = update_cred_access();
+    ret = cleanup_actions();
     if (ret != GGL_ERR_OK) {
         return ret;
     }
