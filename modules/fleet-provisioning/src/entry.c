@@ -273,7 +273,12 @@ static GglError cleanup_actions(void) {
         GGL_LOGE("Failed to stop greengrass service");
         return ret;
     }
-
+    const char *args_reset[] = { "systemctl", "reset-failed ", NULL };
+    ret = ggl_exec_command(args_reset);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to reset services run counter");
+        return ret;
+    }
     const char *args_start[]
         = { "systemctl", "start", "greengrass-lite.target", NULL };
     ret = ggl_exec_command(args_start);
