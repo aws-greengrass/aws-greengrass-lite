@@ -19,7 +19,8 @@
 #include <stdint.h>
 
 #define MAX_HTTP_RESPONSE_LENGTH 8192
-#define MAX_HTTP_RESPONSE_SUB_OBJECTS 10
+// Number of KVs received from cloud +1 extra just in case
+#define MAX_HTTP_RESPONSE_KVS 7
 
 typedef struct {
     char root_ca_path[PATH_MAX];
@@ -30,8 +31,7 @@ typedef struct {
     char url[2048];
 } CredRequestT;
 
-static uint8_t
-    http_response_decode_mem[MAX_HTTP_RESPONSE_SUB_OBJECTS * sizeof(GglObject)];
+static uint8_t http_response_decode_mem[MAX_HTTP_RESPONSE_KVS * sizeof(GglKV)];
 
 static CredRequestT global_cred_details = { 0 };
 static uint8_t global_response_buffer[MAX_HTTP_RESPONSE_LENGTH] = { 0 };
