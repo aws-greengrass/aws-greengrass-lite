@@ -21,6 +21,7 @@
 #include <ggl/utils.h>
 #include <ggl/vector.h>
 #include <string.h>
+#include <uuid/uuid.h>
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -54,6 +55,12 @@ static const char *cert_request_url = "$aws/certificates/create-from-csr/json";
 static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
     static uint8_t temp_payload_alloc2[2000] = { 0 };
 
+    static uint8_t uuid_mem[37];
+    uuid_t binuuid;
+    uuid_generate_random(binuuid);
+    uuid_unparse(binuuid, (char *) uuid_mem);
+    uuid_mem[36] = '\0';
+
     GglByteVec thing_request_vec = GGL_BYTE_VEC(temp_payload_alloc2);
 
     GglArena arena = ggl_arena_init(GGL_BUF(arena_mem));
@@ -70,6 +77,24 @@ static GglError request_thing_name(GglObject *cert_owner_gg_obj) {
             template_param.data
         );
         return GGL_ERR_PARSE;
+    }
+
+    GglMap template_map_tmp = ggl_obj_into_map(config_template_param_json_obj);
+    GGL_MAP_FOREACH(pair, template_map_tmp) {
+        if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("SerialNumber"))) {
+            GglObject *pair_value = ggl_kv_val(pair);
+            if (ggl_obj_type(*pair_value) == GGL_TYPE_BUF) {
+                GglBuffer value_buf = ggl_obj_into_buf(*pair_value);
+                if (value_buf.len >= 2) {
+                    // Use the already generated UUID for randomness
+                    // Use only lowercase letters
+                    ((char *) value_buf.data)[value_buf.len - 2]
+                        = (char) ('a' + (uuid_mem[0] % 26));
+                    ((char *) value_buf.data)[value_buf.len - 1]
+                        = (char) ('0' + (uuid_mem[1] % 10));
+                }
+            }
+        }
     }
 
     // Full Request Parameter Builder
@@ -310,7 +335,8 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
 
                 // Now that we have a certificate make a call to register a
                 // thing based on that certificate
-                ret = request_thing_name(val);
+                GglObject cert_owner_obj = ggl_obj_buf(ggl_obj_into_buf(*val));
+                ret = request_thing_name(&cert_owner_obj);
                 if (ret != GGL_ERR_OK) {
                     GGL_LOGE("Requesting thing name failed");
                     return ret;
