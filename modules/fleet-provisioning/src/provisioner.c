@@ -384,6 +384,9 @@ GglError make_request(
         return GGL_ERR_FAILURE;
     }
 
+    // TODO: Wait for the connection to get established
+    (void) ggl_sleep(7);
+
     static uint8_t temp_payload_alloc[2000] = { 0 };
 
     GglByteVec csr_vec = GGL_BYTE_VEC(temp_payload_alloc);

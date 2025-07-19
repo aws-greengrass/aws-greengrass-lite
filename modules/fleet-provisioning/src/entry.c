@@ -22,6 +22,7 @@
 #include <openssl/x509.h>
 #include <string.h>
 #include <sys/types.h>
+#include <uuid/uuid.h>
 #include <stdint.h>
 
 #define MAX_TEMPLATE_LEN 129
@@ -34,9 +35,15 @@
 GglBuffer ggcredentials_path = GGL_STR("/var/lib/greengrass/provisioned-cert/");
 
 static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
+    static uint8_t uuid_mem[37];
+    uuid_t binuuid;
+    uuid_generate_random(binuuid);
+    uuid_unparse(binuuid, (char *) uuid_mem);
+    uuid_mem[36] = '\0';
+
     const char *iotcore_d_args[]
         = { args->iotcored_path,  "-n", "iotcoredfleet",       "-e",
-            args->data_endpoint,  "-i", args->template_name,   "-r",
+            args->data_endpoint,  "-i", (char *) uuid_mem,     "-r",
             args->root_ca_path,   "-c", args->claim_cert_path, "-k",
             args->claim_key_path, NULL };
 
