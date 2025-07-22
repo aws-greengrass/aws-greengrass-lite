@@ -34,7 +34,7 @@ jobs:
           audience: sts.amazonaws.com
           aws-region: us-west-2
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-duration-seconds: 3000
+          role-duration-seconds: 3900
           unset-current-credentials: true
 
       - name: Run UAT tests
