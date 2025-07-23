@@ -32,7 +32,7 @@ coreBus.
 | -------- | --------------------------------------------------------------------------------------------------- |
 | ggl-lib  | General datatypes and the corebus interface for communications between GGL components               |
 | ggl-json | A basic JSON interface for conversion to/from JSON & corebus datatypes                              |
-| ggl-exec | A Linux interface library to simplify starting/stopping/killing processes around the EXEC function. |
-| ggl-http | A library to use HTTP to fetch a token and download a file. Suitable for S3 downloads.              |
+| ggl-exec | A Linux interface library to simplify starting/stopping/killing processes around the EXEC function  |
+| ggl-http | A library to use HTTP to fetch a token and download a file. Suitable for S3 downloads               |
 | ggl-yaml | A basic YAML interface for conversion to/from YAML and corebus datatypes                            |
-| ggl-file | A library for basic file operations needed for component installation and deployment operations.    |
+| ggl-file | A library for basic file operations needed for component installation and deployment operations     |
