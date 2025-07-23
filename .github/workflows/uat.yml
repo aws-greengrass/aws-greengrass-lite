@@ -1,4 +1,4 @@
-name: UAT Fleet Status Tests
+name: UAT Component Tests
 
 on:
   pull_request:
@@ -6,6 +6,16 @@ on:
 
 jobs:
   uat-test:
+    strategy:
+      matrix:
+        test-category:
+          [
+            { category: component, timeout: 1000 },
+            { category: deployment, timeout: 3900 },
+            { category: fleet-status, timeout: 1000 },
+            { category: runtime, timeout: 1000 },
+            { category: security, timeout: 1500 },
+          ]
     permissions:
       id-token: write
       contents: read
@@ -34,7 +44,7 @@ jobs:
           audience: sts.amazonaws.com
           aws-region: us-west-2
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-duration-seconds: 1000
+          role-duration-seconds: ${{ matrix.test-category.timeout }}
           unset-current-credentials: true
 
       - name: Run UAT tests
@@ -45,4 +55,4 @@ jobs:
             --s3-bucket=${{ secrets.S3_BUCKET }} \
             --commit-id=${{ github.event.pull_request.head.sha }} \
             --aws-region=us-west-2 \
-            --test-category=fleet-status
+            --test-category=${{ matrix.test-category.category }}
