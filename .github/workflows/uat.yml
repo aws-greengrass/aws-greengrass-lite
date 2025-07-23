@@ -7,6 +7,7 @@ on:
 jobs:
   uat-test:
     strategy:
+      fail-fast: false
       matrix:
         test-category:
           [
