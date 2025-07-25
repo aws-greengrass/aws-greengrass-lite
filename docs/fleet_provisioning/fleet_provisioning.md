@@ -25,7 +25,7 @@ Before running fleet provisioning manually, you need to consider a few important
 steps:
 
 1. This section assumes that the system has already met the dependencies
-   mentioned in [SETUP.md](./SETUP.md#dependencies).
+   mentioned in [SETUP.md](../SETUP.md#dependencies).
 2. Make sure you are logged in as root.
 3. Make sure you do not fill `iotCredEndpoint/iotDataEndpoint` under
    `aws.greengrass.NucleusLite`. You should only fill these fields under
