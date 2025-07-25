@@ -56,7 +56,7 @@ static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
 
 static GglError check_if_claim_cert(FleetProvArgs args) {
     if (args.claim_key_path == NULL) {
-        GGL_LOGT("Checking value with db for "
+        GGL_LOGD("Checking value with db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "claimKeyPath");
         uint8_t claim_key_path_mem[PATH_MAX] = { 0 };
@@ -84,7 +84,7 @@ static GglError check_if_claim_cert(FleetProvArgs args) {
 }
 
 static GglError fetch_prov_status(void) {
-    GGL_LOGT("Requesting db for system/privateKeyPath");
+    GGL_LOGD("Requesting db for system/privateKeyPath");
     uint8_t mem[MAX_PATH_LEN] = { 0 };
     GglArena alloc = ggl_arena_init(GGL_BUF(mem));
     GglBuffer private_key = { 0 };
@@ -110,7 +110,7 @@ static GglError fetch_prov_status(void) {
 
 static GglError fetch_from_db(FleetProvArgs *args) {
     if (args->claim_cert_path == NULL) {
-        GGL_LOGT("Requesting db for "
+        GGL_LOGD("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "claimCertPath");
         static uint8_t claim_cert_path_mem[PATH_MAX] = { 0 };
@@ -136,7 +136,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->claim_key_path == NULL) {
-        GGL_LOGT("Requesting db for "
+        GGL_LOGD("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "claimKeyPath");
         static uint8_t claim_key_path_mem[PATH_MAX] = { 0 };
@@ -162,15 +162,21 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->root_ca_path == NULL) {
-        GGL_LOGT("Requesting db for "
-                 "system/rootCaPath/");
+        GGL_LOGD("Requesting db for "
+                 "services/aws.greengrass.fleet_provisioning/configuration/"
+                 "rootCaPath");
         static uint8_t root_ca_path_mem[PATH_MAX] = { 0 };
         GglArena alloc = ggl_arena_init(ggl_buffer_substr(
             GGL_BUF(root_ca_path_mem), 0, sizeof(root_ca_path_mem) - 1
         ));
         GglBuffer root_ca_path;
         GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")),
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("aws.greengrass.fleet_provisioning"),
+                GGL_STR("configuration"),
+                GGL_STR("rootCaPath")
+            ),
             &alloc,
             &root_ca_path
         );
@@ -182,7 +188,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->data_endpoint == NULL) {
-        GGL_LOGT("Requesting db for "
+        GGL_LOGD("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "iotDataEndpoint");
         static uint8_t data_endpoint_mem[MAX_ENDPOINT_LENGTH + 1] = { 0 };
@@ -208,7 +214,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->template_name == NULL) {
-        GGL_LOGT("Requesting db for "
+        GGL_LOGD("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "templateName");
         static uint8_t template_name_mem[MAX_TEMPLATE_LEN + 1] = { 0 };
@@ -234,7 +240,7 @@ static GglError fetch_from_db(FleetProvArgs *args) {
     }
 
     if (args->template_parameters == NULL) {
-        GGL_LOGT("Requesting db for "
+        GGL_LOGD("Requesting db for "
                  "services/aws.greengrass.fleet_provisioning/configuration/"
                  "templateParams");
         static uint8_t template_params_mem[MAX_TEMPLATE_PARAM_LEN + 1] = { 0 };
@@ -403,7 +409,7 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
     EVP_PKEY *pkey = NULL;
     X509_REQ *csr_req = NULL;
 
-    GGL_LOGT("Requesting db for system/rootPath");
+    GGL_LOGD("Requesting db for system/rootPath");
     static uint8_t root_dir_mem[4096] = { 0 };
     GglArena alloc = ggl_arena_init(GGL_BUF(root_dir_mem));
     GglBuffer root_dir;
@@ -504,9 +510,43 @@ GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
         return ret;
     }
 
+    // Copy root CA to provisioned-cert directory
+    static uint8_t root_ca_dest_path_mem[MAX_PATH_LEN] = { 0 };
+    GglByteVec root_ca_dest_path_vec = GGL_BYTE_VEC(root_ca_dest_path_mem);
+    ret = ggl_byte_vec_append(&root_ca_dest_path_vec, ggcredentials_path);
+    ggl_byte_vec_chain_append(
+        &ret, &root_ca_dest_path_vec, GGL_STR("/AmazonRootCA.pem")
+    );
+    ggl_byte_vec_chain_push(&ret, &root_ca_dest_path_vec, '\0');
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error to append root CA dest path");
+        return ret;
+    }
+
+    const char *cp_args[] = {
+        "cp", args->root_ca_path, (char *) root_ca_dest_path_vec.buf.data, NULL
+    };
+    ret = ggl_exec_command(cp_args);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to copy root CA file");
+        return ret;
+    }
+
     ret = ggl_gg_config_write(
         GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
-        ggl_obj_buf(private_file_path_vec.buf),
+        ggl_obj_buf(ggl_buffer_substr(
+            private_file_path_vec.buf, 0, private_file_path_vec.buf.len - 1
+        )),
+        &(int64_t) { 3 }
+    );
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    ret = ggl_gg_config_write(
+        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")),
+        ggl_obj_buf((GglBuffer) { .data = root_ca_dest_path_vec.buf.data,
+                                  .len = root_ca_dest_path_vec.buf.len - 1 }),
         &(int64_t) { 3 }
     );
     if (ret != GGL_ERR_OK) {
