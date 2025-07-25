@@ -153,7 +153,7 @@ GglError ggl_process_kill(int handle, uint32_t term_timeout) {
     }
 
     if (waitid_err != EINTR) {
-        GGL_LOGE("Err %d when calling waitid.", errno);
+        GGL_LOGE("Err %d when calling waitid.", waitid_err);
         return GGL_ERR_FAILURE;
     }
 
