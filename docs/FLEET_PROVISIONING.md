@@ -1,25 +1,28 @@
 # Fleet provisioning
 
 Fleet provisioning is an alternative way of provisioning a device with claim
-certificates. This will allow you to provision a fleet of devices with a common
+certificates. This allows you to provision a fleet of devices with a common
 claim certificate.
 
-To get started, you would need AWS claim certificates from IoT Core, so that we
-can get valid certificates. You can follow the link
+To get started, you need AWS claim certificates from IoT Core to obtain valid
+certificates. You can follow the link
 [here](https://docs.aws.amazon.com/greengrass/v2/developerguide/fleet-provisioning-setup.html)
-to learn how to create appropriate policies and claim certificate.
+to learn how to create appropriate policies and claim certificates.
 
-Greengrass nucleus lite generates csr and private keys locally and then sends
-the csr to iotcore to generate a certificate. This behavior is different from
-Greengrass classic. Hence, make sure your claim certificate has connect,
-publish, subscribe and receive access to `CreateCertificateFromCsr` and
-`RegisterThing` topics mentioned in
+Greengrass nucleus lite's fleet provisioning generates CSR and private keys
+locally and then sends the CSR to IoT Core to generate a certificate. This
+behavior is different from the default behavior of Greengrass classic's fleet
+provisioning. Therefore, make sure your claim certificate has connect, publish,
+subscribe, and receive access to `CreateCertificateFromCsr` and `RegisterThing`
+topics mentioned in the
 [linked AWS docs](https://docs.aws.amazon.com/iot/latest/developerguide/fleet-provision-api.html).
 
-## Before getting started:
+### In this demo we are using a CloudFormation template with overly permissive policies, please do consider reducing the permissions on the template for production as needed.
 
-Currently, fleet provisioning can only be run manually. Hence, you will need to
-follow a few important pre-steps
+## Before getting started
+
+Before running fleet provisioning manually, you need to consider a few important
+steps:
 
 1. This section assumes that the system has already met the dependencies
    mentioned in [SETUP.md](./SETUP.md#dependencies).
@@ -31,66 +34,52 @@ follow a few important pre-steps
 4. If this is not your first run, remove the socket at
    `/run/greengrass/iotcoredfleet`, if it exists.
 
-Sample Fleet provisioning template:
+## Setting up the cloud side for provisioning
 
-```json
-{
-  "Parameters": {
-    "SerialNumber": {
-      "Type": "String"
-    },
-    "AWS::IoT::Certificate::Id": {
-      "Type": "String"
-    }
-  },
-  "Resources": {
-    "policy_TestAllowAllPolicy": {
-      "Type": "AWS::IoT::Policy",
-      "Properties": {
-        "PolicyName": "TestPolicy"
-      }
-    },
-    "certificate": {
-      "Type": "AWS::IoT::Certificate",
-      "Properties": {
-        "CertificateId": {
-          "Ref": "AWS::IoT::Certificate::Id"
-        },
-        "Status": "Active"
-      }
-    },
-    "thing": {
-      "Type": "AWS::IoT::Thing",
-      "OverrideSettings": {
-        "AttributePayload": "MERGE",
-        "ThingGroups": "DO_NOTHING",
-        "ThingTypeName": "REPLACE"
-      },
-      "Properties": {
-        "AttributePayload": {},
-        "ThingGroups": [],
-        "ThingName": {
-          "Fn::Join": [
-            "",
-            [
-              "greengrass",
-              {
-                "Ref": "SerialNumber"
-              }
-            ]
-          ]
-        }
-      }
-    }
-  }
-}
+The first step to fleet provisioning is to set up the cloud infrastructure so
+that all devices follow the same process of generating certificates and things.
+
+The CloudFormation template,
+[fleet-provisioning-cfn.yaml](./fleet-provisioning-cfn.yaml) provides a
+maintainable way of bringing up cloud resources.
+
+Now export permissive roles to your account on the console. Below is an example
+of exporting access keys with admin access. You may use other AWS-provided
+services to give the CLI access to your account:
+
 ```
+export AWS_ACCESS_KEY_ID=[REPLACE HERE]
+export AWS_SECRET_ACCESS_KEY=[REPLACE_HERE]
+export AWS_DEFAULT_REGION=us-east-1
+```
+
+Now execute `generate_claim.sh` in bash.
+
+Once the stack is up and running, you should see the following resources in the
+cloud:
+
+- CloudFormation stack called `GreengrassFleetProvisioning`
+  - IoT policies
+  - IAM policies
+  - Role and RoleAlias
+  - Thing and ThingGroup
+  - Lambda function called `MacValidationLambda`
+- Claim certificates under your build directory and cloud
+  - Verify the printed certificate-id with the one in the cloud at IoT Core >
+    Security > Certificates
+
+Once you see all the resources in the cloud, you can continue to the next steps.
+
+> Note: While deleting the CloudFormation stack, make sure that any related IoT
+> policies do not have a certificate attached, as that will prevent it from
+> auto-deleting.
 
 ## Setting up the device side for provisioning
 
-Here we can assume your template name is `FleetTestNew` and your template
-requires (based on the above template) you to only provide a serial number as a
-parameter. Then your nucleus config should roughly look as below:
+Here the template name is `GreengrassFleetProvisioningTemplate` and the template
+requires (based on the above example) you to provide only a MAC address as the
+serial number into the template parameter. Then your nucleus config should
+roughly look as follows:
 
 ### `config.yaml`
 
@@ -99,55 +88,74 @@ parameter. Then your nucleus config should roughly look as below:
 system:
   privateKeyPath: "" #[Must leave blank]
   certificateFilePath: "" #[Must leave blank]
-  rootCaPath: "/ggcredentials/fleetClaim/AmazonRootCA1.pem" #[Modify here]
-  rootPath: "/var/lib/greengrass/" #[Modify here]
+  rootCaPath: "" #[Must leave blank]
+  rootPath: "/var/lib/greengrass/" #[Modify if needed]
   thingName: "" #[Must leave blank]
 services:
   aws.greengrass.NucleusLite:
     componentType: "NUCLEUS"
     configuration:
-      awsRegion: "us-east-1"
+      awsRegion: "us-east-1" #[Modify if needed]
       iotCredEndpoint: "" #[Must leave blank]
       iotDataEndpoint: "" #[Must leave blank]
-      iotRoleAlias: "GreengrassV2TokenExchangeRoleAlias" #[Modify if needed]
+      iotRoleAlias: "GreengrassV2TokenExchangeRoleAlias-GreengrassFleetProvisioning" #[Modify if needed]
       runWithDefault:
-        posixUser: "user:group" #[Modify here]
+        posixUser: "ggcore:ggcore" #[Modify if needed]
       greengrassDataPlanePort: "8443"
   aws.greengrass.fleet_provisioning:
     configuration:
       iotDataEndpoint: "aaaaaaaaaaaaaa-ats.iot.us-east-1.amazonaws.com" #[Modify here]
       iotCredEndpoint: "cccccccccccccc.credentials.iot.us-east-1.amazonaws.com" #[Modify here]
-      claimKeyPath: "/ggcredentials/fleetClaim/private.pem.key" #[Modify here]
-      claimCertPath: "/ggcredentials/fleetClaim/certificate.pem.crt" #[Modify here]
-      templateName: "FleetTestNew" #[Modify here]
-      templateParams: '{"SerialNumber": "AAA55555"}' #[Modify here]
+      rootCaPath: "/path/to/AmazonRootCA1.pem" #[Modify here]
+      claimKeyPath: "path/to/private.pem.key" #[Modify here]
+      claimCertPath: "path/to/certificate.pem.crt" #[Modify here]
+      templateName: "GreengrassFleetProvisioningTemplate" #[Modify here]
+      templateParams: '{"SerialNumber": "a2_b9_d2_5a_fd_f9"}' #[Modify here]
 ```
 
-Once completed, the config needs to be moved and all the services need to be
-started (if not started already). Run the following command for it, assuming
-your current working directory is root of greengrass repository:
+Things to note on above config
+
+1. You can copy paste from the generated sample from
+   `aws.greengrass.fleet_provisioning` to `templateName`
+2. If you wish to move the certificate to a different location then you need to
+   update the path accordingly
+3. Value of templateParams must be on `json format`, currently only json format
+   is supported.
+
+Once completed, the config needs to be moved and all services need to be started
+(if not started already). Run the following command, assuming your current
+working directory is the root of the greengrass repository:
 
 ```sh
-$ mkdir -p /etc/greengrass
-$ cp ./run/config.yaml /etc/greengrass/config.yaml
-$ ./misc/run_nucleus
+mkdir -p /etc/greengrass
+mkdir -p /var/lib/greengrass/provisioned-cert/
+cp ./config.yaml /etc/greengrass/config.yaml
+
+sudo rm -rf /var/lib/greengrass/config.db
+sudo systemctl stop greengrass-lite.target
+sudo systemctl start greengrass-lite.target
 ```
 
-In root user shell, run the fleet provisioning binary with the following
-command:
+Wait for a few seconds and then in a shell, run the fleet provisioning binary
+with the following command:
 
 ```sh
-$ ../build/bin/fleet-provisioning
+$ sudo /usr/local/bin/fleet-provisioning
 ```
+
+If you cannot find `fleet-provisioning` under `/usr/local/bin`, then reconfigure
+the cmake with the flag `-D CMAKE_INSTALL_PREFIX=/usr/local`, rebuild and
+re-install.
 
 Here you can also add `--out_cert_path path/to/dir/` to provide an alternate
-directory. Default is `/var/lib/greengrass/provisioned-cert/`.
+directory. The default is `/var/lib/greengrass/provisioned-cert/`.
 
-Now this will trigger the fleet provisioning script which will take a few
-minutes to complete.
+This will trigger the fleet provisioning script, which will take a few minutes
+to complete.
 
-If you are storing the standard output then look for log:
+If you are storing the standard output, look for the log:
 `Process Complete, Your device is now provisioned`.
 
-> You might see some error log such as `process is getting killed by signal 15`;
-> this is expected and correct behavior.
+> You might see some error logs such as
+> `process is getting killed by signal 15`; this is expected and correct
+> behavior.

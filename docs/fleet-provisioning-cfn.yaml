@@ -1,0 +1,300 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  ProvisioningTemplateName:
+    Type: String
+    Default: "GreengrassFleetProvisioningTemplate"
+  GGTokenExchangeRoleName:
+    Type: String
+    Default: "GGTokenExchangeRole"
+  GGFleetProvisioningRoleName:
+    Type: String
+    Default: "GGFleetProvisioningRole"
+  GGTokenExchangeRoleAliasName:
+    Type: String
+    Default: "GreengrassV2TokenExchangeRoleAlias"
+  GGThingGroupName:
+    Type: String
+    Default: "GreengrassDevices"
+  GGThingNamePrefix:
+    Type: String
+    Default: "gg_"
+  MacValidationLambdaName:
+    Type: String
+    Default: "MacAddressValidator"
+
+Resources:
+  # IAM Role for Greengrass Token Exchange
+  GGTokenExchangeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref GGTokenExchangeRoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: credentials.iot.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+      Policies:
+        - PolicyName: GreengrassTokenExchangeAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "s3:*"
+                  - "s3-object-lambda:*"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "logs:CreateLogGroup"
+                  - "logs:DescribeLogStreams"
+                Resource: "*"
+
+  # IAM Role for Fleet Provisioning
+  GGFleetProvisioningRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref GGFleetProvisioningRoleName
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSIoTThingsRegistration
+      Policies:
+        - PolicyName: FleetProvisioningLambdaAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "lambda:InvokeFunction"
+                Resource: !GetAtt MacValidationLambda.Arn
+
+  # IoT Role Alias for Greengrass Token Exchange
+  GGTokenExchangeRoleAlias:
+    Type: AWS::IoT::RoleAlias
+    Properties:
+      RoleAlias: !Sub "${GGTokenExchangeRoleAliasName}-${AWS::StackName}"
+      RoleArn: !GetAtt GGTokenExchangeRole.Arn
+      CredentialDurationSeconds: 3600
+
+  # IoT Thing Group for Greengrass Devices
+  GGThingGroup:
+    Type: AWS::IoT::ThingGroup
+    Properties:
+      ThingGroupName: !Ref GGThingGroupName
+
+  # IoT Policy for Fleet Provisioning Claim Certificates
+  FleetProvisioningPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyName: !Sub "FleetProvisioningPolicy-${AWS::StackName}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "iot:Connect"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "iot:Publish"
+              - "iot:Receive"
+            Resource: "*"
+          - Effect: Allow
+            Action: "iot:Subscribe"
+            Resource: "*"
+
+  # IoT Policy for Greengrass Core Devices
+  GreengrassV2IoTThingPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyName: !Sub "GreengrassV2IoTThingPolicy-${AWS::StackName}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "iot:Connect"
+              - "iot:Publish"
+              - "iot:Subscribe"
+              - "iot:Receive"
+              - "greengrass:*"
+            Resource: "*"
+
+  # IoT Policy for Token Exchange Role Alias
+  GreengrassV2TokenExchangeRoleAliasPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyName: !Sub "GreengrassV2TokenExchangeRoleAliasPolicy-${AWS::StackName}"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: "iot:AssumeRoleWithCertificate"
+            Resource: !GetAtt GGTokenExchangeRoleAlias.RoleAliasArn
+
+  # Lambda Role for MAC Address Validation
+  MacValidationLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: MacValidationPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "iot:*"
+                Resource: "*"
+
+  # Lambda Function for MAC Address Validation
+  MacValidationLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref MacValidationLambdaName
+      Handler: index.handler
+      Role: !GetAtt MacValidationLambdaRole.Arn
+      Runtime: nodejs18.x
+      Timeout: 30
+      Code:
+        ZipFile: |
+          exports.handler = async (event) => {
+            console.log('Received event:', JSON.stringify(event, null, 2));
+
+            // Extract the serial number from the event (which should be a MAC address)
+            const serialNumber = event.parameters.SerialNumber;
+            console.log(`Validating MAC address: ${serialNumber}`);
+
+            // Regular expression for validating MAC address format
+            // Accepts formats: XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, XXXXXXXXXXXX
+            const macRegex = /^([0-9A-Fa-f]{2}[:-_]?){5}([0-9A-Fa-f]{2})$/;
+
+            if (!serialNumber || !macRegex.test(serialNumber)) {
+              console.log(`Invalid MAC address format: ${serialNumber}`);
+              throw new Error('Invalid MAC address format. Expected format: XX:XX:XX:XX:XX:XX, XX-XX-XX-XX-XX-XX, XX_XX_XX_XX_XX_XX or XXXXXXXXXXXX');
+            }
+
+            // Optional: Add additional validation logic here
+            // For example, check against a database of allowed MAC addresses
+
+            console.log(`MAC address validation successful: ${serialNumber}`);
+            return {
+              allowProvisioning: true
+            };
+          };
+
+  # Permission for AWS IoT to invoke the Lambda function
+  MacValidationLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref MacValidationLambda
+      Principal: iot.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+  # Fleet Provisioning Template
+  FleetProvisioningTemplate:
+    Type: AWS::IoT::ProvisioningTemplate
+    Properties:
+      TemplateName: !Ref ProvisioningTemplateName
+      Description: "Fleet provisioning template for Greengrass devices"
+      Enabled: true
+      ProvisioningRoleArn: !GetAtt GGFleetProvisioningRole.Arn
+      PreProvisioningHook:
+        TargetArn: !GetAtt MacValidationLambda.Arn
+      TemplateBody: !Sub |
+        {
+          "Parameters": {
+            "SerialNumber": {
+              "Type": "String"
+            },
+            "AWS::IoT::Certificate::Id": {
+              "Type": "String"
+            }
+          },
+          "Resources": {
+            "certificate": {
+              "Type": "AWS::IoT::Certificate",
+              "Properties": {
+                "CertificateId": {
+                  "Ref": "AWS::IoT::Certificate::Id"
+                },
+                "Status": "ACTIVE"
+              }
+            },
+            "thing": {
+              "Type": "AWS::IoT::Thing",
+              "OverrideSettings": {
+                "AttributePayload": "MERGE",
+                "ThingGroups": "DO_NOTHING",
+                "ThingTypeName": "REPLACE"
+              },
+              "Properties": {
+                "AttributePayload": {},
+                "ThingName": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "${GGThingNamePrefix}",
+                      {
+                        "Ref": "SerialNumber"
+                      }
+                    ]
+                  ]
+                },
+                "ThingGroups": [
+                  "${GGThingGroupName}"
+                ]
+              }
+            },
+            "policy": {
+              "Type": "AWS::IoT::Policy",
+              "Properties": {
+                "PolicyName": "GreengrassV2IoTThingPolicy-${AWS::StackName}"
+              }
+            },
+            "policy_tokenexchange": {
+              "Type": "AWS::IoT::Policy",
+              "Properties": {
+                "PolicyName": "GreengrassV2TokenExchangeRoleAliasPolicy-${AWS::StackName}"
+              }
+            }
+          }
+        }
+
+Outputs:
+  ProvisioningTemplateName:
+    Description: "Name of the provisioning template"
+    Value: !Ref ProvisioningTemplateName
+  TokenExchangeRoleAlias:
+    Description: "Role alias for token exchange"
+    Value: !Sub "${GGTokenExchangeRoleAliasName}-${AWS::StackName}"
+  ThingGroupName:
+    Description: "Thing group for Greengrass devices"
+    Value: !Ref GGThingGroupName
+  MacValidationLambdaArn:
+    Description: "ARN of the MAC address validation Lambda function"
+    Value: !GetAtt MacValidationLambda.Arn
