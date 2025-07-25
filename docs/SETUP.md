@@ -39,8 +39,9 @@ layer, or yocto image, these will be set up and configured for you.
 ## Configuring Greengrass
 
 You may configure a single device with the instruction below or a fleet of
-devices with the steps from [Fleet Provisioning guide](FLEET_PROVISIONING.md).
-Choose one or the other.
+devices with the steps from
+[Fleet Provisioning guide](./fleet_provisioning/fleet_provisioning.md). Choose
+one or the other.
 
 To configure Greengrass, you will need a config YAML file, in the same format as
 the Classic nucleus config. An example config file is available in

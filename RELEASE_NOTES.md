@@ -70,22 +70,6 @@ To install Greengrass nucleus lite from source, please follow the build guide
 [BUILD.md](./docs/BUILD.md) and [TES.md](./docs/TES.md). Once the development
 environment is setup, please refer to [SETUP.md](./docs/SETUP.md).
 
-For provisioning Greengrass nucleus lite devices by claim certificates, please
-take a look at the fleet provisioning by claim setup guide
-[here](./docs/FLEET_PROVISIONING.md).
-
-## Contribution guidelines
-
-Thank you for your interest in contributing to our project. Whether it's a bug
-report, new feature, code, or documentation, we welcome our community to be
-involved in this project.
-
-Guidelines for contributing to this repository can be found
-[here](./docs/CONTRIBUTING.md).
-
-It's recommended to setup a nix environment. Information for nix environment
-setup can be found [here](./docs/DEVELOPMENT.md).
-
 ## New with this release
 
 This is the first release of Greengrass nucleus lite.

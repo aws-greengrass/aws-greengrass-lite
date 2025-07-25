@@ -17,7 +17,7 @@ subscribe, and receive access to `CreateCertificateFromCsr` and `RegisterThing`
 topics mentioned in the
 [linked AWS docs](https://docs.aws.amazon.com/iot/latest/developerguide/fleet-provision-api.html).
 
-### In this demo we are using a CloudFormation template with overly permissive policies, please do consider reducing the permissions on the template for production as needed.
+### In this demo, we are using a CloudFormation template with overly permissive policies. Please consider reducing the permissions in the template for production use as needed.
 
 ## Before getting started
 
@@ -43,17 +43,24 @@ The CloudFormation template,
 [fleet-provisioning-cfn.yaml](./fleet-provisioning-cfn.yaml) provides a
 maintainable way of bringing up cloud resources.
 
-Now export permissive roles to your account on the console. Below is an example
-of exporting access keys with admin access. You may use other AWS-provided
-services to give the CLI access to your account:
+Now export access credentials to your account. Below is an example of exporting
+access keys with environment variables. For the perpose of demo, I am using
+admin access keys. You may use other AWS-provided services to give the CLI
+access to your account:
 
 ```
 export AWS_ACCESS_KEY_ID=[REPLACE HERE]
 export AWS_SECRET_ACCESS_KEY=[REPLACE_HERE]
-export AWS_DEFAULT_REGION=us-east-1
+export AWS_DEFAULT_REGION=[REPLACE_HERE]
 ```
 
-Now execute `generate_claim.sh` in bash.
+Make sure that the [generate_claim.sh](./generate_claim.sh) shell script has
+execute permissions and then run the script.
+
+```
+chmod +x ./generate_claim.sh
+./generate_claim.sh
+```
 
 Once the stack is up and running, you should see the following resources in the
 cloud:
@@ -67,6 +74,9 @@ cloud:
 - Claim certificates under your build directory and cloud
   - Verify the printed certificate-id with the one in the cloud at IoT Core >
     Security > Certificates
+- A partial config file `part.config.yaml` on disk at
+  `${PROJECT_ROOT}/fleetprovisioning`. This is an incomplete config file and is
+  only provided for ease of copying
 
 Once you see all the resources in the cloud, you can continue to the next steps.
 
@@ -76,9 +86,9 @@ Once you see all the resources in the cloud, you can continue to the next steps.
 
 ## Setting up the device side for provisioning
 
-Here the template name is `GreengrassFleetProvisioningTemplate` and the template
-requires (based on the above example) you to provide only a MAC address as the
-serial number into the template parameter. Then your nucleus config should
+Here, the template name is `GreengrassFleetProvisioningTemplate` and the
+template requires (based on the above example) you to provide only a MAC address
+as the serial number in the template parameter. Your nucleus config should
 roughly look as follows:
 
 ### `config.yaml`
@@ -113,14 +123,15 @@ services:
       templateParams: '{"SerialNumber": "a2_b9_d2_5a_fd_f9"}' #[Modify here]
 ```
 
-Things to note on above config
+Things to note about the above config:
 
-1. You can copy paste from the generated sample from
-   `aws.greengrass.fleet_provisioning` to `templateName`
-2. If you wish to move the certificate to a different location then you need to
-   update the path accordingly
-3. Value of templateParams must be on `json format`, currently only json format
-   is supported.
+1. You can copy and paste from the generated sample file `part.config.yaml`. The
+   starting point is `aws.greengrass.fleet_provisioning` through `templateName`.
+   Note that `templateParams` is still required.
+2. If you wish to move the certificate to a different location, then you need to
+   update the path accordingly.
+3. The value of `templateParams` must be in JSON format. Currently, only JSON
+   format is supported.
 
 Once completed, the config needs to be moved and all services need to be started
 (if not started already). Run the following command, assuming your current
@@ -144,8 +155,8 @@ $ sudo /usr/local/bin/fleet-provisioning
 ```
 
 If you cannot find `fleet-provisioning` under `/usr/local/bin`, then reconfigure
-the cmake with the flag `-D CMAKE_INSTALL_PREFIX=/usr/local`, rebuild and
-re-install.
+CMake with the flag `-D CMAKE_INSTALL_PREFIX=/usr/local`, rebuild, and
+reinstall.
 
 Here you can also add `--out_cert_path path/to/dir/` to provide an alternate
 directory. The default is `/var/lib/greengrass/provisioned-cert/`.
@@ -157,5 +168,5 @@ If you are storing the standard output, look for the log:
 `Process Complete, Your device is now provisioned`.
 
 > You might see some error logs such as
-> `process is getting killed by signal 15`; this is expected and correct
+> `process is getting killed by signal 15`. This is expected and correct
 > behavior.

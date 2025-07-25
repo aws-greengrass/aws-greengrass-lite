@@ -8,8 +8,8 @@ STACK_NAME="GreengrassFleetProvisioning"
 
 # Calculate directories relative to script location
 SCRIPT_DIR="$(pwd)"
-TEMP_BUILD="${SCRIPT_DIR}/build"
-TEMP_DIR="${SCRIPT_DIR}/build/fleetprovisioning"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../" && pwd)"
+TEMP_DIR="${PROJECT_ROOT}/fleetCerts"
 
 # Check if fleet-provisioning-cfn.yaml exists
 if [ ! -f "${SCRIPT_DIR}/fleet-provisioning-cfn.yaml" ]; then
@@ -17,8 +17,7 @@ if [ ! -f "${SCRIPT_DIR}/fleet-provisioning-cfn.yaml" ]; then
     exit 1
 fi
 
-# Create build directory
-mkdir -p "${TEMP_BUILD}"
+# Create certificate directory
 mkdir -p "${TEMP_DIR}"
 
 echo "=== Setting up AWS IoT Fleet Provisioning for Greengrass ==="
