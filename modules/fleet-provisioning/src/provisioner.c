@@ -265,8 +265,7 @@ static GglError subscribe_callback(void *ctx, uint32_t handle, GglObject data) {
                 S_IRUSR | S_IWUSR
             );
             if (fd < 0) {
-                int err = errno;
-                GGL_LOGE("Failed to open certificate for writing: %d", err);
+                GGL_LOGE("Failed to open certificate for writing: %d", errno);
                 return GGL_ERR_FAILURE;
             }
 

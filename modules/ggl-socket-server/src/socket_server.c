@@ -37,8 +37,7 @@ static void new_client_available(
 
     int client_fd = accept4(socket_fd, NULL, NULL, SOCK_CLOEXEC);
     if (client_fd == -1) {
-        int err = errno;
-        GGL_LOGE("Failed to accept on socket %d: %d.", socket_fd, err);
+        GGL_LOGE("Failed to accept on socket %d: %d.", socket_fd, errno);
         return;
     }
     GGL_CLEANUP_ID(client_fd_cleanup, cleanup_close, client_fd);
@@ -144,14 +143,12 @@ static GglError configure_server_socket(
     }
 
     if ((unlink(addr.sun_path) == -1) && (errno != ENOENT)) {
-        int err = errno;
-        GGL_LOGE("Failed to unlink server socket: %d.", err);
+        GGL_LOGE("Failed to unlink server socket: %d.", errno);
         return GGL_ERR_FAILURE;
     }
 
     if (bind(socket_fd, (struct sockaddr *) &addr, sizeof(addr)) == -1) {
-        int err = errno;
-        GGL_LOGE("Failed to bind server socket: %d.", err);
+        GGL_LOGE("Failed to bind server socket: %d.", errno);
         return GGL_ERR_FAILURE;
     }
 
@@ -162,8 +159,7 @@ static GglError configure_server_socket(
 
     static const int MAX_SOCKET_BACKLOG = 10;
     if (listen(socket_fd, MAX_SOCKET_BACKLOG) == -1) {
-        int err = errno;
-        GGL_LOGE("Failed to listen on server socket: %d.", err);
+        GGL_LOGE("Failed to listen on server socket: %d.", errno);
         return GGL_ERR_FAILURE;
     }
 

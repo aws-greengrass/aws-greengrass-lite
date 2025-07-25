@@ -16,8 +16,7 @@ static int random_fd;
 __attribute__((constructor)) static void init_urandom_fd(void) {
     random_fd = open("/dev/random", O_RDONLY | O_CLOEXEC);
     if (random_fd == -1) {
-        int err = errno;
-        GGL_LOGE("Failed to open /dev/random: %d.", err);
+        GGL_LOGE("Failed to open /dev/random: %d.", errno);
         _Exit(1);
     }
 }
