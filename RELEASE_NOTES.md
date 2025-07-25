@@ -1,3 +1,8 @@
+# Release Notes v2.2.1
+
+This release fixes a regression from v2.2.0 where the nucleus fails to obtain
+TES credentials.
+
 # Release Notes v2.2.0
 
 This release includes support for pulling images from container registries,
