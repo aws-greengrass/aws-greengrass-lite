@@ -75,27 +75,27 @@ having problems with other steps.
 
 ```
 {
-	"Version": "2012-10-17",
-	"Statement": [
-		{
-			"Effect": "Allow",
-			"Principal": {
-				"Service": [
-					"iot.amazonaws.com",
-					"credentials.iot.amazonaws.com"
-				]
-			},
-			"Action": "sts:AssumeRole",
-			"Condition": {
-				"StringEquals": {
-					"aws:SourceAccount": "754281915471"
-				},
-				"ArnLike": {
-					"aws:SourceArn": "arn:aws:iot:*:754281915471:rolealias/GreengrassV2TokenExchangeCoreDeviceRoleAlias"
-				}
-			}
-		}
-	]
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Service": [
+                    "iot.amazonaws.com",
+                    "credentials.iot.amazonaws.com"
+                ]
+            },
+            "Action": "sts:AssumeRole",
+            "Condition": {
+                "StringEquals": {
+                    "aws:SourceAccount": "754281915471"
+                },
+                "ArnLike": {
+                    "aws:SourceArn": "arn:aws:iot:*:754281915471:rolealias/GreengrassV2TokenExchangeCoreDeviceRoleAlias"
+                }
+            }
+        }
+    ]
 }
 ```
 
