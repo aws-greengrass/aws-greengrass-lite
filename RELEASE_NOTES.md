@@ -72,8 +72,9 @@ Detailed information can be found [here](./docs/RECIPE_SUPPORT_CHANGES.md).
 ## Installing from source
 
 To install Greengrass nucleus lite from source, please follow the build guide
-[BUILD.md](./docs/BUILD.md) and [TES.md](./docs/TES.md). Once the development
-environment is setup, please refer to [SETUP.md](./docs/SETUP.md).
+[BUILD.md](./docs/BUILD.md) and [Provisioning.md](./docs/Provisioning.md). Once
+the development environment is setup, please refer to
+[SETUP.md](./docs/SETUP.md).
 
 ## New with this release
 

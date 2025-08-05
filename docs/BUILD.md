@@ -68,12 +68,16 @@ addgroup ggcore
 adduser -g <gid from previous command> ggcore
 ```
 
+Now before we continue any further we need to get the device credentials. You
+may want to get certificate for the device using
+[Provisioning guide](Provisioning.md).
+
 Then run:
 
 ```
-sudo mkdir /ggcredentials
+sudo mkdir /etc/greengrass/ggcredentials
 //cp your aws credentials(device certificates, private key, root ca) to this folder
-chown -R ggcore:ggcore /ggcredentials
+chown -R ggcore:ggcore /etc/greengrass/ggcredentials
 
 mkdir /var/lib/greengrass
 chown ggcore:ggcore /var/lib/greengrass
