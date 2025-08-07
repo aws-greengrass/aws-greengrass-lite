@@ -309,6 +309,8 @@ static GglError establish_connection(void *ctx) {
 
     if (mqtt_ret != MQTTSuccess) {
         GGL_LOGE("Connection failed: %s", MQTT_Status_strerror(mqtt_ret));
+
+        iotcored_tls_cleanup(net_ctx.tls_ctx);
         return GGL_ERR_FAILURE;
     }
 
