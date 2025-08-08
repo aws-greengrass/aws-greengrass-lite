@@ -54,11 +54,11 @@ static GglError policy_match(
         return GGL_ERR_CONFIG;
     }
 
-    GGL_LIST_FOREACH(policy_operation_obj, policy_operations) {
+    GGL_LIST_FOREACH (policy_operation_obj, policy_operations) {
         GglBuffer policy_operation = ggl_obj_into_buf(*policy_operation_obj);
         if (ggl_buffer_eq(GGL_STR("*"), policy_operation)
             || ggl_buffer_eq(operation, policy_operation)) {
-            GGL_LIST_FOREACH(policy_resource_obj, policy_resources) {
+            GGL_LIST_FOREACH (policy_resource_obj, policy_resources) {
                 GglBuffer policy_resource
                     = ggl_obj_into_buf(*policy_resource_obj);
                 if (ggl_buffer_eq(GGL_STR("*"), policy_resource)
@@ -113,7 +113,7 @@ GglError ggl_ipc_auth(
 
     GglMap policy_map = ggl_obj_into_map(policies);
 
-    GGL_MAP_FOREACH(policy_kv, policy_map) {
+    GGL_MAP_FOREACH (policy_kv, policy_map) {
         GglObject policy = *ggl_kv_val(policy_kv);
         if (ggl_obj_type(policy) != GGL_TYPE_MAP) {
             GGL_LOGE("Policy value is not a map.");

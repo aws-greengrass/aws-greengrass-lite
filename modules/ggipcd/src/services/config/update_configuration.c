@@ -81,7 +81,7 @@ GglError ggl_handle_update_configuration(
     }
 
     if ((key_path.len == 0) && ggl_obj_type(*value_to_merge) == GGL_TYPE_MAP) {
-        GGL_MAP_FOREACH(kv, ggl_obj_into_map(*value_to_merge)) {
+        GGL_MAP_FOREACH (kv, ggl_obj_into_map(*value_to_merge)) {
             if (ggl_buffer_eq(ggl_kv_key(*kv), GGL_STR("accessControl"))) {
                 GGL_LOGE(
                     "Received invalid parameters. Can not change component "

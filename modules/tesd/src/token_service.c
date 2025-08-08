@@ -76,7 +76,7 @@ static GglError create_map_for_server(GglMap json_creds, GglMap *out_json) {
     }
     GglMap creds = ggl_obj_into_map(*creds_obj);
 
-    GGL_MAP_FOREACH(pair, creds) {
+    GGL_MAP_FOREACH (pair, creds) {
         if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("accessKeyId"))) {
             ggl_kv_set_key(pair, GGL_STR("AccessKeyId"));
         } else if (ggl_buffer_eq(

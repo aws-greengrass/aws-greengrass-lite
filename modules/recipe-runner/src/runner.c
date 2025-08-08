@@ -251,7 +251,7 @@ static GglError process_set_env(
     GglBuffer thing_name
 ) {
     GGL_LOGT("Lifecycle Setenv, is a map");
-    GGL_MAP_FOREACH(pair, env_values_as_map) {
+    GGL_MAP_FOREACH (pair, env_values_as_map) {
         GglError ret = ggl_file_write(out_fd, GGL_STR("export "));
         if (ret != GGL_ERR_OK) {
             return ret;

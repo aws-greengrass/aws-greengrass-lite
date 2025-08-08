@@ -119,7 +119,7 @@ static GglError docker_artifact_exists(
         return ret;
     }
 
-    GGL_LIST_FOREACH(artifact, artifacts) {
+    GGL_LIST_FOREACH (artifact, artifacts) {
         if (ggl_obj_type(*artifact) != GGL_TYPE_MAP) {
             continue;
         }
@@ -185,7 +185,7 @@ static GglError ggl_docker_remove_if_unused(
         return GGL_ERR_FAILURE;
     }
 
-    GGL_LIST_FOREACH(component, components) {
+    GGL_LIST_FOREACH (component, components) {
         GglBuffer other_component_name = ggl_obj_into_buf(*component);
         GGL_LOGT(
             "Checking %.*s for docker images",

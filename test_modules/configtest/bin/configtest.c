@@ -122,18 +122,18 @@ static void compare_maps(GglMap expected, GglMap result) {
         );
         return;
     }
-    GGL_MAP_FOREACH(expected_pair, expected) {
+    GGL_MAP_FOREACH (expected_pair, expected) {
         GglBuffer expected_key = ggl_kv_key(*expected_pair);
         GglObject expected_val = *ggl_kv_val(expected_pair);
         bool found = false;
-        GGL_MAP_FOREACH(result_pair, result) {
+        GGL_MAP_FOREACH (result_pair, result) {
             if (ggl_buffer_eq(expected_key, ggl_kv_key(*result_pair))) {
                 found = true;
                 compare_objects(expected_val, *ggl_kv_val(result_pair));
                 break;
             }
         }
-        GGL_MAP_FOREACH(result_pair, result) {
+        GGL_MAP_FOREACH (result_pair, result) {
             if (ggl_buffer_eq(expected_key, ggl_kv_key(*result_pair))) {
                 found = true;
                 compare_objects(expected_val, *ggl_kv_val(result_pair));

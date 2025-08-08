@@ -1173,7 +1173,7 @@ static GglError parse_dataplane_response_and_save_recipe(
     }
 
     bool first_component = true;
-    GGL_LIST_FOREACH(
+    GGL_LIST_FOREACH (
         resolved_version, ggl_obj_into_list(*resolved_component_versions)
     ) {
         if (!first_component) {
@@ -1361,7 +1361,7 @@ static GglError resolve_dependencies(
         = ggl_arena_init(GGL_BUF(version_requirements_mem));
 
     // Root components from current deployment
-    GGL_MAP_FOREACH(pair, root_components) {
+    GGL_MAP_FOREACH (pair, root_components) {
         if (ggl_obj_type(*ggl_kv_val(pair)) != GGL_TYPE_MAP) {
             GGL_LOGE("Incorrect formatting for deployment components field.");
             return GGL_ERR_INVALID;
@@ -1491,7 +1491,7 @@ static GglError resolve_dependencies(
         return ret;
     }
 
-    GGL_LIST_FOREACH(thing_group_item, ggl_obj_into_list(*thing_groups_list)) {
+    GGL_LIST_FOREACH (thing_group_item, ggl_obj_into_list(*thing_groups_list)) {
         if (ggl_obj_type(*thing_group_item) != GGL_TYPE_MAP) {
             GGL_LOGE("Thing group item is not of type map.");
             return ret;
@@ -1544,7 +1544,7 @@ static GglError resolve_dependencies(
                     return GGL_ERR_INVALID;
                 }
 
-                GGL_MAP_FOREACH(
+                GGL_MAP_FOREACH (
                     root_component_pair,
                     ggl_obj_into_map(group_root_components_read_value)
                 ) {
@@ -1666,7 +1666,7 @@ static GglError resolve_dependencies(
                 return GGL_ERR_INVALID;
             }
 
-            GGL_MAP_FOREACH(
+            GGL_MAP_FOREACH (
                 root_component_pair,
                 ggl_obj_into_map(local_components_read_value)
             ) {
@@ -1750,7 +1750,7 @@ static GglError resolve_dependencies(
         }
     }
 
-    GGL_MAP_FOREACH(pair, components_to_resolve.map) {
+    GGL_MAP_FOREACH (pair, components_to_resolve.map) {
         GglBuffer pair_val = ggl_obj_into_buf(*ggl_kv_val(pair));
 
         // We assume that we have not resolved a component yet if we are finding
@@ -1854,7 +1854,7 @@ static GglError resolve_dependencies(
             return ret;
         }
         if (component_dependencies != NULL) {
-            GGL_MAP_FOREACH(
+            GGL_MAP_FOREACH (
                 dependency, ggl_obj_into_map(*component_dependencies)
             ) {
                 if (ggl_obj_type(*ggl_kv_val(dependency)) != GGL_TYPE_MAP) {
@@ -2095,7 +2095,7 @@ static GglError add_arn_list_to_config(
                 arn_list.len
             );
         }
-        GGL_LIST_FOREACH(arn, arn_list) {
+        GGL_LIST_FOREACH (arn, arn_list) {
             if (ggl_obj_type(*arn) != GGL_TYPE_BUF) {
                 GGL_LOGE("Configuration arn not of type buffer.");
                 return ret;
@@ -2318,7 +2318,7 @@ static GglError wait_for_deployment_status(GglMap resolved_components) {
     // TODO: hack
     (void) ggl_sleep(5);
 
-    GGL_MAP_FOREACH(component, resolved_components) {
+    GGL_MAP_FOREACH (component, resolved_components) {
         GGL_LOGD(
             "Waiting for %.*s to finish",
             (int) ggl_kv_key(*component).len,
@@ -2442,7 +2442,7 @@ static void handle_deployment(
     // the deployment
     GglKVVec components_to_deploy = GGL_KV_VEC((GglKV[64]) { 0 });
 
-    GGL_MAP_FOREACH(pair, resolved_components_kv_vec.map) {
+    GGL_MAP_FOREACH (pair, resolved_components_kv_vec.map) {
         GglBuffer pair_val = ggl_obj_into_buf(*ggl_kv_val(pair));
 
         // check config to see if component has completed processing
@@ -2915,7 +2915,7 @@ static void handle_deployment(
             = GGL_BUF_VEC(install_comp_name_buf);
 
         // process all install files
-        GGL_MAP_FOREACH(component, components_to_deploy.map) {
+        GGL_MAP_FOREACH (component, components_to_deploy.map) {
             GglBuffer component_name = ggl_kv_key(*component);
 
             static uint8_t install_service_file_path_buf[PATH_MAX];
@@ -3086,7 +3086,7 @@ static void handle_deployment(
         }
 
         // process all run or startup files after install only
-        GGL_MAP_FOREACH(component, components_to_deploy.map) {
+        GGL_MAP_FOREACH (component, components_to_deploy.map) {
             GglBuffer component_name = ggl_kv_key(*component);
             GglBuffer component_version
                 = ggl_obj_into_buf(*ggl_kv_val(component));

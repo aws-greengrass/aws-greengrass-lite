@@ -251,7 +251,7 @@ static GglError parse_deployment_obj(
             // If no components existed in past deployments, then there is
             // nothing to remove and the list of components for local deployment
             // is just components to add.
-            GGL_MAP_FOREACH(
+            GGL_MAP_FOREACH (
                 component_pair,
                 ggl_obj_into_map(*root_component_versions_to_add)
             ) {
@@ -295,7 +295,7 @@ static GglError parse_deployment_obj(
             }
             // Pre-populate with all local components that already have been
             // deployed
-            GGL_MAP_FOREACH(
+            GGL_MAP_FOREACH (
                 old_component_pair,
                 ggl_obj_into_map(local_deployment_root_components_read_value)
             ) {
@@ -339,7 +339,7 @@ static GglError parse_deployment_obj(
 
             // Add the component to add to the existing list of locally deployed
             // components, or update the version if it already exists.
-            GGL_MAP_FOREACH(
+            GGL_MAP_FOREACH (
                 component_pair,
                 ggl_obj_into_map(*root_component_versions_to_add)
             ) {

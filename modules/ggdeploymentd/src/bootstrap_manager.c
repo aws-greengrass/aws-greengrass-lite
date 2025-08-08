@@ -443,7 +443,7 @@ GglError process_bootstrap_phase(
     GglDeployment *deployment
 ) {
     int bootstrap_component_count = 0;
-    GGL_MAP_FOREACH(component, components) {
+    GGL_MAP_FOREACH (component, components) {
         GglBuffer component_name = ggl_kv_key(*component);
 
         // check config to see if component bootstrap steps have already been

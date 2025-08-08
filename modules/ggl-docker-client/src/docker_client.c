@@ -230,7 +230,7 @@ GglError ggl_docker_credentials_ecr_retrieve(
         return GGL_ERR_INVALID;
     }
 
-    GGL_LIST_FOREACH(token_map, token_list) {
+    GGL_LIST_FOREACH (token_map, token_list) {
         GglObject *token_obj = NULL;
         GglObject *registry_obj = NULL;
         err = ggl_map_validate(

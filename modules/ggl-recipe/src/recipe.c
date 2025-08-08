@@ -250,7 +250,7 @@ static GglError lifecycle_selection(
     GglList selection, GglMap recipe_map, GglObject **selected_lifecycle_object
 ) {
     assert(ggl_list_type_check(selection, GGL_TYPE_BUF));
-    GGL_LIST_FOREACH(i, selection) {
+    GGL_LIST_FOREACH (i, selection) {
         GglBuffer elem = ggl_obj_into_buf(*i);
         if (ggl_buffer_eq(elem, GGL_STR("all"))
             || ggl_buffer_eq(elem, GGL_STR("linux"))) {
@@ -419,7 +419,7 @@ GglError select_linux_lifecycle(
     GglList manifests = ggl_obj_into_list(*val);
 
     GglObject *selected_lifecycle_object = NULL;
-    GGL_LIST_FOREACH(elem, manifests) {
+    GGL_LIST_FOREACH (elem, manifests) {
         if (ggl_obj_type(*elem) != GGL_TYPE_MAP) {
             GGL_LOGE("Provided manifest section is in invalid format.");
             return GGL_ERR_INVALID;
@@ -494,7 +494,7 @@ GglError select_linux_manifest(
     GglList manifests = ggl_obj_into_list(*val);
 
     GglObject *selected_lifecycle_object = NULL;
-    GGL_LIST_FOREACH(elem, manifests) {
+    GGL_LIST_FOREACH (elem, manifests) {
         if (ggl_obj_type(*elem) != GGL_TYPE_MAP) {
             GGL_LOGE("Provided manifest section is in invalid format.");
             return GGL_ERR_INVALID;

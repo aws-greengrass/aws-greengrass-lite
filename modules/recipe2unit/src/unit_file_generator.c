@@ -90,7 +90,7 @@ static GglError dependency_parser(GglObject *dependency_obj, GglByteVec *out) {
         return GGL_ERR_INVALID;
     }
     GglMap dependencies = ggl_obj_into_map(*dependency_obj);
-    GGL_MAP_FOREACH(dep, dependencies) {
+    GGL_MAP_FOREACH (dep, dependencies) {
         if (ggl_obj_type(*ggl_kv_val(dep)) == GGL_TYPE_MAP) {
             if (ggl_buffer_eq(
                     ggl_kv_key(*dep), GGL_STR("aws.greengrass.Nucleus")

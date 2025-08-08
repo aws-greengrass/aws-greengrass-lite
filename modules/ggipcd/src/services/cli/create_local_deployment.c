@@ -25,7 +25,7 @@ GglError ggl_handle_create_local_deployment(
     GglIpcError *ipc_error,
     GglArena *alloc
 ) {
-    GGL_MAP_FOREACH(pair, args) {
+    GGL_MAP_FOREACH (pair, args) {
         if (ggl_buffer_eq(ggl_kv_key(*pair), GGL_STR("recipeDirectoryPath"))) {
             ggl_kv_set_key(pair, GGL_STR("recipe_directory_path"));
         } else if (ggl_buffer_eq(

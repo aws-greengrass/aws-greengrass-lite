@@ -26,3 +26,24 @@ SpaceAfterCStyleCast: true
 PenaltyReturnTypeOnItsOwnLine: 240
 WhitespaceSensitiveMacros:
   - EMBED_FILE
+AttributeMacros:
+  - NODISCARD
+  - FORMAT
+  - UNUSED
+  - COUNTED_BY
+  - DESIGNATED_INIT
+  - ALLOC_SIZE
+  - ALLOC_ALIGN
+  - NONNULL
+  - NONNULL_IF_NONZERO
+  - NULL_TERMINATED_STRING_ARG
+  - ACCESS
+  - COLD
+  - CONST
+  - PURE
+  - FLAG_ENUM
+  - ENUM_EXTENSIBILITY
+ForEachMacros:
+  - GGL_LIST_FOREACH
+  - GGL_MAP_FOREACH
+  - GGL_BUF_LIST_FOREACH

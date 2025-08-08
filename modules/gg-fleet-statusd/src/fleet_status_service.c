@@ -83,7 +83,7 @@ GglError publish_fleet_status_update(
     GglObjVec component_statuses
         = GGL_OBJ_VEC((GglObject[GGL_MAX_GENERIC_COMPONENTS]) { 0 });
     size_t component_count = 0;
-    GGL_LIST_FOREACH(component_obj, components) {
+    GGL_LIST_FOREACH (component_obj, components) {
         if (ggl_obj_type(*component_obj) != GGL_TYPE_BUF) {
             GGL_LOGE(
                 "Incorrect type of component key received. Expected buffer. "
@@ -105,7 +105,7 @@ GglError publish_fleet_status_update(
             GGL_STR("UpdateSystemPolicyService")
         );
         bool ignore_component = false;
-        GGL_BUF_LIST_FOREACH(ignored_component, ignored_components) {
+        GGL_BUF_LIST_FOREACH (ignored_component, ignored_components) {
             if (ggl_buffer_eq(*ignored_component, component)) {
                 ignore_component = true;
                 break;

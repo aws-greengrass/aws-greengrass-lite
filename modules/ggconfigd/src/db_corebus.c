@@ -35,7 +35,7 @@ static GglError decode_object_destructive(GglObject *obj, GglArena *arena) {
     if (ggl_obj_type(*obj) == GGL_TYPE_MAP) {
         GglMap map = ggl_obj_into_map(*obj);
         GGL_LOGT("given map to decode with length: %d", (int) map.len);
-        GGL_MAP_FOREACH(kv, map) {
+        GGL_MAP_FOREACH (kv, map) {
             GglError decode_err
                 = decode_object_destructive(ggl_kv_val(kv), arena);
             if (decode_err != GGL_ERR_OK) {
