@@ -96,6 +96,7 @@ OSSL
 ostree
 parentid
 pidfd
+pkcs
 pkgs
 pname
 posix
