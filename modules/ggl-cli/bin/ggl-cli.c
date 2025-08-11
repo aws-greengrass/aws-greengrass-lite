@@ -149,19 +149,19 @@ int main(int argc, char **argv) {
             return 1;
         }
     }
-    
+
     // Handle multiple components
     if (component_count > 0) {
         // Allocate memory for component pairs
         static GglKV component_pairs[MAX_COMPONENTS];
-        
+
         for (int i = 0; i < component_count; i++) {
             component_pairs[i] = ggl_kv(
                 ggl_buffer_from_null_term(components[i].name),
                 ggl_obj_buf(ggl_buffer_from_null_term(components[i].version))
             );
         }
-        
+
         GglError ret = ggl_kv_vec_push(
             &args,
             ggl_kv(
@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
             assert(false);
             return 1;
         }
-        
+
         printf("Deploying %d components in a single deployment:\n", component_count);
         for (int i = 0; i < component_count; i++) {
             printf("  - %s=%s\n", components[i].name, components[i].version);
