@@ -39,7 +39,12 @@ static char doc[] = "ggl-cli -- Greengrass CLI for Nucleus Lite";
 static struct argp_option opts[] = {
     { "recipe-dir", 'r', "path", 0, "Recipe directory to merge", 0 },
     { "artifacts-dir", 'a', "path", 0, "Artifacts directory to merge", 0 },
-    { "add-component", 'c', "name=version", 0, "Component to add (can be used multiple times)", 0 },
+    { "add-component",
+      'c',
+      "name=version",
+      0,
+      "Component to add (can be used multiple times)",
+      0 },
     { 0 },
 };
 
@@ -54,7 +59,11 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
         break;
     case 'c': {
         if (component_count >= MAX_COMPONENTS) {
-            fprintf(stderr, "Error: Maximum %d components supported\n", MAX_COMPONENTS);
+            fprintf(
+                stderr,
+                "Error: Maximum %d components supported\n",
+                MAX_COMPONENTS
+            );
             // NOLINTNEXTLINE(concurrency-mt-unsafe)
             argp_usage(state);
             break;
@@ -166,7 +175,8 @@ int main(int argc, char **argv) {
             &args,
             ggl_kv(
                 GGL_STR("root_component_versions_to_add"),
-                ggl_obj_map((GglMap) { .pairs = component_pairs, .len = component_count })
+                ggl_obj_map((GglMap) { .pairs = component_pairs,
+                                       .len = (unsigned int) component_count })
             )
         );
         if (ret != GGL_ERR_OK) {
@@ -174,7 +184,9 @@ int main(int argc, char **argv) {
             return 1;
         }
 
-        printf("Deploying %d components in a single deployment:\n", component_count);
+        printf(
+            "Deploying %d components in a single deployment:\n", component_count
+        );
         for (int i = 0; i < component_count; i++) {
             printf("  - %s=%s\n", components[i].name, components[i].version);
         }
