@@ -16,7 +16,6 @@
 , libzip
 , dbus
 , systemdLibs
-, defaultMeta
 }:
 stdenv.mkDerivation {
   name = "aws-greengrass-lite";
@@ -36,5 +35,4 @@ stdenv.mkDerivation {
   ] ++ lib.optional (!stdenv.hostPlatform.isGnu) argp-standalone;
   cmakeBuildType = "MinSizeRel";
   cmakeFlags = gglUtil.fetchContentFlags ++ [ "-DENABLE_WERROR=1" ];
-  meta = defaultMeta;
 }

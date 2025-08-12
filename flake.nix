@@ -6,7 +6,7 @@
   description = "AWS IoT Greengrass runtime for constrained devices.";
   inputs.flakelight.url = "github:nix-community/flakelight";
   outputs = { flakelight, ... }@inputs: flakelight ./. ({ lib, ... }: {
-    systems = lib.systems.flakeExposed;
+    systems = [ "x86_64-linux" "aarch64-linux" ];
     inherit inputs;
     pname = "ggl";
   });
