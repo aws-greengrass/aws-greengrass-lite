@@ -66,5 +66,10 @@ GglError handle_get_system_config(
         return ret;
     }
 
-    return ggl_ipc_response_send(handle, stream_id, GGL_STR(""), read_value);
+    return ggl_ipc_response_send(
+        handle,
+        stream_id,
+        GGL_STR(""),
+        ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("value"), read_value)))
+    );
 }
