@@ -20,6 +20,12 @@ To configure and run Greengrass Nucleus Lite, see the
 For setting up as a Greengrass developer, also see the
 [developer setup guide](docs/DEVELOPMENT.md).
 
+For easy device onboarding and examples for specific boards, visit Avnet’s
+/IOTCONNECT Greengrass repository
+[on GitHub](https://github.com/avnet-iotconnect/iotc-python-greengrass-sdk) for
+SDKs and Quick Start guides that support platforms such as STM32, Renesas, NXP
+and Raspberry Pi.
+
 ### ⚠️ Important Notice
 
 The git tags in this repository represent stable, fully tested releases. Please
@@ -36,42 +42,19 @@ The `main` branch contains ongoing development work and:
 IPC support is provided by ggipcd. The support is translating the IPC command to
 corebus. This table identifies the corebus component that does the work.
 
-| Feature                                 | Daemon that provides support |
-| :-------------------------------------- | :--------------------------- |
-| SubscribeToTopic                        | ggpubsubd                    |
-| PublishToTopic                          | ggpubsubd                    |
-| PublishToIoTCore                        | iotcored                     |
-| SubscribeToIoTCore                      | iotcored                     |
-| UpdateState                             | _Future_                     |
-| SubscribeToComponentUpdates             | _Future_                     |
-| DeferComponentUpdate                    | _Future_                     |
-| GetConfiguration                        | ggconfigd                    |
-| UpdateConfiguration                     | ggconfigd                    |
-| SubscribeToConfigurationUpdate          | ggconfigd                    |
-| SubscribeToValidateConfigurationUpdates | _Future_                     |
-| SendConfigurationValidityReport         | _Future_                     |
-| GetSecretValue                          | _Future_                     |
-| PutComponentMetric                      | _Future_                     |
-| GetComponentDetails                     | _Future_                     |
-| RestartComponent                        | _Future_                     |
-| StopComponent                           | _Future_                     |
-| CreateLocalDeployment                   | ggdeploymentd                |
-| CancelLocalDeployment                   | _Future_                     |
-| GetLocalDeploymentStatus                | _Future_                     |
-| ListLocalDeployments                    | _Future_                     |
-| ListComponents                          | _Future_                     |
-| ValidateAuthorizationToken              | ggipcd                       |
-| CreateDebugPassword                     | _Future_                     |
-| PauseComponent                          | _Future_                     |
-| ResumeComponent                         | _Future_                     |
-| GetThingShadow                          | _Future_                     |
-| UpdateThingShadow                       | _Future_                     |
-| DeleteThingShadow                       | _Future_                     |
-| ListNamedShadowsForThing                | _Future_                     |
-| SubscribeToCertificateUpdates           | _Future_                     |
-| VerifyClientDeviceIdentity              | _Future_                     |
-| GetClientDeviceAuthToken                | _Future_                     |
-| AuthorizeClientDeviceAction             | _Future_                     |
+| Feature                        | Daemon that provides support |
+| :----------------------------- | :--------------------------- |
+| SubscribeToTopic               | ggpubsubd                    |
+| PublishToTopic                 | ggpubsubd                    |
+| PublishToIoTCore               | iotcored                     |
+| SubscribeToIoTCore             | iotcored                     |
+| GetConfiguration               | ggconfigd                    |
+| UpdateConfiguration            | ggconfigd                    |
+| SubscribeToConfigurationUpdate | ggconfigd                    |
+| CreateLocalDeployment          | ggdeploymentd                |
+| ValidateAuthorizationToken     | ggipcd                       |
+
+Additional IPC commands will be supported in future releases.
 
 ## Additional Details
 

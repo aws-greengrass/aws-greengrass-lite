@@ -105,6 +105,7 @@ ptid
 PTRACE
 Pypi
 pyproject
+Renesas
 respfd
 rlimits
 rodata
