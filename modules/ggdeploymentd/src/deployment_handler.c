@@ -2529,36 +2529,6 @@ static void handle_deployment(
             return;
         }
 
-        static uint8_t component_arn_buffer[256];
-        alloc = ggl_arena_init(GGL_BUF(component_arn_buffer));
-        GglBuffer component_arn;
-        GglError arn_ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"), ggl_kv_key(*pair), GGL_STR("arn")
-            ),
-            &alloc,
-            &component_arn
-        );
-        if (arn_ret != GGL_ERR_OK) {
-            GGL_LOGW("Failed to retrieve arn. Assuming recipe artifacts "
-                     "are found on-disk.");
-        } else {
-            ret = get_recipe_artifacts(
-                component_arn,
-                tes_credentials,
-                iot_credentials,
-                ggl_obj_into_map(recipe_obj),
-                component_artifacts_fd,
-                component_archive_dir_fd,
-                digest_context
-            );
-        }
-
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to get artifacts from recipe.");
-            return;
-        }
-
         // TODO: See if there is a better requirement. If a customer has the
         // same version as before but somehow updated their component
         // version their component may not get the updates.
@@ -2586,6 +2556,39 @@ static void handle_deployment(
                 );
                 component_updated = false;
             }
+        }
+
+        static uint8_t component_arn_buffer[256];
+        alloc = ggl_arena_init(GGL_BUF(component_arn_buffer));
+        GglBuffer component_arn;
+        GglError arn_ret = ggl_gg_config_read_str(
+            GGL_BUF_LIST(
+                GGL_STR("services"), ggl_kv_key(*pair), GGL_STR("arn")
+            ),
+            &alloc,
+            &component_arn
+        );
+        if (arn_ret != GGL_ERR_OK) {
+            GGL_LOGW("Failed to retrieve arn. Assuming recipe artifacts "
+                     "are found on-disk.");
+        } else if (component_updated) {
+            GGL_LOGD("Not retrieving component artifacts as the version has "
+                     "not changed.");
+        } else {
+            ret = get_recipe_artifacts(
+                component_arn,
+                tes_credentials,
+                iot_credentials,
+                ggl_obj_into_map(recipe_obj),
+                component_artifacts_fd,
+                component_archive_dir_fd,
+                digest_context
+            );
+        }
+
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Failed to get artifacts from recipe.");
+            return;
         }
 
         ret = ggl_gg_config_write(
