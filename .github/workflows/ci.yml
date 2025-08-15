@@ -22,9 +22,9 @@ jobs:
           - name: build with GCC
             check: packages-default
           - name: build with Clang
-            check: packages-ggl-clang
+            check: build-clang
           - name: cross-build for arm32 Musl
-            check: packages-ggl-musl-pi
+            check: build-musl-pi
           - name: formatting
             check: formatting
           - name: clang-tidy
