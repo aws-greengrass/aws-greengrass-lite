@@ -16,6 +16,7 @@
 #include <openssl/err.h>
 #include <openssl/http.h>
 #include <openssl/opensslv.h>
+#include <openssl/prov_ssl.h>
 #include <openssl/ssl.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
@@ -23,6 +24,7 @@
 #include <sys/utsname.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // RFC 1035 specifies 255 max octets.
 // 2 octets are reserved for length and trailing dot which are not encoded here
@@ -130,7 +132,8 @@ static bool is_ktls_supported(void) {
     }
 
     // Kernel version should be 5.9+ for Rx offload
-    int major, minor;
+    int major;
+    int minor;
     if (sscanf(kernel_info.release, "%d.%d", &major, &minor) != 2) {
         GGL_LOGE("Failed to parse kernel version.");
         return false;
