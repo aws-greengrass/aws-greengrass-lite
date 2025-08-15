@@ -2571,7 +2571,7 @@ static void handle_deployment(
         if (arn_ret != GGL_ERR_OK) {
             GGL_LOGW("Failed to retrieve arn. Assuming recipe artifacts "
                      "are found on-disk.");
-        } else if (component_updated) {
+        } else if (!component_updated) {
             GGL_LOGD("Not retrieving component artifacts as the version has "
                      "not changed.");
         } else {
