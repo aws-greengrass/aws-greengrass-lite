@@ -2584,11 +2584,10 @@ static void handle_deployment(
                 component_archive_dir_fd,
                 digest_context
             );
-        }
-
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGE("Failed to get artifacts from recipe.");
-            return;
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("Failed to get artifacts from recipe.");
+                return;
+            }
         }
 
         ret = ggl_gg_config_write(
