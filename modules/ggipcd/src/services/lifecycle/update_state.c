@@ -74,6 +74,6 @@ GglError ggl_handle_update_state(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#UpdateStateResponse"),
-        ggl_obj_map((GglMap) { 0 })
+        (GglMap) { 0 }
     );
 }

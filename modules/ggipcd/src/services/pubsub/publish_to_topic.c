@@ -137,6 +137,6 @@ GglError ggl_handle_publish_to_topic(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#PublishToTopicResponse"),
-        ggl_obj_map((GglMap) { 0 })
+        (GglMap) { 0 }
     );
 }

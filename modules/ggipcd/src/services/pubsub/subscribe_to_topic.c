@@ -73,9 +73,9 @@ static GglError subscribe_to_topic_callback(
         )
     ));
 
-    GglObject response = ggl_obj_map(GGL_MAP(ggl_kv(
+    GglMap response = GGL_MAP(ggl_kv(
         is_json ? GGL_STR("jsonMessage") : GGL_STR("binaryMessage"), inner
-    )));
+    ));
 
     ret = ggl_ipc_response_send(
         resp_handle,
@@ -149,6 +149,6 @@ GglError ggl_handle_subscribe_to_topic(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#SubscribeToTopicResponse"),
-        ggl_obj_map((GglMap) { 0 })
+        (GglMap) { 0 }
     );
 }

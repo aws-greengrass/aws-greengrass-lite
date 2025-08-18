@@ -24,7 +24,7 @@ GglError ggl_ipc_response_send(
     uint32_t handle,
     int32_t stream_id,
     GglBuffer service_model_type,
-    GglObject response
+    GglMap response
 );
 
 /// Get the component name associated with a client.

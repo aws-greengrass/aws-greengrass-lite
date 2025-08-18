@@ -70,6 +70,6 @@ GglError handle_get_system_config(
         handle,
         stream_id,
         GGL_STR(""),
-        ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("value"), read_value)))
+        GGL_MAP(ggl_kv(GGL_STR("value"), read_value))
     );
 }

@@ -93,6 +93,6 @@ GglError ggl_handle_create_local_deployment(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#CreateLocalDeploymentResponse"),
-        ggl_obj_map(GGL_MAP(ggl_kv(GGL_STR("deploymentId"), result)))
+        GGL_MAP(ggl_kv(GGL_STR("deploymentId"), result))
     );
 }

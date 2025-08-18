@@ -533,7 +533,7 @@ GglError ggl_ipc_response_send(
     uint32_t handle,
     int32_t stream_id,
     GglBuffer service_model_type,
-    GglObject response
+    GglMap response
 ) {
     GGL_LOGD("Responding to operation on stream %d for %d.", stream_id, handle);
 
@@ -557,8 +557,9 @@ GglError ggl_ipc_response_send(
         resp_headers_len -= 1;
     }
 
+    GglObject resp_obj = ggl_obj_map(response);
     GglError ret = eventstream_encode(
-        &resp_buffer, resp_headers, resp_headers_len, ggl_json_reader(&response)
+        &resp_buffer, resp_headers, resp_headers_len, ggl_json_reader(&resp_obj)
     );
     if (ret != GGL_ERR_OK) {
         return ret;

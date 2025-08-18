@@ -40,7 +40,7 @@ static GglError subscribe_to_configuration_update_callback(
         return err;
     }
 
-    GglObject ipc_response = ggl_obj_map(GGL_MAP(
+    GglMap ipc_response = GGL_MAP(
         ggl_kv(
             GGL_STR("configurationUpdateEvent"),
             ggl_obj_map(GGL_MAP(
@@ -48,7 +48,7 @@ static GglError subscribe_to_configuration_update_callback(
                 ggl_kv(GGL_STR("keyPath"), ggl_obj_list(key_path)),
             ))
         ),
-    ));
+    );
 
     err = ggl_ipc_response_send(
         resp_handle,
@@ -171,6 +171,6 @@ GglError ggl_handle_subscribe_to_configuration_update(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#SubscribeToConfigurationUpdateResponse"),
-        ggl_obj_map((GglMap) { 0 })
+        (GglMap) { 0 }
     );
 }
