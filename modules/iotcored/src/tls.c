@@ -15,16 +15,13 @@
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/http.h>
-#include <openssl/opensslv.h>
 #include <openssl/prov_ssl.h>
 #include <openssl/ssl.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
 #include <string.h>
-#include <sys/utsname.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 
 // RFC 1035 specifies 255 max octets.
 // 2 octets are reserved for length and trailing dot which are not encoded here
@@ -39,8 +36,6 @@ struct IotcoredTlsCtx {
     BIO *bio;
     bool connected;
 };
-
-struct utsname kernel_info;
 
 IotcoredTlsCtx conn;
 
@@ -124,36 +119,7 @@ static GglError proxy_get_info(
     return GGL_ERR_OK;
 }
 
-static bool is_ktls_supported(void) {
-    // Get Kernel Version
-    if (uname(&kernel_info) != 0) {
-        GGL_LOGE("Failed to get kernel version.");
-        return false;
-    }
-
-    // Kernel version should be 5.9+ for Rx offload
-    int major;
-    int minor;
-    if (sscanf(kernel_info.release, "%d.%d", &major, &minor) != 2) {
-        GGL_LOGE("Failed to parse kernel version.");
-        return false;
-    }
-
-    if (major < 5 || (major == 5 && minor < 9)) {
-        GGL_LOGD("kTLS is not supported on this kernel version.");
-        return false;
-    }
-
-    // Check if openSSL is 3.0.0 or higher
-    if (OPENSSL_VERSION_NUMBER < 0x30000000L) {
-        GGL_LOGD("kTLS is not supported on this openssl version.");
-        return false;
-    }
-
-    return true;
-}
-
-static GglError check_ktls_status(SSL *ssl) {
+static void check_ktls_status(SSL *ssl) {
     BIO *wbio = SSL_get_wbio(ssl);
     BIO *rbio = SSL_get_rbio(ssl);
 
@@ -164,26 +130,14 @@ static GglError check_ktls_status(SSL *ssl) {
 
     if (BIO_get_ktls_send(wbio) < 1) {
         GGL_LOGW("kTLS Tx is not fully active.");
-        return GGL_ERR_FAILURE;
     }
 
     if (BIO_get_ktls_recv(rbio) < 1) {
         GGL_LOGW("kTLS Rx is not fully active.");
-        return GGL_ERR_FAILURE;
     }
-
-    GGL_LOGI("kTLS is active.");
-    return GGL_ERR_OK;
 }
 
-static GglError enable_ktls(SSL_CTX *ssl_ctx) {
-    if (!is_ktls_supported()) {
-        GGL_LOGD(
-            "kTLS not supported on this system. Using back to regular TLS mode."
-        );
-        return GGL_ERR_INVALID;
-    }
-
+static void enable_ktls(SSL_CTX *ssl_ctx) {
     // Force TLS 1.2 for better kTLS support
     SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_2_VERSION);
 
@@ -191,11 +145,9 @@ static GglError enable_ktls(SSL_CTX *ssl_ctx) {
     SSL_CTX_set_options(ssl_ctx, SSL_OP_ENABLE_KTLS);
     if (!(SSL_CTX_get_options(ssl_ctx) & SSL_OP_ENABLE_KTLS)) {
         GGL_LOGW("Failed to enable kTLS option on SSL ctx.");
-        return GGL_ERR_FAILURE;
     }
 
-    GGL_LOGI("kTLS enabled successfully.");
-    return GGL_ERR_OK;
+    GGL_LOGD("kTLS enabled successfully.");
 }
 
 static void cleanup_ssl_ctx(SSL_CTX **ctx) {
@@ -240,11 +192,7 @@ static GglError create_tls_context(
         return GGL_ERR_CONFIG;
     }
 
-    GglError ret = enable_ktls(new_ssl_ctx);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGD("Unable to set up kTLS option, continuing with standard TLS..."
-        );
-    }
+    enable_ktls(new_ssl_ctx);
 
     ctx_cleanup = NULL;
     *ssl_ctx = new_ssl_ctx;
@@ -274,10 +222,7 @@ static GglError do_handshake(char *host, BIO *bio) {
         return GGL_ERR_FAILURE;
     }
 
-    GglError ret = check_ktls_status(ssl);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGD("kTLS not active, continuing without kTLS optimization...");
-    }
+    check_ktls_status(ssl);
 
     return GGL_ERR_OK;
 }
