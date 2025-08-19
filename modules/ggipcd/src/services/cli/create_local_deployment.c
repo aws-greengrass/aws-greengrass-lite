@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "../../ipc_authz.h"
+#include "../../ipc_error.h"
 #include "../../ipc_server.h"
 #include "../../ipc_service.h"
 #include "cli.h"
@@ -10,7 +11,6 @@
 #include <ggl/buffer.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
-#include <ggl/ipc/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>

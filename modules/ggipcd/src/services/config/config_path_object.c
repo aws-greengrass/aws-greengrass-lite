@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "config_path_object.h"
-#include <ggl/constants.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/vector.h>

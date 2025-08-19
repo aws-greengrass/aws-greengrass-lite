@@ -8,11 +8,14 @@
 #include <fcntl.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/constants.h>
 #include <ggl/error.h>
+#include <ggl/eventstream/decode.h>
+#include <ggl/eventstream/types.h>
 #include <ggl/file.h>
+#include <ggl/flags.h>
 #include <ggl/ipc/client.h>
 #include <ggl/ipc/client_priv.h>
+#include <ggl/ipc/client_raw.h>
 #include <ggl/ipc/limits.h>
 #include <ggl/json_encode.h>
 #include <ggl/json_pointer.h>
@@ -23,6 +26,7 @@
 #include <ggl/recipe.h>
 #include <ggl/vector.h>
 #include <limits.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -534,6 +538,93 @@ static GglError write_script_with_replacement(
     return GGL_ERR_OK;
 }
 
+static GglError get_system_config_error_cb(
+    void *ctx, GglBuffer error_code, GglBuffer message
+) {
+    (void) ctx;
+
+    GGL_LOGE(
+        "Received PrivateGetSystemConfig error %.*s: %.*s.",
+        (int) error_code.len,
+        error_code.data,
+        (int) message.len,
+        message.data
+    );
+
+    return GGL_ERR_FAILURE;
+}
+
+static GglError get_system_config_result_cb(void *ctx, GglMap result) {
+    GglBuffer *resp_buf = ctx;
+
+    GglObject *value;
+    GglError ret = ggl_map_validate(
+        result,
+        GGL_MAP_SCHEMA({ GGL_STR("value"), GGL_REQUIRED, GGL_TYPE_NULL, &value }
+        )
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed validating server response.");
+        return GGL_ERR_INVALID;
+    }
+
+    if (ggl_obj_type(*value) != GGL_TYPE_BUF) {
+        GGL_LOGE("Config value is not a string.");
+        return GGL_ERR_FAILURE;
+    }
+
+    if (resp_buf != NULL) {
+        GglBuffer val_buf = ggl_obj_into_buf(*value);
+
+        GglArena alloc = ggl_arena_init(*resp_buf);
+        ret = ggl_arena_claim_buf(&val_buf, &alloc);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Insufficent memory provided for response.");
+            return ret;
+        }
+
+        *resp_buf = val_buf;
+    }
+
+    return GGL_ERR_OK;
+}
+
+static GglError get_system_config(GglBuffer key, GglBuffer *value) {
+    return ggipc_call(
+        GGL_STR("aws.greengrass.private#GetSystemConfig"),
+        GGL_STR("aws.greengrass.private#GetSystemConfigRequest"),
+        GGL_MAP(ggl_kv(GGL_STR("key"), ggl_obj_buf(key))),
+        &get_system_config_result_cb,
+        &get_system_config_error_cb,
+        value
+    );
+}
+
+static char svcuid[GGL_IPC_SVCUID_STR_LEN + 1] = { 0 };
+
+GglError ggipc_connect_extra_header_handler(EventStreamHeaderIter headers) {
+    EventStreamHeader header;
+    while (eventstream_header_next(&headers, &header) == GGL_ERR_OK) {
+        if (ggl_buffer_eq(header.name, GGL_STR("svcuid"))) {
+            if (header.value.type != EVENTSTREAM_STRING) {
+                GGL_LOGE("Response svcuid header not string.");
+                return GGL_ERR_INVALID;
+            }
+
+            if (header.value.string.len > GGL_IPC_SVCUID_STR_LEN) {
+                GGL_LOGE("Response svcuid too long.");
+                return GGL_ERR_NOMEM;
+            }
+
+            memcpy(svcuid, header.value.string.data, header.value.string.len);
+            return GGL_ERR_OK;
+        }
+    }
+
+    GGL_LOGE("Response missing svcuid header.");
+    return GGL_ERR_FAILURE;
+}
+
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
 GglError runner(const RecipeRunnerArgs *args) {
     // Get the SocketPath from Environment Variable
@@ -546,38 +637,37 @@ GglError runner(const RecipeRunnerArgs *args) {
         return GGL_ERR_FAILURE;
     }
 
-    static uint8_t resp_mem[PATH_MAX];
-
     GglBuffer component_name = ggl_buffer_from_null_term(args->component_name);
 
     // Fetch the SVCUID
-    GglBuffer resp = GGL_BUF(resp_mem);
-    resp.len = GGL_IPC_SVCUID_STR_LEN;
-
-    GglError ret = ggipc_connect_with_name(
-        ggl_buffer_from_null_term(socket_path), component_name, &resp
+    GglError ret = ggipc_connect_with_payload(
+        ggl_buffer_from_null_term(socket_path),
+        ggl_obj_map(GGL_MAP(
+            ggl_kv(GGL_STR("componentName"), ggl_obj_buf(component_name))
+        ))
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Runner failed to authenticate with nucleus.");
         return ret;
     }
 
-    resp.data[resp.len] = '\0';
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    int sys_ret = setenv("SVCUID", (char *) resp.data, true);
+    int sys_ret = setenv("SVCUID", svcuid, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
     sys_ret =
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN", (char *) resp.data, true);
+        setenv("AWS_CONTAINER_AUTHORIZATION_TOKEN", svcuid, true);
     if (sys_ret != 0) {
         GGL_LOGE("setenv failed: %d.", errno);
     }
 
-    resp = GGL_BUF(resp_mem);
+    static uint8_t resp_mem[PATH_MAX];
+
+    GglBuffer resp = GGL_BUF(resp_mem);
     resp.len -= 1;
-    ret = ggipc_private_get_system_config(GGL_STR("rootCaPath"), &resp);
+    ret = get_system_config(GGL_STR("rootCaPath"), &resp);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get root CA path from config.");
         return ret;
@@ -682,7 +772,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     static uint8_t thing_name_mem[MAX_THING_NAME_LEN + 1];
     GglBuffer thing_name = GGL_BUF(thing_name_mem);
     thing_name.len -= 1;
-    ret = ggipc_private_get_system_config(GGL_STR("thingName"), &thing_name);
+    ret = get_system_config(GGL_STR("thingName"), &thing_name);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get thing name from config.");
         return ret;
@@ -695,7 +785,7 @@ GglError runner(const RecipeRunnerArgs *args) {
     }
 
     GglBuffer root_path = GGL_BUF(resp_mem);
-    ret = ggipc_private_get_system_config(GGL_STR("rootPath"), &root_path);
+    ret = get_system_config(GGL_STR("rootPath"), &root_path);
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to get root path from config.");
         return ret;

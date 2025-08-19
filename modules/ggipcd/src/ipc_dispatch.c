@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "ipc_dispatch.h"
+#include "ipc_error.h"
 #include "ipc_server.h"
 #include "ipc_service.h"
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/ipc/error.h>
-#include <ggl/ipc/limits.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <stddef.h>
@@ -72,7 +71,7 @@ GglError ggl_ipc_handle_operation(
                     info.component.data
                 );
                 static uint8_t resp_mem
-                    [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
+                    [sizeof(GglObject[GGL_MAX_OBJECT_SUBOBJECTS])
                      + GGL_IPC_MAX_MSG_LEN];
                 GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
 

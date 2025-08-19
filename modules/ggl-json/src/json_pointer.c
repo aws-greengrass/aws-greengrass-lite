@@ -5,8 +5,8 @@
 #include "ggl/json_pointer.h"
 #include <assert.h>
 #include <ggl/buffer.h>
-#include <ggl/constants.h>
 #include <ggl/log.h>
+#include <ggl/object.h>
 #include <ggl/vector.h>
 #include <stddef.h>
 #include <stdint.h>

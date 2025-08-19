@@ -5,6 +5,7 @@
 #include "ipc_server.h"
 #include "ipc_components.h"
 #include "ipc_dispatch.h"
+#include "ipc_error.h"
 #include "ipc_subscriptions.h"
 #include <assert.h>
 #include <ggipc/auth.h>
@@ -19,7 +20,6 @@
 #include <ggl/eventstream/types.h>
 #include <ggl/flags.h>
 #include <ggl/io.h>
-#include <ggl/ipc/error.h>
 #include <ggl/ipc/limits.h>
 #include <ggl/json_decode.h>
 #include <ggl/json_encode.h>
@@ -508,9 +508,9 @@ static GglError client_ready(void *ctx, uint32_t handle) {
         return ret;
     }
 
-    GglArena payload_decode_alloc = ggl_arena_init(GGL_BUF(
-        (uint8_t[GGL_IPC_PAYLOAD_MAX_SUBOBJECTS *sizeof(GglObject)]) { 0 }
-    ));
+    GglArena payload_decode_alloc = ggl_arena_init(
+        GGL_BUF((uint8_t[sizeof(GglObject[GGL_MAX_OBJECT_SUBOBJECTS])]) { 0 })
+    );
 
     if (component_handle == 0) {
         return handle_conn_init(

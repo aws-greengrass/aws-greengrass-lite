@@ -1626,6 +1626,10 @@ static GglError resolve_dependencies(
                                 ggl_obj_buf(root_component_version_buf)
                             )
                         );
+                        if (ret != GGL_ERR_OK) {
+                            return ret;
+                        }
+
                         GGL_LOGD(
                             "Added %.*s to the list of root components to "
                             "resolve "

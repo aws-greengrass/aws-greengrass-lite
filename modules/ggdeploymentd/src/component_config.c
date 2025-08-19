@@ -6,7 +6,6 @@
 #include "deployment_model.h"
 #include <assert.h>
 #include <ggl/buffer.h>
-#include <ggl/constants.h>
 #include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/flags.h>

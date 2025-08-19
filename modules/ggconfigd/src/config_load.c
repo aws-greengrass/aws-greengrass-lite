@@ -9,7 +9,6 @@
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
-#include <ggl/constants.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>

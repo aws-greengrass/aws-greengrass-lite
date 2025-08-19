@@ -9,7 +9,6 @@
 #include <ggl/cleanup.h>
 #include <ggl/core_bus/client.h>
 #include <ggl/error.h>
-#include <ggl/ipc/limits.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <pthread.h>
@@ -108,8 +107,7 @@ static GglError subscription_on_response(
     }
 
     static uint8_t resp_mem
-        [(GGL_IPC_PAYLOAD_MAX_SUBOBJECTS * sizeof(GglObject))
-         + GGL_IPC_MAX_MSG_LEN];
+        [sizeof(GglObject[GGL_MAX_OBJECT_SUBOBJECTS]) + GGL_IPC_MAX_MSG_LEN];
     GglArena alloc = ggl_arena_init(GGL_BUF(resp_mem));
 
     return on_response(data, resp_handle, stream_id, &alloc);

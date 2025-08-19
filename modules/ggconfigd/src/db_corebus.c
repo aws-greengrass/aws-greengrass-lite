@@ -7,7 +7,6 @@
 #include <assert.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/constants.h>
 #include <ggl/core_bus/server.h>
 #include <ggl/error.h>
 #include <ggl/flags.h>

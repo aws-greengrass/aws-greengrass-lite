@@ -5,9 +5,9 @@
 #ifndef GGL_IPC_DISPATCH_H
 #define GGL_IPC_DISPATCH_H
 
+#include "ipc_error.h"
 #include <ggl/buffer.h>
 #include <ggl/error.h>
-#include <ggl/ipc/error.h>
 #include <ggl/object.h>
 #include <stdint.h>
 
