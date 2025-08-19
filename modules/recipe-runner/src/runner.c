@@ -35,6 +35,27 @@
 
 pid_t child_pid = -1; // To store child process ID
 
+static GglError write_escaped_char(int out_fd, uint8_t c) {
+    if (c == '"' || c == '\\' || c == '$' || c == '`') {
+        GglError ret = ggl_file_write(out_fd, GGL_STR("\\"));
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+    return ggl_file_write(out_fd, (GglBuffer) { &c, 1 });
+}
+
+static GglError write_escaped_value(int out_fd, GglBuffer value) {
+    for (size_t i = 0; i < value.len; i++) {
+        GglError ret = write_escaped_char(out_fd, value.data[i]);
+        if (ret != GGL_ERR_OK) {
+            return ret;
+        }
+    }
+
+    return GGL_ERR_OK;
+}
+
 static GglError insert_config_value(int out_fd, GglBuffer json_ptr) {
     static GglBuffer key_path_mem[GGL_MAX_OBJECT_DEPTH];
     GglBufVec key_path = GGL_BUF_VEC(key_path_mem);
@@ -68,7 +89,7 @@ static GglError insert_config_value(int out_fd, GglBuffer json_ptr) {
         final_result = ggl_obj_into_buf(result);
     }
 
-    return ggl_file_write(out_fd, final_result);
+    return write_escaped_value(out_fd, final_result);
 }
 
 static GglError split_escape_seq(
@@ -290,9 +311,7 @@ static GglError process_set_env(
                 break;
             }
             if (*current_pointer != '{') {
-                ret = ggl_file_write(
-                    out_fd, (GglBuffer) { current_pointer, 1 }
-                );
+                ret = write_escaped_char(out_fd, *current_pointer);
                 if (ret != GGL_ERR_OK) {
                     return ret;
                 }
