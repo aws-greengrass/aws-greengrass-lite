@@ -9,6 +9,7 @@ AllowShortIfStatementsOnASingleLine: WithoutElse
 BinPackArguments: false
 BinPackParameters: false
 BreakBeforeBraces: Attach
+BreakAfterAttributes: Always
 ColumnLimit: 80
 IncludeBlocks: Merge
 IncludeCategories:
@@ -26,24 +27,26 @@ SpaceAfterCStyleCast: true
 PenaltyReturnTypeOnItsOwnLine: 240
 WhitespaceSensitiveMacros:
   - EMBED_FILE
-AttributeMacros:
-  - NODISCARD
-  - FORMAT
-  - UNUSED
-  - COUNTED_BY
-  - DESIGNATED_INIT
-  - ALLOC_SIZE
-  - ALLOC_ALIGN
-  - NONNULL
-  - NONNULL_IF_NONZERO
-  - NULL_TERMINATED_STRING_ARG
-  - ACCESS
-  - COLD
-  - CONST
-  - PURE
-  - FLAG_ENUM
-  - ENUM_EXTENSIBILITY
 ForEachMacros:
   - GGL_LIST_FOREACH
   - GGL_MAP_FOREACH
   - GGL_BUF_LIST_FOREACH
+Macros:
+  - NODISCARD=[[nodiscard]]
+  - GGL_EXPORT=[[gnu::visibility(protected)]]
+  - VISIBILITY(x)=[[gnu::visibility(x)]]
+  - FORMAT(x,y,z)=[[gnu::format(x,y,z)]]
+  - UNUSED=[[gnu::unused]]
+  - COUNTED_BY(x)=[[gnu::counted_by(x)]]
+  - DESIGNATED_INIT=[[gnu::designated_init]]
+  - ALLOC_SIZE(x)=[[gnu::alloc_size(x)]]
+  - ALLOC_ALIGN(x)=[[gnu::alloc_align(x)]]
+  - NONNULL(x)=[[gnu::nonnull(x)]]
+  - NONNULL_IF_NONZERO(x,y)=[[gnu::nonnull_if_nonzero(x,y)]]
+  - NULL_TERMINATED_STRING_ARG(x)=[[gnu::null_terminated_string_arg(x)]]
+  - ACCESS(x,y)=[[gnu::access(x,y)]]
+  - COLD=[[gnu::cold]]
+  - CONST=[[gnu::const]]
+  - PURE=[[gnu::pure]]
+  - FLAG_ENUM=[[gnu::flag_enum]]
+  - ENUM_EXTENSIBILITY(x)=[[gnu::enum_extensibility(x)]]
