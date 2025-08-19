@@ -1,3 +1,15 @@
+# Release Notes v2.2.2
+
+This release fixes the folowing bugs:
+
+- Fixes revised deployments containing unchanged component versions failing when
+  an unchanged component had a running executable as an artifact.
+- Fixes recipe variable interpolation when the interpolated value has more than
+  four nested subobjects.
+- Fixes recipe variable interpolation including quotes and shell special
+  characters.
+- Fix leak of fds when MQTT connections fail.
+
 # Release Notes v2.2.1
 
 This release fixes a regression from v2.2.0 where the nucleus fails to obtain
