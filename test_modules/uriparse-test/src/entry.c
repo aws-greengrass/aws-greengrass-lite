@@ -5,7 +5,6 @@
 #include "uriparse-test.h"
 #include <assert.h>
 #include <ggl/arena.h>
-#include <ggl/attr.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/log.h>
@@ -17,14 +16,8 @@
 
 static GglError docker_test(
     GglBuffer docker_uri,
-    const GglUriInfo *expected,
-    const GglDockerUriInfo *expected_docker
-) NONNULL(2, 3);
-
-static GglError docker_test(
-    GglBuffer docker_uri,
-    const GglUriInfo *expected,
-    const GglDockerUriInfo *expected_docker
+    const GglUriInfo expected[static 1],
+    const GglDockerUriInfo expected_docker[static 1]
 ) {
     uint8_t test_buffer[256];
     GglArena parse_arena = ggl_arena_init(GGL_BUF(test_buffer));

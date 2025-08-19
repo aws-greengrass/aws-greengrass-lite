@@ -7,21 +7,22 @@
 #define GGL_EXEC_H
 
 #include "ggl/io.h"
-#include <ggl/attr.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
 #include <sys/types.h>
 
-GglError ggl_exec_command(const char *const args[]) NONNULL(1);
-GglError ggl_exec_command_async(const char *const args[], pid_t *child_pid)
-    NONNULL(1, 2);
+GglError ggl_exec_command(const char *const args[static 1]);
+GglError ggl_exec_command_async(
+    const char *const args[static 1], pid_t child_pid[static 1]
+);
 GglError ggl_exec_kill_process(pid_t process_id);
 
 GglError ggl_exec_command_with_output(
-    const char *const args[], GglWriter writer
-) NONNULL(1);
+    const char *const args[static 1], GglWriter writer
+);
 
-GglError ggl_exec_command_with_input(const char *const *args, GglObject payload)
-    NONNULL(1);
+GglError ggl_exec_command_with_input(
+    const char *const args[static 1], GglObject payload
+);
 
 #endif

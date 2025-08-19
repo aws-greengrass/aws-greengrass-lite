@@ -15,10 +15,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-static GglError setenv_wrapper(GglBufList aliases, const char *value)
-    NULL_TERMINATED_STRING_ARG(2) NONNULL(2);
+static GglError setenv_wrapper(GglBufList aliases, const char value[static 1])
+    NULL_TERMINATED_STRING_ARG(2);
 
-static GglError setenv_wrapper(GglBufList aliases, const char *value) {
+static GglError setenv_wrapper(GglBufList aliases, const char value[static 1]) {
     for (size_t i = 0; i < aliases.len; ++i) {
         GglBuffer name = aliases.bufs[i];
         assert(name.len > 0);

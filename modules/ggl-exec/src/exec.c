@@ -7,7 +7,6 @@
 #include "ggl/json_encode.h"
 #include "priv_io.h"
 #include <errno.h>
-#include <ggl/attr.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
@@ -42,7 +41,7 @@ static GglError wait_for_process(pid_t pid) {
     return GGL_ERR_OK;
 }
 
-GglError ggl_exec_command(const char *const args[]) {
+GglError ggl_exec_command(const char *const args[static 1]) {
     int pid = -1;
     GglError err = ggl_exec_command_async(args, &pid);
     if (err != GGL_ERR_OK) {
@@ -52,7 +51,9 @@ GglError ggl_exec_command(const char *const args[]) {
     return wait_for_process(pid);
 }
 
-GglError ggl_exec_command_async(const char *const args[], pid_t *child_pid) {
+GglError ggl_exec_command_async(
+    const char *const args[static 1], pid_t child_pid[static 1]
+) {
     pid_t pid = -1;
     int ret = posix_spawnp(
         &pid, args[0], NULL, NULL, (char *const *) args, environ
@@ -129,17 +130,11 @@ static void cleanup_posix_destroy_file_actions(
     }
 }
 
-static GglError create_output_pipe_file_actions(
-    posix_spawn_file_actions_t *actions, int pipe_read_fd, int pipe_write_fd
-) NONNULL(1);
-
-static GglError create_input_pipe_file_actions(
-    posix_spawn_file_actions_t *actions, int pipe_read_fd, int pipe_write_fd
-) NONNULL(1);
-
 // configures a pipe to redirect stdout,stderr
 static GglError create_output_pipe_file_actions(
-    posix_spawn_file_actions_t *actions, int pipe_read_fd, int pipe_write_fd
+    posix_spawn_file_actions_t actions[static 1],
+    int pipe_read_fd,
+    int pipe_write_fd
 ) {
     // The child does not need the readable end.
     int ret = posix_spawn_file_actions_addclose(actions, pipe_read_fd);
@@ -168,7 +163,9 @@ static GglError create_output_pipe_file_actions(
 
 // configures a pipe to stdin
 static GglError create_input_pipe_file_actions(
-    posix_spawn_file_actions_t *actions, int pipe_read_fd, int pipe_write_fd
+    posix_spawn_file_actions_t actions[static 1],
+    int pipe_read_fd,
+    int pipe_write_fd
 ) {
     // The child does not need the writeable end.
     int ret = posix_spawn_file_actions_addclose(actions, pipe_write_fd);
@@ -213,7 +210,7 @@ static GglError pipe_flush(int pipe_read_fd, GglWriter writer) {
 }
 
 GglError ggl_exec_command_with_output(
-    const char *const args[], GglWriter writer
+    const char *const args[static 1], GglWriter writer
 ) {
     int out_pipe[2] = { -1, -1 };
     int ret = pipe(out_pipe);
@@ -262,7 +259,7 @@ GglError ggl_exec_command_with_output(
 }
 
 GglError ggl_exec_command_with_input(
-    const char *const *args, GglObject payload
+    const char *const args[static 1], GglObject payload
 ) {
     int in_pipe[2] = { -1, -1 };
     int ret = pipe(in_pipe);
