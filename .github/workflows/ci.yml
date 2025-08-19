@@ -59,3 +59,13 @@ jobs:
           log-lines = 0
           EOF
           nix build -L .#checks.x86_64-linux.${{ matrix.check }}
+  check-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Lychee link checker
+        uses: lycheeverse/lychee-action@v2.4.1
+        with:
+          args: --verbose --require-https --exclude-mail './**/*.md'
