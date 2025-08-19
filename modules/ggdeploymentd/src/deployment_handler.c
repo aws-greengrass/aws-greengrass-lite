@@ -34,6 +34,7 @@
 #include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
+#include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/process.h>
 #include <ggl/recipe.h>
@@ -52,7 +53,6 @@
 #include <stdlib.h>
 
 #define MAX_DECODE_BUF_LEN 4096
-#define MAX_RECIPE_MEM 25000
 #define DEPLOYMENT_TARGET_NAME_MAX_CHARS 128
 #define MAX_DEPLOYMENT_TARGETS 100
 
@@ -1822,7 +1822,7 @@ static GglError resolve_dependencies(
 
         // Get actual recipe read
         GglObject recipe_obj;
-        static uint8_t recipe_mem[MAX_RECIPE_MEM] = { 0 };
+        static uint8_t recipe_mem[GGL_COMPONENT_RECIPE_MAX_LEN] = { 0 };
         GglArena recipe_alloc = ggl_arena_init(GGL_BUF(recipe_mem));
         ret = ggl_recipe_get_from_file(
             args->root_path_fd,
@@ -2519,7 +2519,7 @@ static void handle_deployment(
             return;
         }
         GglObject recipe_obj;
-        static uint8_t recipe_mem[MAX_RECIPE_MEM] = { 0 };
+        static uint8_t recipe_mem[GGL_COMPONENT_RECIPE_MAX_LEN] = { 0 };
         GglArena alloc = ggl_arena_init(GGL_BUF(recipe_mem));
         ret = ggl_recipe_get_from_file(
             args->root_path_fd, ggl_kv_key(*pair), pair_val, &alloc, &recipe_obj
@@ -2764,7 +2764,7 @@ static void handle_deployment(
 
         GglObject recipe_buff_obj;
         GglObject *component_name;
-        static uint8_t unit_convert_alloc_mem[MAX_RECIPE_MEM];
+        static uint8_t unit_convert_alloc_mem[GGL_COMPONENT_RECIPE_MAX_LEN];
         GglArena unit_convert_alloc
             = ggl_arena_init(GGL_BUF(unit_convert_alloc_mem));
         HasPhase phases = { 0 };

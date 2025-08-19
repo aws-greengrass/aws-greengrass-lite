@@ -16,4 +16,7 @@
 // https://docs.aws.amazon.com/greengrass/v2/APIReference/API_DescribeComponent.html
 #define GGL_COMPONENT_NAME_MAX_LEN 128
 
+// https://docs.aws.amazon.com/general/latest/gr/greengrassv2.html#limits_greengrassv2
+#define GGL_COMPONENT_RECIPE_MAX_LEN (16 * 1024)
+
 #endif

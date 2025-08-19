@@ -18,6 +18,7 @@
 #include <ggl/json_pointer.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
+#include <ggl/nucleus/constants.h>
 #include <ggl/object.h>
 #include <ggl/recipe.h>
 #include <ggl/vector.h>
@@ -31,7 +32,6 @@
 
 #define MAX_SCRIPT_LENGTH 10000
 #define MAX_THING_NAME_LEN 128
-#define MAX_RECIPE_LEN 25000
 
 pid_t child_pid = -1; // To store child process ID
 
@@ -712,7 +712,7 @@ GglError runner(const RecipeRunnerArgs *args) {
 
     GglBuffer phase = ggl_buffer_from_null_term(args->phase);
 
-    static uint8_t recipe_mem[MAX_RECIPE_LEN];
+    static uint8_t recipe_mem[GGL_COMPONENT_RECIPE_MAX_LEN];
     GglArena alloc = ggl_arena_init(GGL_BUF(recipe_mem));
     GglObject recipe = { 0 };
     GGL_LOGT("Root Path: %.*s", (int) root_path.len, root_path.data);

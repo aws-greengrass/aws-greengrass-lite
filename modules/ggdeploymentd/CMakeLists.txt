@@ -5,6 +5,7 @@
 ggl_init_module(
   ggdeploymentd
   LIBS ggl-sdk
+       ggl-constants
        ggl-common
        core-bus
        ggl-backoff
