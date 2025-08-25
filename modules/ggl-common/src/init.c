@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include <argp.h>
+#include <ggl/log.h>
 #include <ggl/nucleus/init.h>
 #include <ggl/sdk.h>
 
@@ -15,5 +16,6 @@ __attribute__((visibility("default"))) const char *argp_program_version
 
 void ggl_nucleus_init(void) {
     // TODO: Raise rlimits
+    GGL_LOGI("Nucleus version: %s", GGL_VERSION);
     ggl_sdk_init();
 }
