@@ -14,9 +14,11 @@
 #include <limits.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
+#include <openssl/evp.h>
 #include <openssl/http.h>
 #include <openssl/prov_ssl.h>
 #include <openssl/ssl.h>
+#include <openssl/store.h>
 #include <openssl/types.h>
 #include <openssl/x509.h>
 #include <string.h>
@@ -181,10 +183,47 @@ static GglError create_tls_context(
         return GGL_ERR_CONFIG;
     }
 
-    if (SSL_CTX_use_PrivateKey_file(new_ssl_ctx, args->key, SSL_FILETYPE_PEM)
-        != 1) {
-        GGL_LOGE("Failed to load client private key.");
-        return GGL_ERR_CONFIG;
+    // Check if the private key is a TPM handle
+    if (strncmp(args->key, "handle:", 7) == 0) {
+        OSSL_STORE_CTX *store_ctx
+            = OSSL_STORE_open(args->key, NULL, NULL, NULL, NULL);
+        if (store_ctx == NULL) {
+            GGL_LOGE("Failed to open TPM key store.");
+            return GGL_ERR_NOMEM;
+        }
+
+        OSSL_STORE_INFO *info = OSSL_STORE_load(store_ctx);
+        if (info == NULL) {
+            GGL_LOGE("Failed to load TPM info.");
+            OSSL_STORE_close(store_ctx);
+            return GGL_ERR_CONFIG;
+        }
+
+        EVP_PKEY *pkey = OSSL_STORE_INFO_get1_PKEY(info);
+        OSSL_STORE_INFO_free(info);
+        OSSL_STORE_close(store_ctx);
+
+        if (pkey == NULL) {
+            GGL_LOGE("Failed to extract private key from TPM.");
+            return GGL_ERR_CONFIG;
+        }
+
+        if (SSL_CTX_use_PrivateKey(new_ssl_ctx, pkey) != 1) {
+            GGL_LOGE("Failed to use TPM private key.");
+            EVP_PKEY_free(pkey);
+            return GGL_ERR_CONFIG;
+        }
+
+        EVP_PKEY_free(pkey);
+    } else {
+        // Regular file-based key
+        if (SSL_CTX_use_PrivateKey_file(
+                new_ssl_ctx, args->key, SSL_FILETYPE_PEM
+            )
+            != 1) {
+            GGL_LOGE("Failed to load client private key.");
+            return GGL_ERR_CONFIG;
+        }
     }
 
     if (SSL_CTX_check_private_key(new_ssl_ctx) != 1) {
