@@ -1,4 +1,5 @@
 aarch64
+abrmd
 ALLOCN
 argp
 armv
@@ -19,6 +20,7 @@ cpus
 CURLH
 DBUILD
 dbus
+DCMAKE
 dearmor
 depl
 DFETCHCONTENT
@@ -73,6 +75,7 @@ keyid
 ktls
 libcgroup
 libsystemd
+libtss
 liburiparser
 libuuid
 libyaml
@@ -126,9 +129,13 @@ subscribetocomponentupdates
 svcuid
 svcuids
 sysv
+tabrmd
+tcti
 tesd
 tlog
 tmpfiles
+tpmrm
+uefi
 unacked
 unarchived
 unrefp
