@@ -1344,6 +1344,62 @@ static GglError parse_dataplane_response_and_save_recipe(
     return GGL_ERR_OK;
 }
 
+static GglError parse_thing_groups_list(
+    GglBuffer list_thing_groups_response,
+    GglArena *alloc,
+    GglObject **thing_groups_list
+) {
+    // TODO: Add a schema and only parse the fields we need to save memory
+    GglObject json_thing_groups_object;
+    GglError ret = ggl_json_decode_destructive(
+        list_thing_groups_response, alloc, &json_thing_groups_object
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error when parsing listThingGroups response to "
+                 "json.");
+        return ret;
+    }
+
+    if (ggl_obj_type(json_thing_groups_object) != GGL_TYPE_MAP) {
+        GGL_LOGE("listThingGroups response did not parse into a "
+                 "map.");
+        return ret;
+    }
+
+    if (!ggl_map_get(
+            ggl_obj_into_map(json_thing_groups_object),
+            GGL_STR("thingGroups"),
+            thing_groups_list
+        )) {
+        GGL_LOGE("Missing thingGroups.");
+        return ret;
+    }
+    if (ggl_obj_type(**thing_groups_list) != GGL_TYPE_LIST) {
+        GGL_LOGE("thingGroups response is not a list.");
+        return ret;
+    }
+
+    return GGL_ERR_OK;
+}
+
+static GglError add_thing_groups_list_to_config(GglObject *thing_groups_list) {
+    GglError ret = ggl_gg_config_write(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("DeploymentService"),
+            GGL_STR("lastThingGroupsListFromCloud")
+        ),
+        *thing_groups_list,
+        &(int64_t) { 1 }
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Write of lastThingGroupsListFromCloud to config failed");
+        return ret;
+    }
+
+    return GGL_ERR_OK;
+}
+
 static GglError resolve_dependencies(
     GglMap root_components,
     GglBuffer thing_group_name,
@@ -1450,45 +1506,53 @@ static GglError resolve_dependencies(
     GglBuffer list_thing_groups_response
         = GGL_BUF(list_thing_groups_response_buf);
 
-    ret = get_device_thing_groups(&list_thing_groups_response);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    // TODO: Add a schema and only parse the fields we need to save memory
-    GglObject json_thing_groups_object;
+    GglObject *thing_groups_list = NULL;
     uint8_t thing_groups_response_mem[100 * sizeof(GglObject)];
     GglArena thing_groups_json_alloc
         = ggl_arena_init(GGL_BUF(thing_groups_response_mem));
-    ret = ggl_json_decode_destructive(
-        list_thing_groups_response,
-        &thing_groups_json_alloc,
-        &json_thing_groups_object
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error when parsing listThingGroups response to "
-                 "json.");
-        return ret;
-    }
 
-    if (ggl_obj_type(json_thing_groups_object) != GGL_TYPE_MAP) {
-        GGL_LOGE("listThingGroups response did not parse into a "
-                 "map.");
-        return ret;
-    }
-
-    GglObject *thing_groups_list;
-    if (!ggl_map_get(
-            ggl_obj_into_map(json_thing_groups_object),
-            GGL_STR("thingGroups"),
+    ret = get_device_thing_groups(&list_thing_groups_response);
+    if (ret == GGL_ERR_OK) {
+        ret = parse_thing_groups_list(
+            list_thing_groups_response,
+            &thing_groups_json_alloc,
             &thing_groups_list
-        )) {
-        GGL_LOGE("Missing thingGroups.");
-        return ret;
-    }
-    if (ggl_obj_type(*thing_groups_list) != GGL_TYPE_LIST) {
-        GGL_LOGE("thingGroups response is not a list.");
-        return ret;
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE(
+                "Error when parsing listThingGroups response for thing groups"
+            );
+            return ret;
+        }
+        ret = add_thing_groups_list_to_config(thing_groups_list);
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGE("Error updating config with the thing groups list");
+            return ret;
+        }
+    } else {
+        if (!ggl_buffer_eq(GGL_STR("LOCAL_DEPLOYMENTS"), thing_group_name)) {
+            GGL_LOGE("Cloud call to list thing groups failed. Cloud deployment "
+                     "requires an updated thing group list.");
+            return ret;
+        }
+        GGL_LOGI("Cloud call to list thing groups failed. Using previous thing "
+                 "groups list as deployment is local.");
+        ret = ggl_gg_config_read(
+            GGL_BUF_LIST(
+                GGL_STR("services"),
+                GGL_STR("DeploymentService"),
+                GGL_STR("lastThingGroupsListFromCloud")
+            ),
+            alloc,
+            thing_groups_list
+        );
+        if (ret != GGL_ERR_OK) {
+            GGL_LOGI(
+                "No info found in config for thing groups list, assuming no "
+                "thing group memberships."
+            );
+            *thing_groups_list = ggl_obj_list(GGL_LIST());
+        }
     }
 
     GGL_LIST_FOREACH (thing_group_item, ggl_obj_into_list(*thing_groups_list)) {
@@ -2095,9 +2159,11 @@ static GglError add_arn_list_to_config(
         if (arn_list.len >= MAX_DEPLOYMENT_TARGETS) {
             GGL_LOGE(
                 "Cannot append configArn: Component is deployed as part of too "
-                "many deployments (%zu >= 100).",
-                arn_list.len
+                "many deployments (%zu >= %zu).",
+                arn_list.len,
+                (size_t) MAX_DEPLOYMENT_TARGETS
             );
+            return GGL_ERR_FAILURE;
         }
         GGL_LIST_FOREACH (arn, arn_list) {
             if (ggl_obj_type(*arn) != GGL_TYPE_BUF) {
