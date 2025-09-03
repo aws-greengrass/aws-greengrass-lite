@@ -104,7 +104,7 @@ GglError gg_uri_parse(GglArena *arena, GglBuffer uri, GglUriInfo *info) {
         &mem
     );
     if (uri_error != URI_SUCCESS) {
-        GGL_LOGE("Failed to parse URI");
+        GGL_LOGE("Failed to parse URI %.*s", (int) uri.len, uri.data);
         return convert_uriparser_error(uri_error);
     }
 

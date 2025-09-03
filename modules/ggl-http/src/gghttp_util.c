@@ -7,16 +7,21 @@
 #include <assert.h>
 #include <curl/curl.h>
 #include <errno.h>
+#include <ggl/arena.h>
 #include <ggl/backoff.h>
 #include <ggl/cleanup.h>
+#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
 #include <ggl/log.h>
 #include <ggl/vector.h>
+#include <limits.h>
 #include <pthread.h>
+#include <string.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #define MAX_HEADER_LENGTH 8192
@@ -277,6 +282,149 @@ static size_t write_response_to_fd(
     return size_of_response_data;
 }
 
+/// @brief Set HTTPS proxy configuration for curl requests if enabled or setup
+/// by the config.
+///
+/// Depending on whether HTTPS proxy is enabled, this function will attempt to
+/// add the root CA trust store to the curl's configuration. On success, it will
+/// try to optionally add the key and cert for mTLS HTTPS proxy if configured.
+///
+/// @param[in] curl_data A pointer to the curl data which is to be updated with
+/// the proxy configuration.
+/// @return GGL_ERR_OK on success, error code otherwise.
+static GglError set_curl_proxy_config(CurlData *curl_data) {
+    assert(curl_data != NULL);
+
+    if (curl_data == NULL) {
+        GGL_LOGE("Pointer to curl data cannot be NULL");
+        return GGL_ERR_FATAL;
+    }
+
+    uint8_t proxy_uri_mem[PATH_MAX] = { 0 };
+    GglArena alloc_proxy = ggl_arena_init(
+        ggl_buffer_substr(GGL_BUF(proxy_uri_mem), 0, sizeof(proxy_uri_mem) - 1)
+    );
+    GglBuffer proxy_uri;
+    GglError ret = ggl_gg_config_read_str(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.NucleusLite"),
+            GGL_STR("configuration"),
+            GGL_STR("networkProxy"),
+            GGL_STR("proxy"),
+            GGL_STR("url")
+        ),
+        &alloc_proxy,
+        &proxy_uri
+    );
+
+    if (ret == GGL_ERR_OK) {
+        proxy_uri_mem[proxy_uri.len] = '\0';
+
+        if ((proxy_uri.len > 5)
+            && (strncmp((const char *) proxy_uri_mem, "https", 5) == 0)) {
+            uint8_t ca_mem[PATH_MAX] = { 0 };
+            GglArena alloc_ca = ggl_arena_init(
+                ggl_buffer_substr(GGL_BUF(ca_mem), 0, sizeof(ca_mem) - 1)
+            );
+            GglBuffer ca;
+
+            ret = ggl_gg_config_read_str(
+                GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")),
+                &alloc_ca,
+                &ca
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGE("No root CA provided for https proxy.");
+                return GGL_ERR_FAILURE;
+            }
+
+            ca_mem[ca.len] = '\0';
+            GGL_LOGI("Proxy CA path %s", ca_mem);
+            CURLcode curl_error = curl_easy_setopt(
+                curl_data->curl, CURLOPT_PROXY_CAINFO, ca_mem
+            );
+            if (curl_error != CURLE_OK) {
+                return translate_curl_code(curl_error);
+            }
+
+            uint8_t cert_mem[PATH_MAX] = { 0 };
+            GglArena alloc_cert = ggl_arena_init(
+                ggl_buffer_substr(GGL_BUF(cert_mem), 0, sizeof(cert_mem) - 1)
+            );
+            GglBuffer cert;
+
+            ret = ggl_gg_config_read_str(
+                GGL_BUF_LIST(
+                    GGL_STR("services"),
+                    GGL_STR("aws.greengrass.NucleusLite"),
+                    GGL_STR("configuration"),
+                    GGL_STR("networkProxy"),
+                    GGL_STR("proxy"),
+                    GGL_STR("proxyCertPath")
+                ),
+                &alloc_cert,
+                &cert
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGD("No certificate provided to be used with https proxy. "
+                         "Not setting cert/key in curl config.");
+
+                // Return here with success.
+                return GGL_ERR_OK;
+            }
+            cert_mem[cert.len] = '\0';
+
+            uint8_t key_mem[PATH_MAX] = { 0 };
+            GglArena alloc_key = ggl_arena_init(
+                ggl_buffer_substr(GGL_BUF(key_mem), 0, sizeof(key_mem) - 1)
+            );
+            GglBuffer key;
+
+            ret = ggl_gg_config_read_str(
+                GGL_BUF_LIST(
+                    GGL_STR("services"),
+                    GGL_STR("aws.greengrass.NucleusLite"),
+                    GGL_STR("configuration"),
+                    GGL_STR("networkProxy"),
+                    GGL_STR("proxy"),
+                    GGL_STR("proxyKeyPath")
+                ),
+                &alloc_key,
+                &key
+            );
+            if (ret != GGL_ERR_OK) {
+                GGL_LOGD("No key provided to be used with https proxy. Not "
+                         "setting cert/key in curl config.");
+
+                // Return here with success.
+                return GGL_ERR_OK;
+            }
+            key_mem[key.len] = '\0';
+
+            // Once we have paths for key and cert, try to add them to the curl
+            // config.
+            GGL_LOGI("Proxy cert path %s", cert_mem);
+            curl_error = curl_easy_setopt(
+                curl_data->curl, CURLOPT_PROXY_SSLCERT, cert_mem
+            );
+            if (curl_error != CURLE_OK) {
+                return translate_curl_code(curl_error);
+            }
+
+            GGL_LOGW("Proxy key path %s", key_mem);
+            curl_error = curl_easy_setopt(
+                curl_data->curl, CURLOPT_PROXY_SSLKEY, key_mem
+            );
+            if (curl_error != CURLE_OK) {
+                return translate_curl_code(curl_error);
+            }
+        }
+    }
+
+    return GGL_ERR_OK;
+}
+
 void gghttplib_destroy_curl(CurlData *curl_data) {
     assert(curl_data != NULL);
     if (curl_data->headers_list != NULL) {
@@ -369,6 +517,12 @@ GglError gghttplib_process_request(
     if (curl_error != CURLE_OK) {
         return translate_curl_code(curl_error);
     }
+
+    GglError ret = set_curl_proxy_config(curl_data);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
     if (response_buffer != NULL) {
         curl_error = curl_easy_setopt(
             curl_data->curl, CURLOPT_WRITEFUNCTION, write_response_to_buffer
@@ -386,7 +540,7 @@ GglError gghttplib_process_request(
         }
     }
 
-    GglError ret = do_curl_request(curl_data, &response_vector);
+    ret = do_curl_request(curl_data, &response_vector);
     if ((response_buffer != NULL) && (ret == GGL_ERR_OK)) {
         response_buffer->len = response_vector.buf.len;
     }
@@ -400,6 +554,12 @@ GglError gghttplib_process_request_with_fd(CurlData *curl_data, int fd) {
     if (curl_error != CURLE_OK) {
         return translate_curl_code(curl_error);
     }
+
+    GglError ret = set_curl_proxy_config(curl_data);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
     curl_error = curl_easy_setopt(
         curl_data->curl, CURLOPT_WRITEFUNCTION, write_response_to_fd
     );
