@@ -193,6 +193,7 @@ add_link_options($<$<NOT:$<CONFIG:Debug>>:-pie>)
 add_link_options(
   LINKER:-z,relro,-z,now,-z,noexecstack,-z,nodlopen LINKER:--as-needed
   LINKER:--no-copy-dt-needed-entries LINKER:--enable-new-dtags,--hash-style=gnu)
+add_link_options($<$<CONFIG:Debug,RelWithDebInfo>:LINKER:--build-id>)
 try_add_link_option(compress-debug-sections-zlib
                     LINKER:--compress-debug-sections=zlib)
 
