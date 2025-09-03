@@ -146,6 +146,8 @@ GglError sigv4_download(
         );
     }
 
+    GGL_LOGW("url_for_sigv4_download is %s", url_for_sigv4_download);
+
     if (error == GGL_ERR_OK) {
         error = gghttplib_process_request_with_fd(&curl_data, fd);
     }

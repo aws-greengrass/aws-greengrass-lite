@@ -17,6 +17,7 @@
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/object.h>
+#include <ggl/vector.h>
 #include <stdint.h>
 #include <stdlib.h>
 

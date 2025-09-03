@@ -20,6 +20,9 @@ To configure and run Greengrass Nucleus Lite, see the
 For setting up as a Greengrass developer, also see the
 [developer setup guide](docs/DEVELOPMENT.md).
 
+To onboard to a specific device from our partners, please see
+[AWS Greengrass Partners](partners/Partners.md).
+
 ### ⚠️ Important Notice
 
 The git tags in this repository represent stable, fully tested releases. Please

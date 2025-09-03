@@ -96,6 +96,7 @@ GglError gg_uri_parse(GglArena *arena, GglBuffer uri, GglUriInfo *info) {
                              .userData = arena };
     const char *error_pos = NULL;
 
+    GGL_LOGI("Trying to parse URI %.*s", (int) uri.len, uri.data);
     int uri_error = uriParseSingleUriExMmA(
         &result,
         (const char *) uri.data,

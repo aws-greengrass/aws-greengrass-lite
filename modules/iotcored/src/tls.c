@@ -84,6 +84,7 @@ static GglError proxy_get_info(
     memcpy(host_mem, proxy_parsed.host.data, proxy_parsed.host.len);
     host_mem[proxy_parsed.host.len] = '\0';
     proxy_info->host.data = host_mem;
+    GGL_LOGI("Using proxy host name: %s", proxy_info->host.data);
 
     if (proxy_parsed.port.len > MAX_PORT_LENGTH) {
         GGL_LOGE("Port provided too long.");
