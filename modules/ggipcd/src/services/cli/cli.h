@@ -8,5 +8,6 @@
 #include "../../ipc_service.h"
 
 GglIpcOperationHandler ggl_handle_create_local_deployment;
+GglIpcOperationHandler ggl_handle_restart_component;
 
 #endif

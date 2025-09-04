@@ -11,6 +11,10 @@ static GglIpcOperation operations[] = {
         GGL_STR("aws.greengrass#CreateLocalDeployment"),
         ggl_handle_create_local_deployment,
     },
+    {
+        GGL_STR("aws.greengrass#RestartComponent"),
+        ggl_handle_restart_component,
+    },
 };
 
 GglIpcService ggl_ipc_service_cli = {

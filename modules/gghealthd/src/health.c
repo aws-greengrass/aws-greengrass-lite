@@ -161,6 +161,68 @@ GglError gghealthd_get_health(GglBuffer *status) {
     return GGL_ERR_OK;
 }
 
+GglError gghealthd_restart_component(GglBuffer component_name) {
+    if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
+        GGL_LOGE("component_name too long");
+        return GGL_ERR_RANGE;
+    }
+
+    sd_bus *bus = NULL;
+    GglError err = open_bus(&bus);
+    GGL_CLEANUP(sd_bus_unrefp, bus);
+    if (err != GGL_ERR_OK) {
+        return err;
+    }
+
+    err = verify_component_exists(component_name);
+    if (err != GGL_ERR_OK) {
+        return err;
+    }
+
+    uint8_t qualified_name[SERVICE_NAME_MAX_LEN + 1] = { 0 };
+    err = get_service_name(component_name, &GGL_BUF(qualified_name));
+    if (err != GGL_ERR_OK) {
+        return GGL_ERR_FAILURE;
+    }
+
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *reply = NULL;
+    int ret = sd_bus_call_method(
+        bus,
+        "org.freedesktop.systemd1",
+        "/org/freedesktop/systemd1",
+        "org.freedesktop.systemd1.Manager",
+        "RestartUnit",
+        &error,
+        &reply,
+        "ss",
+        (char *) qualified_name,
+        "replace"
+    );
+    GGL_CLEANUP(sd_bus_error_free, error);
+    GGL_CLEANUP(sd_bus_message_unrefp, reply);
+
+    if (ret < 0) {
+        GGL_LOGE(
+            "Failed to restart component %.*s (errno=%d) (name=%s) "
+            "(message=%s)",
+            (int) component_name.len,
+            component_name.data,
+            -ret,
+            error.name,
+            error.message
+        );
+        return translate_dbus_call_error(ret);
+    }
+
+    GGL_LOGI(
+        "Successfully restarted component %.*s",
+        (int) component_name.len,
+        component_name.data
+    );
+    return GGL_ERR_OK;
+}
+
 GglError gghealthd_init(void) {
     sd_notify(0, "READY=1");
     init_health_events();

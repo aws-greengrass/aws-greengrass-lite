@@ -178,6 +178,35 @@ static GglError subscribe_to_lifecycle_completion(
     return GGL_ERR_OK;
 }
 
+static GglError restart_component(void *ctx, GglMap params, uint32_t handle) {
+    (void) ctx;
+    GglObject *component_name_obj;
+    GglError ret = ggl_map_validate(
+        params,
+        GGL_MAP_SCHEMA({ GGL_STR("component_name"),
+                         GGL_REQUIRED,
+                         GGL_TYPE_BUF,
+                         &component_name_obj })
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("restart_component received invalid arguments.");
+        return GGL_ERR_INVALID;
+    }
+    GglBuffer component_name = ggl_obj_into_buf(*component_name_obj);
+    if (component_name.len > GGL_COMPONENT_NAME_MAX_LEN) {
+        GGL_LOGE("`component_name` too long");
+        return GGL_ERR_RANGE;
+    }
+
+    GglError error = gghealthd_restart_component(component_name);
+    if (error != GGL_ERR_OK) {
+        return error;
+    }
+
+    ggl_respond(handle, GGL_OBJ_NULL);
+    return GGL_ERR_OK;
+}
+
 GglError run_gghealthd(void) {
     GglError error = gghealthd_init();
     if (error != GGL_ERR_OK) {
@@ -187,6 +216,7 @@ GglError run_gghealthd(void) {
         = { { GGL_STR("get_status"), false, get_status, NULL },
             { GGL_STR("update_status"), false, update_status, NULL },
             { GGL_STR("get_health"), false, get_health, NULL },
+            { GGL_STR("restart_component"), false, restart_component, NULL },
             { GGL_STR("subscribe_to_deployment_updates"),
               true,
               subscribe_to_deployment_updates,

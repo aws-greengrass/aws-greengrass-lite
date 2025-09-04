@@ -10,6 +10,7 @@ ggl_init_module(
        core-bus
        core-bus-gg-config
        core-bus-aws-iot-mqtt
+       core-bus-gghealthd
        ggipc-auth
        ggl-rand
        ggl-socket-server)

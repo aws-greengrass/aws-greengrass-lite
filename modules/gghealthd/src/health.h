@@ -19,4 +19,6 @@ GglError gghealthd_update_status(GglBuffer component_name, GglBuffer status);
 
 GglError gghealthd_get_health(GglBuffer *status);
 
+GglError gghealthd_restart_component(GglBuffer component_name);
+
 #endif
