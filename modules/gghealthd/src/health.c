@@ -215,6 +215,32 @@ GglError gghealthd_restart_component(GglBuffer component_name) {
         return translate_dbus_call_error(ret);
     }
 
+    // Reset systemd failure counter after successful restart
+    sd_bus_error reset_error = SD_BUS_ERROR_NULL;
+    sd_bus_message *reset_reply = NULL;
+    int reset_ret = sd_bus_call_method(
+        bus,
+        "org.freedesktop.systemd1",
+        "/org/freedesktop/systemd1",
+        "org.freedesktop.systemd1.Manager",
+        "ResetFailedUnit",
+        &reset_error,
+        &reset_reply,
+        "s",
+        (char *) qualified_name
+    );
+    GGL_CLEANUP(sd_bus_error_free, reset_error);
+    GGL_CLEANUP(sd_bus_message_unrefp, reset_reply);
+
+    if (reset_ret < 0) {
+        GGL_LOGW(
+            "Failed to reset failure counter for %.*s (errno=%d)",
+            (int) component_name.len,
+            component_name.data,
+            -reset_ret
+        );
+    }
+
     GGL_LOGI(
         "Successfully restarted component %.*s",
         (int) component_name.len,

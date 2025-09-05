@@ -77,24 +77,29 @@ GglError ggl_handle_restart_component(
             GGL_LOGE(
                 "Failed to restart component: %u", (unsigned) method_error
             );
-            *ipc_error = (GglIpcError
-            ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-                .message = GGL_STR("Failed to restart component.") };
-            return method_error;
+            if (method_error == GGL_ERR_NOENTRY) {
+                *ipc_error = (GglIpcError
+                ) { .error_code = GGL_IPC_ERR_RESOURCE_NOT_FOUND,
+                    .message = GGL_STR("Component not found.") };
+                return method_error;
+            }
         }
-        GGL_LOGE(
-            "Failed to call gghealthd restart_component: %u", (unsigned) ret
+        return ggl_ipc_response_send(
+            handle,
+            stream_id,
+            GGL_STR("aws.greengrass#RestartComponentResponse"),
+            GGL_MAP(
+                ggl_kv(GGL_STR("restartStatus"), ggl_obj_buf(GGL_STR("FAILED")))
+            )
         );
-        *ipc_error = (GglIpcError
-        ) { .error_code = GGL_IPC_ERR_SERVICE_ERROR,
-            .message = GGL_STR("Failed to call restart service.") };
-        return ret;
     }
 
     return ggl_ipc_response_send(
         handle,
         stream_id,
         GGL_STR("aws.greengrass#RestartComponentResponse"),
-        (GglMap) { 0 }
+        GGL_MAP(
+            ggl_kv(GGL_STR("restartStatus"), ggl_obj_buf(GGL_STR("SUCCEEDED")))
+        )
     );
 }
