@@ -557,8 +557,8 @@ GglError iotcored_tls_read(IotcoredTlsCtx *ctx, GglBuffer *buf) {
             return GGL_ERR_FAILURE;
         default:
             // All other error codes are related to non-blocking sockets
-            GGL_LOGW("Unexpected non-blocking socket error.");
-            break;
+            GGL_LOGE("Unexpected SSL_read_ex error.");
+            return GGL_ERR_FAILURE;
         }
     }
     buf->len = read_bytes;
