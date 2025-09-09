@@ -7,6 +7,7 @@
 #include "ggl/log.h"
 #include "iotcored.h"
 #include <assert.h>
+#include <errno.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
@@ -47,7 +48,7 @@ static int ssl_error_callback(const char *str, size_t len, void *user) {
     if (len > 0) {
         --len;
     }
-    GGL_LOGE("[openssl]: %.*s", (int) len, str);
+    GGL_LOGE("openssl: %.*s", (int) len, str);
     return 1;
 }
 
@@ -543,11 +544,13 @@ GglError iotcored_tls_read(IotcoredTlsCtx *ctx, GglBuffer *buf) {
 
     if (ret != 1) {
         int error_code = SSL_get_error(ssl, ret);
+        int err = errno;
         ERR_print_errors_cb(ssl_error_callback, NULL);
         switch (error_code) {
         case SSL_ERROR_SSL:
         case SSL_ERROR_SYSCALL:
-            GGL_LOGE("Connection unexpectedly closed.");
+            errno = err;
+            GGL_LOGE("OpenSSL system error: %m.");
             ctx->connected = false;
             buf->len = 0;
             return GGL_ERR_FATAL;
