@@ -49,12 +49,19 @@ jobs:
           role-duration-seconds: ${{ matrix.test-category.timeout }}
           unset-current-credentials: true
 
+      - name: Set sanitized SHA to github env
+        env:
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          SANITIZED_SHA=$(echo "$PR_SHA" | tr -cd 'a-fA-F0-9')
+          echo "SHA=$SANITIZED_SHA" >> $GITHUB_ENV
+
       - name: Run UAT tests
         run: |
           cd aws-greengrass-testing
           ./run-tests.sh \
             --aws-account=${{ secrets.AWS_ACCOUNT_ID }} \
             --s3-bucket=${{ secrets.S3_BUCKET }} \
-            --commit-id=${{ github.event.pull_request.head.sha }} \
+            --commit-id=${{ env.SHA }} \
             --aws-region=us-west-2 \
             --test-category=${{ matrix.test-category.category }}
