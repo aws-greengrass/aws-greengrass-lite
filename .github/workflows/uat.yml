@@ -57,6 +57,8 @@ jobs:
           echo "SHA=$SANITIZED_SHA" >> $GITHUB_ENV
 
       - name: Run UAT tests
+        env:
+          CI_UNIQUE_ID: ${{ github.run_id }}-${{ strategy.job-index }}
         run: |
           cd aws-greengrass-testing
           ./run-tests.sh \
@@ -65,3 +67,16 @@ jobs:
             --commit-id=${{ env.SHA }} \
             --aws-region=us-west-2 \
             --test-category=${{ matrix.test-category.category }}
+
+      - name: Upload system logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name:
+            system-logs-${{ matrix.test-category.category }}-${{ github.run_id
+            }}
+          path: |
+            /var/log/syslog
+            /var/log/kern.log
+            /var/log/dmesg
+          if-no-files-found: warn
