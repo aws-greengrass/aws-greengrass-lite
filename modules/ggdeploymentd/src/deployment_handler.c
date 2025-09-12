@@ -102,6 +102,20 @@ static GglError merge_dir_to(GglBuffer source, const char *dir) {
         return ret;
     }
 
+    // Check if source and destination are the same directory
+    char *real_src = realpath(source_path, NULL);
+    char *real_dst = realpath(dir, NULL);
+    if (real_src != NULL && real_dst != NULL
+        && strcmp(real_src, real_dst) == 0) {
+        GGL_LOGD("Source and destination are the same directory, skipping copy"
+        );
+        free(real_src);
+        free(real_dst);
+        return GGL_ERR_OK;
+    }
+    free(real_src);
+    free(real_dst);
+
     const char *cp[] = { "cp", "-RP", source_path, dir, NULL };
     return ggl_process_call(cp);
 }
