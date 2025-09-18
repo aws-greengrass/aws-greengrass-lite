@@ -1,0 +1,57 @@
+name: aws-greengrass-lite
+base: core22
+version: '2.2.2'
+summary: AWS IoT Greengrass runtime for constrained devices
+description: |
+  AWS IoT Greengrass nucleus lite provides a lightweight alternative to the 
+  Greengrass nucleus runtime. The nucleus lite aims to be compatible with the 
+  Greengrass nucleus, but implements a subset of its functionality for 
+  constrained devices.
+
+grade: stable
+confinement: strict
+
+architectures:
+  - build-on: amd64
+  - build-on: arm64
+
+apps:
+  aws-greengrass-lite:
+    command: usr/bin/ggl-core
+    daemon: simple
+    plugs:
+      - network
+      - network-bind
+      - hardware-observe
+      - system-observe
+      - mount-observe
+      - process-control
+      - log-observe
+
+parts:
+  aws-greengrass-lite:
+    plugin: cmake
+    source: .
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+      - -DGGL_SYSTEMD_SERVICE_BUILD=OFF
+      - -DCMAKE_INSTALL_PREFIX=/usr
+    build-packages:
+      - build-essential
+      - cmake
+      - pkg-config
+      - libssl-dev
+      - libcurl4-openssl-dev
+      - libjson-c-dev
+      - libsystemd-dev
+    stage-packages:
+      - libssl3
+      - libcurl4
+      - libjson-c5
+      - libsystemd0
+    override-build: |
+      craftctl default
+      # Create necessary directories
+      mkdir -p $CRAFT_PART_INSTALL/etc/greengrass
+      mkdir -p $CRAFT_PART_INSTALL/var/lib/greengrass
+      mkdir -p $CRAFT_PART_INSTALL/var/log/greengrass

@@ -1,0 +1,76 @@
+name: Snap Package Build and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-snap:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        architecture: [amd64, arm64]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU for cross-compilation
+        if: matrix.architecture == 'arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build snap package
+        uses: snapcore/action-build@v1
+        id: build
+        with:
+          architecture: ${{ matrix.architecture }}
+
+      - name: Upload snap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-greengrass-lite-${{ matrix.architecture }}-snap
+          path: ${{ steps.build.outputs.snap }}
+
+  publish-snap:
+    needs: build-snap
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    
+    steps:
+      - name: Download snap artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: aws-greengrass-lite-*-snap
+          merge-multiple: true
+
+      - name: Install snapcraft
+        run: sudo snap install snapcraft --classic
+
+      - name: Login to Snap Store
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          echo "$SNAPCRAFT_STORE_CREDENTIALS" | snapcraft login --with -
+
+      - name: Publish to edge channel
+        if: github.ref == 'refs/heads/main'
+        run: |
+          for snap in *.snap; do
+            snapcraft upload "$snap" --release=edge
+          done
+
+      - name: Publish to stable channel
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          for snap in *.snap; do
+            snapcraft upload "$snap" --release=stable
+          done
