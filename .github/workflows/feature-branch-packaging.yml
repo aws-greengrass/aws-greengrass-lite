@@ -1,0 +1,71 @@
+name: Feature Branch - Build and Package
+
+on:
+  push:
+    branches:
+      - 'feature/*'
+      - 'feat/*'
+      - 'dev/*'
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build-packages:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [RelWithDebInfo]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Cache Podman image
+        uses: actions/cache@v4
+        with:
+          path: ~/podman-x86-64-image.tar
+          key: ${{ runner.os }}-podman-${{ hashFiles('misc/buildtestcontainer/*') }}
+
+      - name: Build container
+        run: |
+          if [ ! -f ~/podman-x86-64-image.tar ]; then
+            podman build misc/buildtestcontainer -t container
+            podman save container:latest > ~/podman-x86-64-image.tar
+          else
+            podman load < ~/podman-x86-64-image.tar
+          fi
+
+      - name: Build packages
+        run: |
+          podman run -v $PWD/.:/aws-greengrass-lite --replace --name ggl container:latest bash -c "
+            cd /aws-greengrass-lite &&
+            rm -rf build/ &&
+            cmake -B build \
+            -DGGL_LOG_LEVEL=DEBUG \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DGGL_SYSTEMD_SYSTEM_USER=ggcore \
+            -DGGL_SYSTEMD_SYSTEM_GROUP=ggcore \
+            -DGGL_SYSTEMD_SYSTEM_DIR=/lib/systemd/system \
+            -DCMAKE_INSTALL_PREFIX=/usr &&
+            make -C build -j\$(nproc) &&
+            cd build && cpack -v -G DEB
+            "
+
+      - name: Prepare artifacts
+        run: |
+          mkdir -p artifacts/
+          cp build/*.deb artifacts/
+          cat .github/workflows/packaging/readme.template.txt > artifacts/readme.txt
+          cp .github/workflows/packaging/install-greengrass-lite.sh artifacts/
+          sed -i 's|{{ VERSION_LINK }}|${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|g' artifacts/readme.txt
+          sed -i 's|{{ UBUNTU_VERSION }}|24.04|g' artifacts/install-greengrass-lite.sh
+          cat LICENSE >> artifacts/readme.txt
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: greengrass-lite-${{ github.head_ref || github.ref_name }}-${{ github.sha }}
+          path: artifacts/*
+          retention-days: 30
