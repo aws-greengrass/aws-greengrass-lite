@@ -139,7 +139,7 @@ static void check_ktls_status(SSL *ssl) {
     }
 }
 
-static void enable_ktls(SSL_CTX *ssl_ctx) {
+static void try_enable_ktls(SSL_CTX *ssl_ctx) {
     // Force TLS 1.2 for better kTLS support
     SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_2_VERSION);
 
@@ -159,7 +159,7 @@ static void cleanup_ssl_ctx(SSL_CTX **ctx) {
 }
 
 static GglError create_tls_context(
-    const IotcoredArgs *args, SSL_CTX **ssl_ctx
+    const IotcoredArgs *args, SSL_CTX **ssl_ctx, bool enable_ktls
 ) {
     assert(ssl_ctx != NULL);
     SSL_CTX *new_ssl_ctx = SSL_CTX_new(TLS_client_method());
@@ -231,7 +231,9 @@ static GglError create_tls_context(
         return GGL_ERR_CONFIG;
     }
 
-    enable_ktls(new_ssl_ctx);
+    if (enable_ktls) {
+        try_enable_ktls(new_ssl_ctx);
+    }
 
     ctx_cleanup = NULL;
     *ssl_ctx = new_ssl_ctx;
@@ -261,8 +263,6 @@ static GglError do_handshake(char *host, BIO *bio) {
         return GGL_ERR_FAILURE;
     }
 
-    check_ktls_status(ssl);
-
     return GGL_ERR_OK;
 }
 
@@ -270,7 +270,7 @@ static GglError iotcored_tls_connect_no_proxy(
     const IotcoredArgs *args, IotcoredTlsCtx **ctx
 ) {
     SSL_CTX *ssl_ctx = NULL;
-    GglError ret = create_tls_context(args, &ssl_ctx);
+    GglError ret = create_tls_context(args, &ssl_ctx, true);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -291,6 +291,10 @@ static GglError iotcored_tls_connect_no_proxy(
         GGL_LOGE("Failed to set hostname.");
         return GGL_ERR_FATAL;
     }
+
+    SSL *ssl = NULL;
+    BIO_get_ssl(bio, &ssl);
+    check_ktls_status(ssl);
 
     ret = do_handshake(args->endpoint, bio);
     if (ret != GGL_ERR_OK) {
@@ -337,7 +341,7 @@ static GglError iotcored_tls_connect_https_proxy(
 ) {
     // Set up TLS before attempting a connection
     SSL_CTX *ssl_ctx = NULL;
-    GglError ret = create_tls_context(args, &ssl_ctx);
+    GglError ret = create_tls_context(args, &ssl_ctx, false);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -372,6 +376,7 @@ static GglError iotcored_tls_connect_https_proxy(
     // Connect the proxy server to IoT core and tunnel the connection
     ret = iotcored_proxy_connect_tunnel(args, info, mtls_proxy_bio);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create tunnel.");
         return ret;
     }
 
@@ -387,6 +392,7 @@ static GglError iotcored_tls_connect_https_proxy(
     // Do handshake with IoT core over the established HTTPS TLS connection.
     ret = do_handshake(args->endpoint, mqtt_proxy_chain);
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to connect and handshake with IoT core.");
         return ret;
     }
 
@@ -405,7 +411,7 @@ static GglError iotcored_tls_connect_http_proxy(
 ) {
     // Set up TLS before attempting a connection
     SSL_CTX *ssl_ctx = NULL;
-    GglError ret = create_tls_context(args, &ssl_ctx);
+    GglError ret = create_tls_context(args, &ssl_ctx, true);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -445,6 +451,10 @@ static GglError iotcored_tls_connect_http_proxy(
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+
+    SSL *ssl = NULL;
+    BIO_get_ssl(mqtt_bio, &ssl);
+    check_ktls_status(ssl);
 
     // The proxy connection is the source and sink for all SSL bytes.
     BIO *mqtt_proxy_chain = BIO_push(mqtt_bio, proxy_bio);
