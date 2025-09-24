@@ -21,7 +21,7 @@ This project uses the following third party library dependencies:
 | --------------- | ------------------------ |
 | openssl         | 3.0                      |
 | libcurl         | 7.86                     |
-| sqlite          | 3.46.0                   |
+| sqlite          | 3.37.2                   |
 | libyaml         | 0.2.2                    |
 | libsystemd      | 249                      |
 | liburiparser    | 0.9.6                    |

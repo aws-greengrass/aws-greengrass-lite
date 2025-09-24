@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -64,7 +64,7 @@ jobs:
           cat ${{ github.workspace }}/.github/workflows/packaging/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
           cp ${{ github.workspace }}/.github/workflows/packaging/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
           sed -i 's|{{ VERSION_LINK }}|${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
-          sed -i 's|{{ UBUNTU_VERSION }}|24.04|g' ${{ github.workspace }}/zipfile/install-greengrass-lite.sh
+          sed -i 's|{{ UBUNTU_VERSION }}|22.04|g' ${{ github.workspace }}/zipfile/install-greengrass-lite.sh
           cat ${{ github.workspace }}/LICENSE >> ${{ github.workspace }}/zipfile/readme.txt
 
       - name: md5sums
