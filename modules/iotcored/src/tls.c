@@ -158,6 +158,12 @@ static void cleanup_ssl_ctx(SSL_CTX **ctx) {
     }
 }
 
+static void cleanup_bio_free_all(BIO **bio_ptr) {
+    if ((bio_ptr != NULL) && (*bio_ptr != NULL)) {
+        BIO_free_all(*bio_ptr);
+    }
+}
+
 static GglError create_tls_context(
     const IotcoredArgs *args, SSL_CTX **ssl_ctx, bool enable_ktls
 ) {
@@ -281,6 +287,7 @@ static GglError iotcored_tls_connect_no_proxy(
         GGL_LOGE("Failed to create openssl BIO.");
         return GGL_ERR_FATAL;
     }
+    GGL_CLEANUP_ID(bio_cleanup, cleanup_bio_free_all, bio);
 
     if (BIO_set_conn_port(bio, "8883") != 1) {
         GGL_LOGE("Failed to set port.");
@@ -301,7 +308,10 @@ static GglError iotcored_tls_connect_no_proxy(
         return ret;
     }
 
+    // Since connection is established, cancel the cleanup.
     ctx_cleanup = NULL;
+    bio_cleanup = NULL;
+
     conn = (IotcoredTlsCtx
     ) { .ssl_ctx = ssl_ctx, .bio = bio, .connected = true };
     *ctx = &conn;
@@ -358,6 +368,8 @@ static GglError iotcored_tls_connect_https_proxy(
         GGL_LOGE("Failed to create proxy socket.");
         return GGL_ERR_FATAL;
     }
+    GGL_CLEANUP_ID(mtls_bio_cleanup, cleanup_bio_free_all, mtls_proxy_bio);
+
     if (BIO_set_conn_hostname(mtls_proxy_bio, info.host.data) != 1) {
         GGL_LOGE("Failed to set proxy hostname.");
         return GGL_ERR_FATAL;
@@ -386,9 +398,10 @@ static GglError iotcored_tls_connect_https_proxy(
         GGL_LOGE("Failed to create openssl BIO.");
         return GGL_ERR_FATAL;
     }
+    GGL_CLEANUP_ID(mqtt_bio_cleanup, cleanup_bio_free_all, mqtt_bio);
+
     // MQTT BIO uses the underlying HTTPS TLS BIO as its source and sync.
     BIO *mqtt_proxy_chain = BIO_push(mqtt_bio, mtls_proxy_bio);
-
     // Do handshake with IoT core over the established HTTPS TLS connection.
     ret = do_handshake(args->endpoint, mqtt_proxy_chain);
     if (ret != GGL_ERR_OK) {
@@ -398,6 +411,8 @@ static GglError iotcored_tls_connect_https_proxy(
 
     // Since connection is established, cancel the cleanup.
     ctx_cleanup = NULL;
+    mtls_bio_cleanup = NULL;
+    mqtt_bio_cleanup = NULL;
 
     conn = (IotcoredTlsCtx
     ) { .ssl_ctx = ssl_ctx, .bio = mqtt_proxy_chain, .connected = true };
@@ -416,11 +431,14 @@ static GglError iotcored_tls_connect_http_proxy(
         return ret;
     }
     GGL_CLEANUP_ID(ctx_cleanup, cleanup_ssl_ctx, ssl_ctx);
+
     BIO *mqtt_bio = BIO_new_ssl(ssl_ctx, 1);
     if (mqtt_bio == NULL) {
         GGL_LOGE("Failed to create openssl BIO.");
         return GGL_ERR_FATAL;
     }
+    GGL_CLEANUP_ID(mqtt_bio_cleanup, cleanup_bio_free_all, mqtt_bio);
+
     // default fallback
     if (info.port.len == 0) {
         info.port = GGL_STR("80");
@@ -432,6 +450,8 @@ static GglError iotcored_tls_connect_http_proxy(
         GGL_LOGE("Failed to create proxy socket.");
         return GGL_ERR_FATAL;
     }
+    GGL_CLEANUP_ID(proxy_bio_cleanup, cleanup_bio_free_all, proxy_bio);
+
     if (BIO_set_conn_hostname(proxy_bio, info.host.data) != 1) {
         GGL_LOGE("Failed to set proxy hostname.");
         return GGL_ERR_FATAL;
@@ -465,6 +485,8 @@ static GglError iotcored_tls_connect_http_proxy(
 
     // Since connection is established, cancel the cleanup.
     ctx_cleanup = NULL;
+    mqtt_bio_cleanup = NULL;
+    proxy_bio_cleanup = NULL;
 
     conn = (IotcoredTlsCtx
     ) { .ssl_ctx = ssl_ctx, .bio = mqtt_proxy_chain, .connected = true };
