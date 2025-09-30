@@ -170,3 +170,14 @@ If you are storing the standard output, look for the log:
 > You might see some error logs such as
 > `process is getting killed by signal 15`. This is expected and correct
 > behavior.
+
+### Alternative: Using a systemd service to do the fleetprovisioning
+
+Copy [ggl.gg_fleetprovisioning.service](./ggl.gg_fleetprovisioning.service) file
+to `/etc/systemd/system/`
+
+`sudo systemctl daemon-reload`
+
+and
+
+`sudo systemctl enable ggl.gg_fleetprovisioning.service`
