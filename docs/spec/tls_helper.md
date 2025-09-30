@@ -36,6 +36,9 @@ The invoking process may additionally set the following args:
 When passed a `--proxy` arg, the TLS helper MUST either use it for the
 connection or exit with a non-zero error code.
 
+The invoking process must applying any no_proxy logic before invoking the TLS
+helper.
+
 The TLS helper will also get a control socket at file descriptor `3`. This will
 be a unix domain socket. Except in case of an error, the helper MUST use the the
 control socket to send a single message with the payload `"socket"`, and with
