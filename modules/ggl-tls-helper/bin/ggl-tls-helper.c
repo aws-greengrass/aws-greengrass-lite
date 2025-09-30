@@ -14,6 +14,7 @@
 #include <netdb.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
+#include <openssl/http.h>
 #include <openssl/opensslv.h>
 #include <openssl/prov_ssl.h>
 #include <openssl/ssl.h>
@@ -222,6 +223,53 @@ static void cleanup_ssl(SSL **ssl) {
     }
 }
 
+static GglError parse_proxy_url(
+    const char *proxy_url, char **host, char **port
+) {
+    int use_ssl = 0;
+
+    if (!OSSL_HTTP_parse_url(
+            proxy_url, &use_ssl, NULL, host, port, NULL, NULL, NULL, NULL
+        )) {
+        GGL_LOGE("Failed to parse proxy URL.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        return GGL_ERR_INVALID;
+    }
+
+    if (use_ssl) {
+        GGL_LOGE("HTTPS proxies are not supported in this task.");
+        return GGL_ERR_INVALID;
+    }
+
+    return GGL_ERR_OK;
+}
+
+static GglError http_proxy_connect(
+    BIO *proxy_bio, const char *target_host, const char *target_port
+) {
+    GGL_LOGD("Sending HTTP CONNECT %s:%s to proxy.", target_host, target_port);
+
+    int proxy_connect_ret = OSSL_HTTP_proxy_connect(
+        proxy_bio,
+        target_host,
+        target_port,
+        NULL, // proxy_user
+        NULL, // proxy_password
+        120, // timeout
+        NULL, // bio_err
+        NULL // prog
+    );
+
+    if (proxy_connect_ret != 1) {
+        GGL_LOGE("Failed HTTP proxy CONNECT.");
+        ERR_print_errors_cb(openssl_err_cb, NULL);
+        return GGL_ERR_FAILURE;
+    }
+
+    GGL_LOGD("HTTP proxy CONNECT successful.");
+    return GGL_ERR_OK;
+}
+
 static GglError tls_handshake(const char *endpoint, BIO *bio, SSL **ssl) {
     SSL_CTX *ssl_ctx = SSL_CTX_new(TLS_client_method());
     if (ssl_ctx == NULL) {
@@ -381,8 +429,26 @@ int main(int argc, char *argv[]) {
     // NOLINTNEXTLINE(concurrency-mt-unsafe)
     argp_parse(&argp, argc, argv, 0, 0, NULL);
 
+    GglError ret;
     int tcp_fd;
-    GglError ret = create_tcp_connection(arg_endpoint, arg_port, &tcp_fd);
+    bool using_proxy = false;
+
+    if (arg_proxy != NULL) {
+        char *parse_host;
+        char *parse_port;
+        ret = parse_proxy_url(arg_proxy, &parse_host, &parse_port);
+        if (ret != GGL_ERR_OK) {
+            return 1;
+        }
+        using_proxy = true;
+        const char *port = (parse_port != NULL) ? parse_port : "80";
+        ret = create_tcp_connection(parse_host, port, &tcp_fd);
+
+        OPENSSL_free(parse_host);
+        OPENSSL_free(parse_port);
+    } else {
+        ret = create_tcp_connection(arg_endpoint, arg_port, &tcp_fd);
+    }
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to create TCP connection.");
         return 1;
@@ -393,6 +459,13 @@ int main(int argc, char *argv[]) {
         GGL_LOGE("Failed to create openssl BIO.");
         ERR_print_errors_cb(openssl_err_cb, NULL);
         return 1;
+    }
+
+    if (using_proxy) {
+        ret = http_proxy_connect(bio, arg_endpoint, arg_port);
+        if (ret != GGL_ERR_OK) {
+            return 1;
+        }
     }
 
     SSL *ssl = NULL;
