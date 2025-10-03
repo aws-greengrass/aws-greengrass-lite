@@ -89,6 +89,30 @@ GglError ggl_handle_get_configuration(
         return ret;
     }
 
+    // According to the IPC spec, if keyPath has a valid value,
+    //  For MAP values a map without the keyPath leaf is returned.
+    //  For non-MAP values, a map with the keyPath leaf and the value is
+    //  returned.
+    GglKV wrapped_result = { 0 };
+    GglObjectType read_type = ggl_obj_type(read_value);
+    if (read_type != GGL_TYPE_MAP) {
+        if (key_path.len > 0) {
+            wrapped_result = ggl_kv(
+                ggl_obj_into_buf(key_path.items[key_path.len - 1]), read_value
+            );
+            read_value
+                = ggl_obj_map((GglMap) { .pairs = &wrapped_result, .len = 1 });
+        } else {
+            // A state where the whole configuration is requested but the result
+            // is not a map then error.
+            *ipc_error
+                = (GglIpcError) { .error_code = GGL_IPC_ERR_INVALID_ARGUMENTS,
+                                  .message = GGL_STR("Key is not valid.") };
+
+            return GGL_ERR_CONFIG;
+        }
+    }
+
     return ggl_ipc_response_send(
         handle,
         stream_id,
