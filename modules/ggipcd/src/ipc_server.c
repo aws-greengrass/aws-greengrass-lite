@@ -410,6 +410,16 @@ static GglError handle_operation(
         return GGL_ERR_INVALID;
     }
 
+    if ((common_headers.message_flags & EVENTSTREAM_TERMINATE_STREAM) != 0) {
+        GGL_LOGD(
+            "Termination requested of stream %d for %d.",
+            common_headers.stream_id,
+            handle
+        );
+        ggl_ipc_terminate_stream(handle, common_headers.stream_id);
+        return GGL_ERR_OK;
+    }
+
     GGL_LOGD(
         "Handling operation on stream %d for %d.",
         common_headers.stream_id,
