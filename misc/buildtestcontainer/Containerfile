@@ -1,4 +1,5 @@
-FROM ubuntu:24.04
+ARG BASE_IMAGE=ubuntu:22.04
+FROM ${BASE_IMAGE}
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
@@ -6,8 +7,18 @@ RUN apt-get update \
     systemd systemd-sysv dbus ca-certificates sudo nano bash-completion \
     build-essential pkg-config cmake git curl file gdb python3 \
     libssl-dev libcurl4-openssl-dev libsqlite3-dev sqlite3 libyaml-dev \
-    libsystemd-dev liburiparser-dev uuid-dev libevent-dev cgroup-tools libzip-dev \
+    libsystemd-dev liburiparser-dev uuid-dev libevent-dev cgroup-tools zlib1g-dev \
   && apt-get clean
+
+# Build static libzip (as Debian 13 only ships with libzip5, which is not ABI compatible with libzip4)
+RUN echo "deb-src http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse" >> /etc/apt/sources.list && \
+    echo "deb-src http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse" >> /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get source libzip && \
+    cd libzip-* && \
+    cmake -DBUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX=/usr . && \
+    make -j$(nproc) && \
+    make install
 
 COPY ./getty-override.conf \
   /etc/systemd/system/console-getty.service.d/override.conf

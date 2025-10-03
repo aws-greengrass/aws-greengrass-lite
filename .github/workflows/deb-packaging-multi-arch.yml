@@ -1,0 +1,249 @@
+name: DEB packages and zip files
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86-64
+            runner: ubuntu-24.04
+            container: ubuntu:22.04
+            build_arch: amd64
+            artifact_suffix: x86-64
+            build_type: RelWithDebInfo
+          - arch: x86-64
+            runner: ubuntu-24.04
+            container: ubuntu:22.04
+            build_arch: amd64
+            artifact_suffix: x86-64
+            build_type: MinSizeRel
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            container: arm64v8/ubuntu:22.04
+            build_arch: arm64
+            artifact_suffix: arm64
+            build_type: RelWithDebInfo
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+            container: arm64v8/ubuntu:22.04
+            build_arch: arm64
+            artifact_suffix: arm64
+            build_type: MinSizeRel
+          - arch: armv7
+            runner: ubuntu-24.04-arm
+            container: arm32v7/ubuntu:22.04
+            build_arch: arm/v7
+            artifact_suffix: armv7
+            build_type: RelWithDebInfo
+          - arch: armv7
+            runner: ubuntu-24.04-arm
+            container: arm32v7/ubuntu:22.04
+            build_arch: arm/v7
+            artifact_suffix: armv7
+            build_type: MinSizeRel
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: matrix.arch != 'aarch64' && matrix.arch != 'x86-64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      - name: Cache Podman image
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/podman-${{ matrix.arch }}-image.tar
+          key:
+            ${{ runner.os }}-podman-${{ matrix.arch }}-${{
+            hashFiles('misc/buildtestcontainer/*')}}
+
+      - name: Build and save container for ${{ matrix.arch }}
+        run: |
+          if [ ! -f ~/podman-${{ matrix.arch }}-image.tar ]; then
+            podman build --build-arg BASE_IMAGE=${{ matrix.container }} --arch=${{ matrix.build_arch }} misc/buildtestcontainer -t container
+            podman save container:latest > ~/podman-${{ matrix.arch }}-image.tar
+          else
+            podman load < ~/podman-${{ matrix.arch }}-image.tar
+          fi
+
+      - name: Run build in container
+        shell: bash
+        run: |
+          podman run -v $PWD/.:/aws-greengrass-lite --replace --name ggl container:latest bash -c "\
+            cd /aws-greengrass-lite && \
+            rm -rf build/ && \
+            cmake -B build \
+            -DGGL_LOG_LEVEL=DEBUG \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_FIND_DEBUG_MODE=ON \
+            -DGGL_SYSTEMD_SYSTEM_USER=ggcore \
+            -DGGL_SYSTEMD_SYSTEM_GROUP=ggcore  \
+            -DGGL_SYSTEMD_SYSTEM_DIR=/lib/systemd/system \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DCMAKE_FIND_LIBRARY_SUFFIXES=.a && \
+            make -C build -j$(nproc) && \
+            cd build && cpack -v -G DEB && cd - \
+            "
+
+      - name: Save package
+        run: |
+          mkdir ${{ github.workspace }}/zipfile/
+          cp ${{ github.workspace }}/build/*.deb ${{ github.workspace }}/zipfile/
+
+      - name: Generate readme / install file
+        run: |
+          cat ${{ github.workspace }}/.github/workflows/packaging/readme.template.txt >> ${{ github.workspace }}/zipfile/readme.txt
+          cp ${{ github.workspace }}/.github/workflows/packaging/install-greengrass-lite.sh ${{ github.workspace }}/zipfile/
+          sed -i 's|{{ VERSION_LINK }}|${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|g' ${{ github.workspace }}/zipfile/readme.txt
+          sed -i 's|{{ UBUNTU_VERSION }}|24.04|g' ${{ github.workspace }}/zipfile/install-greengrass-lite.sh
+          cat ${{ github.workspace }}/LICENSE >> ${{ github.workspace }}/zipfile/readme.txt
+
+      - name: md5sums
+        run: |
+          md5sum ${{ github.workspace }}/zipfile/*
+
+      - name: Save package
+        uses: actions/upload-artifact@v4
+        with:
+          name:
+            aws-greengrass-lite-ubuntu-${{ matrix.artifact_suffix }}-${{
+            matrix.build_type }}
+          path: |
+            ${{ github.workspace }}/zipfile/*
+          retention-days: 1
+
+      - name: Save default package
+        if: matrix.build_type == 'MinSizeRel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: aws-greengrass-lite-ubuntu-${{ matrix.artifact_suffix }}
+          path: |
+            ${{ github.workspace }}/zipfile/*
+          retention-days: 1
+
+  install-test:
+    needs: build
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86-64
+            platform: linux/amd64
+            os: ubuntu:22.04
+          - arch: x86-64
+            platform: linux/amd64
+            os: ubuntu:24.04
+          - arch: x86-64
+            platform: linux/amd64
+            os: debian:12
+          - arch: x86-64
+            platform: linux/amd64
+            os: debian:13
+          - arch: aarch64
+            platform: linux/arm64
+            os: ubuntu:22.04
+          - arch: aarch64
+            platform: linux/arm64
+            os: ubuntu:24.04
+          - arch: aarch64
+            platform: linux/arm64
+            os: debian:12
+          - arch: aarch64
+            platform: linux/arm64
+            os: debian:13
+          - arch: armv7
+            platform: linux/arm/v7
+            os: ubuntu:22.04
+          - arch: armv7
+            platform: linux/arm/v7
+            os: ubuntu:24.04
+          - arch: armv7
+            platform: linux/arm/v7
+            os: debian:12
+          - arch: armv7
+            platform: linux/arm/v7
+            os: debian:13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Download package
+        uses: actions/download-artifact@v4
+        with:
+          name:
+            aws-greengrass-lite-ubuntu-${{ matrix.arch == 'aarch64' && 'arm64'
+            || matrix.arch }}
+
+      - name: Cache Podman image
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/test-container-${{ matrix.arch }}-${{ matrix.os }}.tar
+          key:
+            podman-${{ matrix.arch }}-${{ matrix.os }}-${{
+            hashFiles('.github/workflows/packaging/systemd-test.Dockerfile') }}
+
+      - name: Build test container for ${{ matrix.os }}
+        run: |
+          TAG="test-container-${{ matrix.arch }}-$(echo '${{ matrix.os }}' | tr ':' '-')"
+          echo "Checking for cached test container: ~/test-container-${{ matrix.arch }}-${{ matrix.os }}.tar"
+          if [ ! -f ~/test-container-${{ matrix.arch }}-${{ matrix.os }}.tar ]; then
+            echo "Building new test container for ${{ matrix.os }}"
+            podman build --build-arg BASE_IMAGE=${{ matrix.os }} --platform=${{ matrix.platform }} .github/workflows/packaging -f .github/workflows/packaging/systemd-test.Dockerfile -t $TAG
+            podman save $TAG > ~/test-container-${{ matrix.arch }}-${{ matrix.os }}.tar
+          else
+            echo "Loading cached test container"
+            podman load < ~/test-container-${{ matrix.arch }}-${{ matrix.os }}.tar
+          fi
+          echo "Available images:"
+          podman images | grep test-container
+
+      - name: Test package installation with systemd
+        run: |
+          TAG="test-container-${{ matrix.arch }}-$(echo '${{ matrix.os }}' | tr ':' '-')"
+          IMAGE_ID=$(podman images --format "{{.ID}}" localhost/$TAG:latest)
+          podman run -d --name test-container --systemd=always --privileged --platform=${{ matrix.platform }} \
+            -v $PWD:/workspace:Z $IMAGE_ID /sbin/init
+
+          podman exec test-container bash -c "
+            cd /workspace &&
+            apt-get update &&
+            apt-get install -y zip sudo &&
+            mkdir -p /tmp/kit &&
+            echo 'system: {certificateFilePath: \"/tmp/cert.pem\", privateKeyPath: \"/tmp/key.pem\", rootCaPath: \"/tmp/ca.pem\", rootpath: \"{{data_dir}}\", thingName: \"test\"}' > /tmp/kit/config.yaml &&
+            cd /tmp/kit && zip ../connectionKit-test.zip config.yaml && cd /workspace &&
+            cp /tmp/connectionKit-test.zip . &&
+            chmod +x install-greengrass-lite.sh &&
+            ./install-greengrass-lite.sh -p aws-greengrass-lite*.deb -k connectionKit-test.zip &&
+            dpkg -l | grep aws-greengrass-lite &&
+            echo '=== Checking installed binaries for missing libraries ===' &&
+            dpkg -L aws-greengrass-lite | while read file; do
+              if [ -x \"\$file\" ] && [ -f \"\$file\" ]; then
+                echo \"Checking \$file:\" &&
+                if ldd \"\$file\" | grep 'not found'; then
+                  echo \"ERROR: Missing libraries for \$file\"
+                  exit 1
+                else
+                  echo \"OK: \$file\"
+                fi
+              fi
+            done &&
+            ./install-greengrass-lite.sh -u
+          "
+
+          podman stop test-container

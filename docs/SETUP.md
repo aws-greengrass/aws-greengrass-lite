@@ -19,16 +19,16 @@ This project uses the following third party library dependencies:
 
 | Library         | Minimum Version Required |
 | --------------- | ------------------------ |
-| openssl         | 3.0                      |
-| libcurl         | 7.86                     |
-| sqlite          | 3.46.0                   |
-| libyaml         | 0.2.2                    |
+| libcgroup-tools | 2.0                      |
+| libcurl         | 7.68                     |
+| libevent        | 2.1.12                   |
 | libsystemd      | 249                      |
 | liburiparser    | 0.9.6                    |
 | libuuid         | 2.37.2                   |
-| libevent        | 2.1.12                   |
+| libyaml         | 0.2.2                    |
 | libzip          | 1.7.3                    |
-| libcgroup-tools | 2.0                      |
+| openssl         | 3.0                      |
+| sqlite          | 3.37.2                   |
 
 ## Users/Groups
 
