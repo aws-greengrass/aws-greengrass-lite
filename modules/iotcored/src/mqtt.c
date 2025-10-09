@@ -323,8 +323,8 @@ static GglError establish_connection(void *ctx) {
 noreturn static void *mqtt_recv_thread_fn(void *arg) {
     // coverity[infinite_loop]
     while (true) {
-        // Connect to IoT core with backoff between 10ms->10s.
-        ggl_backoff_indefinite(10, 10000, establish_connection, NULL);
+        // Connect to IoT core with backoff between 5s->5m.
+        ggl_backoff_indefinite(5000, 300000, establish_connection, NULL);
 
         // Send status update to indicate mqtt (re)connection.
         iotcored_mqtt_status_update_send(ggl_obj_bool(true));
