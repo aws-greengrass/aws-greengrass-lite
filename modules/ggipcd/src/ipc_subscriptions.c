@@ -74,7 +74,8 @@ static GglError subs_set_recv_handle(
         return GGL_ERR_OK;
     }
 
-    GGL_LOGD("Setting subscription recv handle failed; state already released."
+    GGL_LOGD(
+        "Setting subscription recv handle failed; state already released."
     );
     return GGL_ERR_FAILURE;
 }
@@ -183,4 +184,24 @@ GglError ggl_ipc_release_subscriptions_for_conn(uint32_t resp_handle) {
     }
 
     return GGL_ERR_OK;
+}
+
+void ggl_ipc_terminate_stream(uint32_t resp_handle, int32_t stream_id) {
+    for (size_t i = 0; i < GGL_COREBUS_CLIENT_MAX_SUBSCRIPTIONS; i++) {
+        uint32_t recv_handle = 0;
+
+        {
+            GGL_MTX_SCOPE_GUARD(&subs_state_mtx);
+
+            if ((subs_resp_handle[i] == resp_handle)
+                && (subs_stream_id[i] == stream_id)) {
+                recv_handle = subs_recv_handle[i];
+            }
+        }
+
+        if (recv_handle != 0) {
+            ggl_client_sub_close(recv_handle);
+            return;
+        }
+    }
 }

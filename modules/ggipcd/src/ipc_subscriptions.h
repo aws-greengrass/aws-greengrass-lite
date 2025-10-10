@@ -30,4 +30,7 @@ GglError ggl_ipc_bind_subscription(
 /// Clean up subscriptions for an IPC client
 GglError ggl_ipc_release_subscriptions_for_conn(uint32_t resp_handle);
 
+/// Cleans up subscription associated with an IPC client's stream
+void ggl_ipc_terminate_stream(uint32_t resp_handle, int32_t stream_id);
+
 #endif
