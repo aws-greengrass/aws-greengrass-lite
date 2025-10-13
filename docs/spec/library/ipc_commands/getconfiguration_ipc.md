@@ -5,10 +5,10 @@ at the nucleus level using the `gg_config` core-bus interface.
 
 - [get-config-1] It can be invoked with the topic `GetConfiguration`.
 - [get-config-2] It can get any component's configurations under the `services`
-  section.
+  section of nucleus config.
 - [get-config-3] It does not require access control policy in recipe to work.
 - [get-config-4] It cannot retrieve any values under the `system` section of
-  config.
+  nucleus config.
 
 ## Parameters
 
@@ -33,6 +33,33 @@ at the nucleus level using the `gg_config` core-bus interface.
   `_service`, `_message` and `_errorCode`.
   - [get-config-resp-2.1] `ResourceNotFoundError` is returned if the key path
     does not exist.
+  - [get-config-resp-2.2] `ServiceError` is returned if the service does not
+    exist.
+
+## On the wire
+
+```
+structure GetConfigurationRequest {
+    /// (Optional) The name of the component. Defaults to the name of the component that makes the request.
+    componentName: String,
+    /// The key path to the configuration value. Specify a list where each entry is the key for a single level in the configuration object.
+    @required NULLABLE
+    keyPath: List of Strings
+}
+
+structure GetConfigurationResponse {
+    /// The name of the component.
+    componentName: String,
+    /// The requested configuration as an object.
+    value: Map Object
+}
+
+operation GetConfiguration {
+    input: GetConfigurationRequest,
+    output: GetConfigurationResponse,
+    errors: [ServiceError, ResourceNotFoundError]
+}
+```
 
 ## Examples
 
@@ -96,7 +123,7 @@ Case 6: Get Configuration key path does not exist.
 - Response:
   `{"message":"Key not found","_service":"aws.greengrass#GreengrassCoreIPC","_message":"Key not found","_errorCode":"ResourceNotFoundError"}`
 
-RAW:
+### RAW on wire:
 
 ```shell
 Packet from client 9:
