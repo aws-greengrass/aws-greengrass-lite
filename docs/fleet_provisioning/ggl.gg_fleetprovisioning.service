@@ -1,0 +1,27 @@
+[Unit]
+Description=Greengrass Lite Fleet Provisioning Service
+After=ggl.core.ggconfigd.service
+Before=ggl.core.iotcored.service
+After=systemd-time-wait-sync.service
+# Only run if device is not already provisioned
+ConditionPathExists=!/var/lib/greengrass/provisioned-cert/certificate.pem.crt
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+ExecStartPre=/bin/sh -c '\
+    sleep 10; \
+    mkdir -p /var/lib/greengrass/provisioned-cert'
+ExecStart=/usr/bin/fleet-provisioning
+Restart=on-failure
+RestartSec=10s
+TimeoutSec=300
+# Consider exit codes 0, 1 as successful completion
+SuccessExitStatus=0 1
+User=root
+Group=root
+RemainAfterExit=true
+
+[Install]
+WantedBy=greengrass-lite.target

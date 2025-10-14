@@ -277,28 +277,10 @@ static GglError cleanup_actions(void) {
         return ret;
     }
 
-    GGL_LOGI("Restarting all greengrass services to apply changes");
-
-    const char *args_stop[]
-        = { "systemctl", "stop", "greengrass-lite.target", NULL };
-    ret = ggl_exec_command(args_stop);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to stop greengrass service");
-        return ret;
-    }
-    const char *args_reset[] = { "systemctl", "reset-failed", NULL };
-    ret = ggl_exec_command(args_reset);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to reset services run counter");
-        return ret;
-    }
-    const char *args_start[]
-        = { "systemctl", "start", "greengrass-lite.target", NULL };
-    ret = ggl_exec_command(args_start);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to restart greengrass service");
-        return ret;
-    }
+    GGL_LOGI("Fleet provisioning completed successfully. Systemd will handle "
+             "service dependencies.");
+    GGL_LOGI("Certificate created at "
+             "/var/lib/greengrass/provisioned-cert/certificate.pem.crt");
 
     return GGL_ERR_OK;
 }
