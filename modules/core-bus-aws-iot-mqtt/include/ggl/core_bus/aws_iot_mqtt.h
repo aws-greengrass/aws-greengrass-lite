@@ -17,11 +17,16 @@
 /// Wrapper for core-bus `aws_iot_mqtt` `publish`
 /// If `wait_for_resp` is false, uses notify, else call.
 GglError ggl_aws_iot_mqtt_publish(
-    GglBuffer topic, GglBuffer payload, uint8_t qos, bool wait_for_resp
+    GglBuffer socket_name,
+    GglBuffer topic,
+    GglBuffer payload,
+    uint8_t qos,
+    bool wait_for_resp
 );
 
 /// Wrapper for core-bus `aws_iot_mqtt` `subscribe`
 GglError ggl_aws_iot_mqtt_subscribe(
+    GglBuffer socket_name,
     GglBufList topic_filters,
     uint8_t qos,
     GglSubscribeCallback on_response,
@@ -37,6 +42,7 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
 
 /// Wrapper for core-bus `aws_iot_mqtt` `connection_status`
 GglError ggl_aws_iot_mqtt_connection_status(
+    GglBuffer socket_name,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,

@@ -221,7 +221,9 @@ static GglError update_job(
         static uint8_t response_scratch[512];
         GglArena call_alloc = ggl_arena_init(GGL_BUF(response_scratch));
         GglObject result = { 0 };
-        ret = ggl_aws_iot_call(topic, payload_object, &call_alloc, &result);
+        ret = ggl_aws_iot_call(
+            GGL_STR("aws_iot_mqtt"), topic, payload_object, &call_alloc, &result
+        );
         if (ret == GGL_ERR_OK) {
             local_version
                 // coverity[incompatible_param]
@@ -334,7 +336,11 @@ static GglError describe_next_job(void *ctx) {
     GglArena call_alloc = ggl_arena_init(GGL_BUF(response_scratch));
     GglObject job_description;
     ret = ggl_aws_iot_call(
-        topic, payload_object, &call_alloc, &job_description
+        GGL_STR("aws_iot_mqtt"),
+        topic,
+        payload_object,
+        &call_alloc,
+        &job_description
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to publish on describe job topic");
@@ -546,6 +552,7 @@ static GglError subscribe_to_next_job_topics(void *ctx) {
         return err;
     }
     return ggl_aws_iot_mqtt_subscribe(
+        GGL_STR("aws_iot_mqtt"),
         GGL_BUF_LIST(job_topic),
         QOS_AT_LEAST_ONCE,
         next_job_execution_changed_callback,

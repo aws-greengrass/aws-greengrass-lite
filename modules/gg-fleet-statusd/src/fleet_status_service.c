@@ -298,7 +298,9 @@ GglError publish_fleet_status_update(
         return ret;
     }
 
-    ret = ggl_aws_iot_mqtt_publish(topic_vec.buf, payload.buf, 0, false);
+    ret = ggl_aws_iot_mqtt_publish(
+        GGL_STR("aws_iot_mqtt"), topic_vec.buf, payload.buf, 0, false
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
