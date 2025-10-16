@@ -17,7 +17,11 @@
 #define GGL_MQTT_MAX_SUBSCRIBE_FILTERS 10
 
 GglError ggl_aws_iot_mqtt_publish(
-    GglBuffer topic, GglBuffer payload, uint8_t qos, bool wait_for_resp
+    GglBuffer socket_name,
+    GglBuffer topic,
+    GglBuffer payload,
+    uint8_t qos,
+    bool wait_for_resp
 ) {
     GglMap args = GGL_MAP(
         ggl_kv(GGL_STR("topic"), ggl_obj_buf(topic)),
@@ -27,14 +31,15 @@ GglError ggl_aws_iot_mqtt_publish(
 
     if (wait_for_resp) {
         return ggl_call(
-            GGL_STR("aws_iot_mqtt"), GGL_STR("publish"), args, NULL, NULL, NULL
+            socket_name, GGL_STR("publish"), args, NULL, NULL, NULL
         );
     }
 
-    return ggl_notify(GGL_STR("aws_iot_mqtt"), GGL_STR("publish"), args);
+    return ggl_notify(socket_name, GGL_STR("publish"), args);
 }
 
 GglError ggl_aws_iot_mqtt_subscribe(
+    GglBuffer socket_name,
     GglBufList topic_filters,
     uint8_t qos,
     GglSubscribeCallback on_response,
@@ -62,7 +67,7 @@ GglError ggl_aws_iot_mqtt_subscribe(
     );
 
     return ggl_subscribe(
-        GGL_STR("aws_iot_mqtt"),
+        socket_name,
         GGL_STR("subscribe"),
         args,
         on_response,
@@ -115,6 +120,7 @@ GglError ggl_aws_iot_mqtt_subscribe_parse_resp(
 /// Note that when a subscription is accepted, the current MQTT status is sent
 /// to the subscribers.
 GglError ggl_aws_iot_mqtt_connection_status(
+    GglBuffer socket_name,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,
@@ -123,7 +129,7 @@ GglError ggl_aws_iot_mqtt_connection_status(
     // The GGL subscribe API expects a map. Sending a dummy map.
     GglMap args = GGL_MAP();
     return ggl_subscribe(
-        GGL_STR("aws_iot_mqtt"),
+        socket_name,
         GGL_STR("connection_status"),
         args,
         on_response,

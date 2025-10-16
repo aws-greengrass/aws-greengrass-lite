@@ -116,7 +116,9 @@ GglError ggl_handle_publish_to_iot_core(
         return GGL_ERR_INVALID;
     }
 
-    ret = ggl_aws_iot_mqtt_publish(topic_name, payload, (uint8_t) qos, true);
+    ret = ggl_aws_iot_mqtt_publish(
+        GGL_STR("aws_iot_mqtt"), topic_name, payload, (uint8_t) qos, true
+    );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to publish the message.");
         *ipc_error = (GglIpcError

@@ -144,7 +144,11 @@ static void subscription_close_callback(void *ctx, uint32_t handle) {
 }
 
 GglError ggl_aws_iot_call(
-    GglBuffer topic, GglObject payload, GglArena *alloc, GglObject *result
+    GglBuffer socket_name,
+    GglBuffer topic,
+    GglObject payload,
+    GglArena *alloc,
+    GglObject *result
 ) {
     static pthread_mutex_t mem_mtx = PTHREAD_MUTEX_INITIALIZER;
     GGL_MTX_SCOPE_GUARD(&mem_mtx);
@@ -195,6 +199,7 @@ GglError ggl_aws_iot_call(
 
     uint32_t sub_handle = 0;
     ret = ggl_aws_iot_mqtt_subscribe(
+        socket_name,
         GGL_BUF_LIST(topic_filter.buf),
         1,
         subscription_callback,
@@ -207,7 +212,9 @@ GglError ggl_aws_iot_call(
         return ret;
     }
 
-    ret = ggl_aws_iot_mqtt_publish(topic, payload_vec.buf, 1, true);
+    ret = ggl_aws_iot_mqtt_publish(
+        socket_name, topic, payload_vec.buf, 1, true
+    );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Response topic subscription failed.");
         ggl_client_sub_close(sub_handle);
