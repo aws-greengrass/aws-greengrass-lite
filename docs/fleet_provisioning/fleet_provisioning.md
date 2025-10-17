@@ -139,7 +139,7 @@ working directory is the root of the greengrass repository:
 
 ```sh
 mkdir -p /etc/greengrass
-mkdir -p /var/lib/greengrass/provisioned-cert/
+mkdir -p /var/lib/greengrass/credentials/
 cp ./config.yaml /etc/greengrass/config.yaml
 
 sudo rm -rf /var/lib/greengrass/config.db
@@ -159,7 +159,7 @@ CMake with the flag `-D CMAKE_INSTALL_PREFIX=/usr/local`, rebuild, and
 reinstall.
 
 Here you can also add `--out_cert_path path/to/dir/` to provide an alternate
-directory. The default is `/var/lib/greengrass/provisioned-cert/`.
+directory. The default is `/var/lib/greengrass/credentials/`.
 
 This will trigger the fleet provisioning script, which will take a few minutes
 to complete.

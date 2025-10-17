@@ -2,37 +2,110 @@
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0
 
+#include "cloud_request.h"
+#include "config_operations.h"
 #include "fleet-provisioning.h"
-#include "generate_certificate.h"
+#include "ggl/cleanup.h"
 #include "ggl/exec.h"
-#include "provisioner.h"
+#include "pki_ops.h"
 #include "stdbool.h"
 #include <fcntl.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
-#include <ggl/core_bus/gg_config.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
+#include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
+#include <ggl/utils.h>
 #include <ggl/vector.h>
 #include <limits.h>
-#include <openssl/evp.h>
-#include <openssl/types.h>
-#include <openssl/x509.h>
-#include <string.h>
 #include <sys/types.h>
+#include <unistd.h>
 #include <uuid/uuid.h>
 #include <stdint.h>
+#include <stdlib.h>
 
-#define MAX_TEMPLATE_LEN 129
-#define MAX_ENDPOINT_LENGTH 129
+#define MAX_TEMPLATE_LEN 128
+#define MAX_ENDPOINT_LENGTH 128
 #define MAX_TEMPLATE_PARAM_LEN 4096
-#define MAX_PATH_LEN 4096
+#define MAX_CSR_LENGTH 4096
 
 #define USER_GROUP (GGL_SYSTEMD_SYSTEM_USER ":" GGL_SYSTEMD_SYSTEM_GROUP)
 
-GglBuffer ggcredentials_path = GGL_STR("/var/lib/greengrass/provisioned-cert/");
+static GglError cleanup_actions(
+    GglBuffer output_dir_path,
+    GglBuffer tmp_cert_path,
+    GglBuffer thing_name,
+    FleetProvArgs *args
+) {
+    // Create destination directory
+    const char *mkdir_dest_args[]
+        = { "mkdir", "-p", (char *) output_dir_path.data, NULL };
+    GglError ret = ggl_exec_command(mkdir_dest_args);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to create destination directory");
+        return ret;
+    }
+    GGL_LOGI("Successfully created destination directory");
+
+    // Copy certificates from output_dir contents to destination_dir (overwrite
+    // existing)
+    static uint8_t cmd_mem[PATH_MAX * 2];
+    GglByteVec cmd = GGL_BYTE_VEC(cmd_mem);
+    ret = ggl_byte_vec_append(&cmd, GGL_STR("cp -rf "));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    ret = ggl_byte_vec_append(&cmd, tmp_cert_path);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    ret = ggl_byte_vec_append(&cmd, GGL_STR("* "));
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    ret = ggl_byte_vec_append(&cmd, output_dir_path);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    ret = ggl_byte_vec_push(&cmd, '\0');
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    const char *sh_args[] = { "sh", "-c", (char *) cmd.buf.data, NULL };
+    ret = ggl_exec_command(sh_args);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to copy certificates to destination directory");
+        return ret;
+    }
+    GGL_LOGI("Successfully copied certificates to destination directory");
+
+    ret = ggl_update_system_cert_paths(output_dir_path, args, thing_name);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    ret = ggl_update_iot_endpoints(args);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    const char *chown_args[]
+        = { "chown", "-R", USER_GROUP, (char *) output_dir_path.data, NULL };
+
+    ret = ggl_exec_command(chown_args);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to change ownership of certificates");
+        return ret;
+    }
+    GGL_LOGI(
+        "Successfully changed ownership of certificates to %s", USER_GROUP
+    );
+
+    return GGL_ERR_OK;
+}
 
 static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
     static uint8_t uuid_mem[37];
@@ -42,10 +115,10 @@ static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
     uuid_mem[36] = '\0';
 
     const char *iotcore_d_args[]
-        = { args->iotcored_path,  "-n", "iotcoredfleet",       "-e",
-            args->data_endpoint,  "-i", (char *) uuid_mem,     "-r",
-            args->root_ca_path,   "-c", args->claim_cert_path, "-k",
-            args->claim_key_path, NULL };
+        = { args->iotcored_path, "-n", "iotcoredfleet",   "-e",
+            args->endpoint,      "-i", (char *) uuid_mem, "-r",
+            args->root_ca_path,  "-c", args->claim_cert,  "-k",
+            args->claim_key,     NULL };
 
     GglError ret = ggl_exec_command_async(iotcore_d_args, iotcored_pid);
 
@@ -54,511 +127,162 @@ static GglError start_iotcored(FleetProvArgs *args, pid_t *iotcored_pid) {
     return ret;
 }
 
-static GglError check_if_claim_cert(FleetProvArgs args) {
-    if (args.claim_key_path == NULL) {
-        GGL_LOGD("Checking value with db for "
-                 "services/aws.greengrass.fleet_provisioning/configuration/"
-                 "claimKeyPath");
-        uint8_t claim_key_path_mem[PATH_MAX] = { 0 };
-        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
-            GGL_BUF(claim_key_path_mem), 0, sizeof(claim_key_path_mem) - 1
-        ));
-        GglBuffer claim_key_path;
-        GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("aws.greengrass.fleet_provisioning"),
-                GGL_STR("configuration"),
-                GGL_STR("claimKeyPath")
-            ),
-            &alloc,
-            &claim_key_path
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-    }
-    GGL_LOGI("Config value for "
-             "services/aws.greengrass.fleet_provisioning/claimKeyPath is set.");
-    return GGL_ERR_OK;
+static void cleanup_kill_process(const pid_t *pid) {
+    (void) ggl_exec_kill_process(*pid);
 }
 
-static GglError fetch_prov_status(void) {
-    GGL_LOGD("Requesting db for system/privateKeyPath");
-    uint8_t mem[MAX_PATH_LEN] = { 0 };
-    GglArena alloc = ggl_arena_init(GGL_BUF(mem));
-    GglBuffer private_key = { 0 };
-    GglError ret_private_key = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
-        &alloc,
-        &private_key
-    );
-    if (ret_private_key != GGL_ERR_OK) {
-        // If the key is not found then we still want to provision the device
-        if (ret_private_key == GGL_ERR_NOENTRY) {
-            return GGL_ERR_OK;
-        }
-        return ret_private_key;
+GglError run_fleet_prov(FleetProvArgs *args) {
+    uint8_t config_resp_mem[PATH_MAX] = { 0 };
+    GglArena alloc = ggl_arena_init(GGL_BUF(config_resp_mem));
+
+    bool enabled = false;
+    GglError ret = ggl_has_provisioning_config(alloc, &enabled);
+    if (ret != GGL_ERR_OK) {
+        return ret;
     }
-    if (private_key.len != 0) {
-        GGL_LOGI("Config value for system/privateKeyPath is set.");
-        return GGL_ERR_EXPECTED;
+    if (!enabled) {
+        return GGL_ERR_OK;
     }
 
-    return GGL_ERR_OK;
-}
+    // Skip if already provisioned
+    bool provisioned = false;
+    ret = ggl_is_already_provisioned(alloc, &provisioned);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+    if (provisioned) {
+        GGL_LOGI("Skipping provisioning.");
+        return GGL_ERR_OK;
+    }
 
-static GglError fetch_from_db(FleetProvArgs *args) {
-    if (args->claim_cert_path == NULL) {
-        GGL_LOGD("Requesting db for "
-                 "services/aws.greengrass.fleet_provisioning/configuration/"
-                 "claimCertPath");
-        static uint8_t claim_cert_path_mem[PATH_MAX] = { 0 };
-        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
-            GGL_BUF(claim_cert_path_mem), 0, sizeof(claim_cert_path_mem) - 1
-        ));
-        GglBuffer claim_cert_path = { 0 };
-        GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("aws.greengrass.fleet_provisioning"),
-                GGL_STR("configuration"),
-                GGL_STR("claimCertPath")
-            ),
-            &alloc,
-            &claim_cert_path
+    GglBuffer tmp_cert_path = GGL_STR("/tmp/provisioning/");
+
+    ret = ggl_get_configuration(args);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    int output_dir;
+    ret = ggl_dir_open(tmp_cert_path, O_PATH, true, &output_dir);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE(
+            "Error opening output directory %.*s.",
+            (int) tmp_cert_path.len,
+            tmp_cert_path.data
         );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        args->claim_cert_path = (char *) claim_cert_path.data;
-    }
-
-    if (args->claim_key_path == NULL) {
-        GGL_LOGD("Requesting db for "
-                 "services/aws.greengrass.fleet_provisioning/configuration/"
-                 "claimKeyPath");
-        static uint8_t claim_key_path_mem[PATH_MAX] = { 0 };
-        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
-            GGL_BUF(claim_key_path_mem), 0, sizeof(claim_key_path_mem) - 1
-        ));
-        GglBuffer claim_key_path;
-        GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("aws.greengrass.fleet_provisioning"),
-                GGL_STR("configuration"),
-                GGL_STR("claimKeyPath")
-            ),
-            &alloc,
-            &claim_key_path
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        args->claim_key_path = (char *) claim_key_path_mem;
-    }
-
-    if (args->root_ca_path == NULL) {
-        GGL_LOGD("Requesting db for "
-                 "services/aws.greengrass.fleet_provisioning/configuration/"
-                 "rootCaPath");
-        static uint8_t root_ca_path_mem[PATH_MAX] = { 0 };
-        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
-            GGL_BUF(root_ca_path_mem), 0, sizeof(root_ca_path_mem) - 1
-        ));
-        GglBuffer root_ca_path;
-        GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("aws.greengrass.fleet_provisioning"),
-                GGL_STR("configuration"),
-                GGL_STR("rootCaPath")
-            ),
-            &alloc,
-            &root_ca_path
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        args->root_ca_path = (char *) root_ca_path_mem;
-    }
-
-    if (args->data_endpoint == NULL) {
-        GGL_LOGD("Requesting db for "
-                 "services/aws.greengrass.fleet_provisioning/configuration/"
-                 "iotDataEndpoint");
-        static uint8_t data_endpoint_mem[MAX_ENDPOINT_LENGTH + 1] = { 0 };
-        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
-            GGL_BUF(data_endpoint_mem), 0, sizeof(data_endpoint_mem) - 1
-        ));
-        GglBuffer data_endpoint;
-        GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("aws.greengrass.fleet_provisioning"),
-                GGL_STR("configuration"),
-                GGL_STR("iotDataEndpoint")
-            ),
-            &alloc,
-            &data_endpoint
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        args->data_endpoint = (char *) data_endpoint_mem;
-    }
-
-    if (args->template_name == NULL) {
-        GGL_LOGD("Requesting db for "
-                 "services/aws.greengrass.fleet_provisioning/configuration/"
-                 "templateName");
-        static uint8_t template_name_mem[MAX_TEMPLATE_LEN + 1] = { 0 };
-        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
-            GGL_BUF(template_name_mem), 0, sizeof(template_name_mem) - 1
-        ));
-        GglBuffer template_name;
-        GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("aws.greengrass.fleet_provisioning"),
-                GGL_STR("configuration"),
-                GGL_STR("templateName")
-            ),
-            &alloc,
-            &template_name
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        args->template_name = (char *) template_name_mem;
-    }
-
-    if (args->template_parameters == NULL) {
-        GGL_LOGD("Requesting db for "
-                 "services/aws.greengrass.fleet_provisioning/configuration/"
-                 "templateParams");
-        static uint8_t template_params_mem[MAX_TEMPLATE_PARAM_LEN + 1] = { 0 };
-        GglArena alloc = ggl_arena_init(ggl_buffer_substr(
-            GGL_BUF(template_params_mem), 0, sizeof(template_params_mem) - 1
-        ));
-        GglBuffer template_params;
-        GglError ret = ggl_gg_config_read_str(
-            GGL_BUF_LIST(
-                GGL_STR("services"),
-                GGL_STR("aws.greengrass.fleet_provisioning"),
-                GGL_STR("configuration"),
-                GGL_STR("templateParams")
-            ),
-            &alloc,
-            &template_params
-        );
-        if (ret != GGL_ERR_OK) {
-            return ret;
-        }
-
-        args->template_parameters = (char *) template_params_mem;
-    }
-    return GGL_ERR_OK;
-}
-
-static GglError cleanup_actions(void) {
-    const char *args[]
-        = { "chown", "-R", USER_GROUP, (char *) ggcredentials_path.data, NULL };
-
-    GglError ret = ggl_exec_command(args);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to change ownership of certificates");
         return ret;
     }
-
-    GGL_LOGI("Restarting all greengrass services to apply changes");
-
-    const char *args_stop[]
-        = { "systemctl", "stop", "greengrass-lite.target", NULL };
-    ret = ggl_exec_command(args_stop);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to stop greengrass service");
-        return ret;
-    }
-    const char *args_reset[] = { "systemctl", "reset-failed", NULL };
-    ret = ggl_exec_command(args_reset);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to reset services run counter");
-        return ret;
-    }
-    const char *args_start[]
-        = { "systemctl", "start", "greengrass-lite.target", NULL };
-    ret = ggl_exec_command(args_start);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to restart greengrass service");
-        return ret;
-    }
-
-    return GGL_ERR_OK;
-}
-
-static GglError update_iot_endpoints(void) {
-    static uint8_t endpoint_mem[2048] = { 0 };
-    GglArena alloc = ggl_arena_init(GGL_BUF(endpoint_mem));
-    GglBuffer data_endpoint;
-    GglError ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("aws.greengrass.fleet_provisioning"),
-            GGL_STR("configuration"),
-            GGL_STR("iotDataEndpoint")
-        ),
-        &alloc,
-        &data_endpoint
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    ret = ggl_gg_config_write(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("aws.greengrass.NucleusLite"),
-            GGL_STR("configuration"),
-            GGL_STR("iotDataEndpoint")
-        ),
-        ggl_obj_buf(data_endpoint),
-        &(int64_t) { 3 }
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    alloc = ggl_arena_init(GGL_BUF(endpoint_mem));
-    GglBuffer cred_endpoint = GGL_BUF(endpoint_mem);
-    ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("aws.greengrass.fleet_provisioning"),
-            GGL_STR("configuration"),
-            GGL_STR("iotCredEndpoint")
-        ),
-        &alloc,
-        &cred_endpoint
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    ret = ggl_gg_config_write(
-        GGL_BUF_LIST(
-            GGL_STR("services"),
-            GGL_STR("aws.greengrass.NucleusLite"),
-            GGL_STR("configuration"),
-            GGL_STR("iotCredEndpoint")
-        ),
-        ggl_obj_buf(cred_endpoint),
-        &(int64_t) { 3 }
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    return GGL_ERR_OK;
-}
-
-GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid) {
-    // Check the config to see if we need to provision
-    GglError ret = fetch_prov_status();
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGI("Device already provisioned skipping.");
-        return ret;
-    }
-    ret = check_if_claim_cert(*args);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Claim certs weren't accessable");
-        return ret;
-    }
-
-    if (args->out_cert_path != NULL) {
-        ggcredentials_path
-            = (GglBuffer) { .data = (uint8_t *) args->out_cert_path,
-                            .len = strlen(args->out_cert_path) };
-    }
-
-    {
-        int config_dir;
-        ret = ggl_dir_open(ggcredentials_path, O_RDONLY, false, &config_dir);
-        if (ret != GGL_ERR_OK) {
-            GGL_LOGI(
-                "Could not open %.*s directory.",
-                (int) ggcredentials_path.len,
-                ggcredentials_path.data
-            );
-            return ret;
-        }
-        (void) ggl_close(config_dir);
-    }
-
-    ret = fetch_from_db(args);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    EVP_PKEY *pkey = NULL;
-    X509_REQ *csr_req = NULL;
-
-    GGL_LOGD("Requesting db for system/rootPath");
-    static uint8_t root_dir_mem[4096] = { 0 };
-    GglArena alloc = ggl_arena_init(GGL_BUF(root_dir_mem));
-    GglBuffer root_dir;
-    ret = ggl_gg_config_read_str(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootPath")), &alloc, &root_dir
-    );
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
+    GGL_CLEANUP(cleanup_close, output_dir);
 
     pid_t iotcored_pid = -1;
     ret = start_iotcored(args, &iotcored_pid);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
-    *pid = iotcored_pid;
+    GGL_CLEANUP(cleanup_kill_process, iotcored_pid);
 
-    static uint8_t private_file_path_mem[MAX_PATH_LEN] = { 0 };
-    GglByteVec private_file_path_vec = GGL_BYTE_VEC(private_file_path_mem);
-    ret = ggl_byte_vec_append(&private_file_path_vec, ggcredentials_path);
-    ggl_byte_vec_chain_append(
-        &ret, &private_file_path_vec, GGL_STR("/private_key.pem.key")
-    );
-    ggl_byte_vec_chain_push(&ret, &private_file_path_vec, '\0');
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error to append private key path");
-        return ret;
-    }
-
-    static uint8_t public_file_path_mem[MAX_PATH_LEN] = { 0 };
-    GglByteVec public_file_path_vec = GGL_BYTE_VEC(public_file_path_mem);
-    ret = ggl_byte_vec_append(&public_file_path_vec, ggcredentials_path);
-    ggl_byte_vec_chain_append(
-        &ret, &public_file_path_vec, GGL_STR("/public_key.pem.key")
-    );
-    ggl_byte_vec_chain_push(&ret, &public_file_path_vec, '\0');
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error to append public key path");
-        return ret;
-    }
-
-    static uint8_t cert_file_path_mem[MAX_PATH_LEN] = { 0 };
-    GglByteVec cert_file_path_vec = GGL_BYTE_VEC(cert_file_path_mem);
-    ret = ggl_byte_vec_append(&cert_file_path_vec, ggcredentials_path);
-    ggl_byte_vec_chain_append(
-        &ret, &cert_file_path_vec, GGL_STR("/certificate.pem.crt")
-    );
-    ggl_byte_vec_chain_push(&ret, &cert_file_path_vec, '\0');
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error to append certificate key path");
-        return ret;
-    }
-
-    static uint8_t csr_file_path_mem[MAX_PATH_LEN] = { 0 };
-    GglByteVec csr_file_path_vec = GGL_BYTE_VEC(csr_file_path_mem);
-    ret = ggl_byte_vec_append(&csr_file_path_vec, ggcredentials_path);
-    ggl_byte_vec_chain_append(&ret, &csr_file_path_vec, GGL_STR("/csr.pem"));
-    ggl_byte_vec_chain_push(&ret, &csr_file_path_vec, '\0');
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error to append csr path");
-        return ret;
-    }
-
-    ret = generate_key_files(
-        pkey,
-        csr_req,
-        private_file_path_vec.buf,
-        public_file_path_vec.buf,
-        csr_file_path_vec.buf
+    int priv_key;
+    ret = ggl_file_openat(
+        output_dir, GGL_STR("priv_key"), O_RDWR | O_CREAT, 0600, &priv_key
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error opening private key file for writing.");
+        return ret;
+    }
+    GGL_CLEANUP(cleanup_close, priv_key);
+
+    int pub_key;
+    ret = ggl_file_openat(
+        output_dir, GGL_STR("pub_key.pub"), O_RDWR | O_CREAT, 0600, &pub_key
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error opening public key file for writing.");
+        return ret;
+    }
+    GGL_CLEANUP(cleanup_close, pub_key);
+
+    int cert_req;
+    ret = ggl_file_openat(
+        output_dir, GGL_STR("cert_req.pem"), O_RDWR | O_CREAT, 0600, &cert_req
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error opening CSR file for writing.");
+        return ret;
+    }
+    GGL_CLEANUP(cleanup_close, cert_req);
+
+    ret = ggl_pki_generate_keypair(priv_key, pub_key, cert_req);
+    if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    EVP_PKEY_free(pkey);
-    X509_REQ_free(csr_req);
+    (void) lseek(priv_key, 0, SEEK_SET);
+    (void) lseek(pub_key, 0, SEEK_SET);
+    (void) lseek(cert_req, 0, SEEK_SET);
 
-    static uint8_t csr_mem[2048] = { 0 };
-
-    // Try to read csr into memory
-    int fd = -1;
-    ret = ggl_file_open(csr_file_path_vec.buf, O_RDONLY, 0, &fd);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error opening csr file %d", ret);
-        return ret;
-    }
-
-    GglBuffer csr_buf = GGL_BUF(csr_mem);
-    ret = ggl_file_read(fd, &csr_buf);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to read csr file.");
+    // Read CSR from file descriptor
+    uint8_t csr_mem[MAX_CSR_LENGTH] = { 0 };
+    ssize_t csr_len = read(cert_req, csr_mem, sizeof(csr_mem) - 1);
+    if (csr_len <= 0) {
+        GGL_LOGE("Failed to read CSR from file.");
         return GGL_ERR_FAILURE;
     }
-    GGL_LOGD("CSR successfully read..");
+    GglBuffer csr_buf = { .data = csr_mem, .len = (size_t) csr_len };
 
-    ret = make_request(csr_buf, cert_file_path_vec.buf, iotcored_pid);
-    if (ret != GGL_ERR_OK) {
-        return ret;
-    }
-
-    // Copy root CA to provisioned-cert directory
-    static uint8_t root_ca_dest_path_mem[MAX_PATH_LEN] = { 0 };
-    GglByteVec root_ca_dest_path_vec = GGL_BYTE_VEC(root_ca_dest_path_mem);
-    ret = ggl_byte_vec_append(&root_ca_dest_path_vec, ggcredentials_path);
-    ggl_byte_vec_chain_append(
-        &ret, &root_ca_dest_path_vec, GGL_STR("/AmazonRootCA.pem")
-    );
-    ggl_byte_vec_chain_push(&ret, &root_ca_dest_path_vec, '\0');
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Error to append root CA dest path");
-        return ret;
-    }
-
-    const char *cp_args[] = {
-        "cp", args->root_ca_path, (char *) root_ca_dest_path_vec.buf.data, NULL
-    };
-    ret = ggl_exec_command(cp_args);
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to copy root CA file");
-        return ret;
-    }
-
-    ret = ggl_gg_config_write(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("privateKeyPath")),
-        ggl_obj_buf(ggl_buffer_substr(
-            private_file_path_vec.buf, 0, private_file_path_vec.buf.len - 1
-        )),
-        &(int64_t) { 3 }
+    // Parse template parameters
+    GglObject template_params_obj;
+    ret = ggl_json_decode_destructive(
+        ggl_buffer_from_null_term(args->template_params),
+        &alloc,
+        &template_params_obj
     );
     if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to parse template parameters.");
         return ret;
     }
+    if (ggl_obj_type(template_params_obj) != GGL_TYPE_MAP) {
+        GGL_LOGE("Template parameters must be a JSON object.");
+        return GGL_ERR_INVALID;
+    }
 
-    ret = ggl_gg_config_write(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("rootCaPath")),
-        ggl_obj_buf((GglBuffer) { .data = root_ca_dest_path_vec.buf.data,
-                                  .len = root_ca_dest_path_vec.buf.len - 1 }),
-        &(int64_t) { 3 }
+    // Create certificate output file
+    int certificate_fd;
+    ret = ggl_file_openat(
+        output_dir,
+        GGL_STR("certificate.pem"),
+        O_RDWR | O_CREAT,
+        0600,
+        &certificate_fd
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Error opening certificate file for writing.");
+        return ret;
+    }
+    GGL_CLEANUP(cleanup_close, certificate_fd);
+
+    // Wait for MQTT(iotcored) connection to establish
+    (void) ggl_sleep(5);
+
+    static uint8_t thing_name_mem[128];
+    GglBuffer thing_name = GGL_BUF(thing_name_mem);
+
+    ret = ggl_get_certificate_from_aws(
+        csr_buf,
+        ggl_buffer_from_null_term(args->template_name),
+        ggl_obj_into_map(template_params_obj),
+        &thing_name,
+        certificate_fd
     );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
 
-    ret = update_iot_endpoints();
-    if (ret != GGL_ERR_OK) {
-        return ret;
+    GglBuffer output_dir_path = GGL_STR("/var/lib/greengrass/credentials/");
+    if (args->output_dir != NULL) {
+        output_dir_path = ggl_buffer_from_null_term(args->output_dir);
     }
 
-    ret = cleanup_actions();
+    ret = cleanup_actions(output_dir_path, tmp_cert_path, thing_name, args);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
