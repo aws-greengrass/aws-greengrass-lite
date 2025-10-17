@@ -48,7 +48,11 @@ GglError run_gg_fleet_statusd(void) {
     }
 
     ret = ggl_aws_iot_mqtt_connection_status(
-        connection_status_callback, connection_status_close_callback, NULL, NULL
+        GGL_STR("aws_iot_mqtt"),
+        connection_status_callback,
+        connection_status_close_callback,
+        NULL,
+        NULL
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to subscribe to MQTT connection status.");

@@ -6,18 +6,17 @@
 #define FLEET_PROVISIONING_H
 
 #include <ggl/error.h>
-#include <sys/types.h>
 
 typedef struct {
-    char *claim_cert_path;
-    char *claim_key_path;
+    char *claim_cert;
+    char *claim_key;
     char *template_name;
-    char *template_parameters;
-    char *data_endpoint;
+    char *template_params;
+    char *endpoint;
     char *root_ca_path;
     char *iotcored_path;
-    char *out_cert_path;
+    char *output_dir;
 } FleetProvArgs;
 
-GglError run_fleet_prov(FleetProvArgs *args, pid_t *pid);
+GglError run_fleet_prov(FleetProvArgs *args);
 #endif
