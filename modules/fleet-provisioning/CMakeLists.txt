@@ -6,8 +6,10 @@ ggl_init_module(
   fleet-provision
   LIBS ggl-sdk
        ggl-common
+       aws-iot-call
        core-bus
        ggl-exec
+       ggl-binpath
        core-bus-gg-config
        core-bus-aws-iot-mqtt
        PkgConfig::openssl
