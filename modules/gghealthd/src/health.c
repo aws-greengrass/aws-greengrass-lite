@@ -7,10 +7,12 @@
 #include "sd_bus.h"
 #include "subscriptions.h"
 #include <assert.h>
+#include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/cleanup.h>
 #include <ggl/error.h>
 #include <ggl/exec.h>
+#include <ggl/list.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/nucleus/constants.h>
@@ -18,6 +20,7 @@
 #include <ggl/vector.h>
 #include <systemd/sd-bus.h>
 #include <systemd/sd-daemon.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -185,61 +188,18 @@ GglError gghealthd_restart_component(GglBuffer component_name) {
         return GGL_ERR_FAILURE;
     }
 
-    sd_bus_error error = SD_BUS_ERROR_NULL;
-    sd_bus_message *reply = NULL;
-    int ret = sd_bus_call_method(
-        bus,
-        "org.freedesktop.systemd1",
-        "/org/freedesktop/systemd1",
-        "org.freedesktop.systemd1.Manager",
-        "RestartUnit",
-        &error,
-        &reply,
-        "ss",
-        (char *) qualified_name,
-        "replace"
-    );
-    GGL_CLEANUP(sd_bus_error_free, error);
-    GGL_CLEANUP(sd_bus_message_unrefp, reply);
+    // This is done before and after a restart. IPC requests do not count
+    // towards the burst limit. Doing this beforehand allows a failed component
+    // to restart.
+    reset_restart_counters(bus, (char *) qualified_name);
 
-    if (ret < 0) {
-        GGL_LOGE(
-            "Failed to restart component %.*s (errno=%d) (name=%s) "
-            "(message=%s)",
-            (int) component_name.len,
-            component_name.data,
-            -ret,
-            error.name,
-            error.message
-        );
-        return translate_dbus_call_error(ret);
+    err = restart_component(bus, (char *) qualified_name);
+    if (err != GGL_ERR_OK) {
+        return err;
     }
 
-    // Reset systemd failure counter after successful restart
-    sd_bus_error reset_error = SD_BUS_ERROR_NULL;
-    sd_bus_message *reset_reply = NULL;
-    int reset_ret = sd_bus_call_method(
-        bus,
-        "org.freedesktop.systemd1",
-        "/org/freedesktop/systemd1",
-        "org.freedesktop.systemd1.Manager",
-        "ResetFailedUnit",
-        &reset_error,
-        &reset_reply,
-        "s",
-        (char *) qualified_name
-    );
-    GGL_CLEANUP(sd_bus_error_free, reset_error);
-    GGL_CLEANUP(sd_bus_message_unrefp, reset_reply);
-
-    if (reset_ret < 0) {
-        GGL_LOGW(
-            "Failed to reset failure counter for %.*s (errno=%d)",
-            (int) component_name.len,
-            component_name.data,
-            -reset_ret
-        );
-    }
+    // Doing this again afterwards keeps restart counter at zero.
+    reset_restart_counters(bus, (char *) qualified_name);
 
     GGL_LOGI(
         "Successfully restarted component %.*s",
@@ -249,7 +209,67 @@ GglError gghealthd_restart_component(GglBuffer component_name) {
     return GGL_ERR_OK;
 }
 
+static bool is_nucleus_component(GglBuffer component_name) {
+    if (ggl_buffer_eq(component_name, GGL_STR("DeploymentService"))) {
+        return true;
+    }
+    if (ggl_buffer_eq(component_name, GGL_STR("FleetStatusService"))) {
+        return true;
+    }
+    if (ggl_buffer_eq(component_name, GGL_STR("UpdateSystemPolicyService"))) {
+        return true;
+    }
+    if (ggl_buffer_eq(component_name, GGL_STR("TelemetryAgent"))) {
+        return true;
+    }
+    if (ggl_buffer_eq(component_name, GGL_STR("main"))) {
+        return true;
+    }
+    if (ggl_buffer_eq(
+            component_name, GGL_STR("aws.greengrass.fleet_provisioning")
+        )) {
+        return true;
+    }
+    return is_nucleus_component_type(component_name);
+}
+
+static void reset_failed_components(void) {
+    static uint8_t component_list_buf[4096];
+    GglArena alloc = ggl_arena_init(GGL_BUF(component_list_buf));
+    GglList components;
+    GglError ret = get_root_component_list(&alloc, &components);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGW("Failed to get component list.");
+        return;
+    }
+
+    sd_bus *bus = NULL;
+    ret = open_bus(&bus);
+    GGL_CLEANUP(sd_bus_unrefp, bus);
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGW("Failed to connect to dbus to reset restart counters.");
+        return;
+    }
+
+    size_t reset_count = 0;
+    GGL_LIST_FOREACH (component, components) {
+        GglBuffer component_name = ggl_obj_into_buf(*component);
+        if (is_nucleus_component(component_name)) {
+            continue;
+        }
+        uint8_t qualified_name[SERVICE_NAME_MAX_LEN + 1] = { 0 };
+        ret = get_service_name(component_name, &GGL_BUF(qualified_name));
+        if (ret != GGL_ERR_OK) {
+            continue;
+        }
+        ++reset_count;
+        reset_restart_counters(bus, (char *) qualified_name);
+    }
+    GGL_LOGD("Processed reset-failed for %zu components", reset_count);
+}
+
 GglError gghealthd_init(void) {
+    reset_failed_components();
     sd_notify(0, "READY=1");
     init_health_events();
     return GGL_ERR_OK;
