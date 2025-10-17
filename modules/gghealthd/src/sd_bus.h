@@ -33,6 +33,10 @@ GglError get_unit_path(
     const char **unit_path
 );
 
+// equivalent to systemd reset-failed <service-name>
+// if qualified_name is NULL, then a global reset-failed is issued
+void reset_restart_counters(const char *qualified_name);
+
 GglError open_bus(sd_bus **bus);
 
 GglError get_service_name(GglBuffer component_name, GglBuffer *qualified_name);

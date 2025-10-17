@@ -317,3 +317,49 @@ GglError get_lifecycle_state(
     err = get_component_result(bus, unit_path, state);
     return err;
 }
+
+void reset_restart_counters(const char *qualified_name) {
+    sd_bus *bus = NULL;
+    GglError err = open_bus(&bus);
+    GGL_CLEANUP(sd_bus_unrefp, bus);
+    if (err != GGL_ERR_OK) {
+        return;
+    }
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *reply = NULL;
+
+    int ret;
+    if (qualified_name != NULL) {
+        ret = sd_bus_call_method(
+            bus,
+            "org.freedesktop.systemd1",
+            "/org/freedesktop/systemd1",
+            "org.freedesktop.systemd1.Manager",
+            "ResetFailedUnit",
+            &error,
+            &reply,
+            "s",
+            qualified_name
+        );
+    } else {
+        ret = sd_bus_call_method(
+            bus,
+            "org.freedesktop.systemd1",
+            "/org/freedesktop/systemd1",
+            "org.freedesktop.systemd1.Manager",
+            "ResetFailed",
+            &error,
+            &reply,
+            ""
+        );
+    }
+    if (ret < 0) {
+        GGL_LOGW(
+            "Failed to reset failure counter for %s (errno=%d)",
+            qualified_name,
+            -ret
+        );
+    }
+    GGL_CLEANUP(sd_bus_error_free, error);
+    GGL_CLEANUP(sd_bus_message_unrefp, reply);
+}
