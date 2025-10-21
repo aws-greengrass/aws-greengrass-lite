@@ -117,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name:
-            aws-greengrass-lite-ubuntu-${{ matrix.artifact_suffix }}-${{
+            aws-greengrass-lite-deb-${{ matrix.artifact_suffix }}-${{
             matrix.build_type }}
           path: |
             ${{ github.workspace }}/zipfile/*
@@ -127,7 +127,7 @@ jobs:
         if: matrix.build_type == 'MinSizeRel'
         uses: actions/upload-artifact@v4
         with:
-          name: aws-greengrass-lite-ubuntu-${{ matrix.artifact_suffix }}
+          name: aws-greengrass-lite-deb-${{ matrix.artifact_suffix }}
           path: |
             ${{ github.workspace }}/zipfile/*
           retention-days: 1
@@ -185,7 +185,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name:
-            aws-greengrass-lite-ubuntu-${{ matrix.arch == 'aarch64' && 'arm64'
+            aws-greengrass-lite-deb-${{ matrix.arch == 'aarch64' && 'arm64'
             || matrix.arch }}
 
       - name: Cache Podman image
