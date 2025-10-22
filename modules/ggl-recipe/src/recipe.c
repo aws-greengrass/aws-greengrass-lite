@@ -309,6 +309,29 @@ static GglError manifest_selection(
 
         GglMap platform = ggl_obj_into_map(*platform_obj);
 
+        // The manifest is only valid for lite if runtime is explicitly
+        // aws_nucleus_lite or *. If the value isn't set then that manifest is
+        // classic-only.
+        GglObject *runtime_obj = NULL;
+        if (ggl_map_get(platform, GGL_STR("runtime"), &runtime_obj)) {
+            if (ggl_obj_type(*runtime_obj) != GGL_TYPE_BUF) {
+                GGL_LOGE("Platform runtime is invalid. It must be a string");
+                return GGL_ERR_INVALID;
+            }
+
+            GglBuffer runtime_str = ggl_obj_into_buf(*runtime_obj);
+            if (!ggl_buffer_eq(runtime_str, GGL_STR("*"))
+                && !ggl_buffer_eq(runtime_str, GGL_STR("aws_nucleus_lite"))) {
+                GGL_LOGD("Skipping manifest as it is not for aws_nucleus_lite");
+                return GGL_ERR_OK;
+            }
+        } else {
+            // If runtime field is not set, that explicitly means classic-only
+            GGL_LOGD("Skipping manifest as it does not include a runtime "
+                     "platform field.");
+            return GGL_ERR_OK;
+        }
+
         // If OS is not provided then do nothing
         GglObject *os_obj;
         if (ggl_map_get(platform, GGL_STR("os"), &os_obj)) {
