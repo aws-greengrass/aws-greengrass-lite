@@ -42,6 +42,7 @@ GglError ggl_aws_iot_mqtt_subscribe(
     GglBuffer socket_name,
     GglBufList topic_filters,
     uint8_t qos,
+    bool virtual,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,
@@ -63,7 +64,8 @@ GglError ggl_aws_iot_mqtt_subscribe(
             ggl_obj_list((GglList) { .items = filters,
                                      .len = topic_filters.len })
         ),
-        ggl_kv(GGL_STR("qos"), ggl_obj_i64(qos))
+        ggl_kv(GGL_STR("qos"), ggl_obj_i64(qos)),
+        ggl_kv(GGL_STR("virtual"), ggl_obj_bool(virtual))
     );
 
     return ggl_subscribe(

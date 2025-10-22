@@ -222,7 +222,12 @@ static GglError update_job(
         GglArena call_alloc = ggl_arena_init(GGL_BUF(response_scratch));
         GglObject result = { 0 };
         ret = ggl_aws_iot_call(
-            GGL_STR("aws_iot_mqtt"), topic, payload_object, &call_alloc, &result
+            GGL_STR("aws_iot_mqtt"),
+            topic,
+            payload_object,
+            false,
+            &call_alloc,
+            &result
         );
         if (ret == GGL_ERR_OK) {
             local_version
@@ -339,6 +344,7 @@ static GglError describe_next_job(void *ctx) {
         GGL_STR("aws_iot_mqtt"),
         topic,
         payload_object,
+        false,
         &call_alloc,
         &job_description
     );
@@ -555,6 +561,7 @@ static GglError subscribe_to_next_job_topics(void *ctx) {
         GGL_STR("aws_iot_mqtt"),
         GGL_BUF_LIST(job_topic),
         QOS_AT_LEAST_ONCE,
+        false,
         next_job_execution_changed_callback,
         resubscribe_on_iotcored_close,
         NULL,

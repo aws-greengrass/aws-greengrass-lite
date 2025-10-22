@@ -11,6 +11,7 @@
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/object.h>
+#include <stdbool.h>
 
 /// Make a call to an AWS IoT MQTT API.
 /// Sends request on topic and waits for response on topic/(accepted|rejected).
@@ -19,6 +20,7 @@ GglError ggl_aws_iot_call(
     GglBuffer socket_name,
     GglBuffer topic,
     GglObject payload,
+    bool virtual,
     GglArena *alloc,
     GglObject *result
 );

@@ -98,6 +98,7 @@ static void sub_close_callback(void *ctx, uint32_t handle) {
     iotcored_unregister_subscriptions(handle, true);
 }
 
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
     (void) ctx;
 
@@ -139,6 +140,11 @@ static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         return GGL_ERR_INVALID;
     }
 
+    bool virtual = false;
+    if (ggl_map_get(params, GGL_STR("virtual"), &val)) {
+        virtual = ggl_obj_into_bool(*val);
+    }
+
     for (size_t i = 0; i < topic_filter_count; i++) {
         if (topic_filters[i].len > UINT16_MAX) {
             GGL_LOGE("Topic filter too large.");
@@ -167,10 +173,12 @@ static GglError rpc_subscribe(void *ctx, GglMap params, uint32_t handle) {
         return ret;
     }
 
-    ret = iotcored_mqtt_subscribe(topic_filters, topic_filter_count, qos);
-    if (ret != GGL_ERR_OK) {
-        iotcored_unregister_subscriptions(handle, false);
-        return ret;
+    if (!virtual) {
+        ret = iotcored_mqtt_subscribe(topic_filters, topic_filter_count, qos);
+        if (ret != GGL_ERR_OK) {
+            iotcored_unregister_subscriptions(handle, false);
+            return ret;
+        }
     }
 
     ggl_sub_accept(handle, sub_close_callback, NULL);

@@ -29,6 +29,7 @@ GglError ggl_aws_iot_mqtt_subscribe(
     GglBuffer socket_name,
     GglBufList topic_filters,
     uint8_t qos,
+    bool virtual,
     GglSubscribeCallback on_response,
     GglSubscribeCloseCallback on_close,
     void *ctx,

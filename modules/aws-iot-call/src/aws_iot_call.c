@@ -147,6 +147,7 @@ GglError ggl_aws_iot_call(
     GglBuffer socket_name,
     GglBuffer topic,
     GglObject payload,
+    bool virtual,
     GglArena *alloc,
     GglObject *result
 ) {
@@ -202,6 +203,7 @@ GglError ggl_aws_iot_call(
         socket_name,
         GGL_BUF_LIST(topic_filter.buf),
         1,
+        virtual,
         subscription_callback,
         subscription_close_callback,
         &ctx,
