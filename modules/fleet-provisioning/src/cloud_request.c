@@ -82,7 +82,6 @@ static GglError send_csr_request(
 
     GglBuffer token = ggl_obj_into_buf(*token_val);
     ret = ggl_buf_copy(token, token_out);
-    token_out->len = token.len;
 
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to copy token over");
@@ -176,7 +175,6 @@ static GglError register_thing_name_request(
     GglBuffer thing_name = ggl_obj_into_buf(*thing_name_val);
 
     ret = ggl_buf_copy(thing_name, thing_name_out);
-    thing_name_out->len = thing_name.len;
     if (ret != GGL_ERR_OK) {
         GGL_LOGE(
             "Failed to copy thingName into the out buffer. Error: %d", ret
