@@ -34,10 +34,14 @@ static GglError wait_for_process(pid_t pid) {
         GGL_LOGD("Script did not exit normally");
         return GGL_ERR_FAILURE;
     }
-    GGL_LOGI("Script exited with child status %d", WEXITSTATUS(child_status));
     if (WEXITSTATUS(child_status) != 0) {
+        GGL_LOGE(
+            "Script exited with child status %d", WEXITSTATUS(child_status)
+        );
         return GGL_ERR_FAILURE;
     }
+
+    GGL_LOGD("Script exited with child status as success");
     return GGL_ERR_OK;
 }
 
