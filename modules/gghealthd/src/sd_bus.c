@@ -5,7 +5,9 @@
 #include "sd_bus.h"
 #include <assert.h>
 #include <errno.h>
+#include <ggl/buffer.h>
 #include <ggl/cleanup.h>
+#include <ggl/error.h>
 #include <ggl/log.h>
 #include <ggl/map.h>
 #include <ggl/nucleus/constants.h>
@@ -316,4 +318,65 @@ GglError get_lifecycle_state(
     // disambiguate `failed` and `inactive`
     err = get_component_result(bus, unit_path, state);
     return err;
+}
+
+void reset_restart_counters(sd_bus *bus, const char *qualified_name) {
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *reply = NULL;
+    GGL_LOGT("Issuing systemctl reset-failed for %s", qualified_name);
+    int ret = sd_bus_call_method(
+        bus,
+        "org.freedesktop.systemd1",
+        "/org/freedesktop/systemd1",
+        "org.freedesktop.systemd1.Manager",
+        "ResetFailedUnit",
+        &error,
+        &reply,
+        "s",
+        qualified_name
+    );
+    if (ret < 0) {
+        GGL_LOGW(
+            "Failed to reset failure counter for %s (errno=%d) (name=%s) "
+            "(message=%s)",
+            qualified_name,
+            -ret,
+            error.name,
+            error.message
+        );
+    }
+    GGL_CLEANUP(sd_bus_error_free, error);
+    GGL_CLEANUP(sd_bus_message_unrefp, reply);
+}
+
+GglError restart_component(sd_bus *bus, const char *qualified_name) {
+    sd_bus_error error = SD_BUS_ERROR_NULL;
+    sd_bus_message *reply = NULL;
+    int ret = sd_bus_call_method(
+        bus,
+        "org.freedesktop.systemd1",
+        "/org/freedesktop/systemd1",
+        "org.freedesktop.systemd1.Manager",
+        "RestartUnit",
+        &error,
+        &reply,
+        "ss",
+        (char *) qualified_name,
+        "replace"
+    );
+    GGL_CLEANUP(sd_bus_error_free, error);
+    GGL_CLEANUP(sd_bus_message_unrefp, reply);
+
+    if (ret < 0) {
+        GGL_LOGE(
+            "Failed to restart component %s (errno=%d) (name=%s) "
+            "(message=%s)",
+            qualified_name,
+            -ret,
+            error.name,
+            error.message
+        );
+        return translate_dbus_call_error(ret);
+    }
+    return GGL_ERR_OK;
 }
