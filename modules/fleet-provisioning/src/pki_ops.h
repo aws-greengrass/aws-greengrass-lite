@@ -8,7 +8,7 @@
 #include <ggl/error.h>
 
 GglError ggl_pki_generate_keypair(
-    int private_key_fd, int public_key_fd, int csr_fd
+    int private_key_fd, int public_key_fd, int csr_fd, const char *common_name
 );
 
 #endif

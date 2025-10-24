@@ -14,7 +14,6 @@
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/file.h>
-#include <ggl/json_decode.h>
 #include <ggl/log.h>
 #include <ggl/object.h>
 #include <ggl/utils.h>
@@ -135,6 +134,10 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     uint8_t config_resp_mem[PATH_MAX] = { 0 };
     GglArena alloc = ggl_arena_init(GGL_BUF(config_resp_mem));
 
+    static uint8_t template_params_mem[MAX_TEMPLATE_PARAM_LEN] = { 0 };
+    GglArena template_alloc = ggl_arena_init(GGL_BUF(template_params_mem));
+    GglMap template_params = { 0 };
+
     bool enabled = false;
     GglError ret = ggl_has_provisioning_config(alloc, &enabled);
     if (ret != GGL_ERR_OK) {
@@ -158,6 +161,11 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     GglBuffer tmp_cert_path = GGL_STR("/tmp/provisioning/");
 
     ret = ggl_get_configuration(args);
+    if (ret != GGL_ERR_OK) {
+        return ret;
+    }
+
+    ret = ggl_load_template_params(args, &template_alloc, &template_params);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -211,7 +219,9 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     }
     GGL_CLEANUP(cleanup_close, cert_req);
 
-    ret = ggl_pki_generate_keypair(priv_key, pub_key, cert_req);
+    ret = ggl_pki_generate_keypair(
+        priv_key, pub_key, cert_req, args->csr_common_name
+    );
     if (ret != GGL_ERR_OK) {
         return ret;
     }
@@ -228,22 +238,6 @@ GglError run_fleet_prov(FleetProvArgs *args) {
         return GGL_ERR_FAILURE;
     }
     GglBuffer csr_buf = { .data = csr_mem, .len = (size_t) csr_len };
-
-    // Parse template parameters
-    GglObject template_params_obj;
-    ret = ggl_json_decode_destructive(
-        ggl_buffer_from_null_term(args->template_params),
-        &alloc,
-        &template_params_obj
-    );
-    if (ret != GGL_ERR_OK) {
-        GGL_LOGE("Failed to parse template parameters.");
-        return ret;
-    }
-    if (ggl_obj_type(template_params_obj) != GGL_TYPE_MAP) {
-        GGL_LOGE("Template parameters must be a JSON object.");
-        return GGL_ERR_INVALID;
-    }
 
     // Create certificate output file
     int certificate_fd;
@@ -269,7 +263,7 @@ GglError run_fleet_prov(FleetProvArgs *args) {
     ret = ggl_get_certificate_from_aws(
         csr_buf,
         ggl_buffer_from_null_term(args->template_name),
-        ggl_obj_into_map(template_params_obj),
+        template_params,
         &thing_name,
         certificate_fd
     );

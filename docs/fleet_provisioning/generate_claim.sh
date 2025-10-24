@@ -5,6 +5,7 @@ set -e
 REGION="${AWS_DEFAULT_REGION:-us-west-2}"
 ACCOUNT_ID=$(aws sts get-caller-identity --query "Account" --output text)
 STACK_NAME="GreengrassFleetProvisioning"
+CSR_COMMON_NAME="${CSR_COMMON_NAME:-aws-greengrass-nucleus-lite}"
 
 # Calculate directories relative to script location
 SCRIPT_DIR="$(pwd)"
@@ -111,6 +112,7 @@ echo -e "\n=== Creating part.config.yaml snippet ==="
   printf '\t\tclaimCertPath: "%s"\n' "${TEMP_DIR}/certificate.pem.crt"
   printf '\t\trootCaPath: "%s"\n' "${TEMP_DIR}/AmazonRootCA1.pem"
   printf '\t\ttemplateName: "%s"\n' "${PROVISIONING_TEMPLATE_NAME}"
+  printf '\t\tcsrCommonName: "%s"\n' "${CSR_COMMON_NAME}"
 } > "${TEMP_DIR}"/part.config.yaml
 
 echo -e "\n=== Fleet provisioning setup complete ==="

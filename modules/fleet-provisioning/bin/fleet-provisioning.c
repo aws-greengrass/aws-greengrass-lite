@@ -70,7 +70,7 @@ static error_t arg_parser(int key, char *arg, struct argp_state *state) {
         args->template_name = arg;
         break;
     case 'p':
-        args->template_params = arg;
+        args->template_params_json = arg;
         break;
     case 'r':
         args->root_ca_path = arg;

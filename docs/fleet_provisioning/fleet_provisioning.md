@@ -62,6 +62,14 @@ chmod +x ./generate_claim.sh
 ./generate_claim.sh
 ```
 
+Optionally, you can specify a custom CSR common name:
+
+```
+CSR_COMMON_NAME="my-custom-name" ./generate_claim.sh
+```
+
+If not specified, the default value "aws-greengrass-nucleus-lite" will be used.
+
 Once the stack is up and running, you should see the following resources in the
 cloud:
 
@@ -89,7 +97,7 @@ Once you see all the resources in the cloud, you can continue to the next steps.
 Here, the template name is `GreengrassFleetProvisioningTemplate` and the
 template requires (based on the above example) you to provide only a MAC address
 as the serial number in the template parameter. Your nucleus config should
-roughly look as follows:
+roughly look as below:
 
 ### `config.yaml`
 
@@ -120,7 +128,9 @@ services:
       claimKeyPath: "path/to/private.pem.key" #[Modify here]
       claimCertPath: "path/to/certificate.pem.crt" #[Modify here]
       templateName: "GreengrassFleetProvisioningTemplate" #[Modify here]
-      templateParams: '{"SerialNumber": "a2_b9_d2_5a_fd_f9"}' #[Modify here]
+      templateParams:
+        SerialNumber: "a2_b9_d2_5a_fd_f9" #[Modify here]
+      csrCommonName: "aws-greengrass-nucleus-lite" #[Modify if here]
 ```
 
 Things to note about the above config:
@@ -130,8 +140,6 @@ Things to note about the above config:
    Note that `templateParams` is still required.
 2. If you wish to move the certificate to a different location, then you need to
    update the path accordingly.
-3. The value of `templateParams` must be in JSON format. Currently, only JSON
-   format is supported.
 
 Once completed, the config needs to be moved and all services need to be started
 (if not started already). Run the following command, assuming your current

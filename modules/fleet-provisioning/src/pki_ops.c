@@ -28,7 +28,7 @@ static void cleanup_x509_name(X509_NAME **name) {
 }
 
 GglError ggl_pki_generate_keypair(
-    int private_key_fd, int public_key_fd, int csr_fd
+    int private_key_fd, int public_key_fd, int csr_fd, const char *common_name
 ) {
     EVP_PKEY *pkey = EVP_PKEY_Q_keygen(NULL, NULL, "EC", "P-256");
     if (!pkey) {
@@ -67,9 +67,6 @@ GglError ggl_pki_generate_keypair(
         return GGL_ERR_FAILURE;
     }
 
-    // TODO: get null-term thing name
-    const char *device_id = "aws-greengrass-nucleus-lite";
-
     X509_REQ *csr = X509_REQ_new();
     if (csr == NULL) {
         GGL_LOGE("Failed to allocate x509 CSR memory.");
@@ -88,7 +85,7 @@ GglError ggl_pki_generate_keypair(
         cert_name,
         "CN",
         MBSTRING_ASC,
-        (const unsigned char *) device_id,
+        (const unsigned char *) common_name,
         -1,
         -1,
         0

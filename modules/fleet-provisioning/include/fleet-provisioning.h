@@ -11,10 +11,11 @@ typedef struct {
     char *claim_cert;
     char *claim_key;
     char *template_name;
-    char *template_params;
+    char *template_params_json;
     char *endpoint;
     char *root_ca_path;
     char *iotcored_path;
+    char *csr_common_name;
     char *output_dir;
 } FleetProvArgs;
 

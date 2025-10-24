@@ -9,12 +9,16 @@
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
+#include <ggl/object.h>
 #include <stdbool.h>
 
 GglError ggl_update_iot_endpoints(FleetProvArgs *args);
 GglError ggl_has_provisioning_config(GglArena alloc, bool *prov_enabled);
 GglError ggl_is_already_provisioned(GglArena alloc, bool *provisioned);
 GglError ggl_get_configuration(FleetProvArgs *args);
+GglError ggl_load_template_params(
+    FleetProvArgs *args, GglArena *alloc, GglMap *template_params
+);
 GglError ggl_update_system_cert_paths(
     GglBuffer output_dir_path, FleetProvArgs *args, GglBuffer thing_name
 );
