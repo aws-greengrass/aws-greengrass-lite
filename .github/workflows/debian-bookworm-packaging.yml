@@ -1,0 +1,59 @@
+name: Debian Bookworm - Build deb packages
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [RelWithDebInfo, MinSizeRel]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      - name: Build in Debian Bookworm container
+        run: |
+          podman run --rm \
+            -v $PWD:/workspace:Z \
+            -w /workspace \
+            arm64v8/debian:bookworm-slim \
+            bash -c "
+              apt-get update && apt-get -y upgrade && \
+              apt-get -y install --no-install-recommends \
+                build-essential pkg-config cmake git ca-certificates file \
+                libssl-dev libcurl4-openssl-dev libsqlite3-dev \
+                libyaml-dev libsystemd-dev liburiparser-dev \
+                uuid-dev libevent-dev libzip-dev && \
+              update-ca-certificates && \
+              cmake -B build \
+                -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+                -DGGL_SYSTEMD_SYSTEM_USER=ggcore \
+                -DGGL_SYSTEMD_SYSTEM_GROUP=ggcore \
+                -DCMAKE_INSTALL_PREFIX=/usr && \
+              make -C build -j\$(nproc) && \
+              cd build && cpack -G DEB
+            "
+
+      - name: Save packages
+        run: |
+          mkdir -p packages/
+          cp build/*.deb packages/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-bookworm-${{ matrix.build_type }}
+          path: packages/*.deb
+          retention-days: 7
