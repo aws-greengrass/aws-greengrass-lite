@@ -30,9 +30,7 @@ simply following a few principles:
 - If you modify/create the yaml file at `/etc/greengrass/config.yaml` before
   `ggconfigd` starts, then Greengrass will always initialize itself with the
   contents of the file. Hence, any systemd service file for provisioning should
-  mark itself to run with `Before=ggl.core.ggconfigd.service` and should restart
-  `greengrass-lite.target` at the end of provisioning to reload the changes to
-  other microservices.
+  mark itself to run with `Before=ggl.core.ggconfigd.service`.
 
 Any solution that respects the above rules will work with GG Nucleus Lite.
 

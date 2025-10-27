@@ -3,7 +3,7 @@
 The `GetConfiguration` IPC command retrieves a component's configuration stored
 at the nucleus level using the `gg_config` core-bus interface.
 
-- [get-config-1] It can be invoked with the topic `GetConfiguration`.
+- [get-config-1] It will be invoked with the topic `GetConfiguration`.
 - [get-config-2] It can get any component's configurations under the `services`
   section of nucleus config.
 - [get-config-3] It does not require access control policy in recipe to work.

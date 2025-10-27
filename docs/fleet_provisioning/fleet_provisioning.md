@@ -17,7 +17,8 @@ subscribe, and receive access to `CreateCertificateFromCsr` and `RegisterThing`
 topics mentioned in the
 [linked AWS docs](https://docs.aws.amazon.com/iot/latest/developerguide/fleet-provision-api.html).
 
-### In this demo, we are using a CloudFormation template with overly permissive policies. Please consider reducing the permissions in the template for production use as needed.
+> Note in this demo, we are using restrictive production policies, please double
+> check the policies accordingly.
 
 ## Before getting started
 
@@ -127,10 +128,10 @@ services:
       rootCaPath: "/path/to/AmazonRootCA1.pem" #[Modify here]
       claimKeyPath: "path/to/private.pem.key" #[Modify here]
       claimCertPath: "path/to/certificate.pem.crt" #[Modify here]
+      csrCommonName: "aws-greengrass-nucleus-lite" #[Modify here]
       templateName: "GreengrassFleetProvisioningTemplate" #[Modify here]
       templateParams:
         SerialNumber: "a2_b9_d2_5a_fd_f9" #[Modify here]
-      csrCommonName: "aws-greengrass-nucleus-lite" #[Modify if here]
 ```
 
 Things to note about the above config:
