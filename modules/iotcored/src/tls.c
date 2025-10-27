@@ -123,6 +123,16 @@ static GglError proxy_get_info(
 }
 
 static void check_ktls_status(SSL *ssl) {
+    // Check the current TLS version
+    if (SSL_version(ssl) == TLS1_2_VERSION) {
+        GGL_LOGD("TLS 1.2 connection established — kTLS is eligible.");
+    } else {
+        GGL_LOGD(
+            "kTLS may not be active because the TLS version is %s, not 1.2.",
+            SSL_get_version(ssl)
+        );
+    }
+
     BIO *wbio = SSL_get_wbio(ssl);
     BIO *rbio = SSL_get_rbio(ssl);
     // Suppress unused warnings - _FORTIFY_SOURCE may optimize away variable
@@ -145,8 +155,8 @@ static void check_ktls_status(SSL *ssl) {
 }
 
 static void try_enable_ktls(SSL_CTX *ssl_ctx) {
-    // Force TLS 1.2 for better kTLS support
-    SSL_CTX_set_max_proto_version(ssl_ctx, TLS1_2_VERSION);
+    // Set the minimum protocol version to TLS 1.2
+    SSL_CTX_set_min_proto_version(ssl_ctx, TLS1_2_VERSION);
 
     // Enable kTLS on the ctx
     SSL_CTX_set_options(ssl_ctx, SSL_OP_ENABLE_KTLS);
@@ -154,7 +164,8 @@ static void try_enable_ktls(SSL_CTX *ssl_ctx) {
         GGL_LOGW("Failed to enable kTLS option on SSL ctx.");
     }
 
-    GGL_LOGD("kTLS enabled successfully.");
+    GGL_LOGD("kTLS option set on SSL context (actual use depends on the TLS "
+             "version).");
 }
 
 static void cleanup_ssl_ctx(SSL_CTX **ctx) {
@@ -304,14 +315,14 @@ static GglError iotcored_tls_connect_no_proxy(
         return GGL_ERR_FATAL;
     }
 
-    SSL *ssl = NULL;
-    BIO_get_ssl(bio, &ssl);
-    check_ktls_status(ssl);
-
     ret = do_handshake(args->endpoint, bio);
     if (ret != GGL_ERR_OK) {
         return ret;
     }
+
+    SSL *ssl = NULL;
+    BIO_get_ssl(bio, &ssl);
+    check_ktls_status(ssl);
 
     // Since connection is established, cancel the cleanup.
     ctx_cleanup = NULL;
