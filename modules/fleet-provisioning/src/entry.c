@@ -281,5 +281,6 @@ GglError run_fleet_prov(FleetProvArgs *args) {
         return ret;
     }
 
+    GGL_LOGI("Process Complete, Your device is now provisioned");
     return GGL_ERR_OK;
 }

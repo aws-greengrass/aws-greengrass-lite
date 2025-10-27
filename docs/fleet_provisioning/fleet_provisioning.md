@@ -175,6 +175,6 @@ to complete.
 If you are storing the standard output, look for the log:
 `Process Complete, Your device is now provisioned`.
 
-> You might see some error logs such as
-> `process is getting killed by signal 15`. This is expected and correct
+> You might see some debug logs such as
+> `process is getting terminated by signal 15`. This is expected and correct
 > behavior.

@@ -112,15 +112,15 @@ GglError ggl_exec_kill_process(pid_t process_id) {
                 WEXITSTATUS(status)
             );
         } else if (WIFSIGNALED(status)) {
-            GGL_LOGE(
-                "Process %d was killed by signal %d.\n",
+            GGL_LOGD(
+                "Process %d was terminated by signal %d.\n",
                 process_id,
                 WTERMSIG(status)
             );
         }
     } while (!WIFEXITED(status) && !WIFSIGNALED(status));
 
-    GGL_LOGI("Process %d has terminated.\n", process_id);
+    GGL_LOGD("Process %d has terminated.\n", process_id);
 
     // NOLINTEND(concurrency-mt-unsafe, readability-else-after-return)
     return GGL_ERR_OK;
