@@ -54,6 +54,7 @@ corebus. This table identifies the corebus component that does the work.
 | CreateLocalDeployment          | ggdeploymentd                |
 | ValidateAuthorizationToken     | ggipcd                       |
 | RestartComponent               | gghealthd                    |
+| UpdateState                    | gghealthd                    |
 
 Additional IPC commands will be supported in future releases.
 

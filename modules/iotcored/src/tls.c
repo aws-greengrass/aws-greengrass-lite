@@ -123,16 +123,6 @@ static GglError proxy_get_info(
 }
 
 static void check_ktls_status(SSL *ssl) {
-    // Check the current TLS version
-    if (SSL_version(ssl) == TLS1_2_VERSION) {
-        GGL_LOGD("TLS 1.2 connection established — kTLS is eligible.");
-    } else {
-        GGL_LOGD(
-            "kTLS may not be active because the TLS version is %s, not 1.2.",
-            SSL_get_version(ssl)
-        );
-    }
-
     BIO *wbio = SSL_get_wbio(ssl);
     BIO *rbio = SSL_get_rbio(ssl);
     // Suppress unused warnings - _FORTIFY_SOURCE may optimize away variable
@@ -164,8 +154,7 @@ static void try_enable_ktls(SSL_CTX *ssl_ctx) {
         GGL_LOGW("Failed to enable kTLS option on SSL ctx.");
     }
 
-    GGL_LOGD("kTLS option set on SSL context (actual use depends on the TLS "
-             "version).");
+    GGL_LOGD("kTLS option set on SSL context.");
 }
 
 static void cleanup_ssl_ctx(SSL_CTX **ctx) {
