@@ -200,9 +200,9 @@ sudo usermod -a -G tss ggcore
 ### 7.4 Set up Credentials Directory
 
 ```bash
-sudo mkdir -p /etc/greengrass/ggcredentials
-sudo cp device.pem AmazonRootCA1.pem /etc/greengrass/ggcredentials/
-sudo chown -R ggcore:ggcore /etc/greengrass/ggcredentials
+sudo mkdir -p /var/lib/greengrass/credentials
+sudo cp device.pem AmazonRootCA1.pem /var/lib/greengrass/credentials/
+sudo chown -R ggcore:ggcore /var/lib/greengrass/credentials
 ```
 
 **Note**: Since we're using persistent TPM keys, no private key file needs to be
