@@ -24,7 +24,7 @@ supported as mentioned in the
 
   - shutdown
   - recover
-  - bootstrap (not fully yet)
+  - bootstrap (partially)
 
 - `Skipif` section for a given lifecycle step is also not supported.
 
@@ -43,8 +43,6 @@ supported as mentioned in the
   ```
 
 - Regex support is not available within recipe.
-
-- Docker artifacts are not supported.
 
 - GG nucleus lite only support variable replacement for following cases:
 
