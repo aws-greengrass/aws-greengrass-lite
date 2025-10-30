@@ -4,7 +4,6 @@
 
 #include "ggl/recipe.h"
 #include <assert.h>
-#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/arena.h>
@@ -19,12 +18,13 @@
 #include <ggl/object.h>
 #include <ggl/vector.h>
 #include <ggl/yaml_decode.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <pthread.h>
-#include <string.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 static GglError try_open_extension(
     int recipe_dir, GglBuffer ext, GglByteVec name, GglBuffer *content
@@ -68,22 +68,6 @@ static GglError parse_requiresprivilege_section(
         }
     }
     return GGL_ERR_OK;
-}
-
-static bool is_positive_integer(GglBuffer str) {
-    // Check for null or empty string
-    if (str.len == 0) {
-        return false;
-    }
-
-    for (size_t counter = 0; counter < str.len; counter++) {
-        // Ensure all characters are digits
-        if (!isdigit(str.data[counter])) {
-            return false;
-        }
-    }
-
-    return true; // All characters are digits
 }
 
 bool ggl_is_recipe_variable(GglBuffer str) {
@@ -188,18 +172,19 @@ static GglError process_script_section_as_map(
     }
 
     if (ggl_map_get(selected_lifecycle_phase, GGL_STR("Timeout"), &val)) {
-        if (ggl_obj_type(*val) != GGL_TYPE_BUF) {
+        if (ggl_obj_type(*val) != GGL_TYPE_I64) {
             GGL_LOGE("Timeout must expand to a positive integer value");
             return GGL_ERR_INVALID;
         }
-        GglBuffer timeout_str = ggl_obj_into_buf(*val);
-        if (!ggl_is_recipe_variable(timeout_str)
-            && !is_positive_integer(timeout_str)) {
-            GGL_LOGE("Timeout must expand to a positive integer value");
-            return GGL_ERR_INVALID;
-        }
+        int64_t timeout_i64 = ggl_obj_into_i64(*val);
+        static uint8_t timeout_mem[32];
+        int len = snprintf(
+            (char *) timeout_mem, sizeof(timeout_mem), "%" PRId64, timeout_i64
+        );
+
+        GglBuffer timeout_buf = { .data = timeout_mem, .len = (size_t) len };
         if (out_timeout_value != NULL) {
-            *out_timeout_value = timeout_str;
+            *out_timeout_value = timeout_buf;
         }
     }
 
