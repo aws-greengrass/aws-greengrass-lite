@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:  # runs when creating a PR
+    branches:
+      - main
 
 jobs:
   uat-test:
@@ -36,8 +39,8 @@ jobs:
       - name: Checkout testing repository
         uses: actions/checkout@v4
         with:
-          repository: aws-greengrass/aws-greengrass-testing
-          ref: python_testing
+          repository: thomas-roos/aws-greengrass-testing
+          ref: 2025-10-24_python-testing_misc
           path: aws-greengrass-testing
 
       - name: Get temporary AWS credentials
