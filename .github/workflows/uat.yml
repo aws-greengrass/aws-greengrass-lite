@@ -17,6 +17,8 @@ jobs:
             { category: fleet-status, timeout: 1000 },
             { category: runtime, timeout: 1000 },
             { category: security, timeout: 1500 },
+            { category: system-log-forwarder, timeout: 1000 },
+            { category: hsm, timeout: 1000 },
           ]
     permissions:
       id-token: write
@@ -41,7 +43,7 @@ jobs:
           path: aws-greengrass-testing
 
       - name: Get temporary AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5.1.0
         with:
           audience: sts.amazonaws.com
           aws-region: us-west-2
