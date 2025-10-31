@@ -4,20 +4,41 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
+  list-tests:
+    runs-on: ubuntu-24.04
+    outputs:
+      tests: ${{ steps.list.outputs.tests }}
+    steps:
+      - name: Checkout testing repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.TESTING_REPO }}
+          ref: ${{ secrets.TESTING_REPO_REF }}
+          path: aws-greengrass-testing
+
+      - name: List all tests
+        id: list
+        run: |
+          cd aws-greengrass-testing
+          tests=$(find src -name "aws-greengrass-testing-*.py" -exec grep -l "^def test_" {} \; | \
+            while read file; do
+              category=$(basename "$file" | sed 's/aws-greengrass-testing-\(.*\)\.py/\1/')
+              grep -h "^def test_" "$file" | sed 's/def \(test_[^(]*\).*/\1/' | \
+              while read test; do
+                echo "{\"name\":\"$test\",\"category\":\"$category\",\"timeout\":3900}"
+              done
+            done | jq -s -c .)
+          echo "tests=$tests" >> $GITHUB_OUTPUT
+
   uat-test:
+    needs: list-tests
     strategy:
       fail-fast: false
       matrix:
-        test-category:
-          [
-            { category: component, timeout: 1000 },
-            { category: deployment, timeout: 3900 },
-            { category: fleet-status, timeout: 1000 },
-            { category: runtime, timeout: 1000 },
-            { category: security, timeout: 1500 },
-          ]
+        test: ${{ fromJson(needs.list-tests.outputs.tests) }}
     permissions:
       id-token: write
       contents: read
@@ -36,17 +57,17 @@ jobs:
       - name: Checkout testing repository
         uses: actions/checkout@v4
         with:
-          repository: aws-greengrass/aws-greengrass-testing
-          ref: python_testing
+          repository: ${{ secrets.TESTING_REPO }}
+          ref: ${{ secrets.TESTING_REPO_REF }}
           path: aws-greengrass-testing
 
       - name: Get temporary AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           audience: sts.amazonaws.com
-          aws-region: us-west-2
+          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          role-duration-seconds: ${{ matrix.test-category.timeout }}
+          role-duration-seconds: ${{ matrix.test.timeout }}
           unset-current-credentials: true
 
       - name: Set sanitized SHA to github env
@@ -56,12 +77,13 @@ jobs:
           SANITIZED_SHA=$(echo "$PR_SHA" | tr -cd 'a-fA-F0-9')
           echo "SHA=$SANITIZED_SHA" >> $GITHUB_ENV
 
-      - name: Run UAT tests
+      - name: Run UAT test
         run: |
           cd aws-greengrass-testing
           ./run-tests.sh \
             --aws-account=${{ secrets.AWS_ACCOUNT_ID }} \
             --s3-bucket=${{ secrets.S3_BUCKET }} \
             --commit-id=${{ env.SHA }} \
-            --aws-region=us-west-2 \
-            --test-category=${{ matrix.test-category.category }}
+            --aws-region=${{ secrets.AWS_DEFAULT_REGION }} \
+            --test-category=${{ matrix.test.category }} \
+            --test-name=${{ matrix.test.name }}
