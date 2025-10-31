@@ -68,3 +68,4 @@ jobs:
             --commit-id=${{ env.SHA }} \
             --aws-region=us-west-2 \
             --test-category=${{ matrix.test-category.category }}
+
