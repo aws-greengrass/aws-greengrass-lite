@@ -1,6 +1,7 @@
 #ifndef GGHEALTHD_SD_BUS_H
 #define GGHEALTHD_SD_BUS_H
 
+#include <ggl/attr.h>
 #include <ggl/buffer.h>
 #include <ggl/error.h>
 #include <ggl/nucleus/constants.h>
@@ -33,6 +34,10 @@ GglError get_unit_path(
     const char **unit_path
 );
 
+// equivalent to systemd reset-failed <service-name>
+NONNULL(2)
+void reset_restart_counters(sd_bus *bus, const char *qualified_name);
+
 GglError open_bus(sd_bus **bus);
 
 GglError get_service_name(GglBuffer component_name, GglBuffer *qualified_name);
@@ -40,6 +45,9 @@ GglError get_service_name(GglBuffer component_name, GglBuffer *qualified_name);
 GglError get_lifecycle_state(
     sd_bus *bus, const char *unit_path, GglBuffer *state
 );
+
+NONNULL(2)
+GglError restart_component(sd_bus *bus, const char *qualified_name);
 
 void *event_loop_thread(void *ctx);
 

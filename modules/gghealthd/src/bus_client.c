@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <sys/types.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 static pthread_mutex_t bump_alloc_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -55,4 +56,26 @@ GglError verify_component_exists(GglBuffer component_name) {
         component_version.data
     );
     return GGL_ERR_OK;
+}
+
+GglError get_root_component_list(GglArena *alloc, GglList *component_names) {
+    return ggl_gg_config_list(
+        GGL_BUF_LIST(GGL_STR("services")), alloc, component_names
+    );
+}
+
+bool is_nucleus_component_type(GglBuffer component_name) {
+    GglArena alloc = ggl_arena_init(GGL_BUF((uint8_t[32]) { 0 }));
+    GglBuffer component_type;
+    GglError ret = ggl_gg_config_read_str(
+        GGL_BUF_LIST(
+            GGL_STR("services"), component_name, GGL_STR("componentType")
+        ),
+        &alloc,
+        &component_type
+    );
+    if (ret != GGL_ERR_OK) {
+        return false;
+    }
+    return ggl_buffer_eq(GGL_STR("NUCLEUS"), component_type);
 }
