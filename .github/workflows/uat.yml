@@ -9,11 +9,9 @@ on:
       testing_repo:
         description: "Testing repository to use as source of tests"
         required: false
-        default: "aws-greengrass/aws-greengrass-testing"
       testing_repo_ref:
         description: "Ref (branch) on the testing repo to use"
         required: false
-        default: "python_testing"
 
 jobs:
   list-tests:
@@ -24,8 +22,10 @@ jobs:
       - name: Checkout testing repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.event.inputs.testing_repo }}
-          ref: ${{ github.event.inputs.testing_repo_ref }}
+          repository:
+            ${{ github.event.inputs.testing_repo ||
+            'aws-greengrass/aws-greengrass-testing' }}
+          ref: ${{ github.event.inputs.testing_repo_ref || 'python_testing' }}
           path: aws-greengrass-testing
 
       - name: List all tests
