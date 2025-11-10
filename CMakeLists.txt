@@ -206,6 +206,11 @@ try_add_link_option_if(strip-all $<CONFIG:Release,MinSizeRel> LINKER:-s)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_DEBUG FALSE)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
 
+# Additional optimization flags that GCC disables due to compile time cost
+try_add_cflag_if(fipa-pta $<NOT:$<CONFIG:Debug>> -fipa-pta)
+try_add_cflag_if(fdevirtualize-at-ltrans $<NOT:$<CONFIG:Debug>>
+                 -fdevirtualize-at-ltrans)
+
 if(NOT DEFINED ar_thin_flag)
   execute_process(COMMAND sh -c "${CMAKE_AR} --help | grep -- --thin"
                   RESULT_VARIABLE ar_has_thin)
