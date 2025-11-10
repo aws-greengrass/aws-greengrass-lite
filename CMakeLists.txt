@@ -211,25 +211,6 @@ try_add_cflag_if(fipa-pta $<NOT:$<CONFIG:Debug>> -fipa-pta)
 try_add_cflag_if(fdevirtualize-at-ltrans $<NOT:$<CONFIG:Debug>>
                  -fdevirtualize-at-ltrans)
 
-if(NOT DEFINED ar_thin_flag)
-  execute_process(COMMAND sh -c "${CMAKE_AR} --help | grep -- --thin"
-                  RESULT_VARIABLE ar_has_thin)
-  if(ar_has_thin EQUAL 0)
-    set(ar_thin_flag
-        "--thin"
-        CACHE INTERNAL "")
-  else()
-    set(ar_thin_flag
-        ""
-        CACHE INTERNAL "")
-  endif()
-endif()
-
-set(CMAKE_C_CREATE_STATIC_LIBRARY
-    "<CMAKE_AR> rcs ${ar_thin_flag} <TARGET> <OBJECTS>")
-set(CMAKE_C_CREATE_STATIC_LIBRARY_IPO
-    "\"${CMAKE_C_COMPILER_AR}\" rcs ${ar_thin_flag} <TARGET> <OBJECTS>")
-
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH "\$ORIGIN/../${CMAKE_INSTALL_LIBDIR}")
 
