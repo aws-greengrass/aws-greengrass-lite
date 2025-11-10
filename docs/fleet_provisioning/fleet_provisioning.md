@@ -176,6 +176,15 @@ to complete.
 If you are storing the standard output, look for the log:
 `Process Complete, Your device is now provisioned`.
 
+Once successfully provisioned please restart the greengrass service with
+
+```
+sudo systemctl restart greengrass-lite.target
+```
+
+this will allow greengrass services to load the new config changes. And only
+then will the core device be visible in the console.
+
 > You might see some debug logs such as
 > `process is getting terminated by signal 15`. This is expected and correct
 > behavior.
