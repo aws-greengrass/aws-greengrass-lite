@@ -13,10 +13,27 @@ See docs at
 - [fss-4] Fleet status updates are sent at a configured cadence.
 - [fss-5] Fleet status updates are sent on startup and at any instances of mqtt
   reconnection.
+- [fss-6] The service reads periodic update interval from configuration.
+- [fss-7] The service initializes default configuration values at startup.
 
 ## CLI parameters
 
 ## Environment Variables
+
+## Configuration
+
+### Periodic Status Updates
+
+- [fss-config-1] The periodic status update interval is configurable via
+  `services.aws.greengrass.NucleusLite.configuration.fleetStatus.periodicStatusPublishIntervalSeconds`
+- [fss-config-2] If not configured, defaults to 86400 seconds (24 hours)
+- [fss-config-3] Invalid values (≤ 0) fall back to the default
+
+### Service Configuration
+
+- [fss-config-4] The service stores its sequence number in
+  `services.FleetStatusService.sequenceNumber`
+- [fss-config-5] The service initializes default configuration values at startup
 
 ## Core Bus API
 
