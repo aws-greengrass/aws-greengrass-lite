@@ -104,14 +104,42 @@ static void connection_status_close_callback(void *ctx, uint32_t handle) {
     // TODO: Add reconnects (on another thread or with timer
 }
 
+static int64_t get_periodic_status_interval(void) {
+    static uint8_t config_mem[32] = { 0 };
+    GglArena alloc = ggl_arena_init(GGL_BUF(config_mem));
+    GglObject interval_obj;
+
+    GglError ret = ggl_gg_config_read(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.NucleusLite"),
+            GGL_STR("configuration"),
+            GGL_STR("fleetStatus"),
+            GGL_STR("periodicStatusPublishIntervalSeconds")
+        ),
+        &alloc,
+        &interval_obj
+    );
+
+    if ((ret == GGL_ERR_OK) && (ggl_obj_type(interval_obj) == GGL_TYPE_I64)) {
+        int64_t interval_seconds = ggl_obj_into_i64(interval_obj);
+        if (interval_seconds > 0) {
+            return interval_seconds;
+        }
+    }
+
+    return 86400; // Default 24 hours
+}
+
 static void *ggl_fleet_status_service_thread(void *ctx) {
     (void) ctx;
 
     GGL_LOGD("Starting fleet status service thread.");
 
     while (true) {
-        // thread will wait 24 hours before sending another update
-        GglError ret = ggl_sleep(86400);
+        int64_t interval_seconds = get_periodic_status_interval();
+
+        GglError ret = ggl_sleep((uint32_t) interval_seconds);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Fleet status service thread failed to sleep, exiting.");
             return NULL;
