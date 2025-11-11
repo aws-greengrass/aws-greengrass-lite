@@ -26,6 +26,8 @@ static GglError connection_status_callback(
 static void connection_status_close_callback(void *ctx, uint32_t handle);
 static void gg_fleet_statusd_start_server(void);
 static void *ggl_fleet_status_service_thread(void *ctx);
+static int64_t get_periodic_status_interval(void);
+static GglError init_fleet_status_service_config(void);
 
 static GglBuffer thing_name = { 0 };
 
@@ -56,6 +58,12 @@ GglError run_gg_fleet_statusd(void) {
     );
     if (ret != GGL_ERR_OK) {
         GGL_LOGE("Failed to subscribe to MQTT connection status.");
+    }
+
+    ret = init_fleet_status_service_config();
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to initialize FleetStatusService configuration.");
+        return ret;
     }
 
     pthread_t ptid_fss;
@@ -203,4 +211,36 @@ void gg_fleet_statusd_start_server(void) {
         = ggl_listen(GGL_STR("gg_fleet_status"), handlers, handlers_len);
 
     GGL_LOGE("Exiting with error %u.", (unsigned) ret);
+}
+
+static GglError init_fleet_status_service_config(void) {
+    GglError ret = ggl_gg_config_write(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("FleetStatusService"),
+            GGL_STR("version")
+        ),
+        ggl_obj_buf(GGL_STR(GGL_VERSION)),
+        NULL
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write FleetStatusService version to config.");
+        return ret;
+    }
+
+    ret = ggl_gg_config_write(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("FleetStatusService"),
+            GGL_STR("configArn")
+        ),
+        ggl_obj_list(GGL_LIST()),
+        NULL
+    );
+    if (ret != GGL_ERR_OK) {
+        GGL_LOGE("Failed to write FleetStatusService configArn to config.");
+        return ret;
+    }
+
+    return GGL_ERR_OK;
 }
