@@ -17,6 +17,8 @@ services:
         posixUser: "gg_component:gg_component"
       greengrassDataPlanePort: "8443"
       platformOverride: {}
+      fleetStatus:
+        periodicStatusPublishIntervalSeconds: 86400
   # aws.greengrass.fleet_provisioning:
   #   configuration:
   #     iotDataEndpoint: "<CONFIGURE_THIS>"
