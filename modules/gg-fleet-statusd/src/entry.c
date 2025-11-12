@@ -4,6 +4,7 @@
 
 #include "fleet_status_service.h"
 #include "gg_fleet_statusd.h"
+#include <ctype.h>
 #include <ggl/arena.h>
 #include <ggl/buffer.h>
 #include <ggl/core_bus/aws_iot_mqtt.h>
@@ -14,11 +15,12 @@
 #include <ggl/map.h>
 #include <ggl/object.h>
 #include <ggl/utils.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 static GglError connection_status_callback(
     void *ctx, uint32_t handle, GglObject data
@@ -26,6 +28,8 @@ static GglError connection_status_callback(
 static void connection_status_close_callback(void *ctx, uint32_t handle);
 static void gg_fleet_statusd_start_server(void);
 static void *ggl_fleet_status_service_thread(void *ctx);
+static uint64_t get_periodic_status_interval(void);
+static bool parse_positive_integer(GglBuffer str, uint32_t *result);
 
 static GglBuffer thing_name = { 0 };
 
@@ -104,14 +108,98 @@ static void connection_status_close_callback(void *ctx, uint32_t handle) {
     // TODO: Add reconnects (on another thread or with timer
 }
 
+static bool parse_positive_integer(GglBuffer str, uint32_t *result) {
+    if (str.len == 0) {
+        return false;
+    }
+
+    size_t counter = 0;
+    while (counter < str.len && isspace(str.data[counter])) {
+        counter++;
+    }
+
+    *result = 0;
+    for (size_t i = counter; i < str.len; i++) {
+        if (!isdigit(str.data[i])) {
+            return false;
+        }
+        uint32_t digit = str.data[i] - '0';
+        if (*result > (UINT32_MAX - digit) / 10) {
+            GGL_LOGE("Integer overflow detected while parsing config value");
+            return false;
+        }
+        *result = *result * 10 + digit;
+    }
+
+    return true;
+}
+
+static uint64_t get_periodic_status_interval(void) {
+    static uint8_t config_mem[32] = { 0 };
+    GglArena alloc = ggl_arena_init(GGL_BUF(config_mem));
+    GglObject interval_obj;
+
+    GglError ret = ggl_gg_config_read(
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("aws.greengrass.NucleusLite"),
+            GGL_STR("configuration"),
+            GGL_STR("fleetStatus"),
+            GGL_STR("periodicStatusPublishIntervalSeconds")
+        ),
+        &alloc,
+        &interval_obj
+    );
+
+    GGL_LOGD(
+        "Config read result: %d, interval_obj type: %d",
+        ret,
+        ggl_obj_type(interval_obj)
+    );
+
+    if (ret == GGL_ERR_OK) {
+        uint64_t interval_seconds = 0;
+
+        if (ggl_obj_type(interval_obj) == GGL_TYPE_I64) {
+            interval_seconds = (uint64_t) ggl_obj_into_i64(interval_obj);
+            GGL_LOGD(
+                "Found interval_obj value (int64): %" PRIu64, interval_seconds
+            );
+        } else if (ggl_obj_type(interval_obj) == GGL_TYPE_BUF) {
+            uint32_t parsed_value;
+            if (parse_positive_integer(
+                    ggl_obj_into_buf(interval_obj), &parsed_value
+                )) {
+                interval_seconds = parsed_value;
+            } else {
+                GGL_LOGD("Invalid value. Using default periodic status "
+                         "interval: 86400 seconds");
+                return 86400; // Default 24 hours
+            }
+        }
+        if (interval_seconds > 0) {
+            GGL_LOGD(
+                "Using periodic status interval from config: %" PRIu64
+                " seconds",
+                interval_seconds
+            );
+            return interval_seconds;
+        }
+    }
+
+    GGL_LOGD("Using default periodic status interval: 86400 seconds");
+    return 86400; // Default 24 hours
+}
+
 static void *ggl_fleet_status_service_thread(void *ctx) {
     (void) ctx;
 
     GGL_LOGD("Starting fleet status service thread.");
 
     while (true) {
-        // thread will wait 24 hours before sending another update
-        GglError ret = ggl_sleep(86400);
+        uint64_t interval_seconds = get_periodic_status_interval();
+
+        GglError ret = ggl_sleep((uint32_t) interval_seconds);
         if (ret != GGL_ERR_OK) {
             GGL_LOGE("Fleet status service thread failed to sleep, exiting.");
             return NULL;
