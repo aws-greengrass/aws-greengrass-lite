@@ -112,6 +112,7 @@ pyproject
 rbio
 Renesas
 respfd
+riscv
 rlimits
 rodata
 rootca

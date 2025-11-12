@@ -317,6 +317,8 @@ GgBuffer get_current_architecture(void) {
     current_arch = GG_STR("aarch64");
 #elif defined(__arm__)
     current_arch = GG_STR("arm");
+#elif defined(__riscv) && (__riscv_xlen == 64)
+    current_arch = GG_STR("riscv64");
 #endif
     return current_arch;
 }
