@@ -4,6 +4,7 @@
 
 #include "ggl/recipe.h"
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ggl/arena.h>
@@ -136,6 +137,32 @@ GglError ggl_parse_recipe_variable(
     }
 }
 
+static bool parse_positive_integer(GglBuffer str, uint64_t *result) {
+    if (str.len == 0) {
+        return false;
+    }
+
+    size_t counter = 0;
+    while (counter < str.len && isspace(str.data[counter])) {
+        counter++;
+    }
+
+    *result = 0;
+    for (size_t i = counter; i < str.len; i++) {
+        if (!isdigit(str.data[i])) {
+            return false;
+        }
+        uint64_t digit = str.data[i] - '0';
+        if (*result > (UINT64_MAX - digit) / 10) {
+            GGL_LOGE("Integer overflow detected while parsing config value");
+            return false;
+        }
+        *result = *result * 10 + digit;
+    }
+
+    return true;
+}
+
 static GglError process_script_section_as_map(
     GglMap selected_lifecycle_phase,
     bool *is_root,
@@ -172,11 +199,27 @@ static GglError process_script_section_as_map(
     }
 
     if (ggl_map_get(selected_lifecycle_phase, GGL_STR("Timeout"), &val)) {
-        if (ggl_obj_type(*val) != GGL_TYPE_I64) {
+        int64_t timeout_i64 = 0;
+
+        if (ggl_obj_type(*val) == GGL_TYPE_I64) {
+            timeout_i64 = ggl_obj_into_i64(*val);
+        } else if (ggl_obj_type(*val) == GGL_TYPE_BUF) {
+            if (!parse_positive_integer(
+                    ggl_obj_into_buf(*val), (uint64_t *) &timeout_i64
+                )) {
+                GGL_LOGE("Timeout must expand to a positive integer value");
+                return GGL_ERR_INVALID;
+            }
+        } else {
             GGL_LOGE("Timeout must expand to a positive integer value");
             return GGL_ERR_INVALID;
         }
-        int64_t timeout_i64 = ggl_obj_into_i64(*val);
+
+        if (timeout_i64 < 0) {
+            GGL_LOGE("Timeout must be a positive integer value");
+            return GGL_ERR_INVALID;
+        }
+
         static uint8_t timeout_mem[32];
         int len = snprintf(
             (char *) timeout_mem, sizeof(timeout_mem), "%" PRId64, timeout_i64
