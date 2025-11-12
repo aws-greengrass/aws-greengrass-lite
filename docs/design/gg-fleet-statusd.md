@@ -29,6 +29,24 @@ will be expanded upon as we continue to add new features to gg-fleet-statusd.
 2. The daemon will use `iotcored` to publish a fleet status update to IoT Core,
    containing the health statuses collected in the previous step.
 
+## Configuration
+
+The fleet status service supports the following configuration options:
+
+### NucleusLite Configuration
+
+- `services.aws.greengrass.NucleusLite.configuration.fleetStatus.periodicStatusPublishIntervalSeconds`:
+  Configures the interval (in seconds) between periodic fleet status updates.
+  Defaults to 86400 seconds (24 hours) if not specified.
+
+### FleetStatusService Configuration
+
+The service automatically initializes the following configuration at startup:
+
+- `services.FleetStatusService.version`: Service version
+- `services.FleetStatusService.sequenceNumber`: Sequence number for status
+  updates (auto-incremented)
+
 ## Offline Capabilities
 
 In this current stage of the design, fleet status service will not support any
