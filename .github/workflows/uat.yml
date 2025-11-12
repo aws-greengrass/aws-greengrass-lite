@@ -77,8 +77,8 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v5
         with:
           audience: sts.amazonaws.com
-          aws-region: ${{ secrets.AWS_DEFAULT_REGION }}
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-west-2
+          role-to-assume: arn:aws:iam::832850273037:role/GGL-UAT-GH-Role
           role-duration-seconds: ${{ matrix.test.timeout }}
           unset-current-credentials: true
 
@@ -93,9 +93,9 @@ jobs:
         run: |
           cd aws-greengrass-testing
           ./run-tests.sh \
-            --aws-account=${{ secrets.AWS_ACCOUNT_ID }} \
-            --s3-bucket=${{ secrets.S3_BUCKET }} \
+            --aws-account=832850273037 \
+            --s3-bucket=lite-uat-bucket \
             --commit-id=${{ env.SHA }} \
-            --aws-region=${{ secrets.AWS_DEFAULT_REGION }} \
+            --aws-region=us-west-2 \
             --test-category=${{ matrix.test.category }} \
             --test-name=${{ matrix.test.name }}
