@@ -253,7 +253,11 @@ GglError publish_fleet_status_update(
     // check for a persisted sequence number
     GglObject sequence_obj;
     ret = ggl_gg_config_read(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("fleetStatusSequenceNum")),
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("FleetStatusService"),
+            GGL_STR("sequenceNumber")
+        ),
         &alloc,
         &sequence_obj
     );
@@ -264,7 +268,11 @@ GglError publish_fleet_status_update(
     }
     // set the current sequence number in the config
     ret = ggl_gg_config_write(
-        GGL_BUF_LIST(GGL_STR("system"), GGL_STR("fleetStatusSequenceNum")),
+        GGL_BUF_LIST(
+            GGL_STR("services"),
+            GGL_STR("FleetStatusService"),
+            GGL_STR("sequenceNumber")
+        ),
         ggl_obj_i64(sequence),
         &(int64_t) { 0 }
     );
