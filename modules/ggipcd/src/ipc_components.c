@@ -212,10 +212,7 @@ GglError ggl_ipc_components_register(
     *component_handle = registered_components;
     set_component_name(*component_handle, component_name);
 
-    GglError ret = ggl_rand_fill(GGL_BUF(svcuids[*component_handle - 1].val));
-    if (ret != GGL_ERR_OK) {
-        return GGL_ERR_FATAL;
-    }
+    ggl_rand_fill(GGL_BUF(svcuids[*component_handle - 1].val));
     *svcuid = get_svcuid(*component_handle);
 
     return GGL_ERR_OK;

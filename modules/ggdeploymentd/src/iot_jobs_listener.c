@@ -525,7 +525,7 @@ static GglError next_job_execution_changed_callback(
 
 noreturn void *job_listener_thread(void *ctx) {
     (void) ctx;
-    ggl_backoff_indefinite(1, 1000, get_thing_name, NULL);
+    (void) ggl_backoff(1, 1000, 0, get_thing_name, NULL);
     listen_for_jobs_deployments();
 
     // coverity[infinite_loop]
@@ -537,7 +537,7 @@ noreturn void *job_listener_thread(void *ctx) {
             }
             needs_describe = false;
         }
-        ggl_backoff_indefinite(10, 10000, describe_next_job, NULL);
+        (void) ggl_backoff(10, 10000, 0, describe_next_job, NULL);
     }
 }
 
@@ -602,8 +602,8 @@ static void listen_for_jobs_deployments(void) {
     // Following "Get the next job" workflow
     // https://docs.aws.amazon.com/iot/latest/developerguide/jobs-workflow-device-online.html
     GGL_LOGD("Subscribing to IoT Jobs topics.");
-    ggl_backoff_indefinite(10, 10000, subscribe_to_next_job_topics, NULL);
-    ggl_backoff_indefinite(10, 10000, subscribe_to_connection_status, NULL);
+    (void) ggl_backoff(10, 10000, 0, subscribe_to_next_job_topics, NULL);
+    (void) ggl_backoff(10, 10000, 0, subscribe_to_connection_status, NULL);
 }
 
 GglError update_current_jobs_deployment(

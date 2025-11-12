@@ -4,11 +4,6 @@
     "rev": "f1827d8b46703f1c5ff05d21b34692d3122c9a04",
     "hash": "sha256-gXmv6zabWLUyQ2TVyzHNGaoqR8ISuKGZd13nI7DFIYM="
   },
-  "backoff_algorithm": {
-    "url": "https://github.com/FreeRTOS/backoffAlgorithm.git",
-    "rev": "f2f3bb2d8310f7cb48baa3ee64b635a5d66f838b",
-    "hash": "sha256-KlqFwW2mQ85ySAaSON5njoz8SfepKws1xgDSEc/mZeM="
-  },
   "aws_sigv4": {
     "url": "https://github.com/aws/SigV4-for-AWS-IoT-embedded-sdk.git",
     "rev": "f0409ced6c2c9430f0e972019b7e8f20bbf58f4e",
@@ -16,7 +11,7 @@
   },
   "ggl_sdk": {
     "url": "https://github.com/aws-greengrass/aws-greengrass-sdk-lite.git",
-    "rev": "1ee3a5ad3de59f141973839412b5025e67ea533d",
-    "hash": "sha256-X4hxoTaWTNLt/c5u5hzWIQehqkJO4/s12xPqIJjJtMk="
+    "rev": "febee8463690b30580a8fdfddcceebb66596195d",
+    "hash": "sha256-yObuWnBN+VTcIpyo9ihVf2/7uXb/cA/QilC8TrwSFVo="
   }
 }

@@ -4,8 +4,7 @@
 
 ggl_init_module(
   ggl-http
-  LIBS ggl-backoff
-       ggl-sdk
+  LIBS ggl-sdk
        aws_sigv4
        core-bus
        core-bus-gg-config

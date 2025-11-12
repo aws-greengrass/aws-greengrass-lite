@@ -8,7 +8,6 @@ ggl_init_module(
        ggl-constants
        ggl-common
        core-bus
-       ggl-backoff
        ggl-docker-client
        ggl-http
        ggl-uri

@@ -9,6 +9,5 @@ ggl_init_module(
        core-bus
        core-bus-gg-config
        core_mqtt
-       ggl-backoff
        ggl-uri
        PkgConfig::openssl)
