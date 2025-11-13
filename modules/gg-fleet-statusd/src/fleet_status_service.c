@@ -45,6 +45,8 @@ static const GglBuffer ARCHITECTURE =
     GGL_STR("aarch64");
 #elif defined(__arm__)
     GGL_STR("arm");
+#elif defined(__riscv) && (__riscv_xlen == 64)
+    GGL_STR("riscv64");
 #else
 #error "Unknown target architecture"
     { 0 };
